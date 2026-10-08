@@ -115,3 +115,66 @@ it('leaves the section out when a host reads no resource journal', async () => {
   expect(await screen.findByText(USAGE_EN.privacyNote)).toBeTruthy()
   expect(screen.queryByText(UI_TEXT.resourceHistoryObserved)).toBeNull()
 })
+
+it('labels the open minute from a running window as this minute so far, and only that minute', async () => {
+  const folder = await journalFolder()
+  const atMs = Date.now()
+  const writer = new ResourceJournal(new NodeUsageFs(folder), {
+    writerId: 'other-window',
+    now: Date.now,
+    isEnabled: () => true,
+  })
+  await writer.writeLive({
+    type: 'resource',
+    atMs,
+    event: null,
+    minute: {
+      cpuPercent: 12,
+      memoryUsedPercent: 34,
+      availableMemory: 'ample',
+      gpuPercent: null,
+      diskBusyPercent: null,
+      level: 'normal',
+      thresholds: { cpuMaxPercent: 85, memoryMaxPercent: 90, memoryMinFreeGiB: 2 },
+    },
+    work: [],
+  })
+  const state = await productionState(folder)
+  mount({ ...state, generatedAt: atMs })
+  expect(await screen.findByText(`${formatPercent(12)} / ${formatPercent(85)}`)).toBeTruthy()
+  expect(screen.getAllByText(UI_TEXT.resourceHistoryCurrentMinute)).toHaveLength(1)
+})
+
+it('shows rolled-up earlier days in their own paged table', async () => {
+  await mkdir('temp', { recursive: true })
+  const folder = await mkdtemp(path.resolve('temp/m107-usage-days-'))
+  folders.push(folder)
+  const old = Date.now() - 20 * 24 * 3_600_000
+  const writer = new ResourceJournal(new NodeUsageFs(folder, () => old), {
+    writerId: 'window',
+    now: () => old,
+    isEnabled: () => true,
+  })
+  await writer.append({
+    type: 'resource',
+    atMs: old,
+    event: null,
+    minute: {
+      cpuPercent: 44,
+      memoryUsedPercent: 55,
+      availableMemory: 'ample',
+      gpuPercent: null,
+      diskBusyPercent: null,
+      level: 'pause',
+      thresholds: { cpuMaxPercent: 85, memoryMaxPercent: 90, memoryMinFreeGiB: 2 },
+    },
+    work: [{ kind: 'check', cpuSeconds: 6, peakMemoryBytes: 1 }],
+  })
+  const state = await productionState(folder)
+  mount(state)
+  const daily = await screen.findByRole('region', { name: UI_TEXT.resourceHistoryDaily })
+  const day = new Date(old).toISOString().slice(0, 10)
+  expect(daily.textContent).toContain(day)
+  expect(daily.textContent).toContain(formatPercent(44))
+  expect(daily.textContent).toContain(`${UI_TEXT.resourcePause} 1`)
+})

@@ -75,6 +75,14 @@ export const EN = {
   resourceHistoryPage: 'Page {page} of {pages}',
   resourceHistoryDetailNotice:
     'Detail is limited to recent history. Totals include all retained journal records.',
+  resourceHistoryCurrentMinute: 'This minute so far',
+  resourceHistoryDaily: 'Earlier days',
+  resourceHistoryDailyNotice:
+    'Each completed day keeps its averages, minutes at each level, event count and harness work for the usage-history days.',
+  resourceHistoryDay: 'Day (UTC)',
+  resourceHistoryAverage: 'average',
+  resourceHistoryMinutes: 'Minutes recorded',
+  resourceHistoryLevelMinutes: 'Minutes by level',
   resourceMemoryBelowFloor: 'Below the memory floor',
   resourceMemoryLow: 'Low headroom',
   resourceMemoryAmple: 'Ample headroom',

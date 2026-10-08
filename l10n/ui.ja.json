@@ -4004,5 +4004,12 @@
   "agentRecoveryConfirm": "{action}: {objective}？現在の権限と予算が適用されます。",
   "agentRetryUnavailable": "再試行できません。このバックエンドには分離された作業ツリーのチェックポイントがありません。共有ワークスペースの変更は保持されます。",
   "agentContinueUnavailable": "このエージェントまたは現在の状態では続行できません。",
-  "referenceAgentOutcomes": "エージェントは活動状況と証拠に基づく結果を表示します。終了したエージェントを選ぶと、サイズ制限付きの記録と試行履歴が開きます。確認後の続行ではセッションと変更を保持し、再試行には分離されたチェックポイントが必要です。証拠がない場合は未検証と表示します。ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
+  "referenceAgentOutcomes": "エージェントは活動状況と証拠に基づく結果を表示します。終了したエージェントを選ぶと、サイズ制限付きの記録と試行履歴が開きます。確認後の続行ではセッションと変更を保持し、再試行には分離されたチェックポイントが必要です。証拠がない場合は未検証と表示します。ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "resourceHistoryCurrentMinute": "この分の途中経過",
+  "resourceHistoryDaily": "以前の日",
+  "resourceHistoryDailyNotice": "完了した各日は、平均値、レベルごとの分数、イベント数、エージェント実行環境の処理を使用履歴の日数のあいだ保持します。",
+  "resourceHistoryDay": "日 (UTC)",
+  "resourceHistoryAverage": "平均",
+  "resourceHistoryMinutes": "記録された分数",
+  "resourceHistoryLevelMinutes": "レベル別の分数"
 }

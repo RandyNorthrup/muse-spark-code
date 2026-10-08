@@ -1,6 +1,6 @@
 // The same private data folder is injected by VSIX, ACP, native runtimes and CLI.
 import { randomUUID } from 'node:crypto'
-import { constants } from 'node:fs'
+import { constants, type BigIntStats } from 'node:fs'
 import { lstat, mkdir, open, readdir, readFile, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -12,6 +12,7 @@ import {
 import type { UsageFs, UsageFileStat, UsageLock } from '../../core/usage/journalStore'
 import { createFileExclusively, isNameTaken, writeFileAtomically } from '../../host/fsAtomic'
 import { canonicalPath } from '../../host/canonicalPath'
+import { fileIdentityKey, lstatIdentity } from '../../core/fs/fileIdentity'
 
 function errorCode(error: unknown): string | undefined {
   return error instanceof Error && 'code' in error && typeof error.code === 'string'
@@ -57,6 +58,13 @@ export class NodeUsageFs implements UsageFs {
     await this.checkPath(file)
     await mkdir(path.dirname(file), { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
     await this.checkPath(file)
+  }
+  private async restore(trash: string, file: string): Promise<void> {
+    try {
+      await rename(trash, file)
+    } catch {
+      // A refused restore stays under its fresh name; the removal still fails.
+    }
   }
   private async lockState(relative: string) {
     const folder = relative.slice(0, relative.lastIndexOf('/'))
@@ -168,10 +176,68 @@ export class NodeUsageFs implements UsageFs {
       },
     })
   }
+  /**
+   * Race-safe removal (RVM107W2 P1). A checked pathname is never removed by
+   * name: the entry is first renamed to a fresh name inside the same parent,
+   * and only removed once that name proves to be the validated entry (dev/ino)
+   * in the same validated parent with no linked ancestor. A swap at any step is
+   * refused (and a moved entry put back without replacing anything), so the
+   * delete can never act on a directory outside the usage folder.
+   */
   public async remove(relative: string): Promise<void> {
     const file = await this.resolve(relative)
     await this.checkPath(file)
-    await rm(file, { recursive: true, force: true })
+    const parent = path.dirname(file)
+    let target: BigIntStats
+    try {
+      target = await lstatIdentity(file)
+    } catch (error) {
+      if (errorCode(error) === 'ENOENT') return
+      throw error
+    }
+    const targetIdentity = fileIdentityKey(target)
+    const parentIdentity = fileIdentityKey(await lstatIdentity(parent))
+    if (targetIdentity === undefined || parentIdentity === undefined || target.isSymbolicLink())
+      throw new Error('unsafeUsagePath')
+    const trash = path.join(parent, `.removing-${randomUUID()}`)
+    try {
+      await rename(file, trash)
+    } catch (error) {
+      if (errorCode(error) === 'ENOENT') return
+      throw error
+    }
+    const isSame = async (): Promise<boolean> => {
+      try {
+        await this.checkPath(trash)
+        const moved = await lstatIdentity(trash)
+        return (
+          !moved.isSymbolicLink() &&
+          fileIdentityKey(moved) === targetIdentity &&
+          fileIdentityKey(await lstatIdentity(parent)) === parentIdentity
+        )
+      } catch {
+        return false
+      }
+    }
+    if (!(await isSame())) {
+      // Put back whatever was moved, never over a replacement, then refuse.
+      try {
+        await lstatIdentity(file)
+      } catch (error) {
+        if (errorCode(error) === 'ENOENT') await this.restore(trash, file)
+      }
+      throw new Error('usagePathChanged')
+    }
+    await rm(trash, { recursive: true, force: true })
+    // A swap during removal redirects it away from our files; report, never succeed.
+    let isGone = false
+    try {
+      await lstatIdentity(trash)
+    } catch (error) {
+      isGone = errorCode(error) === 'ENOENT'
+    }
+    if (!isGone || fileIdentityKey(await lstatIdentity(parent)) !== parentIdentity)
+      throw new Error('usagePathChanged')
   }
   public async acquireLock(relative: string, staleMs: number): Promise<UsageLock | undefined> {
     await this.prepare(await this.resolve(relative))

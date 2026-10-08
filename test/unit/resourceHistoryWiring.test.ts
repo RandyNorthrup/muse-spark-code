@@ -2,13 +2,18 @@ import { appendFile, mkdir, mkdtemp, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { acpResourceCommand } from '../../src/acp/resources'
-import { RESOURCE_JOURNAL_ROOT } from '../../src/core/usage/resourceJournal'
+import { RESOURCE_JOURNAL_ROOT, ResourceJournal } from '../../src/core/usage/resourceJournal'
+import { resourceHistoryText } from '../../src/core/usage/resourceText'
+import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
+import { resourceRecordSchema } from '../../src/shared/resources'
+import { usageDeleteDetail } from '../../src/shared/usageDeleteText'
+import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 import { createResources, type ResourceEntryOptions } from '../../src/runtime/resources/entry'
 import type { RuntimeResources } from '../../src/runtime/resources/port'
 import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
 import { RESOURCE_HISTORY_MAX_MINUTES, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
-import { formatPercent } from '../../src/shared/l10n/text'
+import { formatPercent, plural } from '../../src/shared/l10n/text'
 import { resourceHistorySchema } from '../../src/shared/resourceHistory'
 import { usagePageStateSchema } from '../../src/shared/usagePage'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -55,6 +60,7 @@ function usage(dataFolderPath: string) {
     log: new FakeLogOutputChannel(),
   })
 }
+const DAY_NAME = /^\d{4}-\d{2}-\d{2}$/u
 const QUERY = { range: 'today', groupBy: 'provider', metric: 'cost' } as const
 
 describe('M107 J/M102 production history binding', () => {
@@ -90,7 +96,7 @@ describe('M107 J/M102 production history binding', () => {
     expect(state.resources).toEqual(history)
     // The journal holds no process identity, command, path or environment.
     const day = await readdir(path.join(folder, ...RESOURCE_JOURNAL_ROOT.split('/')))
-    expect(day).toHaveLength(1)
+    expect(day.filter((name) => DAY_NAME.test(name))).toHaveLength(1)
   })
 
   it('refuses an unreadable journal on every surface instead of showing empty history', async () => {
@@ -166,5 +172,96 @@ describe('M107 J/M102 production history binding', () => {
       expect(usagePageStateSchema.safeParse({ ...state, resources: resourcesField }).success).toBe(
         false,
       )
+  })
+})
+
+function reading(atMs: number, cpuPercent: number) {
+  return resourceRecordSchema.parse({
+    type: 'resource',
+    atMs,
+    event: null,
+    minute: {
+      cpuPercent,
+      memoryUsedPercent: 50,
+      availableMemory: 'ample',
+      gpuPercent: null,
+      diskBusyPercent: null,
+      level: 'normal',
+      thresholds: { cpuMaxPercent: 85, memoryMaxPercent: 90, memoryMinFreeGiB: 2 },
+    },
+    work: [],
+  })
+}
+
+describe('M107 W-history closure: delete count, current minute and daily rows', () => {
+  it('names every resource entry in the Delete history prompt and removes them with it', async () => {
+    const folder = await dataFolder()
+    const writer = new ResourceJournal(new NodeUsageFs(folder), {
+      writerId: 'window',
+      now: Date.now,
+      isEnabled: () => true,
+    })
+    await writer.append(reading(Date.now() - 120_000, 10))
+    await writer.writeLive(reading(Date.now(), 20))
+    const confirmDelete = vi.fn((_records: number, _resources: number) => Promise.resolve(true))
+    const posted: unknown[] = []
+    const connection = usage(folder).connect({
+      post: (message) => {
+        posted.push(message)
+      },
+      confirmDelete,
+    })
+    await connection.receive({ type: 'usage/deleteHistory', requestId: 'delete' })
+    expect(confirmDelete).toHaveBeenCalledExactlyOnceWith(0, 2)
+    expect(usageDeleteDetail(0, 2)).toBe(
+      `${plural(USAGE_EN.deleteConfirm, 0)} ${plural(USAGE_EN.deleteConfirmResources, 2)}`,
+    )
+    expect(posted).toContainEqual(expect.objectContaining({ outcome: 'completed' }))
+    await expect(readdir(path.join(folder, ...RESOURCE_JOURNAL_ROOT.split('/')))).rejects.toThrow()
+    const reader = await resources(folder)
+    const cleared = await reader.history()
+    expect(cleared).toEqual({ minutes: [], events: [], counts: [], work: [] })
+  })
+
+  it('shows a running agent’s open minute to a separate reader, labelled as this minute so far', async () => {
+    const folder = await dataFolder()
+    const agent = await resources(folder, { isRecordingHistory: () => true })
+    const status = await agent.status()
+    // The agent keeps running: its open minute is only in its live file.
+    const cli = await resources(folder)
+    const history = await vi.waitFor(async () => {
+      const read = await cli.history()
+      expect(read.minutes).toHaveLength(1)
+      return read
+    })
+    const atMs = status.sample?.atMs ?? 0
+    expect(history.minutes[0]?.atMs).toBe(atMs)
+    expect(resourceHistoryText(history, atMs)).toContain(UI_TEXT.resourceHistoryCurrentMinute)
+    expect(resourceHistoryText(history, atMs + 60_000)).not.toContain(
+      UI_TEXT.resourceHistoryCurrentMinute,
+    )
+    const state = await usage(folder).read(QUERY)
+    expect(state.resources?.minutes.map((record) => record.atMs)).toEqual([atMs])
+  })
+
+  it('rolls completed days up for the page and text, beyond the seven-day detail', async () => {
+    const folder = await dataFolder()
+    const old = Date.now() - 20 * 24 * 3_600_000
+    const writer = new ResourceJournal(new NodeUsageFs(folder), {
+      writerId: 'window',
+      now: () => old,
+      isEnabled: () => true,
+    })
+    await writer.append(reading(old, 42))
+    const state = await usage(folder).read(QUERY)
+    const day = new Date(old).toISOString().slice(0, 10)
+    expect(state.resources?.days).toEqual([
+      expect.objectContaining({ day, minutes: 1, cpuPercent: 42, memoryUsedPercent: 50 }),
+    ])
+    expect(state.resources?.minutes).toEqual([])
+    const cli = await resources(folder)
+    const text = await cli.command('history', false)
+    expect(text).toContain(UI_TEXT.resourceHistoryDaily)
+    expect(text).toContain(`${UI_TEXT.resourceHistoryDay}: ${day}`)
   })
 })

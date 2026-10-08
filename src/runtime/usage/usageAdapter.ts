@@ -20,7 +20,8 @@ export interface UsagePagePorts extends Pick<
 > {
   readonly post: (message: UsageServiceToPageMessage) => void
   readonly saveFile?: (content: string, format: 'csv' | 'json') => Promise<boolean>
-  readonly confirmDelete?: (records: number) => Promise<boolean>
+  /** The second count: resource history entries the same delete removes (M107 J). */
+  readonly confirmDelete?: (records: number, resources: number) => Promise<boolean>
   readonly setHistory?: (isEnabled: boolean) => Promise<void>
   readonly exportMaxBytes?: number
 }

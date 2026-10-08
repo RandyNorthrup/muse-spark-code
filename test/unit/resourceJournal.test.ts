@@ -100,7 +100,8 @@ describe('M107 J/M102 durable resource journal', () => {
     await store.append(minute(NOW - 60_000))
     await store.append(override(NOW))
     // Every append asks the filesystem adapter to flush before resolving.
-    expect(append.mock.calls.map((call) => call[2])).toEqual([true, true])
+    const journalCalls = append.mock.calls.filter((call) => call[0].endsWith('.jsonl'))
+    expect(journalCalls.map((call) => call[2])).toEqual([true, true])
     expect(await readdir(dayFolder(folder, NOW))).toEqual(['writer-a.0.jsonl'])
     const text = await readFile(path.join(dayFolder(folder, NOW), 'writer-a.0.jsonl'), 'utf8')
     const lines = text
@@ -108,12 +109,13 @@ describe('M107 J/M102 durable resource journal', () => {
       .split('\n')
       .map((line): unknown => JSON.parse(line))
     expect(lines).toEqual([
-      { v: RESOURCE_JOURNAL_VERSION, record: minute(NOW - 60_000) },
-      { v: RESOURCE_JOURNAL_VERSION, record: override(NOW) },
+      { v: RESOURCE_JOURNAL_VERSION, id: '1', record: minute(NOW - 60_000) },
+      { v: RESOURCE_JOURNAL_VERSION, id: '2', record: override(NOW) },
     ])
     expect(await store.read()).toEqual({
       records: [minute(NOW - 60_000), override(NOW)],
       sources: ['writer-a', 'writer-a'],
+      days: [],
     })
   })
 
@@ -126,7 +128,7 @@ describe('M107 J/M102 durable resource journal', () => {
       () => false,
     )
     await store.append(minute(NOW))
-    expect(await store.read()).toEqual({ records: [], sources: [] })
+    expect(await store.read()).toEqual({ records: [], sources: [], days: [] })
     await expect(readdir(path.join(folder, 'usage'))).rejects.toThrow()
     expect(() => journal(folder, '../escape')).toThrow('invalidResourceWriter')
     expect(() => journal(folder, 'a.b')).toThrow('invalidResourceWriter')
@@ -197,6 +199,11 @@ describe('M107 J/M102 durable resource journal', () => {
   })
 
   it('bounds each file and the whole read, dropping past the cap instead of retrying forever', async () => {
+    const empty = JSON.stringify({ v: RESOURCE_JOURNAL_VERSION + 1, padding: '' }).length
+    const newerLine = `${JSON.stringify({ v: RESOURCE_JOURNAL_VERSION + 1, padding: 'x'.repeat(127 - empty) })}\n`
+    const newerLines = new TextEncoder().encode(
+      newerLine.repeat(RESOURCE_JOURNAL_FILE_MAX_BYTES / newerLine.length),
+    )
     const sizes = new Map<string, number>()
     const fake: UsageFs = {
       list: (relative) =>
@@ -210,7 +217,8 @@ describe('M107 J/M102 durable resource journal', () => {
           size: sizes.get(relative) ?? RESOURCE_JOURNAL_FILE_MAX_BYTES,
           mtimeMs: 1,
         }),
-      read: () => Promise.resolve(new Uint8Array()),
+      // Each file really holds its measured 4 MiB (valid lines from a newer build).
+      read: () => Promise.resolve(newerLines),
       append: vi.fn(() => Promise.resolve()),
       writeFileAtomically: () => Promise.resolve(),
       remove: () => Promise.resolve(),
@@ -223,8 +231,13 @@ describe('M107 J/M102 durable resource journal', () => {
       isEnabled: () => true,
       onDropped,
     })
-    const line = `${JSON.stringify({ v: RESOURCE_JOURNAL_VERSION, record: minute(NOW) })}\n`
-    const capacity = Math.floor(RESOURCE_JOURNAL_FILE_MAX_BYTES / Buffer.byteLength(line))
+    // Each line carries its collector-scoped id, so line sizes grow with the id.
+    let capacity = 0
+    for (let used = 0; ; capacity++) {
+      const record = { v: RESOURCE_JOURNAL_VERSION, id: String(capacity + 1), record: minute(NOW) }
+      used += Buffer.byteLength(`${JSON.stringify(record)}\n`)
+      if (used > RESOURCE_JOURNAL_FILE_MAX_BYTES) break
+    }
     for (let index = 0; index < capacity + 2; index++) await store.append(minute(NOW))
     // Exactly the bytes that fit were written; the rest were dropped with one report.
     expect(fake.append).toHaveBeenCalledTimes(capacity)
@@ -338,5 +351,135 @@ describe('M107 J/M102 durable resource journal', () => {
     const refused = await recorder.history.read()
     expect(refused.events).toHaveLength(1)
     expect(onError).not.toHaveBeenCalled()
+  })
+})
+
+const DAY = MILLISECONDS_PER_DAY
+function at(level: 'normal' | 'pause', atMs: number, cpu: number | null): ResourceRecord {
+  const base = minute(atMs, cpu ?? 0)
+  if (base.minute === null) throw new Error('minute')
+  return { ...base, minute: { ...base.minute, cpuPercent: cpu, level } }
+}
+async function cpuReadings(store: ResourceJournal): Promise<(number | null | undefined)[]> {
+  const read = await store.read()
+  return read.records.map((record) => record.minute?.cpuPercent)
+}
+
+describe('M107 J/M102 daily rollups, live minute and delete count', () => {
+  it('rolls completed days into daily rows from each collector latest snapshot, then removes old raw days', async () => {
+    const folder = await dataFolder()
+    let now = NOW - 10 * DAY
+    const one = journal(folder, 'one', () => now)
+    const two = journal(folder, 'two', () => now)
+    await one.append(at('normal', now, 10))
+    // The same segment's later cumulative snapshot replaces the earlier one.
+    await one.append(at('normal', now, 30))
+    await two.append(at('pause', now, null))
+    await one.append(override(now + 1))
+    now = NOW
+    const reader = journal(
+      folder,
+      'reader',
+      () => now,
+      () => false,
+    )
+    await reader.retain()
+    const read = await reader.read()
+    expect(read.days).toEqual([
+      {
+        day: day(NOW - 10 * DAY),
+        minutes: 2,
+        cpuPercent: 30,
+        memoryUsedPercent: 40,
+        levels: { normal: 1, throttle: 0, relocate: 0, pause: 1 },
+        events: 1,
+        work: [{ kind: 'check', cpuSeconds: 2, peakMemoryBytes: 10 }],
+      },
+    ])
+    // Rolled up first, so the raw day past the detail window could be removed.
+    await expect(readdir(dayFolder(folder, NOW - 10 * DAY))).rejects.toThrow()
+    const rollups = path.join(folder, ...RESOURCE_JOURNAL_ROOT.split('/'), 'rollups')
+    expect(await readdir(rollups)).toEqual([`${day(NOW - 10 * DAY).slice(0, 7)}.json`])
+  })
+
+  it('re-rolls a day that changed, keeps unreadable days raw and drops rows past the history days', async () => {
+    const folder = await dataFolder()
+    let now = NOW - 3 * DAY
+    let historyDays = 365
+    const writer = new ResourceJournal(new NodeUsageFs(folder, () => now), {
+      writerId: 'one',
+      now: () => now,
+      isEnabled: () => true,
+      historyDays: () => historyDays,
+    })
+    await writer.append(at('normal', now, 20))
+    now = NOW - 2 * DAY
+    await writer.retain()
+    const first = await writer.read()
+    expect(first.days.map((row) => row.minutes)).toEqual([1])
+    // A late append into the completed day (a resumed laptop) changes its size.
+    await writer.append(at('normal', NOW - 3 * DAY + 60_000, 40))
+    now += 3_600_000
+    await writer.retain()
+    const second = await writer.read()
+    expect(second.days.map((row) => [row.minutes, row.cpuPercent])).toEqual([[2, 30]])
+    // An unreadable day past the detail window is neither rolled up nor removed.
+    const broken = dayFolder(folder, NOW - 12 * DAY)
+    await mkdir(broken, { recursive: true })
+    await writeFile(path.join(broken, 'x.0.jsonl'), 'garbage\n')
+    now += 3_600_000
+    await writer.retain()
+    const third = await writer.read()
+    expect(third.days.map((row) => row.day)).toEqual([day(NOW - 3 * DAY)])
+    expect(await readdir(broken)).toEqual(['x.0.jsonl'])
+    // Shortening the usage-history days drops older rows, raw days and month files.
+    historyDays = 1
+    now += 3_600_000
+    await writer.retain()
+    const fourth = await writer.read()
+    expect(fourth.days).toEqual([])
+    await expect(readdir(broken)).rejects.toThrow()
+  })
+
+  it('publishes the open minute for other processes until the journal holds its final snapshot', async () => {
+    const folder = await dataFolder()
+    const writer = journal(folder, 'window')
+    const cli = journal(
+      folder,
+      'cli',
+      () => NOW,
+      () => false,
+    )
+    await writer.writeLive(at('normal', NOW - 10_000, 55))
+    const live = await cli.read()
+    expect(live.records).toEqual([at('normal', NOW - 10_000, 55)])
+    expect(live.sources).toEqual(['window'])
+    // The live file is replaced, never appended.
+    await writer.writeLive(at('normal', NOW - 10_000, 65))
+    expect(await cpuReadings(cli)).toEqual([65])
+    await writer.append(at('normal', NOW - 10_000, 70))
+    expect(await cpuReadings(cli)).toEqual([70])
+    await expect(writer.writeLive(override(NOW))).rejects.toThrow()
+    const liveFile = path.join(folder, ...RESOURCE_JOURNAL_ROOT.split('/'), 'live', 'window.json')
+    await writeFile(liveFile, '{"v":1,"record":{"pid":1}}')
+    await expect(cli.read()).rejects.toMatchObject({ code: 'resourceHistoryCorrupt' })
+  })
+
+  it('counts every stored entry Delete history removes, including unreadable lines', async () => {
+    const folder = await dataFolder()
+    const writer = journal(folder, 'window')
+    await writer.append(minute(NOW - 60_000))
+    await writer.append(override(NOW))
+    await writer.writeLive(minute(NOW))
+    const reader = journal(
+      folder,
+      'reader',
+      () => NOW,
+      () => false,
+    )
+    expect(await reader.count()).toBe(3)
+    await appendFile(path.join(dayFolder(folder, NOW), 'window.0.jsonl'), 'garbage\n')
+    expect(await reader.count()).toBe(4)
+    expect(await journal(await dataFolder()).count()).toBe(0)
   })
 })

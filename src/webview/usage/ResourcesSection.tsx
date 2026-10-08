@@ -6,7 +6,10 @@ import {
 } from '../../shared/constants'
 import { fill, formatBytes, formatNumber, formatPercent, formatUnit } from '../../shared/l10n/text'
 import {
+  isResourceHistoryCurrentMinute,
   resourceHistoryBucket,
+  resourceHistoryDayCpuSeconds,
+  resourceHistoryLevelMinutes,
   resourceHistoryDateTime,
   resourceHistoryEventDetail,
   resourceHistoryEventName,
@@ -19,6 +22,8 @@ import './ResourcesSection.css'
 export interface ResourcesSectionProps {
   /** The shared usage bridge supplies the validated aggregate, never raw trees. */
   readonly history: unknown
+  /** The state's generation time: the minute segment containing it is this minute so far. */
+  readonly now?: number
 }
 
 const percent = (value: number | null) =>
@@ -145,10 +150,11 @@ function ResourceChart({
 }
 
 /** Shared usage page section for VS Code, MHP and the companion; no editor API. */
-export default function ResourcesSection({ history: raw }: ResourcesSectionProps) {
+export default function ResourcesSection({ history: raw, now }: ResourcesSectionProps) {
   const parsed = useMemo(() => resourceHistorySchema.safeParse(raw), [raw])
   const [minutePageIndex, setMinutePage] = useState(0)
   const [eventPageIndex, setEventPage] = useState(0)
+  const [dayPageIndex, setDayPage] = useState(0)
   if (!parsed.success)
     return (
       <section className="usage-resources">
@@ -159,6 +165,8 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
   const history = parsed.data
   const minutePage = historyPage(history.minutes, minutePageIndex)
   const eventPage = historyPage(history.events, eventPageIndex)
+  const days = history.days ?? []
+  const dayPage = historyPage(days, dayPageIndex)
   const visibleHistory = { ...history, minutes: minutePage.entries }
   const nextAtMs = history.minutes[minutePage.end]?.atMs ?? Infinity
   const spans = intervals(visibleHistory, nextAtMs)
@@ -171,7 +179,7 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
       {history.minutes.length + history.events.length === 0 ? null : (
         <p>{UI_TEXT.resourceHistoryDetailNotice}</p>
       )}
-      {history.minutes.length === 0 && history.events.length === 0 ? (
+      {history.minutes.length === 0 && history.events.length === 0 && days.length === 0 ? (
         <p>{UI_TEXT.resourceHistoryEmpty}</p>
       ) : null}
       {history.minutes.length === 0 ? null : (
@@ -226,7 +234,17 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
                 {minutePage.entries.map((record, index) =>
                   record.minute === null ? null : (
                     <tr key={`${String(record.atMs)}:${String(index)}`}>
-                      <th scope="row">{resourceHistoryDateTime(record.atMs)}</th>
+                      <th scope="row">
+                        {resourceHistoryDateTime(record.atMs)}
+                        {now !== undefined && isResourceHistoryCurrentMinute(record.atMs, now) ? (
+                          <>
+                            {' '}
+                            <span className="usage-resource-current">
+                              {UI_TEXT.resourceHistoryCurrentMinute}
+                            </span>
+                          </>
+                        ) : null}
+                      </th>
                       <td>{resourceHistoryLevel(record.minute.level)}</td>
                       <td>
                         {percent(record.minute.cpuPercent)} /{' '}
@@ -334,6 +352,53 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {days.length === 0 ? null : (
+        <div
+          className="usage-resource-table"
+          role="region"
+          aria-label={UI_TEXT.resourceHistoryDaily}
+          tabIndex={0}
+        >
+          <p>{UI_TEXT.resourceHistoryDailyNotice}</p>
+          <table>
+            <caption>{UI_TEXT.resourceHistoryDaily}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{UI_TEXT.resourceHistoryDay}</th>
+                <th scope="col">
+                  {UI_TEXT.resourceCpu} ({UI_TEXT.resourceHistoryAverage})
+                </th>
+                <th scope="col">
+                  {UI_TEXT.resourceMemory} ({UI_TEXT.resourceHistoryAverage})
+                </th>
+                <th scope="col">{UI_TEXT.resourceHistoryMinutes}</th>
+                <th scope="col">{UI_TEXT.resourceHistoryLevelMinutes}</th>
+                <th scope="col">{UI_TEXT.resourceHistoryEvents}</th>
+                <th scope="col">{UI_TEXT.resourceHarness}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dayPage.entries.map((day) => (
+                <tr key={day.day}>
+                  <th scope="row">{day.day}</th>
+                  <td>{percent(day.cpuPercent)}</td>
+                  <td>{percent(day.memoryUsedPercent)}</td>
+                  <td>{formatNumber(day.minutes)}</td>
+                  <td>{resourceHistoryLevelMinutes(day.levels)}</td>
+                  <td>{formatNumber(day.events)}</td>
+                  <td>{formatUnit(resourceHistoryDayCpuSeconds(day), 'second')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <HistoryPager
+            length={days.length}
+            page={dayPage.page}
+            onPage={setDayPage}
+            label={UI_TEXT.resourceHistoryDaily}
+          />
         </div>
       )}
     </section>

@@ -4292,5 +4292,12 @@
   "agentRecoveryConfirm": "{action} : {objective} ? Les autorisations et budgets actuels s’appliquent.",
   "agentRetryUnavailable": "Nouvelle tentative indisponible : ce backend ne fournit aucun point de contrôle isolé de l’arbre de travail. Les modifications de l’espace partagé sont conservées.",
   "agentContinueUnavailable": "La continuation est indisponible pour cet agent ou son état actuel.",
-  "referenceAgentOutcomes": "Les agents affichent leur activité et des résultats étayés. Sélectionnez un agent terminé pour son relevé limité et son historique. Continuer conserve la session et les modifications après confirmation ; réessayer exige un point de contrôle isolé. Les preuves manquantes restent non vérifiées. ACP : /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
+  "referenceAgentOutcomes": "Les agents affichent leur activité et des résultats étayés. Sélectionnez un agent terminé pour son relevé limité et son historique. Continuer conserve la session et les modifications après confirmation ; réessayer exige un point de contrôle isolé. Les preuves manquantes restent non vérifiées. ACP : /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "resourceHistoryCurrentMinute": "Cette minute jusqu’ici",
+  "resourceHistoryDaily": "Jours précédents",
+  "resourceHistoryDailyNotice": "Chaque journée terminée conserve ses moyennes, les minutes à chaque niveau, le nombre d’événements et le travail de l’environnement d’agent pendant les jours de l’historique d’utilisation.",
+  "resourceHistoryDay": "Jour (UTC)",
+  "resourceHistoryAverage": "moyenne",
+  "resourceHistoryMinutes": "Minutes enregistrées",
+  "resourceHistoryLevelMinutes": "Minutes par niveau"
 }

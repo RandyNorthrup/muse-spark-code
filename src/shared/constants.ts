@@ -71,6 +71,20 @@ export const RESOURCE_JOURNAL_READ_MAX_BYTES = 32 * 1024 * 1024
 export const RESOURCE_JOURNAL_REMOVE_MARGIN_DAYS = 2
 // A record stamped further ahead than this (a wrong clock) is out of range.
 export const RESOURCE_JOURNAL_FUTURE_SKEW_MS = 5 * RESOURCE_HISTORY_MINUTE_MS
+// D87.11 under D82's rollups: completed UTC days become one daily row in
+// `rollups/<YYYY-MM>.json`, kept for the usage-history days (at most 1825).
+// A day is rolled up once it ended this long ago, so its last minute is in.
+export const RESOURCE_JOURNAL_ROLLUP_DELAY_MS = 60 * RESOURCE_HISTORY_MINUTE_MS
+// Retention and rollup run at most this often per process.
+export const RESOURCE_JOURNAL_RETAIN_MS = 60 * RESOURCE_HISTORY_MINUTE_MS
+export const RESOURCE_HISTORY_MAX_DAYS = 1825
+// The open minute so far is published to `live/<collector>.json` at most this
+// often, so every surface (including other processes) shows the current minute.
+export const RESOURCE_JOURNAL_LIVE_MS = 15_000
+// Delete history's reset boundary, beside (not inside) the usage folder.
+export const RESOURCE_JOURNAL_RESET_FILE = 'resource-history-reset.json'
+// A closing window or agent waits at most this long for its open minute's write.
+export const RESOURCE_HISTORY_FLUSH_TIMEOUT_MS = 2000
 export const RESOURCE_CPU_DEFAULT_PERCENT = 85
 export const RESOURCE_CPU_MIN_PERCENT = 30
 export const RESOURCE_MEMORY_DEFAULT_PERCENT = 90

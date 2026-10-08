@@ -226,5 +226,10 @@
   "exportTooLarge": "Esta exportação é grande demais para o navegador. Escolha um período menor ou exporte pela CLI.",
   "exportBound": "As exportações do navegador são limitadas a {limit}, incluindo a codificação JSON.",
   "editorActionsUnavailable": "Esta página não pode abrir as configurações do editor, mostrar a pasta do histórico nem editar os preços dos modelos. Use as configurações do editor e os controles de Modelos e agentes. Leitura, filtros, gráficos e exportações continuam disponíveis aqui.",
-  "readOnlyActions": "Esta interface de texto é somente leitura. Abra a página complementar para gráficos, controles do histórico e downloads."
+  "readOnlyActions": "Esta interface de texto é somente leitura. Abra a página complementar para gráficos, controles do histórico e downloads.",
+  "deleteConfirmResources": {
+    "one": "Também exclui {count} entrada do histórico de recursos.",
+    "many": "Também exclui {count} entradas do histórico de recursos.",
+    "other": "Também exclui {count} entradas do histórico de recursos."
+  }
 }

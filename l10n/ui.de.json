@@ -4148,5 +4148,12 @@
   "agentRecoveryConfirm": "{action}: {objective}? Aktuelle Berechtigungen und Budgets gelten.",
   "agentRetryUnavailable": "Erneuter Versuch nicht verfügbar: Dieses Backend bietet keinen isolierten Worktree-Kontrollpunkt. Änderungen im gemeinsamen Arbeitsbereich bleiben erhalten.",
   "agentContinueUnavailable": "Fortsetzen ist für diesen Agenten oder seinen aktuellen Zustand nicht verfügbar.",
-  "referenceAgentOutcomes": "Agenten zeigen Aktivität und nachweisgestützte Ergebnisse. Wählen Sie einen beendeten Agenten für seinen begrenzten Beleg und Versuchsverlauf. Fortsetzen bewahrt nach Bestätigung Sitzung und Änderungen; ein erneuter Versuch erfordert einen isolierten Kontrollpunkt. Fehlende Nachweise gelten als ungeprüft. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
+  "referenceAgentOutcomes": "Agenten zeigen Aktivität und nachweisgestützte Ergebnisse. Wählen Sie einen beendeten Agenten für seinen begrenzten Beleg und Versuchsverlauf. Fortsetzen bewahrt nach Bestätigung Sitzung und Änderungen; ein erneuter Versuch erfordert einen isolierten Kontrollpunkt. Fehlende Nachweise gelten als ungeprüft. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "resourceHistoryCurrentMinute": "Diese Minute bisher",
+  "resourceHistoryDaily": "Frühere Tage",
+  "resourceHistoryDailyNotice": "Jeder abgeschlossene Tag behält Durchschnittswerte, Minuten je Stufe, Ereigniszahl und Arbeit der Agentenumgebung für die Tage des Nutzungsverlaufs.",
+  "resourceHistoryDay": "Tag (UTC)",
+  "resourceHistoryAverage": "Durchschnitt",
+  "resourceHistoryMinutes": "Erfasste Minuten",
+  "resourceHistoryLevelMinutes": "Minuten je Stufe"
 }

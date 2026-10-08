@@ -4004,5 +4004,12 @@
   "agentRecoveryConfirm": "{action}：{objective}？将应用当前权限和预算。",
   "agentRetryUnavailable": "无法重试：此后端不提供隔离的工作树检查点。共享工作区的更改会保留。",
   "agentContinueUnavailable": "此代理或其当前状态无法继续。",
-  "referenceAgentOutcomes": "代理显示活动状态和基于证据的结果。选择已结束的代理可查看有大小限制的记录及尝试历史。确认后继续会保留会话和更改；重试需要隔离的检查点。缺失的证据显示为未验证。ACP：/agents, /agents receipt ID, /agents continue ID, /agents retry ID."
+  "referenceAgentOutcomes": "代理显示活动状态和基于证据的结果。选择已结束的代理可查看有大小限制的记录及尝试历史。确认后继续会保留会话和更改；重试需要隔离的检查点。缺失的证据显示为未验证。ACP：/agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "resourceHistoryCurrentMinute": "本分钟截至目前",
+  "resourceHistoryDaily": "更早的日期",
+  "resourceHistoryDailyNotice": "每个已完成的日期会在用量历史记录保留天数内保留其平均值、各级别的分钟数、事件数和代理运行环境的工作。",
+  "resourceHistoryDay": "日期 (UTC)",
+  "resourceHistoryAverage": "平均",
+  "resourceHistoryMinutes": "已记录的分钟数",
+  "resourceHistoryLevelMinutes": "按级别的分钟数"
 }

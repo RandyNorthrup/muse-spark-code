@@ -5,8 +5,8 @@ import {
   VSCODE_COMMANDS,
   WEBVIEW_DIST_SEGMENTS,
 } from '../../shared/constants'
-import { plural } from '../../shared/l10n/text'
 import { USAGE_TEXT, type UsageTable } from '../../shared/l10n/usageTable'
+import { usageDeleteDetail } from '../../shared/usageDeleteText'
 import {
   parseUsagePageToServiceMessage,
   parseUsageServiceToPageMessage,
@@ -87,10 +87,10 @@ export class UsagePanel implements vscode.Disposable {
           await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(content))
           return true
         },
-        confirmDelete: async (records) =>
+        confirmDelete: async (records, resources) =>
           (await vscode.window.showWarningMessage(
             USAGE_TEXT.deleteTitle,
-            { modal: true, detail: plural(USAGE_TEXT.deleteConfirm, records) },
+            { modal: true, detail: usageDeleteDetail(records, resources) },
             USAGE_TEXT.deleteAction,
             USAGE_TEXT.cancel,
           )) === USAGE_TEXT.deleteAction && this.panel === panel,

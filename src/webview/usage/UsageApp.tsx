@@ -209,7 +209,7 @@ export function UsageApp({
           <AttemptsSection attempts={state.attempts} />
           <SavingsSection savings={state.savings} />
           {state.resources === undefined ? null : (
-            <LazyResourcesSection history={state.resources} />
+            <LazyResourcesSection history={state.resources} now={state.generatedAt} />
           )}
           <footer>
             <p>

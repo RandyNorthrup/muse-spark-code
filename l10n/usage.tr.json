@@ -216,5 +216,9 @@
   "exportTooLarge": "Bu dışa aktarma tarayıcı için çok büyük. Daha kısa bir aralık seçin veya CLI ile dışa aktarın.",
   "exportBound": "Tarayıcı dışa aktarımları JSON kodlaması dahil {limit} ile sınırlıdır.",
   "editorActionsUnavailable": "Bu sayfa düzenleyici ayarlarını veya geçmiş klasörünü açamaz ve model fiyatlarını düzenleyemez. Düzenleyici ayarlarını ve Modeller ve Aracılar kontrollerini kullanın. Okuma, filtreler, grafikler ve dışa aktarma burada kullanılabilir.",
-  "readOnlyActions": "Bu metin arayüzü salt okunurdur. Grafikler, geçmiş kontrolleri ve indirmeler için yardımcı sayfayı açın."
+  "readOnlyActions": "Bu metin arayüzü salt okunurdur. Grafikler, geçmiş kontrolleri ve indirmeler için yardımcı sayfayı açın.",
+  "deleteConfirmResources": {
+    "one": "Kaynak geçmişindeki {count} girişi de siler.",
+    "other": "Kaynak geçmişindeki {count} girişi de siler."
+  }
 }

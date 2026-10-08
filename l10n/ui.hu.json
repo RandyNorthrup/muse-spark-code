@@ -4148,5 +4148,12 @@
   "agentRecoveryConfirm": "{action}: {objective}? Az aktuális jogosultságok és keretek érvényesek.",
   "agentRetryUnavailable": "Az újrapróbálás nem elérhető: a háttérrendszer nem biztosít elszigetelt munkafa-ellenőrzőpontot. A közös munkaterület módosításai megmaradnak.",
   "agentContinueUnavailable": "A folytatás nem elérhető ennél az ügynöknél vagy a jelenlegi állapotában.",
-  "referenceAgentOutcomes": "Az ügynökök tevékenységet és bizonyítékokon alapuló eredményeket mutatnak. Válasszon befejezett ügynököt a korlátozott bizonylathoz és az előzményekhez. A megerősített folytatás megőrzi a munkamenetet és a módosításokat; az újrapróbálás elszigetelt ellenőrzőpontot igényel. A hiányzó bizonyíték ellenőrizetlen marad. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
+  "referenceAgentOutcomes": "Az ügynökök tevékenységet és bizonyítékokon alapuló eredményeket mutatnak. Válasszon befejezett ügynököt a korlátozott bizonylathoz és az előzményekhez. A megerősített folytatás megőrzi a munkamenetet és a módosításokat; az újrapróbálás elszigetelt ellenőrzőpontot igényel. A hiányzó bizonyíték ellenőrizetlen marad. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "resourceHistoryCurrentMinute": "Ez a perc eddig",
+  "resourceHistoryDaily": "Korábbi napok",
+  "resourceHistoryDailyNotice": "Minden lezárt nap megőrzi az átlagait, az egyes szinteken töltött perceket, az események számát és az ügynökkörnyezet munkáját a használati előzmények napjaiig.",
+  "resourceHistoryDay": "Nap (UTC)",
+  "resourceHistoryAverage": "átlag",
+  "resourceHistoryMinutes": "Rögzített percek",
+  "resourceHistoryLevelMinutes": "Percek szintenként"
 }

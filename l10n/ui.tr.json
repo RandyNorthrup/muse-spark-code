@@ -4148,5 +4148,12 @@
   "agentRecoveryConfirm": "{action}: {objective}? Geçerli izinler ve bütçeler uygulanır.",
   "agentRetryUnavailable": "Yeniden deneme kullanılamıyor: bu arka uç yalıtılmış çalışma ağacı kontrol noktası sağlamıyor. Ortak çalışma alanındaki değişiklikler korunur.",
   "agentContinueUnavailable": "Bu ajan veya mevcut durumu için devam etme kullanılamıyor.",
-  "referenceAgentOutcomes": "Ajanlar etkinlik ve kanıta dayalı sonuçları gösterir. Sınırlı kayıt ve deneme geçmişi için bitmiş bir ajan seçin. Onaylanan devam işlemi oturumu ve değişiklikleri korur; yeniden deneme yalıtılmış kontrol noktası gerektirir. Eksik kanıt doğrulanmamış olarak gösterilir. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
+  "referenceAgentOutcomes": "Ajanlar etkinlik ve kanıta dayalı sonuçları gösterir. Sınırlı kayıt ve deneme geçmişi için bitmiş bir ajan seçin. Onaylanan devam işlemi oturumu ve değişiklikleri korur; yeniden deneme yalıtılmış kontrol noktası gerektirir. Eksik kanıt doğrulanmamış olarak gösterilir. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "resourceHistoryCurrentMinute": "Bu dakika şu ana kadar",
+  "resourceHistoryDaily": "Önceki günler",
+  "resourceHistoryDailyNotice": "Tamamlanan her gün ortalamalarını, her düzeydeki dakikaları, olay sayısını ve ajan ortamının işini kullanım geçmişi günleri boyunca saklar.",
+  "resourceHistoryDay": "Gün (UTC)",
+  "resourceHistoryAverage": "ortalama",
+  "resourceHistoryMinutes": "Kaydedilen dakikalar",
+  "resourceHistoryLevelMinutes": "Düzeye göre dakikalar"
 }

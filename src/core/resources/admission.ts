@@ -6,6 +6,7 @@ import type { ResourceHostSettings } from './resourceGovernorEntry'
 const state: {
   options?: ResourceHostSettings
   pending?: Promise<ResourceLaunchHost>
+  flush?: () => Promise<void>
   isDisposed: boolean
 } = { isDisposed: false }
 
@@ -23,6 +24,8 @@ async function disposeHost(onError: () => void): Promise<void> {
   try {
     const host = await state.pending
     host?.dispose()
+    // The window's open resource minute is written, bounded, after sampling stops.
+    await state.flush?.()
   } catch {
     onError()
   }
@@ -30,6 +33,7 @@ async function disposeHost(onError: () => void): Promise<void> {
 
 async function createHost(configured: ResourceHostSettings): Promise<ResourceLaunchHost> {
   const bundle = await import('./resourceGovernorEntry.js')
+  state.flush = bundle.flushResourceHistory
   return bundle.resourceGovernorHost(configured)
 }
 

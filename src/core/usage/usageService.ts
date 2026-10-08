@@ -6,9 +6,9 @@ import {
   USAGE_HISTORY_DAYS_DEFAULT,
   USAGE_JOURNAL_VERSION,
 } from '../../shared/constants'
-import { plural } from '../../shared/l10n/text'
 import { USAGE_TEXT, type UsageTable } from '../../shared/l10n/usageTable'
 import type { ResourceHistory } from '../../shared/resourceHistory'
+import { usageDeleteDetail } from '../../shared/usageDeleteText'
 import type { UsageLimitSnapshot, UsageRecord } from '../../shared/usageJournal'
 import {
   parseUsagePageToServiceMessage,
@@ -69,6 +69,8 @@ export interface UsageServiceDeps {
   readonly readAttempts: () => Promise<UsagePageState['attempts']>
   /** M107 J: the machine resource journal's aggregate; a failure shows as unavailable. */
   readonly readResources?: () => Promise<ResourceHistory>
+  /** Every stored resource history entry, which Delete history also removes. */
+  readonly countResources?: () => Promise<number>
   readonly providerConsoles: () => readonly UsagePageState['unreportedLimits'][number][]
   readonly exportFile: (
     format: Extract<UsagePageToServiceMessage, { type: 'usage/export' }>['format'],
@@ -82,6 +84,8 @@ export interface UsageServiceDeps {
     readonly action: string
     readonly cancel: string
     readonly count: number
+    /** Resource history entries (M107 J) the same delete removes. */
+    readonly resources: number
   }) => Promise<boolean>
   readonly openSettings?: () => Promise<void>
   readonly revealFolder?: () => Promise<void>
@@ -258,12 +262,15 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       }
       case 'usage/deleteHistory': {
         const journal = await deps.journal.read()
+        // An uncountable resource journal fails the action rather than understating it.
+        const resources = (await deps.countResources?.()) ?? 0
         const isApproved = await deps.confirmDelete({
           title: USAGE_TEXT.deleteTitle,
-          detail: plural(USAGE_TEXT.deleteConfirm, journal.recordCount),
+          detail: usageDeleteDetail(journal.recordCount, resources),
           action: USAGE_TEXT.deleteAction,
           cancel: USAGE_TEXT.cancel,
           count: journal.recordCount,
+          resources,
         })
         if (!isApproved)
           return [
