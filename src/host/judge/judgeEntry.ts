@@ -18,6 +18,7 @@ import { checkStandingAllowRules } from '../../core/judge/same/allowRules'
 import { JudgeResultCache } from '../../core/judge/same/resultCache'
 import type { JudgeUse } from '../../core/judge/use'
 import {
+  JUDGE_ADVISORY_THRESHOLD,
   JUDGE_MODEL_TEXT,
   JUDGE_MAX_STATE_TOKENS,
   JUDGE_TEMP_PREFIX,
@@ -41,6 +42,7 @@ export function createWindowJudge(
 ): JudgeWindowPort {
   setUiText(table, locale)
   const cache = new JudgeResultCache()
+  const paidGrants = new Set<string>()
   const sideSessions = new Set<string>()
   const uses = new Map<string, { action: JudgeEntryParts; use: JudgeUse }>()
   let panel: { action: JudgeEntryParts; status: JudgeStatus; identity: string } | undefined
@@ -51,7 +53,11 @@ export function createWindowJudge(
     const engine = deps.engine()
     const isBound = JSON.stringify(current) === panel.identity
     const price = status.billing === 'modelApi' ? judgePriceOf(status.modelId) : undefined
-    const canUseSame = engine === 'auto' || engine === 'same'
+    const selected = deps.phase2?.binding(panel.action)
+    const canUseMode =
+      status.mode !== 'off' &&
+      (engine === 'auto' || engine === status.mode) &&
+      (status.mode === 'same' || selected !== undefined)
     let reason: JudgePanelFacts['reason']
     switch (status.reason) {
       case 'auto-same':
@@ -66,14 +72,14 @@ export function createWindowJudge(
       }
     }
     if (engine === 'off') reason = 'explicit-off'
-    else if (!isBound || !canUseSame) reason = 'source-unavailable'
+    else if (!isBound || !canUseMode) reason = 'source-unavailable'
     let consent: JudgePanelFacts['consent'] = 'needed'
-    if (status.billing === 'subscription') consent = 'not-required'
+    if (status.billing !== 'modelApi') consent = 'not-required'
     else if (status.reason === 'consent-declined') consent = 'declined'
-    else if (isBound && canUseSame && status.mode === 'same') consent = 'granted'
+    else if (isBound && canUseMode) consent = 'granted'
     return {
       engine,
-      effectiveSource: isBound && canUseSame && status.mode === 'same' ? 'same' : 'none',
+      effectiveSource: isBound && canUseMode && status.mode !== 'off' ? status.mode : 'none',
       modelId: status.modelId,
       reason,
       locality: 'not-local',
@@ -133,13 +139,17 @@ export function createWindowJudge(
         let isRemembered = false
         const isCurrent = () => JSON.stringify(deps.context(action)) === identity
         const context = () => ({
+          ...deps.phase2?.binding(action)?.context,
           engine: deps.engine(),
           modelId: initial.modelId,
-          providerId: initial.providerId ?? initial.backend,
-          endpoint: initial.endpoint,
-          profileId: initial.profileId,
-          ownerId: initial.ownerId,
-          turn: action.turnId,
+          providerId:
+            deps.phase2?.binding(action)?.context.providerId ??
+            initial.providerId ??
+            initial.backend,
+          endpoint: deps.phase2?.binding(action)?.context.endpoint ?? initial.endpoint,
+          profileId: deps.phase2?.binding(action)?.context.profileId ?? initial.profileId,
+          ownerId: deps.phase2?.binding(action)?.context.ownerId ?? initial.ownerId,
+          turn: deps.phase2?.binding(action)?.context.turn ?? action.turnId,
           confidential: initial.confidential,
           readyRate: deps.readyRate?.(initial.backend),
           paidConsent:
@@ -148,11 +158,13 @@ export function createWindowJudge(
               : consent,
           sourceAvailable:
             isCurrent() &&
-            (initial.backend === 'museCode'
-              ? readSettings()
-              : deps.ledger !== undefined &&
-                initial.contextLimit !== undefined &&
-                deps.modelApi(action) !== undefined),
+            (deps.phase2?.binding(action) === undefined
+              ? initial.backend === 'museCode'
+                ? readSettings()
+                : deps.ledger !== undefined &&
+                  initial.contextLimit !== undefined &&
+                  deps.modelApi(action) !== undefined
+              : deps.phase2.binding(action)?.context.sourceAvailable === true),
         })
         const binding = (signal: AbortSignal): JudgeAdmissionBinding => {
           const current = deps.context(action)
@@ -178,6 +190,9 @@ export function createWindowJudge(
         }
         const use = createJudgeUse({
           backend: initial.backend,
+          billing: () =>
+            deps.phase2?.binding(action)?.billing ??
+            (initial.backend === 'museCode' ? 'subscription' : 'modelApi'),
           context,
           allowsPaidJudge: async (model) => {
             const isAllowed = await deps.paid.allowsJudgeUse(model)
@@ -205,6 +220,70 @@ export function createWindowJudge(
             deps.notice(text)
           },
           createRunner: (entries, _action, lifetime) => {
+            const phase2 = deps.phase2
+            if (phase2?.binding(action) !== undefined) {
+              const embeddingId = randomUUID()
+              const embeddingRows = new JudgeUsageRows({
+                billing:
+                  phase2.binding(action)?.embedding?.source.locality === 'same-provider'
+                    ? 'modelApi'
+                    : 'subscription',
+                usage: deps.paid.usage,
+                emit: (event) => {
+                  deps.emit(action, event)
+                },
+              })
+              return {
+                judge: (job) => {
+                  void phase2
+                    .createRuntime({
+                      binding: () => phase2.binding(action),
+                      paidGrants,
+                      embeddingStatus: (status) => {
+                        if (panel?.action !== action) return
+                        const next = {
+                          ...panel.status,
+                          embeddingReason: status.available ? undefined : status.reason,
+                        }
+                        panel = { ...panel, status: next }
+                        deps.status(action, next)
+                      },
+                      embeddingAttempt: (phase, source) => {
+                        if (phase === 'started')
+                          embeddingRows.started(embeddingId, action.turnId, source.model)
+                        else if (phase === 'failed') embeddingRows.failed(embeddingId)
+                        else embeddingRows.finished(embeddingId, undefined)
+                      },
+                    })
+                    .then(async (runtime) => {
+                      const outcome = await runtime.judge(
+                        {
+                          state: job.stateText,
+                          model: initial.modelId,
+                          questions: Object.fromEntries(
+                            job.questions.map((question) => [
+                              question.id,
+                              { type: 'noul' as const, instructions: question.text },
+                            ]),
+                          ),
+                        },
+                        lifetime,
+                      )
+                      const isCaution =
+                        outcome.outcome === 'answered' &&
+                        Object.values(outcome.result.answers).some(
+                          (answer) =>
+                            answer.type === 'noul' && answer.noul >= JUDGE_ADVISORY_THRESHOLD,
+                        )
+                      entries.settle(
+                        job.entryKey,
+                        outcome.outcome === 'no-answer' ? 'failed' : isCaution ? 'caution' : 'none',
+                      )
+                    })
+                    .catch(onError)
+                },
+              }
+            }
             const rows = new JudgeUsageRows({
               billing: initial.backend === 'museCode' ? 'subscription' : 'modelApi',
               usage: deps.paid.usage,

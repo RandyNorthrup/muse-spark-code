@@ -15,7 +15,7 @@
 // words are here, so VS Code's modal and the ACP agent's permission request
 // (D62) say the same.
 
-import { PAID_FEATURES, type PaidFeature, UI_TEXT } from '../../shared/constants'
+import { EXEC_USD_DECIMALS, PAID_FEATURES, type PaidFeature, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber, formatUsd, uiLocale } from '../../shared/l10n/text'
 import {
   paidFeaturePrice,
@@ -44,6 +44,23 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
 }> {
   switch (request.feature) {
     case 'judge': {
+      if (request.embedding !== undefined) {
+        if (
+          !Number.isFinite(request.embedding.worstCaseUsd) ||
+          request.embedding.worstCaseUsd <= 0 ||
+          !Number.isFinite(request.dailyBudgetUsd) ||
+          request.dailyBudgetUsd < 0
+        )
+          throw new Error('Judge embedding needs a verified tariff and daily budget')
+        return {
+          title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidJudgeName }),
+          detail: fill(UI_TEXT.paidConfirmJudgeEmbedding, {
+            model: request.modelId,
+            price: formatUsd(request.embedding.worstCaseUsd, EXEC_USD_DECIMALS),
+            budget: formatUsd(request.dailyBudgetUsd, 2),
+          }),
+        }
+      }
       const price = autoReviewPrice(request.modelId)
       if (
         price === undefined ||

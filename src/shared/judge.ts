@@ -1,21 +1,16 @@
 // Extension-owned Judge status, validated at the panel boundary.
 import * as z from 'zod/mini'
+import { JUDGE_PANEL_REASONS } from './judgePanelSchema'
 
 export const judgeStatusSchema = z.object({
   mode: z.enum(['same', 'separate', 'both', 'off']),
   modelId: z.string(),
-  billing: z.enum(['subscription', 'modelApi']),
+  billing: z.enum(['subscription', 'modelApi', 'free']),
+  embeddingReason: z.optional(z.enum(JUDGE_PANEL_REASONS)),
   reason: z.enum([
-    'explicit-off',
-    'unknown-setting',
-    'consent-needed',
-    'consent-declined',
-    'source-unavailable',
-    'ready-rate-low',
+    ...JUDGE_PANEL_REASONS,
     'auto-same',
     'explicit-same',
-    'source-untested',
-    'profile-missing',
     'auto-both',
     'explicit-separate',
     'explicit-both',

@@ -150,7 +150,12 @@ export function subagentTaskPrice(modelId: string, attemptLimit: number): string
  * to search at all.
  */
 export type PaidUseRequest =
-  | { readonly feature: 'judge'; readonly modelId: string; readonly dailyBudgetUsd: number }
+  | {
+      readonly feature: 'judge'
+      readonly modelId: string
+      readonly dailyBudgetUsd: number
+      readonly embedding?: { readonly worstCaseUsd: number }
+    }
   | { readonly feature: 'webSearch' }
   | { readonly feature: 'voice' }
   | { readonly feature: 'legalExplanation'; readonly modelId: string }

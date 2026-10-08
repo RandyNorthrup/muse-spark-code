@@ -1,9 +1,10 @@
 import type { JudgeStatus } from '../../shared/judge'
+import { fill } from '../../shared/l10n/text'
 import { UI_TEXT } from '../../shared/constants'
 
 export function JudgeStatusLine({ status }: { readonly status: JudgeStatus | undefined }) {
   if (status === undefined) return null
-  const reasons: Readonly<Record<JudgeStatus['reason'], string>> = {
+  const reasons: Readonly<Partial<Record<JudgeStatus['reason'], string>>> = {
     'explicit-off': UI_TEXT.judgeStatusOff,
     'unknown-setting': UI_TEXT.judgeStatusUnavailable,
     'consent-needed': UI_TEXT.judgeStatusConsent,
@@ -24,19 +25,28 @@ export function JudgeStatusLine({ status }: { readonly status: JudgeStatus | und
     'profile-missing': UI_TEXT.judgeAutoNoProfiles,
     'evidence-missing': UI_TEXT.judgeAutoNoEvidence,
   }
+  const billing = {
+    subscription: UI_TEXT.judgeStatusSubscription,
+    modelApi: UI_TEXT.judgeStatusPaid,
+    free: UI_TEXT.judgePanel.freeLocal,
+  }
   return (
     <p className="judge-status" role="status">
       {UI_TEXT.paidJudgeName}:{' '}
       {status.autoSameReason === undefined
-        ? reasons[status.reason]
+        ? (reasons[status.reason] ?? fill(UI_TEXT.judgeNoAnswer, { reason: status.reason }))
         : fallback[status.autoSameReason]}
       {status.mode === 'off' ? null : (
         <>
           {' '}
-          · <span dir="auto">{status.modelId}</span> ·{' '}
-          {status.billing === 'subscription'
-            ? UI_TEXT.judgeStatusSubscription
-            : UI_TEXT.judgeStatusPaid}
+          · <span dir="auto">{status.modelId}</span> · {billing[status.billing]}
+        </>
+      )}
+      {status.embeddingReason === undefined ? null : (
+        <>
+          {' '}
+          · {UI_TEXT.judgePanel.techniques.embedding}:{' '}
+          {fill(UI_TEXT.judgeNoAnswer, { reason: status.embeddingReason })}
         </>
       )}
     </p>

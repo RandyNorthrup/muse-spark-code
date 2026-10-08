@@ -4202,5 +4202,6 @@
   "judgeAutoNoSource": "Mesmo modelo: nenhuma fonte separada disponível",
   "judgeAutoUntested": "Mesmo modelo: a fonte separada não foi verificada",
   "judgeAutoNoProfiles": "Mesmo modelo: faltam perfis ajustados",
-  "judgeAutoNoEvidence": "Mesmo modelo: faltam evidências de avaliação pareada com dados reservados"
+  "judgeAutoNoEvidence": "Mesmo modelo: faltam evidências de avaliação pareada com dados reservados",
+  "paidConfirmJudgeEmbedding": "Uma solicitação de embedding a {model} custa no máximo {price}, cobrado na sua chave do provedor. O orçamento diário compartilhado é {budget}. Sua assinatura não paga esta solicitação. Permitir uma vez vale para esta janela; mudar de uma fonte gratuita ou alterar o preço exige novo consentimento."
 }

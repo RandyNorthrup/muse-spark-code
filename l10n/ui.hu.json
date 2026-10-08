@@ -4058,5 +4058,6 @@
   "judgeAutoNoSource": "Azonos modell: nincs elérhető külön forrás",
   "judgeAutoUntested": "Azonos modell: a külön forrás nincs ellenőrizve",
   "judgeAutoNoProfiles": "Azonos modell: hiányoznak az illesztett profilok",
-  "judgeAutoNoEvidence": "Azonos modell: hiányzik a félretett adatokon végzett páros értékelés bizonyítéka"
+  "judgeAutoNoEvidence": "Azonos modell: hiányzik a félretett adatokon végzett páros értékelés bizonyítéka",
+  "paidConfirmJudgeEmbedding": "A(z) {model} beágyazási kérése legfeljebb {price} összegbe kerül, a szolgáltatói kulcsára számlázva. A közös napi keret {budget}. Az előfizetése ezt nem fedezi. Az Egyszer engedélyezés erre az ablakra érvényes; ingyenes forrásról váltás vagy árváltozás új beleegyezést kér."
 }

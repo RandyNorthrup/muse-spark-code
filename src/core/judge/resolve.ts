@@ -5,7 +5,7 @@
 // triggers below. No `vscode` import.
 
 import * as z from 'zod/mini'
-import { hasJudgeAdoptionEvidence, type JudgeAdoptionContext } from './adoption'
+import type { JudgeAdoptionContext } from './adoption'
 
 const phase2EngineSchema = z.enum(['auto', 'same', 'separate', 'both', 'off'])
 
@@ -52,7 +52,12 @@ export interface JudgeSeparateReadiness {
   /** Suitable B profiles exist for this source and family. */
   readonly profilesReady: boolean
   readonly adoption?:
-    { readonly record: unknown; readonly context: JudgeAdoptionContext } | undefined
+    | {
+        readonly record: unknown
+        readonly context: JudgeAdoptionContext
+        readonly check?: ((record: unknown, context: JudgeAdoptionContext) => boolean) | undefined
+      }
+    | undefined
 }
 
 export interface JudgeModeContext {
@@ -286,7 +291,7 @@ export function resolveJudgeMode2a(context: JudgeModeContext): JudgeModeResoluti
   const adoption = context.separate.adoption
   return adoption?.context.providerId === context.providerId &&
     adoption.context.modelId === context.modelId &&
-    hasJudgeAdoptionEvidence(adoption.record, adoption.context)
+    adoption.check?.(adoption.record, adoption.context) === true
     ? { mode: 'both', reason: 'auto-both' }
     : { mode: 'same', reason: 'auto-same', autoSameReason: 'evidence-missing' }
 }

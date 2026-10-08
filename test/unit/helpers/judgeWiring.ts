@@ -1,3 +1,6 @@
+import { createJudgeFeatures } from '../../../src/runtime/judge/judgeEntry'
+import { EN } from '../../../src/shared/l10n/en'
+import type { JudgeAdoptionContext } from '../../../src/core/judge/adoption'
 import { vi } from 'vitest'
 import type { JudgeCascadeSide } from '../../../src/core/judge/cascade'
 import {
@@ -161,6 +164,8 @@ export function wiringFixture(evaluationCount = 2) {
       }),
   }
   const adoption = {
+    check: (record: unknown, context: JudgeAdoptionContext) =>
+      createJudgeFeatures({ uiText: EN, uiLocale: 'en' }).hasJudgeAdoptionEvidence(record, context),
     record,
     context: {
       providerId: 'fixture-provider',

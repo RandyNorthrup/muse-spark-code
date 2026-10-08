@@ -207,7 +207,14 @@ function feature(
     backends,
     paid: isPaid,
     surfaces: editors.flatMap((editor) => backends.map((backend) => `${editor}:${backend}`)),
-    details: [],
+    details:
+      id === 'judge' || id === 'judge-subscription'
+        ? [
+            { ui: 'judgeStatusBoth' },
+            { ui: 'judgeAutoNoEvidence' },
+            { ui: 'paidConfirmJudgeEmbedding' },
+          ]
+        : [],
     facts: {},
     editors,
   }

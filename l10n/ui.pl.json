@@ -4346,5 +4346,6 @@
   "judgeAutoNoSource": "Ten sam model: brak dostępnego osobnego źródła",
   "judgeAutoUntested": "Ten sam model: osobne źródło nie zostało zweryfikowane",
   "judgeAutoNoProfiles": "Ten sam model: brak dopasowanych profili",
-  "judgeAutoNoEvidence": "Ten sam model: brak dowodów z porównania parami na odłożonych danych"
+  "judgeAutoNoEvidence": "Ten sam model: brak dowodów z porównania parami na odłożonych danych",
+  "paidConfirmJudgeEmbedding": "Żądanie embeddingu do {model} kosztuje najwyżej {price}, naliczane na klucz dostawcy. Wspólny dzienny budżet wynosi {budget}. Subskrypcja nie płaci za to żądanie. Zezwól raz obejmuje to okno; przejście z darmowego źródła lub zmiana ceny wymaga ponownej zgody."
 }

@@ -3,7 +3,11 @@
 import * as z from 'zod/mini'
 import { JUDGE_MIN_READY_RATE } from '../../shared/constants'
 import { reportCalibration } from './calibration/report'
-import { parseCalibrationProfile, type CalibrationLimits } from './calibration/schema'
+import {
+  parseCalibrationDataset,
+  parseCalibrationProfile,
+  type CalibrationLimits,
+} from './calibration/schema'
 
 const rate = z.number().check(z.minimum(0), z.maximum(1))
 const nonnegative = z.number().check(z.nonnegative())
@@ -75,6 +79,23 @@ export function hasJudgeAdoptionEvidence(input: unknown, context: JudgeAdoptionC
   for (const side of [record.same, record.separate]) {
     const report = reportCalibration(side.profile, side.dataset, 1, context.limits)
     if (report.status !== 'reported' || !report.report.activationEligible) return false
+  }
+  const datasets = [record.same.dataset, record.separate.dataset].map((input) =>
+    parseCalibrationDataset(input, context.limits),
+  )
+  for (const parsedDataset of datasets) {
+    if (parsedDataset.status !== 'valid') return false
+    for (const row of record.rows) {
+      const sample = parsedDataset.dataset.samples.find((sample) => sample.id === row.id)
+      if (
+        sample?.split !== 'evaluation' ||
+        sample.labelId !== row.labelId ||
+        sample.taskGroup !== row.taskGroup ||
+        sample.repositoryGroup !== row.repositoryGroup ||
+        Boolean(sample.label) !== row.label
+      )
+        return false
+    }
   }
   const ids = new Set<string>()
   const labels = new Set<string>()

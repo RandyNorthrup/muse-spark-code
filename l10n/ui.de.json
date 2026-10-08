@@ -4058,5 +4058,6 @@
   "judgeAutoNoSource": "Gleiches Modell: keine separate Quelle verfügbar",
   "judgeAutoUntested": "Gleiches Modell: separate Quelle wurde nicht verifiziert",
   "judgeAutoNoProfiles": "Gleiches Modell: angepasste Profile fehlen",
-  "judgeAutoNoEvidence": "Gleiches Modell: Nachweise aus gepaarten Auswertungen mit zurückgehaltenen Daten fehlen"
+  "judgeAutoNoEvidence": "Gleiches Modell: Nachweise aus gepaarten Auswertungen mit zurückgehaltenen Daten fehlen",
+  "paidConfirmJudgeEmbedding": "Eine Embedding-Anfrage an {model} kostet höchstens {price} und wird Ihrem Anbieterschlüssel berechnet. Das gemeinsame Tagesbudget beträgt {budget}. Ihr Abonnement bezahlt diese Anfrage nicht. Einmal erlauben gilt für dieses Fenster; beim Wechsel von einer kostenlosen Quelle oder bei einer Preisänderung wird erneut gefragt."
 }

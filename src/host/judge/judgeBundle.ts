@@ -1,3 +1,5 @@
+import type { JudgeRuntimeBinding, JudgeRuntimeDeps } from '../../core/judge/runtime'
+import type { JudgeRuntime } from '../../core/judge/engine'
 import type { JudgePanelSnapshot } from '../../shared/judgePanel'
 import type { StartSessionOptions, AgentSession } from '../../core/agent/agentBackend'
 import type { JudgeDailyLedger } from '../../core/judge/admission'
@@ -15,6 +17,12 @@ import type { Logger } from '../logger'
 import type * as JudgeEntry from './judgeEntry'
 
 export interface JudgeWindowDeps {
+  readonly phase2?:
+    | {
+        readonly binding: (action: JudgeEntryParts) => JudgeRuntimeBinding | undefined
+        readonly createRuntime: (deps: JudgeRuntimeDeps) => Promise<JudgeRuntime>
+      }
+    | undefined
   readonly dailyBudgetUsd?: () => number
   readonly engine: () => JudgeEngine
   readonly context: (action: JudgeEntryParts) =>

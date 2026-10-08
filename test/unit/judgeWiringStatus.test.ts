@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { judgeStatusSchema } from '../../src/shared/judge'
 import { createJudgeUse } from '../../src/host/judge/judgeUse'
 import { resolveJudgeMode2a } from '../../src/core/judge/resolve'
-import { hasJudgeAdoptionEvidence } from '../../src/core/judge/adoption'
 import type { JudgeEntryStore } from '../../src/core/judge/entries'
 import type { JudgeUseJob } from '../../src/core/judge/use'
 import { JUDGE_ACTION, RISK_QUESTION } from './helpers/judgeUseRig'
@@ -95,7 +94,17 @@ describe('phase-2 status and host trigger wiring', () => {
   it('rejects forged evidence, overlapping groups, stale profiles and a worse cascade', () => {
     const fixture = wiringFixture()
     const { record, context } = fixture.adoption
-    expect(hasJudgeAdoptionEvidence(record, context)).toBe(true)
+    const resolved = (candidate: unknown) =>
+      resolveJudgeMode2a({
+        ...fixture.context,
+        separate: {
+          available: true,
+          verified: true,
+          profilesReady: true,
+          adoption: { ...fixture.adoption, record: candidate, context },
+        },
+      }).mode
+    expect(resolved(record)).toBe('both')
     for (const bad of [
       {
         ...record,
@@ -110,7 +119,21 @@ describe('phase-2 status and host trigger wiring', () => {
         })),
       },
     ])
-      expect(hasJudgeAdoptionEvidence(bad, context)).toBe(false)
-    expect(hasJudgeAdoptionEvidence(record, { ...context, modelId: 'replacement' })).toBe(false)
+      expect(resolved(bad)).toBe('same')
+    expect(
+      resolveJudgeMode2a({
+        ...fixture.context,
+        separate: {
+          available: true,
+          verified: true,
+          profilesReady: true,
+          adoption: {
+            ...fixture.adoption,
+            record,
+            context: { ...context, modelId: 'replacement' },
+          },
+        },
+      }).mode,
+    ).toBe('same')
   })
 })

@@ -1,6 +1,9 @@
 // B/D/CS/G assembly (M98 phase 2): built as dist/judgeP2.js, required only by
 // an explicit judge surface. Source selection and per-attempt admission are
 // supplied by the caller; importing this factory starts no backend or server.
+import { hasJudgeAdoptionEvidence } from '../../core/judge/adoption'
+import { createJudgeRuntime, type JudgeRuntimeDeps } from '../../core/judge/runtime'
+import { createJudgeCommandDeps } from './assembly'
 import path from 'node:path'
 import { lazyBundleLoader } from '../../host/lazyBundle'
 import type { Logger } from '../../host/logger'
@@ -65,6 +68,29 @@ const features = {
   loadSources() {
     return Promise.resolve(
       children().sources().createJudgeSourcesFeatures({ uiText: UI_TEXT, uiLocale: uiLocale() }),
+    )
+  },
+  hasJudgeAdoptionEvidence,
+  createRuntime(deps: JudgeRuntimeDeps) {
+    return Promise.resolve(
+      createJudgeRuntime({
+        ...deps,
+        loadEmbedding: async () => {
+          const sources = await features.loadSources()
+          return sources.embedding
+        },
+      }),
+    )
+  },
+  createCommandDeps(deps: Parameters<typeof createJudgeCommandDeps>[0]) {
+    return Promise.resolve(
+      createJudgeCommandDeps({
+        ...deps,
+        loadEmbedding: async () => {
+          const sources = await features.loadSources()
+          return sources.embedding
+        },
+      }),
     )
   },
   applyCalibration,

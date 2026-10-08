@@ -15,6 +15,7 @@ export interface JudgeUseHostDeps extends Pick<
   JudgeUseDeps,
   'createRunner' | 'question' | 'onError' | 'onFence'
 > {
+  readonly billing?: (() => JudgeStatus['billing']) | undefined
   readonly backend: 'modelApi' | 'museCode'
   readonly context: () => Omit<JudgeModeContext, 'minReadyRate'>
   /** U's paidHost hook, then A re-binds and reserves per actual transport call. */
@@ -54,10 +55,11 @@ export function createJudgeUse(deps: JudgeUseHostDeps): JudgeUse {
       deps.onStatus({
         ...resolveJudgeMode2a(current),
         modelId: current.modelId,
-        billing: deps.backend === 'museCode' ? 'subscription' : 'modelApi',
+        billing: deps.billing?.() ?? (deps.backend === 'museCode' ? 'subscription' : 'modelApi'),
       })
     }
-    const isEnabled = resolution.mode !== 'off'
+    const isEnabled =
+      resolution.mode !== 'off' && (resolution.mode === 'separate' || current.sourceAvailable)
     if (isEnabled && snapshot === undefined) snapshots.set(action, current)
     return isEnabled
   }
@@ -68,6 +70,7 @@ export function createJudgeUse(deps: JudgeUseHostDeps): JudgeUse {
     onError: deps.onError,
     onFence: deps.onFence,
     prepare: async (_action, signal) => {
+      if (deps.billing?.() === 'free') return !signal.aborted
       if (deps.backend === 'museCode') {
         if (!hasSubscriptionNote) {
           hasSubscriptionNote = true

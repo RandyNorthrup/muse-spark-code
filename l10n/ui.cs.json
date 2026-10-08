@@ -4346,5 +4346,6 @@
   "judgeAutoNoSource": "Stejný model: samostatný zdroj není dostupný",
   "judgeAutoUntested": "Stejný model: samostatný zdroj nebyl ověřen",
   "judgeAutoNoProfiles": "Stejný model: chybí kalibrované profily",
-  "judgeAutoNoEvidence": "Stejný model: chybí důkazy z párového hodnocení na oddělených datech"
+  "judgeAutoNoEvidence": "Stejný model: chybí důkazy z párového hodnocení na oddělených datech",
+  "paidConfirmJudgeEmbedding": "Požadavek na embedding pro {model} stojí nejvýše {price} a účtuje se vašemu klíči poskytovatele. Sdílený denní rozpočet je {budget}. Předplatné tento požadavek nehradí. Povolit jednou platí pro toto okno; přechod z bezplatného zdroje nebo změna ceny vyžaduje nový souhlas."
 }

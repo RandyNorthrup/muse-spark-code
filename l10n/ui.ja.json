@@ -3914,5 +3914,6 @@
   "judgeAutoNoSource": "同じモデル：利用可能な別のソースがありません",
   "judgeAutoUntested": "同じモデル：別のソースが検証されていません",
   "judgeAutoNoProfiles": "同じモデル：適合済みプロファイルがありません",
-  "judgeAutoNoEvidence": "同じモデル：保留データによるペア評価の証拠がありません"
+  "judgeAutoNoEvidence": "同じモデル：保留データによるペア評価の証拠がありません",
+  "paidConfirmJudgeEmbedding": "{model} への埋め込みリクエストの費用は最大 {price} で、プロバイダーキーに請求されます。共有の1日予算は {budget} です。サブスクリプションでは支払われません。「今回許可」はこのウィンドウに適用され、無料ソースからの切り替えや価格変更時には再度確認します。"
 }

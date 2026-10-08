@@ -3914,5 +3914,6 @@
   "judgeAutoNoSource": "同一模型：沒有可用的獨立來源",
   "judgeAutoUntested": "同一模型：獨立來源尚未驗證",
   "judgeAutoNoProfiles": "同一模型：缺少擬合設定",
-  "judgeAutoNoEvidence": "同一模型：缺少保留資料上的配對評估證據"
+  "judgeAutoNoEvidence": "同一模型：缺少保留資料上的配對評估證據",
+  "paidConfirmJudgeEmbedding": "向 {model} 傳送一次嵌入請求最多花費 {price}，由您的供應商金鑰支付。共用每日預算為 {budget}。訂閱不會支付此請求。「允許一次」涵蓋目前視窗；從免費來源切換或價格變更時將再次詢問。"
 }
