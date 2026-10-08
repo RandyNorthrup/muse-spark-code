@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 // @vitest-environment jsdom
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
@@ -252,8 +253,8 @@ describe('M115 schedule editor', () => {
       request.mock.calls.find(([input]) => input.method === 'schedules/update')?.[0],
     ).toMatchObject({
       draft: {
-        paidCapUsd: 0,
-        grant: { paidCapUsd: 0, destinationIds: ['approved-folder'] },
+        paidCapUsd: PortUsd.from(0).toAmount(),
+        grant: { paidCapUsd: PortUsd.from(0).toAmount(), destinationIds: ['approved-folder'] },
         action: { kind: 'report' },
       },
     })
@@ -263,7 +264,7 @@ describe('M115 schedule editor', () => {
       paid: {
         model: 'chosen-model',
         price: '$1 per million input tokens',
-        sharedDailyBudgetUsd: 5,
+        sharedDailyBudgetUsd: PortUsd.from(5).toAmount(),
       },
     })
     const form = await editSchedule()

@@ -1,3 +1,4 @@
+import { Usd, legacyUsdSchema, nonnegativeUsdSchema } from './usd'
 // M115's internal, editor-independent contracts. M52's v1 on-disk schema stays
 // in schedule.ts until lane S has verified and removed every migrated job.
 import * as z from 'zod/mini'
@@ -40,7 +41,15 @@ const identifier = z
   .check(z.minLength(1), z.maxLength(SCHEDULE_ID_MAX_CHARS), z.regex(/^[\w-][\w.-]*$/))
 const text = z.string().check(z.minLength(1), z.maxLength(SCHEDULE_RULE_MAX_CHARS))
 const runId = z.string().check(z.minLength(1), z.maxLength(SCHEDULE_RUN_ID_MAX_CHARS))
-const money = z.number().check(z.gte(0))
+// v2 numeric files and JSON drafts normalize at this schema boundary.
+const money = z.codec(
+  z.union([z.number().check(z.nonnegative()), nonnegativeUsdSchema]),
+  nonnegativeUsdSchema,
+  {
+    decode: (amount) => (typeof amount === 'number' ? legacyUsdSchema.parse(amount) : amount),
+    encode: (amount) => nonnegativeUsdSchema.parse(amount),
+  },
+)
 const weekday = z.int().check(z.gte(0), z.lte(CRON_MAX_WEEKDAY - 1))
 const clockTime = z.strictObject({
   hour: z.int().check(z.gte(0), z.lte(CRON_MAX_HOUR)),
@@ -223,8 +232,8 @@ export const schedulePaidConsentSchema = z.strictObject({
   accountId: text,
   priceTier: text,
   grantedAtMs: timestamp,
-  dailyCapUsd: money.check(z.gt(0)),
-  sharedDailyBudgetUsd: money.check(z.gt(0)),
+  dailyCapUsd: money.check(z.refine((amount) => amount !== '0')),
+  sharedDailyBudgetUsd: money.check(z.refine((amount) => amount !== '0')),
   extras: z.array(z.enum(PAID_FEATURES)),
 })
 export const scheduleCreatorSchema = z.discriminatedUnion('kind', [
@@ -291,9 +300,9 @@ function isSchedulePolicyValid(schedule: SchedulePolicy): boolean {
   return (
     (!schedule.parallel || schedule.delivery === 'newConversation') &&
     (schedule.target.kind !== 'newConversation' || schedule.delivery === 'newConversation') &&
-    schedule.paidCapUsd <= schedule.grant.paidCapUsd &&
+    Usd.from(schedule.paidCapUsd).compare(Usd.from(schedule.grant.paidCapUsd)) <= 0 &&
     (schedule.action.kind !== 'report' ||
-      (schedule.paidCapUsd === 0 && schedule.grant.paidCapUsd === 0))
+      (schedule.paidCapUsd === '0' && schedule.grant.paidCapUsd === '0'))
   )
 }
 function isScheduleDepthValid(schedule: { depth: number; allowAgentReschedule: boolean }): boolean {
@@ -304,7 +313,8 @@ export const scheduleV2Schema = scheduleV2BaseSchema.check(
   z.refine(isScheduleDepthValid),
   z.refine(
     (schedule) =>
-      schedule.paidConsent === undefined || schedule.paidConsent.dailyCapUsd <= schedule.paidCapUsd,
+      schedule.paidConsent === undefined ||
+      Usd.from(schedule.paidConsent.dailyCapUsd).compare(Usd.from(schedule.paidCapUsd)) <= 0,
   ),
   z.refine((schedule) => schedule.action.kind !== 'report' || schedule.paidConsent === undefined),
 )
@@ -381,6 +391,14 @@ export const scheduleFireRecordSchema = z.strictObject({
   report: z.optional(scheduleReportResultsSchema),
 })
 export type ScheduleFireRecord = z.infer<typeof scheduleFireRecordSchema>
+
+export function noScheduleCost(): ScheduleFireRecord['cost'] {
+  return scheduleFireRecordSchema.shape.cost.parse({
+    usd: '0',
+    certainty: 'exact',
+    retainedLiabilityUsd: '0',
+  })
+}
 
 export interface ScheduleStoreV2 {
   /** New ids start at revision zero and are never reused after removal. */

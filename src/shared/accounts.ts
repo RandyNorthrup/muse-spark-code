@@ -1,3 +1,4 @@
+import { legacyUsdSchema, type UsdAmount } from './usdSchema'
 // M108's local contracts, shared by every editor and the runtime. No vendor
 // response is parsed here; live wire shapes remain with their captured codecs.
 import * as z from 'zod/mini'
@@ -8,13 +9,16 @@ const opaqueId = z
   .string()
   .check(z.minLength(1), z.maxLength(ACCOUNT_LABEL_MAX_LENGTH), z.regex(/^[A-Za-z0-9_-]+$/))
 const count = z.int().check(z.nonnegative())
-const amount = z.number().check(z.nonnegative())
+// Spend caps, trigger spend and swap cold-cache estimates carry canonical
+// decimal strings; numeric persisted forms normalize once at this boundary,
+// the way the other ports do.
+const money = legacyUsdSchema
 const percent = z.number().check(z.minimum(0), z.maximum(100))
 export const accountPeriodSchema = z.enum(['day', 'week', 'month'])
 const periodAmounts = z.strictObject({
-  day: z.optional(amount),
-  week: z.optional(amount),
-  month: z.optional(amount),
+  day: z.optional(money),
+  week: z.optional(money),
+  month: z.optional(money),
 })
 const periodCounts = z.strictObject({
   day: z.optional(count),
@@ -56,15 +60,25 @@ export const accountPoolSchema = z.array(accountSchema).check(
   z.refine((accounts) => new Set(accounts.map((account) => account.id)).size === accounts.length),
 )
 
-export const accountTriggerSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('userCap'),
-    metric: z.enum(['spendUsd', 'inputTokens', 'outputTokens', 'requests']),
-    period: accountPeriodSchema,
-    value: amount,
-    threshold: amount,
-    resetAt: z.iso.datetime(),
-  }),
+const spendCapTrigger = z.strictObject({
+  kind: z.literal('userCap'),
+  metric: z.literal('spendUsd'),
+  period: accountPeriodSchema,
+  value: money,
+  threshold: money,
+  resetAt: z.iso.datetime(),
+})
+const countCapTrigger = z.strictObject({
+  kind: z.literal('userCap'),
+  metric: z.enum(['inputTokens', 'outputTokens', 'requests']),
+  period: accountPeriodSchema,
+  value: count,
+  threshold: count,
+  resetAt: z.iso.datetime(),
+})
+export const accountTriggerSchema = z.union([
+  spendCapTrigger,
+  countCapTrigger,
   z.strictObject({
     kind: z.literal('vendorLimit'),
     reason: z.enum(['planWindow', 'rateLimitHeadroom', 'rateLimited', 'quota', 'usageLimit']),
@@ -81,7 +95,7 @@ export const accountEventSchema = z.discriminatedUnion('type', [
     type: z.literal('swap'),
     previousAccount: accountIdSchema,
     trigger: accountTriggerSchema,
-    coldCacheUsd: amount,
+    coldCacheUsd: money,
   }),
   z.strictObject({ ...eventFields, type: z.literal('spread'), workerId: opaqueId }),
   z.strictObject({ ...eventFields, type: z.literal('stop'), trigger: accountTriggerSchema }),
@@ -109,9 +123,9 @@ export interface AccountUsageQuery {
   readonly end: string
 }
 export interface AccountUsageTotals {
-  readonly settledUsd: number
-  readonly reservedUsd: number
-  readonly uncertainUsd: number
+  readonly settledUsd: UsdAmount
+  readonly reservedUsd: UsdAmount
+  readonly uncertainUsd: UsdAmount
   readonly inputTokens: number
   readonly outputTokens: number
   readonly requests: number

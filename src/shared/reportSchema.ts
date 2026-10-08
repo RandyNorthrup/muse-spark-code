@@ -1,3 +1,4 @@
+import { nonnegativeUsdSchema } from './usdSchema'
 // The application's report contract, not a provider wire shape. Source text
 // remains data; labels are keys, and scrubbing belongs to both snapshot and output.
 import * as z from 'zod/mini'
@@ -38,7 +39,7 @@ export const reportValueSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('percent'), value: z.number() }),
   z.strictObject({
     type: z.literal('usd'),
-    value: z.nullable(z.number().check(z.nonnegative())),
+    value: z.nullable(nonnegativeUsdSchema),
     certainty: z.enum(['reported', 'estimated', 'unknown']),
   }),
   z.strictObject({ type: z.literal('durationMs'), value: z.number().check(z.nonnegative()) }),
@@ -62,6 +63,22 @@ function areUnique(values: readonly string[]): boolean {
   return new Set(values).size === values.length
 }
 
+function isSectionValid(section: {
+  columns: readonly { key: string }[]
+  rows: readonly { key: string; cells: Record<string, unknown>; sourceIds: readonly string[] }[]
+}): boolean {
+  const columns = section.columns.map((column) => column.key)
+  return (
+    areUnique(columns) &&
+    areUnique(section.rows.map((row) => row.key)) &&
+    section.rows.every(
+      (row) =>
+        Object.keys(row.cells).length === columns.length &&
+        columns.every((key) => Object.hasOwn(row.cells, key)) &&
+        areUnique(row.sourceIds),
+    )
+  )
+}
 export const reportSectionSchema = z
   .strictObject({
     id,
@@ -75,21 +92,7 @@ export const reportSectionSchema = z
     rows: z.array(reportRowSchema).check(z.maxLength(REPORT_MAX_ROWS)),
     omittedRows: count,
   })
-  .check(
-    z.refine((section) => {
-      const columns = section.columns.map((column) => column.key)
-      return (
-        areUnique(columns) &&
-        areUnique(section.rows.map((row) => row.key)) &&
-        section.rows.every(
-          (row) =>
-            Object.keys(row.cells).length === columns.length &&
-            columns.every((key) => Object.hasOwn(row.cells, key)) &&
-            areUnique(row.sourceIds),
-        )
-      )
-    }),
-  )
+  .check(z.refine(isSectionValid))
 export type ReportSection = z.infer<typeof reportSectionSchema>
 
 const freshness = z.discriminatedUnion('state', [
@@ -137,31 +140,68 @@ export const reportHeaderSchema = z.strictObject({
   }),
 })
 
+function isDocumentValid(document: {
+  needsYou: { id: string; label: string; rows: readonly { sourceIds: readonly string[] }[] }
+  sections: readonly { id: string; rows: readonly { sourceIds: readonly string[] }[] }[]
+  sources: readonly { id: string }[]
+}): boolean {
+  const sections = [document.needsYou, ...document.sections]
+  const sources = new Set(document.sources.map((source) => source.id))
+  return (
+    document.needsYou.id === 'needsYou' &&
+    document.needsYou.label === 'needsYou' &&
+    areUnique(sections.map((section) => section.id)) &&
+    sources.size === document.sources.length &&
+    sections.every((section) =>
+      section.rows.every((row) => row.sourceIds.every((source) => sources.has(source))),
+    )
+  )
+}
 export const reportDocumentSchema = z
   .strictObject({
     format: z.literal(REPORT_FORMAT_VERSION),
+    moneyVersion: z._default(z.literal(2), 2),
     header: reportHeaderSchema,
     needsYou: reportSectionSchema,
     sections: z.array(reportSectionSchema).check(z.maxLength(REPORT_MAX_SECTIONS)),
     sources: z.array(reportSourceSchema).check(z.minLength(1), z.maxLength(REPORT_MAX_SOURCES)),
     footer: z.strictObject({ rendererVersion: id, icuVersion: id, locale: id }),
   })
-  .check(
-    z.refine((document) => {
-      const sections = [document.needsYou, ...document.sections]
-      const sources = new Set(document.sources.map((source) => source.id))
-      return (
-        document.needsYou.id === 'needsYou' &&
-        document.needsYou.label === 'needsYou' &&
-        areUnique(sections.map((section) => section.id)) &&
-        sources.size === document.sources.length &&
-        sections.every((section) =>
-          section.rows.every((row) => row.sourceIds.every((source) => sources.has(source))),
-        )
-      )
-    }),
-  )
+  .check(z.refine(isDocumentValid))
 export type ReportDocument = z.infer<typeof reportDocumentSchema>
+
+// Money version 1 had no marker and numeric USD cells. This schema exists only
+// to validate and verify the original hash before the read migrates to version 2.
+const legacyReportValueSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    type: z.literal('usd'),
+    value: z.nullable(z.number().check(z.nonnegative())),
+    certainty: z.enum(['reported', 'estimated', 'unknown']),
+  }),
+  ...reportValueSchema.def.options.filter((schema) => schema.shape.type.def.values[0] !== 'usd'),
+])
+const legacyReportSectionSchema = z
+  .strictObject({
+    ...reportSectionSchema.shape,
+    rows: z
+      .array(
+        z.strictObject({
+          ...reportRowSchema.shape,
+          cells: z.record(id, legacyReportValueSchema),
+        }),
+      )
+      .check(z.maxLength(REPORT_MAX_ROWS)),
+  })
+  .check(z.refine(isSectionValid))
+export const legacyReportDocumentSchema = z
+  .strictObject({
+    ...reportDocumentSchema.shape,
+    moneyVersion: z.optional(z.literal(1)),
+    needsYou: legacyReportSectionSchema,
+    sections: z.array(legacyReportSectionSchema).check(z.maxLength(REPORT_MAX_SECTIONS)),
+  })
+  .check(z.refine(isDocumentValid))
+export type LegacyReportSection = z.infer<typeof legacyReportSectionSchema>
 
 // A new document section requires a comparison entry at compile time. Bounds
 // come from these actual schemas, rather than a second list of section limits.

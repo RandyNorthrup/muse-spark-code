@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Preserve exact decimal USD across schedule authorization, consent and agent caps,
+  rental cost estimates, reporting facts, account totals and voice consent. Read
+  historical numeric records at validated boundaries; saved reports verify their
+  original hashes before migration to exact money version 2.
+
+
 ### Fixed
 
 - Settle quote-menu capture origins after final layout and isolate source-reconstruction fixtures from temporary-directory placement.
@@ -39,6 +45,10 @@ happened, not what was planned; superseded entries are kept.
   JavaScript callers before admission. Ordinary session reservations share the
   atomic-admission lock, preventing competing owners from publishing during an
   unfinished claim and preserving cap checks at the remaining headroom.
+
+- The Account & usage spend meter sums exact decimal amounts instead of
+  rounding through nano-USD, so sub-nano spend below a nearby cap reports
+  unreached exactly as admission evaluates it.
 
 - The media accounting core claims its calibrated upper bound
   against both schedule and shared daily caps, including replayed file IDs,

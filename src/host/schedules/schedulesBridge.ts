@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 // The VS Code side of scheduled prompts v2 (M115, PLAN.md D95): loads the
 // lazy schedules bundle in the extension host and answers the panel's
 // versioned channel over the same workspace control the CLI uses. Paid
@@ -64,8 +65,8 @@ export function createSchedulesBridge(deps: SchedulesBridgeDeps) {
       whenClosed: 'open',
       catchUp: 'runOnce',
       mode: 'manual',
-      grant: { rules: [], destinationIds: [], paidCapUsd: 0 },
-      paidCapUsd: 0,
+      grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from(0).toAmount() },
+      paidCapUsd: Usd.from(0).toAmount(),
       parallel: false,
       zone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
       pinned: false,

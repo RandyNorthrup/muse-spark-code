@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { EN } from '../../src/shared/l10n/en'
@@ -179,9 +180,9 @@ export function valueFixture() {
     number: { type: 'number', value: 1234.5 },
     count: { type: 'count', value: 1234 },
     percent: { type: 'percent', value: 42 },
-    usd: { type: 'usd', value: 1.46, certainty: 'reported' },
+    usd: { type: 'usd', value: PortUsd.from(1.46).toAmount(), certainty: 'reported' },
     unknown: { type: 'usd', value: null, certainty: 'unknown' },
-    estimated: { type: 'usd', value: 2, certainty: 'estimated' },
+    estimated: { type: 'usd', value: PortUsd.from(2).toAmount(), certainty: 'estimated' },
     duration: { type: 'durationMs', value: 1250 },
     timestamp: { type: 'timestamp', value: '2026-10-06T12:00:00-07:00' },
     boolean: { type: 'boolean', value: true },

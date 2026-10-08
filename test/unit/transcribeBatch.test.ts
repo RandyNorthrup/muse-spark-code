@@ -1,3 +1,4 @@
+import { type UsdAmount } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import {
   audioRouteOptions,
@@ -346,12 +347,13 @@ describe('batch preparation and accounting', () => {
   })
 
   it('names the exact hourly price, key billing and shared daily budget in the existing modal', () => {
-    const q = batchTranscriptionQuestion('speech.wav', 5)
+    const q = batchTranscriptionQuestion('speech.wav', Usd.from(5).toAmount())
     expect(q.title).toBe('Transcript of speech.wav')
     expect(q.detail).toContain('$0.18 per hour of audio')
     expect(q.detail).toContain('billed to your Model API key')
     expect(q.detail).toContain('Shared daily budget for interactive paid extras: $5.00')
-    expect(() => batchTranscriptionQuestion('speech.wav', NaN)).toThrow()
+    // Deliberately bypass the constructor to prove the runtime refusal (PLAN §8).
+    expect(() => batchTranscriptionQuestion('speech.wav', 'NaN' as UsdAmount)).toThrow()
   })
 
   it('refuses an absent captured batch adapter with a named reason before consent', async () => {
@@ -460,7 +462,7 @@ describe('batch preparation and accounting', () => {
       }
     })()
     try {
-      expect(allows).toHaveBeenCalledWith({ feature: 'voice' }, false, stop.signal)
+      expect(allows).toHaveBeenCalledWith({ feature: 'voice' }, false, undefined, stop.signal)
       stop.abort(new Error('stopped during consent'))
       await expect.poll(() => outcome).toEqual(new Error('stopped during consent'))
       await waiting

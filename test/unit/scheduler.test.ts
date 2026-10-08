@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { setTimeout as delay } from 'node:timers/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -58,7 +59,11 @@ function fireOf(
     observedAtMs: now,
     outcome,
     refusedActions: [],
-    cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+    cost: {
+      usd: PortUsd.from(0).toAmount(),
+      certainty: 'exact',
+      retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+    },
   })
 }
 function settled(
@@ -97,7 +102,11 @@ async function fixture(_name: string, jobs: readonly ScheduleV2[] = [fakeSchedul
   const failureSettlement = vi.fn((intent: ScheduleRunIntent, _error: unknown) =>
     Promise.resolve({
       ...fireOf(intent, clock.now(), 'failed'),
-      cost: { usd: 0.2, certainty: 'unknown' as const, retainedLiabilityUsd: 0.8 },
+      cost: {
+        usd: PortUsd.from(0.2).toAmount(),
+        certainty: 'unknown' as const,
+        retainedLiabilityUsd: PortUsd.from(0.8).toAmount(),
+      },
     }),
   )
   const deps = {
@@ -221,9 +230,9 @@ describe('M115 host-neutral scheduler', () => {
       'ran',
     ])
     expect(fires.find((fire) => fire.outcome === 'missed')?.cost).toEqual({
-      usd: 0,
+      usd: PortUsd.from(0).toAmount(),
       certainty: 'exact',
-      retainedLiabilityUsd: 0,
+      retainedLiabilityUsd: PortUsd.from(0).toAmount(),
     })
     await scheduler.poll('workspace-1')
     expect(host.deliveries).toHaveLength(1)
@@ -333,7 +342,7 @@ describe('M115 host-neutral scheduler', () => {
         grant: {
           rules: [{ id: 'shell', kind: 'tool', name: 'shell' }],
           destinationIds: [],
-          paidCapUsd: 0,
+          paidCapUsd: PortUsd.from(0).toAmount(),
         },
       }),
     ])
@@ -343,7 +352,7 @@ describe('M115 host-neutral scheduler', () => {
       await store.update({
         ...job!,
         mode: 'plan',
-        grant: { rules: [], destinationIds: [], paidCapUsd: 0 },
+        grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(0).toAmount() },
       })
       await original(key, work)
     })
@@ -380,7 +389,11 @@ describe('M115 host-neutral scheduler', () => {
           'refused',
         ),
         refusedActions: [{ actionClass: 'shell', tool: 'shell', reason: 'outside grant' }],
-        cost: { usd: 0.2, certainty: 'estimated', retainedLiabilityUsd: 0.8 },
+        cost: {
+          usd: PortUsd.from(0.2).toAmount(),
+          certainty: 'estimated',
+          retainedLiabilityUsd: PortUsd.from(0.8).toAmount(),
+        },
       }),
     )
     await scheduler.poll('workspace-1')
@@ -388,7 +401,11 @@ describe('M115 host-neutral scheduler', () => {
     expect(fire).toMatchObject({
       outcome: 'refused',
       refusedActions: [{ actionClass: 'shell', tool: 'shell' }],
-      cost: { usd: 0.2, certainty: 'estimated', retainedLiabilityUsd: 0.8 },
+      cost: {
+        usd: PortUsd.from(0.2).toAmount(),
+        certainty: 'estimated',
+        retainedLiabilityUsd: PortUsd.from(0.8).toAmount(),
+      },
     })
   })
   it('rejects a mismatched final settlement and pauses after three failed fires', async () => {
@@ -625,7 +642,11 @@ describe('M115 host-neutral scheduler', () => {
       const [fire] = await store.fires('workspace-1')
       expect(fire).toMatchObject({
         outcome: 'skipped',
-        cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+        cost: {
+          usd: PortUsd.from(0).toAmount(),
+          certainty: 'exact',
+          retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+        },
       })
     },
   )
@@ -652,7 +673,11 @@ describe('M115 host-neutral scheduler', () => {
     const [fire] = await store.fires('workspace-1')
     expect(fire).toMatchObject({
       outcome: 'ran',
-      cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+      cost: {
+        usd: PortUsd.from(0).toAmount(),
+        certainty: 'exact',
+        retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+      },
     })
     expect(await store.admit(intent)).toBe(false)
   })
@@ -673,7 +698,11 @@ describe('M115 host-neutral scheduler', () => {
     const fires = await store.fires(job.workspaceKey)
     expect(fires[0]).toMatchObject({
       outcome: 'skipped',
-      cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+      cost: {
+        usd: PortUsd.from(0).toAmount(),
+        certainty: 'exact',
+        retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+      },
     })
     const jobs = await store.list(job.workspaceKey)
     expect(jobs[0]?.fireCount).toBe(1)

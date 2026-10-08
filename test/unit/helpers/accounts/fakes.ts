@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../../../src/shared/usd'
 // Fakes for the other M108 lanes. These normalized replies are local test
 // contracts, never evidence of a vendor's wire shape.
 import {
@@ -24,6 +25,17 @@ export interface FakeAccountUsage extends AccountUsageTotals {
   readonly time: string
 }
 
+export function emptyAccountUsage() {
+  return {
+    settledUsd: PortUsd.from(0).toAmount(),
+    reservedUsd: PortUsd.from(0).toAmount(),
+    uncertainUsd: PortUsd.from(0).toAmount(),
+    inputTokens: 0,
+    outputTokens: 0,
+    requests: 0,
+  } satisfies AccountUsageTotals
+}
+
 export class FakeAccountJournal implements AccountJournalReader {
   private readonly usage: FakeAccountUsage[] = []
   readonly events: AccountEvent[] = []
@@ -34,14 +46,7 @@ export class FakeAccountJournal implements AccountJournalReader {
     this.events.push(accountEventSchema.parse(raw))
   }
   read(query: AccountUsageQuery): AccountUsageTotals {
-    const totals = {
-      settledUsd: 0,
-      reservedUsd: 0,
-      uncertainUsd: 0,
-      inputTokens: 0,
-      outputTokens: 0,
-      requests: 0,
-    }
+    const totals = emptyAccountUsage()
     const start = Date.parse(query.start)
     const end = Date.parse(query.end)
     for (const row of this.usage) {
@@ -52,9 +57,15 @@ export class FakeAccountJournal implements AccountJournalReader {
         Date.parse(row.time) >= end
       )
         continue
-      totals.settledUsd += row.settledUsd
-      totals.reservedUsd += row.reservedUsd
-      totals.uncertainUsd += row.uncertainUsd
+      totals.settledUsd = PortUsd.from(totals.settledUsd)
+        .add(PortUsd.from(row.settledUsd))
+        .toAmount()
+      totals.reservedUsd = PortUsd.from(totals.reservedUsd)
+        .add(PortUsd.from(row.reservedUsd))
+        .toAmount()
+      totals.uncertainUsd = PortUsd.from(totals.uncertainUsd)
+        .add(PortUsd.from(row.uncertainUsd))
+        .toAmount()
       totals.inputTokens += row.inputTokens
       totals.outputTokens += row.outputTokens
       totals.requests += row.requests

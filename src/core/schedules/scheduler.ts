@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 // Shared scheduler: hosts supply clocks, ownership and fully settled delivery.
 // T computes time occurrences; E filters/debounces and persists delayed events;
 // U/D own unattended admission and run-scoped refusal/paid settlement facts.
@@ -78,7 +79,11 @@ function unspent(
     delivery: intent.schedule.delivery,
     outcome,
     refusedActions: [],
-    cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+    cost: {
+      usd: Usd.from(0).toAmount(),
+      certainty: 'exact',
+      retainedLiabilityUsd: Usd.from(0).toAmount(),
+    },
     ...(intent.event !== undefined && { event: intent.event }),
   }
 }

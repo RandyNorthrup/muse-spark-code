@@ -1,3 +1,4 @@
+import { legacyUsdSchema } from '../../../shared/usdSchema'
 import * as z from 'zod/mini'
 import { REPORT_MAX_ROWS } from '../../../shared/constants'
 import {
@@ -19,7 +20,7 @@ import {
 } from './local'
 
 const count = z.number().check(z.int(), z.nonnegative())
-const cost = z.nullable(z.number().check(z.nonnegative()))
+const cost = z.nullable(legacyUsdSchema)
 const certainty = z.enum(['reported', 'estimated', 'unknown'])
 const usageSchema = z.object({
   period: z.string(),
@@ -110,10 +111,7 @@ export function sessionSource(
     }
   })
 }
-export function scrubUsage(
-  usage: ReportSourcePayloads['usage'],
-  scrub: SourceScrub,
-): ReportSourcePayloads['usage'] {
+export function scrubUsage(usage: unknown, scrub: SourceScrub): ReportSourcePayloads['usage'] {
   const parsed = usageSchema.parse(scrubSourceValue(usage, scrub))
   return {
     ...parsed,

@@ -6985,6 +6985,11 @@ export const ESTIMATE_LABEL_MAX_CHARS = 256
 // or older is a schedule risk: merging current main has broken such lanes'
 // releases before, so the estimate names it instead of pricing it.
 export const ESTIMATE_STALE_BASE_DAYS = 7
+// The largest P90 rental cost the estimator honestly displays, in whole US
+// dollars. It matches accountUsd's MAX_USD, the bigint nano-USD ceiling of
+// Number.MAX_SAFE_INTEGER whole dollars; a computed cost above this is
+// refused, never rounded or shown.
+export const ESTIMATE_MAX_RENTAL_COST_USD = '9007199254740991'
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'

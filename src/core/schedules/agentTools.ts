@@ -1,3 +1,4 @@
+import { Usd, minUsd, sumUsd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
 import {
   AGENT_SCHEDULE_MAX_DEPTH,
@@ -34,7 +35,7 @@ export interface AgentScheduleAuthority {
   readonly active: boolean
   readonly mode: ScheduleV2['mode']
   readonly grant: ScheduleGrant
-  readonly paidCapUsd: number
+  readonly paidCapUsd: UsdAmount
   readonly depth: number
   readonly sourceScheduleId?: string
   /** Host-owned explicit user permission for this source schedule only.
@@ -43,7 +44,8 @@ export interface AgentScheduleAuthority {
 }
 
 export type AgentSchedulePolicy = { readonly revision: number } & (
-  { readonly choice: 'ask' | 'never' } | { readonly choice: 'always'; readonly paidCapUsd: number }
+  | { readonly choice: 'ask' | 'never' }
+  | { readonly choice: 'always'; readonly paidCapUsd: UsdAmount }
 )
 export type AgentScheduleRefusal =
   | 'unavailable'
@@ -87,7 +89,7 @@ export interface AgentScheduleAdmission {
   dailyUsage(
     authority: AgentScheduleAuthority,
     atMs: number,
-  ): Promise<{ readonly settledUsd: number; readonly uncertainUsd: number }>
+  ): Promise<{ readonly settledUsd: UsdAmount; readonly uncertainUsd: UsdAmount }>
   /** CAS against policy.revision; increment only on a match. Never replace a
    * newer revocation or cap edit with an older open consent's decision. */
   remember(authority: AgentScheduleAuthority, policy: AgentSchedulePolicy): Promise<boolean>
@@ -121,7 +123,7 @@ export interface AgentScheduleToolsDeps {
       readonly never: string
     },
     signal: AbortSignal,
-  ): Promise<'allow' | 'never' | { readonly alwaysPaidCapUsd: number }>
+  ): Promise<'allow' | 'never' | { readonly alwaysPaidCapUsd: UsdAmount }>
   /** U uses D48, price/shared budget and schedule scope; no popup unattended.
    * commit revalidates model/account/tier and reserves against D78 as well. */
   paidConsent(
@@ -207,6 +209,8 @@ export class AgentScheduleTools {
     initial: AgentScheduleAuthority,
     signal: AbortSignal,
   ): Promise<AgentScheduleResult> {
+    if (!nonnegativeUsdSchema.safeParse(initial.paidCapUsd).success)
+      return this.refuse(initial, 'budget')
     const depth = initial.depth + 1
     const hasDepthPermission =
       initial.sourceScheduleId !== undefined &&
@@ -222,7 +226,7 @@ export class AgentScheduleTools {
       ...draft,
       mode: initial.mode,
       grant: initialGrant,
-      paidCapUsd: Math.min(draft.paidCapUsd, initialGrant.paidCapUsd, initial.paidCapUsd),
+      paidCapUsd: minUsd(draft.paidCapUsd, initialGrant.paidCapUsd, initial.paidCapUsd),
     }
     const policy = await this.deps.admission.policy(initial)
     if (policy.choice === 'never') return this.refuse(initial, 'never')
@@ -251,7 +255,7 @@ export class AgentScheduleTools {
         }
     }
     const paidConsent =
-      draft.paidCapUsd === 0 || acceptedPolicy.choice === 'never'
+      draft.paidCapUsd === '0' || acceptedPolicy.choice === 'never'
         ? undefined
         : await this.deps.paidConsent(draft, initial, signal)
     return await this.deps.admission.exclusive(initial.workspaceKey, async () => {
@@ -265,7 +269,7 @@ export class AgentScheduleTools {
       if (latestPolicy.revision !== policy.revision) return this.refuse(authority, 'changed')
       if (
         acceptedPolicy.choice === 'always' &&
-        (!Number.isFinite(acceptedPolicy.paidCapUsd) || acceptedPolicy.paidCapUsd < 0)
+        !nonnegativeUsdSchema.safeParse(acceptedPolicy.paidCapUsd).success
       )
         return this.refuse(authority, 'budget')
       if (
@@ -305,16 +309,17 @@ export class AgentScheduleTools {
           return this.refuse(authority, 'interval')
         const usage = await this.deps.admission.dailyUsage(authority, now)
         if (
-          !Number.isFinite(limits.paidCapUsd) ||
-          limits.paidCapUsd < 0 ||
-          !Number.isFinite(usage.settledUsd) ||
-          usage.settledUsd < 0 ||
-          !Number.isFinite(usage.uncertainUsd) ||
-          usage.uncertainUsd < 0 ||
-          active.reduce(
-            (sum, job) => sum + job.paidCapUsd,
-            draft.paidCapUsd + usage.settledUsd + usage.uncertainUsd,
-          ) > limits.paidCapUsd
+          !nonnegativeUsdSchema.safeParse(limits.paidCapUsd).success ||
+          !nonnegativeUsdSchema.safeParse(usage.settledUsd).success ||
+          !nonnegativeUsdSchema.safeParse(usage.uncertainUsd).success ||
+          Usd.from(
+            sumUsd(
+              draft.paidCapUsd,
+              usage.settledUsd,
+              usage.uncertainUsd,
+              ...active.map((job) => job.paidCapUsd),
+            ),
+          ).compare(Usd.from(limits.paidCapUsd)) > 0
         )
           return this.refuse(authority, 'budget')
       }
@@ -322,9 +327,13 @@ export class AgentScheduleTools {
         draft.grant,
         await this.deps.effectiveGrant(authority),
       )
-      const paidCapUsd = Math.min(draft.paidCapUsd, grant.paidCapUsd, authority.paidCapUsd)
-      if (paidCapUsd < 0 || !Number.isFinite(paidCapUsd)) return this.refuse(authority, 'budget')
-      if (paidConsent === undefined && paidCapUsd > 0) return this.refuse(authority, 'paidConsent')
+      if (!nonnegativeUsdSchema.safeParse(authority.paidCapUsd).success)
+        return this.refuse(authority, 'budget')
+      const paidCapUsd = minUsd(draft.paidCapUsd, grant.paidCapUsd, authority.paidCapUsd)
+      if (!nonnegativeUsdSchema.safeParse(paidCapUsd).success)
+        return this.refuse(authority, 'budget')
+      if (paidConsent === undefined && paidCapUsd !== '0')
+        return this.refuse(authority, 'paidConsent')
       const now = this.deps.now()
       const schedule = scheduleV2Schema.safeParse({
         ...draft,

@@ -1,5 +1,6 @@
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
+import { usdInputSchema } from '../../src/shared/usdSchema'
 import { AcpAccounts, companionAccountsPanel, type AccountsPanelPort } from '../../src/acp/accounts'
 import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
@@ -176,6 +177,33 @@ describe('M108 ACP accounts', () => {
         'Now on meta · Work: Default reached spendUsd: $1.00 (day).',
       )
       expect(JSON.stringify(notices)).toContain('Estimated context re-read cost: $0.1000.')
+    })
+  })
+
+  it('announces a sub-nano swap cap at its ceiling, never floored below the trigger', async () => {
+    const h = connectedAccounts()
+    await h.run(async (client, id) => {
+      const cap = usdInputSchema.parse('0.1000000000000000001')
+      const swap = accountSwap()
+      if (
+        swap.type !== 'swap' ||
+        swap.trigger.kind !== 'userCap' ||
+        swap.trigger.metric !== 'spendUsd'
+      )
+        throw new Error('Fixture needs a spend swap')
+      h.emit({
+        ...swap,
+        coldCacheUsd: usdInputSchema.parse('0'),
+        trigger: { ...swap.trigger, threshold: cap, value: cap },
+      })
+      // A following local prompt flushes the same ACP outbox.
+      await client.request('session/prompt', {
+        sessionId: id,
+        prompt: [{ type: 'text', text: '/accounts current' }],
+      })
+      const notices = h.updates.filter((update) => update.sessionUpdate === 'agent_message_chunk')
+      expect(JSON.stringify(notices)).toContain('spendUsd: $0.1001 (day).')
+      expect(JSON.stringify(notices)).not.toContain('$0.1000')
     })
   })
 
@@ -382,7 +410,7 @@ describe('M108 ACP accounts', () => {
         id: 'default',
         label: 'Renamed',
         order: 0,
-        thresholds: { spendUsd: { day: 50 } },
+        thresholds: { spendUsd: { day: usdInputSchema.parse('50') } },
       }
       h.rows.push({ id: 'personal', label: 'Personal', order: 2, thresholds: {} })
       h.changed()
@@ -395,7 +423,7 @@ describe('M108 ACP accounts', () => {
       }
       const text = JSON.stringify(h.updates)
       expect(text).toContain('Personal')
-      expect(text).toContain(String.raw`\"day\":50`)
+      expect(text).toContain(String.raw`\"day\":\"50\"`)
       expect(h.updates).toContainEqual(
         expect.objectContaining({
           sessionUpdate: 'config_option_update',
@@ -439,9 +467,11 @@ describe('M108 ACP accounts', () => {
     })
     await controller.use('personal', () => true)
     expect(controller.option()[0]?.currentValue).toBe(currentAccount)
-    await owner.accounts.thresholds('meta', 'default', { spendUsd: { day: 50 } })
+    await owner.accounts.thresholds('meta', 'default', {
+      spendUsd: { day: usdInputSchema.parse('50') },
+    })
     expect(await controller.command('/accounts thresholds default', () => true)).toBe(
-      JSON.stringify([{ id: 'default', thresholds: { spendUsd: { day: 50 } } }]),
+      JSON.stringify([{ id: 'default', thresholds: { spendUsd: { day: '50' } } }]),
     )
     expect(h.port.read).toHaveBeenCalledTimes(3)
     await owner.accounts.remove('meta', 'work')
@@ -460,7 +490,12 @@ describe('M108 ACP accounts', () => {
     const controller = new AcpAccounts('session', h.port, change, notice)
     await controller.start()
     h.rows.push({ id: 'personal', label: 'Personal', order: 2, thresholds: {} })
-    h.rows[0] = { id: 'default', label: 'Renamed', order: 0, thresholds: { spendUsd: { day: 50 } } }
+    h.rows[0] = {
+      id: 'default',
+      label: 'Renamed',
+      order: 0,
+      thresholds: { spendUsd: { day: usdInputSchema.parse('50') } },
+    }
     for (const listener of h.listeners) {
       listener({ ...h.state(), provider: 'other' })
       listener(forgedState())
@@ -505,11 +540,16 @@ describe('M108 ACP accounts', () => {
     const { ready, release } = holdAccountRead(h)
     const reading = controller.command('/accounts thresholds default', () => true)
     await Promise.race([ready.promise, reading])
-    h.rows[0] = { id: 'default', label: 'Default', order: 0, thresholds: { spendUsd: { day: 50 } } }
+    h.rows[0] = {
+      id: 'default',
+      label: 'Default',
+      order: 0,
+      thresholds: { spendUsd: { day: usdInputSchema.parse('50') } },
+    }
     h.changed()
     release.resolve(stale)
     expect(await reading).toBe(
-      JSON.stringify([{ id: 'default', thresholds: { spendUsd: { day: 50 } } }]),
+      JSON.stringify([{ id: 'default', thresholds: { spendUsd: { day: '50' } } }]),
     )
     controller.dispose()
   })

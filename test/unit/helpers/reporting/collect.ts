@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../../../src/shared/usd'
 import { createHash } from 'node:crypto'
 import { createReportCollector, type ReportDraft } from '../../../../src/core/reporting/collect'
 import type {
@@ -144,14 +145,14 @@ export function fullSnapshot(): SourceSnapshot {
     inputTokens: 100,
     outputTokens: 20,
     cachedTokens: 10,
-    costUsd: 0.25,
+    costUsd: PortUsd.from(0.25).toAmount(),
     certainty: 'reported',
     breakdown: [
       {
         key: 'fixture-model',
         inputTokens: 100,
         outputTokens: 20,
-        costUsd: 0.25,
+        costUsd: PortUsd.from(0.25).toAmount(),
         certainty: 'reported',
       },
     ],

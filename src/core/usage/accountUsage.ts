@@ -9,14 +9,8 @@ import {
   type AccountThresholds,
 } from '../../shared/accounts'
 import { ACCOUNT_DEFAULT_ID, DAYS_PER_WEEK, UI_TEXT } from '../../shared/constants'
-import {
-  multiplyUsd,
-  parseUsd,
-  sumUsd,
-  usdDecimal,
-  usdNumber,
-  type Usd,
-} from '../../shared/accountUsd'
+import { multiplyUsd, parseUsd, usdDecimal, usdNumber } from '../../shared/accountUsd'
+import { Usd as ExactUsd } from '../../shared/usd'
 import type { AccountLimitsReader } from '../accounts/thresholds'
 
 type Period = 'day' | 'week' | 'month'
@@ -111,28 +105,32 @@ function totalsFor(
   records: readonly z.infer<typeof recordSchema>[],
   range: Range,
 ): AccountUsageTotals {
-  const money: { settledUsd: Usd; reservedUsd: Usd; uncertainUsd: Usd } = {
-    settledUsd: parseUsd(0),
-    reservedUsd: parseUsd(0),
-    uncertainUsd: parseUsd(0),
+  // Exact decimal accumulation, the same contract as admission: rounding spend
+  // up through nano-USD here would report a cap reached that admission has
+  // not (cap '0.1000000005' with '0.1000000001' spent is not reached).
+  const money = {
+    settledUsd: ExactUsd.from(0),
+    reservedUsd: ExactUsd.from(0),
+    uncertainUsd: ExactUsd.from(0),
   }
   const counts = { inputTokens: 0, outputTokens: 0, requests: 0 }
   for (const row of records) {
     if (Date.parse(row.time) >= Date.parse(range.end)) continue
     // Outstanding claims survive calendar resets; only settled history is bounded.
     for (const metric of ['reservedUsd', 'uncertainUsd'] as const)
-      money[metric] = sumUsd([money[metric], parseUsd(row[metric])])
+      money[metric] = money[metric].add(ExactUsd.from(row[metric]))
     if (Date.parse(row.time) < Date.parse(range.start)) continue
-    money.settledUsd = sumUsd([money.settledUsd, parseUsd(row.settledUsd)])
+    money.settledUsd = money.settledUsd.add(ExactUsd.from(row.settledUsd))
     for (const metric of ['inputTokens', 'outputTokens', 'requests'] as const)
       counts[metric] = safeSum(counts[metric], row[metric])
   }
+  const liability = money.settledUsd.add(money.reservedUsd).add(money.uncertainUsd)
   return {
     ...counts,
-    settledUsd: usdDecimal(money.settledUsd),
-    reservedUsd: usdDecimal(money.reservedUsd),
-    uncertainUsd: usdDecimal(money.uncertainUsd),
-    liabilityUsd: usdDecimal(sumUsd(Object.values(money))),
+    settledUsd: money.settledUsd.toString(),
+    reservedUsd: money.reservedUsd.toString(),
+    uncertainUsd: money.uncertainUsd.toString(),
+    liabilityUsd: liability.toString(),
   }
 }
 
@@ -159,17 +157,38 @@ function metersFor(
   for (const period of ['day', 'week', 'month'] as const) {
     const totals = totalsFor(records, ranges[period])
     for (const metric of ['spendUsd', 'inputTokens', 'outputTokens', 'requests'] as const) {
+      if (metric === 'spendUsd') {
+        // Exact decimal comparison, the same contract as admission: a cap of
+        // '0.1000000000000000001' with '0.1' spent is not reached. The
+        // threshold string is already canonical, so it is carried through
+        // without a nano-USD round trip.
+        const capText = thresholds.spendUsd?.[period]
+        if (capText === undefined) continue
+        const cap = ExactUsd.from(capText)
+        const used = ExactUsd.from(totals.liabilityUsd)
+        const isReached = used.compare(cap) >= 0
+        meters.push({
+          metric,
+          period,
+          unit: 'usd',
+          value: totals.liabilityUsd,
+          threshold: capText,
+          progress: isReached ? 100 : Number(used.times(100).floorDivide(cap)),
+          isReached,
+          resetAt: ranges[period].end,
+        })
+        continue
+      }
       const threshold = thresholds[metric]?.[period]
       if (threshold === undefined) continue
-      const value = metric === 'spendUsd' ? totals.liabilityUsd : String(totals[metric])
-      const cap = metric === 'spendUsd' ? parseUsd(threshold, 'floor') : BigInt(threshold)
-      const used = metric === 'spendUsd' ? parseUsd(value) : BigInt(value)
+      const cap = BigInt(threshold)
+      const used = BigInt(String(totals[metric]))
       meters.push({
         metric,
         period,
-        unit: metric === 'spendUsd' ? 'usd' : 'count',
-        value,
-        threshold: metric === 'spendUsd' ? usdDecimal(cap) : String(threshold),
+        unit: 'count',
+        value: String(totals[metric]),
+        threshold: String(threshold),
         progress: progress(used, cap),
         isReached: used >= cap,
         resetAt: ranges[period].end,

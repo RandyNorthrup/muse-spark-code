@@ -1,3 +1,4 @@
+import type { UsdAmount } from '../../shared/usdSchema'
 // Editor-independent bindings. W supplies S/U's request handler and T's
 // preview; M104 bridges supply the same ports without importing VS Code.
 import * as z from 'zod/mini'
@@ -52,7 +53,7 @@ export interface ScheduleSurfaceProps {
   readonly paid?: {
     readonly model: string
     readonly price: string
-    readonly sharedDailyBudgetUsd: number
+    readonly sharedDailyBudgetUsd: UsdAmount
   }
   readonly currentConversationId?: string
   readonly nowMs: number

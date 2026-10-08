@@ -58,10 +58,13 @@ export function AccountNotices({
             </div>
           )
         const trigger = event.trigger
+        // Display rule: a shortened cap renders with ceiling, never below the
+        // exact trigger, so an exact reach always shows value >= cap. Reach
+        // state itself comes from the exact trigger event, never the text.
         const threshold =
           trigger.kind === 'vendorLimit'
             ? UI_TEXT.accounts.vendorLimit
-            : `${UI_TEXT.accounts.userCap}: ${metricNames[trigger.metric]} (${periodNames[trigger.period]}) ${trigger.metric === 'spendUsd' ? formatUsd(parseUsd(trigger.threshold, 'floor')) : formatNumber(trigger.threshold)}`
+            : `${UI_TEXT.accounts.userCap}: ${metricNames[trigger.metric]} (${periodNames[trigger.period]}) ${trigger.metric === 'spendUsd' ? formatUsd(parseUsd(trigger.threshold)) : formatNumber(trigger.threshold)}`
         return (
           <div key={index}>
             <p>

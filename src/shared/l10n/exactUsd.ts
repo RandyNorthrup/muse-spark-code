@@ -54,22 +54,30 @@ function formatUsdIntl(
   ).format(amount)
 }
 
-/** A verified quote's chosen precision, without changing its exact amount. */
-export function formatUsdAtPrecision(exact: Usd, precision: number): string {
+/**
+ * A verified quote's chosen precision, without changing its exact amount:
+ * in the installed language, or in `locale` when a report renders for its own.
+ */
+export function formatUsdAtPrecision(exact: Usd, precision: number, locale?: string): string {
   const rounded = exact.ceiling(precision).toString()
   const [whole = '0', fraction = ''] = rounded.split('.', 2)
-  const formatter = numberFormat(`usd:${String(precision)}`, {
+  const currency: Intl.NumberFormatOptions = {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: precision,
     maximumFractionDigits: precision,
-  })
+  }
+  const plain: Intl.NumberFormatOptions = { useGrouping: false }
+  const formatter =
+    locale === undefined
+      ? numberFormat(`usd:${String(precision)}`, currency)
+      : new Intl.NumberFormat(locale, currency)
+  const digitFormat =
+    locale === undefined ? numberFormat('digit', plain) : new Intl.NumberFormat(locale, plain)
   // Intl accepts bigint exactly; substitute the exact fractional digits in its locale pattern.
   const digits = fraction
     .padEnd(precision, '0')
-    .replaceAll(/\d/g, (digit) =>
-      numberFormat('digit', { useGrouping: false }).format(Number(digit)),
-    )
+    .replaceAll(/\d/g, (digit) => digitFormat.format(Number(digit)))
   return formatter
     .formatToParts(BigInt(whole))
     .map((part) => (part.type === 'fraction' ? digits : part.value))

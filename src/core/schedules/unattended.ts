@@ -292,7 +292,7 @@ export class UnattendedRun {
     return (
       !requiresAsking &&
       this.isActive() &&
-      this.context.grant.paidCapUsd > 0 &&
+      this.context.grant.paidCapUsd !== '0' &&
       this.paid?.allows(feature) === true
     )
   }

@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 // @vitest-environment jsdom
 import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -64,8 +65,12 @@ function setup(isReport = false, isDeferred = false, choices = kinds) {
   const initial: ScheduleDraft = {
     ...fakeScheduleDraft(),
     action: isReport ? report : { kind: 'prompt', prompt: 'Read the build result' },
-    grant: { rules: [], destinationIds: isReport ? ['browser'] : [], paidCapUsd: isReport ? 0 : 1 },
-    paidCapUsd: isReport ? 0 : 1,
+    grant: {
+      rules: [],
+      destinationIds: isReport ? ['browser'] : [],
+      paidCapUsd: PortUsd.from(isReport ? 0 : 1).toAmount(),
+    },
+    paidCapUsd: PortUsd.from(isReport ? 0 : 1).toAmount(),
   }
   function App() {
     const [value, setValue] = useState(initial)
@@ -95,8 +100,8 @@ describe('shared report action editor', () => {
     expect(f.changed).toHaveBeenLastCalledWith({
       ...f.initial,
       action: report,
-      grant: { ...f.initial.grant, destinationIds: [], paidCapUsd: 0 },
-      paidCapUsd: 0,
+      grant: { ...f.initial.grant, destinationIds: [], paidCapUsd: PortUsd.from(0).toAmount() },
+      paidCapUsd: PortUsd.from(0).toAmount(),
     })
     expect(screen.getByLabelText(UI_TEXT.scheduleV2.reportAction.kind)).toHaveValue('project')
     expect(
@@ -139,7 +144,10 @@ describe('shared report action editor', () => {
       }),
     )
     for (const [draft] of f.changed.mock.calls) {
-      expect(draft).toMatchObject({ grant: { destinationIds: [], paidCapUsd: 0 }, paidCapUsd: 0 })
+      expect(draft).toMatchObject({
+        grant: { destinationIds: [], paidCapUsd: PortUsd.from(0).toAmount() },
+        paidCapUsd: PortUsd.from(0).toAmount(),
+      })
     }
     fireEvent.change(screen.getByLabelText(UI_TEXT.scheduleV2.reportAction.kind), {
       target: { value: 'session' },

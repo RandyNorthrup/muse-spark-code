@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { SCHEDULE_ACTION_CLASSES, SCHEDULE_MIN_INTERVAL_MS } from '../../src/shared/constants'
 import {
@@ -200,14 +201,22 @@ describe('M115 deterministic fakes', () => {
       delivery: schedule.delivery,
       outcome: 'ran',
       refusedActions: [],
-      cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+      cost: {
+        usd: PortUsd.from(0).toAmount(),
+        certainty: 'exact',
+        retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+      },
       event,
     })
     host.result = {
       ...free,
       runId: `${context.runId}:second`,
       refusedActions: [{ actionClass: 'shell', tool: 'shell', reason: 'outsideGrant' }],
-      cost: { usd: 0.1, certainty: 'estimated', retainedLiabilityUsd: 0.2 },
+      cost: {
+        usd: PortUsd.from(0.1).toAmount(),
+        certainty: 'estimated',
+        retainedLiabilityUsd: PortUsd.from(0.2).toAmount(),
+      },
     }
     const paid = await host.deliver(
       schedule,
@@ -258,7 +267,11 @@ describe('M115 deterministic fakes', () => {
         delivery: queued.delivery,
         outcome: 'ran',
         refusedActions: [{ actionClass: 'shell', tool: 'shell', reason: 'outsideGrant' }],
-        cost: { usd: 0.1, certainty: 'unknown', retainedLiabilityUsd: 0.2 },
+        cost: {
+          usd: PortUsd.from(0.1).toAmount(),
+          certainty: 'unknown',
+          retainedLiabilityUsd: PortUsd.from(0.2).toAmount(),
+        },
       }
       host.settle(record)
       await queuePromise
@@ -290,16 +303,16 @@ describe('M115 deterministic fakes', () => {
       grant: {
         rules: [{ id: 'command-1', kind: 'command', prefix: 'npm' }],
         destinationIds: [],
-        paidCapUsd: 1,
+        paidCapUsd: PortUsd.from(1).toAmount(),
       },
-      paidCapUsd: 1,
+      paidCapUsd: PortUsd.from(1).toAmount(),
       paidConsent: {
         modelId: 'model-1',
         accountId: 'digest',
         priceTier: 'tier-1',
         grantedAtMs: 0,
-        dailyCapUsd: 1,
-        sharedDailyBudgetUsd: 1,
+        dailyCapUsd: PortUsd.from(1).toAmount(),
+        sharedDailyBudgetUsd: PortUsd.from(1).toAmount(),
         extras: [],
       },
     })
@@ -310,8 +323,8 @@ describe('M115 deterministic fakes', () => {
       await second.update({
         ...revoked,
         paused: true,
-        grant: { rules: [], destinationIds: [], paidCapUsd: 0 },
-        paidCapUsd: 0,
+        grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(0).toAmount() },
+        paidCapUsd: PortUsd.from(0).toAmount(),
       }),
     ).toBe(true)
     expect(
@@ -322,7 +335,7 @@ describe('M115 deterministic fakes', () => {
       revision: 1,
       paused: true,
       grant: { rules: [] },
-      paidCapUsd: 0,
+      paidCapUsd: PortUsd.from(0).toAmount(),
       fireCount: 0,
     })
     expect(current).not.toHaveProperty('paidConsent')

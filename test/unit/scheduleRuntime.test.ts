@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { ScheduleRuntime, type ScheduleRuntimeDeps } from '../../src/runtime/schedules/runtime'
 import { RuntimeScheduleHost } from '../../src/runtime/schedules/host'
@@ -150,7 +151,7 @@ describe('schedule runtime lifecycle', () => {
   it('uses verified native authorization for each fire and ignores unverified run-due flags', async () => {
     for (const authorization of [
       { scheduledPrompts: false },
-      { scheduledPrompts: true, maxBudgetUsd: 1 },
+      { scheduledPrompts: true, maxBudgetUsd: PortUsd.from(1).toAmount() },
     ]) {
       const { runtime, controlFor, control, verifyWake } = setup()
       verifyWake.mockResolvedValue(authorization)
@@ -161,7 +162,7 @@ describe('schedule runtime lifecycle', () => {
             isJson: true,
             registrationId: 'verified-record',
             scheduledPrompts: true,
-            maxBudgetUsd: 100,
+            maxBudgetUsd: PortUsd.from(100).toAmount(),
           },
           '/launcher',
         ),
@@ -233,15 +234,15 @@ describe('schedule runtime lifecycle', () => {
       const value = fakeScheduleDraft()
       const draft = JSON.stringify({
         ...value,
-        paidCapUsd: 1,
-        grant: { ...value.grant, paidCapUsd: 1 },
+        paidCapUsd: PortUsd.from(1).toAmount(),
+        grant: { ...value.grant, paidCapUsd: PortUsd.from(1).toAmount() },
       })
       for (const authorization of [
         {},
-        { maxBudgetUsd: 1 },
+        { maxBudgetUsd: PortUsd.from(1).toAmount() },
         { scheduledPrompts: true },
-        { scheduledPrompts: true, maxBudgetUsd: 0 },
-        { scheduledPrompts: true, maxBudgetUsd: 0.5 },
+        { scheduledPrompts: true, maxBudgetUsd: PortUsd.from(0).toAmount() },
+        { scheduledPrompts: true, maxBudgetUsd: PortUsd.from(0.5).toAmount() },
       ]) {
         let result: string
         if (source === 'cli') {
@@ -261,7 +262,7 @@ describe('schedule runtime lifecycle', () => {
         expect(result).toContain(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
         expect(control.request).not.toHaveBeenCalled()
       }
-      const authorization = { scheduledPrompts: true, maxBudgetUsd: 1 }
+      const authorization = { scheduledPrompts: true, maxBudgetUsd: PortUsd.from(1).toAmount() }
       if (source === 'cli')
         await runtime.command(
           { operation: 'add', isJson: true, draft, ...authorization },

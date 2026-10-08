@@ -1727,3 +1727,506 @@ All eight restored drill hashes match the committed source. Final receipt
 changes are documentation only. No dependencies, prices, limits, timeouts,
 ignores or lint levels changed; no paid/live model attempt occurred. The lane
 ran no full quality, merge, push or packaging, as directed by its brief.
+
+## Money ports (PORTS017)
+
+Kubuntu, `rel017/ports`, base `1a2086399`, 2026-10-08. Fake-only: no paid/live
+calls, credentials, dependencies, gate changes, merge or push. Full integrated
+quality and the inherited bundle caps remain assigned to the lead by the rig
+brief and PLAN §7. Current money ports carry canonical `UsdAmount`; token and
+count arithmetic stays numeric. These are internal ACP schedule context and
+CLI authorization fields, not fields of the external ACP specification.
+
+| Current port                                                               | Validated boundary (source line)                                                                                                                                                              | Regression / owning coverage                                                                                                                  |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `acp/agent.ts:154`, `acp/schedules.ts:12`: `maxBudgetUsd`                  | `runtime/schedules/args.ts:44` (`usdInputSchema`); forwarded by `runtime/cliArgs.ts:384` and runtime/ACP contexts                                                                             | `paidPortBoundaries`, `acpSchedules`, `acpRuntime`, `scheduleCommand`                                                                         |
+| `runtime/cliArgs.ts:87`, `runtime/schedules/args.ts:30,39`: `maxBudgetUsd` | `runtime/schedules/args.ts:44`, exact CLI decimal input                                                                                                                                       | `paidPortBoundaries` CLI precision and malformed-input cases                                                                                  |
+| `runtime/schedules/registration.ts:53`: `maxBudgetUsd`                     | `runtime/schedules/registration.ts:73`: numeric unmarked/v1 wake records normalize on read; v2 writes are canonical                                                                           | `paidPortBoundaries` old numeric wake, `scheduleBackground`, `scheduleRegistration`, `nativeScheduleBackground`                               |
+| `runtime/schedules/control.ts:102`: draft/grant `paidCapUsd`               | `shared/scheduleV2.ts:45` validated JSON/disk money codec; CLI authorization above                                                                                                            | `scheduleSurface`, `scheduleRuntime`, `paidPortBoundaries`, `schedulePaid`                                                                    |
+| `core/estimator/recommend.ts:50,190`: `rentalCostP90Usd`                   | `core/estimator/recommend.ts:160` validated price cards; `:161` parses rates once; exact computed fraction at `:216`                                                                          | `estimatorRecommend`: decimal ties, sub-nano evidence, 0.1 + 0.2 rentals, malformed prices and overflow                                       |
+| `core/paid/paidConsent.ts:68`: `sharedDailyBudgetUsd`                      | `shared/scheduleV2.ts:45,224`; `core/paid/paidConsent.ts:113` additionally validates the host identity before consent                                                                         | `paidPortBoundaries` numeric v2 consent read, `schedulePaid`, `mediaClient`                                                                   |
+| `webview/schedules/ports.ts:56`: `sharedDailyBudgetUsd`                    | Same consent/host boundary; editor cap text (`webview/schedules/ScheduleEditor.tsx:378`) uses `usdInputSchema` without a float conversion                                                     | `scheduleEditor`, `scheduleSurfaceWebview`, `schedulePaid`                                                                                    |
+| `core/reporting/sources/types.ts:140,146`: total/breakdown `costUsd`       | `core/reporting/sources/session.ts:25` validated source usage (`legacyUsdSchema`), shared by session and aggregate sources                                                                    | `paidPortBoundaries` numeric usage, exact sum and malformed input; `report*`, `reporting*`                                                    |
+| Saved report USD cells                                                     | `core/reporting/render/canonical.ts:121,137` verifies the original numeric version-1 bytes/hash, then migrates to money version 2; `shared/reportSchema.ts` keeps both structural validations | `paidPortBoundaries` retained numeric fixture; `reportHistory`, `render.json`, all renderer goldens                                           |
+| `core/schedules/agentTools.ts:38,48`: authority/policy `paidCapUsd`        | `shared/scheduleV2.ts:45`; host caps and policy are checked with `nonnegativeUsdSchema` before exact intersections                                                                            | `agentSchedules`: exactly 0.1 settled + 0.2 allocation at a 0.3 cap and refusal of an additional sub-nano amount; existing malformed policies |
+| `core/schedules/agentTools.ts:92`: `settledUsd`, `uncertainUsd`            | `core/schedules/agentTools.ts:310` validated owner daily projection; exact sum includes active allocations                                                                                    | `agentSchedules`, `scheduleJournal`, `unattended*`                                                                                            |
+| `core/schedules/agentTools.ts:126`: `alwaysPaidCapUsd`                     | `core/schedules/agentTools.ts:272`: consent result validated before remembering; same exact policy cap                                                                                        | `agentSchedules` malformed Always caps and atomic allocation                                                                                  |
+| `shared/accounts.ts:113–115`: settled/reserved/uncertain totals            | `core/accounts/thresholds.ts:18` validated journal projection; `core/accounts/pool.ts:118` projects nano totals to canonical strings without a numeric round trip                             | `paidPortBoundaries` sub-nano headroom; `thresholds`, `accountFakes`, `accountUsage`, account pool suites                                     |
+| `core/voice/transcribeBatch.ts:203`: `dailyBudgetUsd`                      | `core/voice/transcribeBatch.ts:204`: canonical caller amount checked with `nonnegativeUsdSchema` before shared money formatting                                                               | `paidPortBoundaries` exact batch question, `transcribeBatch` runtime refusal                                                                  |
+
+Schedule generation and delta envelopes now mark money version 2; historical
+unmarked envelopes remain readable through their validated v2 payload schemas.
+New model tool schemas declare canonical decimal strings. Schedule settled and
+retained fire costs carry exact amounts too. Report goldens were reviewed for
+the money-version marker and resulting hashes; the separate numeric legacy
+fixture remains to exercise the saved-file migration. No captured vendor frame
+was changed or invented.
+
+Initial unchanged inventory: **1 failed / 12 passed**, 21 numeric declarations.
+Final regression replay on base sources: **28 failed / 43 passed (71)**:
+`paidMoneyPorts` 14 failed / 12 passed (only 13 port-list additions),
+`paidPortBoundaries` 7 failed / 10 passed, `estimatorRecommend` 7 failed / 21 passed.
+All 41 source files were restored byte-exact after that replay.
+
+Numeric-port drill: `acp/schedules.ts` temporarily restored `maxBudgetUsd?: number`.
+The unchanged assertions fired: **2 failed / 24 passed**, exit 1. Restored
+SHA-256: `a7ec643d463749e445f1f4812bdd4d7dc347322394aa2514311182397dffc3a3`.
+Focused restored core runs passed 95, 81 and 63 tests at repository timeouts.
+Supplemental base replay confirms **4 failed / 10 passed (14)** in
+`accountUsageBundle`, `acpNpmReadme` and `acpResources` (two cases). It restores
+all 41 source files byte-exact. The full-base agent-admission replay cannot
+register its converted fixtures against the old numeric draft schema; the
+semantic drill below proves the new assertion itself fires.
+
+Float-sum drill: replace only the exact admission sum with JavaScript numeric
+addition. `agentSchedules` fails the new 0.1 + 0.2 case: **1 failed / 49 passed**,
+exit 1. Restored source SHA-256:
+`48232fac81a5ac57efa724bb29d786f486b046bfb23cb94fcd8a0403e25bf1e1`.
+Restored run: **50 passed**, exit 0. Cleanup owning runs: **294 passed** across
+12 files. New repetition exposed by the zero-clone gate is removed with shared
+zero-cost/fixture builders, report cell mapping, report action changes and the
+existing exact formatter. No gate configuration is changed. The plan's status
+phrase is corrected to its supported `built` value.
+
+Native fixture receipt: its numeric host-budget mock produces **3 failed /
+42 passed (45)**. The canonical mock and both canonical/numeric corrupt-input
+probes retain all assertions: **45 passed**, exit 0. This is a fixture migration;
+no production change follows `ad8926a8e`.
+
+Fresh ordinary clone under `$TMPDIR`: ordinary `CI=true npm ci` exits **0**
+with the unchanged lockfile. Production source `ad8926a8e`; final fixture source
+`54f40ddca`. No shared/junctioned dependency tree or install-policy bypass.
+All verification commands use `CI=true`.
+
+| Gate                    | Exit   | Receipt                                                                                            |
+| ----------------------- | ------ | -------------------------------------------------------------------------------------------------- |
+| Five typechecks         | 0 each | Host, webview, unit, e2e, integration; unit repeated after the last fixture                        |
+| Scoped ESLint           | 0      | All changed TS/TSX files, `--max-warnings=0`; last native fixture checked separately               |
+| Scoped Prettier         | 0      | All changed supported files; normal hooks format final documentation                               |
+| Plain knip              | 0      | No strict/production switch                                                                        |
+| Full jscpd              | 1      | Exactly two inherited clones: ACP agent, queued-answer/model-API fixture; zero threshold unchanged |
+| `check:l10n`            | 0      | Zero problems                                                                                      |
+| `check:host-api`        | 0      | Record current, portable boundaries intact                                                         |
+| `check:reference`       | 0      | Generated reference current                                                                        |
+| `check:plan`            | 0      | Supported milestone status, zero drift                                                             |
+| Report schema freshness | 0      | `node scripts/schema-report.mjs --check`                                                           |
+| Required owning sweep   | 1      | **179 files / 3,644 passed / 4 inherited failed**, 60 invocations                                  |
+
+The complete owning sweep includes every `schedules*`, `scheduled*`,
+`unattended*`, `estimator*`, `report*`, `reporting*`, `acp*`, `paid*` and
+`sessionBudget*` suite, plus account, voice batch, USD, renderer, native schedule,
+legacy store, media and locale owners. Each invocation has at most three files,
+`--maxWorkers=3` and repository deadlines, with no raised `--testTimeout`.
+The 10,000-fire journal workload passes at its existing named deadline.
+No case is skipped or filtered; remaining failures are the same four proven
+on the base above and remain assigned to the lead in PLAN §7.
+
+Commits use `.husky/_` exactly as installed; staged and committed diffs are
+reread after every hook. `ad8926a8e`'s hook adds block bodies to two test
+callbacks and adjusts table spacing; no production logic changes. The numeric
+port and float-sum drill hashes still match final source. No merge, push,
+quality aggregate, gate/configuration weakening, live/paid call or dependency
+change. The private fresh clone is removed after final verification.
+
+## Money ports review repairs (PORTS017B)
+
+Mac rig, `rel017/ports2` on this worktree, base `f411b64a4`, 2026-10-08.
+Fake-only: no paid/live calls, credentials, dependencies, gate changes, merge
+or push. Four commits, one per review item; each has a regression that fails
+on the base (drill receipts below) and no raised `--testTimeout`.
+
+| Review item                         | Fix (file:line)                                                                                                                                                                                                                                          | Regression test                                                                                                                                                                                            |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2 `collect.usage` number-vs-string | `test/unit/collect.usage.test.ts:11`: canonical `'0.25'` plus a `typeof` string check                                                                                                                                                                    | The updated assertion; sweep finds no other numeric USD cell (`reportContracts` already asserts numbers are rejected)                                                                                      |
+| P3 trigger float coercion           | `src/shared/accounts.ts:64`: spend `value`/`threshold` carry `UsdAmount` (numeric persisted forms normalize once via `legacyUsdSchema`); spend caps in `accountThresholdsSchema` likewise; counts stay numeric                                           | `test/unit/thresholds.test.ts:86`: projected `'0.1000000000000000001'` reaches a `0.1` cap with the exact string value; `test/unit/accounts.test.ts:86`: numeric persisted caps/triggers normalize on read |
+| P3 producer                         | `src/core/accounts/thresholds.ts:171`: exact `toAmount()` projection, no `Number()`                                                                                                                                                                      | Same trigger regression; `paidMoneyPorts` now also guards this file                                                                                                                                        |
+| P3 cap notice text                  | `src/core/usage/accountUsageText.ts:113`, `AccountNotices.tsx:64`, `src/acp/accounts.ts:146`: unchanged `formatUsd(parseUsd(...))` rendering, now fed canonical strings; verified by the existing `$0.3000`/`$1.00` notice assertions                    | `test/unit/accountUsageText.test.ts`, `test/unit/accountsPanel.test.tsx`, `test/unit/acpAccounts.test.ts`                                                                                                  |
+| P3 estimator float bound            | `src/shared/constants.ts:6991` `ESTIMATE_MAX_RENTAL_COST_USD = '9007199254740991'`: above `Number.MAX_SAFE_INTEGER` no integer-cent accounting stays exact, matching `accountUsd`'s `MAX_USD`; `src/core/estimator/recommend.ts:224` compares against it | `test/unit/estimatorRecommend.test.ts:610`: the bound is admitted with its exact evidence; one dollar more refuses `cost-overflow`                                                                         |
+| Suspicious systemd path             | `src/runtime/schedules/effectiveDefinition.ts:55`: empty/blank manager listings refuse as `invalidResponse`, not `Unsafe schedule launcher path: ` with an empty path                                                                                    | `test/unit/nativeScheduleBackground.test.ts:308`: each environment shape refuses honestly (empty listing, relative root, failed query); new exact-path drop-in test runs on any posix host                 |
+
+Suspicious-path finding: production never derives a launcher path from
+`XDG_RUNTIME_DIR` (it only inherits the variable to the systemd children,
+which interpret it themselves), so it cannot compute a bad join from the
+unset/empty/relative/non-login shapes: an unreachable manager refuses as
+`unavailable`, a malformed listing as `invalidResponse`, and only a path that
+fails trust verification is named `unsafe`. The laptop's
+`/home/randy/nd`-style refusal is the test's assumption that every reported
+search root verifies cleanly: the native test now derives its expectation
+through production's own `verifySystemdSearchDirectories` (same refusal on a
+clean machine, the earlier root's honest refusal elsewhere), skips
+non-absolute runtime directories, and the hermetic drop-in test pins the
+exact writable-directory refusal deterministically. No Linux host was
+reachable from this rig (no Docker daemon, no SSH), so the native case ran
+only through the platform gate here; it needs one Linux run.
+
+Red drills on a pristine `f411b64a4` worktree: exact-spend trigger drill
+fails with `value: 0.1` (1 failed); bound-plus-one drill is admitted without
+a throw (1 failed); empty-listing drill gives `Unsafe schedule launcher
+path: ` instead of `invalidResponse` (1 failed); numeric collect fixture
+fails all 3 usage tests. Drill files removed afterwards.
+
+Fresh ordinary clone under `$TMPDIR` (`CI=true npm ci` exit 0, unchanged
+lockfile). Gate batches below use repository timeouts, `--maxWorkers=3`, at
+most three files per run.
+
+| Gate batch       | Files                                                                      | Result              |
+| ---------------- | -------------------------------------------------------------------------- | ------------------- |
+| A                | paidMoneyPorts, paidPortBoundaries, estimatorRecommend                     | 73 passed           |
+| B                | thresholds, accounts, collect.usage                                        | 54 passed           |
+| C                | accountUsage, acpAccounts, nativeScheduleBackground                        | 87 passed           |
+| D                | pool, accountsPanel, reportContracts                                       | 85 passed, 1 failed |
+| E                | scheduleRegistration, scheduleBackground, collect.session                  | 19 passed           |
+| F                | accountUsageText, accountStore, reportFixtures                             | 43 passed           |
+| G                | accountsPanelHost, AccountsSection, accountsCommand                        | 48 passed           |
+| H                | policyGate, remoteAccountPool, m95PlanUi                                   | 94 passed           |
+| Five typechecks  | host, webview, unit, e2e, integration                                      | exit 0 each         |
+| Scoped ESLint    | all 24 changed TS/TSX files, `--max-warnings=0`                            | exit 0              |
+| Scoped Prettier  | all changed supported files                                                | exit 0              |
+| Plain knip       | no strict/production switch                                                | exit 0              |
+| Full jscpd       | the same two inherited clones (ACP agent, queued-answer/model-API fixture) | exit 1, unchanged   |
+| `check:l10n`     | zero problems                                                              | exit 0              |
+| `check:host-api` | record current                                                             | exit 0              |
+
+Batch D's single failure is `pool.test.ts` 'refuses money precision loss
+and negative settlements': it fails byte-identically on untouched
+`f411b64a4` (same assertion, same counts), so it is inherited, not a
+regression from this lane; left for the lead. No case is skipped or
+filtered. Base counts for this lane's scope: the P2 assertion failed on base
+(review receipt); the three new regressions above fail on base as drilled.
+
+Commits (`rel017/ports2`, hooks `.husky/_` as installed, diffs reread after
+each hook; prettier reformatted one producer line and one test file, no
+logic change): `62e5728b8` P2, `1d3eb9c83` trigger port, `be33324e6`
+estimator bound, `285e59935` schedule path. No merge, push, stash,
+hook substitution, or dependency change. Fresh clones removed after final
+verification.
+
+## Exact money end to end, structural guard (PORTS017C)
+
+Linux rig, `rel017/ports3` on this worktree, base `3e71dda14`, 2026-10-08.
+Fake-only: no paid/live calls, credentials, dependencies, gate changes, merge
+or push. Five commits, one per piece; every behavior fix has a regression
+that fails on the base (drill receipts below); all runs use the repository's
+own test timeout, `--maxWorkers=3`, at most three files per run.
+
+### 1. Structural money guard
+
+`test/unit/paidMoneyStructure.test.ts` (about 1 s) walks the actual zod
+schemas and type declarations under `src/shared` and `src/core` instead of
+matching declaration text. A money-named key (`[Uu]sd`, `Cost`, `Price`,
+`Budget`, `Cap`, `^spend`) fails the test when its leaf type is a JavaScript
+number, including numbers hidden behind local aliases (`coldCacheUsd:
+amount`), `z.optional`/`nullable`/`record`/`union` wrappers, `z.number()`
+inline, `type X = number`, and cross-file imports. Boundary schemas that
+normalize legacy numbers once (`legacyUsdSchema`, `usdInputSchema`,
+`usdAmountSchema`, `nonnegativeUsdSchema`, `z.codec` versioned readers such as
+scheduleV2's `money`) are sanctioned, never numeric. The existing regex guard
+is kept; a new numeric money field fails one of the two.
+
+The reviewed allow-list holds 70 `file:key` entries, each with a one-line
+reason: POOL017's `coldCacheUsd` (remove on merge); versioned pre-exact
+journal reads (3); OpenRouter `/key` wire rows (9); persisted usage-journal
+numeric rows (13); deferred team costs and view state (6); the M117
+resource-governor demand quantity (1); captured catalog prices converted once
+at their boundary (6); team price-preview rates and totals (11); token counts
+(10); model thinking budgets in tokens (2); a character count (1);
+millisecond durations (3); worker counts (2); integer vendor tick units (2).
+Every entry must match at least one finding or the test fails as stale, so
+converted fields cannot linger. Token counts, durations and worker counts
+stay numeric by design; the money entries are flagged-but-deferred inventory
+for follow-up lanes, visible instead of silent.
+
+Known residual gap: per-million rate names without a money token
+(`inputPerMillion`, `outputPerMillion`, `cachedPerMillion` in
+`shared/modelsPanel.ts` and `shared/usagePage.ts`) match neither guard's
+patterns. They are catalog display/comparison rates, listed here for a
+follow-up lane rather than silently uncovered.
+
+### 2. Findings mapped to fixes
+
+| Review item                            | Fix (file:line)                                                                                                                                                            | Regression test                                                                                                                           |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| P2 caps read back exactly              | `src/core/usage/accountUsage.ts:165`: spend meters compare with exact `Usd`, carry the canonical threshold string; counts keep the narrowed `BigInt` path                  | `test/unit/accountUsage.test.ts`: updated nano-cap expectation plus a sub-nano cap/admission-parity case                                  |
+| P2 ThresholdEditor unchanged cap saves | `ThresholdEditor.tsx:52`: edits validate with `usdInputSchema`, no nano or number round trip                                                                               | `test/unit/accountsPanel.test.tsx`: sub-nano caps save unchanged; `-1`/unsafe counts still refuse                                         |
+| P2 notices show the exact trigger      | `src/core/usage/accountUsageText.ts:113`, `AccountNotices.tsx:64`: ceiling parse (floor removed); `src/acp/accounts.ts:146` already ceilings; rule commented at all three  | `test/unit/accountUsageText.test.ts`, `test/unit/accountsPanel.test.tsx`, `test/unit/acpAccounts.test.ts`: sub-nano cap renders `$0.1001` |
+| P2 Linux scheduler fixture             | `test/unit/nativeScheduleBackground.test.ts:691`: owned 0700 trust anchor asserted before use; fixture verifier stops at the anchor                                        | Hermetic case reaches the writable `<id>.service.d` drop-in; 46/46 three times on this rig                                                |
+| P3 assertion strength                  | Same file: drop-in refusal names `dropDirectory` directly, never derived; empty/relative `XDG_RUNTIME_DIR` assert `unavailable` through full `register` calls              | XDG loop runs on every platform gate; planting case needs a live user manager                                                             |
+| P3 estimator rationale                 | `src/shared/constants.ts:6988`: bound matches `accountUsd`'s `MAX_USD`, the bigint nano-USD ceiling of `Number.MAX_SAFE_INTEGER` whole dollars; integer-cent claim dropped | `test/unit/estimatorRecommend.test.ts:610` (unchanged bound behavior)                                                                     |
+
+Display rule (commented at all three notice sites): a shortened cap renders
+with ceiling, never below the exact trigger, so an exact reach always shows
+value >= cap. Reach state itself comes from the exact meter or trigger event,
+never the shortened text.
+
+Correction to the PORTS017B table above: the estimator row's "no
+integer-cent accounting stays exact" rationale was the wrong story. The bound
+is `Number.MAX_SAFE_INTEGER` whole dollars because that magnitude is exactly
+what `accountUsd`'s `MAX_USD` refuses above, not because of float cents. The
+comment now says so.
+
+### 3. Sweep list (`toNanos`, `Number(...)`, `parseFloat`, `* 100` on `UsdAmount`)
+
+No `toNanos` and no `parseFloat` exist under `src/`. Every remaining hit is
+kept with its reason: `thresholds.ts:171` `Number(projected)` is a
+fail-closed finiteness proxy on a canonical decimal (only >308-digit
+overflow trips it); `core/usage/aggregate.ts:480` `Number(spentUsd)` feeds a
+display-only burn-rate projection while the zero-guard stays exact;
+`reportingAmount` is the documented projection into captured numeric report
+rows (fail-closed on non-finite), consumed by the allow-listed numeric
+`usageBudgetSchema` row in `paidDailyBudget.ts:324` whose comparisons stay
+exact; `journalRecord.ts` pricing math lives inside the persisted numeric
+journal format (deferred with its conversion); chart `* 100` geometry and
+`LimitsSection` progress widths operate on allow-listed display rows, never
+admission; all other `Number(...)` hits are counts, percents, token totals,
+or parse internals (`accountUsd.ts:39` exponent bound); `usdNumber` keeps its
+documented compatibility-only contract with three call sites (two percent
+precision gates, one POOL017-owned).
+
+### 4. Scheduler notes
+
+The sandbox maps host-owned directories to uid 65534, so no walk-to-root
+verifier can pass here; the hermetic anchor (asserted 0700/own-uid,
+verifier stops at the anchor, default walk preserved elsewhere) is what
+makes the case runnable on any machine without weakening production's rule.
+Probed on this rig: `systemd-analyze --user unit-paths` prints compiled-in
+paths with exit 0 under any `XDG_RUNTIME_DIR`, so the empty/relative refusal
+happens at `daemon-reload` (exit 1, observed), which the XDG loop asserts as
+`unavailable` through full `register` calls. No user manager exists here, so
+the planting case returns at the availability gate after the XDG loop; it
+needs one live Linux run to exercise the drop-in plant.
+
+### 5. Red drills (all reverted afterwards)
+
+- Added `drillBudgetUsd: z.number()` to `src/shared/accounts.ts`: the new
+  guard fails naming `drillBudgetUsd` (1 failed).
+- Dropped the `coldCacheUsd` allow-list entry: the guard flags
+  `coldCacheUsd`, proving POOL017's field is covered (1 failed).
+- Restored the nano floor in `readAccountUsage`: exactly the two exactness
+  assertions fail (updated `'0.3000000009'` expectation, new sub-nano case).
+- New tests on a pristine `3e71dda14` worktree (linked modules): the two
+  `accountUsage` exactness cases plus the notice ceiling case fail (3
+  failed); both ThresholdEditor sub-nano saves plus the panel notice fail
+  (3 failed); the ACP ceiling case passes there by design (already
+  ceiling); the new guard and scheduler files pass on base (test-side
+  fixes; the old hermetic case is the one that failed on base per the
+  review receipt).
+
+Fresh ordinary clone under `$TMPDIR` (`CI=true npm ci` exit 0, unchanged
+lockfile). Gate batches below use repository timeouts, `--maxWorkers=3`, at
+most three files per run.
+
+| Gate batch      | Files                                                                           | Result            |
+| --------------- | ------------------------------------------------------------------------------- | ----------------- |
+| A               | paidMoneyPorts, paidMoneyStructure, thresholds                                  | 54 passed         |
+| B               | accounts, accountUsage, accountUsageText                                        | 47 passed         |
+| C               | AccountsSection, accountsPanel, acpAccounts                                     | 61 passed         |
+| D               | estimatorRecommend                                                              | 29 passed         |
+| E               | nativeScheduleBackground (three consecutive runs)                               | 46 passed each    |
+| Five typechecks | host, webview, unit, e2e, integration                                           | exit 0 each       |
+| Scoped ESLint   | all 12 changed TS/TSX files, `--max-warnings=0`                                 | exit 0            |
+| Scoped Prettier | all changed supported files (`--check`)                                         | exit 0            |
+| Plain knip      | no strict/production switch                                                     | exit 0            |
+| Full jscpd      | the same two inherited base clones (ACP agent, queued-answer/model-API fixture) | exit 1, unchanged |
+| `check:l10n`    | zero problems                                                                   | exit 0            |
+
+jscpd exit 1 matches pristine `3e71dda14` byte-for-byte (same two clones);
+this lane's earlier draft added three pairs and they were removed (shared
+quote tracker, reshaped fixture). No case is skipped or filtered.
+
+Commits (`rel017/ports3`, hooks `.husky/_` as installed, diffs reread after
+each hook): `1f565225c` structural guard, `aab57cd08` exact caps end to end,
+`543a343f2` scheduler tests, `d87440551` threshold narrowing plus estimator
+rationale, `95c0d0226` guard dedup. No merge, push, stash, hook substitution,
+or dependency change. Fresh clones removed after final verification.
+
+## Pool (POOL017)
+
+Mac rig, `rel017/pool` on this worktree, base `3e71dda14`, 2026-10-08.
+Fake-only: no paid/live calls, credentials, dependencies, gate changes, merge
+or push. One product commit plus this record; hooks `.husky/_` as installed,
+diffs reread after each hook run.
+
+**Cause.** `pool.test.ts` 'refuses money precision loss and negative
+settlements' failed at `expect(t.claims).toHaveLength(0)` (1 claim, still
+rejecting). Before the exact-money port, `projected()` forced the estimate
+through a JS number (`numericUsd`), so the crafted
+`9007199254740990.000000001` estimate lost one nano as a double and was
+refused pre-reserve. PORTS017 (PLAN.md:19631, "Carry exact amounts through
+… account totals …; use exact comparisons and sums") retired that boundary:
+`pool.ts` projects nano totals to canonical strings without a numeric round
+trip, so the crafted value is exactly representable — it now reserves, then
+refuses honestly at the shared cap with a full refund (`settle(0, false)`).
+The negative settlement (`actualUsd: -1n`) was and is refused with
+`invalidAccount`, retaining uncertain liability (`null`, never released).
+The last plain-number money in the pool path was the swap event's
+`coldCacheUsd` (schema `z.number()`, written via `numericUsd`).
+
+**Fix (file:line).** `src/shared/accounts.ts:12`: swap `coldCacheUsd`
+carries `UsdAmount` via `legacyUsdSchema` (numeric persisted rows normalize
+once on read), the same port the spend caps/triggers took; the now-unused
+numeric `amount` alias is removed. `src/core/accounts/pool.ts:424`: the swap
+row writes `usdDecimal(admitted.coldCacheUsd)`; `numericUsd` and the
+`usdNumber` import are deleted, so no `Number()` remains on any pool money
+path. Settlement and refund amounts (`settle(actualUsd: Usd | null, …)`)
+were already exact and needed no conversion. Event readers
+(`accountUsageText`, `AccountNotices`, ACP accounts, `runExec`) already
+parse with `parseUsd`, which accepts the canonical strings unchanged.
+
+| Test / helper port                   | Change                                                                                                                                                                                                                      |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/pool.test.ts:139,297`     | Swap-row expectations are the canonical strings `'0.02'` / `'0.2'`                                                                                                                                                          |
+| `test/unit/pool.test.ts:414`         | Stale path updated, both refusals kept: the huge exact estimate still rejects (now at the shared cap, the honest path) with 1 claim refunded to `0`; the negative settlement still rejects with liability retained (`null`) |
+| `test/unit/pool.test.ts:305`         | New regression: a `9007199254740990.000000001` cold-cache estimate swaps with the exact string in the row and in the reservation                                                                                            |
+| `test/unit/paidMoneyPorts.test.ts:7` | `core/accounts/pool.ts` joins the numeric-port inventory (`shared/accounts.ts` was already listed)                                                                                                                          |
+| `test/unit/accounts.test.ts:145`     | Swap fixture is canonical `'0.01'` plus a numeric-read normalization assertion; `-1` still refused                                                                                                                          |
+| Helpers / panel fixtures             | `usage.ts`, `runtimeAccounts.ts`, `accountsPanel.test.tsx` build swap rows with `usdInputSchema.parse(…)`                                                                                                                   |
+
+**Drill.** The updated `pool.test.ts` on a pristine `3e71dda14` clone:
+**3 failed / 24 passed** — the two string expectations (number vs string)
+and the new above-double-precision regression, which fails with the base
+`numericUsd` refusal (`pool.ts:111`, `sessionBudgetStoreUnavailable`). The
+updated cap-path refusal passes on both trees, confirming it is a stale-path
+update, not a product change. Drill file removed afterwards (clone deleted).
+
+Fresh ordinary clones under `$TMPDIR` (`CI=true npm ci` exit 0, unchanged
+lockfile). Gate batches below use repository timeouts, `--maxWorkers=3`, at
+most three files per run.
+
+| Gate batch      | Files                                                                         | Result                                                                                                                                                                                                                                    |
+| --------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A               | pool, paidMoneyPorts, paidPortBoundaries                                      | 72 passed                                                                                                                                                                                                                                 |
+| B               | thresholds, accounts, accountUsage                                            | 65 passed                                                                                                                                                                                                                                 |
+| C               | accountUsageText, accountStore, acpAccounts                                   | 64 passed                                                                                                                                                                                                                                 |
+| D               | accountsPanel, accountsPanelHost, AccountsSection                             | 51 passed                                                                                                                                                                                                                                 |
+| E               | remoteAccountPool, policyGate, accountFakes                                   | 73 passed                                                                                                                                                                                                                                 |
+| F               | accountHomes, accountHost, accountPaidConsent                                 | 83 passed                                                                                                                                                                                                                                 |
+| G               | accountPolicy, accountSecrets, accountUsd                                     | 89 passed                                                                                                                                                                                                                                 |
+| H               | accountsCommand                                                               | passed; `accountUsageBundle` 1 failed (identical on pristine base: inherited static-graph failure, cf. MONEY017B); `accountsPanel.a11y` hook `EPERM` on loopback listen (identical on pristine base: sandbox networking, no local server) |
+| Five typechecks | host, webview, unit, e2e, integration                                         | exit 0 each (`npm run typecheck` exit 0)                                                                                                                                                                                                  |
+| Scoped ESLint   | all 8 changed TS/TSX files, `--max-warnings=0`                                | exit 0                                                                                                                                                                                                                                    |
+| Scoped Prettier | all changed supported files                                                   | exit 0                                                                                                                                                                                                                                    |
+| Plain knip      | no strict/production switch                                                   | exit 0                                                                                                                                                                                                                                    |
+| Full jscpd      | exactly the two inherited clones (ACP agent, queued-answer/model-API fixture) | exit 1, unchanged                                                                                                                                                                                                                         |
+| `check:l10n`    | zero problems                                                                 | exit 0                                                                                                                                                                                                                                    |
+
+Commits (`rel017/pool`, hooks `.husky/_` as installed, committed diff
+reread after the hook; the hook reformatted one import, no logic change):
+`4c0ca3dac` product, tests and port-list; this record follows. No merge,
+push, stash, hook substitution, or dependency change. Fresh clones removed
+after final verification.
+
+## Honest money guard, exact totals, pool merge (PORTS017D)
+
+Linux rig, `rel017/ports4` on this worktree, base `ad612c82e`, 2026-10-08.
+Fake-only: no paid/live calls, credentials, dependencies, gate changes, push,
+rebase or stash. All runs use the repository's own test timeout,
+`--maxWorkers=3`, at most three files per run.
+
+### 0. Step 0 merge
+
+`git merge --no-ff rel017/pool` (`6a88043b1`): the only conflict was the two
+appended certification sections; both are kept. Merge repairs: the two new
+notice fixtures with numeric `coldCacheUsd: 0`
+(`test/unit/accountsPanel.test.tsx:383`,
+`test/unit/acpAccounts.test.ts:194`) now use the canonical
+`usdInputSchema.parse('0')`, and the stale
+`shared/accounts.ts:coldCacheUsd` allow-list entry is removed. Commit
+`1bd6b323f` (hooks `.husky/_` as installed; staged and committed diffs
+reread, no logic rewrite by the hook).
+
+### 1. P2 A1: exact totals (`src/core/usage/accountUsage.ts`)
+
+`totalsFor` accumulated spend through nano-USD `parseUsd` (ceiling), so cap
+`'0.1000000005'` with `'0.1000000001'` spent (and cap
+`'0.1000000000000000002'` with `'0.1000000000000000001'` spent) reported
+`isReached: true` and "Threshold reached" while admission
+(`evaluateAccountThresholds`, already exact) returned `[]`. `totalsFor` now
+accumulates with exact `Usd` decimals and emits canonical strings; the meter
+comparison is unchanged and now always equals admission. Commit `4a348c5d4`.
+Regression: `accountUsage.test.ts` (meter `isReached: false`, progress < 100,
+admission `[]` for both pairs) and `accountUsageText.test.ts` (text never
+contains "Threshold reached"). Red drill: restoring `ad612c82e`'s
+`totalsFor` fails exactly the 2 new tests (22 passed / 2 failed); the fix
+restores green (byte-identical restore verified by `diff`).
+
+### 2. P3 A2: runtime structural guard (`test/unit/paidMoneyStructure.test.ts`)
+
+The source-text scanner is replaced by a runtime walk of the actual zod
+schemas: every module under `src/shared` and `src/core` (767 files) loads
+through vitest's normal module loading (collection-time eager
+`import.meta.glob`; sequential dynamic import did not fit the 5 s test
+timeout), every exported schema is visited once, and `_zod.def` is walked
+recursively (objects, records, arrays, tuples, unions, optional/nullable/
+default/catch wrappers, quoted keys, lazy schemas, cross-file imports as the
+same object). Pipes are judged by their OUTPUT schema, so
+`legacyUsdSchema`-shaped boundaries (numeric in, canonical string out) stay
+clean; a bare transform is probed for what it parses to, and an undeclared
+transform output on a money-named key is a finding. Findings attribute to the
+module that declares the key (re-exported and spread-copied shapes are
+re-attributed by source declaration after a fixpoint reachability pass). The
+text scan is kept for plain TypeScript declarations only. New coverage the
+old guard demonstrably missed: snake_case keys (its pre-filter required
+capital `Usd`), semicolon-joined members, and numeric pipes/transforms/
+defaults/imported aliases/quoted keys/records.
+
+Bypass drills (fixture schemas in the test, never edits to `src`; each fails
+when injected, all 6 also fail together when appended to `src/shared/paid.ts`
+and pass again after byte-exact restore): numeric pipe alias, numeric
+transform alias, `z._default(amount, 0)`, imported/re-exported numeric schema
+in a local optional, quoted money key, `Record<string, number>`. Commit
+`320bd9d85` (plus a `vite/client` types entry in `test/unit/tsconfig.json`
+for `import.meta.glob`, and two tiny re-export fixtures under
+`test/unit/helpers/`).
+
+### 3. P3 A3: honest allow-list (18 nonMoney, 19 sanctioned, 41 trackedDebt)
+
+The guard checks each entry's category: a money leaf not in the list fails;
+a stale entry fails; a `trackedDebt` entry without M121 fails; a
+`sanctioned` entry without a `PLAN.md:<line>` citation fails; a `nonMoney`
+entry that matches the money pattern or stops existing as a numeric
+declaration fails. The 18 `nonMoney` entries are the reviewer's genuine
+counts/durations/character-limits/token quantities with reasons. The 19
+`sanctioned` entries are the M95 pricing compatibility port rates
+(`usdPerMTok*`, `input/outputUsdPerMTokens`, `cachedUsdPerMTok`,
+`usdPerHour*`, `hourlyUsd`, per-hour `accountUsdPerHour`; PLAN.md:17272,
+PLAN.md:27519) and vendor wire fields carried as sent with their exact-money
+conversion sites (`cost_in_usd_ticks` at responses.ts:361, `costInUsdTicks`
+at journalRecord.ts:164, modelPolicy/priceCard tick inputs at
+priceCard.ts:254; PLAN.md:4230). The 41 `trackedDebt` entries are every
+remaining current numeric money field the new guard sees that the old one
+missed or mislabeled (usage journal/page, `usage.ts`, models panel including
+its team-shape spread-copies, `accountUsage` internals, aggregate, team and
+team view costs and budgets, schedule v2 caps/liabilities, the
+codec-normalized provider cost, preview totals), each naming M121. This
+record does not claim "no numeric money anywhere": the `trackedDebt`
+category is that inventory, and PLAN §8 registers it against M121.
+
+### 4. M121
+
+PLAN.md gains milestone M121, "Exact money everywhere (current money
+ports)" (lead decision 2026-10-08): convert every `trackedDebt` field to
+`UsdAmount` with versioned persisted reads, UI/text formatting, and the guard
+emptying the category; ordered right after 0.17.0, complete before M110/M111
+resume. Commit `27628bab3` (milestone plus the §8 escape-hatch row;
+`check:plan` 0 drift).
+
+Fresh ordinary clone under `$TMPDIR` (`CI=true npm ci`, unchanged lockfile).
+Gate batches below use repository timeouts, `--maxWorkers=3`, at most three
+files per run.
+
+| Gate batch      | Files                                                       | Result                                                                                                   |
+| --------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| 1               | paidMoneyStructure, paidMoneyPorts, thresholds              | 62 passed                                                                                                |
+| 2               | accountUsage, accountUsageText, AccountsSection             | 29 passed                                                                                                |
+| 3               | accountsPanel, acpAccounts, pool                            | 83 passed                                                                                                |
+| 4               | estimatorRecommend, accounts                                | 54 passed                                                                                                |
+| Five typechecks | host, webview, unit, e2e, integration (`npm run typecheck`) | exit 0                                                                                                   |
+| Scoped ESLint   | all 15 changed TS/TSX files, `--max-warnings=0`             | exit 0                                                                                                   |
+| Scoped Prettier | all changed supported files incl. PLAN.md                   | exit 0                                                                                                   |
+| Plain knip      | no strict/production switch                                 | exit 0 (2 configuration hints, pre-existing)                                                             |
+| Full jscpd      | whole tree                                                  | exit 1: exactly the 2 inherited clones (ACP agent, queued-answer/model-API fixture), none from this lane |
+| `check:l10n`    | 14 UI + 14 usage tables, 250 manifest strings               | exit 0, 0 problems                                                                                       |
+| `check:plan`    | 198 milestones                                              | exit 0, 0 drift                                                                                          |
+
+No sandbox refusal was counted as a pass; nothing was blocked. Fresh clone
+removed after final verification.

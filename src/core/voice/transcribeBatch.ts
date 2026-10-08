@@ -18,7 +18,7 @@ import type { PaidUseConsent } from '../paid/paidConsent'
 import type { PaidFeatureGate, PaidUsage } from '../paid/paidFeatures'
 import { paidFeaturePrice } from '../../shared/paid'
 import { unlessAborted } from '../timeouts'
-import { Usd } from '../../shared/usd'
+import { Usd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 import { USD_DECIMAL_RADIX } from '../../shared/usdConstants'
 
 type SoundMedia = Extract<MediaInfo, { kind: 'video' | 'audio' }>
@@ -201,8 +201,8 @@ export interface PreparedAudioAttachment {
 
 /** The existing three-choice modal uses this question for a batch, with exact
  * hourly money and the shared daily budget; no microphone starts. */
-export function batchTranscriptionQuestion(name: string, dailyBudgetUsd: number) {
-  if (!Number.isFinite(dailyBudgetUsd) || dailyBudgetUsd < 0)
+export function batchTranscriptionQuestion(name: string, dailyBudgetUsd: UsdAmount) {
+  if (!nonnegativeUsdSchema.safeParse(dailyBudgetUsd).success)
     throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
   const price = fill(UI_TEXT.paidVoicePrice, { price: formatUsd(PAID_PRICES_USD.voicePerHour, 2) })
   return {

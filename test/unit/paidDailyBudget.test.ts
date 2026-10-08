@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { Usd } from '../../src/shared/usd'
 import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -287,9 +288,9 @@ describe('D78 interactive paid daily budget', () => {
               provider: 'meta',
               account: 'work',
               time: new Date(state.now).toISOString(),
-              settledUsd: 0,
-              reservedUsd: 0,
-              uncertainUsd: 0,
+              settledUsd: PortUsd.from(0).toAmount(),
+              reservedUsd: PortUsd.from(0).toAmount(),
+              uncertainUsd: PortUsd.from(0).toAmount(),
               inputTokens: 0,
               outputTokens: 0,
               requests: 1,

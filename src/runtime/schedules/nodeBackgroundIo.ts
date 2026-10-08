@@ -1,3 +1,4 @@
+import { nonnegativeUsdSchema } from '../../shared/usdSchema'
 import { execFile, spawn, type ChildProcess, type SpawnOptions } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
@@ -263,7 +264,10 @@ export async function verifyScheduleWake(
   }
   if (record.definitionSha256 !== effective.sha256) throw unsafeScheduleLauncher(recordFile)
   if (record.scheduledPrompts !== true) return { scheduledPrompts: false }
-  if (record.maxBudgetUsd === undefined || !Number.isFinite(record.maxBudgetUsd))
+  if (
+    record.maxBudgetUsd === undefined ||
+    !nonnegativeUsdSchema.safeParse(record.maxBudgetUsd).success
+  )
     throw new Error(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
   return { scheduledPrompts: true, maxBudgetUsd: record.maxBudgetUsd }
 }

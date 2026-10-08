@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
@@ -25,7 +26,11 @@ function fire(outcome: 'ran' | 'refused' | 'missed') {
             { actionClass: 'physical', tool: 'device', reason: 'Physical actions always refused' },
           ]
         : [],
-    cost: { usd: 0.25, certainty: 'unknown', retainedLiabilityUsd: 1 },
+    cost: {
+      usd: PortUsd.from(0.25).toAmount(),
+      certainty: 'unknown',
+      retainedLiabilityUsd: PortUsd.from(1).toAmount(),
+    },
   })
 }
 
@@ -85,7 +90,11 @@ describe('schedule settlement transcript rows', () => {
             type: 'scheduleFire',
             fire: {
               ...fire('ran'),
-              cost: { usd: -1, certainty: 'exact', retainedLiabilityUsd: 0 },
+              cost: {
+                usd: -1,
+                certainty: 'exact',
+                retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+              },
             },
           }),
         })}

@@ -11,6 +11,7 @@ import type { AccountsSectionPort } from '../../src/webview/models/sections/acco
 import { ThresholdEditor } from '../../src/webview/models/sections/accounts/ThresholdEditor'
 import { App } from '../../src/webview/App'
 import { UI_TEXT } from '../../src/shared/constants'
+import { usdInputSchema } from '../../src/shared/usdSchema'
 import { panelQuestion, panelSlice } from './helpers/accounts/panel'
 import { initialUiState } from '../../src/webview/state/uiState'
 import { createUiStore } from '../../src/webview/state/store'
@@ -250,7 +251,7 @@ describe('M108 Accounts section', () => {
     value.accounts[0] = {
       ...value.accounts[0]!,
       label: 'New account',
-      thresholds: { spendUsd: { day: 0.7 } },
+      thresholds: { spendUsd: { day: usdInputSchema.parse('0.7') } },
     }
     h.rerender(<AccountsSection value={value} port={h.port} />)
     expect(screen.getByLabelText(UI_TEXT.accounts.label)).toHaveValue('New account')
@@ -262,7 +263,7 @@ describe('M108 Accounts section', () => {
       type: 'accounts/thresholds',
       provider: 'other',
       account: 'work',
-      thresholds: { spendUsd: { day: 0.7 } },
+      thresholds: { spendUsd: { day: '0.7' } },
     })
     await click(screen.getByRole('button', { name: UI_TEXT.accounts.add }))
     fireEvent.change(screen.getByLabelText(UI_TEXT.accounts.id), { target: { value: 'old-draft' } })
@@ -289,7 +290,10 @@ describe('M108 threshold editor', () => {
     const save = vi.fn()
     render(
       <ThresholdEditor
-        value={{ spendUsd: { day: 0.3 }, planWindowPercent: { weekly: 75 } }}
+        value={{
+          spendUsd: { day: usdInputSchema.parse('0.3') },
+          planWindowPercent: { weekly: 75 },
+        }}
         capabilities={{ planWindows: ['five-hour'], hasRateHeadroom: true }}
         isPending={false}
         onSave={save}
@@ -304,7 +308,7 @@ describe('M108 threshold editor', () => {
     }
     await click(screen.getByRole('button', { name: UI_TEXT.goalEditSave }))
     expect(save).toHaveBeenCalledWith({
-      spendUsd: { day: 0.100000001, week: 0.100000001, month: 0.100000001 },
+      spendUsd: { day: '0.100000001', week: '0.100000001', month: '0.100000001' },
       inputTokens: { day: 42, week: 42, month: 42 },
       outputTokens: { day: 42, week: 42, month: 42 },
       requests: { day: 42, week: 42, month: 42 },
@@ -312,33 +316,80 @@ describe('M108 threshold editor', () => {
       rateLimitHeadroomPercent: { requests: 28.5, tokens: 28.5 },
     })
   })
-  it.each(['0.0000000001', '-1', 'NaN'])(
-    'refuses inexact or invalid USD %s without sending',
+  it.each(['-1', 'NaN'])('refuses invalid USD %s without sending', (amount) => {
+    const save = vi.fn()
+    render(
+      <ThresholdEditor
+        value={{}}
+        capabilities={{ planWindows: [], hasRateHeadroom: false }}
+        isPending={false}
+        onSave={save}
+      />,
+    )
+    fireEvent.change(document.querySelector('input[name="spendUsd.day"]')!, {
+      target: { value: amount },
+    })
+    // Browser validity also blocks negatives; direct submit verifies the parser itself.
+    if (amount === 'NaN') {
+      // number inputs erase non-numbers, so exercise unsafe counts instead.
+      fireEvent.change(document.querySelector('input[name="requests.day"]')!, {
+        target: { value: '9007199254740992' },
+      })
+    }
+    fireEvent.submit(document.querySelector('form')!)
+    expect(save).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.accounts.invalidAccount)
+  })
+  it.each(['0.0000000001', '0.1000000000000000001'])(
+    'saves an exact sub-nano cap %s unchanged through usdInputSchema',
     (amount) => {
       const save = vi.fn()
+      const cap = usdInputSchema.parse(amount)
       render(
         <ThresholdEditor
-          value={{}}
+          value={{ spendUsd: { day: cap } }}
           capabilities={{ planWindows: [], hasRateHeadroom: false }}
           isPending={false}
           onSave={save}
         />,
       )
-      fireEvent.change(document.querySelector('input[name="spendUsd.day"]')!, {
-        target: { value: amount },
-      })
-      // Browser validity also blocks negatives; direct submit verifies the parser itself.
-      if (amount === 'NaN') {
-        // number inputs erase non-numbers, so exercise unsafe counts instead.
-        fireEvent.change(document.querySelector('input[name="requests.day"]')!, {
-          target: { value: '9007199254740992' },
-        })
-      }
       fireEvent.submit(document.querySelector('form')!)
-      expect(save).not.toHaveBeenCalled()
-      expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.accounts.invalidAccount)
+      expect(save).toHaveBeenCalledWith({ spendUsd: { day: cap } })
     },
   )
+})
+
+describe('M108 exact cap notices', () => {
+  it('shows a sub-nano swap cap at its ceiling, never floored below the trigger', () => {
+    const cap = usdInputSchema.parse('0.1000000000000000001')
+    const h = render(
+      <AccountNotices
+        value={panelSlice()}
+        events={[
+          accountNoticeFor({
+            type: 'swap',
+            provider: 'openai',
+            account: 'work',
+            previousAccount: 'personal',
+            time: new Date(POOL_NOW).toISOString(),
+            trigger: {
+              kind: 'userCap',
+              metric: 'spendUsd',
+              period: 'day',
+              value: cap,
+              threshold: cap,
+              resetAt: new Date(POOL_NOW + 60_000).toISOString(),
+            },
+            coldCacheUsd: usdInputSchema.parse('0'),
+          }),
+        ]}
+        onOpenLink={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('log')).toHaveTextContent('$0.1001')
+    expect(screen.getByRole('log')).not.toHaveTextContent('$0.1000')
+    h.unmount()
+  })
 })
 
 describe('M108 picker, transcript and policy question', () => {
@@ -511,8 +562,8 @@ describe('M108 picker, transcript and policy question', () => {
       kind: 'userCap',
       metric: 'spendUsd',
       period: 'day',
-      value: 0.3,
-      threshold: 0.3,
+      value: usdInputSchema.parse('0.3'),
+      threshold: usdInputSchema.parse('0.3'),
       resetAt: '2026-10-07T00:00:00Z',
     }
     render(
@@ -527,7 +578,7 @@ describe('M108 picker, transcript and policy question', () => {
             previousAccount: 'work',
             time: '2026-10-06T00:00:00Z',
             trigger,
-            coldCacheUsd: 0.000000001,
+            coldCacheUsd: usdInputSchema.parse('0.000000001'),
           },
           {
             type: 'stop',
@@ -543,7 +594,7 @@ describe('M108 picker, transcript and policy question', () => {
             previousAccount: 'work',
             time: '2026-10-06T00:00:00Z',
             trigger,
-            coldCacheUsd: 999,
+            coldCacheUsd: usdInputSchema.parse('999'),
           },
         ].map((event) => ({ event, resetAt: event.type === 'stop' ? trigger.resetAt : null }))}
       />,
