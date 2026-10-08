@@ -3639,6 +3639,14 @@ async function activateWindow(
         })
         return
       }
+      if (message.type === 'resourcePull') {
+        resourceWindow.pull(surface, message.nonce)
+        return
+      }
+      if (message.type === 'resourceOpenAck') {
+        resourceWindow.acknowledge(surface, message.seq, message.nonce)
+        return
+      }
       if (message.type === 'resourceAction') {
         void resourceWindow.action(message.action).catch(logRejection(log, 'resource action'))
         return

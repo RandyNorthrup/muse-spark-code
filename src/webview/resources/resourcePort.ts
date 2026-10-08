@@ -8,13 +8,23 @@ export interface ResourceSurfacePort {
   resume(): void
   settings(): void
   show(): void
+  /**
+   * Window hosts (M107 pull model): the latest Show resources open the host
+   * offered, naming one document's nonce, and the way back for a pull or ack.
+   */
+  readonly opens?: {
+    offered(): { readonly seq: number; readonly nonce: string } | undefined
+    send(
+      message:
+        | { readonly type: 'resourcePull'; readonly nonce: string }
+        | { readonly type: 'resourceOpenAck'; readonly seq: number; readonly nonce: string },
+    ): void
+  }
 }
 
 export interface ResourceSurfaceProps {
   readonly port: ResourceSurfacePort
   readonly isInert?: boolean
-  /** Each increase opens the popover (the window's Show resources command). */
-  readonly openRequest?: number
 }
 
 /**

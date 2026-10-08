@@ -17,6 +17,7 @@ export function windowResourceLoader(
   const action = (name: ResourceAction) => () => {
     post({ type: 'resourceAction', action: name })
   }
+
   // One parsed object per status text: React's external-store contract.
   const cached: { text: string | null | undefined; status: unknown } = {
     text: undefined,
@@ -36,6 +37,7 @@ export function windowResourceLoader(
       resume: action('resume'),
       settings: action('settings'),
       show: action('show'),
+      opens: { offered: () => store.getState().resourceOffer, send: post },
     },
     async () => {
       const module = await import('./ResourceSurface')

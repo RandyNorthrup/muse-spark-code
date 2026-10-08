@@ -2857,7 +2857,6 @@ export function App({
               <resources.View
                 port={resources.port}
                 isInert={isModalOpen}
-                openRequest={state.resourceRequests}
                 label={UI_TEXT.resourceTitle}
                 className="resource-surface"
               />

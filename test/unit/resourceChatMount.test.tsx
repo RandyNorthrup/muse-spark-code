@@ -61,18 +61,37 @@ it('posts each popover control to the host through the production port', async (
   }
 })
 
-it('opens the popover for Show resources, even when asked before the chunk loaded', async () => {
-  const { deliver } = await mountChat()
+it('pulls on mount, opens only for an offer naming this document, and acknowledges it once', async () => {
+  // RVM107W1C pull model through the production mountChat path.
+  const { deliver, postMessage } = await mountChat()
+  // An offer to another document (a replaced one) before the chunk loads.
+  deliver({ type: 'resourceOpen', seq: 1, nonce: 'another-document' })
   deliver({ type: 'resourceStatus', status: status('throttle') })
-  deliver({ type: 'resourceOpen' })
+  await screen.findByRole('button', { name: chipName(UI_TEXT.resourceThrottle) })
+  const pull = await waitFor(() => {
+    const message = postMessage.mock.calls.find(([sent]) => sent.type === 'resourcePull')?.[0]
+    if (message?.type !== 'resourcePull') throw new Error('the chip did not pull on mount')
+    return message
+  })
+  const { nonce } = pull
+  expect(nonce).toMatch(/^[\w-]{16,64}$/)
+  expect(screen.queryByRole('dialog')).toBeNull()
+  const acks = () =>
+    postMessage.mock.calls.filter(([message]) => message.type === 'resourceOpenAck')
+  expect(acks()).toEqual([])
+  deliver({ type: 'resourceOpen', seq: 2, nonce })
   const dialog = await screen.findByRole('dialog', { name: UI_TEXT.resourceTitle })
   await waitFor(() => {
     expect(dialog.contains(document.activeElement)).toBe(true)
   })
+  expect(acks()).toEqual([[{ type: 'resourceOpenAck', seq: 2, nonce }]])
   fireEvent.keyDown(dialog, { key: 'Escape' })
+  // The same offer again (the host re-offers until it hears the ack) does not reopen.
+  deliver({ type: 'resourceOpen', seq: 2, nonce })
   expect(screen.queryByRole('dialog')).toBeNull()
-  deliver({ type: 'resourceOpen' })
+  deliver({ type: 'resourceOpen', seq: 3, nonce })
   expect(await screen.findByRole('dialog', { name: UI_TEXT.resourceTitle })).toBeInTheDocument()
+  expect(acks()).toHaveLength(2)
 })
 
 it('follows status changes and shows a refused status as unavailable, never an old reading', async () => {

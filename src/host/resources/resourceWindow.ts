@@ -25,15 +25,14 @@ interface ResourceSurface {
 }
 
 /**
- * Show resources' open request, bound when Show runs to exactly one target:
- * a surface in view, or the surface a new conversation opens in (by its id).
+ * The chat documents one surface has had. Each webview document mints its
+ * own nonce; a reload marks the current one stale, so later messages from it
+ * (queued before the reload) are ignored.
  */
-type OpenTarget = { readonly surface: object } | { readonly surfaceId: string }
-
-/** One surface's current document: a reload starts an unready generation. */
-interface SurfaceDocument {
-  readonly generation: number
-  isReady: boolean
+interface SurfaceDocuments {
+  readonly surface: ResourceSurface
+  readonly stale: Set<string>
+  current: string | undefined
 }
 
 /** The slice of VS Code's namespace the window uses; the real one is injected. */
@@ -63,7 +62,7 @@ export interface ResourceWindowDeps<Alignment> {
   }
   /**
    * No surface in view: open a conversation. `surfaceId` names the surface it
-   * opens in, known before that surface can report ready.
+   * opens in, returned synchronously, before that surface can ask for anything.
    */
   readonly openConversation: () => {
     readonly surfaceId: string
@@ -75,10 +74,14 @@ export interface ResourceWindowDeps<Alignment> {
 }
 
 export interface ResourceWindow {
-  /** A surface's document is ready: send it the latest status and its pending open. */
-  surfaceReady(surface: Pick<ResourceSurface, 'id' | 'post'>): void
-  /** A surface's document was replaced (reload): it is unready until its next ready. */
-  surfaceReset(surface: object): void
+  /** A document is ready: send it the latest status (its chip then pulls). */
+  surfaceReady(surface: Pick<ResourceSurface, 'post'>): void
+  /** A document asks for a pending open (its chip mounted). */
+  pull(surface: ResourceSurface, nonce: string): void
+  /** A document opened the popover for `seq`. */
+  acknowledge(surface: ResourceSurface, seq: number, nonce: string): void
+  /** A surface's document was replaced (reload): its current nonce is stale. */
+  surfaceReset(surface: ResourceSurface): void
   /** The chip's popover controls (webview `resourceAction`). */
   action(action: ResourceAction): Promise<void>
   /** `museSpark.showResources`: the chip's popover in the chat in view. */
@@ -94,13 +97,31 @@ export function createResourceWindow<Alignment>(
   const { vscode } = deps
   // null: the latest status was refused (over the message bound).
   let latest: string | null | undefined
-  // VS Code drops posts made before a document's listener is attached, so an
-  // open waits for its target's first ready generation, then is spent.
-  const documents = new WeakMap<object, SurfaceDocument>()
-  let intent: OpenTarget | undefined
-  const isTarget = (surface: Pick<ResourceSurface, 'id'>, target: OpenTarget | undefined) =>
-    target !== undefined &&
-    ('surface' in target ? target.surface === surface : target.surfaceId === surface.id)
+  // Pull model. Show records one pending open for one surface id, numbered.
+  // A document that names itself (its chip's pull) is offered it; only that
+  // document's acknowledgement spends it. VS Code may drop posts to a document
+  // that is not listening yet, so an unacknowledged open stays pending.
+  const documents = new Map<string, SurfaceDocuments>()
+  let sequence = 0
+  let pending: { readonly surfaceId: string; readonly seq: number } | undefined
+  const isCurrentDocument = (surface: ResourceSurface, nonce: string): boolean => {
+    let known = documents.get(surface.id)
+    if (known?.surface !== surface) {
+      known = { surface, stale: new Set(), current: undefined }
+      documents.set(surface.id, known)
+    }
+    if (known.stale.has(nonce)) return false
+    known.current = nonce
+    return true
+  }
+  const offer = (surfaceId: string) => {
+    const known = documents.get(surfaceId)
+    if (isDisposed || pending?.surfaceId !== surfaceId || known?.current === undefined) return
+    known.surface.post({ type: 'resourceOpen', seq: pending.seq, nonce: known.current })
+  }
+  const withdraw = (surfaceId: string, seq: number) => {
+    if (pending?.surfaceId === surfaceId && pending.seq === seq) pending = undefined
+  }
   let attached: { readonly window: ResourceWindowHost; dispose(): void } | undefined
   let isDisposed = false
 
@@ -181,25 +202,38 @@ export function createResourceWindow<Alignment>(
     return window
   }
   const show = async () => {
-    const window = await loaded()
-    const status = await window.port.refreshStatus()
-    publish(status)
-    if (!status.settings.enabled) {
-      await governorOff()
-      return
+    if (isDisposed) return
+    // Bound now, before any await: the chat in view, or the new conversation's
+    // surface. A later Show supersedes this one and its continuation stops.
+    sequence += 1
+    const seq = sequence
+    const active = deps.surfaces.active
+    const conversation = active === undefined ? deps.openConversation() : undefined
+    const surfaceId = active?.id ?? conversation?.surfaceId
+    if (surfaceId === undefined) return
+    pending = { surfaceId, seq }
+    const isCurrent = () => !isDisposed && sequence === seq
+    try {
+      const window = await loaded()
+      if (!isCurrent()) return
+      const status = await window.port.refreshStatus()
+      if (!isCurrent()) return
+      publish(status)
+      if (!status.settings.enabled) {
+        withdraw(surfaceId, seq)
+        await governorOff()
+        return
+      }
+      if (active === undefined) await conversation?.opened
+      else {
+        active.reveal()
+        offer(surfaceId)
+      }
+    } catch (error: unknown) {
+      // A failed open leaves nothing behind for a later, unrelated ready.
+      withdraw(surfaceId, seq)
+      throw error
     }
-    const surface = deps.surfaces.active
-    if (surface === undefined) {
-      const conversation = deps.openConversation()
-      intent = { surfaceId: conversation.surfaceId }
-      await conversation.opened
-      return
-    }
-    surface.reveal()
-    if (documents.get(surface)?.isReady === true) {
-      intent = undefined
-      surface.post({ type: 'resourceOpen' })
-    } else intent = { surface }
   }
   const resume = async () => {
     const window = await loaded()
@@ -217,26 +251,28 @@ export function createResourceWindow<Alignment>(
   const stopWatching = deps.onLoad(attach)
   // A disposed target cancels its open; it is never redirected to another surface.
   const removal = deps.surfaces.onRemoved((surface) => {
-    documents.delete(surface)
-    if (isTarget(surface, intent)) intent = undefined
+    if (documents.get(surface.id)?.surface === surface) documents.delete(surface.id)
+    if (pending?.surfaceId === surface.id) pending = undefined
   })
   const configuration = vscode.workspace.onDidChangeConfiguration((event) => {
     if (event.affectsConfiguration(SETTINGS_SECTION)) attached?.window.port.settingsChanged()
   })
   return {
     surfaceReady: (surface) => {
-      if (isDisposed) return
-      const current = documents.get(surface)
-      documents.set(surface, { generation: current?.generation ?? 0, isReady: true })
-      if (latest !== undefined) surface.post({ type: 'resourceStatus', status: latest })
-      if (!isTarget(surface, intent)) return
-      intent = undefined
-      surface.post({ type: 'resourceOpen' })
+      if (!isDisposed && latest !== undefined)
+        surface.post({ type: 'resourceStatus', status: latest })
+    },
+    pull: (surface, nonce) => {
+      if (!isDisposed && isCurrentDocument(surface, nonce)) offer(surface.id)
+    },
+    acknowledge: (surface, seq, nonce) => {
+      if (!isDisposed && isCurrentDocument(surface, nonce)) withdraw(surface.id, seq)
     },
     surfaceReset: (surface) => {
-      if (isDisposed) return
-      const current = documents.get(surface)
-      documents.set(surface, { generation: (current?.generation ?? 0) + 1, isReady: false })
+      const known = documents.get(surface.id)
+      if (isDisposed || known?.surface !== surface || known.current === undefined) return
+      known.stale.add(known.current)
+      known.current = undefined
     },
     action: async (action) => {
       switch (action) {
@@ -260,7 +296,8 @@ export function createResourceWindow<Alignment>(
     resume,
     dispose: () => {
       isDisposed = true
-      intent = undefined
+      pending = undefined
+      documents.clear()
       removal.dispose()
       stopWatching()
       configuration.dispose()

@@ -500,6 +500,8 @@
         postMessage: (message) => {
           outbox.push(message)
           document.title = `harness: ${message.type}`
+          // M107 pull model: the document's own nonce, for Show resources' open.
+          if (message.type === 'resourcePull') window.harnessDocumentNonce = message.nonce
           switch (message.type) {
             case 'usage/ready':
             case 'usage/query':
@@ -6143,9 +6145,12 @@
           // The chip is a deferred chunk: Show resources once it has mounted
           // beside the heartbeat. SCENARIO_READY waits for the open popover.
           const openWhenMounted = () => {
-            if (document.querySelector('.status-line .resource-chip') === null)
+            if (
+              document.querySelector('.status-line .resource-chip') === null ||
+              window.harnessDocumentNonce === undefined
+            )
               readinessLater(FIND_INTERVAL_MS, openWhenMounted)
-            else send({ type: 'resourceOpen' })
+            else send({ type: 'resourceOpen', seq: 1, nonce: window.harnessDocumentNonce })
           }
           openWhenMounted()
         },

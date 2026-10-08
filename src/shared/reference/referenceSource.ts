@@ -169,6 +169,8 @@ export const REFERENCE_ACTION_FEATURES = {
   exportLegalReport: 'legal',
   sharingAction: 'prompt-library',
   resourceAction: 'resources',
+  resourcePull: 'resources',
+  resourceOpenAck: 'resources',
   openSettings: 'support',
   openKeybindings: 'support',
   openLog: 'support',

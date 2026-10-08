@@ -39,6 +39,7 @@ import {
   REPORT_FRAME_PATH_MAX_CHARS,
   REPORT_STACK_MAX_FRAMES,
   REPORT_WEBVIEW_ERROR_KINDS,
+  RESOURCE_NONCE_MAX_CHARS,
   RESOURCE_STATUS_MAX_CHARS,
   SUBAGENT_ACTIONS,
   WEBVIEW_ERROR_MESSAGE_MAX_CHARS,
@@ -87,6 +88,9 @@ import { teamTreeSchema, teamUsageSchema } from './teamView'
 
 const stringSchema = z.string()
 const numberSchema = z.number()
+// M107: the random id a chat document mints at start; and Show's request number.
+const documentNonceSchema = z.string().check(z.minLength(1), z.maxLength(RESOURCE_NONCE_MAX_CHARS))
+const resourceSeqSchema = z.int().check(z.gte(1))
 const booleanSchema = z.boolean()
 
 // Settings the webview needs to render. Host-only settings (binary path,
@@ -559,6 +563,13 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('resourceAction'),
     action: z.enum(['show', 'settings', 'resume']),
+  }),
+  // M107 pull model: a document asks for a pending Show, and acknowledges one.
+  z.strictObject({ type: z.literal('resourcePull'), nonce: documentNonceSchema }),
+  z.strictObject({
+    type: z.literal('resourceOpenAck'),
+    seq: resourceSeqSchema,
+    nonce: documentNonceSchema,
   }),
   z.strictObject({ type: z.literal('openUsagePage') }),
   // Approval card: one of the request's `availableChoices`.
@@ -1082,8 +1093,12 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('resourceStatus'),
     status: z.nullable(z.string().check(z.minLength(1), z.maxLength(RESOURCE_STATUS_MAX_CHARS))),
   }),
-  // Show resources: open the chip's popover in this surface.
-  z.strictObject({ type: z.literal('resourceOpen') }),
+  // Show resources' open, for the document whose nonce it names; it acks the seq.
+  z.strictObject({
+    type: z.literal('resourceOpen'),
+    seq: resourceSeqSchema,
+    nonce: documentNonceSchema,
+  }),
   // A message the host sent itself (M79: a plan's brief): the pending card,
   // as the composer's own Send would have made it. `turnAccepted` or
   // `sendFailed` follows with the same `localId`.

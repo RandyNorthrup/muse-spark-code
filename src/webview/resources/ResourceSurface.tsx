@@ -16,12 +16,19 @@ import {
 } from '../../shared/resources'
 import type { ResourceSurfaceProps } from './resourcePort'
 
+// M107 pull model: this document's own id, minted when its chip chunk first
+// runs. The host offers an open to one nonce; only that document opens it.
+const documentNonce = globalThis.crypto.randomUUID()
+const noSubscription = () => {
+  // A host without opens never changes them.
+}
+
 /**
  * Shared by the panel and companion. No status yet, or a governor switched off,
  * renders nothing; a refused or invalid status shows the chip as unavailable,
  * with no readings, rather than an old reading or nothing.
  */
-export function ResourceSurface({ port, isInert = false, openRequest = 0 }: ResourceSurfaceProps) {
+export function ResourceSurface({ port, isInert = false }: ResourceSurfaceProps) {
   const subscribe = useCallback((changed: () => void) => port.subscribe(changed), [port])
   const read = useCallback(() => port.getSnapshot(), [port])
   const snapshot = useSyncExternalStore(subscribe, read)
@@ -48,13 +55,28 @@ export function ResourceSurface({ port, isInert = false, openRequest = 0 }: Reso
       observer.disconnect()
     }
   }, [])
-  // A request made before this deferred chunk loaded still opens it once.
-  const seenRequest = useRef(0)
+  // M107 pull model: on mount, ask the host for a pending Show resources; open
+  // for an offer naming this document only, once, and acknowledge it.
+  const opens = port.opens
+  // Only a window host offers opens; other hosts keep a single subscription.
+  const subscribeOffers = useCallback(
+    (changed: () => void) => (opens === undefined ? noSubscription : port.subscribe(changed)),
+    [opens, port],
+  )
+  const offered = useSyncExternalStore(subscribeOffers, () => {
+    const offer = opens?.offered()
+    return offer?.nonce === documentNonce ? offer.seq : 0
+  })
+  const seenOffer = useRef(0)
   useEffect(() => {
-    if (openRequest === seenRequest.current) return
-    seenRequest.current = openRequest
+    opens?.send({ type: 'resourcePull', nonce: documentNonce })
+  }, [opens])
+  useEffect(() => {
+    if (offered === 0 || offered === seenOffer.current) return
+    seenOffer.current = offered
     setIsOpen(true)
-  }, [openRequest])
+    opens?.send({ type: 'resourceOpenAck', seq: offered, nonce: documentNonce })
+  }, [offered, opens])
   useEffect(() => {
     if (isOpen && !isInert) closeButton.current?.focus()
   }, [isOpen, isInert, target])

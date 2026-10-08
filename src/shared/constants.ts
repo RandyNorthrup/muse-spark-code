@@ -71,6 +71,8 @@ export const RESOURCE_OPTIONAL_MIN_PERCENT = 1
 export const RESOURCE_ID_MAX_LENGTH = 256
 // U–C1: the window status message's JSON text; its strict schema runs in the deferred chip.
 export const RESOURCE_STATUS_MAX_CHARS = 8192
+// M107: a chat document's own random id (the pull model's sender), and its bound.
+export const RESOURCE_NONCE_MAX_CHARS = 64
 export const RESOURCE_LAUNCH_POLL_MS = 100
 export const RESOURCE_MUSE_SHUTDOWN_MS = 30_000
 export const RESOURCE_MUSE_CLOSE_GRACE_MS = 10_000

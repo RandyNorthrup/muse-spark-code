@@ -148,7 +148,10 @@ if (surface === 'companion') {
       },
     },
   })
+  // The chip's pull names its document (M107 pull model); Show answers it.
+  let pulledNonce
   const postMessage = (message) => {
+    if (message.type === 'resourcePull') pulledNonce = message.nonce
     actions.push(message.type === 'resourceAction' ? message.action : message.type)
   }
   if (windowScene !== undefined) {
@@ -160,14 +163,15 @@ if (surface === 'companion') {
       status:
         windowScene === 'refused' ? `${text.slice(0, -1)},"pid":4242,"command":"npm test"}` : text,
     })
-    globalThis.window.resourceHarness.open = () => {
-      deliver({ type: 'resourceOpen' })
-    }
   }
   // Created once, outside render, as mountChat does.
   const resources =
     windowScene === undefined
       ? createResourceSurfaceLoader(port, load)
       : windowResourceLoader(store, postMessage)
+  // Show resources: the host's open for this document's own nonce (pull model).
+  globalThis.window.resourceHarness.open = () => {
+    deliver({ type: 'resourceOpen', seq: 1, nonce: pulledNonce })
+  }
   root.render(createElement(App, { store, resources, postMessage }))
 }

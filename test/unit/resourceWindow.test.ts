@@ -8,6 +8,7 @@ import {
   COMMAND_IDS,
   RESOURCE_GIB_BYTES,
   RESOURCE_OVERRIDE_MS,
+  RESOURCE_NONCE_MAX_CHARS,
   RESOURCE_STATUS_MAX_CHARS,
   UI_TEXT,
   VSCODE_COMMANDS,
@@ -344,6 +345,12 @@ function fakeSurface(id: string) {
   return { id, post: vi.fn<(message: HostToWebviewMessage) => void>(), reveal: vi.fn() }
 }
 
+/** The opens a fake surface was offered, as `seq@nonce`. */
+const opens = (surface: ReturnType<typeof fakeSurface>) =>
+  surface.post.mock.calls.flatMap(([message]) =>
+    message.type === 'resourceOpen' ? [`${String(message.seq)}@${message.nonce}`] : [],
+  )
+
 const sent = (surface: ReturnType<typeof fakeSurface>) =>
   surface.post.mock.calls.map(([message]) => message.type)
 
@@ -386,90 +393,186 @@ describe('U–C1 VS Code window adapter', () => {
     )
   })
 
-  it('opens the chip popover at once in a surface in view that is ready', async () => {
+  // RVM107W1C pull model: a document names itself (ready/pull) and acks.
+
+  it('offers the open to the ready document in view and spends it only on its ack', async () => {
     const h = windowHarness()
     h.resources.surfaceReady(h.surface)
+    h.resources.pull(h.surface, 'n1')
     await h.resources.show()
-    expect(h.port.refreshStatus).toHaveBeenCalledTimes(1)
     expect(h.surface.reveal).toHaveBeenCalledTimes(1)
-    expect(h.surface.post).toHaveBeenCalledWith({ type: 'resourceOpen' })
-    expect(h.surfaces.broadcast).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'resourceStatus' }),
-    )
+    expect(opens(h.surface)).toEqual(['1@n1'])
+    h.resources.pull(h.surface, 'n1')
+    expect(opens(h.surface)).toEqual(['1@n1', '1@n1'])
+    h.resources.acknowledge(h.surface, 1, 'n1')
+    h.resources.pull(h.surface, 'n1')
+    expect(opens(h.surface)).toEqual(['1@n1', '1@n1'])
   })
 
-  it('keeps the open for a registered surface until it is ready, then replays status and open', async () => {
-    // RVM107W1 P2-2: register, Show, then ready (VS Code drops earlier posts).
+  it('ignores a queued pull from a replaced document; the new document gets the open', async () => {
+    // RVM107W1C P2-1: the document's own nonce, never an inferred generation.
+    const h = windowHarness()
+    h.resources.surfaceReady(h.surface)
+    h.resources.pull(h.surface, 'old')
+    h.resources.surfaceReset(h.surface)
+    await h.resources.show()
+    h.resources.surfaceReady(h.surface)
+    h.resources.pull(h.surface, 'old')
+    h.resources.pull(h.surface, 'old')
+    expect(opens(h.surface)).toEqual([])
+    h.resources.surfaceReady(h.surface)
+    h.resources.pull(h.surface, 'new')
+    expect(opens(h.surface)).toEqual(['1@new'])
+    h.resources.acknowledge(h.surface, 1, 'old')
+    h.resources.pull(h.surface, 'new')
+    expect(opens(h.surface)).toEqual(['1@new', '1@new'])
+  })
+
+  it('keeps an open across a reload between Show and its ack, delivered once', async () => {
+    const h = windowHarness()
+    h.resources.surfaceReady(h.surface)
+    h.resources.pull(h.surface, 'n1')
+    await h.resources.show()
+    expect(opens(h.surface)).toEqual(['1@n1'])
+    h.resources.surfaceReset(h.surface)
+    h.resources.acknowledge(h.surface, 1, 'n1')
+    h.resources.surfaceReady(h.surface)
+    h.resources.pull(h.surface, 'n2')
+    expect(opens(h.surface)).toEqual(['1@n1', '1@n2'])
+    h.resources.acknowledge(h.surface, 1, 'n2')
+    h.resources.surfaceReset(h.surface)
+    h.resources.surfaceReady(h.surface)
+    h.resources.pull(h.surface, 'n3')
+    expect(opens(h.surface)).toEqual(['1@n1', '1@n2'])
+  })
+
+  it('binds the target when Show runs, not after its awaits', async () => {
+    // RVM107W1C P2-2a: Show in A, focus moves to B while the reading waits.
+    const h = windowHarness()
+    const reading = Promise.withResolvers<ResourceStatus>()
+    h.port.refreshStatus.mockImplementationOnce(() => reading.promise)
+    const other = fakeSurface('panel:other')
+    h.resources.surfaceReady(h.surface)
+    h.resources.pull(h.surface, 'a')
+    h.resources.surfaceReady(other)
+    h.resources.pull(other, 'b')
+    const showing = h.resources.show()
+    await vi.waitFor(() => {
+      expect(h.port.refreshStatus).toHaveBeenCalledTimes(1)
+    })
+    h.surfaces.active = other
+    reading.resolve(fakeStatus('pause'))
+    await showing
+    expect(opens(h.surface)).toEqual(['1@a'])
+    expect(opens(other)).toEqual([])
+    expect(other.reveal).not.toHaveBeenCalled()
+  })
+
+  it('lets the latest Show win: an older continuation never overwrites it', async () => {
+    // RVM107W1C P2-2b.
+    const h = windowHarness()
+    const first = Promise.withResolvers<ResourceStatus>()
+    h.port.refreshStatus.mockImplementationOnce(() => first.promise)
+    const other = fakeSurface('panel:other')
+    h.resources.surfaceReady(h.surface)
+    h.resources.pull(h.surface, 'a')
+    h.resources.surfaceReady(other)
+    h.resources.pull(other, 'b')
+    const older = h.resources.show()
+    // The older Show is waiting in its reading when the newer one starts.
+    await vi.waitFor(() => {
+      expect(h.port.refreshStatus).toHaveBeenCalledTimes(1)
+    })
+    h.surfaces.active = other
+    await h.resources.show()
+    h.surfaces.active = h.surface
+    first.resolve(fakeStatus('pause'))
+    await older
+    expect(opens(other)).toEqual(['2@b'])
+    expect(opens(h.surface)).toEqual([])
+    h.resources.pull(h.surface, 'a')
+    expect(opens(h.surface)).toEqual([])
+  })
+
+  it('delivers one open with the latest seq for Show, Show, then the document pulls', async () => {
     const h = windowHarness()
     await h.resources.show()
-    expect(h.surface.reveal).toHaveBeenCalledTimes(1)
+    await h.resources.show()
+    h.resources.surfaceReady(h.surface)
+    h.resources.pull(h.surface, 'n1')
+    expect(opens(h.surface)).toEqual(['2@n1'])
+  })
+
+  it('sends nothing when the adapter is disposed during an awaited Show', async () => {
+    // RVM107W1C P2-3.
+    const h = windowHarness()
+    const reading = Promise.withResolvers<ResourceStatus>()
+    h.port.refreshStatus.mockImplementationOnce(() => reading.promise)
+    h.load()
+    h.resources.surfaceReady(h.surface)
+    h.resources.pull(h.surface, 'n1')
+    h.surface.post.mockClear()
+    h.surfaces.broadcast.mockClear()
+    const showing = h.resources.show()
+    await vi.waitFor(() => {
+      expect(h.port.refreshStatus).toHaveBeenCalledTimes(1)
+    })
+    h.resources.dispose()
+    reading.resolve(fakeStatus('throttle'))
+    await showing
     expect(h.surface.post).not.toHaveBeenCalled()
-    h.resources.surfaceReady(h.surface)
-    expect(h.surface.post.mock.calls.map(([message]) => message)).toEqual([
-      { type: 'resourceStatus', status: JSON.stringify(fakeStatus('pause')) },
-      { type: 'resourceOpen' },
-    ])
-    // Consumed once: a later ready of the same surface replays the status only.
-    h.resources.surfaceReady(h.surface)
-    expect(h.surface.post.mock.calls.at(-1)?.[0].type).toBe('resourceStatus')
-    expect(h.surface.post).toHaveBeenCalledTimes(3)
+    expect(h.surfaces.broadcast).not.toHaveBeenCalled()
+    expect(h.surface.reveal).not.toHaveBeenCalled()
+    h.resources.pull(h.surface, 'n1')
+    expect(h.surface.post).not.toHaveBeenCalled()
+    expect(h.removed.size).toBe(0)
+  })
+
+  it('leaves nothing pending when opening the new conversation fails', async () => {
+    // RVM107W1C P2-4.
+    const h = windowHarness()
+    h.surfaces.active = undefined
+    h.openConversation.mockReturnValueOnce({
+      surfaceId: 'panel:new',
+      opened: Promise.reject(new Error('focus failed')),
+    })
+    await expect(h.resources.show()).rejects.toThrow('focus failed')
+    const target = fakeSurface('panel:new')
+    h.resources.surfaceReady(target)
+    h.resources.pull(target, 'n1')
+    expect(sent(target)).toEqual(['resourceStatus'])
   })
 
   it('binds a new conversation open to its own surface, never to another that is ready first', async () => {
-    // RVM107W1B P2-2b: the target is decided when Show runs.
     const h = windowHarness()
     h.surfaces.active = undefined
     await h.resources.show()
     expect(h.openConversation).toHaveBeenCalledTimes(1)
     const other = fakeSurface('panel:other')
     h.resources.surfaceReady(other)
+    h.resources.pull(other, 'x')
     expect(sent(other)).toEqual(['resourceStatus'])
     const target = fakeSurface('panel:new')
     h.resources.surfaceReady(target)
-    expect(sent(target)).toEqual(['resourceStatus', 'resourceOpen'])
-    h.resources.surfaceReady(target)
-    expect(sent(target)).toEqual(['resourceStatus', 'resourceOpen', 'resourceStatus'])
+    h.resources.pull(target, 'y')
+    expect(opens(target)).toEqual(['1@y'])
   })
 
-  it('holds the open across a document reload: two Shows, then status and one open', async () => {
-    // RVM107W1B P2-2a: ready → reload → Show → ready-again.
-    const h = windowHarness()
-    h.load()
-    h.resources.surfaceReady(h.surface)
-    h.surface.post.mockClear()
-    h.resources.surfaceReset(h.surface)
-    await h.resources.show()
-    await h.resources.show()
-    expect(sent(h.surface)).toEqual([])
-    h.resources.surfaceReady(h.surface)
-    expect(sent(h.surface)).toEqual(['resourceStatus', 'resourceOpen'])
-    h.resources.surfaceReady(h.surface)
-    expect(sent(h.surface)).toEqual(['resourceStatus', 'resourceOpen', 'resourceStatus'])
-  })
-
-  it('cancels the open when its target is disposed, and after the adapter is disposed', async () => {
+  it('cancels the open when its target is disposed', async () => {
     const h = windowHarness()
     await h.resources.show()
     h.remove(h.surface)
     const replacement = fakeSurface(h.surface.id)
     h.resources.surfaceReady(replacement)
-    h.resources.surfaceReady(h.surface)
-    expect(sent(replacement)).toEqual(['resourceStatus'])
-    expect(sent(h.surface)).toEqual(['resourceStatus'])
-
-    const late = windowHarness()
-    await late.resources.show()
-    late.resources.dispose()
-    late.resources.surfaceReady(late.surface)
-    expect(sent(late.surface)).toEqual([])
-    expect(late.removed.size).toBe(0)
+    h.resources.pull(replacement, 'n2')
+    expect(opens(replacement)).toEqual([])
   })
 
   it('says the governor is off and offers its settings instead of an empty popover', async () => {
     const h = windowHarness(fakeStatus('normal', false))
     h.vscode.window.showInformationMessage.mockResolvedValueOnce(UI_TEXT.openSettings)
     await h.resources.show()
-    expect(h.surface.post).not.toHaveBeenCalledWith({ type: 'resourceOpen' })
+    expect(opens(h.surface)).toEqual([])
     expect(h.vscode.window.showInformationMessage).toHaveBeenCalledWith(
       UI_TEXT.resourceGovernorOff,
       UI_TEXT.openSettings,
@@ -559,7 +662,11 @@ describe('U–C1 strict resource wire', () => {
       ok: true,
       message: { type: 'resourceStatus', status: text },
     })
-    expect(parseHostToWebviewMessage({ type: 'resourceOpen' }).ok).toBe(true)
+    expect(parseHostToWebviewMessage({ type: 'resourceOpen', seq: 1, nonce: 'n1' }).ok).toBe(true)
+    expect(parseWebviewToHostMessage({ type: 'resourcePull', nonce: 'n1' }).ok).toBe(true)
+    expect(parseWebviewToHostMessage({ type: 'resourceOpenAck', seq: 1, nonce: 'n1' }).ok).toBe(
+      true,
+    )
     for (const action of ['show', 'settings', 'resume'])
       expect(parseWebviewToHostMessage({ type: 'resourceAction', action }).ok).toBe(true)
   })
@@ -571,12 +678,20 @@ describe('U–C1 strict resource wire', () => {
       { type: 'resourceStatus', status: text, level: 'pause' },
       { type: 'resourceStatus', status: JSON.parse(text) as unknown },
       { type: 'resourceOpen', force: true },
+      { type: 'resourceOpen', seq: 1 },
+      { type: 'resourceOpen', seq: 0, nonce: 'n1' },
+      { type: 'resourceOpen', seq: 1, nonce: 'n'.repeat(RESOURCE_NONCE_MAX_CHARS + 1) },
     ]
     for (const message of refused) expect(parseHostToWebviewMessage(message).ok).toBe(false)
     for (const message of [
       { type: 'resourceAction', action: 'kill' },
       { type: 'resourceAction', action: 'resume', untilMs: 1 },
       { type: 'resourceAction' },
+      { type: 'resourcePull' },
+      { type: 'resourcePull', nonce: '' },
+      { type: 'resourcePull', nonce: 'n1', seq: 1 },
+      { type: 'resourceOpenAck', nonce: 'n1' },
+      { type: 'resourceOpenAck', seq: 1.5, nonce: 'n1' },
     ])
       expect(parseWebviewToHostMessage(message).ok).toBe(false)
     expect(
