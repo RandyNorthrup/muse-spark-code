@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Settle quote-menu capture origins after final layout and isolate source-reconstruction fixtures from temporary-directory placement.
+
 - Complete integrated visual coverage through real optional UI scenes, decode packed update notes in replay, wrap narrow Models actions and use token focus rings.
 
 - Guard the lazy slash-command registration as a deferred chat entry without adding activation bytes.

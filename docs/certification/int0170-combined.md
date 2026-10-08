@@ -257,6 +257,68 @@ No merge, push, live/paid call, changed timeout, byte cap or pixel tolerance.
   quote driver, inspect changed quote images, then rerun the complete
   fresh-clone pixel gate. Do not splice partial receipts or widen tolerance.
 
+### LEFT017B final fresh-clone results
+
+Verified code source `8a451e9de4a8a3bdea9858ed59379469b616ba10`, Linux rig,
+fresh `npm ci`, `CI=true`, default repository deadlines, at most three whole
+test files per invocation and one build/typecheck/lint/test process at a time.
+All eight visual owners pass: 27 + 14 + 4 = 45 tests, none skipped.
+The entire protected visualMatrix owner is byte-exact against `e2605a991`.
+
+| Gate              | Exit | Evidence                                                                                                                                       |
+| ----------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `visual-final`    | 1    | Final quote-origin code correctly rejects the old baseline: 28,957 changed pixels at panel/quote-menu/default/light/320; allowance remains 12. |
+| `visual-owners-a` | 0    | 27 tests; capture, matrix and audit.                                                                                                           |
+| `visual-owners-b` | 0    | 14 tests; gate, source reconstruction and stability.                                                                                           |
+| `visual-owners-c` | 0    | 4 tests; slash bundle and theme inventory.                                                                                                     |
+| `typecheck`       | 0    | All five projects.                                                                                                                             |
+| `eslint`          | 0    | Every changed TS/TSX/MJS file; zero warnings.                                                                                                  |
+| `prettier`        | 0    | Every changed file.                                                                                                                            |
+| `knip`            | 0    | Plain knip; two inherited configuration hints.                                                                                                 |
+| `jscpd`           | 0    | 2,835 files; zero clones.                                                                                                                      |
+| `stylelint`       | 0    | Unchanged gate passes.                                                                                                                         |
+| `l10n`            | 0    | Unchanged gate passes.                                                                                                                         |
+| `reference`       | 0    | Unchanged gate passes.                                                                                                                         |
+| `host-api`        | 0    | Unchanged gate passes.                                                                                                                         |
+| `plan`            | 0    | Unchanged gate passes.                                                                                                                         |
+| `tokens`          | 0    | Unchanged gate passes.                                                                                                                         |
+| `build`           | 1    | Production compilation succeeds; nine inherited caps below stop the aggregate.                                                                 |
+| `split`           | 0    | Deferred source accepted; activation 587,451 bytes.                                                                                            |
+
+The source owner first fails because a symlinked disk-backed temp directory
+has no parent Git repository. Its fixture now runs `git init --quiet` inside
+its own root; the original missing-tree and cleanup assertions remain intact.
+The complete owner passes locally and in the fresh clone. After the quote
+commit hook rewrote the condition chain into a switch, the committed logic
+was reread; the full stability owner passes again. Final capture-driver hash:
+`1885352f13682c65fe1726bb32b51c58b7a677457d6a063e7a40e321206cc964`.
+
+Full-size final quote failure image was inspected: the settled menu is within
+the narrow viewport; the expected origin change needs a new reviewed baseline.
+No partial manifest splice, changed tolerance, stale assertion edit or waiver.
+
+Nine inherited size failures (KiB / cap): runtimeQuestions 25.5/25;
+conversation 255.0/250; runtimeEngine 893.8/875; usagePanel 83.4/75;
+headless 100.7/100; runtimeAccounts 339.6/300; webview surface English
+26.9/25; Palette 25.7/25; estimator panel 25.0/25 (exact bytes exceed cap).
+These remain the shrinking lane's work. Activation is exactly 587,451/614,400.
+
+Local hooks-on commits, oldest first: `45dee1e3b`, `c9a4f2ec7`, `2ae80ffb9`,
+`fac844b25`, `58a8552a1`, `dea829e87`, `3a4fca76c`, `8a451e9de`.
+Staged and committed diffs were reread after each successful hook run.
+
+**Incomplete at the two-hour limit:** the last quote capture fix invalidates
+its earlier baseline. The full generator previously took about sixteen minutes;
+another full generation plus replay does not fit the remaining brief window.
+The original 9,792-image receipt and 184 review lines are retained honestly at
+their recorded source revision. F1/F2 remain owning-surface findings.
+
+Next: run the repository's full `check:visual -- --update` with a new review
+reference and a new outside-git `$TMPDIR` archive; inspect every changed image,
+refresh the bound image review, then rerun complete fresh-clone `check:visual`.
+Keep all thresholds and the three protected assertions unchanged. Fresh clone
+is removed at handoff; the external archive and labelled review sheets remain.
+
 ### Earlier LEFT017 receipts
 
 Lane `rel017/left`, base `7a4fc2ab3`, Linux rig, 2026-10-08. All tests

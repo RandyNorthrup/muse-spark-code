@@ -12,8 +12,9 @@ unrelated bundle caps remain the shrinking lane's responsibility.
 - [x] Map all 184 renderers (111 added) across 136 real-component scenes; narrow Chrome smoke passed.
 - [x] Refresh theme/source receipts; generate and review 9,792 Chrome frames (184 renderer review lines).
 - [x] Deferred slash-command entry registered; activation 587,451 bytes; eager-import guard drill passed.
-- [ ] Replay visual owners and scoped static gates in a fresh npm-ci CI clone.
-- [ ] Record image reviews, findings, gate exits and hooks-on commits in LEFT017.
+- [x] Replay all eight visual owners (45 tests) and scoped static gates in a fresh npm-ci CI clone.
+- [ ] Regenerate and review the full baseline after the settled quote-origin repair; pass the complete fresh-clone pixel gate.
+- [x] Record image reviews, findings, gate exits and hooks-on commits in LEFT017.
 
 **FIX0160W2 hosted Windows repair (2026-10-07, win11).** Reproduce the three
 remaining suites with an actual 8.3 TEMP/TMP alias and fresh PowerShell
@@ -20362,13 +20363,15 @@ as required by the rig brief; do not run full quality or merge in this lane.
 
 ### LEFT017 — Combined 0.17.0 integration leftovers (2026-10-08)
 
-**Status 2026-10-08: building.** LEFT017B explicitly lifts the earlier mapping
+**Status 2026-10-08: waiting.** LEFT017B explicitly lifts the earlier mapping
 scope limit: all 184 renderers now map to 136 real scenes. All 9,792 Chrome
 receipts and 184 image-review lines are complete. Fresh-clone replay found a
 quote-menu anchor captured before its final layout (9,863 changed pixels);
-settle the real context click, prove its guard, then regenerate/replay receipts.
-The source-reconstruction test also needs its own fixture repository: private
-disk-backed temp storage must not depend on Git discovery through the checkout.
+The real context click now waits for final layout, its guard is proven, and
+all 45 visual-owner tests plus five typechecks and scoped static gates pass.
+Full baseline regeneration and pixel replay remain open at the two-hour limit.
+The source-reconstruction fixture now owns its Git repository, so private
+disk-backed temp storage no longer depends on checkout discovery.
 Combined build caps remain
 owned by the shrinking lane. Earlier rig lane `rel017/left`, base `7a4fc2ab3`;
 two-hour repair window. Keep all assertions, caps, scanner rules and deadlines.
