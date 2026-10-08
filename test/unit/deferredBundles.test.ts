@@ -882,9 +882,11 @@ describe('deferred cohort bundles', () => {
   it('CAPS017: the ACP engine ships only zod English locale and still loads', () => {
     const engine = inputs('runtimeEngine')
     expect(engine).toContain('node_modules/zod/v4/locales/en.js')
-    expect(engine.filter((file) => file.startsWith('node_modules/zod/v4/locales/'))).toEqual([
-      'node_modules/zod/v4/locales/en.js',
-    ])
+    expect(
+      engine
+        .filter((file) => file.startsWith('node_modules/zod/v4/locales/'))
+        .toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(['node_modules/zod/v4/locales/en.js', 'node_modules/zod/v4/locales/index.js'])
     const loaded = loadSupportBundle('runtimeEngine')
     expect(loaded).toHaveProperty('createRuntimeBackend', expect.any(Function))
     expect(loaded).toHaveProperty('createAcpAgent', expect.any(Function))

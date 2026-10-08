@@ -696,7 +696,7 @@ export function checkDeferredBundles(inputsOf) {
   // CAPS017: classic zod's unused locales stay out of the ACP engine.
   const runtimeEngine = DEFERRED.find((bundle) => bundle.output === 'dist/runtimeEngine.js')
   for (const file of inputsOf(runtimeEngine).keys()) {
-    if (/^node_modules\/zod\/v4\/locales\/(?!en\.js$)/.test(file))
+    if (/^node_modules\/zod\/v4\/locales\/(?!(?:en|index)\.js$)/.test(file))
       problems.push(`${runtimeEngine.output} carries ${file}; only zod's English locale ships`)
   }
   // Session export remains available to the conversation and ACP front ends;
@@ -997,27 +997,34 @@ export const sharedResourceAdmission = {
 // CAPS017: the ACP SDK imports classic zod as a namespace, so esbuild keeps
 // zod's `export * as locales` namespaces whole: 63 locale modules, 258 KiB
 // of dist/runtimeEngine.js. Nothing selects a zod locale (classic zod
-// installs English itself and no code calls `z.config`), so only
-// `locales.en` ships.
-const ZOD_LOCALE_NAMESPACES =
-  /[/\\]node_modules[/\\]zod[/\\]v4[/\\](?:classic[/\\]external|core[/\\]index)\.js$/
+// installs English itself and no code calls `z.config`), so the locale
+// index keeps only `en`. The file keeps its own path, so the notices still
+// attribute it to zod's package.
+const ZOD_LOCALE_INDEX = /[/\\]node_modules[/\\]zod[/\\]v4[/\\]locales[/\\]index\.js$/
 /** @type {import('esbuild').Plugin} */
 export const englishZodLocales = {
   name: 'english-zod-locales',
   setup(build) {
-    build.onResolve({ filter: /^\.\.\/locales\/index\.js$/ }, (args) =>
-      ZOD_LOCALE_NAMESPACES.test(args.importer)
-        ? {
-            path: path.resolve(args.resolveDir, '../locales/index.js'),
-            namespace: 'english-zod-locales',
-          }
-        : undefined,
-    )
-    build.onLoad({ filter: /.*/, namespace: 'english-zod-locales' }, (args) => ({
+    build.onLoad({ filter: ZOD_LOCALE_INDEX }, () => ({
       contents: "export { default as en } from './en.js'",
       loader: 'js',
-      resolveDir: path.dirname(args.path),
     }))
+  },
+}
+
+// CAPS017: the four report bundles each carried their own 7.8-8.8 KiB copy
+// of the secret scrubber. They take the shared one dist/vaultBoundaries.js
+// already exports to every other Node bundle; no other vault code comes.
+/** @type {import('esbuild').Plugin} */
+export const sharedRedaction = {
+  name: 'shared-redaction',
+  setup(build) {
+    build.onResolve({ filter: /\/redact(?:\.[jt]s)?$/ }, (args) =>
+      path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) ===
+      path.resolve('src/shared/redact.ts')
+        ? { path: './vaultBoundaries.js', external: true }
+        : undefined,
+    )
   },
 }
 

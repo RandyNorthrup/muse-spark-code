@@ -87,6 +87,7 @@ import {
   sharedStructuredSchema,
   sharedModelApiBoundaries,
   englishZodLocales,
+  sharedRedaction,
 } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -343,7 +344,7 @@ const referenceOptions = {
 
 const reportingOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedRedaction],
   entryPoints: ['src/runtime/reporting/reportsEntry.ts'],
   outfile: 'dist/reporting.js',
 }
@@ -359,7 +360,7 @@ const reportingDestinationsOptions = {
 }
 const reportingPanelOptions = {
   ...hostOptions,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedRedaction],
   entryPoints: ['src/host/reporting/reportPanelEntry.ts'],
   outfile: 'dist/reportingPanel.js',
 }
