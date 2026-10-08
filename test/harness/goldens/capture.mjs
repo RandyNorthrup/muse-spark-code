@@ -89,6 +89,7 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     { fixture, width },
   )
   await page.clock.runFor(6500)
+  if (scene === 'playbook-status') await waitForPaint(page, '.playbook-record')
   if (scene.startsWith('traffic-')) {
     await waitForPaint(page, '.traffic-tabs')
     await page.locator(`.traffic-tabs button[id$="-${scene.slice('traffic-'.length)}"]`).click()

@@ -54,6 +54,8 @@ for (const scene of [
       { ...matrix, themes: ['light'], widths: [320] },
       async (capture, bytes, page) => {
         decodePng(bytes, capture.width, capture.height)
+        if (capture.scene === 'playbook-status')
+          expect(await page.locator('.playbook-record').count()).toBe(1)
         const selectors =
           {
             'accounts-thresholds': ['.account-thresholds'],
