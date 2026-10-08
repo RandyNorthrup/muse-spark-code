@@ -266,10 +266,53 @@ was restored from its saved bytes in `finally`, then the SHA-256 was checked.
 
 Restored worktree run: manifest/capability/held-tree **99 passed**, exit **0**.
 Shared identity/workspace-tools/held-tree run **104 passed**, exit **0**.
-All five typecheck projects **0**. Fresh-clone final gate receipts follow in
-the certification commit after the implementation commit is verified.
+All five worktree typecheck projects **0**. Implementation commit
+`ac0d4d6b66ec9d0e18383330c0fcf1f6df3444b6` used normal hooks: changed-file
+ESLint/Prettier and staged gitleaks **0**, no leaks. The staged/committed diff
+was re-read after the hook, and all three restored source hashes still match.
+
+#### Fresh-clone final verification
+
+Exact implementation commit above, cloned with `--no-hardlinks` into
+`C:/lanes/_verify/FIXM100P2V-ci-20261008`. Every command ran with `CI=true`;
+`npm.cmd ci` exited **0**, 898 installed packages. The unchanged lockfile's
+install audit reports 12 issues (2 low, 10 high); no dependency changed and
+this correction makes no full security-gate claim.
+
+The owning suites ran **three times**, at most three files per invocation,
+`--maxWorkers=3`, with repository-default timeouts and no `--testTimeout`:
+
+- `npx.cmd vitest run test/unit/deviceInputManifest.test.ts
+test/unit/deviceCapability.test.ts test/unit/heldTree.test.ts --maxWorkers=3`:
+  **99 / 99 / 99 passed**, exits **0 / 0 / 0**; durations 3.43 s, 3.11 s,
+  3.08 s. Counts: manifest 32, capability 12, held tree 55. The native
+  Windows proof ran and passed each time.
+- `npx.cmd vitest run test/unit/pathIdentity.test.ts
+test/unit/modelApiTools.test.ts --maxWorkers=3`:
+  **49 / 49 / 49 passed**, exits **0 / 0 / 0**; durations 3.67 s, 2.60 s,
+  2.67 s. Counts: shared identity 8, workspace-path/tool cases 41.
+- Total: **148 tests per round, 444 passing executions**, no skipped test
+  in any of these final Windows runs.
+
+| Fresh-clone gate                                        | Exit / receipt                                                                                                                                  |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Five typecheck projects (`npm.cmd run typecheck`)       | 0; host, webview, unit, e2e and integration                                                                                                     |
+| Changed TypeScript ESLint, `--max-warnings=0`           | 0                                                                                                                                               |
+| Changed-file Prettier (TypeScript and certification)    | 0                                                                                                                                               |
+| Native test helper, PSScriptAnalyzer 1.25.0 / PSGallery | 0; zero findings                                                                                                                                |
+| Plain `npx.cmd knip`                                    | 0; the same two pre-existing configuration hints                                                                                                |
+| `npm.cmd run duplication`                               | 0; jscpd, zero clones                                                                                                                           |
+| `npm.cmd run check:l10n`                                | 0; 14 tables, 169 manifest strings, 657 source files, zero problems                                                                             |
+| `npm.cmd run check:reference`                           | 0; 53 features, 18 Devices entries, current                                                                                                     |
+| `npm.cmd run check:host-api`                            | 1; only generated reader counts: `node:crypto` 55 → 56 (base lane V) and `node:path` 89 → 90 (shared helper); lane W owns regeneration          |
+| `npm.cmd run build`                                     | 0; all unchanged size/split/host-globals/notices gates pass; Devices 80.6/100 KiB, webview startup 738.0/900 KiB, original deferred 32.1/50 KiB |
+
+All three source SHA-256 values match the drill restores and committed worktree;
+the fresh clone remains clean after verification. Phase-2 manifest/capability
+wiring and the joined-tree full `npm run quality` remain lane W's acceptance,
+as in the original lane V record; no full-quality result is claimed here.
 
 Integration requests remain with lane W: call `admitOfferCapability` with the
 receiver's current clock (a separate admission call is no longer needed),
-regenerate its host API record, and carry these unshipped behavior corrections
+regenerate its host API record for the two count changes above, and carry these behavior corrections
 into its assigned Unreleased changelog and joined-tree full quality gate.
