@@ -19647,6 +19647,18 @@ suites and fresh-clone CI static gates certify this lane; unrelated integrated
 bundle caps and full quality remain with the lead. Record receipts under
 `docs/certification/int0170-combined.md`, Money and schedule ledger (MONEY017).
 
+**MONEY017B review repair plan (2026-10-08).** RVMONEY017 P2/P3:
+build calibrated media parts for the actual production request, attach its
+accounting to the host guard and reserve the complete tariff on scheduled
+follow-ups. D85.6 reserves the worst case; D95.3 refuses spend beyond the hard
+schedule/shared caps. An above-reserve bill therefore refuses settlement and
+retains the admitted amount as uncertain rather than posting an unadmitted
+amount. Secure the replacement daily claim before releasing the original;
+concurrent admissions cannot take its held headroom. Regressions run once on
+`054a9fd12`, deliberate red drills restore exact source bytes, and fresh-clone
+CI scoped gates use default deadlines. Full quality remains with the lead per
+§7 and the rig brief. No merge, push, live/paid call or gate changes.
+
 Implemented: the three schedule failures were expectation ports; its durable
 ledger is unchanged. Media transfers its daily claim to the schedule, retains
 frozen-tariff settlement and hosted allowance, and records checked native source

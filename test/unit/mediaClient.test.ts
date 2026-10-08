@@ -208,7 +208,7 @@ describe('media accounting at the transport', () => {
       expect(fire.scope.cost()).toEqual({ usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 })
       expect(fire.run.refusedActions).toHaveLength(1)
       expect(t.claims[0]!.settle).toHaveBeenCalledExactlyOnceWith('0', false)
-      expect(t.claims[1]!.settle).toHaveBeenCalledExactlyOnceWith('0')
+      expect(t.claims[1]!.settle).toHaveBeenCalledExactlyOnceWith('0', false)
     },
   )
 

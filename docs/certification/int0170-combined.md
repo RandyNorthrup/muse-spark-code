@@ -165,6 +165,30 @@ journal coverage time) was not addressed in this pass.
 
 ## Money and schedule ledger (MONEY017)
 
+### MONEY017B review repair (RVMONEY017, 2026-10-08)
+
+Kubuntu, `rel017/money2`, base `054a9fd12`. The same fake-only and scoped
+quality boundary applies. No hook substitution, merge, push or live/paid call.
+
+P3: `rebindDaily` reserves its replacement before refunding the original,
+retaining held headroom throughout the transfer. A failed refund releases the
+nonsent replacement. The concurrent-admission regression holds the refund
+while another request competes at exactly the remaining headroom: the original
+request keeps its replacement. The existing second-transfer/dispatch refusal
+assertions remain; the reserve now has already run once while refund is held.
+Cap-refusal assertions additionally require explicit `hasUnknownCost: false`.
+
+Base run with the new P3 regression and revised ordering assertion:
+`mediaAccounting` **2 failed / 14 passed (16)**, exit 1, repository deadlines.
+The same base-source restoration is the deliberate ordering drill; the repaired
+source was restored byte-exact by SHA-256. Restored `mediaAccounting` + `mediaClient`: **38 passed**, exit 0.
+Changed-source/test eslint `--max-warnings=0`: exit 0. Initial lint/hook
+runs caught promise-wrapping, the unavailable `Promise.try` library type and
+an unnecessary async wrapper; the competing synchronous admission now runs
+directly while the original async refund is held.
+Final fresh-clone receipts and P2 production/settlement regressions follow
+when both repairs are complete.
+
 Kubuntu, `rel017/money`, base `7a4fc2ab3`, 2026-10-08. Fake-only; no
 credentials, paid/live calls, merge, push or gate changes. The rig brief
 supersedes the common file's historical merge/full-quality instructions.

@@ -72,6 +72,42 @@ function holdSettlement(claim: ReturnType<typeof setup>['daily']['claim']) {
 }
 
 describe('media request accounting', () => {
+  it('keeps a held request ahead of a concurrent admission at the remaining headroom', async () => {
+    const t = setup()
+    const reservation = await reserveMediaRequest(t.request)
+    const cap = Usd.from(reservation.reservedUsd).times(2)
+    let held = Usd.from(reservation.reservedUsd)
+    const replacement = { check: vi.fn(), settle: vi.fn(() => Promise.resolve()) }
+    const entered = Promise.withResolvers<undefined>()
+    const resume = Promise.withResolvers<undefined>()
+    t.daily.claim.settle.mockImplementation(async () => {
+      entered.resolve(undefined)
+      await resume.promise
+      held = held.subtract(Usd.from(reservation.reservedUsd))
+    })
+    const admit = () => {
+      const next = held.add(Usd.from(reservation.reservedUsd))
+      if (next.compare(cap) > 0) throw new Error('daily cap')
+      held = next
+      return replacement
+    }
+    const transfer = reservation.rebindDaily(() => {
+      const claim = admit()
+      return Promise.resolve(claim)
+    })
+    await entered.promise
+    try {
+      // While the refund is in flight the replacement still owns its headroom.
+      expect(held.compare(cap)).toBe(0)
+      expect(admit).toThrow('daily cap')
+    } finally {
+      resume.resolve(undefined)
+      await transfer
+    }
+    reservation.check()
+    expect(replacement.check).toHaveBeenCalledOnce()
+  })
+
   it('refuses dispatch and a second daily transfer while the original refund is held', async () => {
     const t = setup()
     const reservation = await reserveMediaRequest(t.request)
@@ -87,7 +123,7 @@ describe('media request accounting', () => {
         reservation.started()
       }).toThrow('retry')
       await expect(reservation.rebindDaily(reserve)).rejects.toThrow('retry')
-      expect(reserve).not.toHaveBeenCalled()
+      expect(reserve).toHaveBeenCalledOnce()
     } finally {
       held.release()
       await transfer

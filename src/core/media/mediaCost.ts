@@ -336,9 +336,15 @@ export async function reserveMediaRequest(request: {
         throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
       isRebinding = true
       try {
-        await daily.settle(Usd.from(0).toAmount())
+        const replacement = await reserve()
+        try {
+          await daily.settle(Usd.from(0).toAmount())
+        } catch (error: unknown) {
+          await replacement.settle(Usd.from(0).toAmount())
+          throw error
+        }
         closed.add(daily)
-        daily = await reserve()
+        daily = replacement
       } finally {
         isRebinding = false
       }
