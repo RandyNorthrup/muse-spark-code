@@ -12,16 +12,10 @@
 import { readFileSync } from 'node:fs'
 import {
   createPhase2Binding,
-  phase2AdoptionSlug,
-  phase2EmbeddingSlug,
-  phase2EvidenceFile,
-  phase2ProfileSlug,
-  type Phase2AdoptionQuery,
+  filePhase2EvidenceStore,
   type Phase2BindingContext,
   type Phase2BindingRequest,
   type Phase2EmbeddingQuery,
-  type Phase2EvidenceStore,
-  type Phase2ProfileQuery,
   type Phase2SeparateSource,
 } from '../../core/judge/binding'
 import type { JudgeAdoptionContext } from '../../core/judge/adoption'
@@ -33,46 +27,20 @@ import type { JudgeEntryParts } from '../../core/judge/entries'
 import type { Logger } from '../logger'
 import { judgeFeaturesLoader } from '../../runtime/judge/judgeBundle'
 
-/** Recorded JSON under the evidence root; unreadable stays unrecorded. */
-export function filePhase2EvidenceStore(deps: {
-  readonly root: string
-  readonly readFile?: ((file: string) => string | undefined) | undefined
-  readonly warn?: ((message: string) => void) | undefined
-}): Phase2EvidenceStore {
-  const read = deps.readFile ?? defaultReadFile
-  const readJson = (kind: 'profile' | 'adoption' | 'embedding', slug: string): unknown => {
-    let text: string | undefined
-    try {
-      text = read(phase2EvidenceFile(deps.root, kind, slug))
-    } catch {
-      return undefined
-    }
-    if (text === undefined) return undefined
-    try {
-      return JSON.parse(text) as unknown
-    } catch {
-      deps.warn?.(`Ignoring malformed phase-2 ${kind} record ${slug}`)
-      return undefined
-    }
-  }
-  return {
-    readProfile: (query: Phase2ProfileQuery) => readJson('profile', phase2ProfileSlug(query)),
-    readAdoptionRecord: (query: Phase2AdoptionQuery) =>
-      readJson('adoption', phase2AdoptionSlug(query)),
-    readEmbeddingHead: (query: Phase2EmbeddingQuery) =>
-      (readJson('embedding', phase2EmbeddingSlug(query)) as { head?: unknown } | undefined)?.head,
-    readEmbeddingManifest: (query: Phase2EmbeddingQuery) =>
-      (readJson('embedding', phase2EmbeddingSlug(query)) as { manifest?: unknown } | undefined)
-        ?.manifest,
-  }
-}
-
 function defaultReadFile(file: string): string | undefined {
   try {
     return readFileSync(file, 'utf8')
   } catch {
     return undefined
   }
+}
+
+/** The host file store keeps the node:fs default; CLI surfaces pass their own reader. */
+export function hostPhase2EvidenceStore(
+  root: string,
+  warn: (message: string) => void,
+): ReturnType<typeof filePhase2EvidenceStore> {
+  return filePhase2EvidenceStore({ root, readFile: defaultReadFile, warn })
 }
 
 export interface HostPhase2BindingInputs {
@@ -116,11 +84,8 @@ export function createHostPhase2(deps: HostPhase2BindingInputs): {
     log: deps.log,
     ...(deps.loadBundle !== undefined && { loadBundle: deps.loadBundle }),
   })
-  const store = filePhase2EvidenceStore({
-    root: deps.evidenceRoot,
-    warn: (message) => {
-      deps.log.warn(message)
-    },
+  const store = hostPhase2EvidenceStore(deps.evidenceRoot, (message) => {
+    deps.log.warn(message)
   })
   const hasJudgeAdoption = (record: unknown, context: JudgeAdoptionContext): boolean =>
     loadJudgeP2().hasJudgeAdoptionEvidence(record, context)

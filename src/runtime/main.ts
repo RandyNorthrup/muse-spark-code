@@ -46,10 +46,9 @@ import {
 } from '../shared/constants'
 import {
   cliEvidenceRoot,
-  createPhase2Binding,
+  filePhase2EvidenceStore,
   type Phase2EvidenceStore,
-} from '../core/judge/binding'
-import { filePhase2EvidenceStore } from '../host/judge/judgeBinding'
+} from '../core/judge/evidencePaths'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale } from '../shared/l10n/text'
 import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
@@ -739,15 +738,26 @@ async function main(): Promise<number> {
         evidenceDir: process.env['MUSE_JUDGE_EVIDENCE_DIR'],
         configHome: process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
       })
-      const store: Phase2EvidenceStore = filePhase2EvidenceStore({ root: evidenceRoot })
+      const store: Phase2EvidenceStore = filePhase2EvidenceStore({
+        root: evidenceRoot,
+        readFile: (file: string): string | undefined => {
+          try {
+            return readFileSync(file, 'utf8')
+          } catch {
+            return undefined
+          }
+        },
+      })
       // Production phase-2 binding (M98 P2B), shared with the window and
       // MCP: explicit modes bypass only the automatic readiness default,
       // never consent, confidentiality, provenance or admission. Live C/E/J
       // clients land in their own lanes; until then a configured id
-      // reports its gap instead of silently staying phase-1.
+      // reports its gap instead of silently staying phase-1. The factory
+      // itself runs inside `dist/judgeP2.js`, so judge schemas stay lazy
+      // for ordinary commands.
       const commandDeps = await features.createCommandDeps({
         binding: () =>
-          createPhase2Binding({
+          features.createBinding({
             engine: command.options.engine,
             separateId: command.options.separate,
             separateConfigured: true,
@@ -772,8 +782,6 @@ async function main(): Promise<number> {
               minReadyRate: JUDGE_MIN_READY_RATE,
             },
             billing: 'free',
-            adoptionCheck: (record, adoptionContext) =>
-              features.hasJudgeAdoptionEvidence(record, adoptionContext),
           }),
         billing: 'free',
         worstCaseUsd: () => 0,

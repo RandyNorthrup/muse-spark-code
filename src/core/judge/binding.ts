@@ -34,185 +34,39 @@
 // inside `dist/judgeP2.js` and its children, so the bundle-split guard
 // keeps passing. Everything here is pure and synchronous; file access
 // belongs to the surface-supplied store reader.
-
 import type { JudgeRuntime } from './engine'
 import type { JudgeCascadeSide, JudgeCascadeOptions } from './cascade'
 import type { JudgeAdoptionContext } from './adoption'
 import type { CalibrationLimits } from './calibration/schema'
 import type { JudgeRuntimeBinding } from './runtime'
 import type { JudgeModeContext } from './resolve'
-import { JUDGE_EVIDENCE_DIRNAME } from '../../shared/constants'
 import { judgeCapabilitySchema, type JudgeCapability, type JudgeOutcome } from './schema'
+import type { Phase2AdoptionQuery, Phase2EvidenceStore } from './evidencePaths'
 
-/** Where recorded phase-2 evidence lives under a surface's storage root. */
-export const PHASE2_EVIDENCE_DIR = JUDGE_EVIDENCE_DIRNAME
-
-/** B's fitted calibration profiles, one JSON file per side identity. */
-export const PHASE2_PROFILE_BASENAME = 'profiles'
-/** Held-out paired M75 adoption records, one JSON file per family. */
-export const PHASE2_ADOPTION_BASENAME = 'adoption'
-/** L98P2-EMBED heads and manifests, one JSON file per family. */
-export const PHASE2_EMBEDDING_BASENAME = 'embedding'
-
-/** Identity fields that select one recorded fitted profile. */
-export interface Phase2ProfileQuery {
-  readonly providerId: string
-  readonly model: string
-  readonly modelVersion: string
-  readonly endpoint: string
-  readonly source: 'same' | 'separate'
-  readonly technique: string
-  readonly family: string
-  readonly promptVersion: string
-  readonly criteriaVersion: string
-  readonly fitVersion: string
-}
-
-/** Identity fields that select one recorded adoption receipt. */
-export interface Phase2AdoptionQuery {
-  readonly providerId: string
-  readonly modelId: string
-  readonly family: string
-  readonly promptVersion: string
-  readonly criteriaVersion: string
-}
-
-/** Identity fields that select one recorded embedding head/manifest pair. */
-export interface Phase2EmbeddingQuery {
-  readonly providerId: string
-  readonly model: string
-  readonly modelVersion: string
-  readonly endpoint: string
-  readonly source: string
-  readonly family: string
-  readonly promptVersion: string
-  readonly criteriaVersion: string
-  readonly fitVersion: string
-  readonly dimension: number
-}
-
-/**
- * Recorded evidence, read from owner storage. Every method returns
- * `undefined` when nothing is recorded; an unreadable or malformed entry
- * is also `undefined`, never a guessed profile. Surfaces implement this
- * over files (`phase2EvidenceFile` builds the path); tests use memory.
- */
-export interface Phase2EvidenceStore {
-  readProfile(query: Phase2ProfileQuery): unknown
-  readAdoptionRecord(query: Phase2AdoptionQuery): unknown
-  readEmbeddingHead(query: Phase2EmbeddingQuery): unknown
-  readEmbeddingManifest(query: Phase2EmbeddingQuery): unknown
-}
-
-/** Nothing is recorded: every reader reports the gap instead of a guess. */
-const NO_RECORDED_EVIDENCE: unknown = undefined
-
-/** A store with nothing recorded: every phase-2 mode reports its gap. */
-export function emptyPhase2EvidenceStore(): Phase2EvidenceStore {
-  return {
-    readProfile: () => NO_RECORDED_EVIDENCE,
-    readAdoptionRecord: () => NO_RECORDED_EVIDENCE,
-    readEmbeddingHead: () => NO_RECORDED_EVIDENCE,
-    readEmbeddingManifest: () => NO_RECORDED_EVIDENCE,
-  }
-}
-
-/** Slug parts are file-name safe, never paths. */
-const MAX_SLUG_PART_LENGTH = 96
-
-function sanitizeSlugPart(value: string): string {
-  const cleaned = value
-    .normalize('NFC')
-    .replaceAll(/[^a-zA-Z0-9._-]+/g, '-')
-    .replaceAll(/^-+|-+$/g, '')
-  return cleaned === '' ? 'unknown' : cleaned.slice(0, MAX_SLUG_PART_LENGTH)
-}
-
-/**
- * File name for one recorded artifact. Parts are sanitized so model ids
- * containing `/` or `:` cannot escape their directory on any platform.
- */
-export function phase2EvidenceSlug(parts: readonly string[]): string {
-  return parts.map((part) => sanitizeSlugPart(part)).join('__')
-}
-
-/**
- * Storage path for one recorded artifact, with `/` separators on every
- * platform (callers must normalise before comparing: CI runs on Windows).
- * The measurement lane writes these exact paths; the binding reads them.
- */
-export function phase2EvidenceFile(
-  root: string,
-  kind: 'profile' | 'adoption' | 'embedding',
-  slug: string,
-): string {
-  const bases = {
-    profile: PHASE2_PROFILE_BASENAME,
-    adoption: PHASE2_ADOPTION_BASENAME,
-    embedding: PHASE2_EMBEDDING_BASENAME,
-  }
-  const base = bases[kind]
-  const rootSlash = root.replaceAll('\\', '/').replaceAll(/\/+$/g, '')
-  return `${rootSlash}/${PHASE2_EVIDENCE_DIR}/${base}/${slug}.json`
-}
-
-/** Slug for one side's fitted profile file. */
-export function phase2ProfileSlug(query: Phase2ProfileQuery): string {
-  return phase2EvidenceSlug([
-    query.providerId,
-    query.model,
-    query.modelVersion,
-    query.endpoint,
-    query.source,
-    query.technique,
-    query.family,
-    query.promptVersion,
-    query.criteriaVersion,
-    query.fitVersion,
-  ])
-}
-
-/** Slug for one family's adoption receipt file. */
-export function phase2AdoptionSlug(query: Phase2AdoptionQuery): string {
-  return phase2EvidenceSlug([
-    query.providerId,
-    query.modelId,
-    query.family,
-    query.promptVersion,
-    query.criteriaVersion,
-  ])
-}
-
-/** Slug for one family's embedding head/manifest files. */
-export function phase2EmbeddingSlug(query: Phase2EmbeddingQuery): string {
-  return phase2EvidenceSlug([
-    query.providerId,
-    query.model,
-    query.modelVersion,
-    query.endpoint,
-    query.source,
-    query.family,
-    query.promptVersion,
-    query.criteriaVersion,
-    query.fitVersion,
-    String(query.dimension),
-  ])
-}
-
-/**
- * Default CLI/MCP evidence root: the Muse config directory's `judge`
- * folder, with an explicit `MUSE_JUDGE_EVIDENCE_DIR` override. Pure so
- * tests can pin every branch, including Windows separators.
- */
-export function cliEvidenceRoot(input: {
-  readonly evidenceDir: string | undefined
-  readonly configHome: string
-}): string {
-  const override = input.evidenceDir?.trim() ?? ''
-  return override === ''
-    ? `${input.configHome.replaceAll('\\', '/').replaceAll(/\/+$/g, '')}/muse/judge`
-    : override
-}
+// Evidence paths and the file store live beside the factory so the
+// CLI/ACP entry can read them without loading judge schemas (the
+// dispatch gate keeps schemas lazy). Re-exported here for the surfaces
+// that already build full bindings.
+export {
+  PHASE2_ADOPTION_BASENAME,
+  PHASE2_EMBEDDING_BASENAME,
+  PHASE2_EVIDENCE_DIR,
+  PHASE2_PROFILE_BASENAME,
+  cliEvidenceRoot,
+  emptyPhase2EvidenceStore,
+  filePhase2EvidenceStore,
+  phase2AdoptionSlug,
+  phase2EmbeddingSlug,
+  phase2EvidenceFile,
+  phase2EvidenceSlug,
+  phase2ProfileSlug,
+} from './evidencePaths'
+export type {
+  Phase2AdoptionQuery,
+  Phase2EmbeddingQuery,
+  Phase2EvidenceStore,
+  Phase2ProfileQuery,
+} from './evidencePaths'
 
 /** One real separate judge source (C, E or J) with its verification proof. */
 export interface Phase2SeparateSource {
