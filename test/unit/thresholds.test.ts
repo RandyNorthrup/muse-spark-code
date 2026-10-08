@@ -13,18 +13,11 @@ import type {
 } from '../../src/shared/accounts'
 import { accountTriggerSchema } from '../../src/shared/accounts'
 import { UI_TEXT } from '../../src/shared/constants'
-import { FakeAccountClock, FakeAccountJournal } from './helpers/accounts/fakes'
+import { emptyAccountUsage, FakeAccountClock, FakeAccountJournal } from './helpers/accounts/fakes'
 
 const NOW = new Date(2026, 9, 6, 12).getTime()
 const TOMORROW = new Date(2026, 9, 7).toISOString()
-const EMPTY: AccountUsageTotals = {
-  settledUsd: PortUsd.from(0).toAmount(),
-  reservedUsd: PortUsd.from(0).toAmount(),
-  uncertainUsd: PortUsd.from(0).toAmount(),
-  inputTokens: 0,
-  outputTokens: 0,
-  requests: 0,
-}
+const EMPTY = emptyAccountUsage()
 
 function setup(thresholds: AccountThresholds = {}, snapshot?: AccountLimitsSnapshot) {
   const clock = new FakeAccountClock(NOW)

@@ -1,4 +1,3 @@
-import { Usd } from '../../shared/usd'
 import { performance } from 'node:perf_hooks'
 import { UI_TEXT } from '../../shared/constants'
 import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
@@ -8,6 +7,7 @@ import {
   scheduleV2Schema,
   scheduleRunContextSchema,
   scheduleFireRecordSchema,
+  noScheduleCost,
   type ScheduleDeliveryState,
   type ScheduleHostPort,
   type ScheduleV2,
@@ -91,11 +91,7 @@ export class RuntimeScheduleHost implements ScheduleHostPort {
         outcome: 'refused',
         reason: UI_TEXT.scheduleV2.reportAction.unavailable,
         refusedActions: [],
-        cost: {
-          usd: Usd.from(0).toAmount(),
-          certainty: 'exact',
-          retainedLiabilityUsd: Usd.from(0).toAmount(),
-        },
+        cost: noScheduleCost(),
         ...(e !== undefined && { event: e }),
       })
     const result = scheduleFireRecordSchema.parse(

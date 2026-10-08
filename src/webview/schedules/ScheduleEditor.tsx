@@ -72,6 +72,18 @@ export function ScheduleEditor({
     text: string | undefined
     times?: readonly number[] | undefined
   }>()
+  const changeReportAction = (action: Extract<ScheduleDraft['action'], { kind: 'report' }>) => {
+    setDraft({
+      ...draft,
+      action,
+      paidCapUsd: Usd.from(0).toAmount(),
+      grant: {
+        ...draft.grant,
+        paidCapUsd: Usd.from(0).toAmount(),
+        destinationIds: action.destinations.map((item) => item.id),
+      },
+    })
+  }
   const targetId =
     context.targets.find(
       (item) =>
@@ -159,18 +171,7 @@ export function ScheduleEditor({
       </label>
     )
   else if (context.reportAction?.capability.available === true)
-    actionEditor = context.reportAction.render(draft.action, (action) => {
-      setDraft({
-        ...draft,
-        action,
-        paidCapUsd: Usd.from(0).toAmount(),
-        grant: {
-          ...draft.grant,
-          paidCapUsd: Usd.from(0).toAmount(),
-          destinationIds: action.destinations.map((item) => item.id),
-        },
-      })
-    })
+    actionEditor = context.reportAction.render(draft.action, changeReportAction)
   else
     actionEditor = (
       <p>
@@ -226,17 +227,7 @@ export function ScheduleEditor({
                       : { kind: 'prompt', prompt: '' },
                 })
               } else if (context.reportAction?.capability.available === true) {
-                const action = context.reportAction.initial
-                setDraft({
-                  ...draft,
-                  action,
-                  paidCapUsd: Usd.from(0).toAmount(),
-                  grant: {
-                    ...draft.grant,
-                    paidCapUsd: Usd.from(0).toAmount(),
-                    destinationIds: action.destinations.map((item) => item.id),
-                  },
-                })
+                changeReportAction(context.reportAction.initial)
               }
             }}
           >

@@ -24,7 +24,7 @@ import {
   SCHEDULE_OUTBOX_MAX_PENDING,
   SCHEDULE_MIN_INTERVAL_MS,
 } from '../../src/shared/constants'
-import { scheduleFireRecordSchema } from '../../src/shared/scheduleV2'
+import { scheduleFireRecordSchema, noScheduleCost } from '../../src/shared/scheduleV2'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 import { removeFolder } from './helpers/temporaryFolders'
 import {
@@ -268,11 +268,7 @@ describe('M115 durable shared store', () => {
       delivery: job.delivery,
       outcome: 'ran',
       refusedActions: [],
-      cost: {
-        usd: PortUsd.from(0).toAmount(),
-        certainty: 'exact',
-        retainedLiabilityUsd: PortUsd.from(0).toAmount(),
-      },
+      cost: noScheduleCost(),
     }
     await fs.publish('workspace-1/fires/abc.json', JSON.stringify({ fire, sequence: 0 }))
     await expect(store.fires('workspace-1')).rejects.toThrow('IdentityMismatch')
@@ -462,11 +458,7 @@ describe('M115 durable shared store', () => {
       target: job.target,
       delivery: job.delivery,
       refusedActions: [],
-      cost: {
-        usd: PortUsd.from(0).toAmount(),
-        certainty: 'exact',
-        retainedLiabilityUsd: PortUsd.from(0).toAmount(),
-      },
+      cost: noScheduleCost(),
     }
     await store.record(
       scheduleFireRecordSchema.parse({
@@ -653,11 +645,7 @@ describe('M115 durable shared store', () => {
         delivery: initial.delivery,
         outcome: 'ran',
         refusedActions: [],
-        cost: {
-          usd: PortUsd.from(0).toAmount(),
-          certainty: 'exact',
-          retainedLiabilityUsd: PortUsd.from(0).toAmount(),
-        },
+        cost: noScheduleCost(),
       })
     }
     const file = await scheduleStateFile(fs)

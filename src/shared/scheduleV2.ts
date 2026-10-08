@@ -386,6 +386,14 @@ export const scheduleFireRecordSchema = z.strictObject({
 })
 export type ScheduleFireRecord = z.infer<typeof scheduleFireRecordSchema>
 
+export function noScheduleCost(): ScheduleFireRecord['cost'] {
+  return scheduleFireRecordSchema.shape.cost.parse({
+    usd: '0',
+    certainty: 'exact',
+    retainedLiabilityUsd: '0',
+  })
+}
+
 export interface ScheduleStoreV2 {
   /** New ids start at revision zero and are never reused after removal. */
   create(schedule: ScheduleV2): Promise<void>

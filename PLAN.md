@@ -19630,7 +19630,7 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### PORTS017 — Exact current money ports (2026-10-08)
 
-**Status 2026-10-08: in progress.** Base `1a2086399` exposes 21 numeric
+**Status 2026-10-08: built.** Base `1a2086399` exposes 21 numeric
 USD declarations in the unchanged R3 P3 inventory, including runtime schedule
 flags, schedule UI, account usage and batch voice beyond the brief's initial
 list. Parse settings, CLI input, JSON drafts and historical records at their
@@ -36823,6 +36823,21 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**PORTS017 inherited release checks (2026-10-08, Kubuntu).** The lane
+fixes the 21 numeric current-money declarations identified above; the guard
+assertions remain unchanged. Fresh owning checks also expose four existing
+failures, reproduced with all 41 changed source files restored to `1a2086399`:
+`accountUsageBundle` includes the shared USD formatter in its static graph;
+`acpNpmReadme` expects adjacent package inputs; two `acpResources` cases omit
+an existing built-in report command. Those unrelated bundle/package/command
+repairs and integrated full quality remain with the lead. The unchanged
+zero-clone duplication gate also retains the two pre-existing ACP/question
+clones (`acp/agent.ts`, queued-answer/model-API fixture); new money conversion
+clones are removed. No failing case,
+threshold or ignore is removed. Full duplication receipts, scoped repairs,
+base/drill hashes and final gate exits are recorded in
+`docs/certification/int0170-combined.md`, Money ports (PORTS017).
 
 **MONEY017 integrated gate boundary (2026-10-08, Kubuntu).** The assigned rig
 brief requires fresh-clone scoped checks and forbids full quality in this lane.

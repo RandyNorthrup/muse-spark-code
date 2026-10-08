@@ -25,12 +25,14 @@ import { fakeSchedule } from './helpers/schedules/fixtures'
 import { FakeScheduleDisk } from './helpers/schedules/store'
 import promptParameters from '../../src/core/schedules/agentPromptSchema.json'
 
+const money = (value: number | string) => PortUsd.from(value).toAmount()
+
 const signal = new AbortController().signal
 const now = fakeSchedule().createdAtMs
 const grant = {
   rules: [{ id: 'read', kind: 'tool', name: 'read_file' }],
   destinationIds: [],
-  paidCapUsd: PortUsd.from(2).toAmount(),
+  paidCapUsd: money(2),
 } satisfies ScheduleV2['grant']
 const draftKeys = [
   'name',
@@ -68,7 +70,7 @@ function consentFor(
     priceTier: 'contributor',
     grantedAtMs: now,
     dailyCapUsd,
-    sharedDailyBudgetUsd: PortUsd.from(2).toAmount(),
+    sharedDailyBudgetUsd: money(2),
     extras: [],
   }
 }
@@ -98,7 +100,7 @@ function harness() {
     active: true,
     mode: 'manual',
     grant,
-    paidCapUsd: PortUsd.from(2).toAmount(),
+    paidCapUsd: money(2),
     depth: 0,
   }
   let policy: AgentSchedulePolicy = { choice: 'ask', revision: 0 }
@@ -120,8 +122,8 @@ function harness() {
     dailyUsage: vi.fn<AgentScheduleAdmission['dailyUsage']>((_authority, atMs) =>
       Promise.resolve(
         dailyLedger.get(new Date(atMs).toDateString()) ?? {
-          settledUsd: PortUsd.from(0).toAmount(),
-          uncertainUsd: PortUsd.from(0).toAmount(),
+          settledUsd: money(0),
+          uncertainUsd: money(0),
         },
       ),
     ),
@@ -185,6 +187,12 @@ function harness() {
     deps,
     tools,
     store,
+    paidConsentAfter: (change: () => void) => {
+      vi.mocked(deps.paidConsent).mockImplementation((request) => {
+        change()
+        return Promise.resolve(consentFor(request.paidCapUsd))
+      })
+    },
     setNow: (atMs: number) => {
       clock = atMs
     },
@@ -215,44 +223,45 @@ function harness() {
 describe('agent scheduling admission', () => {
   it('PORTS017 admits exactly 0.1 settled plus 0.2 configured against a 0.3 cap', async () => {
     const h = harness()
-    h.setAuthority({ paidCapUsd: PortUsd.from('0.3').toAmount() })
-    h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from('0.3').toAmount() })
+    h.setAuthority({ paidCapUsd: money('0.3') })
+    h.setPolicy({ choice: 'always', paidCapUsd: money('0.3') })
     h.setDailyUsage(now, {
-      settledUsd: PortUsd.from('0.1').toAmount(),
-      uncertainUsd: PortUsd.from(0).toAmount(),
+      settledUsd: money('0.1'),
+      uncertainUsd: money(0),
     })
-    expect(await h.create(draft({ paidCapUsd: PortUsd.from('0.2').toAmount() }))).toMatchObject({
+    expect(await h.create(draft({ paidCapUsd: money('0.2') }))).toMatchObject({
       outcome: 'created',
     })
-    expect(
-      await h.create(draft({ paidCapUsd: PortUsd.from('0.0000000000000000001').toAmount() })),
-    ).toMatchObject({ outcome: 'refused', reason: 'budget' })
+    expect(await h.create(draft({ paidCapUsd: money('0.0000000000000000001') }))).toMatchObject({
+      outcome: 'refused',
+      reason: 'budget',
+    })
   })
 
   it('intersects the effective creator grant and paid cap before asking for consent', async () => {
     const h = harness()
-    h.setAuthority({ paidCapUsd: PortUsd.from(1).toAmount() })
+    h.setAuthority({ paidCapUsd: money(1) })
     vi.mocked(h.deps.effectiveGrant).mockResolvedValue({
       rules: [],
       destinationIds: [],
-      paidCapUsd: PortUsd.from(1).toAmount(),
+      paidCapUsd: money(1),
     })
-    const created = await h.create(draft({ paidCapUsd: PortUsd.from(2).toAmount() }))
+    const created = await h.create(draft({ paidCapUsd: money(2) }))
     expect(created.outcome).toBe('created')
     if (created.outcome !== 'created') throw new Error('Expected bounded creation')
     expect(created.schedule).toMatchObject({
-      paidCapUsd: PortUsd.from(1).toAmount(),
-      grant: { rules: [], paidCapUsd: PortUsd.from(1).toAmount() },
+      paidCapUsd: money(1),
+      grant: { rules: [], paidCapUsd: money(1) },
     })
     expect(h.deps.paidConsent).toHaveBeenCalledWith(
-      expect.objectContaining({ paidCapUsd: PortUsd.from(1).toAmount() }),
-      expect.objectContaining({ paidCapUsd: PortUsd.from(1).toAmount() }),
+      expect.objectContaining({ paidCapUsd: money(1) }),
+      expect.objectContaining({ paidCapUsd: money(1) }),
       signal,
     )
   })
   it('creates, lists and cancels with host creator attribution and no leaked paid identity', async () => {
     const h = harness()
-    const created = await h.create(draft({ mode: 'auto', paidCapUsd: PortUsd.from(1).toAmount() }))
+    const created = await h.create(draft({ mode: 'auto', paidCapUsd: money(1) }))
     expect(created.outcome).toBe('created')
     if (created.outcome !== 'created') throw new Error('Expected creation')
     expect(created.schedule).toMatchObject({
@@ -349,7 +358,7 @@ describe('agent scheduling admission', () => {
               { id: 'browser', kind: 'browser', location: 'local', whenInactive: 'wait' },
             ],
           },
-          grant: { ...grant, paidCapUsd: PortUsd.from(0).toAmount() },
+          grant: { ...grant, paidCapUsd: money(0) },
         },
       },
     ]) {
@@ -397,18 +406,18 @@ describe('agent scheduling admission', () => {
     expect(h.deps.transcript).toHaveBeenCalledWith(
       expect.objectContaining({ reason: 'unattended' }),
     )
-    h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(0).toAmount() })
+    h.setPolicy({ choice: 'always', paidCapUsd: money(0) })
     expect(await h.create()).toMatchObject({ outcome: 'created' })
   })
 
   it('remembers Always within caps and shares admission across concurrent tool instances', async () => {
     const h = harness()
-    vi.mocked(h.deps.consent).mockResolvedValue({ alwaysPaidCapUsd: PortUsd.from(2).toAmount() })
+    vi.mocked(h.deps.consent).mockResolvedValue({ alwaysPaidCapUsd: money(2) })
     await h.create()
     expect(h.deps.admission.policy).toBeDefined()
     await new AgentScheduleTools(h.deps).call('schedule_prompt', { draft: draft() }, signal)
     expect(h.deps.consent).toHaveBeenCalledTimes(1)
-    h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(2).toAmount() })
+    h.setPolicy({ choice: 'always', paidCapUsd: money(2) })
     const outcomes = await Promise.all(
       Array.from({ length: AGENT_SCHEDULES_MAX_ACTIVE }, () =>
         new AgentScheduleTools(h.deps).call('schedule_prompt', { draft: draft() }, signal),
@@ -423,7 +432,7 @@ describe('agent scheduling admission', () => {
 
   it('counts paused schedules against Always rather than allowing later resumption to exceed caps', async () => {
     const h = harness()
-    h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(0).toAmount() })
+    h.setPolicy({ choice: 'always', paidCapUsd: money(0) })
     for (let index = 0; index < AGENT_SCHEDULES_MAX_ACTIVE; index++) {
       await h.store.create(
         fakeSchedule({
@@ -443,7 +452,7 @@ describe('agent scheduling admission', () => {
 
   it('enforces the interval floor and refuses unavailable proofs for event and custom kinds', async () => {
     const h = harness()
-    h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(0).toAmount() })
+    h.setPolicy({ choice: 'always', paidCapUsd: money(0) })
     expect(
       await h.create(
         draft({
@@ -477,7 +486,7 @@ describe('agent scheduling admission', () => {
     'releases active slots after end condition %#, keeping paid liability',
     async (ending) => {
       const h = harness()
-      h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(0).toAmount() })
+      h.setPolicy({ choice: 'always', paidCapUsd: money(0) })
       const authority = await h.deps.authority()
       for (let index = 0; index < AGENT_SCHEDULES_MAX_ACTIVE; index++) {
         await h.store.create(
@@ -489,21 +498,21 @@ describe('agent scheduling admission', () => {
         )
       }
       expect(await h.create()).toMatchObject({ outcome: 'created' })
-      h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(1).toAmount() })
+      h.setPolicy({ choice: 'always', paidCapUsd: money(1) })
       await h.store.create(
         fakeSchedule({
           id: 'paid-ended',
           creator: authority.creator,
           end: { atMs: now },
-          paidCapUsd: PortUsd.from(1).toAmount(),
+          paidCapUsd: money(1),
           grant,
         }),
       )
       h.setDailyUsage(now, {
-        settledUsd: PortUsd.from(0).toAmount(),
-        uncertainUsd: PortUsd.from(1).toAmount(),
+        settledUsd: money(0),
+        uncertainUsd: money(1),
       })
-      expect(await h.create(draft({ paidCapUsd: PortUsd.from(1).toAmount() }))).toEqual({
+      expect(await h.create(draft({ paidCapUsd: money(1) }))).toEqual({
         outcome: 'refused',
         reason: 'budget',
       })
@@ -512,7 +521,7 @@ describe('agent scheduling admission', () => {
 
   it('recovers Always allowance two local days after an exact ended settlement', async () => {
     const h = harness()
-    h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(1).toAmount() })
+    h.setPolicy({ choice: 'always', paidCapUsd: money(1) })
     const authority = await h.deps.authority()
     const ended = fakeSchedule({
       id: 'paid-ended',
@@ -520,7 +529,7 @@ describe('agent scheduling admission', () => {
       end: { afterRuns: 1 },
       fireCount: 1,
       trigger: draft().trigger,
-      paidCapUsd: PortUsd.from(1).toAmount(),
+      paidCapUsd: money(1),
       grant,
     })
     await h.store.create(ended)
@@ -535,9 +544,9 @@ describe('agent scheduling admission', () => {
       outcome: 'ran',
       refusedActions: [],
       cost: {
-        usd: PortUsd.from(0.1).toAmount(),
+        usd: money(0.1),
         certainty: 'exact',
-        retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+        retainedLiabilityUsd: money(0),
       },
     } satisfies ScheduleFireRecord
     await h.store.record(fire)
@@ -549,7 +558,7 @@ describe('agent scheduling admission', () => {
     later.setDate(later.getDate() + 2)
     h.setNow(later.getTime())
     const commit = vi.spyOn(h.deps.admission, 'commit')
-    expect(await h.create(draft({ paidCapUsd: PortUsd.from(1).toAmount() }))).toMatchObject({
+    expect(await h.create(draft({ paidCapUsd: money(1) }))).toMatchObject({
       outcome: 'created',
     })
     expect(h.deps.admission.dailyUsage).toHaveBeenCalledWith(authority, later.getTime())
@@ -560,27 +569,27 @@ describe('agent scheduling admission', () => {
 
   it("counts only an ended schedule's same-day settled spend in Always allowance", async () => {
     const h = harness()
-    h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(1).toAmount() })
+    h.setPolicy({ choice: 'always', paidCapUsd: money(1) })
     const authority = await h.deps.authority()
     await h.store.create(
       fakeSchedule({
         creator: authority.creator,
         end: { atMs: now },
-        paidCapUsd: PortUsd.from(1).toAmount(),
+        paidCapUsd: money(1),
         grant,
       }),
     )
     h.setDailyUsage(now, {
-      settledUsd: PortUsd.from(0.1).toAmount(),
-      uncertainUsd: PortUsd.from(0).toAmount(),
+      settledUsd: money(0.1),
+      uncertainUsd: money(0),
     })
     const commit = vi.spyOn(h.deps.admission, 'commit')
-    expect(await h.create(draft({ paidCapUsd: PortUsd.from(1).toAmount() }))).toEqual({
+    expect(await h.create(draft({ paidCapUsd: money(1) }))).toEqual({
       outcome: 'refused',
       reason: 'budget',
     })
     expect(commit).not.toHaveBeenCalled()
-    expect(await h.create(draft({ paidCapUsd: PortUsd.from(0.9).toAmount() }))).toMatchObject({
+    expect(await h.create(draft({ paidCapUsd: money(0.9) }))).toMatchObject({
       outcome: 'created',
     })
     expect(h.deps.admission.dailyUsage).toHaveBeenCalledWith(authority, now)
@@ -588,51 +597,51 @@ describe('agent scheduling admission', () => {
 
   it.each([false, true])('reserves the full active cap with paused=%s', async (paused) => {
     const h = harness()
-    h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(1).toAmount() })
+    h.setPolicy({ choice: 'always', paidCapUsd: money(1) })
     const { creator } = await h.deps.authority()
     await h.store.create(
       fakeSchedule({
         creator,
         paused,
-        paidCapUsd: PortUsd.from(0.75).toAmount(),
+        paidCapUsd: money(0.75),
         grant,
       }),
     )
     const commit = vi.spyOn(h.deps.admission, 'commit')
-    expect(await h.create(draft({ paidCapUsd: PortUsd.from(0.5).toAmount() }))).toEqual({
+    expect(await h.create(draft({ paidCapUsd: money(0.5) }))).toEqual({
       outcome: 'refused',
       reason: 'budget',
     })
     expect(commit).not.toHaveBeenCalled()
-    expect(await h.create(draft({ paidCapUsd: PortUsd.from(0.25).toAmount() }))).toMatchObject({
+    expect(await h.create(draft({ paidCapUsd: money(0.25) }))).toMatchObject({
       outcome: 'created',
     })
   })
 
   it('counts ledger spend and uncertain liability after a schedule is removed', async () => {
     const h = harness()
-    h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(1).toAmount() })
+    h.setPolicy({ choice: 'always', paidCapUsd: money(1) })
     const authority = await h.deps.authority()
     const ended = fakeSchedule({
       creator: authority.creator,
       end: { atMs: now },
-      paidCapUsd: PortUsd.from(1).toAmount(),
+      paidCapUsd: money(1),
       grant,
     })
     await h.store.create(ended)
     h.setDailyUsage(now, {
-      settledUsd: PortUsd.from(0.25).toAmount(),
-      uncertainUsd: PortUsd.from(0.25).toAmount(),
+      settledUsd: money(0.25),
+      uncertainUsd: money(0.25),
     })
     expect(await h.store.remove(authority.workspaceKey, ended.id)).toBe(true)
     const commit = vi.spyOn(h.deps.admission, 'commit')
     expect(await h.store.list('workspace-1')).toEqual([])
-    expect(await h.create(draft({ paidCapUsd: PortUsd.from(0.75).toAmount() }))).toEqual({
+    expect(await h.create(draft({ paidCapUsd: money(0.75) }))).toEqual({
       outcome: 'refused',
       reason: 'budget',
     })
     expect(commit).not.toHaveBeenCalled()
-    expect(await h.create(draft({ paidCapUsd: PortUsd.from(0.5).toAmount() }))).toMatchObject({
+    expect(await h.create(draft({ paidCapUsd: money(0.5) }))).toMatchObject({
       outcome: 'created',
     })
   })
@@ -641,10 +650,10 @@ describe('agent scheduling admission', () => {
     for (const field of ['settledUsd', 'uncertainUsd'] as const) {
       for (const amount of [-1, NaN, Infinity]) {
         const h = harness()
-        h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(1).toAmount() })
+        h.setPolicy({ choice: 'always', paidCapUsd: money(1) })
         h.setDailyUsage(now, {
-          settledUsd: PortUsd.from(0).toAmount(),
-          uncertainUsd: PortUsd.from(0).toAmount(),
+          settledUsd: money(0),
+          uncertainUsd: money(0),
           [field]: amount,
         })
         const commit = vi.spyOn(h.deps.admission, 'commit')
@@ -656,7 +665,7 @@ describe('agent scheduling admission', () => {
 
   it('propagates an unavailable daily ledger without committing a schedule', async () => {
     const h = harness()
-    h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(1).toAmount() })
+    h.setPolicy({ choice: 'always', paidCapUsd: money(1) })
     vi.mocked(h.deps.admission.dailyUsage).mockRejectedValue(new Error('Ledger unavailable'))
     const commit = vi.spyOn(h.deps.admission, 'commit')
     await expect(h.create()).rejects.toThrow('Ledger unavailable')
@@ -666,11 +675,11 @@ describe('agent scheduling admission', () => {
 
   it('bounds Always total paid cap across siblings before commit', async () => {
     const h = harness()
-    h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(1).toAmount() })
-    expect(await h.create(draft({ paidCapUsd: PortUsd.from(1).toAmount() }))).toMatchObject({
+    h.setPolicy({ choice: 'always', paidCapUsd: money(1) })
+    expect(await h.create(draft({ paidCapUsd: money(1) }))).toMatchObject({
       outcome: 'created',
     })
-    expect(await h.create(draft({ paidCapUsd: PortUsd.from(1).toAmount() }))).toEqual({
+    expect(await h.create(draft({ paidCapUsd: money(1) }))).toEqual({
       outcome: 'refused',
       reason: 'budget',
     })
@@ -693,7 +702,7 @@ describe('agent scheduling admission', () => {
   it('allocates paid caps out of creator budget under concurrent Ask approvals', async () => {
     const h = harness()
     const outcomes = await Promise.all(
-      Array.from({ length: 3 }, () => h.create(draft({ paidCapUsd: PortUsd.from(1).toAmount() }))),
+      Array.from({ length: 3 }, () => h.create(draft({ paidCapUsd: money(1) }))),
     )
     expect(outcomes.filter((result) => result.outcome === 'created')).toHaveLength(2)
     expect(outcomes).toContainEqual({ outcome: 'refused', reason: 'budget' })
@@ -704,15 +713,14 @@ describe('agent scheduling admission', () => {
   it('does not create paid authority without schedule consent or after consent changes', async () => {
     const h = harness()
     vi.mocked(h.deps.paidConsent).mockResolvedValue(undefined)
-    expect(await h.create(draft({ paidCapUsd: PortUsd.from(1).toAmount() }))).toEqual({
+    expect(await h.create(draft({ paidCapUsd: money(1) }))).toEqual({
       outcome: 'refused',
       reason: 'paidConsent',
     })
-    vi.mocked(h.deps.paidConsent).mockImplementation((request) => {
-      h.setAuthority({ paidCapUsd: PortUsd.from(0).toAmount() })
-      return Promise.resolve(consentFor(request.paidCapUsd))
+    h.paidConsentAfter(() => {
+      h.setAuthority({ paidCapUsd: money(0) })
     })
-    expect(await h.create(draft({ paidCapUsd: PortUsd.from(1).toAmount() }))).toEqual({
+    expect(await h.create(draft({ paidCapUsd: money(1) }))).toEqual({
       outcome: 'refused',
       reason: 'changed',
     })
@@ -750,7 +758,7 @@ describe('agent scheduling admission', () => {
     const h = harness()
     vi.mocked(h.deps.consent).mockImplementation(() => {
       h.setAuthority({
-        grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(0).toAmount() },
+        grant: { rules: [], destinationIds: [], paidCapUsd: money(0) },
         mode: 'plan',
       })
       return Promise.resolve('allow')
@@ -830,30 +838,29 @@ describe('agent scheduling admission', () => {
   it('refuses stale Always decisions after a policy revision and does not overwrite the new cap', async () => {
     const h = harness()
     vi.mocked(h.deps.consent).mockImplementation(() => {
-      h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(0).toAmount() })
-      return Promise.resolve({ alwaysPaidCapUsd: PortUsd.from(2).toAmount() })
+      h.setPolicy({ choice: 'always', paidCapUsd: money(0) })
+      return Promise.resolve({ alwaysPaidCapUsd: money(2) })
     })
     expect(await h.create()).toEqual({ outcome: 'refused', reason: 'changed' })
     const authority = await h.deps.authority()
     expect(await h.deps.admission.policy(authority)).toMatchObject({
       choice: 'always',
-      paidCapUsd: PortUsd.from(0).toAmount(),
+      paidCapUsd: money(0),
     })
     expect(await h.store.list('workspace-1')).toEqual([])
     h.setPolicy({ choice: 'ask' })
     vi.spyOn(h.deps.admission, 'remember').mockResolvedValue(false)
-    vi.mocked(h.deps.consent).mockResolvedValue({ alwaysPaidCapUsd: PortUsd.from(2).toAmount() })
+    vi.mocked(h.deps.consent).mockResolvedValue({ alwaysPaidCapUsd: money(2) })
     expect(await h.create()).toEqual({ outcome: 'refused', reason: 'changed' })
   })
 
   it('does not use revoked Always authority when the current policy becomes Ask', async () => {
     const h = harness()
-    h.setPolicy({ choice: 'always', paidCapUsd: PortUsd.from(2).toAmount() })
-    vi.mocked(h.deps.paidConsent).mockImplementation((request) => {
+    h.setPolicy({ choice: 'always', paidCapUsd: money(2) })
+    h.paidConsentAfter(() => {
       h.setPolicy({ choice: 'ask' })
-      return Promise.resolve(consentFor(request.paidCapUsd))
     })
-    expect(await h.create(draft({ paidCapUsd: PortUsd.from(1).toAmount() }))).toEqual({
+    expect(await h.create(draft({ paidCapUsd: money(1) }))).toEqual({
       outcome: 'refused',
       reason: 'changed',
     })

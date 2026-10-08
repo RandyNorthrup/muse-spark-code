@@ -185,7 +185,7 @@ describe('media accounting at the transport', () => {
     const latest = await fire.daily.latestDay()
     expect(latest.spentUsd).toBe(spentUsd)
     expect(fire.scope.cost()).toEqual({
-      usd: Number(spentUsd),
+      usd: spentUsd,
       certainty: 'exact',
       retainedLiabilityUsd: PortUsd.from(0).toAmount(),
     })
@@ -230,7 +230,7 @@ describe('media accounting at the transport', () => {
     expect(fire.scope.cost()).toEqual({
       usd: PortUsd.from(0).toAmount(),
       certainty: 'unknown',
-      retainedLiabilityUsd: Number(t.accounting.reservedUsd),
+      retainedLiabilityUsd: t.accounting.reservedUsd,
     })
   })
 

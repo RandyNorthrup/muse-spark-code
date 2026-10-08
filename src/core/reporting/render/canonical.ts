@@ -64,18 +64,19 @@ function hash(document: { header: { asOf: string; contentHash: string } }): stri
     .digest('hex')
 }
 
+function mapCells<T, U>(cells: Record<string, T>, transform: (cell: T) => U): Record<string, U> {
+  return Object.fromEntries(Object.entries(cells).map(([key, cell]) => [key, transform(cell)]))
+}
+
 function timestampsAtReportOffset(document: ReportDocument): ReportDocument {
   const sectionTimes = (section: ReportSection): ReportSection => ({
     ...section,
     rows: section.rows.map((row) => ({
       ...row,
-      cells: Object.fromEntries(
-        Object.entries(row.cells).map(([key, cell]) => [
-          key,
-          cell.type === 'timestamp'
-            ? { ...cell, value: reportTimestamp(cell.value, document.header.asOf) }
-            : cell,
-        ]),
+      cells: mapCells(row.cells, (cell) =>
+        cell.type === 'timestamp'
+          ? { ...cell, value: reportTimestamp(cell.value, document.header.asOf) }
+          : cell,
       ),
     })),
   })
@@ -107,13 +108,10 @@ function migrateSection(section: LegacyReportSection): ReportSection {
     ...section,
     rows: section.rows.map((row) => ({
       ...row,
-      cells: Object.fromEntries(
-        Object.entries(row.cells).map(([key, cell]) => [
-          key,
-          cell.type === 'usd'
-            ? { ...cell, value: cell.value === null ? null : legacyUsdSchema.parse(cell.value) }
-            : cell,
-        ]),
+      cells: mapCells(row.cells, (cell) =>
+        cell.type === 'usd'
+          ? { ...cell, value: cell.value === null ? null : legacyUsdSchema.parse(cell.value) }
+          : cell,
       ),
     })),
   }

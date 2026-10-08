@@ -1,4 +1,4 @@
-import { Usd as PortUsd } from '../../src/shared/usd'
+import { noScheduleCost } from '../../src/shared/scheduleV2'
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { createScheduleJournal } from '../../src/core/schedules/journal'
@@ -350,11 +350,7 @@ describe('bounded schedule generations', () => {
         delivery: job.delivery,
         outcome: 'ran',
         refusedActions: [],
-        cost: {
-          usd: PortUsd.from(0).toAmount(),
-          certainty: 'exact',
-          retainedLiabilityUsd: PortUsd.from(0).toAmount(),
-        },
+        cost: noScheduleCost(),
       })
       if (![1, 10, 100, 1000, 10_000].includes(run)) continue
 
@@ -422,11 +418,7 @@ describe('bounded schedule generations', () => {
       delivery: job.delivery,
       outcome: 'ran',
       refusedActions: [],
-      cost: {
-        usd: PortUsd.from(0).toAmount(),
-        certainty: 'exact',
-        retainedLiabilityUsd: PortUsd.from(0).toAmount(),
-      },
+      cost: noScheduleCost(),
     })
     await store.maintain(job.workspaceKey, job.createdAtMs + SCHEDULE_AUDIT_MAX_AGE_MS + 1)
     expect(await store.fires(job.workspaceKey)).toEqual([])

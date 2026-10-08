@@ -462,7 +462,7 @@ describe('batch preparation and accounting', () => {
       }
     })()
     try {
-      expect(allows).toHaveBeenCalledWith({ feature: 'voice' }, false, stop.signal)
+      expect(allows).toHaveBeenCalledWith({ feature: 'voice' }, false, undefined, stop.signal)
       stop.abort(new Error('stopped during consent'))
       await expect.poll(() => outcome).toEqual(new Error('stopped during consent'))
       await waiting
