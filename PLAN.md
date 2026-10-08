@@ -35976,16 +35976,18 @@ execution beyond phase 1 is implemented or certified by this record.
     Test portable failures and native detached descendants, task ceiling,
     inhibition/release and missing-manager refusal. Drill each guard, commit
     finished pieces with hooks, then verify committed code in a fresh CI clone.
-    Native implementation and ten real Linux cases pass at default deadlines.
+    Native implementation and eleven real Linux cases pass at default deadlines.
     SSH-context inhibition initially needed interactive authorization; launching
     the inhibitor in its own user-manager service succeeds without policy changes.
     Keep that fixed two-task control unit separate from the worker's admitted
     ceiling. Full cgroup retirement, kernel refusal of a third task at cap two,
     real inhibitor release/overlap, launcher loss and bounded output are covered.
     The host selector accepts a lazy Linux loader to avoid a host/driver cycle;
-    existing attempt/driver contracts are unchanged. All fifteen final guard
-    drills fail as intended and restore source byte-exact; 66 tests pass with
-    seven Windows cases unrun here. Committed fresh-clone gates are next;
+    existing attempt/driver contracts are unchanged. All seventeen final guard
+    drills fail as intended and restore source byte-exact; 68 tests pass with
+    seven Windows cases unrun here. Process observations count distinct
+    cgroup.procs PIDs; TasksMax still limits threads too. The real multithreaded
+    regression catches that distinction. Final committed fresh-clone gates are next;
     full joined quality and production/doc binding remain W's responsibility.
   - **Lane A.** Every admission binds the sender's role/mode ceiling to the
     receiver's repository grant, role/tools, workspace trust, protected

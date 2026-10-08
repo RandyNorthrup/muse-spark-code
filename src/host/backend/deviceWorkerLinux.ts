@@ -24,6 +24,7 @@ import {
 import type { RunProgram } from '../processTree'
 
 const countSchema = z.int().check(z.gte(0))
+const pidSchema = z.int().check(z.gte(1))
 type Power = 'ac' | 'battery' | 'unknown'
 const unitSchema = z.strictObject({
   LoadState: z.enum(['loaded', 'not-found']),
@@ -245,8 +246,10 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
     for (const [unit, job] of jobs) {
       if (await isEmpty(unit, job.cgroup)) continue
       total.sleepInhibited ||= job.inhibited()
-      const tasks = await boundedRead(groupPath(job.cgroup, 'pids.current'))
-      total.activeProcesses += countSchema.parse(Number(tasks.trim()))
+      const processes = await boundedRead(groupPath(job.cgroup, 'cgroup.procs'))
+      const pids = processes.trim() === '' ? [] : processes.trim().split('\n')
+      // cgroup.procs can repeat a PID while it moves; pids.current counts threads too.
+      total.activeProcesses += new Set(pids.map((pid) => pidSchema.parse(Number(pid)))).size
       const cpu = await boundedRead(groupPath(job.cgroup, 'cpu.stat'))
       const usec = countSchema.parse(Number(/^usage_usec (\d+)$/m.exec(cpu)?.[1] ?? NaN))
       // Linux reports microseconds; the port reports 100 ns, the same unit as Windows.

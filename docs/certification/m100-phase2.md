@@ -1025,7 +1025,7 @@ integration remain W's ownership under the brief.
 #### Native receipts and preflight discovery
 
 Rig `linuxlt`, systemd user manager **257.9-0ubuntu2.5**, real cgroup v2 and
-logind. All **ten Linux native cases** run real `systemd-run`, `systemctl`,
+logind. All **eleven Linux native cases** run real `systemd-run`, `systemctl`,
 `systemd-inhibit` and kernel cgroup reads. The start port only records unit
 names/PIDs and delegates to real spawn; no manager, cgroup or inhibitor is
 substituted in the final native suite. The seven Windows cases skipped here
@@ -1042,17 +1042,17 @@ Native cases cover own context/closed stdin/canonical environment/JSON versus
 stderr; detached-descendant completion after parent exit; kernel task cap 2;
 whole-unit cancellation; real factory self-test plus visible logind hold/release;
 injected missing manager; overlapping holds; worker-launcher loss;
-inhibitor-launcher loss; and real stdout overflow. Finally/afterAll Stop only
+inhibitor-launcher loss; real stdout overflow; and honest process counting for a multithreaded worker. Finally/afterAll Stop only
 that fixture's recorded units and assert each is collected, inactive and has
 no ControlGroup. Post-suite `systemctl --user list-units --all` found no
 `muse-spark-device-*` unit. Every support probe was also collected.
 
 #### Final guard-fire record
 
-Fifteen final drills exited **1** with named test assertion failures at
+Seventeen final drills exited **1** with named test assertion failures at
 repository deadlines. Each source buffer was restored byte-exact in finally
-and its SHA-256 checked. Twelve portable drills run their complete owning file;
-three extra native drills select the named native case and retain afterAll cleanup.
+and its SHA-256 checked. Thirteen portable drills run their complete owning file;
+four extra native drills select the named native case and retain afterAll cleanup.
 
 | Drill                | Deliberate break                                | Assertion that fired                                                           |
 | -------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ |
@@ -1072,13 +1072,31 @@ three extra native drills select the named native case and retain afterAll clean
 | native-power-release | Omit release at successful retirement           | Real logind listing still contains the retired worker's inhibitor.             |
 | native-admitted-cap  | Use protocol max and bypass readiness checks    | Real kernel pids.max is 128 instead of admitted 2.                             |
 
+Two process-count drills additionally replace the distinct-PID sample with
+`pids.current`. The portable duplicated-PID test and the native multithreaded
+Node test both fail (exit 1), then restore the same final Linux SHA-256.
+
 Final drill source SHA-256:
 
-- Linux driver: `c424aea8175053891c35a5aead93aa05592987d73c814db31931ec23cf37ad2f`.
+- Linux driver: `5295020cd62eb717979d01b3ad40b784a244fa6609f39d1782a5b766f45bf646`.
 - Host: `3ae50b53e1b1819f83725a16ac54d9b356b5d4ce4843d39702e3a740c41107b4`.
 
-Local restored run: **66 passed, 7 Windows skipped**, three owning files,
+Local restored run: **68 passed, 7 Windows skipped**, three owning files,
 default deadlines, no timeout flag. Scoped lint and unit typecheck pass;
 plain knip passes with its two existing hints; duplication reports zero clones.
 Implementation commit and the required committed-code fresh-clone gate receipts
 follow below once those checks run. No threshold, assertion or ignore weakened.
+
+#### Review follow-up: processes versus tasks
+
+Implementation **4f4438df5** passed the first fresh-clone sweep (66 tests x3,
+five typechecks, full lint, formatting, knip, duplication, reference,
+localization, default cycles and capped production build). Host API was the
+expected stale W-owned inventory (exit 1). Review then caught that Linux's
+`pids.current` counts threads, while `activeProcesses` promises processes.
+The follow-up samples distinct positive PIDs from `cgroup.procs` instead;
+TasksMax and cgroup retirement are unchanged. A portable repeated-PID test
+and a real Node process with multiple kernel tasks prove the distinction.
+The fifteen prior drills were repeated on the follow-up source, and the two
+new metric drills also fail and restore byte-exact. Final committed-source
+fresh-clone qualification below supersedes the initial sweep.

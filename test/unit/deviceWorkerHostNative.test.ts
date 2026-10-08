@@ -553,5 +553,33 @@ describe.skipIf(process.platform !== 'linux' || process.env['XDG_RUNTIME_DIR'] =
         await disposeLinux(job)
       }
     })
+    it('reports one real multithreaded process rather than its kernel task count', async () => {
+      const native = linuxDriver()
+      const marker = path.join(linux.directory, 'threaded-ready')
+      const script = `require('node:fs').writeFileSync(${JSON.stringify(marker)},'ready');setInterval(()=>{},100)`
+      const job = await native.launch(
+        {
+          executable: process.execPath,
+          args: ['-e', script],
+          cwd: linux.directory,
+          requiredTools: [],
+        },
+        linuxEnvironment(),
+        admitted(DEVICE_LIMITS.processes),
+      )
+      try {
+        await job.activate()
+        await expect.poll(() => isPresent(marker)).toBe(true)
+        const ready = parseDeviceWorkerQuery(job.query)
+        const tasks = await readFile(
+          path.posix.join('/sys/fs/cgroup', ready.context.desktop, 'pids.current'),
+          'utf8',
+        )
+        expect(Number(tasks.trim())).toBeGreaterThan(1)
+        expect(await native.query()).toMatchObject({ activeProcesses: 1 })
+      } finally {
+        await disposeLinux(job)
+      }
+    })
   },
 )

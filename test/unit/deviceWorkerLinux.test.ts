@@ -82,6 +82,7 @@ function fixture() {
     if (file === '/proc/self/cgroup') return Promise.resolve(`0::${state.transport}\n`)
     if (file.endsWith('pids.max')) return Promise.resolve(String(state.kernelLimit))
     if (file.endsWith('pids.current')) return Promise.resolve('1\n')
+    if (file.endsWith('cgroup.procs')) return Promise.resolve('11\n')
     if (file.endsWith('cpu.stat')) return Promise.resolve('usage_usec 12\n')
     if (file.endsWith('memory.peak')) return Promise.resolve('4096\n')
     if (file.endsWith('type'))
@@ -166,6 +167,17 @@ describe('M100/H Linux platform port (fake manager/cgroup/inhibitor)', () => {
     expect(await f.driver.query()).toMatchObject({ sleepInhibited: true, activeProcesses: 1 })
     await retire(f, job)
     expect(await f.driver.query()).toMatchObject({ sleepInhibited: false, activeProcesses: 0 })
+  })
+  it('counts distinct processes rather than thread tasks or duplicated PID lines', async () => {
+    const f = fixture()
+    const job = await f.driver.launch(command, environment, request)
+    const read = f.read.getMockImplementation()!
+    f.read.mockImplementation((file) =>
+      file.endsWith('cgroup.procs') ? Promise.resolve('11\n11\n22\n') : read(file),
+    )
+    expect(await f.driver.query()).toMatchObject({ activeProcesses: 2 })
+    await job.activate()
+    await retire(f, job)
   })
   it('cancel and removal cannot prove retirement; helper loss rejects as uncertain', async () => {
     const f = fixture()
