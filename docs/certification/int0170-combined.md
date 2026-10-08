@@ -162,3 +162,137 @@ journal coverage time) was not addressed in this pass.
 | duplication     | 1    | 4 new clones: `src/acp/agent.ts` 2052–2059, `src/shared/l10n/text.ts` 156–162, two test fixtures (paidDailyBudget, modelApiElicitation) |
 | lint (full)     | n/r  | not run in full; the pre-commit hook linted every changed file of steps 1–2 at zero warnings                                            |
 | check:visual    | n/r  | not run (full reviewed matrix needs the hosted replay)                                                                                  |
+
+## Spawn governance (SPAWN017)
+
+Windows 11 rig, branch `rel017/spawn`, candidate `7a4fc2ab3`, 2026-10-08.
+The rig's shared `common.md` was absent from both named context locations;
+the rig brief and repository rules were applied. No live model attempt,
+paid call, credential capture, merge, rebase or push was performed.
+
+Account-scoped MSP retains its account command owner while using the same
+governed native launch and bounded shutdown as ordinary MSP. Native tests
+check root and descendant membership, owning-host death, job disappearance
+and `complete(false)` rather than root-exit retirement. Vault stdio now has
+`governedMcpVaultRoutes`, selected by `modelApiMcpPoolDeps.vaultBroker`:
+resource admission precedes broker redemption; workspace/canonical use and
+revocation are rechecked; streams are scrubbed; values and leases are cleared
+after contained shutdown. No broker is installed in this candidate, so
+unbound vault references still refuse before dispatch. This is a production
+builder and its binding seam, not certification of an installed vault broker.
+
+### Spawn-site inventory
+
+The inventory searches spawn/exec/fork/child-process imports in existing
+files added or changed since `4da4ef666`; deleted paths are excluded.
+
+| Site                                                       | Governance and containment                                                                                                                         |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/backends/musecode/MuseCodeHost.ts`, account MSP      | Repaired: account transport through `spawnResourceAccountConnection`; native job plus observed retirement.                                         |
+| `host/backend/museCodeBackendManager.ts`                   | Both account and ordinary paths share the MSP resource launch boundary.                                                                            |
+| `host/auth/accountHost.ts`                                 | Existing short-lived account path already uses `spawnResourceMuseConnection`.                                                                      |
+| `core/backends/modelapi/mcp/pool.ts`                       | Delegates ordinary stdio to the host builder and credentialed stdio to the vault port.                                                             |
+| `host/backend/mcpServers.ts` and `mcpProcess.ts`           | Existing MCP admission/job/group boundary; new broker builder joins it.                                                                            |
+| `host/backend/mcpVault.ts`                                 | Repaired production vault stdio builder; authorization, scrub, expiry and revocation retained.                                                     |
+| `core/media/convert.ts`, probe and encoder                 | Repaired: `spawnResourceProcess`; native payload PID is queried for RSS rather than sampling the launcher.                                         |
+| `core/media/record/macos.ts`, two injected spawn calls     | Requires injected native recorder transport; the installed screen-recorder builder remains absent in this candidate.                               |
+| `core/reporting/history.ts`, identity probe                | Repaired: bounded `execResourceFile`, resource admission and contained helper.                                                                     |
+| `core/reporting/sources/github.ts`, gh reads               | Repaired: same bounded command adapter; credential-stripped environment retained.                                                                  |
+| `core/schedules/events/git.ts`, three Git reads            | Repaired: same adapter; trust and stable-read checks retained.                                                                                     |
+| `runtime/reporting/sources.ts`, Git reads                  | Repaired: same adapter; nonzero results and bounds retained.                                                                                       |
+| `runtime/schedules/nodeBackgroundIo.ts`, OS commands       | Repaired: same adapter; credential stripping and fixed program resolution retained.                                                                |
+| `runtime/schedules/nodeBackgroundIo.ts`, maintenance child | Repaired: resource process boundary, group containment, detached lifecycle retained. Native Darwin maintenance qualification is still owed.        |
+| `core/vault/broker/peer.ts`, Unix peer helper              | Repaired: resource process boundary with the exact inherited socket descriptor.                                                                    |
+| `runtime/vault/slots/macVaultTransport.ts`                 | Repaired: resource process boundary; private binary pipes and empty payload environment retained.                                                  |
+| `runtime/vault/slots/windowsVaultTransport.ts`             | Repaired: job-backed guard process; readiness/digest checks still precede private input.                                                           |
+| `host/vault/vaultExecSpawn.ts`                             | Requires contained spawn/termination ports and a Windows job; no installed feeder builder in this candidate, so it refuses closed.                 |
+| `core/orchestration/playbook/modules.ts`, rename Git reads | Repaired: ordinary hook admission and required contained runner on Windows; POSIX tree supervisor otherwise.                                       |
+| `core/orchestration/playbook/outcomes.ts`                  | Existing contained hook/Git runner; its child-process imports are types.                                                                           |
+| `host/team/acpProcess.ts`                                  | Existing `TeamChildLauncher` admission and contained transport.                                                                                    |
+| `host/backend/toolIo.ts`                                   | Existing governed shell/resource command adapter; the original raw spawn is behind that boundary.                                                  |
+| `host/processTree.ts`, native probes and POSIX supervisor  | Existing native containment/probe infrastructure, including the supervisor's payload spawn.                                                        |
+| `host/backend/jobBuild.ts`                                 | Existing compiler bootstrap infrastructure; still raw `execFile`.                                                                                  |
+| `host/vault/slots/windowsVaultBuild.ts`                    | New public-source compiler/bootstrap guard; still raw `execFile`. **Owner's no-exceptions decision is not yet satisfied for bootstrap processes.** |
+| `runtime/main.ts`, browser opener and login terminal       | Pre-existing spawn sites, unchanged by the two merges; separate from this repair.                                                                  |
+
+The bootstrap entries above and the runtime's still-unbound global resource
+admission are unresolved scope, not approved governance exceptions. The
+installed extension configures admission; newly migrated portable process paths
+refuse when admission is unconfigured. Their runtime feature binding is still owed. Closing that runtime/bootstrapping seam
+needs qualification beyond this Windows lane's time box. No assertion, gate,
+cap, ignore or timeout was weakened to conceal it.
+
+### Regression and verification receipts
+
+On a fresh local clone with `npm ci`, `CI=true`, untouched candidate sources
+and only the new tests copied in: `spawnBoundaries` 7/7 failed;
+`spawnGovernance` 3 failed / 2 passed (12 total: 10 failed / 2 passed).
+Account membership failed on the missing named job; vault stdio failed on
+the absent production builder; the shared helper module was absent. The
+host-death positive control also passes the candidate because Node's own
+Windows lifetime handling stops that fixture; named governor job membership
+is the account regression that distinguishes the repair.
+
+Restored runs use repository defaults, no `--testTimeout`, no more than
+three files per invocation. Compilation is shared in `beforeAll`; its
+explicit 60-second hook covers compilation/self-test, not test execution.
+The Windows Node fixture requires `SystemRoot` for its CSPRNG initialization;
+vault payload environments remain empty. Slot protocol tests inject their
+original peer and await asynchronous launch; native containment is independently
+proved at the shared process boundary. Existing assertions are retained.
+
+Final restored batches (repository timeout, at most three files):
+
+| Files                                                                     | Exit | Tests                                                                                                                           |
+| ------------------------------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------- |
+| spawnGovernance, spawnBoundaries, nativeScheduleBackground                | 0    | 57 passed                                                                                                                       |
+| mediaConvert, windowsVaultTransport, macVaultTransport                    | 0    | 82 passed                                                                                                                       |
+| windowsVaultNative, accountHost, scheduleEvents.local                     | 0    | 65 passed (earlier restored native run; final repeat recorded below)                                                            |
+| playbookPolicyModel, playbookRounds, reportFixtures                       | 0    | 60 passed                                                                                                                       |
+| initial MSP/MCP resource regression batch                                 | 0    | 41 passed                                                                                                                       |
+| nativeScheduleBackground, reportHistory, githubReportSource (earlier run) | 1    | 115 passed, 1 reportHistory failure: Windows EPERM during directory-rename race fixture. Not established as a baseline failure. |
+
+Protocol/helper policy suites retain native or fake peer processes through a
+shared test-only boundary. Their launch transport is injected; production
+admission, named-job membership and whole-tree retirement are exercised by
+spawnGovernance and spawnBoundaries. Exploratory fixture failures were fixed;
+no assertion or timeout was changed to obtain the restored results.
+
+Deliberate red drills in the private clone, each source restored byte-exact
+(SHA-256 equality), each vitest exit 1:
+
+- Account connection changed back to raw spawn: 1 failed / 4 passed,
+  named native governor job membership failed.
+- Vault broker selection bypassed: 1 failed / 4 passed,
+  production vault admission/containment test failed.
+- Shared process admission removed: all 7 portable boundary tests failed.
+
+Fresh local clone, CI=true, npm ci exit 0 (901 packages; existing audit
+reported 2 low and 9 high findings; no dependencies changed):
+
+| Gate                | Exit | Receipt                                                                                                                   |
+| ------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------- |
+| Five typechecks     | 0    | host, webview, unit, e2e, integration; final repeat after fixture refinements recorded below                              |
+| Changed-file ESLint | 0    | --max-warnings=0; 29 TypeScript files                                                                                     |
+| Changed-file jscpd  | 0    | 29 files, 0 clones, unchanged threshold                                                                                   |
+| Plain knip          | 0    | two existing configuration hints                                                                                          |
+| check:l10n          | 0    | 14 UI/14 usage tables; 0 problems                                                                                         |
+| check:host-api      | 0    | regenerated built-in import inventory; host API coverage unchanged                                                        |
+| Production build    | 1    | existing reporting, network, questions, conversation, runtime, usage, accounts, headless and webview caps; no cap changed |
+
+The new command/process implementations ship inside the existing first-use
+resourceGovernor bundle through the shared admission shim. Payload PID reads
+also use that bundle. resourceGovernor is 100.9 KiB against 125 KiB;
+scheduleBackground is 49.0 KiB against 50 KiB. The intermediate new schedule
+overage was fixed by the existing lazy boundary. Aggregate quality remains
+with the lead under the lane's explicit scoped-gate deferral (PLAN section 7).
+This record does not certify the unresolved bootstrap, installed broker or
+runtime binding as satisfying the owner's no-exceptions decision.
+
+Final native repeat: windowsVaultNative and accountHost passed; scheduleEvents.local
+had one real-Git case refused by the intentionally unbound admission seam
+(64 passed / 1 failed, exit 1). Its assertions are retained. This is a remaining
+runtime integration failure, not a qualified regression-free runtime delivery.
+The explicit time box ended with these unresolved bindings and bootstrap paths;
+no further scope was implemented. Changed-file format verification is recorded
+with the hook and fresh-clone check below.

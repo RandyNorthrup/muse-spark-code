@@ -23,6 +23,8 @@ import { createMachineResourceSampler } from './sampler/system'
 import { LinuxResourceTreeReader } from './trees/linux'
 import { WindowsResourceTreeReader } from './trees/windows'
 export { createResources } from '../../runtime/resources/entry'
+export { spawnResourceProcess } from './process'
+export { execResourceFile } from './commands'
 import { runTreeProgram } from './trees/run'
 import { powerShellQuoted } from '../shellQuote'
 import {
@@ -54,6 +56,17 @@ export interface ResourceHostSettings {
     | undefined
 }
 const state: { host?: ResourceLaunchHost } = {}
+
+/** Query the native payload identity through the existing lazy governor bundle. */
+export async function resourceJobRootPid(
+  assemblyPath: string,
+  systemRoot: string,
+  jobName: string,
+): Promise<number | undefined> {
+  const reader = new WindowsResourceTreeReader({ assemblyPath, systemRoot })
+  const root = await reader.rootOfJob(jobName)
+  return root?.pid
+}
 
 /** Loaded by the first governed launch; a CommonJS module is shared by all bundles. */
 export function resourceGovernorHost(options: ResourceHostSettings): ResourceLaunchHost {

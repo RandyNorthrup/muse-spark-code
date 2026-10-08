@@ -8,7 +8,7 @@ import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
 import { Buffer } from 'node:buffer'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:net'
-import { setEnvironmentVariable } from '../../core/backends/musecode/launch'
+import { environmentValue, setEnvironmentVariable } from '../../core/backends/musecode/launch'
 import { redactSecrets } from '../../core/redact'
 import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
 import { stopResourceTree } from '../../core/resources/admission'
@@ -97,6 +97,11 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
     'utf8',
   ).toString('base64')
   const helperEnv = resourceEnvironment(launch.env, launch.resource)
+  // The CLR launcher needs its system directory even when the payload has
+  // an empty environment. The payload's environment above remains separate.
+  const systemRoot = environmentValue(process.env, 'win32', 'SystemRoot')
+  if (systemRoot !== undefined && environmentValue(helperEnv, 'win32', 'SystemRoot') === undefined)
+    setEnvironmentVariable(helperEnv, 'win32', 'SystemRoot', systemRoot)
   setEnvironmentVariable(helperEnv, 'win32', MCP_JOB_CONFIG_VARIABLE, payload)
   return {
     env: helperEnv,

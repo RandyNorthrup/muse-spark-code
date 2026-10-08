@@ -1,4 +1,4 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawnResourceProcess } from '../../../core/resources/admission'
 import path from 'node:path'
 import {
   UI_TEXT,
@@ -62,53 +62,49 @@ export function windowsVaultTransport(
   )
     throw new Error(UI_TEXT.vault.noAccess)
   return {
-    exchange: (header, key) =>
-      new Promise((resolve, reject) => {
-        if (signal?.aborted || header.length > VAULT_LIMITS.text) {
-          reject(new Error(UI_TEXT.vault.noAccess))
-          return
-        }
-        let request: unknown
-        try {
-          request = JSON.parse(Buffer.from(header).toString('utf8'))
-        } catch {
-          reject(new Error(UI_TEXT.vault.noAccess))
-          return
-        }
-        const parsed = windowsVaultRequestSchema.safeParse(request)
-        if (
-          !parsed.success ||
-          key.length !== (parsed.data.operation === 'wrap' ? VAULT_KEY_BYTES : 0)
-        ) {
-          reject(new Error(UI_TEXT.vault.noAccess))
-          return
-        }
-        // Do not inherit credentials, a shell, or a visible console window.
-        let child: ChildProcessWithoutNullStreams
-        try {
-          child = spawn(
-            helper.powershell,
-            [
-              '-NoLogo',
-              '-NoProfile',
-              '-NonInteractive',
-              '-EncodedCommand',
-              Buffer.from(windowsVaultGuardScript(helper.file, helper.sha256), 'utf16le').toString(
-                'base64',
-              ),
-            ],
-            {
-              cwd: path.dirname(helper.powershell),
-              env: {},
-              stdio: 'pipe',
-              shell: false,
-              windowsHide: true,
-            },
-          )
-        } catch {
-          reject(new Error(UI_TEXT.vault.noAccess))
-          return
-        }
+    exchange: async (header, key) => {
+      if (signal?.aborted || header.length > VAULT_LIMITS.text) {
+        throw new Error(UI_TEXT.vault.noAccess)
+      }
+      let request: unknown
+      try {
+        request = JSON.parse(Buffer.from(header).toString('utf8'))
+      } catch {
+        throw new Error(UI_TEXT.vault.noAccess)
+      }
+      const parsed = windowsVaultRequestSchema.safeParse(request)
+      if (
+        !parsed.success ||
+        key.length !== (parsed.data.operation === 'wrap' ? VAULT_KEY_BYTES : 0)
+      ) {
+        throw new Error(UI_TEXT.vault.noAccess)
+      }
+      // Do not inherit credentials, a shell, or a visible console window.
+      let launched: Awaited<ReturnType<typeof spawnResourceProcess>>
+      try {
+        launched = await spawnResourceProcess(
+          helper.powershell,
+          [
+            '-NoLogo',
+            '-NoProfile',
+            '-NonInteractive',
+            '-EncodedCommand',
+            Buffer.from(windowsVaultGuardScript(helper.file, helper.sha256), 'utf16le').toString(
+              'base64',
+            ),
+          ],
+          {
+            cwd: path.dirname(helper.powershell),
+            env: {},
+            shell: false,
+            windowsHide: true,
+          },
+        )
+      } catch {
+        throw new Error(UI_TEXT.vault.noAccess)
+      }
+      const { child, stop } = launched
+      return await new Promise((resolve, reject) => {
         const chunks: Buffer[] = []
         let size = 0
         let isSettled = false
@@ -128,7 +124,9 @@ export function windowsVaultTransport(
             }
             resolve(output)
           } else {
-            child.kill('SIGKILL')
+            void stop().catch(() => {
+              reject(new Error(UI_TEXT.vault.noAccess))
+            })
             reject(new Error(UI_TEXT.vault.noAccess))
           }
           for (const chunk of chunks) chunk.fill(0)
@@ -198,6 +196,7 @@ export function windowsVaultTransport(
           finish(false)
         }
         if (signal?.aborted) abort()
-      }),
+      })
+    },
   }
 }

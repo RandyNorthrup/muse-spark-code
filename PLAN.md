@@ -1,5 +1,20 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**SPAWN017 release repair (2026-10-08, win11).** Close the combined
+0.17.0 candidate's spawn governance gaps under M107/D87. Account-scoped MSP
+hosts retain their command owner while sharing the ordinary MSP native
+launch, bounded shutdown and observed whole-tree retirement. Supply the
+vault MCP route with a production builder using the ordinary governed MCP
+spawn boundary; retain authorization, canonical command checks and output
+scrubbing, and refuse unbound broker services. Audit every spawn-bearing
+source file changed since `4da4ef666`, repairing newly introduced payload
+paths. Prove regressions on `7a4fc2ab3`, deliberate red drills and restored
+default-timeout runs. Qualify a fresh clone with npm ci, five typechecks,
+changed-file lint/format/duplication, plain knip, localization, host API and
+the production build without changing caps. Aggregate quality belongs to
+the lead; normal-hook local commits only. Receipts and the spawn inventory:
+`docs/certification/int0170-combined.md`, Spawn governance (SPAWN017).
+
 **FIX0160W2 hosted Windows repair (2026-10-07, win11).** Reproduce the three
 remaining suites with an actual 8.3 TEMP/TMP alias and fresh PowerShell
 processes. Resolve compiler storage and returned helper paths to native long
@@ -36767,6 +36782,13 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**SPAWN017 (2026-10-08):** the lane brief delegates aggregate quality to
+the lead and requires fresh-clone scoped delivery gates. Existing combined
+candidate caps remain release blockers; no threshold is changed. Native
+compiler bootstrap and the runtime's unbound global admission are unresolved
+under the owner's no-exceptions spawn decision, not accepted exceptions.
+The spawn inventory and exact receipts are in `docs/certification/int0170-combined.md`.
 
 INT0180B (2026-10-07): source `9733edba2` supersedes INT0180's local reds
 below. Fresh ordinary installation, exact static job, all four coverage shards

@@ -2,12 +2,30 @@ import type { ResourceClass, ResourceKind } from '../../shared/resources'
 import type { ResourceLease } from './launch'
 import type { ResourceLaunchHost } from './launchHost'
 import type { ResourceHostSettings } from './resourceGovernorEntry'
+import type { spawnResourceProcess as ResourceProcessLauncher } from './process'
+import type { execResourceFile as ResourceCommandRunner } from './commands'
 
 const state: {
   options?: ResourceHostSettings
   pending?: Promise<ResourceLaunchHost>
   isDisposed: boolean
 } = { isDisposed: false }
+
+/** Portable process launch lives in the existing first-use governor bundle. */
+export async function spawnResourceProcess(
+  ...args: Parameters<typeof ResourceProcessLauncher>
+): Promise<Awaited<ReturnType<typeof ResourceProcessLauncher>>> {
+  const bundle = await import('./resourceGovernorEntry.js')
+  return await bundle.spawnResourceProcess(...args)
+}
+
+/** Bounded helper commands share the same lazy process boundary. */
+export async function execResourceFile(
+  ...args: Parameters<typeof ResourceCommandRunner>
+): Promise<Awaited<ReturnType<typeof ResourceCommandRunner>>> {
+  const bundle = await import('./resourceGovernorEntry.js')
+  return await bundle.execResourceFile(...args)
+}
 
 /** Shared, tiny Node bundle: installing settings performs no probe or governor import. */
 export function configureResources(settings: ResourceHostSettings): () => void {

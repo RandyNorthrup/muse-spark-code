@@ -1,5 +1,4 @@
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
+import { execResourceFile } from '../resources/admission'
 import * as z from 'zod/mini'
 import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
@@ -77,7 +76,7 @@ const lockOwnerSchema = z.strictObject({
   startedAt: z.string().check(z.minLength(1), z.maxLength(REPORT_MAX_ID_CHARS)),
   token: z.uuid(),
 })
-const execFileAsync = promisify(execFile)
+const execFileAsync = execResourceFile
 const processBirth: { own?: Promise<string | undefined> } = {}
 
 /** OS birth identity, so a reused PID never keeps an abandoned writer lock alive. */

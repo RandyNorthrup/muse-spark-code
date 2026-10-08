@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawnResourceProcess } from '../../resources/admission'
 import { type Socket } from 'node:net'
 import * as z from 'zod/mini'
 import { VAULT_APPROVAL_TTL_MS, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
@@ -38,27 +38,26 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
     private readonly descriptors: VaultSocketDescriptorPort,
   ) {}
   async verify(socket: Socket): Promise<VaultProcessIdentity> {
+    const { child, stop } = await spawnResourceProcess(this.executable, [], { env: {} }, [
+      z.number().check(z.int(), z.positive()).parse(this.descriptors.descriptor(socket)),
+    ])
+    child.stdin.end()
+    child.stderr.resume()
     const result = await new Promise<z.infer<typeof nativePeerSchema>>((resolve, reject) => {
-      const child = spawn(this.executable, [], {
-        env: {},
-        stdio: [
-          'ignore',
-          'pipe',
-          'ignore',
-          z.number().check(z.int(), z.positive()).parse(this.descriptors.descriptor(socket)),
-        ],
-        windowsHide: true,
-      })
       const chunks: Buffer[] = []
       let size = 0
       const timer = setTimeout(() => {
-        child.kill()
+        void stop().catch(() => {
+          reject(new Error(UI_TEXT.vault.noAccess))
+        })
         reject(new Error(UI_TEXT.vault.noAccess))
       }, VAULT_APPROVAL_TTL_MS)
-      child.stdout?.on('data', (bytes: Buffer) => {
+      child.stdout.on('data', (bytes: Buffer) => {
         size += bytes.byteLength
         if (size > VAULT_LIMITS.text) {
-          child.kill()
+          void stop().catch(() => {
+            reject(new Error(UI_TEXT.vault.noAccess))
+          })
           reject(new Error(UI_TEXT.vault.noAccess))
         } else chunks.push(bytes)
       })
@@ -83,7 +82,7 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
         code = result
         finish()
       })
-      child.stdout?.once('end', () => {
+      child.stdout.once('end', () => {
         hasEnded = true
         finish()
       })

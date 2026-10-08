@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Account-scoped Muse Code hosts now share governed native job launch and
+  whole-tree retirement. Vault MCP stdio has a guarded production builder
+  using the same governed MCP process boundary. New media, vault helper,
+  reporting and schedule read processes use resource admission and tree
+  containment; absent native launch services refuse before spawning.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

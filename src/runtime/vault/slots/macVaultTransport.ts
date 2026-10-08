@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawnResourceProcess } from '../../../core/resources/admission'
 import path from 'node:path'
 import { UI_TEXT, VAULT_APPROVAL_TTL_MS } from '../../../shared/constants'
 import { macVaultFailure, type MacVaultTransport } from './macVaultProtocol'
@@ -8,13 +8,17 @@ import { collectSlotChunk, drainSlotStderr, watchSlotChildErrors } from './slotC
 export function macVaultTransport(helper: string, signal?: AbortSignal): MacVaultTransport {
   if (!path.isAbsolute(helper)) throw new Error(UI_TEXT.vault.noAccess)
   return {
-    exchange: (header, key) =>
-      new Promise((resolve, reject) => {
+    exchange: async (header, key) => {
+      if (signal?.aborted) throw new Error(UI_TEXT.vault.noAccess)
+      const { child, stop } = await spawnResourceProcess(helper, [], {
+        env: {},
+        ...(signal !== undefined && { signal }),
+      })
+      return await new Promise((resolve, reject) => {
         if (signal?.aborted) {
           reject(new Error(UI_TEXT.vault.noAccess))
           return
         }
-        const child = spawn(helper, [], { env: {}, stdio: 'pipe', shell: false })
         const chunks: Buffer[] = []
         let size = 0
         let isSettled = false
@@ -35,7 +39,9 @@ export function macVaultTransport(helper: string, signal?: AbortSignal): MacVaul
           else {
             const failure = hasNativeFailure ? macVaultFailure(output) : undefined
             output.fill(0)
-            child.kill('SIGKILL')
+            void stop().catch(() => {
+              reject(new Error(UI_TEXT.vault.noAccess))
+            })
             reject(failure ?? new Error(UI_TEXT.vault.noAccess))
           }
           for (const chunk of chunks) chunk.fill(0)
@@ -64,6 +70,7 @@ export function macVaultTransport(helper: string, signal?: AbortSignal): MacVaul
         child.stdin.write(header)
         // The owned invoke buffer remains live until close, then is erased there.
         child.stdin.end(key)
-      }),
+      })
+    },
   }
 }

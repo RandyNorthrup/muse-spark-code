@@ -1,7 +1,6 @@
 import * as z from 'zod/mini'
 import { createHash } from 'node:crypto'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
+import { execResourceFile } from '../../resources/admission'
 import { stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
@@ -33,7 +32,7 @@ const refSchema = z.strictObject({
   revision: z.string().check(z.minLength(1), z.maxLength(SCHEDULE_EVENT_FIELD_MAX_CHARS)),
 })
 type Ref = z.infer<typeof refSchema>
-const exec = promisify(execFile)
+const exec = execResourceFile
 
 /** No checkout, hooks, helper, credential or network is needed to read refs. */
 export function localGitRefs(
