@@ -53,10 +53,6 @@ import { createClientlessBinding } from './evidencePaths'
 // dispatch gate keeps schemas lazy). Re-exported here for the surfaces
 // that already build full bindings.
 export {
-  PHASE2_ADOPTION_BASENAME,
-  PHASE2_EMBEDDING_BASENAME,
-  PHASE2_EVIDENCE_DIR,
-  PHASE2_PROFILE_BASENAME,
   cliEvidenceRoot,
   createClientlessBinding,
   createEntryClientlessBinding,
@@ -69,13 +65,10 @@ export {
   phase2ProfileSlug,
 } from './evidencePaths'
 export type {
-  ClientlessBindingParts,
   ClientlessEntryParts,
-  Phase2AdoptionQuery,
   Phase2BindingContext,
   Phase2EmbeddingQuery,
   Phase2EvidenceStore,
-  Phase2ProfileQuery,
 } from './evidencePaths'
 
 /** One real separate judge source (C, E or J) with its verification proof. */
