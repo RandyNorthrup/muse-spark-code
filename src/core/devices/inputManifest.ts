@@ -3,10 +3,8 @@
 // (the snapshot's manifestDigest); the manifest itself names every
 // content-addressed input plus the base objects the worker must already
 // hold. The worker verifies both before starting and refuses when any item
-// is missing or mismatched. Wire paths use forward slashes on every
-// platform (lane 0's relative-path rule); the builder normalizes Windows
-// separators to `/` before validation, and the reader lookup normalizes
-// again before comparing.
+// is missing or mismatched. Manifest paths follow a portable grammar on
+// every platform; invalid spellings are refused, never normalized.
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import { DEVICE_LIMITS } from '../../shared/constants'
@@ -18,20 +16,28 @@ import {
   type DeviceDispatch,
 } from '../../shared/devices'
 import { DevicePairingError } from './pairing'
-import { windowsPathIdentity } from '../pathIdentity'
 
-/** Wire paths use `/`; normalize before any compare, on every platform. */
-export function normalizeManifestPath(path: string): string {
-  return path.replaceAll('\\', '/')
-}
-
-// The relative-path rule lane 0 enforces on plannedWrites: nothing that
-// escapes the worker copy, no empty or dot parts. The two rules must agree;
-// lane 0 owns the canonical text, so this stays a compact mirror (the
-// duplication gate forbids a second full copy there and here).
+// ASCII letters, digits, space and . _ - + @ only, separated by `/`.
+// No empty/dot/parent segments, trailing dot/space, device names (including
+// extensions and spaces before an extension), Unicode or short-name `~`
+// aliases. DEVICE_LIMITS.pathChars bounds the whole path to 512 characters.
+// This is stricter than lane 0's plannedWrites rule without changing it.
+const FORBIDDEN_SEGMENT_CHARACTER = /[^A-Za-z0-9 ._+@-]/u
+const TRAILING_DOT_OR_SPACE = /[. ]$/u
+const RESERVED_DEVICE_NAME =
+  /^(?:con|prn|aux|nul|conin\$|conout\$|com[0-9¹²³]|lpt[0-9¹²³]) *(?:\..*)?$/iu
 const isManifestPath = (value: string): boolean =>
-  !/[\\:]|\p{Cc}|\p{Zl}|\p{Zp}/u.test(value) &&
-  value.split('/').every((part) => part !== '' && part !== '.' && part !== '..')
+  value
+    .split('/')
+    .every(
+      (part) =>
+        part !== '' &&
+        part !== '.' &&
+        part !== '..' &&
+        !FORBIDDEN_SEGMENT_CHARACTER.test(part) &&
+        !TRAILING_DOT_OR_SPACE.test(part) &&
+        !RESERVED_DEVICE_NAME.test(part),
+    )
 
 const manifestPath = z.string().check(
   z.minLength(1),
@@ -70,8 +76,7 @@ export const deviceInputManifestSchema = z
       (value) =>
         value.baseCommit.length === value.tree.length &&
         // A manifest must have one identity on every receiver platform.
-        new Set(value.items.map((item) => windowsPathIdentity(item.path))).size ===
-          value.items.length,
+        new Set(value.items.map((item) => item.path.toLowerCase())).size === value.items.length,
     ),
   )
 export type DeviceInputManifest = z.infer<typeof deviceInputManifestSchema>
@@ -80,11 +85,7 @@ export interface DeviceInputManifestInput {
   readonly identity: DeviceAttemptIdentity
   readonly baseCommit: string
   readonly tree: string
-  readonly items: readonly {
-    readonly path: string
-    readonly digest: string
-    readonly bytes: number
-  }[]
+  readonly items: readonly Readonly<DeviceInputManifestItem>[]
 }
 
 /** Builds the canonical manifest; refuses measured input that fits no schema. */
@@ -94,10 +95,7 @@ export function buildInputManifest(input: DeviceInputManifestInput): DeviceInput
     identity: input.identity,
     baseCommit: input.baseCommit,
     tree: input.tree,
-    items: input.items.map((item): DeviceInputManifestItem => ({
-      ...item,
-      path: normalizeManifestPath(item.path),
-    })),
+    items: input.items,
   })
   if (!parsed.success) throw new DevicePairingError('invalid-frame')
   return parsed.data
@@ -168,7 +166,7 @@ export async function verifyDispatchInputs(
   )
     throw new DevicePairingError('reconcile-required')
   for (const item of candidate.items) {
-    const found = await reader.readInput(normalizeManifestPath(item.path))
+    const found = await reader.readInput(item.path)
     if (found?.digest !== item.digest || found.bytes !== item.bytes)
       throw new DevicePairingError('payload-changed')
   }

@@ -13,7 +13,6 @@
 
 import type { ApprovalSubject } from '../shared/agentEvents'
 import { PROTECTED_FILE_NAMES, PROTECTED_PATH_SEGMENTS } from '../shared/constants'
-import { windowsName } from './pathIdentity'
 
 // MSP's file-access subject (Muse Code; the Model API sends `fileWrite`).
 const FILE_ACCESS_SUBJECT = 'fileAccess'
@@ -21,14 +20,10 @@ const READ_ACCESS = 'read'
 
 /**
  * Whether a workspace-relative path (forward slashes, links resolved) is a
- * protected write. The resolver already canonicalized separators for its OS:
- * a backslash in a POSIX canonical path is part of one name. Conservative
- * case and trailing-name aliases count on every platform.
+ * protected write. Case is ignored: Windows and macOS file systems fold it.
  */
 export function isProtectedPath(canonicalRelative: string): boolean {
-  // Keep every named segment: an unresolved approval path must not erase
-  // a protected ancestor with `..` before the conservative check.
-  const segments = canonicalRelative.split('/').map((segment) => windowsName(segment).toLowerCase())
+  const segments = canonicalRelative.toLowerCase().split('/')
   const name = segments.at(-1) ?? ''
   if (PROTECTED_FILE_NAMES.has(name)) {
     return true

@@ -7,7 +7,6 @@
 // without carrying the backend that loads on first use (M57, PLAN.md D6).
 
 import { pathModule } from './workspaceRoot'
-import { windowsName } from './pathIdentity'
 
 export type PathResolution =
   | {
@@ -41,6 +40,7 @@ const PARENT_SEGMENT = '..'
 // Device names Windows resolves in every directory (`NUL`, `CON`, `COM1.txt`):
 // reading one can block on a console, writing one goes nowhere.
 const WINDOWS_RESERVED_NAME = /^(?:con|prn|aux|nul|conin\$|conout\$|com\d|lpt\d)(?:\..*)?$/i
+const WINDOWS_TRAILING_DOT_OR_SPACE = /[. ]$/
 
 /** Whether a `path.relative` result stays below its base. */
 export function isBelow(relative: string, p: ReturnType<typeof pathModule>): boolean {
@@ -64,9 +64,9 @@ function windowsSegmentProblem(segment: string): string | undefined {
   if (WINDOWS_RESERVED_NAME.test(segment)) {
     return 'names a Windows device'
   }
-  return windowsName(segment) === segment
-    ? undefined
-    : 'ends a name with a dot or a space, which Windows drops'
+  return WINDOWS_TRAILING_DOT_OR_SPACE.test(segment)
+    ? 'ends a name with a dot or a space, which Windows drops'
+    : undefined
 }
 
 /** Resolves a model-given path inside the workspace by its text, refusing escapes. */
