@@ -1,5 +1,6 @@
 {
   "devices": {
+    "desktopHeap": "Windows nemohl inicializovat pracovní proces (STATUS_DLL_INIT_FAILED). Spusťte méně souběžných pracovníků, spusťte přijímač v interaktivní relaci nebo požádejte správce o zvýšení haldy plochy a restart. Nebyl proveden žádný opakovaný pokus ani změna registru.",
     "title": "Zařízení",
     "pair": "Spárovat zařízení",
     "offer": "Nabídnout pracovní větve",

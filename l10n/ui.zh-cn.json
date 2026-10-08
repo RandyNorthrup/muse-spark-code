@@ -1,5 +1,6 @@
 {
   "devices": {
+    "desktopHeap": "Windows 无法初始化工作进程（STATUS_DLL_INIT_FAILED）。请减少并发工作进程，在交互式会话中运行接收端，或请管理员增大桌面堆并重启。未进行重试或修改注册表。",
     "title": "设备",
     "pair": "配对设备",
     "offer": "提供工作分支",

@@ -1,5 +1,6 @@
 {
   "devices": {
+    "desktopHeap": "Windows n’a pas pu initialiser le processus de travail (STATUS_DLL_INIT_FAILED). Réduisez le nombre de processus simultanés, lancez le récepteur dans la session interactive ou demandez à un administrateur d’augmenter le tas du bureau et de redémarrer. Aucune nouvelle tentative ni modification du registre n’a été effectuée.",
     "title": "Appareils",
     "pair": "Associer un appareil",
     "offer": "Proposer des branches de travail",

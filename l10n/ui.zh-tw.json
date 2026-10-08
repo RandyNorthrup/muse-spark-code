@@ -1,5 +1,6 @@
 {
   "devices": {
+    "desktopHeap": "Windows 無法初始化工作程序（STATUS_DLL_INIT_FAILED）。請減少同時執行的工作程序，在互動式工作階段執行接收端，或請管理員增大桌面堆積並重新啟動。未進行重試或修改登錄。",
     "title": "裝置",
     "pair": "配對裝置",
     "offer": "提供工作分支",

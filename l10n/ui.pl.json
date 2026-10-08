@@ -1,5 +1,6 @@
 {
   "devices": {
+    "desktopHeap": "Windows nie mógł zainicjować procesu roboczego (STATUS_DLL_INIT_FAILED). Uruchom mniej procesów jednocześnie, uruchom odbiornik w sesji interaktywnej albo poproś administratora o zwiększenie sterty pulpitu i ponowne uruchomienie. Nie ponowiono próby ani nie zmieniono rejestru.",
     "title": "Urządzenia",
     "pair": "Sparuj urządzenie",
     "offer": "Udostępnij gałęzie pracy",

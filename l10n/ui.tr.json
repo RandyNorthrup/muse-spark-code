@@ -1,5 +1,6 @@
 {
   "devices": {
+    "desktopHeap": "Windows çalışanı başlatamadı (STATUS_DLL_INIT_FAILED). Daha az eşzamanlı çalışan başlatın, alıcıyı etkileşimli oturumda çalıştırın veya yöneticiden masaüstü yığınını artırıp yeniden başlatmasını isteyin. Yeniden deneme veya kayıt defteri değişikliği yapılmadı.",
     "title": "Cihazlar",
     "pair": "Cihaz eşleştir",
     "offer": "Çalışma dalları sun",

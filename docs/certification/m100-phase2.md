@@ -78,19 +78,19 @@ Devices remains unshipped. Model attempts **0**, inference spend **0**.
 
 ### Conflicts (19 files)
 
-| Files                                                                                                               | Resolution                                                                                                                                                                |
-| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CHANGELOG.md`                                                                                                      | Preserve release history and existing Unreleased fixes; place all incoming Devices entries under Unreleased.                                                              |
-| `PLAN.md`                                                                                                           | Preserve both branches' phase-2 plan, gate records, escape-hatch register and residual-risk records.                                                                      |
-| `docs/orchestration-gotchas.md`                                                                                     | Retain every release rule/id, including G29–G33; add incoming channel, Windows host and auth rules as G34–G36 to avoid duplicate ids (now main's G50–G52; see the lead integration).                                     |
-| `knip.jsonc`, `package.json`                                                                                        | Union entry inventories, retain the release's compiler/quality/reference scripts, add both Devices cycle entries.                                                         |
-| `scripts/build.mjs`, `scripts/check-bundle-split.mjs`, `scripts/lib/deferredBundles.mjs`, `scripts/package-acp.mjs` | Keep every release bundle, lazy mapping and text guard; add Devices with its inherited independent budgets. Existing caps are unchanged.                                  |
-| `scripts/gen-reference.mjs`                                                                                         | Run the complete release reference generator, the incoming Devices inventory and the release sharing inventory together.                                                  |
-| `src/shared/l10n/en.ts`                                                                                             | Union English keys; all 14 translated tables merge automatically with both branches' keys and values.                                                                     |
-| `src/shared/modelsPanel.ts`                                                                                         | Retain complete provider/team/traffic boundaries; move the strict Devices region into `src/shared/devicesPanel.ts` so unrelated validators stay outside its lazy closure. |
-| `scripts/lib/harnessServer.mjs`, `test/harness/index.html`                                                          | Retain every release scenario and fake-host handler, add Devices scenes, sizing and request/reply handling.                                                               |
-| `test/unit/bundleSize.test.mjs`, `test/unit/deferredBundles.test.ts`, `test/unit/webviewBundles.test.mjs`           | Retain release tests/setup and add the incoming Devices budget, build entry and Windows-separator closure assertion.                                                      |
-| `docs/ide-compatibility/host-api.md`, `src/shared/reference/reference.generated.ts`                                 | Regenerate with `npm run check:host-api -- --write` and `npm run reference:generate`; no hand-edited generated output.                                                    |
+| Files                                                                                                               | Resolution                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `CHANGELOG.md`                                                                                                      | Preserve release history and existing Unreleased fixes; place all incoming Devices entries under Unreleased.                                                                         |
+| `PLAN.md`                                                                                                           | Preserve both branches' phase-2 plan, gate records, escape-hatch register and residual-risk records.                                                                                 |
+| `docs/orchestration-gotchas.md`                                                                                     | Retain every release rule/id, including G29–G33; add incoming channel, Windows host and auth rules as G34–G36 to avoid duplicate ids (now main's G50–G52; see the lead integration). |
+| `knip.jsonc`, `package.json`                                                                                        | Union entry inventories, retain the release's compiler/quality/reference scripts, add both Devices cycle entries.                                                                    |
+| `scripts/build.mjs`, `scripts/check-bundle-split.mjs`, `scripts/lib/deferredBundles.mjs`, `scripts/package-acp.mjs` | Keep every release bundle, lazy mapping and text guard; add Devices with its inherited independent budgets. Existing caps are unchanged.                                             |
+| `scripts/gen-reference.mjs`                                                                                         | Run the complete release reference generator, the incoming Devices inventory and the release sharing inventory together.                                                             |
+| `src/shared/l10n/en.ts`                                                                                             | Union English keys; all 14 translated tables merge automatically with both branches' keys and values.                                                                                |
+| `src/shared/modelsPanel.ts`                                                                                         | Retain complete provider/team/traffic boundaries; move the strict Devices region into `src/shared/devicesPanel.ts` so unrelated validators stay outside its lazy closure.            |
+| `scripts/lib/harnessServer.mjs`, `test/harness/index.html`                                                          | Retain every release scenario and fake-host handler, add Devices scenes, sizing and request/reply handling.                                                                          |
+| `test/unit/bundleSize.test.mjs`, `test/unit/deferredBundles.test.ts`, `test/unit/webviewBundles.test.mjs`           | Retain release tests/setup and add the incoming Devices budget, build entry and Windows-separator closure assertion.                                                                 |
+| `docs/ide-compatibility/host-api.md`, `src/shared/reference/reference.generated.ts`                                 | Regenerate with `npm run check:host-api -- --write` and `npm run reference:generate`; no hand-edited generated output.                                                               |
 
 ### Verification scope
 
@@ -553,3 +553,91 @@ test/unit/channel.test.ts test/unit/deviceMultiplexedChannel.test.ts
   (0 errors), duplication (**0 clones**), `check:l10n` (**14 tables**,
   **0 problems**), `check:host-api` (**0 problems**), `npm run build`
   (all budgets ok, Devices **81.6/100 KiB**): all exit **0**.
+
+## Lane H — Windows worker host (M100P2H, 2026-10-07)
+
+Worktree `C:/lanes/M100P2H`, branch `m100/p2-h`, base `466a7a8e4`, on the
+Win11 rig. Read the rig brief, phase-2 shared rules, PLAN's ownership and
+acceptance section, planning record and threat model before implementation.
+No models, paid calls, real-device pairing, network listener, registry write,
+OS policy change, dependency addition, push, merge or rebase. M27's
+`shellJob.ts`, `MuseSparkJob.cs` and M50's shared helper remain byte-identical.
+Full joined quality, packaging, reference/docs changes and production wiring
+remain lane W's exclusive work.
+
+### Acceptance mapping and remaining work
+
+| Brief item              | Windows implementation and evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Status                                                                                                                           |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Own context          | `deviceWorkerNative.ts` creates one on-demand Task Scheduler task with the current user's interactive token, no trigger and no service. `MuseSparkDeviceWorker.cs` refuses session 0/noninteractive stations, creates a private desktop and a named no-breakaway job. `DeviceWorkerHost.start` checks the reported context against the transport before the activation file permits any child. Fake transport/noninteractive refusals and real private-task tests pass. Context drill fails. | Windows done; Linux/systemd and macOS/launchd drivers and real platform receipts outstanding.                                    |
+| 2. Desktop heap         | Signed and unsigned `STATUS_DLL_INIT_FAILED` exits become typed `unsupported-host`/`desktop-heap` failures with recovery prose in all 15 languages. One launch only; pressure callback reports the signal to V/M107 and does not change a cap. Registry-write spy stays zero; native source check rejects registry/policy mutation APIs. Silent-retry drill fails.                                                                                                                           | Done for a worker exit; task/helper startup failure diagnosis needs the scheduler's last exit status wired before qualification. |
+| 3. Recorded environment | Uses M96's canonical `workerEnvironment` with no passthrough names. The environment is recorded before launch; PATH resolution and the caller's hook-binary verifier both run before start. Actual empty-PATH and fake missing/unverified-hook cases keep launch count zero. Credential-fence and preflight drills fail.                                                                                                                                                                     | Host port done; W must bind a durable local environment record and M96's verified command/controlled boundaries.                 |
+| 4. Structured result    | Native helper owns explicit NUL stdin, bounded stdout/stderr pipes, suspended creation, assignment and resume. Only the exit-code-plus-JSON stdout channel supplies a result; banners on stderr do not. PowerShell commands get per-process Bypass and `-InputFormat None`; no `Set-ExecutionPolicy`. Zod validates native queries/exits and existing device schemas validate usage/artifact results. Stderr-result and output-cap drills fail.                                              | Windows done.                                                                                                                    |
+| 5. Sleep and power      | Each active native helper holds `SetThreadExecutionState(CONTINUOUS \| SYSTEM_REQUIRED)` through observed whole-job exit; finally clears it, and OS thread teardown releases it on helper loss. Host reference count lasts through overlapping retirements; failed power reads stay unknown. Real awake/accounting/cancel tests and fake overlap/helper-loss tests pass. Drop-last-release drill fails.                                                                                      | Windows done; Linux inhibitor/macOS caffeinate and their native receipts outstanding. No battery admission policy was invented.  |
+| 6. Helper self-test     | Source-digest build through existing `compileJob`; per-factory cached self-test exercises suspended launch, job assignment/resume, observed empty job, context, CPU/peak-memory query and power. Failed/corrupt helpers refuse without fallback. The real corruption case and fake failed-self-test case pass; bypass-self-test drill fails.                                                                                                                                                 | Windows done; scheduler launch permission is exercised by native tests, not by the primitive self-test itself.                   |
+
+`retirement` is never resolved by cancellation, a deadline, helper/task disappearance
+or direct-parent exit. The native accounting query must observe zero active
+processes in the whole job. A real detached descendant finishes after its parent;
+removing that guard makes its marker assertion fail. Helper loss rejects as
+uncertain and retains occupancy. Whole-job cancellation uses `TerminateJobObject`,
+never taskkill/PID-only tree termination. Suspended, unassigned children are
+terminated before they can run. Kill-on-close covers helper death. A native
+process ceiling and retained-attempt directory ceiling use the unchanged shared
+`DEVICE_LIMITS`; overflow stops work. The directory allocation is serialized.
+
+Every real test removes its own task and directory in finally; afterAll also
+stops/deletes only registrations whose action names that fixture's exact temporary
+directory, then asserts none remain. Three retired registrations left by the first
+failed pipe experiments were identified by their fixture paths and removed. The
+failure was .NET Framework's refusal to open NUL through `FileStream`; the fixed
+path opens the device with `CreateFileW`. No user/other-lane task was touched.
+
+### Intentional guard failures
+
+All drills run complete owning files with `--maxWorkers=3`, repository defaults,
+and no timeout override. Each exits 1 with an assertion failure; each modified
+source is restored from its original byte buffer and its SHA-256 checked.
+
+| Drill             | Deliberate break                                  | Failure                                                                 |
+| ----------------- | ------------------------------------------------- | ----------------------------------------------------------------------- |
+| context           | Disable Windows context comparison                | A transport-session/noninteractive launch resolves instead of refusing. |
+| silent-retry      | Launch again on desktop heap failure              | Launch count is 2 instead of 1.                                         |
+| hook-preflight    | Iterate zero required tools                       | Missing/unverified hook attempts start.                                 |
+| sleep-release     | Remove success-path running-count decrement       | Sleep stays inhibited after the last retirement.                        |
+| helper-self-test  | Bypass failed self-test guard                     | Unsupported helper starts.                                              |
+| output-cap        | Remove stdout byte ceiling                        | Valid JSON padded past the cap is accepted.                             |
+| credential-fence  | Record inherited environment                      | Credential/loader/agent variables enter the record.                     |
+| stderr-result     | Read stderr instead of stdout                     | Banner-bearing native run has no valid JSON result.                     |
+| parent-retirement | Observe direct parent instead of active job count | Detached descendant is killed before its completion marker.             |
+
+Final-source hashes, clean-clone receipts and commit IDs follow in the final
+verification addendum. Local owning tests: **27 passed**, including six actual
+Windows native cases. Five typecheck projects passed before final minor lifecycle
+and capacity changes; the final committed clone is checked again below. No
+`--testTimeout`, gate weakening, ignored diagnostic or lint escape hatch was added.
+
+### Requests to the lead / W / V
+
+- Bind `DeviceWorkerHost` as `DeviceReceiverExecution`, with M96's atomic occupancy
+  restoration/reservation, durable environment record, local verified command and
+  every tool/model/paid boundary. The command factory receives the local boundary;
+  no peer can supply a command or environment. There is no new public runtime command.
+- V reads `facts()` for power and sleep state; feed `pressure('desktop-heap')` to
+  M107 as a pressure observation. Per-job accounting reports CPU in 100 ns units and
+  **peak** committed memory, explicitly named `peakMemoryBytes`; current memory is
+  not claimed. The governor owns any slot-cap decision.
+- W must ship the new native C# asset, bind its trusted `sourceFile` and private
+  storage, measure the fully wired lazy Devices bundle, update its owned CHANGELOG,
+  README and feature reference, and run joined quality/installed-host checks.
+- Complete and qualify Linux transient user units with a cgroup retirement proof
+  and `systemd-inhibit`; complete and qualify macOS per-attempt launchd jobs with
+  a whole-descendant retirement proof and `caffeinate`. This Windows-only rig has
+  no real systemd/launchd runtime; fake platform port tests are not native receipts.
+- Proposed battery policy for owner decision: keep already admitted work owned,
+  and ask locally before admitting new heavy checks on battery. No policy is
+  implemented here; unknown power must stay unknown.
+- Add a typed Task Scheduler startup/last-exit result so a helper that never reaches
+  readiness can surface desktop heap pressure instead of only unsupported-host.
+  Qualify scheduler-specific self-test, private storage ACLs and native helper-death
+  recovery before enabling the production offer. These are open, not support claims.
