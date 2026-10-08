@@ -259,19 +259,22 @@ const reviewSchema = z.discriminatedUnion('status', [
     ),
 ])
 
-export const machineClassSchema = z.strictObject({
-  id,
-  vcpu: positiveCount,
-  ramGiB: z.number().check(z.positive()),
-  os,
-  architecture,
-  gpu: z.optional(z.strictObject({ count: positiveCount, memoryGiB: hours })),
-})
-export const machineClassesSchema = z.array(machineClassSchema).check(
-  z.minLength(1),
-  z.maxLength(ESTIMATE_MAX_ITEMS),
-  z.refine((classes) => areUnique(classes.map((entry) => entry.id))),
-)
+// Pure builders: only the engine's machine catalog parses classes.
+export const machineClassSchema = /* @__PURE__ */ (() =>
+  z.strictObject({
+    id,
+    vcpu: positiveCount,
+    ramGiB: z.number().check(z.positive()),
+    os,
+    architecture,
+    gpu: z.optional(z.strictObject({ count: positiveCount, memoryGiB: hours })),
+  }))()
+export const machineClassesSchema = /* @__PURE__ */ (() =>
+  z.array(machineClassSchema).check(
+    z.minLength(1),
+    z.maxLength(ESTIMATE_MAX_ITEMS),
+    z.refine((classes) => areUnique(classes.map((entry) => entry.id))),
+  ))()
 export type MachineClass = z.infer<typeof machineClassSchema>
 
 const machineSchema = z.strictObject({
@@ -700,19 +703,23 @@ export const estimateSectionSchema = z
   )
 export type EstimateSection = z.infer<typeof estimateSectionSchema>
 
-/** Application projection after a captured provider response is validated. */
-export const providerSizeSchema = z.strictObject({
-  id,
-  classId: id,
-  hourlyUsd: hours,
-})
-export const providerImageSchema = z.strictObject({ id, os, architecture })
-export const provisionedServerSchema = z.strictObject({
-  id,
-  sizeId: id,
-  imageId: id,
-  state: z.enum(['creating', 'running', 'stopped', 'deleting', 'deleted', 'failed']),
-})
+/** Application projection after a captured provider response is validated.
+ * Pure builders: the browser's estimator chunk never parses provider data. */
+export const providerSizeSchema = /* @__PURE__ */ (() =>
+  z.strictObject({
+    id,
+    classId: id,
+    hourlyUsd: hours,
+  }))()
+export const providerImageSchema = /* @__PURE__ */ (() =>
+  z.strictObject({ id, os, architecture }))()
+export const provisionedServerSchema = /* @__PURE__ */ (() =>
+  z.strictObject({
+    id,
+    sizeId: id,
+    imageId: id,
+    state: z.enum(['creating', 'running', 'stopped', 'deleting', 'deleted', 'failed']),
+  }))()
 export type ProviderSize = z.infer<typeof providerSizeSchema>
 export type ProviderImage = z.infer<typeof providerImageSchema>
 export type ProvisionedServer = z.infer<typeof provisionedServerSchema>
