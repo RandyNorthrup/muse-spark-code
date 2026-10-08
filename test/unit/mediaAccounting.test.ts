@@ -49,7 +49,11 @@ function setup() {
     textInputTokens: 170,
     maxOutputTokens: 100,
     captureId: 'settled-turn',
-    prices: { input: 0.1, cachedInput: 0.025, output: 0.2 },
+    prices: {
+      input: Usd.from('0.1').toAmount(),
+      cachedInput: Usd.from('0.025').toAmount(),
+      output: Usd.from('0.2').toAmount(),
+    },
     session,
     daily,
   }
@@ -72,6 +76,87 @@ function holdSettlement(claim: ReturnType<typeof setup>['daily']['claim']) {
 }
 
 describe('media request accounting', () => {
+  it('refuses JavaScript numeric tariffs before either ledger admits', async () => {
+    const t = setup()
+    const request = { ...t.request, prices: { input: 0.1, cachedInput: 0.025, output: 0.2 } }
+    // Reflect models an untyped JavaScript caller without weakening the public signature.
+    await expect(Reflect.apply(reserveMediaRequest, undefined, [request])).rejects.toThrow()
+    expect(t.session.reserve).not.toHaveBeenCalled()
+    expect(t.daily.reserve).not.toHaveBeenCalled()
+  })
+
+  it('refuses an over-reserve bill and retains the admitted liability', async () => {
+    const t = setup()
+    const reservation = await reserveMediaRequest(t.request)
+    reservation.started()
+    await expect(reservation.settle({ input_tokens: 100_000, output_tokens: 40 })).rejects.toThrow(
+      'reservation',
+    )
+    await reservation.finish()
+    expect(t.daily.claim.settle).toHaveBeenCalledExactlyOnceWith(reservation.reservedUsd, true)
+    expect(t.write).not.toHaveBeenCalled()
+  })
+
+  it('keeps a held request ahead of a concurrent admission at the remaining headroom', async () => {
+    const t = setup()
+    const reservation = await reserveMediaRequest(t.request)
+    const cap = Usd.from(reservation.reservedUsd).times(2)
+    let held = Usd.from(reservation.reservedUsd)
+    const replacement = { check: vi.fn(), settle: vi.fn(() => Promise.resolve()) }
+    const entered = Promise.withResolvers<undefined>()
+    const resume = Promise.withResolvers<undefined>()
+    t.daily.claim.settle.mockImplementation(async () => {
+      entered.resolve(undefined)
+      await resume.promise
+      held = held.subtract(Usd.from(reservation.reservedUsd))
+    })
+    const admit = () => {
+      const next = held.add(Usd.from(reservation.reservedUsd))
+      if (next.compare(cap) > 0) throw new Error('daily cap')
+      held = next
+      return replacement
+    }
+    const transfer = reservation.rebindDaily(() => {
+      const claim = admit()
+      return Promise.resolve(claim)
+    })
+    await entered.promise
+    try {
+      // While the refund is in flight the replacement still owns its headroom.
+      expect(held.compare(cap)).toBe(0)
+      expect(admit).toThrow('daily cap')
+    } finally {
+      resume.resolve(undefined)
+      await transfer
+    }
+    reservation.check()
+    expect(replacement.check).toHaveBeenCalledOnce()
+  })
+
+  it('refuses dispatch and a second daily transfer while the original refund is held', async () => {
+    const t = setup()
+    const reservation = await reserveMediaRequest(t.request)
+    const held = holdSettlement(t.daily.claim)
+    const reserve = vi.fn(() => Promise.resolve(t.session.claim))
+    const transfer = reservation.rebindDaily(reserve)
+    await held.entered
+    try {
+      expect(() => {
+        reservation.check()
+      }).toThrow('retry')
+      expect(() => {
+        reservation.started()
+      }).toThrow('retry')
+      await expect(reservation.rebindDaily(reserve)).rejects.toThrow('retry')
+      expect(reserve).toHaveBeenCalledOnce()
+    } finally {
+      held.release()
+      await transfer
+    }
+    expect(t.daily.claim.settle).toHaveBeenCalledExactlyOnceWith('0')
+    expect(reserve).toHaveBeenCalledOnce()
+  })
+
   it('coalesces concurrent settle and finish calls while a ledger write is held', async () => {
     const t = setup()
     const reservation = await reserveMediaRequest(t.request)
@@ -241,8 +326,22 @@ describe('media request accounting', () => {
   it('refuses malformed tariffs or token allowances before admission', async () => {
     const t = setup()
     for (const request of [
-      { ...t.request, prices: { input: -1, cachedInput: 0, output: 1 } },
-      { ...t.request, prices: { input: 1, cachedInput: 2, output: 1 } },
+      {
+        ...t.request,
+        prices: {
+          input: Usd.from(-1).toAmount(),
+          cachedInput: Usd.from(0).toAmount(),
+          output: Usd.from(1).toAmount(),
+        },
+      },
+      {
+        ...t.request,
+        prices: {
+          input: Usd.from(1).toAmount(),
+          cachedInput: Usd.from(2).toAmount(),
+          output: Usd.from(1).toAmount(),
+        },
+      },
       { ...t.request, maxOutputTokens: Infinity },
       { ...t.request, textInputTokens: 0.5 },
     ])
@@ -290,7 +389,7 @@ describe('media request accounting', () => {
   it('snapshots admitted metadata and tariffs for settlement after a UI change', async () => {
     const t = setup()
     const reservation = await reserveMediaRequest(t.request)
-    t.request.prices.input = 999
+    t.request.prices.input = Usd.from(999).toAmount()
     t.item.info.durationSeconds = 1
     reservation.started()
     await reservation.settle({ input_tokens: 3000, output_tokens: 40 })

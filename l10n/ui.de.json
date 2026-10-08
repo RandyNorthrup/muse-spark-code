@@ -776,6 +776,7 @@
       "other": "Wäre {count} Mal in {days} Tagen gelaufen"
     }
   },
+  "scheduledMediaSupport": "Geplante Durchläufe unterstützen Text- und Bildeingaben; Video- und Audioeingaben werden in dieser Version nicht unterstützt.",
   "media": {
     "recordingScreenPermissionRequired": "Die Berechtigung zur Bildschirmaufnahme wurde nicht erteilt.",
     "recordingMicrophonePermissionDenied": "Die Mikrofonberechtigung wurde verweigert.",
@@ -856,7 +857,7 @@
     "recordingNoRecent": "Keine aktuelle Bildschirmaufnahme gefunden.",
     "recorderUnavailable": "Auf diesem Host ist kein Recorder für Bildschirmaufnahmen verfügbar.",
     "attachHeadless": "Für headless Ausführungen abgelehnt: Übergeben Sie die Datei stattdessen mit --attach.",
-    "uploadStorageUnknown": "Die Speicherkosten wurden noch nicht geprüft. Uploads sind bis zur Erfassung dieser Kosten nicht verfügbar.",
+    "uploadStorageUnknown": "Video- und Audio-Uploads sind in dieser Version nicht verfügbar: Die Produktionsanbindungen für Upload und Transkription fehlen noch.",
     "attachmentUnknownType": "Nicht unterstützter Anhangstyp: {type}",
     "recordingStart": "Aufnahme starten",
     "recordingStop": "Aufnahme stoppen",

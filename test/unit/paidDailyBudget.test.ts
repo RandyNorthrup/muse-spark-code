@@ -195,7 +195,7 @@ describe('D78 interactive paid daily budget', () => {
     expect(await daily.judgeLedger.remainingUsd()).toBe(Usd.from('0.7').toAmount())
   })
 
-  it('reserves token extras at exact nano-USD prices', async () => {
+  it('reserves token extras at exact decimal prices', async () => {
     const daily = budget()
     const claim = requireClaim(
       await daily.reserve(
@@ -275,22 +275,26 @@ describe('D78 interactive paid daily budget', () => {
       const daily = boundBudget(bind)
       const api = fakeModelApi()
       const settings = fakeModelApiClientSettings(new FakeLogOutputChannel())
+      let hasRecordedRequest = false
       const instance = new ModelApiClient({
         ...settings,
         fetch: api.fetch,
         reservePaidRequest: daily.reserve,
         apiKey: () => {
-          journal.append({
-            provider: 'meta',
-            account: 'work',
-            time: new Date(state.now).toISOString(),
-            settledUsd: 0,
-            reservedUsd: 0,
-            uncertainUsd: 0,
-            inputTokens: 0,
-            outputTokens: 0,
-            requests: 1,
-          })
+          if (!hasRecordedRequest) {
+            hasRecordedRequest = true
+            journal.append({
+              provider: 'meta',
+              account: 'work',
+              time: new Date(state.now).toISOString(),
+              settledUsd: 0,
+              reservedUsd: 0,
+              uncertainUsd: 0,
+              inputTokens: 0,
+              outputTokens: 0,
+              requests: 1,
+            })
+          }
           return settings.apiKey()
         },
       })
@@ -305,7 +309,7 @@ describe('D78 interactive paid daily budget', () => {
           : Array.fromAsync(instance.streamResponse(BODY, signal, undefined, undefined, guard)),
       ).rejects.toMatchObject({
         name: 'AccountThresholdExceededError',
-        trigger: { kind: 'userCap', metric: 'requests', value: kind === 'tokens' ? 2 : 1 },
+        trigger: { kind: 'userCap', metric: 'requests', value: 1 },
       })
       expect(bind).toHaveBeenCalledOnce()
       expect(api.imageBodies()).toEqual([])

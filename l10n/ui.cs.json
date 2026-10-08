@@ -782,6 +782,7 @@
       "many": "Spustilo by se {count}krát za {days} dní"
     }
   },
+  "scheduledMediaSupport": "Plánované tahy podporují textové a obrazové vstupy; video a zvukové vstupy nejsou v této verzi podporovány.",
   "media": {
     "recordingScreenPermissionRequired": "Oprávnění k nahrávání obrazovky nebylo uděleno.",
     "recordingMicrophonePermissionDenied": "Oprávnění k mikrofonu bylo zamítnuto.",
@@ -864,7 +865,7 @@
     "recordingNoRecent": "Nebyl nalezen žádný nedávný záznam obrazovky.",
     "recorderUnavailable": "Na tomto hostiteli není k dispozici žádný nástroj pro záznam obrazovky.",
     "attachHeadless": "Pro headless běhy odmítnuto: předejte soubor pomocí --attach.",
-    "uploadStorageUnknown": "Účtování úložiště nebylo ověřeno. Nahrávání není dostupné, dokud nebude zaznamenáno.",
+    "uploadStorageUnknown": "Nahrávání videa a zvuku není v této verzi k dispozici: produkční vazby pro nahrávání a přepis zatím chybí.",
     "attachmentUnknownType": "Nepodporovaný typ přílohy: {type}",
     "recordingStart": "Spustit nahrávání",
     "recordingStop": "Zastavit nahrávání",

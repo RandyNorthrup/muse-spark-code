@@ -4,6 +4,8 @@ import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { acpMediaIo } from './helpers/acpMediaIo'
+import { fileReadIdentity } from '../../src/core/fs/fileIdentity'
+import type { ContentSource } from '../../src/core/schedules/provenance'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import {
   BYTES_PER_MIB,
@@ -58,6 +60,24 @@ function freezeTimes(held: FileHandle, original: { mtimeMs: number; ctimeMs: num
 }
 
 describe('checked media reads', () => {
+  it('observes the checked read-time media identity and digest before returning', async () => {
+    const target = path.join(root, 'observed.mp4')
+    const bytes = videoFixture()
+    await writeFile(target, bytes)
+    const canonical = await canonicalPath(target)
+    const observe = vi.fn<(source: Extract<ContentSource, { kind: 'file' }>) => void>()
+    const result = await io.readMedia?.(target, maximum, canonical, undefined, observe)
+    if (result === undefined || 'kind' in result) throw new Error('Expected media')
+    expect(observe).toHaveBeenCalledExactlyOnceWith({
+      kind: 'file',
+      contentHash: result.sha256,
+      file: {
+        ...fileReadIdentity(await stat(target, { bigint: true })),
+        path: canonical.replaceAll('\\', '/'),
+      },
+    })
+  })
+
   it('recognizes a renamed PDF larger than the image cap before reading its bytes', async () => {
     const target = path.join(root, 'renamed.bin')
     const header = Buffer.from(pdfFixture(2))

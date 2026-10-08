@@ -35,6 +35,28 @@ happened, not what was planned; superseded entries are kept.
 - Draw Models buttons, the accounts picker and traffic buttons from a new assured boundary role that mixes the theme foreground into its background, keeping control boundaries at 3:1 or more in every captured theme.
 - Give the team merge card's path lists their own full-width row so long paths wrap instead of one character per line at narrow widths.
 
+- Media request tariffs accept exact USD amounts only and reject numeric
+  JavaScript callers before admission. Ordinary session reservations share the
+  atomic-admission lock, preventing competing owners from publishing during an
+  unfinished claim and preserving cap checks at the remaining headroom.
+
+- The media accounting core claims its calibrated upper bound
+  against both schedule and shared daily caps, including replayed file IDs,
+  settles the admitted media tariff once, and retains uncertain liabilities.
+  Above-reserve bills refuse settlement; daily claim transfers secure their
+  replacement before releasing held budget.
+  Production video/audio uploads remain unavailable in this version pending
+  the production upload and transcription bindings (PLAN D85.6, M105).
+  Scheduled reads now explain that limitation explicitly in every editor.
+  Media read-file references through a bound adapter carry their checked source
+  into the run ledger;
+  stopped reads cannot publish a new proof.
+
+- The 0.17.0 integration's daily-budget and durable schedule tests now assert
+  exact decimal money, including entered limits below nano precision, while
+  account consent fixtures persist quote ceilings and retain account refusal.
+  Account-bound paid consent carries exact decimal budgets through its popup.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

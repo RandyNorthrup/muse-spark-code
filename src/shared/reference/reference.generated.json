@@ -973,7 +973,7 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
-      "details": [],
+      "details": [{ "ui": "referenceDeveloper" }],
       "facts": {},
       "editors": ["vscode", "acp"]
     },
@@ -1518,7 +1518,7 @@
       "backends": ["modelApi"],
       "paid": true,
       "surfaces": ["vscode:modelApi"],
-      "details": [],
+      "details": [{ "ui": "referenceAttachments" }, { "ui": "scheduledMediaSupport" }],
       "facts": {
         "defaultIntervalMs": 600000,
         "minimumIntervalMs": 60000,

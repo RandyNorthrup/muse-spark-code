@@ -697,7 +697,7 @@ export function featureCatalog(): readonly Feature[] {
         false,
         ['vscode', 'acp'],
       ),
-      details: [{ ui: 'referenceDeveloper' }],
+      details: [{ ui: 'referenceDeveloper' }] as const,
     },
     feature(
       'permissions',
@@ -880,17 +880,25 @@ export function featureCatalog(): readonly Feature[] {
       undefined,
       true,
     ),
-    feature(
-      'schedules',
-      { ui: 'loopItem' },
-      { tip: 'loop' },
-      ['schedulePrompt', 'showSchedules', 'showScheduleTimeline'],
-      ['modelApiScheduledPrompts', 'schedules', 'scheduleDefaultDelivery', 'scheduleAgentCreation'],
-      'scheduled-prompts-model-api',
-      ['modelApi'],
-      true,
-      ['vscode'],
-    ),
+    {
+      ...feature(
+        'schedules',
+        { ui: 'loopItem' },
+        { tip: 'loop' },
+        ['schedulePrompt', 'showSchedules', 'showScheduleTimeline'],
+        [
+          'modelApiScheduledPrompts',
+          'schedules',
+          'scheduleDefaultDelivery',
+          'scheduleAgentCreation',
+        ],
+        'scheduled-prompts-model-api',
+        ['modelApi'],
+        true,
+        ['vscode'],
+      ),
+      details: [{ ui: 'referenceAttachments' }, { ui: 'scheduledMediaSupport' }] as const,
+    },
     feature(
       'subagents',
       { ui: 'agentsCommand' },
@@ -1053,7 +1061,9 @@ export function featureCatalog(): readonly Feature[] {
         ),
       ],
       paid: Object.values(PAID_USE_REGISTRY).some((paid) => paid.featureId === entry.id),
-      details: (REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui })),
+      // Feature-level details (schedules, accounts) and REFERENCE_DETAILS
+      // combine: neither source may silently erase the other.
+      details: [...entry.details, ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui }))],
       facts: {},
     }
   })

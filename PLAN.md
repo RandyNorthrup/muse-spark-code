@@ -11536,6 +11536,23 @@ The owner's standing rulings apply:
        storage-days, and the D78 ledger admits them.
      - If it is not billed, uploads ask nothing beyond decision 7.
      - The upload path ships with neither default until U6c is recorded.
+     - **U6c (recorded 2026-10-08, lead decision).**
+       `docs/certification/m105-captures.md` ("U6c, storage billing") read
+       the signed-in billing dashboard three days after the 2026-10-05
+       uploads: Pay-as-you-go balance $0.00 with no line items, no
+       Files-storage metric on the Usage page, no storage rate on the
+       published price list, and storage described only as a 100 GiB
+       per-team quota. The finding selects the **not-billed** branch above:
+       uploads ask nothing beyond decision 7. No `filesStorage` paid
+       feature, storage-day tally or storage tariff is added.
+     - **Caveat.** This is the absence of any storage meter or rate (the
+       dashboard shows no usage for the key at all, including round 3's
+       turns 25 minutes before the read), not a measured zero for storage.
+     - **Re-check.** The release checklist reads the dashboard again once
+       usage appears there; if Meta publishes a storage rate or the
+       dashboard gains a storage metric, this decision re-opens under the
+       billed branch. Until then the always-set expiry and the cleanup in
+       decision 2 remain the operational constraints.
 
 7. **The contributor tier warns.** On a contributor model (Meta may train on
    its inputs), attaching a video, an audio file or a screen recording shows
@@ -19663,6 +19680,58 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### MONEY017 — Exact money and scheduled media after the 0.17.0 union (2026-10-08)
+
+**Status 2026-10-08: built.** Scoped fake-only certification is recorded below;
+the lead owns the integrated quality and bundle-cap repairs.
+
+Port M108 daily-budget and account-consent fixtures to M106's exact decimal
+contracts and quote-aware consent without weakening refusal, threshold or total
+assertions. Diagnose the three durable schedule failures before touching the
+ledger. Scheduled media must reserve its complete admitted amount against both
+schedule and shared caps, settle into the fire cost, and capture the checked
+read-time source in the provenance ledger. Preserve interactive media's existing
+claims and all paid gates. Port the account-home pay-as-you-go fixture at the
+same account-consent boundary, preserving all escalation and refusal assertions.
+Log the malformed branded NaN fixture if no valid
+constructor can produce it. Fake-only default-timeout money/ledger/schedule
+suites and fresh-clone CI static gates certify this lane; unrelated integrated
+bundle caps and full quality remain with the lead. Record receipts under
+`docs/certification/int0170-combined.md`, Money and schedule ledger (MONEY017).
+
+**MONEY017B review repair plan (2026-10-08).** RVMONEY017 P2/P3:
+build calibrated media parts for the actual production request, attach its
+accounting to the host guard and reserve the complete tariff on scheduled
+follow-ups. D85.6 reserves the worst case; D95.3 refuses spend beyond the hard
+schedule/shared caps. An above-reserve bill therefore refuses settlement and
+retains the admitted amount as uncertain rather than posting an unadmitted
+amount. Secure the replacement daily claim before releasing the original;
+concurrent admissions cannot take its held headroom. Regressions run once on
+`054a9fd12`, deliberate red drills restore exact source bytes, and fresh-clone
+CI scoped gates use default deadlines. Full quality remains with the lead per
+§7 and the rig brief. No merge, push, live/paid call or gate changes.
+
+**MONEY017C production audit (2026-10-08, macmini).** Read D85.6/13,
+M105's current binding inventory, M108 and D95.3/M115 before changing code.
+Scheduled reads are intended, but D85.6 prohibits uploads until the U6c storage
+billing finding exists; M105 explicitly records the provider/account storage,
+captured Responses media codec and calibration readers as open. Do not invent
+free storage, wire frames or production calibration from fake tests. Ask for
+existing evidence paths while repairing the independently authorized exact-money
+port and auditing ordinary/admitted journal concurrency. If those evidence
+inputs remain absent, correct advertised availability and make the scheduled
+refusal explicit; certify the real production factory's refusal with fake HTTP,
+leaving upload/follow-up certification explicitly outstanding. All editors use
+the same factory. Preserve the existing caps and lazy boundaries, default test
+deadlines and assertions; fresh-clone scoped gates and normal hooks apply.
+
+Implemented: the three schedule failures were expectation ports; its durable
+ledger is unchanged. Media transfers its daily claim to the schedule, retains
+frozen-tariff settlement and hosted allowance, and records checked native source
+and replay provenance. Account consent now carries exact decimal budgets.
+Eight deliberate guard/precision/provenance drills fired and restored byte-exact;
+fresh-clone receipts and lead-owned integrated gates are in that record.
 
 ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
 
@@ -36920,6 +36989,42 @@ caps and unlisted deferred slashCommands split entry remain owned by the
 shrinking/inventory lane. Exact gate failures are recorded in
 `docs/certification/int0170-combined.md`; no deferred gate is waived.
 
+**MONEY017 integrated gate boundary (2026-10-08, Kubuntu).** The assigned rig
+brief requires fresh-clone scoped checks and forbids full quality in this lane.
+The production build reaches the unchanged size gate and fails only the nine
+pre-existing integrated caps: runtimeQuestions, conversation, runtimeEngine,
+usagePanel, headless, runtimeAccounts, surface English, Palette and estimator
+panel. No threshold or ignore changes. Their repair and integrated full quality
+belong to the lead; exact receipts are in `docs/certification/int0170-combined.md`.
+
+**MONEY017B inherited inventory gate (2026-10-08, Kubuntu).** The required
+`paid*` sweep exposes `paidMoneyPorts`' source-wide numeric-port inventory:
+1 failed / 12 passed, with the same 21 entries on `054a9fd12` and the repaired
+tree. They span captured account projections, schedule/CLI caps, reporting,
+voice and estimator ports; none is added by P2/P3. Do not suppress its assertion
+or migrate unrelated protocols in this bounded repair. The lead owns that
+integrated inventory reconciliation. Fresh-clone owning regressions and every
+assigned static gate pass; the broad sweep remains 588 passed / 1 inherited
+failure. The unchanged nine bundle-cap failures remain as recorded above.
+Receipts: `docs/certification/int0170-combined.md`, MONEY017B.
+
+**MONEY017C inherited scoped-gate findings (2026-10-08, macmini).** A fresh
+ordinary clone with `npm ci`, `CI=true` passes all five typechecks, changed-file
+lint/format, plain knip, localization, reference, host API and plan checks.
+The complete assigned-family/host sweep has 1,379 passed / 3 failed (32 files):
+`paidMoneyPorts`' same 21 inherited entries, plus two unchanged M52 concurrent
+schedule-lease assertions expecting two claims but receiving one. The base
+`1a2086399` replay reproduces all three (694 passed / 3 failed in the three-file
+comparison). Full jscpd has three base clones in ACP prompts, exact currency
+formatting and question fixtures. The one new test clone is removed without an
+ignore or threshold change. The separate split audit also fails on the base:
+`src/shared/slashCommands.ts` is an unlisted deferred surface. These integrated
+findings, the existing nine other caps and full quality remain with the lead;
+this bounded lane preserves their assertions/gates. Model API is 521.8/525 KiB
+and activation 571.4/600 KiB. Production uploads remain blocked by D85.6's
+unrecorded storage decision and M105's capture/binding inventory; no fake receipt
+closes them. Detailed receipts: `docs/certification/int0170-combined.md`, MONEY017C.
+
 INT0180B (2026-10-07): source `9733edba2` supersedes INT0180's local reds
 below. Fresh ordinary installation, exact static job, all four coverage shards
 and merge, full 988-page accessibility, legal's 96 keyboard/zoom plus 24 WCAG
@@ -41276,6 +41381,10 @@ aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
+
+| Location                                              | Escape hatch         | Reason                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`) | `'NaN' as UsdAmount` | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained. |
 
 | 0.15.0 hosted-CI location                                                                                                                                                                      | Escape hatch                                                                                                                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                           | Removal                                                                                                                                                   |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |

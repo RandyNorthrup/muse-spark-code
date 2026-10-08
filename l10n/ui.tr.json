@@ -776,6 +776,7 @@
       "other": "{days} günde {count} kez çalışırdı"
     }
   },
+  "scheduledMediaSupport": "Zamanlanmış turlar metin ve resim girdilerini destekler; video ve ses girdileri bu sürümde desteklenmez.",
   "media": {
     "recordingScreenPermissionRequired": "Ekran kaydı izni verilmemiş.",
     "recordingMicrophonePermissionDenied": "Mikrofon izni reddedildi.",
@@ -856,7 +857,7 @@
     "recordingNoRecent": "Yakın zamanda alınmış ekran kaydı bulunamadı.",
     "recorderUnavailable": "Bu hostta kullanılabilir ekran kaydedici yok.",
     "attachHeadless": "Headless çalıştırmalar için reddedildi: dosyayı --attach ile geçin.",
-    "uploadStorageUnknown": "Depolama ücretlendirmesi doğrulanmadı. Kaydedilene kadar yükleme kullanılamaz.",
+    "uploadStorageUnknown": "Video ve ses yüklemeleri bu sürümde kullanılamaz: üretim yükleme ve transkripsiyon bağları henüz eksik.",
     "attachmentUnknownType": "Desteklenmeyen ek türü: {type}",
     "recordingStart": "Kaydı başlat",
     "recordingStop": "Kaydı durdur",

@@ -773,6 +773,7 @@
       "other": "{days}日間で{count}回実行される予定でした"
     }
   },
+  "scheduledMediaSupport": "スケジュールされたターンはテキストと画像の入力に対応しています。動画と音声の入力はこのバージョンでは対応していません。",
   "media": {
     "recordingScreenPermissionRequired": "画面録画のアクセス権は付与されていません。",
     "recordingMicrophonePermissionDenied": "マイクのアクセス権が拒否されました。",
@@ -852,7 +853,7 @@
     "recordingNoRecent": "最近の画面録画が見つかりません。",
     "recorderUnavailable": "このホストでは画面録画ツールを利用できません。",
     "attachHeadless": "ヘッドレス実行では拒否されました: 代わりに --attach でファイルを渡してください。",
-    "uploadStorageUnknown": "ストレージ料金が確認されていません。確認内容が記録されるまでアップロードは利用できません。",
+    "uploadStorageUnknown": "動画と音声のアップロードはこのバージョンでは利用できません。本番用のアップロードと文字起こしのバインディングがまだありません。",
     "attachmentUnknownType": "未対応の添付ファイル形式: {type}",
     "recordingStart": "録画を開始",
     "recordingStop": "録画を停止",

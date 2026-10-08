@@ -230,6 +230,10 @@ describe('schedule-scoped paid consent and reservations', () => {
     ).rejects.toThrow()
     const claim = await scope.reserve(body, 100, new AbortController().signal)
     expect(scope.cost()).toEqual({ usd: 0, certainty: 'unknown', retainedLiabilityUsd: 0.6 })
+    await expect(claim.settle(usd(1.1))).rejects.toThrow()
+    const retained = await first.latestDay()
+    expect(retained.spentUsd).toBe('0.6')
+    expect(scope.cost()).toEqual({ usd: 0, certainty: 'unknown', retainedLiabilityUsd: 0.6 })
     isOn = false
     expect(scope.allows('imageGeneration')).toBe(false)
     expect(() => claim.check(usd(0))).toThrow()
@@ -327,7 +331,7 @@ describe('schedule-scoped paid consent and reservations', () => {
       first.reserveSchedule(zero, usd(0.1), new AbortController().signal),
     ).rejects.toThrow()
     const latest = await first.latestDay()
-    expect(latest.spentUsd).toBe(0)
+    expect(latest.spentUsd).toBe('0')
   })
   it('does not ask for paid consent with a zero cap', async () => {
     const own = { ...schedule(), paidCapUsd: 0, paidConsent: undefined }
@@ -387,7 +391,7 @@ describe('schedule-scoped paid consent and reservations', () => {
     ).rejects.toThrow()
     expect(api.requests).toHaveLength(0)
     const latest = await first.latestDay()
-    expect(latest.spentUsd).toBe(0)
+    expect(latest.spentUsd).toBe('0')
   })
   it('routes direct responses and every image modality through one fire, accounting for returned and refused work', async () => {
     const { first } = await ledgers()
@@ -512,7 +516,7 @@ describe('schedule-scoped paid consent and reservations', () => {
       ),
     ).rejects.toThrow()
     const latest = await first.latestDay()
-    expect(latest.spentUsd).toBe(0.3)
+    expect(latest.spentUsd).toBe('0.3')
     tomorrow()
     expect(() => firstClaim.check(usd(0))).toThrow()
     const newDay = await second.reserveSchedule(own, usd(0.3), new AbortController().signal)

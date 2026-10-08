@@ -701,6 +701,8 @@ Commands: `museSpark.signOut`, `museSpark.restartMuseCode`, `museSpark.openInTer
 
 Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input.
 
+Show or unlock machine-local developer options. Profile operations require a connected resource owner.
+
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: `museSpark.accountSwap`, `museSpark.accountParallel`, `museSpark.accounts.severalOnThisDevice`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider)
@@ -1127,6 +1129,10 @@ Commands: —. Settings: `museSpark.modelApiImageGeneration`. [Documentation](ht
 ### /loop
 
 Schedule a prompt in this Model API conversation.
+
+Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.
+
+Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.
 
 ```json
 {

@@ -9,7 +9,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { Usd, type UsdAmount } from '../../shared/usd'
+import { Usd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
 import { mediaInfoSchema, mediaEstimateSchema, type MediaInfo } from '../../shared/media'
 import { usageSchema, type Usage } from '../backends/modelapi/schemas'
 import type { CoreLogger } from '../logging'
@@ -40,8 +40,8 @@ type CalibrationPoint = z.infer<typeof pointSchema>
 export interface MediaCostItem {
   readonly info: MediaInfo
   /** null/absent means provider default, kept distinct from explicit fps. */
-  readonly fps?: number
-  readonly detail?: 'auto' | 'low' | 'high' | 'original'
+  readonly fps?: number | undefined
+  readonly detail?: 'auto' | 'low' | 'high' | 'original' | undefined
 }
 
 function measurement(item: MediaCostItem):
@@ -218,6 +218,7 @@ export interface MediaRequestAccounting {
   check(): void
   started(): void
   refused(): void
+  rebindDaily(reserve: () => Promise<MediaCostClaim>): Promise<void>
   settle(usage: Usage): Promise<void>
   finish(): Promise<void>
 }
@@ -232,9 +233,13 @@ export async function reserveMediaRequest(request: {
   readonly captureId: string
   readonly estimator: MediaCostEstimator
   readonly log: Pick<CoreLogger, 'warn'>
-  readonly prices: { readonly input: number; readonly output: number; readonly cachedInput: number }
+  readonly prices: {
+    readonly input: UsdAmount
+    readonly output: UsdAmount
+    readonly cachedInput: UsdAmount
+  }
   readonly session: MediaCostLedger
-  readonly daily: MediaCostLedger
+  readonly daily?: MediaCostLedger
 }): Promise<MediaRequestAccounting> {
   // Snapshot what is admitted, so later model/attachment changes cannot
   // alter a dispatched request's tariff or calibration observation.
@@ -248,7 +253,9 @@ export async function reserveMediaRequest(request: {
     .parse(request.items)
   tokens.parse(request.textInputTokens)
   tokens.parse(request.maxOutputTokens)
-  for (const price of Object.values(request.prices)) z.number().check(z.gte(0)).parse(price)
+  for (const price of Object.values(request.prices))
+    if (!usdAmountSchema.safeParse(price).success || Usd.from(price).compare(Usd.from(0)) < 0)
+      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
   let inputTokens = request.textInputTokens
   for (const item of request.items) {
     const estimate = request.estimator.estimate(request.provider, request.modelId, item, true)
@@ -270,14 +277,15 @@ export async function reserveMediaRequest(request: {
   if (prices.cachedInput.compare(prices.input) > 0)
     throw new Error('Cache tariff exceeds list price')
   const session = await request.session.reserve(reservedUsd)
-  let daily: MediaCostClaim
+  let daily: MediaCostClaim | undefined
   try {
-    daily = await request.daily.reserve(reservedUsd)
+    daily = await request.daily?.reserve(reservedUsd)
   } catch (error: unknown) {
     await session.settle(Usd.from(0).toAmount())
     throw error
   }
   let wasSent = false
+  let isRebinding = false
   const closed = new Set<MediaCostClaim>()
   // Selecting the terminal outcome is synchronous. Every settle/finish caller
   // then shares its write; a failed ledger write retries only unclosed claims.
@@ -292,7 +300,7 @@ export async function reserveMediaRequest(request: {
       await Promise.resolve()
       try {
         const results = await Promise.allSettled(
-          [session, daily]
+          [session, ...(daily === undefined ? [] : [daily])]
             .filter((claim) => !closed.has(claim))
             .map(async (claim) => {
               await claim.settle(bill.costUsd, bill.hasUnknownCost)
@@ -328,14 +336,50 @@ export async function reserveMediaRequest(request: {
     maxOutputTokens: request.maxOutputTokens,
     inputTokens,
     reservedUsd,
+    async rebindDaily(reserve) {
+      // The schedule replaces the shared-day claim; retaining both would double charge.
+      if (
+        wasSent ||
+        settled !== undefined ||
+        isRebinding ||
+        (daily !== undefined && closed.has(daily))
+      )
+        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+      isRebinding = true
+      try {
+        const replacement = await reserve()
+        try {
+          await daily?.settle(Usd.from(0).toAmount())
+        } catch (error: unknown) {
+          await replacement.settle(Usd.from(0).toAmount())
+          throw error
+        }
+        if (daily !== undefined) closed.add(daily)
+        daily = replacement
+      } finally {
+        isRebinding = false
+      }
+    },
     check() {
       // An uncertain first dispatch never spends the same claims on a retry.
-      if (wasSent || settled !== undefined) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+      if (
+        wasSent ||
+        settled !== undefined ||
+        isRebinding ||
+        (daily !== undefined && closed.has(daily))
+      )
+        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
       session.check()
-      daily.check()
+      daily?.check()
     },
     started() {
-      if (wasSent || settled !== undefined) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+      if (
+        wasSent ||
+        settled !== undefined ||
+        isRebinding ||
+        (daily !== undefined && closed.has(daily))
+      )
+        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
       wasSent = true
     },
     refused() {
@@ -359,6 +403,9 @@ export async function reserveMediaRequest(request: {
         .add(prices.output.times(output))
         .divide(TOKENS_PER_MILLION)
         .toAmount()
+      // D85.6 admits the worst case; D95.3 never posts unadmitted scheduled spend.
+      if (Usd.from(costUsd).compare(Usd.from(reservedUsd)) > 0)
+        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
       settled = { costUsd, hasUnknownCost: false, usage: reported }
       await complete()
     },

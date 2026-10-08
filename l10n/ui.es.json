@@ -779,6 +779,7 @@
       "many": "Se habría ejecutado {count} veces en {days} días"
     }
   },
+  "scheduledMediaSupport": "Los turnos programados admiten entradas de texto e imágenes; las entradas de vídeo y audio no son compatibles con esta versión.",
   "media": {
     "recordingScreenPermissionRequired": "No se ha concedido permiso para grabar la pantalla.",
     "recordingMicrophonePermissionDenied": "Se ha denegado el permiso del micrófono.",
@@ -860,7 +861,7 @@
     "recordingNoRecent": "No se ha encontrado ninguna grabación de pantalla reciente.",
     "recorderUnavailable": "No hay ningún grabador de pantalla disponible en este host.",
     "attachHeadless": "Rechazado para ejecuciones headless: pase el archivo con --attach en su lugar.",
-    "uploadStorageUnknown": "No se ha verificado el coste de almacenamiento. Las subidas no están disponibles hasta que se registre.",
+    "uploadStorageUnknown": "Las subidas de vídeo y audio no están disponibles en esta versión: aún faltan los enlaces de subida y transcripción de producción.",
     "attachmentUnknownType": "Tipo de adjunto no compatible: {type}",
     "recordingStart": "Iniciar grabación",
     "recordingStop": "Detener grabación",

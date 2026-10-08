@@ -779,6 +779,7 @@
       "many": "Teria executado {count} vezes em {days} dias"
     }
   },
+  "scheduledMediaSupport": "Os turnos agendados aceitam entradas de texto e imagem; entradas de vídeo e áudio não são aceitas nesta versão.",
   "media": {
     "recordingScreenPermissionRequired": "A permissão para gravar a tela não foi concedida.",
     "recordingMicrophonePermissionDenied": "A permissão do microfone foi negada.",
@@ -860,7 +861,7 @@
     "recordingNoRecent": "Nenhuma gravação de tela recente encontrada.",
     "recorderUnavailable": "Nenhum gravador de tela está disponível neste host.",
     "attachHeadless": "Recusado para execuções headless: passe o arquivo com --attach.",
-    "uploadStorageUnknown": "A cobrança de armazenamento não foi verificada. Os envios estão indisponíveis até que ela seja registrada.",
+    "uploadStorageUnknown": "Os envios de vídeo e áudio não estão disponíveis nesta versão: as ligações de produção de envio e transcrição ainda estão ausentes.",
     "attachmentUnknownType": "Tipo de anexo não compatível: {type}",
     "recordingStart": "Iniciar gravação",
     "recordingStop": "Parar gravação",

@@ -779,6 +779,7 @@
       "many": "Se serait exécuté {count} fois en {days} jours"
     }
   },
+  "scheduledMediaSupport": "Les tours planifiés prennent en charge les entrées de texte et d’image ; les entrées vidéo et audio ne sont pas prises en charge dans cette version.",
   "media": {
     "recordingScreenPermissionRequired": "L’autorisation d’enregistrement de l’écran n’a pas été accordée.",
     "recordingMicrophonePermissionDenied": "L’autorisation du microphone a été refusée.",
@@ -860,7 +861,7 @@
     "recordingNoRecent": "Aucun enregistrement d’écran récent trouvé.",
     "recorderUnavailable": "Aucun enregistreur d’écran n’est disponible sur cet hôte.",
     "attachHeadless": "Refusé pour les exécutions headless : passez le fichier avec --attach à la place.",
-    "uploadStorageUnknown": "La facturation du stockage n’a pas été vérifiée. Les envois sont indisponibles jusqu’à sa confirmation.",
+    "uploadStorageUnknown": "Les téléversements vidéo et audio ne sont pas disponibles dans cette version : les liaisons de téléversement et de transcription de production sont encore manquantes.",
     "attachmentUnknownType": "Type de pièce jointe non pris en charge : {type}",
     "recordingStart": "Démarrer l’enregistrement",
     "recordingStop": "Arrêter l’enregistrement",

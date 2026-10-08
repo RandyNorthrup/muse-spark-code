@@ -417,6 +417,7 @@ import type {
   ContextOverflowEvent,
   ContextOverflowKind,
 } from '../../providers/overflow'
+import type { MediaRequestAccounting } from '../../media/mediaCost'
 import type { MediaReplayPort } from '../../media/replayMedia'
 import type { UploadedMediaRef } from '../../../shared/media'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
@@ -1181,6 +1182,8 @@ class PaidQuoteChangedError extends Error {
 
 /** A request's budget reservation while it runs (M82). */
 interface OpenReservation extends BudgetReservation {
+  hasMediaAccounting?: boolean
+
   /** Returned search fees share this request's original durable claim. */
   searchSpentUsd: UsdAmount
   readonly searchReservedUsd: UsdAmount
@@ -3640,7 +3643,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       return body
     }
     const estimate = estimateInput(
-      requestParts(body),
+      this.media?.budgetParts(body) ?? requestParts(body),
       body.model === this.modelId ? this.budgetBase : undefined,
     )
     const maxOutputTokens = body.max_output_tokens
@@ -3938,7 +3941,11 @@ export class ModelApiSession implements ScheduledAgentSession {
         `Session budget: a response ended without its usage; its remaining reservation of ${costUsd} USD counts as spent`,
       )
     }
-    this.recordBudgetCost(costUsd, reservation.claim, isPositiveUsd(costUsd) && !reservation.hasCap)
+    this.recordBudgetCost(
+      costUsd,
+      reservation.claim,
+      isPositiveUsd(costUsd) && (!reservation.hasCap || reservation.hasMediaAccounting === true),
+    )
     await this.budgetWrites
     // The on-disk liability is now settled or released, even if this request failed before a frame.
     if (this.deps.budgetScope === undefined) {
@@ -4661,6 +4668,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     directBudget?: DirectResponseBudget,
     isCompaction = false,
     turnId?: string,
+    mediaAccounting?: MediaRequestAccounting,
   ): ResponseAttemptGuard {
     const token = this.owner.token()
     const instructionMaterial = this.instructionMaterial()
@@ -4783,7 +4791,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       (this.client.hasPaidDailyBudget || this.active?.scheduleRun !== undefined) &&
       (paidFeature !== undefined || directBudget !== undefined)
     ) {
-      paidEstimatedInputTokens = estimateInput(requestParts(body), undefined).inputTokens
+      paidEstimatedInputTokens =
+        mediaAccounting?.inputTokens ??
+        estimateInput(this.media?.budgetParts(body) ?? requestParts(body), undefined).inputTokens
     }
     return Object.assign(guard, {
       observe: (observation: ResponseObservation) => {
@@ -4813,6 +4823,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           rateLimited: this.recordedCall.rateLimited === true || observation.rateLimited === true,
         }
       },
+      ...(mediaAccounting !== undefined && { mediaAccounting }),
       ...(paidFeature !== undefined && { paidFeature }),
       ...(paidEstimatedInputTokens !== undefined && { paidEstimatedInputTokens }),
       ...(this.sendingSearchQuote !== undefined && { searchQuote: this.sendingSearchQuote }),
@@ -5910,16 +5921,67 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.recordedCall = { ...this.recordedCall, kind: 'schedule' }
     const requestReplay = this.requestReplay()
     let final: ResponseObject | undefined
-    const admitAttempt = this.responseAttemptGuard(body, undefined, false, turnId)
-    const responseStream = (
-      this.getScheduledRun() === undefined || resolved.client !== this.deps.client
-        ? resolved.client
-        : this.client
-    ).streamResponse(body, signal, onRetry, budget, admitAttempt, confirmedRequest)
     let calls: readonly FunctionCallItem[]
     let wasFitted: boolean
     try {
       await this.persistReservation(reservation)
+      const pricing = this.sendingModel?.policy.pricing
+      const mediaAccounting =
+        run !== undefined && pricing?.kind === 'priced' && reservation?.claim !== undefined
+          ? await this.media?.reserveRequest(body, {
+              provider: resolved.policy.identity.provider,
+              modelId: body.model,
+              textInputTokens: estimateInput(
+                this.media.budgetParts(body).filter((part) => typeof part === 'string'),
+                body.model === this.modelId ? this.budgetBase : undefined,
+              ).inputTokens,
+              maxOutputTokens: body.max_output_tokens,
+              captureId: requestId,
+              log: this.deps.log,
+              prices: {
+                input: Usd.from(pricing.card.input).times(TOKENS_PER_MILLION).toAmount(),
+                output: Usd.from(pricing.card.output).times(TOKENS_PER_MILLION).toAmount(),
+                cachedInput: Usd.from(pricing.card.cachedInput ?? pricing.card.input)
+                  .times(TOKENS_PER_MILLION)
+                  .toAmount(),
+              },
+              session: {
+                reserve: (amount) => {
+                  const claim = reservation.claim
+                  if (
+                    claim === undefined ||
+                    Usd.from(amount).compare(Usd.from(claim.reservedUsd)) > 0
+                  )
+                    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+                  return Promise.resolve({
+                    check: () => {
+                      claim.check(this.currentBudgetCap())
+                    },
+                    settle: (cost: UsdAmount, isUnknown?: boolean) => {
+                      const search =
+                        isUnknown === true && !reservation.hasTerminalSearchCount
+                          ? reservation.searchReservedUsd
+                          : reservation.searchSpentUsd
+                      return claim.settle(sumUsd(cost, search), isUnknown)
+                    },
+                  })
+                },
+              },
+            })
+          : undefined
+      if (reservation !== undefined) reservation.hasMediaAccounting = mediaAccounting !== undefined
+      const admitAttempt = this.responseAttemptGuard(
+        body,
+        undefined,
+        false,
+        turnId,
+        mediaAccounting,
+      )
+      const responseStream = (
+        this.getScheduledRun() === undefined || resolved.client !== this.deps.client
+          ? resolved.client
+          : this.client
+      ).streamResponse(body, signal, onRetry, budget, admitAttempt, confirmedRequest)
       for await (const event of responseStream) {
         if (reservation !== undefined) {
           reservation.hasStarted = true
@@ -7259,16 +7321,28 @@ export class ModelApiSession implements ScheduledAgentSession {
       content.push(lead, sent)
     }
     const replay = this.queueReadFileReplay(turnId, content, pending)
+    this.recordReadFileReplay(
+      replay,
+      files.map((file) => JSON.stringify(file.part)),
+    )
+  }
+
+  private recordReadFileReplay(replay: ReplayItem, parts: readonly string[]): void {
     const run = this.getScheduledRun()
     const ledger = run === this.active?.scheduleRun ? this.active?.scheduleLedger : undefined
     const recorded = RecordingScope.build(recordProjection, {
-      inputs: files.map((file) => ({
-        bytes: JSON.stringify(file.part),
+      inputs: parts.map((bytes) => ({
+        bytes,
         source: { kind: 'harness', operation: 'read-file-part' },
       })),
       project: (inputs) => inputs,
     })
-    ledger?.derive(JSON.stringify(replay.item), recorded.scope, 'read-file-media')
+    const bytes = JSON.stringify(replay.item)
+    this.contentOrigins.set(contentHash(bytes), {
+      source: { kind: 'harness', operation: 'read-file-media' },
+      scope: recorded.scope,
+    })
+    ledger?.derive(bytes, recorded.scope, 'read-file-media')
   }
 
   /**
@@ -7297,6 +7371,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         },
       }
       this.replay.push(replay)
+      this.recordReadFileReplay(
+        replay,
+        files.map((file) => JSON.stringify(file)),
+      )
       return
     }
     const pending: PendingReadFile[] = []
@@ -7322,7 +7400,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       })
       return [lead, adopted]
     })
-    this.queueReadFileReplay(turnId, content, pending)
+    const replay = this.queueReadFileReplay(turnId, content, pending)
+    this.recordReadFileReplay(
+      replay,
+      files.map((file) => JSON.stringify(file)),
+    )
   }
 
   /** Only media present in a completed request has reached the model. */
@@ -8148,13 +8230,17 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /** The single canonical decision boundary for all session workspace ports. */
-  private async workspaceAccess(path: string, actionClass: 'edit' | 'mcp'): Promise<void> {
+  private async workspaceAccess(
+    path: string,
+    actionClass: 'edit' | 'mcp',
+  ): Promise<string | undefined> {
     const token = this.owner.token()
     const run = this.getScheduledRun()
     if (run === undefined) return
+    const decisionId = this.deps.newId()
     const safe = await run.decide(
       {
-        id: this.deps.newId(),
+        id: decisionId,
         class: actionClass,
         tool: actionClass === 'edit' ? MODEL_API_TOOLS.writeFile : MODEL_API_TOOLS.readFile,
         paths: [path],
@@ -8165,6 +8251,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     if (!safe.allowed) throw new Error(safe.reason ?? run.modelText.protectedRefused)
     if (!this.owner.matches(token) || this.getScheduledRun() !== run) throw new AbortedError()
+    return decisionId
   }
 
   private async captureWorkspaceRead<Result extends string | Uint8Array | undefined>(
@@ -8240,13 +8327,33 @@ export class ModelApiSession implements ScheduledAgentSession {
       maxBytes,
       expected,
       signal,
+      observe,
     ) => {
-      // A stopped read decides nothing, as captureWorkspaceRead orders it.
       signal?.throwIfAborted()
-      await this.workspaceAccess(path, 'mcp')
+      const token = this.owner.token()
+      const run = this.getScheduledRun()
+      const decisionId = await this.workspaceAccess(path, 'mcp')
       const read = io.readMedia
       if (read === undefined) throw new Error(UI_TEXT.media.uploadStorageUnknown)
-      return await read(path, maxBytes, expected, signal)
+      let source: Extract<ContentSource, { kind: 'file' }> | undefined
+      const media = await read(path, maxBytes, expected, signal, (captured) => {
+        source = captured
+        observe?.(captured)
+      })
+      signal?.throwIfAborted()
+      if (!this.owner.matches(token) || this.getScheduledRun() !== run) throw new AbortedError()
+      if (media !== undefined && !('kind' in media)) {
+        if (source === undefined) this.contentReads.unrecordable()
+        else {
+          this.contentReads.capture({
+            bytes: JSON.stringify({ sha256: media.sha256, info: media.info }),
+            source,
+          })
+          if (decisionId !== undefined)
+            this.active?.scheduleLedger?.decidedSource(source, decisionId)
+        }
+      }
+      return media
     }
     const scheduled: ToolIo = {
       ...io,
@@ -8352,6 +8459,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       seen: this.seenFiles,
       provisionalSeen,
       files: this.policy().files,
+      ...(media === undefined &&
+        this.getScheduledRun() !== undefined && {
+          media: { reason: UI_TEXT.scheduledMediaSupport },
+        }),
       ...(media !== undefined && {
         media: {
           prepare: (file: ReadMediaFile, toolSignal?: AbortSignal) =>
@@ -12086,15 +12197,16 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (outputImages.length > 0) {
       this.pendingOutputMedia.set(replay, outputImages)
     }
-    if (outcome.visibleFile !== undefined) {
-      this.readFiles.push(outcome.visibleFile)
-      const bytes = JSON.stringify(outcome.visibleFile.part)
+    if (outcome.visibleFile !== undefined) this.readFiles.push(outcome.visibleFile)
+    if (outcome.mediaFile !== undefined) this.readMediaFiles.push(outcome.mediaFile)
+    const readParts = [
+      ...(outcome.visibleFile === undefined ? [] : [JSON.stringify(outcome.visibleFile.part)]),
+      ...(outcome.mediaFile === undefined ? [] : [JSON.stringify(outcome.mediaFile)]),
+    ]
+    for (const bytes of readParts) {
       this.contentOrigins.set(contentHash(bytes), { source, scope: isOpaque ? undefined : scope })
       if (decisionId !== undefined && run === this.active?.scheduleRun)
         this.active?.scheduleLedger?.decided(bytes, source, decisionId)
-    }
-    if (outcome.mediaFile !== undefined) {
-      this.readMediaFiles.push(outcome.mediaFile)
     }
     return replay
   }
@@ -13124,7 +13236,9 @@ export class ModelApiSession implements ScheduledAgentSession {
           this.inPlaceRefusalFor(VERIFY_TOOLS.runChecks) === undefined &&
           this.verificationAllowed(edited, undefined, wasTrusted),
         canRunVerifyCommands: () => this.canRunVerifyCommands(),
-        workspaceAccess: (path) => this.workspaceAccess(path, 'mcp'),
+        workspaceAccess: async (path) => {
+          await this.workspaceAccess(path, 'mcp')
+        },
         existingFiles: (files, isAllowed) => this.existingFiles(files, isAllowed),
         runChecks: (...args) => this.runChecks(...args),
         refusedDiagnostics: (files) => this.refusedDiagnostics(files),
