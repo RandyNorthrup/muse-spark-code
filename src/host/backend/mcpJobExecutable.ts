@@ -10,7 +10,7 @@ import {
   SHELL_JOB_FOLDER,
 } from '../../shared/constants'
 import { runProgram } from '../processTree'
-import { compileJob, type JobBuild, jobFileName, removeStaleJobs } from './jobBuild'
+import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import type { ShellJobDeps } from './shellJob'
 
 // The C# is the shipped native/windows/MuseSparkMcpLauncher.cs with the
@@ -63,16 +63,13 @@ export function mcpJobExecutable(deps: McpJobExecutableDeps): () => Promise<stri
     (ready ??= (async () => {
       try {
         const csharp = await deps.readJobSource('mcpLauncher')
-        const executable = path.join(
-          deps.storageDir,
-          SHELL_JOB_FOLDER,
-          mcpJobExecutableName(csharp),
-        )
+        let executable = path.join(deps.storageDir, SHELL_JOB_FOLDER, mcpJobExecutableName(csharp))
         let didCompile = false
         if (!(await isPresent(executable))) {
           await compileJob(EXECUTABLE, executable, csharp, deps.systemRoot, deps.run)
           didCompile = true
         }
+        executable = await nativeJobPath(executable)
         await verify(executable, deps)
         if (didCompile) await removeStaleJobs(EXECUTABLE, executable, deps.log)
         return executable

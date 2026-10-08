@@ -208,8 +208,9 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
           return 'refused'
       }
       if (this.known.get(ticket.id) !== state || !isRegistered()) return 'refused'
+      // Signal returns a fixed protocol word. Quoting it needs no cmdlet/module discovery.
       const answer = await this.call(
-        `ConvertTo-Json -Compress -InputObject ([${SHELL_JOB_TYPE_NAME}]::Signal(${powerShellQuoted(ticket.scope.name)}, ${String(identity.pid)}, ${powerShellQuoted(identity.startTime)}, ${signal === 'SIGKILL' ? '$true' : '$false'}))`,
+        `'"' + [${SHELL_JOB_TYPE_NAME}]::Signal(${powerShellQuoted(ticket.scope.name)}, ${String(identity.pid)}, ${powerShellQuoted(identity.startTime)}, ${signal === 'SIGKILL' ? '$true' : '$false'}) + '"'`,
       )
       // Once dispatched, the native handle-bound action cannot be revoked; report its real result.
       return resourceActionResultSchema.parse(answer)

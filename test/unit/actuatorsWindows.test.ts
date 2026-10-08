@@ -291,6 +291,12 @@ describe(
           })()
           if (assembly === undefined) throw new Error('Windows helper unavailable')
           const job = newShellJob(assembly)
+          // Resolve one exact OS module before lowering this process's priority;
+          // implicit discovery in the minimal environment can exceed the probe deadline.
+          const utility = path.win32.join(
+            systemRoot,
+            'System32/WindowsPowerShell/v1.0/Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1',
+          )
           const script = `${joinStatement(job)}
 $identity = [MuseSparkJob]::Identity($PID) | ConvertFrom-Json
 $before = [MuseSparkJob]::ReadResourcePriority('${job.name}', $PID, $identity.startTime) | ConvertFrom-Json
@@ -316,7 +322,7 @@ $rateRead = [MuseSparkJob]::ReadResourceRate('${job.name}', $PID, $identity.star
             path.win32.join(systemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
             [
               ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-              `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(assembly)}); ${script} } catch { exit 1 }`,
+              `try { $ErrorActionPreference='Stop'; $PSModuleAutoloadingPreference='None'; Import-Module ${powerShellQuoted(utility)}; ${script} } catch { exit 1 }`,
             ],
             { SystemRoot: systemRoot },
           )

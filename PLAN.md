@@ -1,5 +1,19 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**FIX0160W2 hosted Windows repair (2026-10-07, win11).** Reproduce the three
+remaining suites with an actual 8.3 TEMP/TMP alias and fresh PowerShell
+processes. Resolve compiler storage and returned helper paths to native long
+names, proving unchanged native file identity across resolution. Remove
+implicit PowerShell module discovery from handle-bound resource signals;
+load the actuator drill's exact Utility module and assembly once. Share the
+launch suite's compiled shell helper across its cases, retaining independent
+jobs, cleanup and every identity/membership/retirement assertion. Keep all
+existing deadlines. Run the six-file regression set at repository timeouts,
+five typechecks, changed-file lint/format and duplication, then normal-hook
+commits with explicit staging. The lane brief/common rules prohibit aggregate
+quality and leave it to the lead; no merge, push or paid/live calls.
+Receipts and byte-exact red/restored drills: `docs/certification/fix0160w2.md`.
+
 **FIX0160W Windows release repair (2026-10-07, win11).** Restore the joined
 M107 and 0.15.0 Windows job helper as one compiled design: remove duplicate
 native declarations, use the existing direct compiler and assembly loader for
@@ -44464,6 +44478,14 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**FIX0160W2 scoped Windows qualification (2026-10-07).** The named lane
+brief and shared common rules prohibit aggregate quality and delegate it to
+the lead. This lane runs complete owned suites with short TEMP/TMP and
+repository deadlines, every prescribed individual compiler/static/build gate,
+and deliberate byte-exact failure drills. No gate, timeout, assertion or native
+guard is weakened. Hosted Windows replay remains the release's qualification;
+`docs/certification/fix0160w2.md` records the local evidence and its limits.
 
 **FIX0160X scoped release repair (2026-10-07).** The shared lane brief
 prohibits aggregate quality and reserves it for the lead. This lane runs

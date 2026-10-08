@@ -14,7 +14,7 @@ import { SHELL_JOB_TYPE_NAME, WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../src/
 import { WindowsResourceTreeReader } from '../../src/core/resources/trees/windows'
 import type { ResourceProcessLaunch } from '../../src/core/resources/launch'
 import { fixtureJobLifecycle } from './helpers/mcpFixtures'
-import { readJobSource } from './helpers/jobSource'
+import { readJobSource, runJobWithoutAutoload } from './helpers/jobSource'
 import { removeFolder } from './helpers/temporaryFolders'
 import { holdResourceJob } from '../../src/host/resources/resourceJobHolder'
 import { resourceGovernorHost } from '../../src/core/resources/resourceGovernorEntry'
@@ -39,8 +39,24 @@ vi.mock('node:child_process', { spy: true })
 vi.mock('@muse-code/sdk', { spy: true })
 
 const job = fixtureJobLifecycle()
-beforeAll(job.setup, 60_000)
-afterAll(job.dispose)
+const shell: { folder: string; assembly: string | undefined } = { folder: '', assembly: undefined }
+beforeAll(async () => {
+  await job.setup()
+  if (process.platform !== 'win32') return
+  // One cold compile/self-test per file; each case still owns a fresh native job.
+  shell.folder = await mkdtemp(path.join(tmpdir(), 'm107-launch-shell-'))
+  shell.assembly = await shellJobAssembly({
+    storageDir: shell.folder,
+    systemRoot: process.env['SystemRoot']!,
+    readJobSource,
+    log: () => undefined,
+  })()
+  if (shell.assembly === undefined) throw new Error('Native shell helper unavailable')
+}, 60_000)
+afterAll(async () => {
+  await job.dispose()
+  if (shell.folder !== '') await removeFolder(shell.folder)
+})
 
 async function stopOrphan(
   reader: WindowsResourceTreeReader,
@@ -69,12 +85,7 @@ describe('C1 native Windows launch boundary', { timeout: REAL_WINDOWS_JOB_TIMEOU
     async () => {
       const folder = await mkdtemp(path.join(tmpdir(), 'm107-short-cli-'))
       const systemRoot = process.env['SystemRoot']!
-      const assembly = await shellJobAssembly({
-        storageDir: folder,
-        systemRoot,
-        readJobSource,
-        log: () => undefined,
-      })()
+      const assembly = shell.assembly
       if (assembly === undefined || job.path === undefined)
         throw new Error('Native launch unavailable')
       const reader = new WindowsResourceTreeReader({ assemblyPath: assembly, systemRoot })
@@ -201,14 +212,13 @@ describe('C1 native Windows launch boundary', { timeout: REAL_WINDOWS_JOB_TIMEOU
     async (surface) => {
       const folder = await mkdtemp(path.join(tmpdir(), 'm107-sdk-close-'))
       const systemRoot = process.env['SystemRoot']!
-      const assembly = await shellJobAssembly({
-        storageDir: folder,
-        systemRoot,
-        readJobSource,
-        log: () => undefined,
-      })()
+      const assembly = shell.assembly
       if (assembly === undefined) throw new Error('Native job unavailable')
-      const reader = new WindowsResourceTreeReader({ assemblyPath: assembly, systemRoot })
+      const reader = new WindowsResourceTreeReader({
+        assemblyPath: assembly,
+        systemRoot,
+        run: runJobWithoutAutoload,
+      })
       const refuseKill =
         surface === 'unknown' ? vi.spyOn(reader, 'signal').mockResolvedValue('refused') : undefined
       if (job.path === undefined) throw new Error('Native SDK launcher unavailable')
@@ -391,12 +401,7 @@ describe('C1 native Windows launch boundary', { timeout: REAL_WINDOWS_JOB_TIMEOU
     async () => {
       const folder = await mkdtemp(path.join(tmpdir(), 'm107-c1-holder-fault-'))
       const systemRoot = process.env['SystemRoot']!
-      const assembly = await shellJobAssembly({
-        storageDir: folder,
-        systemRoot,
-        readJobSource,
-        log: () => undefined,
-      })()
+      const assembly = shell.assembly
       const host = resourceGovernorHost({
         inspect: (key) => (key === 'resourceGovernor' ? { globalValue: false } : undefined),
         onError: vi.fn(),
@@ -452,12 +457,7 @@ describe('C1 native Windows launch boundary', { timeout: REAL_WINDOWS_JOB_TIMEOU
     async () => {
       const folder = await mkdtemp(path.join(tmpdir(), 'm107-c1-holder-collision-'))
       const systemRoot = process.env['SystemRoot']!
-      const assembly = await shellJobAssembly({
-        storageDir: folder,
-        systemRoot,
-        readJobSource,
-        log: () => undefined,
-      })()
+      const assembly = shell.assembly
       const owned = newShellJob(assembly!)
       const lease = { register: vi.fn(), complete: vi.fn(), background: vi.fn() }
       const first = await holdResourceJob(lease, owned, systemRoot)
@@ -482,12 +482,7 @@ describe('C1 native Windows launch boundary', { timeout: REAL_WINDOWS_JOB_TIMEOU
     async () => {
       const folder = await mkdtemp(path.join(tmpdir(), 'm107-c1-orphan-'))
       const systemRoot = process.env['SystemRoot']!
-      const assembly = await shellJobAssembly({
-        storageDir: folder,
-        systemRoot,
-        readJobSource,
-        log: () => undefined,
-      })()
+      const assembly = shell.assembly
       expect(assembly).toBeDefined()
       const owned = newShellJob(assembly!)
       let registered: ResourceProcessLaunch | undefined
@@ -552,12 +547,7 @@ describe('C1 native Windows launch boundary', { timeout: REAL_WINDOWS_JOB_TIMEOU
     async () => {
       const folder = await mkdtemp(path.join(tmpdir(), 'm107-c1-pipes-'))
       const systemRoot = process.env['SystemRoot']!
-      const assembly = await shellJobAssembly({
-        storageDir: folder,
-        systemRoot,
-        readJobSource,
-        log: () => undefined,
-      })()
+      const assembly = shell.assembly
       expect(assembly).toBeDefined()
       let registered: ResourceProcessLaunch | undefined
       const child = spawnMcpJob({

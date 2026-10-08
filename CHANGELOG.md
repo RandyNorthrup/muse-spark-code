@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Windows resource stops avoid cold PowerShell module discovery. Native job
+  helpers use verified long paths even when TEMP has an 8.3 spelling; Windows
+  launch qualification reuses its compiled helper and loads JSON support explicitly.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -11,7 +11,7 @@ import { readJobSource } from './helpers/jobSource'
 const paths = { root: '' }
 
 beforeAll(async () => {
-  paths.root = await mkdtemp(path.join(tmpdir(), 'muse-mcp-executable-test-'))
+  paths.root = await realpath(await mkdtemp(path.join(tmpdir(), 'muse-mcp-executable-test-')))
 })
 
 afterAll(() => removeFolder(paths.root))

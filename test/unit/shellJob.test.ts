@@ -4,7 +4,7 @@
 // stood in for, so this runs on every OS; the real compile and kill are in
 // processTree.test.ts.
 
-import { mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -27,7 +27,7 @@ import { readJobSource } from './helpers/jobSource'
 const paths = { root: '' }
 
 beforeAll(async () => {
-  paths.root = await mkdtemp(path.join(tmpdir(), 'muse-shelljob-'))
+  paths.root = await realpath(await mkdtemp(path.join(tmpdir(), 'muse-shelljob-')))
 })
 
 afterAll(() => removeFolder(paths.root))

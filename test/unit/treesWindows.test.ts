@@ -10,7 +10,7 @@ import { joinStatement, newShellJob, shellJobAssembly } from '../../src/host/bac
 import { killTree, windowsPowerShell } from '../../src/host/processTree'
 import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../src/shared/constants'
 import type { ResourceProcessIdentity, ResourceTicket } from '../../src/shared/resources'
-import { readJobSource } from './helpers/jobSource'
+import { readJobSource, runJobWithoutAutoload } from './helpers/jobSource'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const ticket: ResourceTicket = {
@@ -309,7 +309,11 @@ describe('Windows resource job reader', { timeout: REAL_WINDOWS_JOB_TIMEOUT_MS }
         const startedAt = Date.now()
         try {
           await once(child.stdout, 'data')
-          const reader = new WindowsResourceTreeReader({ assemblyPath: assembly!, systemRoot })
+          const reader = new WindowsResourceTreeReader({
+            assemblyPath: assembly!,
+            systemRoot,
+            run: runJobWithoutAutoload,
+          })
           const root = await reader.identity(child.pid!)
           expect(root).not.toBeNull()
           expect(await reader.rootOfJob(job.name)).toEqual(root)
