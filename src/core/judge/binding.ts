@@ -41,7 +41,12 @@ import type { CalibrationLimits } from './calibration/schema'
 import type { JudgeRuntimeBinding } from './runtime'
 import type { JudgeModeContext } from './resolve'
 import { judgeCapabilitySchema, type JudgeCapability, type JudgeOutcome } from './schema'
-import type { Phase2AdoptionQuery, Phase2EvidenceStore } from './evidencePaths'
+import type {
+  Phase2AdoptionQuery,
+  Phase2BindingContext,
+  Phase2EvidenceStore,
+} from './evidencePaths'
+import { createClientlessBinding } from './evidencePaths'
 
 // Evidence paths and the file store live beside the factory so the
 // CLI/ACP entry can read them without loading judge schemas (the
@@ -53,6 +58,8 @@ export {
   PHASE2_EVIDENCE_DIR,
   PHASE2_PROFILE_BASENAME,
   cliEvidenceRoot,
+  createClientlessBinding,
+  createEntryClientlessBinding,
   emptyPhase2EvidenceStore,
   filePhase2EvidenceStore,
   phase2AdoptionSlug,
@@ -62,7 +69,10 @@ export {
   phase2ProfileSlug,
 } from './evidencePaths'
 export type {
+  ClientlessBindingParts,
+  ClientlessEntryParts,
   Phase2AdoptionQuery,
+  Phase2BindingContext,
   Phase2EmbeddingQuery,
   Phase2EvidenceStore,
   Phase2ProfileQuery,
@@ -148,20 +158,6 @@ export function cascadeSideFromRuntime(deps: {
 export function phase2SideTechnique(capability: JudgeCapability): string {
   if (capability.systemone) return 'systemone'
   return capability.stated ? 'stated' : 'logprob'
-}
-
-export interface Phase2BindingContext {
-  readonly providerId: string
-  readonly modelId: string
-  readonly endpoint?: string | undefined
-  readonly profileId?: string | undefined
-  readonly ownerId?: string | undefined
-  readonly turn?: string | number | undefined
-  readonly confidential: boolean
-  readonly sourceAvailable: boolean
-  readonly paidConsent: JudgeModeContext['paidConsent']
-  readonly readyRate: number | undefined
-  readonly minReadyRate: number
 }
 
 export interface Phase2BindingRequest {
@@ -289,6 +285,42 @@ export function createPhase2Binding(
     criteriaVersion: options.criteriaVersion,
   }
   const record = store.readAdoptionRecord(adoptionQuery)
+
+  // Configured-but-clientless (or a malformed spec): the shared
+  // constructor reports the gap; the sided path below adds live sides
+  // around the same record. Nothing dispatches without sides, so the
+  // resolver names the gap instead of silently staying phase-1.
+  if (separate === undefined) {
+    const base = request.context
+    const embeddingNote = request.embeddingAwaitingLabels === true ? 'labels-missing' : undefined
+    return createClientlessBinding({
+      engine,
+      separateId: request.separateId,
+      // Past the pre-gate `isConfigured` is always true: a malformed
+      // spec stays a reported gap, never a silent fallback.
+      separateConfigured: isConfigured,
+      sourceAvailable: base.sourceAvailable,
+      providerId: base.providerId,
+      modelId: base.modelId,
+      ...(base.endpoint !== undefined && { endpoint: base.endpoint }),
+      ...(base.profileId !== undefined && { profileId: base.profileId }),
+      ...(base.ownerId !== undefined && { ownerId: base.ownerId }),
+      ...(base.turn !== undefined && { turn: base.turn }),
+      confidential: base.confidential,
+      paidConsent: base.paidConsent,
+      readyRate: base.readyRate,
+      minReadyRate: base.minReadyRate,
+      options,
+      limits,
+      ...(same !== undefined && { same }),
+      adoptionRecord: record,
+      ...(request.adoptionCheck !== undefined && { adoptionCheck: request.adoptionCheck }),
+      ...(request.billing !== undefined && { billing: request.billing }),
+      ...(request.attemptCostUsd !== undefined && { attemptCostUsd: request.attemptCostUsd }),
+      ...(embeddingNote !== undefined && { embeddingNote }),
+    })
+  }
+
   const adoption =
     record === undefined
       ? undefined
@@ -325,15 +357,12 @@ export function createPhase2Binding(
     ...(request.context.profileId !== undefined && { profileId: request.context.profileId }),
     ...(request.context.ownerId !== undefined && { ownerId: request.context.ownerId }),
     ...(request.context.turn !== undefined && { turn: request.context.turn }),
-    separate:
-      separate === undefined
-        ? { available: false, verified: false, profilesReady: false, adoption }
-        : {
-            available: true,
-            verified: separate.verified,
-            profilesReady: hasRecordedProfiles,
-            adoption,
-          },
+    separate: {
+      available: true,
+      verified: separate.verified,
+      profilesReady: hasRecordedProfiles,
+      adoption,
+    },
   }
 
   return {
@@ -343,9 +372,8 @@ export function createPhase2Binding(
     options,
     ...(same !== undefined && { same }),
     ...(separateSide !== undefined && { separate: separateSide }),
-    separateVerified: separate?.verified ?? false,
-    // Unknown locality reports remote so confidential workspaces refuse.
-    separateLocality: separate?.locality ?? 'remote',
+    separateVerified: separate.verified,
+    separateLocality: separate.locality,
     ...(request.embeddingAwaitingLabels === true && { embeddingNote: 'labels-missing' }),
   }
 }

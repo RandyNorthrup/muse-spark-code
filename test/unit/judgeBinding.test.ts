@@ -7,6 +7,8 @@ import { hasJudgeAdoptionEvidence } from '../../src/core/judge/adoption'
 import {
   cascadeSideFromRuntime,
   cliEvidenceRoot,
+  createClientlessBinding,
+  createEntryClientlessBinding,
   createPhase2Binding,
   emptyPhase2EvidenceStore,
   phase2AdoptionSlug,
@@ -16,6 +18,7 @@ import {
   phase2ProfileSlug,
   phase2SideTechnique,
   unavailablePhase2SeparateSource,
+  type ClientlessEntryParts,
   type Phase2BindingRequest,
   type Phase2EvidenceStore,
   type Phase2SeparateSource,
@@ -336,5 +339,59 @@ describe('production phase-2 binding', () => {
     expect(empty.readAdoptionRecord({} as never)).toBeUndefined()
     expect(empty.readEmbeddingHead({} as never)).toBeUndefined()
     expect(empty.readEmbeddingManifest({} as never)).toBeUndefined()
+  })
+})
+
+/** The bundle entry's twin constructor: entry-sized, budget-fitting, field-for-field equal. */
+function entryParts(overrides: Partial<ClientlessEntryParts> = {}): ClientlessEntryParts {
+  const { wired } = evidenceFixtures()
+  return {
+    engine: 'auto',
+    separateId: 'fixture-separate',
+    separateConfigured: true,
+    sourceAvailable: BASE_CONTEXT.sourceAvailable,
+    providerId: BASE_CONTEXT.providerId,
+    modelId: BASE_CONTEXT.modelId,
+    ownerId: BASE_CONTEXT.ownerId,
+    confidential: BASE_CONTEXT.confidential,
+    paidConsent: BASE_CONTEXT.paidConsent,
+    readyRate: BASE_CONTEXT.readyRate,
+    minReadyRate: BASE_CONTEXT.minReadyRate,
+    options: OPTIONS,
+    limits: wiringLimits,
+    adoptionRecord: wired.adoption.record,
+    adoptionCheck: hasJudgeAdoptionEvidence,
+    billing: 'free',
+    ...overrides,
+  }
+}
+
+describe('entry-clientless-parity', () => {
+  it.each([
+    ['recorded receipt', {}],
+    ['missing receipt', { adoptionRecord: undefined }],
+    ['unbilled', { billing: undefined }],
+    ['no owner', { ownerId: undefined }],
+  ] as const)('entry twin matches the shared constructor with %s', (_label, overrides) => {
+    const twin = createEntryClientlessBinding(entryParts(overrides))
+    const shared = createClientlessBinding({ ...entryParts(overrides) })
+    expect(twin).toBeDefined()
+    expect(twin).toEqual(shared)
+    // The same gap is named on both: nothing dispatches without sides.
+    for (const binding of [twin, shared]) {
+      expect(resolveJudgeMode2a({ ...binding!.context, engine: 'auto' })).toMatchObject({
+        mode: 'same',
+        autoSameReason: 'source-unavailable',
+      })
+    }
+  })
+
+  it('entry twin keeps phase-1 behaviour without a configured separate source', () => {
+    expect(createEntryClientlessBinding(entryParts({ separateId: '' }))).toBeUndefined()
+    expect(createEntryClientlessBinding(entryParts({ separateId: '  ' }))).toBeUndefined()
+    expect(
+      createEntryClientlessBinding(entryParts({ separateConfigured: undefined })),
+    ).toBeUndefined()
+    expect(createEntryClientlessBinding(entryParts({ separateConfigured: false }))).toBeUndefined()
   })
 })

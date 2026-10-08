@@ -49,6 +49,7 @@ import {
   filePhase2EvidenceStore,
   type Phase2EvidenceStore,
 } from '../core/judge/evidencePaths'
+import type { JudgeRuntimeBinding } from '../core/judge/runtime'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale } from '../shared/l10n/text'
 import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
@@ -756,12 +757,30 @@ async function main(): Promise<number> {
       // itself runs inside `dist/judgeP2.js`, so judge schemas stay lazy
       // for ordinary commands.
       const commandDeps = await features.createCommandDeps({
-        binding: () =>
-          features.createBinding({
+        binding: (): JudgeRuntimeBinding | undefined => {
+          // No separate id means a true single-model setup: keep exact
+          // phase-1 behaviour without touching the store. Otherwise the
+          // recorded receipt is read beside the call (startup-safe: the
+          // store and paths live in the import-light evidence module)
+          // and the bundle entry assembles the shared binding with the
+          // real adoption check.
+          const separateId = command.options.separate?.trim() ?? ''
+          if (separateId === '') return undefined
+          const modelId = command.options.model ?? ''
+          return features.createBinding({
             engine: command.options.engine,
-            separateId: command.options.separate,
+            separateId,
             separateConfigured: true,
-            store,
+            // The CLI names no provider; adoption stays unverified until
+            // a provider client identifies it (a C/E lane owns that).
+            providerId: '',
+            modelId,
+            ownerId: '',
+            confidential: false,
+            sourceAvailable: command.options.model !== undefined,
+            paidConsent: 'not-required',
+            readyRate: undefined,
+            minReadyRate: JUDGE_MIN_READY_RATE,
             options: {
               family: JUDGE_RISK_FAMILY,
               promptVersion: JUDGE_PROMPT_VERSION,
@@ -769,20 +788,16 @@ async function main(): Promise<number> {
               highStakes: true,
             },
             limits: JUDGE_CALIBRATION_LIMITS,
-            context: {
-              // The CLI names no provider; adoption stays unverified until
-              // a provider client identifies it (a C/E lane owns that).
+            adoptionRecord: store.readAdoptionRecord({
               providerId: '',
-              modelId: command.options.model ?? '',
-              ownerId: '',
-              confidential: false,
-              sourceAvailable: command.options.model !== undefined,
-              paidConsent: 'not-required',
-              readyRate: undefined,
-              minReadyRate: JUDGE_MIN_READY_RATE,
-            },
+              modelId,
+              family: JUDGE_RISK_FAMILY,
+              promptVersion: JUDGE_PROMPT_VERSION,
+              criteriaVersion: JUDGE_CRITERIA_VERSION,
+            }),
             billing: 'free',
-          }),
+          })
+        },
         billing: 'free',
         worstCaseUsd: () => 0,
       })

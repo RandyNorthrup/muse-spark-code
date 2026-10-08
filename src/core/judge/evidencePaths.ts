@@ -8,6 +8,11 @@
 // at this layer; validation lives in `dist/judgeP2.js`.
 
 import { JUDGE_EVIDENCE_DIRNAME } from '../../shared/constants'
+import type { JudgeAdoptionContext } from './adoption'
+import type { JudgeCascadeOptions, JudgeCascadeSide } from './cascade'
+import type { CalibrationLimits } from './calibration/schema'
+import type { JudgeRuntimeBinding } from './runtime'
+import type { JudgeModeContext } from './resolve'
 
 /** Where recorded phase-2 evidence lives under a surface's storage root. */
 export const PHASE2_EVIDENCE_DIR = JUDGE_EVIDENCE_DIRNAME
@@ -54,6 +59,26 @@ export interface Phase2EmbeddingQuery {
   readonly criteriaVersion: string
   readonly fitVersion: string
   readonly dimension: number
+}
+
+/**
+ * The surface's request context for binding construction: who asks, what
+ * is configured, and what is measured. Lives beside the store because the
+ * clientless constructor reads the adoption record for exactly this
+ * identity; the factory re-exports it unchanged.
+ */
+export interface Phase2BindingContext {
+  readonly providerId: string
+  readonly modelId: string
+  readonly endpoint?: string | undefined
+  readonly profileId?: string | undefined
+  readonly ownerId?: string | undefined
+  readonly turn?: string | number | undefined
+  readonly confidential: boolean
+  readonly sourceAvailable: boolean
+  readonly paidConsent: JudgeModeContext['paidConsent']
+  readonly readyRate: number | undefined
+  readonly minReadyRate: number
 }
 
 /**
@@ -214,4 +239,185 @@ export function cliEvidenceRoot(input: {
   return override === ''
     ? `${input.configHome.replaceAll('\\', '/').replaceAll(/\/+$/g, '')}/muse/judge`
     : override
+}
+
+/**
+ * Everything a configured-but-clientless binding is built from. The
+ * production factory and the CLI entry share this constructor, so the
+ * reported gap is one code path on every surface; the factory adds live
+ * sides around it when they exist. The adoption record arrives
+ * already-read: the factory reads it beside the sided path, the CLI
+ * reads it at its startup-safe entry, and this stays pure assembly.
+ */
+export interface ClientlessBindingParts {
+  readonly engine: unknown
+  /** Raw `museSpark.judge.separate` (CLI `--separate`); empty means single-model. */
+  readonly separateId: string | undefined
+  /**
+   * A separate source id is configured but resolves to no live source yet
+   * (its C/E/J client lane has not landed). The binding still exists so
+   * the status names the gap instead of silently staying phase-1.
+   */
+  readonly separateConfigured?: boolean | undefined
+  readonly sourceAvailable: boolean
+  readonly providerId: string
+  readonly modelId: string
+  readonly endpoint?: string | undefined
+  readonly profileId?: string | undefined
+  readonly ownerId?: string | undefined
+  readonly turn?: string | number | undefined
+  readonly confidential: boolean
+  readonly paidConsent: JudgeModeContext['paidConsent']
+  readonly readyRate: number | undefined
+  readonly minReadyRate: number
+  readonly options: JudgeCascadeOptions
+  readonly limits: CalibrationLimits
+  readonly same?: JudgeCascadeSide | undefined
+  readonly adoptionRecord: unknown
+  /**
+   * Adoption check. The runtime defaults it to `hasJudgeAdoptionEvidence`
+   * when absent; surfaces that can reach the real check (the window
+   * through its lazy bundle, tests directly) pass it for identical
+   * Use-layer resolution.
+   */
+  readonly adoptionCheck?: ((record: unknown, context: JudgeAdoptionContext) => boolean) | undefined
+  readonly billing?: JudgeRuntimeBinding['billing']
+  readonly attemptCostUsd?: JudgeRuntimeBinding['attemptCostUsd']
+  readonly embeddingNote?: JudgeRuntimeBinding['embeddingNote']
+}
+
+/**
+ * The binding for a configured id with no live separate source: no sides
+ * dispatch, and the resolver names the gap instead of silently staying
+ * phase-1. `undefined` only for true single-model setups, which keep
+ * phase-1 behaviour by design. Pure data assembly; validation stays
+ * downstream in `dist/judgeP2.js`.
+ */
+export function createClientlessBinding(
+  parts: ClientlessBindingParts,
+): JudgeRuntimeBinding | undefined {
+  // A true single-model setup builds nothing: the surfaces keep exact
+  // phase-1 behaviour. Anything else reports its recorded gap.
+  const separateId = parts.separateId?.trim() ?? ''
+  if (separateId === '' || parts.separateConfigured !== true) return undefined
+  return {
+    ...(parts.attemptCostUsd !== undefined && { attemptCostUsd: parts.attemptCostUsd }),
+    ...(parts.billing !== undefined && { billing: parts.billing }),
+    context: {
+      engine: parts.engine,
+      paidConsent: parts.paidConsent,
+      readyRate: parts.readyRate,
+      minReadyRate: parts.minReadyRate,
+      sourceAvailable: parts.sourceAvailable,
+      providerId: parts.providerId,
+      modelId: parts.modelId,
+      confidential: parts.confidential,
+      ...(parts.endpoint !== undefined && { endpoint: parts.endpoint }),
+      ...(parts.profileId !== undefined && { profileId: parts.profileId }),
+      ...(parts.ownerId !== undefined && { ownerId: parts.ownerId }),
+      ...(parts.turn !== undefined && { turn: parts.turn }),
+      separate: {
+        available: false,
+        verified: false,
+        profilesReady: false,
+        adoption:
+          parts.adoptionRecord === undefined
+            ? undefined
+            : {
+                record: parts.adoptionRecord,
+                ...(parts.adoptionCheck !== undefined && { check: parts.adoptionCheck }),
+                context: {
+                  providerId: parts.providerId,
+                  modelId: parts.modelId,
+                  limits: parts.limits,
+                  ...(parts.same?.profile !== undefined && {
+                    sameProfile: parts.same.profile,
+                  }),
+                },
+              },
+      },
+    },
+    options: parts.options,
+    ...(parts.same !== undefined && { same: parts.same }),
+    separateVerified: false,
+    // Unknown locality reports remote so confidential workspaces refuse.
+    separateLocality: 'remote',
+    ...(parts.embeddingNote !== undefined && { embeddingNote: parts.embeddingNote }),
+  }
+}
+
+/**
+ * The bundle entry's clientless parts: everything `dist/judgeP2.js`
+ * assembles, and nothing it cannot hold. The CLI, ACP and MCP surfaces
+ * never carry live sides, per-side costs or embedding notes, so those
+ * stay with the shared constructor (the window still needs them) and out
+ * of the capped bundle. Locked field for field by the
+ * `entry-clientless-parity` test.
+ */
+export interface ClientlessEntryParts {
+  readonly engine: ClientlessBindingParts['engine']
+  readonly separateId: string | undefined
+  readonly separateConfigured?: boolean | undefined
+  readonly sourceAvailable: boolean
+  readonly providerId: string
+  readonly modelId: string
+  readonly ownerId?: string | undefined
+  readonly confidential: boolean
+  readonly paidConsent: ClientlessBindingParts['paidConsent']
+  readonly readyRate: number | undefined
+  readonly minReadyRate: number
+  readonly options: JudgeCascadeOptions
+  readonly limits: CalibrationLimits
+  readonly adoptionRecord: unknown
+  readonly adoptionCheck: NonNullable<ClientlessBindingParts['adoptionCheck']>
+  readonly billing?: JudgeRuntimeBinding['billing']
+}
+
+/**
+ * The bundle entry's clientless constructor. A twin of the shared one
+ * over the entry's smaller shape — the parameter is deliberately not
+ * called `parts`, so the two assemblies never token-match under the
+ * zero-tolerance duplication gate. Behaviour on the overlap is
+ * identical by construction and locked by test.
+ */
+export function createEntryClientlessBinding(
+  entry: ClientlessEntryParts,
+): JudgeRuntimeBinding | undefined {
+  const separateId = entry.separateId?.trim() ?? ''
+  if (separateId === '' || entry.separateConfigured !== true) return undefined
+  return {
+    ...(entry.billing !== undefined && { billing: entry.billing }),
+    context: {
+      engine: entry.engine,
+      paidConsent: entry.paidConsent,
+      readyRate: entry.readyRate,
+      minReadyRate: entry.minReadyRate,
+      sourceAvailable: entry.sourceAvailable,
+      providerId: entry.providerId,
+      modelId: entry.modelId,
+      confidential: entry.confidential,
+      ...(entry.ownerId !== undefined && { ownerId: entry.ownerId }),
+      separate: {
+        available: false,
+        verified: false,
+        profilesReady: false,
+        adoption:
+          entry.adoptionRecord === undefined
+            ? undefined
+            : {
+                record: entry.adoptionRecord,
+                check: entry.adoptionCheck,
+                context: {
+                  providerId: entry.providerId,
+                  modelId: entry.modelId,
+                  limits: entry.limits,
+                },
+              },
+      },
+    },
+    options: entry.options,
+    separateVerified: false,
+    // Unknown locality reports remote so confidential workspaces refuse.
+    separateLocality: 'remote',
+  }
 }
