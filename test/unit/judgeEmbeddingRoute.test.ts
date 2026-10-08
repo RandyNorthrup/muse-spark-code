@@ -445,6 +445,21 @@ describe('embedding pipeline regressions', () => {
     expect(claims).toHaveLength(1)
   })
 
+  it('refuses a secret introduced only during serialization before source dispatch', async () => {
+    const { deps, embed, fallbackCalls, claims } = routeDependencies({
+      source: { embed: () => Promise.resolve(confidentVectors) },
+    })
+    // An unknown state value can serialize differently from its string leaves.
+    const state = { toJSON: () => 'password="opaque-serialized"' }
+    const outcome = await runEmbeddingJudge({ ...noulRequest, state }, options, deps, signal())
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') throw new Error('expected fallback')
+    expect(outcome.result.muse['risk']?.technique).toBe('stated')
+    expect(embed).not.toHaveBeenCalled()
+    expect(fallbackCalls).toHaveLength(1)
+    expect(claims).toHaveLength(1)
+  })
+
   it.each(['opted-out', 'mismatched-head', 'low-confidence', 'embed-rejection'] as const)(
     'settles a rejected Stop on the %s delegate (RVM98P2IC 4)',
     async (path) => {
