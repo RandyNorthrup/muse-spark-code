@@ -114,6 +114,7 @@ export function ResourceSurface({ port, isInert = false }: ResourceSurfaceProps)
             </button>
           </header>
           <ResourceReadings status={status} />
+          {status.relocation === 'noRoute' ? <p>{UI_TEXT.resourceRelocationNoRoute}</p> : null}
           {status.overrideUntilMs === null ? null : (
             <p>
               {fill(UI_TEXT.resourceOverrideNotice, {

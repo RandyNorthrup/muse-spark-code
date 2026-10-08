@@ -3611,13 +3611,13 @@
       },
       "id": "museSpark.resourceRelocate",
       "name": "museSpark.resourceRelocate",
-      "description": "Where queued team tasks and checks may move when this machine is busy. Existing device consent and offers still apply.",
+      "description": "Where queued team tasks and checks may move when this machine is busy. Relocation needs a paired device or runner route and is not available yet, so work stays on this machine.",
       "descriptionKey": "config.resourceRelocate.description",
       "type": "string",
       "default": "paired",
       "enum": ["paired", "ask", "off"],
       "enumDescriptions": [
-        "Use an already approved paired device with normal resource load.",
+        "Use an approved paired device with normal resource load once relocation is available.",
         "Ask before moving queued work.",
         "Keep work on this machine."
       ],
@@ -3633,7 +3633,7 @@
               "when": "resourceRelocation",
               "text": {
                 "fallbackKey": "config.resourceRelocate.enumDescriptions.paired",
-                "fallback": "Use an already approved paired device with normal resource load."
+                "fallback": "Use an approved paired device with normal resource load once relocation is available."
               }
             }
           ]

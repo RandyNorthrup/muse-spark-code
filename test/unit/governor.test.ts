@@ -30,7 +30,11 @@ function sample(atMs: number, changes: Partial<ResourceSample> = {}): ResourceSa
   }
 }
 
-function setup(settings = resourceSettingsSchema.parse({}), injected?: ResourceSampler) {
+function setup(
+  settings = resourceSettingsSchema.parse({}),
+  injected?: ResourceSampler,
+  hasRoute = true,
+) {
   const clock = new FakeResourceClock()
   const steps: ResourceSample[] = []
   const sampler = new ScriptedResourceSampler(steps)
@@ -46,7 +50,7 @@ function setup(settings = resourceSettingsSchema.parse({}), injected?: ResourceS
     sampler: injected ?? sampler,
     settings,
     events,
-    hasRelocationTarget: target,
+    hasRelocationTarget: hasRoute ? target : null,
     onError,
   })
   const read = async (atMs: number, changes: Partial<ResourceSample> = {}) => {
@@ -148,6 +152,30 @@ describe('resource governor levels', () => {
     await off.series(65_000, { memoryUsedPercent: 92 })
     expect(off.governor.level()).toBe('pause')
     expect(off.target).not.toHaveBeenCalled()
+  })
+
+  it('reports relocation availability for each setting and target state, and never relocates without a route', async () => {
+    for (const relocate of ['paired', 'ask', 'off'] as const) {
+      const settings = resourceSettingsSchema.parse({ relocate })
+      const bound = setup(settings)
+      expect(bound.governor.status([]).relocation).toBe(relocate === 'off' ? 'off' : 'available')
+      bound.target.mockReturnValue(false)
+      expect(bound.governor.status([]).relocation).toBe(relocate === 'off' ? 'off' : 'noTarget')
+      if (relocate === 'off') expect(bound.target).not.toHaveBeenCalled()
+      const unbound = setup(settings, undefined, false)
+      expect(unbound.governor.status([]).relocation).toBe(relocate === 'off' ? 'off' : 'noRoute')
+      const levels: ResourceLevel[] = []
+      for (let atMs = 0; atMs <= 125_000; atMs += RESOURCE_SAMPLE_MS)
+        levels.push(await unbound.read(atMs, { memoryUsedPercent: 92 }))
+      expect(levels).not.toContain('relocate')
+      expect(levels[1]).toBe('throttle')
+      expect(levels.indexOf('pause')).toBe(65_000 / RESOURCE_SAMPLE_MS)
+      expect(unbound.seen.filter((event) => event.type === 'levelChanged')).toEqual([
+        { type: 'levelChanged', atMs: 5000, from: 'normal', to: 'throttle', reason: 'memoryUsed' },
+        { type: 'levelChanged', atMs: 65_000, from: 'throttle', to: 'pause', reason: 'memoryUsed' },
+      ])
+      expect(unbound.target).not.toHaveBeenCalled()
+    }
   })
 
   it('takes critical memory directly to pause even during dwell, and critical CPU needs a full minute', async () => {

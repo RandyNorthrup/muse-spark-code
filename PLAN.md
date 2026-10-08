@@ -50223,6 +50223,12 @@ The harness-placement dispatch and PID/tick assumptions below remain unchanged.
   joined bundle budgets and full quality. The review repairs retain every
   existing permission and post-dispatch uncertainty guard. See
   `docs/certification/m107-r-relocation.md` for each RVM107R finding.
+  FIX0160RVB (2026-10-07): both shipped governor factories now declare no
+  route (`hasRelocationTarget: null`), so pressure goes from throttle to pause
+  and status reports `relocation: 'noRoute'`. The pause notice, popover and
+  `resources status` say relocation is not available yet, as do the setting,
+  README and CHANGELOG. Binding R to real M100/C2 routes is this follow-up;
+  see `docs/certification/fix0160rvb.md`.
 
 - **M107 round-3 delivery qualification (2026-10-06).** T2/U/H are joined
   into C1/G/A/S. Every repository-owned governed payload stop uses its registered

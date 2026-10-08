@@ -28,6 +28,7 @@ import {
   type ResourceEvent,
   type ResourceKind,
   type ResourceLevel,
+  type ResourceRelocation,
   type ResourceSample,
   type ResourceSampler,
   type ResourceSettings,
@@ -49,8 +50,12 @@ export interface ResourceGovernorOptions {
   sampler: ResourceSampler
   settings: ResourceSettings
   events: ResourceEvents
-  /** R binds approved paired-device/runner availability; off never calls it. */
-  hasRelocationTarget: () => boolean
+  /**
+   * R binds approved paired-device/runner availability; off never calls it.
+   * null declares that this host has no relocation route at all: pressure goes
+   * from throttle to pause and status reports `noRoute` for the UI to explain.
+   */
+  hasRelocationTarget: (() => boolean) | null
   onError: (error: unknown) => void
 }
 
@@ -300,8 +305,14 @@ export class ResourceGovernor {
       )
   }
 
+  private relocation(): ResourceRelocation {
+    if (this.settings.relocate === 'off') return 'off'
+    if (this.options.hasRelocationTarget === null) return 'noRoute'
+    return this.options.hasRelocationTarget() ? 'available' : 'noTarget'
+  }
+
   private canRelocate(): boolean {
-    return this.settings.relocate !== 'off' && this.options.hasRelocationTarget()
+    return this.relocation() === 'available'
   }
 
   private change(to: ResourceLevel, reason: Reason): void {
@@ -356,6 +367,7 @@ export class ResourceGovernor {
       settings: this.settings,
       queued,
       overrideUntilMs: this.overrideUntil,
+      relocation: this.relocation(),
     })
   }
 

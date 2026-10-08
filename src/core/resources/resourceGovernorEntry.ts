@@ -161,7 +161,10 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
       },
       disks,
     ),
-    hasRelocationTarget: () => false,
+    // No relocation route exists on this build: M100's paired-device offers and
+    // M96c/C2's attempt claim/retirement are not joined, and nothing constructs
+    // R's relocator. Pressure goes from throttle to pause and status says why.
+    hasRelocationTarget: null,
     onError: options.onError,
   })
   const linux = process.platform === 'linux' ? new LinuxResourceTreeReader() : undefined

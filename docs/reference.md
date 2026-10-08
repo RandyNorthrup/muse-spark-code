@@ -2969,7 +2969,7 @@ Type: `["number","null"]`. Default: `null`. Scope: `machine`.
 
 ### museSpark.resourceRelocate
 
-resourceRelocation: Where queued team tasks and checks may move when this machine is busy. Existing device consent and offers still apply.
+resourceRelocation: Where queued team tasks and checks may move when this machine is busy. Relocation needs a paired device or runner route and is not available yet, so work stays on this machine.
 
 Type: `"string"`. Default: `"paired"`. Scope: `machine`.
 
@@ -2981,7 +2981,7 @@ Type: `"string"`. Default: `"paired"`. Scope: `machine`.
 }
 ```
 
-- `"paired"`: resourceRelocation: Use an already approved paired device with normal resource load.
+- `"paired"`: resourceRelocation: Use an approved paired device with normal resource load once relocation is available.
 - `"ask"`: Ask before moving queued work.
 - `"off"`: Keep work on this machine.
 

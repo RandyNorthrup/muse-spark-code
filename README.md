@@ -55,9 +55,9 @@ key to the CLI.
   calls. Structured side calls validate answers; headless runs can require a
   bounded final-answer schema. See [Agent loop guarantees](#agent-loop-guarantees)
   for capability gates and remaining native-reader qualifications.
-- **CPU and memory thresholds.** Set machine-scoped limits to throttle new
-  background work. Eligible queued tasks and checks can relocate through an
-  existing approved device or runner route; other work stays local.
+- **CPU and memory thresholds.** Set machine-scoped limits to throttle, then
+  pause, new background work. Relocation needs a paired device or runner route
+  and is not available yet, so work stays on this machine.
 - **Disk floors.** Disk-heavy launches wait below the free-space floor and
   critical-volume writes refuse with a reason. Temporary cleanup requires
   recorded ownership and proved tree exit. See
@@ -4612,11 +4612,13 @@ names below start with `museSpark.`.
 | `resourceGpuMaxPercent`      | `null`   | 1–100%; no GPU probe until configured                                                                  |
 | `resourceDiskBusyMaxPercent` | `null`   | 1–100%; no disk-busy probe until configured                                                            |
 | `resourceDiskMinFreeGiB`     | `null`   | Adaptive floor: smaller of 10 GiB and 10% of the volume, at least 2 GiB; explicit floor at least 2 GiB |
-| `resourceRelocate`           | `paired` | `paired`, `ask` or `off`; requires the existing approved device/runner route                           |
+| `resourceRelocate`           | `paired` | `paired`, `ask` or `off`; needs a paired device or runner route, not available yet                     |
 
 Levels are **normal**, **throttle**, **relocate** and **pause**. At throttle,
 background capacity narrows to one per kind; at pause, new background work
-waits. Foreground work has a twenty-second maximum wait at pause. **Run now**
+waits. This release binds no paired-device or runner route, so sustained
+pressure goes from throttle to pause and never to relocate; resource status
+and the pause notice say relocation is not available yet. Foreground work has a twenty-second maximum wait at pause. **Run now**
 releases that wait; **Resume now** overrides pressure for fifteen minutes,
 without turning on an explicitly disabled governor. Unknown readings are shown
 as unknown: they neither trip nor clear a level. Recovery has hysteresis and a
@@ -4642,8 +4644,9 @@ See the [ACP guide](docs/acp.md#resource-status-and-resume) and
 The shared chip/popover and usage-history section ship as separate artifacts.
 Their window/native/companion mounts, actuator lifecycle, runtime spawn binding,
 M96/M96c slots and M100 paired-device dispatch remain explicit integration
-handoffs. Relocation can move only eligible queued tasks/checks, or a running
-check after explicit **Move to** and proven retirement. Pairing, offers,
+handoffs. Once those routes join, relocation will move only eligible queued
+tasks/checks, or a running check after explicit **Move to** and proven
+retirement. Pairing, offers,
 repository mapping, receiver permissions and paid consent remain required;
 headless relocation is refused. **Keep here** cancels before receiver admission.
 The [M107 integration record](docs/certification/m107.md) and
