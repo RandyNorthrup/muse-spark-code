@@ -20350,10 +20350,10 @@ as required by the rig brief; do not run full quality or merge in this lane.
 **Status: in progress.** Rig lane `rel017/left`, base `7a4fc2ab3`; two-hour
 repair window. Keep all assertions, caps, scanner rules and deadlines.
 
-- [ ] Register the three M115 editor commands and lazily connect the panel bridge.
+- [x] Register the three M115 editor commands and lazily connect the panel bridge (actual host replay follows).
 - [ ] Verify unique Help IDs and resolve all accessibility readiness failures.
-- [x] Resolve SAST research, report-root and companion-template findings (already repaired in base; exact script exits 0).
-- [ ] Repair visual source reconstruction; refresh real audit and scene coverage.
+- [x] Resolve SAST findings: inherited scanner clean; named report-root literal escape helper and operator controls added.
+- [ ] Visual source lookup repaired; full audit/scene expansion blocked by 111 missing render inputs (shared scope limit).
 - [x] Share duplicate production and test helpers; four baseline clones repaired (final gate follows).
 - [x] Remove unused compactNodeReference after demonstrating its obsolete test fails.
 - [x] Cover account English in the browser probe's actual entry graph.
@@ -36790,6 +36790,18 @@ lane A's first step.
 
 ## 7. Gates
 
+**LEFT017 bounded deferrals (2026-10-08).** Keep every visual assertion and
+budget. The combined tree has 270 webview source files and 184 render inputs,
+but the current audit records 112 sources and 73 render inputs: 111 render
+inputs lack scene/selector mappings. There is no audit-refresh generator in
+the tracked repository; the capture helpers require an already reviewed map.
+Actual new scene coverage, six-theme captures and review exceed the shared
+approximately 300-new-lines-per-finding rule. The historical fixture lookup
+is repaired independently, without changing any recorded image or pretending
+uncaptured sources were reviewed. The unchanged build caps remain owned by
+the shrinking lane. Exact gate failures will be recorded in
+`docs/certification/int0170-combined.md`; neither deferral is a waived gate.
+
 INT0180B (2026-10-07): source `9733edba2` supersedes INT0180's local reds
 below. Fresh ordinary installation, exact static job, all four coverage shards
 and merge, full 988-page accessibility, legal's 96 keyboard/zoom plus 24 WCAG
@@ -41169,9 +41181,9 @@ INT0170B, 2026-10-07: `ENGINE_LOAD_TIMEOUT_MS` = 20,000 ms in `test/unit/modelAp
 
 INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/unit/recordingReader.test.ts` applies only to the actual TypeScript semantic compiler setup (11.177/10.652 s measured under Node 22 coverage). The normal per-test deadline stays unchanged; no brand diagnostic or test is skipped. Authorized heavy-real-work exception in the rig brief.
 
-| INT0170B location                        | Escape hatch                                                                                    | Reason                                                                                                                                                                                                                                                                     |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/core/reporting/render/redaction.ts` | `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` | Every root segment is escaped as a literal before fixed separators, boundaries and a single path tail are added. User text cannot introduce regex operators. Literal metacharacters, Windows separators and case behavior are covered; the escape-removal drill must fail. |
+| INT0170B location                        | Escape hatch                                                                                    | Reason                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/core/reporting/render/redaction.ts` | `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` | Every root segment passes escapeReportRootSegment, whose literal operator escaping is covered by the complete reportRedaction owner and a deliberate escape-removal failure, before fixed separators, boundaries and a single path tail are added. User text cannot introduce regex operators. Literal metacharacters, Windows separators and case behavior are covered; the escape-removal drill must fail. |
 
 | 0.15.0 hosted-CI location                                                                                                                                                                      | Escape hatch                                                                                                                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                                             | Removal                                                                                                                                                   |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |

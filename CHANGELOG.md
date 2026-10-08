@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Restore the Schedule Prompt, Schedules and Schedule Timeline editor commands, including panels opened on demand.
+- Reuse successful time-zone validation during repeated schedule journal reads, preserving storage checks and workload deadlines.
+- Resolve visual replay fixtures from the running gate when historical render sources predate them, and guard Help document IDs against duplication.
+- Name and exercise report-root literal regex escaping across all operators and Windows separators.
+
 - Share ACP preparation cancellation and exact USD display helpers; align merged paid-ledger tests with the exact decimal contract.
 - Batch staged-file tool arguments below the Windows command-shim limit while retaining every hook check.
 

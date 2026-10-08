@@ -207,3 +207,39 @@ probe's account/developer imports; duplicated Help's section ID. Each run
 exits 1 on its intended assertion/build failure. All six sources restored
 SHA-256-exact before final verification. Detailed hashes follow in the final
 receipt. The restored shared batch passes 168 tests.
+
+- Item 1: extension.ts passes createSchedulesBridge to each controller and
+  registers all three command IDs before use. The command port retains
+  requests until the exact panel's ready handshake; disabled schedules refuse
+  before opening and pending requests recheck the setting. Seven whole-owner
+  cases pass, including cold/warm views and failed opening. The message factory
+  does not open a credential store or backend; actual scheduled editor delivery
+  still needs the separately named scoped host adapter (PLAN §3).
+- Item 2: the inherited Help already has distinct IDs. The new whole-document
+  uniqueness guard passes and fails when a section ID is deliberately reused.
+  Inherited container-relative column geometry and standalone schedule mount
+  handshakes address the older readiness failures; full axe replay follows.
+- Item 4: serveRepo now builds the usage fixture from the running gate's source,
+  as its traffic fixture already does. A real empty historical source root
+  fails before this fix and serves the actual bundled usage bytes afterwards.
+  Full expansion is blocked: 270 webview files, 184 render inputs, 112 audited
+  sources and 73 mapped render inputs (111 missing). No tracked audit-refresh
+  generator exists; capture helpers need a reviewed map. Scene/selector/theme
+  review exceeds the shared approximately 300-new-lines-per-finding rule. No
+  audit hash, scene map, manifest or PNG is falsified or reset. Exact visual
+  replay failure follows; the gate is not waived.
+- Item 8: the complete coverage profile passes on this rig in 172.43 s (20
+  journal tests), and attributes 31.289 CPU seconds to repeated schedule-zone
+  Intl validation, 25.895 s to structuredClone, and 13.434 s to zod parsing.
+  Keep a single successfully validated zone; invalid zones and numeric offsets
+  remain refused and changed zones still consult Intl. No snapshot, delta,
+  fencing or storage validation changes. The new constructor-count regression
+  fails on 100 constructions before reuse and passes afterwards. Final 240 s
+  workload replay follows.
+- Item 3 follow-up: report-root segments use a named literal escape helper,
+  tested with every regex operator, unbalanced brackets/groups and Windows
+  separators. Removing the helper from root construction makes the complete
+  reportRedaction owner fail; restored source SHA-256 is
+  `0e41182484b5499d38ea672b1cac08c4556066a0fdcb756e63a5806ada6ee55e`.
+  The inherited precise suppression remains documented in PLAN §8; no new
+  scanner ignore or rule change. Restored redaction/zone/hook batch: 48 passed.
