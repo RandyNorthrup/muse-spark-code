@@ -13,6 +13,7 @@ happened, not what was planned; superseded entries are kept.
   output and whole-tree deadline/cancellation. Runtime commands bind global
   admission; login and browser processes use governed launch. Windows report
   leases close before restoration, preserving concurrent journal entries.
+  Native birth probes avoid PowerShell module discovery within their existing bound.
   Help identifies the unavailable recorder and vault broker.
 
 - Account-scoped Muse Code hosts now share governed native job launch and

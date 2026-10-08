@@ -65,7 +65,7 @@ describe('bootstrap tier', () => {
             process.execPath,
             [
               '-e',
-              `const {spawn}=require('node:child_process'); const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'inherit'}); require('node:fs').writeFileSync(process.argv[1],JSON.stringify([process.pid,child.pid]));setInterval(()=>{},1000)`,
+              `const {spawn}=require('node:child_process'); const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore',detached:process.platform==='win32'}); child.unref(); require('node:fs').writeFileSync(process.argv[1],JSON.stringify([process.pid,child.pid]));setInterval(()=>{},1000)`,
               marker,
             ],
             { SystemRoot: process.env['SystemRoot'] },
@@ -125,8 +125,9 @@ describe('bootstrap tier', () => {
         process.execPath,
         ['-e', 'process.stdout.write(Buffer.alloc(2*1024*1024));setInterval(()=>{},1000)'],
         { SystemRoot: process.env['SystemRoot'] },
+        { timeoutMs: 1000 },
       ),
-    ).rejects.toThrow()
+    ).rejects.toMatchObject({ code: 'outputLimit' })
     expect(lease.complete).toHaveBeenCalledWith(true)
   })
 })

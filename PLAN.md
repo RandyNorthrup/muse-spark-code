@@ -1,5 +1,12 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**SPAWN017B cold-probe finding (2026-10-08).** The third complete-file idle
+replay fails before lock admission because PowerShell's Get-Process discovery
+consumes the unchanged birth-probe bound. Read the same OS birth identity
+through Diagnostics.Process without module discovery; retain absence handling,
+all identity/lease assertions and every deadline. Restart the thirty idle and
+thirty loaded complete-file sequence and record this excluded failed attempt.
+
 **SPAWN017B follow-up (2026-10-08, win11).** Govern helper compilation in
 one bootstrap tier: heavy admission, PROCESS_TABLE_TIMEOUT_MS deadline,
 bounded output, whole-tree cancellation and observed exit before publication.

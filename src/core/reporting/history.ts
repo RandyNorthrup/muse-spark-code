@@ -112,7 +112,8 @@ async function processStart(pid: number, probeBudgetMs: number): Promise<string 
     file = path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH)
     args = [
       ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-      `$owner = Get-Process -Id ${String(pid)} -ErrorAction SilentlyContinue; if ($null -ne $owner) { $owner.StartTime.ToFileTimeUtc() }`,
+      // Module discovery can consume the probe deadline on a cold/loaded rig.
+      `try { [Diagnostics.Process]::GetProcessById(${String(pid)}).StartTime.ToFileTimeUtc() } catch [ArgumentException] { }`,
     ]
   }
   const { stdout } = await execFileAsync(file, args, {

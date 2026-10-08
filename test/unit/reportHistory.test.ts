@@ -1,6 +1,5 @@
-import type * as ResourceAdmission from '../../src/core/resources/admission'
-import { spawn, execFile } from 'node:child_process'
-import { promisify } from 'node:util'
+import * as ResourceAdmission from '../../src/core/resources/admission'
+import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { createHash } from 'node:crypto'
 import * as fsPromises from 'node:fs/promises'
@@ -41,10 +40,14 @@ import { removeFolder } from './helpers/temporaryFolders'
 
 // Filesystem races use a direct, bounded identity probe; native admission is
 // proved by spawnRuntimeAdmission and the real-Git schedule suite.
-vi.mock('../../src/core/resources/admission', async (original) => ({
-  ...(await original<typeof ResourceAdmission>()),
-  execResourceFile: promisify(execFile),
-}))
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  return {
+    ...(await original<typeof ResourceAdmission>()),
+    execResourceFile: vi.fn(promisify(execFile)),
+  }
+})
 
 vi.mock('node:fs/promises', async () => {
   const actual = await vi.importActual<typeof fsPromises>('node:fs/promises')
@@ -178,6 +181,13 @@ describe('report history', () => {
         files.write('retried.json', '{}'),
       )
       expect(probe).toHaveBeenCalledTimes(2)
+      if (process.platform === 'win32') {
+        const commands = vi
+          .mocked(ResourceAdmission.execResourceFile)
+          .mock.calls.flatMap((call) => call[1])
+          .join(' ')
+        expect(commands).toContain('[Diagnostics.Process]::GetProcessById')
+      }
     } finally {
       probe.mockRestore()
     }

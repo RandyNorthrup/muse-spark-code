@@ -41,6 +41,7 @@ export async function runBootstrap(
     const output: Buffer[] = []
     let size = 0
     let isFailed = false
+    let isOutputTooLarge = false
     let stopping: Promise<void> | undefined
     const stop = () => {
       isFailed = true
@@ -87,8 +88,10 @@ export async function runBootstrap(
     if (signal.aborted) stop()
     const read = (bytes: Buffer, shouldKeep: boolean) => {
       size += bytes.length
-      if (size > CLI_OUTPUT_MAX_BYTES) stop()
-      else if (shouldKeep) output.push(bytes)
+      if (size > CLI_OUTPUT_MAX_BYTES) {
+        isOutputTooLarge = true
+        stop()
+      } else if (shouldKeep) output.push(bytes)
     }
     root.stdout.on('data', (bytes: Buffer) => {
       read(bytes, true)
@@ -104,7 +107,9 @@ export async function runBootstrap(
         await stopping
         if (isFailed || code !== 0) {
           lease.failed?.()
-          throw new Error('Bootstrap command failed')
+          throw Object.assign(new Error('Bootstrap command failed'), {
+            code: isOutputTooLarge ? 'outputLimit' : 'commandFailed',
+          })
         }
         return Buffer.concat(output).toString('utf8')
       })()

@@ -188,36 +188,37 @@ Updated by SPAWN017B; historical receipts below retain their original results.
 The inventory searches spawn/exec/fork/child-process imports in existing
 files added or changed since `4da4ef666`; deleted paths are excluded.
 
-| Site                                                       | Governance and containment                                                                                                                  |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `core/backends/musecode/MuseCodeHost.ts`, account MSP      | Repaired: account transport through `spawnResourceAccountConnection`; native job plus observed retirement.                                  |
-| `host/backend/museCodeBackendManager.ts`                   | Both account and ordinary paths share the MSP resource launch boundary.                                                                     |
-| `host/auth/accountHost.ts`                                 | Existing short-lived account path already uses `spawnResourceMuseConnection`.                                                               |
-| `core/backends/modelapi/mcp/pool.ts`                       | Delegates ordinary stdio to the host builder and credentialed stdio to the vault port.                                                      |
-| `host/backend/mcpServers.ts` and `mcpProcess.ts`           | Existing MCP admission/job/group boundary; new broker builder joins it.                                                                     |
-| `host/backend/mcpVault.ts`                                 | Repaired production vault stdio builder; authorization, scrub, expiry and revocation retained.                                              |
-| `core/media/convert.ts`, probe and encoder                 | Repaired: `spawnResourceProcess`; native payload PID is queried for RSS rather than sampling the launcher.                                  |
-| `core/media/record/macos.ts`, two injected spawn calls     | Honestly unavailable: M105 W leaves all installed recording drivers unbound; Help now says direct recording is unavailable.                 |
-| `core/reporting/history.ts`, identity probe                | Repaired: bounded `execResourceFile`, resource admission and contained helper.                                                              |
-| `core/reporting/sources/github.ts`, gh reads               | Repaired: same bounded command adapter; credential-stripped environment retained.                                                           |
-| `core/schedules/events/git.ts`, three Git reads            | Repaired: same adapter; trust and stable-read checks retained.                                                                              |
-| `runtime/reporting/sources.ts`, Git reads                  | Repaired: same adapter; nonzero results and bounds retained.                                                                                |
-| `runtime/schedules/nodeBackgroundIo.ts`, OS commands       | Repaired: same adapter; credential stripping and fixed program resolution retained.                                                         |
-| `runtime/schedules/nodeBackgroundIo.ts`, maintenance child | Repaired: resource process boundary, group containment, detached lifecycle retained. Native Darwin maintenance qualification is still owed. |
-| `core/vault/broker/peer.ts`, Unix peer helper              | Repaired: resource process boundary with the exact inherited socket descriptor.                                                             |
-| `runtime/vault/slots/macVaultTransport.ts`                 | Repaired: resource process boundary; private binary pipes and empty payload environment retained.                                           |
-| `runtime/vault/slots/windowsVaultTransport.ts`             | Repaired: job-backed guard process; readiness/digest checks still precede private input.                                                    |
-| `host/vault/vaultExecSpawn.ts`                             | Honestly unavailable: M109 W has no broker-backed service or installed feeder; commands refuse closed and Help names the absent broker.     |
-| `core/orchestration/playbook/modules.ts`, rename Git reads | Repaired: ordinary hook admission and required contained runner on Windows; POSIX tree supervisor otherwise.                                |
-| `core/orchestration/playbook/outcomes.ts`                  | Existing contained hook/Git runner; its child-process imports are types.                                                                    |
-| `host/team/acpProcess.ts`                                  | Existing `TeamChildLauncher` admission and contained transport.                                                                             |
-| `host/backend/toolIo.ts`                                   | Existing governed shell/resource command adapter; the original raw spawn is behind that boundary.                                           |
-| `host/processTree.ts`, native probes and POSIX supervisor  | Existing native containment/probe infrastructure, including the supervisor's payload spawn.                                                 |
-| `host/backend/jobBuild.ts`                                 | Bootstrap tier: shared runBootstrap, heavy admission, bounded output/deadline, OS whole-tree termination and observed exit.                 |
-| `host/vault/slots/windowsVaultBuild.ts`                    | Bootstrap tier: the public-source guard and job compiler both use the same admitted bootstrap runner.                                       |
-| `runtime/main.ts`, browser opener and login terminal       | Governed: runtime login and Linux browser handlers use spawnResourceProcess; Windows/macOS OS openers use bounded execResourceFile.         |
+| Site                                                       | Governance and containment                                                                                                                            |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/backends/musecode/MuseCodeHost.ts`, account MSP      | Governed: Repaired: account transport through `spawnResourceAccountConnection`; native job plus observed retirement.                                  |
+| `host/backend/museCodeBackendManager.ts`                   | Governed: Both account and ordinary paths share the MSP resource launch boundary.                                                                     |
+| `host/auth/accountHost.ts`                                 | Governed: Existing short-lived account path already uses `spawnResourceMuseConnection`.                                                               |
+| `core/backends/modelapi/mcp/pool.ts`                       | Governed: Delegates ordinary stdio to the host builder and credentialed stdio to the vault port.                                                      |
+| `host/backend/mcpServers.ts` and `mcpProcess.ts`           | Governed: Existing MCP admission/job/group boundary; new broker builder joins it.                                                                     |
+| `host/backend/mcpVault.ts`                                 | Governed: Repaired production vault stdio builder; authorization, scrub, expiry and revocation retained.                                              |
+| `core/media/convert.ts`, probe and encoder                 | Governed: Repaired: `spawnResourceProcess`; native payload PID is queried for RSS rather than sampling the launcher.                                  |
+| `core/media/record/macos.ts`, two injected spawn calls     | Honestly unavailable: M105 W leaves all installed recording drivers unbound; Help now says direct recording is unavailable.                           |
+| `core/reporting/history.ts`, identity probe                | Governed: Repaired: bounded `execResourceFile`, resource admission and contained helper.                                                              |
+| `core/reporting/sources/github.ts`, gh reads               | Governed: Repaired: same bounded command adapter; credential-stripped environment retained.                                                           |
+| `core/schedules/events/git.ts`, three Git reads            | Governed: Repaired: same adapter; trust and stable-read checks retained.                                                                              |
+| `runtime/reporting/sources.ts`, Git reads                  | Governed: Repaired: same adapter; nonzero results and bounds retained.                                                                                |
+| `runtime/schedules/nodeBackgroundIo.ts`, OS commands       | Governed: Repaired: same adapter; credential stripping and fixed program resolution retained.                                                         |
+| `runtime/schedules/nodeBackgroundIo.ts`, maintenance child | Governed: Repaired: resource process boundary, group containment, detached lifecycle retained. Native Darwin maintenance qualification is still owed. |
+| `core/vault/broker/peer.ts`, Unix peer helper              | Governed: Repaired: resource process boundary with the exact inherited socket descriptor.                                                             |
+| `runtime/vault/slots/macVaultTransport.ts`                 | Governed: Repaired: resource process boundary; private binary pipes and empty payload environment retained.                                           |
+| `runtime/vault/slots/windowsVaultTransport.ts`             | Governed: Repaired: job-backed guard process; readiness/digest checks still precede private input.                                                    |
+| `host/vault/vaultExecSpawn.ts`                             | Honestly unavailable: M109 W has no broker-backed service or installed feeder; commands refuse closed and Help names the absent broker.               |
+| `core/orchestration/playbook/modules.ts`, rename Git reads | Governed: Repaired: ordinary hook admission and required contained runner on Windows; POSIX tree supervisor otherwise.                                |
+| `core/orchestration/playbook/outcomes.ts`                  | Governed: Existing contained hook/Git runner; its child-process imports are types.                                                                    |
+| `host/team/acpProcess.ts`                                  | Governed: Existing `TeamChildLauncher` admission and contained transport.                                                                             |
+| `host/backend/toolIo.ts`                                   | Governed: Existing governed shell/resource command adapter; the original raw spawn is behind that boundary.                                           |
+| `host/processTree.ts`, native probes and POSIX supervisor  | Governed: Existing native containment/probe infrastructure, including the supervisor's payload spawn.                                                 |
+| `host/backend/jobBuild.ts`                                 | Bootstrap tier: shared runBootstrap, heavy admission, bounded output/deadline, OS whole-tree termination and observed exit.                           |
+| `host/vault/slots/windowsVaultBuild.ts`                    | Bootstrap tier: the public-source guard and job compiler both use the same admitted bootstrap runner.                                                 |
+| `runtime/main.ts`, browser opener and login terminal       | Governed: runtime login and Linux browser handlers use spawnResourceProcess; Windows/macOS OS openers use bounded execResourceFile.                   |
 
-The bootstrap entries above and the runtime's still-unbound global resource
+**Historical SPAWN017 status before the follow-up:** the bootstrap entries and
+the runtime's then-unbound global resource
 admission are unresolved scope, not approved governance exceptions. The
 installed extension configures admission; newly migrated portable process paths
 refuse when admission is unconfigured. Their runtime feature binding is still owed. Closing that runtime/bootstrapping seam
@@ -372,3 +373,23 @@ exit 0, repository default timeouts. No timeout override was used.
 Full quality belongs to the lead under common.md and PLAN section 7. The
 native schedule publication failure remains explicitly blocked, so this
 record does not certify a regression-free runtime release.
+
+Implementation commit e50ef9f49 passed the installed lint-staged and gitleaks hooks. The staged and committed source differences were re-read. Native account/job and boundary batch passed 14 tests; the subsequent login/runtime/resource-host batch passed 73 tests. Final bootstrap/runtime/Help boundary batch passed 15 tests, including an actual spawn spy proving zero compiler launches at governor pause.
+
+Cold-replay follow-up: the first complete-file idle sequence passed twice,
+then loop 3 failed seven identity/admission cases when bounded Get-Process
+probes exhausted their existing deadline. The rename regression itself was
+not the failure. Diagnostics.Process reads the same native birth identity
+without PowerShell module discovery; absence remains an ArgumentException
+with no invented identity. All deadlines remain unchanged. Its selector
+regression and red drill reject the old module-dependent command.
+
+Additional red drills exited 1 with byte-exact restoration: taskkill /T
+removed, compiler output cap removed, and birth lookup changed back to
+Get-Process. An initial no-/T control passed because Node's attached Windows
+child lifetime killed that fixture independently. The corrected fixture
+uses a detached Windows descendant (POSIX retains the same group), with the
+same explicit root/descendant absence assertions and owned PID cleanup;
+now removing /T fails both deadline and cancellation cases. Output refusal
+is asserted by its distinct internal code before the injected deadline,
+so a later timeout cannot masquerade as an output-cap failure.
