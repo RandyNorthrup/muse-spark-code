@@ -129,6 +129,13 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     if ((await page.locator('[data-deferred-loading]').count()) > 0)
       throw new Error(`Deferred renderer did not settle: ${scene}`)
   }
+  // Two lazy renderers sit behind fallbacks the loop above cannot see: code
+  // highlighting falls back to identical plain markup, and the usage dialog's
+  // account facts fall back to nothing. Capture their settled render.
+  if (scene === 'share' || scene === 'share-narrow')
+    await waitForPaint(page, '.code-block-body code.hljs [class^="hljs-"]')
+  if ((await page.locator('h3.usage-heading', { hasText: /^Account$/ }).count()) > 0)
+    await waitForPaint(page, 'dl.usage-facts dt:text-is("Auth method")')
   if (
     [
       'muse-tools',
@@ -193,6 +200,17 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
         })
       await page.clock.runFor(100)
 
+      break
+    }
+    case 'palette': {
+      // The filter's autofocus can scroll the document before the theme's
+      // fonts settle, so the offset varied between runs. Replay that focus
+      // scroll on the settled layout without moving focus (blur closes it).
+      await page.locator('.palette-filter').evaluate((filter) => {
+        globalThis.scrollTo(0, 0)
+        filter.scrollIntoView({ block: 'nearest' })
+      })
+      await page.clock.runFor(100)
       break
     }
     case 'verify': {
