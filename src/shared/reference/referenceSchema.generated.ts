@@ -104,7 +104,7 @@ export const textKeys = [
   'paidJudgeName',
   'judgeSubscriptionNotice',
   'playbookTitle',
-  'playbookHelpDescription',
+  'playbookRecordHelp',
   'groupSupport',
   'referenceSidebar',
   'referenceFocus',

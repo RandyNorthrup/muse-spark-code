@@ -20,6 +20,11 @@ const REAL_HARNESS_PREPARE_TIMEOUT_MS = 60_000
 // a loaded hosted Windows shard with coverage needs longer than the unit
 // default. PLAN.md §8 (2026-10-07).
 const REAL_HARNESS_CASE_TIMEOUT_MS = 20_000
+// Navigation plus readiness must fail with evidence before the case deadline.
+const REAL_HARNESS_WAIT_TIMEOUT_MS = 8000
+const HARNESS_DIAGNOSTIC_LIMIT = 8192
+const HARNESS_BODY_DIAGNOSTIC_LIMIT = 4096
+const HARNESS_ERROR_DIAGNOSTIC_LIMIT = 1024
 const rig = {
   browser: undefined,
   server: undefined,
@@ -65,16 +70,46 @@ afterAll(async () => {
   if (rig.packageRoot !== '') await rm(rig.packageRoot, { recursive: true, force: true })
 })
 
-async function harness(scenario, theme, lang, run) {
+async function harness(scenario, theme, lang, run, prepare) {
   const page = await rig.browser.newPage({
     viewport: { width: scenario === 'team-tree-320' ? 320 : 690, height: 760 },
   })
+  let diagnostics = ''
+  const record = (message) => {
+    diagnostics = `${diagnostics}\n${message.slice(0, HARNESS_DIAGNOSTIC_LIMIT)}`.slice(
+      -HARNESS_DIAGNOSTIC_LIMIT,
+    )
+  }
+  page.on('console', (message) => record(`console ${message.type()}: ${message.text()}`))
+  page.on('pageerror', (error) => record(`pageerror: ${error.message}`))
+  page.on('requestfailed', (request) =>
+    record(`requestfailed: ${request.url()} ${request.failure()?.errorText ?? ''}`),
+  )
+  page.on('response', (response) => {
+    if (response.status() >= 400) record(`HTTP ${response.status()}: ${response.url()}`)
+  })
   try {
+    if (prepare !== undefined) await prepare(page)
     await page.goto(
       `${rig.origin}/test/harness/index.html?scenario=${scenario}&theme=${theme}${lang === undefined ? '' : `&lang=${lang}`}`,
+      { timeout: REAL_HARNESS_WAIT_TIMEOUT_MS },
     )
-    await page.locator(scenario === 'team-cards' ? '.activity-team-merge' : '.team-tree').waitFor()
+    await page
+      .locator(scenario === 'team-cards' ? '.activity-team-merge' : '.team-tree')
+      .waitFor({ timeout: REAL_HARNESS_WAIT_TIMEOUT_MS })
     await run(page)
+  } catch (error) {
+    let body
+    try {
+      body = (await page.locator('#root').textContent({ timeout: 1000 })) ?? ''
+    } catch (error_) {
+      body = `root unavailable: ${error_.message}`
+    }
+    record(`root: ${body.slice(0, HARNESS_BODY_DIAGNOSTIC_LIMIT)}`)
+    throw new Error(
+      `Harness ${scenario}/${theme}/${lang ?? 'en'} failed: ${String(error).slice(0, HARNESS_ERROR_DIAGNOSTIC_LIMIT)}${diagnostics}`,
+      { cause: error },
+    )
   } finally {
     await page.close()
   }
@@ -136,6 +171,40 @@ describe('RVM96B browser regressions', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }
       }))
       expect(size).toEqual({ viewport: 320, document: 320 })
     })
+  })
+
+  it('waits for the webview bundle before starting the team scenario DOM deadline', async () => {
+    const errors = []
+    await harness(
+      'team-tree-320',
+      'light',
+      undefined,
+      async (page) => {
+        expect(errors).toEqual([])
+        expect(await page.locator('.team-tree').count()).toBe(1)
+      },
+      async (page) => {
+        page.on('pageerror', (error) => {
+          errors.push(error.message)
+        })
+        await page.clock.install()
+        await page.route('**/dist/webview/main.js', async (route) => {
+          // Hold the real bundle until parsing finishes, then advance beyond
+          // the unchanged 3 s DOM deadline without spending real test time.
+          await page.waitForFunction(
+            () => globalThis.document.readyState !== 'loading',
+            undefined,
+            { timeout: REAL_HARNESS_WAIT_TIMEOUT_MS },
+          )
+          try {
+            await page.clock.runFor(4000)
+          } catch (error) {
+            errors.push(error.message)
+          }
+          await route.continue()
+        })
+      },
+    )
   })
 
   it('19 preserves targets on waiting and merge cards at 320 px in the pseudo-locale', async () => {
