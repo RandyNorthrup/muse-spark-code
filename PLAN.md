@@ -35833,6 +35833,12 @@ dependency install, paid call or real pairing. Aggregate quality and installed
 host qualification remain lane W's joined-tree obligation. Receipts and
 remaining wiring requests belong in lane U's certification section.
 
+Fresh-clone keyboard execution also owns correction of its inherited stale
+missing-Devices-asset expectation: assert the current shared panel failure
+heading and localized Retry control without dropping the no-pair/no-request
+assertions. The four-theme keyboard flow and missing-asset recovery must both
+pass on the committed script.
+
 **M100P2BASE integration scope (2026-10-07, macmini).** Merge only
 `23c67925f` into release head `9d1ab33c3` with `--no-ff`, preserving both
 branches and 0.15.0. Rebuild generated inventories. Verify committed work

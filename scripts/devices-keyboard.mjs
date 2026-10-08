@@ -12,8 +12,10 @@ import { chromium } from 'playwright-core'
 import { format } from 'prettier'
 import { findChrome } from './lib/chrome.mjs'
 import { serveRepo } from './lib/harnessServer.mjs'
+import { loadL10n } from './lib/l10nSource.mjs'
 
 const root = process.cwd()
+const { EN } = await loadL10n(root)
 const SELECT_ALL_KEY = process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
 await mkdir(path.join(root, 'temp'), { recursive: true })
 const profile = await mkdtemp(path.join(root, 'temp', 'm100-u-browser-'))
@@ -234,10 +236,11 @@ try {
     await missing.goto(
       `http://127.0.0.1:${port}/test/harness/index.html?scenario=devices-missing-asset&theme=dark`,
     )
-    await missing
-      .getByText('Devices could not load. Retry setup or reinstall the extension.', { exact: true })
-      .waitFor()
-    assert.equal(await missing.getByRole('button', { name: 'Reload' }).count(), 1)
+    await missing.getByRole('heading', { name: EN.surfaceLoadFailed, exact: true }).waitFor()
+    assert.equal(
+      await missing.getByRole('button', { name: EN.surfaceLoadRetry, exact: true }).count(),
+      1,
+    )
     assert.equal(await missing.getByRole('button', { name: 'Pair device', exact: true }).count(), 0)
     assert.deepEqual(await missing.evaluate('outbox'), [])
     receipts.push({

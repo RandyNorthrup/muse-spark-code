@@ -18,6 +18,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Keep the Devices keyboard gate aligned with the shared localized panel-load
+  failure heading and retry control while retaining missing-asset refusal checks.
+
 - Register the lazy Devices QR budget, skip loading without an encoder and
   show loading, failure and retry when configured; fit large QR codes to narrow
   panels while preserving their quiet zone.
