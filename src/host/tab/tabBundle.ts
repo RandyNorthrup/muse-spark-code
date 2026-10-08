@@ -19,7 +19,8 @@ import type {
 } from '../../core/tab/tabEngine'
 import { COMMAND_IDS, CONTEXT_KEYS, UI_TEXT } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
-import { fill, formatUsd } from '../../shared/l10n/text'
+import { fill } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 

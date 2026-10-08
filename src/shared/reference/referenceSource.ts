@@ -2,7 +2,7 @@
 export { featureCatalog, COMMAND_REFERENCE, referenceDescription } from '../featureCatalog'
 export { COMMAND_IDS } from '../constants'
 export { buildPalette } from '../paletteRegistry'
-export { slashCommandsOf } from '../slashCommands'
+export { slashCommandsOf } from './slashReference'
 export { cliCommands } from '../cliCommands'
 export { EN } from '../l10n/en'
 export { permissionModeDetail } from '../permissionModes'
@@ -384,7 +384,7 @@ export const REFERENCE_TOOL_FEATURES: Readonly<Record<string, string>> = {
 export { LINUX_RECORDERS } from '../constants'
 
 export { CLI_OPTION_REGISTRY, CLI_OPTION_TEXT } from '../../runtime/cliOptions'
-export { SLASH_REFERENCE } from '../slashCommands'
+export { SLASH_REFERENCE } from './slashReference'
 
 export { PAID_USE_REGISTRY, isPaidSettingOn } from '../paid'
 

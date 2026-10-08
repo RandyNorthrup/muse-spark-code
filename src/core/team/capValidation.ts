@@ -7,7 +7,8 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 // value, `warning` shows beside it and still saves.
 
 import { TEAM_MIN_REQUEST_TOKENS, UI_TEXT } from '../../shared/constants'
-import { fill, formatNumber, formatUsd } from '../../shared/l10n/text'
+import { fill, formatNumber } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { TeamCapDraft } from './templates'
 
 /** One request's minimum tokens (D75): the role's prefix plus this. */

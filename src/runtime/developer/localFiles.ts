@@ -129,7 +129,11 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
         .trim()
         .split('\n')
         .map((row) => developerAuditSchema.parse(JSON.parse(row)))
-      const authority = rows.findLast((row) => row.action !== 'create' && row.action !== 'remove')
+      // `migrate` re-binds the machine identity without granting authority,
+      // so it never decides the restored switch (DEVID017B).
+      const authority = rows.findLast(
+        (row) => row.action !== 'create' && row.action !== 'remove' && row.action !== 'migrate',
+      )
       if (authority !== undefined)
         return { ...state, isMultipleAccountsOn: authority.action === 'enable' }
     }
@@ -168,8 +172,13 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
       }
     } catch (error) {
       // Failure to append cannot grant authority. Revocation still attempts
-      // state publication, and the caller receives the persistence failure.
-      if (!state.isMultipleAccountsOn) await this.publishState(state)
+      // state publication, and the caller receives the persistence failure —
+      // except a foreign `resetForeign` clear, which is never published
+      // without its audit row (DEVID017E): a failed foreign Reset leaves
+      // the stored state unchanged instead of clearing it unaudited. Every
+      // other revocation, own-machine Reset included, still publishes.
+      if (audit.action !== 'resetForeign' && !state.isMultipleAccountsOn)
+        await this.publishState(state)
       throw error
     }
     await this.publishState(state)

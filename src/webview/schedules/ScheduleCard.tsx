@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { UI_TEXT } from '../../shared/constants'
-import { formatNumber, formatUsd, plural } from '../../shared/l10n/text'
+import { formatNumber, plural } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { ScheduleRequest } from '../../shared/scheduleV2'
 import type { GrantAudit, ScheduleView, ScheduleTargetChoice } from './ports'
 import { TriggerSummary } from './TriggerSummary'

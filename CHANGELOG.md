@@ -75,6 +75,37 @@ happened, not what was planned; superseded entries are kept.
 - Provider-specific retry-table binding remains pending for non-Meta transports;
   the shared retry classifier does not certify endpoint quota refusal.
 
+- DEVID017B (developer machine id, review round 2): the machine id is a
+  random value created once in the machine-scoped data folder instead of a
+  hostname digest, so renames and `host` vs `host.local` keep the unlock and
+  profiles. Legacy raw-hostname and digest grants migrate on open and the
+  raw hostname leaves stored state at once; a different machine identity is
+  refused with an honest message and `developer reset` recovers.
+
+- DEVID017C (developer machine id, review round 3): the id is published by
+  staging the full value to a private temp file, fsyncing it and claiming
+  the final name with `link`, so a racing reader sees no file or the
+  complete id, never a prefix; only the exact 64-lowercase-hex format
+  loads, anything else refuses honestly. Foreign reset asks first with
+  nothing mutated before the answer, never re-binds the grant, and clears
+  without stopping through this machine's resource port; profile folders
+  stay on disk. Cancel leaves everything unchanged.
+
+- DEVID017D (developer machine id, review round 4): a published id loads
+  before any staging, so storage that refuses new files still returns the
+  existing identity, and failed staging removes its temp file. A failed
+  foreign reset never clears without recording it: the reset audit row
+  comes first, and when it cannot be written the stored state is left
+  unchanged. Foreign reset asks its own confirmation, which says exactly
+  what happens: this machine's developer state is cleared, nothing is
+  stopped, and profile folders and credentials stay as they are.
+
+- DEVID017E (developer machine id, lead review fix): foreign Reset writes a
+  distinct `resetForeign` audit row (schema stays `v: 1`, as with `migrate`),
+  so only that clear is withheld when its audit append fails. Every other
+  revocation, own-machine Reset included, is still published after an audit
+  failure, and the caller still gets the persistence error.
+
 ## [0.17.0] - 2026-10-08
 
 ### Highlights
@@ -103,6 +134,14 @@ happened, not what was planned; superseded entries are kept.
   aggregate media budget plus 16 MiB) instead of the SDK's new 32 MiB
   default, so a valid prompt with several near-limit images still reaches the
   per-image and media-budget checks.
+- Bring every 0.17.0 bundle back under its unchanged cap by moving code, not
+  raising limits: lazy Node bundles share the wire schemas, the accounts
+  bundle takes the engine's backend through its port (348 to 48 KB), the ACP
+  engine drops zod's unused locales (915 to 639 KB), report bundles share
+  the secret scrubber, and optional browser closures shed vault English,
+  Help's slash facts and engine-only estimate schemas. Exact dollar display
+  moves out of the language helpers. The VSIX cap is provisionally 3700 KiB
+  until the hosted universal package is measured (PLAN.md D6).
 
 ### Fixed
 

@@ -37,7 +37,8 @@ import {
   SUBAGENT_TASK_MAX_REQUESTS,
   UI_TEXT,
 } from './constants'
-import { fill, formatNumber, formatUsd } from './l10n/text'
+import { fill, formatNumber } from './l10n/text'
+import { formatUsd } from './l10n/exactUsd'
 import type { BackendKind } from './protocol'
 
 /** Consent and dispatch share this immutable, exact, feature-specific authorization. */

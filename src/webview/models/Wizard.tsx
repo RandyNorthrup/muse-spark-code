@@ -8,7 +8,8 @@
 import { useState } from 'react'
 import { usdInputSchema, isPositiveUsd } from '../../shared/usd'
 import { UI_TEXT } from '../../shared/constants'
-import { fill, formatUsd, plural } from '../../shared/l10n/text'
+import { fill, plural } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import type {
   ModelsCustomFormat,
   ModelsPanelState,

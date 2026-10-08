@@ -181,5 +181,3 @@ export function filterPalette(
 export function flattenPalette(groups: readonly PaletteGroup[]): readonly PaletteItem[] {
   return groups.flatMap((group) => group.items.filter((item) => item.isDisabled !== true))
 }
-
-export { slashCommandsOf } from './slashCommands'

@@ -5,7 +5,8 @@ import { Usd, type UsdAmount } from '../../../shared/usd'
 // still reads as one.
 
 import { UI_TEXT } from '../../../shared/constants'
-import { fill, formatUsd } from '../../../shared/l10n/text'
+import { fill } from '../../../shared/l10n/text'
+import { formatUsd } from '../../../shared/l10n/exactUsd'
 
 const SMALL_COST_USD = 0.01
 const SMALL_COST_DIGITS = 6

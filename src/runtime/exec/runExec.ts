@@ -22,7 +22,8 @@ import type { AcpMediaFactory } from '../../acp/media'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
-import { uiLocale, fill, formatUsd, plural } from '../../shared/l10n/text'
+import { uiLocale, fill, plural } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import {
   ACP_AGENT_NAME,
   ACP_COMPACT_COMMAND,
@@ -56,7 +57,8 @@ import type { RuntimeBackend, RuntimeBackendDeps } from '../backends'
 import { serveOptionsFor } from './execArgs'
 import { execAttachmentBlocks, type ExecAttachmentOptions as ExecOptions } from './attachArgs'
 import { execAccountSelection, type ExecAccountsPort } from './execAccounts'
-import { accountStopText, accountUsageUrl, type AccountsSessionPort } from '../../acp/accounts'
+import type { AccountsSessionPort } from '../../acp/accounts'
+import { accountStopText, accountUsageUrl } from '../../acp/accountText'
 import { execFetch, type ExecTransport } from './execFetch'
 import { statusForStop, type Lifecycle, type StopCause } from './execLimits'
 import { createExecLogger, type ExecSink } from './execOutput'
@@ -754,7 +756,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       }
       let accounts: AccountsSessionPort | undefined
       if (requiresAccounts) {
-        const configured = deps.accounts?.create(runtimeDeps, selection)
+        const configured = deps.accounts?.create(runtimeDeps, selection, createRuntimeBackend)
         if (configured === undefined) throw new Error(UI_TEXT.accounts.unavailable)
         runtime = configured.runtime
         accounts = configured.accounts

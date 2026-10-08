@@ -1,4 +1,4 @@
-import { buildPalette } from '../../src/shared/paletteRegistry'
+import { buildPalette, slashCommandsOf } from '../../src/shared/paletteRegistry'
 import { afterEach, describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
@@ -8,8 +8,8 @@ import {
   flattenPalette,
   formatTokenWindow,
   type PaletteContext,
-  slashCommandsOf,
 } from '../../src/shared/palette'
+import { slashCommandsOf as referenceSlashCommandsOf } from '../../src/shared/reference/slashReference'
 import { rankSlashCommands, type SlashCommand } from '../../src/shared/slashCommands'
 
 const context: PaletteContext = {
@@ -670,6 +670,23 @@ describe('slashCommandsOf', () => {
       'Start a conversation to load skills',
     )
     expect(loading.every((command) => command.action.type !== 'none')).toBe(true)
+  })
+  it('leaves Help syntax and descriptions to the reference join, outside the "/" list', () => {
+    const groups = buildPalette(context)
+    const compact = slashCommandsOf(groups).find((command) => command.name === 'compact')
+    expect(compact).toBeDefined()
+    expect(compact).not.toHaveProperty('syntax')
+    expect(compact).not.toHaveProperty('reference')
+    expect(
+      referenceSlashCommandsOf(groups).find((command) => command.name === 'compact'),
+    ).toStrictEqual({
+      ...compact,
+      syntax: ['/compact'],
+      reference: { museCode: { ui: 'compactDetail' }, modelApi: { ui: 'compactDetail' } },
+    })
+    expect(referenceSlashCommandsOf(groups).map((command) => command.name)).toEqual(
+      slashCommandsOf(groups).map((command) => command.name),
+    )
   })
 })
 

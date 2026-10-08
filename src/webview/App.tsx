@@ -64,7 +64,7 @@ import type { PaletteAction } from '../shared/palette'
 import type { scheduleChannel } from './schedules/channel'
 import type { ScheduleRequest } from '../shared/scheduleV2'
 import { schedulePromptAction } from './schedules/prompt'
-import type * as SlashCommandsModule from '../shared/slashCommands'
+import type { SlashCommand } from '../shared/slashCommands'
 import type { GitAction, GitDraftKind } from '../shared/git'
 import {
   type ChatReference,
@@ -2461,9 +2461,8 @@ export function App({
     ],
   )
 
+  // The registry also derives the "/" list's slash names, outside chat startup.
   const [paletteModule, setPaletteModule] = useState<typeof PaletteRegistryModule>()
-  // The "/" list reads the slash names with the registry, outside chat startup.
-  const [slashModule, setSlashModule] = useState<typeof SlashCommandsModule>()
   const [paletteFailure, setPaletteFailure] = useState(false)
   const isNeedsPalette =
     overlay === 'actions' || overlay === 'models' || state.draft.startsWith('/')
@@ -2471,15 +2470,9 @@ export function App({
     if (!isNeedsPalette || paletteModule !== undefined || paletteFailure) return
     let isActive = true
     // The registry's rows read the optional English, which loads beside it.
-    void Promise.all([
-      loadDeferredEnglish(),
-      import('../shared/paletteRegistry'),
-      import('../shared/slashCommands'),
-    ])
-      .then(([, module, slash]) => {
-        if (!isActive) return
-        setSlashModule(slash)
-        setPaletteModule(module)
+    void Promise.all([loadDeferredEnglish(), import('../shared/paletteRegistry')])
+      .then(([, module]) => {
+        if (isActive) setPaletteModule(module)
       })
       .catch(() => {
         if (isActive) setPaletteFailure(true)
@@ -2557,8 +2550,8 @@ export function App({
   // unless it leaves the palette open; a skill becomes `/selector ` for its
   // arguments.
   const slashCommands = useMemo(
-    () => slashModule?.slashCommandsOf(paletteGroups) ?? [],
-    [slashModule, paletteGroups],
+    () => paletteModule?.slashCommandsOf(paletteGroups) ?? [],
+    [paletteModule, paletteGroups],
   )
   const slashPaletteKeys = useRef<PaletteKeys>(null)
   const onPromptAction = useCallback(
@@ -2577,7 +2570,7 @@ export function App({
     [dispatch, onPaletteAction],
   )
   const onSlashCommand = useCallback(
-    (command: SlashCommandsModule.SlashCommand) => {
+    (command: SlashCommand) => {
       onPromptAction(command.action)
     },
     [onPromptAction],

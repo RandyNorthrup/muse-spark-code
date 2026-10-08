@@ -1,0 +1,590 @@
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { constants } from 'node:fs'
+import { hostname, tmpdir } from 'node:os'
+import path from 'node:path'
+import { open } from 'node:fs/promises'
+import type * as FsPromises from 'node:fs/promises'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  developerMachineIdAliases,
+  developerMachineIdFile,
+  legacyDeveloperMachineId,
+  loadDeveloperMachineId,
+} from '../../src/core/developer/machineId'
+import { DeveloperOptions, DeveloperOptionsError } from '../../src/core/developer/developerOptions'
+import type { DeveloperProfileResources } from '../../src/core/developer/localProfiles'
+import { developerConfirmation } from '../../src/core/developer/surfaces'
+import { DeveloperLocalFiles } from '../../src/runtime/developer/localFiles'
+import { createRuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
+import { runTerminalDeveloperCommand } from '../../src/runtime/providers/accountsEntry'
+import {
+  DEVELOPER_FILES,
+  DEVELOPER_MACHINE_ID_FILE,
+  DEVELOPER_UNLOCK_MS,
+  UI_TEXT,
+} from '../../src/shared/constants'
+import { developerAuditSchema, developerStateSchema } from '../../src/shared/developerOptions'
+import { developerFixture } from './helpers/developer'
+import { memoryKeyring } from './helpers/keyring'
+
+// Fault injection for the staging and audit file opens below passes every
+// other call through to the real filesystem.
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const fs = await importOriginal<typeof FsPromises>()
+  return { ...fs, open: vi.fn(fs.open) }
+})
+
+function openPassthrough(): (
+  ...args: Parameters<typeof open>
+) => Promise<Awaited<ReturnType<typeof open>>> {
+  const passthrough = vi.mocked(open).getMockImplementation()
+  if (passthrough === undefined) throw new Error('expected an open passthrough')
+  return passthrough
+}
+
+function restoreOpen(
+  passthrough: (...args: Parameters<typeof open>) => Promise<Awaited<ReturnType<typeof open>>>,
+): void {
+  vi.mocked(open).mockReset()
+  vi.mocked(open).mockImplementation(passthrough)
+}
+
+function eacces(message: string): NodeJS.ErrnoException {
+  return Object.assign(new Error(message), { code: 'EACCES' })
+}
+
+const dirs: string[] = []
+afterEach(() => {
+  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+})
+
+// macOS spells $TMPDIR through a /var symlink the developer root refuses.
+function freshDir(): string {
+  const folder = mkdtempSync(path.join(realpathSync.native(tmpdir()), 'devid017b-'))
+  dirs.push(folder)
+  return folder
+}
+
+const locked = {
+  v: 1,
+  machineId: 'machine',
+  unlockedAt: null,
+  expiresAt: null,
+  isMultipleAccountsOn: false,
+  profiles: [],
+}
+
+function unlockedGrant(machineId: string): {
+  v: number
+  machineId: string
+  unlockedAt: number
+  expiresAt: number
+  isMultipleAccountsOn: boolean
+  profiles: { id: string; provider: string; account: string }[]
+} {
+  const unlockedAt = Date.parse('2026-10-06T12:00:00Z')
+  return {
+    v: 1,
+    machineId,
+    unlockedAt,
+    expiresAt: unlockedAt + DEVELOPER_UNLOCK_MS,
+    isMultipleAccountsOn: true,
+    profiles: [{ id: 'profile-one', provider: 'meta', account: 'work' }],
+  }
+}
+
+// A stable id that never appears in an alias list, standing in for the
+// stored random value without touching the filesystem.
+const STABLE_ID = 'this-machine-stable-id'
+
+async function openLegacy(storedId: string, currentHost: string) {
+  const legacy = unlockedGrant(storedId)
+  const h = developerFixture(legacy)
+  const owner = await DeveloperOptions.open({
+    ...h.deps,
+    machineId: STABLE_ID,
+    previousMachineIds: developerMachineIdAliases(currentHost),
+  })
+  expect(owner.snapshot().isUnlocked).toBe(true)
+  return { legacy, h, owner }
+}
+
+// Foreign reset declined: the refusal and its untouched state, shared by
+// the decline and confirmation tests below.
+async function declineForeignReset() {
+  const legacy = unlockedGrant('other-machine-identity')
+  const h = developerFixture(structuredClone(legacy))
+  const confirm = vi.fn(() => Promise.resolve(false))
+  await expect(
+    DeveloperOptions.resetForeign({ ...h.deps, machineId: STABLE_ID, confirm }, 'terminal'),
+  ).rejects.toMatchObject({
+    code: 'differentMachine',
+    message: UI_TEXT.developer.differentMachine,
+  })
+  return { legacy, h, confirm }
+}
+
+describe('developer machine identity (DEVID017B)', () => {
+  it('creates one stored id per machine folder and reuses it', async () => {
+    const folder = freshDir()
+    const first = await loadDeveloperMachineId(folder)
+    expect(first).toMatch(/^[0-9a-f]{64}$/)
+    expect(readFileSync(developerMachineIdFile(folder), 'utf8').trim()).toBe(first)
+    expect(await loadDeveloperMachineId(folder)).toBe(first)
+  })
+
+  it('keeps the unlock and profiles across a rename', async () => {
+    const legacy = unlockedGrant(STABLE_ID)
+    const h = developerFixture(legacy)
+    // The stored id never mentions the hostname, so opening after a rename
+    // matches directly; the aliases of the new name are irrelevant.
+    const owner = await DeveloperOptions.open({
+      ...h.deps,
+      machineId: STABLE_ID,
+      previousMachineIds: developerMachineIdAliases('renamed-machine'),
+    })
+    expect(owner.snapshot().isUnlocked).toBe(true)
+    expect(owner.snapshot().profiles).toEqual(legacy.profiles)
+    expect(owner.snapshot().expiresAt).toBe(legacy.expiresAt)
+  })
+
+  it.each([
+    ['host', 'host.local'],
+    ['host.local', 'host'],
+  ])('keeps a legacy grant across %s vs %s', async (storedHost, currentHost) => {
+    const { legacy, owner } = await openLegacy(legacyDeveloperMachineId(storedHost), currentHost)
+    expect(owner.snapshot().profiles).toEqual(legacy.profiles)
+  })
+
+  it('adopts a differently-cased raw hostname', async () => {
+    await openLegacy('OLD-MACHINE', 'old-machine')
+  })
+
+  it('migrates a legacy raw-hostname grant and drops the hostname on open', async () => {
+    const { legacy, h } = await openLegacy('old-machine', 'old-machine')
+    // The raw hostname is gone from stored state right after the open: no
+    // further save is needed.
+    const stored = developerStateSchema.parse(h.persisted())
+    expect(stored.machineId).toBe(STABLE_ID)
+    expect(stored.unlockedAt).toBe(legacy.unlockedAt)
+    expect(stored.expiresAt).toBe(legacy.expiresAt)
+    expect(stored.profiles).toEqual(legacy.profiles)
+    expect(JSON.stringify(h.persisted())).not.toContain('old-machine')
+    expect(h.audits.at(-1)).toMatchObject({ action: 'migrate' })
+  })
+
+  it('migrates a legacy digest grant', async () => {
+    const legacy = unlockedGrant(legacyDeveloperMachineId('my-pc'))
+    const h = developerFixture(legacy)
+    const owner = await DeveloperOptions.open({
+      ...h.deps,
+      machineId: STABLE_ID,
+      previousMachineIds: developerMachineIdAliases('my-pc'),
+    })
+    expect(owner.snapshot().isUnlocked).toBe(true)
+    expect(developerStateSchema.parse(h.persisted()).machineId).toBe(STABLE_ID)
+  })
+
+  it('creates one id under concurrent first use', async () => {
+    const folder = freshDir()
+    const ids = await Promise.all(Array.from({ length: 8 }, () => loadDeveloperMachineId(folder)))
+    expect(new Set(ids).size).toBe(1)
+    const winner = ids[0]
+    if (winner === undefined) throw new Error('concurrent creators published no id')
+    expect(readFileSync(developerMachineIdFile(folder), 'utf8')).toBe(`${winner}\n`)
+    // The staging files are gone: only the published id remains.
+    expect(readdirSync(folder)).toEqual([DEVELOPER_MACHINE_ID_FILE])
+  })
+
+  it('loads a published id without staging when new files are refused', async () => {
+    const folder = freshDir()
+    const published = await loadDeveloperMachineId(folder)
+    // Storage refuses every new file from here on: creation fails EACCES.
+    const passthrough = openPassthrough()
+    vi.mocked(open).mockRejectedValue(eacces("EACCES: permission denied, open 'machine-id'"))
+    // Forget the first load's staging call: only new attempts count below.
+    vi.mocked(open).mockClear()
+    try {
+      // The existing valid id loads with no staging attempt at all.
+      await expect(loadDeveloperMachineId(folder)).resolves.toBe(published)
+      expect(vi.mocked(open)).not.toHaveBeenCalled()
+    } finally {
+      restoreOpen(passthrough)
+    }
+  })
+
+  it('removes its staging file when the staged write cannot be synced', async () => {
+    const folder = freshDir()
+    // The staging file opens, then its fsync fails with EIO.
+    const passthrough = openPassthrough()
+    vi.mocked(open).mockImplementationOnce(async (...args) => {
+      const handle = await passthrough(...args)
+      vi.spyOn(handle, 'sync').mockRejectedValueOnce(
+        Object.assign(new Error('EIO: i/o error, fsync'), { code: 'EIO' }),
+      )
+      return handle
+    })
+    try {
+      await expect(loadDeveloperMachineId(folder)).rejects.toMatchObject({
+        code: 'unavailable',
+        message: UI_TEXT.developer.unavailable,
+      })
+      // No claim file is left behind for the next load to trip over.
+      expect(readdirSync(folder)).toEqual([])
+    } finally {
+      restoreOpen(passthrough)
+    }
+  })
+
+  it.each([
+    ['a partial prefix', '0123456789abcdef'],
+    ['a single character', 'a'],
+    ['garbage', 'garbage'],
+    ['an empty file', ''],
+  ])('refuses %s instead of adopting it as the identity', async (_label, contents) => {
+    const folder = freshDir()
+    writeFileSync(developerMachineIdFile(folder), contents)
+    await expect(loadDeveloperMachineId(folder)).rejects.toMatchObject({
+      code: 'unavailable',
+      message: UI_TEXT.developer.unavailable,
+    })
+    // The refusal changed nothing: no prefix became an id.
+    expect(readFileSync(developerMachineIdFile(folder), 'utf8')).toBe(contents)
+  })
+
+  it('never adopts a held partial publish, reading the complete id instead', async () => {
+    const folder = freshDir()
+    const file = developerMachineIdFile(folder)
+    // A creator held mid-publish has only 16 of the 64 characters visible
+    // at the published name; it finishes 30 ms later (well inside the
+    // reader's retry budget). The reader must never adopt the prefix.
+    const completeId = 'ab'.repeat(32)
+    writeFileSync(file, '0123456789abcdef')
+    setTimeout(() => {
+      writeFileSync(file, `${completeId}\n`)
+    }, 30)
+    await expect(loadDeveloperMachineId(folder)).resolves.toBe(completeId)
+  })
+
+  it('refuses honestly when the id file cannot be created or read', async () => {
+    const folder = freshDir()
+    mkdirSync(developerMachineIdFile(folder))
+    const loaded = loadDeveloperMachineId(folder)
+    await expect(loaded).rejects.toBeInstanceOf(DeveloperOptionsError)
+    await expect(loaded).rejects.toMatchObject({
+      code: 'unavailable',
+      message: UI_TEXT.developer.unavailable,
+    })
+    const services = createRuntimeAccountServices({
+      dataDir: folder,
+      openEntry: memoryKeyring().openEntry,
+    })
+    try {
+      await expect(
+        services.developer({ readLine: () => Promise.resolve(''), print: vi.fn() }),
+      ).rejects.toMatchObject({ code: 'unavailable' })
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('refuses a different machine identity with an honest message and keeps profiles', async () => {
+    const legacy = unlockedGrant('other-machine-identity')
+    const h = developerFixture(legacy)
+    const opened = DeveloperOptions.open({
+      ...h.deps,
+      machineId: STABLE_ID,
+      previousMachineIds: developerMachineIdAliases(hostname()),
+    })
+    await expect(opened).rejects.toBeInstanceOf(DeveloperOptionsError)
+    await expect(opened).rejects.toMatchObject({
+      code: 'differentMachine',
+      message: UI_TEXT.developer.differentMachine,
+    })
+    await expect(opened).rejects.not.toThrow('unavailable')
+    expect(h.persisted()).toEqual(legacy)
+  })
+
+  it('leaves foreign state untouched when reset is declined', async () => {
+    const { legacy, h, confirm } = await declineForeignReset()
+    expect(confirm).toHaveBeenCalledTimes(1)
+    // Nothing was mutated before the answer: identity, unlock, profiles
+    // and audit sit exactly as before — nothing was re-bound.
+    expect(h.persisted()).toEqual(legacy)
+    expect(h.audits).toEqual([])
+    expect(h.resources.stop).not.toHaveBeenCalled()
+    expect(h.resources.remove).not.toHaveBeenCalled()
+    // The next open still refuses with the honest identity message.
+    await expect(
+      DeveloperOptions.open({
+        ...h.deps,
+        machineId: STABLE_ID,
+        previousMachineIds: developerMachineIdAliases(hostname()),
+      }),
+    ).rejects.toMatchObject({ code: 'differentMachine' })
+  })
+
+  it('clears foreign state on confirmation without stopping or transferring', async () => {
+    const legacy = unlockedGrant('other-machine-identity')
+    const h = developerFixture(structuredClone(legacy))
+    // The runtime's resource port is unbound, so every call fails.
+    // Recovery must still clear: foreign profiles are never stopped here.
+    const unbound: DeveloperProfileResources = {
+      start: vi.fn<DeveloperProfileResources['start']>(() =>
+        Promise.reject(new DeveloperOptionsError('unavailable')),
+      ),
+      stop: vi.fn<DeveloperProfileResources['stop']>(() =>
+        Promise.reject(new DeveloperOptionsError('unavailable')),
+      ),
+      remove: vi.fn<DeveloperProfileResources['remove']>(() =>
+        Promise.reject(new DeveloperOptionsError('unavailable')),
+      ),
+    }
+    const snapshot = await DeveloperOptions.resetForeign(
+      { ...h.deps, machineId: STABLE_ID, resources: unbound },
+      'terminal',
+    )
+    expect(snapshot).toMatchObject({
+      isUnlocked: false,
+      isMultipleAccountsOn: false,
+      expiresAt: null,
+      profiles: [],
+    })
+    const cleared = developerStateSchema.parse(h.persisted())
+    expect(cleared.machineId).toBe(STABLE_ID)
+    expect(cleared.unlockedAt).toBeNull()
+    expect(cleared.expiresAt).toBeNull()
+    expect(cleared.isMultipleAccountsOn).toBe(false)
+    expect(cleared.profiles).toEqual([])
+    // Nothing of the grant moved across: no stop, no removal, and the
+    // only audit row is the reset itself — no disable, no per-profile row.
+    expect(unbound.stop).not.toHaveBeenCalled()
+    expect(unbound.remove).not.toHaveBeenCalled()
+    expect(h.audits).toEqual([
+      expect.objectContaining({ action: 'resetForeign', source: 'terminal' }),
+    ])
+    // The next open on this machine is a fresh state, not a refusal.
+    const owner = await DeveloperOptions.open({ ...h.deps, machineId: STABLE_ID })
+    expect(owner.snapshot()).toMatchObject({ isUnlocked: false, profiles: [] })
+  })
+
+  it('transfers nothing when the reset save fails', async () => {
+    const legacy = unlockedGrant('other-machine-identity')
+    const h = developerFixture(structuredClone(legacy))
+    vi.mocked(h.deps.store.commit).mockRejectedValueOnce(new Error('disk full'))
+    await expect(
+      DeveloperOptions.resetForeign({ ...h.deps, machineId: STABLE_ID }, 'terminal'),
+    ).rejects.toThrow('disk full')
+    // The foreign grant sits exactly as before: no re-bind, no clearing.
+    expect(h.persisted()).toEqual(legacy)
+    expect(h.audits).toEqual([])
+  })
+
+  it('asks foreign reset with its own honest confirmation', async () => {
+    const { confirm } = await declineForeignReset()
+    // Foreign reset asks its own question, not the destructive own-machine one.
+    expect(confirm).toHaveBeenCalledWith('resetForeign')
+    const asked = developerConfirmation('resetForeign')
+    expect(asked.message).toBe(UI_TEXT.developer.foreignResetWarning)
+    // The text clears this machine's state, stops nothing, and keeps the
+    // profile folders: it must never promise stopping or deletion.
+    expect(asked.message).toContain('stops nothing')
+    expect(asked.message).not.toMatch(/will stop|deleted/)
+  })
+
+  it('leaves foreign state stored when the reset audit cannot be appended', async () => {
+    const folder = freshDir()
+    const root = path.join(folder, 'developer')
+    const store = new DeveloperLocalFiles(root)
+    const legacy = unlockedGrant('other-machine-identity')
+    const at = Date.parse('2026-10-06T12:00:00Z')
+    await store.commit(
+      developerStateSchema.parse(legacy),
+      developerAuditSchema.parse({ v: 1, time: at, action: 'enable', source: 'terminal' }),
+    )
+    // Every audit append-open fails EACCES; reads and state writes pass through.
+    const passthrough = openPassthrough()
+    vi.mocked(open).mockImplementation(async (...args) => {
+      const flags = args[1]
+      if (typeof flags === 'number' && (flags & constants.O_APPEND) !== 0)
+        throw eacces("EACCES: permission denied, open 'audit'")
+      return await passthrough(...args)
+    })
+    const h = developerFixture()
+    try {
+      // Reset reports the failure instead of clearing without recording it.
+      await expect(
+        DeveloperOptions.resetForeign(
+          { ...h.deps, machineId: STABLE_ID, store, confirm: () => Promise.resolve(true) },
+          'terminal',
+        ),
+      ).rejects.toThrow('EACCES')
+      // The stored state sits exactly as before: the foreign identity,
+      // unlock and registration are intact, with only the enable audit row.
+      expect(JSON.parse(readFileSync(path.join(root, DEVELOPER_FILES.state), 'utf8'))).toEqual(
+        legacy,
+      )
+      expect(
+        readFileSync(path.join(root, DEVELOPER_FILES.audit), 'utf8').trim().split('\n'),
+      ).toHaveLength(1)
+      // The next open still refuses with the honest identity message.
+      await expect(
+        DeveloperOptions.open({ ...h.deps, machineId: STABLE_ID, store }),
+      ).rejects.toMatchObject({ code: 'differentMachine' })
+    } finally {
+      restoreOpen(passthrough)
+    }
+  })
+
+  it('still publishes an own-machine reset clear when the reset audit cannot be appended', async () => {
+    const folder = freshDir()
+    const root = path.join(folder, 'developer')
+    const store = new DeveloperLocalFiles(root)
+    const grant = unlockedGrant(STABLE_ID)
+    const at = Date.parse('2026-10-06T12:00:00Z')
+    await store.commit(
+      developerStateSchema.parse(grant),
+      developerAuditSchema.parse({ v: 1, time: at, action: 'enable', source: 'terminal' }),
+    )
+    // Only the reset row's append fails: the disable revoke inside reset
+    // still records, so the failure under test is the reset row itself.
+    const passthrough = openPassthrough()
+    let appends = 0
+    vi.mocked(open).mockImplementation(async (...args) => {
+      const flags = args[1]
+      if (typeof flags === 'number' && (flags & constants.O_APPEND) !== 0) {
+        appends += 1
+        if (appends > 1) throw eacces("EACCES: permission denied, open 'audit'")
+      }
+      return await passthrough(...args)
+    })
+    const h = developerFixture()
+    try {
+      const owner = await DeveloperOptions.open({ ...h.deps, machineId: STABLE_ID, store })
+      await expect(owner.reset('terminal')).rejects.toThrow('EACCES')
+      // Fail-safe: the revocation was published even though its audit row
+      // was not, and the caller still got the persistence error.
+      expect(JSON.parse(readFileSync(path.join(root, DEVELOPER_FILES.state), 'utf8'))).toEqual({
+        v: 1,
+        machineId: STABLE_ID,
+        unlockedAt: null,
+        expiresAt: null,
+        isMultipleAccountsOn: false,
+        profiles: [],
+      })
+      expect(owner.isMultipleAccountsOn()).toBe(false)
+    } finally {
+      restoreOpen(passthrough)
+    }
+  })
+
+  it('opens on this machine and persists the stored id', async () => {
+    const folder = freshDir()
+    const services = createRuntimeAccountServices({
+      dataDir: folder,
+      openEntry: memoryKeyring().openEntry,
+    })
+    try {
+      const owner = await services.developer({
+        readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
+        print: vi.fn(),
+      })
+      expect(owner.snapshot().isUnlocked).toBe(false)
+      await owner.unlock('terminal')
+      expect(owner.snapshot().isUnlocked).toBe(true)
+      const stored = developerStateSchema.parse(
+        JSON.parse(readFileSync(path.join(folder, 'developer', DEVELOPER_FILES.state), 'utf8')),
+      )
+      // The stored id is the file every host shares, never the hostname.
+      expect(stored.machineId).toBe(await loadDeveloperMachineId(folder))
+      expect(stored.machineId).not.toContain('.')
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('names the identity on status and recovers through reset', async () => {
+    const folder = freshDir()
+    mkdirSync(path.join(folder, 'developer'), { recursive: true })
+    const unlockedAt = Date.now() - 1000
+    writeFileSync(
+      path.join(folder, 'developer', DEVELOPER_FILES.state),
+      JSON.stringify({
+        ...locked,
+        machineId: 'foreign-machine-identity',
+        unlockedAt,
+        expiresAt: unlockedAt + DEVELOPER_UNLOCK_MS,
+        isMultipleAccountsOn: true,
+        profiles: [{ id: 'profile-one', provider: 'meta', account: 'work' }],
+      }),
+    )
+    const input = { dataDir: folder, openEntry: memoryKeyring().openEntry }
+    const status = await runTerminalDeveloperCommand(
+      UI_TEXT,
+      'en',
+      input,
+      { readLine: () => Promise.resolve(''), print: vi.fn() },
+      ['developer', 'status'],
+      'terminal',
+    )
+    expect(status).toEqual({ text: UI_TEXT.developer.differentMachine, exitCode: 1 })
+
+    const reset = await runTerminalDeveloperCommand(
+      UI_TEXT,
+      'en',
+      input,
+      { readLine: () => Promise.resolve(UI_TEXT.accounts.confirm), print: vi.fn() },
+      ['developer', 'reset'],
+      'terminal',
+    )
+    expect(reset.exitCode).toBe(0)
+    const cleared = developerStateSchema.parse(
+      JSON.parse(readFileSync(path.join(folder, 'developer', DEVELOPER_FILES.state), 'utf8')),
+    )
+    // The runtime's resource port is unbound, yet recovery cleared the
+    // foreign grant: no unlock, no registration, nothing transferred.
+    expect(cleared).toMatchObject({
+      unlockedAt: null,
+      expiresAt: null,
+      isMultipleAccountsOn: false,
+      profiles: [],
+    })
+    expect(cleared.machineId).toBe(await loadDeveloperMachineId(folder))
+
+    const again = await runTerminalDeveloperCommand(
+      UI_TEXT,
+      'en',
+      input,
+      { readLine: () => Promise.resolve(''), print: vi.fn() },
+      ['developer', 'status'],
+      'terminal',
+    )
+    expect(again).toEqual({ text: UI_TEXT.developer.locked, exitCode: 0 })
+  })
+
+  it('keeps the legacy derivation pinned for migration aliases', () => {
+    // A published vector: the same hostname yields the same alias on every host.
+    expect(legacyDeveloperMachineId('macmini.ivettnet')).toBe(
+      '1f78da4562a5e81df9a860c494ea41dd6974651d17049b355cb262cee96190d1',
+    )
+    expect(legacyDeveloperMachineId('host.local')).toBe(
+      '84345dbbba633e49930fa0ae278faf4c72c69fb4c14147c0768331f14df9aed6',
+    )
+    expect(legacyDeveloperMachineId('Host.Local')).toBe(legacyDeveloperMachineId('host.local'))
+    // The raw hostname never validates: dots are outside the schema.
+    for (const host of ['Macmini.ivettnet', 'host.local'])
+      expect(developerStateSchema.safeParse({ ...locked, machineId: host }).success).toBe(false)
+    expect(developerMachineIdAliases('host.local')).toContain(
+      legacyDeveloperMachineId('host.local'),
+    )
+    expect(developerMachineIdAliases('host.local')).toContain(legacyDeveloperMachineId('host'))
+  })
+})

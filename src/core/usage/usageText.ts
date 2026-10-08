@@ -7,9 +7,9 @@ import {
   fill,
   formatDate,
   formatDateTime,
-  formatUsd,
   plural,
 } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import {
   resourceHistoryBucket,
   resourceHistoryDateTime,

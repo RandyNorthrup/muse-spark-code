@@ -361,8 +361,14 @@ export const compactBrowserUiText = {
       )
       // M108: account and developer English load with their optional surfaces.
       const accountKeys = deferredKeys.filter((key) => /^(?:accounts|developer)$/.test(key))
+      // M109: the vault group's English travels with the vault surface, whose
+      // vaultEnglish.ts installs it before any vault render; never twice here.
       const surfaceKeys = deferredKeys.filter(
-        (key) => !helpKeys.includes(key) && !accountKeys.includes(key) && nonResourceKeys.has(key),
+        (key) =>
+          !helpKeys.includes(key) &&
+          !accountKeys.includes(key) &&
+          key !== 'vault' &&
+          nonResourceKeys.has(key),
       )
       const readers = new Set([...keys].filter((key) => !deferredKeys.includes(key)))
       const contract = Object.fromEntries(

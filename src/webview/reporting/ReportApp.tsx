@@ -5,7 +5,8 @@ import {
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill, formatNumber, formatPercent, formatUnit, formatUsd } from '../../shared/l10n/text'
+import { fill, formatNumber, formatPercent, formatUnit } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { ReportRow, ReportValue } from '../../shared/reportSchema'
 import {
   reportingHostMessageSchema,

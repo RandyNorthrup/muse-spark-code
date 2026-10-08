@@ -2,11 +2,8 @@ import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { FilesApi, type UploadSource } from '../../src/core/backends/modelapi/files'
 import { ModelApiError } from '../../src/core/backends/modelapi/client'
-import {
-  UploadLedger,
-  uploadedFilesReportSchema,
-  type UploadLedgerStorage,
-} from '../../src/core/media/uploadLedger'
+import { UploadLedger, type UploadLedgerStorage } from '../../src/core/media/uploadLedger'
+import { uploadedFilesReportSchema } from '../../src/shared/media'
 import { FifoLimiter } from '../../src/core/fifoLimiter'
 
 const accountId = 'a'.repeat(64)

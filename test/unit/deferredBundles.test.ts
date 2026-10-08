@@ -31,6 +31,7 @@ import {
   sharedResourceAdmission,
   sharedStructuredSchema,
   sharedModelApiBoundaries,
+  englishZodLocales,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
 import type * as resourceGovernor from '../../src/core/resources/resourceGovernorEntry'
@@ -161,6 +162,7 @@ beforeAll(async () => {
           deferredTeamView,
           sharedModelApiBoundaries,
           nodeReferenceData,
+          englishZodLocales,
           // Match the shipped prompt archive before checking real production caps.
           ...(['modelApi', 'reference', 'codeIntel'].includes(name)
             ? [compressedModelText(true)]
@@ -190,6 +192,7 @@ beforeAll(async () => {
         deferredTeamView,
         sharedModelApiBoundaries,
         nodeReferenceData,
+        englishZodLocales,
       ],
       external: ['@napi-rs/keyring'],
     }),
@@ -419,7 +422,7 @@ function outputInputs(meta: z.infer<typeof metafileSchema>, output: string) {
 function inputs(name: string): string[] {
   return Object.keys(
     fixture(
-      `dist/${['acp', 'exec', 'acpQuestions', 'runtimeQuestions', 'runtimeAccounts'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
+      `dist/${['acp', 'exec', 'headless', 'acpQuestions', 'runtimeQuestions', 'runtimeAccounts'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
     ).meta.inputs,
   ).map((file) => file.split(path.sep).join('/'))
 }
@@ -744,7 +747,11 @@ describe('deferred cohort bundles', () => {
     // milestone carries 1,161 more bytes than U's pin (the validated v2
     // protocol, schedules settings and their strings). The diet's mechanism
     // below is unchanged: the loaders stay out of Model API.
-    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(474_100)
+    // CAPS017 (0.17.0, Kubuntu): the 474,100 pin was taken on int/0170 before
+    // 0.16.0's Model API merged. int/0170's own head measured 483,463 and
+    // 0.16.0 alone 500,400 (no M115 code); the combined tree is 527,373 after
+    // its diet, inside D6's 525 KiB cap. The pin moves to that measurement.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(527_400)
     const schedules = new Set(inputs('schedules'))
     for (const file of [
       'src/core/backends/modelapi/schedulesEntry.ts',
@@ -824,6 +831,65 @@ describe('deferred cohort bundles', () => {
       expect(inputs('extension')).not.toContain(file)
       expect(inputs('conversation')).toContain(file)
     }
+  })
+
+  it('CAPS017: lazy Node bundles share the wire schemas instead of copying them', () => {
+    const schemas = [
+      'src/shared/scheduleV2.ts',
+      'src/shared/scheduleEvents.ts',
+      'src/shared/schedule.ts',
+      'src/shared/media.ts',
+      'src/shared/questions.ts',
+    ]
+    for (const file of schemas) expect(inputs('wire')).toContain(file)
+    for (const name of [
+      'extension',
+      'conversation',
+      'modelApi',
+      'runtimeEngine',
+      'runtimeAccounts',
+      'runtimeQuestions',
+      'usagePanel',
+      'schedules',
+    ])
+      for (const file of schemas) expect(inputs(name)).not.toContain(file)
+    const wire = loadSupportBundle('wire')
+    for (const name of ['scheduleV2Schema', 'uploadedFilesReportSchema'])
+      expect(wire).toHaveProperty(name)
+    // The chat validates the upload report without carrying the ledger or the client.
+    for (const file of [
+      'src/core/media/uploadLedger.ts',
+      'src/core/backends/modelapi/client.ts',
+      'src/core/backends/modelapi/subagentTools.ts',
+    ])
+      expect(inputs('conversation')).not.toContain(file)
+  })
+
+  it('CAPS017: account services take the backend factory through their port', () => {
+    for (const file of [
+      'src/runtime/backends.ts',
+      'src/core/backends/musecode/MuseCodeHost.ts',
+      'src/host/backend/toolIo.ts',
+    ]) {
+      expect(inputs('runtimeAccounts')).not.toContain(file)
+      expect(inputs('runtimeEngine')).toContain(file)
+    }
+    for (const file of ['src/acp/accounts.ts', 'src/shared/hostApi/accounts.ts'])
+      expect(inputs('headless')).not.toContain(file)
+    expect(inputs('headless')).toContain('src/acp/accountText.ts')
+  })
+
+  it('CAPS017: the ACP engine ships only zod English locale and still loads', () => {
+    const engine = inputs('runtimeEngine')
+    expect(engine).toContain('node_modules/zod/v4/locales/en.js')
+    expect(
+      engine
+        .filter((file) => file.startsWith('node_modules/zod/v4/locales/'))
+        .toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(['node_modules/zod/v4/locales/en.js', 'node_modules/zod/v4/locales/index.js'])
+    const loaded = loadSupportBundle('runtimeEngine')
+    expect(loaded).toHaveProperty('createRuntimeBackend', expect.any(Function))
+    expect(loaded).toHaveProperty('createAcpAgent', expect.any(Function))
   })
 
   it('emits the legal scanner once and keeps it out of both initial bundles', () => {

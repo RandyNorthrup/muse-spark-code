@@ -6069,8 +6069,12 @@ export const EN = {
       'Allow isolated local profiles for testing several accounts of one provider on this PC? This choice stays on this machine.',
     resetWarning:
       'Reset Developer options? Local profiles will stop and their credential slots and state folders will be deleted.',
+    foreignResetWarning:
+      'Reset Developer options on this machine? This clears this machine’s developer state. It stops nothing: profile folders and credentials stay as they are.',
     locked: 'Developer options are locked.',
     unavailable: 'Developer options are unavailable.',
+    differentMachine:
+      'Developer options were set up under a different machine identity. Reset them to start over on this machine.',
     invalidRequest: 'Check the Developer options request.',
     expires: 'Developer mode expires {time}.',
     reset: 'Reset Developer options',

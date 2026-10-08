@@ -1,5 +1,6 @@
 import { UI_TEXT } from '../../shared/constants'
-import { formatDateTime, formatUsd } from '../../shared/l10n/text'
+import { formatDateTime } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import { deferred } from '../components/DeferredSurface'
 import type { ScheduleTargetChoice } from './ports'
 import type { ToolEntry } from '../state/uiState'

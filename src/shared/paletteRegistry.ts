@@ -662,3 +662,6 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
     })),
   }))
 }
+
+// The "/" list is derived from these rows, so it loads with them.
+export { slashCommandsOf } from './slashCommands'

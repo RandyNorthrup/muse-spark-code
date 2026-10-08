@@ -1,7 +1,7 @@
 // Optional M105 chip region; loaded only when a chip carries media metadata.
 import { MILLISECONDS_PER_SECOND, UI_TEXT } from '../../shared/constants'
 import { fill, formatBytes, plural } from '../../shared/l10n/text'
-import { formatExactUsd } from '../../shared/l10n/exactUsd'
+import { formatUsd as formatExactUsd } from '../../shared/l10n/exactUsd'
 import type { MediaChip } from '../../shared/media'
 import { formatDurationMs } from '../agentFormat'
 

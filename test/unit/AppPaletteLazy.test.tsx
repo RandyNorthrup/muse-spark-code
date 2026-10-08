@@ -6,7 +6,8 @@ import { installSurfaceRetry } from '../../src/webview/surfaceRetry'
 import { renderSignedInApp } from './helpers/initializedApp'
 
 const held = vi.hoisted(() => ({ palette: Promise.withResolvers<undefined>(), loads: 0 }))
-vi.mock('../../src/shared/palette', async (original) => {
+// The palette's data and the "/" list's slash names load with the registry.
+vi.mock('../../src/shared/paletteRegistry', async (original) => {
   held.loads++
   await held.palette.promise
   return await original()
