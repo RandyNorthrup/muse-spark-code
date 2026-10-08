@@ -393,3 +393,20 @@ same explicit root/descendant absence assertions and owned PID cleanup;
 now removing /T fails both deadline and cancellation cases. Output refusal
 is asserted by its distinct internal code before the injected deadline,
 so a later timeout cannot masquerade as an output-cap failure.
+
+Final history replay on source commit `5128960ad`: 30/30 idle and 30/30
+loaded complete-file runs exited 0, 35 assertions each (2,100 total).
+Loaded mode kept three owned CPU workers busy for the full sequence; they
+were retired in finally. No other test/typecheck/lint/build ran concurrently.
+Maximum complete-file elapsed time was 13,083 ms idle and 10,174 ms loaded.
+These are whole-suite durations, not raised test deadlines. The earlier
+three-run failure is retained above and excluded from this successful sequence.
+
+The final vault guard regression also checks both private-storage preparation
+attempts refuse before launch at pause. Removing bootstrap admission makes
+the complete bootstrap file fail (exit 1); SHA-256-identical source restoration
+was verified. Native vault fixtures explicitly inject their admission lease,
+retaining the real public guard/compiler and all existing native assertions.
+The native vault/account/bootstrap repeat passed 59 tests at repository
+timeouts, exit 0. Queue/containment and pause have separate production-boundary
+tests; this fixture transport is not a claim of an installed vault broker.

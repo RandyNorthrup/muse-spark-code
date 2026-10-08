@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as admission from '../../src/core/resources/admission'
 import { runBootstrap } from '../../src/core/resources/bootstrap'
 import { compileJob } from '../../src/host/backend/jobBuild'
+import { windowsVaultExecutable } from '../../src/host/vault/slots/windowsVaultBuild'
 import { fakeResourceLease } from './helpers/resources/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -14,6 +15,20 @@ vi.mock('../../src/core/resources/admission', { spy: true })
 afterEach(() => vi.restoreAllMocks())
 
 describe('bootstrap tier', () => {
+  it('refuses both vault guard preparations before launching at pause', async () => {
+    const admitted = vi.mocked(admission.admitBootstrap).mockRejectedValue(new Error('paused'))
+    await expect(
+      windowsVaultExecutable({
+        storageDir: process.cwd(),
+        systemRoot: path.resolve('unavailable-system-root'),
+        readSource: () =>
+          Promise.resolve(
+            '// BEGIN VAULT PATH GUARD\npublic class Fixture {}\n// END VAULT PATH GUARD',
+          ),
+      }),
+    ).rejects.toThrow()
+    expect(admitted).toHaveBeenCalledTimes(2)
+  })
   it('routes the job compiler through bootstrap admission', async () => {
     const parent = path.join(tmpdir(), 'l-SPAWN017B')
     await mkdir(parent, { recursive: true })

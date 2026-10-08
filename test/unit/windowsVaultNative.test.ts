@@ -39,7 +39,13 @@ const paths = { root: '', helper: '', guards: '', trap: '' }
 vi.mock('../../src/core/resources/admission', async (original) => {
   const actual = await original<typeof ResourceAdmission>()
   const fixture = await import('./helpers/resourceProcess')
-  return { ...actual, spawnResourceProcess: fixture.fixtureResourceProcess }
+  const { fakeResourceLease } = await import('./helpers/resources/fakes')
+  // Native vault fixtures own their temporary compiler trees; pause is covered by spawnBootstrap.
+  return {
+    ...actual,
+    spawnResourceProcess: fixture.fixtureResourceProcess,
+    admitBootstrap: () => Promise.resolve(fakeResourceLease()),
+  }
 })
 const owned = new Set<WindowsVaultSlot>()
 const capture: {
