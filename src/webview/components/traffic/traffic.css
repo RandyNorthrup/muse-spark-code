@@ -1,3 +1,9 @@
+/* Shared by the team traffic surface and the Runners section. Controls draw
+ * from the M114 token contract so buttons keep the secondary-button role and
+ * keyboard focus stays visible on low-contrast host themes. */
+@import url('../../tokens.css');
+@import url('../../../../design/tokens/generated/host-roles.css');
+
 .traffic-view {
   box-sizing: border-box;
   width: 100%;
@@ -25,12 +31,19 @@
 
 .traffic-view button {
   padding: 4px 8px;
+  color: var(--ms-secondary-text);
+  background: var(--ms-secondary-surface);
+  border-color: var(--ms-control-border);
   cursor: pointer;
 }
 
+.traffic-view button:hover:enabled:not([aria-selected='true']) {
+  background: var(--ms-secondary-hover);
+}
+
 .traffic-view :focus-visible {
-  outline: 2px solid var(--vscode-focusBorder);
-  outline-offset: 2px;
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 .traffic-tabs,

@@ -243,6 +243,22 @@ describe('D94 one token source', () => {
     )
   })
 
+  it('gives traffic and runner buttons the secondary-button role and a token focus ring', () => {
+    const traffic = readFileSync('src/webview/components/traffic/traffic.css', 'utf8')
+    expect(traffic).toMatch(/@import url\('\.\.\/\.\.\/tokens\.css'\);/)
+    expect(traffic).toMatch(
+      /@import url\('\.\.\/\.\.\/\.\.\/\.\.\/design\/tokens\/generated\/host-roles\.css'\);/,
+    )
+    const button = /\.traffic-view button\s*\{([^}]*)\}/s.exec(traffic)?.[1] ?? ''
+    expect(button).toMatch(/color: var\(--ms-secondary-text\)/)
+    expect(button).toMatch(/background: var\(--ms-secondary-surface\)/)
+    expect(button).toMatch(/border-color: var\(--ms-control-border\)/)
+    expect(traffic).toMatch(
+      /\.traffic-view :focus-visible\s*\{[^}]*var\(--ms-focus-width\)[^}]*var\(--ms-text\)[^}]*var\(--ms-focus-offset\)[^}]*\}/s,
+    )
+    expect(traffic).not.toMatch(/:focus-visible\s*\{[^}]*var\(--vscode-focusBorder\)/s)
+  })
+
   it('loads generated variables through both surface stylesheets without runtime JavaScript', async () => {
     for (const file of ['src/webview/styles.css', 'src/webview/whatsNew/whatsNew.css']) {
       expect(readFileSync(file, 'utf8')).toMatch(/@import url\(['"](?:\.\.\/)?tokens\.css['"]\);/)

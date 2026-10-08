@@ -30,6 +30,7 @@ happened, not what was planned; superseded entries are kept.
 
 - Remove the obsolete compact Node reference build plugin and its stale test; the production reference uses the current generated data loader.
 - Draw the independent reporting focus ring and the Models/account boundaries from the M114 token contract instead of direct host colours, so keyboard focus stays visible on low-contrast themes.
+- Give team traffic and Runners buttons the secondary-button token role instead of input-field colours, and draw their keyboard focus ring from the M114 token contract.
 
 ### Pending
 
