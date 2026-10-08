@@ -976,3 +976,109 @@ The host API failure is precisely the earlier six row differences:
 This continuation does not edit W's generated inventory. Full joined quality,
 coverage and installed-host qualification remain W's work under the shared
 lane rules. No passing Linux native receipt or drill is claimed.
+
+### Linux continuation — M100P2HL2 (2026-10-08): transient user services
+
+Worktree `/home/randy/lanes/M100P2HL2`, branch `m100/p2-h-linux2`, contract
+base `b0fe91da3`. Explicitly authorized `git merge --no-ff m100/p2-h-linux`
+produced **9abfac61a**. Its documentation conflict was resolved by preserving
+both the caps-contract addendum and the earlier Linux blocker/verification
+record. The caps blocker is superseded by this implementation. Existing
+`DeviceWorkerDriver`, attempt caps and receiver contracts are unchanged.
+
+#### Linux acceptance mapping
+
+| Brief item              | Implementation, tests and deliberate failure                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Status                                                                                           |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 1. Own context          | `deviceWorkerLinux.ts` starts a uniquely named transient user service with `--collect`, `Type=exec`, `ExitType=cgroup` and whole-group Stop. Readiness compares its cgroup with `/proc/self/cgroup`; the activation pipe gates the command. Portable context refusal and real independent-service/detached-descendant tests pass. Context and native-retirement drills fail.                                                                                                                                                                        | Linux done.                                                                                      |
+| 2. Host pressure        | A systemd `Result=resources` is typed `capacity`, with existing localized `capacityHelp`; no retry or cap adjustment. Portable pressure test verifies one launch and recovery text. The pressure drill fails. The Windows heap path stays unchanged.                                                                                                                                                                                                                                                                                                | Linux done; V/W consumes typed capacity.                                                         |
+| 3. Recorded environment | Host keeps M96's canonical `workerEnvironment`, PATH resolution, hook verification and recording before launch. Linux refuses noncanonical input and executes with `env -i`; XDG runtime metadata exists only in the control environment. Portable missing/unverified hook tests and the real stdin/environment case pass. Hook-preflight and credential-environment drills fail.                                                                                                                                                                   | Linux done; W still owns durable recording and M96 binding.                                      |
+| 4. Structured result    | Closed worker stdin; separately bounded stdout/stderr, streaming UTF-8 decode, raw exit-code-plus-stdout result and existing host zod/JSON validation. Banners never become results. Portable and real structured/flood cases pass. Stderr-result and output-cap drills fail.                                                                                                                                                                                                                                                                       | Linux done.                                                                                      |
+| 5. Sleep and power      | A separate fixed two-task transient user unit holds real `systemd-inhibit --what=sleep:idle --mode=block`. It acquires before worker creation and releases after observed whole-worker-cgroup exit; helper loss stops the unit, releases inhibition and rejects retirement as uncertain. Native logind listing, overlapping attempts and both launcher-loss cases pass. Power remains battery/ac/unknown; a battery or unreadable-power observation does not cancel admitted work. Portable and native release drills and unknown-power drill fail. | Linux done. W owns the lead-approved admission question for new heavy checks on battery/unknown. |
+| 6. Factory self-test    | Cached per-factory probe launches a real one-task service, queries containment/accounting/power, activates a known command, observes cgroup retirement and releases/removes both units. Unsupported managers and failed probes refuse, with no ordinary command spawn fallback. Real probe and injected missing-manager test pass. Self-test and unsupported-manager drills fail.                                                                                                                                                                   | Linux done.                                                                                      |
+
+The worker's `TasksMax` is exactly `admittedProcessLimit(attempt)`. Readiness
+checks both the manager property and kernel `pids.max` before activation.
+Native cap **2** makes a third task fail with exit **2** and no success output;
+cap **3** permits the same command, returning `admitted`. Linux's task ceiling
+also counts threads, so it can be stricter than a process-only ceiling. The
+inhibitor's fixed two-task control unit is separate, like Windows' external
+helper; it never consumes or raises the worker's admitted ceiling. Worker/check
+occupancy, token/spend and artifact caps keep their existing reservation,
+controlled-boundary and result-validation owners. CPU/memory remain M107's
+observations, not newly invented caps.
+
+No timer, cancellation acknowledgement, direct-parent exit or helper loss
+resolves retirement. The previously observed cgroup must report `populated 0`,
+or its removal must be confirmed by a live manager reporting inactive/dead
+and an empty ControlGroup. Helper loss rejects as uncertain even if Stop later
+empties the unit; removal of that unresolved attempt is refused.
+
+The host gains one selection point, `deviceWorkerDriverForPlatform(windows,
+lazyLinuxLoader, platform)`. Its caller supplies the lazy import, avoiding a
+runtime host/driver dependency cycle. No existing production selection point
+was present on this base; W must bind this factory at its owned receiver entry.
+No new command, setting, public protocol field, dependency, escape hatch,
+translated key or policy change. README, CHANGELOG and feature-reference
+integration remain W's ownership under the brief.
+
+#### Native receipts and preflight discovery
+
+Rig `linuxlt`, systemd user manager **257.9-0ubuntu2.5**, real cgroup v2 and
+logind. All **ten Linux native cases** run real `systemd-run`, `systemctl`,
+`systemd-inhibit` and kernel cgroup reads. The start port only records unit
+names/PIDs and delegates to real spawn; no manager, cgroup or inhibitor is
+substituted in the final native suite. The seven Windows cases skipped here
+are **unrun**, not Linux receipts. Model attempts/spend: **0 / $0**.
+
+An initial SSH-context `systemd-inhibit` probe returned `Interactive
+authentication required`. The same probe launched by the user manager succeeds,
+including with TasksMax=2. The final driver therefore owns its inhibitor in a
+separate transient user service, without changing polkit, registry, firewall,
+OS policy or account configuration. Early partial unit tests used a substituted
+inhibitor; those exploratory results are superseded and are not certification.
+
+Native cases cover own context/closed stdin/canonical environment/JSON versus
+stderr; detached-descendant completion after parent exit; kernel task cap 2;
+whole-unit cancellation; real factory self-test plus visible logind hold/release;
+injected missing manager; overlapping holds; worker-launcher loss;
+inhibitor-launcher loss; and real stdout overflow. Finally/afterAll Stop only
+that fixture's recorded units and assert each is collected, inactive and has
+no ControlGroup. Post-suite `systemctl --user list-units --all` found no
+`muse-spark-device-*` unit. Every support probe was also collected.
+
+#### Final guard-fire record
+
+Fifteen final drills exited **1** with named test assertion failures at
+repository deadlines. Each source buffer was restored byte-exact in finally
+and its SHA-256 checked. Twelve portable drills run their complete owning file;
+three extra native drills select the named native case and retain afterAll cleanup.
+
+| Drill                | Deliberate break                                | Assertion that fired                                                           |
+| -------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ |
+| retirement           | Remove cgroup-empty wait after pipe exit        | Retirement settles while descendant occupancy is still reported.               |
+| power-release        | Omit inhibitor release at successful retirement | Inhibitor process has not exited.                                              |
+| unsupported-manager  | Omit runtime-directory refusal                  | Even the injected working manager starts helpers without a runtime directory.  |
+| context              | Omit transport-cgroup comparison                | Transport-owned launch resolves instead of refusing.                           |
+| pressure             | Omit resources refusal                          | Pressure launch resolves instead of returning typed capacity.                  |
+| hook-preflight       | Verify zero required tools                      | Missing/unverified/empty-PATH hooks start; receiver refused-state check fails. |
+| environment          | Record inherited environment                    | Credential/loader/agent variable names enter the environment record.           |
+| stderr-result        | Append stderr to stdout                         | Banner-bearing stdout differs from structured JSON.                            |
+| output-cap           | Omit stdout byte ceiling                        | No whole-unit Stop is requested for excess output.                             |
+| self-test            | Return true after probe failure                 | Missing runtime and unavailable manager falsely pass the probe.                |
+| unknown-power        | Turn read failure into AC                       | Unknown power on an owned attempt becomes AC.                                  |
+| admitted-cap         | Use protocol maximum in TasksMax                | Unit arguments differ from the admitted attempt ceiling.                       |
+| native-retirement    | Use ExitType=main and omit cgroup wait          | Detached descendant's completion marker is absent.                             |
+| native-power-release | Omit release at successful retirement           | Real logind listing still contains the retired worker's inhibitor.             |
+| native-admitted-cap  | Use protocol max and bypass readiness checks    | Real kernel pids.max is 128 instead of admitted 2.                             |
+
+Final drill source SHA-256:
+
+- Linux driver: `c424aea8175053891c35a5aead93aa05592987d73c814db31931ec23cf37ad2f`.
+- Host: `3ae50b53e1b1819f83725a16ac54d9b356b5d4ce4843d39702e3a740c41107b4`.
+
+Local restored run: **66 passed, 7 Windows skipped**, three owning files,
+default deadlines, no timeout flag. Scoped lint and unit typecheck pass;
+plain knip passes with its two existing hints; duplication reports zero clones.
+Implementation commit and the required committed-code fresh-clone gate receipts
+follow below once those checks run. No threshold, assertion or ignore weakened.

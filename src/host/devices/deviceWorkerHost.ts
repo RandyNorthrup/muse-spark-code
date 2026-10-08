@@ -100,6 +100,16 @@ export interface DeviceWorkerDriver {
     attempt: DeviceWorkerAttempt,
   ): Promise<DeviceWorkerJob>
 }
+/** One lazy platform selection point; the caller still owns local command/reservation wiring. */
+export async function deviceWorkerDriverForPlatform(
+  native: DeviceWorkerDriver,
+  linux: () => Promise<DeviceWorkerDriver>,
+  platform: NodeJS.Platform = process.platform,
+): Promise<DeviceWorkerDriver> {
+  if (platform === 'linux') return await linux()
+  if (native.platform !== platform) throw new DeviceWorkerHostError('helper')
+  return native
+}
 export interface DeviceWorkerReservation {
   readonly usage: DeviceLocalAttempt['usage']
   /** Local M96 safe-point pause; the worker's controlled boundaries use this owner. */

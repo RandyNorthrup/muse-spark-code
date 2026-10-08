@@ -10,11 +10,15 @@ import { powerShellQuoted } from '../../src/core/shellQuote'
 import { DEVICE_LIMITS, SHELL_JOB_FOLDER } from '../../src/shared/constants'
 import {
   DeviceWorkerHost,
+  parseDeviceWorkerQuery,
   type DeviceWorkerAttempt,
   type DeviceWorkerDriver,
   type DeviceWorkerHostDeps,
 } from '../../src/host/devices/deviceWorkerHost'
 import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
+import { spawn } from 'node:child_process'
+import { deviceWorkerLinux } from '../../src/host/backend/deviceWorkerLinux'
+import { workerEnvironment } from '../../src/core/team/refFence'
 
 const usage = {
   settlementId: 'a'.repeat(32),
@@ -295,3 +299,259 @@ describe.skipIf(process.platform !== 'win32')('M100/H real Windows scheduled wor
     ).rejects.toMatchObject({ reason: 'unsupported-host' })
   })
 })
+
+const linux = {
+  directory: '',
+  units: new Set<string>(),
+  helpers: new Map<string, ReturnType<typeof spawn>>(),
+}
+function linuxEnvironment(): Record<string, string> {
+  const clean: Record<string, string> = {}
+  const entries = Object.entries(workerEnvironment(process.env, 'linux'))
+  for (const [key, value] of entries) if (value !== undefined) clean[key] = value
+  return clean
+}
+/** Instrument command names only; every unit, inhibitor and cgroup is native. */
+function linuxControlEnvironment(): NodeJS.ProcessEnv {
+  return { ...linuxEnvironment(), XDG_RUNTIME_DIR: process.env['XDG_RUNTIME_DIR'] }
+}
+function linuxDriver() {
+  return deviceWorkerLinux({
+    environment: process.env,
+    start: (file, args, env) => {
+      const unit = args.find((arg) => arg.startsWith('--unit='))?.slice('--unit='.length)
+      if (unit !== undefined) linux.units.add(unit)
+      const child = spawn(file, [...args], { env, stdio: 'pipe' })
+      if (unit !== undefined) linux.helpers.set(unit, child)
+      return child
+    },
+  })
+}
+function linuxLaunch(
+  native: DeviceWorkerDriver,
+  script: string,
+  processes: number = DEVICE_LIMITS.processes,
+) {
+  return native.launch(
+    { executable: '/bin/sh', args: ['-c', script], cwd: linux.directory, requiredTools: [] },
+    linuxEnvironment(),
+    admitted(processes),
+  )
+}
+async function disposeLinux(job: Awaited<ReturnType<typeof linuxLaunch>>): Promise<void> {
+  try {
+    await job.cancel()
+    await job.retirement
+  } finally {
+    await job.remove()
+  }
+}
+describe.skipIf(process.platform !== 'linux' || process.env['XDG_RUNTIME_DIR'] === undefined)(
+  'M100/H native Linux worker and inhibitor units',
+  () => {
+    beforeAll(async () => {
+      linux.directory = await mkdtemp(path.join(tmpdir(), 'm100-linux-native-'))
+    })
+    afterAll(async () => {
+      try {
+        for (const unit of linux.units) {
+          try {
+            await runProgram(
+              '/usr/bin/systemctl',
+              ['--user', 'stop', unit],
+              linuxControlEnvironment(),
+            )
+          } catch {
+            /* A collected unit is already removed. */
+          }
+          const status = await runProgram(
+            '/usr/bin/systemctl',
+            ['--user', 'show', unit, '--property=LoadState,ActiveState,ControlGroup'],
+            linuxControlEnvironment(),
+          )
+          expect(status).toContain('LoadState=not-found')
+          expect(status).toContain('ActiveState=inactive')
+          expect(status).toContain('ControlGroup=\n')
+        }
+      } finally {
+        await rm(linux.directory, { recursive: true, force: true })
+      }
+    })
+    it('runs in the real service cgroup, with closed stdin, canonical environment and stdout JSON despite stderr', async () => {
+      const native = linuxDriver()
+      const script = `read -r input && exit 1; [ -z "$NODE_OPTIONS$META_API_KEY$SSH_AUTH_SOCK" ] || exit 1; printf warning >&2; printf '${JSON.stringify({ usage })}'`
+      const job = await linuxLaunch(native, script)
+      try {
+        const ready = parseDeviceWorkerQuery(job.query)
+        expect(ready.context.desktop).toContain('muse-spark-device-')
+        expect(await readFile('/proc/self/cgroup', 'utf8')).not.toContain(ready.context.desktop)
+        await job.activate()
+        expect(await job.retirement).toEqual({
+          exitCode: 0,
+          stdout: JSON.stringify({ usage }),
+          failure: 'none',
+        })
+      } finally {
+        await disposeLinux(job)
+      }
+    })
+    it('proves real whole-cgroup retirement after a detached descendant outlives the parent', async () => {
+      const marker = path.join(linux.directory, 'detached-finished')
+      const script = `setsid /bin/sh -c 'sleep 0.2; printf finished > "$1"' child '${marker}' </dev/null >/dev/null 2>&1 & printf parent`
+      const native = linuxDriver()
+      const job = await linuxLaunch(native, script)
+      try {
+        await job.activate()
+        expect(await job.retirement).toEqual({ exitCode: 0, stdout: 'parent', failure: 'none' })
+        expect(await readFile(marker, 'utf8')).toBe('finished')
+        expect(await native.query()).toMatchObject({ sleepInhibited: false, activeProcesses: 0 })
+      } finally {
+        await disposeLinux(job)
+      }
+    })
+    it('reads pids.max=2 from the real cgroup and the kernel refuses a third task', async () => {
+      const native = linuxDriver()
+      const script = 'sleep 0.2 & /bin/true; printf admitted'
+      const narrow = await linuxLaunch(native, script, 2)
+      try {
+        const ready = parseDeviceWorkerQuery(narrow.query)
+        const limit = await readFile(
+          path.posix.join('/sys/fs/cgroup', ready.context.desktop, 'pids.max'),
+          'utf8',
+        )
+        expect(limit.trim()).toBe('2')
+        await narrow.activate()
+        expect(await narrow.retirement).toEqual({ exitCode: 2, stdout: '', failure: 'none' })
+      } finally {
+        await disposeLinux(narrow)
+      }
+      const wide = await linuxLaunch(native, script, 3)
+      try {
+        await wide.activate()
+        expect(await wide.retirement).toEqual({ exitCode: 0, stdout: 'admitted', failure: 'none' })
+      } finally {
+        await disposeLinux(wide)
+      }
+    })
+    it('a real whole-unit stop cancels a detached descendant and releases its native inhibitor', async () => {
+      const native = linuxDriver()
+      const marker = path.join(linux.directory, 'running')
+      const job = await linuxLaunch(
+        native,
+        `setsid sleep 100 </dev/null >/dev/null 2>&1 & printf ready > '${marker}'; wait`,
+      )
+      try {
+        await job.activate()
+        await expect.poll(() => isPresent(marker)).toBe(true)
+        expect(await native.query()).toMatchObject({ sleepInhibited: true })
+        await job.cancel()
+        await job.retirement
+        expect(await native.query()).toMatchObject({ sleepInhibited: false, activeProcesses: 0 })
+      } finally {
+        await disposeLinux(job)
+      }
+    })
+    it('qualifies the real per-factory probe and proves logind inhibition held/released', async () => {
+      const native = linuxDriver()
+      expect(await native.selfTest()).toBe(true)
+      const job = await linuxLaunch(native, 'read -r x; sleep 0.2')
+      const ready = parseDeviceWorkerQuery(job.query)
+      const unit = path.posix.basename(ready.context.desktop)
+      try {
+        const held = await runProgram(
+          '/usr/bin/systemd-inhibit',
+          ['--list', '--no-pager', '--no-legend'],
+          linuxControlEnvironment(),
+        )
+        expect(held).toContain(unit)
+        expect(held).toContain('sleep:idle')
+        await job.activate()
+        await job.retirement
+        const released = await runProgram(
+          '/usr/bin/systemd-inhibit',
+          ['--list', '--no-pager', '--no-legend'],
+          linuxControlEnvironment(),
+        )
+        expect(released).not.toContain(unit)
+      } finally {
+        await disposeLinux(job)
+      }
+    })
+    it('injected missing manager refuses cleanly and never creates a real unit', async () => {
+      const native = deviceWorkerLinux({ environment: {} })
+      expect(await native.selfTest()).toBe(false)
+      await expect(linuxLaunch(native, 'printf forbidden')).rejects.toMatchObject({
+        reason: 'unsupported-host',
+      })
+    })
+    it('holds overlapping real inhibitors until each entire unit retires', async () => {
+      const native = linuxDriver()
+      const first = await linuxLaunch(native, 'printf first')
+      const second = await linuxLaunch(native, 'printf second')
+      const secondUnit = path.posix.basename(parseDeviceWorkerQuery(second.query).context.desktop)
+      try {
+        await first.activate()
+        await first.retirement
+        expect(await native.query()).toMatchObject({ sleepInhibited: true, activeProcesses: 1 })
+        const held = await runProgram(
+          '/usr/bin/systemd-inhibit',
+          ['--list', '--no-pager', '--no-legend'],
+          linuxControlEnvironment(),
+        )
+        expect(held).toContain(secondUnit)
+        await second.activate()
+        await second.retirement
+        expect(await native.query()).toMatchObject({ sleepInhibited: false, activeProcesses: 0 })
+      } finally {
+        await disposeLinux(first)
+        await disposeLinux(second)
+      }
+    })
+    it.each(['worker', 'inhibitor'])(
+      '%s launcher loss releases the real inhibitor, stops the tree and never claims retirement',
+      async (owner) => {
+        const native = linuxDriver()
+        const job = await linuxLaunch(native, 'sleep 100')
+        const unit = path.posix.basename(parseDeviceWorkerQuery(job.query).context.desktop)
+        const failure = expect(job.retirement).rejects.toMatchObject({ reason: 'uncertain' })
+        try {
+          await job.activate()
+          const helperUnit =
+            owner === 'worker' ? unit : unit.replace(/\.service$/, '-inhibit.service')
+          expect(linux.helpers.get(helperUnit)?.kill('SIGKILL')).toBe(true)
+          await failure
+          await job.cancel()
+          expect(await native.query()).toMatchObject({ sleepInhibited: false, activeProcesses: 0 })
+          const released = await runProgram(
+            '/usr/bin/systemd-inhibit',
+            ['--list', '--no-pager', '--no-legend'],
+            linuxControlEnvironment(),
+          )
+          expect(released).not.toContain(unit)
+          expect(() => job.remove()).toThrow()
+        } finally {
+          await job.cancel()
+        }
+      },
+    )
+    it('bounds real stdout and stops the entire flooding unit', async () => {
+      const native = linuxDriver()
+      const job = await native.launch(
+        {
+          executable: process.execPath,
+          args: ['-e', `process.stdout.write('x'.repeat(${String(DEVICE_LIMITS.frameBytes + 1)}))`],
+          cwd: linux.directory,
+          requiredTools: [],
+        },
+        linuxEnvironment(),
+        admitted(DEVICE_LIMITS.processes),
+      )
+      try {
+        await job.activate()
+        expect(await job.retirement).toMatchObject({ failure: 'capacity' })
+      } finally {
+        await disposeLinux(job)
+      }
+    })
+  },
+)
