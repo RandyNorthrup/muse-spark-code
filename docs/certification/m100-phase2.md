@@ -619,18 +619,18 @@ entries.
 7. **Keyboard, themes and width**: decision rows keep the phase-1
    two-button contract (the single revoke button deliberately avoids
    `.device-decisions`); new views add no keyboard traps and reuse
-   labelled native controls. **Blocked**: `scripts/devices-keyboard.mjs`,
-   `npm run test:a11y` and the harness shots in four themes plus the
-   pseudo-locale cannot run on this rig — the sandbox denies every
-   `listen()` (`EPERM` on `127.0.0.1` and wildcard) and unsandboxed
-   execution needs a human approver while approval is bypassed, so
-   `serveRepo` cannot start; `npm view` is likewise unavailable
-   (root-owned npm cache plus no registry). The six scenes are written
-   reply-driven like the existing ones, every fixture setup parses under
-   the strict schemas (throwaway probe, then removed), and the unit
-   suite covers labels, focus order, roles and the 320 px decision-row
-   contract. These three checks plus shot review must run on the lead's
-   host before integration.
+   labelled native controls. **Blocked on this rig**:
+   `scripts/devices-keyboard.mjs`, `npm run test:a11y` and the harness
+   shots in four themes plus the pseudo-locale cannot start here — the
+   sandbox denies every `listen()` (`EPERM` on `127.0.0.1` and
+   wildcard), so `serveRepo` never starts, and a launched Chrome is
+   killed at once (even `kill` returns `EPERM`, pid 24846). The
+   keyboard script fails identically in the fresh clone below. The six
+   scenes are written reply-driven like the existing ones, every
+   fixture setup parses under the strict schemas (throwaway probe, then
+   removed), and the unit suite covers labels, focus order, roles and
+   the 320 px decision-row contract. These three checks plus shot
+   review must run on the lead's host before integration.
 
 ### Red drills (each: break, owning tests fail, restore byte-exact)
 
@@ -667,9 +667,21 @@ entries.
   **733.9/900 KiB**, `dist/devices.js` **82.2/100 KiB**. The proposed
   encoder (+21,323 bytes minified, lane D's figure) lands in the lazy
   `qr/` chunk, not the closure, so both caps stand.
-- Fresh-clone verification (`git clone` + `npm ci` + three owning runs
-  - gates) could not run here (no registry/cache); it must run on the
-    lead's host.
+- Fresh-clone receipt: `/tmp/m100p2u-verify`, cloned from this worktree
+  at `ed858d811`, `CI=true npm ci` exit **0** (clean cache dir; the
+  default npm cache is root-owned on this rig). With `CI=true` at
+  default timeouts: three consecutive owning runs **21 passed each**;
+  `npm run typecheck` (all five projects), `npm run lint` (incl.
+  `lint:css`), prettier on the commit's files, plain `npx knip` (only
+  the two pre-existing hints), `npm run duplication` (**0 clones**),
+  `npm run check:reference` (current, **18 Devices entries**),
+  `node scripts/check-l10n.mjs` (**14 tables, 0 problems**),
+  `npm run check:host-api` (**0 problems**), `npm run build` (all
+  budgets ok: Devices **39.1/50 KiB**, startup **733.9/900 KiB**,
+  `dist/devices.js` **82.2/100 KiB**): all exit **0**.
+  `scripts/devices-keyboard.mjs` fails there identically (`listen
+EPERM`), so the keyboard, a11y and shot checks stay with the lead's
+  host.
 
 ### Request to the lead: QR encoder dependency (proposed, not installed)
 
@@ -681,10 +693,12 @@ entries.
   its own types, no network or native code (lane D's measurement).
 - Size: 21,323 bytes minified into the lazy chunk; Devices closure
   stays **39.1/50 KiB**, chat startup **733.9/900 KiB**.
-- Peers/dependencies: per lane D, none; `npm view` could not be re-run
-  from this rig (see above) — confirm at install time with
-  `npm view qrcode-generator@2.0.4 peerDependencies dependencies`,
-  `npm audit`, and the third-party notices entry per AGENTS.md rule 9.
+- Peers/dependencies: confirmed empty by `npm view
+qrcode-generator@2.0.4` on 2026-10-07 (`dependencies {}`,
+  `peerDependencies {}` print nothing; `license MIT`, `version 2.0.4`,
+  unpacked 555,539 bytes for the whole package). At install time still
+  run `npm audit` and add the third-party notices entry per AGENTS.md
+  rule 9.
 
 ### Further requests to the lead
 
@@ -693,6 +707,8 @@ entries.
   setup facts; adopt or replace `fakeQrInviteText` with lane D's
   `encodeQrInviteText` (byte-for-byte contract above).
 - Run on the host before integration: `scripts/devices-keyboard.mjs`,
-  `npm run test:a11y`, the six new harness scenes with shots in all
+  `npm run test:a11y`, and the six new harness scenes with shots in all
   four themes and the pseudo-locale under
-  `docs/certification/m100-p2-u-shots/`, and the fresh-clone receipt.
+  `docs/certification/m100-p2-u-shots/` (look at every image before
+  recording it). The fresh-clone receipt above already covers the
+  server-free gates.
