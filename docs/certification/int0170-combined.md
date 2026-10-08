@@ -333,3 +333,53 @@ Windows gates, all exit 0:
 - check:l10n, check:reference and check:host-api
 
 jscpd still reports the other three clones listed above (left lane).
+
+### Machine id (DEVID017)
+
+Lane `rel017/devid`, worktree on the `macmini` rig (`Macmini.ivettnet`).
+
+- **Root cause.** The CLI/ACP runtime opened developer options with
+  `machineId: hostname()` (`src/runtime/providers/runtimeServices.ts:291`).
+  The state schema (`src/shared/developerOptions.ts:25`) admits only
+  `/^[a-zA-Z0-9_-]+$/`, so any dotted hostname (`name.local`, domain PCs)
+  threw `$ZodError` out of `DeveloperOptions.open` before any stored state
+  was read. The extension host opens developer options nowhere yet, so the
+  second bug was latent: a future `vscode.env.machineId` (or raw hostname)
+  opener would disagree with the runtime and refuse its unlocks.
+- **Fix.** One shared derivation, `developerMachineId`
+  (`src/core/developer/machineId.ts:14`, domain constant
+  `DEVELOPER_MACHINE_ID_DOMAIN` in `src/shared/constants.ts`): lowercase,
+  domain-separated SHA-256 hex of the OS hostname. The runtime passes it
+  with `previousMachineIds: [hostname()]`
+  (`src/runtime/providers/runtimeServices.ts:291`); the extension host and
+  the companion derive the same id from the same hostname when they open
+  developer options. The schema is untouched (a 64-hex digest fits it), so
+  the stored state keeps `v: 1`: the shape never changed, only the
+  derivation.
+- **Migration.** `DeveloperOptions.open` (`src/core/developer/developerOptions.ts:59`)
+  accepts a stored grant whose id is in `previousMachineIds`, re-binds it
+  to the opaque id in memory, and persists it on the next save with no
+  grant change (hence no audit entry). Another machine and future-dated
+  grants are still refused. Dotted-hostname machines never held stored
+  state (open always threw), so nothing is lost there.
+- **Tests** (`test/unit/developerOptionsMachineId.test.ts`, helper
+  `test/unit/helpers/keyring.ts`): dotted hostnames map to schema-valid
+  ids; published vectors pin the shared derivation; the runtime opens and
+  persists the shared id on this rig; a legacy raw-hostname grant is
+  adopted with expiry and profiles intact; strangers and future grants
+  refuse. macOS `$TMPDIR` (`/var` symlink) is resolved with the repo's own
+  `realpathSync.native` idiom in the three touched rigs, since
+  `DeveloperLocalFiles` refuses symlinked roots.
+- **Drill.** On base `94eefd28e` (clone under `$TMPDIR`, since removed) a
+  two-case drill spec fails both ways: dotted-hostname open throws
+  `$ZodError` "Invalid input", legacy adoption throws `unavailable`. Both
+  pass with the fix (25/25 across the new file, `runtimeServices` and
+  `runtimeAccountsBundle`, repo default timeouts).
+- **Gates.** Five typechecks exit 0; eslint `--max-warnings=0` and prettier
+  on changed files exit 0; `check:l10n` exit 0; `check:host-api` regenerated
+  (`node:crypto` 166 to 167 importers) and exit 0; knip exit 0. jscpd exit 1
+  before and after: the same three pre-existing clones (the lane's two new
+  ones were extracted into the shared keyring helper and merged away).
+  `accountPaidConsent` (2 tests) fails identically on the base: another
+  lane's quote shape, left for its owner. The rig's sandbox blocks loopback
+  listening, so no loopback-dependent suite was attempted beyond the above.

@@ -7,7 +7,7 @@ import { runtimeProvidersFile } from '../../src/runtime/providers/providersFileS
 import { createRuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
 import { createRuntimeBackend } from '../../src/runtime/backends'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
-import type { KeyringEntryFactory } from '../../src/runtime/keyStore'
+import { memoryKeyring } from './helpers/keyring'
 
 const dirs: string[] = []
 
@@ -30,25 +30,12 @@ function seed(folder: string): void {
   )
 }
 
-function keyring(): { openEntry: KeyringEntryFactory; values: Map<string, string> } {
-  const values = new Map<string, string>()
-  const openEntry: KeyringEntryFactory = (_service, name) => ({
-    getPassword: () => Promise.resolve(values.get(name)),
-    setPassword: (value: string) => {
-      values.set(name, value)
-      return Promise.resolve()
-    },
-    deletePassword: () => Promise.resolve(values.delete(name)),
-  })
-  return { openEntry, values }
-}
-
 function rig() {
   // macOS spells $TMPDIR through a /var symlink the developer root refuses.
   const folder = mkdtempSync(path.join(realpathSync.native(tmpdir()), 'm108-services-'))
   dirs.push(folder)
   seed(folder)
-  const { openEntry } = keyring()
+  const { openEntry } = memoryKeyring()
   return createRuntimeAccountServices({
     dataDir: folder,
     openEntry,

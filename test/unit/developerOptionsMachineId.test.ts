@@ -6,10 +6,10 @@ import { developerMachineId } from '../../src/core/developer/machineId'
 import { DeveloperOptions } from '../../src/core/developer/developerOptions'
 import { developerConfirmation } from '../../src/core/developer/surfaces'
 import { createRuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
-import type { KeyringEntryFactory } from '../../src/runtime/keyStore'
 import { DEVELOPER_FILES, DEVELOPER_UNLOCK_MS } from '../../src/shared/constants'
 import { developerStateSchema } from '../../src/shared/developerOptions'
 import { developerFixture } from './helpers/developer'
+import { memoryKeyring } from './helpers/keyring'
 
 const dirs: string[] = []
 afterEach(() => {
@@ -21,18 +21,6 @@ function freshDir(): string {
   const folder = mkdtempSync(path.join(realpathSync.native(tmpdir()), 'devid017-'))
   dirs.push(folder)
   return folder
-}
-
-function keyring(): KeyringEntryFactory {
-  const values = new Map<string, string>()
-  return (_service, name) => ({
-    getPassword: () => Promise.resolve(values.get(name)),
-    setPassword: (value: string) => {
-      values.set(name, value)
-      return Promise.resolve()
-    },
-    deletePassword: () => Promise.resolve(values.delete(name)),
-  })
 }
 
 const locked = {
@@ -69,9 +57,12 @@ describe('developer machine identity (DEVID017)', () => {
     expect(developerMachineId('host.local')).not.toBe(developerMachineId('other.local'))
   })
 
-  it('opens the runtime developer owner on this dotted-hostname machine', async () => {
+  it('opens on this dotted-hostname machine and persists the shared id', async () => {
     const folder = freshDir()
-    const services = createRuntimeAccountServices({ dataDir: folder, openEntry: keyring() })
+    const services = createRuntimeAccountServices({
+      dataDir: folder,
+      openEntry: memoryKeyring().openEntry,
+    })
     try {
       const owner = await services.developer({
         readLine: () => Promise.resolve(developerConfirmation('unlock').accept),
@@ -80,20 +71,6 @@ describe('developer machine identity (DEVID017)', () => {
       expect(owner.snapshot().isUnlocked).toBe(false)
       await owner.unlock('terminal')
       expect(owner.snapshot().isUnlocked).toBe(true)
-    } finally {
-      services.dispose()
-    }
-  })
-
-  it('persists the shared id, never the raw hostname', async () => {
-    const folder = freshDir()
-    const services = createRuntimeAccountServices({ dataDir: folder, openEntry: keyring() })
-    try {
-      const owner = await services.developer({
-        readLine: () => Promise.resolve(developerConfirmation('unlock').accept),
-        print: vi.fn(),
-      })
-      await owner.unlock('terminal')
       const stored = developerStateSchema.parse(
         JSON.parse(readFileSync(path.join(folder, 'developer', DEVELOPER_FILES.state), 'utf8')),
       )
