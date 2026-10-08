@@ -5182,7 +5182,10 @@ and the panel snapshot mapping. M96's engine `reserve`/`command`/
 action refuses with typed `unsupported-host` (mapped to the Devices
 recovery UI), paid use stays off, and teardown never throws. The Devices
 surface itself — command, tab, ready handshake, off-state, QR with text
-fallback — is reachable in every editor now.
+fallback — is reachable in VS Code on a local desktop window only;
+remote, web and headless hosts refuse, and the other editors wait for
+Q-M100 (see "Editor reach" in the fix round below; corrected by RVM100W
+finding 13).
 
 ### Gate receipts (this worktree)
 
@@ -5207,9 +5210,10 @@ Chrome launches (harness/a11y/keyboard scenes), `npm pack` (packaging
 suites), interface enumeration and the systemd user bus. The lead runs,
 on a qualified host: `deviceIntegration`, `deviceReceiver`,
 `deviceRecovery`, the Devices harness/a11y/keyboard scenes, the
-packaging suites, and the real-filesystem path of
-`openDeviceProductionDeps` (the committed test proves the binding with
-structural fakes only).
+packaging suites. (The real-filesystem path of
+`openDeviceProductionDeps` is now covered by
+`deviceProductionStorage.test.ts`, run natively on Windows and on Kubuntu
+in the RVM100W fix round below.)
 
 ### Installed-host qualification (lead-run, four machines)
 
@@ -5287,3 +5291,94 @@ QR pixels with no injected encoder (base renders nothing); the wiring, html
 surface, manifest worker-file and reference/command assertions reference
 `museSpark.openDevices`, the `devices` surface and
 `MuseSparkDeviceWorker.cs`, none of which exist on the base.
+
+### Lane W fix round — RVM100W findings (2026-10-08)
+
+Windows 11 PC (native), worktree `mx-m100w2`, branch `m100/p2-w2` from
+`3bda1b1c6`. Model attempts **0**, inference spend **0**; no push. The
+parallel join-fix (`m100/p2-join-fix`) owns the launch/retire contract in
+`deviceWorkerHost.ts`/`deviceReceiver.ts`; this round touches only the
+selector region of the first and `DeviceReceiver.open`'s retention in the
+second, and calls no `launch()`.
+
+| #   | Finding                                                    | Fix                                                                                                                                                                                                                                        | Regression                                                                                                                               |
+| --- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | P1 `museSpark.openInNewTab` registration deleted           | restored in `src/extension.ts`                                                                                                                                                                                                             | `commandRegistration.test.ts`: every contributed command has a registration call (TypeScript AST over `extension.ts` and `tabBundle.ts`) |
+| 2   | unbound K stops the service opening                        | `DeviceReceiver.open` asks `retain` only for a non-empty journal; the tab answers a request whose service cannot open with its typed refusal (`unsupported-host`/`storage`), correlated, and keeps that document's revisions its own after | `deviceProductionStorage.test.ts` (real factory, real storage, production ports: ready observes, Pair refuses typed); tab refusal cases  |
+| 3   | first use never provisions the Devices folder              | `openDeviceProductionDeps` creates it recursively `0700`; on Windows the folder this call created is claimed with `secureFresh` before the journal                                                                                         | real filesystem (native helper on Windows); claim-only-when-created case                                                                 |
+| 4   | opened store never closed                                  | store `close()` on every failure path and on disposal, before the helper ends (last-in first-out)                                                                                                                                          | real `.pairing.lock` release after a journal failure and after disposal; ordered release counts                                          |
+| 5   | window-owned service has no lifetime disposer              | `devicesWindow` (in `devicesPanelTab.ts`) owns service and tab; `context.subscriptions` holds it                                                                                                                                           | in-flight preparation revoked (no service built, storage released); bound service and storage ended                                      |
+| 6   | fabricated local-host facts                                | `deviceExecutionHost` from `vscode.env.uiKind`, `vscode.env.remoteName` and the extension kind; the builder asserts D80 before any storage                                                                                                 | SSH, WSL, dev container and tunnel refuse `unsupported-host` with no folder, helper, store or secrets; web and UI-kind remote refuse     |
+| 7   | encoder resolution replaces `postMessage`, cancelling Pair | one `postMessage` for the document's lifetime in `src/webview/main.tsx`                                                                                                                                                                    | real Chrome: Pair held across the encoder chunk; one `devicesReady`, no alert, the held reply is accepted and its QR drawn               |
+| 8   | storage seam bundles fail the expanded predicate           | the seam bundles come from one shared `fakeDevicesBundle` carrying every predicate export; predicate and disposal assertions unchanged                                                                                                     | `windowsStorageProtection.test.ts` lifecycle cases pass natively                                                                         |
+| 9   | owner-check tests not portable                             | injectable `userId` probe; the check still compares the folder's real owner                                                                                                                                                                | pass on Windows; a different owner and an absent user id refuse `storage`                                                                |
+| 10  | QR harness locator matches two images                      | the probe's holder is marked; the locator is scoped to it; every size and quiet-zone assertion kept                                                                                                                                        | see the harness note below                                                                                                               |
+| 11  | encoder chunk failure silent                               | the QR spot shows the localized load failure with Retry; Retry reloads the document, since Chrome keeps a failed module fetch for the document's lifetime (measured: no second request on re-import)                                       | real Chrome: refused chunk shows the alert beside the complete text invitation; Retry reloads and draws the QR                           |
+| 12  | two strings English-pending in 14 languages                | both translated in all 14 tables; the exemptions removed (`l10n/untranslated.json` is identical to the join base)                                                                                                                          | `check:l10n` with no new exemption                                                                                                       |
+| 13  | "every editor" reach claim                                 | corrected above and below                                                                                                                                                                                                                  | —                                                                                                                                        |
+| 14  | selector lost the driver-platform assertion                | `selectDeviceWorkerDriver` refuses a driver naming another platform (`unsupported-host`, detail `helper`)                                                                                                                                  | `deviceWorkerLinux.test.ts` typed mismatch cases (darwin, win32, linux)                                                                  |
+
+**Editor reach (finding 13).** Only VS Code's activation wires the Devices
+command and tab today, and only on a local desktop window: Remote SSH,
+Tunnels, WSL, dev containers, Codespaces and web windows refuse with typed
+`unsupported-host` before any storage (D80 "Supported first"). The ACP
+agent, the standalone runtime and the companion bridges have no Devices
+caller: ACP/headless pairing is out of this phase's scope (PLAN M100 phase
+2, "Out of scope … ACP/headless pairing … (still Q-M100)"), so under D84
+those editors are deferred to Q-M100's host/key-location qualification,
+which owns their entry point. The Help entry correctly lists VS Code only.
+
+**Red drills (each reverted after).**
+
+- P1: deleting the registration fails both `commandRegistration` cases
+  (`missing: ["museSpark.openInNewTab"]`).
+- 2: making `retain` unconditional again fails the real-factory case with
+  `unsupported-host` from the unbound port.
+- 4: dropping the store's release fails six cases (lock still held, release
+  order missing `store`).
+- 7: a per-render `postMessage` in `main.tsx` fails the real-Chrome case
+  (`expected 2 to be 1`: a second `devicesReady` after the encoder loaded).
+
+**Harness note.** On this PC the harness page posts its first message
+1.0–1.4 s after load, and the readiness scenes become ready 2.1–3.1 s after
+`goto`; the base `3bda1b1c6` webview measures the same. At the suite's 2 s
+ready deadline (unchanged) the six readiness scenes and the QR sizing case
+therefore time out intermittently here; with a one-off 10 s deadline
+(reverted, never committed) all 18 cases pass, including the scoped
+maximum-size QR. The lead re-runs this suite at its default deadline on a
+qualified host.
+
+**Suites run.** Natively on this Windows PC (at most three files per run,
+`--maxWorkers=3`, default timeouts): `deviceProductionWiring` +
+`deviceProductionStorage` + `windowsStorageProtection` 63/63;
+`deviceRecovery` + `deviceReceiver` 86/86 and `deviceIntegration` 12/12
+(run alone after one forks-worker start timeout, an unhandled pool error,
+not a test result); `DevicesApp` + `devicesPhase2Views` + `deviceBundle`
+53/53; `commandRegistration` + `deviceProductionStorage` + `manifest` 40/40;
+`devicesPhase2Harness` 14/18 at its 2 s deadline (harness note above), 18/18
+with the one-off longer deadline. On Kubuntu through
+`rig-test.sh` (slots 1 and 2): `deviceProductionStorage` +
+`deviceProductionWiring` + `deviceWorkerLinux` 55/55, exit 0;
+`deviceRecovery` + `deviceReceiver` + `deviceIntegration` 98/98, exit 0.
+`deviceWorkerLinux` natively: 30/31 in each of four runs, the failing case
+being a spawn-timing wait (`vi.waitFor` default 1 s for a real child's exit);
+the base `3bda1b1c6` fails the same case alone in one of two runs and
+another spawn case in one of two full runs, so it is a pre-existing host
+timing flake in the driver suite (join-fix territory), not a pass.
+`deviceWorkerHost` is not run here: its `throughReceiver` fixture belongs
+to the join-fix.
+
+**Gate receipts** (`CI=true`, this worktree):
+
+| Gate                      | Exit | Result                                                                                         |
+| ------------------------- | ---- | ---------------------------------------------------------------------------------------------- |
+| five typechecks           | 0    | host, webview, unit, e2e, integration; unit re-run after the fixture change, 0                 |
+| `npm run lint:js` (full)  | 1→0  | 4 errors, all in a test file edited during the run; fixed, the three changed files re-linted 0 |
+| `prettier --check .`      | 0    | clean; changed files re-checked after the fixture change                                       |
+| plain `npx knip`          | 0    | the same two configuration hints                                                               |
+| `npm run duplication`     | 1→0  | 3 test-fixture clones; one shared `fakeDevicesBundle` and `readyWindow`, then 0 clones         |
+| `npm run cycles`          | 0    | no cycles                                                                                      |
+| `npm run check:l10n`      | 0    | 14 UI + 14 usage tables, 198 manifest strings, 0 problems, no new exemption                    |
+| `npm run check:reference` | 0    | current; Devices 18 entries                                                                    |
+| `npm run check:host-api`  | 0    | regenerated with `--write` (`env.uiKind`, `UIKind.Web`; extension kind now also in activation) |
+| `npm run build`           | 0    | devices.js **104.6/125 KiB**, activation 467.0/600, Devices QR 21.6/25; no cap raised          |

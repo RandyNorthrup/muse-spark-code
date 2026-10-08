@@ -15,6 +15,9 @@ happened, not what was planned; superseded entries are kept.
   text fallback. Pairing, discovery, remote execution and per-action
   approvals stay off until owner binding lands: those actions refuse
   explicitly with recovery guidance instead of proceeding unchecked.
+  Available in VS Code on a local desktop window; remote (SSH, Tunnels, WSL,
+  container) and web windows refuse with recovery guidance before storing
+  anything.
 
 - Show the phase-2 Devices views (QR with text fallback, discovery details,
   owners and grants with revoke, step-up prompts, power and pressure, blocked

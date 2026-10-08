@@ -10,7 +10,7 @@ import path from 'node:path'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DevicePairingError } from '../../src/core/devices/pairing'
 import type { DeviceFrame } from '../../src/shared/devices'
-import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
+import { deviceCheck, deviceGrant, fakeDevicesBundle } from './helpers/deviceFixtures'
 import type { DeviceStorageProtection } from '../../src/core/devices/storageProtection'
 import type { AttemptJournalOwner } from '../../src/core/devices/attemptJournal'
 import type { SecretStore } from '../../src/host/auth/credentialStore'
@@ -698,6 +698,24 @@ function production(directory: string) {
   }
 }
 
+/** The window with its tab open and the document ready; `closed` sees the tab end. */
+async function readyWindow(bundle: unknown) {
+  const devices = devicesWindow({
+    hostContext: fakeHostContext(),
+    bundlePath: 'devices.js',
+    log: new FakeLogOutputChannel(),
+    production: production(await lane()),
+    loadBundle: () => bundle,
+  })
+  devices.open()
+  const panel = fakeWindow.createWebviewPanel.mock.results.at(-1)?.value
+  if (!(panel instanceof FakeWebviewPanel)) throw new TypeError('expected fake panel')
+  const closed = vi.fn()
+  panel.onDidDispose(closed)
+  panel.webview.messages.fire({ type: 'devicesReady' })
+  return { devices, closed }
+}
+
 describe('M100/W window-owned Devices service', () => {
   beforeEach(() => {
     fakeWindow.createWebviewPanel.mockReset()
@@ -714,13 +732,8 @@ describe('M100/W window-owned Devices service', () => {
         ended.service += 1
       }),
     }
-    const bundle = {
+    const bundle = fakeDevicesBundle({
       createDeviceService: vi.fn(() => Promise.resolve(service)),
-      DeviceStore: vi.fn(),
-      DeviceSecrets: vi.fn(),
-      AttemptJournal: vi.fn(),
-      DeviceDiscovery: vi.fn(),
-      startWindowsStorageProtection: vi.fn(),
       unboundDeviceLanePorts: vi.fn(() => ({})),
       openDeviceProductionDeps: vi.fn(async () => {
         await prepare()
@@ -731,7 +744,7 @@ describe('M100/W window-owned Devices service', () => {
           },
         }
       }),
-    }
+    })
     return { bundle, service, ended }
   }
   const readyState: DeviceHostMessage = {
@@ -750,19 +763,7 @@ describe('M100/W window-owned Devices service', () => {
           started.resolve(undefined)
         }),
     )
-    const devices = devicesWindow({
-      hostContext: fakeHostContext(),
-      bundlePath: 'devices.js',
-      log: new FakeLogOutputChannel(),
-      production: production(await lane()),
-      loadBundle: () => bundle,
-    })
-    devices.open()
-    const panel = fakeWindow.createWebviewPanel.mock.results.at(-1)?.value
-    if (!(panel instanceof FakeWebviewPanel)) throw new TypeError('expected fake panel')
-    const closed = vi.fn()
-    panel.onDidDispose(closed)
-    panel.webview.messages.fire({ type: 'devicesReady' })
+    const { devices, closed } = await readyWindow(bundle)
     await started.promise
     devices.dispose()
     expect(closed).toHaveBeenCalledOnce()
@@ -775,19 +776,7 @@ describe('M100/W window-owned Devices service', () => {
 
   it('ends a bound service with its storage when the window ends', async () => {
     const { bundle, service, ended } = windowBundle(() => Promise.resolve())
-    const devices = devicesWindow({
-      hostContext: fakeHostContext(),
-      bundlePath: 'devices.js',
-      log: new FakeLogOutputChannel(),
-      production: production(await lane()),
-      loadBundle: () => bundle,
-    })
-    devices.open()
-    const panel = fakeWindow.createWebviewPanel.mock.results.at(-1)?.value
-    if (!(panel instanceof FakeWebviewPanel)) throw new TypeError('expected fake panel')
-    const closed = vi.fn()
-    panel.onDidDispose(closed)
-    panel.webview.messages.fire({ type: 'devicesReady' })
+    const { devices, closed } = await readyWindow(bundle)
     await vi.waitFor(() => {
       expect(service.request).toHaveBeenCalledOnce()
     })

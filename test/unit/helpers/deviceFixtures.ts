@@ -3,7 +3,7 @@ import { chmod, lstat, mkdtemp, open, realpath, rename, rm, stat, symlink } from
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { afterAll, afterEach, beforeEach } from 'vitest'
+import { afterAll, afterEach, beforeEach, vi } from 'vitest'
 import type { DeviceStore } from '../../../src/host/devices/deviceStore'
 import type { DeviceStorageProtection } from '../../../src/core/devices/storageProtection'
 import {
@@ -220,6 +220,23 @@ export const deviceStorageBinding: DeviceStorageProtection =
         },
       }
     : fakeDeviceStorage().protection
+/**
+ * A loaded Devices bundle of fakes with every export the bundle predicate
+ * requires; a test overrides the parts it drives.
+ */
+export function fakeDevicesBundle<Parts extends object>(parts: Parts) {
+  return {
+    createDeviceService: vi.fn(),
+    DeviceStore: vi.fn(),
+    DeviceSecrets: vi.fn(),
+    AttemptJournal: vi.fn(),
+    DeviceDiscovery: vi.fn(),
+    startWindowsStorageProtection: vi.fn(),
+    openDeviceProductionDeps: vi.fn(),
+    unboundDeviceLanePorts: vi.fn(),
+    ...parts,
+  }
+}
 /** A temp root this test owns: mkdtemp is 0700 on POSIX; Windows claims it as a store folder. */
 export async function privateDeviceRoot(prefix: string): Promise<string> {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), prefix)))

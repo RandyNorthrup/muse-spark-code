@@ -14,7 +14,11 @@ import { deviceMethods, deviceStorageProtection } from '../../src/host/devices/d
 import type { DeviceServiceDeps } from '../../src/host/devices/deviceEntry'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { deferred } from './helpers/deviceExecutionFixtures'
-import { ownedDeviceStorage, STORAGE_HELPER_STAND_IN } from './helpers/deviceFixtures'
+import {
+  fakeDevicesBundle,
+  ownedDeviceStorage,
+  STORAGE_HELPER_STAND_IN,
+} from './helpers/deviceFixtures'
 
 // Readings in the helper's wire format, recorded on a Windows 11 host.
 const ME = 'S-1-5-21-2150206276-3426440022-602146264-1001'
@@ -269,18 +273,12 @@ function heldBundle(factory: () => Promise<{ dispose: () => void }>) {
     bindings.push({ ...binding, disposals })
     return { ...binding, dispose: disposals }
   })
-  const bundle = {
+  // The production builder's exports complete the bundle's shape; these
+  // seam cases prepare through their own dependencies callback.
+  const bundle = fakeDevicesBundle({
     createDeviceService: vi.fn(factory),
-    DeviceStore: vi.fn(),
-    DeviceSecrets: vi.fn(),
-    AttemptJournal: vi.fn(),
-    DeviceDiscovery: vi.fn(),
     startWindowsStorageProtection,
-    // The production builder's exports complete the bundle's shape; these
-    // seam cases prepare through their own dependencies callback.
-    openDeviceProductionDeps: vi.fn(),
-    unboundDeviceLanePorts: vi.fn(),
-  }
+  })
   return { bundle, bindings }
 }
 async function expectEnded(binding: { current: () => StorageHelper | undefined }) {
@@ -317,16 +315,10 @@ describe('the Devices bundle storage seam', () => {
       })
     })
     const service = { dispose: vi.fn() }
-    const bundle = {
+    const bundle = fakeDevicesBundle({
       createDeviceService: vi.fn(() => Promise.resolve(service)),
-      DeviceStore: vi.fn(),
-      DeviceSecrets: vi.fn(),
-      AttemptJournal: vi.fn(),
-      DeviceDiscovery: vi.fn(),
       startWindowsStorageProtection,
-      openDeviceProductionDeps: vi.fn(),
-      unboundDeviceLanePorts: vi.fn(),
-    }
+    })
     const options = {
       helperDirectory: path.resolve('helpers'),
       systemRoot: String.raw`C:\Windows`,

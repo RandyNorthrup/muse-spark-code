@@ -4005,7 +4005,11 @@ the public certificate, fingerprint, address, protocol version and bounded
 validity — never a private key. Pairing, discovery, remote execution and
 per-action approvals need lane K's owner binding first: those actions refuse
 explicitly with recovery guidance instead of proceeding unchecked. Opening the
-tab starts no listener, discovery, model or remote task. See the
+tab starts no listener, discovery, model or remote task. Devices runs in VS
+Code on a local desktop window: in a Remote SSH, Tunnels, WSL, container or web
+window it refuses with recovery guidance before storing anything, and the
+other editors do not offer it yet. If the QR code cannot load, the tab says so
+with **Try again**; the copyable text invitation works on its own. See the
 [feature inventory](docs/devices-reference.md) and
 [integration certification](docs/certification/m100.md).
 
