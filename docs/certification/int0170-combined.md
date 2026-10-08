@@ -319,104 +319,79 @@ refresh the bound image review, then rerun complete fresh-clone `check:visual`.
 Keep all thresholds and the three protected assertions unchanged. Fresh clone
 is removed at handoff; the external archive and labelled review sheets remain.
 
-### LEFT017C takeover (2026-10-08, randy-lt)
+### LEFT017C/LEFT017D: F2, traffic buttons and contrast coverage (2026-10-08)
 
-Branch `rel017/left3`, base `a038b5c2d`. No merge, push, live/paid call,
-changed timeout, threshold change or invented colour. F1 untouched:
-`src/webview/usage/ResourcesSection.*` not modified (resource-history lane owns it).
+Branches `rel017/left3` (base `a038b5c2d`) and `rel017/left4` (base
+`16fb06638`). No merge, push, live or paid call, changed timeout, threshold,
+assertion or invented colour. F1 is untouched: `src/webview/usage/ResourcesSection.*`
+belongs to the resource-history lane.
 
-- Finding F2 fixed on the product side (`1c3006e59`, hooks on, staged and
-  committed diffs reread). Before: independent reporting read the theme
-  focus colour directly (`src/webview/reporting/styles.css:42`,
-  `outline: 2px solid var(--vscode-focusBorder)`); the Models provider
-  button and the accounts input/picker read the host input border
-  directly (`src/webview/models/models.css:147`,
+- **F2 fixed** (`1c3006e59`). Before: the independent reporting page drew
+  keyboard focus in the host focus colour (`src/webview/reporting/styles.css:42`,
+  `outline: 2px solid var(--vscode-focusBorder)`), and the Models provider
+  button and the accounts picker drew their boundary in the host input border
+  (`src/webview/models/models.css:147`,
   `src/webview/models/sections/accounts/accounts.css:30`,
-  `border: 1px solid var(--vscode-input-border)`). After: all three use
-  the registered M114 token contract, matching the repaired
-  Models/accounts focus outline (`models.css:25`, `accounts.css:54`):
-  `outline: var(--ms-focus-width) solid var(--ms-text)` with
-  `outline-offset: var(--ms-focus-offset)`, and
-  `border: 1px solid var(--ms-border)`. The accounts token chain is the
-  same one the existing `--ms-focus-width` outline at `accounts.css:56`
-  already relies on (entry imports the CSS beside the shared
-  `styles.css`/`models.css` token imports). No other direct host border
-  or focus read was changed; the remaining `vscode-panel-border`,
-  `vscode-input-border` and `vscode-focusBorder` uses in `models.css`
-  (nav, fields, select list, chips) stay host-driven.
-- Durable test: `test/unit/tokens.test.mjs` gains `draws F2 focus rings
-and boundaries from M114 tokens, not direct host colours`. It fails on
-  the pre-fix CSS (reporting `:focus-visible` without the token ring)
-  and passes after: 14/14 in the lane tree, 36/36 with the non-Chrome
-  visual owners (`visualMatrix`, `visualGate`, `visualSource`) in a
-  fresh `npm ci` clone under `$TMPDIR`.
-- Nine below-AA pairs (`docs/certification/m114-0.md:178`) disposition, scoped
-  to the three F2 surfaces. Six of the nine no longer reach those surfaces
-  as a weak host colour: One Dark Pro focus on sidebar, on raised surface,
-  on input and on primary button, plus Dracula focus on primary button
-  and Dracula input border on input — the reporting page, the Models
-  provider button and the accounts input/picker now draw the `--ms-text`
-  ring or the `--ms-border` boundary through the registered token
-  contract instead. Three remain host-only even there: One Dark Pro panel
-  border on sidebar (the `--ms-border` value still resolves to the host's
-  `panel-border` where the host sets one), and both themes' input
-  placeholder text (drawn by the host control, not our CSS). Other
-  surfaces' direct host reads are unchanged and out of scope. No threshold
-  lowered, no colour invented.
-- Static gates on the F2 tree: five typechecks exit 0; changed-file
-  eslint zero warnings; prettier clean; `check:tokens` 0 problems;
-  `check:l10n` 0 problems; `check:reference` current; `check:plan` 0
-  drift; split check exit 0 (activation unchanged); plain knip two
-  inherited configuration hints; jscpd 2,835 files zero clones.
-- Receipts blocked by environment, not by code. Every Chromium on this
-  machine dies with SIGTRAP (exit 133) before first paint, inside and
-  outside Playwright: system Chrome 153.0.8010.52 and the cached
-  headless shells 1217/1223/1228 all print
-  `crashpad ... socket.cc:33 socketpair: Operation not permitted` then
-  `Trace/breakpoint trap`. The tool sandbox denies AF_UNIX
-  `SOCK_SEQPACKET`/`SOCK_DGRAM` socketpairs (verified: `SOCK_STREAM`
-  works, the other two return EPERM), which Chromium needs at startup;
-  unsandboxed execution is unavailable (approval prompts disabled), and
-  no flag combination (`--single-process`, `--no-zygote
---in-process-gpu`, `--disable-seccomp-filter-sandbox`) survives it.
-  Fresh-clone `npm run check:visual` therefore exits 1 at the
-  `launchPersistentContext` probe, and the `--update` regeneration plus
-  the One Dark Pro/Dracula focus re-render cannot run here. No receipt,
-  manifest, threshold or assertion was touched. Next: rerun
-  `npm run check:visual -- --update` with a new review reference and a
-  new outside-git archive on a host where Chrome starts, inspect every
-  changed image, then rerun the complete fresh-clone pixel gate.
+  `border: 1px solid var(--vscode-input-border)`). After: the same lines use
+  the M114 token contract already used by the Models/accounts focus outline
+  (`models.css:25`, `accounts.css:54`): `outline: var(--ms-focus-width) solid
+var(--ms-text)` with `outline-offset: var(--ms-focus-offset)`, and
+  `border: 1px solid var(--ms-border)`. The reporting stylesheet imports
+  `tokens.css`; accounts loads beside `models.css`, which imports it. The
+  `tokens.test.mjs` case "draws F2 focus rings and boundaries from M114
+  tokens" fails on the pre-fix CSS and passes after.
+- **Traffic buttons fixed** (`4a29c2d40`). The team traffic fixture mounts
+  the real `TrafficView`/`TrafficSurface` with their own stylesheet, so the
+  finding belongs to the component, not the fixture. Before,
+  `src/webview/components/traffic/traffic.css:13-24` gave every
+  `.traffic-view button` the input-field role (`--vscode-input-background`,
+  `--vscode-input-foreground`, input border), so task-row actions read as
+  text fields in all six themes. The same stylesheet is shared by the Runners
+  section (`src/webview/models/sections/runners/RunnersSection.tsx:6`).
+  Neither surface is mounted by a shipped entry yet (`TrafficView` and
+  `RunnersSection` are imported only under `test/harness`), so no released
+  UI showed it, but the shared stylesheet would have shipped it unchanged.
+  Now the stylesheet imports the token contract (`traffic.css:4-5`); buttons
+  take the secondary-button role (`--ms-secondary-text`,
+  `--ms-secondary-surface`, `--ms-control-border`, `traffic.css:32-38`) with
+  a hover that leaves the selected tab alone (`traffic.css:40-42`); focus uses
+  the token ring (`traffic.css:44-47`). No host theme name was added or
+  dropped, so the protected theme-read inventories are unchanged. New
+  `tokens.test.mjs` case "gives traffic and runner buttons the
+  secondary-button role": the deliberate drill (pre-fix stylesheet restored)
+  exits 1 with that case failing; restoring SHA-256
+  `099994009cf999d9fa3de6cd1dc5cf67d5d282a92670e27f9785d9b9d7ce8f5f` passes
+  the whole owner 15/15.
+- **Nine below-AA host comparisons** (`docs/certification/m114-0.md:178`),
+  measured with the repository's `contrastRatio` against the immutable theme
+  fixtures, for what our CSS now draws:
 
-- Follow-up socket-shim attempt (same lane, kept outside git in
-  `$TMPDIR/unixshim.c` with its built `unixshim.so`; no repo file
-  changed for it). An `LD_PRELOAD` shim emulates the denied calls:
-  `AF_UNIX` `socket`/`bind`/`connect` over TCP loopback, `SEQPACKET`
-  pairs as real stream pairs with userspace length-prefix framing that
-  preserves `SCM_RIGHTS`/credentials, `dup`/`dup2`/`dup3`/`fcntl`
-  propagation, `poll`/`ppoll` readahead awareness, and pid-keyed table
-  export/import across `exec`. Under it the browser and both zygotes
-  live, zygote IPC flows, the `"Did not receive ping from zygote
-child"` error is gone (the readahead now preserves ancillary data),
-  workers fork and exec, and the GPU child survives with Vulkan
-  disabled. Two findings for whoever continues: (1) never pass
-  `--disable-crashpad-for-testing` outside Chromium's own harness —
-  with it, every child dies at startup with `Crashing due to FD
-ownership violation` (`base/files/scoped_file_linux.cc`; also
-  confirmed by the Ferrum project notes); a manually launched worker
-  without parent channels crashes the same way with or without any
-  shim, so that probe is invalid. (2) Remaining stall: the browser
-  sends zygote fork requests but their replies never arrive and no PNG
-  renders; exec'd workers die between `exec` and first socket use.
-  Operational traps met on the way: `pkill -f` patterns that appear in
-  the invoker's own command line kill the invoker (exit 137, use a
-  self-excluding pattern), and this shell runs inside `bwrap` with
-  `--unshare-net`, `--unshare-pid`, seccomp and no capabilities.
-  Follow-up: the repo has no prescribed browser installer (the gate
-  uses system Chrome via `findChrome`), so the pinned Playwright
-  1.63.0 headless shell (153.0.8010.12, v1243) was downloaded
-  lane-locally and probed: it traps identically without the shim and
-  hangs with it, then was removed. Receipts are still unregenerated;
-  nothing below was relaxed.
+| Host comparison (ratio)               | What our UI draws now                                                   | Measured                                             | Status                                                                                                       |
+| ------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| One Dark Pro focus on sidebar (1.579) | `--ms-text` ring (`#cccccc`)                                            | 9.586                                                | Covered by our token                                                                                         |
+| One Dark Pro focus on raised (1.579)  | `--ms-text` ring                                                        | 9.586                                                | Covered by our token                                                                                         |
+| One Dark Pro focus on input (1.692)   | `--ms-text` ring                                                        | 10.276                                               | Covered by our token                                                                                         |
+| One Dark Pro focus on primary (1.044) | `--ms-text` ring                                                        | 5.819                                                | Covered by our token                                                                                         |
+| Dracula focus on primary (1.945)      | `--ms-text` ring (`#F8F8F2`)                                            | 8.585                                                | Covered by our token                                                                                         |
+| Dracula input border on input (1.218) | `--ms-border` (host panel border `#BD93F9`)                             | 5.903 on input, 6.546 on sidebar                     | Covered by our token                                                                                         |
+| One Dark Pro panel border (1.579)     | `--ms-border` resolves to this host colour `#3e4452`                    | 1.579 on sidebar, 1.692 on input, 1.292 on secondary | Host-only; residual R1                                                                                       |
+| One Dark Pro placeholder (3.604)      | Panel inputs use `--ms-input-text` (`styles.css:541`, `:1008`, `:4341`) | 7.742                                                | Covered in the chat panel; host-only in Models filter/select/wizard, vault editor, agent map, review comment |
+| Dracula placeholder (3.026)           | Same rules                                                              | 13.359                                               | Same split as above                                                                                          |
+
+The F2 and traffic surfaces render no placeholder text. The token ring
+covers all five focus comparisons wherever our CSS draws focus with it.
+
+- **Residual R1 (One Dark Pro boundaries).** One Dark Pro sets no
+  `--vscode-input-border`, so before F2 the Models button and accounts picker
+  had no border at all (an unset `var()` without fallback invalidates the
+  declaration). They now draw a 1px `--ms-border` line, which in One Dark Pro
+  is the host panel border `#3e4452`: 1.292:1 on the secondary button,
+  1.692:1 on the input, 1.579:1 on the sidebar, below the 3:1 UI threshold.
+  Traffic buttons draw the same colour through `--ms-control-border`. Labels
+  stay readable (secondary text 6.753:1), but the boundary is not clearly
+  visible. Closing it needs a token-contract decision (a boundary role whose
+  fallback stays at 3:1 or more where the host's panel border is weak), not a
+  per-surface colour, so no colour was invented here.
 
 ### Earlier LEFT017 receipts
 
