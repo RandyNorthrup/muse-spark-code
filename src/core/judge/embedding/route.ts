@@ -170,49 +170,145 @@ function isMatchingHead(head: EmbeddingHead, deps: EmbeddingRouteDependencies): 
   )
 }
 
-/**
- * One embed input per question: the complete state beside its instructions
- * and the binary question's criteria. The criteria define what `true` and
- * `false` mean, so two framings of the same state never share an input.
- * Raw strings, including nested state and criteria, are scrubbed before
- * JSON escaping. The final pass catches named object fields as well.
- */
-function embedInputs(request: JudgeRequest): string[] {
-  return Object.values(request.questions).map((question) => {
-    const payload = JSON.stringify({
-      state: redactStructured(request.state),
-      instructions: redactStructured(question.instructions),
-      criteria: redactStructured(question.criteria ?? null),
-    })
-    // Never edit escaped JSON: a remaining match refuses dispatch instead.
-    if (redactSecrets(payload) !== payload) throw new TypeError('embedding-redaction')
-    return payload
-  })
+type PlainData = string | number | boolean | null | PlainData[] | { [key: string]: PlainData }
+type EmbedInputs =
+  | { readonly status: 'ready'; readonly value: string[] }
+  | { readonly status: 'refused'; readonly reason: 'invalid-input' | 'redaction-failed' }
+
+/** Inspect descriptors before a zod parser reads any property. */
+function hasDataProperties(value: unknown): boolean {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    Object.values(Object.getOwnPropertyDescriptors(value)).every(
+      (descriptor) => 'value' in descriptor,
+    )
+  )
 }
 
-function redactStructured(value: unknown): unknown {
+function isPlainDataContainer(value: unknown): boolean {
+  if (value === null || typeof value !== 'object') return true
+  const prototype: unknown = Object.getPrototypeOf(value)
+  return (
+    (prototype === null ||
+      prototype === Object.prototype ||
+      (Array.isArray(value) && prototype === Array.prototype)) &&
+    hasDataProperties(value) &&
+    Reflect.ownKeys(value).every((key) => typeof key === 'string') &&
+    !Object.hasOwn(value, 'toJSON') &&
+    Object.entries(Object.getOwnPropertyDescriptors(value)).every(
+      ([key, descriptor]) =>
+        (Array.isArray(value) && key === 'length') ||
+        (descriptor.enumerable &&
+          (!Array.isArray(value) ||
+            (/^(?:0|[1-9][0-9]*)$/.test(key) && Number(key) < value.length))),
+    )
+  )
+}
+
+// The descriptor guard runs before the recursive union can read getters.
+const plainDataSchema: z.ZodMiniType<PlainData> = z.lazy(() =>
+  z.pipe(
+    z.unknown().check(z.refine(isPlainDataContainer)),
+    z.union([
+      z.string(),
+      z.number(),
+      z.boolean(),
+      z.null(),
+      z.array(plainDataSchema),
+      z.record(z.string(), plainDataSchema),
+    ]),
+  ),
+)
+
+// Non-JSON state remains the full judge's concern, never an embedding input.
+// This shape check does not serialize it or read its properties. A valid
+// plain request still crosses the shared byte-cap schema below.
+const requestFieldsSchema = z.pipe(
+  z.unknown().check(z.refine(hasDataProperties)),
+  z.object({
+    ...judgeRequestSchema.shape,
+    state: z.custom<JudgeRequest['state']>(
+      (value: unknown) =>
+        typeof value === 'string' || (value !== null && typeof value === 'object'),
+    ),
+    questions: z.pipe(
+      z.unknown().check(
+        z.refine((value) => {
+          if (!hasDataProperties(value)) return false
+          return Object.values(Object.getOwnPropertyDescriptors(value)).every((descriptor) => {
+            const question: unknown = descriptor.value
+            if (!hasDataProperties(question)) return false
+            const criteria: unknown = Object.getOwnPropertyDescriptor(question, 'criteria')?.value
+            return criteria === undefined || hasDataProperties(criteria)
+          })
+        }),
+      ),
+      judgeRequestSchema.shape.questions,
+    ),
+  }),
+)
+
+/** Plain validation precedes even the shared parser's byte measurement. */
+function prepareRequest(value: unknown): { request: JudgeRequest; inputs: EmbedInputs } {
+  let plain: PlainData | undefined
+  try {
+    const parsed = plainDataSchema.safeParse(value)
+    if (parsed.success) plain = parsed.data
+  } catch {
+    // Cyclic data cannot be JSON; it takes the same typed input refusal.
+  }
+  if (plain === undefined) {
+    return {
+      request: requestFieldsSchema.parse(value),
+      inputs: { status: 'refused', reason: 'invalid-input' },
+    }
+  }
+  const request = judgeRequestSchema.parse(plain)
+  return { request, inputs: embedInputs(request) }
+}
+
+/** Scrub strings before escaping; a remaining serialized match refuses. */
+function embedInputs(request: JudgeRequest): EmbedInputs {
+  const inputs: string[] = []
+  for (const question of Object.values(request.questions)) {
+    const payload = JSON.stringify({
+      state: redactStructured(plainDataSchema.parse(request.state)),
+      instructions: redactStructured(question.instructions, 'instructions'),
+      criteria: redactStructured(plainDataSchema.parse(question.criteria ?? null)),
+    })
+    if (redactSecrets(payload) !== payload) return { status: 'refused', reason: 'redaction-failed' }
+    inputs.push(payload)
+  }
+  return { status: 'ready', value: inputs }
+}
+
+function redactStructured(value: PlainData, fieldName?: string): PlainData {
   if (typeof value === 'string') {
-    // A changed string is replaced whole: retaining a fragment can leak the
-    // rest of a multiline value, or recreate a quoted match after escaping.
+    // Replace changed strings whole: a partial quoted/multiline match must
+    // never leave a tail. Name-plus-value rules inspect the actual value.
     const inspection = value
       .replaceAll(/\\(["'])/g, (_match, quote: string) => quote)
       .replaceAll(/[\r\n]/g, ' ')
-    return redactSecrets(value) !== value ||
-      redactSecrets(inspection) !== inspection ||
-      value.includes(REDACTED_MARK)
+    const candidates = [value, inspection]
+    if (fieldName !== undefined) {
+      candidates.push(
+        `${fieldName}=${inspection.replaceAll(/["']/g, '').trim()}`,
+        `${JSON.stringify(fieldName)}:${JSON.stringify(value)}`,
+      )
+    }
+    return candidates.some((text) => redactSecrets(text) !== text) || value.includes(REDACTED_MARK)
       ? REDACTED_MARK
       : value
   }
-  if (Array.isArray(value)) return Array.from(value, (item: unknown) => redactStructured(item))
+  if (Array.isArray(value)) return value.map((item) => redactStructured(item, fieldName))
   if (value === null || typeof value !== 'object') return value
-  const clean: Record<string, unknown> = {}
+  const clean: Record<string, PlainData> = {}
   for (const [key, item] of Object.entries(value)) {
     const cleanKey = redactStructured(key)
     if (typeof cleanKey !== 'string') throw new TypeError('embedding-state-key')
-    // The raw field name identifies opaque values that carry no token shape.
-    const fieldName = `${key}=""`
     Object.defineProperty(clean, cleanKey, {
-      value: redactSecrets(fieldName) === fieldName ? redactStructured(item) : REDACTED_MARK,
+      value: redactStructured(item, key),
       enumerable: true,
     })
   }
@@ -314,10 +410,10 @@ export function runEmbeddingJudge(
   return guardedStep(
     signal,
     () => input,
-    (value) => judgeRequestSchema.parse(value),
+    prepareRequest,
     (parsed) => {
       if (parsed.status !== 'ready') return refusal('engine-failure')
-      const request = parsed.value
+      const { request, inputs } = parsed.value
       // Every delegate uses this guarded dispatch and accounting path.
       const delegate = (receipt?: EmbeddingReceipt): Promise<JudgeOutcome> =>
         guardedStep(
@@ -359,7 +455,10 @@ export function runEmbeddingJudge(
           const receipt = admitted.value
           return guardedStep(
             signal,
-            () => deps.source.embed(embedInputs(request), signal),
+            () => {
+              if (inputs.status === 'refused') throw new TypeError(inputs.reason)
+              return deps.source.embed(inputs.value, signal)
+            },
             (value) => batchSchema.parse(value),
             (embedded) => {
               if (embedded.status === 'failed') return delegate(receipt)

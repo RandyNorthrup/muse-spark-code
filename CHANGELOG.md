@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Close the experimental embedding judge's input boundary: refuse executable
+  or non-JSON data before serialization, redact actual named string values,
+  and retain the final payload refusal before embedding dispatch.
+
 - Redesign the experimental embedding judge's asynchronous pipeline so Stop
   also settles rejected full-judge calls. Scrub structured inputs before JSON
   escaping, refuse malformed embedding batches and missing numeric components,

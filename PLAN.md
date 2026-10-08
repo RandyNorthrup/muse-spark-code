@@ -42443,6 +42443,20 @@ No dependency, host contract, paid guard or bundle cap changes.
 
 ##### 2i — Embedding fast path after family measurement
 
+- **FIXM98P2I4 privacy repair (2026-10-08, before implementation).**
+  Validate embedding inputs as passive plain JSON with recursive zod checks
+  before serialization: finite numbers, strings, booleans, null, arrays and
+  plain objects only; refuse functions, symbols, class instances, accessors
+  and own `toJSON`. Preserve the shared request shape and byte cap for valid
+  inputs; a non-JSON state takes the admitted full-judge delegate without
+  executing serialization hooks. Invalid question shapes remain explicit
+  no-answer refusals. Redact real string values together with their field
+  names through `src/core/redact.ts`, then retain the final serialized
+  redaction refusal. Keep all previous tests and prove every new test on
+  `201a20752`; certify three owning-file runs and static/build checks in a
+  fresh `npm ci` clone under `CI=true`, default deadlines and unchanged caps.
+  Aggregate quality and live family measurements remain lead-owned; no live
+  or paid calls, push, merge, dependency or escape hatch.
 - **FIXM98P2I3 redesign (2026-10-08, before implementation).** Replace the
   route's separate asynchronous recovery paths with one guarded step that
   owns dispatch, validation and Stop settlement for admission, embeddings and

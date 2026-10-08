@@ -371,6 +371,144 @@ describe('embedding fast path', () => {
 })
 
 describe('embedding pipeline regressions', () => {
+  it.each(['AccountKey', 'aws_secret_access_key', 'api-key', 'GITHUB_TOKEN'])(
+    'redacts the real non-empty %s value in every payload field (RVM98P2ID 1)',
+    async (name) => {
+      const { seen, embed } = captureEmbedInputs(confidentVectors)
+      const { deps } = routeDependencies({ source: { embed } })
+      const request: JudgeRequest = {
+        state: { [name]: 'opaque-state', nested: [{ [name]: 'opaque-nested' }], safe: 'public' },
+        questions: {
+          risk: {
+            type: 'noul',
+            instructions: `${name}=opaque-instructions`,
+            criteria: { true: `${name}=opaque-true`, false: `${name}=opaque-false` },
+          },
+        },
+      }
+      const original = JSON.stringify(request)
+      const outcome = await runEmbeddingJudge(request, options, deps, signal())
+      expect(outcome).toMatchObject({ outcome: 'answered' })
+      expect(seen).toHaveLength(1)
+      const payload = seen[0]?.[0] ?? ''
+      expect(payload).not.toContain('opaque-')
+      expect(JSON.parse(payload)).toMatchObject({
+        state: { safe: 'public', [name]: REDACTED_MARK },
+      })
+      expect(JSON.stringify(request)).toBe(original)
+    },
+  )
+
+  it.each([
+    ['quoted', '"opaque-quoted"'],
+    ['escaped', String.raw`\"opaque-escaped\"`],
+    ['multiline', '\n"opaque-first\nopaque-tail"'],
+  ])('redacts a %s AccountKey value before escaping (RVM98P2ID 1)', async (_name, value) => {
+    const { seen, embed } = captureEmbedInputs(confidentVectors)
+    const { deps } = routeDependencies({ source: { embed } })
+    await runEmbeddingJudge(
+      { ...noulRequest, state: { AccountKey: value } },
+      options,
+      deps,
+      signal(),
+    )
+    expect(seen).toHaveLength(1)
+    expect(seen[0]?.[0]).not.toContain('opaque-')
+    expect(seen[0]?.[0]).toContain(REDACTED_MARK)
+  })
+
+  it('refuses a named secret left in the final serialized payload (RVM98P2ID)', async () => {
+    const { deps, embed, fallbackCalls } = routeDependencies({
+      source: { embed: () => Promise.resolve(confidentVectors) },
+    })
+    const outcome = await runEmbeddingJudge(
+      { ...noulRequest, state: { password: true } },
+      options,
+      deps,
+      signal(),
+    )
+    expect(outcome).toMatchObject({ outcome: 'answered' })
+    if (outcome.outcome !== 'answered') throw new Error('expected fallback')
+    expect(outcome.result.muse['risk']?.technique).toBe('stated')
+    expect(embed).not.toHaveBeenCalled()
+    expect(fallbackCalls).toHaveLength(1)
+  })
+
+  it.each([
+    ['function', () => vi.fn()],
+    ['class instance', () => new URL('https://fixture.invalid/opaque-class')],
+    ['own toJSON', () => ({ toJSON: vi.fn(() => '"password": "opaque-json"') })],
+    ['symbol', () => Symbol('opaque-symbol')],
+    ['non-finite number', () => Infinity],
+    ['non-enumerable function', () => Object.defineProperty({}, 'hidden', { value: vi.fn() })],
+    ['array property function', () => Object.assign(['public'], { call: vi.fn() })],
+    ['own non-callable toJSON', () => ({ toJSON: 'public' })],
+    ['symbol key', () => ({ [Symbol('field')]: 'public' })],
+    [
+      'cycle',
+      () => {
+        const value: Record<string, unknown> = {}
+        value['self'] = value
+        return value
+      },
+    ],
+  ])('refuses a %s in every payload field before embedding (RVM98P2ID 2)', async (_name, make) => {
+    for (const field of ['state', 'instructions', 'true', 'false', 'criteria']) {
+      const { deps, embed, fallbackCalls } = routeDependencies({
+        source: { embed: () => Promise.resolve(confidentVectors) },
+      })
+      const value = make()
+      const question = { type: 'noul', instructions: 'Public question', criteria: {} }
+      const request = { state: { box: value }, questions: { risk: question } }
+      if (field === 'instructions' || field === 'criteria') Reflect.set(question, field, value)
+      else if (field === 'true' || field === 'false') Reflect.set(question.criteria, field, value)
+      if (field !== 'state') Reflect.set(request, 'state', { safe: 'public' })
+      const outcome = await runEmbeddingJudge(request, options, deps, signal())
+      expect(embed).not.toHaveBeenCalled()
+      if (field === 'state') expect(outcome.outcome).toBe('answered')
+      if (outcome.outcome === 'answered') {
+        expect(outcome.result.muse['risk']?.technique).toBe('stated')
+        expect(fallbackCalls).toHaveLength(1)
+      } else {
+        expect(outcome.reason).toBe('engine-failure')
+      }
+      if (
+        typeof value === 'object' &&
+        Object.hasOwn(value, 'toJSON') &&
+        'toJSON' in value &&
+        typeof value.toJSON === 'function'
+      ) {
+        expect(value.toJSON).not.toHaveBeenCalled()
+      }
+    }
+  })
+
+  it('refuses getters in every payload field without invoking them (RVM98P2ID 2)', async () => {
+    for (const field of ['state', 'instructions', 'true', 'false', 'criteria']) {
+      const getter = vi.fn(() => 'public')
+      const { deps, embed } = routeDependencies({
+        source: { embed: () => Promise.resolve(confidentVectors) },
+      })
+      const question = { type: 'noul', instructions: 'Public question', criteria: {} }
+      const state = Object.defineProperty({}, 'box', { get: getter, enumerable: true })
+      const request = { state, questions: { risk: question } }
+      if (field !== 'state') {
+        Reflect.set(request, 'state', { safe: 'public' })
+        Object.defineProperty(
+          field === 'true' || field === 'false' ? question.criteria : question,
+          field,
+          { get: getter, enumerable: true },
+        )
+      }
+      const outcome = await runEmbeddingJudge(request, options, deps, signal())
+      expect(getter).not.toHaveBeenCalled()
+      expect(embed).not.toHaveBeenCalled()
+      expect(
+        outcome.outcome === 'answered' ? outcome.result.muse['risk']?.technique : outcome.reason,
+      ).toBe(outcome.outcome === 'answered' ? 'stated' : 'engine-failure')
+    }
+  })
+
   it.each([
     ['quoted', (name: string) => `password="opaque-${name}"`],
     ['escaped', (name: string) => String.raw`api_key="opaque-${name}\"tail"`],
