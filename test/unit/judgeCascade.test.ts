@@ -545,7 +545,7 @@ describe('cascadeJudge', () => {
     }
     expect(outcome.outcome).toBe('answered')
     if (outcome.outcome !== 'answered') throw new Error('expected settled answer')
-    expect(outcome.result.cascade).toEqual({
+    expect(outcome.result['cascade']).toEqual({
       separate: isFailedSeparate ? { status: 'failed', reason: 'timeout' } : { status: 'answered' },
       same: isSkippedSame
         ? {
@@ -603,7 +603,7 @@ describe('cascadeJudge', () => {
       expect(same.run).not.toHaveBeenCalled()
       expect(Object.keys(settled.answers)).toEqual(['risk'])
       expect(settled.muse['risk']).toMatchObject({ source: 'separate', model: separateCap.model })
-      expect(settled.cascade).toMatchObject({ refusedQuestions: ['pick'] })
+      expect(settled['cascade']).toMatchObject({ refusedQuestions: ['pick'] })
     },
   )
 
