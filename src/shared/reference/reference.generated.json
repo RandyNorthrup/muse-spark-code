@@ -1255,8 +1255,8 @@
       "settings": [
         "museSpark.modelApiScheduledPrompts",
         "museSpark.schedules",
-        "museSpark.schedules.defaultDelivery",
-        "museSpark.schedules.agentCreation"
+        "museSpark.scheduleDefaultDelivery",
+        "museSpark.scheduleAgentCreation"
       ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api",
       "backends": ["modelApi"],
@@ -2662,8 +2662,8 @@
       "schema": { "type": "boolean", "default": true }
     },
     {
-      "id": "museSpark.schedules.defaultDelivery",
-      "name": "museSpark.schedules.defaultDelivery",
+      "id": "museSpark.scheduleDefaultDelivery",
+      "name": "museSpark.scheduleDefaultDelivery",
       "description": "Default delivery for new schedules: a new turn starts on idle by default.",
       "descriptionKey": "config.schedules.defaultDelivery.description",
       "type": "string",
@@ -2678,8 +2678,8 @@
       }
     },
     {
-      "id": "museSpark.schedules.agentCreation",
-      "name": "museSpark.schedules.agentCreation",
+      "id": "museSpark.scheduleAgentCreation",
+      "name": "museSpark.scheduleAgentCreation",
       "description": "Default permission for agents to create schedules: ask, always within caps, or never. Ask by default.",
       "descriptionKey": "config.schedules.agentCreation.description",
       "type": "string",

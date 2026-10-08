@@ -2533,7 +2533,7 @@
       "$extensions": {
         "org.muse-spark-code": {
           "css": "--ms-column-inset",
-          "cssValue": "max(0px, (100vw - var(--ms-column-max-width)) / 2)"
+          "cssValue": "max(0px, (100cqw - var(--ms-column-max-width)) / 2)"
         }
       }
     },

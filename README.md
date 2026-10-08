@@ -2040,6 +2040,13 @@ Review what the agent did before it lands, on both backends.
 
 ## Scheduled prompts (Model API)
 
+The machine-scoped `museSpark.schedules` switch controls the v2 surface.
+Its host defaults are `museSpark.scheduleDefaultDelivery` (`whenIdle`) and
+`museSpark.scheduleAgentCreation` (`ask`), also machine-scoped. These flat keys
+avoid VS Code's scalar-parent conflict; the reader still validates previous
+`schedules.defaultDelivery` and `schedules.agentCreation` values when a new key
+is absent. Paid consent and the shared daily budget still apply.
+
 On the Model API backend, `/loop 10m Review the build` saves a prompt in the
 current conversation to become due every ten minutes. Use `m`, `h`, or `d`
 for minutes, hours, or days; `/loop "0 9 * * 1-5" Summarize new bugs` uses

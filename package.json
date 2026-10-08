@@ -799,7 +799,7 @@
           "description": "%config.schedules.description%",
           "scope": "machine"
         },
-        "museSpark.schedules.defaultDelivery": {
+        "museSpark.scheduleDefaultDelivery": {
           "type": "string",
           "enum": [
             "steer",
@@ -812,7 +812,7 @@
           "description": "%config.schedules.defaultDelivery.description%",
           "scope": "machine"
         },
-        "museSpark.schedules.agentCreation": {
+        "museSpark.scheduleAgentCreation": {
           "type": "string",
           "enum": [
             "ask",

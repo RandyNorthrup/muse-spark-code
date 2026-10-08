@@ -122,7 +122,7 @@
   --ms-button-height: 28px;
   --ms-column-max-width: 760px;
   --ms-pill-min-width: 2.5rem;
-  --ms-column-inset: max(0px, (100vw - var(--ms-column-max-width)) / 2);
+  --ms-column-inset: max(0px, (100cqw - var(--ms-column-max-width)) / 2);
   --ms-column-gutter: calc(var(--ms-column-inset) + var(--ms-gap));
   --ms-gap: var(--ms-space-8);
   --ms-radius: var(--ms-radius-md);
@@ -252,7 +252,7 @@
   --ms-button-height: 28px;
   --ms-column-max-width: 760px;
   --ms-pill-min-width: 2.5rem;
-  --ms-column-inset: max(0px, (100vw - var(--ms-column-max-width)) / 2);
+  --ms-column-inset: max(0px, (100cqw - var(--ms-column-max-width)) / 2);
   --ms-column-gutter: calc(var(--ms-column-inset) + var(--ms-gap));
   --ms-gap: var(--ms-space-8);
   --ms-radius: var(--ms-radius-md);
@@ -378,7 +378,7 @@
   --ms-button-height: 28px;
   --ms-column-max-width: 760px;
   --ms-pill-min-width: 2.5rem;
-  --ms-column-inset: max(0px, (100vw - var(--ms-column-max-width)) / 2);
+  --ms-column-inset: max(0px, (100cqw - var(--ms-column-max-width)) / 2);
   --ms-column-gutter: calc(var(--ms-column-inset) + var(--ms-gap));
   --ms-gap: var(--ms-space-8);
   --ms-radius: var(--ms-radius-md);
@@ -504,7 +504,7 @@
   --ms-button-height: 28px;
   --ms-column-max-width: 760px;
   --ms-pill-min-width: 2.5rem;
-  --ms-column-inset: max(0px, (100vw - var(--ms-column-max-width)) / 2);
+  --ms-column-inset: max(0px, (100cqw - var(--ms-column-max-width)) / 2);
   --ms-column-gutter: calc(var(--ms-column-inset) + var(--ms-gap));
   --ms-gap: var(--ms-space-8);
   --ms-radius: var(--ms-radius-md);

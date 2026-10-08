@@ -1074,7 +1074,7 @@ Schedule a prompt in this Model API conversation.
 
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: `museSpark.schedulePrompt`, `museSpark.showSchedules`, `museSpark.showScheduleTimeline`. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedules`, `museSpark.schedules.defaultDelivery`, `museSpark.schedules.agentCreation`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
+Commands: `museSpark.schedulePrompt`, `museSpark.showSchedules`, `museSpark.showScheduleTimeline`. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedules`, `museSpark.scheduleDefaultDelivery`, `museSpark.scheduleAgentCreation`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
 
 ### /agents
 
@@ -2119,7 +2119,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 }
 ```
 
-### museSpark.schedules.defaultDelivery
+### museSpark.scheduleDefaultDelivery
 
 Default delivery for new schedules: a new turn starts on idle by default.
 
@@ -2139,7 +2139,7 @@ Type: `"string"`. Default: `"whenIdle"`. Scope: `machine`.
 - `"whenIdle"`:
 - `"newConversation"`:
 
-### museSpark.schedules.agentCreation
+### museSpark.scheduleAgentCreation
 
 Default permission for agents to create schedules: ask, always within caps, or never. Ask by default.
 

@@ -83,8 +83,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiScheduledPrompts: boolean
   /** The v2 schedules surface (M115, PLAN.md D95): on by default. */
   readonly schedules: boolean
-  readonly 'schedules.defaultDelivery': (typeof SCHEDULE_DELIVERIES)[number]
-  readonly 'schedules.agentCreation': (typeof SCHEDULE_AGENT_CREATIONS)[number]
+  readonly scheduleDefaultDelivery: (typeof SCHEDULE_DELIVERIES)[number]
+  readonly scheduleAgentCreation: (typeof SCHEDULE_AGENT_CREATIONS)[number]
   readonly modelApiSubagents: boolean
   /** Best-of-N availability; an explicit run and consent choose its extra attempts. */
   readonly modelApiBestOfN: boolean
@@ -193,8 +193,8 @@ const settingSchemas = {
   modelApiPromptCacheRetention: z.enum(PROMPT_CACHE_RETENTIONS),
   modelApiScheduledPrompts: z.boolean(),
   schedules: z.boolean(),
-  'schedules.defaultDelivery': z.enum(SCHEDULE_DELIVERIES),
-  'schedules.agentCreation': z.enum(SCHEDULE_AGENT_CREATIONS),
+  scheduleDefaultDelivery: z.enum(SCHEDULE_DELIVERIES),
+  scheduleAgentCreation: z.enum(SCHEDULE_AGENT_CREATIONS),
   modelApiSubagents: z.boolean(),
   modelApiBestOfN: z.boolean(),
   modelApiTeamWorkers: z.boolean(),
@@ -271,7 +271,13 @@ function readSetting<K extends SettingKey>(
   key: K,
   log: Logger,
 ): ExtensionSettings[K] {
-  const raw = config.get(key)
+  const previousKey =
+    key === 'scheduleDefaultDelivery'
+      ? 'schedules.defaultDelivery'
+      : key === 'scheduleAgentCreation'
+        ? 'schedules.agentCreation'
+        : undefined
+  const raw = config.get(key) ?? (previousKey === undefined ? undefined : config.get(previousKey))
   const fallback = SETTING_DEFAULTS[key] as ExtensionSettings[K]
   if (raw === undefined) {
     return fallback
@@ -321,8 +327,8 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiPromptCacheRetention: readSetting(config, 'modelApiPromptCacheRetention', log),
     modelApiScheduledPrompts: readSetting(config, 'modelApiScheduledPrompts', log),
     schedules: readSetting(config, 'schedules', log),
-    'schedules.defaultDelivery': readSetting(config, 'schedules.defaultDelivery', log),
-    'schedules.agentCreation': readSetting(config, 'schedules.agentCreation', log),
+    scheduleDefaultDelivery: readSetting(config, 'scheduleDefaultDelivery', log),
+    scheduleAgentCreation: readSetting(config, 'scheduleAgentCreation', log),
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
     modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
     modelApiTeamWorkers: readSetting(config, 'modelApiTeamWorkers', log),

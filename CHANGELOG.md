@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Centre the chat column within its app container, join standalone schedule-harness
+  mounts before accessibility scans, and carry the real report panel input in CI.
+- Expose the two schedule defaults as flat machine-scoped settings so VS Code
+  registers them beside the existing schedule switch; retain validated legacy reads.
+
 - Wait for a known screenshot scenario to start after the webview handshake before
   scanning or capturing its UI, preventing empty welcome screens from being certified.
 

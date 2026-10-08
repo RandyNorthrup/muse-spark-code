@@ -437,8 +437,8 @@ export const SETTING_DEFAULTS = {
   modelApiScheduledPrompts: true,
   // M115 (PLAN.md D95): the v2 schedules surface and its defaults.
   schedules: true,
-  'schedules.defaultDelivery': 'whenIdle' as (typeof SCHEDULE_DELIVERIES)[number],
-  'schedules.agentCreation': 'ask' as (typeof SCHEDULE_AGENT_CREATIONS)[number],
+  scheduleDefaultDelivery: 'whenIdle' as (typeof SCHEDULE_DELIVERIES)[number],
+  scheduleAgentCreation: 'ask' as (typeof SCHEDULE_AGENT_CREATIONS)[number],
   modelApiSubagents: true,
   // Best-of-N parallel attempts (M77, PLAN.md D49): N worktree-rooted
   // conversations per run, each billed to the key.
@@ -636,8 +636,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   // M115's schedules surface and its unattended-run defaults choose what runs
   // and what is billed (PLAN.md D95): a repository must not set them.
   'schedules',
-  'schedules.defaultDelivery',
-  'schedules.agentCreation',
+  'scheduleDefaultDelivery',
+  'scheduleAgentCreation',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).

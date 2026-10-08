@@ -759,7 +759,7 @@
       "layout.column-inset": {
         "type": "dimension",
         "value": { "value": 0, "unit": "px" },
-        "css": "max(0px, (100vw - var(--ms-column-max-width)) / 2)",
+        "css": "max(0px, (100cqw - var(--ms-column-max-width)) / 2)",
         "variable": "--ms-column-inset"
       },
       "layout.column-gutter": {
@@ -1563,7 +1563,7 @@
       "layout.column-inset": {
         "type": "dimension",
         "value": { "value": 0, "unit": "px" },
-        "css": "max(0px, (100vw - var(--ms-column-max-width)) / 2)",
+        "css": "max(0px, (100cqw - var(--ms-column-max-width)) / 2)",
         "variable": "--ms-column-inset"
       },
       "layout.column-gutter": {
@@ -2315,7 +2315,7 @@
       "layout.column-inset": {
         "type": "dimension",
         "value": { "value": 0, "unit": "px" },
-        "css": "max(0px, (100vw - var(--ms-column-max-width)) / 2)",
+        "css": "max(0px, (100cqw - var(--ms-column-max-width)) / 2)",
         "variable": "--ms-column-inset"
       },
       "layout.column-gutter": {
@@ -3067,7 +3067,7 @@
       "layout.column-inset": {
         "type": "dimension",
         "value": { "value": 0, "unit": "px" },
-        "css": "max(0px, (100vw - var(--ms-column-max-width)) / 2)",
+        "css": "max(0px, (100cqw - var(--ms-column-max-width)) / 2)",
         "variable": "--ms-column-inset"
       },
       "layout.column-gutter": {

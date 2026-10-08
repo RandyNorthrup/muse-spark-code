@@ -44,6 +44,18 @@ const SURFACE_ACTIVE = `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || foc
 const nlsKeyOf = (reference: string | undefined) => reference?.replace(/^%(.+)%$/, '$1') ?? ''
 
 describe('package.json manifest', () => {
+  it('never puts settings below a scalar setting that VS Code would ignore', () => {
+    const properties = manifest.contributes.configuration.properties
+    const keys = Object.keys(properties)
+    for (const [parent, specification] of Object.entries(properties)) {
+      if (specification.type === 'object') continue
+      expect(
+        keys.filter((key) => key.startsWith(`${parent}.`)),
+        parent,
+      ).toEqual([])
+    }
+  })
+
   it('offers paid Tab by default while retaining its machine scope and daily cap', () => {
     const properties = manifest.contributes.configuration.properties
     expect(properties['museSpark.modelApiTab']).toMatchObject({ default: true, scope: 'machine' })
@@ -603,6 +615,16 @@ describe('tiered CI (CIFLOW)', () => {
     expect(job('packages')).toContain('name: muse-spark-code-vsix')
     expect(job('packages')).toContain('name: muse-spark-code-acp')
     expect(job('packages')).toContain('name: muse-spark-code-sboms')
+  })
+
+  it('carries the reporting panel metrics input with browser files for accessibility', () => {
+    expect(job('checks')).toContain(
+      'path: |\n            dist/webview\n            dist/reportingPanel.js',
+    )
+    expect(job('accessibility')).toContain('name: production-webview\n          path: dist\n')
+    expect(read('test/harness/reporting/verify.mjs')).toContain(
+      "statSync(path.join(root, 'dist/reportingPanel.js'))",
+    )
   })
 
   it('replays visual pixels only in required shards with the recorded Git source available', () => {

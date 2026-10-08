@@ -138,6 +138,7 @@ body {
 }
 
 .app {
+  container-type: inline-size;
   position: relative;
   display: flex;
   flex-direction: column;

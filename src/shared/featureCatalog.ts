@@ -701,12 +701,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'loopItem' },
       { tip: 'loop' },
       ['schedulePrompt', 'showSchedules', 'showScheduleTimeline'],
-      [
-        'modelApiScheduledPrompts',
-        'schedules',
-        'schedules.defaultDelivery',
-        'schedules.agentCreation',
-      ],
+      ['modelApiScheduledPrompts', 'schedules', 'scheduleDefaultDelivery', 'scheduleAgentCreation'],
       'scheduled-prompts-model-api',
       ['modelApi'],
       true,

@@ -346,12 +346,25 @@ describe('harness scenes wait for the controls they touch', () => {
       {
         harnessBundle: 'main',
         surface: 'textarea, .gate, .todo-surface, .schedule-v2-surface, [role="alert"]',
+        scenario: 'example',
+        isScheduleMount: false,
       },
-      { harnessBundle: 'models', surface: '.models-panel section' },
+      {
+        harnessBundle: 'main',
+        surface: 'textarea, .gate, .todo-surface, .schedule-v2-surface, [role="alert"]',
+        scenario: 'schedules-v2-list',
+        isScheduleMount: true,
+      },
+      {
+        harnessBundle: 'models',
+        surface: '.models-panel section',
+        scenario: 'example',
+        isScheduleMount: false,
+      },
     ].flatMap((bundle) => [false, true].map((readyBeforeLoad) => ({ ...bundle, readyBeforeLoad }))),
   )(
-    'starts $harnessBundle after loading and ready ($readyBeforeLoad), exactly once',
-    ({ harnessBundle, surface, readyBeforeLoad }) => {
+    'starts $scenario ($harnessBundle, schedule mount $isScheduleMount) after loading and ready ($readyBeforeLoad), exactly once',
+    ({ harnessBundle, surface, scenario, isScheduleMount, readyBeforeLoad }) => {
       const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
       const start = html.indexOf('let hasPlayedScenario =')
       const end = html.indexOf('// `?theme=', start)
@@ -362,10 +375,11 @@ describe('harness scenes wait for the controls they touch', () => {
       const context = {
         window,
         harnessBundle,
-        hasWebviewReady: readyBeforeLoad,
-        scenario: 'example',
+        hasWebviewReady: !isScheduleMount && readyBeforeLoad,
+        hasScheduleHarnessMounted: isScheduleMount && readyBeforeLoad,
+        scenario,
         steps: {
-          example: () => {
+          [scenario]: () => {
             selectors.push('played')
           },
         },
@@ -379,11 +393,15 @@ describe('harness scenes wait for the controls they touch', () => {
       window.dispatchEvent(new Event('DOMContentLoaded'))
       if (!readyBeforeLoad) {
         expect(selectors).toEqual([])
-        context.hasWebviewReady = true
-        runInNewContext('playScenario()', context)
+        if (isScheduleMount) window.dispatchEvent(new Event('schedule-harness-mounted'))
+        else {
+          context.hasWebviewReady = true
+          runInNewContext('playScenario()', context)
+        }
       }
       expect(selectors).toEqual([surface, 'played'])
       window.dispatchEvent(new Event('DOMContentLoaded'))
+      window.dispatchEvent(new Event('schedule-harness-mounted'))
       runInNewContext('playScenario()', context)
       expect(selectors).toHaveLength(2)
     },

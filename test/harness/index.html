@@ -405,6 +405,7 @@
       // checked in English as if it were translated.
       const webviewErrors = []
       let hasWebviewReady = false
+      let hasScheduleHarnessMounted = false
       const scenarioName = new URLSearchParams(location.search).get('scenario')
       // M95b: deterministic notice state, before the app reads its store.
       if (scenarioName?.startsWith('plan-') || scenarioName?.startsWith('copilot-plan')) {
@@ -1324,7 +1325,9 @@
           mountTrafficHarness(document, scenarioName)
         })
       } else if (scenarioName?.startsWith('schedules-v2')) {
-        import('./schedules.mjs')
+        import('./schedules.mjs').then(() => {
+          window.dispatchEvent(new Event('schedule-harness-mounted'))
+        })
       } else {
         import(`../../dist/webview/${harnessBundle}.js`)
       }
@@ -6109,7 +6112,10 @@
       const playScenario = () => {
         if (
           !hasPageLoaded ||
-          !hasWebviewReady ||
+          !(
+            hasWebviewReady ||
+            (scenario?.startsWith('schedules-v2') && hasScheduleHarnessMounted)
+          ) ||
           hasPlayedScenario ||
           scenario === null ||
           !(scenario in steps)
@@ -6123,6 +6129,14 @@
         whenFound(surface, () => steps[scenario]())
       }
       let hasPageLoaded = false
+      window.addEventListener(
+        'schedule-harness-mounted',
+        () => {
+          hasScheduleHarnessMounted = true
+          playScenario()
+        },
+        { once: true },
+      )
       window.addEventListener(
         'DOMContentLoaded',
         () => {

@@ -101,7 +101,9 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && !inputs.fast
         with:
           name: production-webview
-          path: dist/webview
+          path: |
+            dist/webview
+            dist/reportingPanel.js
           if-no-files-found: error
 
   # M114: rebuild the reviewed Git source in this runner's browser/fonts;
@@ -272,7 +274,7 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: production-webview
-          path: dist/webview
+          path: dist
       # Every scenario/theme; identical browser bundle. Measured Ubuntu 4m54s,
       # Windows 8m11s (run 37211362498). Platform behavior stays in native tests.
       - run: npm run test:a11y
