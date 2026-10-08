@@ -131,7 +131,7 @@ function fixture() {
     path.join(production, 'dist/meta/usageWebview.json'),
     path.join(dir, 'dist/meta/usageWebview.json'),
   )
-  for (const name of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs'])
+  for (const name of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs', 'MuseSparkDeviceStorage.cs'])
     writeFileSync(path.join(dir, 'native/windows', name), '// test-owned native fixture\n')
   cpSync('docs/schemas', path.join(dir, 'docs/schemas'), { recursive: true })
   cpSync('l10n', path.join(dir, 'l10n'), { recursive: true })

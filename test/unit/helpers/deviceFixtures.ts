@@ -132,11 +132,42 @@ export async function deviceStorage(): Promise<DeviceStorageProtection | undefin
     const binding = await startWindowsStorageProtection({
       directory: path.join(tmpdir(), 'muse-spark-device-storage-test'),
       systemRoot: process.env['SystemRoot'] ?? String.raw`C:\Windows`,
+      extensionPath: process.cwd(),
     })
     return binding.protection
   })()
   return await windowsBinding.current
 }
+/**
+ * A binding usable synchronously, for suites that hand one to the journal at
+ * module scope: the real Windows binding (started on first use), or the
+ * shared fake elsewhere, which also round-trips through the real filesystem.
+ */
+export const deviceStorageBinding: DeviceStorageProtection =
+  process.platform === 'win32'
+    ? {
+        assertPrivate: async (file, isDirectory) => {
+          const binding = await deviceStorage()
+          await binding?.assertPrivate(file, isDirectory)
+        },
+        assertSafeAncestor: async (directory) => {
+          const binding = await deviceStorage()
+          await binding?.assertSafeAncestor(directory)
+        },
+        secureFresh: async (file, isDirectory) => {
+          const binding = await deviceStorage()
+          await binding?.secureFresh(file, isDirectory)
+        },
+        replace: async (stage, target) => {
+          const binding = await deviceStorage()
+          await binding?.replace(stage, target)
+        },
+        syncDirectory: async (directory) => {
+          const binding = await deviceStorage()
+          await binding?.syncDirectory(directory)
+        },
+      }
+    : fakeDeviceStorage().protection
 /** A temp root this test owns: mkdtemp is 0700 on POSIX; Windows claims it as a store folder. */
 export async function privateDeviceRoot(prefix: string): Promise<string> {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), prefix)))

@@ -80,9 +80,11 @@ const BUNDLES = [
 // No MuseSparkMcpLauncher.cs: ACP forwards MCP servers to Muse Code's own
 // process (src/acp/agent.ts forwardedMcp); its Model API backend runs none.
 // src/runtime/backends.ts composes only shellJobAssembly, never mcpJobExecutable.
+// The lazy devices.js ships with its Windows storage helper's C# (M100).
 const JOB_SOURCES = [
   path.join('native', 'windows', 'MuseSparkJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
+  path.join('native', 'windows', 'MuseSparkDeviceStorage.cs'),
 ]
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const PACKAGE_NAME = 'muse-spark-code-acp'

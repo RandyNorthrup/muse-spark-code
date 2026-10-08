@@ -1,5 +1,4 @@
-import { mkdtemp, realpath, rename, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { rm } from 'node:fs/promises'
 import path from 'node:path'
 import { vi, beforeEach, afterEach } from 'vitest'
 import {
@@ -14,7 +13,13 @@ import {
   type DeviceLocalAttempt,
   type DeviceExecutionBoundary,
 } from '../../../src/host/devices/deviceReceiver'
-import { deviceGrant, deviceCheck, deviceLane } from './deviceFixtures'
+import {
+  deviceGrant,
+  deviceCheck,
+  deviceLane,
+  deviceStorageBinding,
+  privateDeviceRoot,
+} from './deviceFixtures'
 import type { DeviceDispatch, DeviceFrame } from '../../../src/shared/devices'
 
 export function deferred<T>() {
@@ -32,20 +37,11 @@ export const executionUsage: DeviceOutcome['usage'] = {
   returnedUsd: 0,
   retainedLiabilityUsd: 1,
 }
-// Windows tests exercise the injected contract, not actual ACL/durability qualification.
-export const executionProtection: AttemptJournalProtection | undefined =
-  process.platform === 'win32'
-    ? {
-        assertPrivate: () => Promise.resolve(),
-        assertSafeAncestor: () => Promise.resolve(),
-        secureFresh: () => Promise.resolve(),
-        replace: (stage, target) => rename(stage, target),
-        syncDirectory: () => Promise.resolve(),
-      }
-    : undefined
+// The journal suites' binding: the real native binding on Windows, the shared fake elsewhere.
+export const executionProtection: AttemptJournalProtection = deviceStorageBinding
 
 async function executionFixture(kind: 'check' | 'lane' = 'check') {
-  const parent = await realpath(await mkdtemp(path.join(tmpdir(), 'm100-e-')))
+  const parent = await privateDeviceRoot('m100-e-')
   const directory = path.join(parent, 'durable')
   const owner = { assertOwner: vi.fn(() => Promise.resolve()) }
   const journal = await AttemptJournal.create(directory, owner, executionProtection)

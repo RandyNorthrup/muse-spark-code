@@ -10,7 +10,6 @@ import { canonicalPath, isMissingPath } from '../canonicalPath'
 import { renameReplacing } from '../fsAtomic'
 import { storeErrorCode } from '../backend/storeErrors'
 import { runProgram, windowsPowerShell } from '../processTree'
-import { WINDOWS_HANDLE_INTEROP } from '../windowsHandleInterop'
 import { powerShellQuoted } from '../../core/shellQuote'
 import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../shared/constants'
 
@@ -51,7 +50,26 @@ using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using Microsoft.Win32.SafeHandles;
-public static class MuseTeamHintReader {${WINDOWS_HANDLE_INTEROP}    public static string Read(string target, int maximum) {
+public static class MuseTeamHintReader {
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FileInfo {
+        public uint Attributes;
+        public System.Runtime.InteropServices.ComTypes.FILETIME Created, Accessed, Written;
+        public uint Volume, SizeHigh, SizeLow, Links, IndexHigh, IndexLow;
+    }
+    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+    private static extern SafeFileHandle CreateFile(string path, uint access, uint share,
+        IntPtr security, uint creation, uint flags, IntPtr template);
+    [DllImport("kernel32.dll", SetLastError=true)]
+    private static extern bool GetFileInformationByHandle(SafeFileHandle file, out FileInfo info);
+    [DllImport("advapi32.dll")]
+    private static extern uint GetSecurityInfo(SafeFileHandle file, uint type, uint requested,
+        out IntPtr owner, out IntPtr group, out IntPtr dacl, out IntPtr sacl, out IntPtr descriptor);
+    [DllImport("advapi32.dll")]
+    private static extern uint GetSecurityDescriptorLength(IntPtr descriptor);
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr LocalFree(IntPtr memory);
+    public static string Read(string target, int maximum) {
         using (var handle = CreateFile(target, 0x80000000, 1, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero)) {
             if (handle.IsInvalid) throw new IOException("TEAM_HINT_FILE_UNSAFE");
             using (var file = new FileStream(handle, FileAccess.Read)) {

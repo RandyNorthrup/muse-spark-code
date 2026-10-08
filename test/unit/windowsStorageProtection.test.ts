@@ -237,7 +237,11 @@ describe('the Devices bundle storage seam', () => {
       Promise.resolve({ protection, dispose: () => undefined }),
     )
     const bundle = { startWindowsStorageProtection }
-    const options = { helperDirectory: path.resolve('helpers'), systemRoot: String.raw`C:\Windows` }
+    const options = {
+      helperDirectory: path.resolve('helpers'),
+      systemRoot: String.raw`C:\Windows`,
+      extensionPath: process.cwd(),
+    }
     await expect(deviceStorageProtection(bundle, options, 'linux')).resolves.toBeUndefined()
     await expect(deviceStorageProtection(bundle, options, 'darwin')).resolves.toBeUndefined()
     expect(startWindowsStorageProtection).not.toHaveBeenCalled()
@@ -245,6 +249,7 @@ describe('the Devices bundle storage seam', () => {
     expect(startWindowsStorageProtection).toHaveBeenCalledWith({
       directory: options.helperDirectory,
       systemRoot: options.systemRoot,
+      extensionPath: options.extensionPath,
     })
     await expect(
       deviceStorageProtection(bundle, { ...options, systemRoot: undefined }, 'win32'),

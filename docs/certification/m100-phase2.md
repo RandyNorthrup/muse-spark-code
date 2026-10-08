@@ -1118,10 +1118,8 @@ every OS through the injected platform: no binding refuses, and a refused
 `assertPrivate`, `secureFresh`, `assertSafeAncestor`, `syncDirectory` or
 `replace` refuses or latches the store. `windowsStorageProtection.test.ts` (32)
 covers the decisions from recorded readings, plus the line protocol through a
-Node stand-in, on every OS. The journal's win32 pass-through
-(`deviceExecutionFixtures.ts`) still serves the receiver and journal suites; its
-retirement to the real binding is the next step. `deviceIntegration` already
-journals through the real binding.
+Node stand-in, on every OS. The journal's win32 pass-through in
+`deviceExecutionFixtures.ts` is retired (follow-up below).
 
 | Run (default timeouts)                                                                 | Before                         | After                                                                                                                           |
 | -------------------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -1130,12 +1128,9 @@ journals through the real binding.
 | Win11 VM `f03957dd`, 29 files (device*, Devices views, journal, binding, hints, token) | not run                        | **827 passed, 0 failed**                                                                                                        |
 | Kubuntu `6503a6f4` and final tree, same 29 files                                       | green before                   | **833 passed, 0 failed**                                                                                                        |
 
-This host ran at 78% CPU from other sessions. Here `deviceIntegration` passes
-4 of 11: seven flows miss `vi.waitFor`'s default 1 s while each durable journal
-write takes about 100 ms. The same file passes 11/11 on the VM. A final VM rerun
-under load (724 s against 112 s before) timed out in untouched `DevicesView` and
-`tokenFile` cases and failed one `deviceRecovery` capacity assertion; one worker
-did not start. Run it again on an idle VM before merging.
+This host ran at 78% CPU from other sessions. Here `deviceIntegration` passed
+4 of 11: seven flows polled with `vi.waitFor`'s default 1 s while each durable
+journal write takes about 100 ms. The follow-up below replaces those polls.
 
 **Cost (this host, real binding).** Helper start about 0.5 to 0.7 s once per
 process. `assertPrivate` 1.6 ms, whole-chain ancestor check 6.7 ms, folder flush
@@ -1153,11 +1148,59 @@ request per ancestor, and is **16 ms** with the one-request chain. `update` is
    through the binding".
 4. Removing the rename-away-and-replace ancestor rule fails 3 tests.
 
-**Gates.** All five typechecks exit 0. ESLint `--max-warnings=0` and Prettier
-are clean on the 19 changed files. `knip`, `jscpd` (0 clones) and `check:l10n`
-(0 problems) exit 0. `check:host-api` exits 0 after `--write`: four Node
-built-in counts each go up by 1, with no new VS Code API. **`npm run build`
-exits 1:** `dist/devices.js` is 107.1 KiB against its 100 KiB cap. The binding
-adds 10.6 KiB, about 6 KiB of it the C# source. The lead decides between a D6
-re-measure (+15%, giving 125 KiB) and shipping the C# outside the bundle; even
-moving the C# out leaves the bundle just over 100 KiB.
+**Gates (first commit).** All five typechecks exit 0. ESLint
+`--max-warnings=0` and Prettier are clean on the 19 changed files. `knip`,
+`jscpd` (0 clones) and `check:l10n` (0 problems) exit 0. `check:host-api` exits 0
+after `--write`: four Node built-in counts each go up by 1, with no new VS Code
+API. `npm run build` exited 1 with `dist/devices.js` at 107.1 KiB against its
+100 KiB cap; the follow-up resolves it.
+
+### Follow-up: native source, completion signals, journal binding (lead decisions)
+
+- **Bundle.** The helper's C# now ships as `native/windows/MuseSparkDeviceStorage.cs`,
+  as the job helpers' sources do (PLAN.md D6). It is whitelisted in
+  `.vscodeignore`, listed in `package-acp.mjs` (which ships `devices.js`), and in
+  the manifest and package fixtures. `startWindowsStorageProtection` reads it
+  from the extension or package folder (`extensionPath`) and compiles it once per
+  source digest through `compileJob`. Team hints keep their own C# string again,
+  byte-identical to before, so `windowsHandleInterop.ts` is gone. `dist/devices.js`
+  is now 102,364 bytes (100.0 KiB) against 102,400, so the build passes and the
+  cap does not move. Only 36 bytes are left: by the D6 rule (measured +15%,
+  rounded up to 25 KiB), the next re-measure gives 99.96 × 1.15 = 115.0, so
+  125 KiB.
+- **`deviceIntegration` waits.** The seven flows now await their own completion
+  signals, with no `vi.waitFor` poll. `running()` awaits the moment the source's
+  fake receives the `running` outcome. That comes after the receiver's durable
+  admission, launch and running writes and its reply. The flood test awaits the
+  fake's capacity-refusal count and its final delivery count. The three
+  simulator Stops await the receiver's own `receive` promise for the cancel
+  frame, which covers cancellation and the journal write that blocks on the
+  corrupt state. The helper is `untilCalls`, test-only. Every assertion is
+  unchanged. Win11 VM: 11/11 idle (load 1%, 10.5 s), and 11/11 with 12 busy
+  loops on its 10 logical CPUs (load 100% before and after, all 12 loops alive at
+  the end, 15.9 s). Kubuntu 11/11. This host could not start a jsdom worker under
+  added load (vitest's 60 s worker start, before any test ran), so the
+  deliberate-load proof is the VM's.
+- **Journal binding.** `executionProtection` is now `deviceStorageBinding`:
+  the real Windows binding on win32, started on first use, and the shared fake
+  elsewhere, which round-trips through the real filesystem and POSIX folder
+  fsync. The journal fixture's root is a `privateDeviceRoot`. Three journal tests
+  changed:
+  - Permission refusals use `grantOthers` on every OS; the win32 early return is
+    gone, and a positive reopen control is added.
+  - The forged private file is claimed with `secureFresh`, the Windows
+    equivalent of mode 0600.
+  - The flush-order and failed-replacement tests observe the binding's `replace`
+    and `syncDirectory`.
+
+  Every suite can use the binding. The POSIX-only uid substitution case in
+  `attemptJournal.test.ts` keeps its existing platform gate: Windows has no
+  uid, and the binding's other-owner refusal is covered by recorded readings.
+
+- **Runs at the final tree (default timeouts).** Win11 VM idle, the same 29
+  files: **827 passed, 0 failed** (152 s). Kubuntu, the 29 plus the manifest
+  and two packaging files (32): **882 passed, 0 failed**.
+- **Gates.** All five typechecks, `knip`, `jscpd` (0 clones), `npm run build`
+  (every cap held, devices 100.0 KiB), `check:host-api` (0 problems) and
+  `check:l10n` exit 0. ESLint `--max-warnings=0` and Prettier are clean on the
+  changed files.

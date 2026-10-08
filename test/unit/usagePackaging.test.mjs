@@ -78,7 +78,7 @@ function fixture() {
     'usageCompanion',
   ])
     put(`dist/${bundle}.js`, 'exports.EN = {}')
-  for (const file of ['MuseSparkJob', 'MuseSparkMcpJob'])
+  for (const file of ['MuseSparkJob', 'MuseSparkMcpJob', 'MuseSparkDeviceStorage'])
     put(`native/windows/${file}.cs`, '// test source')
   put('LICENSE', 'MIT')
   put('dist/providerCatalog.json', '{"providers":{}}')

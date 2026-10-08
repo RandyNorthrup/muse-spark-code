@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { createElement } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { DevicesView } from '../../src/webview/models/sections/agents/DevicesView'
@@ -144,6 +144,33 @@ async function host(id: string) {
     report,
   }
 }
+/**
+ * Resolves when the fixture's own fake has recorded calls satisfying `isDone`:
+ * the completion signal of the work under test, however long its durable
+ * journal writes take, never a poll against a deadline.
+ */
+async function untilCalls<Args extends unknown[]>(
+  fake: Mock<(...args: Args) => unknown>,
+  isDone: (calls: readonly Args[]) => boolean,
+): Promise<void> {
+  const done = deferred<undefined>()
+  const calls = (): readonly Args[] => fake.mock.calls
+  const check = () => {
+    if (isDone(calls())) done.resolve(undefined)
+  }
+  const original = fake.getMockImplementation()
+  fake.mockImplementation((...args: Args): unknown => {
+    if (original === undefined) throw new Error('untilCalls needs an implemented fake')
+    const result = original(...args)
+    check()
+    return result
+  })
+  check()
+  await done.promise
+}
+function isRunningOutcome([message]: [DeviceFrame, ...unknown[]]): boolean {
+  return message.body.kind === 'outcome' && message.body.outcome.state === 'running'
+}
 function invitation(message: DeviceHostMessage): DeviceInvitation {
   if (message.setup?.invitation === undefined) throw new Error('Missing test invitation')
   return message.setup.invitation
@@ -210,6 +237,9 @@ async function running(payload = 'Bounded fake-only task') {
     return Promise.resolve()
   })
   await b.journal.sourceIntent(request, Date.now())
+  const runningReply = untilCalls(vi.mocked(b.source.receive), (calls) =>
+    calls.some((call) => isRunningOutcome(call)),
+  )
   const frame = (body: DeviceFrame['body']): DeviceFrame => ({
     version: 1,
     pairId,
@@ -218,7 +248,9 @@ async function running(payload = 'Bounded fake-only task') {
     body,
   })
   channel.send(frame({ kind: 'dispatch', dispatch: request }))
-  await vi.waitFor(() => {
+  // The receiver's durable admission, launch and running writes, then its reply.
+  await runningReply
+  {
     expect(b.source.receive).toHaveBeenCalledWith(
       expect.objectContaining({
         body: expect.objectContaining({
@@ -228,7 +260,7 @@ async function running(payload = 'Bounded fake-only task') {
       }),
       expect.anything(),
     )
-  })
+  }
   expect(a.lease.start).toHaveBeenCalledOnce()
   return { a, b, pairId, channel, request, frame, simulated }
 }
@@ -386,16 +418,20 @@ describe('joined P/T/E/U method port', () => {
     try {
       channel.send(frame({ kind: 'offers', offers: [] }))
       await started.promise
+      const isCapacity = ([message]: [DeviceFrame, ...unknown[]]) =>
+        message.body.kind === 'failure' && message.body.reason === 'capacity'
+      const refusalCount = floodSize - (DEVICE_LIMITS.queuedFrames - 1)
+      const refused = untilCalls(
+        vi.mocked(b.source.receive),
+        (calls) => calls.filter((call) => isCapacity(call)).length >= refusalCount,
+      )
       for (let index = 0; index < floodSize; index += 1)
         channel.send(frame({ kind: 'offers', offers: [] }))
-      await vi.waitFor(() => {
-        const refusals = vi
-          .mocked(b.source.receive)
-          .mock.calls.filter(
-            ([message]) => message.body.kind === 'failure' && message.body.reason === 'capacity',
-          )
-        expect(refusals).toHaveLength(floodSize - (DEVICE_LIMITS.queuedFrames - 1))
-      })
+      await refused
+      {
+        const refusals = vi.mocked(b.source.receive).mock.calls.filter((call) => isCapacity(call))
+        expect(refusals).toHaveLength(refusalCount)
+      }
       // Batches stay below the reserved control cap while data/snapshot work is held.
       for (let index = 0; index < floodSize; index += 1) {
         channel.send(frame({ kind: 'cancel', identity: request.identity }))
@@ -424,10 +460,13 @@ describe('joined P/T/E/U method port', () => {
       expect(b.source.receive).toHaveBeenCalledTimes(
         1 + floodSize - (DEVICE_LIMITS.queuedFrames - 1),
       )
+      const delivered = untilCalls(
+        vi.mocked(b.source.receive),
+        (calls) => calls.length >= floodSize + 1,
+      )
       pending.resolve(latest)
-      await vi.waitFor(() => {
-        expect(b.source.receive).toHaveBeenCalledTimes(floodSize + 1)
-      })
+      await delivered
+      expect(b.source.receive).toHaveBeenCalledTimes(floodSize + 1)
       await a.service.observe()
       // One held capture, one coalesced control capture, capped data, explicit read.
       expect(snapshot.mock.calls.length).toBeLessThanOrEqual(DEVICE_LIMITS.queuedFrames + 2)
@@ -454,10 +493,20 @@ describe('joined P/T/E/U method port', () => {
         expect.objectContaining({ brief: payload }),
       )
       await writeFile(path.join(a.journalDirectory, 'attempts.json'), '{broken')
-      channel.send(frame({ kind: 'cancel', identity: request.identity }))
-      await vi.waitFor(() => {
-        expect(a.lease.cancel).toHaveBeenCalledOnce()
+      // The receiver's own handling of this Stop frame: cancellation, then the
+      // journal write that finds the corrupt state and blocks the receiver.
+      const stopHandled = deferred<undefined>()
+      const receive = a.service.receiver.receive.bind(a.service.receiver)
+      vi.spyOn(a.service.receiver, 'receive').mockImplementation(async (...args) => {
+        try {
+          await receive(...args)
+        } finally {
+          if (args[0].body.kind === 'cancel') stopHandled.resolve(undefined)
+        }
       })
+      channel.send(frame({ kind: 'cancel', identity: request.identity }))
+      await stopHandled.promise
+      expect(a.lease.cancel).toHaveBeenCalledOnce()
       expect(a.lease.release).not.toHaveBeenCalled()
       expect(simulated).toMatchObject({ running: false, payloads: [payload], stops: 1 })
       expect(a.lease.usage.retainedLiabilityUsd).toBe(1)

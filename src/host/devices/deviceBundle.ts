@@ -36,12 +36,17 @@ function isDeviceBundle(value: unknown): value is DeviceBundle {
 /**
  * The storage binding a `dependencies` callback hands to both
  * `bundle.DeviceStore` and `bundle.AttemptJournal`. Windows requires the
- * native binding (its helper is compiled into `helperDirectory`); other
+ * native binding (its shipped C# is compiled into `helperDirectory`); other
  * platforms use POSIX owner/mode checks and directory fsync.
  */
 export async function deviceStorageProtection(
   bundle: Pick<DeviceBundle, 'startWindowsStorageProtection'>,
-  options: { readonly helperDirectory: string; readonly systemRoot: string | undefined },
+  options: {
+    readonly helperDirectory: string
+    readonly systemRoot: string | undefined
+    /** The extension or package folder that ships native/windows/. */
+    readonly extensionPath: string
+  },
   platform: NodeJS.Platform = process.platform,
 ): Promise<DeviceEntry.DeviceStorageProtection | undefined> {
   if (platform !== 'win32') return undefined
@@ -49,6 +54,7 @@ export async function deviceStorageProtection(
   const binding = await bundle.startWindowsStorageProtection({
     directory: options.helperDirectory,
     systemRoot: options.systemRoot,
+    extensionPath: options.extensionPath,
   })
   return binding.protection
 }
