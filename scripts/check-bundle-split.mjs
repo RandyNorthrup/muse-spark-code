@@ -30,6 +30,11 @@
 //   hold and edit review) is in dist/extension.js, dist/modelApi.js or
 //   dist/acp.js, or missing from dist/review.js, which dist/extension.js
 //   requires the first time one is used.
+// - the vault's window (M109: the panel host and the native editor) is in
+//   dist/extension.js, dist/modelApi.js or dist/acp.js, or missing from
+//   dist/vault.js, which dist/extension.js requires on the first vault
+//   command. Only types and the loader (vaultPanelBundle.ts) stay at
+//   activation.
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
@@ -117,7 +122,11 @@ const ENTRY = 'src/host/backend/modelApiEntry.ts'
 const TYPES_ONLY = new Set(['hookFormats/contract.ts'])
 // M91 lane X's Cline discovery, which no bundle carries until its dispatcher
 // wiring lands (PLAN.md M91, lane X; the lead's call).
-const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts'])
+// M105 lane W: the Files transport (lane F) and the Responses media codec
+// (lane M2) ship no production construction yet; the video/audio upload
+// binding (U6c, A-PAID follow-ups) lands them in dist/modelApi.js. Until
+// then no bundle carries them (PLAN.md M105, lane W).
+const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts', 'files.ts'])
 
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
@@ -646,6 +655,26 @@ for (const file of REVIEW_ONLY) {
     problems.push(`${REVIEW.output} no longer carries ${file}`)
   }
 }
+// M109 lane W: the vault's window (the panel host and the native editor)
+// loads on the first vault command. Only types and the loader
+// (vaultPanelBundle.ts) stay at activation.
+const VAULT = { output: 'dist/vault.js', metafile: 'dist/meta/vault.json' }
+const VAULT_ONLY = [
+  'src/host/vault/vaultPanelEntry.ts',
+  'src/host/vault/vaultPanelHost.ts',
+  'src/host/vault/vaultNativeEditor.ts',
+]
+const vault = inputsOf(VAULT)
+for (const file of VAULT_ONLY) {
+  for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which belongs to the vault bundle`)
+    }
+  }
+  if (!vault.has(file)) {
+    problems.push(`${VAULT.output} no longer carries ${file}`)
+  }
+}
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',
@@ -875,7 +904,13 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             !(
               input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
             ) &&
-            !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js'))
+            !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
+            !(
+              output === 'dist/runtimeAccounts.js' &&
+              ['accounts.ts', 'accountPolicy.ts', 'accountCredentialRecord.ts'].some(
+                (file) => input === `src/core/providers/${file}`,
+              )
+            ))
         ) {
           problems.push(`${output} carries ${input}, which loads only in dist/providers.js`)
         }
@@ -1053,11 +1088,18 @@ const TEXT_BLOCKS = [
     readers: webviewReview.map(({ output }) => output),
   },
   // Web fetch's own words (M69): the window's fetch, the Model API
-  // backend's URL checks and the ACP agent's fetch.
+  // backend's URL checks, the ACP agent's fetch, and the runtime accounts
+  // bundle (M108/W: keyed headless runs and Model API sessions fetch pages
+  // through the account's backend).
   {
     block: 'WEB_FETCH_MODEL_TEXT',
     sentinels: ['webFetchUntrusted', 'webFetchMovedOpen'],
-    readers: ['dist/webFetch.js', BUNDLES.modelApi.output, 'dist/runtimeEngine.js'],
+    readers: [
+      'dist/webFetch.js',
+      BUNDLES.modelApi.output,
+      'dist/runtimeEngine.js',
+      'dist/runtimeAccounts.js',
+    ],
   },
   // A headless run's attached files (M80): the ACP agent's runtime only.
   {

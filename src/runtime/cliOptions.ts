@@ -1,3 +1,4 @@
+import { ESTIMATE_OPTIONS } from './estimator/options'
 import type { UiText } from '../shared/l10n/en'
 import { sharingHelp } from '../shared/featureCatalog'
 import { fill } from '../shared/l10n/text'
@@ -8,6 +9,8 @@ export function formatAcpUsage(table: UiText, command: string): string {
     fill(table.acpUsage, { command }),
     fill(table.acpChatGpt.usage, { command }),
     sharingHelp(table),
+    fill(table.accounts.cliUsage, { command }),
+    fill(table.accounts.execHelp, { command }),
     table.scheduleV2.runtime.usage,
     `${command} resources [status|history|resume] [--json]`,
     `${command} usage resources [--json]`,
@@ -45,6 +48,7 @@ const COMMON_OPTIONS = {
   provider: { type: 'string' },
   backend: { type: 'string' },
   'no-auto-compaction': { type: 'boolean' },
+  account: { type: 'string' },
   'trust-workspace': { type: 'boolean' },
   maintenance: { type: 'boolean' },
   'muse-binary': { type: 'string' },
@@ -76,8 +80,12 @@ const EXEC_OPTIONS = {
   'output-schema': { type: 'string' },
   'output-schema-outside': { type: 'boolean' },
   'untrusted-file': { type: 'string', multiple: true },
+  attach: { type: 'string', multiple: true },
+  record: { type: 'boolean' },
   'permission-mode': { type: 'string' },
   model: { type: 'string' },
+  account: { type: 'string' },
+  'account-pool': { type: 'boolean' },
   effort: { type: 'string' },
   output: { type: 'string' },
   'max-budget-usd': { type: 'string' },
@@ -90,6 +98,7 @@ const EXEC_OPTIONS = {
   'fail-on-denial': { type: 'boolean' },
   ephemeral: { type: 'boolean' },
   'key-stdin': { type: 'boolean' },
+  vault: { type: 'boolean' },
   verbose: { type: 'boolean' },
   'trust-workspace': { type: 'boolean' },
   'allow-dangerously-skip-permissions': { type: 'boolean' },
@@ -153,14 +162,13 @@ export const CLI_OPTION_REGISTRY = {
   report: { options: REPORT_OPTIONS },
   resources: { options: { json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } } },
   fontsInstall: { options: FONTS_OPTIONS },
+  estimate: { options: ESTIMATE_OPTIONS, text: { by: 'estimate-by', format: 'estimate-format' } },
 } as const
 
 // The description map is exhaustive over the parser's option names. It never
 // chooses an English usage line or a failure message by matching its contents.
 export const CLI_OPTION_TEXT = {
   'usage-history': 'usage-history',
-
-  provider: 'provider',
   preset: 'preset',
   as: 'as',
   address: 'address',
@@ -195,8 +203,13 @@ export const CLI_OPTION_TEXT = {
   'output-schema': 'output-schema',
   'output-schema-outside': 'output-schema-outside',
   'untrusted-file': 'untrusted-file',
+  attach: 'attach',
+  record: 'record',
   'permission-mode': 'permission-mode',
   model: 'model',
+  provider: 'provider',
+  account: 'account',
+  'account-pool': 'account-pool',
   effort: 'effort',
   output: 'output',
   'max-budget-usd': 'max-budget-usd',
@@ -209,10 +222,13 @@ export const CLI_OPTION_TEXT = {
   'cpu-max': 'cpu-max',
   'memory-max': 'memory-max',
   json: 'json',
+  vault: 'vault',
   out: 'out',
   description: 'description',
   'no-facts': 'no-facts',
   'no-events': 'no-events',
+  fleet: 'fleet',
+  seed: 'seed',
 } as const satisfies Readonly<
   Record<
     | keyof typeof COMMON_OPTIONS
@@ -222,7 +238,8 @@ export const CLI_OPTION_TEXT = {
     | keyof typeof REPORT_OPTIONS
     | keyof typeof CLI_OPTION_REGISTRY.usage.options
     | keyof typeof CLI_OPTION_REGISTRY.legal.options
-    | keyof typeof FONTS_OPTIONS,
+    | keyof typeof FONTS_OPTIONS
+    | keyof typeof ESTIMATE_OPTIONS,
     keyof UiText['referenceCliOptions']
   >
 >

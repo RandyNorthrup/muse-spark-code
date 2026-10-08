@@ -134,6 +134,8 @@ export interface PaletteContext {
     readonly list: PaletteAction
     readonly timeline: PaletteAction
   }
+  /** M117: W supplies the local composer handler before offering this command. */
+  readonly estimateAvailable?: boolean
   readonly currentModel:
     { readonly modelId: string; readonly contextLimit: number | undefined } | undefined
   readonly models: readonly ModelOption[]
@@ -179,3 +181,5 @@ export function filterPalette(
 export function flattenPalette(groups: readonly PaletteGroup[]): readonly PaletteItem[] {
   return groups.flatMap((group) => group.items.filter((item) => item.isDisabled !== true))
 }
+
+export { slashCommandsOf } from './slashCommands'

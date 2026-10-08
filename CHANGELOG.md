@@ -7,6 +7,66 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Pending
+
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes, and 1-hour cache writes settle at their own price.
+  The shared retry classifier refuses known quota codes and excessive
+  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
+  this does not certify endpoint quota refusal.
+  One-shot OAuth callbacks retain every parameter and destroy keep-alive
+  connections on settlement. Custom servers accept validated compatibility
+  overrides. Session saves coalesce into one in-flight write plus the latest;
+  parallel save failures are observed immediately while other sessions drain.
+  History listing validates headers without replay/transcript validation.
+
+- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
+  requests. Blank text is dropped, empty tool results ride as
+  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
+  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
+  and images for a model without image input ride as an
+  image-omitted placeholder. Tool-call ids are mapped per target format
+  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
+  provider aliases) with unique
+  per-response Gemini fallback ids. Responses replays send the call `id`
+  only for the same model with an `fc_` prefix. Gemini replays thought
+  signatures on text parts (empty ones included), counts omitted usage as
+  zero, sends vision-gated tool-result images inside `functionResponse.parts`
+  and full tool schemas through `parametersJsonSchema` on Gemini 3.
+  Gemini rejects proxy-null usage and explicitly rejects negative usage
+  counters instead of retaining an earlier tally. Signed blank parts replay;
+  late response ids salt fallback call ids; `$ref` siblings stay constrained
+  through `allOf`. The Anthropic decoder tolerates
+  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
+  requests `display: summarized` so newer models stream thinking text.
+  Lone surrogates are removed from every BYO encoder; parsed JSON retains
+  own `__proto__` keys as data, including Anthropic tool arguments.
+  Fakes only; no live
+  or paid model call.
+
+- Provider-specific retry-table binding remains pending for non-Meta transports;
+  the shared retry classifier does not certify endpoint quota refusal.
+
+## [0.17.0] - 2026-10-08
+
+### Highlights
+
+- **Deterministic reports.** `/report` builds project, quality, milestone,
+  release and change reports from local facts, in Markdown, HTML, JSON or text,
+  with saved history and comparisons; nothing is sent to a model.
+  <!-- try: command museSpark.showReport -->
+- **Capacity estimates.** `/estimate <goal>` forecasts when a milestone or
+  release can land with the current, minimum or optimum fleet, without a model
+  call.
+- **Several accounts per provider.** List provider accounts, see the current
+  one and its thresholds; a vendor limit blocks only the affected account.
+- **Orchestrator playbook.** The nine orchestration rules ship as a first-party
+  skill, and `/playbook status`, `record` and `settings` answer locally.
+- **Refreshed design.** Shared design tokens and generated palettes style every
+  panel surface; an optional pinned OFL font pack serves standalone installs.
+
+### Fixed
+
 - Preserve the real captured pixels and PNG metadata while reducing seven changed
   README images by 91,046 bytes; keep all other captures exact.
 - Avoid redundant plan-string writes while retaining every privacy scrub; prepare
@@ -246,45 +306,145 @@ happened, not what was planned; superseded entries are kept.
 - The reporting bundle split check now also fails when a reporting bundle carries the paid gate (`src/core/paid/**`), as D93 requires.
 - `/report` comparisons render changed diffs in every format from the verified report instead of failing schema validation; the bridge checks redaction on decoded values rather than serialized JSON; equal history stamps order by save sequence; tied check runs sort in a total order; Claude subagent sessions are discovered; quality globs match like the runner instead of by prefix; worktree paths resolve workspace aliases through git; save and git fixtures capture canonical roots; slow CLI cases are split to fit the default deadline; long picker identities wrap at 320 px.
 
-### Pending
+- Cold filtered slash commands wait for their palette English and retain
+  accessible loading, failure and retry controls. Browser checks wait for the
+  named scenario to start before measuring a cold dialog or sending native keys.
+- Complete long-reply accessibility replays run after competing axe pages;
+  all streamed deltas, themes, scans and readiness deadlines remain intact.
 
-- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
-  reads and writes, and 1-hour cache writes settle at their own price.
-  The shared retry classifier refuses known quota codes and excessive
-  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
-  this does not certify endpoint quota refusal.
-  One-shot OAuth callbacks retain every parameter and destroy keep-alive
-  connections on settlement. Custom servers accept validated compatibility
-  overrides. Session saves coalesce into one in-flight write plus the latest;
-  parallel save failures are observed immediately while other sessions drain.
-  History listing validates headers without replay/transcript validation.
+- Estimator trials reuse the validated scheduler without materializing report-only
+  timelines or sorting unused reservation boundaries after every placement;
+  all 2,000 draws and the selected P50 schedule remain intact.
+- Account surfaces validate their existing projection without loading unrelated
+  Models, vault, team and keybinding schemas into their first-use chunk.
 
-- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
-  requests. Blank text is dropped, empty tool results ride as
-  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
-  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
-  and images for a model without image input ride as an
-  image-omitted placeholder. Tool-call ids are mapped per target format
-  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
-  provider aliases) with unique
-  per-response Gemini fallback ids. Responses replays send the call `id`
-  only for the same model with an `fc_` prefix. Gemini replays thought
-  signatures on text parts (empty ones included), counts omitted usage as
-  zero, sends vision-gated tool-result images inside `functionResponse.parts`
-  and full tool schemas through `parametersJsonSchema` on Gemini 3.
-  Gemini rejects proxy-null usage and explicitly rejects negative usage
-  counters instead of retaining an earlier tally. Signed blank parts replay;
-  late response ids salt fallback call ids; `$ref` siblings stay constrained
-  through `allOf`. The Anthropic decoder tolerates
-  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
-  requests `display: summarized` so newer models stream thinking text.
-  Lone surrogates are removed from every BYO encoder; parsed JSON retains
-  own `__proto__` keys as data, including Anthropic tool arguments.
-  Fakes only; no live
-  or paid model call.
+- Honor the approved audio model for its message's ordinary requests while
+  retaining model, key and audio consent fences. Keep new vault and estimator
+  bundles in the problem recorder's exact package-frame inventory.
 
-- Provider-specific retry-table binding remains pending for non-Meta transports;
-  the shared retry classifier does not certify endpoint quota refusal.
+- Vault output scanning runs faster while retaining its redactions and stream
+  boundaries. SSH host wildcards preserve Unicode case matching without
+  constructing wildcard regexes. Estimator HTML exports reuse the common encoder.
+
+- Vault settings use `museSpark.vault.enabled` so VS Code exposes their nested
+  defaults; existing explicit vault opt-outs remain effective. Request baseline
+  fixtures retain the accepted release captures rather than mixed retry traces.
+
+  diagnostics before a team test times out. Retain ready messages that arrive
+  before the scenario script is installed, without calling an undefined handler.
+### Fixed
+
+- Pre-integration preserves release provider, media and account contracts;
+  credential-bearing account commands load on first use. Files requests keep
+  endpoint checks and scrubbed failures, and uploaded history refuses cleanup
+  without its ownership ledger. Vault and estimator assets survive both package
+  formats, with the macOS vault helper carried from its native CI artifact.
+  Fresh clones retain browser English readers even beneath a temporary parent.
+  Unbound vault shell descriptors preserve ordinary strict-tool requests,
+  account CLI help shares the installed usage contract, and GCM decryption
+  explicitly pins its authenticated tag length. Legacy credential parsing reuses
+  validators already exported by the shipped shared parser. Shared browser
+  harness initialization supplies the required estimator setting, restoring
+  rendered accessibility and screenshot scenes. Caps stay unchanged.
+
+### Added
+
+- Several-account contracts, account storage, threshold admission, policy
+  confirmations and shared panel/usage/developer components, with fake
+  certification across editor ports. Terminal `providers accounts` manages
+  metadata and `auth set` accepts each credential only on standard input;
+  headless `--account` pins a run. ACP account membership refreshes live.
+  Machine-scoped `accountSwap`/`accountParallel` default on, and
+  `accounts.severalOnThisDevice` defaults off. Installed panel/usage mounts,
+  automatic pooling, credential-changing session selection and profile/device
+  owners remain unavailable until their named integrations land; second Muse
+  Code accounts additionally await Q-M108 captures. The paid gate and shared
+  budgets do not reset on an account change. See
+  [the policy record](docs/certification/m108-policy.md) and
+  [integration certification](docs/certification/m108.md).
+
+### Fixed
+
+- Remote vendor limits persist one sender-local block per owner and provider
+  through sticky moves, named sends, account deletion and restart. Group and
+  global exclusions share the local pool's eligibility rule; reset or a bounded
+  default expires the block. Overlapping limits conservatively stop that owner
+  until the later reset. Device frames carry no account or group metadata.
+- Developer profile create/remove and Reset audit the caller's real surface,
+  including terminal commands. M108's sticky/retry/busy certification pointers
+  now follow their owning regressions.
+
+- Device account admission shares its local pool's queue, checks the complete
+  vendor limit group and uses the advertised capacity. Later thresholds move
+  the live sticky route; deleted accounts no longer wedge it. Refusals
+  distinguish recovery, cancellation, own caps, busy owners and missing devices.
+- Remote vendor-limit routing skips the blocked account's whole limit group
+  instead of only that account, decided sender-side from the local pool rows
+  with no account or group data in device frames. A busy owner reports "A
+  prompt is already running for this conversation." instead of the session
+  message, translated in all fourteen tables.
+- Developer options reject unknown profile removal without changing authority.
+  Revocation stops profiles before saving and failed state publication cannot
+  restore an audited revoked grant. Enable/disable record their actual surface;
+  stale launches return a typed error and release their prepared credential slot.
+
+- Account, developer and help English load with their optional surfaces,
+  keeping chat startup and the original deferred group within their
+  existing size baselines. Translated tables still validate every key,
+  plural form and template slot before installation. Generated help data
+  is packed losslessly under its unchanged bundle cap.
+- Unbound runtime developer-profile cleanup reports unavailable and retains
+  its ownership ledger after a failed launch.
+
+- Fixed-account runtime surfaces retain their backend identity through account
+  reordering or removal. Headless runs bind their account port to the requested
+  credential; missing additional accounts and malformed provider metadata
+  cannot fall back to the legacy Meta key.
+- ACP packaging guard fixtures include the lazy account runtime bundle.
+- Fix companion media uploads for Unicode filenames and unrelated loopback
+  cookies: encode only header metadata and omit browser credentials while
+  keeping guarded streamed intake. Upload progress reports start and completion.
+  Settle recorder startup after panel close, dispose late previews, and make
+  browser tests use OS temporary storage on clean checkouts.
+
+- M105 integration verification: keep exact media currency arithmetic and
+  ceiling display outside chat startup; preserve existing tariff text. Load
+  tool rows on first use with accessible loading, failure and retry. Share
+  patch projections with the existing schema and retain every bundle cap.
+  Correct the headless `--record` reference contract and document the remaining
+  capture, provider, accounting, recorder and companion bindings explicitly.
+  Preserve signed recorder resources and media bundles in packages, add
+  permission-free macOS CI checks, retain upward usage-estimate rounding and
+  close a reserved file descriptor after a refused fill. Keep trusted media
+  inspection in the first-use bundle across ACP and VS Code, share generated
+  reference values directly, and restore inherited ACP/reference cap increases
+  to the original 850/100 KiB limits. Both attachment and portable inspection
+  factories install the caller's language before displaying a refusal.
+
+- M105 ACP and headless entry points: `/attach <path>` and `/record` between
+  turns, audio blocks gated on the model record, `resource_link` reads under
+  the workspace confinement, and blob routing for PDF, video, audio, image
+  and unknown types. Headless `exec --attach <path>` repeats; `--record` is
+  refused; `read_file` reads mp4, mp3 and wav under the media budget.
+- M105 Files API transport: stream approved media with progress, Stop,
+  SHA-256 and mandatory expiry; validate provider receipts and reject
+  redirects and ambiguous upload retries. Storage admission and lazy
+  media bindings remain with the integrating lanes.
+- M105 upload ownership: persist metadata and reference counts, share uploads
+  across sessions, clean up after deletion/retention purge, and verify the source
+  before replacing a missing upload. Account & usage gains the file-list section
+  and cleanup callbacks, with expiry and read-only retained metadata; integration
+  binds these ports across editors.
+- M105 integration: media (`dist/media.js`) and screen recording
+  (`dist/screenRecord.js`) load lazily on first use with their own budgets and
+  split guards; startup stays near 733 KiB. Three commands (Attach screen
+  recording, Attach latest screen recording, Delete uploaded files) and four
+  settings (`mediaMaxUploadMiB`, `mediaUploadExpiryDays`,
+  `screenRecordingMaxSeconds`, `mediaAudioAction`). Recordings attach to the
+  conversation that started them; picked media is confined like dropped media
+  and refusals name the reason (private file, unknown storage, unavailable
+  recorder). Audio pastes transcribe by default. Gemini/OpenAI-compatible video
+  stays explicitly unsupported.
 
 ## [0.16.0] - 2026-10-07
 

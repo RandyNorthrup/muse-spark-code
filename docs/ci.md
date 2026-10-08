@@ -55,6 +55,8 @@ muse-spark-code-acp scan-secrets fix.patch
 | --ephemeral                         | off                    | Model API only; suppress the session store.                                                                                 |
 | --key-stdin                         | off                    | Model API only; non-TTY stdin.                                                                                              |
 | --muse-binary, --shell-sandbox      | serve defaults         | Muse Code only.                                                                                                             |
+| --account <id>                      | default                | Pin one run to one account; refused with --key-stdin in CI.                                                                 |
+| --account-pool                      | off                    | Requires the profile-owned account pool, currently unavailable; refused with --key-stdin in CI.                             |
 | --verbose                           | off                    | Trace on redacted stderr.                                                                                                   |
 
 Budget grammar is unsigned ASCII decimal `[0-9]+(?:\.[0-9]{1,6})?`,
@@ -643,6 +645,14 @@ are recorded in [BADGEFIX](certification/badgefix.md).
 
 ## Evidence and troubleshooting
 
+M105 parses repeatable `exec --attach <path>` flags and confines each source
+before credential handling. Production video/audio dispatch remains refused
+until captured capabilities, Files storage/ownership and exact per-attempt
+media liability are bound. Receipts carry name/size and completion metadata,
+never file bytes. Headless `--record`, `/record` and `/attach` are usage errors
+(exit 2); there is no unattended screen recorder or implicit paid transcription.
+These flags do not change M80's pending live/hosted certification.
+
 `.github/workflows/action-check.yml` runs W with the composite Action on the
 three hosted runners against the fake-only test package, whose bin
 (`test/action/exec-test-launcher.ts`) answers only Meta's origin with a scripted
@@ -786,3 +796,22 @@ journal is unavailable rather than a fabricated pass. CI network collection is
 refused by the report binding, even with `--network`; CI credentials are never
 passed to report tools. Approved service captures and installed native editor
 receipts remain separate certification requirements.
+
+## Local headless vault integration (M109 H)
+
+`exec --vault` opts a local run into pre-existing unattended grants. It never
+prompts. H requires authenticated headless registration, a workspace and
+conversation, then accepts only an unexpired grant ticket for the exact use
+digest and requester. Taint, an approval request, an ordinary mode ticket,
+presence denial, or missing/malformed runtime binding fail closed.
+
+Any vault refusal stops the run with status `denied` and exit 7 even without
+`--fail-on-denial`. The result uses the existing version-1 event/result schemas;
+the flag is an admission change, not a new wire shape. Setup, cancellation and
+final cleanup close the vault session, including setup that arrives late.
+
+CI stays vault-free. `--vault` with `--key-stdin` is a usage error; a CI process
+with `--vault` fails closed before backend startup. The composite Action and
+stdin-key exception are unchanged. Runs without the flag never open a vault
+binding. The installed B/C/P/X factory remains an integration handoff on this
+branch; only fake-only runtime flows are certified here.

@@ -5,6 +5,7 @@
 
 import { UI_TEXT } from '../../shared/constants'
 import type { SlashCommand } from '../../shared/slashCommands'
+import { ListBody } from './ListBody'
 import { MenuOption } from './MenuOption'
 import { SLASH_LISTBOX_ID, slashOptionId } from './menuIds'
 
@@ -19,13 +20,7 @@ export function SlashMenu({ items, activeIndex, onSelect, onHover }: SlashMenuPr
   // A long list scrolls: it is a Tab stop of its own, so it scrolls from the
   // keyboard too (WCAG 2.1.1), and a click on it leaves the focus in the prompt.
   return (
-    <div
-      className="mention-menu slash-menu"
-      tabIndex={0}
-      onMouseDown={(event) => {
-        event.preventDefault()
-      }}
-    >
+    <ListBody className="mention-menu slash-menu">
       <div className="palette-group-title" aria-hidden="true">
         {UI_TEXT.groupSlashCommands}
       </div>
@@ -56,6 +51,6 @@ export function SlashMenu({ items, activeIndex, onSelect, onHover }: SlashMenuPr
           ))}
         </ul>
       )}
-    </div>
+    </ListBody>
   )
 }

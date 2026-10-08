@@ -1,3 +1,4 @@
+import { parseEstimateOptions } from '../../src/runtime/estimator/command.ts'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
@@ -58,6 +59,26 @@ describe('the code-derived reference gate', () => {
     )
     expect(model.cli.map((c) => c.route)).toContain('authClear')
     expect(model.commands.find((c) => c.id === 'museSpark.signOut').canRun).toBe(false)
+  })
+  it('omits credential-slot flags on routes the parser refuses (M108/W)', () => {
+    const rows = build().cli
+    for (const route of ['serve', 'login', 'setup'])
+      expect(
+        rows.filter((row) => row.route === route && /--(provider|account)( |$)/.test(row.name)),
+      ).toEqual([])
+    for (const name of [
+      'authSet: --provider <value>',
+      'authSet: --account <value>',
+      'authStatus: --provider <value>',
+      'authClear: --provider <value>',
+      'exec: --account <value>',
+      'exec: --account-pool',
+    ])
+      expect(rows.some((row) => row.name === name)).toBe(true)
+    for (const route of ['authStatus', 'authClear'])
+      expect(
+        rows.some((row) => row.route === route && row.name.startsWith(`${route}: --account`)),
+      ).toBe(false)
   })
   it('rejects a newly contributed command without a catalogue entry', () => {
     const pkg = globalThis.structuredClone(manifest)
@@ -1100,6 +1121,15 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       )
     }
   })
+  it('keeps estimator deadline and format help distinct from usage and provider options', () => {
+    const rows = build().cli
+    const text = (route, option) =>
+      rows.find((row) => row.route === route && row.name.startsWith(`${route}: --${option} `))?.text
+    expect(text('estimate', 'by')).toEqual({ cli: 'estimate-by' })
+    expect(text('estimate', 'format')).toEqual({ cli: 'estimate-format' })
+    expect(text('usage', 'by')).toEqual({ cli: 'by' })
+    expect(text('providersAdd', 'format')).toEqual({ cli: 'format' })
+  })
   it('B12 accepts or explicitly refuses every parser option on its documented route', () => {
     const samples = {
       provider: 'custom',
@@ -1120,6 +1150,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       'prompt-file': '/tmp/prompt',
       'output-schema': '/tmp/answer.json',
       'untrusted-file': '/tmp/data',
+      attach: '/tmp/clip.mp4',
       'permission-mode': 'acceptEdits',
       model: 'muse-spark-1.3',
       effort: 'high',
@@ -1133,14 +1164,22 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       'questions-defer-after': '60',
       out: '/tmp/report',
       description: 'description',
+      account: 'work',
+      fleet: 'current',
+      seed: '17',
     }
     const rows = build().cli
     for (const [route, definition] of Object.entries(source.CLI_OPTION_REGISTRY)) {
       for (const [name, option] of Object.entries(definition.options)) {
+        // Keep account targeting separate from provider-only authentication.
+        const isRefusedSlot =
+          (name === 'account' && !['authSet', 'exec'].includes(route)) ||
+          (name === 'provider' && !['authSet', 'authStatus', 'authClear', 'exec'].includes(route))
         const row = rows.find(
           (entry) => entry.route === route && entry.name.startsWith(`${route}: --${name}`),
         )
-        expect(row, `${route}: --${name}`).toBeDefined()
+        if (isRefusedSlot) expect(row, `${route}: --${name}`).toBeUndefined()
+        else expect(row, `${route}: --${name}`).toBeDefined()
         const flag = [`--${name}`, ...(option.type === 'string' ? [samples[name]] : [])]
         let command = [route]
         if (route === 'serve') command = []
@@ -1154,6 +1193,8 @@ describe('RVHELPREF2 runtime truth regressions', () => {
         if (route === 'usage' && name === 'from') args.push('--to', samples.to)
         if (route === 'usage' && name === 'to') args.push('--from', samples.from)
         if (route === 'providersAdd' && name === 'format') flag[1] = 'chat'
+        if (route === 'estimate' && name === 'by') flag[1] = '2026-10-09'
+        if (route === 'estimate' && name === 'format') flag[1] = 'json'
         if (['serve', 'login', 'setup', 'authSet', 'authStatus', 'authClear'].includes(route)) {
           args.push('--backend', 'modelApi', ...(route === 'setup' ? ['--trust-workspace'] : []))
         } else if (route === 'exec') {
@@ -1166,15 +1207,24 @@ describe('RVHELPREF2 runtime truth regressions', () => {
           else if (name === 'output-schema-outside')
             args.push('--output-schema', '/tmp/answer.json')
         }
+        if (route === 'estimate' && name !== 'help') args.push('M117')
         args.push(...flag)
         if (route === 'exec' && name !== 'prompt-file') args.push('prompt')
         if (route === 'scan-secrets') args.push('/tmp/patch')
         const parsed = source.parseCommandLine(args)
         let expected = route
-        if (row.contract.refused === true) expected = 'invalid'
-        else if (name === 'help') expected = 'help'
+        if (isRefusedSlot || row.contract.refused === true) expected = 'invalid'
+        else if (name === 'help' && route !== 'estimate') expected = 'help'
         else if (name === 'version') expected = 'version'
         expect(parsed.command, `${route}: --${name}: ${parsed.reason ?? ''}`).toBe(expected)
+        if (route === 'estimate') {
+          // The outer dispatcher delegates this route; its own parser validates all flags.
+          expect(parsed.argv).toEqual(args.slice(1))
+          expect(parseEstimateOptions(parsed.argv).kind).toBe(name === 'help' ? 'help' : 'estimate')
+          expect(parseEstimateOptions([...parsed.argv, '--unknown', 'ignored']).kind).toBe(
+            'invalid',
+          )
+        }
         if (option.short === undefined) continue
         const aliasArgs = args.map((arg) => (arg === `--${name}` ? `-${option.short}` : arg))
         expect(source.parseCommandLine(aliasArgs).command, `${route}: -${option.short}`).toBe(

@@ -97,6 +97,17 @@ export const RESOURCE_EXEC_EVENT_VERSION = 2
 
 export const PRODUCT_NAME = 'Muse Spark'
 
+// M108: local account configuration and policy. Credentials are never fields.
+export const ACCOUNT_DEFAULT_ID = 'default'
+export const ACCOUNT_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/
+export const ACCOUNT_LABEL_MAX_LENGTH = 128
+export const ACCOUNT_MAX_PER_PROVIDER = 64
+export const ACCOUNT_POLICY_RECHECK_DAYS = 90
+export const ACCOUNT_DAY_MS = 86_400_000
+export const ACCOUNT_REMOTE_LIMIT_DEFAULT_MS = 60_000
+export const ACCOUNT_DEFAULTS = { isSwapOn: true, isParallelOn: true } as const
+export const ACCOUNT_POLICY_VERSION = '2026-10-05.1'
+
 // Must match package.json `publisher` and `name`; test/unit/manifest.test.ts
 // fails if they drift.
 export const EXTENSION_PUBLISHER = 'RandyNorthrup'
@@ -197,6 +208,11 @@ export const COMMAND_IDS = {
   copyToMyPrompts: 'museSpark.copyToMyPrompts',
   sharePrompt: 'museSpark.sharePrompt',
   shareChat: 'museSpark.shareChat',
+  // M109 (PLAN.md D89): the per-user credential vault panel and its lock.
+  vault: 'museSpark.vault',
+  lockVault: 'museSpark.lockVault',
+  // M117 (PLAN.md D97): open the capacity estimator for a goal.
+  estimate: 'museSpark.estimate',
   // M112 (PLAN.md D92): cycle the focused chat's open question cards.
   nextOpenQuestion: 'museSpark.nextOpenQuestion',
   previousOpenQuestion: 'museSpark.previousOpenQuestion',
@@ -210,6 +226,11 @@ export const COMMAND_IDS = {
   tabMenu: 'museSpark.tabMenu',
   tabLanguages: 'museSpark.tabLanguages',
   legalScan: 'museSpark.legalScan',
+  // M105 (PLAN.md D85): multimodal input; screen recordings preview before
+  // they attach, and uploaded files can be listed and deleted.
+  attachScreenRecording: 'museSpark.attachScreenRecording',
+  attachLatestScreenRecording: 'museSpark.attachLatestScreenRecording',
+  deleteUploadedFiles: 'museSpark.deleteUploadedFiles',
 } as const
 
 // M95 lane K (PLAN.md D74): the Models & Agents panel host. The panel's host
@@ -370,6 +391,10 @@ export interface CheckCommandSetting {
 // directly as the user, gated by the approval cards, as Claude Code does.
 export const SHELL_SANDBOX_MODES = ['auto', 'muse', 'off'] as const
 export type ShellSandboxMode = (typeof SHELL_SANDBOX_MODES)[number]
+// M109 (PLAN.md D89.2): how the vault key is protected. `auto` is available
+// hardware plus the OS store, with the recovery code offered at setup.
+export const VAULT_PROTECTION_MODES = ['auto', 'osStore', 'hardware', 'passphrase'] as const
+export type VaultProtectionMode = (typeof VAULT_PROTECTION_MODES)[number]
 export const SHELL_SANDBOX_SETTING = 'museSpark.shellSandbox'
 // The shell sandbox's network, `muse serve --sandbox-network <mode>` (M56,
 // PLAN.md D43; `muse serve --help` and dev.meta.ai/docs/muse-code/permissions,
@@ -480,6 +505,11 @@ export const BACKEND_MODES = ['auto', 'museCode', 'modelApi'] as const
 export type BackendMode = (typeof BACKEND_MODES)[number]
 export const BACKEND_SETTING = 'museSpark.backend'
 
+// The composer reads this scalar without carrying the optional settings table.
+export const IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT = true
+// The panel reads the M115 schedules default the same way.
+export const ARE_SCHEDULES_ON_BY_DEFAULT = true
+
 export const SETTING_DEFAULTS = {
   preferredLocation: 'panel' as PreferredLocation,
   initialPermissionMode: 'manual' as PermissionMode,
@@ -512,6 +542,15 @@ export const SETTING_DEFAULTS = {
   'reports.network': 'whenSignedIn',
   'reports.keepHistory': true,
   'reports.agentSources': [],
+  // M108 (PLAN.md D88.5): swap at the next request boundary and spread
+  // background work across accounts, both on by default; machine-scoped so a
+  // repository cannot pool the user's accounts.
+  accountSwap: true,
+  accountParallel: true,
+  // D88 amendment b2: several accounts of one provider on this PC for
+  // testing, off by default; turning it on asks the provider's vendor-terms
+  // confirmation, and each extra account runs in an isolated local profile.
+  'accounts.severalOnThisDevice': false,
   shellSandbox: 'auto' as ShellSandboxMode,
   backend: 'auto' as BackendMode,
   // Claude Code's `enableNewConversationShortcut`: Ctrl+N starts a new
@@ -528,7 +567,7 @@ export const SETTING_DEFAULTS = {
   modelApiPromptCacheRetention: 'in_memory' as PromptCacheRetention,
   modelApiScheduledPrompts: true,
   // M115 (PLAN.md D95): the v2 schedules surface and its defaults.
-  schedules: true,
+  schedules: ARE_SCHEDULES_ON_BY_DEFAULT,
   scheduleDefaultDelivery: 'whenIdle' as (typeof SCHEDULE_DELIVERIES)[number],
   scheduleAgentCreation: 'ask' as (typeof SCHEDULE_AGENT_CREATIONS)[number],
   modelApiSubagents: true,
@@ -611,6 +650,13 @@ export const SETTING_DEFAULTS = {
   // (M82): 0 is no cap. Kept by reservation (sessionBudget.ts); machine
   // scoped, since a repository must not set what is billed.
   modelApiSessionBudgetUsd: 0,
+  // M105 (PLAN.md D85): multimodal input caps (literals: this map runs
+  // before the media block below); machine scoped, since a repository must
+  // not set what is uploaded, kept or billed on the key.
+  mediaMaxUploadMiB: 200,
+  mediaUploadExpiryDays: 7,
+  screenRecordingMaxSeconds: 120,
+  mediaAudioAction: 'transcribe',
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): in Auto on the Muse
   // Code backend, an approval Muse Code raises goes to one short turn of a
   // hidden side session before the user. On until turned off; machine scoped,
@@ -648,6 +694,20 @@ export const SETTING_DEFAULTS = {
   legalHeaderPolicy: 'optional' as LegalHeaderPolicy,
   legalRegistryLookups: true,
   legalExplanation: true,
+  // M109 (PLAN.md D89): the per-user credential vault, shared by every
+  // editor. All five are machine-scoped, so no workspace can change them.
+  'vault.enabled': true,
+  'vault.protection': 'auto' as VaultProtectionMode,
+  'vault.agentFence': true,
+  'vault.lockAfterIdleMinutes': 240,
+  'vault.lockOnScreenLock': true,
+  // M117 (PLAN.md D97): cheapest P90 setup or fastest finish with worthwhile
+  // marginal savings. Machine scoped: a repository must not choose spending.
+  'estimator.optimize': 'cost' as EstimateOptimizeMode,
+  // M117 (PLAN.md D97): public catalog price lookup for rented servers, each
+  // price shown with its date, never a quote. Machine scoped, off by default:
+  // it follows M113's Reports network policy once that milestone merges.
+  'estimator.priceLookup': false,
 } as const
 export const PAID_DAILY_BUDGET = {
   minimumUsd: 0.5,
@@ -720,6 +780,11 @@ export const MACHINE_SCOPED_SETTINGS = [
   'reports.network',
   'reports.keepHistory',
   'reports.agentSources',
+  // M108 (PLAN.md D88.5 and amendment b2): pooling the user's accounts and
+  // testing several on this PC are the user's choice, never a repository's.
+  'accountSwap',
+  'accountParallel',
+  'accounts.severalOnThisDevice',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.
@@ -737,6 +802,23 @@ export const MACHINE_SCOPED_SETTINGS = [
   'schedules',
   'scheduleDefaultDelivery',
   'scheduleAgentCreation',
+  // M105 (PLAN.md D85): upload bytes, provider retention, recording length
+  // and the audio action are billed on the key, so a repository sets none.
+  'mediaMaxUploadMiB',
+  'mediaUploadExpiryDays',
+  'screenRecordingMaxSeconds',
+  'mediaAudioAction',
+  // M109 (PLAN.md D89): the vault's protection, fence and locks, all
+  // machine-scoped, so no workspace can change them.
+  'vault.enabled',
+  'vault.protection',
+  'vault.agentFence',
+  'vault.lockAfterIdleMinutes',
+  'vault.lockOnScreenLock',
+  // What the estimator optimizes and whether it may read public prices
+  // (M117, PLAN.md D97): a repository must not choose spending or network.
+  'estimator.optimize',
+  'estimator.priceLookup',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -836,6 +918,9 @@ export const CREDENTIAL_ENV_EXACT_NAMES: ReadonlySet<string> = new Set([
   'SYSTEM_ACCESSTOKEN',
   'DOCKER_AUTH_CONFIG',
   'AZURE_STORAGE_SAS',
+  'PGPASSWORD',
+  'MYSQL_PWD',
+  'REDISCLI_AUTH',
 ])
 // M91 lane W (PLAN.md D70): the formats lane P's adapters translate, Cline's
 // v1 scripts among them (lane X's contract). A spark-hooks.json group names one
@@ -1002,6 +1087,13 @@ export const SECONDS_PER_HOUR = 3600
 // phase-2 sections that build them. Machine-scoped, on (`auto`) by default.
 export const JUDGE_ENGINES = ['auto', 'same', 'off'] as const
 export type JudgeEngine = (typeof JUDGE_ENGINES)[number]
+// M117 (PLAN.md D97): what `museSpark.estimator.optimize` takes.
+export const ESTIMATE_OPTIMIZE_MODES = ['cost', 'speed'] as const
+export type EstimateOptimizeMode = (typeof ESTIMATE_OPTIMIZE_MODES)[number]
+// M117 W (PLAN.md D97 §4, playbook §4): the engines whose durations and
+// first-pass finding rates calibration fits per lane kind and machine class.
+export const ESTIMATE_ENGINES = ['codex', 'claude', 'grok'] as const
+export type EstimateEngine = (typeof ESTIMATE_ENGINES)[number]
 // The request bounds, at the intersection of the SystemOne services (TypeSafe,
 // OpenRouter, Ollama, Cloudflare): 1–64 questions; a choice of 2–26 options
 // lettered A–Z; a score of 2–10 levels; a 64 KiB body. A state past its
@@ -1175,6 +1267,68 @@ export const PIXELS_PER_MEGAPIXEL = 1_000_000
 export const ANTHROPIC_MAX_IMAGE_BYTES = 10_000_000
 // Images and PDFs together (M54).
 export const MAX_ATTACHMENTS_PER_MESSAGE = 20
+
+// M105 / D85: portable media contracts. These are our bounds and defaults,
+// not evidence that a model supports a modality or that storage is free.
+export const MEDIA_FILE_ID_MIN_BYTES = 1024 * 1024
+export const MEDIA_SNIFF_MAX_BYTES = 1024 * 1024
+export const MEDIA_CONVERTER_PROBE_TIMEOUT_MS = 2000
+export const MEDIA_CONVERTER_PROBE_MAX_BYTES = 16 * 1024
+export const MEDIA_CONVERSION_MAX_RSS_BYTES = 512 * 1024 * 1024
+export const MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS = 25
+export const MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS = 100
+export const MEDIA_PROC_RSS_UNIT_BYTES = 1024
+export const MEDIA_PROC_RSS_PATTERN = /^VmRSS:\s+(\d+)\s+kB$/mu
+export const MEDIA_PROC_EXITED_PATTERN = /^State:\s+[ZX]\b/mu
+// Release-version banners only; development/unknown versions refuse conversion.
+export const MEDIA_FFMPEG_VERSION_PATTERN =
+  /^ffmpeg version (\d+\.\d+(?:\.\d+)?(?:-[\w.+-]+)?) Copyright \(c\) \d{4}(?:-\d{4})? the FFmpeg developers$/u
+export const MEDIA_AVCONVERT_VERSION_PATTERN = /^avconvert version (\d+\.\d+(?:\.\d+)?)$/u
+export const MEDIA_CONVERTER_INSTALL_PATHS = {
+  linux: ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
+  darwin: ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
+  win32: ['C:/Program Files/ffmpeg/bin/ffmpeg.exe'],
+} as const
+export const MEDIA_FILE_EXPIRY_MIN_S = 3600
+export const MEDIA_FILE_EXPIRY_MAX_S = 2_592_000
+export const MEDIA_FILE_EXPIRY_DEFAULT_S = 604_800
+export const MEDIA_MAX_UPLOAD_DEFAULT_MIB = 200
+export const MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES = MEDIA_MAX_UPLOAD_DEFAULT_MIB * 1024 * 1024
+export const MEDIA_MAX_UPLOAD_MIB = 1024
+export const MEDIA_NAME_MAX_CHARS = 256
+export const MEDIA_ID_MAX_CHARS = 256
+export const MEDIA_PATH_TOKEN_MAX_CHARS = 4096
+export const MEDIA_SHA256_PATTERN = /^[a-f0-9]{64}$/u
+export const MEDIA_KINDS = ['image', 'document', 'text', 'video', 'audio'] as const
+export const MEDIA_AUDIO_ACTIONS = [
+  'transcribe',
+  'useSoundtrackModel',
+  'sendWithoutSound',
+  'wrapAsVideo',
+  'sendAudio',
+] as const
+export const MEDIA_CONTRIBUTOR_CHOICES = ['send', 'useStandard', 'remove'] as const
+export const MEDIA_UPLOAD_EXPIRY_SETTING = 'museSpark.mediaUploadExpiryDays'
+export const MEDIA_MAX_UPLOAD_SETTING = 'museSpark.mediaMaxUploadMiB'
+export const MEDIA_AUDIO_ACTION_SETTING = 'museSpark.mediaAudioAction'
+export const SCREEN_RECORDING_MAX_SECONDS_SETTING = 'museSpark.screenRecordingMaxSeconds'
+/** Days a provider keeps an uploaded file (M105): the manifest allows 1–30. */
+export const MEDIA_UPLOAD_EXPIRY_MIN_DAYS = 1
+export const MEDIA_UPLOAD_EXPIRY_MAX_DAYS = 30
+export const MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS = 7
+/**
+ * What the attach flow offers for audio (M105): the manifest exposes only
+ * these two; the wider MEDIA_AUDIO_ACTIONS stay lane-internal until lane V
+ * verifies them against live captures.
+ */
+export const MEDIA_AUDIO_ACTION_OPTIONS = ['transcribe', 'sendAudio'] as const
+export const MEDIA_AUDIO_ACTION_DEFAULT = 'transcribe'
+export const SCREEN_RECORDING_DEFAULT_MAX_SECONDS = 120
+export const SCREEN_RECORDING_MIN_SECONDS = 10
+export const SCREEN_RECORDING_MAX_SECONDS = 600
+export const SCREEN_RECORDING_RECENT_MAX_AGE_MS = 10 * 60 * 1000
+export const SCREEN_RECORDING_REMOVE_ATTEMPTS = 3
+export const SCREEN_RECORDING_REMOVE_RETRY_MS = 200
 
 // PDFs as input (M54, PLAN.md D47): the one document type Meta's Responses
 // API reads for inference (dev.meta.ai/docs/file-handling, read
@@ -3565,6 +3719,9 @@ export const PLAN_MARKDOWN_BUNDLE_FILE = 'planMarkdown.js'
 // The review's bundle (M70, PLAN.md D6): git's material, the review turn's text
 // and the Plan-mode hold, loaded the first time a review starts.
 export const REVIEW_BUNDLE_FILE = 'review.js'
+// The capacity estimator's engine (M117, PLAN.md D6, D97), loaded the first
+// time an estimate runs.
+export const ESTIMATOR_BUNDLE_FILE = 'estimator.js'
 // Checkpoint implementation, synchronously loaded at activation's store construction (M72, D6).
 export const CHECKPOINT_STORE_BUNDLE_FILE = 'checkpointStore.js'
 // Code intelligence's answers for Muse Code's `ide` server (M67, D6), loaded
@@ -3584,6 +3741,9 @@ export const MUSE_CODE_REVIEWER_BUNDLE_FILE = 'museCodeReviewer.js'
 // window's hook runner, loaded the first time a both-backend hook event
 // fires (a watched file, a folder, Run Setup Hooks, Run Hook).
 export const EXTENSION_HOOKS_BUNDLE_FILE = 'extensionHooks.js'
+// The vault's window (M109 lane W, PLAN.md D6): the panel host, the native
+// editor and the broker client, loaded on the first vault command.
+export const VAULT_BUNDLE_FILE = 'vault.js'
 // The empty folder under the extension's global storage the reviewer's side
 // session runs in: outside every workspace, so no History lists it, and
 // with no rules, skills or files of the user's to read.
@@ -3790,7 +3950,7 @@ export const ACP_AUTH_METHODS = {
   museCodeLogin: { id: 'muse-code-login', args: ['login'] },
   modelApiKey: { id: 'model-api-key', args: ['auth', 'set'] },
 } as const
-export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort' } as const
+export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort', account: 'account' } as const
 // The paid Model API features the agent can use (M63c, PLAN.md D30): each
 // only with its flag, and each use asked in the editor (M58, D48). Muse
 // Voice needs the panel's microphone, so the agent has none.
@@ -3847,6 +4007,10 @@ export const ACP_WORKSPACE_HASH_CHARS = 16
 // "Allow always in this workspace" for paid uses (M58), every folder's in one
 // file beside the folders' own, keyed by the same hash.
 export const ACP_PAID_GRANTS_FILE = 'paid-uses.json'
+// M108 (PLAN.md D88.1): the runtime's own providers file beside the session
+// folders. It holds account metadata only, never a credential; M95 owns the
+// VS Code-side envelope, whose accounts field this mirrors.
+export const ACCOUNT_PROVIDERS_FILE = 'providers.json'
 // The file walk that stands in for VS Code's file search when git cannot
 // list a folder: what it never descends into.
 export const FILE_WALK_SKIPPED: ReadonlySet<string> = new Set(['.git', 'node_modules'])
@@ -4004,6 +4168,7 @@ export const RUNTIME_QUESTIONS_BUNDLE_FILE = 'runtimeQuestions.js'
 // /playbook's journal-backed surface (M116): the ACP agent and the CLI load
 // it on first use, so the engine bundle carries none of the policy.
 export const PLAYBOOK_BUNDLE_FILE = 'acpPlaybook.js'
+export const RUNTIME_ACCOUNTS_BUNDLE_FILE = 'runtimeAccounts.js'
 export const QUESTION_DEFER_MIN_SECONDS = 10
 export const QUESTION_DEFER_MAX_SECONDS = 3600
 export const QUESTION_DEFER_SETTING = 'questions.deferAfterSeconds'
@@ -4883,6 +5048,7 @@ export type SkillImportSource = (typeof SKILL_IMPORT_SOURCES)[number]
 // commands, not prose, so they read the same in every language.
 export const SLASH_COMMAND_NAMES = {
   help: 'help',
+  estimate: 'estimate',
   model: 'model',
   resume: 'resume',
   permissions: 'permissions',
@@ -5202,6 +5368,9 @@ export const MODEL_API_IMPORT_MAX_REPLAY_BYTES =
 export const SESSION_EXPORT_FIELD_PATH_MAX = 120
 // What the log redactor (and a session export) writes where a credential was.
 export const REDACTED_MARK = '[redacted]'
+/** Hexadecimal byte and JSON-unicode encodings in the shared scrubber. */
+export const REDACT_HEX_RADIX = 16
+export const REDACT_JSON_UNICODE_DIGITS = 4
 // An unnamed conversation's export takes its title from the first prompt, cut here.
 export const EXPORT_TITLE_MAX_CHARS = 60
 // How often the browser sign-in asks the sign-in host (`account/read`) and
@@ -5532,7 +5701,14 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/reportingDestinations.js',
   'dist/webview/reportingPage.js',
   'dist/webview/reportingDestinations.js',
+  'dist/vault.js',
+  'dist/vaultBoundaries.js',
+  'dist/estimator.js',
+  'dist/estimateContracts.js',
   'dist/recorder.js',
+  'dist/media.js',
+  'dist/screenRecord.js',
+  'dist/uiTextMedia.js',
   'dist/browserCheck.js',
   'dist/browserRuntime.js',
   'dist/validation.js',
@@ -6782,6 +6958,26 @@ export const WORKER_MODEL_TEXT = {
   // M96 worker scaffolding stays out of shipped bundles until lane X wires it.
   boundedExcerpt: 'bounded excerpt; may be truncated',
 } as const
+// M117 / D97: deterministic capacity estimation; no model or paid request.
+// M117 W: the local fleet reads RAM to one decimal with this floor (a smaller
+// reading is noise) and converts bytes with this divisor.
+export const ESTIMATE_RAM_ROUND_GIB = 0.1
+export const ESTIMATE_BYTES_PER_GIB = 1024 ** 3
+export const ESTIMATE_RUNS = 2000
+export const ESTIMATE_CALIBRATION_MIN_SAMPLES = 20
+export const ESTIMATE_PRIOR_SIGMA = 0.5
+export const ESTIMATE_MARGINAL_FLOOR_HOURS = 4
+export const ESTIMATE_IDLE_TEARDOWN_MINUTES = 30
+export const ESTIMATE_LOCAL_BUDGET_MS = 2000
+export const ESTIMATE_LOCAL_BUDGET_LANES = 40
+// Bounds on our own documents, not provider wire shapes.
+export const ESTIMATE_MAX_ITEMS = 512
+export const ESTIMATE_ID_MAX_CHARS = 128
+export const ESTIMATE_LABEL_MAX_CHARS = 256
+// M117 W (PLAN.md D100, gotcha G4): a lane whose base is this many days old
+// or older is a schedule risk: merging current main has broken such lanes'
+// releases before, so the estimate names it instead of pricing it.
+export const ESTIMATE_STALE_BASE_DAYS = 7
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
@@ -7445,3 +7641,90 @@ export const RESOURCE_TRANSPORT_MAX_RESULTS = 100
 export const RESOURCE_TREE_PROCESS_CAP = 128
 export const RESOURCE_TREE_SPAWN_CAP = 64
 export const RESOURCE_TREE_SPAWN_WINDOW_MS = 15_000
+
+// M108 X: machine-local testing options. These never change vendor/paid gates.
+// D88 amendment b: developer options expire after seven days.
+export const DEVELOPER_OPTIONS_EXPIRY_DAYS = 7
+export const DEVELOPER_UNLOCK_MS = DEVELOPER_OPTIONS_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+export const DEVELOPER_VERSION_CLICKS = 7
+export const DEVELOPER_CLICK_WINDOW_MS = 10_000
+export const DEVELOPER_MAX_PROFILES = 8
+// A leading letter plus 120 random bits fits the shared 32-character id.
+export const DEVELOPER_PROFILE_ID_BYTES = 15
+export const DEVELOPER_AUDIT_MAX_BYTES = 256 * 1024
+export const DEVELOPER_STATE_MAX_BYTES = 16 * 1024
+export const DEVELOPER_UI_BUDGET_BYTES = 25 * 1024
+export const DEVELOPER_DIRECTORY_MODE = 0o700
+export const DEVELOPER_FILE_MODE = 0o600
+export const DEVELOPER_COMMAND_ID = 'museSpark.developerOptions'
+// D88 amendment b2: the visible Settings › Accounts option (machine-scoped,
+// off by default); its accounts run in isolated local profiles like the
+// developer first option, without the developer badge or expiry.
+export const DEVELOPER_SETTING_ID = 'museSpark.accounts.severalOnThisDevice'
+export const DEVELOPER_FILES = { state: 'developer.json', audit: 'developer-audit.jsonl' } as const
+// M109 lane 0: vault format, limits and budgets (D89).
+export const VAULT_FORMAT_VERSION = 1
+export const VAULT_PROTOCOL_VERSION = 1
+export const VAULT_APPROVAL_TTL_MS = 120_000
+// Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
+export const VAULT_LOCK_DRAIN_MS = 1000
+export const VAULT_ASKPASS_USES = 3
+export const VAULT_ASKPASS_TTL_MS = 600_000
+export const VAULT_SESSION_MAX_DAYS = 30
+export const VAULT_AUDIT_MAX_BYTES = 8 * 1024 * 1024
+export const VAULT_LEGACY_RETAIN_RELEASES = 2
+export const VAULT_FIRST_SEND_SLACK_MS = 25
+export const VAULT_SIGN_P95_MS = 20
+export const VAULT_FEEDER_START_MS = 200
+export const VAULT_SCRUB_MIN_MBPS = 50
+export const VAULT_IDLE_MINUTES = 240
+export const VAULT_KEY_BYTES = 32
+export const VAULT_NONCE_BYTES = 12
+export const VAULT_TAG_BYTES = 16
+export const VAULT_RECOVERY_BYTES = 20
+export const VAULT_KDF = {
+  argon2: { memoryKiB: 65_536, iterations: 3, parallelism: 4 },
+  scrypt: { N: 131_072, r: 8, p: 1 },
+  saltBytes: 16,
+}
+export const VAULT_LIMITS = {
+  name: 48,
+  label: 256,
+  text: 4096,
+  valueBytes: 1024 * 1024,
+  items: 10_000,
+  grants: 10_000,
+  argv: 256,
+  names: 128,
+  cookies: 1000,
+  reasons: 128,
+  frameBytes: 4 * 1024 * 1024,
+  day: 6,
+  hour: 24,
+  idBytes: 16,
+  sha256Hex: 64,
+}
+export const VAULT_DEFAULTS = {
+  enabled: true,
+  protection: 'auto',
+  agentFence: true,
+  lockOnScreenLock: true,
+} as const
+
+export const VAULT_TOTP_DIGITS = { standard: 6, extended: 8 } as const
+export const VAULT_BASE64_GROUP_CHARS = 4
+
+// M109 O: bounded OAuth metadata/token bodies, PKCE entropy and flow lifetime.
+export const MCP_OAUTH_LIMITS = {
+  responseBytes: 64 * 1024,
+  randomBytes: 32,
+  flowMs: 120_000,
+  refreshSlackMs: 30_000,
+  maxExpiresSeconds: 365 * 24 * 60 * 60,
+}
+// U's independent lazy surfaces; W registers these new caps without changing existing caps.
+export const VAULT_PANEL_BUDGET_KIB = 75
+export const VAULT_HOST_BUDGET_KIB = 50
+export const VAULT_UI_TICK_MS = 1000
+export const VAULT_ID_BYTES = 16
+export const VAULT_TOTP_PERIOD_SECONDS = 30

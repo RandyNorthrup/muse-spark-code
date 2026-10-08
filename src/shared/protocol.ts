@@ -30,6 +30,7 @@ import {
   MAX_ATTACHMENT_BASE64_CHARS,
   MODEL_PRICINGS,
   PAID_FEATURES,
+  ESTIMATE_OPTIMIZE_MODES,
   PERMISSION_MODES,
   PREFERRED_LOCATIONS,
   REPORT_DESCRIPTION_MAX_CHARS,
@@ -60,6 +61,12 @@ import {
   scheduleSourceCapabilitySchema,
   scheduleTargetSchema,
 } from './scheduleV2'
+import {
+  mediaAttachmentActionSchema,
+  mediaAttachmentRequestSchema,
+  mediaChipSchema,
+  mediaContributorChoiceSchema,
+} from './media'
 import { paidStateSchema } from './paid'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'
@@ -79,6 +86,7 @@ import {
   requestLegalFixMessageSchema,
 } from './legalFix'
 import { boardRowSchema } from './sessionBoard'
+import type { EstimatorToHostMessage, HostToEstimatorMessage } from './estimatorProtocol'
 import { sessionRowSchema } from './sessions'
 import {
   accountFactsSchema,
@@ -117,6 +125,8 @@ export const settingsSnapshotShape = {
   schedules: booleanSchema,
   /** The Auto reviewer on Muse Code (M90): the Modes menu words Auto with it. */
   museCodeAutoReviewer: booleanSchema,
+  /** The capacity estimator's setup search (M117, PLAN.md D97). */
+  'estimator.optimize': z.enum(ESTIMATE_OPTIMIZE_MODES),
 } as const
 
 const settingsSnapshotSchema = z.object(settingsSnapshotShape)
@@ -309,8 +319,8 @@ const skillOptionSchema = z.object({
 })
 export type SkillOption = z.infer<typeof skillOptionSchema>
 
-// An image, or (M54, PLAN.md D47) a PDF: no pixel size, and its page count
-// when the page tree could be read.
+// Existing image/PDF/text summaries retain their shape. M105's optional
+// region carries media metadata and upload progress, never file bytes.
 const attachmentSchema = z.object({
   id: stringSchema,
   name: stringSchema,
@@ -319,6 +329,7 @@ const attachmentSchema = z.object({
   height: z.optional(numberSchema),
   sizeBytes: numberSchema,
   pageCount: z.optional(numberSchema),
+  media: z.optional(mediaChipSchema),
 })
 export type AttachmentSummary = z.infer<typeof attachmentSchema>
 
@@ -560,6 +571,9 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // "+" / "Attach file…": native open dialog; images (and, on the Model API
   // backend, PDFs: M54) become attachments, other files `@path` mentions.
   z.object({ type: z.literal('pickFile') }),
+  mediaAttachmentRequestSchema,
+  mediaAttachmentActionSchema,
+  mediaContributorChoiceSchema,
   // "Mention file from this project…": QuickPick over the workspace index.
   z.object({ type: z.literal('pickMentionFile') }),
   // An image pasted or dropped into the composer, or (M54) a PDF: the name
@@ -890,7 +904,8 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   }),
 ])
 
-export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema> | TeamTreeAction
+export type WebviewToHostMessage =
+  z.infer<typeof webviewToHostMessageSchema> | TeamTreeAction | EstimatorToHostMessage
 
 const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
@@ -1315,7 +1330,9 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     // which of its choices (the dialog's `revision`, 0 for the opening
     // draft) this draft answers: a late draft for a closed or older dialog,
     // or for an older choice, is told apart instead of reopening or
-    // overwriting it.
+    // overwriting it. A rebuild that refused re-posts the previous draft
+    // with the failed choice's revision, so the dialog settles on what it
+    // still shows instead of waiting for a draft that never comes.
     session: z.int().check(z.gte(1)),
     revision: z.int().check(z.gte(0)),
     description: z.string().check(z.maxLength(REPORT_DESCRIPTION_MAX_CHARS)),
@@ -1344,9 +1361,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     issueFallback: z.optional(z.boolean()),
     reason: z.optional(z.enum(REPORT_EXPORT_REASONS)),
   }),
+  // The extension's `museSpark.estimate` command: focus the composer with
+  // `/estimate ` ready for the goal.
+  z.object({ type: z.literal('openEstimator') }),
 ])
 
-export type HostToWebviewMessage = z.infer<typeof hostToWebviewMessageSchema> | TeamTreeUpdate
+export type HostToWebviewMessage =
+  z.infer<typeof hostToWebviewMessageSchema> | TeamTreeUpdate | HostToEstimatorMessage
 
 const teamSchemas: {
   action: z.ZodMiniType<TeamTreeAction> | undefined
@@ -1385,6 +1406,25 @@ export function parseHostToWebviewMessage(input: unknown): ParseResult<HostToWeb
       ? teamSchemas.update
       : hostToWebviewMessageSchema,
     input,
+  )
+}
+
+/** Only select the parser here; its lazy Zod schema validates every payload. */
+export function isEstimatorHostMessage(input: unknown): boolean {
+  return (
+    typeof input === 'object' &&
+    input !== null &&
+    'type' in input &&
+    typeof input.type === 'string' &&
+    ['estimatorSection', 'estimatorFailure', 'estimatorStarted'].includes(input.type)
+  )
+}
+export function isEstimatorWebviewMessage(input: unknown): boolean {
+  return (
+    typeof input === 'object' &&
+    input !== null &&
+    'type' in input &&
+    (input.type === 'estimateRun' || input.type === 'estimateSpinUp')
   )
 }
 

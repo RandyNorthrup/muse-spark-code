@@ -542,6 +542,17 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       id: 'slash',
       title: UI_TEXT.groupSlashCommands,
       items: [
+        ...(context.estimateAvailable === true
+          ? [
+              {
+                id: 'estimate',
+                label: UI_TEXT.estimateTitle,
+                slashName: SLASH_COMMAND_NAMES.estimate,
+                detail: UI_TEXT.estimateUsage,
+                action: { type: 'insertSkill', selector: SLASH_COMMAND_NAMES.estimate } as const,
+              },
+            ]
+          : []),
         {
           id: 'hookRun',
           label: `/${HOOK_RUN_SLASH_COMMAND}`,

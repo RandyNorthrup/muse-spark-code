@@ -144,6 +144,7 @@ function readinessPage(now: () => number) {
     performance: { now },
     document: { querySelector: () => null, fonts: { ready: Promise.resolve() } },
     hasPageLoaded: true,
+    hasWebviewReady: true,
     hasPlayedScenario: false,
     steps: {},
     pendingFinds: 0,
@@ -364,6 +365,40 @@ describe('harness scenario event readiness', () => {
     expect(nextFrame).toHaveBeenCalledTimes(2)
   })
 
+  it.each(['hasWebviewReady', 'hasPlayedScenario'] as const)(
+    'does not scan a named scene before %s',
+    async (field) => {
+      const source = harnessSection('const whenReady = async', '// A scan holds')
+      const timers: ScheduledEvent[] = []
+      const settled = vi.fn()
+      const nextFrame = vi.fn(() => Promise.resolve())
+      const context = {
+        ...readinessPage(() => 0),
+        pendingScenarioEvents: 0,
+        // A named scene that has played after the handshake, but for one field.
+        steps: { ordinary: () => undefined },
+        hasPlayedScenario: true,
+        [field]: false,
+        nextFrame,
+        readinessLater: (delay: number, run: () => void) => {
+          timers.push({ delay, run })
+        },
+        settled,
+      }
+      runInNewContext(`${source}\n void whenReady('ordinary').then(settled);`, context)
+      await Promise.resolve()
+      expect(timers[0]?.delay).toBe(50)
+      expect(nextFrame).not.toHaveBeenCalled()
+      expect(settled).not.toHaveBeenCalled()
+      context[field] = true
+      runNext(timers)
+      await vi.waitFor(() => {
+        expect(settled).toHaveBeenCalledOnce()
+      })
+      expect(nextFrame).toHaveBeenCalledTimes(2)
+    },
+  )
+
   it('keeps the existing readiness deadline when an event never finishes', async () => {
     const source = harnessSection('const whenReady = async', '// A scan holds')
     let now = 0
@@ -392,6 +427,40 @@ describe('harness scenario event readiness', () => {
 })
 
 describe('harness scenes wait for the controls they touch', () => {
+  it.each(['ready', 'modelsPanel/ready', 'tasksReady'])(
+    'retains early %s before the scenario script is installed',
+    (type) => {
+      const window = new EventTarget()
+      const played = vi.fn()
+      const context = {
+        window,
+        Event,
+        message: { type },
+        hasWebviewReady: false,
+        harnessBundle: 'main',
+        scenario: 'example',
+        steps: { example: played },
+        whenFound: (_selector: string, run: () => void) => {
+          run()
+        },
+      }
+      const ready = harnessSection(
+        "if (['ready', 'modelsPanel/ready', 'tasksReady'].includes(message.type)) {",
+        '        },\n      })',
+      )
+      expect(() => {
+        runInNewContext(ready, context)
+      }).not.toThrow()
+      expect(context.hasWebviewReady).toBe(true)
+      expect(played).not.toHaveBeenCalled()
+      runInNewContext(harnessSection('let hasPlayedScenario =', '// `?theme='), context)
+      window.dispatchEvent(new Event('DOMContentLoaded'))
+      expect(played).toHaveBeenCalledOnce()
+      runInNewContext(ready, context)
+      expect(played).toHaveBeenCalledOnce()
+    },
+  )
+
   it.each(
     [
       {
@@ -447,7 +516,7 @@ describe('harness scenes wait for the controls they touch', () => {
         if (isScheduleMount) window.dispatchEvent(new Event('schedule-harness-mounted'))
         else {
           context.hasWebviewReady = true
-          runInNewContext('playScenario()', context)
+          window.dispatchEvent(new Event('webviewReady'))
         }
       }
       expect(selectors).toEqual([surface, 'played'])

@@ -347,6 +347,11 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   M115's `/schedule` (list, add, remove, run-now, pause, resume, fire and
   timeline; `run-due` and background maintenance are refused here), offered
   only with `--scheduled-prompts`.
+  M108's `/accounts <list|current|use <id>|thresholds [id]>`, answered
+  locally with no model turn.
+  M117's `/estimate <goal> [--by <date>] [--fleet current|minimum|optimum]`
+  when the estimator binding is present; it runs the same engine as the
+  panel with no model call.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
@@ -370,6 +375,18 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   session. SSE servers are not taken; the Model API backend runs none.
 
 ## Questions
+
+M105 media commands are parsed between turns: `/attach <path>` confines an
+approved local source; `/record` requires an interactive recorder and private
+preview before Attach. Embedded PDF/image blobs keep their established routes;
+video/audio blobs and media links require the selected-model media port.
+Ordinary source links remain mentions and URLs remain links. A missing media
+binding refuses before dispatch; it never claims that bytes were delivered.
+Production capability, Files ownership/storage billing, paid transcription and
+recording bindings remain pending. Fakes prove the portable adapter contract,
+not installed editor or provider availability. Headless `/attach` and `/record`
+are usage errors; use repeated `exec --attach` flags after the real media
+binding exists. See [M105 certification](certification/m105.md).
 
 The launcher connects the shared question registry and private durable queue.
 See [the integration certification](certification/m112.md): a scripted stdio
@@ -444,6 +461,22 @@ answers, and failed sends release without writing. Panel enforcement
 (leases, outcome receipts, dispatch gating) is not installed here; see
 [the milestone certification](certification/m116.md) for what is bound and
 what waits for M96's planner.
+
+## Several accounts per provider (M108)
+
+`/accounts list`, `/accounts current` and `/accounts thresholds [id]`
+read local metadata without a model turn. The command parser and event adapter
+also support `/accounts use <id>` and the `account` session option through an
+injected profile-owned pool. The installed runtime currently refuses changing
+the backend credential; that pool awaits M95/M109. It never reports a swap
+while retaining another account's key.
+
+The terminal's `providers accounts` commands manage metadata, ordering,
+thresholds and stored API keys. Keys are read only from standard input,
+never an argument or file. The panel's account section and automatic swap/stop
+notices await the installed M95/M102/M104/M109 bindings in every editor.
+See [the milestone certification](certification/m108.md) for those blockers
+and the injected-port tests.
 
 ## Paid features
 
@@ -863,3 +896,29 @@ scope (with nearest ids), and 4 when a requested `--fail-on` condition holds.
 Conditions are `unavailable`, `drift`, `blocked`, `channelLag` and `ciFailing`.
 History-save revocation or cancellation fails explicitly. Equal observation
 times preserve the newest saved sequence when selecting the previous report.
+
+## Vault integration (M109 H)
+
+The H handlers consume injected broker/panel contracts. The installed
+`dist/vault.js` factory is an integration handoff; until bound, access reports
+a fixed broker-unavailable error. No credential or guessed wire frame is used.
+
+`/vault` defaults to status and accepts `status`, `list`, `lock` and `audit`.
+Commands are intercepted locally before skill/model dispatch. Invalid syntax
+and extra attachments are refused. Lock remains available during an active
+turn and invalidates outstanding permission answers. Hidden and first-party
+items are excluded from the ACP item list.
+
+A broker request maps to `session/request_permission`: `allow_once`,
+`allow_always` labelled **Allow for this session** where policy permits, and
+`reject_once`. No standing Always grant is offered. Answers retain the
+broker's exact id and digest; cancel, expiry, session close/reload, lock, an
+unknown option, or a failed editor request deny. Bypass and paid grants do
+not approve a vault use. The full requester and resolved use, process exposure,
+taint, presence and separate paid-consent warning appear in the permission.
+
+Terminal subcommands and their input contract are documented in the
+repository README's vault section. Companion and native bridges share the
+same public panel handler; M104 must bind authenticated connections and honor
+its cancellation signal before committing effects. Add/edit opens the host's
+terminal. No value is accepted or returned in panel messages.

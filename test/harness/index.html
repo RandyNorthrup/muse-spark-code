@@ -208,6 +208,7 @@
         modelApiReplyUsage: false,
         schedules: true,
         museCodeAutoReviewer: true,
+        'estimator.optimize': 'cost',
       }
       const models = [
         {
@@ -1279,7 +1280,7 @@
           }
           if (['ready', 'modelsPanel/ready', 'tasksReady'].includes(message.type)) {
             hasWebviewReady = true
-            playScenario()
+            window.dispatchEvent(new Event('webviewReady'))
           }
         },
       })
@@ -6226,6 +6227,7 @@
         whenFound(surface, () => steps[scenario]())
       }
       let hasPageLoaded = false
+      window.addEventListener('webviewReady', playScenario)
       window.addEventListener(
         'schedule-harness-mounted',
         () => {
@@ -6547,7 +6549,9 @@
           : (SCENARIO_READY[name] ?? (() => true))
         const isReady = () =>
           hasPageLoaded &&
-          (!(name in steps) || hasPlayedScenario) &&
+          (!(name in steps) ||
+            ((hasWebviewReady || (name.startsWith('schedules-v2') && hasScheduleHarnessMounted)) &&
+              hasPlayedScenario)) &&
           pendingFinds === 0 &&
           pendingScenarioEvents === 0 &&
           document.querySelector('[data-deferred-loading]') === null &&

@@ -64,7 +64,8 @@ import { hasPdfHeader } from '../../shared/pdfHeader'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import { paidFeaturePrice } from '../../shared/paid'
 import type { AttachmentSummary, MentionItem, SettingsSnapshot } from '../../shared/protocol'
-import { rankSlashCommands, type SlashCommand } from '../../shared/slashCommands'
+import type { SlashCommand } from '../../shared/slashCommands'
+import { rankSlashCommands } from '../../shared/slashRank'
 import { blobToBase64, parseUriList } from '../base64'
 import { type DictationPress, pressAction, releaseAction } from '../dictationGesture'
 import { scrollRowIntoView, wrapIndex } from '../listNavigation'
@@ -275,14 +276,40 @@ function fileExtension(name: string): string {
   return dot === -1 ? '' : name.slice(dot).toLowerCase()
 }
 
+function isStreamedMedia(file: File): boolean {
+  return (
+    /^(?:video|audio)\//u.test(file.type) || /\.(?:mp4|mov|webm|mkv|mp3|wav|m4a)$/iu.test(file.name)
+  )
+}
+
+function parseHostUris(text: string): readonly string[] {
+  return parseUriList(text).filter((uri) => /^(?:file|vscode-remote):/iu.test(uri))
+}
+
 function attachableFiles(list: FileList | undefined, shouldIncludeText = false): readonly File[] {
   return [...(list ?? [])].filter(
     (file) =>
       file.type.startsWith(IMAGE_TYPE_PREFIX) ||
       file.type === PDF_MEDIA_TYPE ||
       file.name.toLowerCase().endsWith(PDF_EXTENSION) ||
+      isStreamedMedia(file) ||
       (shouldIncludeText && TEXT_ATTACHMENT_EXTENSIONS.has(fileExtension(file.name))),
   )
+}
+
+/** URI-backed files go to the host; an unrelated clipboard screenshot keeps its legacy path. */
+function filesWithoutUris(files: readonly File[], uris: readonly string[]): readonly File[] {
+  const names = new Set(
+    uris.map((uri) => {
+      try {
+        return decodeURIComponent(new URL(uri).pathname).split(/[/\\]/u).at(-1)
+      } catch {
+        // Malformed host URIs do not suppress unrelated clipboard files.
+        return
+      }
+    }),
+  )
+  return files.filter((file) => file.name === '' || !names.has(file.name))
 }
 
 /** The same conservative data-URL budget the host checks after decoding. */
@@ -865,7 +892,7 @@ export function Composer(props: ComposerProps) {
         current.reduce(
           (total, attachment) =>
             total +
-            (attachment.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE
+            (attachment.media !== undefined || attachment.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE
               ? 0
               : encodedMediaChars(attachment.sizeBytes, attachment.mediaType)),
           0,
@@ -918,6 +945,13 @@ export function Composer(props: ComposerProps) {
         onRefuseFile(name, UI_TEXT.textFilePrivate)
         continue
       }
+      // Browser File objects expose no approved host path. A URI transfer
+      // takes the host route below; bytes-only media needs the native picker.
+      // Refused, not unreadable: nothing was opened (M105 E1 review).
+      if (isStreamedMedia(file)) {
+        onRefuseFile(name, UI_TEXT.textFilePrivate)
+        continue
+      }
       const isDocument = file.type === PDF_MEDIA_TYPE || name.toLowerCase().endsWith(PDF_EXTENSION)
       if (isDocument) {
         admit(file, name, PDF_MEDIA_TYPE)
@@ -948,6 +982,18 @@ export function Composer(props: ComposerProps) {
   }
 
   const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    // A synthetic clipboard may carry files without a reader; that reads as
+    // an empty URI list, never a throw.
+    const clipboard = event.clipboardData
+    const readClipboard = (type: string): string =>
+      typeof clipboard.getData === 'function' ? clipboard.getData(type) : ''
+    const uris = parseHostUris(readClipboard(URI_LIST_TYPE))
+    if (uris.length > 0) {
+      event.preventDefault()
+      onDroppedUris(uris)
+      attachFiles(filesWithoutUris(attachableFiles(event.clipboardData.files, true), uris))
+      return
+    }
     const files = attachableFiles(event.clipboardData.files, true)
     if (files.length === 0) {
       return
@@ -956,7 +1002,7 @@ export function Composer(props: ComposerProps) {
     // file with no text representation can be probed for PDF bytes instead.
     if (
       attachableFiles(event.clipboardData.files).length === 0 &&
-      event.clipboardData.getData(TEXT_ATTACHMENT_MEDIA_TYPE) !== ''
+      readClipboard(TEXT_ATTACHMENT_MEDIA_TYPE) !== ''
     ) {
       return
     }
@@ -966,11 +1012,11 @@ export function Composer(props: ComposerProps) {
 
   const handleDrop = (event: DragEvent<HTMLElement>) => {
     event.preventDefault()
-    attachFiles(attachableFiles(event.dataTransfer.files, true))
-    const uris = parseUriList(event.dataTransfer.getData(URI_LIST_TYPE))
+    const uris = parseHostUris(event.dataTransfer.getData(URI_LIST_TYPE))
     if (uris.length > 0) {
       onDroppedUris(uris)
     }
+    attachFiles(filesWithoutUris(attachableFiles(event.dataTransfer.files, true), uris))
   }
 
   // What the box's aria-controls and aria-activedescendant point at.

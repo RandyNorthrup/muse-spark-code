@@ -3,6 +3,7 @@ import {
   PAID_APPROVAL_ORDER_DIRECTORY,
   LEGAL_EXPLANATION_BUNDLE_FILE,
   REFERENCE_BUNDLE_FILE,
+  VAULT_BUNDLE_FILE,
   PROVIDER_SECRET_PREFIX,
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
@@ -32,6 +33,7 @@ import {
   CONVERSATION_GIT_BUNDLE_FILE,
   CONVERSATION_BUNDLE_FILE,
   BUNDLED_SKILLS_BUNDLE_FILE,
+  ESTIMATOR_BUNDLE_FILE,
   BUNDLED_SKILLS_SETTING,
   WHATS_NEW_BUNDLE_FILE,
   WHATS_NEW_CLAIMS_DIR,
@@ -76,6 +78,7 @@ import {
   PROMPT_BUNDLE_FILE,
   PROMPT_COMMAND_IDS,
   PROMPT_SYNC_SETTING,
+  SANDBOX_NETWORK_DENIED,
   SANDBOX_NETWORK_SETTING,
   PAGE_WORKER_FILE,
   SEARCH_WORKER_FILE,
@@ -261,6 +264,8 @@ import {
 } from './host/git/conversationGitBundle'
 import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
+import { lazyEstimator } from './host/estimator/estimatorBundle'
+import { estimatorSourcePorts } from './host/estimator/localFleet'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
 import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
 import { createMemoryFeatures } from './host/memoryFeatures'
@@ -313,6 +318,17 @@ import { loadUiTable, readUiTableFile } from './host/l10n'
 import type { InsightsReader } from './runtime/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
 import { voiceLoader } from './host/voice/voiceBundle'
+import {
+  createMediaAttachDeps,
+  createMediaSourceOpen,
+  dialogFiltersOption,
+} from './host/media/mediaProviders'
+import { mediaBundleLoader } from './host/media/mediaBundle'
+import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRecordBundle'
+import { createLinuxLatestPort } from './host/media/recordingLatest'
+import { latestLinuxRecording } from './core/media/record/linux'
+import type { ScreenRecordingPreview } from './core/media/record/driver'
+import { loadVaultControls, registerVaultCommands } from './host/vault/vaultPanelBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
@@ -1927,6 +1943,9 @@ async function activateWindow(
     // they do to VS Code's terminal (PLAN.md D25).
     env: shellEnvironmentOf,
     passEnvironmentVariables: () => currentSettings()['shell.passEnvironmentVariables'],
+    agentFence: () =>
+      vscode.workspace.getConfiguration('museSpark').inspect<boolean>('vault.agentFence')
+        ?.globalValue ?? true,
     searchWorkerPath: vscode.Uri.joinPath(context.extensionUri, 'dist', SEARCH_WORKER_FILE).fsPath,
     log: (message) => {
       log.warn(message)
@@ -2037,10 +2056,30 @@ async function activateWindow(
   const isIdeBrowserCheckOffered = (): boolean =>
     browserChecks.isOffered() &&
     isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork)
+  // The credential vault (M109, PLAN.md D89): the commands and the lazy
+  // loader only. The broker-backed service is an open handoff in
+  // docs/certification/m109.md; until it lands both commands refuse closed
+  // with the broker-blocked reason instead of opening an empty vault.
   context.subscriptions.push(
     vscode.commands.registerCommand(COMMAND_IDS.downloadBrowserCheckRuntime, async () => {
       await downloadBrowserRuntime(browserChecks, isIdeBrowserCheckOffered)
     }),
+    registerVaultCommands(
+      (id, run) => registerLoggedCommand(log, id, run),
+      () =>
+        loadVaultControls(
+          {
+            bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VAULT_BUNDLE_FILE).fsPath,
+            log,
+            service: undefined,
+          },
+          () => {
+            // Unreachable while the service is missing; the entry's live
+            // host bindings land with the service.
+            throw new Error(UI_TEXT.vault.brokerBlocked)
+          },
+        ),
+    ),
   )
   const askBrowserCheck = oneQuestionPerUrl(isBrowserCheckAllowed, browserScopeKey)
   // Code intelligence over VS Code's language services (M67, PLAN.md D49):
@@ -2242,6 +2281,26 @@ async function activateWindow(
         )
       },
       log,
+    },
+  })
+
+  // The capacity estimator (M117, PLAN.md D97): its engine loads the first
+  // time an estimate runs. The snapshot, board, broker and catalog bindings
+  // belong to unmerged milestones (M113, M96, M109, M110) and refuse with
+  // their handoff names until those merge; the fleet is this machine,
+  // measured. History appends arrive with M115's lane-finished trigger.
+  const estimator = lazyEstimator({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', ESTIMATOR_BUNDLE_FILE).fsPath,
+    log,
+    ports: () => {
+      const settings = currentSettings()
+      return estimatorSourcePorts(() => ({
+        // No catalogs are pinned until M113 merges its Reports catalogs.
+        enabled: settings['estimator.priceLookup'],
+        networkAllowed: settings.sandboxNetwork !== SANDBOX_NETWORK_DENIED,
+        maxAgeMs: 0,
+        catalogUrls: [],
+      }))
     },
   })
 
@@ -2734,6 +2793,7 @@ async function activateWindow(
   // once the surface it opened is ready to show it.
   let isReportPending = false
   let isHelpPending = false
+  let isEstimatePending = false
   const referenceBundle = referenceLoader({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', REFERENCE_BUNDLE_FILE).fsPath,
     log,
@@ -2875,10 +2935,14 @@ async function activateWindow(
   }
 
   const files: FileAccess = {
-    showOpenDialog: async () => {
+    // E1-picker-filter-binding (M105 W): the picker's media filters reach
+    // the native dialog; without them every file looks attachable.
+    showOpenDialog: async (filters) => {
+      const dialogFilters = dialogFiltersOption(filters)
       const uris = await vscode.window.showOpenDialog({
         canSelectMany: true,
         openLabel: UI_TEXT.attachTitle,
+        ...(dialogFilters !== undefined && { filters: dialogFilters }),
       })
       return (uris ?? []).map((uri): PickedFile => ({
         name: path.basename(uri.fsPath),
@@ -3201,6 +3265,22 @@ async function activateWindow(
     }
     await reportingPanel.open(argumentsText)
   }
+  // M105 W: the lazy media bindings. Activation carries only these loaders;
+  // dist/media.js (attach port) and dist/screenRecord.js (recording command)
+  // load on first use. Recorder-produced files live under recordingTempRoot,
+  // the one directory the media open hook exempts from workspace confinement.
+  const loadMedia = mediaBundleLoader(path.join(context.extensionPath, 'dist', 'media.js'), log)
+  const recordingTempRoot = path.join(context.globalStorageUri.fsPath, 'muse-screen')
+  const mediaOpen = createMediaSourceOpen({
+    canonicalRelativePath: (fsPath) => files.canonicalRelativePath(fsPath),
+    recordingTempRoot,
+  })
+  const linuxLatestPort = createLinuxLatestPort({ tempRoot: recordingTempRoot })
+  const latestScreenRecording = async (): Promise<ScreenRecordingPreview | undefined> => {
+    if (process.platform !== 'linux') return undefined
+    const result = await latestLinuxRecording(linuxLatestPort)
+    return result.ok ? result.preview : undefined
+  }
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
@@ -3257,6 +3337,39 @@ async function activateWindow(
             contains: (relativePath) => mentions.contains(relativePath),
           },
           files,
+          // M105 W (E1-media-host-binding): the lazy attach port. Settings
+          // supply limits, the selected model its capabilities; the M2 bind
+          // refuses until the upload lifecycle lands (U6c, lead-owned).
+          mediaAttachments: () =>
+            Promise.resolve(
+              loadMedia().createMediaAttachments(
+                createMediaAttachDeps(
+                  () => ({
+                    mediaMaxUploadMiB: currentSettings().mediaMaxUploadMiB,
+                    screenRecordingMaxSeconds: currentSettings().screenRecordingMaxSeconds,
+                  }),
+                  mediaOpen,
+                ),
+                UI_TEXT,
+                uiLocale(),
+              ),
+            ),
+          // M105 W (E1-recording-host-binding): the recording command's deps.
+          // No native driver binds in this round: macOS needs its signed
+          // helper, Windows direct capture is unavailable here, and Linux
+          // needs a D-Bus portal transport (lead-owned; see m105.md). The
+          // absent driver refuses explicitly; latest-file discovery works
+          // on Linux. The conversation overrides attach with admission.
+          recordingCommandDeps: () =>
+            Promise.resolve({
+              l10n: { table: UI_TEXT, locale: uiLocale() },
+              log,
+              isRemote: vscode.env.remoteName !== undefined,
+              // No driver key: unbound this round (see above); absence refuses.
+              maxSeconds: currentSettings().screenRecordingMaxSeconds,
+              latest: latestScreenRecording,
+              attach: () => Promise.resolve(false),
+            }),
           isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
           isRemoteWindow: vscode.env.remoteName !== undefined,
           confirmRemoteBypass: async () =>
@@ -3327,6 +3440,7 @@ async function activateWindow(
           },
           editReview: review.editReview,
           review,
+          estimator,
           openDocument,
           openFile,
           readToolImage: async (imagePath) =>
@@ -3598,6 +3712,12 @@ async function activateWindow(
       if (isHelpPending) {
         isHelpPending = false
         surface.post({ type: 'openHelp' })
+      }
+      // `Open Estimator` opened this surface (M117): the composer takes
+      // `/estimate ` once it has a page to focus in.
+      if (isEstimatePending) {
+        isEstimatePending = false
+        surface.post({ type: 'openEstimator' })
       }
       // `Report a Problem` opened this surface (M93): its dialog now has a page to show in.
       if (isReportPending) {
@@ -4127,6 +4247,39 @@ async function activateWindow(
         await controller.handle({ type: 'hostAction', action: 'openTasksTab' })
       }),
     ),
+    ...Object.entries(RECORDING_COMMAND_IDS).map(([kind, id]) =>
+      registerLoggedCommand(
+        log,
+        id,
+        forActiveConversation(async (controller) => {
+          if (vscode.env.remoteName !== undefined) {
+            await vscode.window.showInformationMessage(UI_TEXT.media.recordingRemote)
+            return
+          }
+          // The factory is bound above, so undefined means the conversation
+          // went away mid-flight: nothing to attach to, said silently (M105
+          // E1 review). A bundle that cannot load says its own failure.
+          const deps = await controller.recordingCommandDeps()
+          if (deps === undefined) {
+            return
+          }
+          const load = screenRecordLoader(
+            path.join(context.extensionPath, 'dist', 'screenRecord.js'),
+            log,
+          )
+          await load().runScreenRecordingCommand(deps, kind === 'latest')
+        }),
+      ),
+    ),
+    // M105 W: the uploaded-files deletion. The E3/F ledger binding is
+    // lead-owned; until it lands the controller refuses explicitly.
+    registerLoggedCommand(
+      log,
+      COMMAND_IDS.deleteUploadedFiles,
+      forActiveConversation(async (controller) => {
+        await controller.deleteUploadedFiles()
+      }),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.newConversation, async () => {
       const surface = registry.active
       if (surface === undefined) {
@@ -4216,6 +4369,18 @@ async function activateWindow(
       }
       surface.reveal()
       surface.post({ type: 'openHelp' })
+    }),
+    // Open the capacity estimator (M117, PLAN.md D97): the composer takes
+    // `/estimate ` in the conversation in view or one opened for it.
+    registerLoggedCommand(log, COMMAND_IDS.estimate, async () => {
+      const surface = registry.active
+      if (surface === undefined) {
+        isEstimatePending = true
+        await openConversation()
+        return
+      }
+      surface.reveal()
+      surface.post({ type: 'openEstimator' })
     }),
     // Report a problem (M93, PLAN.md D72): the dialog over the journal and
     // local facts, in the conversation in view or one opened for it.

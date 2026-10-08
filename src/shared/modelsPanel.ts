@@ -774,3 +774,17 @@ export const runnersHostMessageSchema = z.strictObject({
   state: runnersSliceSchema,
 })
 // --- End Traffic and runners region. ---
+// M108 U's account slice. M95/M104 supply the authenticated panel envelope.
+// This local projection carries metadata and policy evidence, never credentials.
+// The wire schemas (the policy view and question the confirmations quote)
+// live on the accounts bridge and are re-exported here for panel readers.
+export {
+  accountsPolicyViewSchema,
+  accountsPolicyQuestionSchema,
+  type AccountsPolicyView,
+  type AccountsPolicyQuestion,
+  accountsNoticeSchema,
+  modelsAccountsSliceSchema,
+  type ModelsAccountsSlice,
+} from './accountsPanel'
+export { vaultPanelStateSchema, type VaultPanelState } from './vaultPanel'

@@ -173,6 +173,14 @@ const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
+// M105 lane W: the attachment path (attach port with the portable sniffers,
+// limits and modality gate), loaded on first use.
+const MEDIA_ENTRY = 'src/host/media/mediaEntry.ts'
+const MEDIA_OUTFILE = 'dist/media.js'
+// M105 lane W: the screen-recording command with the R1-R3 platform drivers,
+// loaded the first time a recording command runs.
+const SCREEN_RECORD_ENTRY = 'src/host/media/screenRecordEntry.ts'
+const SCREEN_RECORD_OUTFILE = 'dist/screenRecord.js'
 // The browser check's own bundle (M81): the pipe, the run, the browser's processes.
 const BROWSER_CHECK_ENTRY = 'src/host/browser/browserCheckEntry.ts'
 const BROWSER_CHECK_OUTFILE = 'dist/browserCheck.js'
@@ -194,6 +202,12 @@ const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
 const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
+// M109 lane W: the vault's window (the panel host and the native editor),
+// loaded on the first vault command. `vscode` stays external, provided by
+// the host, as for the import. The broker client joins it once the
+// broker-backed service lands (docs/certification/m109.md).
+const VAULT_ENTRY = 'src/host/vault/vaultPanelEntry.ts'
+const VAULT_OUTFILE = 'dist/vault.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
@@ -204,6 +218,8 @@ const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
 const REPORT_OUTFILE = 'dist/report.js'
+const ESTIMATOR_ENTRY = 'src/host/estimator/estimatorEntry.ts'
+const ESTIMATOR_OUTFILE = 'dist/estimator.js'
 const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
 const RECORDER_OUTFILE = 'dist/recorder.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -227,6 +243,8 @@ const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
 const RUNTIME_QUESTIONS_OUTFILE = 'dist/runtimeQuestions.js'
 const PLAYBOOK_ENTRY = 'src/runtime/playbook/playbookEntry.ts'
 const PLAYBOOK_OUTFILE = 'dist/acpPlaybook.js'
+const RUNTIME_ACCOUNTS_ENTRY = 'src/runtime/providers/accountsEntry.ts'
+const RUNTIME_ACCOUNTS_OUTFILE = 'dist/runtimeAccounts.js'
 const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
@@ -487,6 +505,20 @@ const reportOptions = {
   target: HOST_NODE_TARGET,
 }
 
+// The capacity estimator's engine (M117, PLAN.md D97), loaded the first
+// time an estimate runs; it reads no `vscode` and no backend, so a stray
+// import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const estimatorOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [ESTIMATOR_ENTRY],
+  outfile: ESTIMATOR_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
 // The flight recorder's journal (M93), loaded just after activation or at
 // the first failure; it reads no `vscode`, so a stray import fails here.
 /** @type {import('esbuild').BuildOptions} */
@@ -648,6 +680,18 @@ const agentImportOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const vaultOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+  entryPoints: [VAULT_ENTRY],
+  outfile: VAULT_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const tabOptions = {
   ...agentImportOptions,
   entryPoints: [TAB_ENTRY],
@@ -727,6 +771,29 @@ const checkpointStoreOptions = {
   entryPoints: [CHECKPOINT_STORE_ENTRY],
   outfile: CHECKPOINT_STORE_OUTFILE,
   platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const mediaOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [MEDIA_ENTRY],
+  outfile: MEDIA_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const screenRecordOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [SCREEN_RECORD_ENTRY],
+  outfile: SCREEN_RECORD_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
   format: 'cjs',
   target: HOST_NODE_TARGET,
 }
@@ -854,6 +921,11 @@ const playbookOptions = {
   entryPoints: [PLAYBOOK_ENTRY],
   outfile: PLAYBOOK_OUTFILE,
 }
+const runtimeAccountsOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [RUNTIME_ACCOUNTS_ENTRY],
+  outfile: RUNTIME_ACCOUNTS_OUTFILE,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -888,9 +960,23 @@ const validationOptions = {
   outfile: VALIDATION_OUTFILE,
 }
 
+const vaultBoundariesOptions = {
+  ...modelApiOptions,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: ['src/shared/vaultBoundariesEntry.ts'],
+  outfile: 'dist/vaultBoundaries.js',
+}
+
+const estimateContractsOptions = {
+  ...modelApiOptions,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: ['src/shared/estimateContractsEntry.ts'],
+  outfile: 'dist/estimateContracts.js',
+}
+
 const wireOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, sharedValidation, deferredTeamView],
+  plugins: [sharedUiText, sharedValidation, deferredTeamView, sharedModelApiBoundaries],
   entryPoints: ['src/shared/wireEntry.ts'],
   outfile: 'dist/wire.js',
 }
@@ -1114,6 +1200,8 @@ if (isWatch) {
     esbuild.context(pluginHooksOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
+    esbuild.context(mediaOptions),
+    esbuild.context(screenRecordOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
     esbuild.context(bundledSkillsOptions),
@@ -1128,7 +1216,9 @@ if (isWatch) {
     esbuild.context(usageCompanionOptions),
     esbuild.context(usagePanelOptions),
     esbuild.context(extensionHooksOptions),
+    esbuild.context(vaultOptions),
     esbuild.context(reportOptions),
+    esbuild.context(estimatorOptions),
     esbuild.context(recorderOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
@@ -1137,6 +1227,8 @@ if (isWatch) {
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
     esbuild.context(validationOptions),
     esbuild.context(wireOptions),
+    esbuild.context(estimateContractsOptions),
+    esbuild.context(vaultBoundariesOptions),
     esbuild.context(modelApiBoundariesOptions),
     esbuild.context(acpQuestionsOptions),
     esbuild.context({
@@ -1218,6 +1310,8 @@ if (isWatch) {
     pluginHooks: esbuild.build(pluginHooksOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
+    media: esbuild.build(mediaOptions),
+    screenRecord: esbuild.build(screenRecordOptions),
     agentImport: esbuild.build(agentImportOptions),
     conversationGit: esbuild.build(conversationGitOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),
@@ -1231,7 +1325,9 @@ if (isWatch) {
     usageCompanion: esbuild.build(usageCompanionOptions),
     usagePanel: esbuild.build(usagePanelOptions),
     extensionHooks: esbuild.build(extensionHooksOptions),
+    vault: esbuild.build(vaultOptions),
     report: esbuild.build(reportOptions),
+    estimator: esbuild.build(estimatorOptions),
     recorder: esbuild.build(recorderOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     judge: esbuild.build(judgeOptions),
@@ -1245,6 +1341,8 @@ if (isWatch) {
     ),
     validation: esbuild.build(validationOptions),
     wire: esbuild.build(wireOptions),
+    estimateContracts: esbuild.build(estimateContractsOptions),
+    vaultBoundaries: esbuild.build(vaultBoundariesOptions),
     modelApiBoundaries: esbuild.build(modelApiBoundariesOptions),
     browserCheck: esbuild.build(browserCheckOptions),
     browserRuntime: esbuild.build(browserRuntimeOptions),
@@ -1260,6 +1358,7 @@ if (isWatch) {
   const fontInstall = esbuild.build(fontInstallOptions)
   const playbook = esbuild.build(playbookOptions)
   const exec = esbuild.build(execOptions)
+  const runtimeAccounts = esbuild.build(runtimeAccountsOptions)
   const builds = [
     ...Object.values(shipped),
     acp,
@@ -1269,6 +1368,7 @@ if (isWatch) {
     runtimeQuestions,
     fontInstall,
     playbook,
+    runtimeAccounts,
   ]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
@@ -1295,9 +1395,14 @@ if (isWatch) {
     const { metafile: questionsMetafile } = await acpQuestions
     const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
     const { metafile: playbookMetafile } = await playbook
+    const { metafile: runtimeAccountsMetafile } = await runtimeAccounts
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),
       JSON.stringify(runtimeQuestionsMetafile, null, 2),
+    )
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimeAccounts.json'),
+      JSON.stringify(runtimeAccountsMetafile, null, 2),
     )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'acpQuestions.json'),
@@ -1332,6 +1437,8 @@ if (isWatch) {
   reportSize(HOOK_RUNTIME_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
+  reportSize(MEDIA_OUTFILE)
+  reportSize(SCREEN_RECORD_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(CONVERSATION_GIT_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
@@ -1345,7 +1452,9 @@ if (isWatch) {
   reportSize('dist/usageCompanion.js')
   reportSize('dist/usagePanel.js')
   reportSize(EXTENSION_HOOKS_OUTFILE)
+  reportSize(VAULT_OUTFILE)
   reportSize(REPORT_OUTFILE)
+  reportSize(ESTIMATOR_OUTFILE)
   reportSize(RECORDER_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)

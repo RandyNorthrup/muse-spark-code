@@ -25,6 +25,8 @@ import { buildSync } from 'esbuild'
 import * as acp from '@agentclientprotocol/sdk'
 import { runExec, type ExecDeps, type ExecOutputSchemaPort } from '../../src/runtime/exec/runExec'
 import * as z from 'zod/mini'
+import { accountSwap, sessionAccountsRig } from './helpers/runtimeAccounts'
+import type { ExecAccountsPort } from '../../src/runtime/exec/execAccounts'
 
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
@@ -69,6 +71,10 @@ import { compileOutputSchema } from '../../src/runtime/exec/outputSchema'
 import * as providersCommands from '../../src/runtime/providersCommands'
 import { formatStoredProviderSecret } from '../../src/runtime/keyStore'
 import * as keyInput from '../../src/runtime/exec/keyInput'
+import { AcpMedia } from '../../src/acp/media'
+import { acpMediaIo } from './helpers/acpMediaIo'
+import { videoFixture } from './helpers/media/fixtures'
+import { mediaModel } from './helpers/media/replay'
 
 const actualMemoryStore = keyInput.memorySecretStore
 
@@ -151,6 +157,12 @@ beforeAll(async () => {
     external: ['@napi-rs/keyring'],
     logLevel: 'silent',
   })
+  const translations = path.join(path.dirname(path.dirname(builtMain)), 'l10n')
+  mkdirSync(translations, { recursive: true })
+  writeFileSync(
+    path.join(translations, 'ui.de.json'),
+    readFileSync(path.join(process.cwd(), 'l10n', 'ui.de.json')),
+  )
   writeFileSync(
     path.join(path.dirname(path.dirname(builtMain)), 'package.json'),
     '{"version":"test"}',
@@ -667,6 +679,7 @@ function builtCommand(
   shouldHangTable = false,
   shouldBlockStderr = false,
   shouldDrainStderr = false,
+  language = 'en_US.UTF-8',
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
   const bootstrap = path.join(folder(), 'bootstrap.cjs')
   const trace = `${bootstrap}.trace`
@@ -683,14 +696,22 @@ Module._load = function(name, ...rest) { if(name === '@napi-rs/keyring') throw n
 ${shouldHangTable ? "require('node:fs/promises').readFile = () => new Promise(() => {});" : ''}
 ${shouldBlockStderr ? "require('node:fs/promises').readFile = () => Promise.reject(new Error('x'.repeat(4 * 1024 * 1024))); setTimeout(() => { mark('SIGINT'); process.emit('SIGINT'); setTimeout(() => { mark('SIGTERM'); process.emit('SIGTERM'); }, 10); }, 100);" : ''}`,
   )
+  // A home directory the test owns: the child never touches the runner's
+  // real one, and home lookup cannot fail where the user database is
+  // unavailable.
+  const home = folder()
   const child = childProcess.spawn(process.execPath, ['--require', bootstrap, builtMain, ...args], {
     cwd: path.dirname(bootstrap),
     env: {
       PATH: process.env['PATH'],
       SystemRoot: process.env['SystemRoot'],
-      LANG: shouldHangTable || shouldBlockStderr ? 'de_DE.UTF-8' : 'en_US.UTF-8',
+      LANG: shouldHangTable || shouldBlockStderr ? 'de_DE.UTF-8' : language,
       NODE_OPTIONS: '',
       NODE_PATH: '',
+      HOME: home,
+      USERPROFILE: home,
+      XDG_CONFIG_HOME: home,
+      XDG_DATA_HOME: home,
     },
     stdio: 'pipe',
   })
@@ -769,7 +790,9 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       summary: vi.fn(),
       onStalled: vi.fn(),
     })
+    const onAccountNotice = vi.fn()
     const client = createExecClient({
+      onAccountNotice,
       sink,
       lifecycle: h.life,
       onDenial: vi.fn(),
@@ -788,6 +811,16 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       { sessionUpdate: 'future_non_tool', extra: { text: `done ${FAKE_MODEL_API_KEY}` } },
       { sessionUpdate: 'agent_message_chunk.v2', content: { text: 'LLM|1|s' } },
       { sessionUpdate: 'agent_thought_chunk', content: { text: 'LLM|1|s' } },
+      {
+        sessionUpdate: 'agent_message_chunk',
+        _meta: { accountNotice: accountSwap() },
+        content: { text: 'account swap' },
+      },
+      {
+        sessionUpdate: 'agent_message_chunk',
+        _meta: { accountNotice: { ...accountSwap(), secret: 'account-secret-canary' } },
+        content: { text: 'must be suppressed' },
+      },
       { sessionUpdate: 'tool_future_update', rawOutput: 'LLM|1|s', toolCallId: 'x' },
     ]) {
       await writer.write(
@@ -800,7 +833,10 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     await connection.closed
     expect(h.life.cause).toBeNull()
     h.life.dispose()
-    expect(out.chunks).toHaveLength(1)
+    expect(out.chunks).toHaveLength(2)
+    expect(onAccountNotice).toHaveBeenCalledExactlyOnceWith(accountSwap())
+    expect(out.chunks.join('')).toContain('account_notice')
+    expect(out.chunks.join('')).not.toContain('account-secret-canary')
     expect(out.chunks.join('')).toContain('future_non_tool')
     expect(out.chunks.join('')).not.toContain(FAKE_MODEL_API_KEY)
     expect(out.chunks.join('')).not.toContain('LLM|1|s')
@@ -1690,3 +1726,183 @@ it.each(['1', '0.000001'])(
     }
   },
 )
+describe('M105 headless attachment entry', () => {
+  it('returns usage/2 for unsupported attached media and headless /record without inference', async () => {
+    const h = await harness(['--attach', 'clip.mp4'], [], {
+      media: () =>
+        Promise.resolve({
+          block: () => Promise.resolve(UI_TEXT.media.cappedRateUnknown),
+          attach: () => Promise.reject(new Error('unused')),
+          record: () => Promise.reject(new Error('unused')),
+        }),
+    })
+    writeFileSync(path.join(h.cwd, 'clip.mp4'), videoFixture())
+    const refused = await h.run()
+    expect(refused.code).toBe(2)
+    expect(h.api.responseBodies()).toHaveLength(0)
+    const recording = await harness()
+    recording.deps.options = {
+      ...recording.deps.options,
+      prompt: { kind: 'text', text: '/record' },
+    }
+    const refusedRecording = await recording.run()
+    expect(refusedRecording.code).toBe(2)
+    expect(recording.api.responseBodies()).toHaveLength(0)
+    // A typed headless /attach is a usage error too: no turn sends the queue.
+    const typed = await harness()
+    typed.deps.options = {
+      ...typed.deps.options,
+      prompt: { kind: 'text', text: '/attach clip.mp4' },
+    }
+    const refusedAttach = await typed.run()
+    expect(refusedAttach.code).toBe(2)
+    expect(typed.api.responseBodies()).toHaveLength(0)
+    expect(typed.err.chunks.join('')).toContain(UI_TEXT.media.attachHeadless)
+  })
+  it('returns usage/2 for an escaped path or an unbound media route before an API attempt', async () => {
+    for (const given of ['../private.mp4', 'clip.mp4']) {
+      const h = await harness(['--attach', given])
+      writeFileSync(path.join(h.cwd, 'clip.mp4'), videoFixture())
+      const done = await h.run()
+      expect(done.code).toBe(2)
+      expect(h.api.requests).toHaveLength(0)
+      expect(h.err.chunks.join('')).toContain(
+        given.startsWith('..') ? UI_TEXT.textFilePrivate : UI_TEXT.media.uploadStorageUnknown,
+      )
+    }
+  })
+
+  it('hands repeatable confined links to a noninteractive media port and keeps bytes out of exec output', async () => {
+    const prepare = vi.fn((_input: unknown) =>
+      Promise.resolve({ type: 'text' as const, text: 'test-registered-media' }),
+    )
+    const h = await harness(['--attach', 'clip.mp4', '--attach', 'clip.mp4'], [{ text: 'done' }], {
+      media: (context) => {
+        expect(context.interactive).toBe(false)
+        return Promise.resolve(
+          new AcpMedia({
+            ...context,
+            platform: process.platform,
+            model: () => mediaModel(context.modelId()),
+            io: acpMediaIo(),
+            assertReadable: () => Promise.resolve(),
+            prepare,
+          }),
+        )
+      },
+    })
+    const bytes = videoFixture({ soundtrack: false })
+    writeFileSync(path.join(h.cwd, 'clip.mp4'), bytes)
+    const done = await h.run()
+    expect(done.code).toBe(0)
+    expect(prepare).toHaveBeenCalledTimes(2)
+    expect(result(done).status).toBe('completed')
+    expect(result(done).inputs).toEqual(
+      Array.from({ length: 2 }, () => ({
+        name: 'clip.mp4',
+        bytes: bytes.length,
+        chunks: 0,
+        complete: true,
+      })),
+    )
+    expect(JSON.stringify(h.api.responseBodies())).toContain('test-registered-media')
+    expect([...h.out.chunks, ...h.err.chunks].join('')).not.toContain(
+      Buffer.from(bytes).toString('base64'),
+    )
+  })
+})
+
+describe('M108 account runtime composition', () => {
+  it('refuses unbound terminal account operations before credential access', async () => {
+    for (const argv of [
+      ['providers', 'accounts', 'list', '--provider', 'meta'],
+      ['auth', 'set', '--provider', 'meta', '--account', 'work'],
+    ]) {
+      const r = await builtCommand(argv, 'terminal-account-canary\n', 0)
+      expect(r.code).toBe(1)
+      expect(r.stdout).toBe('')
+      expect(r.stderr).toContain(UI_TEXT.accounts.unavailable)
+      expect(r.stderr).not.toContain('terminal-account-canary')
+      expect(r.stderr).not.toContain('forbidden')
+    }
+  })
+
+  it('renders new CLI usage errors in the installed language before any credential access', async () => {
+    const r = await builtCommand(
+      ['providers', 'accounts', 'list', '--provider', 'META'],
+      '',
+      0,
+      false,
+      false,
+      false,
+      'de_DE.UTF-8',
+    )
+    expect(r.code).toBe(1)
+    expect(r.stdout).toBe('')
+    expect(r.stderr).toContain('Konten:')
+    expect(r.stderr).not.toContain('Accounts:')
+  })
+
+  it('refuses an unbound account before reading keys or dispatching any request', async () => {
+    const h = await harness(['--account', 'work'])
+    const get = vi.spyOn(h.store, 'get')
+    h.deps.options = { ...h.deps.options, prompt: { kind: 'file', path: 'must-not-read' } }
+    const read = vi.fn(() => Promise.reject(new Error('unexpected account prompt-file read')))
+    h.deps.readFile = read
+    const r = await h.run()
+    expect(r.code).toBe(2)
+    expect(h.api.requests).toEqual([])
+    expect(get).not.toHaveBeenCalled()
+    expect(read).not.toHaveBeenCalled()
+    expect(h.err.chunks.join('')).toContain(UI_TEXT.accounts.unavailable)
+  })
+
+  it('refuses uncaptured Muse Code account factories at the programmatic boundary', async () => {
+    const create = vi.fn<ExecAccountsPort['create']>(() => {
+      throw new Error('uncaptured factory called')
+    })
+    const h = await harness(['--account', 'work'], [], { accounts: { create } })
+    h.deps.options = { ...h.deps.options, backend: 'museCode' }
+    const r = await h.run()
+    expect(r.code).toBe(2)
+    expect(create).not.toHaveBeenCalled()
+    expect(h.api.requests).toEqual([])
+    expect(h.err.chunks.join('')).toContain(UI_TEXT.accounts.museCodeUnavailable)
+  })
+
+  it('supplies the chosen account, pool policy and unchanged bounded transport to the injected runtime', async () => {
+    const accounts = sessionAccountsRig()
+    accounts.port.read = () => Promise.resolve({ ...accounts.state(), currentAccount: 'work' })
+    const create = vi.fn<ExecAccountsPort['create']>((deps, selection) => {
+      expect(selection).toEqual({ account: 'work', hasPoolFlag: true, isInteractive: false })
+      expect(deps.exec?.isEphemeral).toBe(false)
+      return { runtime: runtimeBackends.createRuntimeBackend(deps), accounts: accounts.port }
+    })
+    const h = await harness(['--account', 'work', '--account-pool'], [{ text: 'done' }], {
+      accounts: { create },
+    })
+    const r = await h.run()
+    expect(r.code).toBe(0)
+    expect(create).toHaveBeenCalledOnce()
+    expect(result(r).limits.budgetUsd).toBe(Usd.from(1).toAmount())
+    expect(result(r).ledger?.capUsd).toBe(Usd.from(1).toAmount())
+    expect(result(r).usage.requests).toBe(1)
+    expect(h.api.requests.filter((request) => request.path === '/responses')).toHaveLength(1)
+  })
+
+  it('refuses a runtime that advertises another account before starting a turn', async () => {
+    const accounts = sessionAccountsRig()
+    const h = await harness(['--account', 'work'], [{ text: 'must not send' }], {
+      accounts: {
+        create: (deps) => ({
+          runtime: runtimeBackends.createRuntimeBackend(deps),
+          accounts: accounts.port,
+        }),
+      },
+    })
+    const r = await h.run()
+    expect(r.code).toBe(2)
+    expect(h.api.requests.filter((request) => request.path === '/responses')).toEqual([])
+    expect(h.err.chunks.join('')).toContain(UI_TEXT.accounts.invalidAccount)
+  })
+})

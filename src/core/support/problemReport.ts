@@ -42,6 +42,7 @@ import {
 } from '../../shared/constants'
 import { reportWebviewErrorSchema } from '../../shared/protocol'
 import { redactSecrets } from '../redact'
+import type { SecretScrubPort } from '../../shared/redact'
 
 const YES = 'yes'
 const NO = 'no'
@@ -488,7 +489,7 @@ function cappedDescription(description: string): string {
  * off-allowlist facts; skips off-allowlist records. The returned text is the
  * final draft: the preview shows it byte-identical, and exports carry it unchanged.
  */
-export function buildProblemReportDraft(input: ProblemReportInput): SealedReportDraft {
+function reportParts(input: ProblemReportInput): { title: string; text: string } {
   if (!Number.isFinite(input.nowMs)) {
     throw new ReportBuildError('nowMs', 'not a finite time')
   }
@@ -509,9 +510,27 @@ export function buildProblemReportDraft(input: ProblemReportInput): SealedReport
         : `Recent events (${String(events.length)}):\n${events.length === 0 ? NONE : eventLines(events).join('\n')}`,
     )
   }
-  const title = scrubFinalDraft(problemReportTitle(facts), input.scrub)
-  const text = scrubFinalDraft(sections.join('\n\n'), input.scrub)
-  return sealReportDraft(title, text)
+  return { title: problemReportTitle(facts), text: sections.join('\n\n') }
+}
+
+/** Existing synchronous builder for callers with no vault. */
+export function buildProblemReportDraft(input: ProblemReportInput): SealedReportDraft {
+  const parts = reportParts(input)
+  return sealReportDraft(
+    scrubFinalDraft(parts.title, input.scrub),
+    scrubFinalDraft(parts.text, input.scrub),
+  )
+}
+
+/** M109: scrub raw final text before privacy edits and seal only the resulting preview. */
+export async function buildVaultProblemReportDraft(
+  input: ProblemReportInput,
+  vaultScrub?: SecretScrubPort,
+): Promise<SealedReportDraft> {
+  const parts = reportParts(input)
+  const title = vaultScrub === undefined ? parts.title : await vaultScrub.scrub(parts.title)
+  const text = vaultScrub === undefined ? parts.text : await vaultScrub.scrub(parts.text)
+  return sealReportDraft(scrubFinalDraft(title, input.scrub), scrubFinalDraft(text, input.scrub))
 }
 
 /** Where a draft goes on GitHub: opened prefilled, or the fallback when too long. */

@@ -6,6 +6,10 @@ import {
   type CommandTimeouts,
   describeExit,
   MuseCodeHost,
+  MuseCodeCommandOwner,
+  stepMuseCodeLease,
+  type MuseCodeLeaseState,
+  type MuseCodeLeaseEvent,
 } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
@@ -27,6 +31,8 @@ import {
   UNQUEUED_NOTIFICATION,
 } from './helpers/m87Capture'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { fakeAccountHome } from './helpers/accountHome'
+import type { MuseCodeAccountHome } from '../../src/core/backends/musecode/accountHomes'
 import { countLogged } from './helpers/logText'
 import {
   fakeInitializeResult,
@@ -69,14 +75,18 @@ const ack = (params: Record<string, unknown>) => ({
 function setup(
   options: {
     timeouts?: CommandTimeouts
+    accountHome?: MuseCodeAccountHome
     /** What the handshake granted (M46: `userShell`); nothing by default. */
     grantedCapabilities?: readonly string[]
   } = {},
 ) {
-  const handle = fakeMspHost({
-    ...fakeInitializeResult,
-    grantedCapabilities: [...(options.grantedCapabilities ?? [])],
-  })
+  const handle = fakeMspHost(
+    {
+      ...fakeInitializeResult,
+      grantedCapabilities: [...(options.grantedCapabilities ?? [])],
+    },
+    options.accountHome,
+  )
   const log = new FakeLogOutputChannel()
   handle.server.handle('session/start', (params) => ({
     session: {
@@ -150,8 +160,15 @@ function setup(
       },
     ],
   }))
-  const host = new MuseCodeHost(handle.host, log, options.timeouts)
-  return { ...handle, log, host }
+  const host = new MuseCodeHost(
+    handle.host,
+    log,
+    options.timeouts,
+    undefined,
+    undefined,
+    options.accountHome,
+  )
+  return { ...handle, log, host, connection: handle.host.connection }
 }
 
 const startOptions = {
@@ -237,6 +254,19 @@ describe('MuseCodeHost: guarded notifications (M106)', () => {
     await host.close()
   })
 })
+
+/** Observe settlement without asserting until the racing lifecycle action has run. */
+async function recordOutcome(
+  result: Promise<unknown>,
+  accepted: (value: unknown) => void,
+  refused: (error: unknown) => void,
+): Promise<void> {
+  try {
+    accepted(await result)
+  } catch (error: unknown) {
+    refused(error)
+  }
+}
 
 describe('MuseCodeHost', () => {
   it('disposes every session even when bounded process close reports a forced stop', async () => {
@@ -1053,6 +1083,361 @@ describe('MuseCodeHost: stored sessions (M6)', () => {
   })
 })
 
+describe('MuseCodeHost: account command lease (FIXM108M)', () => {
+  it('requires the matching submission owner before accepting an account host', async () => {
+    const accountHome = fakeAccountHome()
+    const handle = fakeMspHost(fakeInitializeResult, accountHome)
+    const unfenced = {
+      connection: handle.host.connection,
+      initializeResult: handle.host.initializeResult,
+      exited: handle.host.exited,
+      close: handle.host.close,
+    }
+    try {
+      expect(
+        () =>
+          new MuseCodeHost(
+            unfenced,
+            new FakeLogOutputChannel(),
+            undefined,
+            undefined,
+            undefined,
+            accountHome,
+          ),
+      ).toThrow(UI_TEXT.accounts.museCodeUnavailable)
+      expect(
+        () =>
+          new MuseCodeHost(
+            { ...unfenced, commandOwner: new MuseCodeCommandOwner(fakeAccountHome('personal')) },
+            new FakeLogOutputChannel(),
+            undefined,
+            undefined,
+            undefined,
+            accountHome,
+          ),
+      ).toThrow(UI_TEXT.accounts.museCodeUnavailable)
+      expect(
+        () =>
+          new MuseCodeHost(
+            { ...unfenced, commandOwner: new MuseCodeCommandOwner(accountHome) },
+            new FakeLogOutputChannel(),
+            undefined,
+            undefined,
+            undefined,
+            accountHome,
+          ),
+      ).toThrow(UI_TEXT.accounts.museCodeUnavailable)
+      expect(() => handle.host.commandOwner?.connect(handle.server)).toThrow(
+        UI_TEXT.accounts.invalidAccount,
+      )
+    } finally {
+      await handle.host.close()
+    }
+  })
+
+  it('models all revoke/queue/dispatch/resume interleavings against an independent authority model', () => {
+    const events: readonly MuseCodeLeaseEvent[] = [
+      { type: 'queue', id: 1, generation: 0 },
+      { type: 'dispatch', id: 1 },
+      { type: 'revoke' },
+      { type: 'resume', generation: 0 },
+    ]
+    const enumerate = (remaining: readonly MuseCodeLeaseEvent[]): MuseCodeLeaseEvent[][] =>
+      remaining.length === 0
+        ? [[]]
+        : remaining.flatMap((event, index) =>
+            enumerate(remaining.filter((_other, otherIndex) => otherIndex !== index)).map(
+              (tail) => [event, ...tail],
+            ),
+          )
+    const orders = enumerate(events)
+    expect(orders).toHaveLength(24)
+    for (const order of orders) {
+      let state: MuseCodeLeaseState = { generation: 0, status: 'active', queued: new Map() }
+      let isRevoked = false
+      let isQueued = false
+      for (const event of order) {
+        const canAdmit =
+          event.type !== 'revoke' && !isRevoked && (event.type !== 'dispatch' || isQueued)
+        const next = stepMuseCodeLease(state, event)
+        expect(next.effects.admitted, order.map((entry) => entry.type).join('/')).toBe(canAdmit)
+        if (event.type === 'revoke') {
+          isRevoked = true
+          isQueued = false
+        }
+        if (!isRevoked && event.type === 'queue') isQueued = true
+        if (event.type === 'dispatch') isQueued = false
+        state = next.state
+        expect(state.queued.has(1)).toBe(isQueued)
+      }
+      expect(stepMuseCodeLease(state, { type: 'resume', generation: 0 }).effects.admitted).toBe(
+        false,
+      )
+    }
+  })
+
+  it('rejects stale queued generations and duplicate dispatch even while the lease is active', () => {
+    const state: MuseCodeLeaseState = { generation: 1, status: 'active', queued: new Map() }
+    const stale = stepMuseCodeLease(state, { type: 'queue', id: 1, generation: 0 })
+    expect(stale.effects.admitted).toBe(false)
+    expect(stepMuseCodeLease(stale.state, { type: 'dispatch', id: 1 }).effects.admitted).toBe(false)
+    const queued = stepMuseCodeLease(state, { type: 'queue', id: 1, generation: 1 })
+    const dispatched = stepMuseCodeLease(queued.state, { type: 'dispatch', id: 1 })
+    expect(dispatched.effects.admitted).toBe(true)
+    expect(stepMuseCodeLease(dispatched.state, { type: 'dispatch', id: 1 }).effects.admitted).toBe(
+      false,
+    )
+  })
+
+  it.each(['revoke', 'close'])(
+    'drops an SDK-queued turn under backpressure on %s',
+    async (action) => {
+      const accountHome = fakeAccountHome()
+      const { host, server, connection } = setup({ accountHome })
+      const session = await host.startSession(startOptions)
+      const entered = Promise.withResolvers<undefined>()
+      const released = Promise.withResolvers<undefined>()
+      const write = server.write.bind(server)
+      const blocked = vi.spyOn(server, 'write').mockImplementationOnce(async (chunk) => {
+        await write(chunk)
+        entered.resolve(undefined)
+        await released.promise
+      })
+      // A real SDK write tail, not a delayed promise around request().
+      const deferredClose = vi.spyOn(server, 'close').mockImplementation(() => undefined)
+      connection.notify('initialized')
+      await entered.promise
+      const accepted = vi.fn()
+      const refused = vi.fn()
+      const outcome = recordOutcome(
+        session.sendTurn([{ type: 'text', text: 'queued' }]),
+        accepted,
+        refused,
+      )
+      try {
+        if (action === 'revoke') accountHome.invalidate()
+        else await host.close()
+        released.resolve(undefined)
+        await outcome
+        await settle()
+        expect(refused).toHaveBeenCalledOnce()
+        expect(accepted).not.toHaveBeenCalled()
+        expect(server.requestsFor('turn/start')).toHaveLength(0)
+      } finally {
+        released.resolve(undefined)
+        blocked.mockRestore()
+        deferredClose.mockRestore()
+        await host.close()
+        await outcome
+      }
+    },
+  )
+
+  it.each([
+    ['approval/listPending', 'revoke'],
+    ['view/page', 'revoke'],
+    ['approval/listPending', 'close'],
+    ['view/page', 'close'],
+    ['approval/listPending', 'exit'],
+    ['view/page', 'exit'],
+  ])('discards resume invalidated during %s recovery on %s', async (method, action) => {
+    const accountHome = fakeAccountHome()
+    const { host, server, exit } = setup({ accountHome })
+    server.handle('session/resume', (params) =>
+      envelope(String(params['sessionId']), {
+        pendingRequests:
+          method === 'approval/listPending'
+            ? [{ kind: 'approval', approvalId: 'a1', viewCursor: 'v1' }]
+            : [],
+      }),
+    )
+    server.silence(method)
+    const accepted = vi.fn()
+    const refused = vi.fn()
+    const outcome = recordOutcome(
+      host.resumeSession('s-old', startOptions.modelId),
+      accepted,
+      refused,
+    )
+    try {
+      await settle()
+      expect(server.requestsFor(method)).toHaveLength(1)
+      if (action === 'revoke') accountHome.invalidate()
+      else if (action === 'close') await host.close()
+      else exit(0)
+      await outcome
+      expect(accepted).not.toHaveBeenCalled()
+      expect(refused).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          message:
+            action === 'revoke' ? UI_TEXT.accounts.invalidAccount : UI_TEXT.questionCancelled,
+        }),
+      )
+      expect(host.sessionCount).toBe(0)
+    } finally {
+      await host.close()
+      await outcome
+    }
+  })
+
+  it('refuses host and retained-session commands before dispatch after lease revocation', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server } = setup({ accountHome })
+    const session = await host.startSession(startOptions)
+    accountHome.assertCurrent.mockImplementation(() => {
+      throw new Error('revoked command lease')
+    })
+    try {
+      await expect(session.sendTurn([{ type: 'text', text: 'old account' }])).rejects.toThrow(
+        'revoked command lease',
+      )
+      await expect(host.listModels()).rejects.toThrow('revoked command lease')
+      expect(server.requestsFor('turn/start')).toHaveLength(0)
+      expect(server.requestsFor('model/list')).toHaveLength(0)
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('refuses an in-flight old-account turn on a switch and ignores its late acknowledgement', async () => {
+    const accountHome = fakeAccountHome()
+    const old = setup({ accountHome })
+    const next = setup({ accountHome: { ...fakeAccountHome('personal'), generation: 1 } })
+    try {
+      const session = await old.host.startSession(startOptions)
+      old.server.silence('turn/start')
+      const accepted = vi.fn()
+      const refused = vi.fn()
+      const outcome = recordOutcome(
+        session.sendTurn([{ type: 'text', text: 'racing switch' }]),
+        accepted,
+        refused,
+      )
+      await settle()
+      const request = old.server.requestsFor('turn/start')[0]
+      expect(request).toBeDefined()
+      accountHome.invalidate()
+      await settle()
+      expect(refused).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ message: UI_TEXT.accounts.invalidAccount }),
+      )
+      await outcome
+      const replacement = await next.host.startSession(startOptions)
+      await expect(replacement.sendTurn([{ type: 'text', text: 'new account' }])).resolves.toEqual({
+        turnId: 'turn-1',
+        disposition: 'started',
+      })
+      old.server.incoming.push(
+        `${JSON.stringify({ jsonrpc: '2.0', id: request?.id, result: { ...ack(request?.params ?? {}), turnId: 'turn-1', disposition: 'started', startedNewTurn: true } })}\n`,
+      )
+      await settle()
+      expect(accepted).not.toHaveBeenCalled()
+      expect(refused).toHaveBeenCalledOnce()
+      expect(old.server.requestsFor('turn/start')).toHaveLength(1)
+      expect(next.server.requestsFor('turn/start')).toHaveLength(1)
+    } finally {
+      await old.host.close()
+      await next.host.close()
+    }
+  })
+
+  it('rechecks the lease after a reply before reporting a started turn', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server } = setup({ accountHome })
+    const session = await host.startSession(startOptions)
+    server.handle('turn/start', (params) => {
+      accountHome.assertCurrent.mockImplementation(() => {
+        throw new Error('revoked before acknowledgement')
+      })
+      return { ...ack(params), turnId: 'turn-1', disposition: 'started', startedNewTurn: true }
+    })
+    try {
+      await expect(session.sendTurn([{ type: 'text', text: 'racing reply' }])).rejects.toThrow(
+        'revoked before acknowledgement',
+      )
+      expect(server.requestsFor('turn/start')).toHaveLength(1)
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('refuses retry dispatch when the lease is revoked during backoff', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server, log } = setup({ accountHome })
+    const session = await host.startSession(startOptions)
+    const enteredBackoff = Promise.withResolvers<undefined>()
+    log.warn.mockImplementation(() => {
+      enteredBackoff.resolve(undefined)
+    })
+    const refuse = refusalOf('overloaded', -32_001)
+    let calls = 0
+    server.handle('session/setModel', (params) => {
+      calls += 1
+      return calls === 1 ? refuse() : ack(params)
+    })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      const refused = vi.fn()
+      const pending = recordOutcome(session.setModel('muse-spark-1.2'), vi.fn(), refused)
+      await enteredBackoff.promise
+      accountHome.invalidate()
+      await vi.runAllTimersAsync()
+      await pending
+      expect(refused).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ message: UI_TEXT.accounts.invalidAccount }),
+      )
+      expect(server.requestsFor('session/setModel')).toHaveLength(1)
+      expect(session.modelId).toBe(startOptions.modelId)
+    } finally {
+      random.mockRestore()
+      vi.useRealTimers()
+      await host.close()
+    }
+  })
+
+  it('refuses pending and new commands as soon as host close starts', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    server.silence('session/setModel')
+    const close = vi.spyOn(server, 'close').mockImplementation(() => undefined)
+    const refused = vi.fn()
+    const pending = recordOutcome(session.setModel('muse-spark-1.2'), vi.fn(), refused)
+    try {
+      const closing = host.close()
+      await expect(session.sendTurn([{ type: 'text', text: 'closing host' }])).rejects.toThrow(
+        UI_TEXT.questionCancelled,
+      )
+      await settle()
+      expect(refused).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ message: UI_TEXT.questionCancelled }),
+      )
+      await pending
+      await closing
+      expect(server.requestsFor('turn/start')).toHaveLength(0)
+    } finally {
+      close.mockRestore()
+      server.close()
+      await pending
+    }
+  })
+
+  it('refuses a command whose captured lease generation no longer matches the host account', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server } = setup({ accountHome })
+    const session = await host.startSession(startOptions)
+    accountHome.generation += 1
+    try {
+      await expect(session.sendTurn([{ type: 'text', text: 'stale generation' }])).rejects.toThrow(
+        UI_TEXT.accounts.invalidAccount,
+      )
+      expect(server.requestsFor('turn/start')).toHaveLength(0)
+    } finally {
+      await host.close()
+    }
+  })
+})
+
 describe('MuseCodeHost: subscription usage (M8)', () => {
   const usage = {
     observedAtMs: 1_800_000_000_000,
@@ -1060,6 +1445,39 @@ describe('MuseCodeHost: subscription usage (M8)', () => {
     window: { usedPercent: 12, resetsAtMs: 1_800_000_900_000, windowDurationMins: 300 },
     weekly: { usedPercent: 3, resetsAtMs: 1_800_400_000_000 },
   }
+
+  it('attributes parsed usage/changed and usage/read only to the serving account', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server } = setup({ accountHome })
+    server.notify('usage/changed', usage)
+    server.notify('usage/changed', { tier: 'malformed' })
+    await settle()
+    expect(accountHome.observeUsage).toHaveBeenCalledExactlyOnceWith(usage)
+    server.handle('usage/read', () => ({ usage }))
+    await host.readUsage()
+    expect(accountHome.observeUsage).toHaveBeenCalledTimes(2)
+    server.handle('usage/read', () => ({}))
+    await host.readUsage()
+    expect(accountHome.observeUsage).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses revoked account observations before notifying usage listeners', async () => {
+    const accountHome = fakeAccountHome()
+    const { host, server, log } = setup({ accountHome })
+    const listener = vi.fn()
+    host.onUsageChanged(listener)
+    accountHome.assertCurrent.mockImplementation(() => {
+      throw new Error('revoked')
+    })
+    server.notify('usage/changed', usage)
+    await settle()
+    expect(accountHome.observeUsage).not.toHaveBeenCalled()
+    expect(listener).not.toHaveBeenCalled()
+    expect(log.error).toHaveBeenCalledOnce()
+    server.handle('usage/read', () => ({ usage }))
+    await expect(host.readUsage()).rejects.toThrow('revoked')
+    expect(accountHome.observeUsage).not.toHaveBeenCalled()
+  })
 
   it('reads usage/read, absent before the first observation', async () => {
     const { host, server } = setup()

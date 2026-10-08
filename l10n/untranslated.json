@@ -8,6 +8,7 @@
       "clearItem",
       "logoutItem",
       "agentsCommand",
+      "referenceAccountsTitle",
       "usageCommand",
       "costCommand",
       "importSourceClaude",
@@ -70,7 +71,10 @@
       "teamJsonRefused",
       "teamSwitchRow",
       "legalScanItem",
-      "legalUsage"
+      "legalUsage",
+      "referenceScreenRecording",
+      "referenceLatestRecording",
+      "referenceUploadedFiles"
     ],
     "cs": [
       "groupModel",

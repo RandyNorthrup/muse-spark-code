@@ -17,7 +17,7 @@ import {
 } from '../../shared/agentOutcome'
 import { buildAgentReceipt } from '../../shared/agentReceipt'
 import type { ItemSnapshot } from '../../shared/agentEvents'
-import { formatNumber } from '../../shared/l10n/text'
+import { fill, formatNumber, formatTokenWindow, plural } from '../../shared/l10n/text'
 import {
   SUBAGENT_CLOSED,
   SUBAGENT_RESULT_READY,
@@ -27,8 +27,6 @@ import {
   USER_SHELL_PREFIX,
 } from '../../shared/constants'
 import type { TokenUsage } from '../../shared/agentEvents'
-import { fill, plural } from '../../shared/l10n/text'
-import { formatTokenWindow } from '../../shared/paletteFormatting'
 import type { BackendKind } from '../../shared/protocol'
 import type { TeamTreeData } from '../../shared/teamView'
 import {

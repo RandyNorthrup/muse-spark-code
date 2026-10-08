@@ -20,8 +20,10 @@ import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
+  ESTIMATOR_BUNDLE_FILE,
   RUNTIME_QUESTIONS_BUNDLE_FILE,
   PLAYBOOK_BUNDLE_FILE,
+  RUNTIME_ACCOUNTS_BUNDLE_FILE,
   ACP_AUTH_METHODS,
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
@@ -71,7 +73,7 @@ import type { RuntimeSharingPorts } from './sharing/sharingEntry'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
 import { formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
-
+import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
@@ -80,7 +82,12 @@ import { fontsBundle } from './fonts/bundle'
 import { playbookLoader } from './playbook/playbookBundle'
 import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
-import { credentialStoreName, keyringSecretStore, StoreUnavailableError } from './keyStore'
+import {
+  credentialStoreName,
+  keyringSecretStore,
+  StoreUnavailableError,
+  type KeyringEntry,
+} from './keyStore'
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import type { ProvidersDeps } from './providersCommands'
 import { takeCredentials } from './credentialVariables'
@@ -119,6 +126,17 @@ import { settleScheduleCommand } from './schedules/settle'
 
 import { lazyRuntimeResources } from './resources/load'
 import type { ResourceSettings } from '../shared/resources'
+import { execAccountSelection } from './exec/execAccounts'
+import { ACCOUNT_DEFAULT_ID } from '../shared/constants'
+import { runtimeAccountsLoader, type RuntimeAccountsBundle } from './providers/accountsBundle'
+import type {
+  RuntimeAccountServices,
+  RuntimeAccountServicesInput,
+} from './providers/runtimeServices'
+import { AcpVault } from '../acp/vault'
+import { runtimeVaultLoader } from './vault/vaultRuntime'
+import { runVaultCommand, vaultUsage } from './vault/vaultCommand'
+import { chooseVaultDecision, readVaultMaterial } from './vault/vaultInput'
 
 const EXIT_FAILED = 1
 // Keep only presence for reports, before credential variables leave the process.
@@ -141,6 +159,18 @@ const sharingCredentials = takeCredentials(process.env)
 // The package root holds `package.json` and `l10n/`; this file runs from `dist/`.
 const distDir = __dirname
 const packageRoot = path.dirname(distDir)
+// Construction performs no I/O; W binds the installed lazy factory on the first need.
+async function openVaultCommands() {
+  const binding = await loadVault()
+  return await binding.commands()
+}
+const acpVault = new AcpVault(openVaultCommands)
+const loadVault = runtimeVaultLoader({
+  dataDir: agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+  distDir,
+  processId: process.pid,
+  acp: acpVault,
+})
 
 /** Standalone headless commands own their process, including wedged late setup. */
 function exitHeadless(code: number, shouldForce = false): never {
@@ -177,6 +207,45 @@ function packageVersion(): string {
 }
 
 /** The OS credential store's entry; Linux is held to the Secret Service (D61). */
+type KeyringEntryConstructor = new (
+  service: string,
+  account: string,
+  options: { linux: { store: 'secret-service' } },
+) => KeyringEntry
+const keyringEntryClass: { value?: Promise<KeyringEntryConstructor> } = {}
+async function loadEntryClass(): Promise<KeyringEntryConstructor> {
+  keyringEntryClass.value ??= (async () => {
+    const keyring = await import('@napi-rs/keyring')
+    return keyring.AsyncEntry
+  })()
+  return await keyringEntryClass.value
+}
+/** The OS credential store's entry; Linux is held to the Secret Service (D61). */
+function openKeyringEntry(service: string, account: string): KeyringEntry {
+  const loaded: { value?: Promise<KeyringEntry> } = {}
+  const entry = async (): Promise<KeyringEntry> => {
+    loaded.value ??= (async () => {
+      const AsyncEntry = await loadEntryClass()
+      return new AsyncEntry(service, account, { linux: { store: 'secret-service' } })
+    })()
+    return await loaded.value
+  }
+  return {
+    getPassword: async (): Promise<string | undefined> => {
+      const open = await entry()
+      const secret = await open.getPassword()
+      return secret ?? undefined
+    },
+    setPassword: async (value: string): Promise<void> => {
+      const open = await entry()
+      await open.setPassword(value)
+    },
+    deletePassword: async (): Promise<boolean> => {
+      const open = await entry()
+      return await open.deletePassword()
+    },
+  }
+}
 const nativeStore: { value?: Promise<SecretStore> } = {}
 async function loadSecrets(): Promise<SecretStore> {
   nativeStore.value ??= (async () => {
@@ -589,7 +658,11 @@ async function openUsageBrowser(input: string): Promise<void> {
   }
 }
 
-async function serve(options: ServeOptions, log: Logger): Promise<number> {
+async function serve(
+  options: ServeOptions,
+  log: Logger,
+  loadAccounts: () => RuntimeAccountServices,
+): Promise<number> {
   let clientName = 'ACP'
   const recording = createUsageRecording({
     client: () => clientName,
@@ -687,6 +760,8 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
           uiLocale(),
         ),
       reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
+      vault: acpVault,
+      ...(options.backend === 'modelApi' && { accounts: loadAccounts().sessions('meta') }),
       legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
         const bundle = agentLegalBundle()
         const handle = await bundle.runLegalScan({ workspaceRoot: cwd, input: {}, signal })
@@ -747,6 +822,10 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
             bundle.runPlaybookCommand(command, port, UI_TEXT, uiLocale()),
         }
       },
+      estimate: createRuntimeEstimate({
+        bundlePath: path.join(distDir, ESTIMATOR_BUNDLE_FILE),
+        log,
+      }),
       questions: (input) => {
         const registry = loadQuestions().createRuntimeQuestionRegistry(
           input,
@@ -861,6 +940,31 @@ async function main(): Promise<number> {
       }, 'warn'),
     })
   const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
+  const servicesInput: RuntimeAccountServicesInput = {
+    dataDir: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    openEntry: openKeyringEntry,
+  }
+  let cachedBundle: RuntimeAccountsBundle | undefined
+  const loadAccountsBundle = (log: Logger): RuntimeAccountsBundle => {
+    cachedBundle ??= runtimeAccountsLoader({
+      bundlePath: path.join(distDir, RUNTIME_ACCOUNTS_BUNDLE_FILE),
+      log,
+    })()
+    return cachedBundle
+  }
+  let cachedAccounts: RuntimeAccountServices | undefined
+  const loadAccounts = (log: Logger): RuntimeAccountServices => {
+    cachedAccounts ??= loadAccountsBundle(log).createRuntimeAccountServicesForLocale(
+      UI_TEXT,
+      uiLocale(),
+      servicesInput,
+    )
+    return cachedAccounts
+  }
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
     const stderr = createFdWriter(process.stderr.fd, () => {
       /* A usage error already owns exit 2; a closed pipe cannot turn it into success. */
@@ -983,6 +1087,16 @@ async function main(): Promise<number> {
       headlessCode = await runHeadless(
         lifecycle,
         {
+          ...((command.options.accountPool === true ||
+            execAccountSelection(command.options).account !== ACCOUNT_DEFAULT_ID) && {
+            accounts: loadAccounts(log).exec,
+          }),
+          vault: {
+            open: async (context) => {
+              const binding = await loadVault()
+              return await binding.exec.open(context)
+            },
+          },
           options: command.options,
           version: packageVersion(),
           distDir,
@@ -1178,6 +1292,33 @@ async function main(): Promise<number> {
         return EXIT_FAILED
       }
     }
+    case 'vault': {
+      const controller = new AbortController()
+      const abort = () => {
+        controller.abort()
+      }
+      process.once('SIGINT', abort)
+      process.once('SIGTERM', abort)
+      try {
+        return await runVaultCommand(command.options, {
+          open: openVaultCommands,
+          readMaterial: (signal) => readVaultMaterial(process.stdin, process.stderr, signal),
+          choose: (title, choices, signal) =>
+            chooseVaultDecision(process.stdin, process.stderr, title, choices, signal),
+          print: (text) => {
+            writeLine(process.stdout, text)
+          },
+          printError: (text) => {
+            writeLine(process.stderr, text)
+          },
+          now: Date.now,
+          signal: controller.signal,
+        })
+      } finally {
+        process.off('SIGINT', abort)
+        process.off('SIGTERM', abort)
+      }
+    }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
     }
@@ -1186,7 +1327,7 @@ async function main(): Promise<number> {
       return await providers.run(command.action)
     }
     case 'serve': {
-      return await serve(command.options, log)
+      return await serve(command.options, log, () => loadAccounts(log))
     }
     case 'login': {
       const { museCode } = await runtimeFor(command.options, log)
@@ -1202,11 +1343,46 @@ async function main(): Promise<number> {
       })
     }
     case 'authSet': {
-      if (command.provider !== undefined) {
+      const { target } = command
+      if (target === undefined) return await authSet(authDeps())
+      if (target.provider !== 'meta' && target.account === ACCOUNT_DEFAULT_ID) {
         const providersFile = await userProvidersFile()
-        return await authSetProvider(authDeps(), command.provider, providersFile.readUserFile)
+        return await authSetProvider(authDeps(), target.provider, providersFile.readUserFile)
       }
-      return await authSet(authDeps())
+      return target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID
+        ? await authSet(authDeps())
+        : await loadAccountsBundle(log).runAccountAuthSet(target, {
+            ...loadAccounts(log).commands,
+            ...authDeps(),
+          })
+    }
+    case 'accounts': {
+      return await loadAccountsBundle(log).runAccountsCommand(command.options, {
+        ...loadAccounts(log).commands,
+        print: (line) => {
+          writeLine(process.stdout, line)
+        },
+        printError: (line) => {
+          writeLine(process.stderr, line)
+        },
+      })
+    }
+    case 'developer': {
+      const result = await loadAccountsBundle(log).runTerminalDeveloperCommand(
+        UI_TEXT,
+        uiLocale(),
+        servicesInput,
+        {
+          readLine: (prompt) => readSecretLine(prompt, process.stdin, process.stderr),
+          print: (line) => {
+            writeLine(process.stdout, line)
+          },
+        },
+        command.args,
+        'terminal',
+      )
+      writeLine(result.exitCode === 0 ? process.stdout : process.stderr, result.text)
+      return result.exitCode
     }
     case 'authStatus': {
       return command.provider === undefined
@@ -1233,6 +1409,18 @@ async function main(): Promise<number> {
     case 'providersRemove': {
       const { providersRemove } = await import('./providersCommands')
       return await providersRemove(await providersDeps(), command.provider)
+    }
+    case 'estimate': {
+      return await runRuntimeEstimateCommand(command.argv, {
+        bundlePath: path.join(__dirname, ESTIMATOR_BUNDLE_FILE),
+        log,
+        write: (text) => {
+          process.stdout.write(text)
+        },
+        error: (text) => {
+          writeLine(process.stderr, text)
+        },
+      })
     }
     case 'report': {
       // No backend, no auth flow and no model startup: only local, capped
@@ -1348,6 +1536,10 @@ async function main(): Promise<number> {
         uiLocale(),
       )
     }
+    case 'vaultHelp': {
+      writeLine(process.stdout, vaultUsage())
+      return 0
+    }
     case 'help': {
       if (command.all === true) {
         const reference = referenceLoader({
@@ -1363,7 +1555,13 @@ async function main(): Promise<number> {
       return 0
     }
     case 'invalid': {
-      writeLine(process.stderr, command.reason)
+      // Normal commands render after language installation; headless usage
+      // errors keep their earlier bounded exit path (M80).
+      const localized = parseCommandLine(process.argv.slice(2))
+      writeLine(
+        process.stderr,
+        localized.command === 'invalid' ? localized.reason : UI_TEXT.accounts.unavailable,
+      )
       writeLine(process.stderr, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
       writeLine(process.stderr, UI_TEXT.acpChatGpt.usage)
       return command.exitCode ?? EXIT_FAILED

@@ -1,3 +1,4 @@
+import type { BackendKind } from '../protocol'
 // The table the extension shows, and the helpers that fill it in the display
 // language (PLAN.md D33). `UI_TEXT` starts as English; the host installs the
 // user's table at activation and hands the same table to each webview, which
@@ -80,15 +81,27 @@ export function formatNumber(value: number): string {
   return numberFormat('number', {}).format(value)
 }
 
-/** A whole percentage, as the language writes one: 42% / 42 % / %42. */
-export function formatPercent(percent: number): string {
-  return numberFormat('percent', { style: 'percent', maximumFractionDigits: 0 }).format(
-    percent / PERCENT_DIVISOR,
-  )
+/** A percentage in the display language, whole by default: 42% / 42 % / %42. */
+export function formatPercent(percent: number, maximumFractionDigits = 0): string {
+  return numberFormat(`percent:${String(maximumFractionDigits)}`, {
+    style: 'percent',
+    maximumFractionDigits,
+  }).format(percent / PERCENT_DIVISOR)
 }
 
 /** An amount of US dollars as the language writes money: $1.46 / 1,46 $ / US$1.46. */
-export function formatUsd(amount: number | string | Usd, fractionDigits = 2): string {
+export function formatUsd(
+  amount: number | string | Usd,
+  fractionDigits = 2,
+  digitsOrRounding?: number | 'halfExpand' | 'ceil',
+): string {
+  if (digitsOrRounding !== undefined) {
+    return formatUsdIntl(
+      typeof amount === 'string' || amount instanceof Usd ? Number(amount.toString()) : amount,
+      fractionDigits,
+      digitsOrRounding,
+    )
+  }
   const exact = amount instanceof Usd ? amount : Usd.from(amount)
   const leadingZeros = /^0\.(0*)[1-9]/.exec(exact.toString())?.[1]?.length
   const precision = Math.max(
@@ -96,6 +109,34 @@ export function formatUsd(amount: number | string | Usd, fractionDigits = 2): st
     leadingZeros === undefined || leadingZeros < 2 ? 0 : leadingZeros + 2,
   )
   return formatUsdAtPrecision(exact, precision)
+}
+
+/** An explicit maximum or rounding mode: Intl formats the number, small amounts in scientific. */
+function formatUsdIntl(
+  amount: number,
+  fractionDigits: number,
+  digitsOrRounding: number | 'halfExpand' | 'ceil',
+): string {
+  const maximumFractionDigits =
+    typeof digitsOrRounding === 'number' ? digitsOrRounding : fractionDigits
+  const roundingMode = typeof digitsOrRounding === 'number' ? 'halfExpand' : digitsOrRounding
+  const notation =
+    maximumFractionDigits > fractionDigits &&
+    amount > 0 &&
+    amount < Number(`1e-${String(maximumFractionDigits)}`)
+      ? 'scientific'
+      : 'standard'
+  return numberFormat(
+    `usd:${String(fractionDigits)}:${String(maximumFractionDigits)}:${notation}:${roundingMode}`,
+    {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits,
+      notation,
+      roundingMode,
+    },
+  ).format(amount)
 }
 
 /** A verified quote's chosen precision, without changing its exact amount. */
@@ -240,4 +281,32 @@ export function templateParts(template: string): readonly TemplatePart[] {
     parts.push(template.slice(last))
   }
   return parts
+}
+
+const TOKENS_PER_MILLION = 1_000_000
+const TOKENS_PER_THOUSAND = 1000
+// Thousands are shown to one decimal: 12.3K.
+const TOKENS_PER_TENTH_THOUSAND = 100
+const TENTHS_PER_UNIT = 10
+
+/** "1M" / "200K" / "12.3K" / "512" for a token count, in the display language's digits. */
+export function formatTokenWindow(tokens: number): string {
+  if (tokens < TOKENS_PER_THOUSAND) {
+    return formatNumber(tokens)
+  }
+  const thousands = Math.round(tokens / TOKENS_PER_TENTH_THOUSAND) / TENTHS_PER_UNIT
+  // 999,950 and up round to a thousand thousands: that is "1M", not "1,000K".
+  return thousands < TOKENS_PER_THOUSAND
+    ? `${formatNumber(thousands)}K`
+    : `${formatNumber(Math.round(tokens / TOKENS_PER_MILLION))}M`
+}
+
+/** The backend's name as the palette, the usage dialog and an export show it. */
+export function backendLabel(kind: BackendKind): string {
+  // Built per call, so the name is the installed table's (PLAN.md D33).
+  const labels: Readonly<Record<BackendKind, string>> = {
+    museCode: UI_TEXT.backendMuseCode,
+    modelApi: UI_TEXT.backendModelApi,
+  }
+  return labels[kind]
 }

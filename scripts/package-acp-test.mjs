@@ -32,6 +32,7 @@ for (const file of [
     'exec.js',
     'modelApiCodeIntel.js',
     'structuredSchema.js',
+    'estimator.js',
     'modelApi.js',
     'recorder.js',
     'uiText.js',

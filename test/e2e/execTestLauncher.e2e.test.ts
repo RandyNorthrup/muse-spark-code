@@ -121,6 +121,7 @@ async function packageTree(): Promise<void> {
   // Real adjacent modules required by the production and test packers.
   await build({
     entryPoints: {
+      estimator: path.join(ROOT, 'src/host/estimator/estimatorEntry.ts'),
       recorder: path.join(ROOT, 'src/host/support/recorderEntry.ts'),
       resourceGovernor: path.join(ROOT, 'src/core/resources/resourceGovernorEntry.ts'),
       resourceAdmission: path.join(ROOT, 'src/core/resources/admission.ts'),

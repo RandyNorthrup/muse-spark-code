@@ -9,6 +9,8 @@ import { App } from '../../src/webview/App'
 import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapshot'
 import { createUiStore } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
+import { fakeEstimate } from './helpers/estimator/fixtures'
+import axe from 'axe-core'
 import { testSettings } from './helpers/fakes'
 import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
 import { fakeScheduleDraft } from './helpers/schedules/runtimeFixtures'
@@ -1222,10 +1224,10 @@ async function openUsageDialog() {
 }
 
 describe('App palette', () => {
-  it('opens from the Commands button, asks for skills once, and closes back to the composer', () => {
+  it('opens from the Commands button, asks for skills once, and closes back to the composer', async () => {
     const postMessage = renderReady()
     fireEvent.click(screen.getByLabelText('Commands'))
-    expect(screen.getByRole('dialog', { name: 'Actions' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Actions' })).toBeInTheDocument()
     expect(postMessage).toHaveBeenCalledWith({ type: 'listSkills' })
     deliver({ type: 'skillList', skills: [] })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
@@ -1247,7 +1249,7 @@ describe('App palette', () => {
     const box = textarea()
     box.focus()
     fireEvent.change(box, { target: { value: '/' } })
-    const palette = screen.getByRole('dialog', { name: 'Actions' })
+    const palette = await screen.findByRole('dialog', { name: 'Actions' })
     expect(within(palette).queryByRole('combobox')).toBeNull()
     expect(document.activeElement).toBe(box)
     expect(postMessage).toHaveBeenCalledWith({ type: 'listSkills' })
@@ -1264,7 +1266,7 @@ describe('App palette', () => {
     fireEvent.click(screen.getByRole('option', { name: /Thinking/ }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'setThinking', enabled: false })
     expect(box.value).toBe('/')
-    expect(screen.getByRole('dialog', { name: 'Actions' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Actions' })).toBeInTheDocument()
     // Escape closes it and keeps the text.
     fireEvent.keyDown(box, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -1286,22 +1288,22 @@ describe('App palette', () => {
     // A row that opens something else takes the `/` with it.
     fireEvent.change(box, { target: { value: '/' } })
     fireEvent.click(screen.getByRole('option', { name: /Switch model/ }))
-    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
+    expect(await screen.findByRole('listbox', { name: 'Models' })).toBeInTheDocument()
     expect(box.value).toBe('')
     expect(postMessage.mock.calls.filter(([m]) => m.type === 'listSkills')).toHaveLength(1)
   })
 
-  it('toggles the model list from the pill', () => {
+  it('toggles the model list from the pill', async () => {
     renderReady()
     deliver({ type: 'modelList', models })
     fireEvent.click(screen.getByLabelText('Model'))
-    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
+    expect(await screen.findByRole('listbox', { name: 'Models' })).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Model'))
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.activeElement).toBe(textarea())
     fireEvent.click(screen.getByLabelText('Commands'))
     fireEvent.click(screen.getByLabelText('Model'))
-    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
+    expect(await screen.findByRole('listbox', { name: 'Models' })).toBeInTheDocument()
   })
 
   it('routes every palette action to the host or the local state', async () => {
@@ -1411,7 +1413,7 @@ describe('App palette', () => {
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
     deliver({ type: 'modelList', models })
     fireEvent.click(screen.getByLabelText('Model'))
-    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
+    expect(await screen.findByRole('listbox', { name: 'Models' })).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'ArrowDown' })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
     expect(postMessage).toHaveBeenCalledWith({ type: 'setModel', modelId: 'muse-spark-1.2' })
@@ -1422,7 +1424,7 @@ describe('App palette', () => {
     const filter = await openPalette()
     fireEvent.change(filter, { target: { value: 'Switch model' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
-    expect(screen.getByRole('listbox', { name: 'Models' })).toBeInTheDocument()
+    expect(await screen.findByRole('listbox', { name: 'Models' })).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
     expect(screen.getByRole('listbox', { name: 'Actions' })).toBeInTheDocument()
   })
@@ -3569,11 +3571,11 @@ describe('App BYO picker and setup (M95)', () => {
     expect(screen.getByLabelText('Model')).toHaveTextContent('muse-spark-1.3 High')
   })
 
-  it('opens the provider quick-pick from the picker footer', () => {
+  it('opens the provider quick-pick from the picker footer', async () => {
     const postMessage = renderReady()
     deliver({ type: 'modelList', models: byoModels })
     fireEvent.click(screen.getByLabelText('Model'))
-    fireEvent.click(screen.getByRole('option', { name: 'Add a model provider…' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Add a model provider…' }))
     expect(postMessage).toHaveBeenCalledWith({
       type: 'hostAction',
       action: 'addModelProvider',
@@ -3997,5 +3999,146 @@ describe('M118 prompt action failure notices', () => {
       UI_TEXT.shareConfidential,
     )
     expect(post.mock.calls.some(([message]) => message.type === 'sendMessage')).toBe(false)
+  })
+})
+
+function sectionFor(request: Extract<WebviewToHostMessage, { type: 'estimateRun' }>['request']) {
+  const section = fakeEstimate()
+  section.inputs.request = request
+  section.asOf = request.asOf
+  section.inputs.fleet.asOf = request.asOf
+  const start = Date.parse(request.asOf)
+  section.p50 = new Date(start + 3_600_000).toISOString()
+  section.p90 = new Date(start + 7_200_000).toISOString()
+  section.schedule = section.schedule.map((row) => ({
+    ...row,
+    start: section.asOf,
+    end: section.p50,
+  }))
+  section.setups = section.setups.map((row) => ({ ...row, p50: section.p50, p90: section.p90 }))
+  section.disclosures = section.disclosures.map((row) =>
+    row.uncertainty.kind === 'time'
+      ? { ...row, uncertainty: { kind: 'time', earliest: section.p50, latest: section.p90 } }
+      : row,
+  )
+  return section
+}
+async function requestAppEstimate(post: ReturnType<typeof renderReady>, goal = 'M117') {
+  const before = post.mock.calls.filter(([message]) => message.type === 'estimateRun').length
+  fireEvent.change(textarea(), { target: { value: `/estimate ${goal}` } })
+  fireEvent.keyDown(textarea(), { key: 'Enter' })
+  await vi.waitFor(() => {
+    expect(post.mock.calls.filter(([message]) => message.type === 'estimateRun')).toHaveLength(
+      before + 1,
+    )
+  })
+  return post.mock.calls
+    .map(([message]) => message)
+    .findLast((message) => message.type === 'estimateRun')!
+}
+async function estimateInApp(shouldReplay = false) {
+  const post = renderReady()
+  const message = await requestAppEstimate(post)
+  const section = sectionFor(message.request)
+  deliver({ type: 'estimatorSection', requestId: message.requestId, section })
+  await screen.findByRole('heading', { name: UI_TEXT.estimateTitle })
+  if (shouldReplay) {
+    fireEvent.click(screen.getByRole('button', { name: /^(Estimate|Re-estimate)$/ }))
+    const next = post.mock.calls
+      .map(([message]) => message)
+      .findLast((message) => message.type === 'estimateRun')!
+    deliver({
+      type: 'estimatorSection',
+      requestId: next.requestId,
+      section: sectionFor(next.request),
+    })
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+  }
+  return { post, section }
+}
+describe('M117 estimator in the real App', () => {
+  it('shows the first composer forecast without another Run', async () => {
+    await estimateInApp()
+    expect(await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeTruthy()
+  })
+  it('keeps a superseded panel reply out of a newer composer request', async () => {
+    const store = createUiStore(initialUiState)
+    const post = vi.fn<(message: WebviewToHostMessage) => void>()
+    const deliver = (message: HostToWebviewMessage) => {
+      act(() => {
+        store.dispatch({ type: 'hostMessage', message, at: 0 })
+      })
+    }
+    render(<App store={store} postMessage={post} />)
+    deliver(init)
+    deliver({ type: 'authState', status: 'signedIn' })
+    const first = await requestAppEstimate(post)
+    deliver({
+      type: 'estimatorSection',
+      requestId: first.requestId,
+      section: sectionFor(first.request),
+    })
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRefresh }))
+    const pending = post.mock.calls
+      .map(([message]) => message)
+      .findLast((message) => message.type === 'estimateRun')!
+    const current = await requestAppEstimate(post, 'M118')
+    deliver({
+      type: 'estimatorSection',
+      requestId: pending.requestId,
+      section: sectionFor(pending.request),
+    })
+    await vi.waitFor(() => {
+      expect(store.getState().estimatorRequestId).toBe(pending.requestId)
+    })
+    expect(screen.queryByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeNull()
+    deliver({
+      type: 'estimatorSection',
+      requestId: current.requestId,
+      section: sectionFor(current.request),
+    })
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    expect(screen.getByLabelText(UI_TEXT.estimateGoal)).toHaveValue('M118')
+    expect(screen.getByRole('button', { name: UI_TEXT.estimateRefresh })).not.toBeDisabled()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+  it('settles a matching failed request and permits retry', async () => {
+    const { post } = await estimateInApp(true)
+    const run = screen.getByRole('button', { name: /^(Estimate|Re-estimate)$/ })
+    fireEvent.click(run)
+    const request = post.mock.calls
+      .map(([message]) => message)
+      .findLast((message) => message.type === 'estimateRun')!
+
+    deliver({
+      type: 'estimatorFailure',
+      requestId: request.requestId,
+      reason: 'fake-source-failed',
+    })
+    await vi.waitFor(() => expect(run).not.toBeDisabled())
+    expect(screen.getByRole('alert').textContent).toContain('estimate-unavailable')
+  })
+  it('starts the existing fleet independently of rental-provider readiness', async () => {
+    const { post } = await estimateInApp(true)
+    const button = await screen.findByRole('button', { name: UI_TEXT.estimateSpinUp })
+    expect(button).not.toBeDisabled()
+    fireEvent.click(button)
+    expect(post.mock.calls.map(([message]) => message)).toContainEqual(
+      expect.objectContaining({ type: 'estimateSpinUp', setup: 'current' }),
+    )
+  })
+  it('has one main landmark', async () => {
+    await estimateInApp(true)
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    expect(screen.getAllByRole('main')).toHaveLength(1)
+    const results = await axe.run(document.body, { runOnly: ['landmark-no-duplicate-main'] })
+    expect(results.violations).toEqual([])
+  })
+  it('isolates estimator controls behind Account & usage', async () => {
+    await estimateInApp(true)
+    deliver({ type: 'openUsage' })
+    await screen.findByRole('dialog')
+    expect(screen.getByLabelText(UI_TEXT.estimateGoal).closest('[inert]')).not.toBeNull()
   })
 })

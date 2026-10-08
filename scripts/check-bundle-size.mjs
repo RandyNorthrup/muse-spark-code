@@ -31,6 +31,8 @@ const BUDGETS = [
   // FIXM116I: /playbook's journal-backed surface (70.9 KiB when split out;
   // +15% rounded up to 100 KiB), loaded by the agent and the CLI on first use.
   { path: 'dist/acpPlaybook.js', budgetKiB: 100 },
+  // Exact media money no longer enters the registry through locale helpers.
+  // Keep M112's original cap; M105's inherited temporary increase is removed.
   { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
   { path: 'dist/questionNotes.js', budgetKiB: 25 },
   { path: 'dist/extension.js', budgetKiB: 600 },
@@ -128,6 +130,14 @@ const BUDGETS = [
   // M72: real checkpoint store/legacy reader, 187.0 KiB when split out.
   // Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/checkpointStore.js', budgetKiB: 225 },
+  // M105 lane W: the attachment path (attach port with the portable
+  // sniffers, limits and modality gate), loaded on first attach: 21.0 KiB
+  // after the USD split. Measured size plus 15%, rounded up to 25 KiB.
+  { path: 'dist/media.js', budgetKiB: 25 },
+  // M105 lane W: the screen-recording command with the R1-R3 platform
+  // drivers, loaded on the first recording command: 30.2 KiB when split
+  // out. Measured size plus 15%, rounded up to 25 KiB.
+  { path: 'dist/screenRecord.js', budgetKiB: 50 },
   // M83: the import from other agents (the scan, the converters, the file
   // access, the flow and smol-toml), loaded on the first import: 100.0 KiB
   // when split out. Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
@@ -175,10 +185,24 @@ const BUDGETS = [
   { path: 'dist/museCodeReviewer.js', budgetKiB: 75 },
   // M91 E: both-backend hooks, 45.4 KiB + 15%, rounded up to 25 KiB.
   { path: 'dist/extensionHooks.js', budgetKiB: 75 },
+  // M109 lane W: the vault's window (the panel host and the native editor),
+  // loaded on the first vault command: 32.4 KiB when split out. Measured
+  // size plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/vault.js', budgetKiB: 50 },
+  // INT0180: shared vault boundary closure; measured plus D6 headroom.
+  { path: 'dist/vaultBoundaries.js', budgetKiB: 50 },
   // The report dialog (M93): the builder, its second scrub, the export paths
   // and the handler, loaded on the first open. 63.6 KiB when split out (its
   // own zod), plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/report.js', budgetKiB: 75 },
+  // The capacity estimator's engine (M117, PLAN.md D6, D97), loaded on the
+  // first estimate: goal and DAG, calibration, schedule and simulation,
+  // recommendations, dated prices and the first-wave starter with their
+  // shared contracts. 60.7 KiB when split out, plus 15%, rounded up to
+  // 25 KiB (PLAN.md D6).
+  { path: 'dist/estimator.js', budgetKiB: 75 },
+  // INT0180: estimator application contracts, measured with D6 headroom.
+  { path: 'dist/estimateContracts.js', budgetKiB: 25 },
   // The flight recorder's journal (M93), loaded just after activation or at
   // the first failure: 51.3 KiB when split out (the journal, its policy and
   // the shared protocol it validates against), plus 15%, rounded up to 25 KiB
@@ -201,6 +225,8 @@ const BUDGETS = [
   { path: 'dist/uiTextRuntime.js', budgetKiB: 25 },
   { path: 'dist/uiTextHooks.js', budgetKiB: 25 },
   { path: 'dist/uiTextSurfaces.js', budgetKiB: 25 },
+  // M105: media English on first use; measured region +15%, rounded to 25 KiB.
+  { path: 'dist/uiTextMedia.js', budgetKiB: 25 },
   // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/validation.js', budgetKiB: 50 },
   // Shared existing Node boundary schemas: 41.3 KB plus 15%, rounded to 25
@@ -227,12 +253,18 @@ const BUDGETS = [
   // backend (dist/modelApi.js, M57), plus the ACP SDK and the classic zod it
   // imports (445.2 of 713.2 KiB when set, 257.6 of them zod's locales). The
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
+  // M105's trusted media inspector stays in its first-use media bundle.
   { path: 'dist/acp.js', budgetKiB: 850 },
   // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
   { path: 'dist/headless.js', budgetKiB: 100 },
   // M114 F: runtime-only installer, measured with the shared validation API.
   { path: 'dist/fontsInstall.js', budgetKiB: 25 },
   { path: 'dist/scheduleBackground.js', budgetKiB: 50 },
+  // The runtime account services (M108/W, PLAN.md D6): the store, the policy,
+  // the developer owner and the headless ports, with the backend closure they
+  // serve through. Loads only on the first accounts, developer or keyed
+  // headless command. Measured 246.5 KiB; plus 15%, rounded up to 25 KiB.
+  { path: 'dist/runtimeAccounts.js', budgetKiB: 300 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

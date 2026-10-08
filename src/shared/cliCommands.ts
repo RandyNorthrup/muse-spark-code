@@ -99,6 +99,24 @@ export function cliCommands() {
       description: UI_TEXT.scheduleV2.runtime.usage,
     },
     {
+      route: 'accounts',
+      name: 'providers accounts',
+      description: UI_TEXT.referenceAccounts,
+      text: { ui: 'referenceAccounts' },
+    },
+    {
+      route: 'developer',
+      name: 'developer',
+      description: UI_TEXT.referenceDeveloper,
+      text: { ui: 'referenceDeveloper' },
+    },
+    {
+      route: 'estimate',
+      name: 'estimate <goal> [--by <date>] [--fleet current|minimum|optimum] [--format md|html|json|text] [--seed <seed>]',
+      description: UI_TEXT.estimateCliHelp,
+      text: { ui: 'estimateCliHelp' },
+    },
+    {
       route: 'report',
       name: 'report',
       description: UI_TEXT.reportUsage,
@@ -188,6 +206,18 @@ export function cliCommands() {
       name: '--version / -v',
       description: UI_TEXT.referenceVersion,
       text: { ui: 'referenceVersion' },
+    },
+    {
+      route: 'vault',
+      name: 'vault',
+      description: UI_TEXT.referenceVault,
+      text: { ui: 'referenceVault' },
+    },
+    {
+      route: 'vaultHelp',
+      name: 'vault --help',
+      description: UI_TEXT.referenceVaultHelp,
+      text: { ui: 'referenceVaultHelp' },
     },
   ]
 }

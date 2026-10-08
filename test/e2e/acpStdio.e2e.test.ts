@@ -97,9 +97,9 @@ beforeAll(async () => {
   for (const [entry, file] of [
     ['src/acp/questionDeferralEntry.ts', 'acpQuestions.js'],
     ['src/runtime/questions/questionRegistryEntry.ts', 'runtimeQuestions.js'],
+    ['src/runtime/providers/accountsEntry.ts', 'runtimeAccounts.js'],
   ]) {
-    if (entry === undefined || file === undefined)
-      throw new Error('Missing question bundle fixture')
+    if (entry === undefined || file === undefined) throw new Error('Missing lazy bundle fixture')
     await build({
       entryPoints: [path.join(ROOT, entry)],
       outfile: path.join(path.dirname(AGENT), file),
@@ -270,18 +270,19 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
             }
           ).version
     expect(version.stdout.trim()).toBe(expected)
-    const usage = fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME })
     const help = spawnSync(process.execPath, [AGENT, '--help'], { encoding: 'utf8', env })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+    const helpUsage = formatAcpUsage(UI_TEXT, ACP_AGENT_NAME)
+    expect(help.stdout.trim()).toBe(helpUsage)
     expect(help.stdout).toContain(`${ACP_AGENT_NAME} help --all\n`)
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })
     expect(wrong.status).toBe(1)
     expect(wrong.stderr).toContain('--colour')
-    expect(wrong.stderr).toContain(`${usage}\n`)
+    // Usage errors print the short usage block, not the full help.
+    expect(wrong.stderr).toContain(`${fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME })}\n`)
   })
 
   it('prints the complete translated usage and reference hint from the installed table', async () => {
@@ -315,9 +316,17 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
         shareConfirm: z.string(),
       })
       .parse(unpackUiTable(JSON.parse(await readUiTableFile(PACKAGE, ['l10n', 'ui.de.json']))))
+    const accountTranslation = z
+      .object({
+        acpUsage: z.string(),
+        helpReferenceTitle: z.string(),
+        accounts: z.object({ cliUsage: z.string(), execHelp: z.string() }),
+      })
+      .parse(unpackUiTable(JSON.parse(await readUiTableFile(PACKAGE, ['l10n', 'ui.de.json']))))
     const table = {
       ...UI_TEXT,
       ...translation,
+      accounts: { ...UI_TEXT.accounts, ...accountTranslation.accounts },
       acpChatGpt: { ...UI_TEXT.acpChatGpt, ...translation.acpChatGpt },
       referenceCliOptions: { ...UI_TEXT.referenceCliOptions, ...translation.referenceCliOptions },
       scheduleV2: {
@@ -325,13 +334,14 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
         runtime: { ...UI_TEXT.scheduleV2.runtime, ...translation.scheduleV2.runtime },
       },
     }
+    const verwendung = formatAcpUsage(table, ACP_AGENT_NAME)
     const help = spawnSync(process.execPath, [AGENT, '--help'], {
       encoding: 'utf8',
       env: { ...process.env, NODE_PATH, LC_ALL: 'de_DE.UTF-8' },
     })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(formatAcpUsage(table, ACP_AGENT_NAME))
+    expect(help.stdout.trim()).toBe(verwendung)
     expect(help.stdout).toContain(table.helpReferenceTitle)
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
   })
@@ -423,7 +433,15 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
 
   it('says at start that a proxy will not be used by the Model API backend, until Node’s switch is on (Q66)', async () => {
     // A port nothing is asked on: the agent sends no request before a session.
-    const proxy = { HTTPS_PROXY: 'http://127.0.0.1:9', NODE_USE_ENV_PROXY: '' }
+    // The other proxy spellings are cleared so the warning names exactly the
+    // variable under test whatever the runner's own environment sets.
+    const proxy = {
+      HTTPS_PROXY: 'http://127.0.0.1:9',
+      NODE_USE_ENV_PROXY: '',
+      https_proxy: '',
+      HTTP_PROXY: '',
+      http_proxy: '',
+    }
     const unused = startAgent(signedIn, ['--backend', 'modelApi'], proxy)
     await unused.run(initialize)
     const said = unused.stderr.join('')

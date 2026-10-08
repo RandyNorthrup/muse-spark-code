@@ -531,7 +531,7 @@ describe('M95b shared subscription UI', () => {
       deliver({ type: 'modelList', models: [] })
       deliver({ type: 'usageReport', backend: 'modelApi', plans: tallies })
       fireEvent.click(screen.getByRole('button', { name: UI_TEXT.commandsTitle }))
-      const filter = screen.getByRole('combobox')
+      const filter = await screen.findByRole('combobox')
       fireEvent.change(filter, { target: { value: '/usage' } })
       fireEvent.keyDown(filter, { key: 'Enter' })
       const dialog = await screen.findByRole('dialog', { name: UI_TEXT.usageLabel })

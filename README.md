@@ -31,10 +31,11 @@ key to the CLI.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0160) ·
+**Contents:** [What's new](#whats-new-in-0170) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
+[Several accounts](#several-accounts-per-provider) ·
 [Rules, skills and memory](#rules-skills-and-memory) ·
 [Muse Code's own tools](#muse-codes-own-tools) · [Web fetch](#web-fetch) ·
 [Browser check](#browser-check) · [Design](#design) · [The panel](#the-panel) ·
@@ -46,7 +47,22 @@ key to the CLI.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
-## What's new in 0.16.0
+## What's new in 0.17.0
+
+- **Deterministic reports.** `/report` builds project, quality, milestone,
+  release and change reports from local facts, in Markdown, HTML, JSON or text,
+  with saved history and comparisons; nothing is sent to a model.
+- **Capacity estimates.** `/estimate <goal>` forecasts when a milestone or
+  release can land with the current, minimum or optimum fleet, without a model
+  call.
+- **Several accounts per provider.** List provider accounts, see the current
+  one and its thresholds; a vendor limit blocks only the affected account.
+- **Orchestrator playbook.** The nine orchestration rules ship as a first-party
+  skill, and `/playbook status`, `record` and `settings` answer locally.
+- **Refreshed design.** Shared design tokens and generated palettes style every
+  panel surface; an optional pinned OFL font pack serves standalone installs.
+
+### Earlier in 0.16.0
 
 - **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
   argument previews help you follow Model API tool calls. Independent reads can
@@ -839,6 +855,66 @@ Headless `exec` still declines questions immediately, reports
 conversations and the evaluation keep their immediate cancellation or
 clarification. Scheduled/unattended prompts defer at once and keep the
 question open, even when interactive deferral is disabled.
+
+## Several accounts per provider
+
+Accounts keep separate credentials, labels, order, limit groups and thresholds.
+The terminal can manage their metadata and choose a fixed account for a
+headless run. Automatic swapping, parallel admission, device placement and
+the editor panel/usage mounts await the provider, journal and shared-owner
+integration listed in [M108's certification](docs/certification/m108.md).
+`museSpark.accountSwap` and `museSpark.accountParallel` are machine-scoped
+and default on; they do not enable those missing integrations by themselves.
+
+These commands require an existing provider metadata record; this base
+refuses absent or malformed configuration until its provider owner supplies
+it. Display order never selects a backend credential.
+
+Manage metadata through the agent (credentials only from standard input,
+never an argument or a file):
+
+- `muse-spark-code-acp providers accounts list --provider <id>`
+- `muse-spark-code-acp providers accounts add --provider <id> --account <id> --label <label>`
+- `muse-spark-code-acp providers accounts thresholds --provider <id> --account <id> --thresholds <JSON>`
+- `muse-spark-code-acp auth set --provider <id> --account <id>` (then paste the key)
+- `muse-spark-code-acp exec --account <id> <prompt>` pins one run to one account
+
+`exec --account-pool` and in-session credential swaps report unavailable
+until the pooled owner is connected. ACP's `/accounts` and `account` picker
+read live metadata; choosing another account also reports unavailable.
+Second Muse Code accounts and cross-account native replay/cache evidence
+wait for the Q-M108 captures. The usage-page mount awaits M102's journal;
+it must keep outstanding reservations and uncertain charges across resets.
+The shared paid gate, daily budget and conversation cap never reset on a
+swap, and a different account needs its own first-charge consent.
+
+Placement defaults to one account per provider per device. Another account
+needs another paired device, or the machine-scoped, default-off
+`museSpark.accounts.severalOnThisDevice` option. That option requires the
+provider's terms confirmation and isolated local profiles, labelled “on this
+PC”. The installed profile/placement owner is still pending, so the setting
+does not currently start another account process.
+
+`muse-spark-code-acp developer` opens the terminal's machine-local Developer
+options after typed confirmation; `developer status` shows its state. The
+shared editor unlocks use seven clicks on the version within ten seconds or
+**Muse Spark: Developer options**, once their palette/About mounts land.
+Testing mode is badged and audited, expires, and Reset stops and removes only
+its recorded profiles. The visible several-account option has no developer
+badge or expiry. Profile start and cleanup report unavailable until their
+resource owner is bound; no successful cleanup is claimed in its absence.
+Revoking testing authority closes admission immediately and attempts to stop
+recorded profiles before saving. Persistence failures are reported; a durable
+revocation audit prevents restoring the previous enabled grant. Removing an
+unknown profile reports an error without changing the current grant.
+
+The [policy record](docs/certification/m108-policy.md), checked 2026-10-05,
+lists every provider's pooling decision with its clause, source and date.
+“Confirmation required” quotes the restriction and offers Confirm, Only at
+my own caps, or Cancel; one-account-per-person rules also apply at user caps.
+Accounts sharing a vendor limit group add no capacity against that limit.
+These rules hold on every device and in developer mode. Nothing creates
+accounts, changes request identity or moves a credential to another device.
 
 ## Permission modes
 
@@ -2065,6 +2141,34 @@ both backends, as Muse Code's `/goal` does.
   its own, so your key pays for nothing you did not ask for. A token budget
   the agent gives a goal stops it once spent.
 
+## Estimates
+
+The estimator routes are wired, but real forecasts are **not available yet**.
+The composer `/estimate <goal> [--by <date>] [--fleet
+current|minimum|optimum]`, ACP `/estimate`, **Open Estimator**, and standalone
+`muse-spark-code-acp estimate` use one lazy engine. Production snapshots refuse
+with `M117-W-M113-plan-reader` until the plan reader lands; fleet/catalog
+integration also waits for M113. `muse-spark-code-acp estimate --help` shows the
+standalone syntax without starting a model or asking for credentials.
+
+- **Verified with fakes.** The engine returns P50/P90 dates, critical-path
+  schedules, limiting resources and current/minimum/optimum setups. Figures
+  carry parameter-specific evidence and sample sizes; unknown capacity and
+  approximate placement stay qualified. Below 20 samples, fitted parameters
+  remain priors. Bases older than seven days carry a schedule-risk flag.
+- **Existing fleet.** The panel sends an audited, contract-first first-wave
+  request independently of rental readiness. Production dispatch still
+  refuses with `M117-W-M96-board`. Finished-lane history updates and automatic
+  production refresh wait for M115.
+- **Rentals remain advice-only.** M109/M110 provider/install/pair bindings
+  and P's internal Slice 2 provisioning lifecycle are still absent. Liability
+  reservation, separate spend confirmation, funded-deadline/idle teardown,
+  Keep and wipe-before-delete are planned, not shipped behavior. No rental
+  creation is enabled.
+- **Settings** (this machine): `museSpark.estimator.optimize` (`cost` or
+  `speed`) and `museSpark.estimator.priceLookup`, which follows the Reports
+  network policy; catalog quotes retain their dates.
+
 ## Review
 
 Review what the agent did before it lands, on both backends.
@@ -2817,6 +2921,34 @@ integration owners; editor font settings continue to decide inside editors.
   gets a failed tool result before its bytes are retained. PDF and image
   tool rows use the installed panel language and number format; the model
   receives its English result.
+- **Multimodal integration status (M105).** The picker recognizes video and
+  audio; paste/drop sends approved host URI tokens without reading their bytes
+  in the browser. A bytes-only audio/video paste is refused. Production video
+  and audio delivery remains unavailable until the selected-model capability,
+  Files storage billing and ownership, consent and exact-budget bindings land.
+  `mediaAudioAction` selects the intended audio route; it does not enable an
+  unbound transcription adapter. Muse Spark 1.3 ignores a video's soundtrack;
+  1.2 hears it, according to the recorded captures. Standalone Meta audio is
+  refused because the capture found it silently ignored.
+  **Attach screen recording…** and ACP `/record` require an installed recorder
+  binding and otherwise explain that recording is unavailable. **Attach latest
+  screen recording** can inspect an existing Linux recording, but admission
+  still requires the media bindings. Remote windows need the companion route,
+  whose server is pending M104. The Windows VM has no working direct-capture
+  receipt. Configured future uploads have a `mediaMaxUploadMiB` cap and
+  `mediaUploadExpiryDays` expiry; **Delete uploaded files…** requires the real
+  account ledger. These commands do not establish provider/editor certification.
+
+  | Backend/model                                | Images and PDFs                                 | Video                                                | Standalone audio                                     |
+  | -------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+  | Model API, current production binding        | Existing inline path                            | Off: capability/Files/consent/budget binding pending | Off: captured batch adapter and paid binding pending |
+  | Muse Code                                    | Existing image path; established document rules | Off: U16/MSP capture pending                         | Off: needs captured Model API route                  |
+  | Gemini / OpenAI-compatible and other vendors | Their future captured capability record         | Off: lane V and vendor captures pending              | Off: captured capability/codec pending               |
+
+  Portable core and editor adapters have fake-based tests. Installed-editor,
+  native recording and live provider receipts remain open in
+  [M105 certification](docs/certification/m105.md).
+
 - A path with a space, `#` or `"` is written in quotes,
   `@"my notes/a b.md"#5-10`, and the menu searches what you type after `@"`.
 - The model pill reads `model effort` (effort tiers Minimal to Max, each
@@ -4101,15 +4233,19 @@ remain planned; this reference does not claim those hosts implement the page.
 | Muse Spark: Start with Your Own Model               | —                                                                                                | Open the setup wizard at "Pick a provider"; keys stay in the host draft until Save, failures restore prior provider/default/secret state, and setup confirmation requires the composer's model receipt. Cancel writes nothing |
 | Muse Spark: Models & Agents                         | —                                                                                                | Open the Models & Agents panel: providers with key state, model scans with diffs, removal with Undo, import and export                                                                                                        |
 | Muse Spark: Add Model Provider…                     | —                                                                                                | The quick-pick fast path without the panel: pick a provider, enter or connect the key, test it, pick models and confirm                                                                                                       |
+| Muse Spark: Attach screen recording…                | —                                                                                                | Record the screen (10 s to 10 min) and attach the clip to the conversation in view                                                                                                                                            |
+| Muse Spark: Attach latest screen recording          | —                                                                                                | Attach the newest recording the OS already saved to the conversation in view                                                                                                                                                  |
+| Muse Spark: Delete uploaded files…                  | —                                                                                                | Delete this conversation's uploaded media before its expiry                                                                                                                                                                   |
 
 Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
-which is why its two shortcuts add `Alt`. Twelve commands appear in the
+which is why its two shortcuts add `Alt`. Fifteen commands appear in the
 Command Palette only where they can act: Insert @-Mention with an editor
-open, Toggle Thinking, Export Conversation, Import Session, Open Share File
-and Stop Background Tasks with a Muse panel in view, Move Running Commands
-to Background while one runs, Set Up Shell Sandbox on Windows (or in a
-remote window), Create AGENTS.md, the two worktree commands and Open a Pull
-Request in a Conversation with a folder open.
+open, Toggle Thinking, Export Conversation, Import Session, Open Share File,
+Stop Background Tasks, Attach screen recording, Attach latest screen
+recording and Delete uploaded files with a Muse panel in view, Move Running
+Commands to Background while one runs, Set Up Shell Sandbox on Windows (or
+in a remote window), Create AGENTS.md, the two worktree commands and Open a
+Pull Request in a Conversation with a folder open.
 
 ## Settings
 
@@ -4188,6 +4324,10 @@ Bypass at once.
 | `modelApiAutoCompaction`          | `true`      | Automatic Model API compaction; awaiting evaluation and inactive until the M75 pair and shared paid admission are certified. Set false to opt out. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 | `modelApiTeamWorkers` | `true` | [Paid](#paid-features): team tasks billed to your Model API key (M96 agent roles, lane A): on with one price question before the first charge; the first delegate call that starts key tasks asks once with each model's prices, each task's ceiling and the shared daily budget. Machine-scoped |
+| `mediaMaxUploadMiB` | `200` | Uploaded media cap in MiB, 1–1024; machine-scoped. An attachment over it is refused before it is read |
+| `mediaUploadExpiryDays` | `7` | Uploaded media expiry in days, 1–30; machine-scoped. **Delete uploaded files…** removes them early |
+| `screenRecordingMaxSeconds` | `120` | Screen recording length cap in seconds, 10–600; machine-scoped. Shorter bounds are clamped, not refused |
+| `mediaAudioAction` | `"transcribe"` | What pasted or dropped audio becomes: `transcribe` (free text the model reads) or `sendAudio` (a playable clip); machine-scoped |
 
 The Model API backend's shell tool applies `terminal.integrated.env.*` the
 way VS Code's terminal does. A restart of Muse Code, for a setting, trust
@@ -4900,6 +5040,84 @@ page wait for M104's bridge. The TUI waits for M110a0 lane T. The
 [certification](docs/certification/m118.md) names each pending binding; shared
 logic and fake adapter tests do not establish installed-editor parity.
 
+## The vault
+
+One encrypted vault per user holds API keys, OAuth tokens, SSH keys, sudo and
+other passwords, website logins with their TOTP seeds, session cookies and any
+named secret. Agents get handles and approved, scoped, logged uses, never
+values. Every approval names the exact use and binds to it. One click locks
+everything. It works the same in every editor; see
+[the M109 record](docs/certification/m109.md) for the lanes, the captures and
+what is still open.
+
+The `Vault` command (`museSpark.vault`) opens the vault panel and `Lock vault
+now` (`museSpark.lockVault`, Ctrl+Alt+Shift+L / Cmd+Alt+Shift+L) ends every
+use in every window. The panel host and the native editor ship in
+`dist/vault.js`, loaded on the first vault command; activation reads no vault
+and starts no broker. Until the broker-backed service lands
+([the M109 record](docs/certification/m109.md)), both commands report that the
+broker installation is missing and refuse access instead of opening an empty
+vault. No value is ever logged, and no handle is substituted into a command,
+a file or the model's text.
+
+Settings (all machine-scoped, so no workspace can change them):
+`museSpark.vault.enabled` (on; an explicitly stored legacy `museSpark.vault`
+boolean remains effective until the new flag is explicitly configured), `museSpark.vault.protection` (`auto` is available
+hardware plus the OS store, with the recovery code offered at setup),
+`museSpark.vault.agentFence` (on), `museSpark.vault.lockAfterIdleMinutes`
+(240) and `museSpark.vault.lockOnScreenLock` (on). The Secure Enclave
+hardware and presence slots are offered where `SecureEnclave.isAvailable`,
+after the owner's Touch ID capture; the Keychain-biometry path stays off
+until an Apple Developer entitlement exists.
+
+The terminal/ACP/headless handlers are implemented against the shared vault
+contracts. This branch still needs the installed broker factory and panel
+bindings from M109 W/U/M104. It does not claim a working packaged vault:
+missing bindings report the broker installation failure and refuse access.
+No activation read or broker start is added.
+
+The terminal grammar is `muse-spark-code-acp vault` followed by `status`,
+`unlock [slot-id]`, `lock`, `list`, `add <metadata-json>`, `remove <item-id>`,
+`grant <grant-json>`, `revoke <grant-id>`, `audit`, `import <path>`,
+`public-key <item-id>` or `watch`. Every handler was run successfully against
+an injected fake-only local port in the H certification; installed-command
+success remains the integration check. `audit` accepts `--item`, `--requester`,
+`--kind` and `--outcome`. IDs, metadata and grant JSON use the shared schemas.
+Keep secrets out of names, labels and command arguments.
+
+`add` reads private material as one bounded JSON line from standard input,
+with byte fields encoded as base64. Terminal echo stays off while reading;
+base64 is only an input encoding, not encryption. Values never come from an
+argument, environment variable or file. An explicit `import <path>` delegates
+only the chosen credential file to the import owner. `grant` displays every
+scope field and requires explicit terminal confirmation. `watch` displays
+exact requester/use details, asks through the terminal, and answers only the
+same unexpired request id and digest. Pipes cannot approve grants or uses.
+
+ACP `/vault` supports `status` (the default), `list`, `lock` and `audit` locally,
+without sending the command to a model. Vault permissions offer Allow once,
+Allow for this session where permitted, and Deny; ACP's `allow_always` means
+that session choice only. Bypass does not grant a secret. Lock can interrupt
+an active turn or permission question.
+
+Lock, cancel and expiry withdraw a pending vault permission and settle its
+card. Command-bound TOTP consent says that the process sees the code. Agent
+audit replies include only currently visible items. Headless refusals retain
+their reason; only a missing unattended grant recommends creating one.
+
+Turning `museSpark.vault.agentFence` off applies only to an interactive shell.
+Workers, schedules, checks and hooks retain the credential and Git-helper
+fence. Approved environment injection cannot restore loader or startup
+variables.
+
+Local headless `exec --vault` requires existing unattended grants and never
+prompts. Missing grants, presence, taint, unavailable bindings or a failed
+vault use end the run with `denied` (exit 7), independently of
+`--fail-on-denial`. `--key-stdin` and CI cannot enable the vault. Ordinary
+headless behavior without the flag is unchanged. Companion and native panel
+routes carry only public state and bound answers; add/edit opens the host's
+local terminal and never sends a value through the bridge.
+
 ## Development
 
 `npm run schema:exec -- --check` checks the exec and sharing JSON schemas
@@ -4959,6 +5177,21 @@ Press **F5** to launch the Extension Development Host with a fresh build.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the rules for a pull request;
 [SECURITY.md](SECURITY.md) the way to report a vulnerability.
 
+The macOS screen-recorder implementation can be checked without screen or
+microphone access. These commands build the signed, localized screen-helper
+bundle and exercise synthetic H.264/AAC media, bounds, sleep events,
+signature rejection, native localization and the responsibility relay:
+
+```bash
+bash native/darwin/build.sh
+bash test/native/darwin/run-screen-record.sh
+bash test/native/darwin/check-screen-resources.sh
+bash native/darwin/check-disclaim.sh --screen-only
+```
+
+Recorder entry points and packaging remain under M105 integration; the
+certification record lists the outstanding real-capture/editor checks.
+
 **Bundled workflow package (M89).** `vendor/high-quality-projects-skill/`
 contains the pinned v0.7.0 workflow assets and their MIT licence. To refresh
 the pin, run `node scripts/sync-bundled-skills.mjs --tag v0.7.0` (substitute
@@ -5005,6 +5238,21 @@ mode. Resource-tree launchers use its exact kernel start microseconds, parent,
 group and exited state before authorizing process actions; this mode runs
 before any audio or privacy setup. Native tests build and sign the production
 helper in private fixtures, so they work in a clean checkout.
+
+M109's Windows vault helper is prepared for integration with the shared broker.
+It wraps the vault key with current-user DPAPI or a non-exportable TPM RSA key;
+presence uses a forced-protection key plus a fresh Windows Hello signature in
+the helper's own window. Missing TPM or Hello support refuses those slots.
+Each launch checks the EXE's compiled SHA-256, its file and directory ACLs,
+and every ancestor for unsafe permissions or reparse points. The system
+PowerShell process holds a handle denying writes and deletion while running
+the verified managed entry point; private input follows its readiness signal.
+A refused cache is left intact and rebuilt in a fresh private directory.
+Only this process's completed builds are reused; native DLL imports and the
+helper's startup search are restricted to System32.
+Existing credential storage is unchanged until the broker and migration lanes
+are integrated. The [Windows certification](docs/certification/m109-pw.md)
+records the generated-material captures and the remaining hardware checks.
 
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after

@@ -7,7 +7,7 @@
 import { execFile } from 'node:child_process'
 import { withoutCredentials } from '../../core/credentialEnvironment'
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { sameFile, statIdentity } from '../../core/fs/fileIdentity'
 import { PROCESS_TABLE_TIMEOUT_MS, WINDOWS_FRAMEWORK_RELATIVE_PATH } from '../../shared/constants'
@@ -26,6 +26,10 @@ export interface JobBuild {
   readonly outputType: 'exe' | 'library'
   /** Additional framework assemblies, resolved only under Windows' framework directory. */
   readonly references: readonly string[]
+  /** Inbox WinRT metadata; never a downloaded SDK or a workspace assembly. */
+  readonly windowsMetadata?: readonly string[]
+  /** Recorder compilation receives only the OS root, never credentials. */
+  readonly compilerEnvironment?: NodeJS.ProcessEnv
   /** What the log calls the built file. */
   readonly label: string
   /** Whether a built file is already at a path. */
@@ -100,10 +104,14 @@ export async function compileJob(
         ...['System.dll', 'System.Core.dll', ...build.references].map(
           (reference) => `/reference:${path.win32.join(framework, reference)}`,
         ),
+        ...(build.windowsMetadata ?? []).map(
+          (reference) =>
+            `/reference:${path.win32.join(systemRoot, 'System32', 'WinMetadata', reference)}`,
+        ),
         `/out:${output}`,
         source,
       ],
-      withoutCredentials(process.env),
+      build.compilerEnvironment ?? withoutCredentials(process.env),
     )
     try {
       await rename(output, destination)
@@ -117,6 +125,70 @@ export async function compileJob(
     await rm(source, { force: true })
     await rm(output, { force: true })
   }
+}
+
+/** M105 R2's lazy entry; callers read the shipped C# only on first recording use. */
+export function screenRecordExecutable(deps: {
+  readonly storageDir: string
+  readonly systemRoot: string
+  readonly readSource: () => Promise<string>
+  readonly verifyTrustedPath: (file: string) => Promise<boolean>
+  readonly run?: RunProgram
+}): () => Promise<string | undefined> {
+  const build: JobBuild = {
+    stem: 'MuseSparkScreenRecord-',
+    extension: '.exe',
+    outputType: 'exe',
+    references: [
+      'System.Drawing.dll',
+      'System.Windows.Forms.dll',
+      'System.Runtime.dll',
+      'System.Runtime.InteropServices.WindowsRuntime.dll',
+    ],
+    windowsMetadata: [
+      'Windows.Foundation.winmd',
+      'Windows.Graphics.winmd',
+      'Windows.Media.winmd',
+      'Windows.Storage.winmd',
+    ],
+    label: 'screen recorder',
+    compilerEnvironment: { SystemRoot: deps.systemRoot },
+    isPresent: async (file) => {
+      try {
+        const info = await stat(file)
+        return info.isFile()
+      } catch {
+        return false
+      }
+    },
+  }
+  let ready: Promise<string | undefined> | undefined
+  return () =>
+    (ready ??= (async () => {
+      try {
+        const source = await deps.readSource()
+        const target = path.join(deps.storageDir, jobFileName(build, source))
+        const compiler = path.win32.join(
+          deps.systemRoot,
+          WINDOWS_FRAMEWORK_RELATIVE_PATH,
+          'csc.exe',
+        )
+        if (!(await deps.verifyTrustedPath(compiler))) return
+        if (!(await build.isPresent(target))) {
+          await compileJob(build, target, source, deps.systemRoot, deps.run)
+        }
+        if (!(await deps.verifyTrustedPath(target))) return
+        // This identity check does not request a screen or open a microphone.
+        // Recording availability is probed separately: latest-file import still
+        // works on machines whose capture service is unavailable.
+        const answer = await (deps.run ?? runCompiler)(target, ['--self-test'], {
+          SystemRoot: deps.systemRoot,
+        })
+        return answer.trim() === 'muse-spark-screen-record-ready' ? target : undefined
+      } catch {
+        return
+      }
+    })())
 }
 
 /**

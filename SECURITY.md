@@ -47,6 +47,21 @@ Releases and npm.
   introduced. See [Judge](docs/judge.md) and its
   [certification record](docs/certification/m98.md).
 
+- **Accounts and local profiles (M108).** Account credentials use separate
+  origin-bound slots in SecretStorage or the runtime's OS credential store;
+  metadata contains no credential. Removal fences pending reads and queued
+  writes in the shared process. Stored-origin cleanup remains possible after
+  an endpoint change; dispatch at a new origin requires an explicit rebind.
+  Every read registers the credential with the shared redactor. Labels and
+  credentials stay off usage/device frames; confirmations stay machine-local.
+  Independent windows/processes still need M109's broker fences before
+  installed pooling is enabled. Developer profiles require isolated state,
+  credential slots and processes; their unbound runtime resource operations
+  refuse, retaining the ownership ledger instead of claiming cleanup.
+  Vendor policy, replay identity, first-charge consent and shared budgets
+  apply unchanged. The [M108 record](docs/certification/m108.md) names the
+  capture and installed-owner prerequisites.
+
 - **Credentials.** A pasted Model API key lives only in VS Code's
   SecretStorage, is sent only to `api.meta.ai`, and is never passed to a
   child process, written to settings or logs, or shown in the panel. The
@@ -77,6 +92,14 @@ Releases and npm.
   failures) redacts known credential shapes. Ordinary conversation/tool
   content remains intact; credential shapes outside the known patterns
   remain unrecognised.
+- **Capacity estimator provisioning (M117).** The provider adapter pins the
+  connected provider's HTTPS origin and the exact paths of its five
+  operations (`sizes`, `images`, `create`, `status`, `delete`) before every
+  brokered call; redirects and billing, payment, sign-up and account paths
+  are refused. Provider credentials stay with the vault broker and never
+  reach a tool, check or log. Every spend needs its own confirmation inside
+  one explicit run budget, and rented setups stay advice-only until the
+  provider binding lands.
 - **Workspace trust.** In VS Code's Restricted Mode the agent loads no
   workspace rules, skills, custom agents or memory, runs no shell commands, and the
   extension runs no `git` (a repository's `.git/config` can name programs
@@ -549,6 +572,11 @@ Releases and npm.
   Gatekeeper normally does not assess it; a copy that carries the quarantine
   attribute is assessed and refused.
 
+Fixed runtime account ports keep their backend identity through display-order
+changes and account removal. A missing non-default binding cannot use the
+legacy Meta key; only an absent Meta default record uses that fallback.
+Malformed configured provider records refuse before any fallback key read.
+
 More detail: `docs/PRIVACY.md` and PLAN.md §9.
 
 ## Headless CI boundary (M80, PLAN D65)
@@ -652,3 +680,15 @@ Store/workflow/release and posting service shapes are not inferred. They remain
 unavailable until approved captures and identity-owning adapters exist. Scheduled
 saves, mail and browser destinations likewise require the M115/M109/M110 authorities;
 no unbound destination is presented as delivered.
+
+## Multimodal adapter boundary (M105)
+
+Companion media upload is an unmounted M104 integration adapter, not a new
+listener. Its tested contract requires exact loopback Host and Origin,
+per-window bearer, custom header, Fetch Metadata and no cookies; streamed
+bytes are capped, sniffed and kept in an exclusively created private temporary
+file. Cancellation, session-epoch changes and completion remove that source.
+Native attachment bridge frames carry metadata/tokens, never file bytes or
+credentials. Production mounting waits for M104's guarded launch exchange and
+private storage; provider consumption waits for captured capability, consent,
+exact budget and Files ledger bindings. Missing ports refuse explicitly.

@@ -14,6 +14,7 @@ import { RESOURCE_WEBVIEW_ENTRIES } from './webviewBundles.mjs'
 
 const TABLE = 'src/shared/l10n/en.ts'
 export const UI_TEXT_REGIONS = [
+  { name: 'media', output: 'dist/uiTextMedia.js', keys: /^media$/ },
   {
     name: 'runtime',
     output: 'dist/uiTextRuntime.js',
@@ -27,7 +28,7 @@ export const UI_TEXT_REGIONS = [
   {
     name: 'surfaces',
     output: 'dist/uiTextSurfaces.js',
-    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew)/,
+    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$)/,
   },
 ]
 
@@ -190,13 +191,14 @@ let previous='';
 const keys=names.split('|').map(name=>previous=previous.slice(0,name.charCodeAt(0)-97)+name.slice(1));
 ${
   readers === undefined
-    ? 'export const EN=Object.fromEntries(keys.map((key,index)=>[key,values[index]]));'
-    : `export const EN_SHAPE={},EN={};
+    ? 'export const EN=Object.fromEntries(keys.map((key,index)=>[key,values[index]]));export function setVaultEnglish(english){EN.vault=english}'
+    : `export const EN_SHAPE=Object.fromEntries(keys.map((key,index)=>[key,values[index]]));
+export const EN=Object.fromEntries(keys.flatMap((key,index)=>readers[index]==='1'?[[key,EN_SHAPE[key]]]:[]));
 const lazyValues={};
 export function installSurfaceEnglish(table){Object.assign(lazyValues,table)}
-keys.forEach((key,index)=>{EN_SHAPE[key]=values[index];if(readers[index]==='1')EN[key]=values[index];else if(readers[index]==='2')Object.defineProperty(EN,key,{enumerable:true,configurable:true,get(){if(!Object.hasOwn(lazyValues,key))throw new Error('English surface is not loaded: '+key);return lazyValues[key]}})});`
-}
-`
+export function setVaultEnglish(english){installSurfaceEnglish({vault:english})}
+keys.forEach((key,index)=>{if(readers[index]==='2')Object.defineProperty(EN,key,{enumerable:true,configurable:true,get(){if(!Object.hasOwn(lazyValues,key))throw new Error('English surface is not loaded: '+key);return lazyValues[key]}})});`
+}`
 }
 
 /** The standalone browser fallback retains the entire canonical table. */
@@ -258,7 +260,9 @@ export function browserTextKeys(entries, english, eagerSources = new Set()) {
         keys.add(node.name.text)
         if (eagerSources.has(file)) eagerKeys.add(node.name.text)
       }
-      if (ts.isStringLiteral(node) && Object.hasOwn(english, node.text)) {
+      // Group names also occur as protocol/command words. Only an actual
+      // UI_TEXT access makes an object-valued group a reader.
+      if (ts.isStringLiteral(node) && typeof english[node.text] === 'string') {
         keys.add(node.text)
         if (eagerSources.has(file)) eagerKeys.add(node.text)
       }
@@ -314,6 +318,14 @@ export function browserTextKeys(entries, english, eagerSources = new Set()) {
   return { keys, files: [...seen], eagerKeys }
 }
 
+/** Exclude synthetic probes within the project, regardless of the checkout's parent path. */
+export function browserStartupRoots(entries, root = process.cwd()) {
+  return entries.filter((entry) => {
+    const relative = path.relative(root, path.resolve(root, entry)).replaceAll('\\', '/')
+    return !relative.endsWith('/ReferencePage.tsx') && !relative.startsWith('temp/')
+  })
+}
+
 /** Production browser readers retain their English; complete translation checks retain their contract. */
 export const compactBrowserUiText = {
   name: 'compact-browser-ui-text',
@@ -323,15 +335,9 @@ export const compactBrowserUiText = {
       const { EN, L10N_BROWSER_COMPRESSION_LEVEL, L10N_BROWSER_COMPRESSION_MEMORY_LEVEL } =
         await loadL10n(process.cwd())
       const entries = Object.values(build.initialOptions.entryPoints)
-      const roots = entries.filter((entry) => {
-        const normal = entry.replaceAll('\\', '/')
-        return (
-          !normal.endsWith('/ReferencePage.tsx') &&
-          !normal.endsWith('/ResourceSurface.tsx') &&
-          !normal.endsWith('/ResourcesSection.tsx') &&
-          !normal.includes('/temp/')
-        )
-      })
+      const roots = browserStartupRoots(entries).filter(
+        (entry) => !/[/\\](?:ResourceSurface|ResourcesSection)\.tsx$/.test(entry),
+      )
       const eagerSources = browserStartupSources(roots).files
       const { keys, files, eagerKeys } = browserTextKeys(entries, EN, eagerSources)
       const nonResourceKeys = browserTextKeys(
@@ -353,8 +359,10 @@ export const compactBrowserUiText = {
           /^(?:reference|acp|exec|scanSecrets|reportUsage$)/.test(key) &&
           helpFiles.every((file) => !readFileSync(file, 'utf8').includes(`UI_TEXT.${key}`)),
       )
+      // M108: account and developer English load with their optional surfaces.
+      const accountKeys = deferredKeys.filter((key) => /^(?:accounts|developer)$/.test(key))
       const surfaceKeys = deferredKeys.filter(
-        (key) => !helpKeys.includes(key) && nonResourceKeys.has(key),
+        (key) => !helpKeys.includes(key) && !accountKeys.includes(key) && nonResourceKeys.has(key),
       )
       const readers = new Set([...keys].filter((key) => !deferredKeys.includes(key)))
       const contract = Object.fromEntries(
@@ -377,10 +385,26 @@ export const compactBrowserUiText = {
         deferredKeys,
         surfaceKeys,
         helpKeys,
+        accountKeys,
         resourceKeys,
         contract,
         level: L10N_BROWSER_COMPRESSION_LEVEL,
         memoryLevel: L10N_BROWSER_COMPRESSION_MEMORY_LEVEL,
+      }
+    })
+    build.onLoad({ filter: /[/\\]l10n[/\\]vaultEnglish\.ts$/ }, (args) => {
+      const property = uiTextProperties().find((property) => property.key === 'vault')
+      if (property === undefined) throw new Error('Missing canonical vault English')
+      return {
+        contents:
+          "import { forms } from './forms';\n" +
+          readFileSync(args.path, 'utf8').replace(
+            'const english = EN.vault',
+            () => `const english = ${property.source.slice('vault:'.length)}`,
+          ),
+        loader: 'ts',
+        resolveDir: path.dirname(args.path),
+        watchFiles: [TABLE, args.path],
       }
     })
     build.onResolve({ filter: /^browser-table-contract$/ }, () => ({
@@ -392,6 +416,7 @@ export const compactBrowserUiText = {
       'browser-surface-english',
       'browser-resource-english',
       'browser-reference-english',
+      'browser-account-english',
     ]) {
       build.onResolve({ filter: /.*/, namespace }, (args) => {
         if (args.path === path.resolve(TABLE).replaceAll('\\', '/'))
@@ -401,6 +426,11 @@ export const compactBrowserUiText = {
     build.onLoad({ filter: /.*/, namespace: 'browser-table-contract' }, () => ({
       contents:
         "export { EN_SHAPE as EN } from '" + path.resolve(TABLE).replaceAll('\\', '/') + "'",
+      loader: 'js',
+    }))
+    build.onLoad({ filter: /[/\\]l10n[/\\]deferredEnglish\.ts$/ }, () => ({
+      contents:
+        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english')]) }",
       loader: 'js',
     }))
     build.onLoad({ filter: /[/\\]installTable\.ts$/ }, (args) => ({
@@ -415,6 +445,14 @@ export const compactBrowserUiText = {
     build.onResolve({ filter: /^browser-surface-english$/ }, () => ({
       path: 'browser-surface-english',
       namespace: 'browser-surface-english',
+    }))
+    build.onResolve({ filter: /^browser-account-english$/ }, () => ({
+      path: 'browser-account-english',
+      namespace: 'browser-account-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-account-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';\n${inlineBrowserTable(Object.fromEntries(data.accountKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}\ninstallSurfaceEnglish(EN);`,
+      loader: 'js',
     }))
     build.onLoad({ filter: /.*/, namespace: 'browser-surface-english' }, () => ({
       contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
@@ -492,7 +530,7 @@ installSurfaceEnglish(EN);`,
           edits.push({
             start: argument.getStart(tree),
             end: argument.end,
-            source: `async () => { await import('${node.expression.text === 'lazy' ? 'browser-surface-english' : 'browser-reference-english'}'); return await (${argument.getText(tree)})() }`,
+            source: `async () => { await ${node.expression.text === 'lazy' ? "Promise.all([import('browser-surface-english'), import('browser-account-english')])" : "import('browser-reference-english')"}; return await (${argument.getText(tree)})() }`,
           })
         }
         ts.forEachChild(node, visit)

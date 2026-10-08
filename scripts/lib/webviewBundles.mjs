@@ -139,6 +139,11 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 25,
   },
   {
+    name: 'account English',
+    entries: ['browser-account-english:browser-account-english'],
+    budgetKiB: 25,
+  },
+  {
     name: 'help reference',
     entries: [
       'src/webview/components/ReferencePage.tsx',
@@ -282,6 +287,27 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     ],
     budgetKiB: 10,
   },
+  // M105 lane W: the attachment chip's lazy cost/metadata surface, loaded
+  // with the first media attachment: 1.2 KiB when split out. Measured size
+  // plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  {
+    name: 'media',
+    entries: ['src/webview/components/AttachmentMediaCost.tsx'],
+    budgetKiB: 25,
+  },
+  {
+    // The capacity estimator's panel and submit composer (M117): 9.6 KiB
+    // when split out (2026-10-06); the composer loads on the first
+    // `/estimate` ahead of the panel; plus 15%, rounded up to 25 KiB.
+    name: 'estimator panel',
+    entries: [
+      'src/webview/estimator/EstimatorPanel.tsx',
+      'src/webview/estimator/composer.ts',
+      'src/shared/estimate.ts',
+      'src/shared/estimatorProtocol.ts',
+    ],
+    budgetKiB: 25,
+  },
 ]
 
 /** Both independently delivered resource surfaces stay outside chat startup. */
@@ -327,10 +353,12 @@ export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {
   }
   const entries = (sources) =>
     Object.entries(meta.outputs)
-      .filter(([, output]) =>
-        sources.includes(
-          output.entryPoint === undefined ? undefined : normalPath(output.entryPoint),
-        ),
+      .filter(
+        ([, output]) =>
+          Object.keys(output.inputs ?? {}).some((source) => sources.includes(normalPath(source))) ||
+          sources.includes(
+            output.entryPoint === undefined ? undefined : normalPath(output.entryPoint),
+          ),
       )
       .map(([file]) => normalPath(file))
   const legacy = new Set(

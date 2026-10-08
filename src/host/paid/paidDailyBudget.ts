@@ -9,7 +9,10 @@ import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { JudgeDailyLedger } from '../../core/judge/admission'
 import type { ModelApiClientDeps } from '../../core/backends/modelapi/client'
-import type { SessionBudgetClaim } from '../../core/backends/modelapi/sessionBudget'
+import type {
+  AccountBudgetAdmission,
+  SessionBudgetClaim,
+} from '../../core/backends/modelapi/sessionBudget'
 import { fingerprint } from '../../core/verify/fingerprint'
 import { estimateCostUsd } from '../../core/usage/insights'
 import { unlessAborted } from '../../core/timeouts'
@@ -40,6 +43,8 @@ export function createPaidDailyBudget(deps: {
   readonly capUsd: () => UsdAmount
   readonly sleep: (ms: number) => Promise<void>
   readonly isModelApi: () => boolean
+  /** P's account-bound guard; shared daily claims still use one fixed scope. */
+  readonly accountAdmission?: AccountBudgetAdmission
 }) {
   const authority = deps.authority ?? new PaidAuthority()
   const day = () => {
@@ -244,6 +249,13 @@ export function createPaidDailyBudget(deps: {
         if (modelApiPaidTier(body.model) === undefined)
           throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
         if (estimatedInputTokens === undefined) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+        if (
+          !Number.isSafeInteger(estimatedInputTokens) ||
+          estimatedInputTokens < 0 ||
+          !Number.isSafeInteger(body.max_output_tokens) ||
+          body.max_output_tokens < 0
+        )
+          throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
         costUsd = estimateCostUsd(
           {
             inputTokens: estimatedInputTokens,
@@ -261,16 +273,14 @@ export function createPaidDailyBudget(deps: {
     }
     try {
       signal.throwIfAborted()
-      const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
-      signal.throwIfAborted()
-      if (Usd.from(total.spentUsd).compare(Usd.from(readLimit(scope))) > 0)
-        await unlessAborted(raise(scope, total.spentUsd, signal), signal)
-      signal.throwIfAborted()
-      return {
+      const checkAccount = deps.accountAdmission?.(claim)
+      checkAccount?.()
+      const admittedClaim = {
         ...claim,
         check: () => {
           signal.throwIfAborted()
           if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+          checkAccount?.()
           try {
             return claim.check(readLimit(scope))
           } catch (error: unknown) {
@@ -278,6 +288,12 @@ export function createPaidDailyBudget(deps: {
           }
         },
       }
+      const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
+      signal.throwIfAborted()
+      if (Usd.from(total.spentUsd).compare(Usd.from(readLimit(scope))) > 0)
+        await unlessAborted(raise(scope, total.spentUsd, signal), signal)
+      signal.throwIfAborted()
+      return admittedClaim
     } catch (error: unknown) {
       await claim.settle(Usd.from(0).toAmount())
       throw error
@@ -333,11 +349,14 @@ export function createPaidDailyBudget(deps: {
     const scope = day()
     readLimit(scope)
     const claim = await reserveClaim(scope, costUsd)
+    let checkAccount: (() => void) | undefined
     const check = () => {
       if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+      checkAccount?.()
       claim.check(readLimit(scope))
     }
     try {
+      checkAccount = deps.accountAdmission?.(claim)
       check()
     } catch (error: unknown) {
       await claim.settle(Usd.from(0).toAmount())
@@ -376,11 +395,13 @@ export function createPaidDailyBudget(deps: {
     let own: Awaited<ReturnType<typeof journal.reserve>> | undefined
     try {
       signal.throwIfAborted()
+      const checkAccount = deps.accountAdmission?.(shared)
       own = await journal.reserve(ownScope, PAID_DAILY_BUDGET.accountId, costUsd)
       const scheduleClaim = own
       const check = () => {
         signal.throwIfAborted()
         if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+        checkAccount?.()
         const limit = Usd.from(readLimit(scope))
         const total = shared.check(
           (limit.compare(sharedBudget) < 0 ? limit : sharedBudget).toAmount(),

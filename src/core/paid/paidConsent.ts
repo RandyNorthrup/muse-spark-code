@@ -16,7 +16,13 @@ import { randomUUID } from 'node:crypto'
 // words are here, so VS Code's modal and the ACP agent's permission request
 // (D62) say the same.
 
-import { PAID_FEATURES, type PaidFeature, UI_TEXT, DEFAULT_MODEL_ID } from '../../shared/constants'
+import {
+  ACCOUNT_ID_PATTERN,
+  PAID_FEATURES,
+  type PaidFeature,
+  UI_TEXT,
+  DEFAULT_MODEL_ID,
+} from '../../shared/constants'
 import { fill, formatNumber, formatUsd, uiLocale } from '../../shared/l10n/text'
 import {
   paidFeaturePrice,
@@ -43,6 +49,12 @@ import {
   type ScheduleV2,
   type ScheduleFireRecord,
 } from '../../shared/scheduleV2'
+import { unlessAborted } from '../timeouts'
+import {
+  formatUsd as formatExactUsd,
+  parseUsd,
+  type Usd as AccountUsd,
+} from '../../shared/accountUsd'
 
 async function paidTeamRuntime() {
   const entry = await import('../team/teamEntry')
@@ -405,6 +417,8 @@ export interface PaidUseConsentDeps {
    */
   readonly readTeamGrants?: () => ReadonlySet<string>
   readonly writeTeamGrants?: (grants: ReadonlySet<string>) => Promise<void>
+  /** Account owner performs the read/merge/write inside its serialized mutation. */
+  readonly rememberGrant?: (feature: PaidFeature) => Promise<void>
   /** The popup; "always" is offered only when `canRemember` is true. */
   readonly ask: (request: PaidUseRequest, canRemember: boolean) => Promise<PaidUseAnswer>
   readonly authority?: PaidAuthority
@@ -473,7 +487,9 @@ export class PaidUseConsent {
    */
   private async remember(feature: PaidFeature): Promise<boolean> {
     try {
-      await this.deps.writeGrants(new Set([...this.deps.readGrants(), feature]))
+      if (this.deps.rememberGrant === undefined)
+        await this.deps.writeGrants(new Set([...this.deps.readGrants(), feature]))
+      else await this.deps.rememberGrant(feature)
       return true
     } catch (error: unknown) {
       this.deps.log.warn(
@@ -716,17 +732,27 @@ export class PaidUseConsent {
     request: Exclude<PaidUseRequest, { feature: 'webSearch' }>,
     requiresAsking?: boolean,
     ask?: PaidUseConsentDeps['ask'],
+    signal?: AbortSignal,
   ): Promise<boolean>
   public allows(
     request: PaidUseRequest,
     requiresAsking?: boolean,
     ask?: PaidUseConsentDeps['ask'],
+    signal?: AbortSignal,
   ): Promise<PaidUseDecision>
   public async allows(
     request: PaidUseRequest,
     requiresAsking = false,
     ask = this.deps.ask,
+    signal?: AbortSignal,
   ): Promise<PaidUseDecision> {
+    if (signal !== undefined) {
+      // Stop ends this caller's wait; the shared popup still owns its answer.
+      signal.throwIfAborted()
+      const decision = await unlessAborted(this.allows(request, requiresAsking, ask), signal)
+      signal.throwIfAborted()
+      return decision
+    }
     if (request.feature === 'webSearch') return await this.allowSearch(request, requiresAsking, ask)
     const { feature } = request
     if (!this.isEnabled(feature)) {
@@ -797,5 +823,151 @@ export class PaidUseConsent {
     await this.deps.writeTeamGrants?.(new Set())
     this.deps.log.info('Paid uses ask again in this workspace')
     this.notify()
+  }
+}
+
+/** D88.7: verified local tariff and opaque billing identity; never a credential. */
+export interface PaidAccountBinding {
+  readonly provider: string
+  readonly account: string
+  readonly price: string
+  readonly dailyBudgetUsd: AccountUsd
+}
+export interface AccountPaidUseConsentDeps extends Omit<
+  PaidUseConsentDeps,
+  | 'readGrants'
+  | 'writeGrants'
+  | 'rememberGrant'
+  | 'ask'
+  | 'windowOnceFeatures'
+  | 'windowOnceGeneration'
+> {
+  readonly readGrants: (bindingKey: string) => ReadonlySet<PaidFeature>
+  readonly writeGrants: (bindingKey: string, grants: ReadonlySet<PaidFeature>) => Promise<void>
+  readonly ask: (
+    request: PaidUseRequest,
+    binding: PaidAccountBinding,
+    canRemember: boolean,
+  ) => Promise<PaidUseAnswer>
+  /** Registry checks account membership/credential generation and the accepted tariff. */
+  readonly isCurrent: (binding: PaidAccountBinding) => boolean
+}
+
+export function paidAccountQuestion(binding: PaidAccountBinding): string {
+  return fill(UI_TEXT.accounts.paidConsent, {
+    provider: binding.provider,
+    account: binding.account,
+    price: binding.price,
+    budget: formatExactUsd(binding.dailyBudgetUsd, 2),
+  })
+}
+
+/** One instance per account/tariff. Legacy single-account consent stays unchanged. */
+export class AccountPaidUseConsent {
+  private readonly binding: PaidAccountBinding
+  private readonly key: string
+  private generation = 0
+  private isRevoking = false
+  private revocations = 0
+  private shouldIgnoreStored = false
+  private writes: Promise<void> = Promise.resolve()
+  private consent: PaidUseConsent
+
+  public constructor(
+    private readonly deps: AccountPaidUseConsentDeps,
+    binding: PaidAccountBinding,
+  ) {
+    if (
+      !ACCOUNT_ID_PATTERN.test(binding.provider) ||
+      !ACCOUNT_ID_PATTERN.test(binding.account) ||
+      binding.price.trim() === '' ||
+      binding.dailyBudgetUsd < parseUsd(0)
+    )
+      throw new Error(UI_TEXT.accounts.invalidAccount)
+    this.binding = Object.freeze({ ...binding })
+    this.key = JSON.stringify([binding.provider, binding.account, binding.price])
+    this.consent = this.createConsent()
+  }
+
+  private async write(use: () => Promise<void>): Promise<void> {
+    const previous = this.writes
+    const operation = (async () => {
+      try {
+        await previous
+      } catch {
+        // A failed prior owner must not block this mutation; its caller received the error.
+      }
+      await use()
+    })()
+    this.writes = operation
+    await operation
+  }
+
+  private createConsent(): PaidUseConsent {
+    const generation = this.generation
+    const isCurrent = () =>
+      !this.isRevoking && generation === this.generation && this.deps.isCurrent(this.binding)
+    return new PaidUseConsent({
+      ...this.deps,
+      isOn: (feature) => isCurrent() && this.deps.isOn(feature),
+      ...(this.deps.isJudgeEnabled !== undefined && {
+        isJudgeEnabled: () => isCurrent() && this.deps.isJudgeEnabled?.() === true,
+      }),
+      // Owner ruling: ask once before the first charge; Always remains workspace-scoped.
+      windowOnceFeatures: new Set(PAID_FEATURES),
+      windowOnceGeneration: () => this.generation,
+      readGrants: () =>
+        isCurrent() && !this.shouldIgnoreStored ? this.deps.readGrants(this.key) : new Set(),
+      writeGrants: async (grants) => {
+        if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
+        await this.write(async () => {
+          if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
+          await this.deps.writeGrants(this.key, grants)
+          if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
+          this.shouldIgnoreStored = false
+        })
+      },
+      rememberGrant: async (feature) => {
+        await this.write(async () => {
+          if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
+          const grants = this.shouldIgnoreStored
+            ? new Set<PaidFeature>()
+            : this.deps.readGrants(this.key)
+          await this.deps.writeGrants(this.key, new Set([...grants, feature]))
+          if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
+          this.shouldIgnoreStored = false
+        })
+      },
+      ask: async (request, canRemember) => await this.deps.ask(request, this.binding, canRemember),
+    })
+  }
+
+  private isCurrent(generation: number): boolean {
+    return !this.isRevoking && generation === this.generation && this.deps.isCurrent(this.binding)
+  }
+
+  public async allows(request: PaidUseRequest, requiresAsking = false): Promise<boolean> {
+    if (this.isRevoking || !this.deps.isCurrent(this.binding)) return false
+    const generation = this.generation
+    const decision = await this.consent.allows(request, requiresAsking)
+    // A search decision is its frozen quote; any non-refusal counts as allowed here.
+    return decision !== undefined && decision !== false && this.isCurrent(generation)
+  }
+
+  /** Invalidates pending questions now and removes the account/tariff's workspace grant. */
+  public async revoke(): Promise<void> {
+    this.generation++
+    this.revocations++
+    this.isRevoking = true
+    this.shouldIgnoreStored = true
+    try {
+      await this.write(async () => {
+        await this.deps.writeGrants(this.key, new Set())
+      })
+    } finally {
+      this.revocations--
+      this.isRevoking = this.revocations > 0
+      this.consent = this.createConsent()
+    }
   }
 }

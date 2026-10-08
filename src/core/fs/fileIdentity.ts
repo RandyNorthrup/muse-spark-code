@@ -1,6 +1,6 @@
 // Native file IDs are 64-bit on Windows. This is the sole sampler and
 // comparator: callers retain the exact IDs even when Number would alias them.
-import { statSync, type BigIntStats } from 'node:fs'
+import { statSync, lstatSync, fstatSync, type BigIntStats } from 'node:fs'
 import { lstat, stat, type FileHandle } from 'node:fs/promises'
 import { WORKSPACE_IDENTITY_ZERO } from '../../shared/constants'
 
@@ -26,6 +26,14 @@ export async function handleIdentity(handle: FileHandle): Promise<BigIntStats> {
 /** The ACP's last admission check is synchronous, immediately before mutation. */
 export function statIdentitySync(file: string): BigIntStats {
   return statSync(file, { bigint: true })
+}
+
+/** Audit commits compare a held descriptor and the named path in one synchronous tick. */
+export function handleIdentitySync(descriptor: number): BigIntStats {
+  return fstatSync(descriptor, { bigint: true })
+}
+export function lstatIdentitySync(file: string): BigIntStats {
+  return lstatSync(file, { bigint: true })
 }
 
 function isSameFile(left: FileIdentity, right: FileIdentity): boolean {

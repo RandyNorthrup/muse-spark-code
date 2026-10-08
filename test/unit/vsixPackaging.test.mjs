@@ -100,12 +100,16 @@ beforeAll(async () => {
   writeFileSync(path.join(fixture.root, 'PLAN.md'), 'must not ship')
   for (const file of [
     'dist/extension.js',
+    'dist/estimator.js',
     'dist/resourceGovernor.js',
     'dist/resourceAdmission.js',
     'dist/webview/resourceSurface.js',
     'dist/webview/resourceHistory.js',
     'dist/webview/resourceHistory.css',
     'dist/validation.js',
+    'dist/media.js',
+    'dist/screenRecord.js',
+    'dist/uiTextMedia.js',
     'dist/webview/main.js',
     'dist/webview/main.css',
     'dist/webview/models.js',
@@ -120,6 +124,10 @@ beforeAll(async () => {
     'native/linux/x64/muse-created',
     'native/linux/arm64/muse-created',
     'native/darwin/muse-dictate',
+    'native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate',
+    'native/darwin/muse-dictate-screen.app/Contents/Resources/de.lproj/InfoPlist.strings',
+    'native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources',
+    'native/windows/MuseSparkScreenRecord.cs',
     'l10n/ui.de.json.br',
   ]) {
     mkdirSync(path.dirname(path.join(fixture.root, file)), { recursive: true })
@@ -309,16 +317,24 @@ describe('VSIX packaging', () => {
     const packaged = fixture.packagedFiles
     expect(packaged).toEqual(
       expect.arrayContaining([
+        'dist/estimator.js',
         'dist/validation.js',
         'dist/resourceGovernor.js',
         'dist/resourceAdmission.js',
         'dist/webview/resourceSurface.js',
         'dist/webview/resourceHistory.js',
         'dist/webview/resourceHistory.css',
+        'dist/media.js',
+        'dist/screenRecord.js',
+        'dist/uiTextMedia.js',
         'dist/webview/chunks/UsageDialog-test.js',
         'native/linux/x64/muse-created',
         'native/linux/arm64/muse-created',
         'native/darwin/muse-dictate',
+        'native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate',
+        'native/darwin/muse-dictate-screen.app/Contents/Resources/de.lproj/InfoPlist.strings',
+        'native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources',
+        'native/windows/MuseSparkScreenRecord.cs',
         'l10n/ui.tables.json.br',
         'dist/runtime.bundles.json.br',
       ]),

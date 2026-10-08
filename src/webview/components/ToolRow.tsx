@@ -7,7 +7,7 @@
 // host is waiting.
 
 import { lazy, memo, type ReactNode, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-
+import { statusDotClass } from '../toolStatus'
 import {
   IO_PREVIEW_LINES,
   MODEL_API_SCHEDULED_TOOL,
@@ -19,7 +19,12 @@ import {
 import { fill } from '../../shared/l10n/text'
 import { PaidBadge } from './PaidBadge'
 import type { LineRange } from '../../shared/protocol'
-import { type DiffRow, type FileDiff, parsePatchDocument, parseUnifiedText } from '../diff'
+import {
+  type DiffRow,
+  type FileDiff,
+  parsePatchDocument,
+  parseUnifiedText,
+} from '../../shared/patchDocument'
 import {
   failedOutcomeText,
   hasLandedEdits,
@@ -29,7 +34,7 @@ import {
   toolImageKey,
   type TranscriptEntry,
 } from '../state/uiState'
-import { backgroundRun, readableText, statusDotClass } from '../toolDetails'
+import { backgroundRun, readableText } from '../toolDetails'
 import {
   changeSummary,
   describeTool,

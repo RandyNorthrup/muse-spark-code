@@ -1,3 +1,4 @@
+import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // The Muse Spark agent over the Agent Client Protocol (PLAN.md D62): one
 // client on stdio, any number of sessions, each an AgentSession of the
 // backend chosen at launch. The client's editor shows the chat, the tool
@@ -71,13 +72,15 @@ import {
   type EffortLevel,
   MSP_REQUESTED_CAPABILITIES,
   SCHEDULE_ACP_RELEASE_TIMEOUT_MS,
+  MAX_ATTACHMENTS_PER_MESSAGE,
   type PermissionMode,
   QUESTION_DEFER_DEFAULT_SECONDS,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
 } from '../shared/constants'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
-import { fill, uiLocale } from '../shared/l10n/text'
+import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
+import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
 import { parseSkillInvocation } from '../shared/mentions'
 import type { PaidUseRequest } from '../shared/paid'
 import {
@@ -96,6 +99,7 @@ import type {
   AcpQuestionRegistryFactory,
   AcpQueuedAnswerLease,
 } from './questionDeferral'
+import { AcpAccounts, accountErrorText, type AccountsSessionPort } from './accounts'
 import {
   acpQuestionClock,
   questionDeferralLoader,
@@ -105,6 +109,7 @@ import type { QuestionClock } from '../shared/questions'
 import {
   approvalToolCall,
   decidedChoice,
+  isMediaLink,
   mcpServersFrom,
   permissionOptions,
   permissionResponse,
@@ -114,6 +119,9 @@ import {
 } from './translate'
 import type { AcpSharingPort } from './sharing'
 import { acpReportArguments, runAcpReport, type AcpReportsPort } from './reports'
+import { type AcpVault, vaultPermissionAnswer, vaultPermissionOptions, vaultSlash } from './vault'
+import { type VaultApprovalRequest, type VaultApprovalAnswer } from '../shared/vault'
+import type { AcpEstimatePort } from './estimate'
 
 // Muse Code runs a session's MCP servers only with this grant (M63c).
 const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -144,6 +152,8 @@ export interface AcpAgentOptions {
     readonly scheduledPrompts: boolean
     readonly maxBudgetUsd?: number
   }
+  /** Headless exec cannot invoke user entry points, even through a prompt. */
+  readonly isHeadless?: boolean
 }
 
 /** How the user signs in to the chosen backend (D61, D62). */
@@ -177,6 +187,9 @@ export interface AcpAgentDeps {
   readonly schedules?: AcpSchedulePort
   /** I binds P's local /playbook parsing and rendering (the journal bundle). */
   readonly playbookBundle?: () => AcpPlaybookBundle
+  /** H-W-SESSION: one profile-owned account service, bound to this backend. */
+  readonly accounts?: AccountsSessionPort
+  readonly vault?: AcpVault
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -196,6 +209,8 @@ export interface AcpAgentDeps {
   readonly questionClock?: QuestionClock
   /** Same-build factory loader; tests inject the source factory. */
   readonly questionBundle?: () => AcpQuestionBundle
+  /** W's lazy runtime binding; absent media entry points refuse before dispatch. */
+  readonly media?: AcpMediaFactory
   /**
    * Report a problem (M93 lane A, PLAN.md D72): facts-only error observation
    * for the standalone report's journal. The runtime wires this to its local
@@ -209,6 +224,8 @@ export interface AcpAgentDeps {
   readonly reportError?: (fact: AcpErrorFact) => void
   /** M113's lazy deterministic engine, scoped to this session's workspace. */
   readonly reports?: AcpReportsPort
+  /** M117: supplied by the lazy estimator loader; absence is reported locally. */
+  readonly estimate?: AcpEstimatePort
 }
 
 /** One observed failure as facts: a fixed kind and a fixed short code, nothing else. */
@@ -270,6 +287,13 @@ function isContributorModel(modelId: string): boolean {
   return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
 }
 
+function accountRequestError(error: unknown): RequestError {
+  const text = accountErrorText(error)
+  return text === UI_TEXT.accounts.invalidAccount
+    ? RequestError.invalidParams(undefined, text)
+    : RequestError.internalError(undefined, text)
+}
+
 /** The model a new session starts on: the backend's default, else the first listed. */
 function startingModel(models: readonly ModelSummary[]): string {
   const model = models.find((candidate) => candidate.isDefault) ?? models[0]
@@ -290,6 +314,9 @@ class AcpSession {
   private readonly questionRegistry: AcpQuestionRegistry | undefined
   private questions: AcpQuestionDeferral | undefined
   private readonly questionBundle: () => AcpQuestionBundle
+  private media: Promise<AcpMediaPort> | undefined
+  private readonly attachments: AcpAttachment[] = []
+  private readonly accounts: AcpAccounts | undefined
   private readonly translator: UpdateTranslator
   private unsubscribe: (() => void) | undefined
   private readonly unsubscribeResources: (() => void) | undefined
@@ -311,6 +338,8 @@ class AcpSession {
   private effort: EffortLevel = DEFAULT_EFFORT
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
+  private vaultGeneration = 0
+  private readonly vaultRequests = new Set<AbortController>()
   /** A turn being started (`sendTurn` not yet answered): a release waits for it, then stops it. */
   private starting: Promise<unknown> | undefined
   public readonly sessionId: string
@@ -354,6 +383,28 @@ class AcpSession {
       }
       if (isPause) this.hasShownResourcePause = true
     })
+    // The session subscribes in loadQuestions (M112): subscribing here too
+    // would deliver every backend event twice.
+    this.accounts =
+      deps.accounts === undefined
+        ? undefined
+        : new AcpAccounts(
+            this.sessionId,
+            deps.accounts,
+            () => {
+              this.send({
+                sessionUpdate: 'config_option_update',
+                configOptions: this.configOptions(),
+              })
+            },
+            (text, event) => {
+              this.send({
+                sessionUpdate: 'agent_message_chunk',
+                _meta: { accountNotice: event },
+                content: { type: 'text', text },
+              })
+            },
+          )
   }
 
   private getQuestions(): AcpQuestionDeferral {
@@ -395,6 +446,11 @@ class AcpSession {
 
   private async endQuestions(isCancelled: boolean): Promise<void> {
     await (this.questions?.turnEnded(isCancelled) ?? this.questionRegistry?.turnEnded(isCancelled))
+  }
+
+  /** Cancellation/release callbacks can change the prompt across await. */
+  private wasEstimateCancelled(preparing: PreparingPrompt): boolean {
+    return preparing.isCancelled || this.isDisposed
   }
 
   /** Queues an update behind the ones before it: the client sees them in order. */
@@ -465,6 +521,18 @@ class AcpSession {
           ?.commands()
           .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
         { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
+        ...(this.deps.vault === undefined
+          ? []
+          : [
+              {
+                name: 'vault',
+                description: UI_TEXT.vault.title,
+                input: { hint: 'status | list | lock | audit' },
+              },
+            ]),
+        ...(this.accounts === undefined
+          ? []
+          : [{ name: 'accounts', description: UI_TEXT.accounts.slashDescription, input: null }]),
         { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
         {
           name: SLASH_COMMAND_NAMES.report,
@@ -511,10 +579,30 @@ class AcpSession {
                 input: { hint: UI_TEXT.scheduleV2.runtime.usage },
               },
             ]),
+        ...(this.deps.media === undefined || this.deps.options.isHeadless === true
+          ? []
+          : [
+              {
+                name: 'attach',
+                description: UI_TEXT.paletteTips.attachFile,
+                input: { hint: '<path>' },
+              },
+              { name: 'record', description: UI_TEXT.media.attachRecording, input: null },
+            ]),
+        ...(this.deps.estimate === undefined
+          ? []
+          : [
+              {
+                name: SLASH_COMMAND_NAMES.estimate,
+                description: UI_TEXT.estimateCliHelp,
+                input: { hint: UI_TEXT.estimateUsage },
+              },
+            ]),
         ...this.skills
           .filter(
             (skill) =>
               skill.selector !== SLASH_COMMAND_NAMES.help &&
+              skill.selector !== SLASH_COMMAND_NAMES.estimate &&
               skill.selector !== ACP_COMPACT_COMMAND &&
               skill.selector !== 'legal' &&
               ![
@@ -525,6 +613,10 @@ class AcpSession {
                 'resources',
                 'agents',
                 SLASH_COMMAND_NAMES.report,
+                'attach',
+                'record',
+                'accounts',
+                'vault',
               ].includes(skill.selector) &&
               ((this.deps.usage === undefined && this.deps.resources === undefined) ||
                 skill.selector !== 'usage') &&
@@ -544,6 +636,83 @@ class AcpSession {
             ]),
       ],
     })
+  }
+
+  private mediaPort(): Promise<AcpMediaPort> {
+    const factory = this.deps.media
+    if (factory === undefined)
+      throw RequestError.invalidParams(undefined, UI_TEXT.media.uploadStorageUnknown)
+    this.media ??= factory({
+      cwd: this.cwd,
+      sessionId: this.sessionId,
+      backend: this.deps.backend.kind,
+      modelId: () => this.modelId,
+      interactive: this.deps.options.isHeadless !== true,
+    })
+    return this.media
+  }
+
+  private async mediaCommand(
+    blocks: readonly ContentBlock[],
+    signal: AbortSignal,
+  ): Promise<boolean> {
+    const [first] = blocks
+    if (blocks.length !== 1 || first?.type !== 'text') return false
+    const text = first.text.trim()
+    const attach = /^\/attach(?:\s+(.+))?$/su.exec(text)
+    const isRecord = text === '/record'
+    if (attach === null && !isRecord) return false
+    if (this.deps.options.isHeadless === true) {
+      // A queued headless attachment never sends: no second turn carries
+      // it. /record is refused the same way (M105 E2 review).
+      if (isRecord) throw RequestError.invalidParams(undefined, UI_TEXT.media.recordingUserOnly)
+      throw RequestError.invalidParams(undefined, UI_TEXT.media.attachHeadless)
+    }
+    if (this.attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE)
+      throw RequestError.invalidParams(undefined, UI_TEXT.attachmentLimit)
+    const given = attach?.[1]?.trim()
+    if (!isRecord && (given === undefined || given === ''))
+      throw RequestError.invalidParams(undefined, UI_TEXT.attachmentUnreadable)
+    const port = await this.mediaPort()
+    signal.throwIfAborted()
+    let attachment: AcpAttachment | undefined
+    try {
+      attachment = isRecord ? await port.record(signal) : await port.attach(given ?? '', signal)
+    } catch (error: unknown) {
+      if (signal.aborted) throw error
+      throw RequestError.invalidParams(
+        undefined,
+        error instanceof Error ? error.message : UI_TEXT.attachmentUnreadable,
+      )
+    }
+    if (attachment === undefined) return true
+    if (signal.aborted || this.isDisposed) {
+      await attachment.dispose?.()
+      signal.throwIfAborted()
+      throw RequestError.resourceNotFound(this.sessionId)
+    }
+    this.attachments.push(attachment)
+    // Only video and audio have a duration; other kinds ack without one
+    // (M105 E2 review).
+    const metadata =
+      'durationSeconds' in attachment.info
+        ? fill(UI_TEXT.media.replayMetadata, {
+            name: attachment.name,
+            duration:
+              attachment.info.durationSeconds === null
+                ? UI_TEXT.media.durationUnknown
+                : formatUnit(attachment.info.durationSeconds, 'second'),
+            size: formatBytes(attachment.info.sizeBytes),
+          })
+        : fill(UI_TEXT.media.replayMetadataNoDuration, {
+            name: attachment.name,
+            size: formatBytes(attachment.info.sizeBytes),
+          })
+    this.send({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: metadata },
+    })
+    return true
   }
 
   private onEvent(event: AgentEvent): void {
@@ -1008,6 +1177,11 @@ class AcpSession {
     return !preparing.isCancelled && !this.isDisposed
   }
 
+  private cancelVaultRequests(): void {
+    this.vaultGeneration += 1
+    for (const controller of this.vaultRequests) controller.abort()
+  }
+
   /**
    * The question before a paid use (M58, PLAN.md D48): a row naming what is
    * about to be billed and its price, and a permission prompt on it with the
@@ -1140,6 +1314,91 @@ class AcpSession {
     return answer
   }
 
+  public async startAccounts(): Promise<void> {
+    await this.accounts?.start()
+  }
+
+  /** Broker-owned request; Bypass, tools and paid grants never enter this path. */
+  public async askVaultUse(request: VaultApprovalRequest): Promise<VaultApprovalAnswer> {
+    const pending = this.pending
+    const preparing = this.preparing
+    const generation = this.vaultGeneration
+    const deny: VaultApprovalAnswer = {
+      requestId: request.id,
+      digest: request.digest,
+      decision: 'deny',
+    }
+    const isCurrent = () =>
+      this.isCurrentPaidPrompt(pending, preparing) &&
+      generation === this.vaultGeneration &&
+      Date.now() < request.expiresAt
+    if (!isCurrent()) return deny
+    const toolCallId = `vault:${request.id}`
+    const content = [
+      {
+        type: 'content' as const,
+        content: { type: 'text' as const, text: vaultApprovalText(request) },
+      },
+    ]
+    this.send({
+      sessionUpdate: 'tool_call',
+      toolCallId,
+      title: UI_TEXT.vault.title,
+      kind: 'other',
+      status: 'pending',
+      content,
+    })
+    const controller = new AbortController()
+    this.vaultRequests.add(controller)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let answer = deny
+    try {
+      await this.outbox
+      if (isCurrent()) {
+        const cancelled = new Promise<RequestPermissionResponse>((resolve) => {
+          controller.signal.addEventListener(
+            'abort',
+            () => {
+              resolve({ outcome: { outcome: 'cancelled' } })
+            },
+            { once: true },
+          )
+          timer = setTimeout(
+            () => {
+              controller.abort()
+            },
+            Math.max(1, request.expiresAt - Date.now()),
+          )
+        })
+        const response = await Promise.race([
+          this.client.request(
+            'session/request_permission',
+            {
+              sessionId: this.sessionId,
+              toolCall: { toolCallId, title: UI_TEXT.vault.title, status: 'pending', content },
+              options: vaultPermissionOptions(request),
+            },
+            { cancellationSignal: controller.signal },
+          ),
+          cancelled,
+        ])
+        if (isCurrent()) answer = vaultPermissionAnswer(request, permissionResponse(response))
+      }
+    } catch {
+      /* A lost editor or malformed permission response is Deny, with no remote text logged. */
+    } finally {
+      clearTimeout(timer)
+      controller.abort()
+      this.vaultRequests.delete(controller)
+      this.send({
+        sessionUpdate: 'tool_call_update',
+        toolCallId,
+        status: answer.decision === 'deny' ? 'failed' : 'completed',
+      })
+    }
+    return answer
+  }
+
   public modes(): SessionModeState {
     return {
       currentModeId: this.mode,
@@ -1153,6 +1412,7 @@ class AcpSession {
 
   public configOptions(): SessionConfigOption[] {
     return [
+      ...(this.accounts?.option() ?? []),
       {
         id: ACP_CONFIG_IDS.model,
         name: UI_TEXT.groupModel,
@@ -1223,6 +1483,21 @@ class AcpSession {
   public async setConfigOption(configId: string, value: unknown): Promise<void> {
     if (typeof value !== 'string') {
       throw RequestError.invalidParams(undefined, configId)
+    }
+    if (configId === ACP_CONFIG_IDS.account) {
+      if (this.accounts === undefined)
+        throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
+      if (this.pending !== undefined || this.preparing !== undefined)
+        throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
+      try {
+        await this.accounts.use(
+          value,
+          () => !this.isDisposed && this.pending === undefined && this.preparing === undefined,
+        )
+      } catch (error) {
+        throw accountRequestError(error)
+      }
+      return
     }
     if (configId === ACP_CONFIG_IDS.model) {
       if (this.models.every((model) => model.modelId !== value)) {
@@ -1313,8 +1588,30 @@ class AcpSession {
       await this.outbox
       return 'end_turn'
     }
-    if (this.pending !== undefined || this.preparing !== undefined) {
+    const slash = first?.type === 'text' ? vaultSlash(first.text) : undefined
+    if (slash !== 'lock' && (this.pending !== undefined || this.preparing !== undefined)) {
       throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
+    }
+    if (slash !== undefined) {
+      if (slash === 'invalid' || blocks.length !== 1)
+        throw RequestError.invalidParams(undefined, UI_TEXT.vault.noAccess)
+      if (this.deps.vault === undefined)
+        throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
+      const preparing: PreparingPrompt | undefined =
+        slash === 'lock' ? undefined : { isCancelled: false, abort: new AbortController() }
+      if (preparing === undefined) this.cancelVaultRequests()
+      else this.preparing = preparing
+      try {
+        const text = await this.deps.vault.command(slash)
+        if (this.isDisposed || preparing?.isCancelled === true) return 'cancelled'
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+        await this.outbox
+        return 'end_turn'
+      } catch {
+        throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
+      } finally {
+        if (preparing !== undefined && this.preparing === preparing) this.preparing = undefined
+      }
     }
     const reportArgs = acpReportArguments(blocks)
     if (reportArgs !== undefined) {
@@ -1338,66 +1635,127 @@ class AcpSession {
         this.preparing = undefined
       }
     }
-    const parsed = promptParts(blocks, this.cwd)
-    if (!parsed.ok) {
-      throw RequestError.invalidParams(undefined, parsed.reason)
-    }
-    if (
-      ['/legal', '/legal --offline'].includes(parsed.displayText.trim()) &&
-      this.deps.legalScan !== undefined &&
-      parsed.parts.every((part) => part.type === 'text')
-    )
-      return await this.runLegalScan(this.deps.legalScan, parsed.displayText.trim() === '/legal')
-    if (
-      parsed.parts.length === 1 &&
-      parsed.parts[0]?.type === 'text' &&
-      parsed.parts[0].text.trim() === `/${SLASH_COMMAND_NAMES.help}`
-    ) {
-      const preparing: PreparingPrompt = { isCancelled: false, abort: new AbortController() }
-      this.preparing = preparing
-      try {
-        await this.announceCommands()
-      } finally {
-        this.preparing = undefined
-      }
-      if ('error' in preparing) throw preparing.error
-      if (preparing.isCancelled) {
-        await this.outbox
-        return 'cancelled'
-      }
-      this.send({
-        sessionUpdate: 'agent_message_chunk',
-        content: {
-          type: 'text',
-          text: compactReference([
-            ACP_COMPACT_COMMAND,
-            ...(this.deps.legalScan === undefined ? [] : ['legal']),
-            ...(this.deps.usage === undefined ? [] : ['usage']),
-            ...this.skills
-              .map((skill) => skill.selector)
-              .filter(
-                (name) => !['answer', 'questions', 'share', 'prompt', 'agents'].includes(name),
-              ),
-            'agents',
-            ...(this.questionRegistry === undefined ? [] : ['questions', 'answer']),
-            ...(this.deps.sharing?.commands().map((command) => command.name) ?? []),
-          ]),
-        },
-      })
-      await this.outbox
-      return 'end_turn'
-    }
     const preparing: PreparingPrompt = { isCancelled: false, abort: new AbortController() }
     this.preparing = preparing
-    const [part] = parsed.parts
-    const isCompact =
-      parsed.parts.length === 1 &&
-      part?.type === 'text' &&
-      part.text.trim() === `/${ACP_COMPACT_COMMAND}`
+    let parsed: Awaited<ReturnType<typeof promptParts>>
+    let isCompact: boolean
     let isUsage: boolean
     let lease: Awaited<ReturnType<AcpQuestionRegistry['peekQueued']>>
     let local: Awaited<ReturnType<typeof acpPlaybook>>
     try {
+      if (await this.mediaCommand(blocks, preparing.abort.signal)) {
+        await this.announceCommands()
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
+      // Only media links need the port: ordinary links stay mentions even
+      // when the factory binds (M105 E2 review).
+      const isNeedsMedia = blocks.some(
+        (block) =>
+          block.type === 'audio' ||
+          (block.type === 'resource_link' && isMediaLink(block)) ||
+          (block.type === 'resource' &&
+            'blob' in block.resource &&
+            !/^(?:image\/|application\/pdf$)/u.test(block.resource.mimeType ?? '')),
+      )
+      const media =
+        isNeedsMedia && this.deps.media !== undefined ? await this.mediaPort() : undefined
+      parsed = await promptParts(
+        blocks,
+        this.cwd,
+        media,
+        this.deps.backend.kind === 'modelApi',
+        preparing.abort.signal,
+      )
+      if (!parsed.ok) throw RequestError.invalidParams(undefined, parsed.reason)
+      const estimatePart = blocks.find((block) => block.type === 'text')
+      if (estimatePart !== undefined && /^\/estimate(?:\s|$)/.test(estimatePart.text.trim())) {
+        const controller = preparing.abort
+        try {
+          await this.announceCommands()
+          if ('error' in preparing) throw preparing.error
+          if (this.wasEstimateCancelled(preparing)) return 'cancelled'
+          let text = UI_TEXT.estimateUsage
+          if (parsed.parts.length === 1)
+            text =
+              this.deps.estimate === undefined
+                ? fill(UI_TEXT.estimateWaiting, { dependency: 'M117-W-estimator-binding' })
+                : await this.deps.estimate.run(estimatePart.text, this.cwd, controller.signal)
+          if ('error' in preparing) throw preparing.error
+          if (this.wasEstimateCancelled(preparing)) return 'cancelled'
+          this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+          await this.outbox
+          return 'end_turn'
+        } catch {
+          if (this.wasEstimateCancelled(preparing)) return 'cancelled'
+          if ('error' in preparing) throw preparing.error
+          this.send({
+            sessionUpdate: 'agent_message_chunk',
+            content: {
+              type: 'text',
+              text: fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }),
+            },
+          })
+          await this.outbox
+          return 'end_turn'
+        } finally {
+          this.preparing = undefined
+        }
+      }
+
+      if (
+        ['/legal', '/legal --offline'].includes(parsed.displayText.trim()) &&
+        this.deps.legalScan !== undefined &&
+        parsed.parts.every((part) => part.type === 'text')
+      )
+        return await this.runLegalScan(this.deps.legalScan, parsed.displayText.trim() === '/legal')
+      const [part] = parsed.parts
+      isCompact =
+        parsed.parts.length === 1 &&
+        part?.type === 'text' &&
+        part.text.trim() === `/${ACP_COMPACT_COMMAND}`
+      if (
+        parsed.parts.length === 1 &&
+        part?.type === 'text' &&
+        part.text.trim() === `/${SLASH_COMMAND_NAMES.help}`
+      ) {
+        await this.announceCommands()
+        if ('error' in preparing) throw preparing.error
+        if (!preparing.isCancelled)
+          this.send({
+            sessionUpdate: 'agent_message_chunk',
+            content: {
+              type: 'text',
+              text: compactReference([
+                ACP_COMPACT_COMMAND,
+                ...(this.deps.legalScan === undefined ? [] : ['legal']),
+                ...(this.deps.usage === undefined ? [] : ['usage']),
+                ...(this.deps.media === undefined || this.deps.options.isHeadless === true
+                  ? []
+                  : ['attach', 'record']),
+                ...this.skills
+                  .map((skill) => skill.selector)
+                  .filter(
+                    (name) =>
+                      ![
+                        'answer',
+                        'questions',
+                        'share',
+                        'prompt',
+                        'agents',
+                        'attach',
+                        'record',
+                      ].includes(name),
+                  ),
+                'agents',
+                ...(this.questionRegistry === undefined ? [] : ['questions', 'answer']),
+                ...(this.deps.sharing?.commands().map((command) => command.name) ?? []),
+              ]),
+            },
+          })
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
       local = await acpPlaybook(
         blocks,
         () => this.deps.playbookFor?.(this.cwd, this.sessionId),
@@ -1421,6 +1779,27 @@ class AcpSession {
         if (preparing.isCancelled) return 'cancelled'
         if ('error' in preparing) throw preparing.error
         this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: result } })
+        await this.outbox
+        return 'end_turn'
+      }
+      const first = parsed.parts[0]
+      if (first?.type === 'text' && /^\/accounts(?:\s|$)/.test(first.text)) {
+        if (this.accounts === undefined)
+          throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
+        if (parsed.parts.length !== 1)
+          throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
+        let text: string | undefined
+        try {
+          text = await this.accounts.command(
+            first.text,
+            () => !this.isDisposed && !preparing.isCancelled && !('error' in preparing),
+          )
+        } catch (error) {
+          throw accountRequestError(error)
+        }
+        if (preparing.isCancelled || this.isDisposed) return 'cancelled'
+        if (text !== undefined)
+          this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
         await this.outbox
         return 'end_turn'
       }
@@ -1464,6 +1843,12 @@ class AcpSession {
       isUsage = await this.usageReply(blocks, preparing)
       if (!isUsage && !isCompact && local === undefined)
         lease = await this.questionRegistry?.peekQueued()
+    } catch (error: unknown) {
+      // Peeking is the try's last step, so no answer lease is held here.
+      if ('error' in preparing) throw preparing.error
+      if (!preparing.isCancelled) throw error
+      await this.outbox
+      return 'cancelled'
     } finally {
       if (this.preparing === preparing) this.preparing = undefined
     }
@@ -1515,12 +1900,31 @@ class AcpSession {
         const outcome = await this.session.compact()
         this.finishCompaction(outcome.status)
       } else {
+        const mediaQueued = [...this.attachments]
         const starting = this.session.sendTurn(
-          [...(pending.answerLease?.parts ?? []), ...this.withSkill(parsed.parts)],
+          [
+            ...(pending.answerLease?.parts ?? []),
+            ...this.withSkill([
+              ...parsed.parts,
+              ...mediaQueued.map((attachment) => attachment.part),
+            ]),
+          ],
           parsed.displayText,
         )
         this.starting = starting
         const submission = await starting
+        this.attachments.splice(0, mediaQueued.length)
+        void finished
+          .then(async () => {
+            await Promise.all(
+              mediaQueued.flatMap((attachment) =>
+                attachment.dispose === undefined ? [] : [attachment.dispose()],
+              ),
+            )
+          })
+          .catch((error: unknown) => {
+            this.deps.log.warn(`ACP media cleanup: ${failureForLog(error)}`)
+          })
         if (submission.userMessageId !== undefined) pending.userMessageId = submission.userMessageId
         this.noteTurnId(submission.turnId, submission.disposition)
         if (submission.disposition !== 'started' && submission.disposition !== 'queued') {
@@ -1561,6 +1965,7 @@ class AcpSession {
 
   public async cancel(): Promise<void> {
     this.legalStop?.abort()
+    this.cancelVaultRequests()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
       this.preparing.reportAbort?.abort()
@@ -1644,6 +2049,8 @@ class AcpSession {
     const releasingAnswers = this.releaseAnswers()
     this.questions?.dispose()
     if (this.questions === undefined) this.questionRegistry?.dispose()
+    this.accounts?.dispose()
+    this.cancelVaultRequests()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
       this.preparing.reportAbort?.abort()
@@ -1694,6 +2101,11 @@ class AcpSession {
       }
     })()
     await Promise.all([stop, cleanup])
+    await Promise.all(
+      this.attachments
+        .splice(0)
+        .flatMap((attachment) => (attachment.dispose === undefined ? [] : [attachment.dispose()])),
+    )
   }
 }
 
@@ -1803,6 +2215,7 @@ class AgentState {
       await acp.loadQuestions()
       await acp.holdSchedules()
       await prepare(acp)
+      await acp.startAccounts()
       this.ensureClaim(claim, host)
       if (acp.isReleased) {
         // A newer load of this session, or a close, let it go meanwhile.
@@ -1926,7 +2339,7 @@ class AgentState {
       protocolVersion: PROTOCOL_VERSION,
       agentCapabilities: {
         loadSession: true,
-        promptCapabilities: { image: true, audio: false, embeddedContext: true },
+        promptCapabilities: { image: true, audio: true, embeddedContext: true },
         // Stdio servers every agent takes; HTTP ones Muse Code runs too (M63c).
         mcpCapabilities: { http: this.deps.backend.kind === 'museCode', sse: false },
         sessionCapabilities: { list: {}, resume: {}, close: {} },
@@ -2082,11 +2495,22 @@ class AgentState {
     }
     return await acp.askPaidUse(request, canRemember)
   }
+
+  public async askVaultUse(
+    sessionId: string,
+    request: VaultApprovalRequest,
+  ): Promise<VaultApprovalAnswer> {
+    const session = this.sessions.get(sessionId)
+    return session === undefined
+      ? { requestId: request.id, digest: request.digest, decision: 'deny' }
+      : await session.askVaultUse(request)
+  }
 }
 
 /** The agent: register it on a stream with `connect`. */
 export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
   const state = new AgentState(deps)
+  deps.vault?.attach((sessionId, request) => state.askVaultUse(sessionId, request))
   deps.paid.attach((sessionId, request, canRemember) =>
     state.askPaidUse(sessionId, request, canRemember),
   )

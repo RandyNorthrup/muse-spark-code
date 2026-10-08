@@ -60,7 +60,8 @@ function fixture() {
   writeFileSync(path.join(dir, 'scripts/package-acp.mjs'), script)
   cpSync('media', path.join(dir, 'media'), { recursive: true })
   cpSync('src/shared', path.join(dir, 'src/shared'), { recursive: true })
-  mkdirSync(path.join(dir, 'src/runtime'), { recursive: true })
+  mkdirSync(path.join(dir, 'src/runtime/estimator'), { recursive: true })
+  cpSync('src/runtime/estimator/options.ts', path.join(dir, 'src/runtime/estimator/options.ts'))
   cpSync('src/runtime/cliOptions.ts', path.join(dir, 'src/runtime/cliOptions.ts'))
   cpSync('src/core/whatsNew', path.join(dir, 'src/core/whatsNew'), { recursive: true })
   mkdirSync(path.join(dir, 'src/core/judge'), { recursive: true })
@@ -104,7 +105,15 @@ function fixture() {
     path.join(production, 'dist/meta/usageWebview.json'),
     path.join(dir, 'dist/meta/usageWebview.json'),
   )
-  for (const name of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs'])
+  for (const name of [
+    'MuseSparkJob.cs',
+    'MuseSparkMcpJob.cs',
+    'MuseSparkScreenRecord.cs',
+    'MuseSparkVault.cs',
+    'MuseSparkVaultCng.cs',
+    'MuseSparkVaultHello.cs',
+    'MuseSparkVaultLock.cs',
+  ])
     writeFileSync(path.join(dir, 'native/windows', name), '// test-owned native fixture\n')
   mkdirSync(path.join(dir, 'design/fonts'), { recursive: true })
   cpSync('design/fonts/manifest.json', path.join(dir, 'design/fonts/manifest.json'))
@@ -148,7 +157,17 @@ describe('ChatGPT ACP package', () => {
     const members = z
       .object({ bundles: z.record(z.string(), z.string()) })
       .parse(JSON.parse(brotliDecompressSync(extracted.stdout).toString('utf8')))
-    for (const name of ['providers', 'subscriptions', 'configuredProviders'])
+    for (const name of [
+      'providers',
+      'subscriptions',
+      'configuredProviders',
+      'runtimeAccounts',
+      'media',
+      'vault',
+      'vaultBoundaries',
+      'estimator',
+      'estimateContracts',
+    ])
       expect(members.bundles[`${name}.js`]).toBe(
         readFileSync(path.join(dir, 'dist', `${name}.js`), 'utf8'),
       )

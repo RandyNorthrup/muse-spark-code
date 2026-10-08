@@ -12,20 +12,29 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
+  MILLISECONDS_PER_SECOND,
   META_DASHBOARD_URL,
   MODEL_API_PRICES_VERIFIED_ON,
   type ModelPricing,
   UI_TEXT,
   USAGE_COUNTDOWN_REFRESH_MS,
 } from '../../shared/constants'
-import { fill, formatPercent, plural, templateParts } from '../../shared/l10n/text'
+import {
+  fill,
+  formatBytes,
+  formatDateTime,
+  formatList,
+  formatPercent,
+  formatTokenWindow,
+  plural,
+  templateParts,
+} from '../../shared/l10n/text'
 import {
   type PaidState,
   listedPaidFeatures,
   usablePaidFeatures,
   modelApiPaidTier,
 } from '../../shared/paid'
-import { formatTokenWindow } from '../../shared/paletteFormatting'
 import { relativeTime } from '../../shared/sessions'
 import {
   barValue,
@@ -78,6 +87,10 @@ export interface UsageDialogProps {
   readonly models?: readonly ModelOption[]
   /** undefined while the host has not answered `readUsage`. */
   readonly report: UsageReport | undefined
+  /** Validated by the host bridge; retained after removal of the account key. */
+  readonly uploadedFiles?: UploadedFilesView
+  readonly onDeleteUploadedFile?: (fileId: string) => void
+  readonly onDeleteAllUploadedFiles?: () => void
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   /**
@@ -105,6 +118,21 @@ export interface UsageDialogProps {
 }
 
 const ROW_META_CLASS = 'usage-row-meta'
+/** The bridge supplies validated metadata; browser types have no Node imports. */
+interface UploadedFilesView {
+  readonly provider: string
+  readonly isReadOnly: boolean
+  readonly poolBytes: number
+  readonly usedBytes: number
+  readonly files: readonly {
+    readonly fileId: string
+    readonly name: string
+    readonly bytes: number
+    readonly expiresAt?: number | undefined
+    readonly ours: boolean
+    readonly sessions: readonly string[]
+  }[]
+}
 
 type InsightWindow = 'day' | 'week'
 
@@ -377,6 +405,9 @@ export function UsageDialogContent({
   readServiceStatus,
   models = [],
   report,
+  uploadedFiles,
+  onDeleteUploadedFile,
+  onDeleteAllUploadedFiles,
   usage,
   context,
   team,
@@ -540,6 +571,77 @@ export function UsageDialogContent({
       </button>
       {reportAction}
       {body}
+      {uploadedFiles === undefined ? null : (
+        <section aria-label={UI_TEXT.media.uploadedFiles}>
+          <h3 className="usage-heading">{UI_TEXT.media.uploadedFiles}</h3>
+          <p>
+            {fill(UI_TEXT.media.poolUsage, {
+              used: formatBytes(uploadedFiles.usedBytes),
+              pool: formatBytes(uploadedFiles.poolBytes),
+            })}
+          </p>
+          {uploadedFiles.isReadOnly || !paid.isKeyStored ? (
+            <p role="status">{UI_TEXT.media.filesReadOnly}</p>
+          ) : null}
+          {uploadedFiles.files.length === 0 ? (
+            <p>{UI_TEXT.media.filesEmpty}</p>
+          ) : (
+            <ul className="usage-insights">
+              {uploadedFiles.files.map((file) => (
+                <li key={file.fileId}>
+                  <strong>{file.name}</strong>
+                  <p>{formatBytes(file.bytes)}</p>
+                  <p>{file.ours ? UI_TEXT.media.filesOurs : UI_TEXT.media.filesOtherApp}</p>
+                  <p>
+                    {file.expiresAt === undefined
+                      ? UI_TEXT.media.fileNoExpiry
+                      : fill(UI_TEXT.media.fileExpiry, {
+                          expiry: formatDateTime(file.expiresAt * MILLISECONDS_PER_SECOND),
+                        })}
+                  </p>
+                  {file.sessions.length > 0 ? (
+                    <p>
+                      {fill(UI_TEXT.media.fileSessions, { sessions: formatList(file.sessions) })}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="usage-link"
+                    aria-label={`${UI_TEXT.memoryDeleteAction}: ${file.name}`}
+                    title={file.sessions.length > 0 ? UI_TEXT.media.filesInUse : undefined}
+                    disabled={
+                      uploadedFiles.isReadOnly ||
+                      !paid.isKeyStored ||
+                      file.sessions.length > 0 ||
+                      onDeleteUploadedFile === undefined
+                    }
+                    onClick={() => {
+                      onDeleteUploadedFile?.(file.fileId)
+                    }}
+                  >
+                    {UI_TEXT.memoryDeleteAction}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            className="usage-link"
+            disabled={
+              uploadedFiles.isReadOnly ||
+              !paid.isKeyStored ||
+              onDeleteAllUploadedFiles === undefined ||
+              uploadedFiles.files.every((file) => !file.ours || file.sessions.length > 0)
+            }
+            onClick={() => {
+              onDeleteAllUploadedFiles?.()
+            }}
+          >
+            {UI_TEXT.media.deleteAllOurs}
+          </button>
+        </section>
+      )}
       {auth.status === 'signedIn' ? (
         <div className="usage-setup">
           {auth.hasCli === false ? (

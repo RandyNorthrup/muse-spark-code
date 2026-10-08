@@ -1,8 +1,8 @@
 import { Buffer } from 'node:buffer'
 // Exercise the real generated Node fallback and localization state.
-import { readFileSync, mkdtempSync } from 'node:fs'
+import { readFileSync, mkdtempSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { tmpdir } from 'node:os'
+import { pathToFileURL } from 'node:url'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { build } from 'esbuild'
@@ -13,6 +13,7 @@ import {
   regionalUiText,
   uiTextProperties,
   compactBrowserEnglish,
+  compactBrowserUiText,
   compressedReference,
 } from '../../scripts/lib/uiTextRegions.mjs'
 
@@ -20,7 +21,7 @@ import { removeFolder } from './helpers/temporaryFolders'
 
 const built = { textSource: '', folder: '', browserSource: '' }
 beforeAll(async () => {
-  built.folder = mkdtempSync(path.join(tmpdir(), 'muse-regional-english-'))
+  built.folder = mkdtempSync(path.resolve('temp/muse-regional-english-'))
   // One parallel batch: these builds are independent, and running them one
   // after another made the suite slow enough to time out under a loaded
   // full run. The browser build feeds the inline round-trip test below.
@@ -66,6 +67,32 @@ beforeAll(async () => {
     ],
   })
   built.textSource = result.outputFiles[0].text
+  const vaultProbe = path.join(built.folder, 'vault-probe.ts')
+  writeFileSync(
+    vaultProbe,
+    `export { installVaultEnglish } from '${path.relative(built.folder, path.resolve('src/shared/l10n/vaultEnglish.ts')).replaceAll('\\', '/')}';`,
+  )
+  await build({
+    entryPoints: {
+      english: 'src/shared/l10n/en.ts',
+      text: 'src/shared/l10n/text.ts',
+      vault: vaultProbe,
+      main: 'src/webview/main.tsx',
+      models: 'src/webview/models/models.tsx',
+      usage: 'src/webview/usage/usage.tsx',
+      install: 'src/webview/installTable.ts',
+    },
+    outdir: path.join(built.folder, 'browser'),
+    outExtension: { '.js': '.mjs' },
+    bundle: true,
+    splitting: true,
+    minify: true,
+    platform: 'browser',
+    format: 'esm',
+    plugins: [compactBrowserUiText],
+    loader: { '.css': 'empty' },
+    jsx: 'automatic',
+  })
 })
 
 afterAll(() => removeFolder(built.folder))
@@ -110,6 +137,17 @@ function fallback() {
 }
 
 describe('regional Node English fallback', () => {
+  it('loads media English only on first media use and installs the caller language', () => {
+    const { text, loaded } = fallback()
+    expect(loaded).toEqual([])
+    expect(text.UI_TEXT.media.recordingFailed).toBe(EN.media.recordingFailed)
+    expect(loaded).toEqual(['./uiTextMedia.js'])
+    const german = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
+    text.setUiText(german, 'de')
+    expect(text.UI_TEXT.media.recordingFailed).toBe(german.media.recordingFailed)
+    expect(loaded).toEqual(['./uiTextMedia.js'])
+  })
+
   it('enumerates every key and creates localization state without loading a region', () => {
     const { bundle, text, loaded } = fallback()
     expect(Object.keys(bundle.EN).toSorted((a, b) => a.localeCompare(b, 'en'))).toEqual(
@@ -166,10 +204,12 @@ describe('regional Node English fallback', () => {
   })
 })
 
-it('round-trips every browser English key, value and plural form inline', async () => {
+it('round-trips full English inline and its vault installer', async () => {
   const bundle = await import(
     `data:text/javascript;base64,${Buffer.from(built.browserSource).toString('base64')}`
   )
+  expect(bundle.EN.vault).toEqual(EN.vault)
+  bundle.setVaultEnglish(EN.vault)
   expect(bundle.EN).toEqual(EN)
   expect(JSON.stringify(bundle.EN)).toBe(JSON.stringify(EN))
   expect(built.browserSource).toContain('DecompressionStream')
@@ -199,4 +239,30 @@ it('round-trips every production Node reference field through the native codec',
     JSON.parse(readFileSync('src/shared/reference/reference.generated.json', 'utf8')),
   )
   expect(result.outputFiles[0].text).toContain('brotliDecompressSync')
+})
+
+function loadBrowserRegion(name) {
+  return import(pathToFileURL(path.join(built.folder, 'browser', `${name}.mjs`)).href)
+}
+
+it('W startup validates vault translations on first use and loads actual English lazily', async () => {
+  const english = await loadBrowserRegion('english')
+  const text = await loadBrowserRegion('text')
+  expect(() => english.EN.vault).toThrow('English surface is not loaded')
+  expect(() => text.UI_TEXT.vault).toThrow('English surface is not loaded')
+  const table = globalThis.structuredClone(EN)
+  table.vault.policy = 'Richtlinie'
+  const install = await loadBrowserRegion('install')
+  expect(
+    install.installEmbeddedTable({
+      querySelector: () => ({ textContent: JSON.stringify({ locale: 'de', table }) }),
+    }),
+  ).toBeUndefined()
+  const vault = await loadBrowserRegion('vault')
+  vault.installVaultEnglish()
+  expect(english.EN.vault).toEqual(EN.vault)
+  expect(text.UI_TEXT.vault.policy).toBe('Richtlinie')
+  text.setUiText({ ...table, vault: { policy: null } }, 'de')
+  vault.installVaultEnglish()
+  expect(text.UI_TEXT.vault).toEqual(EN.vault)
 })

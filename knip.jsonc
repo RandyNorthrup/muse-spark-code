@@ -48,7 +48,10 @@
     "src/runtime/exec/execEntry.ts",
     // The help generator bundles this catalog in memory, then imports its export.
     "src/shared/featureCatalog.ts",
+    "src/shared/estimateContractsEntry.ts",
     "src/shared/modelApiBoundariesEntry.ts",
+    // Vault schemas shared by real Node bundle readers (D6).
+    "src/shared/vaultBoundariesEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     "src/core/legal/entry.ts",
@@ -96,6 +99,9 @@
     "src/host/web/webFetchEntry.ts",
     // The Auto reviewer on Muse Code (M90), required on the first review.
     "src/host/review/museCodeReviewerEntry.ts",
+    // The capacity estimator's engine (M117, PLAN.md D97), required by path
+    // on the first estimate.
+    "src/host/estimator/estimatorEntry.ts",
     // Both-backend extension hooks, required by path on first use (M91 E).
     "src/host/extensionHooksEntry.ts",
     // What's New (M99), required on the first page or notice, and its page script.
@@ -114,6 +120,10 @@
     "src/webview/models/models.tsx",
     "src/runtime/main.ts",
     "src/runtime/sharing/sharingEntry.ts",
+    // M105 media attachments and screen recording, each required by path on
+    // first use (dist/media.js, dist/screenRecord.js).
+    "src/host/media/mediaEntry.ts",
+    "src/host/media/screenRecordEntry.ts",
     // M112 A: same-build ACP question factory, loaded by path on first use.
     "src/acp/questionDeferralEntry.ts",
     "src/runtime/questions/questionRegistryEntry.ts",
@@ -122,6 +132,13 @@
     "src/core/questions/deferralEntry.ts",
     "src/runtime/fonts/fontsEntry.ts",
     "src/runtime/schedules/backgroundEntry.ts",
+    // The vault's window (M109 W), required by path on the first vault command.
+    "src/host/vault/vaultPanelEntry.ts",
+    // The vault harness page and its runner (M109 U): the page is the harness
+    // build's esbuild entry, which knip does not read, and the runner is run
+    // by path for the panel scenes and axe (`node test/harness/vault/run.mjs`).
+    "test/harness/vault/main.tsx",
+    "test/harness/vault/run.mjs",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     // Standalone browser checks invoked by path; usageHost is bundled by them.
     "test/harness/usage-check.mjs",

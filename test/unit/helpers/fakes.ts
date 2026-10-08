@@ -233,6 +233,7 @@ export const testSettings: SettingsSnapshot = {
   modelApiReplyUsage: false,
   schedules: true,
   museCodeAutoReviewer: true,
+  'estimator.optimize': 'cost',
 }
 
 export interface FakeHostContext extends WebviewHostContext {

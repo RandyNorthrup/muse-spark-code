@@ -146,6 +146,13 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   // M116: the playbook journal and settings ride no model call.
   ['orchestrator-playbook', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M108/W: several accounts per provider on Settings, the CLI and ACP alike.
+  ['accounts', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M109: the vault panel and lock in VS Code, /vault and permission mapping
+  // in ACP, on either backend; values never reach either surface.
+  ['vault', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M117: the estimator runs the same engine on every surface.
+  ['estimator', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ...['web-fetch', 'images'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
@@ -243,6 +250,8 @@ export const REFERENCE_ACTION_FEATURES = {
   hostAction: 'chat',
   decideApproval: 'chat',
   cancelQuestion: 'questions',
+  estimateRun: 'estimator',
+  estimateSpinUp: 'estimator',
   elicitationAnswer: 'mcp-elicitation',
   answerQuestion: 'questions',
   clarifyQuestion: 'questions',

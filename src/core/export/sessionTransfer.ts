@@ -42,6 +42,7 @@ import { fill, formatBytes } from '../../shared/l10n/text'
 import type { ApprovalMode } from '../../shared/permissionModes'
 import { BACKEND_KINDS, type BackendKind } from '../../shared/protocol'
 import { redactableSlices, redactSecrets } from '../redact'
+import type { SecretScrubPort } from '../../shared/redact'
 import type {
   StoredReplayItem,
   StoredSession,
@@ -252,6 +253,8 @@ export interface ScrubCounts {
 }
 
 export interface ExportRedaction {
+  /** Exact vault values are always removed, including a user-selected full export. */
+  readonly vaultScrub?: SecretScrubPort
   /** Redact account ids and paths; false only after the preview asked for the full file. */
   readonly redact: boolean
   /**
@@ -521,14 +524,30 @@ export async function buildSessionExport(
     modelId: source.modelId,
     transcript: source.items.map((item) => portableItem(item)),
   }
-  const scrubbed = await scrubValue(document, (text) => scrubText(text, redaction, roots, counts), {
-    sinceYield: 0,
-    // Cut at a line break, a folder whose name holds one could be split:
-    // such a string is scrubbed whole.
-    sliceChars: roots.some((root) => root.includes(LINE_BREAK))
-      ? Infinity
-      : SESSION_EXPORT_SCRUB_SLICE_CHARS,
-  })
+  // Whole document before slicing or path/pattern edits: encoded secrets may
+  // span lines, and privacy edits must not leave a recognizable value's tail.
+  let safeDocument: unknown = document
+  if (redaction.vaultScrub !== undefined) {
+    const original = JSON.stringify(document)
+    const clean = await redaction.vaultScrub.scrub(original)
+    counts.secrets += Math.max(
+      0,
+      clean.split(REDACTED_MARK).length - original.split(REDACTED_MARK).length,
+    )
+    safeDocument = JSON.parse(clean)
+  }
+  const scrubbed = await scrubValue(
+    safeDocument,
+    (text) => scrubText(text, redaction, roots, counts),
+    {
+      sinceYield: 0,
+      // Cut at a line break, a folder whose name holds one could be split:
+      // such a string is scrubbed whole.
+      sliceChars: roots.some((root) => root.includes(LINE_BREAK))
+        ? Infinity
+        : SESSION_EXPORT_SCRUB_SLICE_CHARS,
+    },
+  )
   return { ...counts, doc: sessionExportSchema.parse(scrubbed) }
 }
 

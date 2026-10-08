@@ -22,10 +22,25 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0160) · [Get started](#get-started) ·
+**Contents:** [What's new](#whats-new-in-0170) · [Get started](#get-started) ·
 [Work in the panel](#work-in-the-panel)
 
-## What's new in 0.16.0
+## What's new in 0.17.0
+
+- **Deterministic reports.** `/report` builds project, quality, milestone,
+  release and change reports from local facts, in Markdown, HTML, JSON or text,
+  with saved history and comparisons; nothing is sent to a model.
+- **Capacity estimates.** `/estimate <goal>` forecasts when a milestone or
+  release can land with the current, minimum or optimum fleet, without a model
+  call.
+- **Several accounts per provider.** List provider accounts, see the current
+  one and its thresholds; a vendor limit blocks only the affected account.
+- **Orchestrator playbook.** The nine orchestration rules ship as a first-party
+  skill, and `/playbook status`, `record` and `settings` answer locally.
+- **Refreshed design.** Shared design tokens and generated palettes style every
+  panel surface; an optional pinned OFL font pack serves standalone installs.
+
+### Earlier in 0.16.0
 
 - **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
   argument previews help you follow Model API tool calls. Independent reads can

@@ -55,8 +55,7 @@ const KEY = 'LLM|123456|fabricated%legacy.key-for-m80d'
 // Each package guard gets an independent copy; ordinary operations keep 30 seconds.
 const COLD_PACKAGE_TIMEOUT_MS = 60_000
 const TIMEOUT = 30_000
-// The production build and pack before the built rows: about a minute on the
-// Windows 11 VM, past Vitest's 10 s hook default and a single row's budget.
+// Building the fake process launcher performs real compiler work once per suite.
 const BUILD_TIMEOUT = 300_000
 const BASH = bashForTests()
 // Node passes drive-letter absolute paths; GNU tar treats their colon as a
@@ -183,6 +182,7 @@ function packagingFixture() {
     'dist/webview',
     'dist/meta',
     'native/windows',
+    'dist/native/darwin',
     'l10n',
     'docs/schemas',
     'test/action',
@@ -190,6 +190,9 @@ function packagingFixture() {
   ]) {
     mkdirSync(path.join(dir, folder), { recursive: true })
   }
+  // The fake-only membership guard needs its own native member; this is never
+  // used as a universal release artifact or executed as a macOS helper.
+  writeFileSync(path.join(dir, 'dist/native/darwin/muse-vault'), 'test-owned native fixture\n')
   for (const script of ['package-acp.mjs', 'package-acp-test.mjs']) {
     cpSync(path.join(ROOT, 'scripts', script), path.join(dir, 'scripts', script))
   }
@@ -304,7 +307,15 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     path.join(BUILD_ROOT, 'dist/providerCatalog.js'),
     path.join(dir, 'dist/providerCatalog.js'),
   )
-  for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
+  for (const file of [
+    'MuseSparkJob.cs',
+    'MuseSparkMcpJob.cs',
+    'MuseSparkScreenRecord.cs',
+    'MuseSparkVault.cs',
+    'MuseSparkVaultCng.cs',
+    'MuseSparkVaultHello.cs',
+    'MuseSparkVaultLock.cs',
+  ]) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
   mkdirSync(path.join(dir, 'native', 'darwin'), { recursive: true })
@@ -319,7 +330,8 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
   cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
   mkdirSync(path.join(dir, 'src/core/judge'), { recursive: true })
   cpSync(path.join(ROOT, 'src/core/judge/engine.ts'), path.join(dir, 'src/core/judge/engine.ts'))
-  mkdirSync(path.join(dir, 'src/runtime'), { recursive: true })
+  mkdirSync(path.join(dir, 'src/runtime/estimator'), { recursive: true })
+  cpSync('src/runtime/estimator/options.ts', path.join(dir, 'src/runtime/estimator/options.ts'))
   cpSync(path.join(ROOT, 'src/runtime/cliOptions.ts'), path.join(dir, 'src/runtime/cliOptions.ts'))
   cpSync(path.join(ROOT, 'src/core/whatsNew'), path.join(dir, 'src/core/whatsNew'), {
     recursive: true,

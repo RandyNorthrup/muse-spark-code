@@ -27,10 +27,10 @@ import {
   formatDateTime,
   formatFullDateTime,
   formatTime,
+  formatTokenWindow,
   isSameLocalDay,
   plural,
 } from '../../shared/l10n/text'
-import { formatTokenWindow } from '../../shared/paletteFormatting'
 import { formatUsd } from '../../core/usage/insights'
 import { isFinishedStep, type StepEntry, stepSummary, stepSummaryText } from '../stepSummary'
 import { hasFileAttachment, STEERED_DISPOSITION } from '../state/transcriptEntries'
@@ -68,7 +68,7 @@ import { PaidBadge } from './PaidBadge'
 import { type GooeyItem, useRowMenu } from './GooeyMenu'
 import type { MenuPoint } from '../gooeyLayout'
 
-const ToolRow = deferred(async () => {
+const ToolRow = deferred<ToolRowProps>(async () => {
   const module = await import('./ToolRow')
   return { default: module.ToolRow }
 })
@@ -1177,6 +1177,8 @@ function TranscriptList(props: TranscriptProps) {
       <ReasoningRow key={entry.id} entry={entry} />
     ) : (
       <ToolRow
+        asListItem
+        keepFocus
         key={entry.id}
         entry={entry}
         isRunning={isRunning}

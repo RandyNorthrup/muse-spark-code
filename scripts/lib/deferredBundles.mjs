@@ -157,6 +157,25 @@ export const DEFERRED = [
     ],
   },
   {
+    output: 'dist/vaultBoundaries.js',
+    metafile: 'dist/meta/vaultBoundaries.json',
+    files: [
+      'src/shared/vaultBoundariesEntry.ts',
+      'src/shared/redact.ts',
+      'src/shared/vault.ts',
+      'src/shared/vaultProtocol.ts',
+      'src/shared/vaultPanel.ts',
+      'src/core/vault/taint.ts',
+      'src/core/vault/exec/schema.ts',
+      'src/core/vault/exec/toolSchema.ts',
+    ],
+  },
+  {
+    output: 'dist/estimateContracts.js',
+    metafile: 'dist/meta/estimateContracts.json',
+    files: ['src/shared/estimate.ts', 'src/shared/estimatorProtocol.ts'],
+  },
+  {
     output: 'dist/modelApiBoundaries.js',
     metafile: 'dist/meta/modelApiBoundaries.json',
     files: [
@@ -388,6 +407,20 @@ export const ON_FIRST_USE = [
     files: ['src/host/reporting/reportPanelEntry.ts', 'src/host/reporting/reportPanel.ts'],
   },
   {
+    output: 'dist/media.js',
+    metafile: 'dist/meta/media.json',
+    use: 'the first media attachment or trusted media read',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/core/media/inspectEntry.ts',
+      'src/core/media/limits.ts',
+      'src/core/media/sniff/isoBmff.ts',
+      'src/core/media/sniff/ebml.ts',
+      'src/core/media/sniff/riff.ts',
+      'src/core/media/sniff/mp3.ts',
+    ],
+  },
+  {
     output: 'dist/questionNotes.js',
     metafile: 'dist/meta/questionNotes.json',
     use: 'the first backend question deferral',
@@ -410,6 +443,25 @@ export const ON_FIRST_USE = [
     use: 'the first ACP question, elicitation or question command',
     parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
     files: ['src/acp/questionDeferralEntry.ts', 'src/acp/questionDeferral.ts'],
+  },
+  {
+    output: 'dist/runtimeAccounts.js',
+    metafile: 'dist/meta-acp/runtimeAccounts.json',
+    use: 'the first accounts, developer or keyed headless ACP command',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/providers/accountsEntry.ts',
+      'src/runtime/providers/runtimeServices.ts',
+      'src/runtime/providers/providersFileStore.ts',
+      'src/runtime/developer/developerCommand.ts',
+      'src/runtime/developer/localFiles.ts',
+      'src/core/developer/developerOptions.ts',
+      'src/core/developer/surfaces.ts',
+      'src/core/providers/accounts.ts',
+      'src/core/providers/accountPolicy.ts',
+      'src/core/providers/accountCredentialRecord.ts',
+      'src/host/providers/accountSecrets.ts',
+    ],
   },
   {
     output: 'dist/conversation.js',
@@ -532,6 +584,27 @@ export const ON_FIRST_USE = [
       'src/host/conversation/reportProblemHandler.ts',
       'src/host/support/reportProblem.ts',
       'src/core/support/problemReport.ts',
+    ],
+  },
+  // The capacity estimator's engine (M117, PLAN.md D6, D97): the host, the
+  // CLI and the ACP agent require it the first time an estimate runs.
+  {
+    output: 'dist/estimator.js',
+    metafile: 'dist/meta/estimator.json',
+    use: 'the first estimate',
+    files: [
+      'src/host/estimator/estimatorEntry.ts',
+      'src/core/estimator/goal.ts',
+      'src/core/estimator/baseRisk.ts',
+      'src/core/estimator/calibration/fit.ts',
+      'src/core/estimator/calibration/records.ts',
+      'src/core/estimator/schedule.ts',
+      'src/core/estimator/simulate.ts',
+      'src/core/estimator/bottleneck.ts',
+      'src/core/estimator/recommend.ts',
+      'src/core/estimator/prices.ts',
+      'src/core/estimator/provision/owner.ts',
+      'src/core/estimator/provision/start.ts',
     ],
   },
   // The flight recorder's journal (M93, PLAN.md D6, D72): activation keeps
@@ -662,7 +735,15 @@ export function checkDeferredBundles(inputsOf) {
             (file) => source === `src/core/providers/${file}`,
           )
         ) &&
-        !(source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageService.js')
+        !(
+          source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageService.js'
+        ) &&
+        !(
+          bundle.output === 'dist/runtimeAccounts.js' &&
+          ['accounts.ts', 'accountPolicy.ts', 'accountCredentialRecord.ts'].some(
+            (file) => source === `src/core/providers/${file}`,
+          )
+        )
       )
         problems.push(`${bundle.output} carries ${source}, which loads only in dist/providers.js`)
     }
@@ -795,6 +876,7 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/backend/subscriptionsEntry.ts'), 'dist/subscriptions.js'],
   [path.resolve('src/host/backend/configuredProvidersEntry.ts'), 'dist/configuredProviders.js'],
   [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/subscriptions.js'],
+  [path.resolve('src/core/media/inspectEntry.ts'), 'dist/media.js'],
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
   [path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'), 'dist/mcpPool.js'],
   [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
@@ -835,7 +917,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (
@@ -905,10 +987,36 @@ export const sharedModelApiBoundaries = {
   setup(build) {
     build.onResolve(
       {
-        filter: /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool)(?:\.[jt]s)?$/,
+        filter:
+          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+        if (
+          ['src/shared/estimate.ts', 'src/shared/estimatorProtocol.ts'].some(
+            (file) => source === path.resolve(file),
+          )
+        )
+          return path.resolve(build.initialOptions.outfile ?? '') ===
+            path.resolve('dist/estimateContracts.js')
+            ? undefined
+            : { path: './estimateContracts.js', external: true }
+        if (
+          [
+            'src/shared/redact.ts',
+            'src/shared/vault.ts',
+            'src/shared/vaultProtocol.ts',
+            'src/shared/vaultPanel.ts',
+            'src/core/vault/taint.ts',
+            'src/core/vault/exec/schema.ts',
+            'src/core/vault/exec/toolSchema.ts',
+          ].some((file) => source === path.resolve(file))
+        ) {
+          return path.resolve(build.initialOptions.outfile ?? '') ===
+            path.resolve('dist/vaultBoundaries.js')
+            ? undefined
+            : { path: './vaultBoundaries.js', external: true }
+        }
         return [
           'src/core/backends/modelapi/schemas.ts',
           'src/shared/teamConversation.ts',

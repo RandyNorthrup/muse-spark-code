@@ -1,4 +1,6 @@
+import { loadDeferredEnglish } from '../shared/l10n/deferredEnglish'
 import { JudgeStatusLine } from './components/JudgeStatusLine'
+import { retrySurface } from './surfaceRetry'
 import {
   type ReactNode,
   Suspense,
@@ -27,7 +29,8 @@ import {
   type GoalCommandVerb,
   MUSE_DELEGATION_ENABLED,
   REVIEW_SLASH_COMMAND,
-  SETTING_DEFAULTS,
+  ARE_SCHEDULES_ON_BY_DEFAULT,
+  IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT,
   type SubagentAction,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
@@ -47,6 +50,9 @@ import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
 import { fill, formatNumber, plural, templateParts } from '../shared/l10n/text'
+import type { EstimateRequest, EstimateSection } from '../shared/estimate'
+import type { EstimatorPanelPort } from './estimator/EstimatorPanel'
+import { isEstimateCommandText } from './estimator/commandPrefix'
 import {
   availablePermissionModes,
   nextPermissionMode,
@@ -58,7 +64,7 @@ import type { PaletteAction } from '../shared/palette'
 import type { scheduleChannel } from './schedules/channel'
 import type { ScheduleRequest } from '../shared/scheduleV2'
 import { schedulePromptAction } from './schedules/prompt'
-import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
+import type * as SlashCommandsModule from '../shared/slashCommands'
 import type { GitAction, GitDraftKind } from '../shared/git'
 import {
   type ChatReference,
@@ -182,6 +188,10 @@ const SchedulePanel = deferred(async () => {
   const module = await import('./components/SchedulePanel')
   return { default: module.SchedulePanel }
 })
+const EstimatorPanel = deferred(async () => {
+  const module = await import('./estimator/EstimatorPanel')
+  return { default: module.default }
+})
 const Palette = deferred(async () => {
   const module = await import('./components/Palette')
   return { default: module.Palette }
@@ -216,6 +226,7 @@ const ReviewPane = deferred(async () => {
   return { default: module.ReviewPane }
 }, true)
 const ReferencePage = deferred(async () => {
+  await loadDeferredEnglish()
   const stylesheet = document.createElement('link')
   stylesheet.rel = 'stylesheet'
   stylesheet.href = new URL('referencePage.css', import.meta.url).href
@@ -267,7 +278,15 @@ const ShareView = deferred(async () => {
 
 export interface AppProps {
   readonly planNoticePort?: PlanNoticePort
+  /** M108/M95's lazy shared surface injects nodes; no accounts code loads here. */
+  readonly accounts?: {
+    readonly label?: string
+    readonly pill: ReactNode
+    readonly transcript: ReactNode
+  }
   readonly postMessage: (message: WebviewToHostMessage) => void
+  /** U/M95: already-validated, lazy Vault cards; values never enter this slot or UI state. */
+  readonly vaultApprovals?: ReactNode
   /**
    * The UI store. main.tsx owns one that outlives a crashed tree and keeps
    * reducing host messages under the crash screen (M25); without one the
@@ -504,6 +523,8 @@ function promptStartFor(action: PaletteAction): string | undefined {
 
 export function App({
   postMessage,
+  accounts,
+  vaultApprovals,
   store: externalStore,
   newLocalId = defaultLocalId,
   now = defaultNow,
@@ -566,7 +587,7 @@ export function App({
   // The Auto reviewer on Muse Code (M90), as its setting says, and the paid
   // one on the Model API (M78), on with its price accepted.
   const hasMuseCodeReviewer =
-    state.settings?.museCodeAutoReviewer ?? SETTING_DEFAULTS.museCodeAutoReviewer
+    state.settings?.museCodeAutoReviewer ?? IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT
   const hasModelApiReviewer = state.paid.features.includes('autoReviewer')
 
   // The transcript follows new entries while the reader is at its end; once
@@ -911,6 +932,137 @@ export function App({
   const onScheduleEnable = useCallback(() => {
     postMessage({ type: 'setPaidFeature', feature: 'scheduledPrompts', isOn: true })
   }, [postMessage])
+  // `/estimate …` (M117, PLAN.md D97): the estimator panel, not a message.
+  // Runs post `estimateRun`; the host answers with `estimatorSection`, which
+  // reveals the panel and settles every pending run. Re-estimates are
+  // legitimate (the panel's Refresh), so runs are never deduplicated here.
+  const estimatePendings = useRef(
+    new Map<string, { resolve(section: EstimateSection): void; reject(error: Error): void }>(),
+  )
+  const estimateStarts = useRef(new Map<string, { resolve(): void; reject(error: Error): void }>())
+  const estimateSequence = useRef(0)
+  const estimateCurrentId = useRef<string | undefined>(undefined)
+  const [estimateDisplayId, setEstimateDisplayId] = useState<string | undefined>(undefined)
+  const [estimateLastRequest, setEstimateLastRequest] = useState<EstimateRequest | undefined>(
+    undefined,
+  )
+  const estimateSubscribers = useRef(new Set<(section: EstimateSection) => void>())
+  const postEstimateRun = useCallback(
+    (request: EstimateRequest, requestId?: string) => {
+      const id = requestId ?? `estimate-${String(++estimateSequence.current)}`
+      estimateCurrentId.current = id
+      setEstimateDisplayId(id)
+      for (const [pendingId, pending] of estimatePendings.current) {
+        if (pendingId === id) continue
+        pending.reject(new DOMException('The estimate was replaced', 'AbortError'))
+        estimatePendings.current.delete(pendingId)
+      }
+      setEstimateLastRequest(request)
+      postMessage({ type: 'estimateRun', requestId: id, request })
+    },
+    [postMessage],
+  )
+  const estimatorSection = state.estimator
+  const estimatorRequestId = state.estimatorRequestId
+  useEffect(() => {
+    if (estimatorSection === undefined || estimatorRequestId !== estimateCurrentId.current) return
+    if (estimatorRequestId !== undefined) {
+      estimatePendings.current.get(estimatorRequestId)?.resolve(estimatorSection)
+      estimatePendings.current.delete(estimatorRequestId)
+    }
+    for (const listener of estimateSubscribers.current) listener(estimatorSection)
+  }, [estimatorSection, estimatorRequestId])
+  const estimatorFailure = state.estimatorFailure
+  useEffect(() => {
+    if (estimatorFailure === undefined) return
+    const requestId = estimatorFailure.requestId ?? estimateCurrentId.current
+    if (requestId === undefined) return
+    estimatePendings.current.get(requestId)?.reject(new Error(estimatorFailure.reason))
+    estimatePendings.current.delete(requestId)
+  }, [estimatorFailure])
+  const estimatorStarted = state.estimatorStarted
+  useEffect(() => {
+    if (estimatorStarted === undefined) return
+    if (estimatorStarted.requestId === undefined) {
+      if (estimatorStarted.error !== undefined) {
+        for (const pending of estimateStarts.current.values())
+          pending.reject(new Error(estimatorStarted.error))
+        estimateStarts.current.clear()
+      }
+      return
+    }
+    const pending = estimateStarts.current.get(estimatorStarted.requestId)
+    if (estimatorStarted.error === undefined) pending?.resolve()
+    else pending?.reject(new Error(estimatorStarted.error))
+    estimateStarts.current.delete(estimatorStarted.requestId)
+  }, [estimatorStarted])
+  const estimatorSession = state.sessionId
+  useEffect(() => {
+    const estimates = estimatePendings.current
+    const starts = estimateStarts.current
+    return () => {
+      for (const pending of estimates.values()) pending.reject(new Error('estimate-replaced'))
+      estimates.clear()
+      for (const pending of starts.values()) pending.reject(new Error('estimate-replaced'))
+      starts.clear()
+      estimateCurrentId.current = undefined
+    }
+  }, [estimatorSession])
+  const estimatorOptimize = state.settings?.['estimator.optimize'] ?? 'cost'
+  const estimatorPort = useMemo<EstimatorPanelPort>(
+    () => ({
+      context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
+      estimate: (request, signal) =>
+        new Promise<EstimateSection>((resolve, reject) => {
+          if (signal.aborted) {
+            reject(new DOMException('The estimate was replaced', 'AbortError'))
+            return
+          }
+          const requestId = `estimate-${String(++estimateSequence.current)}`
+          const onAbort = () => {
+            estimatePendings.current.delete(requestId)
+            reject(new DOMException('The estimate was replaced', 'AbortError'))
+          }
+          signal.addEventListener('abort', onAbort, { once: true })
+          estimatePendings.current.set(requestId, {
+            resolve: (section) => {
+              signal.removeEventListener('abort', onAbort)
+              resolve(section)
+            },
+            reject: (error) => {
+              signal.removeEventListener('abort', onAbort)
+              reject(error)
+            },
+          })
+          postEstimateRun(request, requestId)
+        }),
+      subscribe: (listener) => {
+        estimateSubscribers.current.add(listener)
+        return () => {
+          estimateSubscribers.current.delete(listener)
+        }
+      },
+      startExisting: (_section, setup) =>
+        new Promise<void>((resolve, reject) => {
+          const requestId = `estimate-start-${String(++estimateSequence.current)}`
+          estimateStarts.current.set(requestId, { resolve, reject })
+          postMessage({ type: 'estimateSpinUp', requestId, setup: setup.kind })
+        }),
+      provision: { state: 'waiting', dependency: 'M117-P-M109-provider' },
+    }),
+    [postEstimateRun, postMessage, estimatorOptimize],
+  )
+  // The extension's `museSpark.estimate` command (M117).
+  const estimatorRequests = state.estimatorRequests
+  const seenEstimatorRequests = useRef(estimatorRequests)
+  useEffect(() => {
+    if (estimatorRequests === seenEstimatorRequests.current) return
+    seenEstimatorRequests.current = estimatorRequests
+    if (store.getState().draft.trim() === '') {
+      dispatch({ type: 'draftChanged', draft: '/estimate ' })
+    }
+    dispatch({ type: 'focusRequested' })
+  }, [store, dispatch, estimatorRequests])
   // `/review …` and the palette's review rows (M70): the card first, then the
   // host's word on it, as for a message. False when the request is refused here.
   const onReview = useCallback(
@@ -1013,6 +1165,29 @@ export function App({
       }
       onGoalCommand(goal.verb, goal.objective, 'composer')
       setIsPinnedToEnd(true)
+      return
+    }
+    // `/estimate …` opens the estimator panel, not a message (M117): the
+    // draft clears and the host's `estimatorSection` reveals it. The full
+    // parse loads with the composer so startup carries only the prefix check.
+    if (isEstimateCommandText(text)) {
+      dispatch({ type: 'draftChanged', draft: '' })
+      setIsPinnedToEnd(true)
+      void import('./estimator/composer')
+        .then(({ wasEstimateComposerHandled }) => {
+          wasEstimateComposerHandled(text, {
+            context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
+            open: (request) => {
+              postEstimateRun(request)
+            },
+            notice: (noticeText) => {
+              dispatch({ type: 'noticeRaised', level: 'warning', text: noticeText })
+            },
+          })
+        })
+        .catch(() => {
+          dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.estimateUnavailable })
+        })
       return
     }
     // `/handoff …` distils the conversation for a fresh one (M74), on
@@ -1150,6 +1325,8 @@ export function App({
     onReview,
     onLegalScan,
     onHandoff,
+    postEstimateRun,
+    estimatorOptimize,
   ])
   // Send exactly the payload the dialog previewed. The composer may now
   // hold a newer draft, different chips or a different reference.
@@ -2285,15 +2462,24 @@ export function App({
   )
 
   const [paletteModule, setPaletteModule] = useState<typeof PaletteRegistryModule>()
+  // The "/" list reads the slash names with the registry, outside chat startup.
+  const [slashModule, setSlashModule] = useState<typeof SlashCommandsModule>()
   const [paletteFailure, setPaletteFailure] = useState(false)
   const isNeedsPalette =
     overlay === 'actions' || overlay === 'models' || state.draft.startsWith('/')
   useEffect(() => {
     if (!isNeedsPalette || paletteModule !== undefined || paletteFailure) return
     let isActive = true
-    void import('../shared/paletteRegistry')
-      .then((module) => {
-        if (isActive) setPaletteModule(module)
+    // The registry's rows read the optional English, which loads beside it.
+    void Promise.all([
+      loadDeferredEnglish(),
+      import('../shared/paletteRegistry'),
+      import('../shared/slashCommands'),
+    ])
+      .then(([, module, slash]) => {
+        if (!isActive) return
+        setSlashModule(slash)
+        setPaletteModule(module)
       })
       .catch(() => {
         if (isActive) setPaletteFailure(true)
@@ -2305,7 +2491,7 @@ export function App({
   const paletteContext = useMemo(
     () => ({
       arePromptCommandsBound: true,
-      ...((state.settings?.schedules ?? SETTING_DEFAULTS.schedules) && {
+      ...((state.settings?.schedules ?? ARE_SCHEDULES_ON_BY_DEFAULT) && {
         schedules: {
           create: { type: 'openScheduleEditor' as const },
           list: { type: 'openScheduleList' as const },
@@ -2324,6 +2510,9 @@ export function App({
       backend: state.auth.backend,
       paidFeatures: state.paid.features,
       isKeyStored: state.paid.isKeyStored,
+      // The estimator is bound in this surface (M117): its row inserts
+      // `/estimate`, which the submit path handles below.
+      estimateAvailable: true,
     }),
     [
       state.paid.isKeyStored,
@@ -2367,7 +2556,10 @@ export function App({
   // The prompt's "/" menus (M38). A row chosen there takes the `/` with it,
   // unless it leaves the palette open; a skill becomes `/selector ` for its
   // arguments.
-  const slashCommands = useMemo(() => slashCommandsOf(paletteGroups), [paletteGroups])
+  const slashCommands = useMemo(
+    () => slashModule?.slashCommandsOf(paletteGroups) ?? [],
+    [slashModule, paletteGroups],
+  )
   const slashPaletteKeys = useRef<PaletteKeys>(null)
   const onPromptAction = useCallback(
     (action: PaletteAction) => {
@@ -2385,7 +2577,7 @@ export function App({
     [dispatch, onPaletteAction],
   )
   const onSlashCommand = useCallback(
-    (command: SlashCommand) => {
+    (command: SlashCommandsModule.SlashCommand) => {
       onPromptAction(command.action)
     },
     [onPromptAction],
@@ -3024,6 +3216,8 @@ export function App({
           onContextMenu={onTranscriptContextMenu}
         >
           {body}
+          {accounts?.transcript}
+          {vaultApprovals}
           {hasNewBelow ? (
             <button
               type="button"
@@ -3110,6 +3304,25 @@ export function App({
             onClose={onCloseSchedulesSurface}
           />
         )}
+        {estimatorFailure?.reason === UI_TEXT.surfaceLoadFailed ? (
+          <div role="alert" inert={isModalOpen}>
+            {UI_TEXT.surfaceLoadFailed}
+            <button type="button" onClick={retrySurface}>
+              {UI_TEXT.surfaceLoadRetry}
+            </button>
+          </div>
+        ) : null}
+        {estimateLastRequest === undefined || state.estimator === undefined ? null : (
+          <EstimatorPanel
+            key={state.sessionId}
+            port={estimatorPort}
+            initial={estimateLastRequest}
+            initialSection={
+              state.estimatorRequestId === estimateDisplayId ? state.estimator : undefined
+            }
+            isInert={isModalOpen}
+          />
+        )}
         {/* Mounted only with tasks to show, so the chunk loads on first use. */}
         {state.todos.length === 0 ? null : (
           <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
@@ -3161,6 +3374,7 @@ export function App({
               <PlanUi surface="note" onOpenExternal={onOpenExternal} />
             </Suspense>
           ) : null}
+          {accounts?.pill}
           <Composer
             onSavePrompt={savePrompt}
             onSharePrompt={sharePrompt}
@@ -3172,7 +3386,11 @@ export function App({
             settings={state.settings}
             canSend={canSend(state)}
             isRunning={isRunning}
-            modelLabel={modelLabelFor(state)}
+            modelLabel={
+              accounts?.label === undefined
+                ? modelLabelFor(state)
+                : `${modelLabelFor(state)} · ${accounts.label}`
+            }
             planMark={
               hasPlan ? (
                 <Suspense fallback={null}>

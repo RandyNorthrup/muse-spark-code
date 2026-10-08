@@ -12,6 +12,8 @@ import {
   PAID_DAILY_BUDGET,
   WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
   type BackendMode,
+  VAULT_PROTECTION_MODES,
+  type VaultProtectionMode,
   BROWSER_CHECK_EXTRA_HOSTS_MAX,
   BROWSER_RUNTIME_MODES,
   type BrowserRuntimeMode,
@@ -21,6 +23,12 @@ import {
   type JudgeEngine,
   LEGAL_HEADER_POLICIES,
   type LegalHeaderPolicy,
+  MEDIA_AUDIO_ACTION_OPTIONS,
+  MEDIA_MAX_UPLOAD_MIB,
+  MEDIA_UPLOAD_EXPIRY_MAX_DAYS,
+  MEDIA_UPLOAD_EXPIRY_MIN_DAYS,
+  ESTIMATE_OPTIMIZE_MODES,
+  type EstimateOptimizeMode,
   PROMPT_CACHE_RETENTIONS,
   QUESTION_DEFER_MAX_SECONDS,
   type PromptCacheRetention,
@@ -28,6 +36,8 @@ import {
   type SandboxNetworkMode,
   SCHEDULE_AGENT_CREATIONS,
   SCHEDULE_DELIVERIES,
+  SCREEN_RECORDING_MAX_SECONDS,
+  SCREEN_RECORDING_MIN_SECONDS,
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
   SHELL_SANDBOX_MODES,
@@ -126,6 +136,10 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly tabWithCopilot: TabWithCopilot
   /** The Muse Judge's engine (M98, PLAN.md D77): `auto` is `same` in phase 1. */
   readonly 'judge.engine': JudgeEngine
+  /** The capacity estimator's setup search (M117, PLAN.md D97). */
+  readonly 'estimator.optimize': EstimateOptimizeMode
+  /** Public catalog price lookup for rented servers (M117, PLAN.md D97). */
+  readonly 'estimator.priceLookup': boolean
   /** The verify loop (M68, PLAN.md D49): diagnostics after edits, check commands, format on edit. */
   readonly diagnosticsAfterEdits: boolean
   readonly checkCommands: readonly CheckCommandSetting[]
@@ -159,6 +173,27 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly legalRegistryLookups: boolean
   readonly legalExplanation: boolean
   readonly legalHeaderPolicy: LegalHeaderPolicy
+  /** M105 (PLAN.md D85): multimodal input caps; machine scoped, billed on the key. */
+  readonly mediaMaxUploadMiB: number
+  readonly mediaUploadExpiryDays: number
+  readonly screenRecordingMaxSeconds: number
+  readonly mediaAudioAction: (typeof MEDIA_AUDIO_ACTION_OPTIONS)[number]
+  /** M108 (PLAN.md D88.5): swap at the next request boundary; on by default. */
+  readonly accountSwap: boolean
+  /** M108 (PLAN.md D88.5): spread background work across accounts; on by default. */
+  readonly accountParallel: boolean
+  /** D88 amendment b2: several accounts of one provider on this PC; off by default. */
+  readonly 'accounts.severalOnThisDevice': boolean
+  /** The per-user credential vault, shared by every editor (M109, PLAN.md D89). */
+  readonly 'vault.enabled': boolean
+  /** How the vault key is protected; `auto` is hardware plus the OS store. */
+  readonly 'vault.protection': VaultProtectionMode
+  /** Fence agent processes from ambient credential routes. */
+  readonly 'vault.agentFence': boolean
+  /** Idle minutes before the vault locks. */
+  readonly 'vault.lockAfterIdleMinutes': number
+  /** Lock the vault when the OS reports a screen lock. */
+  readonly 'vault.lockOnScreenLock': boolean
 }
 
 /**
@@ -166,8 +201,15 @@ export interface ExtensionSettings extends SettingsSnapshot {
  * which satisfies it structurally. Keeping the dependency this narrow makes
  * the reader trivially fakeable in unit tests.
  */
+interface StoredSettingValues {
+  readonly globalValue?: unknown
+  readonly workspaceValue?: unknown
+  readonly workspaceFolderValue?: unknown
+}
+
 export interface SettingsSource {
   get(section: string): unknown
+  inspect?(section: string): StoredSettingValues | undefined
 }
 
 const environmentVariableSchema = z.object({ name: z.string(), value: z.string() })
@@ -226,6 +268,8 @@ const settingSchemas = {
   tabTrigger: z.enum(TAB_TRIGGER_MODES),
   tabWithCopilot: z.enum(TAB_WITH_COPILOT_MODES),
   'judge.engine': z.enum(JUDGE_ENGINES),
+  'estimator.optimize': z.enum(ESTIMATE_OPTIMIZE_MODES),
+  'estimator.priceLookup': z.boolean(),
   diagnosticsAfterEdits: z.boolean(),
   checkCommands: checkCommandsSchema,
   formatOnEdit: z.boolean(),
@@ -266,6 +310,22 @@ const settingSchemas = {
   usageHistoryDays: z
     .int()
     .check(z.minimum(USAGE_HISTORY_DAYS_MIN), z.maximum(USAGE_HISTORY_DAYS_MAX)),
+  mediaMaxUploadMiB: z.int().check(z.gte(1), z.lte(MEDIA_MAX_UPLOAD_MIB)),
+  mediaUploadExpiryDays: z
+    .int()
+    .check(z.gte(MEDIA_UPLOAD_EXPIRY_MIN_DAYS), z.lte(MEDIA_UPLOAD_EXPIRY_MAX_DAYS)),
+  screenRecordingMaxSeconds: z
+    .int()
+    .check(z.gte(SCREEN_RECORDING_MIN_SECONDS), z.lte(SCREEN_RECORDING_MAX_SECONDS)),
+  mediaAudioAction: z.enum(MEDIA_AUDIO_ACTION_OPTIONS),
+  accountSwap: z.boolean(),
+  accountParallel: z.boolean(),
+  'accounts.severalOnThisDevice': z.boolean(),
+  'vault.enabled': z.boolean(),
+  'vault.protection': z.enum(VAULT_PROTECTION_MODES),
+  'vault.agentFence': z.boolean(),
+  'vault.lockAfterIdleMinutes': z.int().check(z.nonnegative()),
+  'vault.lockOnScreenLock': z.boolean(),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -292,7 +352,22 @@ function readSetting<K extends SettingKey>(
   let previousKey: string | undefined
   if (key === 'scheduleDefaultDelivery') previousKey = 'schedules.defaultDelivery'
   else if (key === 'scheduleAgentCreation') previousKey = 'schedules.agentCreation'
-  const raw = config.get(key) ?? (previousKey === undefined ? undefined : config.get(previousKey))
+  let raw = config.get(key) ?? (previousKey === undefined ? undefined : config.get(previousKey))
+  if (key === 'vault.enabled') {
+    const configured = config.inspect?.(key)
+    const hasExplicit =
+      configured === undefined
+        ? raw !== undefined
+        : [configured.globalValue, configured.workspaceValue, configured.workspaceFolderValue].some(
+            (value) => value !== undefined,
+          )
+    if (!hasExplicit) {
+      // A legacy scalar collides with the new group defaults, so inspect its
+      // stored value rather than relying on VS Code's merged group object.
+      const legacy = config.inspect?.('vault')?.globalValue ?? config.get('vault')
+      if (typeof legacy === 'boolean') raw = legacy
+    }
+  }
   // The keyed schema validates its matching default; TypeScript cannot correlate indexed K (PLAN §8).
   const fallback = settingSchemas[key].parse(SETTING_DEFAULTS[key]) as ExtensionSettings[K]
   if (raw === undefined) {
@@ -380,6 +455,8 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepositoryRules: readSetting(config, 'modelApiRepositoryRules', log),
     modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
     'judge.engine': readSetting(config, 'judge.engine', log),
+    'estimator.optimize': readSetting(config, 'estimator.optimize', log),
+    'estimator.priceLookup': readSetting(config, 'estimator.priceLookup', log),
     museCodeAutoReviewer: readSetting(config, 'museCodeAutoReviewer', log),
     modelApiTab: readSetting(config, 'modelApiTab', log),
     tabModel: readSetting(config, 'tabModel', log),
@@ -391,6 +468,18 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     legalRegistryLookups: readSetting(config, 'legalRegistryLookups', log),
     legalExplanation: readSetting(config, 'legalExplanation', log),
     legalHeaderPolicy: readSetting(config, 'legalHeaderPolicy', log),
+    mediaMaxUploadMiB: readSetting(config, 'mediaMaxUploadMiB', log),
+    mediaUploadExpiryDays: readSetting(config, 'mediaUploadExpiryDays', log),
+    screenRecordingMaxSeconds: readSetting(config, 'screenRecordingMaxSeconds', log),
+    mediaAudioAction: readSetting(config, 'mediaAudioAction', log),
+    accountSwap: readSetting(config, 'accountSwap', log),
+    accountParallel: readSetting(config, 'accountParallel', log),
+    'accounts.severalOnThisDevice': readSetting(config, 'accounts.severalOnThisDevice', log),
+    'vault.enabled': readSetting(config, 'vault.enabled', log),
+    'vault.protection': readSetting(config, 'vault.protection', log),
+    'vault.agentFence': readSetting(config, 'vault.agentFence', log),
+    'vault.lockAfterIdleMinutes': readSetting(config, 'vault.lockAfterIdleMinutes', log),
+    'vault.lockOnScreenLock': readSetting(config, 'vault.lockOnScreenLock', log),
   }
 }
 
@@ -421,5 +510,6 @@ export function toSettingsSnapshot(settings: ExtensionSettings): SettingsSnapsho
     modelApiReplyUsage: settings.modelApiReplyUsage,
     museCodeAutoReviewer: settings.museCodeAutoReviewer,
     schedules: settings.schedules,
+    'estimator.optimize': settings['estimator.optimize'],
   }
 }

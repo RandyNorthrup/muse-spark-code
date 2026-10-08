@@ -5,7 +5,7 @@
 // the generic row showed raw.
 
 import * as z from 'zod/mini'
-import { TOOL_STATUS_INTERRUPTED, MEMORY_SCOPES, type MemoryScope } from '../shared/constants'
+import { MEMORY_SCOPES, type MemoryScope } from '../shared/constants'
 import { webResultSchema } from '../shared/webResults'
 
 /** One memory call: where the note lives and what it says or became. */
@@ -247,14 +247,4 @@ export function backgroundRun(output: string): BackgroundRun | undefined {
         output: parsed.data.output ?? '',
       }
     : undefined
-}
-
-export function statusDotClass(status: string): string {
-  if (status === 'inProgress') {
-    return 'tool-dot tool-dot-running'
-  }
-  if (status === TOOL_STATUS_INTERRUPTED) {
-    return 'tool-dot tool-dot-muted'
-  }
-  return status === 'completed' ? 'tool-dot tool-dot-ok' : 'tool-dot tool-dot-failed'
 }

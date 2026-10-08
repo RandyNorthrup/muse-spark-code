@@ -34,11 +34,13 @@ import { packRuntimeArchive } from './lib/packageArchive.mjs'
 const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
+  'estimator.js',
   'headless.js',
   'sharingRuntime.js',
   'acpQuestions.js',
   'acpPlaybook.js',
   'runtimeQuestions.js',
+  'runtimeAccounts.js',
   'questionNotes.js',
   'mcpPool.js',
   'exec.js',
@@ -55,12 +57,16 @@ const BUNDLES = [
   'providerPolicy.js',
   'runtimeEngine.js',
   'modelApiBoundaries.js',
+  'vault.js',
+  'vaultBoundaries.js',
+  'estimateContracts.js',
   'legalScan.js',
   'providers.js',
   'subscriptions.js',
   'configuredProviders.js',
   'providerCatalog.json',
   'providerCatalog.js',
+  'media.js',
   'reviewer.js',
   'team.js',
   'teamRunners.js',
@@ -77,6 +83,7 @@ const BUNDLES = [
   'uiTextRuntime.js',
   'uiTextHooks.js',
   'uiTextSurfaces.js',
+  'uiTextMedia.js',
   'extensionHooks.js',
   'validation.js',
   'wire.js',
@@ -92,8 +99,13 @@ const BUNDLES = [
 // process (src/acp/agent.ts forwardedMcp); its Model API backend runs none.
 // src/runtime/backends.ts composes only shellJobAssembly, never mcpJobExecutable.
 const JOB_SOURCES = [
+  'native/windows/MuseSparkVault.cs',
+  'native/windows/MuseSparkVaultCng.cs',
+  'native/windows/MuseSparkVaultHello.cs',
+  'native/windows/MuseSparkVaultLock.cs',
   path.join('native', 'windows', 'MuseSparkJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
+  path.join('native', 'windows', 'MuseSparkScreenRecord.cs'),
 ]
 const DARWIN_HELPER = path.join('native', 'darwin', 'muse-dictate')
 const LINUX_HELPERS = ['x64', 'arm64'].map((arch) =>
@@ -210,6 +222,18 @@ for (const source of pageAssets) {
 for (const source of [...JOB_SOURCES, DARWIN_HELPER, ...LINUX_HELPERS]) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
+}
+// Keep every signed resource and executable mode when macOS CI supplied it.
+// Linux-only packages retain the runtime's honest missing-helper refusal.
+const screenBundle = path.join('native', 'darwin', 'muse-dictate-screen.app')
+if (existsSync(screenBundle)) {
+  cpSync(screenBundle, path.join(STAGE, screenBundle), { recursive: true })
+}
+const vaultHelper = path.join('dist', 'native', 'darwin', 'muse-vault')
+if (existsSync(vaultHelper)) {
+  const target = path.join(STAGE, vaultHelper)
+  mkdirSync(path.dirname(target), { recursive: true })
+  copyFileSync(vaultHelper, target)
 }
 cpSync('native/runner', path.join(STAGE, 'native/runner'), { recursive: true })
 const tables = readdirSync('l10n')

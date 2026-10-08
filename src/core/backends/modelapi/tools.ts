@@ -28,6 +28,8 @@ import {
   LIST_FILES_DEFAULT_LIMIT,
   MAX_DOCUMENT_BYTES,
   MAX_IMAGE_BYTES,
+  BYTES_PER_MIB,
+  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   MODEL_API_MODEL_TEXT,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
@@ -52,7 +54,10 @@ import {
   VERIFY_TOOLS,
 } from '../../../shared/constants'
 import { ADD_MARKER, type PatchFile, REMOVE_MARKER } from '../../../shared/patchDocument'
-import { fill, formatNumber, plural } from '../../../shared/l10n/text'
+import { fill, formatBytes, formatNumber, formatUnit, plural } from '../../../shared/l10n/text'
+import { uploadedMediaRefSchema, type UploadedMediaRef } from '../../../shared/media'
+import type { MediaFileInfo } from '../../media/limits'
+import type { UploadSource } from './files'
 import type { DocumentPart, ImagePart } from '../../agent/agentBackend'
 import type { Owner } from '../../checkpoints/toolWrites'
 import { changeHunk } from '../../codeIntel/codeText'
@@ -92,6 +97,9 @@ import type { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
 
 import type { ShellResult } from '../../shellResult'
+import { vaultShellSecretsSchema, type VaultShellSecrets } from '../../vault/exec/schema'
+import { VAULT_EXEC_PARAMETERS } from '../../vault/exec/toolSchema'
+import type { McpTool } from '../../mcp'
 export type { ShellResult } from '../../shellResult'
 
 /**
@@ -162,6 +170,28 @@ export type SearchWorkerMessage =
 
 /** What the host lends the tools: files, a matcher it can stop, and a shell. */
 export interface ToolIo {
+  /** Lazy M105 read: bounded sniff/hash on one checked handle; upload reopens and checks it again. */
+  readonly readMedia?: (
+    absolutePath: string,
+    maxBytes: number,
+    expectedCanonicalPath: string,
+    signal?: AbortSignal,
+  ) => Promise<
+    | ReadMediaFile
+    | { readonly kind: 'other'; readonly reason: string; readonly isPdf?: boolean }
+    | undefined
+  >
+  /** Bound by the trusted session launcher; unavailable until the broker route is installed. */
+  readonly vaultTools?: readonly McpTool[]
+  readonly runVaultShell?: (
+    command: string,
+    cwd: string,
+    timeoutMs: number,
+    secrets: VaultShellSecrets,
+    signal?: AbortSignal,
+    limit?: ShellTimeLimit,
+    assertCanRun?: () => void,
+  ) => Promise<ShellResult>
   /**
    * The file's text, a UTF-8 BOM kept; undefined when it does not exist.
    * Rejects for a file that is not UTF-8 text (binary, UTF-16, Latin-1…):
@@ -349,6 +379,10 @@ export interface ToolContext {
   readonly isInteractiveShell?: boolean
   /** Selected model's context window, supplied by the engine (M101). */
   readonly contextTokens?: number | undefined
+  /** W binds selected-model admission, consent, exact reservation and the session upload ledger. */
+  readonly media?: {
+    readonly prepare: (file: ReadMediaFile, signal?: AbortSignal) => Promise<UploadedMediaRef>
+  }
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   /**
@@ -434,6 +468,13 @@ export interface VisibleFile {
   readonly part: ImagePart | DocumentPart
 }
 
+/** Private approved source, never serialized with a tool outcome. */
+export interface ReadMediaFile {
+  readonly info: MediaFileInfo
+  readonly sha256: string
+  readonly source: UploadSource
+}
+
 /**
  * The workspace files a call touched (M78), for the dispatcher's live policy
  * fence: the policy as it stands when the outcome is built must still allow
@@ -473,6 +514,14 @@ export interface ToolOutcome {
   readonly patch?: { readonly document: string; readonly summary: PatchSummary }
   /** `read_file` of a PDF or an image: the file itself, sent after the round's outputs. */
   readonly visibleFile?: VisibleFile
+  /** Metadata only. W feeds this file-id into M2 replay and its shared media budget after the round. */
+  readonly mediaFile?: {
+    readonly name: string
+    readonly info: MediaFileInfo
+    readonly file: UploadedMediaRef
+    readonly lead: string
+    readonly notDelivered: string
+  }
   /** `run_checks` (M68): what the row sums up. */
   readonly verifySummary?: VerifySummary
   /** An edit's `then_run` (M68): the command's result beside the edit's. */
@@ -584,6 +633,7 @@ const shellArgs = z.object({
   command: z.string(),
   description: z.optional(z.string()),
   timeout_ms: z.optional(z.number()),
+  secrets: z.optional(vaultShellSecretsSchema),
 })
 export const askUserArgs = z.object({ questions: z.array(questionSchema) })
 export const readSkillArgs = z.object({ id: z.string() })
@@ -599,6 +649,9 @@ export interface ToolDefinitionOptions {
   /** M115 G: validated lazy schedule declarations, supplied only when the
    * host's charter/capability admission offers them. No engine import here. */
   readonly scheduleTools?: readonly FunctionToolDefinition[]
+  /** Advertise private shell handles only when a vault runner is bound. */
+  readonly hasVaultShell?: boolean
+  readonly vaultTools?: readonly McpTool[]
   /** False in Restricted Mode: no shell tool is offered (PLAN.md D13). */
   readonly hasShell: boolean
   /**
@@ -673,6 +726,15 @@ export function toolDefinitions(
       { value: previewFields },
     )
   const definitions: readonly PreviewToolDefinition[] = [
+    ...(options.vaultTools ?? [])
+      .filter((tool) => options.hasShell || tool.name !== 'vault_run')
+      .map((tool): FunctionToolDefinition => ({
+        type: 'function',
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.inputSchema,
+        strict: false,
+      })),
     define(
       MODEL_API_TOOLS.readFile,
       'Read a file from the workspace. A text file comes back numbered by line (use offset and limit for long files); a PDF or an image (PNG, JPEG, GIF, WebP) comes back whole, for you to see.',
@@ -745,6 +807,7 @@ export function toolDefinitions(
             `Run one ${shell.shellName} command line in the workspace root and return its output.`,
             {
               command: { type: 'string' },
+              ...(options.hasVaultShell === true && { secrets: VAULT_EXEC_PARAMETERS.secrets }),
               description: { type: 'string', description: 'One line saying what the command does' },
               timeout_ms: {
                 type: 'integer',
@@ -1112,11 +1175,68 @@ function patchOutcome(
 
 /** What `read_file` sends whole by the path's name (M54): a PDF, an image, or neither. */
 function visualKindOf(relative: string): 'pdf' | 'image' | undefined {
-  const extension = path.extname(relative).toLowerCase()
+  const extension = path.posix.extname(relative.replaceAll('\\', '/')).toLowerCase()
   if (extension === PDF_EXTENSION) {
     return 'pdf'
   }
   return Object.hasOwn(IMAGE_EXTENSIONS, extension) ? 'image' : undefined
+}
+
+async function readMediaFile(
+  file: { readonly relative: string; readonly checkedAbsolute: string },
+  context: ToolContext,
+): Promise<ToolOutcome> {
+  // The confined read and sniff run before any billing words: a renamed
+  // text file is an unknown type, not an unverified account (M105 E2 review).
+  const readMedia = context.io.readMedia
+  if (readMedia === undefined) return failure(UI_TEXT.media.uploadStorageUnknown)
+  try {
+    context.signal?.throwIfAborted()
+    const read = await readMedia(
+      file.checkedAbsolute,
+      MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB,
+      file.checkedAbsolute,
+      context.signal,
+    )
+    if (read === undefined)
+      return failure(
+        `file not found: ${file.relative}`,
+        fill(UI_TEXT.toolVisualFileMissing, { path: file.relative }),
+      )
+    if ('kind' in read) return failure(read.reason)
+    // Real media with no upload binding: the pipeline is unbound, and only now
+    // is the billing sentence honest.
+    if (context.media === undefined) return failure(UI_TEXT.media.uploadStorageUnknown)
+    const uploaded = uploadedMediaRefSchema.parse(await context.media.prepare(read, context.signal))
+    context.signal?.throwIfAborted()
+    if (
+      uploaded.sha256 !== read.sha256 ||
+      uploaded.bytes !== read.info.sizeBytes ||
+      uploaded.mime !== read.info.mediaType
+    )
+      throw new Error(fill(UI_TEXT.media.sourceChanged, { name: uploaded.name }))
+    const visibleOutput = fill(UI_TEXT.media.replayMetadata, {
+      name: uploaded.name,
+      duration:
+        read.info.durationSeconds === null
+          ? UI_TEXT.media.durationUnknown
+          : formatUnit(read.info.durationSeconds, 'second'),
+      size: formatBytes(read.info.sizeBytes),
+    })
+    return {
+      output: fill(MODEL_API_MODEL_TEXT.toolFileFollows, { path: file.relative }),
+      visibleOutput,
+      mediaFile: {
+        ...readFileLines(file.relative),
+        name: file.relative,
+        info: read.info,
+        file: uploaded,
+      },
+    }
+  } catch (error: unknown) {
+    if (context.signal?.aborted === true) throw error
+    return failure(error instanceof Error ? error.message : String(error))
+  }
 }
 
 /** The model's lines around a file `read_file` read (M54). */
@@ -1302,6 +1422,8 @@ async function readFile(
     ...(resolved.extraRoot !== undefined && { extraRoot: resolved.extraRoot }),
   }
   const visual = visualKindOf(resolved.relative)
+  if (/\.(?:mp4|mov|mp3|wav|webm|mkv|m4a)$/iu.test(resolved.relative.replaceAll('\\', '/')))
+    return { ...(await readMediaFile(resolved, context)), touched }
   if (visual !== undefined) {
     return { ...(await readVisual(resolved, visual, context)), touched }
   }
@@ -1825,16 +1947,38 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
     Math.max(args.timeout_ms ?? SHELL_DEFAULT_TIMEOUT_MS, 1),
     SHELL_MAX_TIMEOUT_MS,
   )
-  const result = await context.io.runShell(
-    args.command,
-    context.shellCwd ?? context.workspaceRoot,
-    timeoutMs,
-    context.signal,
-    context.limit,
-    context.assertCanRun,
-    context.isInteractiveShell === true,
-  )
-  return shellOutcome(result, timeoutMs, TOOL_OUTPUT_MAX_CHARS, context.wholeShellOutput === true)
+  if (args.command.includes('secret://'))
+    return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
+  if (args.secrets && !context.io.runVaultShell)
+    return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.brokerBlocked)
+  try {
+    const result =
+      args.secrets && context.io.runVaultShell
+        ? await context.io.runVaultShell(
+            args.command,
+            context.shellCwd ?? context.workspaceRoot,
+            timeoutMs,
+            args.secrets,
+            context.signal,
+            context.limit,
+            context.assertCanRun,
+          )
+        : await context.io.runShell(
+            args.command,
+            context.shellCwd ?? context.workspaceRoot,
+            timeoutMs,
+            context.signal,
+            context.limit,
+            context.assertCanRun,
+            context.isInteractiveShell === true,
+          )
+    return args.secrets && result.exitCode === null
+      ? failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
+      : shellOutcome(result, timeoutMs, TOOL_OUTPUT_MAX_CHARS, context.wholeShellOutput === true)
+  } catch (error: unknown) {
+    if (args.secrets) return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
+    throw error
+  }
 }
 
 /**
@@ -1987,6 +2131,17 @@ export async function executeTool(
       return parsed.success ? await shell(parsed.data, context) : argumentFailure(parsed.error)
     }
     default: {
+      const tool = context.io.vaultTools?.find((tool) => tool.name === name)
+      if (tool) {
+        const args = z.record(z.string(), z.unknown()).safeParse(raw)
+        if (!args.success) return argumentFailure(args.error)
+        try {
+          const output = await tool.call(args.data, context.signal ?? new AbortController().signal)
+          return { output: clip(output), visibleOutput: clip(output) }
+        } catch {
+          return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
+        }
+      }
       return failure(`unknown tool ${name}`)
     }
   }

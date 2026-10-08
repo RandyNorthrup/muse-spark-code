@@ -52,6 +52,33 @@ describe('readSettings', () => {
     },
   )
 
+  it('uses a leaf vault flag so its sibling settings stay visible in VS Code', () => {
+    const defaults = readSettings(fakeSettingsSource({}), new FakeLogOutputChannel())
+    expect(defaults).toMatchObject({ 'vault.enabled': true })
+    expect(Object.hasOwn(SETTING_DEFAULTS, 'vault')).toBe(false)
+  })
+
+  it('preserves legacy vault opt-outs until the new leaf flag is explicitly configured', () => {
+    const log = new FakeLogOutputChannel()
+    const get = fakeSettingsSource({ 'vault.enabled': true, vault: { enabled: true } }).get
+    const inherited = readSettings(
+      {
+        get,
+        inspect: (section: string) => (section === 'vault' ? { globalValue: false } : {}),
+      },
+      log,
+    )
+    expect(inherited).toMatchObject({ 'vault.enabled': false })
+    const explicit = readSettings(
+      {
+        get,
+        inspect: () => ({ globalValue: true }),
+      },
+      log,
+    )
+    expect(explicit).toMatchObject({ 'vault.enabled': true })
+  })
+
   it('documents Best-of-N default availability consistently with the manifest and fallback', () => {
     const readme = readFileSync('README.md', 'utf8')
     expect(SETTING_DEFAULTS.modelApiBestOfN).toBe(true)
@@ -176,6 +203,52 @@ describe('readSettings', () => {
     // D78: observation packing is on by default.
     expect(settings.modelApiObservationPacking).toBe(true)
     expect(SETTING_DEFAULTS.modelApiObservationPacking).toBe(true)
+  })
+
+  it('reads the vault settings, all on and machine-scoped by default (M109)', () => {
+    const log = new FakeLogOutputChannel()
+    const defaults = readSettings(fakeSettingsSource({}), log)
+    expect(defaults['vault.enabled']).toBe(true)
+    expect(defaults['vault.protection']).toBe('auto')
+    expect(defaults['vault.agentFence']).toBe(true)
+    expect(defaults['vault.lockAfterIdleMinutes']).toBe(240)
+    expect(defaults['vault.lockOnScreenLock']).toBe(true)
+    expect(log.warn).not.toHaveBeenCalled()
+    const configured = readSettings(
+      fakeSettingsSource({
+        'vault.enabled': false,
+        'vault.protection': 'hardware',
+        'vault.agentFence': false,
+        'vault.lockAfterIdleMinutes': 30,
+        'vault.lockOnScreenLock': false,
+      }),
+      log,
+    )
+    expect(configured['vault.enabled']).toBe(false)
+    expect(configured['vault.protection']).toBe('hardware')
+    expect(configured['vault.agentFence']).toBe(false)
+    expect(configured['vault.lockAfterIdleMinutes']).toBe(30)
+    expect(configured['vault.lockOnScreenLock']).toBe(false)
+  })
+
+  it('falls back to the vault defaults for an invalid protection, idle time or flag (M109)', () => {
+    const log = new FakeLogOutputChannel()
+    const settings = readSettings(
+      fakeSettingsSource({
+        'vault.enabled': 'yes',
+        'vault.protection': 'keychain-biometry',
+        'vault.agentFence': 1,
+        'vault.lockAfterIdleMinutes': -5,
+        'vault.lockOnScreenLock': 'always',
+      }),
+      log,
+    )
+    expect(settings['vault.enabled']).toBe(true)
+    expect(settings['vault.protection']).toBe('auto')
+    expect(settings['vault.agentFence']).toBe(true)
+    expect(settings['vault.lockAfterIdleMinutes']).toBe(240)
+    expect(settings['vault.lockOnScreenLock']).toBe(true)
+    expect(log.warn).toHaveBeenCalledTimes(5)
   })
 
   it('reads the retention period as a whole number of days, 0 keeping for ever (D26)', () => {

@@ -8,12 +8,9 @@ import {
   flattenPalette,
   formatTokenWindow,
   type PaletteContext,
-} from '../../src/shared/palette'
-import {
-  rankSlashCommands,
-  type SlashCommand,
   slashCommandsOf,
-} from '../../src/shared/slashCommands'
+} from '../../src/shared/palette'
+import { rankSlashCommands, type SlashCommand } from '../../src/shared/slashCommands'
 
 const context: PaletteContext = {
   currentModel: { modelId: 'muse-spark-1.3', contextLimit: 1_007_997 },
@@ -181,6 +178,15 @@ function backendRow(base: PaletteContext, backend: PaletteContext['backend']) {
     ?.items.find((item) => item.id === 'backend')
 }
 
+function estimateRow(isAvailable?: boolean) {
+  return buildPalette({
+    ...context,
+    ...(isAvailable !== undefined && { estimateAvailable: isAvailable }),
+  })
+    .flatMap((group) => group.items)
+    .find((item) => item.id === 'estimate')
+}
+
 describe('buildPalette', () => {
   it('offers deterministic reports on both backends separately from the problem report', () => {
     for (const backend of ['museCode', 'modelApi'] as const) {
@@ -197,6 +203,18 @@ describe('buildPalette', () => {
       )
     }
   })
+
+  it('offers estimate only after the local composer binding is available', () => {
+    expect(estimateRow()).toBeUndefined()
+    expect(estimateRow(false)).toBeUndefined()
+    expect(estimateRow(true)).toMatchObject({
+      slashName: 'estimate',
+      label: EN.estimateTitle,
+      detail: EN.estimateUsage,
+      action: { type: 'insertSkill', selector: 'estimate' },
+    })
+  })
+
   it('lays out the seven Claude Code groups in order, with git and pull requests (M71), Review (M70) before Support', () => {
     expect(buildPalette(context).map((group) => group.title)).toEqual([
       'Context',

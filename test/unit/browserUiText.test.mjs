@@ -33,7 +33,7 @@ export { EN, EN_SHAPE } from '${english}';
 export { UI_TEXT, setUiText, uiLocale } from '${text}';
 export { installEmbeddedTable } from '${installer}';
 export async function loadPalette() { return await import('../../src/shared/paletteRegistry') }
-export async function loadHelp() { await import('browser-surface-english'); await import('browser-reference-english') }
+export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english')]) }
 export async function loadResources() { await import('browser-resource-english') }
 `,
   )
@@ -62,6 +62,13 @@ afterAll(async () => {
 })
 
 describe('the production browser English and full-table contract', () => {
+  it('keeps unreachable Help prose outside a standalone account graph', () => {
+    const source = path.join(fixture.folder, 'accounts-only.ts')
+    writeFileSync(source, 'const label = UI_TEXT.accounts;')
+    const { keys } = browserTextKeys([source], fixture.canonical.EN)
+    expect([...keys]).toEqual(['accounts'])
+  })
+
   it('loads surface English on demand, retaining every browser value and installed language', async () => {
     const { EN: canonical } = fixture.canonical
     const { EN, UI_TEXT, setUiText, uiLocale, loadHelp, loadPalette, loadResources } =
@@ -70,6 +77,7 @@ describe('the production browser English and full-table contract', () => {
     expect(Object.hasOwn(EN, 'execBudgetRequired')).toBe(false)
     expect(EN.composerLabel).toBe(canonical.composerLabel)
     expect(() => EN.referenceSearch).toThrow('English surface is not loaded')
+    expect(() => EN.accounts).toThrow('English surface is not loaded')
     const german = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
     const palette = await loadPalette()
     const paletteContext = {
@@ -149,6 +157,18 @@ describe('the production browser English and full-table contract', () => {
         querySelector: () => ({ textContent: JSON.stringify({ locale: 'en', table: broken[0] }) }),
       })?.message,
     ).toContain('execBudgetRequired: missing')
+  })
+
+  it('does not eagerly load an English group for a technical command word', () => {
+    const source = path.join(fixture.folder, 'technical-group.ts')
+    writeFileSync(source, "export const command = 'vault'")
+    expect(
+      browserTextKeys([source], fixture.canonical.EN, new Set([source])).eagerKeys.has('vault'),
+    ).toBe(false)
+    writeFileSync(source, 'export function label(){ return UI_TEXT.vault.title }')
+    expect(
+      browserTextKeys([source], fixture.canonical.EN, new Set([source])).eagerKeys.has('vault'),
+    ).toBe(true)
   })
 
   it('refuses an unregistered computed text reader before emitting a fallback', () => {

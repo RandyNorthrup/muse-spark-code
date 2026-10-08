@@ -12,6 +12,7 @@ import { compressedModelText } from '../../scripts/lib/compressedModelText.mjs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import * as z from 'zod/mini'
+import { isEstimatorBundle } from '../../src/host/estimator/estimatorBundle'
 import { EN } from '../../src/shared/l10n/en'
 import { L10N_COMPRESSION_QUALITY } from '../../src/shared/constants'
 import {
@@ -36,6 +37,10 @@ import type * as resourceGovernor from '../../src/core/resources/resourceGoverno
 import type * as runtimeResources from '../../src/runtime/resources/entry'
 import { resourceSettingsSchema } from '../../src/shared/resources'
 import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
+import type { createMediaInspector, createMediaAttachments } from '../../src/host/media/mediaEntry'
+import { createMediaAttachDeps } from '../../src/host/media/mediaProviders'
+import { loadUiTable } from '../../src/host/l10n'
+import { fill, setUiText } from '../../src/shared/l10n/text'
 import { removeFolder } from './helpers/temporaryFolders'
 import { legalReportEnvelopeSchema } from '../../src/runtime/legal/runLegal'
 
@@ -93,6 +98,11 @@ beforeAll(async () => {
       modelApiCodeIntel: 'src/core/backends/modelapi/codeIntelEntry.ts',
       schedules: 'src/runtime/schedules/schedulesBundle.ts',
       scheduleBackground: 'src/runtime/schedules/backgroundEntry.ts',
+      vaultBoundaries: 'src/shared/vaultBoundariesEntry.ts',
+      estimator: 'src/host/estimator/estimatorEntry.ts',
+      estimateContracts: 'src/shared/estimateContractsEntry.ts',
+      media: 'src/host/media/mediaEntry.ts',
+      runtimeAccounts: 'src/runtime/providers/accountsEntry.ts',
       questionNotes: 'src/core/questions/deferralEntry.ts',
       reference: 'src/shared/reference/referenceEntry.ts',
       runtimeEngine: 'src/runtime/runtimeEngineEntry.ts',
@@ -168,6 +178,7 @@ beforeAll(async () => {
         acp: 'src/runtime/main.ts',
         acpQuestions: 'src/acp/questionDeferralEntry.ts',
         runtimeQuestions: 'src/runtime/questions/questionRegistryEntry.ts',
+        runtimeAccounts: 'src/runtime/providers/accountsEntry.ts',
       },
       plugins: [
         sharedUiText,
@@ -247,7 +258,7 @@ beforeAll(async () => {
         outputs: { [`dist/${name}.js`]: details },
       })
       fixtures.set(
-        `dist/${['acp', 'exec', 'headless', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
+        `dist/${['acp', 'exec', 'headless', 'acpQuestions', 'runtimeQuestions', 'runtimeAccounts'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
         {
           bytes: Buffer.from(JSON.stringify(meta)),
           meta,
@@ -408,7 +419,7 @@ function outputInputs(meta: z.infer<typeof metafileSchema>, output: string) {
 function inputs(name: string): string[] {
   return Object.keys(
     fixture(
-      `dist/${['acp', 'exec', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
+      `dist/${['acp', 'exec', 'acpQuestions', 'runtimeQuestions', 'runtimeAccounts'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
     ).meta.inputs,
   ).map((file) => file.split(path.sep).join('/'))
 }
@@ -480,6 +491,75 @@ describe('deferred cohort bundles', () => {
       ).toContain(`${bundle.output} no longer carries ${file}`)
     },
   )
+  it('loads media inspection only on first use and rejects an ACP inline copy', async () => {
+    const source = 'src/core/media/limits.ts'
+    expect(inputs('media')).toContain(source)
+    for (const parent of ['extension', 'modelApi', 'acp']) {
+      expect(inputs(parent)).not.toContain(source)
+    }
+    expect(bundleText('extension')).toContain('media.js')
+    expect(bundleText('acp')).toContain('./media.js')
+    const problems = checkDeferredBundles((bundle) =>
+      bundle.output === 'dist/acp.js'
+        ? new Map([...bundleInputs(bundle), [source, 1]])
+        : bundleInputs(bundle),
+    )
+    expect(problems).toContain(
+      'dist/acp.js carries src/core/media/limits.ts, which loads only on the first media attachment or trusted media read',
+    )
+    const media = z
+      .object({
+        createMediaInspector: z.custom<typeof createMediaInspector>(
+          (value) => typeof value === 'function',
+        ),
+        createMediaAttachments: z.custom<typeof createMediaAttachments>(
+          (value) => typeof value === 'function',
+        ),
+      })
+      .parse(loadSupportBundle('media'))
+    const german = await loadUiTable({
+      language: 'de',
+      readExtensionFile: (segments) =>
+        Promise.resolve(readFileSync(path.join(...segments), 'utf8')),
+      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    })
+    try {
+      const inspector = media.createMediaInspector(german.table, german.locale)
+      expect(
+        await inspector.sniffMedia({
+          sizeBytes: 1,
+          read: () => Promise.resolve(new Uint8Array([0])),
+        }),
+      ).toEqual({
+        ok: false,
+        reason: fill(german.table.media.attachmentUnknownType, { type: 'media' }),
+      })
+      expect(
+        inspector.checkMediaLimits({
+          kind: 'audio',
+          mediaType: 'audio/wav',
+          sizeBytes: 1,
+          durationSeconds: 1,
+        }),
+      ).toEqual({ ok: true })
+      media.createMediaInspector(EN, 'en')
+      const attachments = media.createMediaAttachments(
+        createMediaAttachDeps(
+          () => ({ mediaMaxUploadMiB: 1, screenRecordingMaxSeconds: 1 }),
+          () => Promise.resolve(undefined),
+        ),
+        german.table,
+        german.locale,
+      )
+      expect(await attachments.prepare('unissued', 'modelApi', 'model')).toEqual({
+        ok: false,
+        reason: german.table.attachmentUnreadable,
+      })
+    } finally {
+      media.createMediaInspector(EN, 'en')
+      setUiText(EN, 'en')
+    }
+  })
   it('keeps M112 registry and deferral helpers lazy and rejects inline copies', () => {
     for (const [source, destination] of [
       ['src/runtime/questions/acpRegistry.ts', 'runtimeQuestions'],
@@ -693,6 +773,10 @@ describe('deferred cohort bundles', () => {
         expect(inputs(parent)).not.toContain(file)
     }
     expect(bundleText('schedules')).toContain('createRuntimeSchedules')
+  })
+
+  it('loads the shipped estimator against the shared validation runtime', () => {
+    expect(isEstimatorBundle(loadSupportBundle('estimator'))).toBe(true)
   })
 
   it('loads the activation entry without requiring either action bundle', () => {
@@ -953,6 +1037,10 @@ describe('deferred cohort bundles', () => {
   })
 
   it.each([
+    ['estimateContracts', 'src/shared/estimate.ts', 'missing'],
+    ['modelApi', 'src/shared/estimate.ts', 'on its first action'],
+    ['vaultBoundaries', 'src/shared/vault.ts', 'missing'],
+    ['modelApi', 'src/shared/vault.ts', 'on its first action'],
     ['providerPolicy', 'src/host/backend/providerPolicyEntry.ts', 'missing'],
     ['providerPolicy', 'src/core/backends/modelapi/codecs/chat.ts', 'in dist/providers.js'],
     ['hookRuntime', 'src/core/backends/modelapi/hookHandlers.ts', 'missing'],

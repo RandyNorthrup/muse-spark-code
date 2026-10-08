@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within, waitFor } from '@testing-library/react'
 import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as transcriptModule from '../../src/webview/components/Transcript'
 import type { TranscriptProps } from '../../src/webview/components/Transcript'
@@ -12,6 +12,7 @@ import { restoredUiState, type WebviewState } from '../../src/webview/state/snap
 import { createUiStore, listenToHost, persistStore } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
 import { installSurfaceRetry, retrySurface } from '../../src/webview/surfaceRetry'
+import { fakeEstimate } from './helpers/estimator/fixtures'
 import { testSettings } from './helpers/fakes'
 import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
 
@@ -116,6 +117,40 @@ describe('the UI store (M25)', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.useRealTimers()
+  })
+
+  it('validates lazy estimator replies before storage and keeps their correlation', async () => {
+    const store = createUiStore(initialUiState)
+    const report = vi.fn<ErrorReporter>()
+    const stop = listenToHost(store, window, () => 0, report)
+    deliver({ type: 'estimatorSection', requestId: 'request-1', section: fakeEstimate() })
+    await vi.waitFor(() => {
+      expect(store.getState().estimatorRequestId).toBe('request-1')
+    })
+    deliver({ type: 'estimatorSection', section: { p50: 'bad' } })
+    await vi.waitFor(() => {
+      expect(report).toHaveBeenCalled()
+    })
+    expect(store.getState().estimatorRequestId).toBe('request-1')
+    stop()
+  })
+
+  it('drops estimator replies whose parser finishes after a conversation clear or unsubscribe', async () => {
+    for (const close of ['clear', 'unsubscribe']) {
+      const store = createUiStore(initialUiState)
+      const dispatch = vi.spyOn(store, 'dispatch')
+      const stop = listenToHost(store, window, () => 0, vi.fn())
+      deliver({ type: 'estimatorSection', section: fakeEstimate() })
+      if (close === 'clear') deliver({ type: 'conversationCleared', attachmentEpoch: 1 })
+      else stop()
+      await import('../../src/shared/estimatorProtocol')
+      expect(
+        dispatch.mock.calls.filter(
+          ([action]) => action.type === 'hostMessage' && action.message.type === 'estimatorSection',
+        ),
+      ).toHaveLength(0)
+      stop()
+    }
   })
 
   // M39: outside React's error boundary, a throwing reducer lost the message
@@ -319,4 +354,42 @@ describe('the crash screen and its Reload (M25)', () => {
     expect(screen.queryByText(UI_TEXT.crashTitle)).toBeNull()
     third.close()
   })
+})
+
+it('validates a first-use estimator frame before updating the store', async () => {
+  const store = createUiStore(initialUiState)
+  const report = vi.fn()
+  const stop = listenToHost(store, window, () => 0, report)
+  try {
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'estimatorSection', section: { ...fakeEstimate(), disclosures: [] } },
+      }),
+    )
+    await waitFor(() => {
+      expect(report).toHaveBeenCalled()
+    })
+    expect(store.getState().estimator).toBeUndefined()
+    const section = fakeEstimate()
+    window.dispatchEvent(
+      new MessageEvent('message', { data: { type: 'estimatorSection', section } }),
+    )
+    await waitFor(() => {
+      expect(store.getState().estimator).toEqual(section)
+    })
+  } finally {
+    stop()
+  }
+})
+
+it('discards an estimator frame whose listener closes during first-use loading', async () => {
+  const store = createUiStore(initialUiState)
+  const stop = listenToHost(store, window, () => 0, vi.fn())
+  window.dispatchEvent(
+    new MessageEvent('message', { data: { type: 'estimatorSection', section: fakeEstimate() } }),
+  )
+  stop()
+  await import('../../src/shared/estimatorProtocol')
+  await Promise.resolve()
+  expect(store.getState().estimator).toBeUndefined()
 })

@@ -1,6 +1,7 @@
 /** Move cold transforms outside Testing Library's default findBy deadline. */
 export async function warmDeferredSurfaces(): Promise<void> {
   await Promise.all([
+    import('../../../src/shared/palette'),
     import('../../../src/shared/paletteRegistry'),
     import('../../../src/webview/components/DiffTally'),
     import('../../../src/webview/components/MentionMenu'),
@@ -34,6 +35,7 @@ export async function warmDeferredSurfaces(): Promise<void> {
     import('../../../src/webview/components/QuestionUi'),
     import('../../../src/webview/components/ReportDialog'),
     import('../../../src/webview/components/GooeyMenuContent'),
+    import('../../../src/webview/components/ElicitationCard'),
     import('../../../src/webview/components/WorkflowRun'),
     import('../../../src/webview/components/HighlightedCode'),
     import('../../../src/webview/components/EffortSlider'),
@@ -51,5 +53,7 @@ export async function warmDeferredSurfaces(): Promise<void> {
     import('../../../src/webview/prompts/PromptLibrary'),
     import('../../../src/webview/prompts/PromptLibraryBridge'),
     import('../../../src/webview/sharing/ChatShareBridge'),
+    import('../../../src/webview/estimator/composer'),
+    import('../../../src/webview/estimator/EstimatorPanel'),
   ])
 }

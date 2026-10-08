@@ -251,12 +251,43 @@ describe('the production webview chunks (FIX78W)', () => {
     }
   })
 
+  it('keeps usage, action dialogs and estimator within their existing closure caps', () => {
+    const groups = webviewDeferredBudgetGroups({ outputs: built.outputs })
+    for (const name of [
+      'UsageDialogContent',
+      'action dialogs',
+      'estimator panel',
+      'account English',
+    ]) {
+      const group = groups.find((entry) => entry.name === name)
+      expect(group.budgetKiB).toBe(25)
+      expect(group.outputs.length).toBeGreaterThan(0)
+      expect(
+        group.outputs.reduce((sum, file) => sum + statSync(outputFile(file)).size, 0),
+        name,
+      ).toBeLessThanOrEqual(25 * 1024)
+    }
+  })
+
+  it('loads exact USD arithmetic and display only with lazy media pricing', () => {
+    for (const source of ['src/shared/usd.ts', 'src/shared/l10n/exactUsd.ts']) {
+      const owners = Object.entries(built.outputs).filter(([, output]) =>
+        Object.hasOwn(output.inputs, source),
+      )
+      expect(owners).toHaveLength(1)
+      expect(initialOutputs().has(owners[0][0])).toBe(false)
+    }
+  })
+
   it('keeps FIXDIET1 startup and original deferred bytes within their review baseline', () => {
     const bytes = [...initialOutputs()].reduce(
       (sum, output) => sum + statSync(outputFile(output)).size,
       0,
     )
     expect(bytes).toBeLessThanOrEqual(733.8 * 1024)
+  })
+
+  it('keeps original deferred bytes within the unchanged FIXDIET1 baseline', () => {
     const legacy = webviewDeferredBudgetGroups({ outputs: built.outputs }).find(
       (group) => group.name === 'deferred JS',
     )
@@ -264,6 +295,19 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(
       legacy.outputs.reduce((sum, output) => sum + statSync(outputFile(output)).size, 0),
     ).toBeLessThanOrEqual(32.1 * 1024)
+  })
+
+  it.each([
+    'src/shared/estimate.ts',
+    'src/shared/estimatorProtocol.ts',
+    'src/shared/palette.ts',
+    'src/shared/slashCommands.ts',
+  ])('keeps %s out of chat startup while retaining its validated lazy implementation', (source) => {
+    const owners = Object.entries(built.outputs).filter(([, output]) =>
+      Object.hasOwn(output.inputs, source),
+    )
+    expect(owners.length).toBeGreaterThan(0)
+    for (const [output] of owners) expect(initialOutputs().has(output)).toBe(false)
   })
 
   it.each([
@@ -571,4 +615,19 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(result.stderr).toContain('stat ')
     expect(result.stderr.replaceAll('\\', '/')).toContain('dist/webview/shared.js')
   })
+})
+
+it('assigns a non-entry optional input with Windows path separators to its lazy budget', () => {
+  const meta = {
+    outputs: {
+      'dist\\webview\\main.js': { imports: [], inputs: {} },
+      'dist\\webview\\chunks\\optional.js': {
+        imports: [],
+        inputs: { 'src\\webview\\components\\SignIn.tsx': { bytesInOutput: 1 } },
+      },
+    },
+  }
+  expect(
+    webviewDeferredBudgetGroups(meta, 25).find((group) => group.name === 'SignIn').outputs,
+  ).toEqual(['dist/webview/chunks/optional.js'])
 })

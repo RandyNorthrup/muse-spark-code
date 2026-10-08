@@ -11,8 +11,8 @@ import { fill } from '../../shared/l10n/text'
 import { formatDurationMs } from '../agentFormat'
 import { failedOutcomeText, isFailedStatus, type UserShellEntry } from '../state/uiState'
 import { Clipped } from './ToolBlocks'
+import { statusDotClass } from '../toolStatus'
 import type { ToolRowProps } from './ToolRow'
-import { statusDotClass } from '../toolDetails'
 
 export interface UserShellRowProps {
   readonly entry: UserShellEntry

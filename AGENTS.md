@@ -50,10 +50,12 @@ them, the milestone plan, and the certification checklist.
      declared readers, and a new block the split check does not guard
      (PLAN.md D6, 2026-10-03 and 2026-10-04).
    - **Node bundles share English fallback** (`dist/uiText.js` and its generated
-     runtime/hooks/surfaces regions, PLAN.md D6).
+     runtime/hooks/surfaces/media regions, PLAN.md D6).
      Each bundle keeps its own installed-language state; lazy factories install
-     the caller's table before use. Browser and integration-test bundles keep
-     their inline fallback.
+     the caller's table before use. Production chat splits optional account/developer/help/runtime English
+     behind `loadDeferredEnglish`; its generated validation templates preserve
+     the complete shape and slots. Independent browser pages and integration
+     bundles keep their inline fallback.
    - **Adding or changing a key** means every table in `l10n/` gets it too,
      or `npm run check:l10n` fails.
    - **New UI surfaces ship lazily**, on first use, with accessible loading,
@@ -227,6 +229,18 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       Model API code intelligence and MCP pools
                       (dist/modelApiCodeIntel.js and dist/mcpPool.js),
                       with its status item in the activation shim,
+                      media attachments (dist/media.js: the attach port, the
+                      recording picker and the uploaded-files list, loaded on
+                      the first attach or recording action; M105) and screen
+                      recording (dist/screenRecord.js: the recorder command,
+                      loaded on the first recording; M105),
+                      the vault's window (vault/: the panel host and the
+                      native editor in dist/vault.js, loaded on the first
+                      vault command; only the command shim stays at
+                      activation, and both commands refuse closed until the
+                      broker-backed service lands),
+                      the estimator's engine and history honesty
+                      (dist/estimator.js, loaded on the first estimate; M117),
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web
@@ -237,7 +251,9 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       side: settled diagnostics, format on edit and turn
                       checkpoints' shadow repository)
 src/core/**           backend-agnostic logic; must not import `vscode`
-                      (MSP host, Model API client and tools, the MCP client,
+                      (media/inspectEntry.ts, the portable first-use inspector
+                      shared by VS Code and ACP through dist/media.js;
+                      MSP host, Model API client and tools, the MCP client,
                       the hook dispatcher and, in dist/foreignHooks.js loaded
                       on first use, the adapters for hooks imported from
                       other agents (M91),
@@ -246,6 +262,9 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       owner-only store port and exactly-once late delivery; M112),
                       the orchestrator playbook (orchestration/playbook/: policy,
                       journal, outcomes, brief, reports and integration; D96/M116),
+                      provider accounts and thresholds, backend pools, developer profile
+                      ownership and account usage projections (M108; installed bindings
+                      wait for M95/M102/M104/M109),
                       memory, export, worktrees, git and GitHub (push plans,
                       REST client, draft prompts), usage,
                       dictation, Muse Voice, the paid gate, network failures,
@@ -287,7 +306,10 @@ src/runtime/exec/**   headless arguments/protocol/egress (dist/exec.js, loaded
                       bounded lifecycle, ACP client/tap and per-attempt ledger
 src/runtime/**        the agent's process: arguments, backends outside VS Code,
                       the OS credential store (D61), `auth`, `login`,
-                      `report` (M93) and the journal-backed `playbook` command
+                      `report` (M93), `providers accounts` and the runtime
+                      account services (dist/runtimeAccounts.js, loaded on the
+                      first accounts, developer or keyed headless command; M108),
+                      the journal-backed `playbook` command
                       with its ACP `/playbook` surface (M116); the schedule command and settle path
                       (schedules/), and the native background scheduler entry
                       (dist/scheduleBackground.js, run by the OS launcher)
@@ -308,7 +330,9 @@ src/webview/**        React 19 app (browser project, own tsconfig);
                       useRowMenu, each row's ⋯ opener) over gooeyLayout.ts's
                       pure geometry for its fanned column of labelled
                       pills; diffTally.ts and
-                      components/DiffTally.tsx add up the conversation's edits
+                      components/DiffTally.tsx add up the conversation's edits;
+                      models/sections/accounts, usage/AccountsSection and developer/
+                      are optional M108 surfaces, mounted only through their lazy owners
 src/webview/bridges/theme/**
                       the native hosts' theme colours onto the token roles
                       through MHP's theme message (M114 lane C, with M104)

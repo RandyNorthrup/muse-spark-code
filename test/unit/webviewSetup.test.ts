@@ -29,6 +29,48 @@ function setup(context = fakeHostContext(), restoredSessionId?: string) {
 }
 
 describe('configureWebview', () => {
+  it('validates lazy estimator requests and drops pending work after dispose or clear', async () => {
+    const request = {
+      goal: { kind: 'milestone', milestoneId: 'M117' },
+      asOf: '2026-10-07T00:00:00.000Z',
+      fleet: 'current',
+      optimize: 'cost',
+    }
+    const valid = setup()
+    valid.webview.messages.fire({ type: 'estimateRun', requestId: 'request-1', request })
+    await vi.waitFor(() => {
+      expect(valid.context.onConversationMessage).toHaveBeenCalledWith(valid.surface, {
+        type: 'estimateRun',
+        requestId: 'request-1',
+        request,
+      })
+    })
+    valid.webview.messages.fire({ type: 'estimateRun', request: {} })
+    await vi.waitFor(() => {
+      expect(valid.context.log.warn).toHaveBeenCalled()
+    })
+    expect(valid.context.onConversationMessage).toHaveBeenCalledOnce()
+    valid.surface.dispose()
+    for (const close of ['dispose', 'clear']) {
+      const pending = setup()
+      pending.webview.messages.fire({ type: 'estimateRun', request })
+      if (close === 'dispose') pending.surface.dispose()
+      else
+        pending.webview.messages.fire({
+          type: 'clearConversation',
+          sourceSessionId: null,
+          attachmentEpoch: 1,
+        })
+      await import('../../src/shared/estimatorProtocol')
+      expect(
+        pending.context.onConversationMessage.mock.calls.filter(
+          ([, message]) => message.type === 'estimateRun',
+        ),
+      ).toHaveLength(0)
+      pending.surface.dispose()
+    }
+  })
+
   it('enables scripts and restricts local resources to the webview bundle', () => {
     const { webview } = setup()
     expect(webview.options.enableScripts).toBe(true)
