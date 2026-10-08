@@ -137,6 +137,8 @@ import { watchSessionTurns } from './helpers/sessionTurns'
 const ROOT = '/ws'
 // Long enough for a turn that spawns the conversation's whole limit of children.
 const SPAWN_LIMIT_WAIT_MS = 4000
+// Real engine load: 64 child lifecycles or 50 rounds took 13.443/6.532/8.588 s under coverage.
+const ENGINE_LOAD_TIMEOUT_MS = 20_000
 
 /** A child turn carries its task marker; prompt-cache keys now name shared prefixes. */
 function isChildRequest(body: unknown): boolean {
@@ -8823,33 +8825,37 @@ describe('ModelApiSession subagents (M48)', () => {
     })
   })
 
-  it('refuses a spawn past the conversation limit before any popup (M76 review)', async () => {
-    const t = setupSubagents()
-    const { session } = await startSession(t, 'promptUnmatched')
-    const calls = Array.from({ length: SUBAGENT_MAX_PER_CONVERSATION + 1 }, (_, index) => ({
-      name: 'subagent_spawn',
-      arguments: JSON.stringify({ role: `worker-${String(index)}`, objective: 'Task' }),
-      callId: `limit-${String(index)}`,
-    }))
-    t.api.script({ calls }, { text: 'Done.' })
-    await session.sendTurn([{ type: 'text', text: 'delegate' }])
-    // A child's turn ends too, so the parent's is read from its second request.
-    const parentBodies = () => t.api.responseBodies().filter((body) => !isChildRequest(body))
-    await vi.waitFor(
-      () => {
-        expect(parentBodies()).toHaveLength(2)
-      },
-      { timeout: SPAWN_LIMIT_WAIT_MS },
-    )
-    expect(t.paidRequests).toHaveLength(SUBAGENT_MAX_PER_CONVERSATION)
-    const parent = parentBodies()
-    expect(
-      outputFor(parent.at(-1), `limit-${String(SUBAGENT_MAX_PER_CONVERSATION)}`),
-    ).toMatchObject({ output: 'Error: subagent limit reached for this conversation' })
-    expect(session.history().items.filter((item) => item.kind === 'subagent')).toHaveLength(
-      SUBAGENT_MAX_PER_CONVERSATION,
-    )
-  })
+  it(
+    'refuses a spawn past the conversation limit before any popup (M76 review)',
+    async () => {
+      const t = setupSubagents()
+      const { session } = await startSession(t, 'promptUnmatched')
+      const calls = Array.from({ length: SUBAGENT_MAX_PER_CONVERSATION + 1 }, (_, index) => ({
+        name: 'subagent_spawn',
+        arguments: JSON.stringify({ role: `worker-${String(index)}`, objective: 'Task' }),
+        callId: `limit-${String(index)}`,
+      }))
+      t.api.script({ calls }, { text: 'Done.' })
+      await session.sendTurn([{ type: 'text', text: 'delegate' }])
+      // A child's turn ends too, so the parent's is read from its second request.
+      const parentBodies = () => t.api.responseBodies().filter((body) => !isChildRequest(body))
+      await vi.waitFor(
+        () => {
+          expect(parentBodies()).toHaveLength(2)
+        },
+        { timeout: SPAWN_LIMIT_WAIT_MS },
+      )
+      expect(t.paidRequests).toHaveLength(SUBAGENT_MAX_PER_CONVERSATION)
+      const parent = parentBodies()
+      expect(
+        outputFor(parent.at(-1), `limit-${String(SUBAGENT_MAX_PER_CONVERSATION)}`),
+      ).toMatchObject({ output: 'Error: subagent limit reached for this conversation' })
+      expect(session.history().items.filter((item) => item.kind === 'subagent')).toHaveLength(
+        SUBAGENT_MAX_PER_CONVERSATION,
+      )
+    },
+    ENGINE_LOAD_TIMEOUT_MS,
+  )
 
   it('runs at most eight children and starts the ninth when a slot opens', async () => {
     const t = setupSubagents()
@@ -12584,77 +12590,85 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
     expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(1)
   })
 
-  it('starts a fresh goal turn when a busy command arrives in the last tool round', async () => {
-    const t = setup()
-    const { session, events, turnDone } = await startSession(t)
-    const held = Promise.withResolvers<undefined>()
-    scriptHeldFinalToolRound(t, held.promise, 'Working on the goal')
-    await session.sendTurn([{ type: 'text', text: 'many tool rounds' }])
-    await vi.waitFor(() => {
-      expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS)
-    })
-    await session.controlGoal({ verb: 'set', objective: 'New goal' })
-    held.resolve(undefined)
-    await turnDone()
-    await vi.waitFor(() => {
-      expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS + 1)
-    })
-    expect(instructionsOf(t, MODEL_API_MAX_TOOL_ROUNDS)).toContain('- Objective: New goal')
-    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
-  })
+  it(
+    'starts a fresh goal turn when a busy command arrives in the last tool round',
+    async () => {
+      const t = setup()
+      const { session, events, turnDone } = await startSession(t)
+      const held = Promise.withResolvers<undefined>()
+      scriptHeldFinalToolRound(t, held.promise, 'Working on the goal')
+      await session.sendTurn([{ type: 'text', text: 'many tool rounds' }])
+      await vi.waitFor(() => {
+        expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS)
+      })
+      await session.controlGoal({ verb: 'set', objective: 'New goal' })
+      held.resolve(undefined)
+      await turnDone()
+      await vi.waitFor(() => {
+        expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS + 1)
+      })
+      expect(instructionsOf(t, MODEL_API_MAX_TOOL_ROUNDS)).toContain('- Objective: New goal')
+      expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
+    },
+    ENGINE_LOAD_TIMEOUT_MS,
+  )
 
-  it('starts a fresh turn for steering accepted in the last tool round', async () => {
-    const store = memorySessionStore()
-    const t = setup({ store })
-    const { session, events, turnDone } = await startSession(t)
-    const held = Promise.withResolvers<undefined>()
-    scriptHeldFinalToolRound(t, held.promise, 'Steered answer')
-    const running = await session.sendTurn([{ type: 'text', text: 'many tool rounds' }])
-    await vi.waitFor(() => {
-      expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS)
-    })
-    const steeredImage = Buffer.from('late steer').toString('base64')
-    const steered = await session.steer(running.turnId, [
-      { type: 'text', text: 'New instruction' },
-      { type: 'image', mediaType: 'image/png', base64Data: steeredImage, width: 1, height: 1 },
-    ])
-    held.resolve(undefined)
-    await turnDone()
-    await vi.waitFor(() => {
-      expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS + 1)
-    })
-    expect(JSON.stringify(t.api.responseBodies()[MODEL_API_MAX_TOOL_ROUNDS]?.['input'])).toContain(
-      'New instruction',
-    )
-    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
-    await vi.waitFor(() => {
-      expect(events.filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
-    })
-    const changed = events.find(
-      (event) =>
-        event.type === 'userMessageTurnChanged' && event.userMessageId === steered.userMessageId,
-    )
-    if (changed?.type !== 'userMessageTurnChanged') {
-      throw new Error('expected promoted-steer turn mapping')
-    }
-    expect(changed.turnId).not.toBe(running.turnId)
-    expect(session.sentImages(changed.turnId, steered.userMessageId ?? '')).toEqual([
-      { mediaType: 'image/png', base64Data: steeredImage },
-    ])
-    await t.host.flush()
-    expect(
-      store.saved
-        .get(session.sessionId)
-        ?.replay.find((entry) => entry.userMessageId === steered.userMessageId)?.turnId,
-    ).toBe(changed.turnId)
-    session.dispose()
-    const reopened = setup({ store })
-    await reopened.host.load()
-    const loaded = await reopened.host.resumeSession(session.sessionId, 'muse-spark-1.3')
-    expect(loaded.session.sentImages?.(changed.turnId, steered.userMessageId ?? '')).toEqual([
-      { mediaType: 'image/png', base64Data: steeredImage },
-    ])
-  })
+  it(
+    'starts a fresh turn for steering accepted in the last tool round',
+    async () => {
+      const store = memorySessionStore()
+      const t = setup({ store })
+      const { session, events, turnDone } = await startSession(t)
+      const held = Promise.withResolvers<undefined>()
+      scriptHeldFinalToolRound(t, held.promise, 'Steered answer')
+      const running = await session.sendTurn([{ type: 'text', text: 'many tool rounds' }])
+      await vi.waitFor(() => {
+        expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS)
+      })
+      const steeredImage = Buffer.from('late steer').toString('base64')
+      const steered = await session.steer(running.turnId, [
+        { type: 'text', text: 'New instruction' },
+        { type: 'image', mediaType: 'image/png', base64Data: steeredImage, width: 1, height: 1 },
+      ])
+      held.resolve(undefined)
+      await turnDone()
+      await vi.waitFor(() => {
+        expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_TOOL_ROUNDS + 1)
+      })
+      expect(
+        JSON.stringify(t.api.responseBodies()[MODEL_API_MAX_TOOL_ROUNDS]?.['input']),
+      ).toContain('New instruction')
+      expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(2)
+      await vi.waitFor(() => {
+        expect(events.filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
+      })
+      const changed = events.find(
+        (event) =>
+          event.type === 'userMessageTurnChanged' && event.userMessageId === steered.userMessageId,
+      )
+      if (changed?.type !== 'userMessageTurnChanged') {
+        throw new Error('expected promoted-steer turn mapping')
+      }
+      expect(changed.turnId).not.toBe(running.turnId)
+      expect(session.sentImages(changed.turnId, steered.userMessageId ?? '')).toEqual([
+        { mediaType: 'image/png', base64Data: steeredImage },
+      ])
+      await t.host.flush()
+      expect(
+        store.saved
+          .get(session.sessionId)
+          ?.replay.find((entry) => entry.userMessageId === steered.userMessageId)?.turnId,
+      ).toBe(changed.turnId)
+      session.dispose()
+      const reopened = setup({ store })
+      await reopened.host.load()
+      const loaded = await reopened.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+      expect(loaded.session.sentImages?.(changed.turnId, steered.userMessageId ?? '')).toEqual([
+        { mediaType: 'image/png', base64Data: steeredImage },
+      ])
+    },
+    ENGINE_LOAD_TIMEOUT_MS,
+  )
 
   const staleGoalCases: readonly {
     readonly command: Parameters<ModelApiSession['controlGoal']>[0]

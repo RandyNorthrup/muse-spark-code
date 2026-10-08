@@ -86,6 +86,12 @@ export function createScheduleJournal<T extends Collections>(
   // Cache only its validated bytes; every read still observes disk changes.
   let snapshotCache:
     { content: string; revision: number; value: T; fencingToken?: number | undefined } | undefined
+  let deltaCache:
+    | {
+        folder: string
+        entries: Map<string, { content: string; delta: z.infer<typeof deltaSchema> }>
+      }
+    | undefined
   const pointerFile = `${directory}/current.json`
   const fences = `generationFences/${createHash('sha256').update(directory).digest('hex')}`
   const pointer = async () => {
@@ -130,10 +136,13 @@ export function createScheduleJournal<T extends Collections>(
       }
     }
     const folder = `${directory}/${active.generation}`
+    if (deltaCache?.folder !== folder) deltaCache = { folder, entries: new Map() }
+    const cachedDeltas = deltaCache.entries
     const content = await fs.read(`${folder}/state.json`)
     if (content === undefined) throw new Error('scheduleIndexMissing')
     if (snapshotCache?.content !== content) {
       const envelope = envelopeSchema.parse(parseScheduleStoredJson(content))
+      if (envelope.revision !== active.revision) throw new Error('scheduleIndexRevisionMismatch')
       snapshotCache = { ...envelope, content, value: parse(envelope.value) }
     }
     const snapshot = snapshotCache
@@ -151,7 +160,15 @@ export function createScheduleJournal<T extends Collections>(
     for (const name of names) {
       const deltaContent = await fs.read(`${folder}/${name}`)
       if (deltaContent === undefined) throw new Error('scheduleIndexMissing')
-      const delta = deltaSchema.parse(parseScheduleStoredJson(deltaContent))
+      const cached = cachedDeltas.get(name)
+      const validated =
+        cached?.content === deltaContent
+          ? cached.delta
+          : deltaSchema.parse(parseScheduleStoredJson(deltaContent))
+      if (cached !== undefined || cachedDeltas.size < SCHEDULE_JOURNAL_MAX_OPS)
+        cachedDeltas.set(name, { content: deltaContent, delta: validated })
+      // Application and caller parsers never receive the cached envelope itself.
+      const delta = structuredClone(validated)
       if (isSealed || delta.revision !== revision + 1 || name !== `${String(delta.revision)}.json`)
         throw new Error('scheduleIndexRevisionMismatch')
       for (const change of delta.changes) {

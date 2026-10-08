@@ -41,6 +41,15 @@ export function scrubPlanStrings(value: object): void {
     return clean
   }
   const visit = (object: object) => {
+    // Reader-owned array indices are generated numbers; their values still need the scrub.
+    if (Array.isArray(object)) {
+      for (let index = 0; index < object.length; index += 1) {
+        const item: unknown = object[index]
+        if (typeof item === 'string') object[index] = scrub(item)
+        else if (typeof item === 'object' && item !== null) visit(item)
+      }
+      return
+    }
     for (const [key, entry] of Object.entries(object)) {
       const item: unknown = entry
       const cleanKey = scrub(key)

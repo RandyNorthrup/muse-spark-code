@@ -12,7 +12,7 @@ import { MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
-import { memoryToolIo } from './helpers/fakeToolIo'
+import { memoryToolIo, type MemoryToolIo } from './helpers/fakeToolIo'
 import { memoryStoreOver } from './helpers/fakeMemoryIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
@@ -30,7 +30,7 @@ const OVERFLOW = {
 }
 
 async function setup(
-  changes: Partial<ModelApiHostDeps> = {},
+  changes: Partial<Omit<ModelApiHostDeps, 'io'>> & { io?: MemoryToolIo } = {},
   mode = 'onRequest',
   hasStableIds = false,
 ) {

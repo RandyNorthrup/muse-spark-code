@@ -3,7 +3,9 @@
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { cp, mkdir, mkdtemp, rm } from 'node:fs/promises'
+import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
@@ -18,14 +20,33 @@ const REAL_HARNESS_PREPARE_TIMEOUT_MS = 60_000
 // a loaded hosted Windows shard with coverage needs longer than the unit
 // default. PLAN.md §8 (2026-10-07).
 const REAL_HARNESS_CASE_TIMEOUT_MS = 20_000
-const rig = { browser: undefined, server: undefined, origin: '', packagedFiles: [] }
+const rig = {
+  browser: undefined,
+  server: undefined,
+  origin: '',
+  packagedFiles: [],
+  packageRoot: '',
+}
 beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
   execFileSync(process.execPath, ['scripts/pseudo-l10n.mjs'], { stdio: 'pipe' })
+  // VSCE filters after traversal; a lane's ignored clones must not enter that walk.
+  const includedRoots = readFileSync('.vscodeignore', 'utf8')
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith('!'))
+    .map((line) => line.slice(1).split('/', 1)[0])
+  expect(includedRoots.some((pattern) => path.posix.matchesGlob('temp', pattern))).toBe(false)
+  await mkdir('temp', { recursive: true })
+  rig.packageRoot = await mkdtemp(path.resolve('temp/m96-vsix-'))
+  const roots = readdirSync('.', { withFileTypes: true })
+  for (const entry of roots) {
+    if (includedRoots.every((pattern) => !path.posix.matchesGlob(entry.name, pattern))) continue
+    await cp(entry.name, path.join(rig.packageRoot, entry.name), { recursive: true })
+  }
   rig.packagedFiles = execFileSync(
     process.execPath,
-    ['node_modules/@vscode/vsce/vsce', 'ls', '--no-dependencies'],
-    { encoding: 'utf8' },
+    [path.resolve('node_modules/@vscode/vsce/vsce'), 'ls', '--no-dependencies'],
+    { cwd: rig.packageRoot, encoding: 'utf8' },
   ).split('\n')
   const serving = await serveRepo(process.cwd())
   rig.server = serving.server
@@ -41,6 +62,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await rig.browser?.close()
   if (rig.server !== undefined) await new Promise((resolve) => rig.server.close(resolve))
+  if (rig.packageRoot !== '') await rm(rig.packageRoot, { recursive: true, force: true })
 })
 
 async function harness(scenario, theme, lang, run) {

@@ -70,6 +70,17 @@ function pauseActivation<T>(fs: MemoryScheduleFs, work: () => Promise<T>) {
 }
 
 describe('bounded schedule generations', () => {
+  it('rereads and rejects a changed delta after warming its validation cache', async () => {
+    const fs = new MemoryScheduleFs()
+    const journal = counter(fs)
+    await journal.increment()
+    await journal.increment()
+    expect(await countOf(journal)).toBe(2)
+    const file = `counter/${generationOf(fs, 'counter')}/1.json`
+    fs.files.set(file, JSON.stringify({ revision: 'corrupt', changes: [] }))
+    await expect(journal.read()).rejects.toThrow()
+  })
+
   it('rereads and rejects a changed base snapshot after warming its validation cache', async () => {
     const fs = new MemoryScheduleFs()
     const journal = counter(fs)

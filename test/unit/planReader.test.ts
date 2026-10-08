@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { readPlan } from '../../src/core/reporting/plan/reader'
 import { findMilestone, nextSteps } from '../../src/core/reporting/plan/selection'
 import { tableCells } from '../../src/core/reporting/plan/grammar'
-import { scrubPlanText } from '../../src/core/reporting/plan/grammar'
+import { scrubPlanStrings, scrubPlanText } from '../../src/core/reporting/plan/grammar'
 import { STATUS_PHRASES } from '../../src/core/reporting/plan/statusPhrases'
 import { REPORT_PLAN_BUDGET_MS, REPORT_PLAN_MAX_BYTES } from '../../src/shared/constants'
 import {
@@ -16,6 +16,16 @@ import { PLAN_DRIFT_CASES, escapedCredentialCanary } from './helpers/planDrift'
 const repositoryPlan = readFileSync(new URL('../../PLAN.md', import.meta.url), 'utf8')
 
 describe('plan-format v1', () => {
+  it('scrubs secrets in string arrays, nested object values and object keys', () => {
+    const { escaped } = escapedCredentialCanary()
+    const input = { rows: [escaped, { [escaped]: escaped }], dependencies: [escaped] }
+    scrubPlanStrings(input)
+    expect(input).toEqual({
+      rows: ['[redacted]', { '[redacted]': '[redacted]' }],
+      dependencies: ['[redacted]'],
+    })
+  })
+
   it('reads every grammar row without losing gates, questions, risks or release text', () => {
     const parsed = readPlan(PLAN_FORMAT_FIXTURE)
     expect(parsed.facts.drift).toEqual([])

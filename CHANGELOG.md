@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Traverse reader-owned arrays without treating generated indices as text,
+  retaining recursive secret scrubbing and the existing plan performance budget.
+
+- Cache validated journal deltas only while reread bytes match, cloning before
+  replay; await rendered workflow controls and measure heavy engine/Chrome fixtures.
+
 - Keep recording-reader boundary fixtures within their ordinary test deadlines;
   measure and name only the real TypeScript compiler setup limit.
 

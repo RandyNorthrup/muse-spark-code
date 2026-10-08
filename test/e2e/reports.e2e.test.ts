@@ -78,7 +78,11 @@ describe('reports CLI subprocess', () => {
     're-renders saved format %s byte for byte and saves exact output',
     async (format) => {
       const expected = await readFile(
-        path.join(sourceRoot, 'test/fixtures/reports', `project.${format}.golden`),
+        path.join(
+          sourceRoot,
+          'test/fixtures/reports',
+          format === 'html' ? 'project.cli.html.golden' : `project.${format}.golden`,
+        ),
         'utf8',
       )
       const result = await cli(['--from', 'fixture.json', '--format', format])
