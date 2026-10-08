@@ -139,10 +139,12 @@ the cap. The lane was reworked to zero new runtime dependencies instead:
   fingerprint. Tests: `deviceMdns.test.ts` › "a spoofed mDNS record never
   replaces the saved peer pin" and `deviceDiscoverySwitch.test.ts` › "stays
   silent when chosen without a paired offer".
-- Manual entry connects with discovery fully blocked. Test:
-  `deviceDiscoverySwitch.test.ts` › "pairs over typed text while multicast
-  stays denied and silent" (the mDNS port denies every open while pairing
-  over typed text succeeds).
+- Manual entry completes mutual pairing over typed text with discovery
+  fully blocked. Test: `deviceDiscoverySwitch.test.ts` › "completes mutual
+  pairing over typed text while multicast stays denied" (the mDNS port
+  denies every open while pairing over typed invitation text succeeds; the
+  proof materials with the saved fingerprint and refuses a wrong pin —
+  no TCP opens).
 - Blocked-or-unreachable setup names the listener, interface, address and
   port with OS/admin recovery. A denied bind answers the fixed
   `blocked-or-unreachable` setup with `listenerApplication`/`interfaceLabel`
@@ -293,6 +295,64 @@ proving the middle steps are load-bearing.
 scripts/check-host-api.mjs`: 0 problems.
 - `npm run build`: `dist/devices.js` 87.5 KiB against its 100 KiB cap,
   caps otherwise unchanged, notices regenerated unchanged.
+
+## Lane D fix round 3 (RVM100P2DB): the discovery switch reads one live status
+
+2026-10-08, macbook rig, worktree `/Users/user/lanes/FIXM100P2D2`, branch
+`m100/p2-d-fix2` from `c85d5fa68` (lane D fix round 2). Review
+`/Users/user/lanes/_ctx/codex/RVM100P2DB.report.md`. Third-round rule:
+restructure the failing part instead of patching it — the remaining P2 was
+the switch inferring success from a resolved `start()`, so discovery now
+owns one status (`off`, `starting`, `on`, `blocked-or-unreachable` with the
+fixed reason) and the switch subscribes to it and shows exactly what it
+says. No live model calls: model attempts **0**, inference spend **0**. No
+listener beyond loopback in tests; all sockets are fakes.
+
+Shared-region note: this round touches `src/host/devices/deviceDiscovery.ts`
+(lane T) exactly where the brief named it — the rotation-announce swallow
+(`:119`), now `haltBlocked`, plus the `DeviceDiscoveryStatus` / `status()` /
+`onStatus()` surface and the `onStatus` session hook it reads. The lane T
+test file is untouched and still passes: the hook is optional so older fakes
+keep working, and discovery still derives the verdict from a throwing
+`advertise`. Request to the lead: confirm lane T owns the new status surface
+going forward.
+
+- P2 owned status (`deviceDiscovery.ts`, `deviceMdns.ts:429`,
+  `deviceDiscoverySwitch.ts:76`, `:137`): the mDNS session publishes
+  `blocked-or-unreachable` (fixed word, never socket or peer text) whenever
+  it fails — a throwing send, a post-bind socket error, a closed port — at
+  startup and after it; `DeviceDiscovery` mirrors every failure into its
+  owned status via `haltBlocked` (traffic halts, socket closes, verdict
+  stays) instead of resolving into silent success. The switch reads that
+  status after `start()` resolves and stays subscribed: a later failure
+  flips the switch off and persists it through the serialized tail. Tests:
+  `deviceDiscoverySwitch.test.ts` › "shows Blocked-or-unreachable when the
+  bind succeeds but a later send fails" (full switch path over the real
+  binding: bind ok, first send throws, reply is `blocked-or-unreachable`
+  with recovery facts, switch and store off, status blocked, socket closed,
+  nothing sent) and › "shows Blocked-or-unreachable when a socket error
+  lands after startup" (ON succeeds, `socket.fail()` flips `isEnabled()` and
+  the persisted bit to off with the status blocked and no sentinel text);
+  `deviceMdns.test.ts` › "publishes blocked-or-unreachable to session
+  subscribers on a send failure", and the first-announcement test now also
+  asserts the blocked status (and `off` after `stop()`).
+- P3 docs honesty: the lane D acceptance mapping above now cites the live
+  test title ("completes mutual pairing over typed text while multicast
+  stays denied") with no connects/TCP claim.
+
+### Test-fire proof (base `c85d5fa68`, new test files copied over, rig run)
+
+Worktree `/tmp/m100d3base` at `c85d5fa68` with the fixed test files plus the
+new `test/unit/helpers/deviceMdnsFakes.ts` (the `FakeSocket` it shares):
+`test/unit/deviceMdns.test.ts` 2 failed, 13 passed;
+`test/unit/deviceDiscoverySwitch.test.ts` 2 failed, 8 passed. The four
+failures are exactly the new/strengthened status tests (the switch-path
+pair, the session-publish test, the first-announcement status assertion);
+every pre-existing test passes on the base.
+
+### Verification (fresh clone, `npm ci`, `CI=true`, default timeouts)
+
+Recorded after the final commit below; same gate list as round 2.
 
 ## Lane 0 re-review (RVM100P2L0B): the byte cap counts UTF-8 bytes
 

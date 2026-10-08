@@ -37,7 +37,41 @@ export class DeviceDiscoverySwitch {
   // turn, so a later OFF always runs after an earlier ON's facts resolve
   // and wins. A turn's failure reaches only its own caller.
   private tail: Promise<void> = Promise.resolve()
-  public constructor(private readonly deps: DeviceDiscoverySwitchDeps) {}
+  public constructor(private readonly deps: DeviceDiscoverySwitchDeps) {
+    // The switch never infers success from a return value: it subscribes to
+    // discovery's owned status and shows exactly what it says. A failure
+    // that lands after startup (a later send error, a socket error, a closed
+    // port) flips the switch off and persists it through the same tail, so
+    // a later turn still runs after the downgrade.
+    this.deps.discovery.onStatus((status) => {
+      if (status.state === 'blocked-or-unreachable') this.noteBlocked()
+    })
+  }
+
+  /**
+   * Records a live blocked verdict: memory flips at once, the persisted bit
+   * follows through the serialized tail. Not awaited — the event has no
+   * caller — but ordered behind every turn the tail already holds.
+   */
+  private noteBlocked(): void {
+    if (!this.enabled) return
+    this.enabled = false
+    const previous = this.tail
+    const turn = (async (): Promise<void> => {
+      await previous
+      await this.deps.store.update((state) => {
+        state.discoveryEnabled = false
+        return state
+      })
+    })()
+    this.tail = (async (): Promise<void> => {
+      try {
+        await turn
+      } catch {
+        /* A downgrade write failure stays local; memory already says off. */
+      }
+    })()
+  }
 
   private async serialized(work: () => Promise<void>): Promise<void> {
     const previous = this.tail
@@ -53,6 +87,15 @@ export class DeviceDiscoverySwitch {
       }
     })()
     await turn
+  }
+
+  /** Records the blocked verdict locally and in the store; the caller throws. */
+  private async rollbackBlocked(): Promise<void> {
+    this.enabled = false
+    await this.deps.store.update((state) => {
+      state.discoveryEnabled = false
+      return state
+    })
   }
 
   private async apply(shouldEnable: boolean): Promise<void> {
@@ -73,6 +116,9 @@ export class DeviceDiscoverySwitch {
       this.deps.discovery.stop()
       return
     }
+    // A rejected start is only one failure shape. The verdict is the owned
+    // discovery status, read after start resolves: a bind that succeeded
+    // with a later send failure still reads blocked-or-unreachable.
     try {
       await this.deps.discovery.start(
         {
@@ -83,14 +129,23 @@ export class DeviceDiscoverySwitch {
         facts.port,
       )
     } catch {
-      this.enabled = false
-      this.deps.discovery.stop()
-      await this.deps.store.update((state) => {
-        state.discoveryEnabled = false
-        return state
-      })
-      throw new DevicePairingError('blocked-or-unreachable')
+      await this.rollbackBlocked()
+      throw new DevicePairingError(this.blockedReason())
     }
+    const verdict = this.deps.discovery.status()
+    if (verdict.state !== 'blocked-or-unreachable') return
+    await this.rollbackBlocked()
+    throw new DevicePairingError(verdict.reason)
+  }
+
+  /**
+   * The failure word the switch shows, read from the owned status — never a
+   * socket or peer string. Falls back to the fixed word when the status
+   * carries no verdict (a port that threw raw without publishing one).
+   */
+  private blockedReason(): 'blocked-or-unreachable' {
+    const verdict = this.deps.discovery.status()
+    return verdict.state === 'blocked-or-unreachable' ? verdict.reason : 'blocked-or-unreachable'
   }
 
   private async safeFacts(): Promise<Pick<Setup, 'listenerApplication' | 'interfaceLabel'>> {

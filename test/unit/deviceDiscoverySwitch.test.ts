@@ -1,11 +1,14 @@
 // Lane D: the discovery switch stays off until an explicit local choice, and
-// a denied bind answers the fixed Blocked-or-unreachable setup. Manual entry
-// pairs with discovery fully blocked. No real socket opens in these tests.
+// a denied bind answers the fixed Blocked-or-unreachable setup. The switch
+// never infers success from a return value: it shows discovery's owned
+// status, including failures that land after startup. Manual entry pairs
+// with discovery fully blocked. No real socket opens in these tests.
 import { mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DeviceDiscovery, type DeviceMdnsPort } from '../../src/host/devices/deviceDiscovery'
+import { createDeviceMdnsPort } from '../../src/host/devices/deviceMdns'
 import { DeviceDiscoverySwitch } from '../../src/host/devices/deviceDiscoverySwitch'
 import { DeviceStore } from '../../src/host/devices/deviceStore'
 import type { DeviceExecutionHost } from '../../src/host/devices/deviceSecrets'
@@ -16,6 +19,7 @@ import {
   laneTestHost,
   startLaneTestHost,
 } from './helpers/deviceLaneHosts'
+import { FakeMdnsSocket } from './helpers/deviceMdnsFakes'
 
 const localHost: DeviceExecutionHost = laneTestHost
 const facts = {
@@ -94,6 +98,34 @@ async function radio(
       action,
     })
   return { control, discovery, store, adapter, act }
+}
+
+/** Full switch path over the real binding on a fake socket, loaded and ready. */
+async function liveRadio(id: string, socket: FakeMdnsSocket) {
+  const rig = await radio(
+    id,
+    createDeviceMdnsPort(() => socket),
+  )
+  await rig.control.load()
+  return rig
+}
+
+type SwitchReply = Awaited<ReturnType<DeviceDiscoverySwitch['handle']>>
+
+/** Enables discovery and expects the Blocked-or-unreachable setup, off and persisted off. */
+async function expectBlockedEnable(
+  act: (action: DeviceWebviewRequest['action']) => Promise<SwitchReply>,
+  control: DeviceDiscoverySwitch,
+  store: DeviceStore,
+) {
+  const reply = await act({ kind: 'setDiscovery', enabled: true })
+  expect(reply.failure).toBe('blocked-or-unreachable')
+  expect(reply.listenerApplication).toBe('node')
+  expect(reply.interfaceLabel).toBe('lo')
+  expect(control.isEnabled()).toBe(false)
+  const stored = await store.read()
+  expect(stored.discoveryEnabled).toBe(false)
+  return reply
 }
 
 describe('discovery switch', () => {
@@ -196,14 +228,46 @@ describe('discovery switch', () => {
     }
     const { control, act, store } = await radio('d', denying)
     await control.load()
-    const reply = await act({ kind: 'setDiscovery', enabled: true })
-    expect(reply.failure).toBe('blocked-or-unreachable')
-    expect(reply.listenerApplication).toBe('node')
-    expect(reply.interfaceLabel).toBe('lo')
+    const reply = await expectBlockedEnable(act, control, store)
     expect(JSON.stringify(reply)).not.toContain('synthetic-private-path-sentinel')
+  })
+  it('shows Blocked-or-unreachable when the bind succeeds but a later send fails', async () => {
+    // Full switch path over the real binding: the bind and membership
+    // succeed, the first announcement's send throws, and the switch answers
+    // the Blocked-or-unreachable setup instead of reporting success.
+    const socket = new FakeMdnsSocket()
+    socket.sendFails = true
+    const { control, act, store, discovery } = await liveRadio('s1', socket)
+    await expectBlockedEnable(act, control, store)
+    expect(discovery.status()).toEqual({
+      state: 'blocked-or-unreachable',
+      reason: 'blocked-or-unreachable',
+    })
+    expect(socket.sent).toHaveLength(0)
+    expect(socket.closed).toBe(1)
+  })
+  it('shows Blocked-or-unreachable when a socket error lands after startup', async () => {
+    // The ON turn already succeeded when the UDP socket errors: the session
+    // publishes the failure, discovery halts with the blocked verdict, and
+    // the subscribed switch flips off and persists it — with no peer text.
+    const socket = new FakeMdnsSocket()
+    const { control, act, store, discovery } = await liveRadio('s2', socket)
+    const reply = await act({ kind: 'setDiscovery', enabled: true })
+    expect(reply.failure).toBeUndefined()
+    expect(control.isEnabled()).toBe(true)
+    expect(discovery.status()).toEqual({ state: 'on' })
+    socket.fail(new Error('post-bind-sentinel'))
+    expect(discovery.status()).toEqual({
+      state: 'blocked-or-unreachable',
+      reason: 'blocked-or-unreachable',
+    })
+    expect(JSON.stringify(discovery.status())).not.toContain('post-bind-sentinel')
+    expect(socket.closed).toBe(1)
     expect(control.isEnabled()).toBe(false)
-    const storedDenied = await store.read()
-    expect(storedDenied.discoveryEnabled).toBe(false)
+    await vi.waitFor(async () => {
+      const stored = await store.read()
+      expect(stored.discoveryEnabled).toBe(false)
+    })
   })
   it('serializes ON/OFF so a later OFF wins over an earlier ON awaiting facts', async () => {
     const { port, calls } = recordingPort()

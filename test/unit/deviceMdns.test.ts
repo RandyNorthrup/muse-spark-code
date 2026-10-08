@@ -10,15 +10,12 @@ import { hostname, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
-import { DeviceDiscovery } from '../../src/host/devices/deviceDiscovery'
-import {
-  createDeviceMdnsPort,
-  decodeDeviceMdnsPacket,
-  type DeviceMdnsUdpSocket,
-} from '../../src/host/devices/deviceMdns'
+import { DeviceDiscovery, type DeviceDiscoveryStatus } from '../../src/host/devices/deviceDiscovery'
+import { createDeviceMdnsPort, decodeDeviceMdnsPacket } from '../../src/host/devices/deviceMdns'
 import { DeviceStore } from '../../src/host/devices/deviceStore'
 import { removeDeviceFixture } from './helpers/deviceFixtures'
 import { completeLaneMutualPairing, startLaneTestHost } from './helpers/deviceLaneHosts'
+import { FakeMdnsSocket as FakeSocket } from './helpers/deviceMdnsFakes'
 
 // dns-packet 5.6.1 encoding of PTR + SRV(port 4321) + TXT(id, v=1) for
 // instance d-aaa…a under _musespark._tcp.local, TTL 120.
@@ -35,55 +32,6 @@ const goldenResponse = () => Buffer.from(GOLDEN_RESPONSE_HEX, 'hex')
 const goldenQuery = () => Buffer.from(GOLDEN_QUERY_HEX, 'hex')
 const goldenForeign = () => Buffer.from(GOLDEN_FOREIGN_HEX, 'hex')
 const advertisement = { serviceId: 'a'.repeat(32), port: 4321, version: 1 as const }
-
-class FakeSocket implements DeviceMdnsUdpSocket {
-  private readonly messageListeners: ((message: Buffer, sender: { address: string }) => void)[] = []
-  private readonly errorListeners: ((error: Error) => void)[] = []
-  public boundPort: number | undefined
-  public interfaceAddress: string | undefined
-  public memberships: { address: string; interfaceAddress: string }[] = []
-  public sent: { message: Buffer; port: number; address: string }[] = []
-  public closed = 0
-  public bindFails = false
-  public sendFails = false
-  public membershipFails = false
-  public bind(port: number, callback: () => void): void {
-    if (this.bindFails) {
-      queueMicrotask(() => {
-        for (const listener of this.errorListeners) listener(new Error('bind-sentinel'))
-      })
-      return
-    }
-    this.boundPort = port
-    queueMicrotask(callback)
-  }
-  public send(message: Buffer, port: number, address: string): void {
-    if (this.sendFails) throw new Error('send-sentinel')
-    this.sent.push({ message, port, address })
-  }
-  public addMembership(address: string, interfaceAddress: string): void {
-    if (this.membershipFails) throw new Error('membership-sentinel')
-    this.memberships.push({ address, interfaceAddress })
-  }
-  public setMulticastInterface(interfaceAddress: string): void {
-    this.interfaceAddress = interfaceAddress
-  }
-  public onMessage(listener: (message: Buffer, sender: { address: string }) => void): void {
-    this.messageListeners.push(listener)
-  }
-  public onError(listener: (error: Error) => void): void {
-    this.errorListeners.push(listener)
-  }
-  public close(): void {
-    this.closed += 1
-  }
-  public inject(message: Buffer, address: string): void {
-    for (const listener of this.messageListeners) listener(message, { address })
-  }
-  public fail(error: Error): void {
-    for (const listener of this.errorListeners) listener(error)
-  }
-}
 
 /** Overwrites bytes at an absolute offset; lengths must already match. */
 function patch(packet: Buffer, offset: number, bytes: Buffer): Buffer {
@@ -276,7 +224,28 @@ describe('mDNS binding', () => {
     )
     expect(socket.sent).toHaveLength(0)
     expect(socket.closed).toBe(1)
+    // The owned status keeps the verdict even though start resolved: the
+    // switch reads this, never the return value.
+    expect(discovery.status()).toEqual({
+      state: 'blocked-or-unreachable',
+      reason: 'blocked-or-unreachable',
+    })
     discovery.stop()
+    expect(discovery.status()).toEqual({ state: 'off' })
+  })
+  it('publishes blocked-or-unreachable to session subscribers on a send failure', async () => {
+    const socket = new FakeSocket()
+    socket.sendFails = true
+    const session = await createDeviceMdnsPort(() => socket).open('10.0.0.1', () => undefined)
+    const seen: DeviceDiscoveryStatus[] = []
+    session.onStatus?.((status) => {
+      seen.push(status)
+    })
+    expect(() => {
+      session.advertise(advertisement)
+    }).toThrow('blocked-or-unreachable')
+    expect(seen).toEqual([{ state: 'blocked-or-unreachable', reason: 'blocked-or-unreachable' }])
+    session.close()
   })
   it('answers service queries only within the packet budget per rotation', async () => {
     const socket = new FakeSocket()

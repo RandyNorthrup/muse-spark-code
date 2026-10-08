@@ -14,7 +14,7 @@
 // DNS format guards (label, name, pointer and count limits), not tunables.
 import { createSocket } from 'node:dgram'
 import { DEVICE_LIMITS } from '../../shared/constants'
-import type { DeviceMdnsPort } from './deviceDiscovery'
+import type { DeviceDiscoveryStatus, DeviceMdnsPort } from './deviceDiscovery'
 
 // Fixed mDNS wire words, not tunables: the IANA multicast group and port,
 // our DNS-SD service type, and the record TTL. The TTL outlives two
@@ -372,13 +372,27 @@ export function createDeviceMdnsPort(
   return {
     async open(interfaceAddress, receive) {
       const socket = createUdpSocket()
-      // Socket health: any UDP failure closes the socket and fails later
-      // sends with the fixed blocked-or-unreachable word, never with socket
-      // or peer text. DeviceDiscovery maps the rejection (startup) and stops
-      // on the throw (rotation), and the switch turns either into the
-      // Blocked-or-unreachable setup.
+      // Socket health: any UDP failure closes the socket, publishes the
+      // owned blocked-or-unreachable status, and fails later sends with the
+      // same fixed word, never with socket or peer text. DeviceDiscovery
+      // subscribes to that status (startup and rotations alike) and the
+      // switch shows exactly what it says.
       let isClosed = false
       let hasFailed = false
+      const statusListeners = new Set<(status: DeviceDiscoveryStatus) => void>()
+      const notifyBlocked = (): void => {
+        const blocked: DeviceDiscoveryStatus = {
+          state: 'blocked-or-unreachable',
+          reason: 'blocked-or-unreachable',
+        }
+        for (const listener of statusListeners) {
+          try {
+            listener(blocked)
+          } catch {
+            /* A status listener never breaks the socket. */
+          }
+        }
+      }
       const hush = (): void => {
         if (isClosed) return
         isClosed = true
@@ -391,6 +405,7 @@ export function createDeviceMdnsPort(
       const fail = (): Error => {
         hasFailed = true
         hush()
+        notifyBlocked()
         return new Error('blocked-or-unreachable')
       }
       let hasOpened = false
@@ -457,6 +472,12 @@ export function createDeviceMdnsPort(
         close(): void {
           current = undefined
           hush()
+        },
+        onStatus(listener: (status: DeviceDiscoveryStatus) => void): () => void {
+          statusListeners.add(listener)
+          return () => {
+            statusListeners.delete(listener)
+          }
         },
       }
     },
