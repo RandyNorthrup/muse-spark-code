@@ -18,7 +18,12 @@ import type { ResourceGovernor } from './governor'
 import type { ResourceDiskSampler } from './disk'
 import type { CreatedRegistry, CreatedCleanup } from './createdRegistry'
 import type { ResourceEvents } from './events'
-import { ResourceQueue, type ResourcePermit } from './queue'
+import {
+  ResourceQueue,
+  type ResourcePermit,
+  type ResourceAdmission,
+  type ResourceLaunchRequest,
+} from './queue'
 import { ResourceTreeRegistry } from './trees/registry'
 import type {
   ResourceAdmissionPort,
@@ -43,11 +48,16 @@ interface Work {
   temp: ResourceTempRoot | undefined
   failed: boolean
   checkpoint: boolean
+  bootstrap: boolean
   members: Set<string>
   births: number[]
   limited: boolean
 }
 export interface ResourceLaunchHostOptions {
+  readonly admission?: (
+    request: ResourceLaunchRequest,
+    signal?: AbortSignal,
+  ) => Promise<ResourceAdmission>
   readonly governor: ResourceGovernor
   readonly events: ResourceEvents
   readonly clock: ResourceClock
@@ -105,7 +115,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   }
 
   private finishTemp(work: Work): void {
-    if (work.checkpoint) return
+    if (work.checkpoint || work.bootstrap) return
     this.retired.add(work.owner)
     const finish =
       work.temp === undefined
@@ -283,6 +293,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     workClass?: ResourceClass | 'checkpoint',
     isDiskHeavy = kind === 'check' || kind === 'browserCheck',
     checkpointDestination?: string,
+    isBootstrap = false,
   ): Promise<ResourceLease> {
     if (this.disposed) throw new Error('Resource launch host disposed')
     const settings = this.options.settings()
@@ -291,20 +302,28 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       this.options.governor.updateSettings(settings)
       this.settings = signature
     }
-    this.options.governor.start()
+    if (this.options.admission === undefined) this.options.governor.start()
     const isCheckpoint = workClass === 'checkpoint'
     if (isCheckpoint) {
       if (checkpointDestination === undefined) throw new Error('Checkpoint destination unavailable')
       await this.waitAdmission(this.assertWrite(checkpointDestination), signal)
-    } else if (this.options.disks !== undefined)
+    } else if (this.options.disks !== undefined && this.options.admission === undefined)
       await this.waitAdmission(this.options.governor.refresh(), signal)
     const selectedClass = isCheckpoint
       ? 'foreground'
       : (workClass ?? this.context.getStore() ?? 'foreground')
-    const permit = await this.queue.request(
-      { kind, class: selectedClass, priority: 0, diskHeavy: isDiskHeavy, checkpoint: isCheckpoint },
-      signal,
-    ).ready
+    const request = {
+      kind,
+      class: selectedClass,
+      priority: 0,
+      diskHeavy: isDiskHeavy,
+      checkpoint: isCheckpoint,
+    }
+    const admission =
+      this.options.admission === undefined
+        ? this.queue.request(request, signal)
+        : await this.options.admission(request, signal)
+    const permit = await admission.ready
     const work: Work = {
       kind,
       class: selectedClass,
@@ -319,6 +338,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       temp: undefined,
       failed: false,
       checkpoint: isCheckpoint,
+      bootstrap: isBootstrap,
       members: new Set(),
       births: [],
       limited: false,
@@ -326,7 +346,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     this.work.add(work)
     let creating: Promise<ResourceTempRoot> | undefined
     try {
-      if (!isCheckpoint) creating = this.options.tempRoots?.create(work.owner)
+      if (!isCheckpoint && !isBootstrap) creating = this.options.tempRoots?.create(work.owner)
       if (creating !== undefined) work.temp = await this.waitAdmission(creating, signal)
     } catch (error: unknown) {
       if (creating !== undefined && (signal?.aborted === true || this.isClosed())) {

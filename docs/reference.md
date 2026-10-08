@@ -1547,7 +1547,7 @@ Commands: `museSpark.showLogs`, `museSpark.diagnostics`, `museSpark.reportProble
 
 ### Vault
 
-Open the per-user credential vault. Values never print; the broker holds them.
+vaultBroker=absent: The credential vault is unavailable in this build because the broker is not installed.
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -1871,7 +1871,7 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Attach screen recording…
 
-`museSpark.attachScreenRecording` — Record the screen, preview the clip, then attach or discard it. Needs a local window; remote windows refuse. The clip attaches as video and follows the media limits. Requires native recorder support and verified video upload support.
+`museSpark.attachScreenRecording` — nativeRecorder=absent: Direct screen recording is unavailable in this build. Choose an existing recording file.
 
 Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible`.
 
@@ -1889,11 +1889,11 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Vault
 
-`museSpark.vault` — Open the per-user credential vault. Values never print; the broker holds them.
+`museSpark.vault` — vaultBroker=absent: The credential vault is unavailable in this build because the broker is not installed.
 
 ### Muse Spark: Lock vault now
 
-`museSpark.lockVault` — Lock the per-user credential vault now, ending every use in every window.
+`museSpark.lockVault` — vaultBroker=absent: The credential vault is unavailable in this build because the broker is not installed.
 
 ### Muse Spark: Open Estimator
 

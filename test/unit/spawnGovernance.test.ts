@@ -18,6 +18,7 @@ import { fakeAccountHome } from './helpers/accountHome'
 import { fakeInitializeResult } from './helpers/fakeMsp'
 import { removeFolder } from './helpers/temporaryFolders'
 import { UI_TEXT } from '../../src/shared/constants'
+import { runProgram } from '../../src/host/processTree'
 
 vi.mock('../../src/core/resources/admission', { spy: true })
 
@@ -32,6 +33,7 @@ beforeAll(async () => {
   await job.setup()
   if (process.platform !== 'win32') return
   state.assembly = await shellJobAssembly({
+    run: runProgram,
     storageDir: state.folder,
     systemRoot: process.env['SystemRoot']!,
     readJobSource,
@@ -52,6 +54,7 @@ beforeAll(async () => {
             contents: `
 const lease={register:()=>{},complete:()=>{},background:()=>{}};
 export const admitResource=async()=>lease;
+export const admitBootstrap=async()=>lease;
 export const resourceWindowsJob=async()=>({assemblyPath:process.argv[4],executablePath:process.argv[5]});
 export const configureResources=()=>()=>{};
 export const inResourceClass=async(_kind,action)=>await action();

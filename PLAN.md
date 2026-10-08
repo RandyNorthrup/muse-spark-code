@@ -1,5 +1,18 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**SPAWN017B follow-up (2026-10-08, win11).** Govern helper compilation in
+one bootstrap tier: heavy admission, PROCESS_TABLE_TIMEOUT_MS deadline,
+bounded output, whole-tree cancellation and observed exit before publication.
+The job builder cannot join a job made by its own not-yet-built helper.
+Bind runtime process admission to the existing runtime resource host and
+dispose it at shutdown; govern the login terminal and browser opener too.
+Verify the deliberately unavailable recorder/vault feeder against installed
+commands and Help. Repair the report-history Windows restoration race at its
+cause, retain every assertion and deadline, and run thirty idle and loaded
+replays. Baseline regressions, red drills, fresh-clone scoped gates and the
+completed spawn inventory belong in int0170-combined.md. Full quality remains
+with the lead under the shared lane rules; no cap or hook changes are allowed.
+
 **SPAWN017 release repair (2026-10-08, win11).** Close the combined
 0.17.0 candidate's spawn governance gaps under M107/D87. Account-scoped MSP
 hosts retain their command owner while sharing the ordinary MSP native
@@ -36783,6 +36796,16 @@ lane A's first step.
 
 ## 7. Gates
 
+**SPAWN017B scoped delivery and stop (2026-10-08).** Shared common.md forbids
+aggregate quality on this lane; the lead owns it. Retain all caps and run
+fresh-clone scoped gates. Runtime global admission and bootstrap compilation
+are implemented, but the real-Git schedule regression still refuses at native
+created-file publication. Binding admission and then moving the runtime
+registry to machine storage did not restore it. The shared two-failed-fixes
+rule stops further repair of this path; no assertion or deadline is changed.
+This is a release blocker, not a governance exemption. Exact qualification
+and the remaining native publication work are in int0170-combined.md.
+
 **SPAWN017 (2026-10-08):** the lane brief delegates aggregate quality to
 the lead and requires fresh-clone scoped delivery gates. Existing combined
 candidate caps remain release blockers; no threshold is changed. Native
@@ -41146,6 +41169,11 @@ aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
+
+| SPAWN017B location          | Escape hatch                               | Reason                                                                                                                                                                   | Removal                                                                            |
+| --------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| core/resources/bootstrap.ts | detect-child-process nosemgrep on spawn    | The shared compiler boundary holds heavy admission, strips credentials, caps output and deadline, and observes exit; it cannot use its not-yet-built containment helper. | Keep the bootstrap-tier boundary guarded by native tree and admission regressions. |
+| core/resources/bootstrap.ts | detect-child-process nosemgrep on taskkill | Fixed trusted OS terminator, owned numeric PID, empty credential environment and bounded output/deadline; termination must remain usable at pause.                       | Retain the native whole-tree drill; compiled payloads use jobs.                    |
 
 | 0.15.0 hosted-CI location                                                                                                                                                                      | Escape hatch                                                                                                                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                           | Removal                                                                                                                                                   |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |

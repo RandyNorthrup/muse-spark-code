@@ -8,6 +8,10 @@ import { resourceSettingsSchema, type ResourceSettings } from '../../shared/reso
 import { createRuntimeResourceHost } from './host'
 import type { ResourceHistoryPort, ResourceMachineStore, RuntimeResources } from './port'
 import { resourceMachineStore } from './settings'
+import { jobSourceReader } from '../../host/backend/jobSource'
+import { shellJobAssembly } from '../../host/backend/shellJob'
+import { mcpJobExecutable } from '../../host/backend/mcpJobExecutable'
+import { runBootstrap } from '../../core/resources/bootstrap'
 
 export interface ResourceEntryOptions {
   machineDir: string
@@ -18,6 +22,27 @@ export interface ResourceEntryOptions {
   history?: ResourceHistoryPort
   overrides?: Partial<ResourceSettings>
   hasRelocationTarget?: () => boolean
+}
+
+/** Compile only on first Windows process use, under bootstrap admission. */
+export async function runtimeResourceJobs(storageDir: string, packageRoot: string) {
+  const systemRoot = process.env['SystemRoot']
+  if (systemRoot === undefined || process.platform !== 'win32') return
+  const deps = {
+    storageDir,
+    systemRoot,
+    readJobSource: jobSourceReader(packageRoot),
+    run: (file: string, args: readonly string[], env: NodeJS.ProcessEnv) =>
+      runBootstrap(file, args, env),
+    log: () => {
+      /* Caller reports fixed unavailable text. */
+    },
+  }
+  const assemblyPath = await shellJobAssembly(deps)()
+  const executablePath = await mcpJobExecutable(deps)()
+  return assemblyPath === undefined || executablePath === undefined
+    ? undefined
+    : { assemblyPath, executablePath }
 }
 
 /** W builds this entry as dist/resourceGovernor.js and ships it beside acp.js. */

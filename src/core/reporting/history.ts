@@ -441,9 +441,27 @@ export class ReportStorage {
           await delay(REPORT_WRITER_LOCK_BACKOFF_MS)
         }
       }
+      const releaseOwned = async () => {
+        const names = [...(await tombstones()), 'writer.lock']
+        for (const name of names) {
+          try {
+            if (sameFile(identity, await regular(fileFor(name)))) {
+              await release()
+              return
+            }
+          } catch (error: unknown) {
+            if (!hasCode(error, 'ENOENT')) throw error
+          }
+        }
+      }
+      let isHandleOpen = true
       try {
         await handle.writeFile(JSON.stringify(owner), 'utf8')
         await handle.sync()
+        // Windows cannot replace an open destination with MoveFileEx. Publish
+        // the complete lease, then close before another recoverer restores it.
+        await handle.close()
+        isHandleOpen = false
         await confined()
         if (!sameFile(identity, await regular(lock))) throw new Error(UI_TEXT.reportUi.saveFailed)
         const pending = await tombstones()
@@ -457,14 +475,8 @@ export class ReportStorage {
       } finally {
         // A restore can displace a tentative creator. Its unlinked inode owns
         // no lease to release and cannot authorize deleting the restored one.
-        let isLinked: boolean
-        try {
-          const held = await handleIdentity(handle)
-          isLinked = Number(held.nlink) !== 0
-        } finally {
-          await handle.close()
-        }
-        if (isLinked) await release()
+        if (isHandleOpen) await handle.close()
+        await releaseOwned()
       }
     }
   }

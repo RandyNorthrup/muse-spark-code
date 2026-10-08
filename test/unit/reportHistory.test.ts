@@ -1,4 +1,6 @@
-import { spawn } from 'node:child_process'
+import type * as ResourceAdmission from '../../src/core/resources/admission'
+import { spawn, execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { once } from 'node:events'
 import { createHash } from 'node:crypto'
 import * as fsPromises from 'node:fs/promises'
@@ -37,6 +39,13 @@ import { CheckRunJournal } from '../../src/core/reporting/checkRuns'
 import { reportDocument, reportOptions } from './helpers/reporting/snapshot'
 import { removeFolder } from './helpers/temporaryFolders'
 
+// Filesystem races use a direct, bounded identity probe; native admission is
+// proved by spawnRuntimeAdmission and the real-Git schedule suite.
+vi.mock('../../src/core/resources/admission', async (original) => ({
+  ...(await original<typeof ResourceAdmission>()),
+  execResourceFile: promisify(execFile),
+}))
+
 vi.mock('node:fs/promises', async () => {
   const actual = await vi.importActual<typeof fsPromises>('node:fs/promises')
   return { ...actual }
@@ -55,6 +64,18 @@ beforeAll(async () => {
         });`,
       resolveDir: path.resolve(import.meta.dirname, '../..'),
     },
+    plugins: [
+      {
+        name: 'fixture-identity-probe',
+        setup(builder) {
+          builder.onLoad({ filter: /resources[\\/]admission\.ts$/ }, () => ({
+            loader: 'js',
+            contents:
+              "import { execFile } from 'node:child_process'; import { promisify } from 'node:util'; export const execResourceFile=promisify(execFile);",
+          }))
+        },
+      },
+    ],
     bundle: true,
     platform: 'node',
     format: 'esm',

@@ -5,7 +5,7 @@ import { legalScanLoader } from '../host/ide/legalScanBundle'
 // the log reads goes to stderr, except the sign-in commands' own output.
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
-import { spawn } from 'node:child_process'
+import { spawnResourceProcess, execResourceFile } from '../core/resources/admission'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { open, writeFile, realpath, lstat } from 'node:fs/promises'
@@ -104,7 +104,6 @@ import { runSecretScan } from './exec/scanSecrets'
 import { loadLegalScanner } from './legal/legalScanner'
 import { runLegalCommand } from './legal/runLegal'
 
-import { runProgram } from '../host/processTree'
 import { lazyUsageAdapter, usageCompanionUrl, type UsageAdapter } from './usage/usageAdapter'
 
 import {
@@ -637,22 +636,20 @@ async function openUsageBrowser(input: string): Promise<void> {
   // environment; argument arrays never pass through a shell (D82, rule 8).
   try {
     if (process.platform === 'linux') {
+      const { child: handler } = await spawnResourceProcess(executable, args, { env: process.env })
+      handler.stdin.end()
+      handler.stdout.resume()
+      handler.stderr.resume()
       await new Promise<void>((resolve, reject) => {
-        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Fixed OS opener, validated loopback URL, credential-stripped environment and shell-free arguments (D82, PLAN.md §8).
-        const handler = spawn(executable, args, {
-          env: process.env,
-          detached: true,
-          stdio: 'ignore',
-        })
         handler.once('error', reject)
-        handler.once('spawn', () => {
-          // A valid xdg-open handler may stay foreground with the browser.
-          // Its lifetime cannot hold the launcher or decide the page's lifetime.
+        const ready = () => {
           handler.unref()
           resolve()
-        })
+        }
+        if (handler.pid === undefined) handler.once('spawn', ready)
+        else ready()
       })
-    } else await runProgram(executable, args, process.env)
+    } else await execResourceFile(executable, args, { env: process.env })
   } catch {
     // Opener stderr can repeat the private fragment; it never reaches a log.
     throw new Error(UI_TEXT.actionFailed)
@@ -1339,9 +1336,18 @@ async function main(): Promise<number> {
       return await login({
         resolveLaunch: () => museCode.resolveLaunch(),
         environment: () => museCode.childEnvironment(),
-        spawnInTerminal: (file, args, env) =>
+        spawnInTerminal: async (file, args, env) => {
           // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- `muse login` as `muse serve` is started: the CLI resolved from its install layout, PATH or an absolute --muse-binary (D1a, D4), its launcher's fixed prefix and MUSE_LOGIN_ARGS, as an argument array with no shell (PLAN.md §8)
-          spawn(file, [...args], { env, stdio: 'inherit' }),
+          const { child } = await spawnResourceProcess(file, args, { env })
+          process.stdin.pipe(child.stdin)
+          child.stdout.pipe(process.stdout, { end: false })
+          child.stderr.pipe(process.stderr, { end: false })
+          child.once('close', () => {
+            process.stdin.unpipe(child.stdin)
+            process.stdin.pause()
+          })
+          return child
+        },
         printError: (line) => {
           writeLine(process.stderr, line)
         },
@@ -1576,6 +1582,11 @@ async function main(): Promise<number> {
 
 /** The process's exit code is the command's; a crash prints its stack and fails. */
 async function run(): Promise<void> {
+  const processResources = resourcesFor(
+    stderrLogger((line) => {
+      writeLine(process.stderr, line)
+    }, 'warn'),
+  )
   try {
     process.exitCode = await main()
   } catch (error: unknown) {
@@ -1584,6 +1595,8 @@ async function run(): Promise<void> {
       redactWhole(error instanceof Error ? (error.stack ?? error.message) : String(error), []),
     )
     process.exitCode = EXIT_FAILED
+  } finally {
+    processResources.dispose()
   }
 }
 

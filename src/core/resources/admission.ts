@@ -29,12 +29,21 @@ export async function execResourceFile(
 
 /** Shared, tiny Node bundle: installing settings performs no probe or governor import. */
 export function configureResources(settings: ResourceHostSettings): () => void {
+  delete state.pending
   state.options = settings
   state.isDisposed = false
   return () => {
+    if (state.options !== settings) return
     state.isDisposed = true
     void disposeHost(settings.onError)
   }
+}
+
+/** Compiling containment itself cannot allocate a helper-backed temporary root. */
+export async function admitBootstrap(signal?: AbortSignal): Promise<ResourceLease> {
+  const host = await load()
+  if (host === undefined) throw new Error('Resource admission unavailable')
+  return await host.admit('other', signal, 'background', true, undefined, true)
 }
 
 async function disposeHost(onError: () => void): Promise<void> {

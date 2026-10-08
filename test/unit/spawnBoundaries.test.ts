@@ -10,12 +10,25 @@ import { UnixVaultPeerVerifier } from '../../src/core/vault/broker/peer'
 import { localGitRefs } from '../../src/core/schedules/events/git'
 import { reportGitIo } from '../../src/runtime/reporting/sources'
 import { backgroundProcessRunner } from '../../src/runtime/schedules/nodeBackgroundIo'
+import { readFile } from 'node:fs/promises'
+import { EN } from '../../src/shared/l10n/en'
 
 vi.mock('node:child_process', { spy: true })
 vi.mock('../../src/core/resources/admission', { spy: true })
 afterEach(() => vi.restoreAllMocks())
 
 describe('SPAWN017 new spawn sites wait for resource admission', () => {
+  it('keeps runtime login and browser starts at the governed boundary', async () => {
+    const source = await readFile(path.resolve('src/runtime/main.ts'), 'utf8')
+    expect(source).not.toContain("from 'node:child_process'")
+    expect(source).toContain('await spawnResourceProcess(file, args, { env })')
+    expect(source).toContain('await execResourceFile(executable, args, { env: process.env })')
+  })
+
+  it('describes unavailable recorder and vault builders honestly in Help', () => {
+    expect(EN.referenceScreenRecording).toContain('unavailable in this build')
+    expect(EN.referenceVaultPanel).toContain('broker is not installed')
+  })
   const sites: readonly [string, () => Promise<unknown>][] = [
     [
       'media version probe',

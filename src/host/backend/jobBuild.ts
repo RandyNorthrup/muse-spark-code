@@ -4,13 +4,13 @@
 // earlier sources removed. M27's shell job assembly and M50's MCP launcher
 // take the same steps with their own names and compiler options.
 
-import { execFile } from 'node:child_process'
+import { runBootstrap } from '../../core/resources/bootstrap'
 import { withoutCredentials } from '../../core/credentialEnvironment'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { sameFile, statIdentity } from '../../core/fs/fileIdentity'
-import { PROCESS_TABLE_TIMEOUT_MS, WINDOWS_FRAMEWORK_RELATIVE_PATH } from '../../shared/constants'
+import { WINDOWS_FRAMEWORK_RELATIVE_PATH } from '../../shared/constants'
 import type { RunProgram } from '../processTree'
 
 const SOURCE_EXTENSION = '.cs'
@@ -40,26 +40,7 @@ export interface JobBuild {
 // this same compiler. On loaded Windows runners that startup can consume the
 // process deadline. Compile directly, keeping that deadline and reporting
 // stdout (where csc writes diagnostics), stderr and termination metadata.
-const runCompiler: RunProgram = (file, args, env) =>
-  new Promise((resolve, reject) => {
-    execFile(
-      file,
-      [...args],
-      { windowsHide: true, timeout: PROCESS_TABLE_TIMEOUT_MS, env },
-      (error, stdout, stderr) => {
-        if (error === null) {
-          resolve(stdout)
-          return
-        }
-        reject(
-          new Error(
-            `job compiler failed (code=${String(error.code)}, killed=${String(error.killed ?? false)}, signal=${String(error.signal)}): ${error.message}\n${stdout}${stderr}`,
-            { cause: error },
-          ),
-        )
-      },
-    )
-  })
+const runCompiler: RunProgram = (file, args, env) => runBootstrap(file, args, env)
 
 /** The built file's name for this source (the whole C#, the shared half included). */
 export function jobFileName(build: JobBuild, csharp: string): string {

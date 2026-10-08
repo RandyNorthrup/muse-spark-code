@@ -5,9 +5,12 @@ import { UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import type { ResourceEntryOptions, createResources } from './entry'
 import type { RuntimeResources } from './port'
+import { configureResources } from '../../core/resources/admission'
+import type { runtimeResourceJobs } from './entry'
 
 interface ResourceModule {
   createResources: typeof createResources
+  runtimeResourceJobs: typeof runtimeResourceJobs
 }
 function isResourceModule(value: unknown): value is ResourceModule {
   // Same-build entry/loader contract, validated like the existing lazy bundle ports.
@@ -75,6 +78,20 @@ export function lazyRuntimeResources(
       bound.delete(bind)
     }
   }
+  const disposeAdmission = configureResources({
+    registryFile: path.join(options.machineDir, 'resource-created.json'),
+    inspect: () => ({}),
+    onError: () => {
+      options.log.warn(UI_TEXT.resourceUnavailable)
+    },
+    admission: async (request, signal) => {
+      const host = await load()
+      await host.status()
+      return await host.admit(request, undefined, signal)
+    },
+    windowsJob: async () =>
+      await module().runtimeResourceJobs(options.machineDir, path.dirname(options.distDir)),
+  })
   return {
     async command(action, isJson) {
       const host = await load()
@@ -103,6 +120,7 @@ export function lazyRuntimeResources(
       loaded?.workChanged()
     },
     dispose() {
+      disposeAdmission()
       state.isDisposed = true
       for (const unsubscribe of bound.values()) unsubscribe()
       bound.clear()

@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Containment-helper compilation uses heavy bootstrap admission, bounded
+  output and whole-tree deadline/cancellation. Runtime commands bind global
+  admission; login and browser processes use governed launch. Windows report
+  leases close before restoration, preserving concurrent journal entries.
+  Help identifies the unavailable recorder and vault broker.
+
 - Account-scoped Muse Code hosts now share governed native job launch and
   whole-tree retirement. Vault MCP stdio has a guarded production builder
   using the same governed MCP process boundary. New media, vault helper,

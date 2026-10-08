@@ -5,6 +5,17 @@ named lanes below. A contract rejection proves validation, not OS isolation,
 scrubbing, policy enforcement or revocation. Fakes are under `test/**` only.
 No credential store is read and no model call is required by these tests.
 
+SPAWN017B's **bootstrap tier** governs compilation of the Windows job and
+vault helpers themselves. A compiler cannot use the job helper it has not
+yet built. It holds heavy resource admission, uses PROCESS_TABLE_TIMEOUT_MS
+and CLI_OUTPUT_MAX_BYTES, strips credential variables, and waits for process
+exit before publishing compiled bytes. Timeout or cancellation stops the
+root and descendants using Windows taskkill /T /F or a POSIX process group.
+The OS terminator remains available at pause. This is a governance tier,
+not an exemption; native hung-root/child and output-cap drills are in the
+combined 0.17.0 certification. Windows taskkill has an enumeration window,
+as documented in processTree.ts; compiled payload helpers use jobs instead.
+
 Research: [82-source recheck and corrections](m109-research-check.md).
 
 ## Trust boundaries

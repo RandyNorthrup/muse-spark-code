@@ -22,7 +22,8 @@ import type { ResourceProcessLaunch, ResourceTreeBinding } from './launch'
 import { createMachineResourceSampler } from './sampler/system'
 import { LinuxResourceTreeReader } from './trees/linux'
 import { WindowsResourceTreeReader } from './trees/windows'
-export { createResources } from '../../runtime/resources/entry'
+import type { ResourceAdmission, ResourceLaunchRequest } from './queue'
+export { createResources, runtimeResourceJobs } from '../../runtime/resources/entry'
 export { spawnResourceProcess } from './process'
 export { execResourceFile } from './commands'
 import { runTreeProgram } from './trees/run'
@@ -33,6 +34,11 @@ import {
 } from '../../shared/constants'
 
 export interface ResourceHostSettings {
+  /** Runtime shares its existing machine governor's queue with process launches. */
+  readonly admission?: (
+    request: ResourceLaunchRequest,
+    signal?: AbortSignal,
+  ) => Promise<ResourceAdmission>
   /** W/H supply T's remaining native identity ports; absence is explicitly unknown. */
   readonly bindNativeTree?:
     ((launch: ResourceProcessLaunch) => Promise<ResourceTreeBinding | null>) | undefined
@@ -72,7 +78,6 @@ export async function resourceJobRootPid(
 export function resourceGovernorHost(options: ResourceHostSettings): ResourceLaunchHost {
   if (options.localization !== undefined)
     setUiText(options.localization.table, options.localization.locale)
-  if (state.host !== undefined) return state.host
   const settings = () => readResourceSettings(options.inspect)
   const clock: ResourceClock = {
     now: () => Date.now(),
@@ -237,6 +242,7 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
     return (await options.bindNativeTree?.(launch)) ?? null
   }
   state.host = new ResourceLaunchHost({
+    ...(options.admission !== undefined && { admission: options.admission }),
     governor,
     events,
     clock,

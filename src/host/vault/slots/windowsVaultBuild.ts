@@ -1,9 +1,9 @@
-import { execFile } from 'node:child_process'
+import { runBootstrap } from '../../../core/resources/bootstrap'
 import { createHash, randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { UI_TEXT, PROCESS_TABLE_TIMEOUT_MS } from '../../../shared/constants'
+import { UI_TEXT } from '../../../shared/constants'
 import { compileJob, jobFileName, type JobBuild } from '../../backend/jobBuild'
 import type { RunProgram } from '../../processTree'
 import {
@@ -31,25 +31,17 @@ const runCompiler = (
   _env: NodeJS.ProcessEnv,
   publicSource?: string,
 ): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const child = execFile(
-      file,
-      [...args],
-      { cwd: path.dirname(file), env: {}, windowsHide: true, timeout: PROCESS_TABLE_TIMEOUT_MS },
-      (error) => {
-        if (error === null) resolve('')
-        else reject(new Error(UI_TEXT.vault.noAccess))
-      },
-    )
-    child.stdin?.on('error', () => {
-      reject(new Error(UI_TEXT.vault.noAccess))
-    })
-    child.stdin?.end(
-      publicSource === undefined
-        ? undefined
-        : Buffer.from(publicSource, 'utf8').toString('base64') + '\n',
-    )
-  })
+  runBootstrap(
+    file,
+    args,
+    {},
+    {
+      cwd: path.dirname(file),
+      ...(publicSource !== undefined && {
+        input: Buffer.from(publicSource, 'utf8').toString('base64') + '\n',
+      }),
+    },
+  )
 const cache = new Map<string, WindowsVaultExecutable>()
 
 /** Only this process's completed build supplies a trusted digest, never a cache sidecar. */
