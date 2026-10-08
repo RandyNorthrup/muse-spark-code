@@ -15,6 +15,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The Account & usage spend meter sums exact decimal amounts instead of
+  rounding through nano-USD, so sub-nano spend below a nearby cap reports
+  unreached exactly as admission evaluates it.
+
 - Production scheduled media requests claim their calibrated upper bound
   against both schedule and shared daily caps, including replayed file IDs,
   settle the admitted media tariff once, and retain uncertain liabilities.

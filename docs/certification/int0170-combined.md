@@ -825,3 +825,119 @@ reread after the hook; the hook reformatted one import, no logic change):
 `4c0ca3dac` product, tests and port-list; this record follows. No merge,
 push, stash, hook substitution, or dependency change. Fresh clones removed
 after final verification.
+
+## Honest money guard, exact totals, pool merge (PORTS017D)
+
+Linux rig, `rel017/ports4` on this worktree, base `ad612c82e`, 2026-10-08.
+Fake-only: no paid/live calls, credentials, dependencies, gate changes, push,
+rebase or stash. All runs use the repository's own test timeout,
+`--maxWorkers=3`, at most three files per run.
+
+### 0. Step 0 merge
+
+`git merge --no-ff rel017/pool` (`6a88043b1`): the only conflict was the two
+appended certification sections; both are kept. Merge repairs: the two new
+notice fixtures with numeric `coldCacheUsd: 0`
+(`test/unit/accountsPanel.test.tsx:383`,
+`test/unit/acpAccounts.test.ts:194`) now use the canonical
+`usdInputSchema.parse('0')`, and the stale
+`shared/accounts.ts:coldCacheUsd` allow-list entry is removed. Commit
+`1bd6b323f` (hooks `.husky/_` as installed; staged and committed diffs
+reread, no logic rewrite by the hook).
+
+### 1. P2 A1: exact totals (`src/core/usage/accountUsage.ts`)
+
+`totalsFor` accumulated spend through nano-USD `parseUsd` (ceiling), so cap
+`'0.1000000005'` with `'0.1000000001'` spent (and cap
+`'0.1000000000000000002'` with `'0.1000000000000000001'` spent) reported
+`isReached: true` and "Threshold reached" while admission
+(`evaluateAccountThresholds`, already exact) returned `[]`. `totalsFor` now
+accumulates with exact `Usd` decimals and emits canonical strings; the meter
+comparison is unchanged and now always equals admission. Commit `4a348c5d4`.
+Regression: `accountUsage.test.ts` (meter `isReached: false`, progress < 100,
+admission `[]` for both pairs) and `accountUsageText.test.ts` (text never
+contains "Threshold reached"). Red drill: restoring `ad612c82e`'s
+`totalsFor` fails exactly the 2 new tests (22 passed / 2 failed); the fix
+restores green (byte-identical restore verified by `diff`).
+
+### 2. P3 A2: runtime structural guard (`test/unit/paidMoneyStructure.test.ts`)
+
+The source-text scanner is replaced by a runtime walk of the actual zod
+schemas: every module under `src/shared` and `src/core` (767 files) loads
+through vitest's normal module loading (collection-time eager
+`import.meta.glob`; sequential dynamic import did not fit the 5 s test
+timeout), every exported schema is visited once, and `_zod.def` is walked
+recursively (objects, records, arrays, tuples, unions, optional/nullable/
+default/catch wrappers, quoted keys, lazy schemas, cross-file imports as the
+same object). Pipes are judged by their OUTPUT schema, so
+`legacyUsdSchema`-shaped boundaries (numeric in, canonical string out) stay
+clean; a bare transform is probed for what it parses to, and an undeclared
+transform output on a money-named key is a finding. Findings attribute to the
+module that declares the key (re-exported and spread-copied shapes are
+re-attributed by source declaration after a fixpoint reachability pass). The
+text scan is kept for plain TypeScript declarations only. New coverage the
+old guard demonstrably missed: snake_case keys (its pre-filter required
+capital `Usd`), semicolon-joined members, and numeric pipes/transforms/
+defaults/imported aliases/quoted keys/records.
+
+Bypass drills (fixture schemas in the test, never edits to `src`; each fails
+when injected, all 6 also fail together when appended to `src/shared/paid.ts`
+and pass again after byte-exact restore): numeric pipe alias, numeric
+transform alias, `z._default(amount, 0)`, imported/re-exported numeric schema
+in a local optional, quoted money key, `Record<string, number>`. Commit
+`320bd9d85` (plus a `vite/client` types entry in `test/unit/tsconfig.json`
+for `import.meta.glob`, and two tiny re-export fixtures under
+`test/unit/helpers/`).
+
+### 3. P3 A3: honest allow-list (18 nonMoney, 19 sanctioned, 41 trackedDebt)
+
+The guard checks each entry's category: a money leaf not in the list fails;
+a stale entry fails; a `trackedDebt` entry without M121 fails; a
+`sanctioned` entry without a `PLAN.md:<line>` citation fails; a `nonMoney`
+entry that matches the money pattern or stops existing as a numeric
+declaration fails. The 18 `nonMoney` entries are the reviewer's genuine
+counts/durations/character-limits/token quantities with reasons. The 19
+`sanctioned` entries are the M95 pricing compatibility port rates
+(`usdPerMTok*`, `input/outputUsdPerMTokens`, `cachedUsdPerMTok`,
+`usdPerHour*`, `hourlyUsd`, per-hour `accountUsdPerHour`; PLAN.md:17272,
+PLAN.md:27519) and vendor wire fields carried as sent with their exact-money
+conversion sites (`cost_in_usd_ticks` at responses.ts:361, `costInUsdTicks`
+at journalRecord.ts:164, modelPolicy/priceCard tick inputs at
+priceCard.ts:254; PLAN.md:4230). The 41 `trackedDebt` entries are every
+remaining current numeric money field the new guard sees that the old one
+missed or mislabeled (usage journal/page, `usage.ts`, models panel including
+its team-shape spread-copies, `accountUsage` internals, aggregate, team and
+team view costs and budgets, schedule v2 caps/liabilities, the
+codec-normalized provider cost, preview totals), each naming M121. This
+record does not claim "no numeric money anywhere": the `trackedDebt`
+category is that inventory, and PLAN §8 registers it against M121.
+
+### 4. M121
+
+PLAN.md gains milestone M121, "Exact money everywhere (current money
+ports)" (lead decision 2026-10-08): convert every `trackedDebt` field to
+`UsdAmount` with versioned persisted reads, UI/text formatting, and the guard
+emptying the category; ordered right after 0.17.0, complete before M110/M111
+resume. Commit `27628bab3` (milestone plus the §8 escape-hatch row;
+`check:plan` 0 drift).
+
+Fresh ordinary clone under `$TMPDIR` (`CI=true npm ci`, unchanged lockfile).
+Gate batches below use repository timeouts, `--maxWorkers=3`, at most three
+files per run.
+
+| Gate batch      | Files                                                       | Result                                                                                                   |
+| --------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| 1               | paidMoneyStructure, paidMoneyPorts, thresholds              | 62 passed                                                                                                |
+| 2               | accountUsage, accountUsageText, AccountsSection             | 29 passed                                                                                                |
+| 3               | accountsPanel, acpAccounts, pool                            | 83 passed                                                                                                |
+| 4               | estimatorRecommend, accounts                                | 54 passed                                                                                                |
+| Five typechecks | host, webview, unit, e2e, integration (`npm run typecheck`) | exit 0                                                                                                   |
+| Scoped ESLint   | all 15 changed TS/TSX files, `--max-warnings=0`             | exit 0                                                                                                   |
+| Scoped Prettier | all changed supported files incl. PLAN.md                   | exit 0                                                                                                   |
+| Plain knip      | no strict/production switch                                 | exit 0 (2 configuration hints, pre-existing)                                                             |
+| Full jscpd      | whole tree                                                  | exit 1: exactly the 2 inherited clones (ACP agent, queued-answer/model-API fixture), none from this lane |
+| `check:l10n`    | 14 UI + 14 usage tables, 250 manifest strings               | exit 0, 0 problems                                                                                       |
+| `check:plan`    | 198 milestones                                              | exit 0, 0 drift                                                                                          |
+
+No sandbox refusal was counted as a pass; nothing was blocked. Fresh clone
+removed after final verification.
