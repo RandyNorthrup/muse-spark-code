@@ -1211,11 +1211,12 @@ the 20 ms interval as wall time, not claimed CPU utilization. Both children
 were killed/reaped and the benchmark registration removed. The earlier
 0.037930 ms measure isolates membership enumeration only.
 
-| Drill              | Deliberate break                                                 | Observed result at default deadlines                                                                                                                               |
-| ------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| process-group-only | Select signal targets by process group instead of coalition      | Cap-2 escapee remains alive; no-survivors assertion fails. Exit 1: 62 passed, 1 failed, 7 Windows skipped.                                                         |
-| drop-kill          | Replace SIGKILL with signal 0                                    | All three cap-2 processes remain alive; no-survivors assertion fails. Exit 1: 56 passed, 7 failed, 7 Windows skipped; existing cancellation/flood tests also fail. |
-| early-retirement   | Remove helper's alone check and independent zero-coalition guard | Sole-escapee retirement, original double-fork marker and assertion-lifetime tests fail. Exit 1: 60 passed, 3 failed, 7 Windows skipped.                            |
+| Drill                | Deliberate break                                                 | Observed result at default deadlines                                                                                                                               |
+| -------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| process-group-only   | Select signal targets by process group instead of coalition      | Cap-2 escapee remains alive; no-survivors assertion fails. Exit 1: 62 passed, 1 failed, 7 Windows skipped.                                                         |
+| drop-kill            | Replace SIGKILL with signal 0                                    | All three cap-2 processes remain alive; no-survivors assertion fails. Exit 1: 56 passed, 7 failed, 7 Windows skipped; existing cancellation/flood tests also fail. |
+| early-retirement     | Remove helper's alone check and independent zero-coalition guard | Sole-escapee retirement, original double-fork marker and assertion-lifetime tests fail. Exit 1: 60 passed, 3 failed, 7 Windows skipped.                            |
+| wrong-admitted-limit | Force every valid attempt to cap 2 instead of its admitted limit | Cap-3 completion, sole-escapee retirement and the cap-1/cap-128 request assertions fail. Exit 1: 59 passed, 4 failed, 7 Windows skipped.                           |
 
 Every drill ran the complete three owning files with `CI=true` and
 `--maxWorkers=3`; source was restored byte-exact in `finally`, SHA-256
@@ -1226,3 +1227,57 @@ skips**, including all **21 macOS-native cases** and **5 injected Darwin cases**
 All five typechecks, changed TS ESLint/Prettier, plain knip, zero-clone jscpd
 and capped production build pass locally. Final committed-code fresh-clone
 receipts follow.
+
+##### HM3 committed-code fresh-clone verification
+
+Implementation **126993a8a**, branch `m100/p2-h-darwin3`, base **2c06f6958**.
+The commit ran the repository hooks with exit 0 (four TS ESLint/Prettier
+checks, two Markdown format checks, staged gitleaks). The post-hook empty
+index, clean worktree and committed diff were reread. No merge, rebase,
+manual stash, push, model/paid call, listener, dependency change or relaxed
+gate was used. Native captures were local in the stated probe/fixture
+workspaces, with **zero model attempts**.
+
+Fresh local clone **`/tmp/M100P2HM3-verify`** at that exact implementation
+commit, Node **24.21.0**, npm **11.19.0**, macOS **15.7.4 / 24G517**,
+unprivileged UID **502**, real Aqua domain **gui/502**. `CI=true npm ci`
+exited **0** against the unchanged lockfile; npm reports the same 11 existing
+audit findings (2 low, 9 high). No audit fix or lockfile edit was made.
+
+After the final wrong-admitted-limit drill, the restored worktree's complete
+owning suite again exited **0**: **63 passed, 7 Windows-native skipped**,
+**12.45 s**, repository deadlines. Source hashes still match the fresh clone.
+
+| Fresh-clone check                                                                                                                                                    | Exit / result                                                                                                                                                                                                                                                              |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Complete owning files `deviceWorkerHost.test.ts`, `deviceWorkerHostNative.test.ts`, `deviceWorkerDarwin.test.ts`, three runs, `--maxWorkers=3`, repository deadlines | **0 / 0 / 0**. Each: **63 passed, 0 failed, 7 Windows-native skipped**. All **21 macOS-native cases ran and passed** every time, verified from the JSON reporter; no macOS skips. Durations **11.84 / 11.42 / 11.79 s**.                                                   |
+| Five compiler projects, `npm run typecheck`                                                                                                                          | **0**: host, webview, unit, e2e, integration.                                                                                                                                                                                                                              |
+| ESLint on all four changed TS files, `--max-warnings=0`                                                                                                              | **0**.                                                                                                                                                                                                                                                                     |
+| Prettier on all six changed TS/Markdown files                                                                                                                        | **0**. Native C is outside the stock Prettier parsers.                                                                                                                                                                                                                     |
+| Native fixture compiled with `clang -Wall -Wextra -Werror`                                                                                                           | **0**, no warnings.                                                                                                                                                                                                                                                        |
+| Plain knip                                                                                                                                                           | **0**, unchanged configuration.                                                                                                                                                                                                                                            |
+| Plain jscpd                                                                                                                                                          | **0**, zero clones.                                                                                                                                                                                                                                                        |
+| `check:l10n`                                                                                                                                                         | **0**, 14 UI/usage tables and 991 source files, zero problems.                                                                                                                                                                                                             |
+| `check:reference`                                                                                                                                                    | **0**, existing 18-entry Devices reference current.                                                                                                                                                                                                                        |
+| `check:host-api`                                                                                                                                                     | **1**, the inherited stale generated inventory owned by W; exact same six count differences as HM2, below.                                                                                                                                                                 |
+| Production `npm run build`, size/split/host-global/notices gates                                                                                                     | **0**, all unchanged caps pass. Devices **81.8/100 KiB**, activation **462.8/600 KiB**, Model API **456.0/475 KiB**, Devices webview **33.9/50 KiB**, chat startup **733.8/900 KiB**. The factory still awaits W's lazy binding; this measures the existing Devices entry. |
+
+Final source hashes match the committed fresh clone and every drill restoration:
+
+- Darwin: `a00b481ed113b87ac16b42d923e5d89f804f3d59309817db2f5c78d8577e8ba1`.
+- Host (documentation-only interface change): `182a04e2d341ca0c08e7a9f2a9c0a5f191784ed2e25c7986e5e489af7aa54d93`.
+- Owning Darwin tests: `24a1bda39b704141610f2404f546cdd4f73b97514c0f853d4d7039621317bbb4`.
+- Escape fixture adapter: `076dc8c64e9e4c510e4e8db58ceb78965f4efc68487e48942516191b44e2f662`.
+- Native C fixture: `81501648ec62a63cb969c6f105eba9a3aa355c2b95393a4fd8da1c5b6f86b14a`.
+
+**Lead/W requests.** Regenerate W's owned
+`docs/ide-compatibility/host-api.md`: child_process **16→18**, crypto
+**93→95**, fs **44→45**, fs/promises **74→77**, path **125→128**,
+timers/promises **15→17**. The totals stay **366 VS Code APIs, 43
+vscode-importing files, 28 Node built-ins, 70 theme variables**. This gate
+is reported as failed, not suppressed. Carry the approved supervised
+macOS-cap wording into W's shared PLAN/product documents and lazy factory
+binding; retain the compiler/ABI refusal and measured bundle caps. W owns
+full `npm run quality`, integrated receiver/editor and installed-host
+qualification. H's macOS implementation and native acceptance proofs are
+complete; aggregate quality is not claimed by this scoped lane.
