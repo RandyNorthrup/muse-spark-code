@@ -29,15 +29,43 @@ Releases and npm.
 
 ## What the extension protects, and how
 
-- **Windows path aliases.** File admission refuses device/extended namespaces,
-  alternate streams, trailing dots/spaces and reserved names, including
-  superscript COM/LPT digits. UNC file requests need a UNC workspace and proven
-  native ancestry. A Muse Code write approval with an ambiguous spelling asks
-  manually and offers only a once-only grant. Checkpoint storage and held
-  pull-request folders compare native volume/file identity through existing
-  ancestors, including junctions and loopback shares. An unreadable identity or
-  incomparable UNC volume cannot establish exclusion. Ordinary protected-path
-  rules still apply. See [the native certification](docs/certification/sec-win-path-aliases.md).
+- **Windows path aliases.** Every rule holds on any drive letter: Windows, the
+  profile, the workspace and the extension's storage may each be on a
+  different one.
+  - _Refused spellings_ (file admission, the worker/ACP fence and the
+    checkpoint-storage guard, with "This path uses a Windows spelling the
+    extension doesn't accept; use the normal path."): `\\.\`, `\??\`,
+    `\\?\UNC\`, `\\?\GLOBALROOT`, `\\?\Volume{…}` and their forward-slash
+    forms; drive-relative `X:name`; alternate streams (any `:` after the
+    drive); a segment ending in a dot or space; and a reserved device name
+    (CON, PRN, AUX, NUL, CONIN$, CONOUT$, COM1–9, LPT1–9 and the superscript
+    digits), bare or followed only by dots or spaces. A device name with a
+    real extension (`con.d`, `aux.js`, `nul.txt`) is an ordinary name on
+    Windows 11 and is judged by identity; pull-request checkouts still refuse
+    those names. Muse Code's own `\\?\X:\` spelling names the same local file
+    and is judged by its segments like `X:\`.
+  - _UNC_: file requests need a UNC workspace and proven native ancestry.
+  - _Protected writes_: a Muse Code write approval with a refused spelling,
+    a protected name (any case), or a resolved long name that is protected
+    (an 8.3 name such as `CLAUDE~1`, a junction, link or `subst` letter
+    reaching `.claude`, `.git`, `.github\workflows`…) asks manually and offers
+    only a once-only grant. An 8.3-shaped name that nothing resolves counts
+    as protected.
+  - _Checkpoint storage and held pull-request folders_ compare native
+    identity (volume serial plus non-zero file ID): a path is inside exactly
+    when it or an existing ancestor has the folder's identity, after the
+    nearest existing ancestor is resolved, so a junction or link above a
+    workspace or storage root (a relocated Documents or AppData) is ordinary.
+    A target on another volume (another serial, WSL's device 0) is outside;
+    `\\localhost\C$` and `\\localhost\Users` workspaces are outside when the
+    walk ends at a root above the storage. Writes are refused, with "The
+    extension cannot verify that this path is outside checkpoint storage",
+    when identity cannot be read, a same-volume share is rooted elsewhere, or
+    the volume has no usable file IDs below its root. Proven storage keeps
+    "This path is in the extension checkpoint storage". A missing
+    held-worktrees folder is judged by its nearest existing ancestor.
+  - See [the native certifications](docs/certification/sec-win-path-aliases2.md)
+    ([round 1](docs/certification/sec-win-path-aliases.md)).
 
 - **Muse Judge (M98 phase 1).** The same model can only add caution at an
   existing reviewer/card fence; it cannot allow, override a rule or enter an

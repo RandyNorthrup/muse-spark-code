@@ -19855,6 +19855,33 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### SECWINPATH2 — Windows identity and ordinary-workspace repair (2026-10-08, win11)
+
+Implement the lead's second-review decisions on `cb27043ae`: accept the CLI's
+local drive verbatim prefix before applying segment rules; resolve existing
+long names and missing leaves before protected-write classification, refusing
+unresolved short-name aliases and drive-relative spellings. Storage and holds
+compare native identities: different devices are outside; a same-device walk
+must reach the volume's root or a share root above the folder; unusable IDs
+below the root remain uncertain. Missing held folders are judged by their
+nearest existing ancestor and suffix. Linked ancestors of workspace/storage
+roots are ordinary. Allow real extensions on device-like names (pull-request
+trees stay conservative), distinguish spelling/storage/unknown refusals,
+translate new text in every table, and remove guessed `C:` system roots and
+the `C:\Users` wording.
+
+- [x] Regressions and native probes: C:/D:/Z:, real 8.3 names, UNC/WSL,
+      admin-share availability, relocated junction roots and storage
+      (directory symbolic links need privilege this host lacks).
+- [x] One red/restored drill per decision; replay new regressions on the base.
+- [x] Fresh npm-ci CI clone: prescribed suites (real-git stores three times),
+      five typechecks, lint/format, knip, duplication, localization, host API,
+      reference and production build; normal hooks, no merge/push/live calls.
+
+The shared rules delegate aggregate quality to the lead (§7); scoped gate
+results and hosted-admin-share qualification status are recorded in
+`docs/certification/sec-win-path-aliases2.md`.
+
 ### SECWINPATH — Windows path alias security repair (2026-10-08, win11)
 
 Implement the owner's AUDITWINPATH decisions on base `67099ce1b`: one shared

@@ -10,11 +10,19 @@ happened, not what was planned; superseded entries are kept.
 ### Security
 
 - Refuse ambiguous Windows path spellings at file admission, including device
-  namespaces, alternate streams, trailing dots/spaces and superscript device
-  names. Muse Code approvals naming these paths require a manual once-only
-  decision. Checkpoint storage and held pull-request boundaries compare native
-  file identities, retaining protection through junctions and loopback shares;
-  uncertain UNC identity fails closed.
+  namespaces, drive-relative `X:name`, alternate streams, trailing dots/spaces
+  and reserved device names (superscript digits included), on any drive letter,
+  with their own message. Muse Code approvals naming these paths, or a file
+  whose resolved long name is protected (8.3 names, junctions, `subst`
+  letters), require a manual once-only decision; Muse Code's own `\\?\X:\`
+  spelling of an ordinary file keeps Edit automatically, the Auto reviewer and
+  "Always allow". Checkpoint storage and held pull-request boundaries compare
+  native file identities: other volumes, WSL and loopback-share workspaces are
+  outside, relocated profile folders behind junctions or links work, and only
+  an identity that cannot be proven refuses writes, with its own message.
+  `con.d`, `aux.js` and similar names are ordinary on Windows 11. The browser
+  check and the token-file ACL find Windows on any drive (`SystemRoot`, then
+  `windir`) instead of assuming `C:\Windows`.
 
 ### Changed
 
