@@ -19156,14 +19156,33 @@ before completion. No push, rebase, model calls or fabricated native artifacts.
       standalone entry, and collect generated Help labels only for a graph that
       includes ReferencePage. Chat retains its current startup contexts; translated
       table shape/slots and every reachable English reader remain unchanged.
-- [ ] Recover startup through first-use chunks and deduplication, retaining
-      its 751,411-byte regression cap. Shrink VSIX/account closure first;
-      only their caps may use measured universal bytes +5%, rounded up to
-      25 KiB, with measurement and rationale recorded under D6.
+- [x] Recover startup through first-use chunks and deduplication: final fresh
+      build measures 739,383 / 751,411 bytes. Shrink the whole account closure
+      from 80,488 to 27,338 bytes; the brief-authorized D6 calculation gives
+      51,200 bytes (50 KiB). Keep every other existing bundle cap unchanged.
+- [ ] Measure the actual universal VSIX with genuine hosted macOS artifacts;
+      only then apply its authorized universal bytes +5%, rounded up to
+      25 KiB rule. The existing 2,841,600-byte cap remains unchanged until then
+      (Q-REL0150M-UNIVERSAL); helperless bytes do not certify this measurement.
 - [ ] Diagnose full accessibility cost and run its complete harness alone.
+      Final `630710858` completes all 988 pages in 223.85 seconds with zero
+      violations/undecided rules, but eight filtered slash pages have no result:
+      their palette grammar reads deferred English before a component loads it.
+      Await English alongside the grammar and show the existing accessible
+      loading/failure surface for filtered commands until both are ready.
+      Prove cold loading, failure and cancellation without eager startup bytes.
+      The legal keyboard gate separately reports escaped focus; trace the actual
+      matrix case and repair its cause before repeating the whole gate.
 - [ ] Commit fixes, clone committed source fresh, `npm ci`, `CI=true`, and
       run every exact Linux build.yml job serially at repository deadlines.
       Genuine macOS helper preparation remains covered by hosted CI.
+      Final committed source `630710858`: ordinary installation and exact
+      static sequence pass. All four complete coverage shards and their merge
+      pass: 20,028 tests, 146 existing skips, no failures or setup errors;
+      coverage is 92.99 / 88.11 / 93.96 / 93.80 percent. Four-CPU affinity lets
+      Vitest choose its normal three workers; no CLI worker or deadline override.
+      Full accessibility runs alone next, followed by both editor versions,
+      pinned SAST/history scan and every independent package command.
 - [ ] Add completion receipts to `docs/certification/int0180.md`, including
       commands, counts, drills, cap measurements and any external blocker.
 

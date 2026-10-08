@@ -144,6 +144,9 @@ function readinessPage(now: () => number) {
     performance: { now },
     document: { querySelector: () => null, fonts: { ready: Promise.resolve() } },
     hasPageLoaded: true,
+    hasWebviewReady: true,
+    hasPlayedScenario: true,
+    steps: { ordinary: () => undefined },
     pendingFinds: 0,
     pendingScenarioEvents: 1,
     SCENARIO_READY: {},
@@ -304,6 +307,37 @@ describe('harness scenario event readiness', () => {
     })
     expect(nextFrame).toHaveBeenCalledTimes(2)
   })
+
+  it.each(['hasWebviewReady', 'hasPlayedScenario'] as const)(
+    'does not scan a named scene before %s',
+    async (field) => {
+      const source = harnessSection('const whenReady = async', '// A scan holds')
+      const timers: ScheduledEvent[] = []
+      const settled = vi.fn()
+      const nextFrame = vi.fn(() => Promise.resolve())
+      const context = {
+        ...readinessPage(() => 0),
+        pendingScenarioEvents: 0,
+        [field]: false,
+        nextFrame,
+        readinessLater: (delay: number, run: () => void) => {
+          timers.push({ delay, run })
+        },
+        settled,
+      }
+      runInNewContext(`${source}\n void whenReady('ordinary').then(settled);`, context)
+      await Promise.resolve()
+      expect(timers[0]?.delay).toBe(50)
+      expect(nextFrame).not.toHaveBeenCalled()
+      expect(settled).not.toHaveBeenCalled()
+      context[field] = true
+      runNext(timers)
+      await vi.waitFor(() => {
+        expect(settled).toHaveBeenCalledOnce()
+      })
+      expect(nextFrame).toHaveBeenCalledTimes(2)
+    },
+  )
 
   it('keeps the existing readiness deadline when an event never finishes', async () => {
     const source = harnessSection('const whenReady = async', '// A scan holds')

@@ -6319,6 +6319,7 @@
           : (SCENARIO_READY[name] ?? (() => true))
         const isReady = () =>
           hasPageLoaded &&
+          (!(name in steps) || (hasWebviewReady && hasPlayedScenario)) &&
           pendingFinds === 0 &&
           pendingScenarioEvents === 0 &&
           document.querySelector('[data-deferred-loading]') === null &&

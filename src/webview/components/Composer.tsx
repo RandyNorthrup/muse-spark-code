@@ -178,6 +178,8 @@ export interface ComposerProps {
   readonly onDismissBanner: () => void
   /** The prompt's "/" list (M38): the palette's slash commands and skills. */
   readonly slashCommands: readonly SlashCommand[]
+  /** Grammar and its English fallback have finished first-use loading. */
+  readonly isSlashReady?: boolean
   /** Another menu or dialog is open: the "/" menus stay closed. */
   readonly isMenuOpen: boolean
   /** The palette, attached above the box, for a prompt that is just `/`. */
@@ -416,6 +418,7 @@ export function Composer(props: ComposerProps) {
     banner,
     onDismissBanner,
     slashCommands,
+    isSlashReady = true,
     isMenuOpen,
     renderSlashPalette,
     slashPaletteKeys,
@@ -1078,13 +1081,13 @@ export function Composer(props: ComposerProps) {
           </button>
         </div>
       )}
-      {slashMenu === 'palette'
+      {slashMenu === 'palette' || (slashMenu === 'commands' && !isSlashReady)
         ? renderSlashPalette({
             onClose: dismissSlash,
             onActiveRowChange: setPaletteRowId,
           })
         : null}
-      {slashMenu === 'commands' ? (
+      {slashMenu === 'commands' && isSlashReady ? (
         <SlashMenu
           items={slashItems}
           activeIndex={activeSlash}

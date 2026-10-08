@@ -2239,8 +2239,8 @@ export function App({
   useEffect(() => {
     if (!requiresPalette || paletteModule !== undefined) return
     let isActive = true
-    void import('../shared/palette')
-      .then((module) => {
+    void Promise.all([loadDeferredEnglish(), import('../shared/palette')])
+      .then(([, module]) => {
         if (isActive) setPaletteModule(module)
       })
       .catch(() => {
@@ -3165,6 +3165,7 @@ export function App({
             banner={state.banner}
             onDismissBanner={onDismissBanner}
             slashCommands={slashCommands}
+            isSlashReady={paletteModule !== undefined}
             isMenuOpen={overlay !== undefined}
             renderSlashPalette={renderSlashPalette}
             slashPaletteKeys={slashPaletteKeys}

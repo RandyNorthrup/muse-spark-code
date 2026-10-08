@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Cold filtered slash commands wait for their palette English and retain
+  accessible loading, failure and retry controls. Browser checks wait for the
+  named scenario to start before measuring a cold dialog or sending native keys.
+
 - Estimator trials reuse the validated scheduler without materializing report-only
   timelines or sorting unused reservation boundaries after every placement;
   all 2,000 draws and the selected P50 schedule remain intact.
