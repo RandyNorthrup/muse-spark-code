@@ -19,8 +19,6 @@ type ApprovalRequest = Extract<AgentEvent, { type: 'approvalRequested' }>
 type ApprovalUpdate = Extract<AgentEvent, { type: 'approvalUpdated' }>
 
 const SESSION_ID = 'session-1'
-// Ordinary DOS controls: device-prefixed subjects require a manual decision on Windows.
-const ORDINARY_WORKSPACE = String.raw`C:\Users\dev\protect-live\ws2`
 // "Always allow in this workspace", as Muse Code 1.4.2 offers one
 // (helpers/stageRaceCapture.ts, 2026-10-02); the captured file write offered
 // none, being one Muse Code protects itself.
@@ -44,13 +42,34 @@ const PROTECTED_CASES = [
   ['outside the workspace, from the home folder', '~/.claude/settings.json'],
   ['outside the workspace, absolute', String.raw`\\?\C:\Users\dev\.claude\settings.json`],
   ['an agent file, nested', String.raw`${CAPTURED_WORKSPACE}\packages\app\.mcp.json`],
+  // DOS and other-drive spellings, so a Windows run matches names, not a prefix.
+  ['DOS, in any case', String.raw`C:\Users\dev\protect-live\ws2\.Claude\Settings.JSON`],
+  ['as Muse Code names it, another drive', String.raw`\\?\D:\work\.git\config`],
+  ['as Muse Code names it, a late drive', String.raw`\\?\Z:\w\.github\workflows\ci.yml`],
 ] as const
 
+// Each protected case's ordinary twin: the same prefix and depth, an ordinary
+// name (SECWINPATH2: a Windows run cannot pass by the prefix alone).
+const ORDINARY_TWINS: Readonly<Record<string, string>> = {
+  'absolute, as Muse Code names it': String.raw`${CAPTURED_WORKSPACE}\claude\settings.json`,
+  'absolute, forward slashes': 'C:/Users/dev/protect-live/ws2/claude/settings.json',
+  'absolute on macOS and Linux': '/home/dev/ws2/claude/settings.json',
+  'relative, forward slashes': 'claude/settings.json',
+  'relative, backslashes': String.raw`claude\settings.json`,
+  'in any case': String.raw`${CAPTURED_WORKSPACE}\Claude\Settings.JSON`,
+  'outside the workspace, from the home folder': '~/claude/settings.json',
+  'outside the workspace, absolute': String.raw`\\?\C:\Users\dev\claude\settings.json`,
+  'an agent file, nested': String.raw`${CAPTURED_WORKSPACE}\packages\app\mcp.json`,
+  'DOS, in any case': String.raw`C:\Users\dev\protect-live\ws2\Claude\Settings.JSON`,
+  'as Muse Code names it, another drive': String.raw`\\?\D:\work\git\config`,
+  'as Muse Code names it, a late drive': String.raw`\\?\Z:\w\.github\ci.yml`,
+}
+
 const LOOK_ALIKES = [
-  String.raw`${ORDINARY_WORKSPACE}\.claude-backup.txt`,
-  String.raw`${ORDINARY_WORKSPACE}\notclaude\.claudex\file`,
+  String.raw`${CAPTURED_WORKSPACE}\.claude-backup.txt`,
+  String.raw`${CAPTURED_WORKSPACE}\notclaude\.claudex\file`,
   '/home/dev/ws2/claude/settings.json',
-  String.raw`${ORDINARY_WORKSPACE}\docs\.mcp.json.bak`,
+  String.raw`${CAPTURED_WORKSPACE}\docs\.mcp.json.bak`,
 ] as const
 
 /** The captured frame for `path`, with an "Always allow" choice beside its own. */
@@ -125,7 +144,12 @@ describe('Muse Code file-write approvals and the extension’s protected list', 
     expect(isReviewableApproval(request, 'auto', CAPTURED_TURN_ID)).toBe(false)
   })
 
-  it.each(PROTECTED_CASES)('protects a write Muse Code does not flag: %s', (_case, path) => {
+  it.each(PROTECTED_CASES)('protects a write Muse Code does not flag: %s', (name, path) => {
+    const twin = requestFor(ORDINARY_TWINS[name] ?? '', false)
+    expect(twin.isProtectedWrite, ORDINARY_TWINS[name]).toBe(false)
+    expect(choiceIds(twin)).toEqual(CHOICES_WITH_RULE)
+    expect(editAutomaticallyChoice(twin, 'acceptEdits')?.choiceId).toBe('allow_once')
+    expect(isReviewableApproval(twin, 'auto', CAPTURED_TURN_ID)).toBe(true)
     const request = requestFor(path, false)
     expect(request.isProtectedWrite).toBe(true)
     expect(choiceIds(request)).toEqual(CHOICES_WITHOUT_RULE)
@@ -136,7 +160,7 @@ describe('Muse Code file-write approvals and the extension’s protected list', 
   it.each(PROTECTED_CASES)(
     'refuses to answer it by its path alone, with no flag on the event: %s',
     (_case, path) => {
-      const ordinary = requestFor(String.raw`${ORDINARY_WORKSPACE}\notes.txt`, false)
+      const ordinary = requestFor(String.raw`${CAPTURED_WORKSPACE}\notes.txt`, false)
       const event: ApprovalRequest = { ...ordinary, subject: { ...ordinary.subject, path } }
       expect(event.isProtectedWrite).toBe(false)
       expect(editAutomaticallyChoice(event, 'acceptEdits')).toBeUndefined()
@@ -166,7 +190,7 @@ describe('Muse Code file-write approvals and the extension’s protected list', 
 
   it('offers no standing rule when the approval is updated either', () => {
     expect(choiceIds(updateFor('~/.claude/settings.json'))).toEqual(CHOICES_WITHOUT_RULE)
-    expect(choiceIds(updateFor(String.raw`${ORDINARY_WORKSPACE}\notes.txt`))).toEqual(
+    expect(choiceIds(updateFor(String.raw`${CAPTURED_WORKSPACE}\notes.txt`))).toEqual(
       CHOICES_WITH_RULE,
     )
   })

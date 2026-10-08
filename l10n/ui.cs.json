@@ -1263,7 +1263,7 @@
   "bannerDismiss": "Zavřít",
   "trustGrantedNotice": "Pracovní prostor je důvěryhodný: Muse od další zprávy načte jeho pravidla, dovednosti a paměť.",
   "sandboxRestartNotice": "Změnilo se nastavení Muse Code; Muse Code se s ním při další zprávě restartuje a bude v této konverzaci pokračovat.",
-  "sandboxProfileNotice": "Tento pracovní prostor je ve vašem uživatelském profilu, kde sandbox Muse Code pro Windows nemusí spouštět příkazy: mohou se spustit ve složce PowerShellu místo v projektu, nebo nikdy neskončit. Čtení a úpravy souborů to neovlivní. Pracovní prostor mimo C:\\Users spouští příkazy na místě.",
+  "sandboxProfileNotice": "Tento pracovní prostor je ve vašem uživatelském profilu, kde sandbox Muse Code pro Windows nemusí spouštět příkazy: mohou se spustit ve složce PowerShellu místo v projektu, nebo nikdy neskončit. Čtení a úpravy souborů to neovlivní. Pracovní prostor mimo %USERPROFILE% spouští příkazy na místě.",
   "permissionModes": {
     "manual": "Ruční",
     "acceptEdits": "Upravovat automaticky",
@@ -4436,5 +4436,8 @@
   "agentRecoveryConfirm": "{action}: {objective}? Platí aktuální oprávnění a rozpočty.",
   "agentRetryUnavailable": "Opakování není dostupné: backend neposkytuje izolovaný kontrolní bod pracovního stromu. Změny sdíleného pracovního prostoru zůstanou zachovány.",
   "agentContinueUnavailable": "Pokračování není pro tohoto agenta nebo jeho aktuální stav dostupné.",
-  "referenceAgentOutcomes": "Agenti zobrazují aktivitu a výsledky podložené důkazy. Výběrem ukončeného agenta otevřete omezený záznam a historii pokusů. Pokračování po potvrzení zachová relaci a změny; opakování vyžaduje izolovaný kontrolní bod. Chybějící důkazy jsou neověřené. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
+  "referenceAgentOutcomes": "Agenti zobrazují aktivitu a výsledky podložené důkazy. Výběrem ukončeného agenta otevřete omezený záznam a historii pokusů. Pokračování po potvrzení zachová relaci a změny; opakování vyžaduje izolovaný kontrolní bod. Chybějící důkazy jsou neověřené. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "windowsPathRefused": "Tato cesta používá zápis systému Windows, který rozšíření nepřijímá; použijte běžnou cestu.",
+  "checkpointStorageUncertain": "Rozšíření nemůže ověřit, že je tato cesta mimo úložiště kontrolních bodů; nástroje ji nemohou upravovat.",
+  "windowsSystemRootMissing": "Systémový adresář Windows není dostupný; nastavte SystemRoot na jeho skutečnou cestu."
 }

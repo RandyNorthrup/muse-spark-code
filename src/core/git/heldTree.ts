@@ -25,7 +25,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, formatBytes } from '../../shared/l10n/text'
-import { windowsPathProblem } from '../windowsPathSpelling'
+import { isWindowsDeviceLike, windowsPathProblem } from '../windowsPathSpelling'
 
 export type HeldEntryKind = 'file' | 'executable' | 'link' | 'submodule'
 
@@ -101,6 +101,7 @@ function isWritableName(name: string, platform: NodeJS.Platform): boolean {
     platform === 'win32' &&
     (WINDOWS_FORBIDDEN.test(name) ||
       hasControlCharacter(name) ||
+      isWindowsDeviceLike(name) ||
       windowsPathProblem(name, platform) !== undefined)
   return !isRefusedEverywhere && !isRefusedOnWindows
 }

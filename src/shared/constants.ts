@@ -5277,6 +5277,7 @@ export const MODEL_TEXT = {
   memoryNoHome: 'the home folder is unknown, so this scope has no memory',
   checkpointStorageWrite: 'This path is in the extension checkpoint storage; tools cannot edit it.',
   windowsDeviceNamespace: 'names a Windows device namespace',
+  windowsDriveRelative: 'uses a drive-relative Windows path',
   windowsUncOutsideWorkspace: 'names a UNC path outside a UNC workspace',
   windowsAlternateStream: 'names an alternate data stream',
   windowsReservedDevice: 'names a Windows device',

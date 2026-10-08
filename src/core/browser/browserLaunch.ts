@@ -14,6 +14,7 @@
 // Pure.
 
 import { isCredentialVariable } from '../credentialEnvironment'
+import { UI_TEXT } from '../../shared/constants'
 import {
   BROWSER_BLANK_PAGE,
   BROWSER_FORBIDDEN_SWITCHES,
@@ -178,7 +179,11 @@ export function browserEnvironment(
     }
   }
   if (platform === 'win32') {
-    const root = valueOf(env, platform, 'SystemRoot') ?? String.raw`C:\Windows`
+    // Windows sets both to its real directory, on whatever drive; never guess `C:`.
+    const root = valueOf(env, platform, 'SystemRoot') ?? valueOf(env, platform, 'windir')
+    if (root === undefined || !/^[a-z]:\\/iu.test(root)) {
+      throw new Error(UI_TEXT.windowsSystemRootMissing)
+    }
     out['PATH'] = String.raw`${root}\System32;${root}`
     out['TEMP'] = folders.temp
     out['TMP'] = folders.temp

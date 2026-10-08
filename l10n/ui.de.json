@@ -1189,7 +1189,7 @@
   "bannerDismiss": "Schließen",
   "trustGrantedNotice": "Arbeitsbereich als vertrauenswürdig eingestuft: Muse lädt ab der nächsten Nachricht dessen Regeln, Skills und Gedächtnis.",
   "sandboxRestartNotice": "Eine Muse Code-Einstellung wurde geändert; Muse Code startet bei der nächsten Nachricht damit neu und setzt diese Unterhaltung fort.",
-  "sandboxProfileNotice": "Dieser Arbeitsbereich liegt unter Ihrem Benutzerprofil, wo die Windows-Sandbox von Muse Code Befehle möglicherweise nicht ausführt: Sie können im PowerShell-Ordner statt im Projekt starten oder nie fertig werden. Das Lesen und Bearbeiten von Dateien ist nicht betroffen. In einem Arbeitsbereich außerhalb von C:\\Users laufen Befehle direkt dort.",
+  "sandboxProfileNotice": "Dieser Arbeitsbereich liegt unter Ihrem Benutzerprofil, wo die Windows-Sandbox von Muse Code Befehle möglicherweise nicht ausführt: Sie können im PowerShell-Ordner statt im Projekt starten oder nie fertig werden. Das Lesen und Bearbeiten von Dateien ist nicht betroffen. In einem Arbeitsbereich außerhalb von %USERPROFILE% laufen Befehle direkt dort.",
   "permissionModes": {
     "manual": "Manuell",
     "acceptEdits": "Automatisch bearbeiten",
@@ -4148,5 +4148,8 @@
   "agentRecoveryConfirm": "{action}: {objective}? Aktuelle Berechtigungen und Budgets gelten.",
   "agentRetryUnavailable": "Erneuter Versuch nicht verfügbar: Dieses Backend bietet keinen isolierten Worktree-Kontrollpunkt. Änderungen im gemeinsamen Arbeitsbereich bleiben erhalten.",
   "agentContinueUnavailable": "Fortsetzen ist für diesen Agenten oder seinen aktuellen Zustand nicht verfügbar.",
-  "referenceAgentOutcomes": "Agenten zeigen Aktivität und nachweisgestützte Ergebnisse. Wählen Sie einen beendeten Agenten für seinen begrenzten Beleg und Versuchsverlauf. Fortsetzen bewahrt nach Bestätigung Sitzung und Änderungen; ein erneuter Versuch erfordert einen isolierten Kontrollpunkt. Fehlende Nachweise gelten als ungeprüft. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
+  "referenceAgentOutcomes": "Agenten zeigen Aktivität und nachweisgestützte Ergebnisse. Wählen Sie einen beendeten Agenten für seinen begrenzten Beleg und Versuchsverlauf. Fortsetzen bewahrt nach Bestätigung Sitzung und Änderungen; ein erneuter Versuch erfordert einen isolierten Kontrollpunkt. Fehlende Nachweise gelten als ungeprüft. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "windowsPathRefused": "Dieser Pfad verwendet eine Windows-Schreibweise, die die Erweiterung nicht akzeptiert; verwenden Sie den normalen Pfad.",
+  "checkpointStorageUncertain": "Die Erweiterung kann nicht überprüfen, ob dieser Pfad außerhalb des Prüfpunktspeichers liegt; Werkzeuge können ihn nicht bearbeiten.",
+  "windowsSystemRootMissing": "Das Windows-Systemverzeichnis ist nicht verfügbar; setzen Sie SystemRoot auf seinen tatsächlichen Pfad."
 }

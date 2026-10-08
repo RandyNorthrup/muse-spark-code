@@ -103,7 +103,8 @@ describe('resolveWorkspacePath: names Windows would reinterpret (D24)', () => {
       'a.txt:hidden',
       String.raw`C:\ws\a.txt::$DATA`,
       'NUL',
-      String.raw`src\con.txt`,
+      String.raw`src\con`,
+      String.raw`src\con. `,
       'COM1',
       '.git.',
       String.raw`.git.\hooks\pre-commit`,
@@ -111,6 +112,12 @@ describe('resolveWorkspacePath: names Windows would reinterpret (D24)', () => {
     ]) {
       expect(resolveWorkspacePath(root, given, 'win32'), given).toMatchObject({ ok: false })
     }
+    // A device name with a real extension is an ordinary file on Windows 11
+    // (SECWINPATH2, measured natively): judged by its identity, not refused.
+    expect(resolveWorkspacePath(root, String.raw`src\con.txt`, 'win32')).toMatchObject({
+      ok: true,
+      relative: 'src/con.txt',
+    })
     // The same names are ordinary on POSIX file systems.
     expect(resolveWorkspacePath('/ws', 'a.txt:hidden', 'linux')).toMatchObject({ ok: true })
   })

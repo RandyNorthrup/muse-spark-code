@@ -13,6 +13,7 @@ import {
   BROWSER_FORBIDDEN_SWITCHES,
   BROWSER_HOST_RESOLVER_RULES,
   BROWSER_LAUNCH_FLAGS,
+  UI_TEXT,
 } from '../../src/shared/constants'
 
 const PROXY = 'http://127.0.0.1:41234'
@@ -212,5 +213,18 @@ describe('the browser’s environment (M81 A1)', () => {
       TEMP: String.raw`C:\s\t`,
       TMP: String.raw`C:\s\t`,
     })
+  })
+
+  it('finds Windows on any drive and never guesses C: (SECWINPATH2)', () => {
+    const folders = { profile: String.raw`E:\s\p`, temp: String.raw`E:\s\t`, home: String.raw`E:\s\h` }
+    expect(browserEnvironment('win32', { windir: String.raw`E:\Win` }, folders)).toMatchObject({
+      windir: String.raw`E:\Win`,
+      PATH: String.raw`E:\Win\System32;E:\Win`,
+    })
+    for (const env of [{}, { SystemRoot: 'Windows' }, { SystemDrive: 'D:' }]) {
+      expect(() => browserEnvironment('win32', env, folders)).toThrow(
+        UI_TEXT.windowsSystemRootMissing,
+      )
+    }
   })
 })

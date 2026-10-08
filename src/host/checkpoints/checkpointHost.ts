@@ -25,7 +25,6 @@ import type { Owner } from '../../core/checkpoints/toolWrites'
 import {
   CHECKPOINT_ACTIVITY_PREFIX,
   type CheckpointAvailability,
-  MODEL_TEXT,
   UI_TEXT,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
@@ -92,7 +91,7 @@ export type CheckpointStoreApi = Pick<
   | 'unforgetSession'
   | 'queueForget'
   | 'maintain'
-  | 'isStoragePath'
+  | 'storagePathProblem'
   | 'isNativeUnsafe'
   | 'markNativeBackend'
   | 'markUnprovenProcess'
@@ -237,13 +236,13 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
       await gitStore()?.maintain()
     },
     refuseStorageWrite: (absolutePath) => {
-      if (
+      const problem =
         deps.store === undefined
-          ? windowsPathProblem(absolutePath, process.platform) !== undefined
-          : deps.store.isStoragePath(absolutePath)
-      ) {
-        throw new Error(MODEL_TEXT.checkpointStorageWrite)
-      }
+          ? windowsPathProblem(absolutePath, process.platform, absolutePath) === undefined
+            ? undefined
+            : UI_TEXT.windowsPathRefused
+          : deps.store.storagePathProblem(absolutePath)
+      if (problem !== undefined) throw new Error(problem)
     },
   }
 }

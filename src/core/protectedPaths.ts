@@ -13,7 +13,8 @@
 
 import type { ApprovalSubject } from '../shared/agentEvents'
 import { PROTECTED_FILE_NAMES, PROTECTED_PATH_SEGMENTS } from '../shared/constants'
-import { windowsPathProblem } from './windowsPathSpelling'
+import { normalWindowsPath, windowsPathProblem } from './windowsPathSpelling'
+import { resolvedLongPath, SHORT_NAME_SHAPE } from './pathIdentity'
 
 // MSP's file-access subject (Muse Code; the Model API sends `fileWrite`).
 const FILE_ACCESS_SUBJECT = 'fileAccess'
@@ -56,11 +57,23 @@ export function isProtectedPath(canonicalRelative: string): boolean {
 export function isProtectedFileAccess(
   subject: Pick<ApprovalSubject, 'kind' | 'path' | 'access'>,
 ): boolean {
-  return (
-    subject.kind === FILE_ACCESS_SUBJECT &&
-    subject.access !== READ_ACCESS &&
-    subject.path !== undefined &&
-    (windowsPathProblem(subject.path, process.platform) !== undefined ||
-      isProtectedPath(subject.path.replaceAll('\\', '/')))
-  )
+  if (
+    subject.kind !== FILE_ACCESS_SUBJECT ||
+    subject.access === READ_ACCESS ||
+    subject.path === undefined
+  ) {
+    return false
+  }
+  if (process.platform !== 'win32') return isProtectedPath(subject.path.replaceAll('\\', '/'))
+  // A refused spelling is protected; the CLI's own `\\?\X:\` names the same file.
+  if (windowsPathProblem(subject.path, process.platform) !== undefined) return true
+  const given = normalWindowsPath(subject.path)
+  if (isProtectedPath(given.replaceAll('\\', '/'))) return true
+  // Judge the resolved long name too: an 8.3 alias, link or `subst` letter
+  // reaches the same file. A relative path has no known base to resolve
+  // against, so an 8.3-shaped name that nothing resolves is protected.
+  const real = /^[a-z]:[\\/]/iu.test(given) ? resolvedLongPath(given) : undefined
+  return real === undefined
+    ? SHORT_NAME_SHAPE.test(given)
+    : isProtectedPath(real.replaceAll('\\', '/'))
 }

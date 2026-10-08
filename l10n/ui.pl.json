@@ -1263,7 +1263,7 @@
   "bannerDismiss": "Odrzuć",
   "trustGrantedNotice": "Obszar roboczy jest zaufany: Muse wczyta jego reguły, umiejętności i pamięć od następnej wiadomości.",
   "sandboxRestartNotice": "Zmieniono ustawienie Muse Code; przy następnej wiadomości Muse Code uruchomi się z nim ponownie i będzie kontynuować tę rozmowę.",
-  "sandboxProfileNotice": "Ten obszar roboczy znajduje się w Twoim profilu użytkownika, gdzie piaskownica Windows Muse Code może nie uruchamiać poleceń: mogą one startować w folderze programu PowerShell zamiast w projekcie albo nigdy się nie kończyć. Nie dotyczy to odczytu i edycji plików. W obszarze roboczym poza C:\\Users polecenia są uruchamiane na miejscu.",
+  "sandboxProfileNotice": "Ten obszar roboczy znajduje się w Twoim profilu użytkownika, gdzie piaskownica Windows Muse Code może nie uruchamiać poleceń: mogą one startować w folderze programu PowerShell zamiast w projekcie albo nigdy się nie kończyć. Nie dotyczy to odczytu i edycji plików. W obszarze roboczym poza %USERPROFILE% polecenia są uruchamiane na miejscu.",
   "permissionModes": {
     "manual": "Ręczny",
     "acceptEdits": "Automatyczna edycja",
@@ -4436,5 +4436,8 @@
   "agentRecoveryConfirm": "{action}: {objective}? Obowiązują bieżące uprawnienia i budżety.",
   "agentRetryUnavailable": "Ponowienie jest niedostępne: ten backend nie udostępnia izolowanego punktu kontrolnego drzewa roboczego. Zmiany wspólnego obszaru roboczego zostają zachowane.",
   "agentContinueUnavailable": "Kontynuacja jest niedostępna dla tego agenta lub jego obecnego stanu.",
-  "referenceAgentOutcomes": "Agenci pokazują aktywność i wyniki oparte na dowodach. Wybierz zakończonego agenta, aby zobaczyć ograniczony raport i historię prób. Kontynuacja po potwierdzeniu zachowuje sesję i zmiany; ponowienie wymaga izolowanego punktu kontrolnego. Brakujące dowody pozostają niezweryfikowane. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
+  "referenceAgentOutcomes": "Agenci pokazują aktywność i wyniki oparte na dowodach. Wybierz zakończonego agenta, aby zobaczyć ograniczony raport i historię prób. Kontynuacja po potwierdzeniu zachowuje sesję i zmiany; ponowienie wymaga izolowanego punktu kontrolnego. Brakujące dowody pozostają niezweryfikowane. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "windowsPathRefused": "Ta ścieżka używa zapisu Windows, którego rozszerzenie nie akceptuje; użyj zwykłej ścieżki.",
+  "checkpointStorageUncertain": "Rozszerzenie nie może sprawdzić, czy ta ścieżka znajduje się poza magazynem punktów kontrolnych; narzędzia nie mogą jej edytować.",
+  "windowsSystemRootMissing": "Katalog systemowy Windows jest niedostępny; ustaw SystemRoot na jego rzeczywistą ścieżkę."
 }

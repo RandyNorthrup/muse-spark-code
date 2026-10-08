@@ -1189,7 +1189,7 @@
   "bannerDismiss": "Kapat",
   "trustGrantedNotice": "Çalışma alanına güvenildi: Muse sonraki mesajdan itibaren kurallarını, becerilerini ve belleğini yükleyecek.",
   "sandboxRestartNotice": "Bir Muse Code ayarı değişti; Muse Code sonraki mesajda bu ayarla yeniden başlar ve bu konuşmayı sürdürür.",
-  "sandboxProfileNotice": "Bu çalışma alanı kullanıcı profilinizin altında; Muse Code'un Windows korumalı alanı burada komut çalıştıramayabilir: komutlar proje yerine PowerShell klasöründe başlayabilir ya da hiç bitmeyebilir. Dosya okuma ve düzenlemeleri etkilenmez. C:\\Users dışındaki bir çalışma alanı komutları yerinde çalıştırır.",
+  "sandboxProfileNotice": "Bu çalışma alanı kullanıcı profilinizin altında; Muse Code'un Windows korumalı alanı burada komut çalıştıramayabilir: komutlar proje yerine PowerShell klasöründe başlayabilir ya da hiç bitmeyebilir. Dosya okuma ve düzenlemeleri etkilenmez. %USERPROFILE% dışındaki bir çalışma alanı komutları yerinde çalıştırır.",
   "permissionModes": {
     "manual": "El ile",
     "acceptEdits": "Otomatik düzenleme",
@@ -4148,5 +4148,8 @@
   "agentRecoveryConfirm": "{action}: {objective}? Geçerli izinler ve bütçeler uygulanır.",
   "agentRetryUnavailable": "Yeniden deneme kullanılamıyor: bu arka uç yalıtılmış çalışma ağacı kontrol noktası sağlamıyor. Ortak çalışma alanındaki değişiklikler korunur.",
   "agentContinueUnavailable": "Bu ajan veya mevcut durumu için devam etme kullanılamıyor.",
-  "referenceAgentOutcomes": "Ajanlar etkinlik ve kanıta dayalı sonuçları gösterir. Sınırlı kayıt ve deneme geçmişi için bitmiş bir ajan seçin. Onaylanan devam işlemi oturumu ve değişiklikleri korur; yeniden deneme yalıtılmış kontrol noktası gerektirir. Eksik kanıt doğrulanmamış olarak gösterilir. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
+  "referenceAgentOutcomes": "Ajanlar etkinlik ve kanıta dayalı sonuçları gösterir. Sınırlı kayıt ve deneme geçmişi için bitmiş bir ajan seçin. Onaylanan devam işlemi oturumu ve değişiklikleri korur; yeniden deneme yalıtılmış kontrol noktası gerektirir. Eksik kanıt doğrulanmamış olarak gösterilir. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "windowsPathRefused": "Bu yol, uzantının kabul etmediği bir Windows yazımını kullanıyor; normal yolu kullanın.",
+  "checkpointStorageUncertain": "Uzantı bu yolun kontrol noktası depolamasının dışında olduğunu doğrulayamıyor; araçlar bu yolu düzenleyemez.",
+  "windowsSystemRootMissing": "Windows sistem dizini kullanılamıyor; SystemRoot değerini gerçek yoluna ayarlayın."
 }

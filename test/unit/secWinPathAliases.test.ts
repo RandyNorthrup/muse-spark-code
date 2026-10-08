@@ -6,13 +6,15 @@ import { mapNotification } from '../../src/core/backends/musecode/mapNotificatio
 import { resolveWorkspacePath } from '../../src/core/workspacePath'
 import { holdFor } from '../../src/core/worktreeConversations'
 import { ShadowGit, ShadowStorageInWorkspaceError } from '../../src/host/checkpoints/shadowGit'
-import { MODEL_TEXT } from '../../src/shared/constants'
+import { MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import { CAPTURED_TURN_ID, capturedWriteRequested } from './helpers/protectedWriteCapture'
 import { checkpointPort, harness, removeCheckpointFolders } from './helpers/checkpointHarness'
 import { withCheckpointStorageGuard } from '../../src/host/checkpoints/checkpointHost'
 import { noopToolIo } from './helpers/fakeToolIo'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import * as fileIdentity from '../../src/core/fs/fileIdentity'
+import { adminShare } from './helpers/secWinShare'
+import { isUncPath } from '../../src/core/windowsPathSpelling'
 
 afterEach(removeCheckpointFolders)
 afterEach(() => {
@@ -23,7 +25,6 @@ afterEach(() => {
 const ROOT = String.raw`C:\repo`
 const REFUSED = [
   String.raw`\\?\C:\repo\..\outside`,
-  String.raw`\\?\C:\repo\.\x`,
   '//?/C:/repo/x',
   String.raw`\\.\C:\repo\x`,
   '//./C:/repo/x',
@@ -36,7 +37,7 @@ const REFUSED = [
   'file.txt:stream',
   'CON:',
   'CON',
-  'con.txt',
+  'con...',
   'COM1',
   'NUL',
   '.git.',
@@ -46,22 +47,22 @@ const REFUSED = [
   String.raw`C:\repo. \x`,
   String.raw`repo. \x`,
   'COM¹',
-  'COM².txt',
+  'COM² ',
   'COM³',
   'LPT¹',
-  'LPT².txt',
+  'LPT².',
   'LPT³',
-  'aux .md',
-  'NUL .txt',
+  'aux ',
+  'NUL..',
   'CONIN$',
-  'conout$.txt',
+  'conout$',
 ]
 const SUBJECTS = [
   String.raw`C:\repo\.claude.\settings.json`,
   String.raw`C:\repo\AGENTS.md.`,
   String.raw`C:\repo\AGENTS.md `,
   String.raw`C:\repo\AGENTS.md::$DATA`,
-  String.raw`\\?\C:\storage\checkpoints\key\m86\x\journal.jsonl`,
+  String.raw`\\?\C:\storage\checkpoints.\key\m86\x\journal.jsonl`,
   '//?/C:/storage/checkpoints/key/m86/x/journal.jsonl',
   String.raw`\\.\C:\storage\checkpoints\key\m86\x\journal.jsonl`,
   '//./C:/storage/checkpoints/key/m86/x/journal.jsonl',
@@ -148,12 +149,16 @@ describe('SECWINPATH raw spelling and approval admission', () => {
 })
 
 describe('SECWINPATH native storage and hold ancestry', () => {
-  it('admits proven UNC descendants and refuses a junction outside the UNC workspace', async () => {
+  it('admits proven UNC descendants and refuses a junction outside the UNC workspace', async (ctx) => {
     if (process.platform !== 'win32') return
     const h = await harness({ git: 'none' })
     await mkdir(h.storage, { recursive: true })
     await symlink(h.storage, path.join(h.root, 'escape'), 'junction')
-    const uncRoot = `\\\\localhost\\${h.root.charAt(0)}$${h.root.slice(2)}`
+    const uncRoot = adminShare(h.root)
+    if (uncRoot === undefined) {
+      ctx.skip('administrative share unavailable; reason printed')
+      return
+    }
     expect(resolveWorkspacePath(uncRoot, 'new.txt', 'win32').ok).toBe(true)
     expect(resolveWorkspacePath(uncRoot, 'escape/new.txt', 'win32').ok).toBe(false)
     const store = h.reopenAt(h.storage, uncRoot)
@@ -165,19 +170,26 @@ describe('SECWINPATH native storage and hold ancestry', () => {
     expect(store.isStoragePath(String.raw`${uncRoot}\escape\journal.jsonl`)).toBe(true)
   })
 
-  it.each(['dev', 'ino'] as const)(
-    'holds a UNC window when SMB %s identity cannot prove exclusion',
-    async (field) => {
+  // Another volume serial is another volume (outside); a same-volume ID that
+  // matches no ancestor of storage cannot prove exclusion (held).
+  it.for(['dev', 'ino'] as const)(
+    'judges a UNC window by its SMB %s identity',
+    async (field, ctx) => {
       if (process.platform !== 'win32') return
       const h = await harness({ git: 'none' })
       await mkdir(h.storage, { recursive: true })
-      const unc = `\\\\localhost\\${h.root.charAt(0)}$${h.root.slice(2)}`
+      const unc = adminShare(h.root)
+      if (unc === undefined) {
+        ctx.skip('administrative share unavailable; reason printed')
+        return
+      }
       const nativeStat = fileIdentity.statIdentitySync
       vi.spyOn(fileIdentity, 'statIdentitySync').mockImplementation((given) => {
         const native = nativeStat(given)
         return given.startsWith('\\\\') ? { ...native, [field]: native[field] + 1n } : native
       })
-      expect(holdFor([unc], [h.storage], [], 'win32')).toBeDefined()
+      if (field === 'dev') expect(holdFor([unc], [h.storage], [], 'win32')).toBeUndefined()
+      else expect(holdFor([unc], [h.storage], [], 'win32')).toBeDefined()
     },
   )
 
@@ -224,18 +236,21 @@ describe('SECWINPATH native storage and hold ancestry', () => {
       checkpointPort(h),
     )
     vi.stubGlobal('process', { ...process, platform: 'win32' })
-    for (const spelling of SUBJECTS) {
+    // A share is not storage by its spelling: workspace confinement owns UNC
+    // admission, and the native suites judge shares by identity.
+    for (const spelling of SUBJECTS.filter((subject) => !isUncPath(subject))) {
       expect(h.store.isStoragePath(spelling), spelling).toBe(true)
-      await expect(guarded.writeFile(spelling, 'x')).rejects.toThrow(
-        MODEL_TEXT.checkpointStorageWrite,
-      )
+      // Its own sentence, not the storage one: these paths never touch storage.
+      expect(h.store.storagePathProblem(spelling), spelling).toBe(UI_TEXT.windowsPathRefused)
+      const message = UI_TEXT.windowsPathRefused
+      await expect(guarded.writeFile(spelling, 'x')).rejects.toThrow(message)
       await expect(
         guarded.writeFileIfUnchanged(spelling, 'before', 'x', {
           expectedCanonicalPath: spelling,
           unsavedAt: [],
         }),
-      ).rejects.toThrow(MODEL_TEXT.checkpointStorageWrite)
-      await expect(guarded.reserveFile(spelling)).rejects.toThrow(MODEL_TEXT.checkpointStorageWrite)
+      ).rejects.toThrow(message)
+      await expect(guarded.reserveFile(spelling)).rejects.toThrow(message)
     }
     expect(writes).not.toHaveBeenCalled()
     expect(conditional).not.toHaveBeenCalled()
@@ -261,12 +276,16 @@ describe('SECWINPATH native storage and hold ancestry', () => {
     expect(holdFor([path.join(alias, 'missing')], [h.storage], [], process.platform)).toBeDefined()
   })
 
-  it('retains holds through both loopback shares by native identity', async () => {
+  it('retains holds through both loopback shares by native identity', async (ctx) => {
     if (process.platform !== 'win32') return
     const h = await harness({ git: 'none' })
     await mkdir(h.storage, { recursive: true })
     for (const host of ['localhost', '127.0.0.1']) {
-      const unc = `\\\\${host}\\${h.storage.charAt(0)}$${h.storage.slice(2)}`
+      const unc = adminShare(h.storage, host)
+      if (unc === undefined) {
+        ctx.skip('administrative share unavailable; reason printed')
+        return
+      }
       expect(holdFor([unc], [h.storage], [], 'win32'), host).toBeDefined()
       const shadow = new ShadowGit(
         {

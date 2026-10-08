@@ -1968,6 +1968,12 @@ export const EN = {
   checkpointsRestricted: 'File checkpoints are off in Restricted Mode',
   checkpointsOff: 'File checkpoints are off in settings',
   checkpointsNoGit: 'File checkpoints need git on PATH',
+  windowsPathRefused:
+    "This path uses a Windows spelling the extension doesn't accept; use the normal path.",
+  checkpointStorageUncertain:
+    'The extension cannot verify that this path is outside checkpoint storage; tools cannot edit it.',
+  windowsSystemRootMissing:
+    'The Windows system directory is unavailable; set SystemRoot to its actual path.',
   conversationRewindUnavailable:
     'Rewinding the conversation is not available with Muse Code on Windows',
   restoreConfirmTitle: 'Restore the files to before this message?',
@@ -2788,7 +2794,8 @@ export const EN = {
     'Workspace trusted: Muse will load its rules, skills and memory from the next message.',
   sandboxRestartNotice:
     'A Muse Code setting changed; Muse Code restarts with it on the next message and continues this conversation.',
-  sandboxProfileNotice: String.raw`This workspace is under your user profile, where Muse Code's Windows sandbox may not run commands: they can start in the PowerShell folder instead of the project, or never finish. File reads and edits are unaffected. A workspace outside C:\Users runs commands in place.`,
+  sandboxProfileNotice:
+    "This workspace is under your user profile, where Muse Code's Windows sandbox may not run commands: they can start in the PowerShell folder instead of the project, or never finish. File reads and edits are unaffected. A workspace outside %USERPROFILE% runs commands in place.",
   // Label groups keyed by id (they were records in constants.ts before M40).
   permissionModes: {
     manual: 'Manual',

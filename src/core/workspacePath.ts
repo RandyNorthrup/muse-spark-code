@@ -7,7 +7,7 @@
 // without carrying the backend that loads on first use (M57, PLAN.md D6).
 
 import { pathModule } from './workspaceRoot'
-import { isUncPath, windowsPathProblem } from './windowsPathSpelling'
+import { isUncPath, normalWindowsPath, windowsPathProblem } from './windowsPathSpelling'
 import { pathIdentityRelation } from './pathIdentity'
 import { MODEL_TEXT } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
@@ -118,8 +118,12 @@ export function resolveWorkspacePath(
   const problem = windowsPathProblem(normalized.path, platform, workspaceRoot)
   if (problem !== undefined) return { ok: false, reason: `path ${given} ${problem}` }
   const p = pathModule(platform)
-  const absolute = p.resolve(workspaceRoot, normalized.path)
-  const relative = p.relative(workspaceRoot, absolute)
+  const root = platform === 'win32' ? normalWindowsPath(workspaceRoot) : workspaceRoot
+  const absolute = p.resolve(
+    root,
+    platform === 'win32' ? normalWindowsPath(normalized.path) : normalized.path,
+  )
+  const relative = p.relative(root, absolute)
   if (!isBelow(relative, p)) {
     return { ok: false, reason: `path ${given} is outside the workspace` }
   }

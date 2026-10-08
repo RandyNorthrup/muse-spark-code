@@ -78,6 +78,7 @@ import {
   CHECKPOINT_WRITES_DIR,
   GIT_MODE_EXECUTABLE,
   GIT_MODE_FILE,
+  MODEL_TEXT,
   UI_TEXT,
 } from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
@@ -124,7 +125,7 @@ import {
   ShadowStorageInWorkspaceError,
 } from './shadowGit'
 import { pathIdentityRelation } from '../../core/pathIdentity'
-import { isUncPath, windowsPathProblem } from '../../core/windowsPathSpelling'
+import { windowsPathProblem } from '../../core/windowsPathSpelling'
 import { isLegacyWindow, WindowPresence } from './windowPresence'
 import { WriteJournal } from './writeJournal'
 import { innermostFolders, type WriteLanes } from './writeRecorder'
@@ -1965,16 +1966,23 @@ export class CheckpointStore {
 
   /** Whether a path is in the checkpoint storage of any namespace (tools never write there). */
   public isStoragePath(absolutePath: string): boolean {
-    return (
-      windowsPathProblem(absolutePath, process.platform, this.deps.workspaceRoot) !== undefined ||
-      (process.platform === 'win32' &&
-        isUncPath(absolutePath) &&
-        pathIdentityRelation(absolutePath, this.deps.workspaceRoot) !== 'inside') ||
-      isInShadowRepository(absolutePath) ||
-      pathIdentityRelation(absolutePath, this.deps.storageDir) !== 'outside' ||
-      (this.deps.storageRoot !== undefined &&
-        pathIdentityRelation(absolutePath, this.deps.storageRoot) !== 'outside')
-    )
+    return this.storagePathProblem(absolutePath) !== undefined
+  }
+
+  /** Distinguish a refused spelling, proven storage and uncertain native identity. */
+  public storagePathProblem(absolutePath: string): string | undefined {
+    // Workspace confinement owns UNC admission; a share alone is not storage.
+    if (windowsPathProblem(absolutePath, process.platform, absolutePath) !== undefined)
+      return UI_TEXT.windowsPathRefused
+    if (isInShadowRepository(absolutePath)) return MODEL_TEXT.checkpointStorageWrite
+    const relations = [
+      pathIdentityRelation(absolutePath, this.deps.storageDir),
+      ...(this.deps.storageRoot === undefined
+        ? []
+        : [pathIdentityRelation(absolutePath, this.deps.storageRoot)]),
+    ]
+    if (relations.includes('inside')) return MODEL_TEXT.checkpointStorageWrite
+    return relations.includes('unknown') ? UI_TEXT.checkpointStorageUncertain : undefined
   }
 
   /** Reverses the model's own writes from the turn on, where each file still holds what they left. */

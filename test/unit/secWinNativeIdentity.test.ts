@@ -11,6 +11,7 @@ import {
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { adminShare } from './helpers/secWinShare'
 
 const state: { folder: string; win32: string[] } = { folder: '', win32: [] }
 
@@ -51,12 +52,16 @@ describe('SECWINPATH native Win32 oracle', () => {
     expect(state.win32.slice(4)).toEqual([settings, settings, 'error=3'])
   })
 
-  it('measures both loopback administrative shares without changing their permissions', () => {
+  it('measures both loopback administrative shares without changing their permissions', (ctx) => {
     const file = path.join(state.folder, 'AGENTS.md')
     expect(statSync(file).isFile()).toBe(true)
     if (process.platform === 'win32') {
       for (const host of ['localhost', '127.0.0.1']) {
-        const unc = `\\\\${host}\\${file.charAt(0)}$${file.slice(2)}`
+        const unc = adminShare(file, host)
+        if (unc === undefined) {
+          ctx.skip('administrative share unavailable; reason printed')
+          return
+        }
         expect(identity(unc), host).toBe(identity(file))
         expect(readFileSync(unc, 'utf8')).toBe('oracle')
         expect(realpathSync.native(unc).startsWith(`\\\\${host}\\`)).toBe(true)

@@ -10,7 +10,7 @@ const role = {
   toolGroups: ['read', 'write', 'shell', 'report'],
   reportShape: 'summary',
 } as const
-const NAMES = ['COM¹', 'COM².txt', 'COM³', 'LPT¹', 'LPT².txt', 'LPT³', 'aux .md', 'NUL .txt']
+const NAMES = ['COM¹', 'COM² ', 'COM³', 'LPT¹', 'LPT².', 'LPT³', 'aux ', 'NUL..']
 
 describe('SECWINPATH worker/ACP spelling fence', () => {
   it.each(NAMES)('refuses %s before ACP read/write or worker file admission', async (name) => {

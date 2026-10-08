@@ -1152,7 +1152,7 @@
   "bannerDismiss": "關閉",
   "trustGrantedNotice": "工作區已受信任：從下一則訊息開始，Muse 會載入其規則、技能和記憶。",
   "sandboxRestartNotice": "Muse Code 的某項設定已變更；Muse Code 會在下一則訊息時套用新設定重新啟動，並繼續此對話。",
-  "sandboxProfileNotice": "此工作區位於您的使用者設定檔資料夾下，Muse Code 的 Windows 沙箱可能無法在此執行命令：命令可能會在 PowerShell 資料夾而非專案中啟動，或永遠不會結束。檔案讀取和編輯不受影響。位於 C:\\Users 以外的工作區會就地執行命令。",
+  "sandboxProfileNotice": "此工作區位於您的使用者設定檔資料夾下，Muse Code 的 Windows 沙箱可能無法在此執行命令：命令可能會在 PowerShell 資料夾而非專案中啟動，或永遠不會結束。檔案讀取和編輯不受影響。位於 %USERPROFILE% 以外的工作區會就地執行命令。",
   "permissionModes": {
     "manual": "手動",
     "acceptEdits": "自動編輯",
@@ -4004,5 +4004,8 @@
   "agentRecoveryConfirm": "{action}：{objective}？將套用目前權限和預算。",
   "agentRetryUnavailable": "無法重試：此後端不提供隔離的工作樹檢查點。共用工作區的變更會保留。",
   "agentContinueUnavailable": "此代理或其目前狀態無法繼續。",
-  "referenceAgentOutcomes": "代理顯示活動狀態和根據證據的結果。選取已結束的代理可查看有大小限制的記錄及嘗試歷史。確認後繼續會保留工作階段和變更；重試需要隔離的檢查點。缺少的證據顯示為未驗證。ACP：/agents, /agents receipt ID, /agents continue ID, /agents retry ID."
+  "referenceAgentOutcomes": "代理顯示活動狀態和根據證據的結果。選取已結束的代理可查看有大小限制的記錄及嘗試歷史。確認後繼續會保留工作階段和變更；重試需要隔離的檢查點。缺少的證據顯示為未驗證。ACP：/agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "windowsPathRefused": "此路徑使用了擴充功能不接受的 Windows 寫法；請使用一般路徑。",
+  "checkpointStorageUncertain": "擴充功能無法驗證此路徑是否位於檢查點儲存空間之外；工具無法編輯它。",
+  "windowsSystemRootMissing": "Windows 系統目錄無法使用；請將 SystemRoot 設定為其實際路徑。"
 }
