@@ -26,3 +26,16 @@ retry behavior. Distribution alone does not prove those host mounts.
 [Integration record](../certification/m107.md),
 [portable host inventory](host-api.md) and
 [W gate-fire record](<../certification/m107-w-wiring,-docs-and-gates-(last).md>).
+
+## Editor-parity note: ACP harness-work rows (2026-10-08)
+
+Every surface shows the same machine history: minute readings, levels,
+events, the open minute so far and daily rows. The per-kind harness-work
+rows (CPU-seconds and peak memory of the harness's own trees, D87.11) are
+recorded by the VS Code window, whose launch host registers each tree. PLAN
+D87.2 also requires the ACP agent's children to be registered, but its spawns
+do not pass a registered launch host yet: that is the H–C1 runtime binding in
+[M107's handoffs](../certification/m107.md#named-integration-handoffs), which
+must keep one governor per process. Until H–C1 joins, the agent records no
+harness-work rows rather than an estimate; its machine minutes and events are
+recorded as in every other host.

@@ -17,6 +17,19 @@ happened, not what was planned; superseded entries are kept.
   It keeps seven recorded days, bounds each file and every read, ignores a
   torn final line after a crash and reports any other unreadable line as
   unavailable rather than as empty history. **Delete history** clears it.
+- Resource history shows the current minute as "This minute so far", from any
+  window or agent on the machine, and keeps one row per completed day
+  ("Earlier days") for the usage-history days. **Delete history** says how
+  many resource entries it also deletes.
+
+### Fixed
+
+- Resource history removal can no longer be redirected outside the usage
+  folder by a swapped link; it refuses instead. Readings collected while
+  usage history is off, or before **Delete history**, are never written
+  later. A retried event after an uncertain write is counted once. Closing a
+  window writes its open minute. The 32 MiB read limit counts the bytes
+  actually read.
 
 ### Pending
 

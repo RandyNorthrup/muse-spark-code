@@ -976,9 +976,18 @@ of the harness's own registered work. No process identities, commands, paths,
 process names or environment go into its records; strict schemas refuse them
 on write and on read. Only the VS Code window's governor and the ACP agent
 record, and only while usage history is on (the editor setting or the agent's
-flag, and the shared usage-history choice). It keeps seven recorded days;
-older day folders are removed. The usage page's **Delete history** removes it
-with the usage journal. Nothing is sent anywhere.
+flag, and the shared usage-history choice). Consent is checked when each
+reading is collected: nothing gathered while history is off is kept or written
+later. Each recorder also replaces one small `live/<collector>.json` file with
+its open minute so far. Completed days become one daily row each (averages,
+minutes per level, event count, harness CPU time) in `rollups/<YYYY-MM>.json`,
+kept for the usage-history days; minute detail keeps seven recorded days.
+The usage page's **Delete history** names how many resource entries it
+removes, writes a reset boundary (`resource-history-reset.json`, only a
+timestamp) beside the usage folder and removes the folder; no running
+recorder can write anything from before that delete. Removal only deletes an
+entry proven to be the validated one inside the usage folder. Nothing is sent
+anywhere.
 Conversation-only shares contain user and assistant text. Full shares may
 contain portable tool arguments and outputs, commands, outcomes, shown
 reasoning and approval decisions. Code blocks and attachment names are

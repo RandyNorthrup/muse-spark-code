@@ -4640,9 +4640,12 @@ history, the same summary the usage page's **Resources** section shows
 (`--json` gives the validated aggregate). The VS Code window's governor and
 the ACP agent record minute readings, level and override events and the
 harness's own CPU time into a local journal under the usage folder, with the
-usage-history setting as consent. It keeps seven recorded days (at most 10,080
-minute readings and 1,000 events); the usage page's **Delete history** clears
-it too. One-shot commands and headless runs only read it. An unreadable
+usage-history setting as consent, checked when each reading is collected. It
+keeps seven recorded days of detail (at most 10,080 minute readings and 1,000
+events), shows the open minute as "This minute so far", and keeps one row per
+completed day ("Earlier days") for the usage-history days. The usage page's
+**Delete history** names how many resource entries it also deletes, and no
+running window or agent writes anything from before the delete. One-shot commands and headless runs only read it. An unreadable
 journal is reported as such, never shown as empty history. ACP's shared
 command adapter provides `/resources`, `/resources resume` and
 `/usage resources` through its injected runtime port.

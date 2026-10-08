@@ -101,6 +101,25 @@ describe('RVM107W2 P1: removal is confined to the validated directory', () => {
     expect(await readFile(path.join(other, '2026-01-01', 'proof'), 'utf8')).toBe('keep')
   })
 
+  it('makes the shared removal primitive itself refuse a swap right before rm', async () => {
+    const root = await temporary()
+    const data = path.join(root, 'data')
+    const other = path.join(root, 'unrelated')
+    await mkdir(path.join(other, '2026-01-01'), { recursive: true })
+    await writeFile(path.join(other, '2026-01-01', 'proof'), 'keep')
+    await mkdir(path.join(resourcesRoot(data), '2026-01-01'), { recursive: true })
+    vi.mocked(fsPromises.rm).mockImplementationOnce(async (...args) => {
+      await actual.rename(resourcesRoot(data), path.join(root, 'moved'))
+      await symlink(other, resourcesRoot(data), 'junction')
+      await actual.rm(...args)
+    })
+    const fs = new NodeUsageFs(data)
+    await expect(fs.remove(`${RESOURCE_JOURNAL_ROOT}/2026-01-01`)).rejects.toThrow(
+      'usagePathChanged',
+    )
+    expect(await readFile(path.join(other, '2026-01-01', 'proof'), 'utf8')).toBe('keep')
+  })
+
   it('refuses and puts the entry back when the swap comes right before the quarantine rename', async () => {
     const { other, journal, swap } = await swapScene()
     let isSwapped = false

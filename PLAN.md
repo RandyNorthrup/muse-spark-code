@@ -40455,6 +40455,36 @@ line refuses the read. Cumulative snapshots are replaced per collector
 same aggregate text (`--json`: the aggregate). Records in
 `docs/certification/m107-w-history.md`.
 
+**FIXM107W2 — RVM107W2 repair and W-history open items (2026-10-08).** One P1
+and five P2s, each with a regression that fails on `352e040dd` and a red drill:
+(P1) `NodeUsageFs.remove` never removes a checked pathname: it renames the entry
+to a fresh `.removing-*` name in the same parent, proves dev/ino of the entry
+and its parent with no linked ancestor, removes, then re-proves the parent; a
+swap at any step refuses and puts a moved entry back (Delete history and
+retention share it). (P2) Consent and Delete history's reset boundary
+(`resource-history-reset.json` beside the usage folder, written before the
+delete) are checked when a reading is collected; a collector holding off-period
+or pre-delete data is dropped, and the journal never writes a record stamped at
+or before the boundary. (P2) Append is idempotent per logical record, not per
+line: each line carries a collector-scoped id that a retry reuses, and reads
+keep one copy per (collector, id); the earlier "idempotent append" claim held
+only for minute snapshots. (P2) Window disposal flushes the open minute through
+the admission bundle, bounded by `RESOURCE_HISTORY_FLUSH_TIMEOUT_MS`. (P2) The
+32 MiB read budget is checked before each read and charged the bytes actually
+read; a file is read only up to its measured size. Open items closed: Delete
+history's prompt counts the resource entries it removes (new usage string in
+all 14 tables); every collector publishes its open minute to
+`live/<collector>.json` (atomic, at most every 15 s), shown as "This minute so
+far" on the page and in text (new UI strings in all 14 tables); completed UTC
+days roll up into `rollups/<YYYY-MM>.json` under the journal lock, kept for the
+usage-history days (D87.11 "under D82's retention and rollups"), shown as an
+"Earlier days" table and text. The ACP agent's harness-work rows remain the
+H–C1 runtime binding (D87.2; `docs/certification/m107.md` handoffs): its spawns
+do not yet pass a registered launch host, so it records none rather than an
+estimate. Production browser scenes: four themes × 320/690 px × history,
+unavailable and empty, 0 axe violations, no overflow, committed in
+`docs/certification/m107-w-history/`.
+
 **FIXM107J review repair (2026-10-06, Kubuntu).** Repair both RVM107J P2s
 and its P3 inside J's collector, aggregate, history boundary and shared view.
 Read-time flushes retain the active minute and its per-tree CPU baselines;
@@ -50194,14 +50224,17 @@ The harness-placement dispatch and PID/tick assumptions below remain unchanged.
   tree identities, and failed appends remain explicit/retryable. Follow-up:
   W/M102 performs and certifies that complete join; no reviewed P2/P3 is
   silently left as an accepted residual.
-  **Closed by M107 W-history (2026-10-08)** for consent, durable
-  idempotent append, collector-scoped reads, final tree readings, the usage
-  page mount and the ACP/CLI text routes; see `docs/certification/m107-w-history.md`.
-  Still open: resource rows have no monthly rollup (detail only, seven days,
-  by design of the cap); the open minute is appended when it closes, so the
-  page can lag by up to a minute; the runtime host binds no registered trees,
-  so the ACP agent records no harness-work rows; installed-editor browser
-  scenes (four themes, 320/690 px) remain the lead's rig run.
+  **Closed by M107 W-history and FIXM107W2 (2026-10-08)** for consent at
+  collection, the Delete history reset boundary, per-record idempotent append
+  (collector-scoped ids), collector-scoped reads, final tree readings, bounded
+  disposal flush, read-budget accounting, confined removal, the usage page
+  mount, the live current minute, daily rollups for the usage-history days and
+  the ACP/CLI text routes; production scenes in four themes at 320/690 px are
+  committed. See `docs/certification/m107-w-history.md`. Not this binding: the
+  ACP agent's harness-work rows need the H–C1 runtime spawn binding (one
+  governor per process, registered launch host), recorded in
+  `docs/ide-compatibility/resources.md`; installed-editor (not harness)
+  qualification stays with the lead's native/editor run.
 - **FIXM118X / RVM118X (2026-10-06).** All four reviewed P2 adapter
   findings are fixed; no P1/P2/P3 finding is deferred. Regression failures,
   byte-exact red drills and bounded Kubuntu checks are recorded in

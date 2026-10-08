@@ -135,12 +135,38 @@ key-collection walk now stops at the independent resource roots
 (`scripts/lib/uiTextRegions.mjs`), so those keys are not duplicated; no cap
 changed; the table is back at the release base's 24.8 KiB.
 
-## Not done here
+## FIXM107W2: RVM107W2 repair and the open items
 
-- Resource rows get no monthly rollup: detail only, seven days.
-- The open minute is appended when it closes, so the page can lag by up to a
-  minute (no cross-bundle read-time flush from the usage page).
-- The runtime host binds no registered trees, so the ACP agent records no
-  harness-work rows; the VS Code window does.
-- Installed-editor browser scenes (four themes, 320/690 px) remain the lead's
-  rig run; jsdom covers the mount.
+2026-10-08, on `m107/w-history` after `352e040dd`. Every regression below
+failed on `352e040dd` (Kubuntu slot 2, the new file copied into a detached
+`352e040dd` worktree: **8 of 8 failed**, each on its own assertion) and passes
+on the repaired tree. Default timeouts throughout.
+
+| Finding                                                          | Repair                                                                                                                                                                                                                                         | Regression (`test/unit/…`)                                                                                                    |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| P1 retention/Delete history removal could act outside the folder | `src/runtime/usage/nodeUsageFs.ts` `remove()`: rename to a fresh `.removing-*` name in the same parent, prove dev/ino of entry and parent with no linked ancestor, remove, re-prove the parent; any swap refuses and a moved entry is put back | `resourceHistoryReview`: swap right before `rm` (retention and the primitive itself), swap right before the quarantine rename |
+| P2 off-period readings written after consent                     | `src/runtime/resources/history.ts` `isAdmitted()`: consent checked at collection; the collector is dropped while off                                                                                                                           | `resourceHistoryReview`: off, sample, on, flush → no minute                                                                   |
+| P2 Delete history resurrected pre-delete minutes                 | `src/runtime/usage/resourceResetFile.ts` reset boundary written before the delete (`usageServiceEntry.ts` `deleteHistory`); collectors drop held data on a new boundary; `ResourceJournal.append`/`writeLive` refuse records at or before it   | `resourceHistoryReview`: sample, delete via `createUsageAccess.connect`, flush → no minute                                    |
+| P2 retried events duplicated                                     | `src/core/usage/resourceJournal.ts`: each line carries a collector-scoped `id`, reused on retry; reads keep one copy per (collector, id)                                                                                                       | `resourceHistoryReview`: complete line then `EIO`, retry → one event, count 1                                                 |
+| P2 window shutdown lost the open minute                          | `resourceGovernorEntry.ts` `flushResourceHistory()` joined to `admission.ts` disposal, bounded by `RESOURCE_HISTORY_FLUSH_TIMEOUT_MS` (2 s)                                                                                                    | `resourceHistoryReview`: real window host via `configureResources`/`admitResource`, dispose → minute line in the journal      |
+| P2 stale stat sizes charged to the 32 MiB cap                    | `ResourceJournal.readFile`/`readLive`/`readRollups`: budget checked before each read, read only the measured size, charge bytes actually read                                                                                                  | `resourceHistoryReview`: nine files 3.5 MiB at stat, 4 MiB at read → refused, ≤ 32 MiB read                                   |
+
+| Open item             | Closure                                                                                                                                                                                                                                                                                                                            | Test                                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Delete history count  | `src/shared/usageDeleteText.ts` + `deleteConfirmResources` (usage table, all 14 languages); service, VS Code dialog and companion pass the resource count from `ResourceJournal.count()` (lines, live files, daily rows; never parsed)                                                                                             | `usageService` (count and refusal), `resourceHistoryWiring` (end to end), `resourceJournal` (count) |
+| Current minute        | every collector writes `live/<collector>.json` (atomic, ≤ every 15 s); reads include it unless the journal holds that segment; page and text label the minute containing `now` as "This minute so far" (`resourceHistoryCurrentMinute`, 14 languages)                                                                              | `resourceJournal`, `resourceHistoryWiring`, `UsageAppResources`                                     |
+| Rollup                | PLAN D87.11 puts resource records "under D82's retention and rollups", so it is built: completed UTC days → `rollups/<YYYY-MM>.json` under the journal lock, kept for the usage-history days, re-rolled when a raw day changes, raw days removed only once rolled up, unreadable days kept raw; page "Earlier days" table and text | `resourceJournal` (two), `resourceHistoryWiring`, `UsageAppResources`                               |
+| ACP harness-work rows | PLAN D87.2 requires them, through the H–C1 runtime spawn binding (one governor per process); the agent's spawns do not pass a registered launch host yet, so it records none, never an estimate. Recorded as an editor-parity note in `docs/ide-compatibility/resources.md`; **not closed by this lane**                           | —                                                                                                   |
+| Browser scenes        | `test/harness/usage-resource-scenes.mjs` over the production `dist/webview/usage.js`: four themes × 320/690 px × history, unavailable, empty: **24 scenes, 0 axe violations, 0 page errors, no overflow**; all 24 element shots inspected and committed under `m107-w-history/` (1.19 MB total) with `scene-results.json`          | the harness                                                                                         |
+
+Red drills (byte-exact, Kubuntu slot 2, owning test, hash-checked restore):
+R1a post-removal parent proof (first passed while mutated: retention also
+refused later at `list`; the direct primitive test was added and then
+failed), R1b quarantine identity proof, R2 consent at collection, R3 reset
+boundary write, R4 retried-event dedupe, R5 disposal flush, R6 bytes actually
+read, O1 delete count, O2a live publish, O2b text label, O2c page label, O3
+daily rows: **12 of 12 failed while mutated**, all restored identical.
+
+Kubuntu runs on the repaired tree: 20 owning files, **361 passed, 1 failed**
+(an older bounds test whose fake returned zero bytes; it now reads real bytes)
+before the final fixes; the final run is recorded below.
