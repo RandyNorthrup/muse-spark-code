@@ -20,6 +20,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The dependency-cycle gate now covers every build entry, lazy import target,
+  entry-named module and knip entry, with a guard against root-list drift.
+  Remove the worker admission/environment/ref-fence cycle by sharing the
+  unchanged credential-free environment policy from the worker environment
+  module.
+
 - The Action's apply tests no longer race a detached Git maintenance repack
   in their fake origin: the fixture turns off receive auto-gc and plain-git
   auto maintenance, and a witness test proves none runs.

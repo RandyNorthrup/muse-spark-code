@@ -19855,6 +19855,29 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXCYCLES — Complete dependency-cycle gate coverage (2026-10-08, Kubuntu)
+
+**Status: complete locally.** All prescribed fresh-clone gates pass; the
+expanded cycle gate analyzes 2,182 modules without a cycle. Eleven complete
+owning/guard suites pass three times (395 tests per round) at repository
+deadlines. Both red drills fail and restore byte-exact. G67 records the
+coverage lesson; receipts are in `docs/certification/fixcycles.md`.
+
+Audit every build entry, runtime lazy import target, entry-named module,
+webview page and knip entry against the dpdm roots. Add the missing roots
+and a source-reading regression guard that fails on the inherited root list.
+Break each exposed cycle by moving shared policy into a dependency leaf;
+keep the worker credential and Git admission behaviour unchanged. Prove the
+expanded gate rejects a restored worker cycle, with byte-exact restoration.
+Run fresh-clone `npm ci` checks with `CI=true`: cycles, all five typechecks,
+changed-file lint/format, plain knip, duplication, production build with
+unchanged caps, and each owning suite three times at repository deadlines.
+Record root inventory, cycle edges, failure drills and exits in
+`docs/certification/fixcycles.md`; update the changelog and gotchas register.
+The rig/shared brief reserves aggregate quality and hosted cross-platform
+qualification for the lead; this lane commits locally with hooks, without
+merge, rebase, push or live/paid model calls.
+
 ### FIX0160X — Repair release CI composition (2026-10-07, macmini)
 
 Preserve M106/M107, pinned questions and agent outcomes while repairing the
@@ -44652,6 +44675,12 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**FIXCYCLES scoped rig verification (2026-10-08).** The lane brief requires
+fresh-clone individual gates and owning test batches of at most three files.
+The shared rules prohibit aggregate quality; the lead retains that run and
+hosted multi-OS qualification. No threshold, ignore, assertion or timeout is
+relaxed. `docs/certification/fixcycles.md` records actual checks and drills.
 
 **FIX0160W2 scoped Windows qualification (2026-10-07).** The named lane
 brief and shared common rules prohibit aggregate quality and delegate it to
