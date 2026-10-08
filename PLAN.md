@@ -35830,8 +35830,12 @@ and drill both findings with exact hash restoration. Then commit with hooks,
 verify a fresh `npm ci` clone under `CI=true`: owning tests three times,
 five typechecks, changed-file lint/format, plain knip, duplication, l10n,
 reference, host API, production budgets, six-scene Chrome/a11y and keyboard.
-Implementation and seven exact-restoration drills pass; 208 owning tests
-pass locally. Fresh-clone qualification remains pending. Aggregate qualification
+The keyboard recorder must assert the strict handshake separately from actions
+and make its existing no-grant-request receipt an assertion: readiness is not
+a permission action. Drill an injected grant request before refreshing receipts.
+Implementation and nine exact-restoration drills pass; 208 owning tests
+pass three times in the initial fresh clone. Final keyboard-recorder committed
+qualification remains pending. Aggregate qualification
 remains lane W's joined-tree obligation; no push, merge, live model call or
 real pairing. Receipts go in lane U's record.
 

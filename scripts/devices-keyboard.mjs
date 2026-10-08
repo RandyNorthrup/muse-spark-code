@@ -25,6 +25,18 @@ const browser = await chromium.launchPersistentContext(profile, {
   viewport: { width: 320, height: 760 },
 })
 const receipts = []
+
+async function deviceActions(page) {
+  const messages = await page.evaluate('globalThis.harnessOutbox')
+  assert.deepEqual(messages[0], { type: 'devicesReady' })
+  return messages.flatMap((message) => {
+    if (message.type === 'devicesReady') {
+      assert.deepEqual(message, { type: 'devicesReady' })
+      return []
+    }
+    return [message.action?.kind]
+  })
+}
 try {
   for (const theme of ['light', 'dark', 'hc-dark', 'hc-light']) {
     console.log('Keyboard theme:', theme)
@@ -123,9 +135,7 @@ try {
       await page.waitForFunction(() =>
         globalThis.harnessOutbox.some((request) => request.action?.kind === 'importConfirmation'),
       )
-      const pairingCalls = await page.evaluate(
-        'globalThis.harnessOutbox.map((request) => request.action?.kind)',
-      )
+      const pairingCalls = await deviceActions(page)
       // Pairing does not implicitly enable the off fixture. Cap/unlink controls
       // run against the separate connected fixture and its correlated replies.
       await page.goto(
@@ -175,10 +185,7 @@ try {
       await page.waitForFunction(() =>
         globalThis.harnessOutbox.some((request) => request.action?.kind === 'unlink'),
       )
-      const calls = [
-        ...pairingCalls,
-        ...(await page.evaluate('globalThis.harnessOutbox.map((request) => request.action?.kind)')),
-      ]
+      const calls = [...pairingCalls, ...(await deviceActions(page))]
       assert.equal(calls.filter((kind) => kind === 'unlink').length, 1)
       assert.equal(
         await page.evaluate(
@@ -187,6 +194,17 @@ try {
         true,
       )
       assert.deepEqual(await page.evaluate('harnessErrors'), [])
+      const hasOnlyLocalActions = calls.every((kind) =>
+        [
+          'pair',
+          'importInvitation',
+          'confirmFingerprint',
+          'importConfirmation',
+          'offer',
+          'unlink',
+        ].includes(kind),
+      )
+      assert.equal(hasOnlyLocalActions, true)
       receipts.push({
         theme,
         width: 320,
@@ -198,16 +216,7 @@ try {
         groupedFingerprintAnnouncement: grouped,
         fingerprintGroupsUnbroken: true,
         decisionRowsEqual: true,
-        noApprovalGrantRequests: calls.every((kind) =>
-          [
-            'pair',
-            'importInvitation',
-            'confirmFingerprint',
-            'importConfirmation',
-            'offer',
-            'unlink',
-          ].includes(kind),
-        ),
+        noApprovalGrantRequests: hasOnlyLocalActions,
         unlinkCancelFocus: true,
         overflow: false,
       })

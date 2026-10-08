@@ -829,8 +829,23 @@ final owning runs execute every case without selection or timeout overrides.
 | P2-replay       | 3 failed ; 19 skipped (22), exit 1 | `f33b1aad93f1c51c46cd0a36696470a444698f40af374597d50579638d18f799` |
 | P2-schema       | 2 failed ; 26 skipped (28), exit 1 | `30c2606da72b0ac98e0c316ffe85c86bca39bd44cf2a99f8b08ccbd7f4def794` |
 
+**Keyboard recorder correction:** readiness must not enter its action list.
+The script now checks the exact ready envelope on each page, keeps every other
+message in the action check, and asserts its existing no-grant-request receipt.
+Both additional red drills exit **1**: replace the first handshake with Pair,
+and inject a revokeGrant into the recorded messages. Both restore
+`scripts/devices-keyboard.mjs` exactly to SHA-256
+`2e8a71b8166fe0e5ec2163fe24fc204fbdf7d949818e346d54f8400f76f2fb63`.
+Restored four-theme keyboard execution exits **0**, with all four
+`noApprovalGrantRequests` values true and missing-asset refusal still empty.
+Refreshed receipt: `docs/certification/m100-u-keyboard.json`, Chrome
+153.0.8010.52, Linux Control+A, all four themes at 320 px.
+
 **Verification status:** all eleven owning files pass locally after restoration:
 **125 + 32 + 28 + 23 = 208 passed**, four batches of at most three files/workers,
-repository deadlines. Changed-file ESLint exits **0**. Fresh-clone committed-code
-receipts pending; aggregate quality
-and installed four-device qualification remain lane W's joined-tree work.
+repository deadlines. Initial fresh clone of `01e427bbe` passes all 208 tests
+three times, all five compiler projects, changed-file lint/prettier, plain knip,
+zero-clone jscpd, l10n/reference/host API, production budgets and 48 English/pseudo
+a11y pages. The corrected committed keyboard recorder's final fresh-clone
+qualification is pending. Aggregate quality and installed four-device
+qualification remain lane W's joined-tree work.
