@@ -49,14 +49,11 @@ fresh browsers on the idle VM kept the phases above every time.
 
 ## Repair
 
-`test/harness/index.html`: `playScenario` claims the scene by name. The page
-carries `<html data-scenario-played="<name>">` exactly while the claimed
-scene has nothing outstanding: no `later` step, `whenFound` wait, native event
-awaited through `whenEvent` or promise counted by `track`, the page's theme
-included. All four share one counted step (`beginStep`). New counted work
-withdraws the mark until it settles; a step that throws (including a control
-that never rendered) withdraws it for good. The long-stream scene, which
-counts its stream by hand, reports itself.
+`test/harness/index.html`: `playScenario` claims the scene by name. A scene
+is played only when it says so: its final continuation calls
+`scenarioDone()` (see the third review below for the history), and the page
+then carries `<html data-scenario-played="<name>">` once nothing the scene or
+the fake host scheduled is outstanding.
 
 `test/unit/teamHarness.test.mjs`: navigation and playback share the existing
 `REAL_HARNESS_WAIT_TIMEOUT_MS` (8 s), measured from before navigation; the
@@ -82,7 +79,7 @@ The first three drills restored the sources byte for byte (SHA-256
 The new browser regression holds the real team UI chunk until the harness
 reports the scene played, then checks no card exists yet.
 
-## Review RVTEAMFLAKE (Codex, P2): awaited native events
+## Review RVTEAMFLAKE (Codex, P2): awaited native events (superseded below)
 
 Finding: the `jump` scene registered a raw `scroll` listener. Its last
 `whenFound` returned, both counters reached zero and the page read
@@ -138,6 +135,78 @@ Review gates, repository deadlines: `harnessWaits.test.ts` (44),
 three times on Kubuntu and three times on the Win11 VM; `typecheck:unit`,
 ESLint `--max-warnings=0` and Prettier on the changed files and jscpd (0
 clones) all exit 0.
+
+## Review RVTEAMFLAKE2 (Codex, P2 + P3): redesigned to explicit completion
+
+This was the third review round of the played signal, so the mechanism was
+redesigned rather than patched. Finding: the static `uncountedAsync` guard
+above accepted ordinary uncounted forms (a bound `addEventListener`, an
+aliased `setTimeout`, an async helper awaiting a stored promise, detached
+timers inside `track(...)`, one `// counted:` comment for several
+registrations, computed listener access, `readinessLater`, a method-shorthand
+`postMessage`, `steps.extra = ...`). A scan for asynchronous constructs can
+never be complete. P3: an unexplained `as` on the extracted `track`.
+
+Design:
+
+- **Explicit completion.** A scene is played only when its final
+  continuation calls `scenarioDone()`. The mark is set by that call alone,
+  as soon as nothing the scene (`later`, `whenFound`, `whenEvent`, `track`) or
+  the fake host (`hostLater`, `hostTrack`, the page theme included) scheduled
+  is outstanding, and never after a failure. Running out of scheduled work no
+  longer marks anything.
+- **Runtime enforcement.** A scene helper called after `scenarioDone()` fails
+  the scene, as does a second call. The fake host may still answer the
+  webview afterwards. A failure at any time, before or after the call, removes
+  the mark for good and records itself in `<html data-scenario-failed>`.
+- **Scope.** The scenes a test waits on are `PLAYED_SCENARIOS`
+  (`scripts/lib/harnessServer.mjs`): `team-tree`, `team-tree-320`,
+  `team-cards`, `question`, `legal-preview` (the team and capture tests'
+  scenes) and `jump`. Each ends with `scenarioDone()`; the question card moved
+  into `questionFixture()` so the scenes that go on from it do not inherit
+  the call. `harness()` refuses any other scene. Other scenes carry no mark.
+- **Behavioural coverage** replaces the static guard (removed). In a real
+  browser, with the page's host messages, synthetic events and scripted
+  clicks logged from before its scripts run, each `PLAYED_SCENARIOS` scene
+  must be marked exactly once, at its own end (its final action logged, or
+  its end control on screen at the moment the mark appears), and make no
+  logged move for `SCENE_QUIET_WINDOW_MS` (1.5 s, five times the longest
+  scripted pause of these scenes) afterwards. An injected failure in the final
+  step must leave the mark unset and the failure recorded, and `banner`, which
+  never calls `scenarioDone()`, must fail the check. These checks test order,
+  not speed, so navigation and the scene share `SCENE_DONE_TIMEOUT_MS` (15 s,
+  the case deadline less the window and diagnostics); a first run with the
+  team tests' 8 s bound timed out twice on the loaded VM. A DOM snapshot was not
+  used as the settled signal: after the mark the webview still renders what
+  the scene delivered (the team cards' lazy chunk is exactly what the team
+  tests then time) and its status line keeps changing, so the scene's own
+  logged moves are what must stop.
+- **P3.** The extracted page function is checked at runtime
+  (`pageFunction`: `typeof` guard, then `Reflect.apply`); no assertion remains.
+
+Regressions: `harnessWaits.test.ts` (46) covers the reviewer's bound-listener
+jump variant and the async-helper fixture (neither marked before its end),
+outstanding work at the call, a scene that never calls it, each scene helper
+after the call, a late host reply and its failure, the injected final-step
+failure, tracked promises and the nested jump failure. `teamHarness.test.mjs`
+adds 14 browser cases: one end name per scene, six completion checks, six
+injected failures and the missing-call case.
+
+| Drill                                                         | Result                                                                                                                                                       |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| New `harnessWaits.test.ts` against the harness of `ec6e062e0` | exit 1, 14 failures, among them both reviewer variants (`expected { scenarioPlayed: 'jump' }` / `{ scenarioPlayed: 'example' } to deeply equal {}`)          |
+| New browser coverage against the harness of `ec6e062e0`       | exit 1, 8 failures: `banner` reads played without the call, no injected failure is possible, and `legal-preview` was marked before its preview was on screen |
+| Red drill: scene helpers allowed after `scenarioDone()`       | exit 1, the four after-done cases fail                                                                                                                       |
+| Red drill: `team-cards` without `scenarioDone()` (Kubuntu)    | exit 1, 6 failures: its four target cases, its completion and injected-failure checks, each reporting `team-cards never called scenarioDone()`               |
+
+Every drill restored the harness byte for byte (SHA-256
+`30500a7fb9782853df1cf7232be3ce5409f873793cacece1926f06e1afec995f`).
+
+Review gates, repository deadlines: `teamHarness.test.mjs` (38),
+`harnessWaits.test.ts` (46) and `harnessCapture.test.mjs` (7) passed 91/91
+three times on Kubuntu and three times on the Win11 VM, on snapshots equal to
+the commit; `typecheck:unit`, ESLint `--max-warnings=0` and Prettier on the
+changed files and jscpd (0 clones) all exit 0.
 
 ## Before and after under starvation
 

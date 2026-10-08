@@ -83,7 +83,7 @@ function delayedDom(html: string): string[] {
       if (
         ts.isCallExpression(node) &&
         ts.isIdentifier(node.expression) &&
-        ['later', 'readinessLater'].includes(node.expression.text)
+        ['later', 'hostLater', 'readinessLater'].includes(node.expression.text)
       ) {
         const callback = node.arguments[1]
         const comments = code.slice(node.getFullStart(), node.getStart(tree))
@@ -99,102 +99,6 @@ function delayedDom(html: string): string[] {
     }
     visit(tree)
   }
-  return failures
-}
-
-// The counted primitives: `later`, `whenFound`, `whenEvent` and `track` keep a
-// scene unplayed until their work settles (`readinessLater` is readiness only).
-const COUNTED_HELPERS = new Set(['later', 'readinessLater', 'whenFound', 'whenEvent', 'track'])
-// Registrations whose callback runs after the step that made them returned.
-const ASYNC_CALLS = new Set([
-  'addEventListener',
-  'then',
-  'catch',
-  'finally',
-  'fetch',
-  'requestAnimationFrame',
-  'setTimeout',
-  'setInterval',
-  'queueMicrotask',
-])
-const COUNTED_REASON = /\/\/ counted: \S[^\n]*/
-
-/**
- * Asynchronous work a scene (every `steps` entry, and the fake host's
- * `postMessage` replies) starts outside the counted helpers, following the
- * named helpers it calls. Such work could still be running when the page
- * says the scene was played; a `// counted: <reason>` comment before the
- * statement records work the scene counts by hand.
- */
-function uncountedAsync(html: string): string[] {
-  const trees = Array.from(html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g), (script) =>
-    ts.createSourceFile('harness.js', script[1]!, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS),
-  )
-  const helpers = new Map<string, ts.Node>()
-  const roots: ts.Node[] = []
-  const collect = (node: ts.Node) => {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
-      if (node.name.text === 'steps') roots.push(node.initializer)
-      if (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer)) {
-        helpers.set(node.name.text, node.initializer)
-      }
-    } else if (ts.isFunctionDeclaration(node) && node.name !== undefined) {
-      helpers.set(node.name.text, node)
-    } else if (
-      ts.isPropertyAssignment(node) &&
-      ts.isIdentifier(node.name) &&
-      node.name.text === 'postMessage' &&
-      (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
-    ) {
-      roots.push(node.initializer)
-    }
-    ts.forEachChild(node, collect)
-  }
-  for (const tree of trees) collect(tree)
-  const failures: string[] = []
-  const seen = new Set<ts.Node>()
-  const isCounted = (node: ts.Node) => {
-    let statement: ts.Node = node
-    while (!ts.isStatement(statement) && !ts.isSourceFile(statement)) statement = statement.parent
-    const tree = statement.getSourceFile()
-    return COUNTED_REASON.test(tree.text.slice(statement.getFullStart(), statement.getStart(tree)))
-  }
-  const flag = (node: ts.Node, what: string) => {
-    if (!isCounted(node)) failures.push(`${what}: ${node.getText().split('\n', 1)[0]!}`)
-  }
-  const calleeName = (callee: ts.Expression) => {
-    if (ts.isIdentifier(callee)) return callee.text
-    return ts.isPropertyAccessExpression(callee) ? callee.name.text : undefined
-  }
-  const visit = (node: ts.Node): void => {
-    if (seen.has(node)) return
-    seen.add(node)
-    if (ts.isCallExpression(node)) {
-      const callee = node.expression
-      const name = calleeName(callee)
-      // A tracked promise is counted whole, its own chain included.
-      if (name === 'track' && ts.isIdentifier(callee)) return
-      if (name !== undefined && ASYNC_CALLS.has(name)) flag(node, `uncounted ${name}`)
-    } else if (
-      ts.isBinaryExpression(node) &&
-      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-      ts.isPropertyAccessExpression(node.left) &&
-      /^on[a-z]+$/.test(node.left.name.text)
-    ) {
-      flag(node, `uncounted ${node.left.name.text}`)
-    } else if (
-      ts.isNewExpression(node) &&
-      ts.isIdentifier(node.expression) &&
-      node.expression.text === 'Promise'
-    ) {
-      flag(node, 'uncounted Promise')
-    } else if (ts.isIdentifier(node) && !COUNTED_HELPERS.has(node.text)) {
-      const helper = helpers.get(node.text)
-      if (helper !== undefined) visit(helper)
-    }
-    ts.forEachChild(node, visit)
-  }
-  for (const root of roots) visit(root)
   return failures
 }
 
@@ -241,6 +145,7 @@ function playedScene(find: (selector: string) => unknown) {
   const dataset: Record<string, string> = {}
   const page = {
     ...context,
+    EventTarget,
     document: {
       querySelector: find,
       documentElement: { dataset },
@@ -275,9 +180,19 @@ function jumpSource(): string {
   return source
 }
 
+/** A function the page defines, checked to be one before a test calls it. */
+function pageFunction(page: object, name: string): (...args: unknown[]) => unknown {
+  const value: unknown = runInNewContext(name, page)
+  if (typeof value !== 'function') throw new TypeError(`The page defines no function ${name}`)
+  return (...args) => {
+    const result: unknown = Reflect.apply(value, undefined, args)
+    return result
+  }
+}
+
 /** The real `jump` scene on the real helpers, claimed and started; scroll is native. */
-function jumpScene() {
-  const source = jumpSource()
+function jumpScene(variant: (source: string) => string = (source) => source) {
+  const source = variant(jumpSource())
   const main = new EventTarget()
   let top = 0
   Object.defineProperty(main, 'scrollTop', {
@@ -512,11 +427,11 @@ describe('harness scenario event readiness', () => {
     expect(counts).toEqual([1, 0])
   })
 
-  it('reports a scene played only once its nested waits and events have run', () => {
+  it('marks a scene played only from scenarioDone(), once what it counted has settled', () => {
     const rendered = new Set(['surface'])
     const scene = playedScene((selector) => (rendered.has(selector) ? {} : null))
     runInNewContext(
-      `${scene.source}\n playingScenario = 'example'; whenFound('surface', () => { later(50, () => { whenFound('pill', () => {}) }) })`,
+      `${scene.source}\n playingScenario = 'example'; whenFound('surface', () => { later(50, () => { whenFound('pill', () => scenarioDone()) }) })`,
       scene.page,
     )
     runNext(scene.timers)
@@ -529,59 +444,116 @@ describe('harness scenario event readiness', () => {
     expect(scene.timers).toHaveLength(0)
   })
 
+  it('waits for counted work still outstanding when the scene says it is done', () => {
+    const scene = playedScene(() => ({}))
+    runInNewContext(
+      `${scene.source}\n playingScenario = 'example'; hostLater(200, () => {}); later(10, () => scenarioDone())`,
+      scene.page,
+    )
+    expect(scene.timers.map(({ delay }) => delay)).toEqual([200, 10])
+    const [reply, done] = scene.timers.splice(0, 2)
+    done!.run()
+    expect(scene.dataset).toEqual({})
+    reply!.run()
+    expect(scene.dataset).toEqual({ scenarioPlayed: 'example' })
+  })
+
+  it('never marks a scene that finishes its work without calling scenarioDone()', () => {
+    const scene = playedScene(() => ({}))
+    runInNewContext(
+      `${scene.source}\n playingScenario = 'example'; whenFound('surface', () => { later(10, () => {}) })`,
+      scene.page,
+    )
+    expect(drain(scene.timers)).toEqual([])
+    expect(scene.dataset).toEqual({})
+  })
+
   it('never reports a scene played once one of its steps has failed', () => {
     const scene = playedScene(() => null)
     runInNewContext(
-      `${scene.source}\n playingScenario = 'example'; whenFound('missing', () => {})`,
+      `${scene.source}\n playingScenario = 'example'; whenFound('missing', () => scenarioDone())`,
       scene.page,
     )
     expect(drain(scene.timers)).toEqual(['Error: never rendered: missing'])
-    // Nothing is pending any more; only the failure keeps the scene unplayed.
-    runInNewContext('later(10, () => {})', scene.page)
-    runNext(scene.timers)
-    expect(scene.dataset).toEqual({})
+    expect(scene.dataset).toEqual({ scenarioFailed: 'Error: never rendered: missing' })
   })
 
-  it('withdraws the played mark while new work runs, and for good once that work fails', () => {
+  it.each([
+    ['later', 'later(10, () => {})'],
+    ['whenFound', "whenFound('surface', () => {})"],
+    ['whenEvent', "whenEvent(new EventTarget(), 'scroll', () => {})"],
+    ['track', 'track(Promise.resolve())'],
+  ])('fails a scene that calls %s after scenarioDone()', (_helper, call) => {
+    const scene = playedScene(() => ({}))
+    runInNewContext(`${scene.source}\n playingScenario = 'example'; scenarioDone()`, scene.page)
+    expect(scene.dataset).toEqual({ scenarioPlayed: 'example' })
+    expect(() => {
+      runInNewContext(call, scene.page)
+    }).toThrow('scene work after scenarioDone() in example')
+    expect(scene.dataset).toEqual({
+      scenarioFailed: 'Error: scene work after scenarioDone() in example',
+    })
+  })
+
+  it('lets the fake host still reply after scenarioDone(), and a failed reply clears the mark', () => {
+    const scene = playedScene(() => ({}))
+    runInNewContext(`${scene.source}\n playingScenario = 'example'; scenarioDone()`, scene.page)
+    runInNewContext('hostLater(10, () => {})', scene.page)
+    runNext(scene.timers)
+    expect(scene.dataset).toEqual({ scenarioPlayed: 'example' })
+    runInNewContext("hostLater(10, () => { throw new Error('late reply failed') })", scene.page)
+    expect(drain(scene.timers)).toEqual(['Error: late reply failed'])
+    expect(scene.dataset).toEqual({ scenarioFailed: 'Error: late reply failed' })
+    runInNewContext('hostLater(10, () => {})', scene.page)
+    runNext(scene.timers)
+    expect(scene.dataset).toEqual({ scenarioFailed: 'Error: late reply failed' })
+  })
+
+  it('records an injected failure of the final step and never marks the scene', () => {
     const scene = playedScene(() => ({}))
     runInNewContext(
-      `${scene.source}\n playingScenario = 'example'; whenFound('surface', () => {})`,
+      `${scene.source}\n harnessFailFinalStep = true; playingScenario = 'example'; whenFound('surface', () => scenarioDone())`,
       scene.page,
     )
-    runNext(scene.timers)
-    expect(scene.dataset).toEqual({ scenarioPlayed: 'example' })
-    runInNewContext('later(10, () => {})', scene.page)
-    expect(scene.dataset).toEqual({})
-    runNext(scene.timers)
-    expect(scene.dataset).toEqual({ scenarioPlayed: 'example' })
-    runInNewContext("later(10, () => { throw new Error('late failure') })", scene.page)
-    expect(drain(scene.timers)).toEqual(['Error: late failure'])
-    expect(scene.dataset).toEqual({})
-    runInNewContext('later(10, () => {})', scene.page)
-    runNext(scene.timers)
-    expect(scene.dataset).toEqual({})
+    expect(drain(scene.timers)).toEqual(['Error: injected final-step failure'])
+    expect(scene.dataset).toEqual({ scenarioFailed: 'Error: injected final-step failure' })
   })
 
-  it('keeps a scene unplayed while a tracked promise is pending, and fails it on rejection', async () => {
+  it('holds a tracked promise until it settles, and fails the scene on its rejection', async () => {
     const scene = playedScene(() => ({}))
     runInNewContext(`${scene.source}\n playingScenario = 'example'`, scene.page)
-    const track = runInNewContext('track', scene.page) as <T>(promise: Promise<T>) => Promise<T>
+    const track = pageFunction(scene.page, 'track')
     const reply = Promise.withResolvers<string>()
     const tracked = track(reply.promise)
-    runInNewContext('notePlayed()', scene.page)
+    runInNewContext('scenarioDone()', scene.page)
     expect(scene.dataset).toEqual({})
     reply.resolve('reply sent')
     await expect(tracked).resolves.toBe('reply sent')
     expect(scene.dataset).toEqual({ scenarioPlayed: 'example' })
-    await expect(track(Promise.reject(new Error('reply failed')))).rejects.toThrow('reply failed')
-    expect(scene.dataset).toEqual({})
-    runInNewContext('later(10, () => {})', scene.page)
-    runNext(scene.timers)
-    expect(scene.dataset).toEqual({})
+    const failing = playedScene(() => ({}))
+    runInNewContext(`${failing.source}\n playingScenario = 'example'`, failing.page)
+    await expect(
+      pageFunction(failing.page, 'track')(Promise.reject(new Error('reply failed'))),
+    ).rejects.toThrow('reply failed')
+    expect(failing.dataset).toEqual({ scenarioFailed: 'Error: reply failed' })
   })
 
-  it('keeps the jump scene unplayed until its awaited scroll has run its steps', () => {
-    const jump = jumpScene()
+  it.each([
+    ['its counted scroll', (source: string) => source],
+    [
+      // RVTEAMFLAKE2's variant: the listener bypasses every counted helper.
+      'a bound, uncounted scroll listener',
+      (source: string) => {
+        const bound = source.replace(
+          "whenEvent(main, 'scroll', () => {",
+          "main.addEventListener.bind(main)('scroll', () => {",
+        )
+        if (bound === source) throw new Error('The jump scene no longer awaits its scroll')
+        return bound
+      },
+    ],
+  ])('keeps the jump scene with %s unplayed until it ends', (_kind, variant) => {
+    const jump = jumpScene(variant)
     expect(drain(jump.scene.timers)).toEqual([])
     // Every timer and wait has run; only the native scroll is outstanding.
     expect(jump.messages).toEqual([expect.objectContaining({ type: 'itemCompleted' })])
@@ -592,6 +564,32 @@ describe('harness scenario event readiness', () => {
     expect(jump.scene.dataset).toEqual({ scenarioPlayed: 'jump' })
   })
 
+  it('keeps a scene that awaits a stored promise in an async helper unplayed until it ends', async () => {
+    const scene = playedScene(() => ({}))
+    const sent: unknown[] = []
+    const stored = Promise.withResolvers<string>()
+    Object.assign(scene.page, {
+      stored: stored.promise,
+      send: (message: unknown) => {
+        sent.push(message)
+      },
+    })
+    runInNewContext(
+      `${scene.source}\n playingScenario = 'example'
+       const finish = async () => { send(await stored); scenarioDone() }
+       whenFound('surface', () => { void finish() })`,
+      scene.page,
+    )
+    expect(drain(scene.timers)).toEqual([])
+    expect(sent).toEqual([])
+    expect(scene.dataset).toEqual({})
+    stored.resolve('reply')
+    await vi.waitFor(() => {
+      expect(scene.dataset).toEqual({ scenarioPlayed: 'example' })
+    })
+    expect(sent).toEqual(['reply'])
+  })
+
   it('never reports the jump scene played when a step after its scroll fails', () => {
     const jump = jumpScene()
     expect(drain(jump.scene.timers)).toEqual([])
@@ -600,7 +598,7 @@ describe('harness scenario event readiness', () => {
     jump.main.dispatchEvent(new Event('scroll'))
     expect(drain(jump.scene.timers)).toEqual(['Error: never rendered: main'])
     expect(jump.messages).toHaveLength(1)
-    expect(jump.scene.dataset).toEqual({})
+    expect(jump.scene.dataset).toEqual({ scenarioFailed: 'Error: never rendered: main' })
   })
 
   it('holds readiness until scheduled events finish, then still waits for both paints', async () => {
@@ -754,6 +752,7 @@ describe('harness scenes wait for the controls they touch', () => {
         whenEvent: (target: EventTarget, type: string, run: () => void) => {
           target.addEventListener(type, run, { once: true })
         },
+        scenarioDone: () => undefined,
       })
       paintControls()
       expect(messages).toEqual([expect.objectContaining({ type: 'itemCompleted' })])
@@ -785,35 +784,6 @@ describe('harness scenes wait for the controls they touch', () => {
   it('keeps every timer explained and DOM interactions behind whenFound', () => {
     const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
     expect(delayedDom(html)).toEqual([])
-  })
-
-  it('counts every native event and promise a scene or the fake host awaits', () => {
-    const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
-    expect(uncountedAsync(html)).toEqual([])
-  })
-
-  it.each([
-    ['a native listener', 'main.addEventListener("scroll", () => send(1))', 'addEventListener'],
-    ['a promise chain', 'fetch("x").then(() => send(1))', 'fetch'],
-    ['a port callback', 'port.onmessage = () => send(1)', 'onmessage'],
-    ['a frame callback', 'requestAnimationFrame(() => send(1))', 'requestAnimationFrame'],
-    ['work in a helper', 'scrollUp()', 'addEventListener'],
-  ])('catches %s a scene starts outside the counted helpers', (_kind, code, name) => {
-    const html = `<script>const scrollUp = () => window.addEventListener("scroll", () => {})
-      const steps = { scene: () => { ${code} } }</script>`
-    expect(uncountedAsync(html)).toContainEqual(expect.stringContaining(`uncounted ${name}:`))
-  })
-
-  it('accepts counted helpers, a tracked promise and a recorded reason', () => {
-    expect(
-      uncountedAsync(`<script>const postMessage = 0
-        const host = { postMessage: () => { void track(fetch("x").then(() => send(1))) } }
-        const steps = { scene: () => {
-          whenEvent(main, "scroll", () => send(1))
-          // counted: the stream holds one pending event until it completes.
-          port.onmessage = () => send(1)
-        } }</script>`),
-    ).toEqual([])
   })
 
   it.each([...DOM_METHODS])('catches a delayed %s call', (method) => {

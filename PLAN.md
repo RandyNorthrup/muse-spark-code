@@ -19868,9 +19868,14 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
       repro rates before and after (at least 20 runs after) in
       docs/certification/flake-team-merge-wait.md; commit with hooks.
 - [x] Review RVTEAMFLAKE P2: count awaited native events (`whenEvent`) and
-      awaited promises (`track`), withdraw the mark while new work runs and
-      for good on failure, and guard every scene and host reply against
-      uncounted asynchronous work; jump-scroll regressions and a red drill.
+      awaited promises (`track`); jump-scroll regressions and a red drill.
+- [x] Review RVTEAMFLAKE2 (third round, redesigned): a scene is played only
+      when its final continuation calls `scenarioDone()`; scene work after it
+      fails the scene; a failure clears the mark for good and is recorded.
+      The static async guard is replaced by browser coverage of every
+      `PLAYED_SCENARIOS` scene (marked only at its end, no move after it, never
+      marked when its final step fails, a scene without the call fails), and
+      the extracted `track` is checked at runtime instead of asserted.
 
 Scope is the browser harness and its owning tests. No push; the lead pushes.
 

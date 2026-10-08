@@ -104,19 +104,24 @@ Use this order for a candidate branch:
   `hc-dark` or `hc-light`; `--lang=pseudo` for clipping) and checked with
   `node scripts/a11y.mjs <names>` in the four themes. Scenes wait with
   `whenFound`, never fixed delays; nest waits when one control reveals the
-  next. Keep `later` only for intentional host-event timing or readiness
-  polling, with a `// kept-timing: <reason>` comment immediately before it.
+  next. Keep `later` (and the fake host's `hostLater`) only for intentional
+  host-event timing or readiness polling, with a `// kept-timing: <reason>`
+  comment immediately before it.
   The source guard in `test/unit/harnessWaits.test.ts` checks every timer,
   including DOM work through helpers. Axe waits for outstanding control
-  waits before scanning. `<html data-scenario-played="<name>">` is present
-  only while the scene has nothing outstanding: no `later` step, `whenFound`
-  wait, native event awaited with `whenEvent(target, type, fn)` or promise
-  counted with `track(promise)`, the page's theme included. New counted work
-  withdraws it until that work settles; a failed step withdraws it for good.
-  Scenes await native events only through `whenEvent`. Any other listener,
-  port callback or promise a scene or the fake host starts needs its own
-  count and a `// counted: <reason>` comment, which the same guard file
-  enforces. A browser test starts the deadline for what the scene renders
+  waits before scanning. A scene a test waits on says when it is finished:
+  its final continuation, the last thing it waits for, calls
+  `scenarioDone()`, and only that call sets
+  `<html data-scenario-played="<name>">`, once nothing it scheduled with
+  `later`, `whenFound`, `whenEvent(target, type, fn)` or `track(promise)` (or
+  the fake host with `hostLater` / `hostTrack`) is outstanding. Scheduling scene
+  work after `scenarioDone()` fails the scene; any failure removes the mark for
+  good and records it in `<html data-scenario-failed>`. A scene that others
+  reuse keeps its steps in a fixture and calls `scenarioDone()` only in its own
+  entry. Such scenes are listed in `PLAYED_SCENARIOS`
+  (`scripts/lib/harnessServer.mjs`); a browser test checks each one is marked
+  only at its end, makes no move after the mark and never carries it when its
+  final step fails. A browser test starts the deadline for what the scene renders
   at that mark, not at page load (`test/unit/teamHarness.test.mjs`). The M87
   scenarios:
   `context-meter`, `context-meter-warning`, `context-meter-full`,

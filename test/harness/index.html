@@ -143,36 +143,56 @@
         window.postMessage(message, '*')
       }
       let pendingScenarioEvents = 0
-      // <html data-scenario-played="<name>"> is present exactly while the
-      // claimed scene has nothing outstanding: no `later` step, `whenFound`
-      // wait, awaited native event (`whenEvent`) or host promise (`track`),
-      // the page's theme included. New counted work removes it until that work
-      // settles; a failed step removes it for good, and its error names the
-      // step. A test starts the deadline for what the scene renders there, not
-      // at page load (the merge card's wait used to cover the cold bundle too).
+      // A scene says when it is finished: its final continuation, the last
+      // thing it waits for, calls scenarioDone(). <html data-scenario-played>
+      // is set by that call alone, as soon as nothing counted is outstanding
+      // (`later`, `whenFound`, `whenEvent` and `track` for the scene;
+      // `hostLater` and `hostTrack` for the fake host and the page), and never
+      // after a failure. A scene helper called after scenarioDone() fails the
+      // scene. A failure at any time removes the mark for good and records
+      // itself in <html data-scenario-failed>. Tests wait for the mark only on
+      // PLAYED_SCENARIOS (scripts/lib/harnessServer.mjs), whose browser
+      // coverage in teamHarness.test.mjs checks that each scene really ends.
       let playingScenario
+      let isScenarioDone = false
       let hasScenarioFailed = false
+      const SCENARIO_FAILURE_LIMIT = 300
+      const markOf = () => globalThis.document?.documentElement.dataset
       const notePlayed = () => {
-        if (playingScenario === undefined || hasScenarioFailed) return
+        if (playingScenario === undefined || !isScenarioDone || hasScenarioFailed) return
         if (pendingScenarioEvents > 0 || pendingFinds > 0) return
-        document.documentElement.dataset.scenarioPlayed = playingScenario
+        markOf().scenarioPlayed = playingScenario
       }
-      const noteBusy = () => {
-        if (playingScenario !== undefined) delete document.documentElement.dataset.scenarioPlayed
-      }
-      const failScene = () => {
+      const failScene = (error) => {
         hasScenarioFailed = true
-        noteBusy()
+        const mark = markOf()
+        if (mark === undefined) return
+        delete mark.scenarioPlayed
+        mark.scenarioFailed = String(error).slice(0, SCENARIO_FAILURE_LIMIT)
       }
-      // One counted unit of scene work: started now, settled when fn has run.
-      const beginStep = () => {
+      const refuse = (message) => {
+        const error = new Error(message)
+        failScene(error)
+        throw error
+      }
+      const scenarioDone = () => {
+        if (playingScenario === undefined) refuse('scenarioDone() outside a playing scene')
+        if (isScenarioDone) refuse(`scenarioDone() twice in ${playingScenario}`)
+        // A browser test sets this to prove a failed final step never leaves the mark.
+        if (globalThis.harnessFailFinalStep === true) refuse('injected final-step failure')
+        isScenarioDone = true
+        notePlayed()
+      }
+      // One counted unit of work: started now, settled when fn has run.
+      const beginStep = (isHostWork) => {
+        if (isScenarioDone && !isHostWork)
+          refuse(`scene work after scenarioDone() in ${playingScenario}`)
         pendingScenarioEvents += 1
-        noteBusy()
         return (fn) => {
           try {
             fn()
           } catch (error) {
-            failScene()
+            failScene(error)
             throw error
           } finally {
             pendingScenarioEvents -= 1
@@ -180,15 +200,17 @@
           notePlayed()
         }
       }
-      const later = (ms, fn) => {
-        const settle = beginStep()
+      const scheduler = (isHostWork) => (ms, fn) => {
+        const settle = beginStep(isHostWork)
         return setTimeout(() => {
           settle(fn)
         }, ms)
       }
-      // Runs fn on target's next `type` event; until then the scene is not played.
+      const later = scheduler(false)
+      const hostLater = scheduler(true)
+      // Runs fn on target's next `type` event; until then the scene is not done.
       const whenEvent = (target, type, fn) => {
-        const settle = beginStep()
+        const settle = beginStep(false)
         target.addEventListener(
           type,
           (nativeEvent) => {
@@ -197,9 +219,9 @@
           { once: true },
         )
       }
-      // A promise the page or the fake host awaits counts until it settles.
-      const track = (promise) => {
-        const settle = beginStep()
+      // An awaited promise counts until it settles; its rejection fails the scene.
+      const tracker = (isHostWork) => (promise) => {
+        const settle = beginStep(isHostWork)
         return promise.then(
           (value) => {
             settle(() => undefined)
@@ -212,6 +234,8 @@
           },
         )
       }
+      const track = tracker(false)
+      const hostTrack = tracker(true)
       const readinessLater = (ms, fn) => setTimeout(fn, ms)
       // Runs fn with the first element matching selector once one renders:
       // after the settle time the scenarios have always given, then every
@@ -223,25 +247,28 @@
       const FIND_TIMEOUT_MS = 3000
       let pendingFinds = 0
       const whenFound = (selector, fn) => {
+        if (isScenarioDone) refuse(`scene work after scenarioDone() in ${playingScenario}`)
         pendingFinds += 1
         const look = (waited) => {
           const element = document.querySelector(selector)
-          if (element !== null) {
-            try {
-              fn(element)
-            } finally {
-              pendingFinds -= 1
-            }
-          } else if (waited >= FIND_TIMEOUT_MS) {
-            pendingFinds -= 1
-            throw new Error(`never rendered: ${selector}`)
-          } else {
+          if (element === null && waited < FIND_TIMEOUT_MS) {
             // kept-timing: bounded readiness polling retries until the requested control renders.
-            later(FIND_INTERVAL_MS, () => look(waited + FIND_INTERVAL_MS))
+            setTimeout(() => look(waited + FIND_INTERVAL_MS), FIND_INTERVAL_MS)
+            return
           }
+          try {
+            if (element === null) throw new Error(`never rendered: ${selector}`)
+            fn(element)
+          } catch (error) {
+            failScene(error)
+            throw error
+          } finally {
+            pendingFinds -= 1
+          }
+          notePlayed()
         }
         // kept-timing: host-message delivery and React paints settle before the first readiness probe.
-        later(SETTLE_MS, () => look(0))
+        setTimeout(() => look(0), SETTLE_MS)
       }
       const files = [
         'src/extension.ts',
@@ -613,7 +640,7 @@
                 }
               if (message.action === 'chatConfirm') value = 'shared'
               // kept-timing: the fake host replies asynchronously to the sharing request.
-              later(0, () => send({ type: 'sharingResult', id: message.id, value }))
+              hostLater(0, () => send({ type: 'sharingResult', id: message.id, value }))
               break
             }
             case 'hostAction': {
@@ -621,8 +648,8 @@
               break
             }
             case 'readReference': {
-              // The scene is not played until the reference reply has been sent.
-              void track(
+              // The scene is not done until the reference reply has been sent.
+              void hostTrack(
                 Promise.all([
                   fetch('../../src/shared/reference/reference.generated.json').then((response) =>
                     response.json(),
@@ -740,7 +767,7 @@
                 ),
               ]
               // kept-timing: the fake legal host returns its preview asynchronously after the request.
-              later(50, () =>
+              hostLater(50, () =>
                 send({
                   type: 'legalFixPreview',
                   requestId: message.requestId,
@@ -758,7 +785,7 @@
             }
             case 'listSkills': {
               // kept-timing: the fake host replies asynchronously to the skill-list request.
-              later(50, () => send({ type: 'skillList', skills }))
+              hostLater(50, () => send({ type: 'skillList', skills }))
               break
             }
             case 'searchMentions': {
@@ -767,12 +794,14 @@
                 .filter((file) => file.toLowerCase().includes(query))
                 .map((path) => ({ path, isFolder: false }))
               // kept-timing: mention search results arrive asynchronously from the fake host.
-              later(30, () => send({ type: 'mentionResults', requestId: message.requestId, items }))
+              hostLater(30, () =>
+                send({ type: 'mentionResults', requestId: message.requestId, items }),
+              )
               break
             }
             case 'attachImageData': {
               // kept-timing: attachment decoding completes asynchronously after the paste request.
-              later(20, () =>
+              hostLater(20, () =>
                 send({
                   type: 'attachmentAdded',
                   attachment: attachment(message.name, message.mediaType),
@@ -782,7 +811,7 @@
             }
             case 'pickFile': {
               // kept-timing: the fake file picker returns its attachment asynchronously.
-              later(20, () =>
+              hostLater(20, () =>
                 send({ type: 'attachmentAdded', attachment: attachment('image.png', 'image/png') }),
               )
               break
@@ -824,7 +853,7 @@
                 },
               })
               // kept-timing: streaming exposes the pending reply before its first text delta.
-              later(300, () =>
+              hostLater(300, () =>
                 send({
                   type: 'agentEvent',
                   event: {
@@ -836,7 +865,7 @@
                 }),
               )
               // kept-timing: streaming keeps the reply in progress before its terminal events.
-              later(4000, () => {
+              hostLater(4000, () => {
                 send({
                   type: 'agentEvent',
                   event: {
@@ -869,7 +898,7 @@
               pen.fillStyle = '#e8b04a'
               pen.fillRect(146, 48, 28, 14)
               // kept-timing: image output arrives asynchronously after the tool-image request.
-              later(30, () =>
+              hostLater(30, () =>
                 send({
                   type: 'toolImage',
                   itemId: message.itemId,
@@ -886,7 +915,7 @@
                 const half = Math.floor(whole.length / 2)
                 const isFirst = message.offsetBytes === 0
                 // kept-timing: each requested patch page arrives as a separate asynchronous host reply.
-                later(30, () =>
+                hostLater(30, () =>
                   send({
                     type: 'outputPage',
                     itemId: message.itemId,
@@ -900,7 +929,7 @@
                 break
               }
               // kept-timing: the fake host returns the requested patch asynchronously.
-              later(30, () =>
+              hostLater(30, () =>
                 send({
                   type: 'outputPage',
                   itemId: message.itemId,
@@ -933,7 +962,7 @@
             }
             case 'decideApproval': {
               // kept-timing: approval resolution arrives after the submitted decision.
-              later(30, () =>
+              hostLater(30, () =>
                 send({
                   type: 'agentEvent',
                   event: {
@@ -950,7 +979,9 @@
             // --- Session history (M6) ---
             case 'listSessions': {
               // kept-timing: History receives its session list as an asynchronous host reply.
-              later(40, () => send({ type: 'sessionList', sessions: storedSessions, archivedIds }))
+              hostLater(40, () =>
+                send({ type: 'sessionList', sessions: storedSessions, archivedIds }),
+              )
               break
             }
             case 'setSessionArchived': {
@@ -965,7 +996,7 @@
             case 'resumeSession': {
               const row = storedSessions.find((s) => s.sessionId === message.sessionId)
               // kept-timing: resume delivers history and session state after its host request.
-              later(60, () => {
+              hostLater(60, () => {
                 send({ type: 'historyLoaded', ...storedHistory(message.sessionId, row) })
                 send({ type: 'notice', level: 'info', text: `Resumed ${row?.title ?? ''}` })
                 send({
@@ -979,7 +1010,7 @@
             }
             case 'forkSession': {
               // kept-timing: fork delivers history and session state after its host request.
-              later(60, () => {
+              hostLater(60, () => {
                 send({
                   type: 'historyLoaded',
                   ...storedHistory('forked', undefined, message.lastTurnId),
@@ -1000,7 +1031,7 @@
             }
             case 'renameSession': {
               // kept-timing: renaming is confirmed by a later host notification.
-              later(40, () =>
+              hostLater(40, () =>
                 send({ type: 'agentEvent', event: { type: 'sessionNamed', name: message.name } }),
               )
               break
@@ -1011,12 +1042,12 @@
               if (message.action === 'start') {
                 send({ type: 'dictationState', status: 'starting' })
                 // kept-timing: dictation passes through its listening state after recording starts.
-                later(40, () => send({ type: 'dictationState', status: 'listening' }))
+                hostLater(40, () => send({ type: 'dictationState', status: 'listening' }))
                 break
               }
               send({ type: 'dictationState', status: 'idle' })
               // kept-timing: dictation inserts the transcript after recording stops.
-              later(40, () => send({ type: 'insertText', text: 'open the settings file ' }))
+              hostLater(40, () => send({ type: 'insertText', text: 'open the settings file ' }))
               break
             }
             // --- Paid features (M33): the palette's toggles, confirmed at once ---
@@ -1029,13 +1060,13 @@
               }
               window.harnessPaid = { ...window.harnessPaid, features: [...features] }
               // kept-timing: paid settings are confirmed by a later host state update.
-              later(40, () => send({ type: 'paidState', state: window.harnessPaid }))
+              hostLater(40, () => send({ type: 'paidState', state: window.harnessPaid }))
               break
             }
             // --- Account & usage (M8) ---
             case 'readUsage': {
               // kept-timing: Account and usage receives its report asynchronously.
-              later(40, () =>
+              hostLater(40, () =>
                 send(
                   window.harnessBackend === 'modelApi'
                     ? {
@@ -1100,7 +1131,7 @@
             }
             case 'answerQuestion': {
               // kept-timing: question settlement arrives after its answer is submitted.
-              later(30, () =>
+              hostLater(30, () =>
                 send({
                   type: 'agentEvent',
                   event: {
@@ -1201,7 +1232,7 @@
               const goal = goals[message.verb]()
               window.harnessGoal = goal ?? undefined
               // kept-timing: goal commands receive their result after the host request.
-              later(30, () => {
+              hostLater(30, () => {
                 send({ type: 'agentEvent', event: { type: 'goalChanged', goal } })
                 send({
                   type: 'notice',
@@ -1245,7 +1276,7 @@
                 ],
               }
               // kept-timing: a review stays running before its findings arrive.
-              later(200, () => {
+              hostLater(200, () => {
                 send({
                   type: 'agentEvent',
                   event: {
@@ -1268,7 +1299,7 @@
             }
             case 'readReviewChanges': {
               // kept-timing: review changes arrive asynchronously after the changes request.
-              later(60, () =>
+              hostLater(60, () =>
                 send({
                   type: 'reviewChanges',
                   requestId: message.requestId,
@@ -1318,7 +1349,7 @@
             }
             case 'revertReviewHunk': {
               // kept-timing: a hunk revert completes after its host request.
-              later(60, () =>
+              hostLater(60, () =>
                 send({
                   type: 'reviewHunkResult',
                   itemId: message.itemId,
@@ -2206,7 +2237,7 @@
           case 'providers/test': {
             modelsSend()
             // kept-timing: a provider test publishes its asynchronous completion after its initial state.
-            later(300, () => modelsSend())
+            hostLater(300, () => modelsSend())
             break
           }
           case 'models/scan': {
@@ -2216,7 +2247,7 @@
               },
             })
             // kept-timing: the fake model scan transitions from scanning to its later result.
-            later(600, () =>
+            hostLater(600, () =>
               modelsSend({
                 scans: {
                   [message.providerId]: {
@@ -2582,6 +2613,41 @@
             }
           },
         )
+      }
+      // The question card waiting for an answer; scenes that go on from it reuse it.
+      const questionFixture = () => {
+        transcriptFixture()
+        event({
+          type: 'itemStarted',
+          item: {
+            itemId: 'q1',
+            kind: 'toolCall',
+            status: 'inProgress',
+            tool: 'request_user_input',
+            args: '{"questions":[]}',
+          },
+        })
+        event({
+          type: 'questionRequested',
+          userInputId: 'u1',
+          itemId: 'q1',
+          questions: [
+            {
+              id: 'colour',
+              header: 'Colour',
+              question: 'Which colour do you prefer, red or blue?',
+              selection: { mode: 'single' },
+              options: [{ label: 'Red' }, { label: 'Blue', description: 'The cool one' }],
+            },
+            {
+              id: 'toppings',
+              header: 'Toppings',
+              question: 'Pick up to two toppings.',
+              selection: { mode: 'multiple', minSelections: 1, maxSelections: 2 },
+              options: [{ label: 'Ham' }, { label: 'Olives' }, { label: 'Corn' }],
+            },
+          ],
+        })
       }
       const steps = {
         'prompt-menu': () => promptMenuScene(),
@@ -3150,38 +3216,8 @@
         'questions-dismissed': () => questionScene('dismissed'),
         'questions-expired': () => questionScene('expired'),
         question: () => {
-          transcriptFixture()
-          event({
-            type: 'itemStarted',
-            item: {
-              itemId: 'q1',
-              kind: 'toolCall',
-              status: 'inProgress',
-              tool: 'request_user_input',
-              args: '{"questions":[]}',
-            },
-          })
-          event({
-            type: 'questionRequested',
-            userInputId: 'u1',
-            itemId: 'q1',
-            questions: [
-              {
-                id: 'colour',
-                header: 'Colour',
-                question: 'Which colour do you prefer, red or blue?',
-                selection: { mode: 'single' },
-                options: [{ label: 'Red' }, { label: 'Blue', description: 'The cool one' }],
-              },
-              {
-                id: 'toppings',
-                header: 'Toppings',
-                question: 'Pick up to two toppings.',
-                selection: { mode: 'multiple', minSelections: 1, maxSelections: 2 },
-                options: [{ label: 'Ham' }, { label: 'Olives' }, { label: 'Corn' }],
-              },
-            ],
-          })
+          questionFixture()
+          scenarioDone()
         },
         elicitation: () => {
           transcriptFixture()
@@ -3299,7 +3335,7 @@
               }
               continuation.port2.postMessage(null)
             } catch (error) {
-              failScene()
+              failScene(error)
               pendingScenarioEvents -= 1
               close()
               throw error
@@ -3315,11 +3351,11 @@
             window.removeEventListener('message', beginStream)
             runBatch()
           }
-          // counted: the stream holds one pending event from here until runBatch
+          // The stream holds one pending event from here until runBatch
           // dispatches its completion frame or a frame fails.
           continuation.port1.onmessage = runBatch
           pendingScenarioEvents += 1
-          // counted: the same pending event covers the wait for the stream's start.
+          // The same pending event covers the wait for the stream's start.
           window.addEventListener('message', beginStream)
           event({
             type: 'itemStarted',
@@ -3773,7 +3809,10 @@
         'team-tree': () => {
           transcriptFixture()
           send({ type: 'teamTree', tree: teamTreeFixture() })
-          whenFound('.agents-pill[title]', (control) => control.click())
+          whenFound('.agents-pill[title]', (control) => {
+            control.click()
+            scenarioDone()
+          })
         },
         'team-tree-320': () => {
           document.documentElement.style.width = '320px'
@@ -3872,6 +3911,7 @@
               },
             },
           })
+          scenarioDone()
         },
         // --- M82: a Model API reply with its tokens and cost under it, and
         // the session budget's notices after it ---
@@ -4479,7 +4519,7 @@
                       field: 'text',
                       delta: 'One more thing: the folder also holds a hidden .git directory.',
                     })
-                    whenFound('.jump-latest', () => {})
+                    whenFound('.jump-latest', () => scenarioDone())
                   })
                 })
                 // Queue the native event even if the lazy reply already left main at zero.
@@ -4561,7 +4601,7 @@
         },
         // --- M16: the question card filled in, on its second tab ---
         'question-filled': () => {
-          steps.question()
+          questionFixture()
           // The question controls load in their own chunk: wait for them, never a fixed delay.
           whenFound('.question input[type="radio"]', () => {
             document.querySelectorAll('.question input[type="radio"]')[1].click()
@@ -5296,7 +5336,7 @@
         },
         // --- M46: a question answered with an explanation, and one being explained ---
         'question-explain': () => {
-          steps.question()
+          questionFixture()
           event({
             type: 'itemStarted',
             item: {
@@ -5782,6 +5822,8 @@
                   button.textContent === (harnessL10n.table?.legalPreviewFixes ?? 'Preview fixes'),
               )
               ?.click()
+            // The scene ends once the host's fix preview is on screen.
+            whenFound('.legal-paths', () => scenarioDone())
           })
         },
         'legal-narrow': () => {
@@ -6546,9 +6588,9 @@
           document.removeEventListener('visibilitychange', onVisibility)
         }
       }
-      // A scene is not played on a page whose theme is still loading.
+      // A scene is not marked played on a page whose theme is still loading.
       const themed = params.has('theme')
-        ? track(applyTheme(params.get('theme')))
+        ? hostTrack(applyTheme(params.get('theme')))
         : Promise.resolve()
       if (params.get('axe') === '1') {
         themed

@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
-import { serveRepo, TRAFFIC_SCENARIOS } from '../../scripts/lib/harnessServer.mjs'
+import { PLAYED_SCENARIOS, serveRepo, TRAFFIC_SCENARIOS } from '../../scripts/lib/harnessServer.mjs'
 import { testSettings } from './helpers/fakes'
 import { buildWebviewHtml } from '../../src/host/html'
 import { EN } from '../../src/shared/l10n/en'
@@ -35,6 +35,29 @@ const REAL_HARNESS_WAIT_TIMEOUT_MS = 8000
 const HARNESS_DIAGNOSTIC_LIMIT = 8192
 const HARNESS_BODY_DIAGNOSTIC_LIMIT = 4096
 const HARNESS_ERROR_DIAGNOSTIC_LIMIT = 1024
+// After its mark a finished scene does nothing more. These scenes' longest
+// scripted pause is the 300 ms settle before a find, so a scene still acting
+// after its mark acts well inside this window; the window is the assertion.
+const SCENE_QUIET_WINDOW_MS = 1500
+// The completion checks test order, not speed: navigation and the scene get
+// the case deadline less the quiet window and room for diagnostics.
+const SCENE_DONE_TIMEOUT_MS = 15_000
+// What each scene's final continuation has done by the time it calls
+// scenarioDone(): an action it logged, or a control it waited for.
+const SCENE_ENDS = {
+  'team-tree': {
+    action: (entry) => entry.kind === 'click' && entry.target.includes('agents-pill'),
+  },
+  'team-tree-320': {
+    action: (entry) => entry.kind === 'click' && entry.target.includes('agents-pill'),
+  },
+  'team-cards': { action: (entry) => entry.kind === 'message' && entry.itemId === 'tr1' },
+  question: {
+    action: (entry) => entry.kind === 'message' && entry.eventType === 'questionRequested',
+  },
+  'legal-preview': { selector: '.legal-paths' },
+  jump: { selector: '.jump-latest' },
+}
 const rig = {
   browser: undefined,
   server: undefined,
@@ -95,6 +118,28 @@ afterAll(async () => {
   if (rig.inventory !== undefined) rmSync(rig.inventory, { recursive: true, force: true })
 })
 
+// Waits, within what is left of `doneBy`, for the scene to call scenarioDone();
+// a failure the page records ends the wait at once.
+async function sceneDone(page, scenario, doneBy) {
+  try {
+    await page
+      .locator(`html[data-scenario-played="${scenario}"], html[data-scenario-failed]`)
+      .waitFor({ state: 'attached', timeout: Math.max(1, doneBy - Date.now()) })
+  } catch (error) {
+    throw new Error(`${scenario} never called scenarioDone()`, { cause: error })
+  }
+  const failed = await page.locator('html').getAttribute('data-scenario-failed')
+  if (failed !== null) throw new Error(`${scenario} failed: ${failed}`)
+}
+
+// Only scenes that end with scenarioDone() can be waited on.
+async function scenePlayed(page, scenario, doneBy) {
+  if (!PLAYED_SCENARIOS.includes(scenario)) {
+    throw new Error(`${scenario} is not in PLAYED_SCENARIOS`)
+  }
+  await sceneDone(page, scenario, doneBy)
+}
+
 async function harness(scenario, theme, lang, run, prepare) {
   const page = await rig.browser.newPage({
     viewport: { width: scenario === 'team-tree-320' ? 320 : 690, height: 760 },
@@ -129,9 +174,7 @@ async function harness(scenario, theme, lang, run, prepare) {
       `${rig.origin}/test/harness/index.html?scenario=${scenario}&theme=${theme}${lang === undefined ? '' : `&lang=${lang}`}`,
       { timeout: REAL_HARNESS_WAIT_TIMEOUT_MS },
     )
-    await page
-      .locator(`html[data-scenario-played="${scenario}"]`)
-      .waitFor({ state: 'attached', timeout: Math.max(1, playedBy - Date.now()) })
+    await scenePlayed(page, scenario, playedBy)
     await page
       .locator(scenario === 'team-cards' ? '.activity-team-merge' : '.team-tree')
       .waitFor({ timeout: REAL_HARNESS_WAIT_TIMEOUT_MS })
@@ -457,5 +500,138 @@ describe('RVM96B browser regressions', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }
     } finally {
       await page.close()
     }
+  })
+})
+
+const byName = (left, right) => left.localeCompare(right)
+
+// Runs in the page before its scripts: logs every host message, synthetic
+// event and scripted click the harness makes, and each change of the mark
+// with whether the scene's end control is on screen at that moment.
+function instrumentScene({ endSelector, failFinalStep }) {
+  const log = []
+  const at = () => globalThis.performance.now()
+  const logged = (original, entry) =>
+    new Proxy(original, {
+      apply(target, receiver, args) {
+        const record = entry(receiver, args)
+        if (record !== undefined) log.push({ at: at(), ...record })
+        return Reflect.apply(target, receiver, args)
+      },
+    })
+  const element = globalThis.HTMLElement.prototype
+  const target = globalThis.EventTarget.prototype
+  // Installed by definition: this script instruments the page it runs in.
+  for (const [owner, name, value] of [
+    ...(failFinalStep ? [[globalThis, 'harnessFailFinalStep', true]] : []),
+    [globalThis, 'sceneLog', log],
+    [
+      globalThis,
+      'postMessage',
+      logged(globalThis.postMessage, (_receiver, [message]) => ({
+        kind: 'message',
+        type: message?.type,
+        eventType: message?.event?.type,
+        itemId: message?.event?.item?.itemId,
+      })),
+    ],
+    [
+      element,
+      'click',
+      logged(element.click, (receiver) => ({ kind: 'click', target: String(receiver.className) })),
+    ],
+    [
+      target,
+      'dispatchEvent',
+      logged(target.dispatchEvent, (_receiver, [event]) =>
+        event.isTrusted ? undefined : { kind: 'dispatch', type: event.type },
+      ),
+    ],
+  ]) {
+    Object.defineProperty(owner, name, { value, configurable: true, writable: true })
+  }
+  new globalThis.MutationObserver(() => {
+    const { scenarioPlayed, scenarioFailed } = globalThis.document.documentElement.dataset
+    log.push({
+      at: at(),
+      kind: 'mark',
+      played: scenarioPlayed ?? null,
+      failed: scenarioFailed ?? null,
+      endShown:
+        endSelector === null ? null : globalThis.document.querySelector(endSelector) !== null,
+    })
+  }).observe(globalThis.document, {
+    attributes: true,
+    subtree: true,
+    attributeFilter: ['data-scenario-played', 'data-scenario-failed'],
+  })
+}
+
+// Opens a scene with the log above, waits for its end (or, with
+// failFinalStep, for its recorded failure), then keeps watching for the quiet
+// window and returns the log.
+async function sceneLog(scenario, { failFinalStep = false } = {}) {
+  const page = await rig.browser.newPage({
+    viewport: { width: scenario === 'team-tree-320' ? 320 : 690, height: 760 },
+  })
+  try {
+    await page.addInitScript(instrumentScene, {
+      endSelector: SCENE_ENDS[scenario]?.selector ?? null,
+      failFinalStep,
+    })
+    const doneBy = Date.now() + SCENE_DONE_TIMEOUT_MS
+    await page.goto(`${rig.origin}/test/harness/index.html?scenario=${scenario}&theme=light`, {
+      timeout: SCENE_DONE_TIMEOUT_MS,
+    })
+    if (failFinalStep) {
+      await page
+        .locator('html[data-scenario-failed]')
+        .waitFor({ state: 'attached', timeout: Math.max(1, doneBy - Date.now()) })
+    } else {
+      await sceneDone(page, scenario, doneBy)
+    }
+    await page.waitForTimeout(SCENE_QUIET_WINDOW_MS)
+    return await page.evaluate(() => globalThis.sceneLog)
+  } finally {
+    await page.close()
+  }
+}
+
+describe('harness scenes end when they say so', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }, () => {
+  it('names an end for every scene a test may wait on', () => {
+    expect(Object.keys(SCENE_ENDS).toSorted(byName)).toEqual(PLAYED_SCENARIOS.toSorted(byName))
+  })
+
+  it.each(PLAYED_SCENARIOS)(
+    '%s is marked played only at its end, then makes no further move',
+    async (scenario) => {
+      const log = await sceneLog(scenario)
+      const marks = log.filter((entry) => entry.kind === 'mark')
+      expect(marks).toEqual([expect.objectContaining({ played: scenario, failed: null })])
+      const markedAt = log.indexOf(marks[0])
+      const end = SCENE_ENDS[scenario]
+      if (end.selector === undefined) {
+        expect(log.slice(0, markedAt).some((entry) => end.action(entry))).toBe(true)
+      } else {
+        expect(marks[0].endShown).toBe(true)
+      }
+      // Nothing scripted happens in the quiet window after the mark.
+      expect(log.slice(markedAt + 1)).toEqual([])
+    },
+  )
+
+  it.each(PLAYED_SCENARIOS)(
+    '%s never carries the mark when its final step fails',
+    async (scenario) => {
+      const log = await sceneLog(scenario, { failFinalStep: true })
+      const marks = log.filter((entry) => entry.kind === 'mark')
+      expect(marks.some((entry) => entry.played !== null)).toBe(false)
+      expect(marks.at(-1)).toMatchObject({ failed: 'Error: injected final-step failure' })
+    },
+  )
+
+  it('fails a scene that never calls scenarioDone()', async () => {
+    // `banner` plays its steps and stops without saying it is done.
+    await expect(sceneLog('banner')).rejects.toThrow('banner never called scenarioDone()')
   })
 })
