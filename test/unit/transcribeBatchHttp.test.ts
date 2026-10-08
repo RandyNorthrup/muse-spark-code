@@ -412,42 +412,40 @@ describe('U18 WAV conversion before the batch send', () => {
     async (failure) => {
       // The conversion is created before the reread and the contract check;
       // both once ran outside the try/finally, leaking the private output.
-      const stereo = synthWav(2, { channels: 2 })
-      const root = await mkdtemp(path.join(tmpdir(), 'muse-batch-wav-'))
+      const folder = await mkdtemp(path.join(tmpdir(), 'muse-batch-leak-'))
+      const original = path.join(folder, 'two-channel.wav')
+      const input = synthWav(2, { channels: 2 })
+      await writeFile(original, input)
+      // A header failure renders another two-channel WAV; a reread failure
+      // renders the contract but cannot read it back.
+      const r = rig({
+        encoderWav: synthWav(1, { channels: failure === 'header' ? 2 : 1 }),
+        read: async (file) => {
+          if (failure === 'reread' && file !== original) throw new Error('rendered WAV unreadable')
+          return new Uint8Array(await readFile(file))
+        },
+      })
+      const token = 'confined-two-channel'
+      r.paths.set(token, original)
+      const refusal =
+        failure === 'reread' ? 'rendered WAV unreadable' : UI_TEXT.media.converterUnavailable
       try {
-        const stereoPath = path.join(root, 'stereo.wav')
-        await writeFile(stereoPath, stereo)
-        const source: AudioSource = {
-          name: 'stereo.wav',
-          pathToken: 'confined-stereo',
-          info: {
-            kind: 'audio',
-            mediaType: 'audio/wav',
-            sizeBytes: stereo.length,
-            durationSeconds: 2,
-          },
-        }
-        const r = rig({
-          // A header failure renders another stereo WAV; a reread failure
-          // renders the contract but cannot read it back.
-          encoderWav: failure === 'header' ? synthWav(1, { channels: 2 }) : synthWav(1),
-          read: async (absolutePath) => {
-            if (failure === 'reread' && absolutePath !== stereoPath)
-              throw new Error('converted output unreadable')
-            return new Uint8Array(await readFile(absolutePath))
-          },
-        })
-        r.paths.set(source.pathToken, stereoPath)
-        await expect(r.prepare(source)).rejects.toThrow(
-          failure === 'reread' ? 'converted output unreadable' : UI_TEXT.media.converterUnavailable,
-        )
-        expect(r.runs).toBe(1)
-        expect(r.posted).toHaveLength(0)
-        const output = r.outputs[0]
-        if (output === undefined) throw new Error('expected one converted output')
-        expect(await isOnDisk(output)).toBe(false)
+        await expect(
+          r.prepare({
+            name: 'two-channel.wav',
+            pathToken: token,
+            info: {
+              kind: 'audio',
+              mediaType: 'audio/wav',
+              sizeBytes: input.length,
+              durationSeconds: 2,
+            },
+          }),
+        ).rejects.toThrow(refusal)
+        expect([r.runs, r.posted.length, r.outputs.length]).toEqual([1, 0, 1])
+        expect(await isOnDisk(r.outputs[0] ?? original)).toBe(false)
       } finally {
-        await rm(root, { recursive: true, force: true })
+        await rm(folder, { recursive: true, force: true })
       }
     },
   )

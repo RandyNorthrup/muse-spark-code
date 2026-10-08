@@ -5,7 +5,7 @@
 // seeded upper bound; an unknown rate refuses only under a cap; and an inline
 // visual is never registered for upload. Each case names the review finding
 // it regresses (RVMONEY017D on c2689e116, RVMEDIAW on 27d8f1327).
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
@@ -64,14 +64,17 @@ const PDF = Buffer.from(
   'latin1',
 )
 
-const folders: string[] = []
+// One root per run; every rig takes its own numbered folder beneath it.
+const scratchRoot = mkdtempSync(path.join(tmpdir(), 'muse-media-service-'))
+const scratch = { count: 0 }
 afterAll(() => {
-  for (const folder of folders) rmSync(folder, { recursive: true, force: true })
+  rmSync(scratchRoot, { recursive: true, force: true })
 })
 
 function scratchDir(): string {
-  const folder = mkdtempSync(path.join(tmpdir(), 'muse-media-service-'))
-  folders.push(folder)
+  scratch.count += 1
+  const folder = path.join(scratchRoot, String(scratch.count))
+  mkdirSync(folder)
   return folder
 }
 
@@ -121,27 +124,32 @@ async function factory(options: {
   io.binaries.set('/ws/report.pdf', new Uint8Array(PDF))
   if (options.readMedia !== undefined) Object.assign(io, { readMedia: options.readMedia })
   const store = options.store ?? memorySessionStore()
+  const transport = { ...api, fetch: files.fetch }
+  const capped =
+    options.capUsd === undefined
+      ? {}
+      : { sessionBudgetUsd: () => Usd.from(options.capUsd ?? '0').toAmount() }
+  // The production binding's three inputs: an uploads root, a Files-capable
+  // client (the fake routes /files) and the key's account.
   const host = await createModelApiHost({
-    uiText: EN,
-    uiLocale: 'en',
-    client: { ...fakeModelApiClientSettings(log), fetch: files.fetch },
-    host: {
-      ...fakeModelApiHostDeps({
-        client: fakeModelApiClient({ ...api, fetch: files.fetch }, log),
-        log,
-        io,
-        workspaceRoot: '/ws',
-      }),
-      store,
-      isPaidFeatureOn: () => true,
-      confirmContributorModel: () => Promise.resolve(true),
-      uploadLedgerDir: options.ledgerDir ?? scratchDir(),
-      ...(options.capUsd !== undefined && {
-        sessionBudgetUsd: () => Usd.from(options.capUsd ?? '0').toAmount(),
-      }),
-    },
     hookSettingsPath: undefined,
     createMcpServers: undefined,
+    uiLocale: 'en',
+    uiText: EN,
+    client: { ...fakeModelApiClientSettings(log), fetch: transport.fetch },
+    host: {
+      ...fakeModelApiHostDeps({
+        workspaceRoot: '/ws',
+        io,
+        log,
+        client: fakeModelApiClient(transport, log),
+      }),
+      ...capped,
+      uploadLedgerDir: options.ledgerDir ?? scratchDir(),
+      confirmContributorModel: () => Promise.resolve(true),
+      isPaidFeatureOn: () => true,
+      store,
+    },
   })
   return { api, files, io, store, host, log }
 }

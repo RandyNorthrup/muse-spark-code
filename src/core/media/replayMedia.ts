@@ -212,7 +212,7 @@ export class ReplayMedia {
    */
   private inlineVisual(
     part: InputContentPart,
-    model: MediaModelCapabilities,
+    model: () => MediaModelCapabilities,
   ): StoredMediaPart | undefined {
     if (this.parts.has(part)) return undefined
     let media = this.inlineVisuals.get(part)
@@ -221,8 +221,16 @@ export class ReplayMedia {
       this.inlineVisuals.set(part, media)
     }
     if (media === null) return undefined
+    // Only a decodable visual consults the selected model's record: a
+    // no-media request stays byte-identical and never looks one up.
     const kind = media.info.kind === 'image' ? 'image' : 'document'
-    return model.modalities[kind].support === 'yes' ? media : undefined
+    return model().modalities[kind].support === 'yes' ? media : undefined
+  }
+
+  /** The request model's record, looked up once and only when media needs it. */
+  private lazyModel(modelId: string): () => MediaModelCapabilities {
+    let model: MediaModelCapabilities | undefined
+    return () => (model ??= this.model(modelId))
   }
 
   /**
@@ -246,13 +254,12 @@ export class ReplayMedia {
 
   /** Every media item a request body carries: upload records and inline visuals. */
   private requestMedia(body: CreateResponseBody): MediaCostItem[] {
-    let model: MediaModelCapabilities | undefined
+    const model = this.lazyModel(body.model)
     return body.input.flatMap((item) =>
       item.type === 'message' && item.role === 'user'
         ? item.content.flatMap((part): MediaCostItem[] => {
             const upload = this.parts.get(part)
             if (upload !== undefined) return [upload]
-            model ??= this.model(body.model)
             const visual = this.inlineVisual(part, model)
             // Inline bytes are counted by the provider as sent; the bound
             // reserves, but the bill never becomes a calibration point.
@@ -301,7 +308,7 @@ export class ReplayMedia {
   /** Detached metadata follows the actual projection, including replayed file IDs. */
   public budgetParts(body: CreateResponseBody): readonly (string | BudgetMediaPart)[] {
     const parts: (string | BudgetMediaPart)[] = [...requestParts({ ...body, input: [] })]
-    let model: MediaModelCapabilities | undefined
+    const model = this.lazyModel(body.model)
     for (const item of body.input) {
       if (item.type !== 'message') {
         parts.push(JSON.stringify(item))
@@ -309,15 +316,11 @@ export class ReplayMedia {
       }
       const priced: BudgetMediaPart[] = []
       const content = item.content.filter((part) => {
-        const upload = this.parts.get(part)
-        let media: StoredMediaPart | undefined = upload
-        if (media === undefined && item.role === 'user') {
-          model ??= this.model(body.model)
-          media = this.inlineVisual(part, model)
-        }
+        const media =
+          this.parts.get(part) ??
+          (item.role === 'user' ? this.inlineVisual(part, model) : undefined)
         if (media === undefined) return true
-        model ??= this.model(body.model)
-        const estimate = this.price(media, model)
+        const estimate = this.price(media, model())
         // Uncapped with no rate: the part's own bytes stay in the count.
         if (estimate === undefined) return true
         priced.push({
@@ -338,9 +341,9 @@ export class ReplayMedia {
    * honest reason before anything queues. Nothing is recorded for upload.
    */
   public admitInline(inline: InputContentPart, modelId: string): void {
-    const model = this.model(modelId)
+    const model = this.lazyModel(modelId)
     const media = this.inlineVisual(inline, model)
-    if (media !== undefined) this.price(media, model)
+    if (media !== undefined) this.price(media, model())
   }
 
   public async reserveRequest(
