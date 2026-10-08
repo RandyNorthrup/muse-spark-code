@@ -293,6 +293,7 @@ export const SCENARIOS = [
   'legal-preview',
   'readme-open-question',
   'readme-help',
+  'resources-throttle',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

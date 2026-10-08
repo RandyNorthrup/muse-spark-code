@@ -6101,6 +6101,54 @@
             )
           })
         },
+        // --- M107 U–C1/W: the window governor's chip from a real host status
+        // (bounded JSON text on the strict wire), opened as Show resources does;
+        // the README's resources shot ---
+        'resources-throttle': () => {
+          window.harnessSilent = true
+          setDraft('Run the parser tests')
+          key({ key: 'Enter' })
+          send({
+            type: 'resourceStatus',
+            status: JSON.stringify({
+              level: 'throttle',
+              sample: {
+                atMs: 1_783_400_000_000,
+                cpuPercent: 93,
+                memoryUsedPercent: 71,
+                memoryAvailableBytes: 4_939_212_390,
+                memoryTotalBytes: 17_179_869_184,
+                gpuPercent: null,
+                diskBusyPercent: null,
+                pressure: null,
+              },
+              settings: {
+                enabled: true,
+                cpuMaxPercent: 85,
+                memoryMaxPercent: 90,
+                memoryMinFreeGiB: 2,
+                gpuMaxPercent: null,
+                diskBusyMaxPercent: null,
+                diskMinFreeGiB: null,
+                relocate: 'paired',
+              },
+              queued: [
+                { kind: 'check', class: 'background', count: 2 },
+                { kind: 'worker', class: 'background', count: 1 },
+              ],
+              overrideUntilMs: null,
+              relocation: 'noRoute',
+            }),
+          })
+          // The chip is a deferred chunk: Show resources once it has mounted
+          // beside the heartbeat. SCENARIO_READY waits for the open popover.
+          const openWhenMounted = () => {
+            if (document.querySelector('.status-line .resource-chip') === null)
+              readinessLater(FIND_INTERVAL_MS, openWhenMounted)
+            else send({ type: 'resourceOpen' })
+          }
+          openWhenMounted()
+        },
         'readme-help': () => {
           steps.help()
           whenFound('#reference-search', (search) => {
@@ -6355,6 +6403,9 @@
       const FRAME_FALLBACK_MS = 50
       const SCENARIO_READY = {
         jump: () => document.querySelector('.jump-latest') !== null,
+        'resources-throttle': () =>
+          document.querySelector('.resource-popover footer') !== null &&
+          document.activeElement?.closest('.resource-popover') !== null,
         'prompt-menu': () => document.querySelector('.popover-pointer [role="menuitem"]') !== null,
         'prompt-menu-narrow': () =>
           document.querySelector('.popover-pointer [role="menuitem"]') !== null,
