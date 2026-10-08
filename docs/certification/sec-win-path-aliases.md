@@ -89,7 +89,7 @@ intentionally describe platform behavior and pass on the base; they are not
 claimed as failing security regressions. Additional unknown-identity cases
 are included in the final base replay below.
 
-The final complete replay (three new files, including native characterization)
+An intermediate expanded replay (three new files, including native characterization)
 on `67099ce1b` yields **28 failed, 3 passed**, exit 1. The three positive
 controls are POSIX spelling behavior and the two native oracle measurements.
 Every new security regression fails there. All **31 tests pass** after repair
@@ -112,7 +112,7 @@ three files and three workers, byte-exact mutation restoration, normal hooks
 and the fresh `npm ci`, `CI=true` clone. Aggregate quality is delegated to the
 lead by `common.md`; no gate, cap, assertion, ignore or deadline is weakened.
 
-Six deliberate red drills ran both complete security regression files (29
+Six preparation red drills ran both complete security regression files (29
 tests), each exit 1. The runner itself exits 0 only after every drill fires
 and its original SHA-256 is restored byte-exact.
 
@@ -127,7 +127,7 @@ and its original SHA-256 is restored byte-exact.
 
 The earlier four-drill preparation ran before the final UNC-junction test and
 central model-text move, with 28 tests: stream 3 failed, trailing 7 failed,
-storage spelling 2 failed, superscript 7 failed. Final receipts above supersede
+storage spelling 2 failed, superscript 7 failed. The preparation table above supersedes
 those preparation hashes. All five typecheck projects passed before commit.
 
 ### UNC identity namespace follow-up
@@ -188,3 +188,86 @@ its shared-source include. A dedicated core entry now exports the existing
 shared boundaries and native identity for the same output bundle; knip's entry
 inventory follows that entry. Browser types, include patterns and gates stay
 unchanged. Qualification restarts after this correction.
+
+## Final qualification
+
+Tested source: `2be8b1e2901ed3684ca7fdb6531d69c6512e05e3`. The owned fresh
+clone was checked out at that corrected commit and reinstalled with `npm ci`,
+`CI=true`; install exit **0**, 901 packages, unchanged lockfile. npm reported
+the existing **11 advisories (2 low, 9 high)**; no dependency was added or
+changed, and no audit-fix command was run. Its node_modules is an ordinary
+directory, independent of the lane's shared install.
+
+| Gate on the corrected fresh clone                        | Exit |
+| -------------------------------------------------------- | ---: |
+| All five TypeScript projects (`npm run typecheck`)       |    0 |
+| ESLint on changed code, zero warnings                    |    0 |
+| Prettier on changed supported files                      |    0 |
+| Plain knip                                               |    0 |
+| jscpd (zero clones)                                      |    0 |
+| dpdm cycles                                              |    0 |
+| Localization (14 UI tables, 1053 sources, zero problems) |    0 |
+| Reference                                                |    0 |
+| Host API inventory                                       |    0 |
+| Production build: size, split, host globals and notices  |    0 |
+
+| Shipped bundle         |   KiB | Unchanged cap |
+| ---------------------- | ----: | ------------: |
+| extension              | 510.5 |           600 |
+| conversation           | 240.1 |           250 |
+| Model API              | 489.5 |           525 |
+| sharing runtime        | 173.3 |           175 |
+| checkpoint store       |  89.6 |           225 |
+| shared Node boundaries |  27.4 |            50 |
+
+All **23 files passed three repetitions**, in groups of at most three files
+with `--maxWorkers=3` and repository deadlines. Each repetition has **1,406
+passed, six existing platform skips**; combined **4,218 passed, 18 existing
+skips**, with no newly skipped test. Every invocation exits **0**.
+
+| Complete file group (test/unit, .test.ts)                          | Passed per round | Existing skips |
+| ------------------------------------------------------------------ | ---------------: | -------------: |
+| secWinPathAliases, secWinWorkerPaths, secWinNativeIdentity         |               34 |              0 |
+| modelApiTools, permissions, museCodeProtectedWrites                |              168 |              0 |
+| approvalRules, mapNotification, heldTree                           |              173 |              0 |
+| worktreeConversations, teamWorkerFence, teamAcpWorker              |              109 |              0 |
+| checkpointStore, checkpointHost, checkpointStorageGuards           |               66 |              0 |
+| checkpointStoreGuards, checkpointStoreWindows, checkpointLongPaths |               69 |              6 |
+| checkpointWorktrees, checkpointEnvironment, fileIdentity           |               27 |              0 |
+| modelApiHost (unchanged), deferredBundles                          |              760 |              0 |
+
+The latest test bytes were replayed again on unchanged `67099ce1b` after
+qualification: **31 failed, three positive controls passed**, exit **1**.
+The final refreshed drills all fire on the committed source:
+
+| Removed deliberately                   | Failed | Passed | Exit |
+| -------------------------------------- | -----: | -----: | ---: |
+| Stream refusal                         |      3 |     29 |    1 |
+| Trailing-dot/space refusal             |      7 |     25 |    1 |
+| Storage identity, restored to spelling |      4 |     28 |    1 |
+| Superscript device entries             |      7 |     25 |    1 |
+| Native junction ancestry               |      1 |     31 |    1 |
+| Comparable SMB native root             |      2 |     30 |    1 |
+| Canonical identity binding             |      2 |     30 |    1 |
+| Shared native identity routing         |     64 |     27 |    1 |
+
+Every mutated file is restored byte-exact by SHA-256; the source diff afterward
+is empty. The first seven drills run both complete security files (32 tests),
+and the routing drill runs all 91 bundle tests. The final restored three new
+files pass **34/34**, exit **0**. Final restoration hashes:
+
+- spelling: `9A2CDC5A72E14B06B746C682BDC879074D792A69A9C5BD121AB6FE32ADFA0FCE`
+- storage: `46D5C5D96CF52DD498B1B2145C82ADCED15CDC880B38211F75DF9D36E2287C35`
+- native identity: `AB844BFA846C4B8A9D83394F00D61F18CC35296F267F52582454211194776A89`
+- routing: `0B5B082715932497E62D89AA7F57E1B49161182B6287328B1A049C449C03FD19`
+
+Machine-readable commands, per-run summaries, gate exits and final hashes:
+[`sec-win-path-aliases.receipts.json`](sec-win-path-aliases.receipts.json).
+These final receipts supersede the interrupted preparations above.
+
+Source commits: `006ea4ec3`, `7fc4a97ca`, `40f716bae`, `2f8c701cf`,
+`2be8b1e29`. Each used the unmodified pre-commit hook (ESLint fix, Prettier and
+gitleaks, no leaks); staged and committed diffs were reread after every hook.
+The final evidence commit changes documentation only. No push or merge.
+Full aggregate `npm run quality` remains delegated to the lead by the shared
+lane rules and PLAN.md §7; no local aggregate result is claimed.

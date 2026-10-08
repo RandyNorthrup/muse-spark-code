@@ -19871,7 +19871,7 @@ Its Node entry stays in core, outside the browser project's shared sources.
 - [x] Capture native Win32 normalization and loopback SMB identity in owned temp folders.
 - [x] Run new regressions against the unchanged base, then repair the owning boundaries.
 - [x] Fire stream, trailing-dot and storage-identity guards deliberately and restore bytes.
-- [ ] Commit validated pieces with hooks; qualify a fresh `npm ci`, `CI=true` clone
+- [x] Commit validated pieces with hooks; qualify a fresh `npm ci`, `CI=true` clone
       with owning suites three times at repository deadlines, five typechecks,
       changed-file lint/format, plain knip, duplication, cycles, localization,
       reference and capped production build.
