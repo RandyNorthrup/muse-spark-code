@@ -7,3 +7,4 @@ export * from './legal'
 export * from '../core/backends/modelapi/legalScanTool'
 
 export * from './usd'
+export * from '../core/pathIdentity'

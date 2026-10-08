@@ -165,3 +165,21 @@ This is covered in the UNC-junction regression without dropping any assertion.
 All 34 new tests pass. The owning suites and static gates are restarted on
 the complete committed correction; interrupted preparations are not final
 qualification receipts.
+
+### Unchanged bundle caps
+
+The first fresh static qualification passed typecheck, lint, format, knip,
+duplication, cycles, localization and reference. Its build correctly refused
+sharingRuntime at 176.1 KiB against the unchanged 175 KiB cap. Native identity
+now ships once in the existing shared Node boundary bundle, reached through
+the existing build plugin. The regenerated host API inventory records the new
+Node imports. Production build passes: sharingRuntime **173.3/175 KiB**, shared
+boundaries **27.4/50 KiB**; split, globals and notices pass too.
+
+Removing identity routing deliberately fires the complete deferred-bundle
+suite: **65 failed, 26 passed**, exit 1. Restoring the plugin byte-exact restores
+all **91 passed**, exit 0. SHA-256:
+`D8F6C499F0E8B49303620C637FC68D6C7C5FFAF82BEC1BDFEA41608C46CE576A`.
+The initial restored run exposed an uncompressed hook-runtime fixture (90
+passed, one size failure). It now uses the production prompt-compression
+plugin already used by that shipped bundle; the size gate and cap are unchanged.

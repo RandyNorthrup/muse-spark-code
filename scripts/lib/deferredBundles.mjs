@@ -116,6 +116,7 @@ export const DEFERRED = [
     metafile: 'dist/meta/modelApiBoundaries.json',
     files: [
       'src/shared/modelApiBoundariesEntry.ts',
+      'src/core/pathIdentity.ts',
       'src/core/backends/modelapi/schemas.ts',
       'src/shared/teamConversation.ts',
       'src/shared/paidBoundary.ts',
@@ -760,7 +761,7 @@ export const sharedStructuredSchema = {
   },
 }
 
-// Share captured Model API validators and pure team admission across Node
+// Share captured Model API validators, native path identity and team admission across Node
 // consumers; browser validators retain their original inline implementation.
 /** @type {import('esbuild').Plugin} */
 export const sharedModelApiBoundaries = {
@@ -768,11 +769,13 @@ export const sharedModelApiBoundaries = {
   setup(build) {
     build.onResolve(
       {
-        filter: /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool)(?:\.[jt]s)?$/,
+        filter:
+          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
         return [
+          'src/core/pathIdentity.ts',
           'src/core/backends/modelapi/schemas.ts',
           'src/shared/teamConversation.ts',
           'src/shared/paidBoundary.ts',
