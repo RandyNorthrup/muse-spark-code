@@ -73,6 +73,8 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     ({ fixture, width }) => {
       const html = globalThis.document.documentElement
       html.style.width = `${width}px`
+      // Match the viewport's available width even on pages with body padding.
+      globalThis.document.body.style.boxSizing = 'border-box'
       globalThis.document.body.style.width = `${width}px`
       for (const [name, value] of Object.entries(fixture.variables))
         html.style.setProperty(name, value)

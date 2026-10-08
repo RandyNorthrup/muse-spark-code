@@ -12,6 +12,7 @@ const captured = {
   bounds: [],
   layouts: [],
   outlines: [],
+  bodyWidths: [],
 }
 // Each real scene has its own bounded setup hook; retain every state without
 // combining six browser captures under one default ten-second deadline.
@@ -39,6 +40,7 @@ for (const scene of [
   'usage-tokens',
   'vault-approval',
   'muse-tools',
+  'resource-history',
 ])
   beforeAll(async () => {
     const audit = JSON.parse(await readFile('docs/certification/m114-audit.json', 'utf8'))
@@ -104,6 +106,9 @@ for (const scene of [
           await page.evaluate(
             () => globalThis.document.documentElement.getBoundingClientRect().width,
           ),
+        )
+        captured.bodyWidths.push(
+          await page.locator('body').evaluate((element) => element.getBoundingClientRect().width),
         )
         expect(
           await page.evaluate(
@@ -231,6 +236,9 @@ describe('M114 real visual capture driver', () => {
     expect(captured.busyRows).toEqual(Array.from({ length: 12 }, () => 1))
   })
   it('records actual font rasterization and exact narrow viewport dimensions', () => {
+    expect(captured.bodyWidths).toEqual(
+      Array.from({ length: captured.result.captures.length }, () => 320),
+    )
     expect(captured.rootWidths).toEqual(
       Array.from({ length: captured.result.captures.length }, () => 320),
     )

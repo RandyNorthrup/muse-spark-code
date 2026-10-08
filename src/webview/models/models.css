@@ -23,7 +23,7 @@
 }
 
 .models-panel :focus-visible {
-  outline: var(--ms-focus-width) solid var(--ms-focus);
+  outline: var(--ms-focus-width) solid var(--ms-text);
   outline-offset: var(--ms-focus-offset);
 }
 

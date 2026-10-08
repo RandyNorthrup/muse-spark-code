@@ -11108,7 +11108,7 @@
     },
     {
       "file": "src/webview/models/models.css",
-      "sha256": "721845e6221b3cc7bb1913511e4d6f71209d7ca9f719c45475d8037b2c65fd01"
+      "sha256": "9e4acecc32de293f4e56caaf15e2f1b6501e31578677fc75b8b176b523f76cd1"
     },
     {
       "file": "src/webview/models/models.tsx",
@@ -11152,7 +11152,7 @@
     },
     {
       "file": "src/webview/models/sections/accounts/accounts.css",
-      "sha256": "c6a6fc83d0e203f79cf6ea1acf5b78b937eea84b00011f8a98f85f4ca964995c"
+      "sha256": "c3cbc400b75c3b91474c8498960dd2d4fa25d681f256789c42c4929fd0ccd9f2"
     },
     {
       "file": "src/webview/models/sections/accounts/accountsEntry.ts",

@@ -211,6 +211,20 @@ No merge, push, live/paid call, changed timeout, byte cap or pixel tolerance.
   query ran before its controls mounted. Wait for the actual tool control after
   the steps group paints; the complete capture owner now covers all six tool
   states. No loading placeholder is accepted as a render.
+- Full-size image inspection exposed capture-induced update-page clipping: the
+  driver assigned a content-box body the full viewport width, then its padding
+  extended beyond 320px. Capture now uses a border-box body; the whole owner
+  measures the actual body width in every captured state. Resource-history
+  chart/table overflow remains an owning-surface finding, not an accepted
+  responsive result.
+- The body-sizing deliberate drill reproduces 352px bodies at a 320px
+  viewport; the whole capture owner exits 1. The expanded coverage assertion
+  also rejects the old 4,824-frame receipt against 9,792 required captures.
+  Restore driver SHA-256
+  `484b2d7041c3b4607439a8a33be045906ca3d883c00918681bbdbd4d0b9459c9`.
+  Models/accounts rings now use the established shared text-colour outline
+  so One Dark Pro's low-contrast focusBorder does not hide keyboard focus;
+  theme archive values themselves remain immutable.
 - Full archive generation, image review and fresh-clone gate receipts remain
   pending below; no visual certification is claimed until they finish.
 
