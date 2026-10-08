@@ -749,3 +749,79 @@ each hook): `1f565225c` structural guard, `aab57cd08` exact caps end to end,
 `543a343f2` scheduler tests, `d87440551` threshold narrowing plus estimator
 rationale, `95c0d0226` guard dedup. No merge, push, stash, hook substitution,
 or dependency change. Fresh clones removed after final verification.
+
+## Pool (POOL017)
+
+Mac rig, `rel017/pool` on this worktree, base `3e71dda14`, 2026-10-08.
+Fake-only: no paid/live calls, credentials, dependencies, gate changes, merge
+or push. One product commit plus this record; hooks `.husky/_` as installed,
+diffs reread after each hook run.
+
+**Cause.** `pool.test.ts` 'refuses money precision loss and negative
+settlements' failed at `expect(t.claims).toHaveLength(0)` (1 claim, still
+rejecting). Before the exact-money port, `projected()` forced the estimate
+through a JS number (`numericUsd`), so the crafted
+`9007199254740990.000000001` estimate lost one nano as a double and was
+refused pre-reserve. PORTS017 (PLAN.md:19631, "Carry exact amounts through
+… account totals …; use exact comparisons and sums") retired that boundary:
+`pool.ts` projects nano totals to canonical strings without a numeric round
+trip, so the crafted value is exactly representable — it now reserves, then
+refuses honestly at the shared cap with a full refund (`settle(0, false)`).
+The negative settlement (`actualUsd: -1n`) was and is refused with
+`invalidAccount`, retaining uncertain liability (`null`, never released).
+The last plain-number money in the pool path was the swap event's
+`coldCacheUsd` (schema `z.number()`, written via `numericUsd`).
+
+**Fix (file:line).** `src/shared/accounts.ts:12`: swap `coldCacheUsd`
+carries `UsdAmount` via `legacyUsdSchema` (numeric persisted rows normalize
+once on read), the same port the spend caps/triggers took; the now-unused
+numeric `amount` alias is removed. `src/core/accounts/pool.ts:424`: the swap
+row writes `usdDecimal(admitted.coldCacheUsd)`; `numericUsd` and the
+`usdNumber` import are deleted, so no `Number()` remains on any pool money
+path. Settlement and refund amounts (`settle(actualUsd: Usd | null, …)`)
+were already exact and needed no conversion. Event readers
+(`accountUsageText`, `AccountNotices`, ACP accounts, `runExec`) already
+parse with `parseUsd`, which accepts the canonical strings unchanged.
+
+| Test / helper port                   | Change                                                                                                                                                                                                                      |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/pool.test.ts:139,297`     | Swap-row expectations are the canonical strings `'0.02'` / `'0.2'`                                                                                                                                                          |
+| `test/unit/pool.test.ts:414`         | Stale path updated, both refusals kept: the huge exact estimate still rejects (now at the shared cap, the honest path) with 1 claim refunded to `0`; the negative settlement still rejects with liability retained (`null`) |
+| `test/unit/pool.test.ts:305`         | New regression: a `9007199254740990.000000001` cold-cache estimate swaps with the exact string in the row and in the reservation                                                                                            |
+| `test/unit/paidMoneyPorts.test.ts:7` | `core/accounts/pool.ts` joins the numeric-port inventory (`shared/accounts.ts` was already listed)                                                                                                                          |
+| `test/unit/accounts.test.ts:145`     | Swap fixture is canonical `'0.01'` plus a numeric-read normalization assertion; `-1` still refused                                                                                                                          |
+| Helpers / panel fixtures             | `usage.ts`, `runtimeAccounts.ts`, `accountsPanel.test.tsx` build swap rows with `usdInputSchema.parse(…)`                                                                                                                   |
+
+**Drill.** The updated `pool.test.ts` on a pristine `3e71dda14` clone:
+**3 failed / 24 passed** — the two string expectations (number vs string)
+and the new above-double-precision regression, which fails with the base
+`numericUsd` refusal (`pool.ts:111`, `sessionBudgetStoreUnavailable`). The
+updated cap-path refusal passes on both trees, confirming it is a stale-path
+update, not a product change. Drill file removed afterwards (clone deleted).
+
+Fresh ordinary clones under `$TMPDIR` (`CI=true npm ci` exit 0, unchanged
+lockfile). Gate batches below use repository timeouts, `--maxWorkers=3`, at
+most three files per run.
+
+| Gate batch      | Files                                                                         | Result                                                                                                                                                                                                                                    |
+| --------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A               | pool, paidMoneyPorts, paidPortBoundaries                                      | 72 passed                                                                                                                                                                                                                                 |
+| B               | thresholds, accounts, accountUsage                                            | 65 passed                                                                                                                                                                                                                                 |
+| C               | accountUsageText, accountStore, acpAccounts                                   | 64 passed                                                                                                                                                                                                                                 |
+| D               | accountsPanel, accountsPanelHost, AccountsSection                             | 51 passed                                                                                                                                                                                                                                 |
+| E               | remoteAccountPool, policyGate, accountFakes                                   | 73 passed                                                                                                                                                                                                                                 |
+| F               | accountHomes, accountHost, accountPaidConsent                                 | 83 passed                                                                                                                                                                                                                                 |
+| G               | accountPolicy, accountSecrets, accountUsd                                     | 89 passed                                                                                                                                                                                                                                 |
+| H               | accountsCommand                                                               | passed; `accountUsageBundle` 1 failed (identical on pristine base: inherited static-graph failure, cf. MONEY017B); `accountsPanel.a11y` hook `EPERM` on loopback listen (identical on pristine base: sandbox networking, no local server) |
+| Five typechecks | host, webview, unit, e2e, integration                                         | exit 0 each (`npm run typecheck` exit 0)                                                                                                                                                                                                  |
+| Scoped ESLint   | all 8 changed TS/TSX files, `--max-warnings=0`                                | exit 0                                                                                                                                                                                                                                    |
+| Scoped Prettier | all changed supported files                                                   | exit 0                                                                                                                                                                                                                                    |
+| Plain knip      | no strict/production switch                                                   | exit 0                                                                                                                                                                                                                                    |
+| Full jscpd      | exactly the two inherited clones (ACP agent, queued-answer/model-API fixture) | exit 1, unchanged                                                                                                                                                                                                                         |
+| `check:l10n`    | zero problems                                                                 | exit 0                                                                                                                                                                                                                                    |
+
+Commits (`rel017/pool`, hooks `.husky/_` as installed, committed diff
+reread after the hook; the hook reformatted one import, no logic change):
+`4c0ca3dac` product, tests and port-list; this record follows. No merge,
+push, stash, hook substitution, or dependency change. Fresh clones removed
+after final verification.

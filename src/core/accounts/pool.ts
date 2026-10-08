@@ -11,14 +11,7 @@ import {
   type AccountTrigger,
 } from '../../shared/accounts'
 import { ACCOUNT_DEFAULTS, TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
-import {
-  multiplyUsd,
-  parseUsd,
-  sumUsd,
-  usdNumber,
-  usdDecimal,
-  type Usd,
-} from '../../shared/accountUsd'
+import { multiplyUsd, parseUsd, sumUsd, usdDecimal, type Usd } from '../../shared/accountUsd'
 import type { AccountPolicy } from '../providers/accountPolicy'
 import { accountLimitIdentity, isAccountLimitEligible } from './limitBlock'
 import type { AccountPolicyGate, AccountPolicyDecision } from './policyGate'
@@ -103,13 +96,6 @@ export class AccountPoolBusyError extends Error {
     super(UI_TEXT.accounts.ownerBusy)
     this.name = 'AccountPoolBusyError'
   }
-}
-
-/** Lane-0 numeric outputs may not silently lose an exact nano-USD liability. */
-function numericUsd(value: Usd): number {
-  const converted = usdNumber(value)
-  if (parseUsd(converted) !== value) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-  return converted
 }
 
 function projected(estimate: AccountRequestEstimate) {
@@ -435,7 +421,7 @@ export class AccountPool {
                         type: 'swap',
                         previousAccount: admitted.previousAccount,
                         trigger,
-                        coldCacheUsd: numericUsd(admitted.coldCacheUsd),
+                        coldCacheUsd: usdDecimal(admitted.coldCacheUsd),
                       }),
                 }),
                 adopt,

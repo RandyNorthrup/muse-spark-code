@@ -191,7 +191,11 @@ describe('M108 ACP accounts', () => {
         swap.trigger.metric !== 'spendUsd'
       )
         throw new Error('Fixture needs a spend swap')
-      h.emit({ ...swap, coldCacheUsd: 0, trigger: { ...swap.trigger, threshold: cap, value: cap } })
+      h.emit({
+        ...swap,
+        coldCacheUsd: usdInputSchema.parse('0'),
+        trigger: { ...swap.trigger, threshold: cap, value: cap },
+      })
       // A following local prompt flushes the same ACP outbox.
       await client.request('session/prompt', {
         sessionId: id,

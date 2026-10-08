@@ -27,9 +27,6 @@ const SANCTIONED = new Set([
 ])
 
 const ALLOW_LIST: Readonly<Record<string, string>> = {
-  // POOL017 owns this swap-event field and converts it to UsdAmount.
-  'shared/accounts.ts:coldCacheUsd':
-    'POOL017 converts this swap-event field to UsdAmount; remove this entry when that lane merges.',
   // Versioned read of pre-exact journal rows; parseUsd normalizes each value once on read.
   'core/usage/accountUsage.ts:settledUsd':
     'Versioned read of pre-exact journal rows; parseUsd normalizes each value once on read.',

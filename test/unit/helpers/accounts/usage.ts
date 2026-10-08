@@ -78,7 +78,7 @@ export function usageEvents(): readonly AccountEvent[] {
       previousAccount: 'default',
       time: new Date(2026, 9, 6, 10).toISOString(),
       trigger: userCap,
-      coldCacheUsd: 0.000000001,
+      coldCacheUsd: usdInputSchema.parse('0.000000001'),
     },
     {
       type: 'spread',
