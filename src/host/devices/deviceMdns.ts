@@ -7,11 +7,11 @@
 // supplies address hints only; a hint never replaces a saved peer pin.
 //
 // The codec below is deliberately minimal and dependency-free: it writes
-// only the three records this binding announces (PTR/SRV/TXT) plus service
-// queries, and it reads only those shapes back. Anything else on the
-// multicast group — printers, foreign services, garbage — is skipped or
-// refused with a fixed word, never reflected. Bounds below are DNS format
-// guards (label, name, pointer and count limits), not tunables.
+// only the three records this binding announces (PTR/SRV/TXT) and reads
+// only those shapes back, answering service queries from others. Anything
+// else on the multicast group — printers, foreign services, garbage — is
+// skipped or refused with a fixed word, never reflected. Bounds below are
+// DNS format guards (label, name, pointer and count limits), not tunables.
 import { createSocket } from 'node:dgram'
 import { DEVICE_LIMITS } from '../../shared/constants'
 import type { DeviceMdnsPort } from './deviceDiscovery'
