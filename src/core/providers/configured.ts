@@ -136,6 +136,9 @@ export function createConfiguredProviderServices(
     }
   }
   const delegate = () => meta ?? fail()
+  // Production media (D85.2): the Files transport rides to the Meta
+  // delegate; a provider set without Meta keeps the established refusal.
+  const filesTransport = meta?.requestFile?.bind(meta)
   const base: ProviderClient = {
     hasPaidDailyBudget: meta?.hasPaidDailyBudget ?? false,
     currentKeyDigest: () => delegate().currentKeyDigest(),
@@ -146,6 +149,7 @@ export function createConfiguredProviderServices(
     streamResponse: (body, ...args) => delegate().streamResponse(body, ...args),
     createImage: (...args) => delegate().createImage(...args),
     editImage: (...args) => delegate().editImage(...args),
+    ...(filesTransport !== undefined && { requestFile: filesTransport }),
   }
   let revision = ''
   let plans = options.loadUsage?.() ?? []

@@ -104,6 +104,8 @@ export type ProviderClient = Pick<
   readonly readServiceStatus?: ModelApiClient['readServiceStatus']
   readonly withScheduleAuthority?: (run: () => UnattendedRun | undefined) => ProviderClient
   readonly provider?: TransportProviderClient['provider']
+  /** The Files transport rides along only when the wrapped client carries it. */
+  readonly requestFile?: ModelApiClient['requestFile']
   readonly models?: ModelResolver
   readonly modelContextLimit?: (model: string) => number | undefined
   readonly isPlanModel?: (model: string) => boolean

@@ -37,6 +37,10 @@ import { watchSessionTurns } from './helpers/sessionTurns'
 import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
 import { unattendedRun } from './helpers/schedules/unattended'
 import type { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
+import {
+  createRuntimeDailyBudget,
+  withRuntimeAccounting,
+} from '../../src/runtime/runtimeAccountingEntry'
 
 const MODEL = 'muse-spark-1.3-contributor'
 // The 10-second seed bills 2,751 input tokens; the largest calibrated default
@@ -83,6 +87,7 @@ async function productionHost(options: {
   ledgerDir: string
   readMedia?: NonNullable<ToolIo['readMedia']>
   getAccountId?: () => Promise<string | undefined>
+  createProviderClient?: Parameters<typeof createModelApiHost>[0]['createProviderClient']
 }): Promise<ProductionRig> {
   const api = fakeModelApi()
   const files = fakeFilesApi(api.fetch)
@@ -94,6 +99,9 @@ async function productionHost(options: {
     uiText: EN,
     uiLocale: 'en',
     client: { ...fakeModelApiClientSettings(log), fetch },
+    ...(options.createProviderClient !== undefined && {
+      createProviderClient: options.createProviderClient,
+    }),
     host: {
       ...fakeModelApiHostDeps({
         client: fakeModelApiClient({ ...api, fetch }, log),
@@ -358,6 +366,58 @@ describe('production media through the real factory (MONEY017D)', () => {
       })
     } finally {
       await rig.close()
+    }
+  })
+
+  it('keeps production media through the real runtime accounting wrapper', async () => {
+    // The CLI/ACP runtime always wraps the provider client with
+    // withRuntimeAccounting: the Files transport must ride through it, or no
+    // replay is installed and this scheduled upload count drops to zero.
+    const daily = createRuntimeDailyBudget({
+      dataFolder: scratchDir(),
+      now: () => Date.now(),
+      sleep: () => Promise.resolve(),
+    })
+    const rig = await hostWithMedia({
+      ledgerDir: scratchDir(),
+      info: { kind: 'video', durationSeconds: 10 },
+      name: 'clip.mp4',
+      mediaType: 'video/mp4',
+    })
+    const wrapped = await productionHost({
+      ledgerDir: rig.ledgerDir,
+      readMedia: rig.io.readMedia,
+      createProviderClient: (meta) => Promise.resolve(withRuntimeAccounting(meta, daily)),
+    })
+    try {
+      await rig.close()
+      const h = await startContributorSession(wrapped)
+      const { reserve } = tariffReserve(VIDEO_10S_BOUND, false)
+      const run = scheduledRun(wrapped, reserve)
+      wrapped.api.script(
+        {
+          calls: [
+            {
+              name: 'read_file',
+              arguments: JSON.stringify({ path: 'clip.mp4' }),
+              callId: 'scheduled-read',
+            },
+          ],
+        },
+        { text: 'The clip shows colour bars.', usage: { input: 2800, output: 64 } },
+      )
+      const done = h.turnDone()
+      await h.session.sendScheduledTurn([{ type: 'text', text: 'Read clip.mp4' }], run)
+      await done
+      expect(h.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+      })
+      expect(wrapped.files.uploads).toHaveLength(1)
+      expect(JSON.stringify(wrapped.api.responseBodies()[1])).toContain(
+        `{"type":"input_video","file_id":"${wrapped.files.uploads[0]!.fileId}"}`,
+      )
+    } finally {
+      await wrapped.close()
     }
   })
 

@@ -135,8 +135,11 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   // keeping the established refusal.
   // The Files upload rides the Meta client; a subscription-wrapped provider
   // client without it keeps the established refusal.
-  const filesClient =
-    'requestFile' in client && typeof client.requestFile === 'function' ? client : undefined
+  const requestFile =
+    'requestFile' in client && typeof client.requestFile === 'function'
+      ? client.requestFile.bind(client)
+      : undefined
+  const filesClient = requestFile === undefined ? undefined : { requestFile }
   const mediaDirectory = hostDeps.uploadLedgerDir
   const mediaAccountId = mediaDirectory === undefined ? undefined : await hostDeps.getAccountId()
   const host = new ModelApiHost({

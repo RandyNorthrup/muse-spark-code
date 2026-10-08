@@ -250,6 +250,11 @@ export function withRuntimeAccounting(
     waitBeforeRetry: client.waitBeforeRetry.bind(client),
     createImage: client.createImage.bind(client),
     editImage: client.editImage.bind(client),
+    // Production media (D85.2): the Files transport rides through runtime
+    // accounting untouched; a wrapped client without it keeps the refusal.
+    ...(client.requestFile !== undefined && {
+      requestFile: client.requestFile.bind(client),
+    }),
     hasPaidDailyBudget: client.hasPaidDailyBudget,
     ...(client.provider !== undefined && { provider: client.provider }),
     ...(client.modelContextLimit !== undefined && {

@@ -21,7 +21,13 @@ import { accountLedgerDirectory } from '../../src/core/media/uploadLedgerStorage
 import { fileCalibrationStore } from '../../src/core/media/productionMedia'
 import { MEDIA_ESTIMATE_SAFETY_FACTOR } from '../../src/shared/constants'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
-import { FakeLogOutputChannel } from './helpers/fakes'
+import { createConfiguredProviderServices } from '../../src/core/providers/configured'
+import { createSubscriptionClient } from '../../src/core/providers/subscriptions/registry'
+import {
+  createRuntimeDailyBudget,
+  withRuntimeAccounting,
+} from '../../src/runtime/runtimeAccountingEntry'
+import { FakeLogOutputChannel, memorySecrets } from './helpers/fakes'
 import { fakeFilesApi } from './helpers/fakeFiles'
 import {
   FAKE_MODEL_API_ACCOUNT_ID,
@@ -126,6 +132,77 @@ describe('shared cross-process lock over real processes', () => {
     // The holder's directory survives: nothing removed a live lock.
     const lockStat = await stat(lockFile)
     expect(lockStat.isDirectory()).toBe(true)
+  })
+})
+
+function filesBackedClient() {
+  const api = fakeModelApi()
+  const files = fakeFilesApi(api.fetch)
+  const log = new FakeLogOutputChannel()
+  const client = new ModelApiClient({
+    ...fakeModelApiClientSettings(log),
+    fetch: files.fetch,
+  })
+  return { client, files }
+}
+
+describe('Files transport through the provider wrappers', () => {
+  it('rides through runtime accounting when the inner client carries it', async () => {
+    const { client, files } = filesBackedClient()
+    const daily = createRuntimeDailyBudget({
+      dataFolder: scratchDir(),
+      now: () => Date.now(),
+      sleep: () => Promise.resolve(),
+    })
+    const wrapped = withRuntimeAccounting(client, daily)
+    expect('requestFile' in wrapped).toBe(true)
+    const response = await wrapped.requestFile?.('/files', 'GET', AbortSignal.timeout(10_000))
+    expect(response?.status).toBe(200)
+    expect(files.uploads).toEqual([])
+  })
+
+  it('stays absent through runtime accounting when the inner client lacks it', () => {
+    const { client } = filesBackedClient()
+    const daily = createRuntimeDailyBudget({
+      dataFolder: scratchDir(),
+      now: () => Date.now(),
+      sleep: () => Promise.resolve(),
+    })
+    const withoutFiles = { ...withRuntimeAccounting(client, daily) }
+    delete withoutFiles.requestFile
+    const rewrapped = withRuntimeAccounting(withoutFiles, daily)
+    // A wrapped client without the transport keeps the established refusal.
+    expect('requestFile' in rewrapped).toBe(false)
+  })
+
+  it('rides through configured providers to the Meta delegate', async () => {
+    const { client } = filesBackedClient()
+    const services = createConfiguredProviderServices(client, {
+      configFile: path.join(scratchDir(), 'providers.json'),
+      catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
+      secrets: memorySecrets(),
+      hasMetaKey: () => Promise.resolve(true),
+    })
+    const response = await services.client.requestFile?.(
+      '/files',
+      'GET',
+      AbortSignal.timeout(10_000),
+    )
+    expect(response?.status).toBe(200)
+  })
+
+  it('rides through the subscription client to Meta', async () => {
+    const { client } = filesBackedClient()
+    const api = fakeModelApi()
+    const subscribed = createSubscriptionClient(client, {
+      fetch: api.fetch,
+      hasMetaKey: () => Promise.resolve(true),
+      providers: () => Promise.resolve({ v: 1 as const, providers: [] }),
+      chatgpt: () => Promise.reject(new Error('no subscription sign-in')),
+      accountId: () => Promise.resolve(undefined),
+    })
+    const response = await subscribed.requestFile?.('/files', 'GET', AbortSignal.timeout(10_000))
+    expect(response?.status).toBe(200)
   })
 })
 

@@ -145,8 +145,12 @@ export function createSubscriptionClient(
       throw new Error(UI_TEXT.acpChatGpt.failure)
     return ref
   }
+  // Production media (D85.2): the Files transport rides to Meta untouched;
+  // a subscription client without it keeps the established refusal.
+  const filesTransport = meta.requestFile?.bind(meta)
   const client: ProviderClient = {
     hasPaidDailyBudget: meta.hasPaidDailyBudget,
+    ...(filesTransport !== undefined && { requestFile: filesTransport }),
     isPlanModel,
     modelContextLimit: (model) => {
       const ref = parseModelRef(model)
