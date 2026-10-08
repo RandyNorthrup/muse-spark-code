@@ -776,7 +776,44 @@ No unit, descendant or inhibitor was created. No Linux native test or red drill
 ran because the required launch contract is blocked; Windows skips on this
 Linux rig must not be counted as native passes.
 
-Fresh-clone gate receipts are recorded below after the documentation commit.
 No code, dependencies, lockfile, strings, tests, gate thresholds or shared
-ownership regions changed. No push, merge, rebase, stash, paid/model call,
+ownership regions changed. No push, merge, rebase, manual stash, paid/model call,
 credential inspection or OS policy change.
+
+#### Committed fresh-clone checks
+
+Documentation/lead-request commit **f23dca109**, with hooks enabled. Re-read
+the index after the hook and the resulting committed diff; the worktree was
+clean. Hook formatting and staged gitleaks both exited **0**. The normal
+lint-staged hook created and cleaned its temporary backup; no manual stash
+command was run.
+
+Fresh local clone `/tmp/m100p2hl-verify-iEA319` at **f23dca109**, Node
+**24.21.0**, npm **11.19.0**. Every command below ran with `CI=true`.
+`npm ci` exited **0** and reported the unchanged dependency tree's 11 audit
+findings (2 low, 9 high); no audit fix or dependency change was made.
+
+| Check                                                                                                                     | Exit | Result                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------- | ---- | --------------------------------------------------------------------------------------------------------- |
+| Owning files: `npx vitest run test/unit/deviceWorkerHost.test.ts test/unit/deviceWorkerHostNative.test.ts --maxWorkers=3` | 0 ×3 | **22 passed, 6 Windows cases skipped** each run; **1.16 / 2.13 / 1.63 s**. Default timeouts, no override. |
+| `npm run typecheck`                                                                                                       | 0    | All five projects: host, webview, unit, e2e, integration.                                                 |
+| `npm run lint`                                                                                                            | 0    | Full JS and CSS lint pass. Repository PowerShell lint reports its Windows-only skip on Linux.             |
+| `npx prettier --check docs/certification/m100-phase2.md`                                                                  | 0    | Only changed file formatted.                                                                              |
+| Plain `npx knip`                                                                                                          | 0    | No dead-code failures; two existing non-fatal configuration hints.                                        |
+| `npx jscpd`                                                                                                               | 0    | Zero clones.                                                                                              |
+| `npm run check:reference`                                                                                                 | 0    | Current; 18 Devices entries.                                                                              |
+| `npm run check:l10n`                                                                                                      | 0    | 14 UI and 14 usage tables; zero problems.                                                                 |
+| `npm run check:host-api`                                                                                                  | 1    | The same inherited stale Node import counts already recorded above; W owns regeneration.                  |
+| `npm run build`                                                                                                           | 0    | Production sizes, splits, host globals and notices pass; every cap unchanged.                             |
+
+Build sizes: activation **462.8/600 KiB**, Devices **81.7/100 KiB**, Model API
+**456.0/475 KiB**. These measure the unchanged Windows-base implementation,
+not a Linux driver. Host, Windows driver and C# helper SHA-256 values match
+H's final-source hashes above. The clone remained clean after checks.
+
+The host API failure is precisely the earlier six row differences:
+`child_process` **16→17**, `crypto` **93→94**, `fs` **44→45**,
+`fs/promises` **74→76**, `path` **125→127**, `timers/promises` **15→16**.
+This continuation does not edit W's generated inventory. Full joined quality,
+coverage and installed-host qualification remain W's work under the shared
+lane rules. No passing Linux native receipt or drill is claimed.
