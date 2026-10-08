@@ -1294,6 +1294,12 @@ export const MEDIA_FILE_ID_MIN_BYTES = 1024 * 1024
 // Uploads ride inside the lock, so the wait covers a slow provider round.
 export const MEDIA_UPLOAD_LOCK_ATTEMPTS = 200
 export const MEDIA_UPLOAD_LOCK_WAIT_MS = 25
+// The batch transcript endpoint's captured contract (round-3 capture):
+// the 'audio' part must be a mono 16-bit PCM WAV at 16 or 24 kHz.
+export const TRANSCRIBE_WAV_FORMAT_PCM = 1
+export const TRANSCRIBE_WAV_CHANNELS = 1
+export const TRANSCRIBE_WAV_BITS_PER_SAMPLE = 16
+export const TRANSCRIBE_WAV_SAMPLE_RATES = [16_000, 24_000] as const
 /** Meta's per-team Files pool (D85.2): usage is shown against this, never billed (U6c). */
 export const MEDIA_PROVIDER_POOL_BYTES = 100 * 1024 * 1024 * 1024
 export const MEDIA_SNIFF_MAX_BYTES = 1024 * 1024

@@ -19,8 +19,16 @@
 // the hosts; this module stays host-free (`vscode` never imported).
 import * as z from 'zod/mini'
 import { randomUUID } from 'node:crypto'
-import { MUSE_VOICE_MODEL, UI_TEXT } from '../../shared/constants'
+import {
+  MUSE_VOICE_MODEL,
+  TRANSCRIBE_WAV_BITS_PER_SAMPLE,
+  TRANSCRIBE_WAV_CHANNELS,
+  TRANSCRIBE_WAV_FORMAT_PCM,
+  TRANSCRIBE_WAV_SAMPLE_RATES,
+  UI_TEXT,
+} from '../../shared/constants'
 import { sniffMediaBytes } from '../media/limits'
+import { readWavFormat } from '../media/sniff/riff'
 import {
   convertToWav16kMono,
   locateMediaConverter,
@@ -45,6 +53,17 @@ const AUDIO_TRANSCRIBE_MODE = 'PUSH_TO_TALK'
 const TRANSCRIBE_AUDIO_ENCODING = 'WAV'
 /** U18: the batch endpoint accepts only 16 kHz mono WAV, never a container. */
 const BATCH_ACCEPTED_FORMATS = ['audio/wav'] as const
+/** The last-mile contract: mono 16-bit PCM at 16 or 24 kHz (round-3 refusal). */
+function isBatchContractWav(wav: Uint8Array): boolean {
+  const format = readWavFormat(wav)
+  return (
+    format?.format === TRANSCRIBE_WAV_FORMAT_PCM &&
+    format.channels === TRANSCRIBE_WAV_CHANNELS &&
+    format.bitsPerSample === TRANSCRIBE_WAV_BITS_PER_SAMPLE &&
+    (format.sampleRate === TRANSCRIBE_WAV_SAMPLE_RATES[0] ||
+      format.sampleRate === TRANSCRIBE_WAV_SAMPLE_RATES[1])
+  )
+}
 /** Containers sent as-is come back with this status and the captured refusal. */
 const TRANSCRIBE_REFUSED_STATUS = 400
 
@@ -225,40 +244,55 @@ export function createTranscriptionPorts(
     transcribe: async (source, signal, admitSend) => {
       signal.throwIfAborted()
       const absolutePath = await resolveAbsolutePath(source)
-      const wav = await deps.readAudioBytes(absolutePath, signal)
+      let wav = await deps.readAudioBytes(absolutePath, signal)
       const sniffed = sniffMediaBytes(wav)
       if (sniffed?.kind !== 'audio' || sniffed.mediaType !== 'audio/wav')
         throw new Error(UI_TEXT.media.converterUnavailable)
-      admitSend()
-      // The mode follows the original attachment, not the converted bytes:
-      // a video soundtrack is diarized, standalone audio uses push-to-talk.
-      const origin = converted.get(source.pathToken)?.kind ?? source.info.kind
-      const mode = origin === 'video' ? VIDEO_TRANSCRIBE_MODE : AUDIO_TRANSCRIBE_MODE
-      const { body, contentType } = transcriptionBody(wav, source.name, mode)
-      const response = await deps.postTranscription({
-        route: `/asr/transcribe?sessionId=${randomUUID()}`,
-        body,
-        contentType,
-        signal,
-      })
-      let raw: unknown
+      let rendered: Awaited<ReturnType<AudioConversionPort['convert']>> | undefined
+      let name = source.name
+      if (!isBatchContractWav(wav)) {
+        // The last mile renders the captured contract before any admission:
+        // any other WAV is converted, or refused here when no converter is
+        // on the machine. Nothing billable has happened yet.
+        rendered = await conversion.convert(source, 'extractWav', signal)
+        wav = await deps.readAudioBytes(await resolveAbsolutePath(rendered.source), signal)
+        name = rendered.source.name
+        if (!isBatchContractWav(wav)) throw new Error(UI_TEXT.media.converterUnavailable)
+      }
       try {
-        raw = await response.json()
-      } catch {
-        // An empty or non-JSON refusal carries no server message; the status below still refuses.
-        raw = null
-      }
-      if (!response.ok) {
-        const refusal = serverMessage(raw)
-        if (refusal !== undefined && response.status === TRANSCRIBE_REFUSED_STATUS)
-          throw new Error(refusal)
-        throw new Error(`Transcription request failed: HTTP ${String(response.status)}`)
-      }
-      const parsed = batchBodySchema.safeParse(raw)
-      if (!parsed.success) throw new Error('Transcription response was not a transcript receipt')
-      return {
-        text: parsed.data.transcript,
-        billedSeconds: Math.floor(parsed.data.audioDurationMs / MS_PER_BILLABLE_SECOND),
+        admitSend()
+        // The mode follows the original attachment, not the converted bytes:
+        // a video soundtrack is diarized, standalone audio uses push-to-talk.
+        const origin = converted.get(source.pathToken)?.kind ?? source.info.kind
+        const mode = origin === 'video' ? VIDEO_TRANSCRIBE_MODE : AUDIO_TRANSCRIBE_MODE
+        const { body, contentType } = transcriptionBody(wav, name, mode)
+        const response = await deps.postTranscription({
+          route: `/asr/transcribe?sessionId=${randomUUID()}`,
+          body,
+          contentType,
+          signal,
+        })
+        let raw: unknown
+        try {
+          raw = await response.json()
+        } catch {
+          // An empty or non-JSON refusal carries no server message; the status below still refuses.
+          raw = null
+        }
+        if (!response.ok) {
+          const refusal = serverMessage(raw)
+          if (refusal !== undefined && response.status === TRANSCRIBE_REFUSED_STATUS)
+            throw new Error(refusal)
+          throw new Error(`Transcription request failed: HTTP ${String(response.status)}`)
+        }
+        const parsed = batchBodySchema.safeParse(raw)
+        if (!parsed.success) throw new Error('Transcription response was not a transcript receipt')
+        return {
+          text: parsed.data.transcript,
+          billedSeconds: Math.floor(parsed.data.audioDurationMs / MS_PER_BILLABLE_SECOND),
+        }
+      } finally {
+        await rendered?.dispose()
       }
     },
   }

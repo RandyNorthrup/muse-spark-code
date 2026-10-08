@@ -5,7 +5,7 @@
 // `/asr/transcribe`, and the T7/T8/T9 receipts pin the money.
 import { describe, expect, it, vi } from 'vitest'
 import { execFile } from 'node:child_process'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
@@ -20,17 +20,47 @@ import {
   type AudioPreparationDeps,
   type AudioSource,
 } from '../../src/core/voice/transcribeBatch'
-import { convertToWav16kMono } from '../../src/core/media/convert'
-import { UI_TEXT } from '../../src/shared/constants'
+import { convertToWav16kMono, locateMediaConverter } from '../../src/core/media/convert'
+import { MEDIA_CONVERTER_INSTALL_PATHS, UI_TEXT } from '../../src/shared/constants'
+import { readWavFormat } from '../../src/core/media/sniff/riff'
 import type { Usd } from '../../src/shared/usd'
 
 const MP3_FIXTURE = 'test/fixtures/voice/tone-2s.mp3'
-const FFMPEG = '/usr/local/bin/ffmpeg'
 const execFileAsync = promisify(execFile)
 
+function documentedInstalls(): readonly string[] {
+  return process.platform === 'darwin'
+    ? MEDIA_CONVERTER_INSTALL_PATHS.darwin
+    : process.platform === 'win32'
+      ? MEDIA_CONVERTER_INSTALL_PATHS.win32
+      : MEDIA_CONVERTER_INSTALL_PATHS.linux
+}
+
+/** The product's own discovery rule: documented installs that are real files. */
+async function verifyDocumentedInstall(
+  file: string,
+  _options: { readonly leafKind: 'file' },
+): Promise<'ok' | { readonly refused: true; readonly component: string; readonly reason: string }> {
+  if (!documentedInstalls().includes(file))
+    return { refused: true, component: file, reason: 'not a documented converter install' }
+  try {
+    const entry = await stat(file)
+    if (entry.isFile()) return 'ok'
+  } catch {
+    // Missing below: documented but absent.
+  }
+  return { refused: true, component: file, reason: 'documented path is not a file' }
+}
+
 /** Minimal PCM WAV the sniffer reads with an exact duration. */
-function synthWav(seconds: number): Uint8Array {
-  const dataBytes = Math.round(seconds * 32_000)
+function synthWav(
+  seconds: number,
+  format?: { readonly channels?: number; readonly sampleRate?: number },
+): Uint8Array {
+  const channels = format?.channels ?? 1
+  const sampleRate = format?.sampleRate ?? 16_000
+  const byteRate = sampleRate * channels * 2
+  const dataBytes = Math.round(seconds * byteRate)
   const buffer = Buffer.alloc(44 + dataBytes)
   buffer.write('RIFF', 0)
   buffer.writeUInt32LE(36 + dataBytes, 4)
@@ -38,25 +68,21 @@ function synthWav(seconds: number): Uint8Array {
   buffer.write('fmt ', 12)
   buffer.writeUInt32LE(16, 16)
   buffer.writeUInt16LE(1, 20)
-  buffer.writeUInt16LE(1, 22)
-  buffer.writeUInt32LE(16_000, 24)
-  buffer.writeUInt32LE(32_000, 28)
-  buffer.writeUInt16LE(2, 32)
+  buffer.writeUInt16LE(channels, 22)
+  buffer.writeUInt32LE(sampleRate, 24)
+  buffer.writeUInt32LE(byteRate, 28)
+  buffer.writeUInt16LE(channels * 2, 32)
   buffer.writeUInt16LE(16, 34)
   buffer.write('data', 36)
   buffer.writeUInt32LE(dataBytes, 40)
   return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
 }
 
-async function streamText(stream: ReadableStream<Uint8Array>): Promise<string> {
-  const response = new Response(stream)
-  return await response.text()
-}
-
 interface Posted {
   route: string
   contentType: string
   body: string
+  raw: Uint8Array
 }
 
 function rig(options?: {
@@ -70,14 +96,24 @@ function rig(options?: {
   const settled: (string | undefined)[] = []
   const reserved: Usd[] = []
   let voiceSeconds = 0
+  let runs = 0
   const ports = createTranscriptionPorts({
     resolveSourcePath: (source) => Promise.resolve(paths.get(source.pathToken)),
     readAudioBytes: async (absolutePath) => new Uint8Array(await readFile(absolutePath)),
     postTranscription: async (request) => {
+      const chunks: Uint8Array[] = []
+      const reader = request.body.getReader()
+      for (;;) {
+        const next = await reader.read()
+        if (next.done) break
+        chunks.push(next.value)
+      }
+      const raw = Buffer.concat(chunks)
       posted.push({
         route: request.route,
         contentType: request.contentType,
-        body: await streamText(request.body),
+        body: raw.toString('utf8'),
+        raw: new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength),
       })
       return options?.respond?.() ?? Response.json({ transcript: 'ok', audioDurationMs: 1000 })
     },
@@ -86,13 +122,19 @@ function rig(options?: {
       (() =>
         Promise.resolve({
           ok: true as const,
-          converter: { kind: 'ffmpeg' as const, command: FFMPEG },
+          // Never executed: the fake encoder below stands in for the bytes
+          // and the version probe is faked, so no real binary is touched.
+          // Absolute only because the product refuses relative commands.
+          converter: { kind: 'ffmpeg' as const, command: path.join(tmpdir(), 'muse-fake-ffmpeg') },
         })),
     conversionOptions: {
       trustedPath: { verify: () => Promise.resolve('ok' as const) },
       readRssBytes: () => Promise.resolve(0),
+      probeVersion: () =>
+        Promise.resolve('ffmpeg version 7.0-test Copyright (c) 2025 the FFmpeg developers'),
       ...(stubWav !== undefined && {
         run: async (_command: string, _args: readonly string[], runOptions): Promise<void> => {
+          runs += 1
           await writeFile(runOptions.outputPath, stubWav)
         },
       }),
@@ -138,6 +180,9 @@ function rig(options?: {
     prepare,
     get voiceSeconds() {
       return voiceSeconds
+    },
+    get runs() {
+      return runs
     },
   }
 }
@@ -293,31 +338,116 @@ describe('U18 WAV conversion before the batch send', () => {
     expect(context.batchFormats).toEqual(['audio/wav'])
   })
 
+  it('converts a non-contract WAV at the last mile before sending', async () => {
+    // A stereo WAV rides the direct path (audio/wav is a batch format), so
+    // the last mile must render the contract before admission and HTTP.
+    const stereo = synthWav(2, { channels: 2 })
+    const renderedContract = synthWav(1)
+    const root = await mkdtemp(path.join(tmpdir(), 'muse-batch-wav-'))
+    try {
+      const stereoPath = path.join(root, 'stereo.wav')
+      await writeFile(stereoPath, stereo)
+      const source: AudioSource = {
+        name: 'stereo.wav',
+        pathToken: 'confined-stereo',
+        info: {
+          kind: 'audio',
+          mediaType: 'audio/wav',
+          sizeBytes: stereo.length,
+          durationSeconds: 2,
+        },
+      }
+      const r = rig({
+        encoderWav: renderedContract,
+        respond: () => Response.json({ transcript: 'Stereo rendered.', audioDurationMs: 1500 }),
+      })
+      r.paths.set(source.pathToken, stereoPath)
+      const prepared = await r.prepare(source)
+      expect(prepared.transcript?.text).toBe('Stereo rendered.')
+      // The last mile rendered once; the direct path never reaches the encoder otherwise.
+      expect(r.runs).toBe(1)
+      expect(r.posted).toHaveLength(1)
+      const raw = r.posted[0]!.raw
+      const start = Buffer.from(raw).indexOf('RIFF')
+      expect(start).toBeGreaterThan(-1)
+      expect(readWavFormat(raw.slice(start, start + renderedContract.length))).toMatchObject({
+        format: 1,
+        channels: 1,
+        sampleRate: 16_000,
+        bitsPerSample: 16,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses a non-contract WAV before admission and HTTP when no converter exists', async () => {
+    const stereo = synthWav(2, { channels: 2 })
+    const root = await mkdtemp(path.join(tmpdir(), 'muse-batch-wav-'))
+    try {
+      const stereoPath = path.join(root, 'stereo.wav')
+      await writeFile(stereoPath, stereo)
+      const source: AudioSource = {
+        name: 'stereo.wav',
+        pathToken: 'confined-stereo',
+        info: {
+          kind: 'audio',
+          mediaType: 'audio/wav',
+          sizeBytes: stereo.length,
+          durationSeconds: 2,
+        },
+      }
+      const admitted: string[] = []
+      const r = rig({
+        locate: () => Promise.resolve({ ok: false, reason: UI_TEXT.media.converterUnavailable }),
+        respond: () => {
+          admitted.push('posted')
+          return Response.json({ transcript: 'must not send', audioDurationMs: 1000 })
+        },
+      })
+      r.paths.set(source.pathToken, stereoPath)
+      await expect(r.prepare(source)).rejects.toThrow(UI_TEXT.media.converterUnavailable)
+      expect(r.posted).toHaveLength(0)
+      expect(admitted).toEqual([])
+      // The bound was reserved, but the send was never admitted: no usage,
+      // and the claim settles unspent (unlike a post-send refusal, which
+      // holds the reserve as an uncertain liability).
+      expect(r.voiceSeconds).toBe(0)
+      expect(r.settled).toEqual(['0'])
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   it('renders 16 kHz mono WAV through the real ffmpeg', async () => {
+    // The binary is found the way the product finds it: the documented
+    // installs, a real file check, and a real version probe. When no
+    // converter is on the machine the test skips with a printed reason.
+    const located = await locateMediaConverter({ trustedPath: { verify: verifyDocumentedInstall } })
+    if (!located.ok) {
+      console.warn(`real-ffmpeg test skipped: ${located.reason}`)
+      return
+    }
     // The rig's sandbox denies file watches (EMFILE), which the default
     // supervisor treats as a kill signal, so this test supervises the real
     // encoder with a plain bounded spawn: the product's ffmpeg arguments and
     // output bytes are what it pins, not the watch boundary (M1's territory).
-    const rendered = await convertToWav16kMono(
-      path.resolve(MP3_FIXTURE),
-      { kind: 'ffmpeg', command: FFMPEG },
-      {
-        trustedPath: { verify: () => Promise.resolve('ok' as const) },
-        readRssBytes: () => Promise.resolve(0),
-        run: async (command, args, runOptions): Promise<void> => {
-          await execFileAsync(command, [...args], { cwd: runOptions.cwd })
-        },
+    const rendered = await convertToWav16kMono(path.resolve(MP3_FIXTURE), located.converter, {
+      trustedPath: { verify: verifyDocumentedInstall },
+      readRssBytes: () => Promise.resolve(0),
+      run: async (command, args, runOptions): Promise<void> => {
+        await execFileAsync(command, [...args], { cwd: runOptions.cwd })
       },
-    )
+    })
     if (!rendered.ok) throw new Error(`conversion failed: ${rendered.reason}`)
     try {
       expect(rendered.info.mediaType).toBe('audio/wav')
       expect(rendered.info.durationSeconds).toBeCloseTo(2, 1)
       const bytes = await readFile(rendered.path)
       expect(bytes.subarray(0, 4).toString('latin1')).toBe('RIFF')
-      expect(bytes.readUInt16LE(20)).toBe(1)
-      expect(bytes.readUInt16LE(22)).toBe(1)
-      expect(bytes.readUInt32LE(24)).toBe(16_000)
+      expect(
+        readWavFormat(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)),
+      ).toMatchObject({ format: 1, channels: 1, sampleRate: 16_000, bitsPerSample: 16 })
     } finally {
       await rendered.dispose()
     }
