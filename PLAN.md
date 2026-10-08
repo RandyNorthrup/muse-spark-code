@@ -35898,6 +35898,62 @@ manager is Background), and clear only rejected preparation promises so a
 transient capacity failure retries. Prove baseline failures and guard drills;
 verify H and receiver/recovery in a fresh committed clone at default deadlines.
 
+**FIXM100P2U2 review round 2 completed (2026-10-08, linuxlt).**
+Repair RVM100P2UB's P2 missing Devices readiness and P3 premature owners
+readiness. The brief explicitly includes the host handshake: add a strict
+`devicesReady` document message beside the existing action schema, subscribe
+before posting it, and gate/replay cached host observations in the existing
+editor-neutral DevicePanel/service path. No listener or pairing authorization
+comes from readiness. Remove the harness handshake bypass and pre-revoke
+refusal. Add mount/host/fixture regressions, prove P2 failures on `efebef284`,
+and drill both findings with exact hash restoration. Then commit with hooks,
+verify a fresh `npm ci` clone under `CI=true`: owning tests three times,
+five typechecks, changed-file lint/format, plain knip, duplication, l10n,
+reference, host API, production budgets, six-scene Chrome/a11y and keyboard.
+The keyboard recorder must assert the strict handshake separately from actions
+and make its existing no-grant-request receipt an assertion: readiness is not
+a permission action. Drill an injected grant request before refreshing receipts.
+Both findings and the keyboard recorder are fixed; nine red drills restore
+exact hashes. Fresh clone of `aecac0c81` with `CI=true npm ci`: 208 owning tests
+pass three times at default deadlines; five typechecks and every scoped static
+and production-build gate exit 0. All six scenes prove ready in Chrome at
+320 px, 48 English/pseudo accessibility pages have no violations or missing
+results, and four-theme keyboard/missing-asset checks pass. Existing caps
+hold. Lane U has no blocker; lane W retains aggregate qualification and
+installed-host wiring. No push, merge, live model call or real pairing.
+Full receipts: lane U in `docs/certification/m100-phase2.md`.
+
+**FIXM100P2U review repair (2026-10-07, linuxlt).** Repair all eight
+RVM100P2U findings within lane U and the brief's approved build inventory
+regions. Plan: add regressions and run them on `025b3accc`; register a
+measured lazy QR budget without changing existing caps; correct correlated
+harness facts and peer-bound actions; show throttling consistently, render
+refusal-only replies and all six grant quotas; make QR responsive and its
+optional loader honest/retryable. Prove red drills with byte-exact restoration,
+then verify committed work in a fresh `npm ci` clone (`CI=true`) with three
+owning runs at repository deadlines, five typechecks, changed-file lint/format,
+knip, duplication, localization/reference/host API, production budgets,
+six-scene browser/a11y proof and Devices keyboard checks. No merge, push,
+dependency install, paid call or real pairing. Aggregate quality and installed
+host qualification remain lane W's joined-tree obligation. Receipts and
+remaining wiring requests belong in lane U's certification section.
+
+Fresh-clone keyboard execution also owns correction of its inherited stale
+missing-Devices-asset expectation: assert the current shared panel failure
+heading and localized Retry control without dropping the no-pair/no-request
+assertions. The four-theme keyboard flow and missing-asset recovery must both
+pass on the committed script.
+
+**FIXM100P2U completed:** all eight review findings fixed and drilled.
+Fresh committed-code clone at `3415a2859`: 156 owning tests pass three times,
+81 boundary/harness tests pass, all scoped static/build gates exit 0, English
+and pseudo a11y cover 48 ready pages with zero findings, and four-theme
+320 px keyboard/missing-asset checks pass. Thirty screenshots reviewed;
+177-module QR measures 296 px square inside its narrow container. Existing
+caps, assertion levels and case deadlines unchanged. No lane blocker;
+W retains real-host facts, approved encoder install and aggregate qualification.
+Full receipts: lane U in `docs/certification/m100-phase2.md`.
+
 **M100P2BASE integration scope (2026-10-07, macmini).** Merge only
 `23c67925f` into release head `9d1ab33c3` with `--no-ff`, preserving both
 branches and 0.15.0. Rebuild generated inventories. Verify committed work
@@ -41639,6 +41695,14 @@ uncertain-state write, so fixture removal races that write (`ENOTEMPTY`).
 Per the shared file-ownership rule, E must await that durable state before its
 existing reconciliation/teardown; H records the actual three-run exits without
 editing E's test, suppressing the failure or changing an assertion/deadline.
+
+**FIXM100P2U scoped certification (2026-10-07).** The 90-minute rig brief
+requires fresh-clone owning suites and scoped static/build/browser checks;
+aggregate `npm run quality`, whole-repository coverage and installed-host
+qualification remain lane W's joined-tree obligation, as phase-2 ownership
+specifies. No gate, cap, timeout or assertion is weakened. Review-repair
+receipts and outstanding wiring are in lane U's section of
+`docs/certification/m100-phase2.md`.
 
 **MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared
 rules prohibit aggregate quality and delegate it to the lead. Run complete

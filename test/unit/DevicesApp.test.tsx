@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { EN } from '../../src/shared/l10n/en'
-import type { DeviceWebviewRequest } from '../../src/shared/devicesPanel'
+import type { DeviceWebviewMessage, DeviceWebviewRequest } from '../../src/shared/devicesPanel'
 import { DevicesApp } from '../../src/webview/models/sections/agents/DevicesApp'
 import {
   expectRejectedDeviceInvitation,
@@ -35,6 +35,17 @@ vi.mock('../../src/webview/models/sections/agents/DevicesView', async (original)
   }
 })
 
+function requestAt(
+  postMessage: ReturnType<typeof vi.fn<(message: DeviceWebviewMessage) => void>>,
+  index = 0,
+): DeviceWebviewRequest {
+  const message = postMessage.mock.calls.filter(([message]) => message.type === 'deviceRequest')[
+    index
+  ]?.[0]
+  if (message?.type !== 'deviceRequest') throw new Error('Missing action request')
+  return message
+}
+
 function deliver(input: unknown): void {
   act(() => {
     window.dispatchEvent(new MessageEvent('message', { data: input }))
@@ -45,14 +56,19 @@ afterEach(() => {
   vi.useRealTimers()
 })
 describe('M100 U explicit webview bridge', () => {
+  it('uses the text-only pairing UI without a QR renderer when no encoder is configured', () => {
+    render(<DevicesApp messages={window} postMessage={vi.fn()} />)
+    expect(seen.props.at(-1)?.renderQr).toBeUndefined()
+  })
+
   it('rejects pairing data when a newer parent observation precedes the child commit', async () => {
-    const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
+    const postMessage = vi.fn<(message: DeviceWebviewMessage) => void>()
     render(<DevicesApp messages={window} postMessage={postMessage} />)
     fireEvent.change(screen.getByLabelText(EN.devices.scan), {
       target: { value: JSON.stringify(uiInvitation) },
     })
     fireEvent.click(screen.getByRole('button', { name: EN.devices.importInvitation }))
-    const request = postMessage.mock.calls[0]![0]
+    const request = requestAt(postMessage)
     await act(async () => {
       window.dispatchEvent(
         new MessageEvent('message', {
@@ -132,10 +148,10 @@ describe('M100 U explicit webview bridge', () => {
   it.each([false, true])(
     'ignores a foreign view reply (malformed=%s) without releasing the live request',
     async (malformed) => {
-      const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
+      const postMessage = vi.fn<(message: DeviceWebviewMessage) => void>()
       render(<DevicesApp messages={window} postMessage={postMessage} />)
       fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
-      const request = postMessage.mock.calls[0]![0]
+      const request = requestAt(postMessage)
       deliver({
         ...uiMessage(),
         revision: 2,
@@ -157,7 +173,7 @@ describe('M100 U explicit webview bridge', () => {
   it.each(['pair', 'importInvitation'] as const)(
     'rejects a correlated stale %s invitation at the dedicated surface',
     async (kind) => {
-      const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
+      const postMessage = vi.fn<(message: DeviceWebviewMessage) => void>()
       render(<DevicesApp messages={window} postMessage={postMessage} />)
       deliver(uiUncertainMessage())
       if (kind === 'pair') fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
@@ -171,18 +187,18 @@ describe('M100 U explicit webview bridge', () => {
         ...uiMessage(),
         revision: 2,
         setup: {
-          viewId: postMessage.mock.calls[0]?.[0].viewId,
-          requestId: postMessage.mock.calls[0]?.[0].requestId,
+          viewId: requestAt(postMessage).viewId,
+          requestId: requestAt(postMessage).requestId,
           invitation: uiInvitation,
         },
       })
       await expectRejectedDeviceInvitation()
-      expect(postMessage).toHaveBeenCalledOnce()
+      expect(postMessage).toHaveBeenCalledTimes(2)
     },
   )
 
   it('ignores an older action snapshot even when its request id matches the current wait', async () => {
-    const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
+    const postMessage = vi.fn<(message: DeviceWebviewMessage) => void>()
     render(<DevicesApp messages={window} postMessage={postMessage} />)
     deliver(uiUncertainMessage())
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
@@ -190,8 +206,8 @@ describe('M100 U explicit webview bridge', () => {
       ...uiMessage(),
       revision: 2,
       setup: {
-        viewId: postMessage.mock.calls[0]?.[0].viewId,
-        requestId: postMessage.mock.calls[0]?.[0].requestId,
+        viewId: requestAt(postMessage).viewId,
+        requestId: requestAt(postMessage).requestId,
       },
     })
     await waitFor(() => expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled())
@@ -199,10 +215,10 @@ describe('M100 U explicit webview bridge', () => {
     expect(screen.getByText(EN.devices.uncertain, { exact: true })).toBeVisible()
   })
   it('keeps newer Uncertain/$3 when an older correlated Pair reply arrives', async () => {
-    const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
+    const postMessage = vi.fn<(message: DeviceWebviewMessage) => void>()
     render(<DevicesApp messages={window} postMessage={postMessage} />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
-    const { requestId, viewId } = postMessage.mock.calls[0]![0]
+    const { requestId, viewId } = requestAt(postMessage)
     deliver({
       ...uiMessage({
         status: 'uncertain',
@@ -236,11 +252,11 @@ describe('M100 U explicit webview bridge', () => {
     expect(screen.getByText('Retained spending liability: $3.00')).toBeVisible()
   })
   it('rejects a malformed matching reply, shows Retry and recovers on a newer observation', async () => {
-    const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
+    const postMessage = vi.fn<(message: DeviceWebviewMessage) => void>()
     render(<DevicesApp messages={window} postMessage={postMessage} />)
     deliver(uiMessage({ status: 'uncertain', unresolvedAttempts: 1, retainedLiabilityUsd: 3 }))
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pause }))
-    const { requestId, viewId } = postMessage.mock.calls[0]![0]
+    const { requestId, viewId } = requestAt(postMessage)
     deliver({ ...uiMessage(), revision: 2, setup: { viewId, requestId }, unknown: true })
     await screen.findByText(EN.devices.invalidMessage)
     const retry = screen.getByRole('button', { name: EN.devices.retry })
@@ -259,17 +275,17 @@ describe('M100 U explicit webview bridge', () => {
   })
   it('bounds a lost reply and removes the bridge wait before accepting Retry', async () => {
     vi.useFakeTimers()
-    const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
+    const postMessage = vi.fn<(message: DeviceWebviewMessage) => void>()
     const { unmount } = render(<DevicesApp messages={window} postMessage={postMessage} />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
-    const { requestId: oldId, viewId } = postMessage.mock.calls[0]![0]
+    const { requestId: oldId, viewId } = requestAt(postMessage)
     await act(expireDeviceUiWait)
     expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.retry }))
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
     deliver({ ...uiMessage(), revision: 2, setup: { viewId, requestId: oldId } })
     expect(screen.getByRole('button', { name: EN.devices.pair })).toBeDisabled()
-    const newId = postMessage.mock.calls[1]?.[0].requestId
+    const newId = requestAt(postMessage, 1).requestId
     await act(async () => {
       deliver({ ...uiMessage(), revision: 3, setup: { viewId, requestId: newId } })
       await Promise.resolve()
@@ -294,12 +310,12 @@ describe('M100 U explicit webview bridge', () => {
       errors.mockRestore()
     }
   })
-  it('subscribes without a ready/probe request and validates unsolicited observations', () => {
+  it('subscribes with readiness only and validates unsolicited observations', () => {
     seen.messages.length = 0
     const removed = vi.spyOn(window, 'removeEventListener')
     const postMessage = vi.fn()
     const { unmount } = render(<DevicesApp messages={window} postMessage={postMessage} />)
-    expect(postMessage).not.toHaveBeenCalled()
+    expect(postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'devicesReady' })
     deliver({ ...uiMessage(), privatePath: 'fixture-sentinel' })
     expect(screen.queryByText('Mac receiver')).toBeNull()
     expect(seen.messages).toHaveLength(1)
@@ -309,13 +325,13 @@ describe('M100 U explicit webview bridge', () => {
     expect(removed).toHaveBeenCalledWith('message', expect.any(Function))
     removed.mockRestore()
     deliver(uiMessage())
-    expect(postMessage).not.toHaveBeenCalled()
+    expect(postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'devicesReady' })
   })
   it('ignores foreign correlated replies until the matching request returns', async () => {
-    const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
+    const postMessage = vi.fn<(message: DeviceWebviewMessage) => void>()
     render(<DevicesApp messages={window} postMessage={postMessage} />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
-    const { requestId: id, viewId } = postMessage.mock.calls[0]![0]
+    const { requestId: id, viewId } = requestAt(postMessage)
     deliver({ ...uiMessage(), setup: { viewId, requestId: UI_PAIR_ID } })
     expect(screen.queryByText('Mac receiver')).toBeNull()
     deliver({ ...uiMessage(), setup: { viewId, requestId: id } })
@@ -326,8 +342,8 @@ describe('M100 U explicit webview bridge', () => {
     render(
       <DevicesApp
         messages={window}
-        postMessage={() => {
-          throw new Error('private-host-sentinel')
+        postMessage={(message) => {
+          if (message.type === 'deviceRequest') throw new Error('private-host-sentinel')
         }}
       />,
     )

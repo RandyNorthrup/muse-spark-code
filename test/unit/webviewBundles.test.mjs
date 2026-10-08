@@ -39,6 +39,27 @@ function metafile() {
 }
 
 describe('webview import budgets', () => {
+  it('registers the lazy QR closure with its own cap, retaining every existing cap', () => {
+    const meta = metafile()
+    const qr = 'dist/webview/chunks/qr.js'
+    const helper = 'dist/webview/chunks/qr-helper.js'
+    meta.outputs[MAIN].imports.push(edge(qr, 'dynamic-import'))
+    meta.outputs[qr] = output(
+      [edge(CORE), edge(helper)],
+      String.raw`src\webview\models\sections\devices\qr\QrFigure.tsx`,
+    )
+    meta.outputs[helper] = output()
+    const groups = webviewDeferredBudgetGroups(meta, 25)
+    expect(groups.find(({ name }) => name === 'Devices QR')).toMatchObject({
+      budgetKiB: 25,
+      outputs: [qr, helper],
+    })
+    expect(groups.find(({ name }) => name === 'deferred JS')).toMatchObject({ budgetKiB: 50 })
+    expect(groups.find(({ name }) => name === 'Devices')).toMatchObject({ budgetKiB: 50 })
+    expect(groups.find(({ name }) => name === 'deferred JS').outputs).not.toContain(qr)
+    expect(webviewStartupOutputs(meta)).not.toContain(qr)
+  })
+
   it('charges nested panel dependencies once and excludes its shared bootstrap', () => {
     const meta = metafile()
     const panel = 'dist/webview/chunks/panel.js'

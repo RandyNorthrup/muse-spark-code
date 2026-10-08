@@ -12,8 +12,10 @@ import { chromium } from 'playwright-core'
 import { format } from 'prettier'
 import { findChrome } from './lib/chrome.mjs'
 import { serveRepo } from './lib/harnessServer.mjs'
+import { loadL10n } from './lib/l10nSource.mjs'
 
 const root = process.cwd()
+const { EN } = await loadL10n(root)
 const SELECT_ALL_KEY = process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
 await mkdir(path.join(root, 'temp'), { recursive: true })
 const profile = await mkdtemp(path.join(root, 'temp', 'm100-u-browser-'))
@@ -23,6 +25,18 @@ const browser = await chromium.launchPersistentContext(profile, {
   viewport: { width: 320, height: 760 },
 })
 const receipts = []
+
+async function deviceActions(page) {
+  const messages = await page.evaluate('globalThis.harnessOutbox')
+  assert.deepEqual(messages[0], { type: 'devicesReady' })
+  return messages.flatMap((message) => {
+    if (message.type === 'devicesReady') {
+      assert.deepEqual(message, { type: 'devicesReady' })
+      return []
+    }
+    return [message.action?.kind]
+  })
+}
 try {
   for (const theme of ['light', 'dark', 'hc-dark', 'hc-light']) {
     console.log('Keyboard theme:', theme)
@@ -121,9 +135,7 @@ try {
       await page.waitForFunction(() =>
         globalThis.harnessOutbox.some((request) => request.action?.kind === 'importConfirmation'),
       )
-      const pairingCalls = await page.evaluate(
-        'globalThis.harnessOutbox.map((request) => request.action?.kind)',
-      )
+      const pairingCalls = await deviceActions(page)
       // Pairing does not implicitly enable the off fixture. Cap/unlink controls
       // run against the separate connected fixture and its correlated replies.
       await page.goto(
@@ -173,10 +185,7 @@ try {
       await page.waitForFunction(() =>
         globalThis.harnessOutbox.some((request) => request.action?.kind === 'unlink'),
       )
-      const calls = [
-        ...pairingCalls,
-        ...(await page.evaluate('globalThis.harnessOutbox.map((request) => request.action?.kind)')),
-      ]
+      const calls = [...pairingCalls, ...(await deviceActions(page))]
       assert.equal(calls.filter((kind) => kind === 'unlink').length, 1)
       assert.equal(
         await page.evaluate(
@@ -185,6 +194,17 @@ try {
         true,
       )
       assert.deepEqual(await page.evaluate('harnessErrors'), [])
+      const hasOnlyLocalActions = calls.every((kind) =>
+        [
+          'pair',
+          'importInvitation',
+          'confirmFingerprint',
+          'importConfirmation',
+          'offer',
+          'unlink',
+        ].includes(kind),
+      )
+      assert.equal(hasOnlyLocalActions, true)
       receipts.push({
         theme,
         width: 320,
@@ -196,16 +216,7 @@ try {
         groupedFingerprintAnnouncement: grouped,
         fingerprintGroupsUnbroken: true,
         decisionRowsEqual: true,
-        noApprovalGrantRequests: calls.every((kind) =>
-          [
-            'pair',
-            'importInvitation',
-            'confirmFingerprint',
-            'importConfirmation',
-            'offer',
-            'unlink',
-          ].includes(kind),
-        ),
+        noApprovalGrantRequests: hasOnlyLocalActions,
         unlinkCancelFocus: true,
         overflow: false,
       })
@@ -234,10 +245,11 @@ try {
     await missing.goto(
       `http://127.0.0.1:${port}/test/harness/index.html?scenario=devices-missing-asset&theme=dark`,
     )
-    await missing
-      .getByText('Devices could not load. Retry setup or reinstall the extension.', { exact: true })
-      .waitFor()
-    assert.equal(await missing.getByRole('button', { name: 'Reload' }).count(), 1)
+    await missing.getByRole('heading', { name: EN.surfaceLoadFailed, exact: true }).waitFor()
+    assert.equal(
+      await missing.getByRole('button', { name: EN.surfaceLoadRetry, exact: true }).count(),
+      1,
+    )
     assert.equal(await missing.getByRole('button', { name: 'Pair device', exact: true }).count(), 0)
     assert.deepEqual(await missing.evaluate('outbox'), [])
     receipts.push({

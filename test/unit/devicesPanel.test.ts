@@ -9,6 +9,7 @@ import {
   devicesPanelStateSchema,
   deviceHostMessageSchema,
   deviceWebviewRequestSchema,
+  deviceWebviewMessageSchema,
   parseDeviceHostMessage,
   parseDeviceWebviewRequest,
   type DevicesPanelState,
@@ -47,6 +48,19 @@ const row = {
 const state: DevicesPanelState = { enabled: true, discoveryEnabled: false, devices: [row] }
 
 describe('M100 Devices panel and shared bridge', () => {
+  it('accepts only the strict Devices document handshake beside existing action requests', () => {
+    expect(deviceWebviewMessageSchema.safeParse({ type: 'devicesReady' }).success).toBe(true)
+    for (const raw of [
+      { type: 'ready' },
+      { type: 'tasksReady' },
+      { type: 'devicesReady', action: { kind: 'pair' } },
+      { type: 'devicesReady', secret: 'private-sentinel' },
+      null,
+    ])
+      expect(deviceWebviewMessageSchema.safeParse(raw).success).toBe(false)
+    expect(parseDeviceWebviewRequest({ type: 'devicesReady' }).ok).toBe(false)
+  })
+
   it('requires the view identity, request identity and initiating snapshot revision on every request', () => {
     const request = {
       type: 'deviceRequest',

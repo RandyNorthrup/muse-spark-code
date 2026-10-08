@@ -1,6 +1,6 @@
 // Shared Devices section: VS Code, companion and native web views inject the
 // same port. Nothing here activates a receiver or reads credentials on mount.
-import { type ReactNode, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, type ReactNode, useLayoutEffect, useRef, useState } from 'react'
 import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
 import { fill, formatUsd } from '../../../../shared/l10n/text'
 import {
@@ -15,6 +15,13 @@ import { DeviceTaskDetails, type DeviceTaskView } from './DeviceTaskDetails'
 import { DeviceCard, type DeviceBoardBinding } from './DeviceCard'
 import { DevicePairing, type DeviceAction } from './DevicePairing'
 import { deviceFailureText } from './devicePresentation'
+// M100 phase 2 (lane U): phase-2 views mount here; lane W wires the real host
+// values behind the setup facts, fakes stand in until then.
+import { DiscoveryDetails } from '../devices/discovery/DiscoveryDetails'
+import { OwnerGrants } from '../devices/grants/OwnerGrants'
+import { ActionPrompts } from '../devices/prompts/ActionPrompts'
+import { PowerView } from '../devices/power/PowerView'
+import { BlockedSetup } from '../devices/setup/BlockedSetup'
 import './devices.css'
 
 export function DevicesView({
@@ -243,21 +250,52 @@ export function DevicesView({
             {UI_TEXT.devices.discovery}
           </label>
           <p>{UI_TEXT.devices.discoveryDescription}</p>
-          {state.devices.map((device) => (
-            <DeviceCard
-              key={device.pairId}
-              device={device}
-              setup={
-                setup?.requestId === setupTarget?.requestId && device.pairId === setupTarget?.pairId
-                  ? setup
-                  : undefined
-              }
-              isUnsupportedHost={setup?.failure === 'unsupported-host'}
-              boards={boards}
-              busy={busy}
-              send={send}
-            />
-          ))}
+          {setup?.discovery !== undefined && (
+            <DiscoveryDetails serviceId={setup.discovery.serviceId} port={setup.discovery.port} />
+          )}
+          {(setup?.capability !== undefined || setup?.throttled !== undefined) && (
+            <PowerView capability={setup.capability} throttled={setup.throttled} />
+          )}
+          {state.devices.map((device) => {
+            // Phase-2 sections read the same action-bound setup as the card:
+            // an unbound (foreign) setup never supplies view state.
+            const boundSetup =
+              setup?.requestId === setupTarget?.requestId && device.pairId === setupTarget?.pairId
+                ? setup
+                : undefined
+            return (
+              <Fragment key={device.pairId}>
+                <DeviceCard
+                  device={device}
+                  setup={boundSetup}
+                  throttled={setup?.throttled}
+                  isUnsupportedHost={setup?.failure === 'unsupported-host'}
+                  boards={boards}
+                  busy={busy}
+                  send={send}
+                />
+                {(boundSetup?.owners !== undefined || boundSetup?.grantRefusal !== undefined) && (
+                  <OwnerGrants
+                    owners={boundSetup.owners}
+                    busy={busy}
+                    refusal={boundSetup.grantRefusal}
+                    onRevoke={(ownerId, grantId) => {
+                      void send({ kind: 'revokeGrant', pairId: device.pairId, ownerId, grantId })
+                    }}
+                  />
+                )}
+                {boundSetup?.stepUp !== undefined && <ActionPrompts deviceLabel={device.label} />}
+                {device.status === 'blocked-or-unreachable' && (
+                  <BlockedSetup
+                    application={boundSetup?.listenerApplication ?? UI_TEXT.devices.unknown}
+                    interfaceLabel={boundSetup?.interfaceLabel ?? UI_TEXT.devices.unknown}
+                    address={device.endpoint.address}
+                    port={device.endpoint.port}
+                  />
+                )}
+              </Fragment>
+            )
+          })}
           {tasks.map((task) => {
             const device = state.devices.find(
               (row) => row.pairId === task.route.pairId && row.deviceId === task.route.deviceId,

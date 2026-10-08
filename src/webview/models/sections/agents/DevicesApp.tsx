@@ -1,6 +1,16 @@
 // An explicit Devices document has its own validated message channel, without
-// the chat store, chat ready request, credential read or model probe.
-import { Component, type ReactNode, useLayoutEffect, useMemo, useRef, useState } from 'react'
+// the chat store, credential read or model probe.
+import {
+  Component,
+  lazy,
+  Suspense,
+  type ReactNode,
+  type ComponentType,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { UI_TEXT } from '../../../../shared/constants'
 import {
   parseDeviceHostMessage,
@@ -8,14 +18,53 @@ import {
   type DeviceHostMessage,
   type DeviceViewSource,
   type DevicesPanelPort,
-  type DeviceWebviewRequest,
+  type DeviceWebviewMessage,
 } from '../../../../shared/devicesPanel'
+import type { QrEncoder } from '../devices/qr/encoder'
 import type { MessageSource } from '../../../hostBridge'
 import { DevicesView } from './DevicesView'
 
 interface DevicesAppProps {
+  readonly qrEncoder?: QrEncoder
+  readonly loadQr?: QrLoader
   readonly messages: MessageSource
-  readonly postMessage: (message: DeviceWebviewRequest) => void
+  readonly postMessage: (message: DeviceWebviewMessage) => void
+}
+
+interface QrProps {
+  readonly text: string
+  readonly encode: QrEncoder | undefined
+}
+type QrLoader = () => Promise<{ default: ComponentType<QrProps> }>
+const loadQrFigure: QrLoader = () => import('../devices/qr/QrFigure')
+
+// Each invitation reply owns a fresh lazy intent. Text remains usable during
+// loading/failure; Retry creates a new import rather than caching a null result.
+class QrBoundary extends Component<QrProps & { readonly load: QrLoader }> {
+  public static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  public override state = { failed: false, Figure: lazy(this.props.load) }
+  public override render() {
+    const Figure = this.state.Figure
+    return this.state.failed ? (
+      <div role="alert">
+        <p>{UI_TEXT.surfaceLoadFailed}</p>
+        <button
+          type="button"
+          onClick={() => {
+            this.setState({ failed: false, Figure: lazy(this.props.load) })
+          }}
+        >
+          {UI_TEXT.surfaceLoadRetry}
+        </button>
+      </div>
+    ) : (
+      <Suspense fallback={<p role="status">{UI_TEXT.loadingOutput}</p>}>
+        <Figure text={this.props.text} encode={this.props.encode} />
+      </Suspense>
+    )
+  }
 }
 
 export function DevicesApp(props: DevicesAppProps) {
@@ -51,7 +100,12 @@ class DevicesErrorBoundary extends Component<{ readonly children: ReactNode }> {
   }
 }
 
-function DevicesDocument({ messages, postMessage }: DevicesAppProps) {
+function DevicesDocument({
+  messages,
+  postMessage,
+  qrEncoder,
+  loadQr = loadQrFigure,
+}: DevicesAppProps) {
   const [message, setMessage] = useState<DeviceHostMessage>({
     type: 'deviceState',
     revision: 0,
@@ -139,6 +193,7 @@ function DevicesDocument({ messages, postMessage }: DevicesAppProps) {
       }
     }
     messages.addEventListener('message', receive)
+    postMessage({ type: 'devicesReady' })
     return () => {
       messages.removeEventListener('message', receive)
       for (const waiting of bridge.pending.values())
@@ -146,10 +201,27 @@ function DevicesDocument({ messages, postMessage }: DevicesAppProps) {
       bridge.pending.clear()
       bridge.views.clear()
     }
-  }, [bridge, messages])
+  }, [bridge, messages, postMessage])
   return (
     <main>
-      <DevicesView message={message} port={bridge.port} onState={accept} explicitSetup />
+      <DevicesView
+        message={message}
+        port={bridge.port}
+        onState={accept}
+        explicitSetup
+        renderQr={
+          qrEncoder === undefined
+            ? undefined
+            : (text) => (
+                <QrBoundary
+                  key={message.setup?.requestId}
+                  text={text}
+                  encode={qrEncoder}
+                  load={loadQr}
+                />
+              )
+        }
+      />
     </main>
   )
 }

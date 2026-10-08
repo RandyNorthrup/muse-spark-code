@@ -13,10 +13,13 @@ import {
 export interface DevicePanelDeps {
   perform(request: DeviceWebviewRequest): Promise<NonNullable<DeviceHostMessage['setup']>>
   snapshot(): Promise<DevicesPanelState>
+  publish(message: DeviceHostMessage): void
 }
 
 export class DevicePanel implements DevicesPanelPort {
   private revision = 0
+  private isReady = false
+  private latest: DeviceHostMessage | undefined
   private observations = Promise.resolve()
   public constructor(private readonly deps: DevicePanelDeps) {}
 
@@ -28,11 +31,25 @@ export class DevicePanel implements DevicesPanelPort {
       const revision = this.revision + 1
       if (!Number.isSafeInteger(revision)) throw new Error('capacity')
       this.revision = revision
-      return { type: 'deviceState', revision, state }
+      const message: DeviceHostMessage = { type: 'deviceState', revision, state }
+      this.latest = message
+      return message
     }
     const operation = capture()
     this.observations = settleDeviceOperation(operation)
     return await operation
+  }
+
+  /** Readiness replays the latest complete observation, including after reload. */
+  public async ready(): Promise<DeviceHostMessage> {
+    this.isReady = true
+    const message = this.latest ?? (await this.observe())
+    this.deps.publish(message)
+    return message
+  }
+
+  public publishObservation(message: DeviceHostMessage): void {
+    if (this.isReady) this.deps.publish(message)
   }
 
   public async request(

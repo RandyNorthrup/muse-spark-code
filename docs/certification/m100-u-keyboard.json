@@ -2,8 +2,8 @@
   {
     "theme": "light",
     "width": 320,
-    "browser": "154.0.8037.98",
-    "keys": ["Enter", "Tab", "Space", "Meta+A", "Escape"],
+    "browser": "153.0.8010.52",
+    "keys": ["Enter", "Tab", "Space", "Control+A", "Escape"],
     "actions": [
       "pair",
       "importInvitation",
@@ -24,8 +24,8 @@
   {
     "theme": "dark",
     "width": 320,
-    "browser": "154.0.8037.98",
-    "keys": ["Enter", "Tab", "Space", "Meta+A", "Escape"],
+    "browser": "153.0.8010.52",
+    "keys": ["Enter", "Tab", "Space", "Control+A", "Escape"],
     "actions": [
       "pair",
       "importInvitation",
@@ -46,8 +46,8 @@
   {
     "theme": "hc-dark",
     "width": 320,
-    "browser": "154.0.8037.98",
-    "keys": ["Enter", "Tab", "Space", "Meta+A", "Escape"],
+    "browser": "153.0.8010.52",
+    "keys": ["Enter", "Tab", "Space", "Control+A", "Escape"],
     "actions": [
       "pair",
       "importInvitation",
@@ -68,8 +68,8 @@
   {
     "theme": "hc-light",
     "width": 320,
-    "browser": "154.0.8037.98",
-    "keys": ["Enter", "Tab", "Space", "Meta+A", "Escape"],
+    "browser": "153.0.8010.52",
+    "keys": ["Enter", "Tab", "Space", "Control+A", "Escape"],
     "actions": [
       "pair",
       "importInvitation",

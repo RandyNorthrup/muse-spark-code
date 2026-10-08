@@ -49,7 +49,7 @@ afterEach(async () => {
   vi.restoreAllMocks()
 })
 
-async function host(id: string) {
+async function host(id: string, isReady = true) {
   const parent = await realpath(await mkdtemp(path.join(tmpdir(), 'm100-i-')))
   const store = await DeviceStore.create(path.join(parent, 'pairing'), id.repeat(32))
   const resource: (typeof resources)[number] = { parent, store }
@@ -117,6 +117,8 @@ async function host(id: string) {
   }
   const service = await createDeviceService(deps, EN, 'en')
   resource.service = service
+  if (isReady) await service.request({ type: 'devicesReady' })
+  vi.mocked(deps.publish).mockClear()
   let serial = 0
   const action = async (action: DeviceWebviewRequest['action']) => {
     serial += 1
@@ -232,6 +234,32 @@ async function running(payload = 'Bounded fake-only task') {
 }
 
 describe('joined P/T/E/U method port', () => {
+  it('validates readiness, waits before publication and replays only cached observations', async () => {
+    const a = await host('a', false)
+    await a.service.observe()
+    expect(a.deps.publish).not.toHaveBeenCalled()
+    for (const raw of [{ type: 'devicesReady', action: { kind: 'pair' } }, { type: 'tasksReady' }])
+      await expect(a.service.request(raw)).rejects.toThrow('invalid-device-message')
+    expect(a.deps.publish).not.toHaveBeenCalled()
+    const capture = vi.mocked(a.deps.snapshot)
+    expect(capture).toHaveBeenCalledOnce()
+    const message = await a.service.request({ type: 'devicesReady' })
+    expect(a.deps.publish).toHaveBeenCalledExactlyOnceWith(message)
+    await a.service.request({ type: 'devicesReady' })
+    expect(a.deps.publish).toHaveBeenCalledTimes(2)
+    expect(capture).toHaveBeenCalledOnce()
+    const stored = await a.store.read()
+    expect(stored.pending).toEqual([])
+    expect(a.deps.execution.admit).not.toHaveBeenCalled()
+    await a.service.observe()
+    expect(a.deps.publish).toHaveBeenLastCalledWith(expect.objectContaining({ revision: 2 }))
+    a.service.dispose()
+    await expect(a.service.request({ type: 'devicesReady' })).rejects.toThrow(
+      'invalid-device-message',
+    )
+    expect(a.deps.publish).toHaveBeenCalledTimes(3)
+  })
+
   it('pairs from the actual shared React view through P and the host-owned snapshot port', async () => {
     const a = await host('a')
     const b = await host('b')
@@ -275,7 +303,7 @@ describe('joined P/T/E/U method port', () => {
     expect(state.pairs).toEqual([])
     expect(a.deps.execution.admit).not.toHaveBeenCalled()
     const observed = await a.service.panel.observe()
-    expect(observed.revision).toBe(5)
+    expect(observed.revision).toBe(6)
     expect(
       request.mock.calls.every(
         ([envelope, signal]) =>

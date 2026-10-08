@@ -135,6 +135,13 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 50,
   },
   {
+    // FIXM100P2U: QR figure measures below 1 KiB; approved encoder adds 21,323 B.
+    // D6 rounds the closure plus headroom to 25 KiB, without changing other caps.
+    name: 'Devices QR',
+    entries: ['src/webview/models/sections/devices/qr/QrFigure.tsx'],
+    budgetKiB: 25,
+  },
+  {
     name: 'code highlighting',
     entries: ['src/webview/components/HighlightedCode.tsx'],
     budgetKiB: 125,

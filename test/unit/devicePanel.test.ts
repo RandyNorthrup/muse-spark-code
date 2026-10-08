@@ -18,10 +18,46 @@ function harness() {
     }),
   )
   const snapshot = vi.fn((): Promise<DevicesPanelState> => Promise.resolve({ enabled: false }))
-  return { panel: new DevicePanel({ perform, snapshot }), perform, snapshot }
+  const publish = vi.fn()
+  return { panel: new DevicePanel({ perform, snapshot, publish }), perform, snapshot, publish }
 }
 
 describe('host-owned Devices snapshots', () => {
+  it('holds observations until ready, replays the latest on reload and publishes later updates', async () => {
+    const { panel, perform, snapshot, publish } = harness()
+    panel.publishObservation(await panel.observe())
+    panel.publishObservation(await panel.observe())
+    expect(publish).not.toHaveBeenCalled()
+    expect(await panel.ready()).toMatchObject({ revision: 2, state: { enabled: false } })
+    expect(publish).toHaveBeenCalledExactlyOnceWith({
+      type: 'deviceState',
+      revision: 2,
+      state: { enabled: false },
+    })
+    await panel.ready()
+    expect(publish).toHaveBeenCalledTimes(2)
+    expect(snapshot).toHaveBeenCalledTimes(2)
+    panel.publishObservation(await panel.observe())
+    expect(publish).toHaveBeenLastCalledWith({
+      type: 'deviceState',
+      revision: 3,
+      state: { enabled: false },
+    })
+    expect(perform).not.toHaveBeenCalled()
+  })
+
+  it('captures an initial observation when ready arrives before any cached state', async () => {
+    const { panel, perform, snapshot, publish } = harness()
+    await panel.ready()
+    expect(snapshot).toHaveBeenCalledOnce()
+    expect(publish).toHaveBeenCalledExactlyOnceWith({
+      type: 'deviceState',
+      revision: 1,
+      state: { enabled: false },
+    })
+    expect(perform).not.toHaveBeenCalled()
+  })
+
   it('does no work at construction and increases observations, replies and off states', async () => {
     const { panel, perform, snapshot } = harness()
     expect(snapshot).not.toHaveBeenCalled()
