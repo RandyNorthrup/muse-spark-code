@@ -7,6 +7,7 @@ import {
   accountUsageText,
 } from '../../src/core/usage/accountUsageText'
 import { EN } from '../../src/shared/l10n/en'
+import { usdInputSchema } from '../../src/shared/usdSchema'
 import { formatPercent, setUiText } from '../../src/shared/l10n/text'
 import {
   USAGE_NOW,
@@ -81,6 +82,25 @@ describe('M108 J account text', () => {
     expect(accountUsageEventText({ ...swap, provider: 'deleted-provider' }, report)).toContain(
       'deleted-provider · personal',
     )
+  })
+
+  it('shows a sub-nano cap notice at its ceiling, never floored below the trigger', () => {
+    const f = usageFixture()
+    const report = f.report()
+    const swap = usageEvents()[1]!
+    if (
+      swap.type !== 'swap' ||
+      swap.trigger.kind !== 'userCap' ||
+      swap.trigger.metric !== 'spendUsd'
+    )
+      throw new Error('Fixture needs a spend swap')
+    const cap = usdInputSchema.parse('0.1000000000000000001')
+    const text = accountUsageEventText(
+      { ...swap, trigger: { ...swap.trigger, threshold: cap, value: cap } },
+      report,
+    )
+    expect(text).toContain('$0.1001')
+    expect(text).not.toContain('$0.1000')
   })
 
   it('shows carried reservations and uncertain liability after a reset while settled spend stays in its period', () => {

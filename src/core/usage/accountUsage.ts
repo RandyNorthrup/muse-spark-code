@@ -17,6 +17,7 @@ import {
   usdNumber,
   type Usd,
 } from '../../shared/accountUsd'
+import { Usd as ExactUsd } from '../../shared/usd'
 import type { AccountLimitsReader } from '../accounts/thresholds'
 
 type Period = 'day' | 'week' | 'month'
@@ -161,15 +162,34 @@ function metersFor(
     for (const metric of ['spendUsd', 'inputTokens', 'outputTokens', 'requests'] as const) {
       const threshold = thresholds[metric]?.[period]
       if (threshold === undefined) continue
-      const value = metric === 'spendUsd' ? totals.liabilityUsd : String(totals[metric])
-      const cap = metric === 'spendUsd' ? parseUsd(threshold, 'floor') : BigInt(threshold)
-      const used = metric === 'spendUsd' ? parseUsd(value) : BigInt(value)
+      if (metric === 'spendUsd') {
+        // Exact decimal comparison, the same contract as admission: a cap of
+        // '0.1000000000000000001' with '0.1' spent is not reached. The
+        // threshold string is already canonical, so it is carried through
+        // without a nano-USD round trip.
+        const cap = ExactUsd.from(threshold)
+        const used = ExactUsd.from(totals.liabilityUsd)
+        const isReached = used.compare(cap) >= 0
+        meters.push({
+          metric,
+          period,
+          unit: 'usd',
+          value: totals.liabilityUsd,
+          threshold,
+          progress: isReached ? 100 : Number(used.times(100).floorDivide(cap)),
+          isReached,
+          resetAt: ranges[period].end,
+        })
+        continue
+      }
+      const cap = BigInt(threshold)
+      const used = BigInt(String(totals[metric]))
       meters.push({
         metric,
         period,
-        unit: metric === 'spendUsd' ? 'usd' : 'count',
-        value,
-        threshold: metric === 'spendUsd' ? usdDecimal(cap) : String(threshold),
+        unit: 'count',
+        value: String(totals[metric]),
+        threshold: String(threshold),
         progress: progress(used, cap),
         isReached: used >= cap,
         resetAt: ranges[period].end,

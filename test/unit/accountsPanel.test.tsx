@@ -316,33 +316,80 @@ describe('M108 threshold editor', () => {
       rateLimitHeadroomPercent: { requests: 28.5, tokens: 28.5 },
     })
   })
-  it.each(['0.0000000001', '-1', 'NaN'])(
-    'refuses inexact or invalid USD %s without sending',
+  it.each(['-1', 'NaN'])('refuses invalid USD %s without sending', (amount) => {
+    const save = vi.fn()
+    render(
+      <ThresholdEditor
+        value={{}}
+        capabilities={{ planWindows: [], hasRateHeadroom: false }}
+        isPending={false}
+        onSave={save}
+      />,
+    )
+    fireEvent.change(document.querySelector('input[name="spendUsd.day"]')!, {
+      target: { value: amount },
+    })
+    // Browser validity also blocks negatives; direct submit verifies the parser itself.
+    if (amount === 'NaN') {
+      // number inputs erase non-numbers, so exercise unsafe counts instead.
+      fireEvent.change(document.querySelector('input[name="requests.day"]')!, {
+        target: { value: '9007199254740992' },
+      })
+    }
+    fireEvent.submit(document.querySelector('form')!)
+    expect(save).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.accounts.invalidAccount)
+  })
+  it.each(['0.0000000001', '0.1000000000000000001'])(
+    'saves an exact sub-nano cap %s unchanged through usdInputSchema',
     (amount) => {
       const save = vi.fn()
+      const cap = usdInputSchema.parse(amount)
       render(
         <ThresholdEditor
-          value={{}}
+          value={{ spendUsd: { day: cap } }}
           capabilities={{ planWindows: [], hasRateHeadroom: false }}
           isPending={false}
           onSave={save}
         />,
       )
-      fireEvent.change(document.querySelector('input[name="spendUsd.day"]')!, {
-        target: { value: amount },
-      })
-      // Browser validity also blocks negatives; direct submit verifies the parser itself.
-      if (amount === 'NaN') {
-        // number inputs erase non-numbers, so exercise unsafe counts instead.
-        fireEvent.change(document.querySelector('input[name="requests.day"]')!, {
-          target: { value: '9007199254740992' },
-        })
-      }
       fireEvent.submit(document.querySelector('form')!)
-      expect(save).not.toHaveBeenCalled()
-      expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.accounts.invalidAccount)
+      expect(save).toHaveBeenCalledWith({ spendUsd: { day: cap } })
     },
   )
+})
+
+describe('M108 exact cap notices', () => {
+  it('shows a sub-nano swap cap at its ceiling, never floored below the trigger', () => {
+    const cap = usdInputSchema.parse('0.1000000000000000001')
+    const h = render(
+      <AccountNotices
+        value={panelSlice()}
+        events={[
+          accountNoticeFor({
+            type: 'swap',
+            provider: 'openai',
+            account: 'work',
+            previousAccount: 'personal',
+            time: new Date(POOL_NOW).toISOString(),
+            trigger: {
+              kind: 'userCap',
+              metric: 'spendUsd',
+              period: 'day',
+              value: cap,
+              threshold: cap,
+              resetAt: new Date(POOL_NOW + 60_000).toISOString(),
+            },
+            coldCacheUsd: 0,
+          }),
+        ]}
+        onOpenLink={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('log')).toHaveTextContent('$0.1001')
+    expect(screen.getByRole('log')).not.toHaveTextContent('$0.1000')
+    h.unmount()
+  })
 })
 
 describe('M108 picker, transcript and policy question', () => {

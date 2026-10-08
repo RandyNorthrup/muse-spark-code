@@ -180,6 +180,29 @@ describe('M108 ACP accounts', () => {
     })
   })
 
+  it('announces a sub-nano swap cap at its ceiling, never floored below the trigger', async () => {
+    const h = connectedAccounts()
+    await h.run(async (client, id) => {
+      const cap = usdInputSchema.parse('0.1000000000000000001')
+      const swap = accountSwap()
+      if (
+        swap.type !== 'swap' ||
+        swap.trigger.kind !== 'userCap' ||
+        swap.trigger.metric !== 'spendUsd'
+      )
+        throw new Error('Fixture needs a spend swap')
+      h.emit({ ...swap, coldCacheUsd: 0, trigger: { ...swap.trigger, threshold: cap, value: cap } })
+      // A following local prompt flushes the same ACP outbox.
+      await client.request('session/prompt', {
+        sessionId: id,
+        prompt: [{ type: 'text', text: '/accounts current' }],
+      })
+      const notices = h.updates.filter((update) => update.sessionUpdate === 'agent_message_chunk')
+      expect(JSON.stringify(notices)).toContain('spendUsd: $0.1001 (day).')
+      expect(JSON.stringify(notices)).not.toContain('$0.1000')
+    })
+  })
+
   it('rejects malformed selections and mixed-content commands before any model dispatch', async () => {
     const h = connectedAccounts()
     await h.run(async (client, id) => {

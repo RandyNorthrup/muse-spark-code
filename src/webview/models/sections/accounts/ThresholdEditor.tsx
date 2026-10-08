@@ -1,8 +1,7 @@
 import { type SubmitEvent, useId, useState } from 'react'
 import { accountThresholdsSchema, type AccountThresholds } from '../../../../shared/accounts'
 import { UI_TEXT } from '../../../../shared/constants'
-import { parseUsd, usdDecimal, usdNumber } from '../../../../shared/accountUsd'
-import { usdAmountSchema, type UsdAmount } from '../../../../shared/usdSchema'
+import { usdInputSchema, type UsdAmount } from '../../../../shared/usdSchema'
 import type { ModelsAccountsSlice } from '../../../../shared/accountsPanel'
 import { formatPercent } from '../../../../shared/l10n/text'
 
@@ -49,10 +48,9 @@ export function ThresholdEditor({
           for (const period of periods) {
             const raw = field(`${metric}.${period}`)
             if (raw === '') continue
-            const exact = parseUsd(raw, 'floor')
-            if (parseUsd(raw) !== exact || parseUsd(usdNumber(exact), 'floor') !== exact)
-              throw new Error(UI_TEXT.accounts.invalidAccount)
-            amounts[period] = usdAmountSchema.parse(usdDecimal(exact))
+            // Exact decimal input: a stored sub-nano cap saves unchanged, and
+            // no binary number round trip can reject or reshape it.
+            amounts[period] = usdInputSchema.parse(raw)
           }
           next.spendUsd = Object.keys(amounts).length === 0 ? undefined : amounts
           continue

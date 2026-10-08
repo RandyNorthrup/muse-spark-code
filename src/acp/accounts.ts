@@ -140,6 +140,9 @@ export class AcpAccounts {
   private notice(event: AccountEvent): string {
     if (event.type === 'swap') {
       const trigger = event.trigger
+      // Display rule: a shortened cap renders with ceiling, never below the
+      // exact trigger, so an exact reach always shows value >= cap. Reach
+      // state itself comes from the exact trigger event, never the text.
       const threshold =
         trigger.kind === 'vendorLimit'
           ? UI_TEXT.accounts.vendorLimit

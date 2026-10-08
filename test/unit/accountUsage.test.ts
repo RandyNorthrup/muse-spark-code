@@ -74,9 +74,53 @@ describe('M108 J account aggregation', () => {
     f.catalog[0]!.accounts[0] = usageAccount('default', {
       spendUsd: { day: PortUsd.from(0.3000000009).toAmount() },
     })
-    expect(f.report().accounts[0]?.meters[0]).toMatchObject({ threshold: '0.3', isReached: true })
+    // The cap is carried exactly, not floored to nano-USD: '0.3' spent against
+    // a '0.3000000009' cap is not reached, matching admission.
+    expect(f.report().accounts[0]?.meters[0]).toMatchObject({
+      value: '0.3',
+      threshold: '0.3000000009',
+      progress: 99,
+      isReached: false,
+    })
     f.records.push(usageRecord({ requests: Number.MAX_SAFE_INTEGER }))
     expect(f.report).toThrow('spend ledger')
+  })
+
+  it('matches admission exactly on a sub-nano spend cap instead of flooring it', () => {
+    const cap = PortUsd.from('0.1000000000000000001').toAmount()
+    const f = usageFixture()
+    f.records.length = 0
+    f.records.push(
+      usageRecord({
+        settledUsd: PortUsd.from('0.1').toAmount(),
+        reservedUsd: PortUsd.from(0).toAmount(),
+        uncertainUsd: PortUsd.from(0).toAmount(),
+      }),
+    )
+    f.catalog[0]!.accounts[0] = usageAccount('default', { spendUsd: { day: cap } })
+    expect(f.report().accounts[0]?.meters[0]).toMatchObject({
+      value: '0.1',
+      threshold: '0.1000000000000000001',
+      progress: 99,
+      isReached: false,
+    })
+    expect(
+      evaluateAccountThresholds({
+        provider: 'meta',
+        account: { id: 'default', thresholds: { spendUsd: { day: cap } } },
+        now: USAGE_NOW,
+        journal: {
+          read: () => ({
+            settledUsd: PortUsd.from('0.1').toAmount(),
+            reservedUsd: PortUsd.from(0).toAmount(),
+            uncertainUsd: PortUsd.from(0).toAmount(),
+            inputTokens: 0,
+            outputTokens: 0,
+            requests: 0,
+          }),
+        },
+      }),
+    ).toEqual([])
   })
 
   it('includes configured idle accounts and removed event identities without inventing usage', () => {
