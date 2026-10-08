@@ -1,0 +1,218 @@
+{
+  "evidence": "synthetic",
+  "identity": {
+    "criteriaVersion": "criteria-1",
+    "dimension": 3,
+    "endpoint": "https://fixture.invalid/v1",
+    "family": "risk.destructive",
+    "fitVersion": "fit-1",
+    "model": "fixture-model",
+    "modelVersion": "v1",
+    "promptVersion": "prompt-1",
+    "providerId": "fixture-provider",
+    "source": "same",
+    "technique": "embedding"
+  },
+  "samples": [
+    {
+      "embedding": [0.9, 0.1, 0.4],
+      "id": "embed-fit-01",
+      "label": 1,
+      "labelId": "fit-label-01",
+      "labelSource": "m75",
+      "repositoryGroup": "fit-repo-a",
+      "split": "fit",
+      "taskGroup": "fit-task-a"
+    },
+    {
+      "embedding": [0.8, 0.2, 0.6],
+      "id": "embed-fit-02",
+      "label": 1,
+      "labelId": "fit-label-02",
+      "labelSource": "m75",
+      "repositoryGroup": "fit-repo-a",
+      "split": "fit",
+      "taskGroup": "fit-task-a"
+    },
+    {
+      "embedding": [0.95, 0.05, 0.5],
+      "id": "embed-fit-03",
+      "label": 1,
+      "labelId": "fit-label-03",
+      "labelSource": "m75",
+      "repositoryGroup": "fit-repo-a",
+      "split": "fit",
+      "taskGroup": "fit-task-a"
+    },
+    {
+      "embedding": [0.7, 0.3, 0.45],
+      "id": "embed-fit-04",
+      "label": 1,
+      "labelId": "fit-label-04",
+      "labelSource": "m75",
+      "repositoryGroup": "fit-repo-b",
+      "split": "fit",
+      "taskGroup": "fit-task-b"
+    },
+    {
+      "embedding": [0.85, 0.15, 0.55],
+      "id": "embed-fit-05",
+      "label": 1,
+      "labelId": "fit-label-05",
+      "labelSource": "m75",
+      "repositoryGroup": "fit-repo-b",
+      "split": "fit",
+      "taskGroup": "fit-task-b"
+    },
+    {
+      "embedding": [0.75, 0.25, 0.35],
+      "id": "embed-fit-06",
+      "label": 1,
+      "labelId": "fit-label-06",
+      "labelSource": "m75",
+      "repositoryGroup": "fit-repo-b",
+      "split": "fit",
+      "taskGroup": "fit-task-b"
+    },
+    {
+      "embedding": [0.1, 0.9, 0.6],
+      "id": "embed-fit-07",
+      "label": 0,
+      "labelId": "fit-label-07",
+      "labelSource": "m75",
+      "repositoryGroup": "fit-repo-a",
+      "split": "fit",
+      "taskGroup": "fit-task-a"
+    },
+    {
+      "embedding": [0.2, 0.8, 0.4],
+      "id": "embed-fit-08",
+      "label": 0,
+      "labelId": "fit-label-08",
+      "labelSource": "m75",
+      "repositoryGroup": "fit-repo-a",
+      "split": "fit",
+      "taskGroup": "fit-task-a"
+    },
+    {
+      "embedding": [0.05, 0.95, 0.5],
+      "id": "embed-fit-09",
+      "label": 0,
+      "labelId": "fit-label-09",
+      "labelSource": "m75",
+      "repositoryGroup": "fit-repo-a",
+      "split": "fit",
+      "taskGroup": "fit-task-a"
+    },
+    {
+      "embedding": [0.3, 0.7, 0.55],
+      "id": "embed-fit-10",
+      "label": 0,
+      "labelId": "fit-label-10",
+      "labelSource": "m75",
+      "repositoryGroup": "fit-repo-b",
+      "split": "fit",
+      "taskGroup": "fit-task-b"
+    },
+    {
+      "embedding": [0.15, 0.85, 0.45],
+      "id": "embed-fit-11",
+      "label": 0,
+      "labelId": "fit-label-11",
+      "labelSource": "m75",
+      "repositoryGroup": "fit-repo-b",
+      "split": "fit",
+      "taskGroup": "fit-task-b"
+    },
+    {
+      "embedding": [0.25, 0.75, 0.65],
+      "id": "embed-fit-12",
+      "label": 0,
+      "labelId": "fit-label-12",
+      "labelSource": "m75",
+      "repositoryGroup": "fit-repo-b",
+      "split": "fit",
+      "taskGroup": "fit-task-b"
+    },
+    {
+      "embedding": [0.88, 0.12, 0.5],
+      "id": "embed-tune-01",
+      "label": 1,
+      "labelId": "tune-label-01",
+      "labelSource": "m75",
+      "repositoryGroup": "tune-repo-a",
+      "split": "tuning",
+      "taskGroup": "tune-task-a"
+    },
+    {
+      "embedding": [0.12, 0.88, 0.5],
+      "id": "embed-tune-02",
+      "label": 0,
+      "labelId": "tune-label-02",
+      "labelSource": "m75",
+      "repositoryGroup": "tune-repo-a",
+      "split": "tuning",
+      "taskGroup": "tune-task-a"
+    },
+    {
+      "embedding": [0.8, 0.2, 0.4],
+      "id": "embed-tune-03",
+      "label": 1,
+      "labelId": "tune-label-03",
+      "labelSource": "m75",
+      "repositoryGroup": "tune-repo-a",
+      "split": "tuning",
+      "taskGroup": "tune-task-a"
+    },
+    {
+      "embedding": [0.2, 0.8, 0.6],
+      "id": "embed-tune-04",
+      "label": 0,
+      "labelId": "tune-label-04",
+      "labelSource": "m75",
+      "repositoryGroup": "tune-repo-a",
+      "split": "tuning",
+      "taskGroup": "tune-task-a"
+    },
+    {
+      "embedding": [0.82, 0.18, 0.52],
+      "id": "embed-eval-01",
+      "label": 1,
+      "labelId": "eval-label-01",
+      "labelSource": "m75",
+      "repositoryGroup": "eval-repo-a",
+      "split": "evaluation",
+      "taskGroup": "eval-task-a"
+    },
+    {
+      "embedding": [0.18, 0.82, 0.48],
+      "id": "embed-eval-02",
+      "label": 0,
+      "labelId": "eval-label-02",
+      "labelSource": "m75",
+      "repositoryGroup": "eval-repo-a",
+      "split": "evaluation",
+      "taskGroup": "eval-task-a"
+    },
+    {
+      "embedding": [0.92, 0.08, 0.42],
+      "id": "embed-eval-03",
+      "label": 1,
+      "labelId": "eval-label-03",
+      "labelSource": "m75",
+      "repositoryGroup": "eval-repo-a",
+      "split": "evaluation",
+      "taskGroup": "eval-task-a"
+    },
+    {
+      "embedding": [0.08, 0.92, 0.58],
+      "id": "embed-eval-04",
+      "label": 0,
+      "labelId": "eval-label-04",
+      "labelSource": "m75",
+      "repositoryGroup": "eval-repo-a",
+      "split": "evaluation",
+      "taskGroup": "eval-task-a"
+    }
+  ]
+}
