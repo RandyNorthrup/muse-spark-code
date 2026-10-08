@@ -1,2 +1,2 @@
-npx lint-staged --concurrent 1
+npx lint-staged --concurrent 1 --max-arg-length 6000
 gitleaks git --pre-commit --staged --redact --no-banner
