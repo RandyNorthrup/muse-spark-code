@@ -1799,3 +1799,72 @@ neighbours `deviceReceiver` 49, `channel` 24.
 Not run here: the full `npm run quality` on the joined tree (lane R's wiring
 contract asks for it) and the lanes' requests to the lead and lane W, which
 stay open for the lead.
+
+## Lane E — receiver test teardown race (FIXE3RACE, 2026-10-08)
+
+Kubuntu rig, `/home/randy/lanes/FIXE3RACE`, branch `m100/p2-e3race`,
+base `2a0636760`. Test-only repair; no production changes, model attempts
+**0**, inference spend **0**. Shared rules:
+`/home/randy/lanes/_ctx/codex/M100P2-common.md`, with the direct-rig,
+default-timeout, eight-busy-loop and 40-minute scope in `FIXE3RACE.rig.md`.
+
+### Cause, repair and audit of both owning files
+
+The held cancellation confirmation resolves before its asynchronous
+`record-uncertain` effect enters the receiver's ordered queue. An immediate
+reconciliation can therefore finish with `running`, while the later durable
+write overlaps fixture directory removal (`ENOTEMPTY` on macmini).
+
+`test/unit/helpers/deviceExecutionFixtures.ts:59` exposes a narrow
+`observeOutcome` promise. It arms before the triggering event, delegates to
+the real journal `advance`, and resolves only after that write completes for
+the requested attempt and state. This observes the next completion even when
+an earlier write already stored `uncertain`; it adds no polling or deadline.
+The spy is installed only in tests that request the observer.
+
+The reset test at `test/unit/deviceReceiver.test.ts:226` awaits that durable
+completion at line 243 before reconciliation and verifies the returned
+`uncertain` state and retained occupancy. All original assertions about
+immediate Stop, held persistence/confirmation, framing failure and no release
+remain. The same completion barrier covers saturated Stop, both corrupt-frame
+timings (both live attempts), pair-scoped reset with a queued retry, channel
+Stop during held start confirmation, and Stop beside another held approval.
+Cancel-before-reservation/coalesced retry cases await the journal's existing
+`cancellations()` operation so their asynchronous tombstone writes finish.
+
+Recovery now waits for the new durable write after retirement-proof rejection,
+including the case whose prior cancellation already persisted `uncertain`.
+A rejected local cancellation also drains its concurrent tombstone write.
+Every remaining resolve/reject/disconnect case in both files was inspected:
+awaited cancellation already joins its effects; terminal-release waits occur
+after durable retirement; late confirmation/pause replies after retirement
+cannot write; ordinary disconnect pause does not write the journal; and
+late-reservation confirmation while still reserved does not write uncertainty.
+Their original assertions remain unchanged.
+
+### Baseline, red drill and restored-tree gates
+
+Each full run uses `npx vitest run test/unit/deviceReceiver.test.ts
+test/unit/deviceRecovery.test.ts --maxWorkers=3`, repository default timeouts
+and no retries. Node **24.18.0**, npm **12.0.1**. Load is exactly eight owned
+Python `while True: pass` processes, stopped after the phase.
+
+- Unmodified `2a0636760`: **30 idle runs, 0 failed; 30 loaded runs, 0 failed**,
+  86 tests per run. The macmini filesystem flake did not reproduce on this rig.
+- Red drill: remove only the reset test's `await uncertain`; three loaded
+  targeted runs each exit **1**, **1 failed / 48 skipped**. Every reconciliation
+  returns `running` instead of `uncertain`, directly proving the same ordering
+  race before relying on filesystem cleanup timing. No `ENOTEMPTY` occurred
+  in these drill runs. Restore the entire mutated file byte-exact: SHA-256
+  `6219d9dafccb2b282e4f197eea5033b23cf906576fd231763a3218b39234119e`
+  both before and after.
+- Restored full owning run: **86 passed**, exit **0**.
+- `npm run typecheck:unit`: **0**. Changed-file ESLint with
+  `--max-warnings=0`: **0**. Changed-file Prettier: **0**.
+  `npm run duplication` (`jscpd`): **0**, **0 clones**, thresholds unchanged.
+
+Receipts and the loop/drill drivers are under
+`$TMPDIR/e3race-proof` (`/var/tmp/l-FIXE3RACE/e3race-proof`), outside the repo.
+Aggregate `npm run quality`, joined CHANGELOG/help and installed-host/four-device
+qualification remain with the lead/lane W under the phase-2 ownership table;
+this lane changes no runtime feature, command, setting, dependency or gate.

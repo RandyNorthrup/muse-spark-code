@@ -235,7 +235,7 @@ describe('receiver restart and ownership reconciliation', () => {
     expect(lease.release).not.toHaveBeenCalled()
   })
   it('RVM100E-P2-1 reports an unproved local cancellation without releasing occupancy', async () => {
-    const { receiver, request, lease } = fixture()
+    const { receiver, request, lease, journal } = fixture()
     await receiver.dispatch(request)
     lease.cancel.mockRejectedValueOnce(new Error('synthetic unproved cancellation'))
     await expect(receiver.cancel(request.identity)).rejects.toThrow(
@@ -244,6 +244,7 @@ describe('receiver restart and ownership reconciliation', () => {
     expect(receiver.blockedReason).toBe('uncertain')
     expect(receiver.paused).toBe(true)
     expect(lease.release).not.toHaveBeenCalled()
+    expect(await journal.cancellations()).toContainEqual(request.identity)
   })
   it('RVM100E-P2-1 reports unavailable cancellation evidence over the authenticated channel', async () => {
     const { receiver, request, directory, lease } = fixture()
@@ -480,7 +481,15 @@ describe('receiver restart and ownership reconciliation', () => {
     },
   )
   it('retains unconfirmed start, cancellation and retirement-observation failure without release', async () => {
-    const { receiver, request, lease, journal, retirement, fixture: counts } = fixture()
+    const {
+      receiver,
+      request,
+      lease,
+      journal,
+      retirement,
+      observeOutcome,
+      fixture: counts,
+    } = fixture()
     lease.start.mockImplementationOnce(() => {
       counts.launches += 1
       return Promise.reject(new Error('start confirmation lost'))
@@ -492,11 +501,11 @@ describe('receiver restart and ownership reconciliation', () => {
     expect(await responseBody(receiver.dispatch(request))).toMatchObject({ kind: 'reconciled' })
     await receiver.cancel(request.identity)
     expect(lease.cancel).toHaveBeenCalledOnce()
+    const uncertain = observeOutcome('uncertain')
     retirement.reject(new Error('no complete local proof'))
-    await vi.waitFor(async () => {
-      expect(await journal.lookup(request.identity)).toMatchObject({
-        outcome: { state: 'uncertain', occupied: request.caps },
-      })
+    await uncertain
+    expect(await journal.lookup(request.identity)).toMatchObject({
+      outcome: { state: 'uncertain', occupied: request.caps },
     })
     expect(counts.launches).toBe(1)
     expect(lease.release).not.toHaveBeenCalled()
@@ -579,12 +588,14 @@ describe('receiver restart and ownership reconciliation', () => {
     await expect(readFile(path.join(directory, 'attempts.json'))).rejects.toThrow()
   })
   it('blocks resume when a confirmed run loses its complete local retirement proof', async () => {
-    const { receiver, request, retirement, journal, lease } = fixture()
+    const { receiver, request, retirement, journal, lease, observeOutcome } = fixture()
     await receiver.dispatch(request)
+    const uncertain = observeOutcome('uncertain')
     retirement.reject(new Error('unproved descendant'))
     await vi.waitFor(() => {
       expect(receiver.blockedReason).toBe('uncertain')
     })
+    await uncertain
     await receiver.reconcile([request.identity])
     expect(() => {
       receiver.resumeQueue()

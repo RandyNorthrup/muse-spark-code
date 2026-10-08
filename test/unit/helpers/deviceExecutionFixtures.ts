@@ -49,6 +49,32 @@ async function executionFixture(kind: 'check' | 'lane' = 'check') {
   const journal = await AttemptJournal.create(directory, owner, executionProtection)
   const grant = deviceGrant('b'.repeat(32))
   const request = signedDispatch(kind === 'check' ? deviceCheck(grant) : deviceLane(grant))
+  const outcomeObservers = new Set<{
+    attemptId: string
+    state: DeviceOutcome['state']
+    resolve: (outcome: DeviceOutcome) => void
+  }>()
+  const advance = journal.advance.bind(journal)
+  let isObserving = false
+  function observeOutcome(state: DeviceOutcome['state'], identity = request.identity) {
+    const completion = deferred<DeviceOutcome>()
+    outcomeObservers.add({ attemptId: identity.attemptId, state, resolve: completion.resolve })
+    if (!isObserving) {
+      isObserving = true
+      vi.spyOn(journal, 'advance').mockImplementation(async (...args) => {
+        // Observe this write's durable completion, even if an earlier row had the same state.
+        const outcome = await advance(...args)
+        for (const observer of outcomeObservers) {
+          if (observer.attemptId !== outcome.identity.attemptId || observer.state !== outcome.state)
+            continue
+          outcomeObservers.delete(observer)
+          observer.resolve(outcome)
+        }
+        return outcome
+      })
+    }
+    return completion.promise
+  }
   const retirement = deferred<Awaited<DeviceLocalAttempt['retirement']>>()
   const fixture: {
     boundary: DeviceExecutionBoundary | undefined
@@ -102,6 +128,7 @@ async function executionFixture(kind: 'check' | 'lane' = 'check') {
     directory,
     owner,
     journal,
+    observeOutcome,
     request,
     grant,
     lease,
