@@ -2269,20 +2269,31 @@ call or production calibration is claimed.
 
 `museSpark.judge.engine` is machine-scoped: `auto` (default) uses the same
 model, `same` keeps that selection explicit, and `off` disables Judge.
-`separate` selects a verified separate source; `both` runs the separate source
-first and asks the conversation model when entropy confidence is low or the
-family is high stakes. Automatic `both` requires matched fitted profiles and
-recorded held-out paired M75 evidence. Without that evidence, `auto` uses
-the same model and explains the fallback when a separate source is configured. `museSpark.judge.separate` holds its source/model
-identifier, without a credential; its default is empty. Set
-it to `off` in Settings to stop future judgments. A measured ready rate below
-the floor disables `auto` on that backend; no production ready-rate or
-precision measurement is claimed here. Status and separate dispatch rows
-show what ran, with missing usage left unknown. One request-only runtime
-serves the window, CLI and MCP surfaces; the experimental embedding fast
-path runs only on capable transports with its attempt ceiling published
-before dispatch, paid consent asked once, and verified-local models behind
-explicit opt-in. See [Judge](docs/judge.md)
+`separate` selects a verified separate source once one is configured with
+recorded fitted profiles; `both` runs the separate source first and asks the
+conversation model when entropy confidence is low or the family is high
+stakes. Automatic `both` additionally requires recorded held-out paired M75
+evidence. Until each input is recorded, `auto` keeps the same model and the
+status line names the gap in the same words: "Same model: no separate source
+is available", "Same model: separate source has not been verified", "Same
+model: fitted profiles are missing", or "Same model: held-out paired
+evaluation evidence is missing"; explicit `separate`/`both` stay off with the
+matching "Off: ..." sentence. No live separate source ships yet: the window
+builds its binding from settings without one (`src/extension.ts`), and the
+CLI and MCP build theirs the same way (`src/runtime/main.ts`), so today these
+modes report their gap instead of dispatching. `museSpark.judge.separate`
+holds its source/model identifier, without a credential; its default is
+empty. Set it to `off` in Settings to stop future judgments. A measured
+ready rate below the floor disables `auto` on that backend; no production
+ready-rate or precision measurement is claimed here. Status and separate
+dispatch rows show what ran, with missing usage left unknown. One
+request-only runtime serves the window, CLI and MCP surfaces; the
+experimental embedding fast path runs only with a recorded family head on a
+capable transport, with its attempt ceiling published before dispatch, paid
+consent asked once, and verified-local models behind explicit opt-in. With a
+configured transport but no recorded head, the status appends "The embedding
+shortcut needs hundreds of independent labels for this family; none recorded
+yet, so the full judge runs instead", and the full judge runs instead. See [Judge](docs/judge.md)
 for the phase-1 contract and remaining certification.
 
 ## Web fetch

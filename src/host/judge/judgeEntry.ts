@@ -306,7 +306,7 @@ export function createWindowJudge(
             deps.notice(text)
           },
           createRunner: (entries, _action, lifetime) => {
-            if (selectedBinding(action) !== undefined) {
+            if (phase2 !== undefined && selectedBinding(action) !== undefined) {
               const embeddingId = randomUUID()
               const embeddingRows = new JudgeUsageRows({
                 billing:

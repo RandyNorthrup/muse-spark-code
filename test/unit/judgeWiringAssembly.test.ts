@@ -1,25 +1,16 @@
-import { EN } from '../../src/shared/l10n/en'
-import { PaidUseConsent, paidUseQuestion } from '../../src/core/paid/paidConsent'
 import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { judgeFeaturesLoader } from '../../src/runtime/judge/judgeBundle'
 import { createLogger } from '../../src/host/logger'
-import { createWindowJudge } from '../../src/host/judge/judgeEntry'
-import { createPaidFeatures } from '../../src/host/paid/paidHost'
-import type { JudgeRuntimeBinding } from '../../src/core/judge/runtime'
-import { embeddingHeadDigest, weightEnvelopeFor } from '../../src/core/judge/embedding/schema'
-import { fitEmbeddingHead } from '../../src/core/judge/embedding/fit'
 import { builtJudgeFactories } from './helpers/judgeFactoryBundles'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { memento } from './helpers/memento'
-import { wiringFixture } from './helpers/judgeWiring'
-import { command, io, REQUEST } from './judgeCliFixtures'
 import {
-  embeddingLimits,
-  embeddingSource,
-  confidentVectors,
-  groupedDataset,
-} from './judgeEmbeddingFixtures'
+  embeddedBinding,
+  phase2Binding,
+  phase2Window,
+  surfaceInput,
+} from './helpers/judgePhase2Rig'
+import { command, io, REQUEST } from './judgeCliFixtures'
 
 const built = builtJudgeFactories()
 function features() {
@@ -29,99 +20,10 @@ function features() {
   })()
 }
 function binding(engine = 'both') {
-  const fixture = wiringFixture()
-  const value: JudgeRuntimeBinding = {
-    ...fixture,
-    context: { ...fixture.context, engine },
-    separateVerified: true,
-    separateLocality: 'verified-local',
-  }
-  return { ...fixture, value }
+  return phase2Binding(engine)
 }
 function embedded(locality: 'same-provider' | 'verified-local' = 'same-provider') {
-  const fixture = binding('same')
-  const dataset = groupedDataset(200)
-  dataset.identity.endpoint = 'fixture://offline'
-  dataset.identity.providerId = 'fixture-provider'
-  const fitted = fitEmbeddingHead(
-    dataset,
-    { optedIn: true },
-    { ...embeddingLimits, maxSamples: 1000, minLabels: 200 },
-  )
-  if (!('version' in fitted)) throw new Error(fitted.reason)
-  const head = { ...fitted, evidence: 'independent' as const }
-  head.digest = embeddingHeadDigest(head)
-  const source = embeddingSource({
-    locality,
-    endpoint: 'fixture://offline',
-    uncachedCostUsd: locality === 'verified-local' ? 0 : 0.0002,
-    embed: () => Promise.resolve(confidentVectors),
-  })
-  const prompts: { title: string; detail: string }[] = []
-  const consent = new PaidUseConsent({
-    isOn: () => true,
-    canRemember: () => false,
-    readGrants: () => new Set(),
-    writeGrants: () => Promise.resolve(),
-    log: new FakeLogOutputChannel(),
-    ask: async (request) => {
-      prompts.push(await paidUseQuestion(request))
-      return 'once'
-    },
-  })
-  const allowsPaidUse = vi.fn((request: Parameters<typeof consent.allows>[0]) =>
-    consent.allows(request),
-  )
-  const claims: number[] = []
-  const ledger = {
-    remainingUsd: () => Promise.resolve(1),
-    reserve: (cost: number) => {
-      claims.push(cost)
-      return Promise.resolve({
-        claimId: `claim-${String(claims.length)}`,
-        reservedUsd: cost,
-        check: vi.fn(),
-        settle: vi.fn(() => Promise.resolve()),
-      })
-    },
-  }
-  const manifest = {
-    identity: head.identity,
-    evidence: 'independent',
-    rows: dataset.samples.map((sample) => ({
-      id: sample.id,
-      labelId: sample.labelId,
-      taskGroup: sample.taskGroup,
-      repositoryGroup: sample.repositoryGroup,
-      split: sample.split,
-      labelSource: sample.labelSource,
-      label: sample.label === 1,
-      embeddingAttempts: 1,
-      fallbackAttempts: 1,
-      ...(sample.split === 'evaluation' && {
-        fullProbability: 0.7,
-        embeddingProbability: sample.label === 1 ? 0.9 : 0.1,
-      }),
-    })),
-  }
-  const embedding = {
-    capable: true,
-    source: source.source,
-    localOptedIn: true,
-    head,
-    weights: weightEnvelopeFor(head),
-    manifest,
-    fitVersion: head.identity.fitVersion,
-    gate: { isOn: () => true },
-    isEnabled: () => true,
-    priceFingerprint: 'fixture-verified-price',
-    consentEpoch: () => 'epoch-1',
-    allowsPaidUse,
-    dailyBudgetUsd: () => 1,
-    ledger,
-  }
-  const value: JudgeRuntimeBinding = { ...fixture.value, embedding }
-  return { ...fixture, value, embedding, embed: source.embed, allowsPaidUse, claims, prompts }
+  return embeddedBinding(locality)
 }
 
 describe('phase-2 paths through the shipped lazy assembly', () => {
@@ -149,11 +51,7 @@ describe('phase-2 paths through the shipped lazy assembly', () => {
         billing: 'free',
         worstCaseUsd: () => 0,
       })
-      const input =
-        action === 'ask'
-          ? JSON.stringify(REQUEST)
-          : `${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'judge', arguments: REQUEST } })}\n`
-      const streams = io(input)
+      const streams = io(surfaceInput(action))
       expect(
         await factory.runJudgeCommand(
           command(action, ['--engine', 'both', '--model', 'chosen']),
@@ -168,41 +66,10 @@ describe('phase-2 paths through the shipped lazy assembly', () => {
   )
   it('reaches cascade through the window factory without changing the same-model fallback', async () => {
     const fixture = binding()
-    const paid = createPaidFeatures({
-      globalState: memento(new Map()),
-      workspaceState: memento(new Map()),
-      isSettingOn: () => false,
-      isJudgeOn: () => true,
-      isKeyStored: () => false,
-      canRememberPaidUse: () => false,
-      log: new FakeLogOutputChannel(),
+    const judge = phase2Window({
+      binding: () => fixture.value,
+      createRuntime: (deps) => features().createRuntime(deps),
     })
-    const judge = createWindowJudge(
-      {
-        phase2: {
-          binding: () => fixture.value,
-          createRuntime: (deps) => features().createRuntime(deps),
-        },
-        engine: () => 'both',
-        context: () => ({
-          backend: 'museCode',
-          modelId: 'chosen',
-          ownerId: 'owner-1',
-          contextLimit: 32_000,
-          confidential: false,
-        }),
-        readSettingsText: () => undefined,
-        startSession: vi.fn(),
-        modelApi: () => undefined,
-        paid,
-        emit: vi.fn(),
-        status: vi.fn(),
-        notice: vi.fn(),
-        log: new FakeLogOutputChannel(),
-      },
-      EN,
-      'en',
-    )
     const fence = judge.start(
       { backend: 'museCode', sessionId: 's1', turnId: 'turn-1', tool: 'bash', args: {} },
       'state',

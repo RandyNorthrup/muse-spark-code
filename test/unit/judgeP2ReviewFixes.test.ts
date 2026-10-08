@@ -1,33 +1,32 @@
 // Regression tests for the M98 phase-2 review findings (one P1, five P2s).
 // Each test fails on m98/p2-bind's head and passes with the fix. All spending
 // is fake; no live, paid or local-model call is made.
-import { EN } from '../../src/shared/l10n/en'
-import { PaidUseConsent, paidUseQuestion } from '../../src/core/paid/paidConsent'
 import { describe, expect, it, vi } from 'vitest'
-import { createPaidFeatures } from '../../src/host/paid/paidHost'
-import { createWindowJudge } from '../../src/host/judge/judgeEntry'
 import { createJudgeRuntime, type JudgeRuntimeBinding } from '../../src/core/judge/runtime'
 import type { JudgeTechniqueReceipt } from '../../src/core/judge/sampling'
 import { parseCalibrationProfile } from '../../src/core/judge/calibration/schema'
 import { embeddingAvailability } from '../../src/core/judge/embedding/availability'
-import { fitEmbeddingHead } from '../../src/core/judge/embedding/fit'
 import { runEmbeddingJudge } from '../../src/core/judge/embedding/route'
-import { embeddingHeadDigest, weightEnvelopeFor } from '../../src/core/judge/embedding/schema'
 import { createJudgeCommandDeps } from '../../src/runtime/judge/assembly'
 import { runJudgeCommand } from '../../src/runtime/judge/commands'
-import { FakeLogOutputChannel } from './helpers/fakes'
+import { embeddedBinding, phase2Window, surfaceInput } from './helpers/judgePhase2Rig'
 import { wiringFixture, wiringLimits } from './helpers/judgeWiring'
-import { memento } from './helpers/memento'
 import { command, io, REQUEST } from './judgeCliFixtures'
-import {
-  confidentVectors,
-  embeddingLimits,
-  embeddingSource,
-  groupedDataset,
-} from './judgeEmbeddingFixtures'
 
 function loadEmbedding() {
   return Promise.resolve({ run: runEmbeddingJudge, availability: embeddingAvailability })
+}
+
+/** A run-cap refusal sends nothing: no dispatch, no reservation, no consent. */
+function expectOverBudgetRefusal(
+  code: number,
+  output: string,
+  rig: Pick<ReturnType<typeof embeddedBinding>, 'embed' | 'claims'>,
+): void {
+  expect(code).toBe(4)
+  expect(output).toContain('over-budget')
+  expect(rig.embed).not.toHaveBeenCalled()
+  expect(rig.claims).toHaveLength(0)
 }
 
 /** The same recorded profile re-identified as logprob evidence. */
@@ -35,107 +34,6 @@ function asLogprobProfile(profile: unknown): unknown {
   const parsed = parseCalibrationProfile(profile, wiringLimits)
   if (parsed === undefined) throw new Error('fixture profile should parse')
   return { ...parsed, identity: { ...parsed.identity, technique: 'logprob' } }
-}
-
-/** A command binding with a capable embedding transport, paid or verified-local. */
-function embeddedBinding(locality: 'same-provider' | 'verified-local', consentDelayMs = 0) {
-  const fixture = wiringFixture()
-  const value: JudgeRuntimeBinding = {
-    ...fixture,
-    context: { ...fixture.context, engine: 'same' },
-    separateVerified: true,
-    separateLocality: 'verified-local',
-    attemptCostUsd: () => 0,
-  }
-  const dataset = groupedDataset(200)
-  dataset.identity.endpoint = 'fixture://offline'
-  dataset.identity.providerId = 'fixture-provider'
-  const fitted = fitEmbeddingHead(
-    dataset,
-    { optedIn: true },
-    { ...embeddingLimits, maxSamples: 1000, minLabels: 200 },
-  )
-  if (!('version' in fitted)) throw new Error(fitted.reason)
-  const head = { ...fitted, evidence: 'independent' as const }
-  head.digest = embeddingHeadDigest(head)
-  const built = embeddingSource({
-    locality,
-    endpoint: 'fixture://offline',
-    uncachedCostUsd: locality === 'verified-local' ? 0 : 0.0002,
-    embed: () => Promise.resolve(confidentVectors),
-  })
-  const prompts: { title: string; detail: string }[] = []
-  const consent = new PaidUseConsent({
-    isOn: () => true,
-    canRemember: () => false,
-    readGrants: () => new Set(),
-    writeGrants: () => Promise.resolve(),
-    log: new FakeLogOutputChannel(),
-    ask: async (request) => {
-      prompts.push(await paidUseQuestion(request))
-      if (consentDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, consentDelayMs))
-      return 'once'
-    },
-  })
-  const allowsPaidUse = vi.fn((request: Parameters<typeof consent.allows>[0]) =>
-    consent.allows(request),
-  )
-  const claims: number[] = []
-  const ledger = {
-    remainingUsd: () => Promise.resolve(1),
-    reserve: (cost: number) => {
-      claims.push(cost)
-      return Promise.resolve({
-        claimId: `claim-${String(claims.length)}`,
-        reservedUsd: cost,
-        check: vi.fn(),
-        settle: vi.fn(() => Promise.resolve()),
-      })
-    },
-  }
-  const manifest = {
-    identity: head.identity,
-    evidence: 'independent',
-    rows: dataset.samples.map((sample) => ({
-      id: sample.id,
-      labelId: sample.labelId,
-      taskGroup: sample.taskGroup,
-      repositoryGroup: sample.repositoryGroup,
-      split: sample.split,
-      labelSource: sample.labelSource,
-      label: sample.label === 1,
-      embeddingAttempts: 1,
-      fallbackAttempts: 1,
-      ...(sample.split === 'evaluation' && {
-        fullProbability: 0.7,
-        embeddingProbability: sample.label === 1 ? 0.9 : 0.1,
-      }),
-    })),
-  }
-  const embedding = {
-    capable: true,
-    source: built.source,
-    localOptedIn: true,
-    head,
-    weights: weightEnvelopeFor(head),
-    manifest,
-    fitVersion: head.identity.fitVersion,
-    gate: { isOn: () => true },
-    isEnabled: () => true,
-    priceFingerprint: 'fixture-verified-price',
-    consentEpoch: () => 'epoch-1',
-    allowsPaidUse,
-    dailyBudgetUsd: () => 1,
-    ledger,
-  }
-  return {
-    ...fixture,
-    value: { ...value, embedding },
-    embed: built.embed,
-    allowsPaidUse,
-    claims,
-    prompts,
-  }
 }
 
 describe('P1: the CLI/MCP run budget constrains the dispatched binding', () => {
@@ -175,10 +73,7 @@ describe('P1: the CLI/MCP run budget constrains the dispatched binding', () => {
       resolveSource: () => Promise.resolve(resolved),
       ...(deps.admitPaid !== undefined && { admitPaid: deps.admitPaid }),
     })
-    expect(code).toBe(4)
-    expect(streams.output()).toContain('over-budget')
-    expect(rig.embed).not.toHaveBeenCalled()
-    expect(rig.claims).toHaveLength(0)
+    expectOverBudgetRefusal(code, streams.output(), rig)
     expect(rig.prompts).toHaveLength(0)
     // The admission layer re-checks the same cap against the changed
     // binding, so a stale reservation cannot dispatch either.
@@ -201,10 +96,7 @@ describe('P1: the CLI/MCP run budget constrains the dispatched binding', () => {
     const parsed = command('ask', ['--engine', 'same', '--model', 'chosen', '--budget-usd', '0'])
     const streams = io(JSON.stringify(REQUEST))
     const code = await runJudgeCommand(parsed, streams, deps)
-    expect(code).toBe(4)
-    expect(streams.output()).toContain('over-budget')
-    expect(rig.embed).not.toHaveBeenCalled()
-    expect(rig.claims).toHaveLength(0)
+    expectOverBudgetRefusal(code, streams.output(), rig)
     expect(rig.allowsPaidUse).not.toHaveBeenCalled()
     expect(rig.prompts).toHaveLength(0)
   })
@@ -222,11 +114,7 @@ describe('P2: embedding answers name their embedding model', () => {
         loadEmbedding,
       })
       const parsed = command(action, ['--engine', 'same', '--model', 'chosen'])
-      const input =
-        action === 'ask'
-          ? JSON.stringify(REQUEST)
-          : `${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'judge', arguments: REQUEST } })}\n`
-      const streams = io(input)
+      const streams = io(surfaceInput(action))
       expect(await runJudgeCommand(parsed, streams, deps)).toBe(0)
       expect(streams.output()).toContain('embedding')
       expect(streams.output()).not.toContain('isError')
@@ -299,44 +187,13 @@ describe('P2: a binding from another turn never becomes the action snapshot', ()
       separateLocality: 'verified-local',
     }
     let runtimeCreations = 0
-    const paid = createPaidFeatures({
-      globalState: memento(new Map()),
-      workspaceState: memento(new Map()),
-      isSettingOn: () => false,
-      isJudgeOn: () => true,
-      isKeyStored: () => false,
-      canRememberPaidUse: () => false,
-      log: new FakeLogOutputChannel(),
-    })
-    const judge = createWindowJudge(
-      {
-        phase2: {
-          binding: () => stale,
-          createRuntime: (runtimeDeps) => {
-            runtimeCreations += 1
-            return Promise.resolve(createJudgeRuntime(runtimeDeps))
-          },
-        },
-        engine: () => 'both',
-        context: () => ({
-          backend: 'museCode',
-          modelId: 'chosen',
-          ownerId: 'owner-1',
-          contextLimit: 32_000,
-          confidential: false,
-        }),
-        readSettingsText: () => undefined,
-        startSession: vi.fn(),
-        modelApi: () => undefined,
-        paid,
-        emit: vi.fn(),
-        status: vi.fn(),
-        notice: vi.fn(),
-        log: new FakeLogOutputChannel(),
+    const judge = phase2Window({
+      binding: () => stale,
+      createRuntime: (runtimeDeps) => {
+        runtimeCreations += 1
+        return Promise.resolve(createJudgeRuntime(runtimeDeps))
       },
-      EN,
-      'en',
-    )
+    })
     const fence = judge.start(
       { backend: 'museCode', sessionId: 's1', turnId: 'turn-2', tool: 'bash', args: {} },
       'state',
@@ -365,21 +222,30 @@ describe('P2: adoption profiles must serve the current technique', () => {
     }
     // Capabilities refuse logprobs and serve stated confidence only; the
     // recorded evidence is logprob, so it cannot qualify the stated path.
+    // The held-out receipt matches the logprob profiles, so only the
+    // technique check stands between this binding and automatic `both`.
+    const record = {
+      ...fixture.adoption.record,
+      same: { profile: sameProfile, dataset: sameDataset },
+      separate: { profile: separateProfile, dataset: separateDataset },
+    }
+    const adoptionContext = { ...fixture.adoption.context, sameProfile, separateProfile }
+    const separateReadiness = fixture.context.separate
+    if (separateReadiness?.adoption === undefined)
+      throw new Error('fixture needs adoption readiness')
     const value: JudgeRuntimeBinding = {
       ...fixture,
       separateVerified: true,
       separateLocality: 'verified-local',
+      context: {
+        ...fixture.context,
+        separate: {
+          ...separateReadiness,
+          adoption: { ...separateReadiness.adoption, record, context: adoptionContext },
+        },
+      },
       same: { ...fixture.same, profile: sameProfile },
       separate: { ...fixture.separate, profile: separateProfile },
-      adoption: {
-        ...fixture.adoption,
-        record: {
-          ...fixture.adoption.record,
-          same: { profile: sameProfile, dataset: sameDataset },
-          separate: { profile: separateProfile, dataset: separateDataset },
-        },
-        context: { ...fixture.adoption.context, sameProfile, separateProfile },
-      },
     }
     const status = vi.fn()
     const runtime = createJudgeRuntime({ binding: () => value, status })
