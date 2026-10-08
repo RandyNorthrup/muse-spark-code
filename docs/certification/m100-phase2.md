@@ -1747,3 +1747,55 @@ regenerate `docs/ide-compatibility/host-api.md` there with
 `npm run check:host-api -- --write`, then run full quality on the joined tree.
 No source outside lane R, gate, assertion, timeout, cap or shared contract
 was changed to obtain these results.
+
+## Lead integration round 2 (lanes A, R)
+
+Windows host, 2026-10-08. Worktree `mx-m100int`, branch `m100/p2-int-lead`
+from `db09e194f`. Two `git merge --no-ff` steps, in order. Model attempts
+**0**, inference spend **0**, no push. Hooks (lint-staged, gitleaks) ran on
+every commit.
+
+| Merge       | Source                                                                                                         | Conflicts and resolution                                                                                                                                                                                      |
+| ----------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bbb73dc40` | `cead4eb7b` (`refs/rigs/linuxlt/m100/p2-a-fix2`: lane A `5bbefbd4f`, round 1 `cd8913a7e`, round 2 `cead4eb7b`) | This record only: one hunk after the lane C fix section. Kept every integrated section unchanged and appended lane A's sections after the lane D round-5 review; both halves byte-identical to their sources. |
+| `a3a44d4ae` | `2411f6f35` (`refs/rigs/win11/m100/p2-r-fix`: `ac644c3ea`, `44fffb8c8`, fixes `66a3c39dd`, `2411f6f35`)        | This record only: one hunk after the lane 0 re-review. Kept everything above, then lane R's sections after lane A's; both halves byte-identical to their sources.                                             |
+
+No other file conflicted. Neither lane touches `CHANGELOG.md`, `PLAN.md`,
+`src/shared/devices.ts` or `docs/ide-compatibility/host-api.md`; lane A's
+`channel.ts` and `deviceReceiver.ts` additions merged automatically. Lane R
+was built on `81f070674`: every import in its seven files (`shared/constants`,
+`shared/l10n/text`, `shared/devices`, `core/devices/attemptJournal`, the
+shared device fixtures) resolves on the integrated base, and no import names a
+moved module.
+
+**Regenerated.** `docs/ide-compatibility/host-api.md` with
+`node scripts/check-host-api.mjs --write`: `node:crypto` readers 93 → 95
+(`actionGrants.ts`, `resultChannel.ts`) and `node:path` 125 → 126
+(`actionGrants.ts`). No l10n table or reference changed.
+
+### Verification (Windows host for static gates, Kubuntu rig for tests)
+
+| Gate                                                                  | Exit | Result                                                                     |
+| --------------------------------------------------------------------- | ---- | -------------------------------------------------------------------------- |
+| `typecheck:host` (`tsc -p tsconfig.json --noEmit`)                    | 0    | clean                                                                      |
+| `typecheck:unit` (`tsc -p test/unit/tsconfig.json --noEmit`)          | 0    | clean                                                                      |
+| `eslint --max-warnings=0` on the 13 merged lane source and test files | 0    | clean                                                                      |
+| `prettier --check` on those files, this record and `host-api.md`      | 0    | clean                                                                      |
+| `node scripts/check-l10n.mjs`                                         | 0    | 14 UI tables, 14 usage tables, 197 manifest strings, 995 files, 0 problems |
+| `node scripts/check-host-api.mjs` before regeneration                 | 1    | 1 problem: the two stale reader counts above                               |
+| `node scripts/check-host-api.mjs` after regeneration                  | 0    | 0 problems                                                                 |
+| `npm run cycles`                                                      | 0    | 871 modules, no circular dependency                                        |
+| `gitleaks git --log-opts=db09e194f..HEAD`                             | 0    | 11 commits, no leaks                                                       |
+
+Kubuntu rig, `rig-test.sh kubuntu … 1` (snapshot `1c5026f9` = `a3a44d4ae`
+plus the regenerated `host-api.md`, lockfile base `dfccddb8e7d78460`,
+repository-default timeouts): `test/unit/device*.test.ts`,
+`actionGrants.test.ts` and `channel.test.ts` (lane A changed
+`core/devices/channel.ts`). **29 files, 785 tests passed, 0 failed**, exit
+**0**. Lane-owned files: `actionGrants` 80, `devicePresenceRelay` 11,
+`deviceReconnect` 17, `deviceResultChannel` 20, `deviceEpochs` 13; shared
+neighbours `deviceReceiver` 49, `channel` 24.
+
+Not run here: the full `npm run quality` on the joined tree (lane R's wiring
+contract asks for it) and the lanes' requests to the lead and lane W, which
+stay open for the lead.
