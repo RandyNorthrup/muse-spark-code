@@ -25,6 +25,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, formatBytes } from '../../shared/l10n/text'
+import { windowsPathProblem } from '../windowsPathSpelling'
 
 export type HeldEntryKind = 'file' | 'executable' | 'link' | 'submodule'
 
@@ -69,10 +70,6 @@ const DOT_GIT = /^(?:\.git|git~1)[. ]*$/iu
 // What Windows refuses in a name, beside the control characters.
 const WINDOWS_FORBIDDEN = /[<>:"|?*]/u
 const FIRST_PRINTABLE = 0x20
-// A device name in any folder, whatever its extension (the superscript digits too).
-const WINDOWS_DEVICE = /^(?:con|prn|aux|nul|conin\$|conout\$|com[\d¹²³]|lpt[\d¹²³]) *(?:\..*)?$/iu
-// Windows drops a trailing dot or space, so the name on disk would be another.
-const WINDOWS_TRAILING = /[. ]$/u
 // Platforms whose usual file systems tell names apart neither by letter
 // case nor (macOS) by Unicode composition.
 const NAME_FOLDING_PLATFORMS: ReadonlySet<NodeJS.Platform> = new Set(['win32', 'darwin'])
@@ -104,8 +101,7 @@ function isWritableName(name: string, platform: NodeJS.Platform): boolean {
     platform === 'win32' &&
     (WINDOWS_FORBIDDEN.test(name) ||
       hasControlCharacter(name) ||
-      WINDOWS_DEVICE.test(name) ||
-      WINDOWS_TRAILING.test(name))
+      windowsPathProblem(name, platform) !== undefined)
   return !isRefusedEverywhere && !isRefusedOnWindows
 }
 

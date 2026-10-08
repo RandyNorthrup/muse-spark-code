@@ -119,11 +119,12 @@ import {
 import {
   indexFileInstance,
   isInShadowRepository,
-  isWithinFolder,
   ShadowGit,
   ShadowPathTooLongError,
   ShadowStorageInWorkspaceError,
 } from './shadowGit'
+import { pathIdentityRelation } from '../../core/pathIdentity'
+import { windowsPathProblem } from '../../core/windowsPathSpelling'
 import { isLegacyWindow, WindowPresence } from './windowPresence'
 import { WriteJournal } from './writeJournal'
 import { innermostFolders, type WriteLanes } from './writeRecorder'
@@ -1965,9 +1966,11 @@ export class CheckpointStore {
   /** Whether a path is in the checkpoint storage of any namespace (tools never write there). */
   public isStoragePath(absolutePath: string): boolean {
     return (
+      windowsPathProblem(absolutePath, process.platform) !== undefined ||
       isInShadowRepository(absolutePath) ||
-      isWithinFolder(absolutePath, this.deps.storageDir) ||
-      (this.deps.storageRoot !== undefined && isWithinFolder(absolutePath, this.deps.storageRoot))
+      pathIdentityRelation(absolutePath, this.deps.storageDir) !== 'outside' ||
+      (this.deps.storageRoot !== undefined &&
+        pathIdentityRelation(absolutePath, this.deps.storageRoot) !== 'outside')
     )
   }
 

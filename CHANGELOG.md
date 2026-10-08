@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Security
+
+- Refuse ambiguous Windows path spellings at file admission, including device
+  namespaces, alternate streams, trailing dots/spaces and superscript device
+  names. Muse Code approvals naming these paths require a manual once-only
+  decision. Checkpoint storage and held pull-request boundaries compare native
+  file identities, retaining protection through junctions and loopback shares;
+  uncertain UNC identity fails closed.
+
 ### Changed
 
 - Update the ACP SDK to 1.5.1 with incoming transport memory bounds, Vitest and

@@ -13,6 +13,7 @@
 
 import type { ApprovalSubject } from '../shared/agentEvents'
 import { PROTECTED_FILE_NAMES, PROTECTED_PATH_SEGMENTS } from '../shared/constants'
+import { windowsPathProblem } from './windowsPathSpelling'
 
 // MSP's file-access subject (Muse Code; the Model API sends `fileWrite`).
 const FILE_ACCESS_SUBJECT = 'fileAccess'
@@ -59,6 +60,7 @@ export function isProtectedFileAccess(
     subject.kind === FILE_ACCESS_SUBJECT &&
     subject.access !== READ_ACCESS &&
     subject.path !== undefined &&
-    isProtectedPath(subject.path.replaceAll('\\', '/'))
+    (windowsPathProblem(subject.path, process.platform) !== undefined ||
+      isProtectedPath(subject.path.replaceAll('\\', '/')))
   )
 }

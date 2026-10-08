@@ -19855,6 +19855,28 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### SECWINPATH — Windows path alias security repair (2026-10-08, win11)
+
+Implement the owner's AUDITWINPATH decisions on base `67099ce1b`: one shared
+Windows spelling refusal at workspace, worker/ACP, held-tree and checkpoint
+admission; flagged Muse Code write subjects require a manual once-only answer.
+Storage exclusion and held-worktree/separation boundaries compare native
+volume/file identities through the nearest existing ancestor. UNC admission
+requires a UNC workspace and proven ancestry; uncertain UNC hold/exclusion
+proof fails closed. Preserve ordinary protected-folder behavior and POSIX names.
+
+- [x] Capture native Win32 normalization and loopback SMB identity in owned temp folders.
+- [x] Run new regressions against the unchanged base, then repair the owning boundaries.
+- [x] Fire stream, trailing-dot and storage-identity guards deliberately and restore bytes.
+- [ ] Commit validated pieces with hooks; qualify a fresh `npm ci`, `CI=true` clone
+      with owning suites three times at repository deadlines, five typechecks,
+      changed-file lint/format, plain knip, duplication, cycles, localization,
+      reference and capped production build.
+
+The rig brief overrides common.md's stale merge step: no merges, push, paid/live
+calls or aggregate quality. Full aggregate quality remains with the lead under
+the shared lane rules (§7). Receipts: `docs/certification/sec-win-path-aliases.md`.
+
 ### FIX0160X — Repair release CI composition (2026-10-07, macmini)
 
 Preserve M106/M107, pinned questions and agent outcomes while repairing the

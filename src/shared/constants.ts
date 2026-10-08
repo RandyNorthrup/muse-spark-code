@@ -5276,6 +5276,12 @@ export const MODEL_TEXT = {
   memoryNoWorkspace: 'no workspace folder is open, so this scope has no memory',
   memoryNoHome: 'the home folder is unknown, so this scope has no memory',
   checkpointStorageWrite: 'This path is in the extension checkpoint storage; tools cannot edit it.',
+  windowsDeviceNamespace: 'names a Windows device namespace',
+  windowsUncOutsideWorkspace: 'names a UNC path outside a UNC workspace',
+  windowsAlternateStream: 'names an alternate data stream',
+  windowsReservedDevice: 'names a Windows device',
+  windowsTrailingName: 'ends a name with a dot or a space, which Windows drops',
+  windowsUnprovenUncPath: 'path {path} has no proven UNC workspace ancestry',
   imageFileChanged:
     'the reserved file was changed by something else while the image was made; it was left as it is',
   // M68 (PLAN.md D49): the verify loop's words that the activation bundle

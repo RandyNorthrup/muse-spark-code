@@ -19,6 +19,8 @@ type ApprovalRequest = Extract<AgentEvent, { type: 'approvalRequested' }>
 type ApprovalUpdate = Extract<AgentEvent, { type: 'approvalUpdated' }>
 
 const SESSION_ID = 'session-1'
+// Ordinary DOS controls: device-prefixed subjects require a manual decision on Windows.
+const ORDINARY_WORKSPACE = String.raw`C:\Users\dev\protect-live\ws2`
 // "Always allow in this workspace", as Muse Code 1.4.2 offers one
 // (helpers/stageRaceCapture.ts, 2026-10-02); the captured file write offered
 // none, being one Muse Code protects itself.
@@ -45,10 +47,10 @@ const PROTECTED_CASES = [
 ] as const
 
 const LOOK_ALIKES = [
-  String.raw`${CAPTURED_WORKSPACE}\.claude-backup.txt`,
-  String.raw`${CAPTURED_WORKSPACE}\notclaude\.claudex\file`,
+  String.raw`${ORDINARY_WORKSPACE}\.claude-backup.txt`,
+  String.raw`${ORDINARY_WORKSPACE}\notclaude\.claudex\file`,
   '/home/dev/ws2/claude/settings.json',
-  String.raw`${CAPTURED_WORKSPACE}\docs\.mcp.json.bak`,
+  String.raw`${ORDINARY_WORKSPACE}\docs\.mcp.json.bak`,
 ] as const
 
 /** The captured frame for `path`, with an "Always allow" choice beside its own. */
@@ -134,7 +136,7 @@ describe('Muse Code file-write approvals and the extension’s protected list', 
   it.each(PROTECTED_CASES)(
     'refuses to answer it by its path alone, with no flag on the event: %s',
     (_case, path) => {
-      const ordinary = requestFor(String.raw`${CAPTURED_WORKSPACE}\notes.txt`, false)
+      const ordinary = requestFor(String.raw`${ORDINARY_WORKSPACE}\notes.txt`, false)
       const event: ApprovalRequest = { ...ordinary, subject: { ...ordinary.subject, path } }
       expect(event.isProtectedWrite).toBe(false)
       expect(editAutomaticallyChoice(event, 'acceptEdits')).toBeUndefined()
@@ -164,7 +166,7 @@ describe('Muse Code file-write approvals and the extension’s protected list', 
 
   it('offers no standing rule when the approval is updated either', () => {
     expect(choiceIds(updateFor('~/.claude/settings.json'))).toEqual(CHOICES_WITHOUT_RULE)
-    expect(choiceIds(updateFor(String.raw`${CAPTURED_WORKSPACE}\notes.txt`))).toEqual(
+    expect(choiceIds(updateFor(String.raw`${ORDINARY_WORKSPACE}\notes.txt`))).toEqual(
       CHOICES_WITH_RULE,
     )
   })

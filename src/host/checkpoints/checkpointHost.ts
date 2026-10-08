@@ -18,6 +18,7 @@ import type {
   TurnEnd,
 } from '../../core/backends/modelapi/tools'
 import { refusedShellEntry, ShellEntryError } from '../../core/shellResult'
+import { windowsPathProblem } from '../../core/windowsPathSpelling'
 import { randomUUID } from 'node:crypto'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import type { Owner } from '../../core/checkpoints/toolWrites'
@@ -236,7 +237,10 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
       await gitStore()?.maintain()
     },
     refuseStorageWrite: (absolutePath) => {
-      if (deps.store?.isStoragePath(absolutePath) === true) {
+      if (
+        windowsPathProblem(absolutePath, process.platform) !== undefined ||
+        deps.store?.isStoragePath(absolutePath) === true
+      ) {
         throw new Error(MODEL_TEXT.checkpointStorageWrite)
       }
     },

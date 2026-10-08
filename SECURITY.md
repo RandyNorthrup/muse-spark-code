@@ -29,6 +29,16 @@ Releases and npm.
 
 ## What the extension protects, and how
 
+- **Windows path aliases.** File admission refuses device/extended namespaces,
+  alternate streams, trailing dots/spaces and reserved names, including
+  superscript COM/LPT digits. UNC file requests need a UNC workspace and proven
+  native ancestry. A Muse Code write approval with an ambiguous spelling asks
+  manually and offers only a once-only grant. Checkpoint storage and held
+  pull-request folders compare native volume/file identity through existing
+  ancestors, including junctions and loopback shares. An unreadable identity or
+  incomparable UNC volume cannot establish exclusion. Ordinary protected-path
+  rules still apply. See [the native certification](docs/certification/sec-win-path-aliases.md).
+
 - **Muse Judge (M98 phase 1).** The same model can only add caution at an
   existing reviewer/card fence; it cannot allow, override a rule or enter an
   ALLOW parser. Off loads no Judge source or admission bundle. Replaced
