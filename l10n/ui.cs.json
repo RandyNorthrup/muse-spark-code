@@ -340,7 +340,7 @@
   "referenceAuthClear": "Odstranit uložený klíč Model API.",
   "referenceAuthStatus": "Zjistit, zda je uložen klíč Model API.",
   "referenceAccountsTitle": "Several accounts per provider",
-  "referenceAccounts": "Spravuje účty jednoho poskytovatele: výpis, přidání, odebrání, pořadí a prahové hodnoty. Přihlašovací údaje pocházejí pouze ze standardního vstupu.",
+  "referenceAccounts": "Spravuje účty jednoho poskytovatele: výpis, přidání, odebrání, pořadí a prahové hodnoty. Přihlašovací údaje pocházejí pouze ze standardního vstupu. Placený souhlas zatím zůstává vázaný na pracovní prostor.",
   "referenceDeveloper": "Zobrazí nebo odemkne možnosti pro vývojáře na tomto počítači. Operace s profily vyžadují připojeného vlastníka prostředků.",
   "referenceTabLanguages": "Vyberte jazyk a zapněte nebo vypněte pro něj návrhy Tab.",
   "referenceTabMenu": "Vypnout Tab; Odložit o 15 minut; Odložit o hodinu; Odložit do restartu; Jazyky Tab…; Víceřádkový režim…; Účet a využití. Když Tab ustupuje Copilotu, nabídka umožňuje vypnout Copilot pro aktuální jazyk nebo spustit oba.",

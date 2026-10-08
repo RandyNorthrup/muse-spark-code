@@ -340,7 +340,7 @@
   "referenceAuthClear": "保存済みの Model API キーを削除します。",
   "referenceAuthStatus": "Model API キーが保存されているか確認します。",
   "referenceAccountsTitle": "Several accounts per provider",
-  "referenceAccounts": "1 つのプロバイダーのアカウントを管理します。一覧表示、追加、削除、順序、しきい値。認証情報は標準入力からのみ受け取ります。",
+  "referenceAccounts": "1 つのプロバイダーのアカウントを管理します。一覧表示、追加、削除、順序、しきい値。認証情報は標準入力からのみ受け取ります。有料機能の同意は当面ワークスペース単位のままです。",
   "referenceDeveloper": "このコンピューターの開発者向けオプションを表示またはロック解除します。プロファイル操作には接続済みのリソース管理機構が必要です。",
   "referenceTabLanguages": "言語を選択し、その言語の Tab 候補を有効または無効にします。",
   "referenceTabMenu": "Tab をオフにする; 15 分間スヌーズ; 1 時間スヌーズ; 再起動までスヌーズ; Tab の言語…; 複数行モード…; アカウントと使用量. TabがCopilotを優先する場合、メニューから現在の言語のCopilotを無効にするか、両方を実行できます。",

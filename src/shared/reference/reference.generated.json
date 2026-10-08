@@ -4753,7 +4753,7 @@
     {
       "route": "accounts",
       "name": "providers accounts",
-      "description": "Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input.",
+      "description": "Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.",
       "text": { "ui": "referenceAccounts" }
     },
     {

@@ -107,6 +107,11 @@ export const ACCOUNT_DAY_MS = 86_400_000
 export const ACCOUNT_REMOTE_LIMIT_DEFAULT_MS = 60_000
 export const ACCOUNT_DEFAULTS = { isSwapOn: true, isParallelOn: true } as const
 export const ACCOUNT_POLICY_VERSION = '2026-10-05.1'
+// Durable account quote-grant encoding version (P2 #3, CONSENT017D): the
+// persisted generation is `{ v, epoch, hostGeneration }`, never the old
+// `[counter, hostGeneration]` array, so an instance-counter-era grant can
+// never match a durable revocation epoch.
+export const ACCOUNT_QUOTE_GRANT_VERSION = 2
 
 // Must match package.json `publisher` and `name`; test/unit/manifest.test.ts
 // fails if they drift.

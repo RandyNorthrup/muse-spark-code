@@ -340,7 +340,7 @@
   "referenceAuthClear": "Remover a chave Model API salva.",
   "referenceAuthStatus": "Verificar se uma chave Model API está salva.",
   "referenceAccountsTitle": "Several accounts per provider",
-  "referenceAccounts": "Gerencia as contas de um provedor: listar, adicionar, remover, ordenar e limites. As credenciais vêm somente da entrada padrão.",
+  "referenceAccounts": "Gerencia as contas de um provedor: listar, adicionar, remover, ordenar e limites. As credenciais vêm somente da entrada padrão. O consentimento pago permanece por espaço de trabalho por enquanto.",
   "referenceDeveloper": "Mostra ou desbloqueia as opções de desenvolvedor desta máquina. As operações de perfis exigem um gerenciador de recursos conectado.",
   "referenceTabLanguages": "Escolher uma linguagem para ativar ou desativar suas sugestões Tab.",
   "referenceTabMenu": "Desativar o Tab; Adiar por 15 minutos; Adiar por uma hora; Adiar até reiniciar; Idiomas do Tab…; Modo multilinha…; Conta e uso. Quando Tab cede ao Copilot, o menu permite desativar o Copilot para o idioma atual ou executar ambos.",

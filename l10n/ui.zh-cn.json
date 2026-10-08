@@ -340,7 +340,7 @@
   "referenceAuthClear": "删除已存储的 Model API 密钥。",
   "referenceAuthStatus": "检查是否存储了 Model API 密钥。",
   "referenceAccountsTitle": "Several accounts per provider",
-  "referenceAccounts": "管理同一提供商的账号：列出、添加、删除、排序和阈值。凭据仅来自标准输入。",
+  "referenceAccounts": "管理同一提供商的账号：列出、添加、删除、排序和阈值。凭据仅来自标准输入。 付费同意目前仍按工作区生效。",
   "referenceDeveloper": "显示或解锁本机开发者选项。配置文件操作需要连接资源管理组件。",
   "referenceTabLanguages": "选择一种语言，开启或关闭该语言的 Tab 建议。",
   "referenceTabMenu": "关闭 Tab; 稍后提醒 15 分钟; 稍后提醒 1 小时; 稍后提醒到重启; Tab 语言…; 多行模式…; 账户和用量. 当Tab让位于Copilot时，菜单还可关闭当前语言的Copilot建议或同时运行两者。",

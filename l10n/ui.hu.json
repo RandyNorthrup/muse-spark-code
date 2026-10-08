@@ -340,7 +340,7 @@
   "referenceAuthClear": "Eltávolítja a tárolt Model API-kulcsot.",
   "referenceAuthStatus": "Ellenőrzi, hogy van-e tárolt Model API-kulcs.",
   "referenceAccountsTitle": "Several accounts per provider",
-  "referenceAccounts": "Egy szolgáltató fiókjainak kezelése: listázás, hozzáadás, eltávolítás, sorrend és küszöbértékek. A hitelesítő adatok csak a standard bemenetről érkeznek.",
+  "referenceAccounts": "Egy szolgáltató fiókjainak kezelése: listázás, hozzáadás, eltávolítás, sorrend és küszöbértékek. A hitelesítő adatok csak a standard bemenetről érkeznek. A fizetős hozzájárulás egyelőre munkaterületenként érvényes.",
   "referenceDeveloper": "Megjeleníti vagy feloldja a gép helyi fejlesztői beállításait. A profilműveletekhez csatlakoztatott erőforrás-kezelő szükséges.",
   "referenceTabLanguages": "Válasszon nyelvet a Tab-javaslatok be- vagy kikapcsolásához.",
   "referenceTabMenu": "Tab kikapcsolása; Szundi 15 percre; Szundi egy órára; Szundi újraindításig; Tab-nyelvek…; Többsoros mód…; Fiók és használat. Ha a Tab elsőbbséget ad a Copilotnak, a menüben kikapcsolható a Copilot az aktuális nyelvhez vagy mindkettő futtatható.",

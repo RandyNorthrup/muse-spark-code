@@ -43529,6 +43529,22 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   W/M109 certify multi-window revocation and concurrent grants on that same
   profile owner before enabling those surfaces. No RVM108P or RVM108P2 finding remains
   within the supplied in-process ports.
+  **Account-consent store-port contract (CONSENT017D, prerequisite for that
+  wiring).** `AccountPaidUseConsentDeps` gives atomic operations, documented
+  on the port type: `advanceEpoch(binding, expected)` moves the durable epoch
+  from `expected` to `expected + 1` or throws `StaleEpochError`, and
+  `saveGrantIf`/`saveQuoteGrantIf(binding, epoch, grant)` persist only while
+  the durable epoch still equals `epoch` or throw `StaleEpochError`. Consent
+  code never reads-then-writes an epoch: it captures the durable epoch
+  before each popup, saves under it, retries `advanceEpoch` only by
+  re-reading, and refuses the final decision when the epoch moved meanwhile
+  (no Allow-once downgrade after a revocation). Durable quote generations use
+  the versioned `{ v: 2, epoch, hostGeneration }` encoding
+  (`ACCOUNT_QUOTE_GRANT_VERSION`); legacy `[counter, hostGeneration]` arrays
+  are refused as stale. The future production store must serialize all three
+  operations per binding (and the clears) so concurrent revokes produce
+  strictly increasing epochs and a delayed writer can never move the epoch
+  backwards or republish an older value.
 
 - **FIXM108P-EVENT-TRANSACTION (P-M95-PER-REQUEST / U / H / J / W).**
   `AccountPoolDeps.commit(event, adopt)` is a required synchronous owner

@@ -340,7 +340,7 @@
   "referenceAuthClear": "Den gespeicherten Model API-Schlüssel entfernen.",
   "referenceAuthStatus": "Prüfen, ob ein Model API-Schlüssel gespeichert ist.",
   "referenceAccountsTitle": "Several accounts per provider",
-  "referenceAccounts": "Verwaltet die Konten eines Anbieters: Auflisten, Hinzufügen, Entfernen, Reihenfolge und Schwellenwerte. Zugangsdaten kommen nur aus der Standardeingabe.",
+  "referenceAccounts": "Verwaltet die Konten eines Anbieters: Auflisten, Hinzufügen, Entfernen, Reihenfolge und Schwellenwerte. Zugangsdaten kommen nur aus der Standardeingabe. Die Zustimmung zu kostenpflichtigen Nutzungen gilt vorerst pro Arbeitsbereich.",
   "referenceDeveloper": "Maschinenlokale Entwickleroptionen anzeigen oder entsperren. Profilaktionen erfordern einen angebundenen Ressourcenverwalter.",
   "referenceTabLanguages": "Eine Sprache auswählen, um Tab-Vorschläge dafür ein- oder auszuschalten.",
   "referenceTabMenu": "Tab ausschalten; 15 Minuten zurückstellen; Eine Stunde zurückstellen; Bis zum Neustart zurückstellen; Tab-Sprachen…; Mehrzeilenmodus…; Konto und Nutzung. Wenn Tab Copilot Vorrang gibt, bietet das Menü auch das Abschalten von Copilot für die aktuelle Sprache oder beide zusammen an.",

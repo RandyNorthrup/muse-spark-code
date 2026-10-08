@@ -2230,3 +2230,342 @@ files per run.
 
 No sandbox refusal was counted as a pass; nothing was blocked. Fresh clone
 removed after final verification.
+
+## Paid consent (CONSENT017)
+
+Mac mini rig, `rel017/consent`, base `f411b64a4` (exact-money candidate),
+2026-10-08. Fake-only; no credentials, paid/live calls, merge, push, stash,
+hook substitution or gate weakening. Commits use `.husky/_` exactly as
+installed; staged and committed diffs reread after every hook.
+
+### Root cause
+
+The int/0180b merge (`f3a6c1e5b`) made a quoted-search "Always" live only in
+quote grants — looked up through `readQuoteGrant` by
+`paidAuthorityKey` (`[feature, provider, model]`) plus the in-memory
+authority — while M108's account binding persists "Always" in the
+binding-keyed feature store (`readGrants`/`writeGrants` under
+`[provider, account, price]`). `AccountPaidUseConsent` wrote that feature
+grant (the `remember` fallback when no quote store is configured) but a new
+instance's `allowSearch` never read it, so a second instance asked again. The
+money-port lanes masked this by adding binding-scoped quote stores to the
+tests instead of bridging the class's required ports. The frozen quote in the
+`ask` payload is 0180b design, pinned by `acpPaid.test.ts:210`, so the
+pre-merge quoteless-forwarding expectation is stale; its rule (ask once per
+account with account, tariff and budget) is still asserted unchanged.
+
+### Fix
+
+`src/core/paid/paidConsent.ts:908` (`bindingGrants`, `keepBindingFeature`)
+and `:936-969` (`shouldBridgeQuotes` in `createConsent`): when the host
+configures no quote store and no quote-generation tracking, the binding-kept
+feature grant is bridged into the quote lookup, so "Always" holds across
+instances and restarts for the same workspace, provider, account and price.
+Differently-keyed (legacy) grants never match; a changed provider, account
+or price misses the binding key and asks again; `requiresAsking` and
+`canRemember: false` still ask through the dispatch flag; a host that tracks
+generations without a quote store fails closed and asks. Quote-store
+configurations are untouched: ceiling and generation safety still come from
+the quote grant. The legacy single-account path is untouched
+(`paidConsent.test.ts:315` still requires asking for an unpriced legacy
+feature grant).
+
+### Tests
+
+`test/unit/accountPaidConsent.test.ts:55` (`quoteBacked` shares the
+quote-store scaffolding between the existing binding test and the new
+generation test, so no new jscpd clone), `:187` (restart: new instances read
+back search and voice "Always" from the binding store, legacy grants
+ignored), `:201` (changed price asks again without a quote store), `:209`
+(changed quote generation asks again with a quote store).
+
+Red drill (default timeouts, `--maxWorkers=3`): with the three regressions
+added but the product unchanged, `:187` fails (second instance asks again)
+while the other 15 pass — 1 failed / 15 passed. After the fix: 16 passed.
+The price (`:201`) and generation (`:209`) regressions pass before and after;
+they guard safeties the fix must keep, not the defect.
+
+### Gates (`npm ci` fresh clone under `$TMPDIR`, `CI=true`)
+
+| Gate                                                    | Exit   | Receipt                                                                                                 |
+| ------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------- |
+| `accountPaidConsent`, `paidConsent`, `paidAuthority`    | 0      | 68 passed (16 consent)                                                                                  |
+| `paidDailyBudget`, `paidHookModels`, `paidHost`         | 0      | 87 passed                                                                                               |
+| `paidMoneyPorts`, `paidPortBoundaries`, `acpPaid`       | 0      | 73 passed                                                                                               |
+| `paidFeatures`, `schedulePaid`, `accountUsd`            | 0      | 62 passed                                                                                               |
+| `accountHomes`, `accountFakes`, `accountHost`           | 0      | 73 passed                                                                                               |
+| `accountPolicy`, `accountSecrets`, `accountStore`       | 0      | 110 passed                                                                                              |
+| `accountUsage`, `accountUsageText`, `accounts`          | 0      | 44 passed                                                                                               |
+| `accountsCommand`, `accountsPanelHost`, `accountsPanel` | 0      | 69 passed                                                                                               |
+| Five typechecks                                         | 0 each | host, webview, unit, e2e, integration                                                                   |
+| eslint `--max-warnings=0`, prettier                     | 0      | changed files (one boolean-name and formatting repair, no logic change)                                 |
+| Plain knip                                              | 0      | configuration hints only                                                                                |
+| Full jscpd                                              | 1      | exactly the two inherited clones (ACP agent, queued-answer/model-API fixture), zero threshold unchanged |
+| `check:l10n`                                            | 0      | zero problems                                                                                           |
+
+No `--testTimeout` on any verification run. The private fresh clone is
+removed after final verification.
+
+## Paid consent (CONSENT017B)
+
+Mac mini rig, `rel017/consent2`, base `11c76b9cc` (CONSENT017 tip),
+2026-10-08. Fake-only; no credentials, paid/live calls, merge, push, stash,
+hook substitution or gate weakening. Commits use `.husky/_` exactly as
+installed; staged and committed diffs reread after every hook.
+
+### Findings and fixes
+
+P2 money safety (RVCONSENT017 finding 1,
+`src/core/paid/paidConsent.ts:964`): the `shouldBridgeQuotes` bridge
+fabricated a quote grant from the binding's feature bit, so a higher tariff
+or a different model was approved without asking, on the same and on a new
+instance. Removed. `AccountPaidUseConsentDeps` now requires the quote store
+and generation (`readQuoteGrant`, `writeQuoteGrant`, `quoteGeneration`) plus
+an account-scoped `revokeQuoteGrants`, so no account consent exists without
+them (the 0.18 rule: an unversioned grant cannot prove its vintage). The
+persisted quote generation composes the account's revocation generation with
+the host's (`[accountGeneration, hostGeneration]`), and quote saves go
+through the same owner queue and generation fence as binding saves, so a
+revoked generation can never resurrect its grant after the clear.
+
+Inherited P2 revocation (`paidConsent.ts:988`): `revoke()` cleared only the
+binding's feature grants. It now also clears that account's quote grants in
+the same owner-queued write; the advanced generation keeps asking again even
+when the clear itself fails.
+
+P3 (safety tests through the real store): the rig supplies a real
+per-binding in-memory quote store (one partition per
+provider/account/price, shared across instances like a restart), and the
+restart test passes through it, not a bridge.
+
+Production wiring (review: no production caller of `AccountPaidUseConsent`;
+VS Code, CLI/ACP, schedules, companion and MCP use workspace-scoped feature
+consent with workspace-scoped quote stores): the defer case applies. PLAN
+§6 places "paid consent per account" in M108 lane P ("after K and T",
+touching `src/core/paid/paidConsent.ts (account binding)`), and lane P is
+merged (tip `76c1231e8`, merge `d3a6bfaea`). The deferral is PLAN §9
+(FIXM108P-PROFILE-OWNER): installed composition waits on the shared
+profile/broker owner and multi-window certification, and the P-PAID-ACCOUNT
+handoff (`docs/certification/m108.md`) blocks installed account-aware paid
+dispatch on the registry, pool and journal owners. So account-bound consent stays
+unwired: the class documents it, `CHANGELOG.md [Unreleased]` records the
+hardened contract and the deferral (superseding the binding-grant entry,
+which is kept), and Help (`referenceAccounts`, shared by the feature
+catalog's `accounts` entry and `/help`) now says paid consent stays per
+workspace. Nothing claims account-bound consent works.
+
+### Tests
+
+`test/unit/accountPaidConsent.test.ts` (19 tests): the rig builds a real
+account-scoped store per binding; `quoteBacked` is gone. New regressions:
+higher tariff and different model under an unchanged account, binding and
+price string, each on the same and a new instance (ask again, Deny
+honoured); revoke-after-Always asks again and is denied (with the store
+empty afterwards); the restart, price-change and generation tests run
+through the store; the remembered-write races target the quote write, and
+the queued-Always test asserts voice in the binding grant plus search in
+the quote store.
+
+Tip check (new file run against `11c76b9cc` in a scratch worktree):
+3 failed / 16 passed — the revoke regression and the two store-asserting
+race tests fail on the tip; the tariff/model/restart tests pass there
+because a real store already disables the bridge. The bridge failure mode
+is proven by drill A instead.
+
+Red drills (default timeouts, `--maxWorkers=3`, byte-exact restore
+verified by SHA-256 `762a7d9…0580eb` before and after): (A) bridge
+restored (fabricated read plus binding write, generation-matched) —
+7 failed / 12 passed, including both tariff and model tests; (B) revoke
+without the quote clear — 2 failed / 17 passed (the revoke regression and
+the race test). After revert: 19 passed.
+
+### Gates (fresh clone under `$TMPDIR`, `npm ci`, `CI=true`)
+
+| Gate                                                    | Exit   | Receipt                                                    |
+| ------------------------------------------------------- | ------ | ---------------------------------------------------------- |
+| `accountPaidConsent`                                    | 0      | 19 passed                                                  |
+| `paidConsent`, `paidAuthority`                          | 0      | 52 passed                                                  |
+| `paidDailyBudget`, `paidHookModels`, `paidHost`         | 0      | 87 passed                                                  |
+| `paidMoneyPorts`, `paidPortBoundaries`, `acpPaid`       | 0      | 73 passed                                                  |
+| `paidFeatures`, `schedulePaid`, `accountUsd`            | 0      | 62 passed                                                  |
+| `accountHomes`, `accountFakes`, `accountHost`           | 0      | 73 passed                                                  |
+| `accountPolicy`, `accountSecrets`, `accountStore`       | 0      | 110 passed                                                 |
+| `accountUsage`, `accountUsageText`, `accounts`          | 0      | 44 passed                                                  |
+| `accountsCommand`, `accountsPanelHost`, `accountsPanel` | 0      | 69 passed                                                  |
+| Five typechecks                                         | 0 each | host, webview, unit, e2e, integration                      |
+| eslint `--max-warnings=0`, prettier on changed files    | 0      |                                                            |
+| Plain knip                                              | 0      | configuration hints only                                   |
+| Full jscpd                                              | 1      | exactly the two inherited clones, zero threshold unchanged |
+| `check:l10n`                                            | 0      | zero problems                                              |
+| `check:reference`                                       | 0      |                                                            |
+
+No `--testTimeout` on any verification run. Pre-existing, unrelated:
+`runtimeAccountsBundle` ("installs the caller language…") fails
+identically on the untouched base `11c76b9cc` (a `machineId` regex refusal
+in a developer-options bundle path on this rig). The private fresh clone is
+removed after final verification.
+
+## Paid consent (CONSENT017C)
+
+Linux rig, `rel017/consent3`, base `8e72daf24` (CONSENT017B tip).
+Redesign, not a patch, per the owner's rule: an account's grant authority
+is bound to a durable revocation epoch
+(`src/core/paid/paidConsent.ts`, `AccountPaidUseConsentDeps` epoch ports,
+`AccountBindingGrants`, `quoteGrantEpoch`, `durableEpoch`, `revoke()`).
+
+Design: the epoch is persisted per account binding in the same store as
+the grants, never as a memory-only counter. `revoke()` advances it durably
+first inside the owner queue, then clears the binding and quote grants. A
+failed clear leaves leftovers that are stale on every instance after a
+restart; a failed advance rejects honestly with nothing cleared and the
+grants still working. Every persisted grant records its approval epoch
+(binding grants carry it; quote grants carry it in their generation), and
+a lookup reuses a grant only when its epoch equals the current durable
+epoch with tariff, model and quote generation matching as before. Saves
+re-check the epoch after their write, so a concurrent ask on another
+instance sharing the store cannot resurrect a revoked grant. The
+instance-local generation remains only for fencing in-flight asks inside
+one instance.
+
+P3 fixes: the Help caveat "Paid consent stays per workspace for now."
+(`src/shared/l10n/en.ts:432`) now exists in all 14 UI tables, translated
+with each table's own workspace wording and verified through the real
+`createReference(...).all()` for every language (throwaway probe,
+1 passed, removed afterwards). The deferral text above is corrected: lane
+P is merged (tip `76c1231e8`, merge `d3a6bfaea`); the real deferral is
+PLAN §9 (FIXM108P-PROFILE-OWNER) plus the P-PAID-ACCOUNT handoff's block
+on the registry, pool and journal owners.
+
+### Tests
+
+`test/unit/accountPaidConsent.test.ts` (24 tests: 19 kept, 5 new). New,
+through the in-memory store with simulated restarts: revoke, approve
+Always, restart reuses both grants with no new ask; binding-deletion and
+quote-deletion failures each reject, then a restart asks and Deny is
+honoured for both; a failed epoch advance rejects with the grants still
+working on both instances; a concurrent ask on one instance cannot
+resurrect another instance's revoked grant. No retained assertion was
+weakened; the rig now backs the epoch ports in the same shared store.
+
+Red drills (default timeouts, `--maxWorkers=3`, byte-exact restore
+verified by SHA-256 `dedb1f62…7bc6fba9` before and after): (A)
+instance-local epoch (composition and save check read the local
+generation) — 4 failed / 20 passed (the three restart tests plus the
+concurrent test); (B) clearing before advancing the epoch — 4 failed /
+20 passed (both failed-clear restart tests, the epoch-honesty test and
+the kept failed-deletion test). After revert: 24 passed. The new-port
+tests cannot run on `8e72daf24` (the ports do not exist there); the
+reviewer's report already demonstrates the successful-clear and both
+failed-clear scenarios failing on that base with the lane's store.
+
+### Gates (this worktree, `CI=true` where applicable)
+
+| Gate                                                 | Exit   | Receipt                                                    |
+| ---------------------------------------------------- | ------ | ---------------------------------------------------------- |
+| `accountPaidConsent`                                 | 0      | 24 passed                                                  |
+| `paidConsent`, `paidAuthority`                       | 0      | 52 passed                                                  |
+| `paidDailyBudget`, `paidHookModels`, `paidHost`      | 0      | 87 passed                                                  |
+| `paidMoneyPorts`, `paidPortBoundaries`, `acpPaid`    | 0      | 73 passed                                                  |
+| `paidFeatures`, `schedulePaid`                       | 0      | 52 passed                                                  |
+| `accountUsd`, `accountHomes`, `accountFakes`         | 0      | 64 passed                                                  |
+| `accountHost`, `accountPolicy`, `accountSecrets`     | 0      | 98 passed                                                  |
+| `accountStore`, `accountUsage`, `accountUsageText`   | 0      | 51 passed                                                  |
+| `accounts`, `accountsCommand`, `accountsPanelHost`   | 0      | 67 passed                                                  |
+| Five typechecks                                      | 0 each | host, webview, unit, e2e, integration                      |
+| eslint `--max-warnings=0`, prettier on changed files | 0      |                                                            |
+| Plain knip                                           | 0      | configuration hints only                                   |
+| Full jscpd                                           | 1      | exactly the two inherited clones, zero threshold unchanged |
+| `check:l10n`                                         | 0      | zero problems                                              |
+| `check:reference`                                    | 0      | current                                                    |
+
+No `--testTimeout` on any verification run. At most 3 test files per run
+with `--maxWorkers=3`. Every gate above also ran in a fresh clone under
+`$TMPDIR` (`npm ci`, `CI=true`) with identical receipts; the clone was
+removed afterwards.
+
+## Paid consent (CONSENT017D)
+
+Linux rig, `rel017/consent4`, base `c7566e09b` (CONSENT017C tip). Final
+round per RVCONSENT017C: the **store port gives atomic operations**, so
+wiring `AccountPaidUseConsent` later is safe. `AccountPaidUseConsentDeps`
+(`src/core/paid/paidConsent.ts:860`) now declares `advanceEpoch(binding,
+expected)` (`:887`: compare-and-set to `expected + 1`, else
+`StaleEpochError`), `saveGrantIf(binding, epoch, grants)` (`:896`) and
+`saveQuoteGrantIf(binding, epoch, grant)` (`:921`), each with a JSDoc
+contract requiring the future production store to serialize them per
+binding (with the clears). Conflict failures throw exactly
+`StaleEpochError` (`:853`); any other failure keeps the previous behaviour
+(Allow once, honest revoke error). Consent code never reads-then-writes an
+epoch.
+
+- P2 #1 (`paidConsent.ts`, ask capture and final fence). The ask wrapper
+  captures the durable epoch before each popup into `askEpochs` (`:987`,
+  `:1134`); `rememberGrant` saves binding features under that epoch
+  (`:1117`) and every quote save uses the epoch its generation carries
+  (`:1068`). If the conditional save fails on a meanwhile revocation,
+  nothing is stored, and `allows()` fences the final decision against the
+  captured epoch (`:1158`), so no Allow-once downgrade approves after a
+  revocation.
+- P2 #2 (`:1167`). `revoke()` advances with `advanceEpoch` and retries only
+  by re-reading, so concurrent revokes produce strictly increasing epochs
+  and a delayed writer can never move the epoch backwards or republish an
+  older value. Its clear uses `saveGrantIf` under the new epoch; a
+  concurrent newer revoke owns the grants then. A failed clear still leaves
+  every older grant invalid.
+- P2 #3 (`:943`, `src/shared/constants.ts:114`). Durable quote generations
+  use `{ v: 2, epoch, hostGeneration }` (`ACCOUNT_QUOTE_GRANT_VERSION`);
+  `quoteGrantEpoch` accepts only that schema, so old `[counter,
+hostGeneration]` grants are refused as stale and asked again, and can
+  never match a durable epoch.
+- P3 (`test/unit/accountPaidConsent.test.ts:498`). The successful-clear
+  restart scenario approves on the same instance that revoked
+  (`approveSearchAndVoice(t, request, a)`).
+
+### Tests
+
+`test/unit/accountPaidConsent.test.ts` (28 tests: 23 kept, 1 fixed, 4
+new), all through the shared in-memory store with atomic check-and-write
+(no await between check and set) and simulated restarts. New: the held
+voice answer refused with nothing approved stored; the held voice write
+refused with nothing approved stored (covers the Allow-once downgrade);
+concurrent revokes with a delayed writer ending at epoch 2 with a restart
+asking and Deny honoured; the legacy-generation upgrade refused and asked
+again. Redundant race tails share `heldAnswerRevoked` and
+`expectRaceStoredNothing`, so jscpd reports only its two inherited clones.
+
+Red drills (default timeouts, `--maxWorkers=3`, reverted byte-exact via
+`git checkout`, tree verified clean and green after each): (A)
+read-then-write epoch (`rememberGrant` re-reads at save) — 1 failed / 27
+passed (the held-answer test); (B) no final-epoch fence — 2 failed / 26
+passed (both non-search race tests, proving the downgrade guard); (C)
+legacy array encoding restored — 1 failed / 27 passed (the legacy test
+only); (D) instance-local epoch (`durableEpoch()` returns
+`this.generation`) against the final test source — 6 failed / 22 passed,
+including the fixed same-instance restart test.
+
+### Gates (fresh clone under `$TMPDIR`, `npm ci`, `CI=true`)
+
+| Gate                                                 | Exit   | Receipt                                                                                                                                           |
+| ---------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `accountPaidConsent`                                 | 0      | 28 passed                                                                                                                                         |
+| `paidConsent`, `paidAuthority`                       | 0      | 52 passed                                                                                                                                         |
+| `paidDailyBudget`, `paidHookModels`, `paidHost`      | 0      | 87 passed                                                                                                                                         |
+| `paidMoneyPorts`, `paidPortBoundaries`, `acpPaid`    | 0      | 73 passed                                                                                                                                         |
+| `paidFeatures`, `schedulePaid`, `accountUsd`         | 0      | 62 passed                                                                                                                                         |
+| `accountHomes`, `accountFakes`, `accountHost`        | 0      | 73 passed                                                                                                                                         |
+| `accountPolicy`, `accountSecrets`, `accountStore`    | 0      | 110 passed                                                                                                                                        |
+| `accountUsage`, `accountUsageText`, `accounts`       | 0      | 44 passed                                                                                                                                         |
+| `accountsCommand`, `accountsPanelHost`               | 0      | 43 passed                                                                                                                                         |
+| `accountsPanel`, `accountsPanel.a11y`                | 0      | 26 passed, 34 skipped (Chrome launches, axe cases skip: no usable browser on this rig)                                                            |
+| `accountUsageBundle`                                 | 1      | 1 failed, the inherited `src/shared/usd.ts` static-graph case; fails identically on base `c7566e09b` in the same clone, so unrelated to this lane |
+| Five typechecks                                      | 0 each | host, webview, unit, e2e, integration                                                                                                             |
+| eslint `--max-warnings=0`, prettier on changed files | 0      |                                                                                                                                                   |
+| Plain knip                                           | 0      | configuration hints only                                                                                                                          |
+| Full jscpd                                           | 1      | exactly the two inherited clones, zero threshold unchanged                                                                                        |
+| `check:l10n`                                         | 0      | zero problems                                                                                                                                     |
+
+No `--testTimeout` was used on any run. At most 3 test files per run with
+`--maxWorkers=3`. The worktree shows identical receipts; the clone was
+removed afterwards. No `check:reference` change (no reference surface
+touched). The store-port contract was added to PLAN §9's lane P
+prerequisites (FIXM108P-PROFILE-OWNER).

@@ -340,7 +340,7 @@
   "referenceAuthClear": "Usuń zapisany klucz Model API.",
   "referenceAuthStatus": "Sprawdź, czy zapisano klucz Model API.",
   "referenceAccountsTitle": "Several accounts per provider",
-  "referenceAccounts": "Zarządza kontami jednego dostawcy: lista, dodawanie, usuwanie, kolejność i progi. Poświadczenia pochodzą wyłącznie ze standardowego wejścia.",
+  "referenceAccounts": "Zarządza kontami jednego dostawcy: lista, dodawanie, usuwanie, kolejność i progi. Poświadczenia pochodzą wyłącznie ze standardowego wejścia. Płatna zgoda na razie pozostaje przypisana do obszaru roboczego.",
   "referenceDeveloper": "Pokazuje lub odblokowuje opcje programisty na tym komputerze. Operacje na profilach wymagają podłączonego zarządcy zasobów.",
   "referenceTabLanguages": "Wybierz język, aby włączyć lub wyłączyć dla niego sugestie Tab.",
   "referenceTabMenu": "Wyłącz Tab; Odłóż na 15 minut; Odłóż na godzinę; Odłóż do ponownego uruchomienia; Języki Tab…; Tryb wielowierszowy…; Konto i użycie. Gdy Tab ustępuje Copilotowi, menu pozwala wyłączyć Copilot dla bieżącego języka lub uruchomić oba.",

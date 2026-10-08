@@ -699,7 +699,7 @@ Commands: `museSpark.signOut`, `museSpark.restartMuseCode`, `museSpark.openInTer
 
 ### Several accounts per provider
 
-Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input.
+Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.
 
 Show or unlock machine-local developer options. Profile operations require a connected resource owner.
 
@@ -3630,7 +3630,7 @@ These are defaults; editor customizations take precedence.
 - `exec`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
 - `scan-secrets`: Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.
 - `schedule`: Usage: schedule add --draft &lt;JSON&gt; [--scheduled-prompts --max-budget-usd &lt;USD&gt;] [--report &lt;kind&gt; --to save:&lt;path&gt;|browser|email:&lt;address&gt; ... --format md|html|json|text] [-- &lt;report args&gt;] | list | remove|run-now|pause|resume|fire &lt;id&gt; | timeline [--hours 24|168] [--cwd &lt;path&gt;] [--json]; schedule run-due [--json]; schedule background off|status [--json]. Exit codes: 0 success, 1 refusal, 2 usage, 3 cleanup warning.
-- `providers accounts`: Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input.
+- `providers accounts`: Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.
 - `developer`: Show or unlock machine-local developer options. Profile operations require a connected resource owner.
 - `estimate <goal> [--by <date>] [--fleet current|minimum|optimum] [--format md|html|json|text] [--seed <seed>]`: Estimate a goal using linked machines, agent slots, accounts and CI; no model call.
 - `report`: Usage:
