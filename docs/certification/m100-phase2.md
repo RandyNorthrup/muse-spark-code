@@ -225,3 +225,71 @@ match the committed worktree and the fresh clone after the commit hooks.
   fully wired lazy bundle and runs the joined-tree `npm run quality`,
   coverage, installed-host and packaged qualification. This lane makes no
   new installed-host support claim.
+
+## Lane C fix (RVM100P2C): two P2 findings made structural
+
+2026-10-08, kubuntu rig, worktree `/home/randy/lanes/FIXM100P2C`,
+branch `m100/p2-c-fix`, base `59253a397`. Review
+`/home/randy/lanes/_ctx/codex/RVM100P2C.report.md`; shared rules
+`/home/randy/lanes/_ctx/codex/M100P2-common.md`. Changed only lane C's
+files (`src/core/devices/channel.ts`, `src/host/devices/deviceChannel.ts`,
+`test/unit/channel.test.ts`) plus this section. No live model calls:
+model attempts **0**, inference spend **0**.
+
+- P2 concurrency/lifecycle (`deviceChannel.ts:699`): an unsettled outbound
+  retry still waiting for backoff adopts the owner's current receiver
+  incarnation (`isWaitingOutboundRetry`: outbound call, outbound job, not
+  running, no channel, unsettled) instead of rejecting `unknown` and
+  redialling the stale id until close. A live/pending channel and a dial
+  in flight still reject `unknown`; the closed-channel, settled-inbound
+  and authentication-lockout paths are unchanged. Regression:
+  `channel.test.ts` `lets an unsettled outbound retry adopt a restarted
+receiver incarnation` — shares the pair promise and the retry dial
+  announces the new incarnation.
+- P2 validation/security (`channel.ts:237`): `checkedMessage` binds result
+  and result-ack `identity.receiverIncarnationId` to the channel, the same
+  way the packet header and frame body are bound. Envelopes naming another
+  incarnation refuse with `invalid-frame` before queueing or delivery.
+  Regression: `channel.test.ts` `rejects result and result-ack envelopes
+naming a different incarnation` — mismatched result and ack refuse while
+  same-incarnation envelopes still enqueue.
+
+### Test-fire proof (base `59253a397`, new tests run before the fix)
+
+`npx vitest run test/unit/channel.test.ts --maxWorkers=3 -t <name>`,
+repository default timeouts, no `--testTimeout`. Both new tests fail on
+the base: the incarnation test with `expected [Function] to throw an
+error` (foreign result enqueues), the retry test with `expected
+Promise{…} to be Promise{…}` and the second connect rejecting `unknown`
+from `request` (`deviceChannel.ts:701`). On the fixed tree the owning
+files are 43 passed (24 + 19).
+
+### Guard drills (break the fix on purpose, restore byte-exact)
+
+- Core: remove both `incarnation = …receiverIncarnationId` bindings →
+  `rejects result and result-ack envelopes naming a different
+incarnation` fails, 1 failed / 23 skipped. Restored byte-exact:
+  `00a091bc1ca02193ab6db25cbd090330d379bc7cc2cade17e39eb631f5df168c`.
+- Host: remove the `isWaitingOutboundRetry` admission → `lets an
+unsettled outbound retry adopt a restarted receiver incarnation` fails,
+  1 failed / 23 skipped. Restored byte-exact:
+  `f211509b87bd6fabc4ed0d3bb850d4c7f60ab0637aeaf0ca97739b1682aedbe9`.
+
+Fix commit `d6eb2a510` (hooks on): both findings plus both regressions.
+This section is committed separately below.
+
+### Verification (worktree, `CI=true` unless noted, default timeouts)
+
+- Three consecutive runs of `npx vitest run
+test/unit/channel.test.ts test/unit/deviceMultiplexedChannel.test.ts
+--maxWorkers=3`: **43 passed each**.
+- `npm run typecheck`: exit **0**, all five projects. `npm run lint`:
+  exit **0** (PowerShell gate reports its Linux platform skip).
+- Prettier on all three changed files: clean. Plain `npx knip`: exit
+  **0** (only the pre-existing `vendor/**` and `axe-core` hints).
+  `npm run duplication`: **0 clones**. `npm run check:reference`: current,
+  **18 Devices entries**. `node scripts/check-l10n.mjs`: **14 tables**,
+  **0 problems**. `npm run check:host-api`: exit **0**, **0 problems**.
+- `npm run build`: exit **0**, caps unchanged (Devices **81.6/100 KiB**,
+  activation **441.6/600 KiB**).
+- Fresh-clone receipt: recorded below after the doc commit.
