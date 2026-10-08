@@ -287,7 +287,7 @@ import {
   type MemoryWrites,
   type MemoryIo,
 } from '../../memory/memoryStore'
-import { type CodeIntelDeps, bareName } from '../../codeIntel/codeIntelQuery'
+import type { CodeIntelDeps } from '../../codeIntel/codeIntelQuery'
 import { CodeIntelRefusal } from '../../codeIntel/codeIntelRefusal'
 import { codeIntelToolOf } from '../../codeIntel/definitions'
 import type { LanguageServiceHost } from '../../codeIntel/languageService'
@@ -15163,7 +15163,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     deps: CodeIntelDeps,
     signal: AbortSignal,
   ): Promise<string | undefined> {
-    const { repoMapSection } = await this.codeIntelligence()
+    const { bareName, repoMapSection } = await this.codeIntelligence()
     const root = await deps.io.realPath(deps.workspaceRoot)
     const p = pathModule(deps.platform)
     return await repoMapSection(
