@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   AccountPaidUseConsent,
+  StaleEpochError,
   paidAccountQuestion,
   type AccountBindingGrants,
   type PaidAccountBinding,
@@ -22,23 +23,34 @@ const BINDING: PaidAccountBinding = {
 function rig() {
   // One durable store per rig, shared across instances like a restart that
   // kept its storage: binding grants with their approval epoch, the
-  // revocation epoch per binding, and the quote grants.
+  // revocation epoch per binding, and the quote grants. Each conditional
+  // operation runs its epoch check and write with no await between them,
+  // which is this single-threaded store's per-binding serialization; the
+  // future production store must provide the same atomicity across windows.
   const grants = new Map<string, AccountBindingGrants>()
   const epochs = new Map<string, number>()
   const quotes = new Map<string, PaidGrant>()
   const state = { isOn: true, isCurrent: true, canRemember: true, quoteGeneration: 'stored-1' }
+  const currentEpoch = (key: string) => epochs.get(key) ?? 0
   const deps = {
     isOn: () => state.isOn,
     isCurrent: () => state.isCurrent,
     canRemember: () => state.canRemember,
     readGrants: (key: string) => grants.get(key),
-    writeGrants: vi.fn((key: string, next: AccountBindingGrants) => {
+    saveGrantIf: vi.fn((key: string, epoch: number, next: AccountBindingGrants) => {
+      if (currentEpoch(key) !== epoch) throw new StaleEpochError(key)
       grants.set(key, next)
       return Promise.resolve()
     }),
     readRevocationEpoch: (key: string) => epochs.get(key),
-    writeRevocationEpoch: vi.fn((key: string, epoch: number) => {
-      epochs.set(key, epoch)
+    advanceEpoch: vi.fn((key: string, expected: number) => {
+      if (currentEpoch(key) !== expected) throw new StaleEpochError(key)
+      epochs.set(key, expected + 1)
+      return Promise.resolve()
+    }),
+    saveQuoteGrantIf: vi.fn((key: string, epoch: number, grant: PaidGrant) => {
+      if (currentEpoch(key) !== epoch) throw new StaleEpochError(key)
+      quotes.set(key + paidAuthorityKey(grant.quote), grant)
       return Promise.resolve()
     }),
     ask: vi.fn((_request: PaidUseRequest, _binding: PaidAccountBinding, _canRemember: boolean) =>
@@ -46,14 +58,10 @@ function rig() {
     ),
     log: new FakeLogOutputChannel(),
   }
-  // Every instance gets a real account-scoped quote store: one partition per
+  // Every instance gets a real account-scoped quote clear: one partition per
   // provider/account/price binding, shared across instances like a restart
   // that kept its storage. No bridge fabricates approval from a feature bit.
   const makeStore = (key: string) => ({
-    write: vi.fn((grant: PaidGrant) => {
-      quotes.set(key + paidAuthorityKey(grant.quote), grant)
-      return Promise.resolve()
-    }),
     revoke: vi.fn(() => {
       for (const name of quotes.keys()) if (name.startsWith(key)) quotes.delete(name)
       return Promise.resolve()
@@ -76,7 +84,6 @@ function rig() {
         ...deps,
         quoteGeneration: () => state.quoteGeneration,
         readQuoteGrant: (quote) => quotes.get(key + paidAuthorityKey(quote)),
-        writeQuoteGrant: store.write,
         revokeQuoteGrants: store.revoke,
       },
       binding,
@@ -93,12 +100,12 @@ function bindingKey(patch: Partial<PaidAccountBinding> = {}) {
   ])
 }
 
-function holdFirstWrite(t: ReturnType<typeof rig>) {
+function holdFirstSave(t: ReturnType<typeof rig>) {
   const finish = Promise.withResolvers<undefined>()
-  const write = t.deps.writeGrants.getMockImplementation()!
-  t.deps.writeGrants.mockImplementationOnce(async (key, next) => {
+  const save = t.deps.saveGrantIf.getMockImplementation()!
+  t.deps.saveGrantIf.mockImplementationOnce(async (key, epoch, next) => {
     await finish.promise
-    await write(key, next)
+    await save(key, epoch, next)
   })
   return finish
 }
@@ -111,10 +118,16 @@ async function approveSearch(t: ReturnType<typeof rig>, request: PaidUseRequest)
   return consent
 }
 
-/** Approves Always for search and voice on a fresh instance; returns the instance. */
-async function approveSearchAndVoice(t: ReturnType<typeof rig>, request: PaidUseRequest) {
+/**
+ * Approves Always for search and voice on `consent` (a fresh instance
+ * unless the caller passes the one that revoked); returns the instance.
+ */
+async function approveSearchAndVoice(
+  t: ReturnType<typeof rig>,
+  request: PaidUseRequest,
+  consent = t.create(),
+) {
   t.deps.ask.mockResolvedValue('always')
-  const consent = t.create()
   expect(await consent.allows(request)).toBe(true)
   expect(await consent.allows({ feature: 'voice' })).toBe(true)
   expect(t.deps.ask).toHaveBeenCalledTimes(2)
@@ -178,11 +191,9 @@ async function expectReaskAfterChange(
   expect(t.deps.ask).toHaveBeenCalledTimes(3)
 }
 
-/** The default binding's quote store and its current write implementation. */
-function interceptQuoteWrite(t: ReturnType<typeof rig>) {
-  const store = t.storeFor(bindingKey())
-  const write = store.write.getMockImplementation()!
-  return { store, write }
+/** The current conditional quote save, for gating or observing one call. */
+function currentQuoteSave(t: ReturnType<typeof rig>) {
+  return t.deps.saveQuoteGrantIf.getMockImplementation()!
 }
 
 describe('M108 account-bound paid use consent', () => {
@@ -203,7 +214,7 @@ describe('M108 account-bound paid use consent', () => {
     const t = rig(),
       a = t.create()
     t.deps.ask.mockResolvedValue('always')
-    const finish = holdFirstWrite(t)
+    const finish = holdFirstSave(t)
     const judge: PaidUseRequest = {
       feature: 'judge',
       modelId: 'muse-spark-1.3',
@@ -218,7 +229,7 @@ describe('M108 account-bound paid use consent', () => {
     const first = a.allows(judge),
       second = a.allows(reviewer)
     await vi.waitFor(() => {
-      expect(t.deps.writeGrants).toHaveBeenCalledTimes(1)
+      expect(t.deps.saveGrantIf).toHaveBeenCalledTimes(1)
     })
     finish.resolve(undefined)
     expect(await Promise.all([first, second])).toEqual([true, true])
@@ -234,19 +245,19 @@ describe('M108 account-bound paid use consent', () => {
     const t = rig(),
       a = t.create()
     t.deps.ask.mockResolvedValue('always')
-    const finish = holdFirstWrite(t)
+    const finish = holdFirstSave(t)
     const search = quotedSearch('0.0025', 'model-a')
     const first = a.allows(search),
       second = a.allows({ feature: 'voice' })
     await vi.waitFor(() => {
-      expect(t.deps.writeGrants).toHaveBeenCalledTimes(1)
+      expect(t.deps.saveGrantIf).toHaveBeenCalledTimes(1)
     })
     const revoked = a.revoke()
     expect(await a.allows(search)).toBe(false)
     finish.resolve(undefined)
     expect(await Promise.all([first, second])).toEqual([false, false])
     await revoked
-    expect(t.deps.writeGrants).toHaveBeenCalledTimes(2)
+    expect(t.deps.saveGrantIf).toHaveBeenCalledTimes(2)
     for (const grants of t.grants.values()) expect(grants.features.size).toBe(0)
     expect(t.quotes.size).toBe(0)
     expect(await Promise.all([a.allows(search), a.allows({ feature: 'voice' })])).toEqual([
@@ -428,15 +439,15 @@ describe('M108 account-bound paid use consent', () => {
       a = t.create()
     const request = quotedSearch('0.0025', 'model-a')
     t.deps.ask.mockResolvedValue('always')
-    const { store, write } = interceptQuoteWrite(t)
+    const save = currentQuoteSave(t)
     const finish = Promise.withResolvers<undefined>()
-    store.write.mockImplementationOnce(async (grant) => {
+    t.deps.saveQuoteGrantIf.mockImplementationOnce(async (key, epoch, grant) => {
       await finish.promise
-      await write(grant)
+      await save(key, epoch, grant)
     })
     const pending = a.allows(request)
     await vi.waitFor(() => {
-      expect(store.write).toHaveBeenCalledTimes(1)
+      expect(t.deps.saveQuoteGrantIf).toHaveBeenCalledTimes(1)
     })
     const revoked = a.revoke()
     finish.resolve(undefined)
@@ -447,7 +458,7 @@ describe('M108 account-bound paid use consent', () => {
     expect(await a.allows(request)).toBe(true)
     await expectFailedRevokeKeepsQuote(
       t,
-      () => t.deps.writeGrants.mockRejectedValueOnce(new Error('disk unavailable')),
+      () => t.deps.saveGrantIf.mockRejectedValueOnce(new Error('disk unavailable')),
       () => a.revoke(),
     )
     // The grant is still in the store, but the advanced epoch voids it.
@@ -460,7 +471,9 @@ describe('M108 account-bound paid use consent', () => {
     const request = quotedSearch('0.0025', 'model-a')
     const a = t.create()
     await a.revoke()
-    await approveSearchAndVoice(t, request)
+    // The approval runs on the same instance that revoked, so the test
+    // would catch a post-revocation local-epoch restart defect.
+    await approveSearchAndVoice(t, request, a)
     expect(t.epochs.get(bindingKey())).toBe(1)
     // A restart on the same store reads the durable epoch, so both grants hold.
     await expectRestartReusesBoth(t, request, 2)
@@ -470,7 +483,7 @@ describe('M108 account-bound paid use consent', () => {
     const t = rig()
     const request = quotedSearch('0.0025', 'model-a')
     const a = await approveSearchAndVoice(t, request)
-    t.deps.writeGrants.mockRejectedValueOnce(new Error('disk unavailable'))
+    t.deps.saveGrantIf.mockRejectedValueOnce(new Error('disk unavailable'))
     await expect(a.revoke()).rejects.toThrow('disk unavailable')
     // The epoch already advanced, so a restart finds only stale leftovers.
     await expectRestartAsksDenied(t, request, 4)
@@ -495,7 +508,7 @@ describe('M108 account-bound paid use consent', () => {
     const t = rig()
     const request = quotedSearch('0.0025', 'model-a')
     const a = await approveSearchAndVoice(t, request)
-    t.deps.writeRevocationEpoch.mockRejectedValueOnce(new Error('disk unavailable'))
+    t.deps.advanceEpoch.mockRejectedValueOnce(new Error('disk unavailable'))
     await expect(a.revoke()).rejects.toThrow('disk unavailable')
     // Nothing was cleared and the epoch never moved: both instances reuse.
     expect(t.quotes.size).toBe(1)
@@ -546,9 +559,16 @@ describe('M108 account-bound paid use consent', () => {
       a = t.create()
     const first = Promise.withResolvers<undefined>(),
       second = Promise.withResolvers<undefined>()
-    t.deps.writeGrants
-      .mockImplementationOnce(() => first.promise)
-      .mockImplementationOnce(() => second.promise)
+    const advance = t.deps.advanceEpoch.getMockImplementation()!
+    t.deps.advanceEpoch
+      .mockImplementationOnce(async (key, expected) => {
+        await first.promise
+        await advance(key, expected)
+      })
+      .mockImplementationOnce(async (key, expected) => {
+        await second.promise
+        await advance(key, expected)
+      })
     const revokingOne = a.revoke(),
       revokingTwo = a.revoke()
     first.resolve(undefined)
@@ -564,13 +584,115 @@ describe('M108 account-bound paid use consent', () => {
     const t = rig()
     const request = quotedSearch('0.0025', 'model-a')
     t.deps.ask.mockResolvedValue('always')
-    const { store, write } = interceptQuoteWrite(t)
+    const save = currentQuoteSave(t)
     const a = t.create()
-    store.write.mockImplementationOnce(async (grant) => {
+    t.deps.saveQuoteGrantIf.mockImplementationOnce(async (key, epoch, grant) => {
       await Promise.resolve()
       t.state.isCurrent = false
-      await write(grant)
+      await save(key, epoch, grant)
     })
     expect(await a.allows(request)).toBe(false)
+  })
+
+  it('refuses a non-search answer opened before another instance revokes, storing nothing', async () => {
+    const t = rig()
+    const a = t.create(),
+      b = t.create()
+    // A opens its voice popup at epoch 0; hold the answer.
+    const answer = Promise.withResolvers<PaidUseAnswer>()
+    t.deps.ask.mockReturnValueOnce(answer.promise)
+    const asking = a.allows({ feature: 'voice' })
+    await vi.waitFor(() => {
+      expect(t.deps.ask).toHaveBeenCalledTimes(1)
+    })
+    // B revokes and clears meanwhile; A's late Always belongs to epoch 0.
+    await b.revoke()
+    answer.resolve('always')
+    expect(await asking).toBe(false)
+    // Only B's empty clear record may exist: A's answer stored no approval.
+    for (const stored of t.grants.values()) expect(stored.features.size).toBe(0)
+    expect(t.quotes.size).toBe(0)
+    t.deps.ask.mockResolvedValue('deny')
+    expect(await t.create().allows({ feature: 'voice' })).toBe(false)
+    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses a non-search save held while another instance revokes, storing nothing', async () => {
+    const t = rig()
+    const a = t.create(),
+      b = t.create()
+    t.deps.ask.mockResolvedValue('always')
+    const save = t.deps.saveGrantIf.getMockImplementation()!
+    const finish = Promise.withResolvers<undefined>()
+    t.deps.saveGrantIf.mockImplementationOnce(async (key, epoch, next) => {
+      await finish.promise
+      await save(key, epoch, next)
+    })
+    // A's voice write is captured under epoch 0, then held.
+    const asking = a.allows({ feature: 'voice' })
+    await vi.waitFor(() => {
+      expect(t.deps.saveGrantIf).toHaveBeenCalledTimes(1)
+    })
+    await b.revoke()
+    finish.resolve(undefined)
+    // The conditional save fails, and the downgraded Allow-once is refused.
+    expect(await asking).toBe(false)
+    // Only B's empty clear record may exist: A's write stored no approval.
+    for (const stored of t.grants.values()) expect(stored.features.size).toBe(0)
+    t.deps.ask.mockResolvedValue('deny')
+    expect(await t.create().allows({ feature: 'voice' })).toBe(false)
+    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+  })
+
+  it('orders concurrent revokes strictly forward past a delayed writer', async () => {
+    const t = rig()
+    const request = quotedSearch('0.0025', 'model-a')
+    const a = t.create(),
+      b = t.create(),
+      c = t.create()
+    // A's compare-and-set read epoch 0, then its advance waits.
+    const advance = t.deps.advanceEpoch.getMockImplementation()!
+    const finish = Promise.withResolvers<undefined>()
+    t.deps.advanceEpoch.mockImplementationOnce(async (key, expected) => {
+      await finish.promise
+      await advance(key, expected)
+    })
+    const revoking = a.revoke()
+    await vi.waitFor(() => {
+      expect(t.deps.advanceEpoch).toHaveBeenCalledTimes(1)
+    })
+    // B revokes cleanly to 1; C approves Always for search and voice under 1.
+    await b.revoke()
+    t.deps.ask.mockResolvedValue('always')
+    expect(await c.allows(request)).toBe(true)
+    expect(await c.allows({ feature: 'voice' })).toBe(true)
+    // A's delayed advance of 0 fails, so it advances again to 2 and clears:
+    // it can neither move the epoch backwards nor republish an older value.
+    finish.resolve(undefined)
+    await revoking
+    expect(t.epochs.get(bindingKey())).toBe(2)
+    // Every older grant is invalid: a restart asks, and Deny is honoured.
+    t.deps.ask.mockResolvedValue('deny')
+    expect(await t.create().allows(request)).toBe(false)
+    expect(await t.create().allows({ feature: 'voice' })).toBe(false)
+    expect(t.deps.ask).toHaveBeenCalledTimes(4)
+  })
+
+  it('refuses an instance-counter-era quote grant once the epoch matches its counter', async () => {
+    const t = rig()
+    const request = quotedSearch('0.0025', 'model-a')
+    // A pre-upgrade approval stored the old `[counter, hostGeneration]`
+    // encoding, and a revoke since moved the durable epoch onto the same
+    // number the old counter used.
+    const legacy = quotedSearch('0.0025', 'model-a')
+    t.quotes.set(bindingKey() + paidAuthorityKey(legacy.quote), {
+      quote: legacy.quote,
+      generation: JSON.stringify([1, 'stored-1']),
+      order: 0,
+    })
+    t.epochs.set(bindingKey(), 1)
+    t.deps.ask.mockResolvedValue('deny')
+    expect(await t.create().allows(request)).toBe(false)
+    expect(t.deps.ask).toHaveBeenCalledTimes(1)
   })
 })
