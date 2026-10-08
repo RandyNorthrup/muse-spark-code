@@ -1563,7 +1563,7 @@ export const REVIEW_FINDING_TEXT_MAX_CHARS = 4000
 export const REVIEW_FINDING_PATH_MAX_CHARS = 1024
 // The block as the review prompt shows it to the model (English, as all
 // model text is), and what it holds when the review found nothing.
-export const REVIEW_FINDINGS_EXAMPLE = JSON.stringify({
+export const REVIEW_FINDINGS_EXAMPLE = /* @__PURE__ */ JSON.stringify({
   findings: [
     {
       file: 'src/example.ts',
@@ -1574,7 +1574,7 @@ export const REVIEW_FINDINGS_EXAMPLE = JSON.stringify({
     },
   ],
 })
-export const REVIEW_FINDINGS_EMPTY = JSON.stringify({ findings: [] })
+export const REVIEW_FINDINGS_EMPTY = /* @__PURE__ */ JSON.stringify({ findings: [] })
 // The review pane reads at most this many edits' patches, and stops adding
 // files once this many diff lines are listed.
 export const REVIEW_PANE_MAX_EDITS = 200

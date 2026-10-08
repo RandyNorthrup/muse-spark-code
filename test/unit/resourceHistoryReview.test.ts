@@ -2,7 +2,9 @@
 // findings, each through the production path the reviewer used.
 import * as fsPromises from 'node:fs/promises'
 import type * as FsPromises from 'node:fs/promises'
-import { mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import type { BigIntStats } from 'node:fs'
+import { mkdir, readFile, readdir, symlink, utimes, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { admitResource } from '../../src/core/resources/admission'
@@ -421,11 +423,13 @@ describe('RVM107W2G P2-2: no write can land between Delete history and its bound
     const folder = await temporary()
     const writer = windowJournal(folder, () => readResourceReset(folder))
     await writer.append(minute(Date.now() - 120_000))
+    // Stamped before the delete starts, however long it takes.
+    const before = Date.now()
     const deletion = deleteThroughPage(folder)
     await deletion.done
     expect(deletion.posted).toContainEqual(expect.objectContaining({ outcome: 'completed' }))
-    await writer.append(minute(Date.now() - 60_000))
-    await writer.writeLive(minute(Date.now() - 1000))
+    await writer.append(minute(before - 60_000))
+    await writer.writeLive(minute(before - 1000))
     expect(await journalMinuteLines(folder)).toEqual([])
     expect(await liveFiles(folder)).toEqual([])
   })
@@ -467,8 +471,8 @@ describe('RVM107W2G P2-2: no write can land between Delete history and its bound
     })
     await journal.retain()
     const read = await journal.read()
-    // The completed day is rolled up, with nothing from before the boundary in it.
-    expect(read.days.find((row) => row.day === day)?.minutes).toBe(0)
+    // Nothing of the completed day is after the boundary, so it has no row at all.
+    expect(read.days.find((row) => row.day === day)).toBeUndefined()
   })
 
   it('hides records at or before the boundary even when their removal never happened', async () => {
@@ -670,3 +674,305 @@ async function isPresent(file: string): Promise<boolean> {
     return false
   }
 }
+
+// RVM107W2H (round 4).
+/** A raw day file holding one minute stamped at noon of `day`. */
+async function rawDay(folder: string, day: string): Promise<void> {
+  const dayFolder = path.join(resourcesRoot(folder), day)
+  await mkdir(dayFolder, { recursive: true })
+  await writeFile(
+    path.join(dayFolder, 'w.0.jsonl'),
+    `${JSON.stringify({ v: RESOURCE_JOURNAL_VERSION, record: minute(Date.parse(`${day}T12:00:00Z`)) })}\n`,
+  )
+}
+/** A reading journal bound to the folder's reset boundary. */
+function readerJournal(folder: string, fs = new NodeUsageFs(folder)): ResourceJournal {
+  return new ResourceJournal(fs, {
+    writerId: 'reader',
+    now: Date.now,
+    isEnabled: () => false,
+    resetAtMs: () => readResourceReset(folder),
+  })
+}
+/** Ages every claim of the write lock past its 30 s lease, as a paused holder's would be. */
+async function expireWriteLease(folder: string): Promise<void> {
+  const past = new Date(Date.now() - 60_000)
+  const names = await readdir(resourcesRoot(folder))
+  for (const name of names)
+    if (name.startsWith('write.lock.'))
+      await utimes(path.join(resourcesRoot(folder), name), past, past)
+}
+/** Pauses the first matching call of `method` on any NodeUsageFs to `run`, then continues it. */
+function pauseFirst(
+  method: 'append' | 'writeFileAtomically',
+  isMatch: (relative: string) => boolean,
+  run: () => Promise<void>,
+): void {
+  let hasRun = false
+  const real = NodeUsageFs.prototype[method] as (...values: unknown[]) => Promise<void>
+  vi.spyOn(NodeUsageFs.prototype, method).mockImplementation(async function (
+    this: NodeUsageFs,
+    ...args: unknown[]
+  ) {
+    if (!hasRun && isMatch(String(args[0]))) {
+      hasRun = true
+      await run()
+    }
+    await real.apply(this, args)
+  })
+}
+
+describe('RVM107W2H P2-1: an earlier build quarantine never survives Delete history', () => {
+  it('removes the earlier .removing-<uuid> quarantine of the usage folder', async () => {
+    const folder = await temporary()
+    const legacy = path.join(folder, `.removing-${randomUUID()}`)
+    await mkdir(path.join(legacy, 'v1', 'resources', '2026-01-01'), { recursive: true })
+    await writeFile(path.join(legacy, 'v1', 'resources', '2026-01-01', 'w.0.jsonl'), 'old\n')
+    await windowJournal(folder).append(minute(Date.now() - 120_000))
+    const deletion = deleteThroughPage(folder)
+    await deletion.done
+    expect(deletion.posted).toContainEqual(expect.objectContaining({ outcome: 'completed' }))
+    expect(await quarantined(folder)).toEqual([])
+  })
+
+  it('refuses to report completed while that quarantine remains, then removes it', async () => {
+    const folder = await temporary()
+    const name = `.removing-${randomUUID()}`
+    await mkdir(path.join(folder, name, 'v1'), { recursive: true })
+    await writeFile(path.join(folder, name, 'v1', 'old.jsonl'), 'old\n')
+    await windowJournal(folder).append(minute(Date.now() - 120_000))
+    failQuarantineOnce(name)
+    const first = deleteThroughPage(folder)
+    await first.done
+    expect(first.posted).toContainEqual(expect.objectContaining({ code: 'writeFailed' }))
+    expect(first.posted).not.toContainEqual(expect.objectContaining({ outcome: 'completed' }))
+    const second = deleteThroughPage(folder)
+    await second.done
+    expect(second.posted).toContainEqual(expect.objectContaining({ outcome: 'completed' }))
+    expect(await quarantined(folder)).toEqual([])
+  })
+
+  it('hides an earlier-format quarantine from listings and sweeps it', async () => {
+    const folder = await temporary()
+    await mkdir(path.join(resourcesRoot(folder), `.removing-${randomUUID()}`), { recursive: true })
+    await storedDay(folder)
+    expect(await new NodeUsageFs(folder).list(RESOURCE_JOURNAL_ROOT)).toEqual(['2026-01-01'])
+    expect(await quarantined(resourcesRoot(folder))).toEqual([])
+  })
+})
+
+describe('RVM107W2H P2-2: a daily row from before Delete history is never returned', () => {
+  it('hides a row rolled up before the boundary and drops it at the next retention', async () => {
+    const folder = await temporary()
+    const day = utcDay(Date.now() - 10 * 86_400_000)
+    await rawDay(folder, day)
+    const before = readerJournal(folder)
+    await before.retain()
+    // Rolled up, and the raw day removed (past the seven-day detail).
+    const rolled = await before.read()
+    expect(rolled.days.map((row) => row.day)).toEqual([day])
+    await expect(readdir(path.join(resourcesRoot(folder), day))).rejects.toThrow()
+    // Delete history wrote its boundary, then stopped before removing the folder.
+    await writeResourceReset(folder, Date.now())
+    const after = readerJournal(folder)
+    const hidden = await after.read()
+    expect(hidden.days).toEqual([])
+    await after.retain()
+    const rollups = path.join(resourcesRoot(folder), 'rollups')
+    const months = await namesIn(rollups)
+    for (const month of months) {
+      const text = await readFile(path.join(rollups, month), 'utf8')
+      expect(text).not.toContain(`"day":"${day}"`)
+    }
+  })
+})
+
+describe('RVM107W2H P2-3: retention never publishes across a Delete history', () => {
+  it('makes Delete history wait for a retention pass that is publishing a daily row', async () => {
+    const folder = await temporary()
+    await rawDay(folder, utcDay(Date.now() - 3 * 86_400_000))
+    const fs = new NodeUsageFs(folder)
+    let deletion: ReturnType<typeof deleteThroughPage> | undefined
+    let isDeletedDuringPublication: boolean | undefined
+    const realWrite = fs.writeFileAtomically.bind(fs)
+    vi.spyOn(fs, 'writeFileAtomically').mockImplementation(async (relative, text, commit) => {
+      if (deletion === undefined && relative.includes('/rollups/')) {
+        deletion = deleteThroughPage(folder)
+        let isSettled = false
+        void deletion.done.then(() => {
+          isSettled = true
+        })
+        await new Promise((resolve) => setTimeout(resolve, 400))
+        isDeletedDuringPublication = isSettled
+      }
+      await realWrite(relative, text, commit)
+    })
+    await readerJournal(folder, fs).retain()
+    await deletion?.done
+    expect(isDeletedDuringPublication).toBe(false)
+    expect(deletion?.posted).toContainEqual(expect.objectContaining({ outcome: 'completed' }))
+    const rollups = await namesIn(path.join(resourcesRoot(folder), 'rollups'))
+    expect(rollups).toEqual([])
+    const history = await resourceHistoryReader(folder).read()
+    expect(history.days ?? []).toEqual([])
+  })
+})
+
+describe('RVM107W2H P2-4: a write commits only under its current lease and boundary', () => {
+  it('refuses a paused append whose lease expired and a Delete history took over', async () => {
+    const folder = await temporary()
+    const writer = windowJournal(folder, () => readResourceReset(folder))
+    await writer.append(minute(Date.now() - 120_000))
+    let deletion: ReturnType<typeof deleteThroughPage> | undefined
+    pauseFirst(
+      'append',
+      (relative) => relative.endsWith('.jsonl'),
+      async () => {
+        await expireWriteLease(folder)
+        deletion = deleteThroughPage(folder)
+        await deletion.done
+      },
+    )
+    await expect(writer.append(minute(Date.now() - 60_000))).rejects.toThrow(
+      'resourceHistoryLockLost',
+    )
+    expect(deletion?.posted).toContainEqual(expect.objectContaining({ outcome: 'completed' }))
+    expect(await journalMinuteLines(folder)).toEqual([])
+  })
+
+  it('refuses a paused live write whose expired lease another writer took', async () => {
+    const folder = await temporary()
+    const paused = windowJournal(folder)
+    const other = new ResourceJournal(new NodeUsageFs(folder), {
+      writerId: 'other',
+      now: Date.now,
+      isEnabled: () => true,
+    })
+    pauseFirst(
+      'writeFileAtomically',
+      (relative) => relative.endsWith('/live/window.json'),
+      async () => {
+        await expireWriteLease(folder)
+        await other.append(minute(Date.now() - 60_000))
+      },
+    )
+    await expect(paused.writeLive(minute(Date.now() - 1000))).rejects.toThrow(
+      'resourceHistoryLockLost',
+    )
+    expect(await liveFiles(folder)).toEqual([])
+    expect(await journalMinuteLines(folder)).toHaveLength(1)
+  })
+
+  it('refuses a paused append once a boundary past it is written, lease held', async () => {
+    const folder = await temporary()
+    const writer = windowJournal(folder, () => readResourceReset(folder))
+    pauseFirst(
+      'append',
+      (relative) => relative.endsWith('.jsonl'),
+      async () => {
+        await writeResourceReset(folder, Date.now())
+      },
+    )
+    await expect(writer.append(minute(Date.now() - 60_000))).rejects.toThrow(
+      'resourceHistoryLockLost',
+    )
+    expect(await journalMinuteLines(folder)).toEqual([])
+  })
+})
+
+/** The quarantine's next identity sample reports another entry, as after a swap. */
+function misreportQuarantineOnce(): void {
+  let isDone = false
+  const real = actual.lstat as (file: string, options: unknown) => Promise<BigIntStats>
+  vi.mocked(fsPromises.lstat).mockImplementation((async (file: string, options: unknown) => {
+    const stats = await real(file, options)
+    if (isDone || !path.basename(file).startsWith(TRASH)) return stats
+    isDone = true
+    const prototype = Object.getPrototypeOf(stats) as object
+    return Object.assign(Object.create(prototype) as BigIntStats, stats, { ino: stats.ino + 1n })
+  }) as never)
+}
+/** A folder's names, or none when it is absent. */
+async function namesIn(folder: string): Promise<string[]> {
+  try {
+    return await readdir(folder)
+  } catch {
+    return []
+  }
+}
+
+describe('RVM107W2H P2-5: put-back never replaces an entry that took the name', () => {
+  it('refuses and puts back a removal whose commit fence refuses', async () => {
+    const folder = await temporary()
+    const day = await storedDay(folder)
+    const fs = new NodeUsageFs(folder)
+    await expect(
+      fs.remove(`${RESOURCE_JOURNAL_ROOT}/2026-01-01`, () => Promise.reject(new Error('fenced'))),
+    ).rejects.toThrow('usagePathChanged')
+    expect(await readFile(path.join(day, 'w.0.jsonl'), 'utf8')).toBe('secret-history\n')
+    expect(await quarantined(resourcesRoot(folder))).toEqual([])
+  })
+
+  it('keeps a file that takes the name just before the put-back', async () => {
+    const folder = await temporary()
+    const live = path.join(resourcesRoot(folder), 'live')
+    await mkdir(live, { recursive: true })
+    await writeFile(path.join(live, 'window.json'), 'ours')
+    misreportQuarantineOnce()
+    let isReplaced = false
+    const takeName = async (to: unknown): Promise<void> => {
+      if (isReplaced || path.basename(String(to)) !== 'window.json') return
+      isReplaced = true
+      await actual.writeFile(String(to), 'theirs')
+    }
+    vi.mocked(fsPromises.rename).mockImplementation(async (from, to) => {
+      await takeName(to)
+      await actual.rename(from, to)
+    })
+    vi.mocked(fsPromises.link).mockImplementation(async (from, to) => {
+      await takeName(to)
+      await actual.link(from, to)
+    })
+    await expect(
+      new NodeUsageFs(folder).remove(`${RESOURCE_JOURNAL_ROOT}/live/window.json`),
+    ).rejects.toThrow('usagePathChanged')
+    expect(await readFile(path.join(live, 'window.json'), 'utf8')).toBe('theirs')
+    const [ours] = await quarantined(live)
+    expect(await readFile(path.join(live, ours ?? ''), 'utf8')).toBe('ours')
+  })
+
+  it('replaces at most an empty directory that takes the name (POSIX), a file on Windows', async () => {
+    const folder = await temporary()
+    const day = await storedDay(folder)
+    misreportQuarantineOnce()
+    let replacement: bigint | undefined
+    const takeName = async (to: unknown): Promise<void> => {
+      if (replacement !== undefined || path.basename(String(to)) !== '2026-01-01') return
+      // Windows renames a directory over a file, never over a directory.
+      if (process.platform === 'win32') await actual.writeFile(String(to), 'theirs')
+      else await actual.mkdir(String(to))
+      const taken = await actual.lstat(String(to), { bigint: true })
+      replacement = taken.ino
+    }
+    vi.mocked(fsPromises.rename).mockImplementation(async (from, to) => {
+      await takeName(to)
+      await actual.rename(from, to)
+    })
+    vi.mocked(fsPromises.mkdir).mockImplementation((async (target: string, options: unknown) => {
+      if (options === undefined) await takeName(target)
+      return await actual.mkdir(target, options as never)
+    }) as never)
+    await expect(
+      new NodeUsageFs(folder).remove(`${RESOURCE_JOURNAL_ROOT}/2026-01-01`),
+    ).rejects.toThrow('usagePathChanged')
+    const current = await actual.lstat(day, { bigint: true })
+    if (process.platform === 'win32') {
+      // The documented Windows residual: the file that took the name is replaced.
+      expect(current.isDirectory()).toBe(true)
+    } else {
+      // The claim refused: the replacement stands and ours stays quarantined.
+      expect(current.ino).toBe(replacement)
+      expect(await quarantined(resourcesRoot(folder))).toHaveLength(1)
+    }
+  })
+})

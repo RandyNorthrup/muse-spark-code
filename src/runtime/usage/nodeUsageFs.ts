@@ -1,7 +1,7 @@
 // The same private data folder is injected by VSIX, ACP, native runtimes and CLI.
 import { randomUUID } from 'node:crypto'
 import { constants, type BigIntStats, type Dirent } from 'node:fs'
-import { lstat, mkdir, open, readdir, readFile, rename, rm } from 'node:fs/promises'
+import { link, lstat, mkdir, open, readdir, readFile, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
@@ -21,18 +21,18 @@ function errorCode(error: unknown): string | undefined {
     ? error.code
     : undefined
 }
-// A quarantined entry: `.removing-<epoch ms>.<uuid>.<original name>`.
-const TRASH_PATTERN = /^\.removing-(\d{1,16})\.([\da-f-]{36})\.([\w.-]+)$/u
+// A quarantined entry: `.removing-<epoch ms>.<uuid>.<original name>`, or an
+// earlier build's `.removing-<uuid>` (RVM107W2H P2-1): no time (always stale)
+// and no original name (it may be any entry of its folder).
+const TRASH_PATTERN = /^\.removing-(?:(\d{1,16})\.)?[\da-f-]{36}(?:\.([\w.-]+))?$/u
 interface TrashEntry {
   readonly name: string
   readonly atMs: number
-  readonly target: string
+  readonly target: string | undefined
 }
 function trashEntry(name: string): TrashEntry | undefined {
   const match = TRASH_PATTERN.exec(name)
-  return match?.[1] === undefined || match[3] === undefined
-    ? undefined
-    : { name, atMs: Number(match[1]), target: match[3] }
+  return match === null ? undefined : { name, atMs: Number(match[1] ?? 0), target: match[2] }
 }
 /** The entry's own (no-follow) stat, or undefined when nothing is there. */
 async function lstatEntry(file: string): Promise<BigIntStats | undefined> {
@@ -50,6 +50,22 @@ async function isAbsent(file: string): Promise<boolean> {
 async function erase(file: string): Promise<void> {
   await rm(file, { recursive: true, force: true, maxRetries: USAGE_REMOVE_RETRIES })
   if (!(await isAbsent(file))) throw new Error('usageRemoveIncomplete')
+}
+/**
+ * Moves `from` back to the name `to` without replacing an entry that took it
+ * (RVM107W2H P2-5): a file by `link` (no-replace everywhere), then unlink. A
+ * directory on POSIX claims the name with an exclusive `mkdir` first, so the
+ * rename can replace only an empty directory. Windows never renames over a
+ * directory but does over a file: the residual in SECURITY.
+ */
+async function restore(from: string, to: string, isDirectory: boolean): Promise<void> {
+  if (isDirectory) {
+    if (process.platform !== 'win32') await mkdir(to)
+    await rename(from, to)
+    return
+  }
+  await link(from, to)
+  await rm(from)
 }
 /**
  * On Windows, runs `action` holding a handle on `file`, proved to be
@@ -263,7 +279,13 @@ export class NodeUsageFs implements UsageFs {
       await handle.close()
     }
   }
-  public async append(relative: string, line: string, isDurable = false): Promise<void> {
+  /** `commit` (a fence) runs on the opened file, immediately before the write. */
+  public async append(
+    relative: string,
+    line: string,
+    isDurable = false,
+    commit?: () => Promise<void>,
+  ): Promise<void> {
     const file = await this.resolve(relative)
     await this.prepare(file)
     const handle = await open(
@@ -275,13 +297,19 @@ export class NodeUsageFs implements UsageFs {
       CHECKPOINT_JOURNAL_FILE_MODE,
     )
     try {
+      await commit?.()
       await handle.writeFile(line, 'utf8')
       if (isDurable) await handle.sync()
     } finally {
       await handle.close()
     }
   }
-  public async writeFileAtomically(relative: string, text: string): Promise<void> {
+  /** `commit` (a fence) runs on the flushed stage, immediately before its rename. */
+  public async writeFileAtomically(
+    relative: string,
+    text: string,
+    commit?: () => Promise<void>,
+  ): Promise<void> {
     const file = await this.resolve(relative)
     await this.prepare(file)
     await writeFileAtomically(file, text, {
@@ -300,6 +328,7 @@ export class NodeUsageFs implements UsageFs {
         } finally {
           await handle.close()
         }
+        await commit?.()
         await rename(from, to)
       },
     })
@@ -310,8 +339,10 @@ export class NodeUsageFs implements UsageFs {
    * - A checked pathname is never deleted by name: the entry is renamed to a
    *   fresh quarantine name in its validated parent, and deleted only once that
    *   name proves to be the validated entry (dev/ino) in the same parent.
-   * - Success means the entry and every quarantine of the same name are gone,
-   *   so a retry after a failed delete never reports a leftover as removed.
+   * - Success means the entry and every quarantine of the same name (in either
+   *   format) are gone, so a retry never reports a leftover as removed.
+   * - `commit` (a fence) runs on the proven quarantine, immediately before the
+   *   delete; a refusal puts the entry back.
    * - Linux pins the parent by descriptor and Windows pins every ancestor by a
    *   handle on the entry, so a swapped ancestor cannot redirect the rename or
    *   the delete. macOS has neither: a swap during the rename itself can move
@@ -320,57 +351,55 @@ export class NodeUsageFs implements UsageFs {
    *   only when it is reachable from the validated parent. The residuals are
    *   listed in docs/certification/m107-w-history.md.
    */
-  public async remove(relative: string): Promise<void> {
+  public async remove(relative: string, commit?: () => Promise<void>): Promise<void> {
     const file = await this.resolve(relative)
     await this.checkPath(file)
     const name = path.basename(file)
     await this.inParent(path.dirname(file), async (base, proveParent) => {
-      // Leftovers of earlier attempts at this name first, whatever their age.
-      await this.sweepIn(base, proveParent, (entry) => entry.target === name)
       const source = path.join(base, name)
       const target = await lstatEntry(source)
-      if (target === undefined) {
-        await proveParent()
-        return
-      }
-      const targetIdentity = fileIdentityKey(target)
-      if (targetIdentity === undefined || target.isSymbolicLink())
-        throw new Error('unsafeUsagePath')
-      await pinned(source, targetIdentity, async () => {
-        await proveParent()
-        const trash = path.join(base, `.removing-${String(this.now())}.${randomUUID()}.${name}`)
-        try {
-          await rename(source, trash)
-        } catch (error) {
-          // Already gone, from a parent that is still the validated one.
-          if (errorCode(error) !== 'ENOENT') throw error
+      if (target !== undefined) {
+        const targetIdentity = fileIdentityKey(target)
+        if (targetIdentity === undefined || target.isSymbolicLink())
+          throw new Error('unsafeUsagePath')
+        await pinned(source, targetIdentity, async () => {
           await proveParent()
-          return
-        }
-        let isSame: boolean
-        try {
-          const moved = await lstatIdentity(trash)
-          await proveParent()
-          isSame = !moved.isSymbolicLink() && fileIdentityKey(moved) === targetIdentity
-        } catch {
-          isSame = false
-        }
-        if (!isSame) {
-          // Put back what this rename moved into the validated parent, never
-          // over a replacement, then refuse.
-          if (!(await isAbsent(trash)) && (await isAbsent(source))) {
+          const trash = path.join(base, `.removing-${String(this.now())}.${randomUUID()}.${name}`)
+          try {
+            await rename(source, trash)
+          } catch (error) {
+            // Already gone, from a parent that is still the validated one.
+            if (errorCode(error) !== 'ENOENT') throw error
+            await proveParent()
+            return
+          }
+          let isSame: boolean
+          try {
+            const moved = await lstatIdentity(trash)
+            await proveParent()
+            await commit?.()
+            isSame = !moved.isSymbolicLink() && fileIdentityKey(moved) === targetIdentity
+          } catch {
+            isSame = false
+          }
+          if (!isSame) {
+            // Put back what this rename moved into the validated parent, never
+            // over a replacement, then refuse.
             try {
-              await rename(trash, source)
+              const moved = await lstatEntry(trash)
+              if (moved !== undefined) await restore(trash, source, moved.isDirectory())
             } catch {
               // Left under its quarantine name; the refusal below still stands.
             }
+            throw new Error('usagePathChanged')
           }
-          throw new Error('usagePathChanged')
-        }
-        await erase(trash)
-        // A swap during removal is reported, never a success.
-        await proveParent()
-      })
+          await erase(trash)
+        })
+      }
+      // Then every quarantine of this name, of any age or format: success means
+      // nothing of it is left. A swap during removal is reported, never a success.
+      await this.sweepIn(base, proveParent, (entry) => (entry.target ?? name) === name)
+      await proveParent()
     })
   }
   public async acquireLock(relative: string, staleMs: number): Promise<UsageLock | undefined> {

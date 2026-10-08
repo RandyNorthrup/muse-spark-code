@@ -54,10 +54,19 @@ export interface UsageFs {
   stat(file: string): Promise<UsageFileStat | undefined>
   /** No length: read the complete file through one handle, for atomic rollups. */
   read(file: string, offset: number, length?: number): Promise<Uint8Array>
-  /** `isDurable` flushes the appended bytes to disk before resolving. */
-  append(file: string, line: string, isDurable?: boolean): Promise<void>
-  writeFileAtomically(file: string, text: string): Promise<void>
-  remove(file: string): Promise<void>
+  /**
+   * `isDurable` flushes the appended bytes to disk before resolving. `commit`,
+   * a fence (here and below), runs at the last step before the change lands and
+   * refuses it by throwing.
+   */
+  append(
+    file: string,
+    line: string,
+    isDurable?: boolean,
+    commit?: () => Promise<void>,
+  ): Promise<void>
+  writeFileAtomically(file: string, text: string, commit?: () => Promise<void>): Promise<void>
+  remove(file: string, commit?: () => Promise<void>): Promise<void>
   /** Strictly removes stale quarantined removals in `folder`; a failure throws. */
   sweep?(folder: string): Promise<void>
   acquireLock(file: string, staleMs: number): Promise<UsageLock | undefined>

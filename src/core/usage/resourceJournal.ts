@@ -28,7 +28,6 @@ import {
   USAGE_HISTORY_DAYS_DEFAULT,
   USAGE_LINE_FEED_BYTE,
   USAGE_RECORD_MAX_BYTES,
-  USAGE_ROLLUP_LOCK_STALE_MS,
   USAGE_VERSION_FOLDER,
 } from '../../shared/constants'
 import {
@@ -43,9 +42,8 @@ import type { ResourceRecordSink } from './resourceRecords'
 export const RESOURCE_JOURNAL_ROOT = `${USAGE_FOLDER}/${USAGE_VERSION_FOLDER}/${RESOURCE_JOURNAL_FOLDER}`
 const LIVE_ROOT = `${RESOURCE_JOURNAL_ROOT}/live`
 const ROLLUPS_ROOT = `${RESOURCE_JOURNAL_ROOT}/rollups`
-const LOCK_FILE = `${RESOURCE_JOURNAL_ROOT}/rollup.lock`
-// RVM107W2G P2-2: Delete history and every append/live write hold this lock, so
-// a write checks the reset boundary with no delete able to land in between.
+// RVM107W2G P2-2, RVM107W2H P2-3: Delete history, every append and live write
+// and retention hold this lock, and each change lands through a fence (`fence`).
 const WRITE_LOCK_FILE = `${RESOURCE_JOURNAL_ROOT}/write.lock`
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const FILE_PATTERN = /^([\w-]+)\.(\d+)\.jsonl$/
@@ -65,9 +63,12 @@ const liveSchema = z.strictObject({
   v: z.literal(RESOURCE_JOURNAL_VERSION),
   record: resourceHistoryRecordSchema.check(z.refine((record) => record.minute !== null)),
 })
-// The stored row also keeps the raw day's size, so a late append is rolled up again.
+// The stored row also keeps the raw day's size, so a late append is rolled up
+// again, and when it was built: a row built at or before the last Delete history
+// is never shown and is rebuilt or dropped (RVM107W2H P2-2). Earlier rows lack it.
 const storedDaySchema = z.extend(resourceHistoryDaySchema, {
   sourceBytes: z.int().check(z.gte(0)),
+  builtAtMs: z.optional(z.number()),
 })
 type StoredDay = z.infer<typeof storedDaySchema>
 const rollupSchema = z
@@ -213,6 +214,7 @@ function dayRow(
   records: readonly ResourceRecord[],
   sources: readonly string[],
   sourceBytes: number,
+  builtAtMs: number,
 ): StoredDay {
   const snapshots = new Map<string, NonNullable<ResourceRecord['minute']>>()
   // Per collector and segment, so a later cumulative snapshot replaces its earlier rows.
@@ -246,6 +248,7 @@ function dayRow(
     events,
     work: Array.from(totals, ([, value]) => value),
     sourceBytes,
+    builtAtMs,
   })
 }
 
@@ -287,11 +290,24 @@ export class ResourceJournal implements ResourceRecordSink {
   }
 
   /**
-   * Runs `action` holding the journal write lock, waiting a bounded time for
-   * another process's append or delete. The lock is proved held right before
-   * `action`, whose checks run with no await ahead of its write.
+   * The commit check of every change (RVM107W2H P2-4), run by the file system
+   * at the last step, after the destination is open or staged: it refuses unless
+   * this process still holds the write lease's current generation (a lease
+   * reclaimed after 30 s has a new one) and `atMs` is after the boundary.
    */
-  private async exclusive<T>(action: () => Promise<T>): Promise<T> {
+  private fence(lock: UsageLock, atMs: number): () => Promise<void> {
+    return async () => {
+      if (!(await lock.isHeld()) || atMs <= this.resetBoundary())
+        throw new Error('resourceHistoryLockLost')
+    }
+  }
+
+  /**
+   * Runs `action` holding the journal write lock, waiting a bounded time for
+   * another process's change. The lock is proved held before `action`; each
+   * write inside it commits through `fence`.
+   */
+  private async exclusive<T>(action: (lock: UsageLock) => Promise<T>): Promise<T> {
     const sleep =
       this.options.sleep ??
       ((ms: number) =>
@@ -303,7 +319,7 @@ export class ResourceJournal implements ResourceRecordSink {
       if (lock !== undefined) {
         try {
           if (!(await lock.isHeld())) throw new Error('resourceHistoryLockLost')
-          return await action()
+          return await action(lock)
         } finally {
           await lock.release()
         }
@@ -431,6 +447,10 @@ export class ResourceJournal implements ResourceRecordSink {
       now -
         (RESOURCE_HISTORY_DETAIL_DAYS + RESOURCE_JOURNAL_REMOVE_MARGIN_DAYS) * MILLISECONDS_PER_DAY,
     )
+    const reset = this.resetBoundary()
+    // Commits only while the lease holds and the boundary is the one read here
+    // (any later boundary is at least reset + 1).
+    const commit = this.fence(lock, reset + 1)
     const { months, newer } = await this.readRollups()
     const rows = new Map(
       Array.from(months, ([, value]) => value)
@@ -455,41 +475,42 @@ export class ResourceJournal implements ResourceRecordSink {
         // An unreadable day is kept raw (never rolled up or silently dropped).
         continue
       }
-      if (rows.get(day)?.sourceBytes !== read.bytes) {
-        rows.set(day, dayRow(day, read.records, read.sources, read.bytes))
-        changed.add(month)
+      const row = rows.get(day)
+      if (row?.sourceBytes !== read.bytes || (row.builtAtMs ?? 0) <= reset) {
+        // Nothing after the boundary: no row at all.
+        if (read.records.length > 0)
+          rows.set(day, dayRow(day, read.records, read.sources, read.bytes, now))
+        else rows.delete(day)
+        if (row !== undefined || read.records.length > 0) changed.add(month)
       }
       if (day < expiredBefore) removals.push(`${RESOURCE_JOURNAL_ROOT}/${day}`)
     }
-    for (const [day] of rows)
-      if (day < keepFrom) {
+    for (const [day, row] of rows)
+      if (day < keepFrom || (row.builtAtMs ?? 0) <= reset) {
         rows.delete(day)
         changed.add(day.slice(0, 'YYYY-MM'.length))
       }
     // Daily rows are durable before any raw day they summarize is removed.
     for (const month of changed) {
-      if (!(await lock.isHeld())) throw new Error('resourceHistoryLockLost')
       const monthRows = Array.from(rows, ([, value]) => value)
         .filter((row) => row.day.startsWith(`${month}-`))
         .toSorted((a, b) => a.day.localeCompare(b.day))
       const file = `${ROLLUPS_ROOT}/${month}.json`
-      if (monthRows.length === 0) await this.fs.remove(file)
+      if (monthRows.length === 0) await this.fs.remove(file, commit)
       else
         await this.fs.writeFileAtomically(
           file,
           `${JSON.stringify(rollupSchema.parse({ v: RESOURCE_JOURNAL_VERSION, month, days: monthRows }))}\n`,
+          commit,
         )
     }
-    for (const folder of removals) {
-      if (!(await lock.isHeld())) throw new Error('resourceHistoryLockLost')
-      await this.fs.remove(folder)
-    }
+    for (const folder of removals) await this.fs.remove(folder, commit)
     const live = await this.fs.list(LIVE_ROOT)
     for (const name of live) {
       if (!LIVE_PATTERN.test(name)) continue
       const stat = await this.fs.stat(`${LIVE_ROOT}/${name}`)
       if (stat !== undefined && stat.mtimeMs <= now - RESOURCE_HISTORY_RETENTION_MS)
-        await this.fs.remove(`${LIVE_ROOT}/${name}`)
+        await this.fs.remove(`${LIVE_ROOT}/${name}`, commit)
     }
   }
 
@@ -546,9 +567,9 @@ export class ResourceJournal implements ResourceRecordSink {
     if (size >= USAGE_RECORD_MAX_BYTES) throw new Error('resourceRecordTooLarge')
     // Retention never holds back a record; its failure is reported, then retried.
     await this.retainReported()
-    await this.exclusive(async () => {
+    await this.exclusive(async (lock) => {
       // Recorded at or before the last Delete history: it must never reappear.
-      // Checked inside the lock a delete also holds, so none can land in between.
+      // Checked inside the lock a delete also holds, and again at the commit.
       if (record.atMs <= this.resetBoundary()) return
       const file = `${RESOURCE_JOURNAL_ROOT}/${utcDay(record.atMs)}/${this.options.writerId}.${String(this.generation)}.jsonl`
       const written = this.written.get(file) ?? 0
@@ -557,7 +578,7 @@ export class ResourceJournal implements ResourceRecordSink {
         return
       }
       try {
-        await this.fs.append(file, line, true)
+        await this.fs.append(file, line, true, this.fence(lock, record.atMs))
       } catch (error) {
         // A failed write may have left a partial or even a complete line; never
         // append after it, and retry under the same id so a read keeps one copy.
@@ -577,9 +598,13 @@ export class ResourceJournal implements ResourceRecordSink {
     const text = JSON.stringify({ v: RESOURCE_JOURNAL_VERSION, record })
     if (encoder.encode(text).byteLength >= USAGE_RECORD_MAX_BYTES)
       throw new Error('resourceRecordTooLarge')
-    await this.exclusive(async () => {
+    await this.exclusive(async (lock) => {
       if (record.atMs <= this.resetBoundary()) return
-      await this.fs.writeFileAtomically(`${LIVE_ROOT}/${this.options.writerId}.json`, text)
+      await this.fs.writeFileAtomically(
+        `${LIVE_ROOT}/${this.options.writerId}.json`,
+        text,
+        this.fence(lock, record.atMs),
+      )
     })
   }
 
@@ -612,8 +637,8 @@ export class ResourceJournal implements ResourceRecordSink {
   /**
    * Rolls completed days up into daily rows, then removes raw days past the
    * detail window (only once rolled up), day rows past the usage-history days
-   * and expired live files. At most hourly; another process holding the lock
-   * defers it.
+   * and expired live files. At most hourly, under the write lock (RVM107W2H
+   * P2-3), so it never runs alongside a Delete history.
    */
   public async retain(): Promise<void> {
     const now = this.options.now()
@@ -624,14 +649,8 @@ export class ResourceJournal implements ResourceRecordSink {
     const stored = await this.fs.list(RESOURCE_JOURNAL_ROOT)
     if (stored.length === 0) return
     const historyDays = this.options.historyDays?.() ?? USAGE_HISTORY_DAYS_DEFAULT
-    const lock = await this.fs.acquireLock(LOCK_FILE, USAGE_ROLLUP_LOCK_STALE_MS)
-    if (lock === undefined) return
-    try {
-      await this.rollUp(now, historyDays, lock)
-      this.retainedAt = now
-    } finally {
-      await lock.release()
-    }
+    await this.exclusive((lock) => this.rollUp(now, historyDays, lock))
+    this.retainedAt = now
   }
 
   /** Every collector's retained records, oldest day first and in each collector's append order. */
@@ -693,9 +712,10 @@ export class ResourceJournal implements ResourceRecordSink {
       sources: [...sources, ...live.sources],
       days: Array.from(months, ([, value]) => value)
         .flat()
-        .filter((row) => row.day >= keepFrom)
+        // Rows built at or before the last Delete history are never shown.
+        .filter((row) => row.day >= keepFrom && (row.builtAtMs ?? 0) > reset)
         .toSorted((a, b) => a.day.localeCompare(b.day))
-        .map(({ sourceBytes: _bytes, ...row }) => row),
+        .map(({ sourceBytes: _bytes, builtAtMs: _built, ...row }) => row),
     }
   }
 
