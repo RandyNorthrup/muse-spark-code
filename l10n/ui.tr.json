@@ -548,6 +548,16 @@
     "fallbackReviewer": "Kılavuz: {actor}, kaydedilmiş yedek inceleyici olarak {module} öğesini inceliyor ({reason}).",
     "residualOpen": "Kararınız gerekli: {lane} içinde açık kalan artık maddeler var: {missing}."
   },
+  "scheduleSettlement": {
+    "sent": "Zamanlamaya göre gönderildi",
+    "outcomes": {
+      "ran": "Çalıştı",
+      "refused": "Reddedildi",
+      "missed": "Kaçırıldı",
+      "skipped": "Atlandı",
+      "failed": "Başarısız"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -581,7 +591,6 @@
       "conditions": "Koşullar (alan=değer, satır başına bir tane)",
       "endDate": "Bitiş tarihi ve saati (UTC)",
       "afterRuns": "N çalıştırmadan sonra bitir",
-      "sent": "Zamanlamaya göre gönderildi",
       "cost": "Maliyet",
       "grantHelp": "Satır başına bir giriş. Yollar bu çalışma alanı içinde kalır; korunan yollar ve insan gerektiren araçlar her zaman reddedilir.",
       "auditKinds": {
@@ -702,13 +711,6 @@
       "open": "Arka planda aç",
       "skip": "Çalıştırmayı atla",
       "runOnce": "Bir kez telafi et"
-    },
-    "outcomes": {
-      "ran": "Çalıştı",
-      "refused": "Reddedildi",
-      "missed": "Kaçırıldı",
-      "skipped": "Atlandı",
-      "failed": "Başarısız"
     },
     "events": {
       "pullRequestOpened": "Birleştirme isteği açıldı",

@@ -547,6 +547,16 @@
     "fallbackReviewer": " playbook：{actor} 以已記錄的備選審查人身分複查 {module} ({reason})。",
     "residualOpen": "需要您處理：{lane} 有未關閉的遺留事項：{missing}。"
   },
+  "scheduleSettlement": {
+    "sent": "依排程傳送",
+    "outcomes": {
+      "ran": "已執行",
+      "refused": "已拒絕",
+      "missed": "已錯過",
+      "skipped": "已略過",
+      "failed": "失敗"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -580,7 +590,6 @@
       "conditions": "條件（欄位=值，每行一項）",
       "endDate": "結束日期和時間 (UTC)",
       "afterRuns": "執行 N 次後結束",
-      "sent": "依排程傳送",
       "cost": "費用",
       "grantHelp": "每行一項。路徑必須位於此工作區內；受保護的路徑和需要人工操作的工具一律會被拒絕。",
       "auditKinds": {
@@ -701,13 +710,6 @@
       "open": "在背景開啟",
       "skip": "略過執行",
       "runOnce": "補執行一次"
-    },
-    "outcomes": {
-      "ran": "已執行",
-      "refused": "已拒絕",
-      "missed": "已錯過",
-      "skipped": "已略過",
-      "failed": "失敗"
     },
     "events": {
       "pullRequestOpened": "提取要求已開啟",

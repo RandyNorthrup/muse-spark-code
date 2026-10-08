@@ -548,6 +548,16 @@
     "fallbackReviewer": "Útmutató: {actor} vizsgálja felül a következőt: {module}, mint rögzített tartalék felülvizsgáló ({reason}).",
     "residualOpen": "Döntés kell: {lane} nyitott maradványpontokat tartalmaz: {missing}."
   },
+  "scheduleSettlement": {
+    "sent": "Ütemezés szerint elküldve",
+    "outcomes": {
+      "ran": "Lefutott",
+      "refused": "Elutasítva",
+      "missed": "Elmulasztva",
+      "skipped": "Kihagyva",
+      "failed": "Sikertelen"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -581,7 +591,6 @@
       "conditions": "Feltételek (mező=érték, soronként egy)",
       "endDate": "Befejezés dátuma és ideje (UTC)",
       "afterRuns": "Befejezés N futás után",
-      "sent": "Ütemezés szerint elküldve",
       "cost": "Költség",
       "grantHelp": "Soronként egy bejegyzés. Az útvonalak ezen a munkaterületen belül maradnak; a védett útvonalak és az embert igénylő eszközök mindig elutasításra kerülnek.",
       "auditKinds": {
@@ -702,13 +711,6 @@
       "open": "Megnyitás a háttérben",
       "skip": "Futás kihagyása",
       "runOnce": "Egyszeri pótlás"
-    },
-    "outcomes": {
-      "ran": "Lefutott",
-      "refused": "Elutasítva",
-      "missed": "Elmulasztva",
-      "skipped": "Kihagyva",
-      "failed": "Sikertelen"
     },
     "events": {
       "pullRequestOpened": "Egyesítési kérelem megnyitva",

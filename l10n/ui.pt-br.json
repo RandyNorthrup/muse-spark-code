@@ -549,6 +549,16 @@
     "fallbackReviewer": "Guia: {actor} revisa {module} como revisor suplente registrado ({reason}).",
     "residualOpen": "Sua decisão é necessária: {lane} tem itens residuais abertos: {missing}."
   },
+  "scheduleSettlement": {
+    "sent": "Enviado conforme o agendamento",
+    "outcomes": {
+      "ran": "Executado",
+      "refused": "Recusado",
+      "missed": "Perdido",
+      "skipped": "Ignorado",
+      "failed": "Falhou"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -582,7 +592,6 @@
       "conditions": "Condições (campo=valor, uma por linha)",
       "endDate": "Data e hora de término (UTC)",
       "afterRuns": "Encerrar após N execuções",
-      "sent": "Enviado conforme o agendamento",
       "cost": "Custo",
       "grantHelp": "Uma entrada por linha. Os caminhos ficam neste espaço de trabalho; caminhos protegidos e ferramentas que exigem uma pessoa são sempre recusados.",
       "auditKinds": {
@@ -703,13 +712,6 @@
       "open": "Abrir em segundo plano",
       "skip": "Ignorar a execução",
       "runOnce": "Recuperar uma vez"
-    },
-    "outcomes": {
-      "ran": "Executado",
-      "refused": "Recusado",
-      "missed": "Perdido",
-      "skipped": "Ignorado",
-      "failed": "Falhou"
     },
     "events": {
       "pullRequestOpened": "Solicitação de integração aberta",

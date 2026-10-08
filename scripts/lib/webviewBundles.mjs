@@ -144,6 +144,13 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 25,
   },
   {
+    // STARTUP017: the schedule surfaces' English, out of chat startup:
+    // 4,933 bytes measured, +15%, rounded up to 25 KiB (D6).
+    name: 'schedule English',
+    entries: ['browser-schedule-english:browser-schedule-english'],
+    budgetKiB: 25,
+  },
+  {
     name: 'help reference',
     entries: [
       'src/webview/components/ReferencePage.tsx',

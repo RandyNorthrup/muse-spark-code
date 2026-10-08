@@ -549,6 +549,16 @@
     "fallbackReviewer": "Guida: {actor} esamina {module} come revisore supplente registrato ({reason}).",
     "residualOpen": "Serve il tuo intervento: {lane} ha punti residui aperti: {missing}."
   },
+  "scheduleSettlement": {
+    "sent": "Inviato secondo la pianificazione",
+    "outcomes": {
+      "ran": "Eseguito",
+      "refused": "Rifiutato",
+      "missed": "Perso",
+      "skipped": "Saltato",
+      "failed": "Fallito"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -582,7 +592,6 @@
       "conditions": "Condizioni (campo=valore, una per riga)",
       "endDate": "Data e ora di fine (UTC)",
       "afterRuns": "Termina dopo N esecuzioni",
-      "sent": "Inviato secondo la pianificazione",
       "cost": "Costo",
       "grantHelp": "Una voce per riga. I percorsi restano in questa area di lavoro; i percorsi protetti e gli strumenti che richiedono una persona vengono sempre rifiutati.",
       "auditKinds": {
@@ -703,13 +712,6 @@
       "open": "Apri in background",
       "skip": "Salta l’esecuzione",
       "runOnce": "Recupera una volta"
-    },
-    "outcomes": {
-      "ran": "Eseguito",
-      "refused": "Rifiutato",
-      "missed": "Perso",
-      "skipped": "Saltato",
-      "failed": "Fallito"
     },
     "events": {
       "pullRequestOpened": "Richiesta di unione aperta",

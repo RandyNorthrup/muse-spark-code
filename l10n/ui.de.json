@@ -548,6 +548,16 @@
     "fallbackReviewer": "Leitfaden: {actor} prüft {module} als aufgezeichnete Ersatzprüfung ({reason}).",
     "residualOpen": "Ihre Entscheidung ist nötig: {lane} hat offene Restpunkte: {missing}."
   },
+  "scheduleSettlement": {
+    "sent": "Nach Zeitplan gesendet",
+    "outcomes": {
+      "ran": "Ausgeführt",
+      "refused": "Abgelehnt",
+      "missed": "Verpasst",
+      "skipped": "Übersprungen",
+      "failed": "Fehlgeschlagen"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -581,7 +591,6 @@
       "conditions": "Bedingungen (Feld=Wert, eine pro Zeile)",
       "endDate": "Enddatum und Uhrzeit (UTC)",
       "afterRuns": "Nach N Ausführungen beenden",
-      "sent": "Nach Zeitplan gesendet",
       "cost": "Kosten",
       "grantHelp": "Ein Eintrag pro Zeile. Pfade bleiben in diesem Arbeitsbereich; geschützte Pfade und Werkzeuge, die eine Person benötigen, werden immer abgelehnt.",
       "auditKinds": {
@@ -702,13 +711,6 @@
       "open": "Im Hintergrund öffnen",
       "skip": "Ausführung überspringen",
       "runOnce": "Einmal nachholen"
-    },
-    "outcomes": {
-      "ran": "Ausgeführt",
-      "refused": "Abgelehnt",
-      "missed": "Verpasst",
-      "skipped": "Übersprungen",
-      "failed": "Fehlgeschlagen"
     },
     "events": {
       "pullRequestOpened": "Pull Request geöffnet",

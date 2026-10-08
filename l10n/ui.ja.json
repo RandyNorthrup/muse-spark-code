@@ -547,6 +547,16 @@
     "fallbackReviewer": "手引き: {actor} が記録済みの代替レビュー担当として {module} を確認します ({reason})。",
     "residualOpen": "判断が必要です: {lane} に未解決の残存事項があります: {missing}。"
   },
+  "scheduleSettlement": {
+    "sent": "スケジュールにより送信",
+    "outcomes": {
+      "ran": "実行済み",
+      "refused": "拒否",
+      "missed": "実行漏れ",
+      "skipped": "スキップ済み",
+      "failed": "失敗"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -580,7 +590,6 @@
       "conditions": "条件（フィールド=値、1 行に 1 件）",
       "endDate": "終了日時 (UTC)",
       "afterRuns": "N 回の実行後に終了",
-      "sent": "スケジュールにより送信",
       "cost": "費用",
       "grantHelp": "1 行に 1 件入力してください。パスはこのワークスペース内に限定され、保護されたパスや人の操作が必要なツールは常に拒否されます。",
       "auditKinds": {
@@ -701,13 +710,6 @@
       "open": "バックグラウンドで開く",
       "skip": "実行をスキップ",
       "runOnce": "1回だけ追いつく"
-    },
-    "outcomes": {
-      "ran": "実行済み",
-      "refused": "拒否",
-      "missed": "実行漏れ",
-      "skipped": "スキップ済み",
-      "failed": "失敗"
     },
     "events": {
       "pullRequestOpened": "プルリクエストが開かれた",

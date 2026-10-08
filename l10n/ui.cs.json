@@ -550,6 +550,16 @@
     "fallbackReviewer": "Playbook: {actor} kontroluje {module} jako zaznamenaný náhradní kontrolor ({reason}).",
     "residualOpen": "Je třeba vás: {lane} má otevřené zbytkové problémy: {missing}."
   },
+  "scheduleSettlement": {
+    "sent": "Odesláno podle plánu",
+    "outcomes": {
+      "ran": "Spuštěno",
+      "refused": "Odmítnuto",
+      "missed": "Zmeškáno",
+      "skipped": "Přeskočeno",
+      "failed": "Selhalo"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -583,7 +593,6 @@
       "conditions": "Podmínky (pole=hodnota, jedna na řádek)",
       "endDate": "Datum a čas ukončení (UTC)",
       "afterRuns": "Ukončit po N spuštěních",
-      "sent": "Odesláno podle plánu",
       "cost": "Cena",
       "grantHelp": "Jedna položka na řádek. Cesty zůstávají v tomto pracovním prostoru; chráněné cesty a nástroje vyžadující člověka jsou vždy odmítnuty.",
       "auditKinds": {
@@ -704,13 +713,6 @@
       "open": "Otevřít na pozadí",
       "skip": "Přeskočit spuštění",
       "runOnce": "Dohnat jedním spuštěním"
-    },
-    "outcomes": {
-      "ran": "Spuštěno",
-      "refused": "Odmítnuto",
-      "missed": "Zmeškáno",
-      "skipped": "Přeskočeno",
-      "failed": "Selhalo"
     },
     "events": {
       "pullRequestOpened": "Požadavek na sloučení otevřen",

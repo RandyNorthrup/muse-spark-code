@@ -190,7 +190,7 @@ export class AgentScheduleTools {
       creator: authority.creator,
       outcome: 'refused',
       reason,
-      text: `${UI_TEXT.scheduleV2.outcomes.refused}: ${reason}`,
+      text: `${UI_TEXT.scheduleSettlement.outcomes.refused}: ${reason}`,
     })
     return { outcome: 'refused', reason }
   }
