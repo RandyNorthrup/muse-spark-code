@@ -25,11 +25,17 @@ happened, not what was planned; superseded entries are kept.
 ### Fixed
 
 - Resource history removal can no longer be redirected outside the usage
-  folder by a swapped link; it refuses instead. Readings collected while
-  usage history is off, or before **Delete history**, are never written
-  later. A retried event after an uncertain write is counted once. Closing a
-  window writes its open minute. The 32 MiB read limit counts the bytes
-  actually read.
+  folder by a swapped link on Linux or Windows; it refuses instead (macOS
+  keeps a narrow same-user race, described in SECURITY). A delete that fails
+  is reported and retried, never shown as done while anything is left, and
+  leftovers are cleaned up; a retention failure is logged. Readings collected
+  while usage history is off, or before **Delete history**, are never written
+  later: recording and **Delete history** now share one lock. A retried event
+  after an uncertain write is counted once. Closing a window writes its open
+  minute. The 32 MiB read limit counts the bytes actually read.
+- Narrow usage pages show resource history as labelled cards (one column at
+  320 px, two at 690 px); chart legends and trailing values are no longer cut
+  off.
 
 ### Pending
 

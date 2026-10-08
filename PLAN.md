@@ -40485,6 +40485,32 @@ estimate. Production browser scenes: four themes × 320/690 px × history,
 unavailable and empty, 0 axe violations, no overflow, committed in
 `docs/certification/m107-w-history/`.
 
+**FIXM107W2G — RVM107W2G round 3, visual review F1 and the theme class
+(2026-10-08).** Three P2s and a P3, fixed at the root, each with a regression
+(13 of 15 fail on `85683ac94`; the Windows link rule and the post-delete
+write guard pass there by design) and a red drill. (P2-1)
+`NodeUsageFs.remove` succeeds only when the target and every quarantine of its
+name are gone: it sweeps same-name quarantines first and proves the delete
+absent; listings hide quarantines and sweep stale ones best effort; retention
+sweeps strictly first and reports a failure through `onRetentionError` (first,
+then hourly, retried on the next append or read; the usage service logs it).
+(P2-2) Appends, live writes and Delete history share one cross-process write
+lock (`resources/write.lock`, bounded wait, proved held before writing); the
+reset boundary is checked inside it, Delete history writes the boundary and
+removes the folder under it, and reads (journal, live, rollups) drop anything
+at or before it. A disposal append that outlives the 2 s flush wait still
+needs the lock, so it lands before the delete or refuses after it. (P2-3)
+Linux pins the parent by descriptor; Windows now holds a handle on the entry,
+which stops any ancestor rename, through the rename and the delete; put-back
+never replaces; macOS keeps a documented same-user residual (SECURITY, M107
+section). (P3) Sizes come from a production build of the final head. F1: the
+Resources section is a size container; at 720 px and below its tables become
+labelled cards (one column at 320 px, two at 690 px), legends wrap, and the
+scene harness fails on any clipped element or sideways scroller. Both
+resource-history harnesses apply and assert the captured theme body class.
+`usageService.js` is at 99.9/100 KiB and the resource history closure at
+49.4/50 KiB. Records in `docs/certification/m107-w-history.md`.
+
 **FIXM107J review repair (2026-10-06, Kubuntu).** Repair both RVM107J P2s
 and its P3 inside J's collector, aggregate, history boundary and shared view.
 Read-time flushes retain the active minute and its per-tree CPU baselines;
@@ -50224,8 +50250,9 @@ The harness-placement dispatch and PID/tick assumptions below remain unchanged.
   tree identities, and failed appends remain explicit/retryable. Follow-up:
   W/M102 performs and certifies that complete join; no reviewed P2/P3 is
   silently left as an accepted residual.
-  **Closed by M107 W-history and FIXM107W2 (2026-10-08)** for consent at
-  collection, the Delete history reset boundary, per-record idempotent append
+  **Closed by M107 W-history, FIXM107W2 and FIXM107W2G (2026-10-08)** for
+  consent at collection, the Delete history reset boundary (under one write
+  lock with every recorder since FIXM107W2G), per-record idempotent append
   (collector-scoped ids), collector-scoped reads, final tree readings, bounded
   disposal flush, read-budget accounting, confined removal, the usage page
   mount, the live current minute, daily rollups for the usage-history days and

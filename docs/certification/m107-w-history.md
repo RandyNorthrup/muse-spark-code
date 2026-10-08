@@ -142,14 +142,14 @@ failed on `352e040dd` (Kubuntu slot 2, the new file copied into a detached
 `352e040dd` worktree: **8 of 8 failed**, each on its own assertion) and passes
 on the repaired tree. Default timeouts throughout.
 
-| Finding                                                          | Repair                                                                                                                                                                                                                                         | Regression (`test/unit/…`)                                                                                                    |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| P1 retention/Delete history removal could act outside the folder | `src/runtime/usage/nodeUsageFs.ts` `remove()`: rename to a fresh `.removing-*` name in the same parent, prove dev/ino of entry and parent with no linked ancestor, remove, re-prove the parent; any swap refuses and a moved entry is put back | `resourceHistoryReview`: swap right before `rm` (retention and the primitive itself), swap right before the quarantine rename |
-| P2 off-period readings written after consent                     | `src/runtime/resources/history.ts` `isAdmitted()`: consent checked at collection; the collector is dropped while off                                                                                                                           | `resourceHistoryReview`: off, sample, on, flush → no minute                                                                   |
-| P2 Delete history resurrected pre-delete minutes                 | `src/runtime/usage/resourceResetFile.ts` reset boundary written before the delete (`usageServiceEntry.ts` `deleteHistory`); collectors drop held data on a new boundary; `ResourceJournal.append`/`writeLive` refuse records at or before it   | `resourceHistoryReview`: sample, delete via `createUsageAccess.connect`, flush → no minute                                    |
-| P2 retried events duplicated                                     | `src/core/usage/resourceJournal.ts`: each line carries a collector-scoped `id`, reused on retry; reads keep one copy per (collector, id)                                                                                                       | `resourceHistoryReview`: complete line then `EIO`, retry → one event, count 1                                                 |
-| P2 window shutdown lost the open minute                          | `resourceGovernorEntry.ts` `flushResourceHistory()` joined to `admission.ts` disposal, bounded by `RESOURCE_HISTORY_FLUSH_TIMEOUT_MS` (2 s)                                                                                                    | `resourceHistoryReview`: real window host via `configureResources`/`admitResource`, dispose → minute line in the journal      |
-| P2 stale stat sizes charged to the 32 MiB cap                    | `ResourceJournal.readFile`/`readLive`/`readRollups`: budget checked before each read, read only the measured size, charge bytes actually read                                                                                                  | `resourceHistoryReview`: nine files 3.5 MiB at stat, 4 MiB at read → refused, ≤ 32 MiB read                                   |
+| Finding                                                          | Repair                                                                                                                                                                                                                                                      | Regression (`test/unit/…`)                                                                                                    |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| P1 retention/Delete history removal could act outside the folder | `src/runtime/usage/nodeUsageFs.ts` `remove()`: rename to a fresh `.removing-*` name in the same parent, prove dev/ino of entry and parent with no linked ancestor, remove, re-prove the parent; a detected swap refuses (exact residuals: FIXM107W2G below) | `resourceHistoryReview`: swap right before `rm` (retention and the primitive itself), swap right before the quarantine rename |
+| P2 off-period readings written after consent                     | `src/runtime/resources/history.ts` `isAdmitted()`: consent checked at collection; the collector is dropped while off                                                                                                                                        | `resourceHistoryReview`: off, sample, on, flush → no minute                                                                   |
+| P2 Delete history resurrected pre-delete minutes                 | `src/runtime/usage/resourceResetFile.ts` reset boundary written before the delete (`usageServiceEntry.ts` `deleteHistory`); collectors drop held data on a new boundary; `ResourceJournal.append`/`writeLive` refuse records at or before it                | `resourceHistoryReview`: sample, delete via `createUsageAccess.connect`, flush → no minute                                    |
+| P2 retried events duplicated                                     | `src/core/usage/resourceJournal.ts`: each line carries a collector-scoped `id`, reused on retry; reads keep one copy per (collector, id)                                                                                                                    | `resourceHistoryReview`: complete line then `EIO`, retry → one event, count 1                                                 |
+| P2 window shutdown lost the open minute                          | `resourceGovernorEntry.ts` `flushResourceHistory()` joined to `admission.ts` disposal, bounded by `RESOURCE_HISTORY_FLUSH_TIMEOUT_MS` (2 s)                                                                                                                 | `resourceHistoryReview`: real window host via `configureResources`/`admitResource`, dispose → minute line in the journal      |
+| P2 stale stat sizes charged to the 32 MiB cap                    | `ResourceJournal.readFile`/`readLive`/`readRollups`: budget checked before each read, read only the measured size, charge bytes actually read                                                                                                               | `resourceHistoryReview`: nine files 3.5 MiB at stat, 4 MiB at read → refused, ≤ 32 MiB read                                   |
 
 | Open item             | Closure                                                                                                                                                                                                                                                                                                                            | Test                                                                                                |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
@@ -204,4 +204,190 @@ all `src/runtime/usage/resourceResetFile.ts`: `node:fs` 46 → 47,
 
 `usageService.js` (97.0/100) and `resourceGovernor.js` (119.3/125) are now the
 tightest caps on this path; no cap changed. Sizes are from the production build of
-`4edd06c86`; the later `readJson` refactor only removes duplicated code.
+`4edd06c86`. RVM107W2G P3: that is not the final head; the FIXM107W2G table below is
+from production builds of `85683ac94` and of the final head.
+
+## FIXM107W2G: RVM107W2G round 3, visual review F1 and the theme class
+
+2026-10-08, on `m107/w-history` after `85683ac94`. Commits: `352bb49c9`
+(the three P2 fixes and their regressions), `5da90b170` (F1 layout, harness
+theme class, re-rendered scenes) and the records commit that carries this
+section. No model calls (**0 attempts**), no credential, dependency, push,
+rebase or merge.
+
+The 15 regressions are the `RVM107W2G` describes in
+`test/unit/resourceHistoryReview.test.ts` (beside RVM107W2's) and
+`test/unit/resourceHistoryDisposal.test.ts` (the 2 s flush case, in its own
+file because the window host is configured and disposed once per process, as
+in production), over shared fixtures in `test/unit/helpers/resources/`
+(`journalFixtures.ts`, `fsSpies.ts`). Copied with those fixtures into a
+detached `85683ac94` worktree and run on Kubuntu slot 2: **13 of 15
+failed**, each on its own assertion, while RVM107W2's 8 passed there as they
+should. The two that pass there do so by design: the Windows link rule (a
+rule, not a bug) and "writes nothing stamped before a completed Delete
+history", which round 2 already refused outside the lock; it owns the
+inside-the-lock check (G7).
+
+| Finding                                                   | Root fix (final head)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Regression (`resourceHistoryReview`, RVM107W2G; `resourceHistoryDisposal`)                                                                                                                                                                                     |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2-1 a failed quarantine delete was reported as removed   | `src/runtime/usage/nodeUsageFs.ts:329` `remove()` first sweeps every quarantine of the same name (any age) in the validated parent; `:50` `erase()` deletes and proves the name absent (`usageRemoveIncomplete` otherwise); `:155` `purge()`; `:203`/`:213` listings hide quarantines and sweep stale ones (60 s) best effort; `:226` `sweep()` is strict. `src/core/usage/resourceJournal.ts:622` retention sweeps strictly before anything else; `:600` `retainReported()` reports through `onRetentionError` first and then hourly, and retries on the next append or read; `src/runtime/usage/usageServiceEntry.ts:123` logs it | fails then succeeds only once target and quarantine are gone; Delete history replies `writeFailed`, then `completed` with nothing left; refuses a removal whose delete returns but leaves the entry; reports a retention failure (twice) and sweeps the orphan |
+| P2-2 an append could land after Delete history's boundary | `resourceJournal.ts:49` one cross-process write lock (`resources/write.lock`, 200 × 50 ms, stale 30 s); `:294` `exclusive()` proves the lock held (`:305`) right before the action; the boundary is checked inside it for appends (`:552`) and live writes (`:581`); `:592` `deleteWith()`; `src/runtime/resources/history.ts:59` Delete history writes the boundary and removes the folder inside `deleteWith`; reads drop anything at or before the boundary (journal `:667`, live `:524`, rollups `:387`)                                                                                                                        | the reviewer's probe (delete during the append's retention pass); a live write in flight (delete waits, then removes it); the disposed-window append past the 2 s wait; writes after a completed delete; lock no longer held; read and rollup filters          |
+| P2-3 a swapped intermediate link redirected the rename    | `nodeUsageFs.ts:121` `inParent()`: Linux runs every step through the parent's no-follow descriptor; `:61` `pinned()`: Windows holds a handle on the entry through the rename and the delete (`:339`), so no ancestor can be renamed; the quarantine must be the target's dev/ino in the same validated parent, the parent is re-proved after the delete, and put-back (`:363`) only runs when the quarantine is present and the original name is free, never over a replacement                                                                                                                                                     | the swap-back probe during the rename (Linux: removed, outside untouched; Windows: the swap itself is refused; macOS: refused, outside bytes kept); put-back after a changed parent; a swap during a quarantine sweep                                          |
+| P3 sizes were not from the final head                     | the table below is from production builds of `85683ac94` and of the final head                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | —                                                                                                                                                                                                                                                              |
+| Windows rule: links above the data folder are normal      | `nodeUsageFs.ts:81` the data folder is canonicalised once (`canonicalPath`); only components inside the store must not be links                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | a data folder reached through a junction (Windows) or symlink (Linux/macOS) reads, writes and removes                                                                                                                                                          |
+
+The 2 s disposal flush: its timer only stops _waiting_. The append it leaves
+running still needs the write lock and checks the boundary inside it, so it
+either lands before the delete (which then removes it) or after it (and
+refuses). The test blocks that append past the 2 s wait, deletes, releases,
+and finds no line on disk.
+
+### Residuals, exactly
+
+- **Linux:** every rename, stat and delete acts on the verified parent inode
+  (`/proc/self/fd/<fd>`); a swapped parent or ancestor cannot redirect them.
+- **Windows:** while the handle on the entry is open, Windows refuses to rename
+  the parent or any ancestor (`EPERM`, measured on the host and the Win11 rig);
+  the rename and the delete run under it.
+- **macOS** (Node has no `openat`/`renameat` and no rename-blocking handles):
+  a same-user process that replaces directories inside the private data folder,
+  timed to the operation, can (a) during the quarantine rename, move an
+  outside entry to a `.removing-*` name in its own directory; the call refuses
+  (`usagePathChanged`), never deletes it, and puts it back only when it is
+  reachable from the validated parent (test: put-back, macOS branch); and (b)
+  between the last proof and `rm`, redirect the delete to an entry with that
+  same quarantine name under the swapped-in directory; the call then reports
+  `usageRemoveIncomplete` (test: sweep probe, macOS branch).
+- **Every platform:** the recursive delete inside a proven quarantine is Node's
+  path-based `fs.rm`, so a same-user process writing into that quarantine while
+  it is deleted could swap a subdirectory for a link.
+
+Static links inside the store are refused on every operation. The earlier
+claim "any swap refuses and a moved entry is put back" is withdrawn; the
+statements above are the ones the tests prove. SECURITY (M107 section) and
+PRIVACY carry the same wording.
+
+### F1 and the theme class
+
+Visual review F1 (320 px legends and trailing values cut off): the Resources
+section is a size container (`ResourcesSection.css`). At 720 px and below each
+history table becomes labelled cards: every cell shows its column header
+(`data-label`), the tables keep explicit `table`/`row`/`cell` roles, and the
+cards sit in an auto-fill grid (one column at 320 px, two at 690 px). Legends
+wrap; chart frames size with their border. The scene harness now fails on any
+element outside the section and on any table region that scrolls sideways.
+
+Both resource-history harnesses apply and assert the captured theme body class
+(`vscode-light`, `vscode-dark`, `vscode-high-contrast`,
+`vscode-high-contrast vscode-high-contrast-light`) on every page:
+`test/harness/resource-history-check.mjs` had a bare `<body>`;
+`test/harness/usage-resource-scenes.mjs` had the class from its host but never
+checked it.
+
+Re-render: **24 scenes, 0 clipped, 0 axe violations, 0 page errors, no
+overflow, every theme class**; all 24 inspected (history scenes cut into
+readable tiles: charts, legends, cards, pager, events, totals, harness work,
+earlier days; empty and unavailable in one sheet), dark and high-contrast
+again after the class change. The committed shots total 3.46 MB (1.19 MB
+before: the cards make the history scenes taller; 690 px is 6,273 px tall with
+two columns). J's fixture harness: 8 pages, 0 axe, no overflow, every class,
+section 18,121 bytes (25 KiB budget).
+
+### Red drills
+
+Byte-exact mutation, owning test, restore checked byte-identical by hash.
+G1–G15 and G17 on Kubuntu slot 2, G16 on the Windows host (the Windows
+branches only run there), T1/T2/G18 on the host's harnesses.
+
+| Drill | Guard (mutation)                                               | Owning test (failed while mutated)                                     |
+| ----- | -------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| G1    | same-name quarantine sweep in `remove()` (never matches)       | fails, then succeeds only once both are gone                           |
+| G2    | delete proved absent (`return` instead of throwing)            | refuses a removal whose delete returns but leaves the entry            |
+| G3    | listings hide quarantines (filter removed)                     | fails, then succeeds only once both are gone                           |
+| G4    | strict sweep first in retention (removed)                      | reports a retention failure (called 1 time, not 2)                     |
+| G5    | retention failure reported (`notify` removed)                  | reports a retention failure (called 0 times)                           |
+| G6    | append boundary check inside the lock (removed)                | delete during the append's retention pass (a line on disk)             |
+| G7    | live-write boundary check inside the lock (removed)            | writes nothing stamped before a completed Delete history               |
+| G8    | Delete history holds the write lock (`action()` direct)        | Delete history waits for a live write in flight                        |
+| G9    | append holds the write lock (bypassed)                         | disposed-window append past the 2 s wait (a line on disk)              |
+| G10   | lock proved held before writing (removed)                      | never writes once the lock is no longer held                           |
+| G11   | journal read drops records at or before the boundary (removed) | hides records whose removal never happened                             |
+| G12   | live read drops records at or before the boundary (removed)    | hides records whose removal never happened                             |
+| G13   | rollup drops records at or before the boundary (removed)       | rolls nothing up from before the boundary (1 minute, not 0)            |
+| G14   | Linux parent pin (path-based instead)                          | swap-back probe, Linux branch (`usagePathChanged`, not removed)        |
+| G15   | put-back after a changed parent (removed)                      | put-back, Linux branch (left under the quarantine name)                |
+| G16   | Windows entry pin (never held)                                 | swap-back probe, put-back and sweep probe, Windows branches (3 failed) |
+| G17   | data folder canonicalised once (raw path)                      | junction/symlink data folder (`linkedUsagePath`)                       |
+| T1    | bare `<body>` back in `resource-history-check.mjs`             | the harness: exit 1, 8 of 8 pages flagged                              |
+| T2    | no theme class in the usage scene host                         | the scene harness: exit 1, 24 of 24 scenes flagged                     |
+| G18   | narrow cards off (`@container (max-width: 1px)`)               | the scene harness: exit 1, 8 history scenes clipped                    |
+
+**20 of 20 failed while mutated; all restored identical.** G1–G17 ran twice:
+on the first round-3 file, and again after its tests moved into
+`resourceHistoryReview.test.ts` and `resourceHistoryDisposal.test.ts` (G9):
+the same owning test failed each time.
+
+### Runs
+
+Kubuntu slot 2, repository default timeouts, at most three files per run, on
+the final source: review + disposal + wiring **30/30** (the final layout);
+before the move into those files: round 3 + journal + journal store
+**44/44**, round 3 + review + wiring **28/28**; wiring + usage service +
+journal store **41/41**; usage integration + rollup +
+text **76/76**; export + panel + CLI **32/32**; exec/runtime/ACP resources
+**34/34**; `ResourcesSection` + `UsageAppResources` + `UsageApp` **49/49**;
+earlier in the round: export + companion chunks + deferred bundles **104/104**,
+browser UI text + history bundle + webview bundles **17/17**, bundle size +
+panel + CLI **73/73**. One failure on the way: the wiring test took the first
+name in the resources root as its day folder; the write lock's files now live
+there, so it picks the UTC day folder and waits for it (on Windows the live
+minute can be read before the disposal flush writes the day file).
+
+Win11 rig (slot 2): review + disposal + wiring **30/30** (the final layout;
+**28/28** before the move). Windows host: round 3 and review **17/17**,
+journal and wiring **19/19**. Three host-only timing failures (journal store's
+300 ms warm scan and 30 s two-process append, usage integration's 15 s settle)
+fail identically on `85683ac94` on the same loaded host (455 ms, timeout,
+timeout) and pass on Kubuntu: host load, not this change.
+
+### Gates and sizes
+
+Host, on the final source: `npm run typecheck` (five projects) **0**; ESLint
+`--max-warnings=0` on every changed source, test and harness **0**; stylelint
+**0**; Prettier `--check` on every changed text file **0**; knip **0**;
+`cycles` **0**; `check:l10n` **0**; `check:reference` **0**; `check:host-api`
+**0** (no new importer); `npm run build` **0** (size, split, host-globals,
+notices). jscpd first exited **1**: seven clones, all test code (round 3's
+setup repeated the review file's, plus two repeats inside it). The shared
+fixtures (`test/unit/helpers/resources/journalFixtures.ts`, `fsSpies.ts`), one
+review file and the separate disposal file brought it to **0 clones**; ESLint,
+knip and the unit typecheck were rerun on the result: **0**.
+
+Production builds of `85683ac94` and of the final source (`5da90b170`; the
+later commits change tests and records only). The `85683ac94` build ran in a
+detached worktree through a `node_modules` junction: its size check passed;
+its split check reported eight vendored packages "no longer carried" only
+because the junction moves their paths outside `node_modules/`.
+
+| Artifact / closure                | 85683ac94 KiB | Final KiB | Cap KiB |
+| --------------------------------- | ------------: | --------: | ------: |
+| `dist/resourceGovernor.js`        |         119.3 |     122.5 |     125 |
+| `dist/resourceAdmission.js`       |           2.0 |       2.0 |      25 |
+| `dist/usageService.js`            |          96.9 |      99.9 |     100 |
+| `dist/usagePanel.js`              |          72.4 |      72.4 |      75 |
+| `dist/usageCompanion.js`          |          43.8 |      43.8 |      50 |
+| `dist/webview/usage.js` + static  |         377.5 |     377.5 |     500 |
+| `dist/webview/usage.css`          |           9.1 |      10.0 |      25 |
+| Usage body (lazy)                 |          36.2 |      36.2 |      50 |
+| Resource history closure          |          46.6 |      49.4 |      50 |
+| `dist/webview/resourceHistory.js` |           8.7 |      10.6 |      25 |
+| Surface English (deferred table)  |          24.8 |      24.8 |      25 |
+| Webview startup + static chunks   |         732.7 |     732.7 |     900 |
+| `dist/extension.js`               |         509.7 |     509.7 |     600 |
+
+`usageService.js` is 102,299 bytes of 102,400 (101 bytes free; 99,225 at
+`85683ac94`): the write lock, sweeps and Windows pin cost 3,074 bytes after
+trimming the round's own code (shared helpers for the parent proof, the
+delete check and the diagnostics). The resource history closure is at 49.4 of
+50 KiB (the labelled cards). No cap changed; both are the next additions'
+limit on this path.

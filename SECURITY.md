@@ -625,6 +625,27 @@ can remove an empty replacement only, never populated file content. Persisted
 registry discovery, retained publication-artifact recovery and macOS/Windows
 native qualification remain required before cleanup is certified.
 
+Resource history removal (retention and **Delete history**, RVM107W2G) never
+deletes a checked pathname: the entry is renamed to a fresh `.removing-*`
+name in its validated parent and deleted only once that name proves to be the
+validated entry (dev/ino) in the same parent; success means the entry and
+every quarantine of its name are gone. Linux runs every step through the
+parent's no-follow descriptor (`/proc/self/fd`). Windows holds a handle on the
+entry, which makes Windows refuse to rename any of its ancestors, through the
+rename and the delete. Node offers neither on macOS, so a same-user process
+that replaces directories inside the private data folder, timed to the
+operation, can (a) during the rename, move an outside entry to a quarantine
+name in its own directory (that call refuses, never deletes it, and puts it
+back only when it is reachable from the validated parent), and (b) between
+the last proof and the delete, redirect the delete to an entry with that same
+quarantine name under the swapped-in directory (the call then reports
+`usageRemoveIncomplete`). On every platform the recursive delete inside a
+proven quarantine is Node's path-based `fs.rm`, so a same-user process writing
+into that quarantine while it is deleted could swap a subdirectory for a link.
+Static links inside the store are refused on every operation; links above the
+data folder (Windows profile junctions, macOS `/var`) are resolved once and
+are normal. Each claim has a test (RVM107W2G in `test/unit/resourceHistoryReview.test.ts`).
+
 D100's per-job process/birth caps use the independent registered-tree stop API
 only for the offending job. Ordinary machine pressure still never kills work.
 Observed births are sampled, so very short-lived unobserved descendants remain

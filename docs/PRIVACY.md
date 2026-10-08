@@ -983,11 +983,18 @@ its open minute so far. Completed days become one daily row each (averages,
 minutes per level, event count, harness CPU time) in `rollups/<YYYY-MM>.json`,
 kept for the usage-history days; minute detail keeps seven recorded days.
 The usage page's **Delete history** names how many resource entries it
-removes, writes a reset boundary (`resource-history-reset.json`, only a
-timestamp) beside the usage folder and removes the folder; no running
-recorder can write anything from before that delete. Removal only deletes an
-entry proven to be the validated one inside the usage folder. Nothing is sent
-anywhere.
+removes, then, holding the journal's write lock, writes a reset boundary
+(`resource-history-reset.json`, only a timestamp) beside the usage folder and
+removes the folder. Every recorder checks that boundary under the same lock,
+and every read drops anything stamped at or before it, so nothing recorded
+before the delete is written or shown afterwards. A delete that fails is
+reported and can be retried; it is never shown as done while anything is
+left. Removal renames an entry to a quarantine name and deletes it only once
+that name proves to be the validated entry in the validated folder; on Linux
+and Windows the folder is held open (Linux) or the entry is (Windows), so a
+swapped link cannot redirect it. macOS keeps a narrow same-user race,
+described in [SECURITY](../SECURITY.md#resource-ownership-and-disk-cleanup-m107-candidate).
+Nothing is sent anywhere.
 Conversation-only shares contain user and assistant text. Full shares may
 contain portable tool arguments and outputs, commands, outcomes, shown
 reasoning and approval decisions. Code blocks and attachment names are
