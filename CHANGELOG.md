@@ -17,6 +17,7 @@ happened, not what was planned; superseded entries are kept.
 - The 0.17.0 integration's daily-budget and durable schedule tests now assert
   exact decimal money, including entered limits below nano precision, while
   account consent fixtures persist quote ceilings and retain account refusal.
+  Account-bound paid consent carries exact decimal budgets through its popup.
 
 ### Pending
 

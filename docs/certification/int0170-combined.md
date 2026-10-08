@@ -233,3 +233,90 @@ assertions. Scoped duplication exposed two test clones: the inherited daily
 budget setup now uses its existing builder, and two media cases share one
 parameterized assertion body. The new PLAN entry also needs its explicit
 status for the parser. No gate setting changes; final clone receipts follow.
+
+The four assigned findings map to these final source/test locations:
+
+| Finding                             | Fix                                                               | Regression                                                 |
+| ----------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------- |
+| Exact daily budget and M108 consent | `paidDailyBudget.test.ts:186`, `paidConsent.ts:830`               | `paidDailyBudget`, `accountPaidConsent:55`, `accountHomes` |
+| Three durable schedule failures     | `schedulePaid.test.ts:503` (exact expectations; ledger unchanged) | `schedulePaid:484`, `:503`, `:521`                         |
+| Scheduled media claims and cost     | `client.ts:540`, `mediaCost.ts:333`, `paidConsent.ts:210`         | `mediaClient:158`, `:196`, `:215`; `mediaAccounting:75`    |
+| Scheduled media sources/references  | `toolIo.ts:731`, `ModelApiHost.ts:7268`, `:8291`                  | `toolIoMedia:63`, `modelApiMedia:95`                       |
+| Malformed NaN refusal probes        | `schedulePaid.test.ts:74`; inline reason and PLAN §8              | Both existing estimate/durable-reservation NaN refusals    |
+
+Final ordinary clone under `$TMPDIR`, source `0662bd00e`, Kubuntu,
+Node 24.18.0 / npm 12.0.1. `npm ci` installed the unchanged lockfile
+(901 packages); all verification commands below ran with `CI=true`.
+
+| Gate              | Exit   | Receipt                                       |
+| ----------------- | ------ | --------------------------------------------- |
+| `npm ci`          | 0      | Fresh clone, ordinary install                 |
+| Five typechecks   | 0 each | host, webview, unit, e2e, integration         |
+| Scoped eslint     | 0      | 16 changed TS/TSX files, `--max-warnings=0`   |
+| Scoped prettier   | 0      | All changed files                             |
+| Plain knip        | 0      | No strict/production switch                   |
+| Scoped jscpd      | 0      | 16 files, zero clones; threshold remains zero |
+| `check:l10n`      | 0      | Zero problems                                 |
+| `check:reference` | 0      | Generated reference current                   |
+| `check:host-api`  | 0      | Record current; portable boundary intact      |
+| `check:plan`      | 0      | MONEY017 status parsed, zero drift            |
+| `npm run build`   | 1      | Only the nine integrated size caps below      |
+
+Production compilation and token validation succeed. The size gate stops the
+full build; subsequent split/host-global/notice stages are not reached by that
+command. No package or successful full-quality claim is made. Unchanged caps:
+
+| Artifact                       | Measured KiB | Cap KiB |
+| ------------------------------ | ------------ | ------- |
+| `dist/runtimeQuestions.js`     | 25.5         | 25      |
+| `dist/conversation.js`         | 255.0        | 250     |
+| `dist/runtimeEngine.js`        | 894.0        | 875     |
+| `dist/usagePanel.js`           | 83.3         | 75      |
+| `dist/headless.js`             | 100.7        | 100     |
+| `dist/runtimeAccounts.js`      | 339.5        | 300     |
+| `dist/webview surface English` | 26.9         | 25      |
+| `dist/webview Palette`         | 25.7         | 25      |
+| `dist/webview estimator panel` | 25.0         | 25      |
+
+`dist/modelApi.js` is 520.6 KiB / 525 KiB; `dist/extension.js` is
+571.3 KiB / 600 KiB. These caps predate the lane in the combined record;
+the brief assigns their shrink and integrated full quality to the lead.
+
+Final fake-only fresh-clone sweep: **60 files / 1,099 tests passed**, 20
+invocations, each at most three files with `--maxWorkers=3`, `CI=true`, no
+`--testTimeout`. All required money/ledger/schedule families are included,
+plus media, unattended, account-USD and account-home companion coverage.
+The 10,000-fire journal workload passed its existing 240-second deadline.
+
+Paths below are under `test/unit/`; every batch exited 0:
+
+| Batch files                                                                                     | Passing tests |
+| ----------------------------------------------------------------------------------------------- | ------------- |
+| `accountPaidConsent.test.ts`, `acpPaid.test.ts`, `paidAuthority.test.ts`                        | 58            |
+| `paidConsent.test.ts`, `paidDailyBudget.test.ts`, `scheduleBackground.test.ts`                  | 82            |
+| `scheduleBackgroundTarget.test.ts`, `scheduleBinding.test.ts`, `scheduleChannel.test.ts`        | 43            |
+| `scheduleClock.test.ts`, `scheduleCommand.test.ts`, `scheduleEditor.test.tsx`                   | 55            |
+| `scheduleEvents.core.test.ts`, `scheduleEvents.local.test.ts`, `scheduleEvents.network.test.ts` | 31            |
+| `scheduleEvents.signals.test.ts`, `scheduleFakes.test.ts`, `scheduleFs.test.ts`                 | 65            |
+| `scheduleGrant.test.ts`, `scheduleInterrupt.test.ts`, `scheduleJournal.test.ts`                 | 36            |
+| `scheduleMigrate.test.ts`, `scheduleOutbox.test.ts`, `schedulePaid.test.ts`                     | 75            |
+| `schedulePrompt.test.ts`, `scheduleProvenance.test.ts`, `scheduleRegistration.test.ts`          | 20            |
+| `scheduleReportAction.test.ts`, `scheduleReportCli.test.ts`, `scheduleReportEditor.test.tsx`    | 40            |
+| `scheduleRestartRecovery.test.ts`, `scheduleReview.test.tsx`, `scheduleRunIdentity.test.ts`     | 18            |
+| `scheduleRunRows.test.tsx`, `scheduleRuntime.test.ts`, `scheduleRuntimeEntry.test.ts`           | 30            |
+| `scheduleSessionOwner.test.ts`, `scheduleStore.test.ts`, `scheduleStrings.test.ts`              | 42            |
+| `scheduleSurface.test.ts`, `scheduleSurfaceWebview.test.tsx`, `scheduleTime.test.ts`            | 69            |
+| `scheduleV2.test.ts`, `scheduledReports.test.ts`, `scheduledReportsDeterminism.test.ts`         | 48            |
+| `scheduledRunConfirmation.test.ts`, `scheduler.test.ts`, `schedules.test.ts`                    | 47            |
+| `sessionBudget.test.ts`, `sessionBudgetJournal.test.ts`, `usd.test.ts`                          | 94            |
+| `mediaAccounting.test.ts`, `mediaClient.test.ts`, `modelApiMedia.test.ts`                       | 57            |
+| `toolIoMedia.test.ts`, `modelApiMediaTools.test.ts`, `unattended.test.ts`                       | 41            |
+| `unattendedBackends.test.ts`, `accountUsd.test.ts`, `accountHomes.test.ts`                      | 148           |
+
+Commits `302d6e6f4`, `b71be1ba7` and `0662bd00e` ran normal pre-commit
+hooks (eslint fix, prettier, gitleaks). After each, the index and committed
+diff were re-read; the latter two exactly match the hook's pre-task index.
+All eight restored drill hashes match the committed source. Final receipt
+changes are documentation only. No dependencies, prices, limits, timeouts,
+ignores or lint levels changed; no paid/live model attempt occurred. The lane
+ran no full quality, merge, push or packaging, as directed by its brief.
