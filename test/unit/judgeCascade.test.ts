@@ -547,6 +547,28 @@ describe('cascadeJudge', () => {
     expectKeptSeparateAnswer(outcome)
   })
 
+  it('refuses a foreign standing answer instead of keeping it', async () => {
+    // Neither side can combine, and the separate side's stored answer does
+    // not even name this separate side: there is no separate answer in
+    // hand to keep, so the run refuses rather than passing a foreign
+    // answer through as the separate source's.
+    const foreign = mutatingSide(separateCap, { risk: [0.6, 0.4] }, 'risk', (meta) => ({
+      ...meta,
+      source: 'same',
+      partial: true,
+    }))
+    const samePartial = fakeSide(sameCap, { risk: [0.6, 0.4] }, { partial: true })
+    const outcome = await cascadeJudge(
+      request,
+      { ...options, highStakes: true },
+      depsFor(foreign, samePartial),
+      signal(),
+    )
+    expect(foreign.side.run).toHaveBeenCalledTimes(1)
+    expect(samePartial.run).toHaveBeenCalledTimes(1)
+    expect(outcome).toEqual({ outcome: 'no-answer', reason: 'engine-failure' })
+  })
+
   it('names the serving model on the envelope when the same follow-up stands alone', async () => {
     // Partial separate, combinable same: the reported answer is the same
     // model's, so the envelope names it — a consumer keying the serving
