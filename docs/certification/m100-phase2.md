@@ -1084,8 +1084,8 @@ Final drill source SHA-256:
 Local restored run: **68 passed, 7 Windows skipped**, three owning files,
 default deadlines, no timeout flag. Scoped lint and unit typecheck pass;
 plain knip passes with its two existing hints; duplication reports zero clones.
-Implementation commit and the required committed-code fresh-clone gate receipts
-follow below once those checks run. No threshold, assertion or ignore weakened.
+Implementation commits and the required committed-code fresh-clone gate receipts
+follow below. No threshold, assertion or ignore weakened.
 
 #### Review follow-up: processes versus tasks
 
@@ -1100,3 +1100,72 @@ and a real Node process with multiple kernel tasks prove the distinction.
 The fifteen prior drills were repeated on the follow-up source, and the two
 new metric drills also fail and restore byte-exact. Final committed-source
 fresh-clone qualification below supersedes the initial sweep.
+
+#### Final committed-source CI qualification and lead requests
+
+Implementation **4f4438df5**, process-count correction **4b4fe4dc3**. Final
+fresh clone `/tmp/m100p2hl2-final-ci-9d7ft_nu` checked out **4b4fe4dc3**;
+`CI=true npm ci` exited **0** in **5.25 s**. The install reports the same
+**11 audit findings (2 low, 9 high)**; no dependency or audit fix was made.
+Every check below ran with `CI=true`. The clone remained clean and its Linux
+and host SHA-256 values match the final guard-fire hashes above. Logs are in
+`/tmp/m100p2hl2-final-ci-9d7ft_nu.logs` on linuxlt.
+
+| Check                                                                                                                                           | Exit   | Final result                                                                                                                                                                      |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/deviceWorkerHost.test.ts test/unit/deviceWorkerHostNative.test.ts test/unit/deviceWorkerLinux.test.ts --maxWorkers=3` | 0 x3   | **68 passed, 7 Windows skipped** each run; suite durations **5.79 / 5.32 / 5.05 s**. Repository per-test deadlines; no timeout flag. All **11 Linux native cases** run each time. |
+| `npm run typecheck:host` / `typecheck:webview` / `typecheck:unit` / `typecheck:e2e` / `typecheck:integration`                                   | 0 each | Five projects pass: **20.42 / 9.84 / 44.85 / 22.11 / 9.16 s**.                                                                                                                    |
+| `npm run lint`                                                                                                                                  | 0      | Full lint, **250.78 s**; PowerShell analysis is Windows-only and unrun here.                                                                                                      |
+| `npx prettier --check` on all six changed files                                                                                                 | 0      | **10.24 s**; PLAN, this certification, Linux driver, host selector, portable and native tests.                                                                                    |
+| Plain `npx knip`                                                                                                                                | 0      | **3.35 s**; two existing nonfatal configuration hints.                                                                                                                            |
+| `npx jscpd`                                                                                                                                     | 0      | **0.97 s**; zero clones.                                                                                                                                                          |
+| `npm run check:reference`                                                                                                                       | 0      | **1.95 s**; 18 Devices entries current.                                                                                                                                           |
+| `npm run check:l10n`                                                                                                                            | 0      | **2.00 s**; 14 UI and 14 usage tables, zero problems.                                                                                                                             |
+| `npm run check:host-api`                                                                                                                        | 1      | **16.97 s**; W-owned generated Node inventory stale, exact deltas below.                                                                                                          |
+| `npm run cycles`                                                                                                                                | 0      | **6.35 s**; default production-entry graph, 867 modules.                                                                                                                          |
+| `npm run build`                                                                                                                                 | 0      | **11.08 s**; unchanged budgets, bundle splits, host globals and notices pass.                                                                                                     |
+
+Production build: activation **462.8/600 KiB**, Devices **81.8/100 KiB**,
+Model API **456.0/475 KiB**, browser startup **733.8/900 KiB**. The new Linux
+factory is not bound by the existing production entry yet; these sizes do
+not certify the final Linux bundle. W must measure again after binding it.
+Post-final-suite native cleanup found no `muse-spark-device-*` units.
+
+Precise acceptance pointers on the final source (tests and drills named in
+the mapping/guard record above):
+
+| Item                             | Code                                                                                                     | Owning regression                                                                                         |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| 1. Context and retirement        | `src/host/backend/deviceWorkerLinux.ts:195`, `:355`, `:407`, `:421`                                      | `test/unit/deviceWorkerLinux.test.ts:153`, `:217`; `test/unit/deviceWorkerHostNative.test.ts:398`         |
+| 2. Host pressure                 | `src/host/backend/deviceWorkerLinux.ts:403`; existing host recovery mapping                              | `test/unit/deviceWorkerLinux.test.ts:226`                                                                 |
+| 3. Environment and preflight     | `src/host/devices/deviceWorkerHost.ts:164`, `:310`; `src/host/backend/deviceWorkerLinux.ts:322`, `:373`  | `test/unit/deviceWorkerLinux.test.ts:117`, `:269`; `test/unit/deviceWorkerHostNative.test.ts:380`         |
+| 4. Bounded structured channel    | `src/host/backend/deviceWorkerLinux.ts:71`, `:378`, `:390`                                               | `test/unit/deviceWorkerLinux.test.ts:280`, `:296`; `test/unit/deviceWorkerHostNative.test.ts:537`         |
+| 5. Inhibition and power          | `src/host/backend/deviceWorkerLinux.ts:212`, `:262`, `:435`                                              | `test/unit/deviceWorkerLinux.test.ts:345`; `test/unit/deviceWorkerHostNative.test.ts:454`, `:487`         |
+| 6. Factory self-test and refusal | `src/host/backend/deviceWorkerLinux.ts:158`, `:486`; selector `src/host/devices/deviceWorkerHost.ts:104` | `test/unit/deviceWorkerLinux.test.ts:237`, `:358`, `:372`; `test/unit/deviceWorkerHostNative.test.ts:480` |
+
+Lead requests, within the shared lane ownership rules:
+
+- **W: regenerate and review** `docs/ide-compatibility/host-api.md` with
+  `npm run check:host-api -- --write`. Exact Node count deltas:
+  `child_process` **16 -> 18**, `crypto` **93 -> 95**, `fs` **44 -> 45**,
+  `fs/promises` **74 -> 77**, `path` **125 -> 128**, `string_decoder`
+  **1 -> 2**, `timers/promises` **15 -> 17**. Totals remain 366 VS Code
+  APIs, 43 vscode-importing files, 28 Node built-ins and 70 theme variables.
+  This lane leaves that W-owned file untouched and does not claim a green
+  joined `npm run quality`.
+- **W/M96 owner: repair the inherited cycle before production binding.**
+  Targeted `npx dpdm --no-warning --no-tree --exit-code circular:1 -T src/host/devices/deviceWorkerHost.ts`
+  exits **1** for `src/core/team/refFence.ts -> src/core/team/workers/workerFence.ts -> src/core/team/workers/workerEnv.ts -> refFence.ts`.
+  All three files are byte
+  unchanged from contract base `b0fe91da3` (`git diff` empty). The new lazy
+  selector avoids introducing a host/Linux-driver cycle. The default cycle
+  gate passes because this port is not reached by its current entry.
+- **W: bind** `deviceWorkerDriverForPlatform` at the receiver's lazy entry,
+  install the caller's language table, bind M96's real command and durable
+  environment record, and keep reservations/uncertain occupancy until
+  observed retirement. **V/W: consume** typed pressure and power facts;
+  W asks locally before new heavy checks on battery or unknown power.
+- **W: finish joined documentation/reference/packaging, full quality and
+  coverage, and installed-host qualification**, including Windows/macOS
+  rigs. No Windows native pass, public supported command or shipped Linux
+  support is asserted by this continuation. No contract change is needed.

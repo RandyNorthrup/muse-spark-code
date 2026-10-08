@@ -35987,8 +35987,15 @@ execution beyond phase 1 is implemented or certified by this record.
     drills fail as intended and restore source byte-exact; 68 tests pass with
     seven Windows cases unrun here. Process observations count distinct
     cgroup.procs PIDs; TasksMax still limits threads too. The real multithreaded
-    regression catches that distinction. Final committed fresh-clone gates are next;
-    full joined quality and production/doc binding remain W's responsibility.
+    regression catches that distinction. Final committed fresh-clone verification
+    at 4b4fe4dc3 passes 68 tests three times, all five typechecks, full lint,
+    formatting, plain knip, duplication, reference, localization, default cycles
+    and the production build with unchanged caps. Host API exits 1 for the
+    stale W-owned Node inventory; W must regenerate it. A targeted host-port
+    graph also exposes the unchanged M96 refFence/workerFence/workerEnv cycle,
+    which its owner must repair before W binds the selector. Full joined
+    quality, coverage, production/doc binding and installed hosts remain W's
+    responsibility; this lane does not claim shipped Linux support.
   - **Lane A.** Every admission binds the sender's role/mode ceiling to the
     receiver's repository grant, role/tools, workspace trust, protected
     paths and current approval policy under an explicit receiver-side
