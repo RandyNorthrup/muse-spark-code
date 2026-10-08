@@ -64,13 +64,18 @@ afterEach(async () => {
   await removeFolder(state.directory)
 })
 
-function budget(capUsd = 5, isModelApi = true) {
+function budget(
+  capUsd: number | (() => number) = 5,
+  isModelApi = true,
+  accountAdmission?: AccountBudgetAdmission,
+) {
   return createPaidDailyBudget({
     directory: state.directory,
     now: () => state.now,
-    capUsd: () => Usd.from(capUsd).toAmount(),
+    capUsd: () => Usd.from(typeof capUsd === 'function' ? capUsd() : capUsd).toAmount(),
     isModelApi: () => isModelApi,
     sleep: () => Promise.resolve(),
+    ...(accountAdmission !== undefined && { accountAdmission }),
   })
 }
 function client(daily: ReturnType<typeof budget> | false = budget()) {
@@ -174,14 +179,7 @@ async function raiseAtCap() {
 }
 
 function boundBudget(accountAdmission: AccountBudgetAdmission, capUsd = 0.5) {
-  return createPaidDailyBudget({
-    directory: state.directory,
-    now: () => state.now,
-    capUsd: () => Usd.from(capUsd).toAmount(),
-    isModelApi: () => true,
-    sleep: () => Promise.resolve(),
-    accountAdmission,
-  })
+  return budget(capUsd, true, accountAdmission)
 }
 
 describe('D78 interactive paid daily budget', () => {
@@ -736,13 +734,7 @@ describe('D78 interactive paid daily budget', () => {
 
   it('rechecks the daily cap after key retrieval before the actual fetch', async () => {
     let capUsd = 1
-    const daily = createPaidDailyBudget({
-      directory: state.directory,
-      now: () => state.now,
-      capUsd: () => Usd.from(capUsd).toAmount(),
-      isModelApi: () => true,
-      sleep: () => Promise.resolve(),
-    })
+    const daily = budget(() => capUsd)
     await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(
       Usd.from(0.5).toAmount(),
     )

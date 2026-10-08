@@ -13170,7 +13170,9 @@ export class ModelApiSession implements ScheduledAgentSession {
           this.inPlaceRefusalFor(VERIFY_TOOLS.runChecks) === undefined &&
           this.verificationAllowed(edited, undefined, wasTrusted),
         canRunVerifyCommands: () => this.canRunVerifyCommands(),
-        workspaceAccess: (path) => this.workspaceAccess(path, 'mcp'),
+        workspaceAccess: async (path) => {
+          await this.workspaceAccess(path, 'mcp')
+        },
         existingFiles: (files, isAllowed) => this.existingFiles(files, isAllowed),
         runChecks: (...args) => this.runChecks(...args),
         refusedDiagnostics: (files) => this.refusedDiagnostics(files),

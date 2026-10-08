@@ -154,43 +154,37 @@ async function scheduledMedia(t: Awaited<ReturnType<typeof setup>>, cap = 1, sha
 }
 
 describe('media accounting at the transport', () => {
-  it('claims a scheduled media request at its complete exact price and records returned cost', async () => {
-    const t = await setup()
+  it.each([
+    { name: 'claims complete media at its exact price', hasSearch: false, spentUsd: '0.000233' },
+    {
+      name: 'includes hosted fees and settles both tariffs once',
+      hasSearch: true,
+      spentUsd: '0.002733',
+    },
+  ])('$name and records returned cost', async ({ hasSearch, spentUsd }) => {
+    const t = await setup(
+      hasSearch
+        ? {
+            usage: { input: 3000, output: 40, cached: 1000 },
+            searches: [{ queries: ['clip'] }],
+          }
+        : undefined,
+    )
+    if (hasSearch)
+      Object.assign(t.guard, { searchQuote: quotedSearch('0.0025', t.body.model).quote })
     const fire = await scheduledMedia(t)
-    await fire.consume()
+    await fire.consume(
+      hasSearch ? { ...t.body, tools: [{ type: 'web_search' }], max_tool_calls: 1 } : t.body,
+    )
     expect(fire.reserve).toHaveBeenCalledExactlyOnceWith(
       expect.anything(),
-      t.accounting.reservedUsd,
+      hasSearch ? '0.0030872' : t.accounting.reservedUsd,
       expect.any(AbortSignal),
     )
     const latest = await fire.daily.latestDay()
-    expect(latest.spentUsd).toBe('0.000233')
+    expect(latest.spentUsd).toBe(spentUsd)
     expect(fire.scope.cost()).toEqual({
-      usd: 0.000233,
-      certainty: 'exact',
-      retainedLiabilityUsd: 0,
-    })
-    expect(t.claims[0]!.settle).toHaveBeenCalledExactlyOnceWith('0.000233', false)
-    expect(t.claims[1]!.settle).toHaveBeenCalledExactlyOnceWith('0')
-  })
-
-  it('includes hosted fees in the scheduled media claim and settles both tariffs once', async () => {
-    const t = await setup({
-      usage: { input: 3000, output: 40, cached: 1000 },
-      searches: [{ queries: ['clip'] }],
-    })
-    Object.assign(t.guard, { searchQuote: quotedSearch('0.0025', t.body.model).quote })
-    const fire = await scheduledMedia(t)
-    await fire.consume({ ...t.body, tools: [{ type: 'web_search' }], max_tool_calls: 1 })
-    expect(fire.reserve).toHaveBeenCalledExactlyOnceWith(
-      expect.anything(),
-      '0.0030872',
-      expect.any(AbortSignal),
-    )
-    const latest = await fire.daily.latestDay()
-    expect(latest.spentUsd).toBe('0.002733')
-    expect(fire.scope.cost()).toEqual({
-      usd: 0.002733,
+      usd: Number(spentUsd),
       certainty: 'exact',
       retainedLiabilityUsd: 0,
     })

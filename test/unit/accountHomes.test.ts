@@ -9,7 +9,7 @@ import { buildChildEnvironment } from '../../src/core/backends/musecode/launch'
 import { accountPolicyFor } from '../../src/core/providers/accountPolicy'
 import * as accountPolicy from '../../src/core/providers/accountPolicy'
 import { UI_TEXT } from '../../src/shared/constants'
-import { parseUsd } from '../../src/shared/accountUsd'
+import { Usd } from '../../src/shared/usd'
 import type { SubscriptionUsage } from '../../src/shared/usage'
 
 // Local capture evidence is test-owned. It is NOT the missing Q-M108 capture.
@@ -466,7 +466,7 @@ function recovery(choice: 'upgrade' | 'wait' | 'payAsYouGo' | 'cancel' = 'payAsY
       provider: 'meta',
       account: 'personal',
       price: '$0.10 / 1M input; $0.30 / 1M output',
-      dailyBudgetUsd: parseUsd('1'),
+      dailyBudgetUsd: Usd.from('1').toAmount(),
     },
     assertCurrent: vi.fn(),
     allows: vi.fn(() => Promise.resolve(true)),

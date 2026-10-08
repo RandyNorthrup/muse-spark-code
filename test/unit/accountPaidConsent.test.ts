@@ -54,7 +54,7 @@ function holdFirstWrite(t: ReturnType<typeof rig>) {
 describe('M108 account-bound paid use consent', () => {
   it('passes an exact sub-nano budget through consent without rounding its digits', async () => {
     const t = rig()
-    const dailyBudgetUsd = Usd.from('0.00000000010000000001').toAmount()
+    const dailyBudgetUsd = Usd.from('0.0000000001000000000000000000001').toAmount()
     const request = quotedSearch('0.0025', 'muse-spark-1.3')
     expect(await t.create({ dailyBudgetUsd }).allows(request)).toBe(true)
     expect(t.deps.ask).toHaveBeenCalledExactlyOnceWith(

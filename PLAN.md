@@ -19630,13 +19630,18 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### MONEY017 — Exact money and scheduled media after the 0.17.0 union (2026-10-08)
 
+**Status 2026-10-08: built.** Scoped fake-only certification is recorded below;
+the lead owns the integrated quality and bundle-cap repairs.
+
 Port M108 daily-budget and account-consent fixtures to M106's exact decimal
 contracts and quote-aware consent without weakening refusal, threshold or total
 assertions. Diagnose the three durable schedule failures before touching the
 ledger. Scheduled media must reserve its complete admitted amount against both
 schedule and shared caps, settle into the fire cost, and capture the checked
 read-time source in the provenance ledger. Preserve interactive media's existing
-claims and all paid gates. Log the malformed branded NaN fixture if no valid
+claims and all paid gates. Port the account-home pay-as-you-go fixture at the
+same account-consent boundary, preserving all escalation and refusal assertions.
+Log the malformed branded NaN fixture if no valid
 constructor can produce it. Fake-only default-timeout money/ledger/schedule
 suites and fresh-clone CI static gates certify this lane; unrelated integrated
 bundle caps and full quality remain with the lead. Record receipts under
@@ -36789,6 +36794,14 @@ lane A's first step.
 
 ## 7. Gates
 
+**MONEY017 integrated gate boundary (2026-10-08, Kubuntu).** The assigned rig
+brief requires fresh-clone scoped checks and forbids full quality in this lane.
+The production build reaches the unchanged size gate and fails only the nine
+pre-existing integrated caps: runtimeQuestions, conversation, runtimeEngine,
+usagePanel, headless, runtimeAccounts, surface English, Palette and estimator
+panel. No threshold or ignore changes. Their repair and integrated full quality
+belong to the lead; exact receipts are in `docs/certification/int0170-combined.md`.
+
 INT0180B (2026-10-07): source `9733edba2` supersedes INT0180's local reds
 below. Fresh ordinary installation, exact static job, all four coverage shards
 and merge, full 988-page accessibility, legal's 96 keyboard/zoom plus 24 WCAG
@@ -41146,9 +41159,9 @@ threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
 
-| Location                                           | Escape hatch         | Reason                                                                                                                                                                                                                                                                                                                                 |
-| -------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/unit/schedulePaid.test.ts` (`MALFORMED_USD`) | `'NaN' as UsdAmount` | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained. |
+| Location                                              | Escape hatch         | Reason                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`) | `'NaN' as UsdAmount` | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained. |
 
 | 0.15.0 hosted-CI location                                                                                                                                                                      | Escape hatch                                                                                                                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                           | Removal                                                                                                                                                   |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |

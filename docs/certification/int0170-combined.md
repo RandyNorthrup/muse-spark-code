@@ -186,7 +186,7 @@ supersedes the common file's historical merge/full-quality instructions.
   would bypass the production defenses the two assertions exercise.
 
 The account consent binding now uses canonical `UsdAmount`, including an exact
-`0.00000000010000000001` budget passed unchanged to consent. Display uses the
+`0.0000000001000000000000000000001` budget passed unchanged to consent. Display uses the
 shared conservative significant-digit formatter; it never changes the budget.
 
 Scheduled media replaces its original shared-day claim with the schedule's
@@ -212,19 +212,24 @@ The pre-existing 10,000-fire journal test retains its named 240-second deadline;
 no command supplied `--testTimeout`.
 
 Each deliberate drill below exited 1; original source bytes were restored and
-SHA-256 compared before continuing. These are drill-time hashes, before later
-formatting. Normal restored runs pass; no assertion or gate was weakened.
+SHA-256 compared before continuing. These are drill-time hashes after the final source
+repairs. Normal restored runs pass; no assertion or gate was weakened.
 
-| Drill | Failing / passing tests | Source SHA-256 before = after |
-| ----- | ----------------------- | ----------------------------- |
+| Drill                      | Failing / passing tests   | Source SHA-256 before = after                                      |
+| -------------------------- | ------------------------- | ------------------------------------------------------------------ |
+| `account_budget_precision` | 1 failed / 12 passed (13) | `73cd8cc955fd359cf61304a8c509c3d88f31ffdb7003e7146559d71bbfb007c7` |
+| `hosted_media_allowance`   | 1 failed / 21 passed (22) | `e43d94993b5136f1e339bf879a4b01344dca887095ad2e2f37a2b9598b1a102c` |
+| `exact_media_amount`       | 4 failed / 18 passed (22) | `73cd8cc955fd359cf61304a8c509c3d88f31ffdb7003e7146559d71bbfb007c7` |
+| `daily_refund`             | 4 failed / 18 passed (22) | `2f23168f674ca283010f723f134762937aeab21fc84ae65bf7e81e96b1c87950` |
+| `daily_transfer_guard`     | 1 failed / 14 passed (15) | `2f23168f674ca283010f723f134762937aeab21fc84ae65bf7e81e96b1c87950` |
+| `media_source_observer`    | 1 failed / 8 passed (9)   | `c36d2ecfe7fc8e9927d57ad13ead24bec35c749d0ba45402193c4c9b6a465ebf` |
+| `media_replay_proof`       | 1 failed / 19 passed (20) | `8dbc54dce83f7ab5bcdd239db30c6e146c8f4be1a7f527865f654b551997940a` |
+| `stopped_media_read`       | 1 failed / 19 passed (20) | `8dbc54dce83f7ab5bcdd239db30c6e146c8f4be1a7f527865f654b551997940a` |
 
-| `account_budget_precision` | 1 failed | 12 passed (13) | `73cd8cc955fd359cf61304a8c509c3d88f31ffdb7003e7146559d71bbfb007c7` |
-| `hosted_media_allowance` | 1 failed | 21 passed (22) | `d7fa9258af6d70ff8d9db4f3b3c2e8f180c338e7e544b21bf3fe0adb0c732e09` |
-| `exact_media_amount` | 4 failed | 18 passed (22) | `73cd8cc955fd359cf61304a8c509c3d88f31ffdb7003e7146559d71bbfb007c7` |
-| `daily_refund` | 4 failed | 18 passed (22) | `2f23168f674ca283010f723f134762937aeab21fc84ae65bf7e81e96b1c87950` |
-| `daily_transfer_guard` | 1 failed | 14 passed (15) | `2f23168f674ca283010f723f134762937aeab21fc84ae65bf7e81e96b1c87950` |
-| `media_source_observer` | 1 failed | 8 passed (9) | `c36d2ecfe7fc8e9927d57ad13ead24bec35c749d0ba45402193c4c9b6a465ebf` |
-| `media_replay_proof` | 1 failed | 19 passed (20) | `d72648dbc435bab5675066634714ab0c59d3c827f2656cfda3d16eb2f0e8e16b` |
-| `stopped_media_read` | 1 failed | 19 passed (20) | `d72648dbc435bab5675066634714ab0c59d3c827f2656cfda3d16eb2f0e8e16b` |
-
-Fresh-clone gate receipts are recorded below after verification.
+First fresh clone exposed a verification `Promise<void>` adapter after the
+workspace decision began returning its ID, and one account-home pay-as-you-go
+fixture still carrying nano-USD. Both are ported without changing behavior or
+assertions. Scoped duplication exposed two test clones: the inherited daily
+budget setup now uses its existing builder, and two media cases share one
+parameterized assertion body. The new PLAN entry also needs its explicit
+status for the parser. No gate setting changes; final clone receipts follow.
