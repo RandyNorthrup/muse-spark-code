@@ -109,8 +109,6 @@ public static class MuseSparkJob {
   static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
   [DllImport("kernel32.dll", SetLastError = true)]
   static extern bool IsProcessInJob(IntPtr process, IntPtr job, out bool member);
-  [DllImport("kernel32.dll", SetLastError = true)]
-  static extern bool GetProcessTimes(IntPtr process, out long created, out long exited, out long kernel, out long user);
   [DllImport("psapi.dll", SetLastError = true)]
   static extern bool GetProcessMemoryInfo(IntPtr process, ref PROCESS_MEMORY counters, uint size);
 
@@ -423,8 +421,6 @@ public static class MuseSparkJob {
   const uint EXIT_TERMINATED = 143, EXIT_KILLED = 137;
   [DllImport("kernel32.dll", SetLastError = true)]
   static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
-  [DllImport("kernel32.dll", SetLastError = true)]
-  static extern bool TerminateProcess(IntPtr process, uint exitCode);
 
   static bool IsAlive(IntPtr process) {
     uint status = WaitForSingleObject(process, 0);
@@ -633,14 +629,26 @@ public static class MuseSparkCreated {
   static SafeFileHandle Open(SafeFileHandle parent, string name, bool directory, bool create) {
     if (String.IsNullOrEmpty(name) || name.IndexOfAny(new char[] {'/', '\\', ':'}) >= 0 || name == "." || name == "..") Refuse();
     IntPtr chars = Marshal.StringToHGlobalUni(name), unicode = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Unicode)));
+    GCHandle security = new GCHandle();
     try {
       Unicode text = new Unicode { Length=checked((ushort)(name.Length*2)), MaximumLength=checked((ushort)(name.Length*2)), Buffer=chars };
       Marshal.StructureToPtr(text, unicode, false);
       Attributes attributes = new Attributes { Length=Marshal.SizeOf(typeof(Attributes)), Root=parent.DangerousGetHandle(), Name=unicode, Flags=0x40 };
+      if (create) {
+        // An elevated token's default owner can be Administrators. Our own new
+        // objects must still belong to the user whose ownership Private proves.
+        using (WindowsIdentity current = WindowsIdentity.GetCurrent()) {
+          if (current.User == null) Refuse();
+          var descriptor = new System.Security.AccessControl.RawSecurityDescriptor("O:" + current.User.Value);
+          byte[] bytes = new byte[descriptor.BinaryLength]; descriptor.GetBinaryForm(bytes, 0);
+          security = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+          attributes.Security = security.AddrOfPinnedObject();
+        }
+      }
       SafeFileHandle result; IoStatus status;
       int error = NtCreateFile(out result, create && !directory ? ACCESS | 2u : ACCESS, ref attributes, out status, IntPtr.Zero, directory ? DIRECTORY : 0u, 7, create ? 2u : 1u, FILE_OPEN_REPARSE_POINT | 0x20u | (directory ? 1u : 0u), IntPtr.Zero, 0);
       if (error < 0 || result.IsInvalid) { result.Dispose(); Refuse(); } return result;
-    } finally { Marshal.FreeHGlobal(unicode); Marshal.FreeHGlobal(chars); }
+    } finally { if (security.IsAllocated) security.Free(); Marshal.FreeHGlobal(unicode); Marshal.FreeHGlobal(chars); }
   }
   sealed class Entry { public string Name; public ulong Id; public uint Flags; }
   static List<Entry> Entries(SafeFileHandle directory) {
@@ -676,7 +684,11 @@ public static class MuseSparkCreated {
       if (link) {
         IoStatus status;
         if (NtSetInformationFile(source, out status, buffer, (uint)(nameOffset + name.Length), 11) < 0) Refuse();
-      } else if (!SetFileInformationByHandle(source, 3, buffer, (uint)(nameOffset + name.Length))) Refuse();
+      } else {
+        IoStatus status;
+        // Relative names stay bound to the retained parent handle, as Open does.
+        if (NtSetInformationFile(source, out status, buffer, (uint)(nameOffset + name.Length), 10) < 0) Refuse();
+      }
     } finally { Marshal.FreeHGlobal(buffer); }
   }
   static void Marker(SafeFileHandle root, string id, string expected) {

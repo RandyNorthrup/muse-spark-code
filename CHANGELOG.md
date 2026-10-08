@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Restore the merged Windows job helper's compilation for shell commands,
+  resource controls and team process containment. Resource job holders load
+  the same assembly directly without PowerShell module discovery.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
