@@ -6986,9 +6986,9 @@ export const ESTIMATE_LABEL_MAX_CHARS = 256
 // releases before, so the estimate names it instead of pricing it.
 export const ESTIMATE_STALE_BASE_DAYS = 7
 // The largest P90 rental cost the estimator honestly displays, in whole US
-// dollars. Above Number.MAX_SAFE_INTEGER no integer-cent accounting
-// downstream stays exact, and accountUsd refuses the same magnitude (its
-// MAX_USD); a computed cost above this is refused, never rounded or shown.
+// dollars. It matches accountUsd's MAX_USD, the bigint nano-USD ceiling of
+// Number.MAX_SAFE_INTEGER whole dollars; a computed cost above this is
+// refused, never rounded or shown.
 export const ESTIMATE_MAX_RENTAL_COST_USD = '9007199254740991'
 
 // What the user reads, in the display language (PLAN.md D33).

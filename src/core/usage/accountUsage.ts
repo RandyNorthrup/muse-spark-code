@@ -160,14 +160,14 @@ function metersFor(
   for (const period of ['day', 'week', 'month'] as const) {
     const totals = totalsFor(records, ranges[period])
     for (const metric of ['spendUsd', 'inputTokens', 'outputTokens', 'requests'] as const) {
-      const threshold = thresholds[metric]?.[period]
-      if (threshold === undefined) continue
       if (metric === 'spendUsd') {
         // Exact decimal comparison, the same contract as admission: a cap of
         // '0.1000000000000000001' with '0.1' spent is not reached. The
         // threshold string is already canonical, so it is carried through
         // without a nano-USD round trip.
-        const cap = ExactUsd.from(threshold)
+        const capText = thresholds.spendUsd?.[period]
+        if (capText === undefined) continue
+        const cap = ExactUsd.from(capText)
         const used = ExactUsd.from(totals.liabilityUsd)
         const isReached = used.compare(cap) >= 0
         meters.push({
@@ -175,13 +175,15 @@ function metersFor(
           period,
           unit: 'usd',
           value: totals.liabilityUsd,
-          threshold,
+          threshold: capText,
           progress: isReached ? 100 : Number(used.times(100).floorDivide(cap)),
           isReached,
           resetAt: ranges[period].end,
         })
         continue
       }
+      const threshold = thresholds[metric]?.[period]
+      if (threshold === undefined) continue
       const cap = BigInt(threshold)
       const used = BigInt(String(totals[metric]))
       meters.push({
