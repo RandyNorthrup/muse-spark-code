@@ -1,5 +1,5 @@
 // M100/H: a GUI launchd job with supervised caps and kernel coalition retirement.
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { lstat, mkdir, open, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -235,6 +235,42 @@ const resultSchema = z.strictObject({
   failure: z.enum(['none', 'capacity', 'unsupported-host']),
 })
 
+// A GUI domain's service listing grows without bound; the session line is near
+// its start. Stop the child once that complete line is read, keeping a byte cap
+// and deadline for malformed/missing answers. Never buffer the service list.
+const session: RunProgram = (file, args, env) =>
+  new Promise((resolve, reject) => {
+    const child = spawn(file, [...args], { env, stdio: ['ignore', 'pipe', 'ignore'] })
+    let output = ''
+    let isSettled = false
+    const finish = (answer?: string) => {
+      if (isSettled) return
+      isSettled = true
+      clearTimeout(deadline)
+      child.kill()
+      if (answer === undefined) reject(new DeviceWorkerHostError('helper'))
+      else resolve(answer)
+    }
+    const deadline = setTimeout(() => {
+      finish()
+    }, DEVICE_LIMITS.frameDeadlineMs)
+    child.stdout.on('data', (chunk: Buffer) => {
+      if (isSettled) return
+      output += chunk
+        .subarray(0, DEVICE_LIMITS.frameBytes - Buffer.byteLength(output))
+        .toString('utf8')
+      const line = /^\s*session = ([^\r\n]+)\r?\n/m.exec(output)
+      if (line !== null) finish(`session = ${line[1] ?? ''}`)
+      else if (Buffer.byteLength(output) >= DEVICE_LIMITS.frameBytes) finish()
+    })
+    child.once('error', () => {
+      finish()
+    })
+    child.once('close', () => {
+      finish()
+    })
+  })
+
 const run: RunProgram = (file, args, env) =>
   new Promise((resolve, reject) => {
     const child = execFile(
@@ -468,8 +504,8 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
   const isPrepared = async (): Promise<boolean> => {
     try {
       if (uid === undefined) return false
-      const domainInfo = await call(['print', domain])
-      if (!domainInfo.includes('session = Aqua')) return false
+      const domainInfo = await (deps.run ?? session)('/bin/launchctl', ['print', domain], env)
+      if (!/^\s*session = Aqua\s*$/m.test(domainInfo)) return false
       await prepareRoot()
       if (!(await isPresent(target))) {
         const stem = path.join(root, randomUUID())
@@ -517,16 +553,27 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       return false
     }
   }
+  const prepare = (): Promise<boolean> => {
+    preparing ??= (async () => {
+      try {
+        return await isPrepared()
+      } catch (error) {
+        preparing = undefined
+        throw error
+      }
+    })()
+    return preparing
+  }
   return {
     platform: 'darwin',
-    selfTest: () => (preparing ??= isPrepared()),
+    selfTest: prepare,
     launch: async (command, environment, attempt) => {
       admittedProcessLimit(attempt)
-      if (!(await (preparing ??= isPrepared()))) throw new DeviceWorkerHostError('helper')
+      if (!(await prepare())) throw new DeviceWorkerHostError('helper')
       return await rawLaunch(command, environment, admittedProcessLimit(attempt))
     },
     query: async () => {
-      if (!(await (preparing ??= isPrepared()))) throw new DeviceWorkerHostError('helper')
+      if (!(await prepare())) throw new DeviceWorkerHostError('helper')
       const query = parseDeviceWorkerQuery(JSON.parse(await invoke(target, ['--query'], env)))
       for (const [service, job] of jobs) {
         const printed = await call(['print', service])

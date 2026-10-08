@@ -320,11 +320,13 @@ const outcome = z
     ]),
     occupied: deviceCapsSchema,
     usage,
+    failure: z.optional(z.literal('capacity')),
     artifact: z.optional(deviceArtifactManifestSchema),
   })
   .check(
     z.refine(
       (value) =>
+        (value.failure === undefined || value.state === 'retired') &&
         (value.artifact === undefined ||
           (value.state === 'retired' && isSameAttempt(value.identity, value.artifact.identity))) &&
         ((value.state !== 'retired' && value.state !== 'refused') ||
@@ -342,6 +344,7 @@ const tombstoneShape = {
   revision,
   state: z.enum(['retired', 'refused']),
   usage,
+  failure: z.optional(z.literal('capacity')),
   outcomeDigest: digest,
   recordedAt: timestamp,
 }

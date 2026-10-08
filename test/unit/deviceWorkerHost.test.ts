@@ -183,13 +183,55 @@ describe('M100/H worker host', () => {
     const attempt = await f.host.admit(request)
     await attempt.start(boundary)
     f.retired.resolve({ exitCode: 1, stdout: '', failure: 'capacity' })
-    await expect(attempt.retirement).rejects.toMatchObject({
-      reason: 'capacity',
+    await expect(attempt.retirement).resolves.toMatchObject({
+      failure: 'capacity',
+      wholeMembershipExited: true,
+      usage,
       message: UI_TEXT.devices.capacityHelp,
     })
     expect(f.deps.driver.launch).toHaveBeenCalledOnce()
     await attempt.release()
   })
+  it.each(['win32', 'linux'] as const)(
+    'journals observed %s capacity through the real receiver and releases exactly once',
+    async (platform) => {
+      const f = fixture(platform)
+      await throughReceiver(f.host, async (receiver, journal) => {
+        const sent = signedDispatch(request)
+        const dispatched = await receiver.dispatch(sent)
+        expect(dispatched.body).toMatchObject({ kind: 'outcome' })
+        f.retired.resolve({ exitCode: 1, stdout: '', failure: 'capacity' })
+        await expect
+          .poll(() => journal.lookup(sent.identity))
+          .toMatchObject({
+            kind: 'receiver-record',
+            outcome: {
+              state: 'retired',
+              failure: 'capacity',
+              occupied: { workers: 0, processes: 0, heavyChecks: 0 },
+              usage,
+            },
+          })
+        await expect.poll(() => f.reservation.release.mock.calls.length).toBe(1)
+        const replay = await receiver.dispatch(sent)
+        expect(replay.body).toMatchObject({
+          kind: 'reconciled',
+          outcomes: [{ state: 'retired', failure: 'capacity', usage }],
+        })
+        expect(f.deps.driver.launch).toHaveBeenCalledOnce()
+        expect(f.job.remove).toHaveBeenCalledOnce()
+        expect(f.reservation.release).toHaveBeenCalledOnce()
+        await journal.acknowledge(sent.identity, sent.payloadDigest, usage.settlementId)
+        await journal.compact(Date.now() + DEVICE_LIMITS.terminalRetentionMs)
+        const compacted = await receiver.dispatch(sent)
+        expect(compacted.body).toMatchObject({
+          kind: 'tombstone',
+          record: { state: 'retired', failure: 'capacity', usage },
+        })
+        expect(f.reservation.release).toHaveBeenCalledOnce()
+      })
+    },
+  )
   it.each(['win32', 'linux', 'darwin'] as const)(
     'reserves without starting on %s and starts exactly once',
     async (platform) => {

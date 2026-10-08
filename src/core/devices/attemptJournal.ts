@@ -476,7 +476,7 @@ export class AttemptJournal {
           )
         )
           continue
-        const { identity, payloadDigest, revision, state: terminal, usage } = row.outcome
+        const { identity, payloadDigest, revision, state: terminal, usage, failure } = row.outcome
         if (terminal !== 'retired' && terminal !== 'refused')
           throw new DeviceJournalError('storage')
         const tombstone: Tombstone = {
@@ -486,6 +486,7 @@ export class AttemptJournal {
           revision,
           state: terminal,
           usage,
+          ...(failure !== undefined && { failure }),
           outcomeDigest: digest(row.outcome),
           recordedAt: now,
         }

@@ -15,6 +15,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Settle observed Devices worker capacity exits with their usage and recovery
+  message, release the reservation once, and preserve the failure on reconciliation.
+  Bound macOS Aqua detection to the session line and retry preparation after a
+  transient capacity rejection.
+
 - Include the Devices runtime in isolated ACP/VSIX package fixtures so positive
   archive checks and missing-bundle refusals exercise the complete inventory.
 - Keep the real-TLS Devices flood test focused on bounded transport and

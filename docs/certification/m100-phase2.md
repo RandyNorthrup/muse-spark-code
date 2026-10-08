@@ -1281,3 +1281,52 @@ binding; retain the compiler/ABI refusal and measured bundle caps. W owns
 full `npm run quality`, integrated receiver/editor and installed-host
 qualification. H's macOS implementation and native acceptance proofs are
 complete; aggregate quality is not claimed by this scoped lane.
+
+#### M100P2HM4 — macOS review round 1 (2026-10-08)
+
+Branch `m100/p2-h-darwin4`, base `29560b4c5`; review
+`RVM100P2HMB`. All three findings are fixed at their root. No new translation,
+dependency, executable command, setting, model attempt or paid call.
+
+| Finding                                            | Fix and regression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P2 observed capacity rejected / reservation leaked | `deviceWorkerHost.ts` resolves a typed `capacity` retirement with observed whole-membership exit, reservation usage (including any retained liability), and runtime `UI_TEXT.devices.capacityHelp`. `deviceReceiver.ts` durably journals existing terminal state `retired` with `failure: capacity`, then calls the idempotent release. Only rejection remains uncertain. Host tests cover direct localized retirement and real receiver dispatch with fake Windows/Linux drivers; Darwin's native regression dispatches through the real receiver/host, overflows cap 2 with the setsid/double-fork fixture, proves no survivors, zero occupancy and exactly one release, and reads the localized result mapping. |
+| P2 Aqua listing exceeds buffer                     | Default session probe streams only through the complete `session =` line, bounded by the existing frame byte/deadline limits, and stops its child. Synthetic overflowing-listing regression reaches the filesystem probe and observes child exit; injected Background is cached as negative. The default runner self-tests a real Aqua GUI job.                                                                                                                                                                                                                                                                                                                                                                    |
+| P3 transient self-test rejection cached            | One shared preparation function clears a rejected promise, while retaining true/false results. Retained-directory regression fills all 128 slots, sees capacity, removes them, and proves the same factory reaches bootstrap next time.                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+
+The local result carries the existing `capacity` failure word; no new journal
+state or parallel pressure vocabulary is introduced. The additive optional
+result/tombstone field is the narrow contract amendment required by this
+review. `attemptJournal.ts` preserves it during acknowledged compaction;
+both portable receiver cases verify the full result and compacted tombstone.
+Lane 0/W must reconcile this field with composed protocol compatibility.
+
+Native capture on macmini, macOS **15.7.4**, UID **502**: the rig shell's
+`launchctl managername` says **Background**, while the targeted
+`launchctl print gui/502` says **session = Aqua** after **174 bytes**.
+The bounded reader therefore targets the GUI domain rather than classifying
+the SSH shell's manager. Capture workspace is this lane's private TMPDIR;
+**zero model attempts**. Existing driver result captures/shapes are unchanged.
+
+Baseline proof: temporarily restore the five production files from
+`29560b4c5`, retain every final regression, and run the three owning files
+with `CI=true`, `--maxWorkers=3`, default repository deadlines. **Exit 1:
+61 passed, 6 failed, 7 Windows-native skips**. The six failures are the
+localized host capacity result, Windows and Linux receiver capacity results,
+native macOS receiver capacity result, overflowing session listing and
+retry-after-cleanup. All five production files restored byte-exact in finally.
+
+| Red drill       | Mutation                                                    | Exit / failures                                                                       |
+| --------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| capacity-reject | Restore host capacity rejection                             | **1 / 4**: direct result, Windows receiver, Linux receiver and native macOS receiver. |
+| whole-listing   | Use the ordinary buffered runner for the GUI-domain listing | **1 / 1**: overflowing-listing session regression.                                    |
+| rejected-cache  | Keep the rejected preparation promise                       | **1 / 1**: retained-directory cleanup retry.                                          |
+
+All drills use default deadlines, restore source in finally and verify exact
+bytes. Restoration hashes: host
+`3cabe0134285c73715732f9a4c25dd92031df53a674afdf2c797f2e976bbee0e`;
+Darwin `b7836d304400425d1d4656afe8beb700510798da3ed95aee123c6a5bb26ea6d4`.
+Restored owning run: **exit 0, 67 passed, 7 Windows-native skips**, all
+**22 macOS native cases** and **6 injected Darwin cases** passed. Host and
+unit typechecks and changed-file ESLint exit **0**. Committed fresh-clone
+receipts follow after verification.

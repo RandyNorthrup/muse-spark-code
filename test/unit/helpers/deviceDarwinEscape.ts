@@ -6,6 +6,8 @@ import {
   parseDeviceWorkerQuery,
   type DeviceWorkerAttempt,
   type DeviceWorkerDriver,
+  type DeviceWorkerCommand,
+  type DeviceWorkerJob,
 } from '../../../src/host/devices/deviceWorkerHost'
 import type { RunProgram } from '../../../src/host/processTree'
 
@@ -54,28 +56,27 @@ export async function darwinEscapeTree(
   driver: DeviceWorkerDriver,
   directory: string,
   attempt: DeviceWorkerAttempt,
+  dispatch?: (command: DeviceWorkerCommand) => Promise<DeviceWorkerJob>,
 ) {
   const fixture = await mkdtemp(path.join(directory, 'escape-'))
   const file = (name: string) => path.join(fixture, name)
   const release = file('release')
   const rootExit = file('root-exit')
-  const job = await driver.launch(
-    {
-      executable: path.join(directory, 'escape-tree'),
-      args: [file('create'), file('tree.json'), release, rootExit, file('root-ready')],
-      cwd: fixture,
-      requiredTools: [],
-    },
-    {},
-    attempt,
-  )
+  const command = {
+    executable: path.join(directory, 'escape-tree'),
+    args: [file('create'), file('tree.json'), release, rootExit, file('root-ready')],
+    cwd: fixture,
+    requiredTools: [],
+  }
+  const job =
+    dispatch === undefined ? await driver.launch(command, {}, attempt) : await dispatch(command)
   const context = parseDeviceWorkerQuery(job.query).context
   const service = `gui/${String(context.session)}/${context.desktop}`
   const signal = (word: string) => run('/bin/launchctl', ['kill', word, service], {})
   let tree: Tree | undefined
   let isSuspended = false
   try {
-    await job.activate()
+    if (dispatch === undefined) await job.activate()
     await ready(file('root-ready'))
     await signal('SIGSTOP')
     isSuspended = true

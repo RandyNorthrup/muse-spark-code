@@ -1,5 +1,15 @@
-import { execFile } from 'node:child_process'
-import { access, mkdtemp, mkdir, readFile, readdir, rm, writeFile, lstat } from 'node:fs/promises'
+import { ChildProcess, execFile, spawn } from 'node:child_process'
+import {
+  access,
+  mkdtemp,
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+  lstat,
+  realpath,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -22,8 +32,16 @@ import {
 import type { RunProgram } from '../../src/host/processTree'
 import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
 import { darwinEscapeTree, survivors } from './helpers/deviceDarwinEscape'
+import { AttemptJournal } from '../../src/core/devices/attemptJournal'
+import { DeviceReceiver } from '../../src/host/devices/deviceReceiver'
+import { executionProtection, signedDispatch } from './helpers/deviceExecutionFixtures'
+import { UI_TEXT } from '../../src/shared/l10n/text'
+import { deviceFailureText } from '../../src/webview/models/sections/agents/devicePresentation'
+import type { DeviceWorkerCommand } from '../../src/host/devices/deviceWorkerHost'
+import type * as ChildProcessModule from 'node:child_process'
 
 vi.mock('node:fs/promises', { spy: true })
+vi.mock('node:child_process', { spy: true })
 
 const run: RunProgram = (file, args, env) =>
   new Promise((resolve, reject) => {
@@ -132,6 +150,44 @@ async function recover(job: DeviceWorkerJob) {
 }
 
 describe('M100/H Darwin unsupported manager port', () => {
+  it('reads the Aqua session before an overflowing service listing and stops the query child', async () => {
+    const actual = await vi.importActual<typeof ChildProcessModule>('node:child_process')
+    const children: ChildProcess[] = []
+    const script = String.raw`process.stdout.write('session = Aqua\n'); setInterval(() => process.stdout.write('x'.repeat(${String(DEVICE_LIMITS.frameBytes)})), 1)`
+    vi.mocked(execFile).mockImplementation((...args) => {
+      const child: unknown = Reflect.apply(actual.execFile, undefined, [
+        process.execPath,
+        ['-e', script],
+        ...args.slice(2),
+      ])
+      if (!(child instanceof ChildProcess)) throw new Error('query child unavailable')
+      children.push(child)
+      return child
+    })
+    vi.mocked(spawn).mockImplementation((_file, _args, options) => {
+      const child = actual.spawn(process.execPath, ['-e', script], options)
+      children.push(child)
+      return child
+    })
+    const directory = await mkdtemp(path.join(tmpdir(), 'm100-darwin-listing-'))
+    try {
+      // Refuse after the session probe, before compilation: this observes the
+      // default native query without a compiler, launchd job or platform fixture.
+      vi.mocked(lstat).mockRejectedValue(new Error('stop before compilation'))
+      const driver = deviceWorkerDarwin({ storageDir: directory, environment: {}, uid: 502 })
+      expect(await driver.selfTest()).toBe(false)
+      expect(lstat).toHaveBeenCalledWith(path.join(directory, 'device-workers-darwin'))
+      await expect
+        .poll(() => children.every((child) => child.exitCode !== null || child.signalCode !== null))
+        .toBe(true)
+    } finally {
+      for (const child of children) child.kill()
+      vi.mocked(execFile).mockRestore()
+      vi.mocked(spawn).mockRestore()
+      vi.mocked(lstat).mockRestore()
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
   it.each([0, DEVICE_LIMITS.processes + 1])(
     'refuses process cap %s before any native call or attempt directory',
     async (processes) => {
@@ -204,6 +260,17 @@ describe('M100/H Darwin unsupported manager port', () => {
         ),
       ).rejects.toMatchObject({ reason: 'capacity' })
       expect(invoke.mock.calls.every(([, args]) => args[0] !== 'bootstrap')).toBe(true)
+      const names = await readdir(root)
+      for (const name of names)
+        if (name.startsWith('attempt-')) await rm(path.join(root, name), { recursive: true })
+      await expect(
+        driver.launch(
+          { executable: process.execPath, args: [], cwd: directory, requiredTools: [] },
+          {},
+          attemptWith(),
+        ),
+      ).rejects.toMatchObject({ reason: 'unsupported-host' })
+      expect(invoke.mock.calls.some(([, args]) => args[0] === 'bootstrap')).toBe(true)
     } finally {
       vi.mocked(lstat).mockRestore()
       await rm(directory, { recursive: true, force: true })
@@ -340,6 +407,88 @@ int main(void) {
       await fixture.clean()
     }
   })
+  it('journals a supervised macOS capacity kill through the real receiver and host', async () => {
+    const grant = deviceGrant('a'.repeat(32))
+    const sent = signedDispatch(deviceCheck(grant))
+    const journal = await AttemptJournal.create(
+      path.join(await realpath(state.directory), 'capacity-journal'),
+      { assertOwner: () => Promise.resolve() },
+      executionProtection,
+    )
+    let command: DeviceWorkerCommand | undefined
+    let job: DeviceWorkerJob | undefined
+    const release = vi.fn(() => Promise.resolve())
+    const host = new DeviceWorkerHost({
+      driver: {
+        ...native(),
+        launch: async (...args) => {
+          job = await native().launch(...args)
+          return job
+        },
+      },
+      environment: process.env,
+      retain: () => Promise.resolve(),
+      reserve: () => Promise.resolve({ usage, pause: () => Promise.resolve(), release }),
+      command: () => {
+        if (command === undefined) throw new Error('escape command unavailable')
+        return Promise.resolve(command)
+      },
+      recordEnvironment: () => Promise.resolve(),
+      pressure: () => undefined,
+    })
+    const receiver = await DeviceReceiver.open(grant.offer.receiverIncarnationId, journal, host, {
+      currentGrant: () => Promise.resolve(grant),
+      assertAllowed: () => Promise.resolve(),
+      approve: () => Promise.resolve(true),
+      paidGate: { isOn: () => true },
+      paidConsent: { allows: () => Promise.resolve(true) },
+      assertPaidBinding: () => Promise.resolve(),
+    })
+    receiver.resumeQueue()
+    const fixture = await darwinEscapeTree(
+      run,
+      native(),
+      state.directory,
+      attemptWith(2),
+      async (input) => {
+        command = input
+        const response = await receiver.dispatch(sent)
+        expect(response.body).toMatchObject({ kind: 'outcome' })
+        if (job === undefined) throw new Error('native job unavailable')
+        return job
+      },
+    )
+    try {
+      const tree = await fixture.create()
+      await fixture.resume()
+      await expect.poll(() => survivors(tree)).toEqual([])
+      await expect
+        .poll(() => journal.lookup(sent.identity))
+        .toMatchObject({
+          kind: 'receiver-record',
+          outcome: {
+            state: 'retired',
+            failure: 'capacity',
+            usage,
+            occupied: { workers: 0, processes: 0, heavyChecks: 0 },
+          },
+        })
+      await expect.poll(() => release.mock.calls.length).toBe(1)
+      const response = await receiver.dispatch(sent)
+      expect(response.body).toMatchObject({
+        kind: 'reconciled',
+        outcomes: [{ failure: 'capacity', usage }],
+      })
+      if (response.body.kind !== 'reconciled') throw new Error('capacity result missing')
+      const failure = response.body.outcomes[0]?.failure
+      if (failure === undefined) throw new Error('capacity failure missing')
+      expect(deviceFailureText(failure)).toBe(UI_TEXT.devices.capacityHelp)
+      expect(await attempts()).toEqual([])
+      expect(release).toHaveBeenCalledOnce()
+    } finally {
+      await fixture.clean()
+    }
+  })
   it('runs three processes at cap 3 to completion and counts the escapee', async () => {
     const fixture = await escapeTree(3)
     try {
@@ -459,6 +608,8 @@ int main(void) {
     },
   )
   it('self-tests a real GUI job and leaves no registration or inhibitor', async () => {
+    const bounded = deviceWorkerDarwin({ storageDir: state.directory, environment: process.env })
+    expect(await bounded.selfTest()).toBe(true)
     expect(await native().query()).toMatchObject({
       context: { station: 'gui' },
       power: expect.stringMatching(/^(?:ac|battery|unknown)$/),

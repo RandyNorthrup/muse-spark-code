@@ -35818,6 +35818,18 @@ paid/live call or physical-device qualification is introduced.
 
 ### M100 phase 2 — bound owners, discovery, hardened hosts, per-action control (D80, planned)
 
+**M100P2HM4 review closure (2026-10-08, before implementation).** Settle an
+observed whole-membership capacity exit as a typed local retirement with usage
+and existing localized recovery prose. The receiver durably records `retired`
+with optional `failure: capacity`, then releases once; unknown exits remain
+uncertain. Preserve that failure in compact terminal records. This narrow
+review-required result amendment preserves all existing journal states and
+failure vocabulary; lane 0/W must reconcile the additive result field during
+integration. Bound the Aqua-domain probe to its session line (the rig shell's
+manager is Background), and clear only rejected preparation promises so a
+transient capacity failure retries. Prove baseline failures and guard drills;
+verify H and receiver/recovery in a fresh committed clone at default deadlines.
+
 **M100P2BASE integration scope (2026-10-07, macmini).** Merge only
 `23c67925f` into release head `9d1ab33c3` with `--no-ff`, preserving both
 branches and 0.15.0. Rebuild generated inventories. Verify committed work
@@ -41476,6 +41488,13 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**M100P2HM4 scoped review gate (2026-10-08, macmini).** Hooked commits are
+local checkpoints; the owner's 60-minute H brief requires fresh-clone scoped
+tests and static/build gates. Full `npm run quality` and integrated platform
+qualification remain W's required gate before integration. No threshold,
+timeout, assertion or ignore changes. The inherited stale host API inventory
+remains W-owned and is reported separately in the macOS certification record.
 
 **MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared
 rules prohibit aggregate quality and delegate it to the lead. Run complete

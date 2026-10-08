@@ -231,7 +231,16 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
           this.deps.pressure('desktop-heap')
           throw new DeviceWorkerHostError('desktop-heap')
         }
-        if (exit.failure === 'capacity') throw new DeviceWorkerHostError('capacity')
+        if (exit.failure === 'capacity') {
+          await job?.remove()
+          retired.resolve({
+            failure: 'capacity',
+            wholeMembershipExited: true,
+            usage: reservation.usage,
+            message: UI_TEXT.devices.capacityHelp,
+          })
+          return
+        }
         if (exit.failure === 'unsupported-host') throw new DeviceWorkerHostError('helper')
         if (exit.exitCode !== 0) throw new DeviceWorkerHostError('result')
         const parsed: unknown = JSON.parse(exit.stdout)
