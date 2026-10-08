@@ -20367,6 +20367,8 @@ scope limit: all 184 renderers now map to 136 real scenes. All 9,792 Chrome
 receipts and 184 image-review lines are complete. Fresh-clone replay found a
 quote-menu anchor captured before its final layout (9,863 changed pixels);
 settle the real context click, prove its guard, then regenerate/replay receipts.
+The source-reconstruction test also needs its own fixture repository: private
+disk-backed temp storage must not depend on Git discovery through the checkout.
 Combined build caps remain
 owned by the shrinking lane. Earlier rig lane `rel017/left`, base `7a4fc2ab3`;
 two-hour repair window. Keep all assertions, caps, scanner rules and deadlines.
