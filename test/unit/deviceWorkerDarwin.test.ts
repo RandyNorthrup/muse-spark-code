@@ -209,6 +209,29 @@ async function fakeDarwinDirectories() {
   })
 }
 
+async function spawnBoundaryFixture(...args: Parameters<typeof darwinSpawnFixture>) {
+  const fixture = await darwinSpawnFixture(...args)
+  // Fence both process APIs even when exercising the pre-redesign baseline.
+  vi.mocked(spawn).mockImplementation(fixture.spawn)
+  vi.mocked(execFile).mockImplementation(() => {
+    throw Object.assign(new Error('forbidden primitive bypass'), { code: 'ENOMEM' })
+  })
+  await fakeDarwinDirectories()
+  const driver = deviceWorkerDarwin({
+    storageDir: fixture.directory,
+    environment: {},
+    uid: fixture.uid,
+    spawn: fixture.spawn,
+  })
+  const start = () =>
+    driver.launch(
+      { executable: '/usr/bin/true', args: [], cwd: fixture.directory, requiredTools: [] },
+      {},
+      attemptWith(),
+    )
+  return { ...fixture, driver, start }
+}
+
 describe('M100/H spawn boundary', () => {
   const cases = darwinSpawnSites.flatMap((site) =>
     darwinSpawnFailures.map((failure) => ({ site, failure, name: `${site}: ${failure.name}` })),
@@ -216,24 +239,8 @@ describe('M100/H spawn boundary', () => {
   it('concurrent launches share preparation, then retry one transient outcome together', async () => {
     const failure = darwinSpawnFailures[0]
     if (failure === undefined) throw new Error('failure fixture missing')
-    const fixture = await darwinSpawnFixture('aqua', failure)
-    vi.mocked(spawn).mockImplementation(fixture.spawn)
-    vi.mocked(execFile).mockImplementation(() => {
-      throw Object.assign(new Error('forbidden primitive bypass'), { code: 'ENOMEM' })
-    })
-    await fakeDarwinDirectories()
-    const driver = deviceWorkerDarwin({
-      storageDir: fixture.directory,
-      environment: {},
-      uid: fixture.uid,
-      spawn: fixture.spawn,
-    })
-    const start = () =>
-      driver.launch(
-        { executable: '/usr/bin/true', args: [], cwd: fixture.directory, requiredTools: [] },
-        {},
-        attemptWith(),
-      )
+    const fixture = await spawnBoundaryFixture('aqua', failure)
+    const { driver, start } = fixture
     try {
       const first = await Promise.allSettled([start(), start(), driver.selfTest()])
       for (const result of first)
@@ -262,25 +269,8 @@ describe('M100/H spawn boundary', () => {
   it.each(cases)(
     '$name has a typed result and correct preparation caching',
     async ({ site, failure }) => {
-      const fixture = await darwinSpawnFixture(site, failure)
-      // A bypass of injected spawn must be visible, including on the old base.
-      vi.mocked(spawn).mockImplementation(fixture.spawn)
-      vi.mocked(execFile).mockImplementation(() => {
-        throw Object.assign(new Error('forbidden primitive bypass'), { code: 'ENOMEM' })
-      })
-      await fakeDarwinDirectories()
-      const driver = deviceWorkerDarwin({
-        storageDir: fixture.directory,
-        environment: {},
-        uid: fixture.uid,
-        spawn: fixture.spawn,
-      })
-      const start = () =>
-        driver.launch(
-          { executable: '/usr/bin/true', args: [], cwd: fixture.directory, requiredTools: [] },
-          {},
-          attemptWith(),
-        )
+      const fixture = await spawnBoundaryFixture(site, failure)
+      const { driver, start } = fixture
       let job: DeviceWorkerJob | undefined
       try {
         if (site === 'query' || site === 'active-print') {
