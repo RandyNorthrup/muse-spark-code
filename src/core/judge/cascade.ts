@@ -7,7 +7,10 @@
 // caution against the permissive source alone, and no question resolves
 // toward one side behind the other's back. A partial or top-1 result cannot
 // enter the calibrated combiner. A failed or late separate output leaves
-// phase-1 behaviour with the source that answered honestly reported. Each
+// phase-1 behaviour with the source that answered honestly reported. When
+// neither side can combine on a question, the separate answer already in
+// hand still stands as it came, and the envelope names the model that
+// served the reported answers. Each
 // side dispatches through its own injected run, which owns that side's
 // admission claim: one side is never billed to the other's claim, and a
 // retry or fan-out inside a side keeps that side's claims. The cascade
@@ -510,7 +513,23 @@ export async function cascadeJudge(
         options.criteriaVersion,
       )
       if (separateAnswer === undefined && sameAnswer === undefined) {
-        return refusal('engine-failure')
+        // Neither side can combine here, but the separate answer already
+        // in hand is still real: report it as it came (partial or top-1
+        // as the side marked it), never as an engine failure. Only when it
+        // really is this separate side's answer; anything else is a broken
+        // side, not a combinable miss.
+        const standingAnswer = separateResult.answers[id]
+        const standingMeta = separateResult.muse[id]
+        if (
+          standingAnswer === undefined ||
+          standingMeta?.source !== deps.separate.capability.source ||
+          standingMeta.model !== deps.separate.capability.model
+        ) {
+          return refusal('engine-failure')
+        }
+        answers[id] = standingAnswer
+        muse[id] = standingMeta
+        continue
       }
       if (separateAnswer === undefined || sameAnswer === undefined) {
         // One side alone: pass its answer through untouched, honestly sourced.
@@ -575,10 +594,15 @@ export async function cascadeJudge(
         ...costs,
       }
     }
+    // The serving model: every reported muse names the model that answered
+    // it (a blend follows the separate convention), so the envelope names
+    // the separate model unless every question stands on the same side
+    // alone — never the separate model for a same-model answer.
+    const isSameOnly = ids.every((id) => muse[id]?.model === deps.same.capability.model)
     const combined = judgeOutcomeSchema.safeParse({
       outcome: 'answered',
       result: {
-        model: deps.separate.capability.model,
+        model: isSameOnly ? deps.same.capability.model : deps.separate.capability.model,
         answers,
         muse,
         usage: { input_tokens: inputTokens, output_tokens: outputTokens },

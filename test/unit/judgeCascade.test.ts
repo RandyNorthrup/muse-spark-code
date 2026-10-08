@@ -241,19 +241,20 @@ function expectSeparatePassthrough(outcome: JudgeOutcome, same: FakeSide): void 
   expect(outcome.result.muse['risk']?.technique).toBe('stated')
 }
 
-/** A separate side whose stored answer carries one patched meta field. */
+/** A side whose stored answer carries one patched meta field. */
 function mutatingSide(
+  cap: JudgeCapability,
   distributions: Readonly<Record<string, readonly number[]>>,
   id: string,
   mutate: (meta: JudgeMuse) => JudgeMuse,
 ): FakeSide {
-  const base = fakeSide(separateCap, distributions)
+  const base = fakeSide(cap, distributions)
   return {
     ...base,
     side: {
       ...base.side,
       run: vi.fn((asked: JudgeRequest): Promise<JudgeTechniqueReceipt> => {
-        const result = answered(asked, separateCap, distributions)
+        const result = answered(asked, cap, distributions)
         const meta = result.muse[id]
         if (meta !== undefined) {
           result.muse[id] = mutate(meta)
@@ -468,6 +469,68 @@ describe('cascadeJudge', () => {
     }
   })
 
+  it('keeps the separate answer when neither side can combine on a high-stakes follow-up', async () => {
+    // Both partial: neither enters the combiner, but the separate answer
+    // is real, so it stands as it came — never an engine failure. A failed
+    // (timed-out) same follow-up already leaves it standing; a real but
+    // non-combinable one must not be treated worse.
+    const { separate } = partialSeparatePair()
+    const samePartial = fakeSide(sameCap, { risk: [0.6, 0.4] }, { partial: true })
+    const outcome = await highStakesOutcome(separate, samePartial)
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') {
+      return
+    }
+    expect(outcome.result.muse['risk']).toMatchObject({ source: 'separate', partial: true })
+    expect(outcome.result.model).toBe('fixture-separate')
+    expectRiskNoul(outcome.result.answers['risk'], 0.6)
+  })
+
+  it('keeps the separate answer when the high-stakes follow-up is top-1', async () => {
+    const { separate } = partialSeparatePair()
+    const sameTop1 = mutatingSide(sameCap, { risk: [0.6, 0.4] }, 'risk', (meta) => ({
+      ...meta,
+      technique: 'top1',
+      label: 'approximate (top-1)',
+    }))
+    // runBothOnce reads the unwrapped mock, which mutatingSide replaces;
+    // assert on the side's own dispatch instead.
+    const outcome = await cascadeJudge(
+      request,
+      { ...options, highStakes: true },
+      depsFor(separate, sameTop1),
+      signal(),
+    )
+    expect(separate.run).toHaveBeenCalledTimes(1)
+    expect(sameTop1.side.run).toHaveBeenCalledTimes(1)
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') {
+      return
+    }
+    expect(outcome.result.muse['risk']).toMatchObject({ source: 'separate', partial: true })
+    expect(outcome.result.model).toBe('fixture-separate')
+    expectRiskNoul(outcome.result.answers['risk'], 0.6)
+  })
+
+  it('names the serving model on the envelope when the same follow-up stands alone', async () => {
+    // Partial separate, combinable same: the reported answer is the same
+    // model's, so the envelope names it — a consumer keying the serving
+    // model on result.model must not bill it to the separate model.
+    const { separate, same } = partialSeparatePair()
+    const outcome = await highStakesOutcome(separate, same)
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') {
+      return
+    }
+    expect(outcome.result.muse['risk']).toMatchObject({
+      source: 'same',
+      model: 'fixture-same',
+      partial: false,
+    })
+    expect(outcome.result.model).toBe('fixture-same')
+    expect(outcome.result.usage).toEqual({ input_tokens: 80, output_tokens: 2 })
+  })
+
   it('keeps a binary bias correction instead of renormalizing it away', async () => {
     // Platt slope 1, intercept ln(3): p(yes) = 0.5 must calibrate to 0.75.
     // Calibrating both masses and renormalizing would return 0.5.
@@ -542,7 +605,7 @@ describe('cascadeJudge', () => {
   })
 
   it('keeps a top-1 separate result out of the combiner', async () => {
-    const top1 = mutatingSide({ risk: [0.6, 0.4] }, 'risk', (meta) => ({
+    const top1 = mutatingSide(separateCap, { risk: [0.6, 0.4] }, 'risk', (meta) => ({
       ...meta,
       technique: 'top1',
       label: 'approximate (top-1)',
@@ -597,10 +660,15 @@ describe('cascadeJudge', () => {
         },
       },
     }
-    const partialPick = mutatingSide({ risk: [0.6, 0.4], pick: [0.7, 0.3] }, 'pick', (meta) => ({
-      ...meta,
-      partial: true,
-    }))
+    const partialPick = mutatingSide(
+      separateCap,
+      { risk: [0.6, 0.4], pick: [0.7, 0.3] },
+      'pick',
+      (meta) => ({
+        ...meta,
+        partial: true,
+      }),
+    )
     const same = fakeSide(sameCap, { risk: [0.6, 0.4], pick: [0.7, 0.3] }, { weight: 1 })
     const outcome = await cascadeJudge(multi, options, depsFor(partialPick, same), signal())
     expect(outcome.outcome).toBe('answered')
@@ -609,6 +677,80 @@ describe('cascadeJudge', () => {
     }
     expect(outcome.result.muse['risk']?.source).toBe('both')
     expect(outcome.result.muse['pick']).toMatchObject({ source: 'same', partial: false })
+  })
+
+  it('falls back per question when one blends and another cannot combine on either side', async () => {
+    // Risk blends; pick is partial on both sides, so neither enters the
+    // combiner there. The run still answers: risk as a blend, pick as the
+    // separate answer already in hand — never a whole-run engine failure.
+    const multi: JudgeRequest = {
+      state: 'synthetic state',
+      questions: {
+        risk: { type: 'noul', instructions: 'Can it destroy data?' },
+        pick: {
+          type: 'choice',
+          instructions: 'Pick one.',
+          criteria: { A: 'First.', B: 'Second.' },
+        },
+      },
+    }
+    const separate = mutatingSide(
+      separateCap,
+      { risk: [0.9, 0.1], pick: [0.7, 0.3] },
+      'pick',
+      (meta) => ({ ...meta, partial: true }),
+    )
+    const same = mutatingSide(sameCap, { risk: [0.2, 0.8], pick: [0.7, 0.3] }, 'pick', (meta) => ({
+      ...meta,
+      partial: true,
+    }))
+    const outcome = await cascadeJudge(multi, options, depsFor(separate, same), signal())
+    expect(separate.side.run).toHaveBeenCalledTimes(1)
+    expect(same.side.run).toHaveBeenCalledTimes(1)
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') {
+      return
+    }
+    expect(outcome.result.muse['risk']?.source).toBe('both')
+    expect(outcome.result.muse['pick']).toMatchObject({ source: 'separate', partial: true })
+    expect(outcome.result.model).toBe('fixture-separate')
+  })
+
+  it('names the separate model on a mixed envelope and keeps each question honest', async () => {
+    // Risk blends (the cascade's blend convention names the separate
+    // model); pick stands on the same side alone. The envelope follows the
+    // blend convention while pick's muse still names the model that
+    // answered it.
+    const multi: JudgeRequest = {
+      state: 'synthetic state',
+      questions: {
+        risk: { type: 'noul', instructions: 'Can it destroy data?' },
+        pick: {
+          type: 'choice',
+          instructions: 'Pick one.',
+          criteria: { A: 'First.', B: 'Second.' },
+        },
+      },
+    }
+    const separate = mutatingSide(
+      separateCap,
+      { risk: [0.9, 0.1], pick: [0.7, 0.3] },
+      'pick',
+      (meta) => ({ ...meta, partial: true }),
+    )
+    const same = fakeSide(sameCap, { risk: [0.2, 0.8], pick: [0.7, 0.3] }, { weight: 1 })
+    const outcome = await cascadeJudge(multi, options, depsFor(separate, same), signal())
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') {
+      return
+    }
+    expect(outcome.result.muse['risk']?.source).toBe('both')
+    expect(outcome.result.muse['pick']).toMatchObject({
+      source: 'same',
+      model: 'fixture-same',
+      partial: false,
+    })
+    expect(outcome.result.model).toBe('fixture-separate')
   })
 
   it('assembles choice and score blends with winners, legends and expected levels', async () => {
