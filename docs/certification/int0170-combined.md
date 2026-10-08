@@ -387,6 +387,32 @@ and boundaries from M114 tokens, not direct host colours`. It fails on
   new outside-git archive on a host where Chrome starts, inspect every
   changed image, then rerun the complete fresh-clone pixel gate.
 
+- Follow-up socket-shim attempt (same lane, kept outside git in
+  `$TMPDIR/unixshim.c` with its built `unixshim.so`; no repo file
+  changed for it). An `LD_PRELOAD` shim emulates the denied calls:
+  `AF_UNIX` `socket`/`bind`/`connect` over TCP loopback, `SEQPACKET`
+  pairs as real stream pairs with userspace length-prefix framing that
+  preserves `SCM_RIGHTS`/credentials, `dup`/`dup2`/`dup3`/`fcntl`
+  propagation, `poll`/`ppoll` readahead awareness, and pid-keyed table
+  export/import across `exec`. Under it the browser and both zygotes
+  live, zygote IPC flows, the `"Did not receive ping from zygote
+child"` error is gone (the readahead now preserves ancillary data),
+  workers fork and exec, and the GPU child survives with Vulkan
+  disabled. Two findings for whoever continues: (1) never pass
+  `--disable-crashpad-for-testing` outside Chromium's own harness —
+  with it, every child dies at startup with `Crashing due to FD
+ownership violation` (`base/files/scoped_file_linux.cc`; also
+  confirmed by the Ferrum project notes); a manually launched worker
+  without parent channels crashes the same way with or without any
+  shim, so that probe is invalid. (2) Remaining stall: the browser
+  sends zygote fork requests but their replies never arrive and no PNG
+  renders; exec'd workers die between `exec` and first socket use.
+  Operational traps met on the way: `pkill -f` patterns that appear in
+  the invoker's own command line kill the invoker (exit 137, use a
+  self-excluding pattern), and this shell runs inside `bwrap` with
+  `--unshare-net`, `--unshare-pid`, seccomp and no capabilities.
+  Receipts are still unregenerated; nothing below was relaxed.
+
 ### Earlier LEFT017 receipts
 
 Lane `rel017/left`, base `7a4fc2ab3`, Linux rig, 2026-10-08. All tests
