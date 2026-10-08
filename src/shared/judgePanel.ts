@@ -115,9 +115,9 @@ function consistentLabel(
   return label === 'approximate (top-1)' ? 'uncalibrated' : label
 }
 
-function omitEmpty<T extends Record<string, unknown>>(value: T): T {
+function omitEmpty(value: Readonly<Record<string, unknown>>): Record<string, unknown> {
   const entries = Object.entries(value).filter(([, item]) => item !== undefined)
-  return Object.fromEntries(entries) as T
+  return Object.fromEntries(entries)
 }
 
 /**
