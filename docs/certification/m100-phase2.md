@@ -723,7 +723,7 @@ inference spend **0**. No dependency, contract envelope, gate or budget change.
   mixed case, Windows separators, ordinary outside writes and the canonical
   protected names; `:123` proves custom multi-segment runs, boundary-safe
   ordinary writes and shared protection even with an empty receiver list.
-- **P2 fixed** — `actionGrants.ts:216`, `:251`, `:258` keeps the attestation
+- **P2 partially fixed (superseded by FIXM100P2A2 below)** — `actionGrants.ts:216`, `:251`, `:258` keeps the attestation
   bound to one dispatch's full identity and payload digest throughout policy
   checks. Every check still evaluates the current receiver intersection,
   action digest, grant revision and freshness. Standalone `admit` retains its
@@ -731,7 +731,8 @@ inference spend **0**. No dependency, contract envelope, gate or budget change.
   `finishAdmission`; `:570` spends it before `lease.start`, and `:590` spends
   it on every terminal admission path. `actionGrants.test.ts:249` drives real
   `DeviceReceiver.dispatch` with real binding and fake connect/program/actuate:
-  one start, spent at start, second dispatch typed `step-up-required`. `:277`
+  one mocked start, spent before start, second dispatch typed `step-up-required`.
+  That mock skipped `boundary.beforeAction()`; this receipt did not prove launch. `:277`
   refuses another in-flight id or dispatch payload, `:306` proves terminal
   ordinary denial spends it, and `:318` refuses changed action bytes then
   refuses reuse of the restored payload after the attempt ends.
@@ -865,7 +866,74 @@ no Node import reader beyond lane A's already recorded two changes. Inventory
 facts remain **366 VS Code APIs**, **43 VS Code-importing files**, **28 Node
 built-ins**, **70 theme variables**. No shared generated record was edited here.
 
-All three review findings are fixed and all final owning verification passes.
+P1 and P3 are fixed; the first P2 repair passes its mocked-start tests but
+does not prove the real start contract (see FIXM100P2A2 below).
 The inventory refresh, joined CHANGELOG/docs and aggregate `npm run quality`
 remain lane W's explicit ownership under `M100P2-common.md` and the PLAN.md
 phase-2 table. No merge, push, rebase, live call or paid call was made.
+
+### Lane A second review repair — FIXM100P2A2 (2026-10-07, linuxlt)
+
+Brief: `FIXM100P2A2.rig.md`; shared rules: `M100P2-common.md`. Base
+`cd8913a7e`, branch `m100/p2-a-fix2`; review `RVM100P2AB.report.md` P2.
+The first repair's P2 certification is superseded: its mocked start omitted
+the execution contract's `boundary.beforeAction()` and did not prove launch.
+
+Work plan (within the existing lane A admission region):
+
+1. Correct dispatch regressions to retain the real execution-fixture start;
+   run them on the unchanged base and record failures at default deadlines.
+2. Keep the identity/digest-bound attestation through every start check; spend
+   after start succeeds or admission settles without starting. Prove one
+   launch, replay refusal, changed-payload refusal and failed-start consumption.
+3. Break the lifecycle guard, observe assertion failures and restore byte-exact.
+4. Commit with hooks, then verify committed source in a fresh `npm ci` clone:
+   all four suites three times, five typechecks and required scoped gates.
+5. Record final receipts and W-owned blockers, reread post-hook diffs and commit.
+
+Status: steps 1–3 complete; committed-source fresh-clone verification next.
+Base source `cd8913a7e`: **6 failed / 85 passed**, exit **1**. Restored
+fixed owning suites: **91 passed**, exit **0**. Every test uses the repository
+deadline; no timeout override. A duplicated assertion block was extracted
+into `expectSingleLaunch`; all assertions remain, duplication **0 clones**. No wire shape, gate, cap, dependency,
+user-visible text or shared region changes planned; live/paid attempts **0**.
+
+#### P2 lifecycle and regression proof
+
+`DeviceReceiver.dispatch` now calls `finishAdmission` after `lease.start`
+succeeds, before the running-state journal advance; its terminal `finally`
+still spends a bound approval on every non-starting exit. The existing
+identity plus dispatch-payload-digest key covers all checks in that one
+start contract. Each check retains fresh intersection, action digest, grant
+revision and time validation. No new owner abstraction or wire change is needed.
+
+The corrected `RVM100P2A-P2 confirms exactly one %s dispatch` tests use
+the unchanged execution fixture's real start, including its own
+`boundary.beforeAction()`, for connect/program/actuate: outcome running,
+`launches === 1`, replay `step-up-required`, and another post-start action
+boundary refused. Both in-flight identity/payload tests also retain real
+start and assert one launch. The changed-action-payload test still refuses
+and spends that attempt. New `RVM100P2AB-P2 spends a bound attestation when
+the real start boundary denies approval` reaches the fourth ordinary approval
+inside real start, refuses with retained `uncertain` reservation, launches
+zero times and proves terminal consumption. No start override remains in
+these tests.
+
+Final tests replayed on `cd8913a7e` source: **6 failed / 85 passed**, exit
+**1** (three physical classes, two in-flight binding tests, one real-start
+denial). Receipt: `/tmp/fixm100p2a2-receipts/base-final.log`.
+
+| Deliberate lifecycle break         | Exit | Assertion failures                                     |
+| ---------------------------------- | ---- | ------------------------------------------------------ |
+| Spend before real `lease.start`    | 1    | 6 failed / 2 passed; outcome or fourth approval absent |
+| Remove terminal spend in `finally` | 1    | 2 failed; denied attempts wrongly retain approval      |
+
+Drills selected only the relevant regression names; full verification uses
+unfiltered suites. Sources restored byte-exact after every base/drill run:
+
+- `src/core/devices/actionGrants.ts`: `ea853c03c09ae319b774d36012cda148785c1ad33c4b7b7b90eb37f03ceb86f0`
+- `src/host/devices/deviceReceiver.ts`: `5c10059e498540c8c7bd371da72a9afda9452936444ca1e84eecb5ad150651a9`
+
+Receipts: `/tmp/fixm100p2a2-receipts/drills.json`, `drill-early-spend.log`,
+`drill-terminal-spend.log`. All use `CI=true`, at most three workers and
+repository default timeouts. No scope, dependency, threshold or cap changes.

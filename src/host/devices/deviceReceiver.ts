@@ -63,7 +63,7 @@ export interface DeviceReceiverPolicy {
   assertAllowed(request: DeviceDispatch): Promise<void>
   /** Local ordinary approval; pairing/remote approval never substitutes for this. */
   approve(request: DeviceDispatch): Promise<boolean>
-  /** Spend a bound step-up before launch, or on any terminal admission path. */
+  /** Spend a bound step-up after start succeeds, or on any terminal admission path. */
   finishAdmission?(request: DeviceDispatch): void
   readonly paidGate: Pick<PaidFeatureGate, 'isOn'>
   readonly paidConsent: Pick<PaidUseConsent, 'allows'>
@@ -567,8 +567,9 @@ export class DeviceReceiver implements DeviceExecutionPort {
             Date.now(),
           )
           await boundary.beforeAction()
-          this.policy.finishAdmission?.(request)
           await this.waitForControl(pending.control.signal, () => lease.start(boundary))
+          // Start owns a final policy boundary; keep this attempt attested through it.
+          this.policy.finishAdmission?.(request)
           const outcome = await this.journal.advance(
             request.identity,
             (previous) => ({ ...previous, revision: previous.revision + 1, state: 'running' }),

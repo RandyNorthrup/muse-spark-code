@@ -254,7 +254,7 @@ export class DeviceActionGrants implements DeviceActionGrantPort {
   ): Promise<DeviceGrant | DeviceGrantRefusal> {
     return this.admission(input, attemptKey(attempt))
   }
-  /** Spend the admission at the launch boundary, or when a dispatch ends without starting. */
+  /** Spend after the start contract succeeds, or when a dispatch ends without starting. */
   public finishAttempt(attempt: ActionAttempt): void {
     const key = attemptKey(attempt)
     for (const record of this.attestations.values()) {

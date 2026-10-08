@@ -55,6 +55,15 @@ async function confirmedReceiverFixture(operation: 'connect' | 'program' | 'actu
   return { ...local, action: f }
 }
 
+async function expectSingleLaunch(local: Awaited<ReturnType<typeof confirmedReceiverFixture>>) {
+  expect(await responseBody(local.receiver.dispatch(local.request))).toMatchObject({
+    kind: 'outcome',
+    outcome: { state: 'running' },
+  })
+  expect(local.lease.start).toHaveBeenCalledOnce()
+  expect(local.fixture.launches).toBe(1)
+}
+
 describe('receiver intersection', () => {
   it('refuses admission past the receiver intersection', async () => {
     const { grants, request, state } = actionGrantFixture()
@@ -248,17 +257,16 @@ describe('receiver step-up', () => {
   it.each(['connect', 'program', 'actuate'] as const)(
     'RVM100P2A-P2 confirms exactly one %s dispatch through the real binding',
     async (operation) => {
-      const { request, lease, bound, receiver } = await confirmedReceiverFixture(operation)
-      lease.start.mockImplementation(async () => {
-        await expect(bound.assertAllowed(request)).rejects.toMatchObject({
-          refusal: { reason: 'step-up-required' },
-        })
+      const local = await confirmedReceiverFixture(operation)
+      const { request, lease, bound, receiver, fixture } = local
+      await expectSingleLaunch(local)
+      await expect(bound.assertAllowed(request)).rejects.toMatchObject({
+        refusal: { reason: 'step-up-required' },
       })
-      expect(await responseBody(receiver.dispatch(request))).toMatchObject({
-        kind: 'outcome',
-        outcome: { state: 'running' },
+      if (fixture.boundary === undefined) throw new Error('missing boundary')
+      await expect(fixture.boundary.beforeAction()).rejects.toMatchObject({
+        refusal: { reason: 'step-up-required' },
       })
-      expect(lease.start).toHaveBeenCalledOnce()
       const second = signedDispatch({
         ...request,
         identity: { ...request.identity, attemptId: '0'.repeat(DEVICE_LIMITS.idChars) },
@@ -271,12 +279,14 @@ describe('receiver step-up', () => {
         refusal: { reason: 'step-up-required' },
       })
       expect(lease.start).toHaveBeenCalledOnce()
+      expect(fixture.launches).toBe(1)
     },
   )
   it.each(['identity', 'dispatch-payload'])(
     'RVM100P2A-P2 binds the in-flight attestation to its %s',
     async (change) => {
-      const { policy, request, lease, bound, receiver } = await confirmedReceiverFixture()
+      const local = await confirmedReceiverFixture()
+      const { policy, request, bound } = local
       const other = signedDispatch(
         change === 'identity'
           ? {
@@ -295,12 +305,7 @@ describe('receiver step-up', () => {
         })
         return true
       })
-      lease.start.mockImplementation(() => Promise.resolve())
-      expect(await responseBody(receiver.dispatch(request))).toMatchObject({
-        kind: 'outcome',
-        outcome: { state: 'running' },
-      })
-      expect(lease.start).toHaveBeenCalledOnce()
+      await expectSingleLaunch(local)
     },
   )
   it('RVM100P2A-P2 spends a bound attestation when ordinary approval ends the attempt', async () => {
@@ -311,6 +316,20 @@ describe('receiver step-up', () => {
       reason: 'approval-required',
     })
     expect(lease.start).not.toHaveBeenCalled()
+    await expect(bound.assertAllowed(request)).rejects.toMatchObject({
+      refusal: { reason: 'step-up-required' },
+    })
+  })
+  it('RVM100P2AB-P2 spends a bound attestation when the real start boundary denies approval', async () => {
+    const { policy, request, lease, bound, receiver, fixture } = await confirmedReceiverFixture()
+    policy.approve.mockImplementation(() => Promise.resolve(policy.approve.mock.calls.length <= 3))
+    expect(await responseBody(receiver.dispatch(request))).toEqual({
+      kind: 'failure',
+      reason: 'uncertain',
+    })
+    expect(policy.approve).toHaveBeenCalledTimes(4)
+    expect(lease.start).toHaveBeenCalledOnce()
+    expect(fixture.launches).toBe(0)
     await expect(bound.assertAllowed(request)).rejects.toMatchObject({
       refusal: { reason: 'step-up-required' },
     })
