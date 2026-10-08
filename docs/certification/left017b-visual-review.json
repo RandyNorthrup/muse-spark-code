@@ -1,16 +1,21 @@
 {
-  "review": "LEFT017B-integrated-review-2026-10-08",
-  "revision": "58a8552a154ba5a2f43a73b1e18f1fbd8b242116",
-  "manifestSha256": "89686b19529b09876e0669acc799c7bf83ae67e1f95dddf3aee8a0b62f61de76",
+  "review": "LEFT017D-integrated-review-2026-10-08",
+  "revision": "0d354eac0da880bbfc8443c0bddd7d039689ef95",
+  "manifestSha256": "9cf87fcfb02c1cc1515b3082173af7c9fcbefb3f72157ffdd2490c2ac5bcbce1",
   "captures": 9792,
-  "uniqueImages": 5298,
-  "archiveBytes": 446522789,
-  "externalArchive": "/var/tmp/l-LEFT017B/left017b-complete",
+  "uniqueImages": 5363,
+  "archiveBytes": 446821642,
+  "externalArchive": "/var/tmp/l-LEFT017D/left017d-final",
   "browser": "153.0.8010.52",
   "rasterization": "a8de1ddfb6e62687899116825ad89f19166af18efdb086980f1c0e365c739033",
   "platform": "linux",
   "coverage": ["136 scenes", "6 themes", "320 and 690 pixels", "6 states", "184 renderer inputs"],
-  "method": "Every current PNG decoded and SHA-256 indexed. Every unique image viewed on labelled full-viewport contact sheets; byte-identical frames link to the same inspected image. Selected narrow/focus frames also viewed at original dimensions. No full PNGs tracked.",
+  "previousReview": "LEFT017B-integrated-review-2026-10-08",
+  "changedSincePreviousReview": {
+    "frames": 2375,
+    "uniqueImages": 1379
+  },
+  "method": "Regenerated with the repository generator in real headless Chrome on Linux. Every current PNG SHA-256 indexed. Each frame is bound to the labelled sheet that showed its exact bytes: unchanged LEFT017B sheets, or new LEFT017D sheets covering every distinct image not shown before. One Dark Pro and Dracula focus/boundary frames were also viewed at original size. No full PNGs tracked.",
   "contactSheets": [
     {
       "file": "0000.png",
@@ -87,14 +92,6 @@
     {
       "file": "0009.png",
       "sha256": "9d3c087ec97bdf302f7515870832a7d0f2544a33040baac2286c13aadaa91212",
-      "width": 1344,
-      "height": 2016,
-      "frames": 42,
-      "review": "Reviewed all cells: estimator, Help, legal, media and Models controls fit; Models narrow actions wrap; mapped wizard and picker descendants show; long tables/forms retain scroll."
-    },
-    {
-      "file": "0010.png",
-      "sha256": "52719ed546ee9d736492769c08ae604ff77814b7c12f34c6c89175ceb00e3d54",
       "width": 1344,
       "height": 2016,
       "frames": 42,
@@ -1037,14 +1034,6 @@
       "review": "Dracula markdown/media/provider forms: honest unavailable/error state, controls bounded."
     },
     {
-      "file": "0129.png",
-      "sha256": "655923e21df3e57b1374494c5658e547dd6f34550eda70e4b7df75814f57f7dd",
-      "width": 1344,
-      "height": 2016,
-      "frames": 42,
-      "review": "Dracula Models/picker/table: narrow action rows wrap; foreground rings clear, F2 border roles retained."
-    },
-    {
       "file": "0130.png",
       "sha256": "8b73cd8a46e3d2b4c5ad644a6160a2fb03c0d8bc49f28ece961d57e6e64c0de3",
       "width": 1344,
@@ -1163,6 +1152,342 @@
       "height": 2016,
       "frames": 34,
       "review": "Dracula 690px vault/verify/tasks/update: real details present, footer and highlights fit."
+    },
+    {
+      "file": "d0000.png",
+      "sha256": "27cb502b3b710939668b9163bb398757a6909bc2b0a2a4c0d5dddf3204d35904",
+      "width": 1344,
+      "height": 2016,
+      "frames": 102,
+      "review": "Accounts edit/swap: token focus ring visible in all themes; picker boundary clear in Dracula (purple), faint in One Dark Pro (R1); no overlap, long forms scroll."
+    },
+    {
+      "file": "d0001.png",
+      "sha256": "0f3b696ceb4d3ed50b23d754a01ee4078d3a815ccd3add43310e43e7482ec266",
+      "width": 1344,
+      "height": 2016,
+      "frames": 62,
+      "review": "Accounts thresholds: fieldset boundaries and token focus ring visible; One Dark Pro faint (R1). Agents details: rasterization noise only, layout unchanged."
+    },
+    {
+      "file": "d0002.png",
+      "sha256": "e5d544caccca112d7f0f271163073caacb2d283b9c896323c420410e58e20664",
+      "width": 1344,
+      "height": 2016,
+      "frames": 65,
+      "review": "Agents, approvals, best-of-N, chat sharing: rasterization noise only (at most 2 pixels over 10% delta); layouts, wrapping and focus unchanged."
+    },
+    {
+      "file": "d0003.png",
+      "sha256": "c92a83fce8a1809e9e9878b17ca32415da72368ac8d2928ed78489c0263b9aad",
+      "width": 1344,
+      "height": 2016,
+      "frames": 62,
+      "review": "Chat sharing, tool menu, chips, column, context meter, deferred popover, diff tally: noise only; deferred-popover hover shows its deferred Loading fallback exactly as the LEFT017B receipt did."
+    },
+    {
+      "file": "d0004.png",
+      "sha256": "0836a729b558e5d4873c54c5ae7a7c9ef167490038b7176f7644266533b7d0eb",
+      "width": 1344,
+      "height": 2016,
+      "frames": 47,
+      "review": "Diff tally, elicitation, git PR: noise only; narrow forms wrap and focus stays visible."
+    },
+    {
+      "file": "d0005.png",
+      "sha256": "4d732ad851a1b6a1a16c9dc9be3fdb39a24608e899b8935827bffa63425f35a1",
+      "width": 1344,
+      "height": 2016,
+      "frames": 70,
+      "review": "Goal, handoff, help, history, judge, legal, media controls, Models configure: noise only except Models configure (token boundary/focus; One Dark Pro R1)."
+    },
+    {
+      "file": "d0006.png",
+      "sha256": "2517e48d161ebc217d06a5207ab2494dc0bd7e3b96eb13fae586b85d0a8ce723",
+      "width": 1344,
+      "height": 2016,
+      "frames": 78,
+      "review": "Models configure/credential: Dracula card and button boundaries clear; token focus ring on Back/Providers visible in all themes; One Dark Pro buttons read as bare labels (R1); narrow actions wrap."
+    },
+    {
+      "file": "d0007.png",
+      "sha256": "5bced49af60c840e323cee0812cf9aa0d89c135a7f89ac7b17bedb7ffd85e4f6",
+      "width": 1344,
+      "height": 2016,
+      "frames": 150,
+      "review": "Models credential/errors/models: token focus and Dracula boundaries visible; error notice readable; One Dark Pro boundary faint (R1); no clipping at 320."
+    },
+    {
+      "file": "d0008.png",
+      "sha256": "43724a7a64e5a75d0b178b8704f8bd1d68c9a296b130fd23a5e0543e25422f1b",
+      "width": 1344,
+      "height": 2016,
+      "frames": 69,
+      "review": "Models models/pick: provider pick pills, select list and focus ring visible in all themes; One Dark Pro boundary faint (R1)."
+    },
+    {
+      "file": "d0009.png",
+      "sha256": "2cc6e4f1d8924fa7ec068b0c2eedce73d33147e01a1a20c6a27f08480f56868b",
+      "width": 1344,
+      "height": 2016,
+      "frames": 76,
+      "review": "Models pick/providers/scanning: Refresh models focus ring clear in all themes; Dracula boundaries clear; One Dark Pro faint (R1)."
+    },
+    {
+      "file": "d0010.png",
+      "sha256": "154e133e3d7ad7e42994a9e017d20f5f150a50734a1cd492e4890dd681d3f348",
+      "width": 1344,
+      "height": 2016,
+      "frames": 79,
+      "review": "Models scanning/suggestions: Cancel/Accept/Change and focus ring visible; suggestion card fits at 320; One Dark Pro faint (R1)."
+    },
+    {
+      "file": "d0011.png",
+      "sha256": "1fc0c8b1ea70fc140d196a9995e922b3c059f856d92ecff71eba01bc80d23074",
+      "width": 1344,
+      "height": 2016,
+      "frames": 53,
+      "review": "Models suggestions/table: table reflows to cards at 320 and stays dense at 690; search field focus ring visible; One Dark Pro faint (R1)."
+    },
+    {
+      "file": "d0012.png",
+      "sha256": "968536e2fb2b85b0818d9e12324be402b6014ebeef2243c0c221f872bce35fbb",
+      "width": 1344,
+      "height": 2016,
+      "frames": 88,
+      "review": "Models table/test-cost/undo: cost notice and undo bar readable; token focus ring visible; One Dark Pro faint (R1)."
+    },
+    {
+      "file": "d0013.png",
+      "sha256": "8b2eda8d4f8e1b0b37ca9dec8a06d1e93564bb18f4bd40314885b65de3f4ea3f",
+      "width": 1344,
+      "height": 2016,
+      "frames": 48,
+      "review": "Models undo: Undo focus ring visible in all themes. Chat models menu and muse-shell: noise only."
+    },
+    {
+      "file": "d0014.png",
+      "sha256": "92b41c61dbb708e0e50998d9d20658f6a3b8d3254442905fd9933dc34c1aeb71",
+      "width": 1344,
+      "height": 2016,
+      "frames": 46,
+      "review": "Muse shell, workflow map, paid-always: noise only; account dialog facts present, layouts unchanged."
+    },
+    {
+      "file": "d0015.png",
+      "sha256": "794d42260db07686b2255d8b3d82bcb0c30cb538c85100e7da9e2c53c73fa1f9",
+      "width": 1344,
+      "height": 2016,
+      "frames": 61,
+      "review": "Paid usage, plan usage, prompt library, question-filled: noise only. Palette 320: raced focus-scroll offset (superseded by the settled-scroll capture); list, filter and composer within viewport."
+    },
+    {
+      "file": "d0016.png",
+      "sha256": "5483b5fca9456f3661b4d05344699cd055760a68879a7f64394259031f1acd35",
+      "width": 1344,
+      "height": 2016,
+      "frames": 46,
+      "review": "Question and question-filled: noise only; choices, input and Submit/Explain/Cancel visible, narrow forms wrap."
+    },
+    {
+      "file": "d0017.png",
+      "sha256": "4247a8cb8c8df133fed282a0b62ee831c31b8c24fc809d238b8e8f013dc6b4e0",
+      "width": 1344,
+      "height": 2016,
+      "frames": 73,
+      "review": "Question/questions-open noise only. Quote menu: settled pills open at the selected passage and stay within the viewport at 320/690 in every theme; focus and hover visible."
+    },
+    {
+      "file": "d0018.png",
+      "sha256": "97d2a9d6e7f3f537665493fd38c0a59c4fcfacfaf94f81143cbf0d6eac8539e2",
+      "width": 1344,
+      "height": 2016,
+      "frames": 55,
+      "review": "Quote menu settled. Reporting page: token focus ring on Show report clear in all six themes (F2 fixed). Report destinations, report dialogs, review comment/findings: noise only. Runners: secondary buttons."
+    },
+    {
+      "file": "d0019.png",
+      "sha256": "c05da257edc345c95a0db1cced10a6eddb7ea9538db1665700c4e60e117f6787",
+      "width": 1344,
+      "height": 2016,
+      "frames": 65,
+      "review": "Runners: Add runner/Test runners/Save/Cancel use the secondary-button role, field focus ring visible, One Dark Pro boundary faint (R1). Schedule action and schedules: noise only."
+    },
+    {
+      "file": "d0020.png",
+      "sha256": "0244960dc6c85cc7f67a77f01d09395407e2d2e6269497f9eef05420fb05dbb0",
+      "width": 1344,
+      "height": 2016,
+      "frames": 131,
+      "review": "Schedules editor/list/timeline, secret, setup preview: noise only. Share-narrow: settled highlighted code in most themes (raced frames superseded by the settled-highlight capture)."
+    },
+    {
+      "file": "d0021.png",
+      "sha256": "6ae21431048bed5074860c9521b18f391e974d0577e392aecca92b09eeb517e8",
+      "width": 1344,
+      "height": 2016,
+      "frames": 107,
+      "review": "Heartbeat, stop-running: noise only. Team cards at 320: noise only, but the merge card's path lists squeeze to per-character wrapping (pre-existing finding F4)."
+    },
+    {
+      "file": "d0022.png",
+      "sha256": "b7c7efb4b7600f4951c4ce12962c017bed66b640dc10d21ba0d27707efe7b51e",
+      "width": 1344,
+      "height": 2016,
+      "frames": 54,
+      "review": "Team traffic hints: Open that window buttons use the secondary-button role; token focus ring clear in all themes; selected tab keeps the accent; One Dark Pro fill faint (R1)."
+    },
+    {
+      "file": "d0023.png",
+      "sha256": "24d997e6f3176551e09a0762332f8f38b9417594be6ca7060e1322be32250e56",
+      "width": 1344,
+      "height": 2016,
+      "frames": 75,
+      "review": "Team traffic hints/recovery: Continue here/Open that window/Take over/Stop process secondary buttons with visible focus; checkbox focus visible; narrow rows wrap."
+    },
+    {
+      "file": "d0024.png",
+      "sha256": "eb6d9d6169def529b1a48bc4d7aa4eaf82af8e1f688876a25fa663a73ec0f6d4",
+      "width": 1344,
+      "height": 2016,
+      "frames": 55,
+      "review": "Team traffic task board: Run next/Hold/Release/Cancel task draw as secondary buttons (fixed traffic finding); focus ring clear; selected tab accent kept; One Dark Pro fill faint (R1)."
+    },
+    {
+      "file": "d0025.png",
+      "sha256": "864d77d47144177b7d392bc60cd7736edac2d1474ae7db95767cfc9d34cc555e",
+      "width": 1344,
+      "height": 2016,
+      "frames": 73,
+      "review": "Team traffic and traffic conflicts: Serialize/Let both run secondary buttons with focus ring; team tree and tools-open noise only."
+    },
+    {
+      "file": "d0026.png",
+      "sha256": "06bcd3cae01a9ef8b65c12e67b1e337c7c54916c0968417780690f4e0c7e3080",
+      "width": 1344,
+      "height": 2016,
+      "frames": 120,
+      "review": "Traffic conflicts/lanes/leases: lane meters intact; Take back/Restart server/Release anyway secondary buttons with focus ring; selected tab accent kept."
+    },
+    {
+      "file": "d0027.png",
+      "sha256": "85f7689c356f5c424d2aa52463c764a6031479592e6c0fbcaf75ad7de113eba4",
+      "width": 1344,
+      "height": 2016,
+      "frames": 80,
+      "review": "Traffic leases/merge queue: Retry/Remove/Land now/Clean up secondary buttons wrap at 320 with visible focus; usage-api noise only."
+    },
+    {
+      "file": "d0028.png",
+      "sha256": "c5316d84e69cd67beed4cee7ec37a0996d1111d4840303903427568f56e26fdb",
+      "width": 1344,
+      "height": 2016,
+      "frames": 73,
+      "review": "Usage api/providers/steps/tokens noise only. Usage dialog: raced frames without account facts (superseded by the settled-facts capture)."
+    },
+    {
+      "file": "d0029.png",
+      "sha256": "ba76a9d7f40ca14d5cbe1a033d403aad7388d4acd2e60784af6d34121044ffd5",
+      "width": 1344,
+      "height": 2016,
+      "frames": 74,
+      "review": "Usage dialog raced frames (superseded); vault approval/grant, verify, tasks tab: noise only."
+    },
+    {
+      "file": "d0030.png",
+      "sha256": "91939a73fcfbff522be5196c77819808ee1a6dad3c6356e3a309d008cd86fcdc",
+      "width": 1344,
+      "height": 2016,
+      "frames": 27,
+      "review": "Tasks tab and What's New highlights: noise only; Move into new window focus visible, highlights wrap at 320."
+    },
+    {
+      "file": "e0000.png",
+      "sha256": "074b84694784079725af756f90b105b86656fb961d82a2efc585ad2068c1976b",
+      "width": 1344,
+      "height": 2016,
+      "frames": 51,
+      "review": "Approvals, sharing, tool menu, column, context meter, deferred popover, diff tally, elicitation, goal, handoff: rasterization noise only (at most 5 pixels over 10% delta); layouts and focus unchanged."
+    },
+    {
+      "file": "e0001.png",
+      "sha256": "fcc1488329f751218547d1d1ce8032a1125ba76fd318121492ad3628743d54de",
+      "width": 1344,
+      "height": 2016,
+      "frames": 111,
+      "review": "Handoff, help, history, judge, legal, markdown noise only. Models configure/credential/errors: token focus ring visible, Dracula boundaries clear, One Dark Pro boundary faint (R1); narrow actions wrap."
+    },
+    {
+      "file": "e0002.png",
+      "sha256": "1b718f9ce6204dcea5bb7ec561aee82388d4c7e9689cb362dce15742d4b5fde6",
+      "width": 1344,
+      "height": 2016,
+      "frames": 87,
+      "review": "Models errors/models/pick: provider cards, pick pills, select list and token focus ring visible in all themes; One Dark Pro boundary faint (R1)."
+    },
+    {
+      "file": "e0003.png",
+      "sha256": "eee0de1d260b6c68c3ae1f635e2d59be63a1084408466db59c441a452ad1fc42",
+      "width": 1344,
+      "height": 2016,
+      "frames": 76,
+      "review": "Models suggestions/table/test-cost: table reflows to cards at 320, cost notice readable, token focus ring visible; One Dark Pro boundary faint (R1)."
+    },
+    {
+      "file": "e0004.png",
+      "sha256": "115c2d1fa86b29c4250ccccfd3cdaf30b1a3f5bb631abdb5301e40c17f545347",
+      "width": 1344,
+      "height": 2016,
+      "frames": 51,
+      "review": "Models test-cost, chat models menu, muse-shell, workflow map, paid-always: noise only. Palette: settled focus scroll, filter and list within viewport, selected row and focus visible."
+    },
+    {
+      "file": "e0005.png",
+      "sha256": "665db6a9635d5245be1bd2539e5afb8065798736b84c258794530f4cd3a70c8c",
+      "width": 1344,
+      "height": 2016,
+      "frames": 65,
+      "review": "Palette: settled focus scroll in all themes and states; filter focus ring and selected row visible, no clipping at 320. Question-filled: noise only."
+    },
+    {
+      "file": "e0006.png",
+      "sha256": "afb55c5ac1cacb048be5cb9e613e1e96a1c23e93dd2c75174d47310c5a97c0c1",
+      "width": 1344,
+      "height": 2016,
+      "frames": 88,
+      "review": "Questions, quote menu, review, schedules, secret, setup preview, heartbeat: noise only. Share-narrow: settled highlighted code, text wraps, Copy and close visible."
+    },
+    {
+      "file": "e0007.png",
+      "sha256": "8d8e0587ed7731bbc55f7464ed668324b69b3c289c72d4787915f65a05bc1f2f",
+      "width": 1344,
+      "height": 2016,
+      "frames": 73,
+      "review": "Stop-running, team cards, tools-open, traffic hints/merge queue: noise only; traffic secondary buttons and focus ring unchanged from the reviewed d-sheets."
+    },
+    {
+      "file": "e0008.png",
+      "sha256": "c8ce9edfa5e17f6fa9779b1ba04b115084a60256fc3c05a670d831d5b45f03f7",
+      "width": 1344,
+      "height": 2016,
+      "frames": 52,
+      "review": "Usage api/burn/limits/steps/tokens and usage page: noise only, focused charts keep their ring. Usage dialog: settled account facts (Auth method, Plan, Backend) present."
+    },
+    {
+      "file": "e0009.png",
+      "sha256": "be9030406ee8d01df5924f64b7bfae8a30a39a6445ac3ea7589fc6af1d4e6c55",
+      "width": 1344,
+      "height": 2016,
+      "frames": 74,
+      "review": "Usage dialog: settled account facts in every theme and state, narrow rows wrap. Vault approval/grant: noise only."
+    },
+    {
+      "file": "e0010.png",
+      "sha256": "c9c7720ba6b350685414bb4915f621a8f0b728cf171f780a0dc4fd17ba6a45c0",
+      "width": 1344,
+      "height": 2016,
+      "frames": 15,
+      "review": "Vault grant, verify, tasks tab: noise only; focus rings and Move into new window visible."
     }
   ]
 }
