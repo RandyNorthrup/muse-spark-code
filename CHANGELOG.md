@@ -15,6 +15,25 @@ happened, not what was planned; superseded entries are kept.
   muse, summed token counts, cascade facts); a side's other top-level or
   usage keys are never copied onto it.
 
+- Use the shared redactor's field-name rules in the experimental embedding
+  judge, preserving ordinary token counts, limits and non-secret `auth`
+  objects while still replacing values under real secret names.
+
+- Replace the experimental embedding judge's per-shape secret checks with one
+  path-taint walk: any recognized secret key redacts its entire value,
+  including nested objects, arrays, numbers and booleans. Retain inline
+  redaction and refusal of a recognizable final serialized payload.
+
+- Close the experimental embedding judge's input boundary: refuse executable
+  or non-JSON data before serialization, redact actual named string values,
+  and retain the final payload refusal before embedding dispatch. Refuse
+  inherited getters before parsing fallback fields.
+
+- Redesign the experimental embedding judge's asynchronous pipeline so Stop
+  also settles rejected full-judge calls. Scrub structured inputs before JSON
+  escaping, refuse malformed embedding batches and missing numeric components,
+  and retain the separately admitted embedding and fallback legs.
+
 - Integrate the repaired SystemOne and BYO judge libraries and the Judge panel
   on the 0.15.0 head. Share token protection, server startup and fixtures;
   expose explicit source assembly with generation fences and bounded wording;

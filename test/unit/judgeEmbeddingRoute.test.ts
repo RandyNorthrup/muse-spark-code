@@ -1,0 +1,990 @@
+// Fast-path routing guards for the embedding shortcut (M98 phase 2, lane I).
+// Fakes and synthetic fixtures only; no live, paid or local model calls.
+
+import { describe, expect, it, vi } from 'vitest'
+import * as redactor from '../../src/core/redact'
+import {
+  runEmbeddingJudge,
+  type EmbeddingRouteDependencies,
+  type EmbeddingSource,
+} from '../../src/core/judge/embedding/route'
+import { JUDGE_EMBED_FALLBACK_CONFIDENCE, REDACTED_MARK } from '../../src/shared/constants'
+import type { JudgeOutcome, JudgeRequest } from '../../src/core/judge/schema'
+import { embeddingHeadDigest, type EmbeddingHead } from '../../src/core/judge/embedding/schema'
+import {
+  abortingFallbackFixture,
+  captureEmbedInputs,
+  confidentVectors,
+  noulRequest,
+  routeDependencies,
+  trainedHead,
+} from './judgeEmbeddingFixtures'
+
+const options = { optedIn: true, confidential: false }
+const signal = (): AbortSignal => new AbortController().signal
+
+/** The same state and instructions under one binary framing. */
+function framed(criteria: { true: string; false: string }): JudgeRequest {
+  return {
+    state: noulRequest.state,
+    questions: { risk: { type: 'noul', instructions: 'Can it destroy data?', criteria } },
+  }
+}
+
+/**
+ * A fallback answer after the embedding leg spent: 40 full-judge tokens
+ * beside 12 embedding tokens, with the summed reserved and settled dollars.
+ */
+function expectMergedFallback(
+  outcome: JudgeOutcome,
+  reservedCostUsd: number,
+  settledCostUsd: number,
+): void {
+  expect(outcome.outcome).toBe('answered')
+  if (outcome.outcome !== 'answered') throw new Error('expected fallback')
+  expect(outcome.result.usage).toMatchObject({ input_tokens: 52, output_tokens: 1 })
+  const meta = outcome.result.muse['risk']
+  expect(meta?.reservedCostUsd).toBeCloseTo(reservedCostUsd)
+  expect(meta?.settledCostUsd).toBeCloseTo(settledCostUsd)
+  expect(meta?.uncertainCostUsd).toBe(0)
+}
+
+/** The input was refused before embedding; the allowed full judge answered. */
+function expectRefusedEmbedding(
+  outcome: JudgeOutcome,
+  embed: ReturnType<typeof vi.fn>,
+  fallbackCalls: readonly JudgeRequest[],
+): void {
+  expect(outcome.outcome).toBe('answered')
+  if (outcome.outcome !== 'answered') throw new Error('expected fallback')
+  expect(outcome.result.muse['risk']?.technique).toBe('stated')
+  expect(embed).not.toHaveBeenCalled()
+  expect(fallbackCalls).toHaveLength(1)
+}
+
+/** The full judge answered; the embedding leg spent nothing and ran nothing. */
+async function expectQuietFallback(
+  deps: EmbeddingRouteDependencies,
+  fallbackCalls: JudgeRequest[],
+  embed: ReturnType<typeof vi.fn>,
+  claims: readonly unknown[],
+): Promise<void> {
+  const outcome = await runEmbeddingJudge(noulRequest, options, deps, signal())
+  expect(outcome.outcome).toBe('answered')
+  if (outcome.outcome !== 'answered') throw new Error('expected the full judge')
+  expect(outcome.result.muse['risk']?.technique).toBe('stated')
+  expect(fallbackCalls).toHaveLength(1)
+  expect(embed).not.toHaveBeenCalled()
+  expect(claims).toHaveLength(0)
+}
+
+describe('embedding fast path', () => {
+  it('answers from the head with its own reservation when confident', async () => {
+    const { deps, fallbackCalls, claims, embed } = routeDependencies({
+      source: { embed: () => Promise.resolve(confidentVectors) },
+    })
+    const outcome = await runEmbeddingJudge(noulRequest, options, deps, signal())
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') throw new Error('expected an answer')
+    const meta = outcome.result.muse['risk']
+    expect(meta?.technique).toBe('embedding')
+    expect(meta?.label).toBe('uncalibrated')
+    expect(meta?.partial).toBe(false)
+    expect(meta?.confidence).toBeGreaterThanOrEqual(JUDGE_EMBED_FALLBACK_CONFIDENCE)
+    expect(outcome.result.answers['risk']).toMatchObject({ type: 'noul' })
+    expect(embed).toHaveBeenCalledTimes(1)
+    expect(fallbackCalls).toHaveLength(0)
+    expect(claims).toEqual([{ inputTokens: 12, uncachedCostUsd: 0.0002 }])
+    expect(meta?.reservedCostUsd).toBe(0.0002)
+  })
+
+  it('refuses without an allowed full source and spends nothing', async () => {
+    const { deps, claims, embed } = routeDependencies()
+    const outcome = await runEmbeddingJudge(
+      noulRequest,
+      options,
+      { ...deps, fallback: undefined },
+      signal(),
+    )
+    expect(outcome).toEqual({ outcome: 'no-answer', reason: 'source-unavailable' })
+    expect(embed).not.toHaveBeenCalled()
+    expect(claims).toHaveLength(0)
+  })
+
+  it.each([
+    ['model', { model: 'other-model' }],
+    ['provider', { providerId: 'other-provider' }],
+    ['family', { family: 'skill.fit' }],
+  ])('falls back on a head bound to another %s without embedding', async (_case, changed) => {
+    const head = trainedHead()
+    // Re-digest so the head verifies: only the source binding may refuse it.
+    const rebound = { ...head, identity: { ...head.identity, ...changed } }
+    const { deps, fallbackCalls, claims, embed } = routeDependencies({
+      head: { ...rebound, digest: embeddingHeadDigest(rebound) },
+    })
+    await expectQuietFallback(deps, fallbackCalls, embed, claims)
+  })
+
+  it.each([
+    ['prompt', { promptVersion: 'prompt-2' }],
+    ['criteria', { criteriaVersion: 'criteria-2' }],
+    ['fit', { fitVersion: 'fit-2' }],
+  ])(
+    'falls back on a head from an obsolete %s version without embedding',
+    async (_case, changed) => {
+      // The head is current (prompt-1/criteria-1/fit-1); only the request's
+      // newer versions may refuse it.
+      const { deps, fallbackCalls, claims, embed } = routeDependencies({
+        ...changed,
+        source: { embed: () => Promise.resolve(confidentVectors) },
+      })
+      await expectQuietFallback(deps, fallbackCalls, embed, claims)
+    },
+  )
+
+  it('falls back on a head whose dimension disagrees with its weights', async () => {
+    const head = trainedHead()
+    const { deps, fallbackCalls, claims, embed } = routeDependencies({
+      head: { ...head, identity: { ...head.identity, dimension: 4 } },
+    })
+    await expectQuietFallback(deps, fallbackCalls, embed, claims)
+  })
+
+  it('falls back on corrupt weights without embedding', async () => {
+    const head = trainedHead()
+    const { deps, fallbackCalls, claims, embed } = routeDependencies({
+      head: { ...head, bias: head.bias + 10 },
+    })
+    await expectQuietFallback(deps, fallbackCalls, embed, claims)
+  })
+
+  it('falls back below the confidence floor and reserves each leg separately', async () => {
+    const { deps, fallbackCalls, fallbackClaims, claims, embed } = routeDependencies({
+      source: { embed: () => Promise.resolve([[0.5, 0.5, 0.5]]) },
+    })
+    const outcome = await runEmbeddingJudge(noulRequest, options, deps, signal())
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') throw new Error('expected fallback')
+    expect(outcome.result.muse['risk']?.technique).toBe('stated')
+    expect(embed).toHaveBeenCalledTimes(1)
+    expect(fallbackCalls).toHaveLength(1)
+    expect(claims).toEqual([{ inputTokens: 12, uncachedCostUsd: 0.0002 }])
+    expect(fallbackClaims).toEqual([{ inputTokens: 40, uncachedCostUsd: 0.001 }])
+  })
+
+  it('falls back whole on a choice question the head cannot answer', async () => {
+    const { deps, fallbackCalls, claims, embed } = routeDependencies()
+    const choice = {
+      state: noulRequest.state,
+      questions: {
+        pick: { type: 'choice', instructions: 'Pick one', criteria: { A: 'x', B: 'y' } },
+      },
+    } as const
+    const outcome = await runEmbeddingJudge(choice, options, deps, signal())
+    expect(outcome.outcome).toBe('answered')
+    expect(fallbackCalls).toHaveLength(1)
+    expect(embed).not.toHaveBeenCalled()
+    expect(claims).toHaveLength(0)
+  })
+
+  it('falls back when not opted in and when cancelled or malformed', async () => {
+    const { deps, fallbackCalls, embed } = routeDependencies()
+    expect(
+      await runEmbeddingJudge(noulRequest, { ...options, optedIn: false }, deps, signal()),
+    ).toMatchObject({ outcome: 'answered' })
+    expect(fallbackCalls).toHaveLength(1)
+    expect(embed).not.toHaveBeenCalled()
+    const controller = new AbortController()
+    controller.abort()
+    expect(await runEmbeddingJudge(noulRequest, options, deps, controller.signal)).toEqual({
+      outcome: 'no-answer',
+      reason: 'cancelled',
+    })
+    expect(await runEmbeddingJudge({ questions: {} }, options, deps, signal())).toEqual({
+      outcome: 'no-answer',
+      reason: 'engine-failure',
+    })
+  })
+
+  it('falls back on a misbehaving embedding source', async () => {
+    const { deps, fallbackCalls, embed } = routeDependencies({
+      source: { embed: () => Promise.resolve([]) },
+    })
+    expect(await runEmbeddingJudge(noulRequest, options, deps, signal())).toMatchObject({
+      outcome: 'answered',
+    })
+    expect(fallbackCalls).toHaveLength(1)
+    expect(embed).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends each binary question complete with its criteria', async () => {
+    const { seen, embed } = captureEmbedInputs(confidentVectors)
+    const { deps } = routeDependencies({
+      source: { embed },
+    })
+    const forward = { true: 'the command destroys data', false: 'the command is safe' }
+    const reversed = { true: 'the command is safe', false: 'the command destroys data' }
+    for (const criteria of [forward, reversed]) {
+      const outcome = await runEmbeddingJudge(framed(criteria), options, deps, signal())
+      expect(outcome.outcome).toBe('answered')
+    }
+    expect(seen).toHaveLength(2)
+    // Reversed meanings never share an embedding input.
+    expect(seen[0]?.[0]).not.toBe(seen[1]?.[0])
+    expect(JSON.parse(seen[0]?.[0] ?? '')).toMatchObject({ criteria: forward })
+    expect(JSON.parse(seen[1]?.[0] ?? '')).toMatchObject({ criteria: reversed })
+  })
+
+  it('answers nothing when Stop aborts while admission waits', async () => {
+    const controller = new AbortController()
+    const { deps, fallbackCalls, embed } = routeDependencies({
+      admission: {
+        run: vi.fn(() => {
+          controller.abort()
+          return Promise.resolve({
+            reservedCostUsd: 0.0002,
+            settledCostUsd: 0.0002,
+            uncertainCostUsd: 0,
+          })
+        }),
+      },
+    })
+    expect(await runEmbeddingJudge(noulRequest, options, deps, controller.signal)).toEqual({
+      outcome: 'no-answer',
+      reason: 'cancelled',
+    })
+    expect(embed).not.toHaveBeenCalled()
+    expect(fallbackCalls).toHaveLength(0)
+  })
+
+  it('answers nothing when Stop aborts while embedding waits', async () => {
+    const controller = new AbortController()
+    const { deps, fallbackCalls } = routeDependencies({
+      source: {
+        embed: () => {
+          controller.abort()
+          return Promise.resolve(confidentVectors)
+        },
+      },
+    })
+    expect(await runEmbeddingJudge(noulRequest, options, deps, controller.signal)).toEqual({
+      outcome: 'no-answer',
+      reason: 'cancelled',
+    })
+    expect(fallbackCalls).toHaveLength(0)
+  })
+
+  it('answers nothing when Stop aborts while the pre-embedding fallback waits', async () => {
+    for (const shape of ['opted-out', 'mismatched-head'] as const) {
+      const controller = new AbortController()
+      const { calls, fallback } = abortingFallbackFixture(controller)
+      const { deps, claims, embed } = routeDependencies({
+        ...(shape === 'mismatched-head' && {
+          head: { ...trainedHead(), digest: '0'.repeat(64) },
+        }),
+        fallback,
+      })
+      const runOptions = shape === 'opted-out' ? { ...options, optedIn: false } : options
+      expect(await runEmbeddingJudge(noulRequest, runOptions, deps, controller.signal)).toEqual({
+        outcome: 'no-answer',
+        reason: 'cancelled',
+      })
+      // The late stated answer never publishes, and the embedding leg never ran.
+      expect(calls).toHaveLength(1)
+      expect(embed).not.toHaveBeenCalled()
+      expect(claims).toHaveLength(0)
+    }
+  })
+
+  it('answers nothing when Stop aborts while the fallback leg waits', async () => {
+    const controller = new AbortController()
+    const { calls, fallback } = abortingFallbackFixture(controller)
+    const { deps, claims, embed } = routeDependencies({
+      source: { embed: () => Promise.resolve([[0.5, 0.5, 0.5]]) },
+      fallback,
+    })
+    expect(await runEmbeddingJudge(noulRequest, options, deps, controller.signal)).toEqual({
+      outcome: 'no-answer',
+      reason: 'cancelled',
+    })
+    // The late stated answer never publishes, but the legs it really spent
+    // stay reserved on the ledger.
+    expect(calls).toHaveLength(1)
+    expect(embed).toHaveBeenCalledTimes(1)
+    expect(claims).toEqual([{ inputTokens: 12, uncachedCostUsd: 0.0002 }])
+  })
+
+  it('redacts named secrets in state, instructions and criteria before embedding', async () => {
+    const { seen, embed } = captureEmbedInputs(confidentVectors)
+    const { deps } = routeDependencies({
+      source: { embed },
+    })
+    const request: JudgeRequest = {
+      state: { command: 'synthetic command', note: 'password=opaque-state' },
+      questions: {
+        risk: {
+          type: 'noul',
+          instructions: 'check api_key=opaque-instructions before answering',
+          criteria: { true: 'runs client_secret=opaque-true', false: 'the command is safe' },
+        },
+      },
+    }
+    const outcome = await runEmbeddingJudge(request, options, deps, signal())
+    expect(outcome.outcome).toBe('answered')
+    expect(seen).toHaveLength(1)
+    const inputs = seen[0] ?? []
+    for (const input of inputs) {
+      expect(input).not.toContain('opaque-')
+      expect(input).toContain(REDACTED_MARK)
+    }
+  })
+
+  it('falls back to the full judge when the embedding call rejects', async () => {
+    const { deps, fallbackCalls, embed } = routeDependencies({
+      source: { embed: () => Promise.reject(new Error('fixture network failure')) },
+    })
+    const outcome = await runEmbeddingJudge(noulRequest, options, deps, signal())
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') throw new Error('expected the full judge')
+    expect(outcome.result.muse['risk']?.technique).toBe('stated')
+    expect(embed).toHaveBeenCalledTimes(1)
+    expect(fallbackCalls).toHaveLength(1)
+  })
+
+  it('refuses without fallback when admission rejects', async () => {
+    const { deps, fallbackCalls, embed } = routeDependencies({
+      admission: { run: () => Promise.reject(new Error('fixture over budget')) },
+    })
+    expect(await runEmbeddingJudge(noulRequest, options, deps, signal())).toEqual({
+      outcome: 'no-answer',
+      reason: 'engine-failure',
+    })
+    expect(embed).not.toHaveBeenCalled()
+    expect(fallbackCalls).toHaveLength(0)
+  })
+
+  it('keeps the embedding leg usage and cost in a fallback answer', async () => {
+    const { deps, embed } = routeDependencies({
+      source: { embed: () => Promise.resolve([[0.5, 0.5, 0.5]]) },
+    })
+    const outcome = await runEmbeddingJudge(noulRequest, options, deps, signal())
+    // The fixture fallback carries no cost; the embedding leg reserved $0.0002.
+    expectMergedFallback(outcome, 0.0002, 0.0002)
+    expect(embed).toHaveBeenCalledTimes(1)
+  })
+
+  it('adds both legs when the fallback reports its own cost', async () => {
+    const { deps } = routeDependencies({
+      source: { embed: () => Promise.resolve([[0.5, 0.5, 0.5]]) },
+      fallbackCosts: { reservedCostUsd: 0.001, settledCostUsd: 0.001, uncertainCostUsd: 0 },
+    })
+    const outcome = await runEmbeddingJudge(noulRequest, options, deps, signal())
+    // $0.001 of fallback beside $0.0002 of embedding leg.
+    expectMergedFallback(outcome, 0.0012, 0.0012)
+  })
+})
+
+type NestedData = string | number | boolean | null | NestedData[] | { [key: string]: NestedData }
+
+/** Alternate object/array ancestors without duplicating expected-payload builders. */
+function mixedNesting(value: NestedData, depth: number, isArrayFirst: boolean): NestedData {
+  let nested = value
+  for (let index = 0; index < depth; index += 1) {
+    nested = (index % 2 === 0) === isArrayFirst ? [nested] : { box: nested }
+  }
+  return nested
+}
+
+// Every named credential family in SECRET_RULES, including its generic environment
+// names. Provider account-id rules are privacy rules, not credential families.
+const secretNames = [
+  'AccountKey',
+  'SharedAccessKey',
+  'aws_secret_access_key',
+  'aws_session_token',
+  'api-key',
+  'x-api-key',
+  'apiKey',
+  'api_key',
+  'GITHUB_TOKEN',
+  'META_API_KEY',
+  'MODEL_API_KEY',
+  'access_token',
+  'refresh_token',
+  'id_token',
+  'client_secret',
+  'password',
+  'token',
+  'secret',
+  'passwd',
+  'private_key',
+  '_auth',
+  '_authToken',
+  'CUSTOM_SECRET',
+  'CUSTOM_PASSWORD',
+  'CUSTOM_PASSWD',
+  'CUSTOM_APIKEY',
+  'CUSTOM_ACCESS_KEY',
+  'CUSTOM_PRIVATE_KEY',
+  'CUSTOM_CREDENTIAL',
+  'CUSTOM_CREDENTIALS',
+]
+
+const opaqueMarker = 'opaque-nested-account'
+
+// Counts/limits and ordinary names the shared redactor leaves unchanged.
+const ordinaryNames = [
+  'inputTokens',
+  'max_output_tokens',
+  'max_tokens',
+  'completion_tokens',
+  'outputTokens',
+  'input_tokens',
+  'output_tokens',
+  'total_tokens',
+  'prompt_tokens',
+  'tokenCount',
+  'maxTokens',
+  'auth',
+  'npm_config_cache',
+]
+
+/** Verify dispatch redaction and the independently admitted full-judge leg. */
+async function expectTaintedState(
+  state: NestedData,
+  cleanState: NestedData,
+  head: EmbeddingHead,
+  isLowConfidence: boolean,
+): Promise<void> {
+  const request = { ...noulRequest, state }
+  const original = JSON.stringify(request)
+  const vectors = isLowConfidence ? [[0.5, 0.5, 0.5]] : confidentVectors
+  const { seen, embed } = captureEmbedInputs(vectors)
+  const { deps, fallbackCalls, fallbackClaims, claims } = routeDependencies({
+    head,
+    source: { embed },
+  })
+  const outcome = await runEmbeddingJudge(request, options, deps, signal())
+  expect(outcome.outcome).toBe('answered')
+  if (outcome.outcome !== 'answered') throw new Error('expected an admitted answer')
+  expect(seen).toHaveLength(1)
+  for (const batch of seen) {
+    for (const payload of batch) {
+      expect(payload.includes(opaqueMarker), JSON.stringify(state)).toBe(
+        JSON.stringify(cleanState).includes(opaqueMarker),
+      )
+      expect(JSON.parse(payload)).toMatchObject({ state: cleanState })
+      if (!JSON.stringify(cleanState).includes(REDACTED_MARK)) {
+        expect(payload).not.toContain(REDACTED_MARK)
+      }
+    }
+  }
+  if (isLowConfidence) {
+    expect(outcome.result.muse['risk']?.technique).toBe('stated')
+    expect(fallbackCalls).toHaveLength(1)
+    expect(fallbackClaims).toHaveLength(1)
+  } else {
+    expect(outcome.result.muse['risk']?.technique).toBe('embedding')
+    expect(seen).toHaveLength(1)
+    expect(fallbackCalls).toHaveLength(0)
+  }
+  expect(claims).toHaveLength(1)
+  expect(JSON.stringify(request)).toBe(original)
+}
+
+describe('embedding pipeline regressions', () => {
+  it('preserves every ordinary field in the review state (RVM98P2IF)', async () => {
+    const state = {
+      inputTokens: 1200,
+      max_output_tokens: 4096,
+      max_tokens: 128,
+      completion_tokens: 16,
+      auth: { scheme: 'none', user: 'ada' },
+      command: 'list files',
+    }
+    const { seen, embed } = captureEmbedInputs(confidentVectors)
+    const { deps, fallbackCalls } = routeDependencies({ source: { embed } })
+    const outcome = await runEmbeddingJudge({ ...noulRequest, state }, options, deps, signal())
+    expect(outcome).toMatchObject({
+      outcome: 'answered',
+      result: { muse: { risk: { technique: 'embedding' } } },
+    })
+    expect(seen).toHaveLength(1)
+    expect(JSON.parse(seen[0]?.[0] ?? '')).toMatchObject({ state })
+    expect(fallbackCalls).toHaveLength(0)
+    const mixedState = {
+      ...state,
+      AccountKey: { key: opaqueMarker },
+      GITHUB_TOKEN: [opaqueMarker],
+      password: false,
+    }
+    await runEmbeddingJudge({ ...noulRequest, state: mixedState }, options, deps, signal())
+    expect(seen).toHaveLength(2)
+    expect(JSON.parse(seen[1]?.[0] ?? '')).toMatchObject({
+      state: {
+        ...state,
+        AccountKey: REDACTED_MARK,
+        GITHUB_TOKEN: REDACTED_MARK,
+        password: REDACTED_MARK,
+      },
+    })
+    expect(seen[1]?.[0]).not.toContain(opaqueMarker)
+  })
+
+  it.each(ordinaryNames)(
+    'preserves ordinary %s values at mixed depths 1–4 (RVM98P2IF)',
+    async (name) => {
+      const head = trainedHead()
+      const values: NestedData[] = [
+        1200,
+        4096,
+        128,
+        16,
+        opaqueMarker,
+        false,
+        null,
+        {
+          scheme: 'none',
+          user: 'ada',
+          key: opaqueMarker,
+        },
+        [opaqueMarker],
+      ]
+      for (const depth of [1, 2, 3, 4]) {
+        for (const isArrayFirst of [false, true]) {
+          for (const value of values) {
+            const state = mixedNesting({ [name]: value }, depth - 1, isArrayFirst)
+            await expectTaintedState(state, state, head, false)
+          }
+        }
+      }
+    },
+  )
+
+  it('redacts the complete AccountKey object from the review (RVM98P2IE 1)', async () => {
+    await expectTaintedState(
+      { AccountKey: { key: opaqueMarker }, safe: 'public context' },
+      { AccountKey: REDACTED_MARK, safe: 'public context' },
+      trainedHead(),
+      false,
+    )
+  })
+
+  it.each(secretNames)(
+    'honors shared recognition of %s variants for every JSON type at mixed depths 1–4 (RVM98P2IE)',
+    async (recognizedName) => {
+      const head = trainedHead()
+      const values: NestedData[] = [
+        opaqueMarker,
+        7,
+        true,
+        false,
+        null,
+        [opaqueMarker],
+        { key: opaqueMarker },
+        { v: [{ arbitrary: opaqueMarker }] },
+        Object.fromEntries([['__proto__', { constructor: opaqueMarker }]]),
+      ]
+      const names = new Set([
+        recognizedName,
+        recognizedName.toLowerCase(),
+        recognizedName.toUpperCase().replaceAll('_', '-'),
+        recognizedName.replaceAll(/[-_]/g, '').replaceAll(/(?<=[A-Za-z0-9])(?=[A-Za-z0-9])/g, '_-'),
+      ])
+      for (const name of names) {
+        // The shared text rules define whether a generated spelling is secret.
+        // Separator/case conversion alone is no longer permission to erase it.
+        const probe = `${name}=1 ${JSON.stringify(name)}:"1"`
+        const isSecret = redactor.redactSecrets(probe) !== probe
+        if (name === recognizedName) expect(isSecret).toBe(true)
+        for (const depth of [1, 2, 3, 4]) {
+          for (const isArrayFirst of [false, true]) {
+            for (const value of values) {
+              // zod's passive record admission omits this own key before the walk.
+              const admittedValue =
+                value !== null && typeof value === 'object' && Object.hasOwn(value, '__proto__')
+                  ? {}
+                  : value
+              const state = mixedNesting(
+                { [name]: value, safe: 'public context' },
+                depth - 1,
+                isArrayFirst,
+              )
+              const cleanState = mixedNesting(
+                {
+                  [name]: isSecret ? REDACTED_MARK : admittedValue,
+                  safe: 'public context',
+                },
+                depth - 1,
+                isArrayFirst,
+              )
+              await expectTaintedState(state, cleanState, head, isArrayFirst)
+            }
+          }
+        }
+      }
+    },
+  )
+
+  it.each(['AccountKey', 'aws_secret_access_key', 'api-key', 'GITHUB_TOKEN'])(
+    'redacts the real non-empty %s value in every payload field (RVM98P2ID 1)',
+    async (name) => {
+      const { seen, embed } = captureEmbedInputs(confidentVectors)
+      const { deps } = routeDependencies({ source: { embed } })
+      const request: JudgeRequest = {
+        state: { [name]: 'opaque-state', nested: [{ [name]: 'opaque-nested' }], safe: 'public' },
+        questions: {
+          risk: {
+            type: 'noul',
+            instructions: `${name}=opaque-instructions`,
+            criteria: { true: `${name}=opaque-true`, false: `${name}=opaque-false` },
+          },
+        },
+      }
+      const original = JSON.stringify(request)
+      const outcome = await runEmbeddingJudge(request, options, deps, signal())
+      expect(outcome).toMatchObject({ outcome: 'answered' })
+      expect(seen).toHaveLength(1)
+      const payload = seen[0]?.[0] ?? ''
+      expect(payload).not.toContain('opaque-')
+      expect(JSON.parse(payload)).toMatchObject({
+        state: { safe: 'public', [name]: REDACTED_MARK },
+      })
+      expect(JSON.stringify(request)).toBe(original)
+    },
+  )
+
+  it.each([
+    ['quoted', '"opaque-quoted"'],
+    ['escaped', String.raw`\"opaque-escaped\"`],
+    ['multiline', '\n"opaque-first\nopaque-tail"'],
+  ])('redacts a %s AccountKey value before escaping (RVM98P2ID 1)', async (_name, value) => {
+    const { seen, embed } = captureEmbedInputs(confidentVectors)
+    const { deps } = routeDependencies({ source: { embed } })
+    await runEmbeddingJudge(
+      { ...noulRequest, state: { AccountKey: value } },
+      options,
+      deps,
+      signal(),
+    )
+    expect(seen).toHaveLength(1)
+    expect(seen[0]?.[0]).not.toContain('opaque-')
+    expect(seen[0]?.[0]).toContain(REDACTED_MARK)
+  })
+
+  it('refuses a named secret left in the final serialized payload (RVM98P2ID)', async () => {
+    const { deps, embed, fallbackCalls } = routeDependencies({
+      source: { embed: () => Promise.resolve(confidentVectors) },
+    })
+    // Isolate the last guard: simulate an earlier recognizer missing this field.
+    // The same boolean input now redacts in the walker without this fault.
+    const earlierMiss = vi.spyOn(redactor, 'isSecretFieldName').mockReturnValue(false)
+    try {
+      const outcome = await runEmbeddingJudge(
+        { ...noulRequest, state: { password: true } },
+        options,
+        deps,
+        signal(),
+      )
+      expectRefusedEmbedding(outcome, embed, fallbackCalls)
+    } finally {
+      earlierMiss.mockRestore()
+    }
+  })
+
+  it.each([
+    ['function', () => vi.fn()],
+    ['class instance', () => new URL('https://fixture.invalid/opaque-class')],
+    ['own toJSON', () => ({ toJSON: vi.fn(() => '"password": "opaque-json"') })],
+    ['symbol', () => Symbol('opaque-symbol')],
+    ['non-finite number', () => Infinity],
+    ['non-enumerable function', () => Object.defineProperty({}, 'hidden', { value: vi.fn() })],
+    ['array property function', () => Object.assign(['public'], { call: vi.fn() })],
+    ['own non-callable toJSON', () => ({ toJSON: 'public' })],
+    ['symbol key', () => ({ [Symbol('field')]: 'public' })],
+    [
+      'cycle',
+      () => {
+        const value: Record<string, unknown> = {}
+        value['self'] = value
+        return value
+      },
+    ],
+  ])('refuses a %s in every payload field before embedding (RVM98P2ID 2)', async (_name, make) => {
+    for (const field of ['state', 'instructions', 'true', 'false', 'criteria']) {
+      const { deps, embed, fallbackCalls } = routeDependencies({
+        source: { embed: () => Promise.resolve(confidentVectors) },
+      })
+      const value = make()
+      const question = { type: 'noul', instructions: 'Public question', criteria: {} }
+      const request = { state: { box: value }, questions: { risk: question } }
+      if (field === 'instructions' || field === 'criteria') Reflect.set(question, field, value)
+      else if (field === 'true' || field === 'false') Reflect.set(question.criteria, field, value)
+      if (field !== 'state') Reflect.set(request, 'state', { safe: 'public' })
+      const outcome = await runEmbeddingJudge(request, options, deps, signal())
+      expect(embed).not.toHaveBeenCalled()
+      if (field === 'state') expect(outcome.outcome).toBe('answered')
+      if (outcome.outcome === 'answered') {
+        expect(outcome.result.muse['risk']?.technique).toBe('stated')
+        expect(fallbackCalls).toHaveLength(1)
+      } else {
+        expect(outcome.reason).toBe('engine-failure')
+      }
+      if (
+        typeof value === 'object' &&
+        Object.hasOwn(value, 'toJSON') &&
+        'toJSON' in value &&
+        typeof value.toJSON === 'function'
+      ) {
+        expect(value.toJSON).not.toHaveBeenCalled()
+      }
+    }
+  })
+
+  it('refuses own and inherited getters in every payload field without invoking them (RVM98P2ID 2)', async () => {
+    for (const kind of ['own', 'inherited']) {
+      for (const field of ['state', 'instructions', 'true', 'false', 'criteria']) {
+        const getter = vi.fn(() => 'public')
+        const { deps, embed } = routeDependencies({
+          source: { embed: () => Promise.resolve(confidentVectors) },
+        })
+        const question = { type: 'noul', instructions: 'Public question', criteria: {} }
+        const state = {}
+        const request = { state, questions: { risk: question } }
+        let owner: object = question
+        if (field === 'state') owner = state
+        else if (field === 'true' || field === 'false') owner = question.criteria
+        const key = field === 'state' ? 'box' : field
+        if (field !== 'state') Reflect.set(request, 'state', { safe: 'public' })
+        const descriptor = { get: getter, enumerable: true }
+        if (kind === 'own') Object.defineProperty(owner, key, descriptor)
+        else {
+          Reflect.deleteProperty(owner, key)
+          Object.setPrototypeOf(owner, Object.defineProperty({}, key, descriptor))
+        }
+        const outcome = await runEmbeddingJudge(request, options, deps, signal())
+        expect(getter).not.toHaveBeenCalled()
+        expect(embed).not.toHaveBeenCalled()
+        expect(
+          outcome.outcome === 'answered' ? outcome.result.muse['risk']?.technique : outcome.reason,
+        ).toBe(outcome.outcome === 'answered' ? 'stated' : 'engine-failure')
+      }
+    }
+  })
+
+  it.each([
+    ['quoted', (name: string) => `password="opaque-${name}"`],
+    ['escaped', (name: string) => String.raw`api_key="opaque-${name}\"tail"`],
+    ['multiline', (name: string) => `client_secret="opaque-${name}\nopaque-tail"`],
+    ['escaped delimiters', (name: string) => String.raw`password=\"opaque-${name}\"`],
+    [
+      'private key',
+      (name: string) =>
+        `${['-----BEGIN', 'PRIVATE KEY-----'].join(' ')}\nopaque-${name}\n${['-----END', 'PRIVATE KEY-----'].join(' ')}`,
+    ],
+  ])('redacts %s secrets in every structured field (RVM98P2IC 1)', async (_name, text) => {
+    const { seen, embed } = captureEmbedInputs(confidentVectors)
+    const { deps } = routeDependencies({ source: { embed } })
+    const request: JudgeRequest = {
+      state: {
+        note: text('state'),
+        nested: [text('array'), { [text('key')]: text('nested') }],
+        password: 'opaque-property',
+        safe: 'public context',
+      },
+      questions: {
+        risk: {
+          type: 'noul',
+          instructions: text('instructions'),
+          criteria: { true: text('true'), false: text('false') },
+        },
+      },
+    }
+    const original = JSON.stringify(request)
+    expect(await runEmbeddingJudge(request, options, deps, signal())).toMatchObject({
+      outcome: 'answered',
+    })
+    expect(seen).toHaveLength(1)
+    const payload = seen[0]?.[0] ?? ''
+    expect(payload).not.toContain('opaque-')
+    expect(payload).toContain(REDACTED_MARK)
+    expect(JSON.parse(payload)).toMatchObject({ state: { safe: 'public context' } })
+    expect(JSON.stringify(request)).toBe(original)
+  })
+
+  it.each([
+    ['null batch', null],
+    ['object batch', { length: 1, 0: [2, -1, 0.5] }],
+    ['string batch', 'x'],
+    ['null vector', [null]],
+    ['object vector', [{ length: 3, 0: 2, 1: -1, 2: 0.5 }]],
+    ['wrong dimension', [[2, -1]]],
+    [
+      'wrong count',
+      [
+        [2, -1, 0.5],
+        [2, -1, 0.5],
+      ],
+    ],
+    ['NaN', [[2, NaN, 0.5]]],
+    ['infinite', [[2, Infinity, 0.5]]],
+    ['null component', [[2, null, 0.5]]],
+    ['missing component', [[2, undefined, 0.5]]],
+    ['sparse component', [Object.assign(Array.from({ length: 3 }), { 0: 2, 2: 0.5 })]],
+    ['string component', [[2, '-1', 0.5]]],
+  ])('falls back on %s source output (RVM98P2IC 2–3)', async (_name, output) => {
+    const { deps, claims, fallbackCalls } = routeDependencies({
+      fallbackCosts: { reservedCostUsd: 0.001, settledCostUsd: 0.001 },
+    })
+    // An untyped, misbehaving implementation must cross the runtime boundary.
+    Reflect.set(deps.source, 'embed', () => Promise.resolve(output))
+    const outcome = await runEmbeddingJudge(noulRequest, options, deps, signal())
+    expectMergedFallback(outcome, 0.0012, 0.0012)
+    if (outcome.outcome !== 'answered') throw new Error('expected fallback')
+    expect(outcome.result.muse['risk']?.technique).toBe('stated')
+    expect(fallbackCalls).toHaveLength(1)
+    expect(claims).toHaveLength(1)
+  })
+
+  it('refuses a secret introduced only during serialization before source dispatch', async () => {
+    const { deps, embed, fallbackCalls, claims } = routeDependencies({
+      source: { embed: () => Promise.resolve(confidentVectors) },
+    })
+    // An unknown state value can serialize differently from its string leaves.
+    const state = { toJSON: () => 'password="opaque-serialized"' }
+    const outcome = await runEmbeddingJudge({ ...noulRequest, state }, options, deps, signal())
+    expectRefusedEmbedding(outcome, embed, fallbackCalls)
+    expect(claims).toHaveLength(1)
+  })
+
+  it.each(['opted-out', 'mismatched-head', 'low-confidence', 'embed-rejection'] as const)(
+    'settles a rejected Stop on the %s delegate (RVM98P2IC 4)',
+    async (path) => {
+      const controller = new AbortController()
+      const { deps, claims, embed, fallbackClaims } = routeDependencies({
+        ...(path === 'mismatched-head' && { head: null }),
+        source: {
+          embed: () =>
+            path === 'embed-rejection'
+              ? Promise.reject(new Error('fixture embed rejection'))
+              : Promise.resolve([[0.5, 0.5, 0.5]]),
+        },
+      })
+      const fallback = deps.fallback
+      if (fallback === undefined) throw new Error('expected fixture fallback')
+      const run = vi.fn(async (request: JudgeRequest, waitSignal: AbortSignal) => {
+        await fallback.run(request, waitSignal)
+        controller.abort()
+        throw new Error('fixture aborted rejection')
+      })
+      const runOptions = path === 'opted-out' ? { ...options, optedIn: false } : options
+      const hasSpentEmbedding = path === 'low-confidence' || path === 'embed-rejection'
+      expect(
+        await runEmbeddingJudge(
+          noulRequest,
+          runOptions,
+          { ...deps, fallback: { run } },
+          controller.signal,
+        ),
+      ).toEqual({ outcome: 'no-answer', reason: 'cancelled' })
+      expect(run).toHaveBeenCalledTimes(1)
+      expect(embed).toHaveBeenCalledTimes(hasSpentEmbedding ? 1 : 0)
+      expect(claims).toHaveLength(hasSpentEmbedding ? 1 : 0)
+      expect(fallbackClaims).toEqual([{ inputTokens: 40, uncachedCostUsd: 0.001 }])
+    },
+  )
+
+  it.each([
+    ['admission', 'reject'],
+    ['admission', 'throw'],
+    ['embed', 'reject'],
+    ['embed', 'throw'],
+  ])('settles Stop during a %s %s without another leg', async (stage, failure) => {
+    const controller = new AbortController()
+    const { deps, claims, fallbackCalls, embed } = routeDependencies()
+    const stop = () => {
+      controller.abort()
+      const error = new Error('fixture stopped step')
+      if (failure === 'throw') throw error
+      return Promise.reject(error)
+    }
+    if (stage === 'admission') Reflect.set(deps.admission, 'run', stop)
+    else Reflect.set(deps.source, 'embed', vi.fn(stop))
+    expect(await runEmbeddingJudge(noulRequest, options, deps, controller.signal)).toEqual({
+      outcome: 'no-answer',
+      reason: 'cancelled',
+    })
+    expect(claims).toHaveLength(stage === 'embed' ? 1 : 0)
+    if (stage === 'embed') expect(deps.source.embed).toHaveBeenCalledTimes(1)
+    else expect(embed).not.toHaveBeenCalled()
+    expect(fallbackCalls).toHaveLength(0)
+  })
+
+  it.each(['reject', 'throw', 'malformed'])(
+    'settles a full-source %s as an explicit engine failure',
+    async (failure) => {
+      const { deps, claims, embed } = routeDependencies()
+      const fallback = deps.fallback
+      if (fallback === undefined) throw new Error('expected fixture fallback')
+      Reflect.set(fallback, 'run', () => {
+        if (failure === 'malformed') return Promise.resolve(null)
+        const error = new Error('fixture full-source failure')
+        if (failure === 'throw') throw error
+        return Promise.reject(error)
+      })
+      expect(
+        await runEmbeddingJudge(noulRequest, { ...options, optedIn: false }, deps, signal()),
+      ).toEqual({ outcome: 'no-answer', reason: 'engine-failure' })
+      expect(claims).toHaveLength(0)
+      expect(embed).not.toHaveBeenCalled()
+    },
+  )
+})
+
+describe('embedding confidentiality', () => {
+  const confidentialOptions = { optedIn: true, confidential: true }
+
+  /** The blocked leg defers to the full judge without spending or sending. */
+  async function expectConfidentialFallback(source: Partial<EmbeddingSource>): Promise<void> {
+    const { deps, fallbackCalls, claims, embed } = routeDependencies({ source })
+    const outcome = await runEmbeddingJudge(noulRequest, confidentialOptions, deps, signal())
+    expect(outcome.outcome).toBe('answered')
+    expect(fallbackCalls).toHaveLength(1)
+    expect(embed).not.toHaveBeenCalled()
+    expect(claims).toHaveLength(0)
+  }
+
+  /** The permitted leg answers from the head; the full judge never runs. */
+  async function expectConfidentialAnswer(source: Partial<EmbeddingSource>): Promise<void> {
+    const { deps, fallbackCalls, embed } = routeDependencies({ source })
+    const outcome = await runEmbeddingJudge(noulRequest, confidentialOptions, deps, signal())
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') throw new Error('expected an answer')
+    expect(outcome.result.muse['risk']?.technique).toBe('embedding')
+    expect(fallbackCalls).toHaveLength(0)
+    expect(embed).toHaveBeenCalledTimes(1)
+  }
+
+  it('never embeds remotely in a confidential workspace without provider permission', async () => {
+    await expectConfidentialFallback({ locality: 'same-provider', providerPolicy: 'refuse' })
+  })
+
+  it('embeds remotely in a confidential workspace the provider policy permits', async () => {
+    await expectConfidentialAnswer({
+      locality: 'same-provider',
+      providerPolicy: 'allow',
+      embed: () => Promise.resolve(confidentVectors),
+    })
+  })
+
+  it('never uses an unverified local endpoint in a confidential workspace', async () => {
+    await expectConfidentialFallback({ locality: 'unverified-local' })
+  })
+
+  it('uses a verified local endpoint in a confidential workspace', async () => {
+    await expectConfidentialAnswer({
+      locality: 'verified-local',
+      embed: () => Promise.resolve(confidentVectors),
+    })
+  })
+})

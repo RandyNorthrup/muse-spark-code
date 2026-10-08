@@ -42465,6 +42465,65 @@ No dependency, host contract, paid guard or bundle cap changes.
 
 ##### 2i — Embedding fast path after family measurement
 
+- **FIXM98P2I6 shared-name repair (2026-10-08, before implementation).**
+  Remove the walker's invented uppercase, compact and underscore probes.
+  Export `isSecretFieldName` from the shared redactor, using its existing
+  rule table on the original field spelling; the walker calls only that.
+  Preserve ordinary token counts, limits and non-secret `auth` objects.
+  Retain every existing regression and generated name/depth/type scenario;
+  variant expectations follow the shared redactor's actual recognition,
+  rather than assuming normalization creates a secret name. Add the exact
+  RVM98P2IF scenario and a negative property half at mixed depths 1–4.
+  Prove the new negative cases on `45109a6f6`, then reintroduce an invented
+  probe and restore exact bytes. Certify all three owning files three times,
+  five typechecks, changed-file lint/format, plain knip, duplication,
+  localization and capped build in a fresh `CI=true npm ci` clone. Aggregate
+  quality stays lead-owned under the shared rules; no live/paid call,
+  dependency, escape hatch, merge or push.
+- **FIXM98P2I5 path-taint redesign (2026-10-07, before implementation).**
+  Apply one recursive walker once to the passive plain-data request already
+  admitted by `plainDataSchema`. Recognize names through the shared redactor
+  with fixed non-empty probes, normalizing case and separators. Any recognized
+  key on the root-to-value path replaces the entire value with `[redacted]`,
+  including primitive, array and object values; untainted strings retain the
+  shared inline-secret inspection. Remove actual-value/array-parent special
+  cases and repeated per-question walks. Keep the final serialized refusal
+  and every existing regression; isolate that guard from the earlier walker
+  in its boolean regression now that booleans are correctly scrubbed.
+  Add a table-driven property over recognized names, separator/case variants,
+  depths 1–4, mixed containers, direct/descendant leaves and every JSON type.
+  Prove base failures on `f4578c793` and leaf-only/final-refusal red drills,
+  restoring exact hashes. Certify three default-timeout owning-suite runs,
+  five typechecks, changed-file lint/format, plain knip, duplication,
+  localization, host API, reference and capped production build in a fresh
+  `CI=true npm ci` clone. Aggregate quality remains lead-owned by the shared
+  lane rules; no live/paid call, dependency, escape hatch, push or merge.
+- **FIXM98P2I4 privacy repair (2026-10-08, before implementation).**
+  Validate embedding inputs as passive plain JSON with recursive zod checks
+  before serialization: finite numbers, strings, booleans, null, arrays and
+  plain objects only; refuse functions, symbols, class instances, accessors
+  and own `toJSON`. Preserve the shared request shape and byte cap for valid
+  inputs; a non-JSON state takes the admitted full-judge delegate without
+  executing serialization hooks. Invalid question shapes remain explicit
+  no-answer refusals. Redact real string values together with their field
+  names through `src/core/redact.ts`, then retain the final serialized
+  redaction refusal. Keep all previous tests and prove every new test on
+  `201a20752`; certify three owning-file runs and static/build checks in a
+  fresh `npm ci` clone under `CI=true`, default deadlines and unchanged caps.
+  Aggregate quality and live family measurements remain lead-owned; no live
+  or paid calls, push, merge, dependency or escape hatch.
+- **FIXM98P2I3 redesign (2026-10-08, before implementation).** Replace the
+  route's separate asynchronous recovery paths with one guarded step that
+  owns dispatch, validation and Stop settlement for admission, embeddings and
+  every full-judge delegate, including rejections. Redact structured string
+  values before serialization and check the serialized payload again. Validate
+  the entire embedding batch against its question count and head dimension;
+  scoring rejects missing or non-finite components before arithmetic. Preserve
+  public types, separate ledger legs, all previous regressions and confidential
+  routing. Prove RVM98P2IC findings 1–4 on `b85e8772d`, then run owning files
+  three times and the required static/build checks in a fresh `npm ci` clone
+  under `CI=true`, with default deadlines and unchanged caps. The lane brief
+  reserves aggregate quality for the lead; fakes only, no push or merge.
 - **Scope.** Logistic head per recurring family, using embeddings from the
   same provider or an explicitly opted-in local judge. Training stays local
   and opt-in; weights live in global storage and never in VSIX.
@@ -47756,6 +47815,13 @@ The universal ACP package also requires the compiled
 `native/darwin/muse-local-judge-peer` artifact. It is absent on this Linux
 rig; a test-owned inactive member only exercises private fake package trees
 and does not satisfy real packaging or installed macOS certification.
+
+**FIXM98P2I6 bounded verification (2026-10-08).** The explicit rig/shared
+brief prohibits aggregate `npm run quality` in this lane and delegates it
+to the lead. Run the three owning suites and named static/build gates in
+a fresh clone instead; no gate, timeout, threshold or configuration changes.
+L98P2-EMBED's live family measurement and installed-editor certification
+remain lead-owned. Receipt: `docs/certification/m98.md`, lane I FIXM98P2I6.
 
 ## 8. Escape hatches register
 
