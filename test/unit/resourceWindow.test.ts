@@ -250,10 +250,19 @@ function windowHarness(initial: ResourceStatus = fakeStatus('pause')) {
     createStatus,
     createVsCodeItem: vi.fn(() => statusItem),
   }
-  const surface = { post: vi.fn<(message: HostToWebviewMessage) => void>(), reveal: vi.fn() }
+  const surface = fakeSurface('panel:in-view')
+  const removed = new Set<(surface: ReturnType<typeof fakeSurface>) => void>()
   const surfaces = {
-    active: surface as typeof surface | undefined,
+    active: surface as ReturnType<typeof fakeSurface> | undefined,
     broadcast: vi.fn<(message: HostToWebviewMessage) => void>(),
+    onRemoved: (listener: (surface: ReturnType<typeof fakeSurface>) => void) => {
+      removed.add(listener)
+      return {
+        dispose: () => {
+          removed.delete(listener)
+        },
+      }
+    },
   }
   let configuration:
     ((event: { affectsConfiguration(section: string): boolean }) => void) | undefined
@@ -282,7 +291,10 @@ function windowHarness(initial: ResourceStatus = fakeStatus('pause')) {
     },
   }
   let attach: ((loaded: ResourceWindowHost) => void) | undefined
-  const openConversation = vi.fn(() => Promise.resolve())
+  const openConversation = vi.fn(() => ({
+    surfaceId: 'panel:new',
+    opened: Promise.resolve(),
+  }))
   const warn = vi.fn()
   const resources = createResourceWindow({
     vscode,
@@ -321,8 +333,19 @@ function windowHarness(initial: ResourceStatus = fakeStatus('pause')) {
       configuration?.({ affectsConfiguration: (name) => section.startsWith(name) })
     },
     listeners,
+    removed,
+    remove: (gone: ReturnType<typeof fakeSurface>) => {
+      for (const listener of removed) listener(gone)
+    },
   }
 }
+
+function fakeSurface(id: string) {
+  return { id, post: vi.fn<(message: HostToWebviewMessage) => void>(), reveal: vi.fn() }
+}
+
+const sent = (surface: ReturnType<typeof fakeSurface>) =>
+  surface.post.mock.calls.map(([message]) => message.type)
 
 describe('U–C1 VS Code window adapter', () => {
   it('publishes the checked status once per change to every surface and each new one', () => {
@@ -336,7 +359,7 @@ describe('U–C1 VS Code window adapter', () => {
     expect(h.surfaces.broadcast).toHaveBeenCalledTimes(1)
     h.change(fakeStatus('throttle'))
     expect(h.surfaces.broadcast).toHaveBeenCalledTimes(2)
-    const ready = { post: vi.fn<(message: HostToWebviewMessage) => void>() }
+    const ready = fakeSurface('panel:ready')
     h.resources.surfaceReady(ready)
     expect(ready.post).toHaveBeenCalledWith({
       type: 'resourceStatus',
@@ -392,20 +415,54 @@ describe('U–C1 VS Code window adapter', () => {
     expect(h.surface.post).toHaveBeenCalledTimes(3)
   })
 
-  it('opens a conversation when none is in view and opens the popover once it is ready', async () => {
+  it('binds a new conversation open to its own surface, never to another that is ready first', async () => {
+    // RVM107W1B P2-2b: the target is decided when Show runs.
     const h = windowHarness()
     h.surfaces.active = undefined
     await h.resources.show()
     expect(h.openConversation).toHaveBeenCalledTimes(1)
-    const ready = { post: vi.fn<(message: HostToWebviewMessage) => void>() }
-    h.resources.surfaceReady(ready)
-    expect(ready.post.mock.calls.map(([message]) => message.type)).toEqual([
-      'resourceStatus',
-      'resourceOpen',
-    ])
-    const later = { post: vi.fn<(message: HostToWebviewMessage) => void>() }
-    h.resources.surfaceReady(later)
-    expect(later.post.mock.calls.map(([message]) => message.type)).toEqual(['resourceStatus'])
+    const other = fakeSurface('panel:other')
+    h.resources.surfaceReady(other)
+    expect(sent(other)).toEqual(['resourceStatus'])
+    const target = fakeSurface('panel:new')
+    h.resources.surfaceReady(target)
+    expect(sent(target)).toEqual(['resourceStatus', 'resourceOpen'])
+    h.resources.surfaceReady(target)
+    expect(sent(target)).toEqual(['resourceStatus', 'resourceOpen', 'resourceStatus'])
+  })
+
+  it('holds the open across a document reload: two Shows, then status and one open', async () => {
+    // RVM107W1B P2-2a: ready → reload → Show → ready-again.
+    const h = windowHarness()
+    h.load()
+    h.resources.surfaceReady(h.surface)
+    h.surface.post.mockClear()
+    h.resources.surfaceReset(h.surface)
+    await h.resources.show()
+    await h.resources.show()
+    expect(sent(h.surface)).toEqual([])
+    h.resources.surfaceReady(h.surface)
+    expect(sent(h.surface)).toEqual(['resourceStatus', 'resourceOpen'])
+    h.resources.surfaceReady(h.surface)
+    expect(sent(h.surface)).toEqual(['resourceStatus', 'resourceOpen', 'resourceStatus'])
+  })
+
+  it('cancels the open when its target is disposed, and after the adapter is disposed', async () => {
+    const h = windowHarness()
+    await h.resources.show()
+    h.remove(h.surface)
+    const replacement = fakeSurface(h.surface.id)
+    h.resources.surfaceReady(replacement)
+    h.resources.surfaceReady(h.surface)
+    expect(sent(replacement)).toEqual(['resourceStatus'])
+    expect(sent(h.surface)).toEqual(['resourceStatus'])
+
+    const late = windowHarness()
+    await late.resources.show()
+    late.resources.dispose()
+    late.resources.surfaceReady(late.surface)
+    expect(sent(late.surface)).toEqual([])
+    expect(late.removed.size).toBe(0)
   })
 
   it('says the governor is off and offers its settings instead of an empty popover', async () => {
@@ -476,7 +533,7 @@ describe('U–C1 VS Code window adapter', () => {
     expect(h.warn).toHaveBeenCalledWith(
       'Resource status exceeds the window message bound; sent as refused',
     )
-    const ready = { post: vi.fn<(message: HostToWebviewMessage) => void>() }
+    const ready = fakeSurface('panel:ready')
     h.resources.surfaceReady(ready)
     expect(ready.post).toHaveBeenCalledWith({ type: 'resourceStatus', status: null })
     expect(parseHostToWebviewMessage({ type: 'resourceStatus', status: null }).ok).toBe(true)

@@ -75,6 +75,19 @@ describe('configureWebview', () => {
     expect(context.onSurfaceReady).toHaveBeenCalledWith(surface, 4)
   })
 
+  it('starts a new, unready document generation on Reload and says so before its next ready', () => {
+    // M107 RVM107W1B: Show resources must not post into a replaced document.
+    const onDocumentReplaced = vi.fn<(surface: ChatSurface) => void>()
+    const { webview, context, surface } = setup({ ...fakeHostContext(), onDocumentReplaced })
+    const first = webview.html
+    expect(onDocumentReplaced).not.toHaveBeenCalled()
+    surface.reload()
+    expect(webview.html).not.toBe(first)
+    expect(onDocumentReplaced).toHaveBeenCalledExactlyOnceWith(surface)
+    webview.messages.fire({ type: 'ready' })
+    expect(context.onSurfaceReady).toHaveBeenCalledWith(surface, undefined)
+  })
+
   it('reports composer focus changes with the originating surface', () => {
     const { webview, context, surface } = setup()
     webview.messages.fire({ type: 'inputFocusChanged', focused: true })

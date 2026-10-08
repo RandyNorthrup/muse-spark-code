@@ -19,8 +19,21 @@ import type { VsCodeStatusBar } from './resourceStatus'
 type ResourceAction = Extract<WebviewToHostMessage, { type: 'resourceAction' }>['action']
 
 interface ResourceSurface {
+  readonly id: string
   post(message: HostToWebviewMessage): void
   reveal(): void
+}
+
+/**
+ * Show resources' open request, bound when Show runs to exactly one target:
+ * a surface in view, or the surface a new conversation opens in (by its id).
+ */
+type OpenTarget = { readonly surface: object } | { readonly surfaceId: string }
+
+/** One surface's current document: a reload starts an unready generation. */
+interface SurfaceDocument {
+  readonly generation: number
+  isReady: boolean
 }
 
 /** The slice of VS Code's namespace the window uses; the real one is injected. */
@@ -46,17 +59,26 @@ export interface ResourceWindowDeps<Alignment> {
   readonly surfaces: {
     readonly active: ResourceSurface | undefined
     broadcast(message: HostToWebviewMessage): void
+    onRemoved(listener: (surface: ResourceSurface) => void): { dispose(): unknown }
   }
-  /** No surface in view: open one; its ready hears the pending open. */
-  readonly openConversation: () => Promise<unknown>
+  /**
+   * No surface in view: open a conversation. `surfaceId` names the surface it
+   * opens in, known before that surface can report ready.
+   */
+  readonly openConversation: () => {
+    readonly surfaceId: string
+    readonly opened: PromiseLike<unknown>
+  }
   /** The conversation in view, for the once-per-conversation pause notice. */
   readonly conversationId: () => string | undefined
   readonly warn: (message: string) => void
 }
 
 export interface ResourceWindow {
-  /** A surface mounted: send it the latest status and any pending open. */
-  surfaceReady(surface: Pick<ResourceSurface, 'post'>): void
+  /** A surface's document is ready: send it the latest status and its pending open. */
+  surfaceReady(surface: Pick<ResourceSurface, 'id' | 'post'>): void
+  /** A surface's document was replaced (reload): it is unready until its next ready. */
+  surfaceReset(surface: object): void
   /** The chip's popover controls (webview `resourceAction`). */
   action(action: ResourceAction): Promise<void>
   /** `museSpark.showResources`: the chip's popover in the chat in view. */
@@ -72,12 +94,13 @@ export function createResourceWindow<Alignment>(
   const { vscode } = deps
   // null: the latest status was refused (over the message bound).
   let latest: string | null | undefined
-  // Show resources' open, kept until the intended surface is ready to hear it:
-  // a new conversation, or a registered surface still starting (VS Code drops
-  // posts made before a webview's listener is attached).
-  let isOpenPendingForNew = false
-  const ready = new WeakSet<object>()
-  const openPending = new WeakSet<object>()
+  // VS Code drops posts made before a document's listener is attached, so an
+  // open waits for its target's first ready generation, then is spent.
+  const documents = new WeakMap<object, SurfaceDocument>()
+  let intent: OpenTarget | undefined
+  const isTarget = (surface: Pick<ResourceSurface, 'id'>, target: OpenTarget | undefined) =>
+    target !== undefined &&
+    ('surface' in target ? target.surface === surface : target.surfaceId === surface.id)
   let attached: { readonly window: ResourceWindowHost; dispose(): void } | undefined
   let isDisposed = false
 
@@ -167,13 +190,16 @@ export function createResourceWindow<Alignment>(
     }
     const surface = deps.surfaces.active
     if (surface === undefined) {
-      isOpenPendingForNew = true
-      await deps.openConversation()
+      const conversation = deps.openConversation()
+      intent = { surfaceId: conversation.surfaceId }
+      await conversation.opened
       return
     }
     surface.reveal()
-    if (ready.has(surface)) surface.post({ type: 'resourceOpen' })
-    else openPending.add(surface)
+    if (documents.get(surface)?.isReady === true) {
+      intent = undefined
+      surface.post({ type: 'resourceOpen' })
+    } else intent = { surface }
   }
   const resume = async () => {
     const window = await loaded()
@@ -189,17 +215,28 @@ export function createResourceWindow<Alignment>(
       )
   }
   const stopWatching = deps.onLoad(attach)
+  // A disposed target cancels its open; it is never redirected to another surface.
+  const removal = deps.surfaces.onRemoved((surface) => {
+    documents.delete(surface)
+    if (isTarget(surface, intent)) intent = undefined
+  })
   const configuration = vscode.workspace.onDidChangeConfiguration((event) => {
     if (event.affectsConfiguration(SETTINGS_SECTION)) attached?.window.port.settingsChanged()
   })
   return {
     surfaceReady: (surface) => {
-      ready.add(surface)
+      if (isDisposed) return
+      const current = documents.get(surface)
+      documents.set(surface, { generation: current?.generation ?? 0, isReady: true })
       if (latest !== undefined) surface.post({ type: 'resourceStatus', status: latest })
-      const wasPending = openPending.delete(surface)
-      if (!wasPending && !isOpenPendingForNew) return
-      isOpenPendingForNew = false
+      if (!isTarget(surface, intent)) return
+      intent = undefined
       surface.post({ type: 'resourceOpen' })
+    },
+    surfaceReset: (surface) => {
+      if (isDisposed) return
+      const current = documents.get(surface)
+      documents.set(surface, { generation: (current?.generation ?? 0) + 1, isReady: false })
     },
     action: async (action) => {
       switch (action) {
@@ -223,6 +260,8 @@ export function createResourceWindow<Alignment>(
     resume,
     dispose: () => {
       isDisposed = true
+      intent = undefined
+      removal.dispose()
       stopWatching()
       configuration.dispose()
       attached?.dispose()

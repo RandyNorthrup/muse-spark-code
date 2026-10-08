@@ -3535,7 +3535,7 @@ async function activateWindow(
     onLoad: onResourceWindow,
     load: loadResourceWindow,
     surfaces: registry,
-    openConversation: () => openConversation(),
+    openConversation: () => startConversation(),
     conversationId: () => {
       const surface = registry.active
       return surface === undefined
@@ -3571,6 +3571,9 @@ async function activateWindow(
         CONTEXT_KEYS.inputFocused,
         isFocused,
       )
+    },
+    onDocumentReplaced: (surface) => {
+      resourceWindow.surfaceReset(surface)
     },
     onSurfaceReady: (surface, attachmentEpoch) => {
       readyPromptSurfaces.add(surface)
@@ -3677,14 +3680,21 @@ async function activateWindow(
     void ensureKeyPresence()
     return vscode.commands.executeCommand(`${CHAT_VIEW_ID}.focus`)
   }
-  /** A conversation where the setting says new ones open. */
-  const openConversation = async (): Promise<void> => {
+  /** A conversation where the setting says new ones open, and the surface it opens in. */
+  const startConversation = (): {
+    readonly surfaceId: string
+    readonly opened: Thenable<unknown>
+  } => {
     void ensureKeyPresence()
     if (currentSettings().preferredLocation === 'sidebar') {
-      await openSidebar()
-      return
+      return { surfaceId: SIDEBAR_SURFACE_ID, opened: openSidebar() }
     }
-    openChatPanel(hostContext, registry)
+    const surfaceId = `panel:${crypto.randomUUID()}`
+    openChatPanel(hostContext, registry, { surfaceId })
+    return { surfaceId, opened: Promise.resolve() }
+  }
+  const openConversation = async (): Promise<void> => {
+    await startConversation().opened
   }
   // Sharing loads on first use or when the user changes its machine sync consent.
   const sharing = () =>

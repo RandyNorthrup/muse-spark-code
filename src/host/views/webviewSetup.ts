@@ -29,6 +29,8 @@ export interface WebviewHostContext {
   readonly onInputFocusChanged: (surface: ChatSurface, isFocused: boolean) => void
   /** The webview mounted and received `init`; push the conversation state. */
   readonly onSurfaceReady: (surface: ChatSurface, attachmentEpoch?: number) => void
+  /** The surface's document was replaced (Reload): until its next `ready` it hears nothing. */
+  readonly onDocumentReplaced?: (surface: ChatSurface) => void
   readonly onConversationMessage: (surface: ChatSurface, message: ConversationMessage) => void
 }
 
@@ -109,7 +111,10 @@ export function configureWebview(
     reveal: options.reveal,
     markUnread: options.markUnread,
     setTitle: options.setTitle,
-    reload: applyHtml,
+    reload: () => {
+      applyHtml()
+      context.onDocumentReplaced?.(surface)
+    },
     takeRestoredSessionId() {
       return restoredSessionId
     },
