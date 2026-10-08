@@ -15,6 +15,7 @@ import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import * as fileIdentity from '../../src/core/fs/fileIdentity'
 import { adminShare } from './helpers/secWinShare'
 import { isUncPath } from '../../src/core/windowsPathSpelling'
+import { pathIdentityRelation } from '../../src/core/pathIdentity'
 
 afterEach(removeCheckpointFolders)
 afterEach(() => {
@@ -184,10 +185,16 @@ describe('SECWINPATH native storage and hold ancestry', () => {
         return
       }
       const nativeStat = fileIdentity.statIdentitySync
+      // Far from any neighbour: NTFS gives folders made one after another
+      // adjacent file IDs, so `+ 1` could land on the storage folder itself.
+      const OFFSET = 1n << 40n
       vi.spyOn(fileIdentity, 'statIdentitySync').mockImplementation((given) => {
         const native = nativeStat(given)
-        return given.startsWith('\\\\') ? { ...native, [field]: native[field] + 1n } : native
+        return given.startsWith('\\\\') ? { ...native, [field]: native[field] ^ OFFSET } : native
       })
+      expect(pathIdentityRelation(unc, h.storage, 'win32')).toBe(
+        field === 'dev' ? 'outside' : 'unknown',
+      )
       if (field === 'dev') expect(holdFor([unc], [h.storage], [], 'win32')).toBeUndefined()
       else expect(holdFor([unc], [h.storage], [], 'win32')).toBeDefined()
     },
