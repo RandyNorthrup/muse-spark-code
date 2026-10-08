@@ -1759,3 +1759,45 @@ backup; lint-staged cleaned it normally. No manual stash was run. Subsequent
 commits use a private temporary copy of the unchanged pre-commit checks, with
 `set -e` and only `--no-stash` added to lint-staged; ESLint, Prettier and staged
 gitleaks remain enabled. Post-hook staged/committed snapshots are reread.
+
+##### HM7 final committed-source fresh-clone verification
+
+Final source/test checkpoint **`a6042da81`** (after implementation
+`d228495f3`), independently cloned under `$TMPDIR/M100P2HM7-final-…/checkout`,
+with a fresh **`CI=true npm ci` (exit 0)**. Every gate below ran with `CI=true`.
+The clone's production SHA-256 matches the final/drill hash above. Tests use the
+repository timeout, `--maxWorkers=3`, and at most three files per invocation.
+No native macOS case is skipped; the seven owning-file skips are Windows-only.
+
+| Gate                                                                                       | Exit / receipt                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Three complete H owning runs: deviceWorkerHost, deviceWorkerHostNative, deviceWorkerDarwin | **0 / 0 / 0**: each **371 passed, 0 failed, 7 Windows-native skipped**. All **29 macOS-native cases** passed each time. Wall durations **53.88 / 53.29 / 52.77 s**.                                |
+| Matrix completeness, independently counted from each JSON report                           | **288 / 288 / 288** typed/cache cells passed, including all **72 / 72 / 72** observing-site cells with the new empty-store assertion.                                                              |
+| deviceReceiver, complete file                                                              | **0**: **49 passed, 0 failed, 0 skipped**, **11.31 s** wall.                                                                                                                                       |
+| Five typechecks: host, webview, unit, e2e, integration                                     | **0 / 0 / 0 / 0 / 0**, each npm script run separately.                                                                                                                                             |
+| ESLint, three changed TS files, max-warnings=0                                             | **0**.                                                                                                                                                                                             |
+| Prettier, all five changed files                                                           | **0**; final receipt prose also checked after its hook.                                                                                                                                            |
+| Plain knip                                                                                 | **0**.                                                                                                                                                                                             |
+| Plain jscpd, unchanged zero threshold                                                      | **0**, zero clones. The first checkpoint's repeated recovery assertions made this gate fail; the shared helper fixes the duplication without losing an assertion.                                  |
+| check:reference                                                                            | **0**.                                                                                                                                                                                             |
+| check:l10n                                                                                 | **0**: 14 UI tables, 14 usage tables, 197 manifest strings, 991 source files; zero problems.                                                                                                       |
+| check:host-api                                                                             | **1**: unchanged inherited W-owned inventory mismatch for the six Node import counts below. No regeneration, suppression or gate change.                                                           |
+| Production build, unchanged size/split/host-globals/notices gates                          | **0**: activation **462.8/600 KiB**, Devices **82.0/100 KiB**, Model API **456.0/475 KiB**, Devices browser **34.0/50 KiB**, chat startup **733.8/900 KiB**, original deferred JS **31.9/50 KiB**. |
+
+**Lead/W requests:** regenerate the inherited host API inventory:
+child_process **16→18**, crypto **93→95**, fs **44→45**, fs/promises **74→77**,
+path **125→128**, timers/promises **15→17**. Totals remain **366 VS Code APIs,
+43 importing files, 28 Node built-ins, 70 theme variables**. Carry the
+Unreleased note above and retain W's existing lazy Darwin factory binding and
+aggregate/installed-host qualification obligations. This build measures the
+current lazy entries; no size cap was changed to accommodate the driver.
+The P2 is fixed and all three requested regressions/cleanup proofs are certified;
+no finding in this round is deferred.
+
+Changed files: `src/host/backend/deviceWorkerDarwin.ts`,
+`test/unit/deviceWorkerDarwin.test.ts`, `test/unit/helpers/deviceDarwinSpawn.ts`,
+PLAN's H scope/gate regions, and this H/macOS certification subsection.
+All three local commits run ESLint/Prettier and staged gitleaks; post-hook
+staged/committed diffs are reread. No push, merge, rebase, manual stash, credential
+read, paid/live model call or nonloopback listener. Both private verification
+clones and the private no-stash hook copy are removed after final validation.
