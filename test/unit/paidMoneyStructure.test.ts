@@ -1,182 +1,778 @@
+import * as z from 'zod/mini'
 import { readdir, readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 
-// Structural money guard (PORTS017C). The regex guard in paidMoneyPorts.test.ts
-// only sees `…Usd: number` declarations. This guard reads the actual zod
-// schemas and type declarations under src/shared and src/core and flags any
-// money-named key whose leaf type is a JavaScript number, including numbers
-// hidden behind local aliases (`coldCacheUsd: amount` where
-// `amount = z.number()`), wrappers (`z.optional(...)`) and cross-file imports.
-// A new numeric money field anywhere in these trees must fail this test.
-// Reviewed non-money numbers live on ALLOW_LIST, each with a one-line reason;
-// an allow-list entry that matches nothing fails as stale, so converted fields
-// cannot linger here.
+// Structural exact-money guard (PORTS017D redesign of PORTS017C).
+//
+// Two halves flag numeric money, and both report `file:key` findings:
+//
+// 1. A runtime walk of the actual zod schemas. Every module under
+//    `src/shared` and `src/core` is loaded with vitest's normal module
+//    loading (`import.meta.glob`, eager), every exported schema object is
+//    visited once, and object shapes are descended recursively (strict
+//    objects, records, arrays, tuples, unions, optional/nullable/default/
+//    catch wrappers, quoted keys, lazy schemas and cross-file imports, which
+//    resolve to the same schema object). Pipes are judged by their OUTPUT
+//    schema; a bare transform is judged by probing what it actually parses
+//    to, and an undeclared transform output on a money-named key is a
+//    finding. A money-named key whose leaf parses to a JavaScript number is
+//    flagged, including numbers behind aliases (`coldCacheUsd: amount`),
+//    `z._default(amount, 0)`, numeric pipes and `Record<string, number>`.
+// 2. The kept text scan for plain TypeScript declarations (`key: number`
+//    interface fields, `type X = number` aliases, numeric `const`s and
+//    non-exported local zod aliases), which the runtime walk cannot see.
+//
+// A money-named key matches `Usd`, `usd`, `Cost`, `Price`, `^spend`,
+// `*Budget*Usd` or `*Cap*Usd` (case-sensitive: `dailyBudgetTokens`,
+// `thinkingBudget`, `timeBudgetMs` and other token counts, durations and
+// worker caps do not match). `legacyUsdSchema`/`usdInputSchema` boundary
+// money parses to a canonical string, so exact `UsdAmount` leaves stay
+// clean in both halves.
+//
+// The allow-list is honest about what is still numeric (M121): each entry
+// has a typed category the guard checks.
+//
+// - `nonMoney`: genuine counts, durations, character limits and token
+//   quantities. The entry must still exist as a numeric declaration and
+//   must NOT match the money pattern (a match means it is miscategorized).
+// - `sanctioned`: numeric money PLAN explicitly keeps: per-token/per-hour
+//   price-card rates (the M95 pricing compatibility port) and vendor wire
+//   fields captured exactly as the vendor sends them. Each entry needs a
+//   PLAN citation (`PLAN.md:<line>`) and, for wire fields, the file:line
+//   where it is converted to exact money at the boundary.
+// - `trackedDebt`: every remaining current numeric money field. Each entry
+//   names milestone M121, which converts it to `UsdAmount`.
+//
+// The guard fails on any money leaf not in the list, any stale entry, a
+// `trackedDebt` entry without M121, and a `sanctioned` entry without a
+// citation. It does not claim "no numeric money anywhere": the
+// `trackedDebt` category below is the current numeric money inventory.
 
-// `usd` is lowercase here on purpose: the legacy journal row names its total
+// `usd` is lowercase on purpose: the legacy journal row names its total
 // `usd`, and a new lowercase money field must fail this guard too.
-const MONEY_KEY = /(?:[Uu]sd|Cost|Price|Budget|Cap)|^spend/
-const MONEY_HINT = /[Uu]sd|Cost|Price|Budget|Cap|spend/
+const MONEY_KEY = /Usd|usd|Cost|Price|^spend|Budget\w*Usd|Cap\w*Usd/
+const MONEY_HINT = /Usd|usd|Cost|Price|spend|Budget|Cap/
 
-// Boundary schemas that normalize legacy numbers to UsdAmount once. Names in
-// this set are exact money even when their definition mentions z.number().
-const SANCTIONED = new Set([
-  'legacyUsdSchema',
-  'usdInputSchema',
-  'usdAmountSchema',
-  'nonnegativeUsdSchema',
-])
-
-const ALLOW_LIST: Readonly<Record<string, string>> = {
-  // Versioned read of pre-exact journal rows; parseUsd normalizes each value once on read.
-  'core/usage/accountUsage.ts:settledUsd':
-    'Versioned read of pre-exact journal rows; parseUsd normalizes each value once on read.',
-  'core/usage/accountUsage.ts:reservedUsd':
-    'Versioned read of pre-exact journal rows; parseUsd normalizes each value once on read.',
-  'core/usage/accountUsage.ts:uncertainUsd':
-    'Versioned read of pre-exact journal rows; parseUsd normalizes each value once on read.',
-  // OpenRouter /key wire rows filled by the host; rendered only, converted
-  // exactly via Usd.from at the insights display boundary.
-  'shared/usage.ts:costUsd':
-    'OpenRouter /key wire row filled by the host; rendered only, converted exactly via Usd.from at the insights display boundary.',
-  'shared/usage.ts:todayUsd':
-    'OpenRouter /key wire row filled by the host; rendered only, converted exactly via Usd.from at the insights display boundary.',
-  'shared/usage.ts:monthUsd':
-    'OpenRouter /key wire row filled by the host; rendered only, converted exactly via Usd.from at the insights display boundary.',
-  'shared/usage.ts:limitUsd':
-    'OpenRouter /key wire row filled by the host; rendered only, converted exactly via Usd.from at the insights display boundary.',
-  'shared/usage.ts:remainingUsd':
-    'OpenRouter /key wire row filled by the host; rendered only, converted exactly via Usd.from at the insights display boundary.',
-  // OpenRouter key-usage wire shape with no production writer (fixtures only);
-  // live Account & usage rows use usage.ts providerUsageRowSchema.
-  'shared/modelsPanel.ts:dayUsd':
-    'OpenRouter key-usage wire shape with no production writer (fixtures only); live rows use usage.ts providerUsageRowSchema.',
-  'shared/modelsPanel.ts:monthUsd':
-    'OpenRouter key-usage wire shape with no production writer (fixtures only); live rows use usage.ts providerUsageRowSchema.',
-  'shared/modelsPanel.ts:limitUsd':
-    'OpenRouter key-usage wire shape with no production writer (fixtures only); live rows use usage.ts providerUsageRowSchema.',
-  'shared/modelsPanel.ts:remainingUsd':
-    'OpenRouter key-usage wire shape with no production writer (fixtures only); live rows use usage.ts providerUsageRowSchema.',
-  // Persisted usage-journal numeric format; converted exactly via Usd.from at
-  // the insights display boundary.
-  'shared/usagePage.ts:usd':
-    'Persisted usage-journal numeric format; converted exactly via Usd.from at the insights display boundary.',
-  'shared/usagePage.ts:apiEquivalentUsd':
-    'Persisted usage-journal numeric format; converted exactly via Usd.from at the insights display boundary.',
-  'shared/usagePage.ts:spentUsd':
-    'Persisted usage-journal numeric format; converted exactly via Usd.from at the insights display boundary.',
-  'shared/usagePage.ts:capUsd':
-    'Persisted usage-journal numeric format; converted exactly via Usd.from at the insights display boundary.',
-  'shared/usagePage.ts:uncertainUsd':
-    'Persisted usage-journal numeric format; converted exactly via Usd.from at the insights display boundary.',
-  'shared/usagePage.ts:projectedUsd':
-    'Persisted usage-journal numeric format; converted exactly via Usd.from at the insights display boundary.',
-  'shared/usagePage.ts:cacheUsd':
-    'Persisted usage-journal numeric format; converted exactly via Usd.from at the insights display boundary.',
-  // Persisted usage-journal numeric rows; converted exactly via Usd.from at
-  // the insights display boundary.
-  'shared/usageJournal.ts:usd':
-    'Persisted usage-journal numeric row; converted exactly via Usd.from at the insights display boundary.',
-  'shared/usageJournal.ts:apiEquivalentUsd':
-    'Persisted usage-journal numeric row; converted exactly via Usd.from at the insights display boundary.',
-  'shared/usageJournal.ts:usedUsd':
-    'Persisted usage-journal numeric row; converted exactly via Usd.from at the insights display boundary.',
-  'shared/usageJournal.ts:limitUsd':
-    'Persisted usage-journal numeric row; converted exactly via Usd.from at the insights display boundary.',
-  'shared/usageJournal.ts:remainingUsd':
-    'Persisted usage-journal numeric row; converted exactly via Usd.from at the insights display boundary.',
-  'core/usage/aggregate.ts:usd':
-    'Persisted usage-journal numeric row; converted exactly via Usd.from at the insights display boundary.',
-  // Numeric team attempt and usage costs; tracked for follow-up conversion.
-  'shared/team.ts:costUsd':
-    'Numeric team attempt and usage cost; tracked for follow-up conversion.',
-  'shared/team.ts:reportedCostUsd':
-    'Numeric team attempt and usage cost; tracked for follow-up conversion.',
-  'shared/team.ts:estimatedCostUsd':
-    'Numeric team attempt and usage cost; tracked for follow-up conversion.',
-  // Team view display state; tracked for follow-up conversion.
-  'shared/teamView.ts:costUsd': 'Team view display state; tracked for follow-up conversion.',
-  'shared/teamView.ts:spentUsdToday': 'Team view display state; tracked for follow-up conversion.',
-  'shared/teamView.ts:budgetUsdToday': 'Team view display state; tracked for follow-up conversion.',
-  // M117 resource-governor demand quantity, not ledger money.
-  'shared/estimate.ts:accountUsdPerHour':
-    'M117 resource-governor demand quantity, not ledger money.',
-  // Captured catalog price shape; converted once via usdNanos at recommend.ts:160.
-  'shared/estimate.ts:hourlyUsd':
-    'Captured catalog price shape; converted once via usdNanos at recommend.ts:160.',
-  // Catalog per-unit prices (USD per million tokens); display and comparison only.
-  'core/agent/agentBackend.ts:inputUsdPerMTokens':
-    'Catalog per-unit price; display and comparison only, never ledger arithmetic.',
-  'core/agent/agentBackend.ts:outputUsdPerMTokens':
-    'Catalog per-unit price; display and comparison only, never ledger arithmetic.',
-  'shared/protocol.ts:inputUsdPerMTokens':
-    'Catalog per-unit price; display and comparison only, never ledger arithmetic.',
-  'shared/protocol.ts:outputUsdPerMTokens':
-    'Catalog per-unit price; display and comparison only, never ledger arithmetic.',
-  'core/team/intensity.ts:cachedUsdPerMTok':
-    'Catalog per-unit price; display and comparison only, never ledger arithmetic.',
-  // Token counts, not money.
-  'shared/paid.ts:dailyBudgetTokens': 'Token count, not money.',
-  'core/team/teamPaid.ts:dailyBudgetTokens': 'Token count, not money.',
-  'core/team/capValidation.ts:teamDailyBudgetTokens': 'Token count, not money.',
-  'core/team/intensity.ts:dailyBudgetTokens': 'Token count, not money.',
-  'core/team/teamMeter.ts:teamDailyBudgetTokens': 'Token count, not money.',
-  'core/team/teamMeter.ts:workspaceDailyBudgetTokens': 'Token count, not money.',
-  'core/team/modelSettings.ts:thinkingBudgetTokens': 'Token count, not money.',
-  'core/team/modelSettings.ts:contextCapTokens': 'Token count, not money.',
-  'core/team/teamPool.ts:tokensCap': 'Token count, not money.',
-  'core/backends/modelapi/goals.ts:tokenBudget': 'Token count, not money.',
-  // Model thinking budgets in tokens, not money.
-  'core/backends/modelapi/codecs/anthropic.ts:thinkingBudget':
-    'Model thinking budget in tokens, not money.',
-  'core/backends/modelapi/codecs/gemini.ts:explicitBudget':
-    'Model thinking budget in tokens, not money.',
-  // Character count, not money.
-  'core/backends/modelapi/ModelApiHost.ts:mediaBudgetMaxEncodedChars':
-    'Character count, not money.',
-  // Durations in milliseconds, not money.
-  'core/codeIntel/repoMap.ts:timeBudgetMs': 'Duration in milliseconds, not money.',
-  'core/reporting/history.ts:probeBudgetMs': 'Duration in milliseconds, not money.',
-  'shared/retryPolicy.ts:retryAfterCapMs': 'Duration in milliseconds, not money.',
-  // Worker counts, not money.
-  'core/team/intensity.ts:runningCap': 'Worker count, not money.',
-  'core/team/intensity.ts:configuredCap': 'Worker count, not money.',
-  // xAI integer vendor unit (1e-10 USD ticks); converted once at priceCard.ts:165.
-  'core/usage/journalRecord.ts:costInUsdTicks':
-    'xAI integer vendor unit (1e-10 USD ticks); converted once at priceCard.ts:165.',
-  // Captured vendor frame field (integer ticks); converted exactly via Usd
-  // arithmetic at settledCostOf in the same file.
-  'core/backends/modelapi/codecs/responses.ts:cost_in_usd_ticks':
-    'Captured vendor frame field (integer ticks); converted exactly via Usd arithmetic at settledCostOf.',
-  // Team price-preview rates and totals in USD; display and comparison only.
-  'core/team/autofill.ts:usdPerMTokInput':
-    'Team price-preview rate in USD; display and comparison only, never ledger arithmetic.',
-  'core/team/capValidation.ts:usdPerMTok':
-    'Team price-preview rate in USD; display and comparison only, never ledger arithmetic.',
-  'core/team/intensity.ts:usdPerMTok':
-    'Team price-preview rate in USD; display and comparison only, never ledger arithmetic.',
-  'core/team/intensity.ts:usdPerHourLow':
-    'Team price-preview rate in USD; display and comparison only, never ledger arithmetic.',
-  'core/team/intensity.ts:usdPerHourHigh':
-    'Team price-preview rate in USD; display and comparison only, never ledger arithmetic.',
-  'core/team/preview.ts:usdPerMTokInput':
-    'Team price-preview rate in USD; display and comparison only, never ledger arithmetic.',
-  'core/team/preview.ts:usdPerMTokOutput':
-    'Team price-preview rate in USD; display and comparison only, never ledger arithmetic.',
-  'core/team/preview.ts:usdPerMTokCachedInput':
-    'Team price-preview rate in USD; display and comparison only, never ledger arithmetic.',
-  'core/team/preview.ts:usdLow':
-    'Team price-preview total in USD; display and comparison only, never ledger arithmetic.',
-  'core/team/preview.ts:usdHigh':
-    'Team price-preview total in USD; display and comparison only, never ledger arithmetic.',
-  'core/team/preview.ts:usd':
-    'Team price-preview total in USD; display and comparison only, never ledger arithmetic.',
+type MoneyCategory = 'nonMoney' | 'sanctioned' | 'trackedDebt'
+interface AllowEntry {
+  readonly category: MoneyCategory
+  readonly reason: string
 }
 
-interface Finding {
+const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
+  // --- nonMoney: token counts, durations, character limits, worker counts.
+  'shared/paid.ts:dailyBudgetTokens': {
+    category: 'nonMoney',
+    reason: 'Token count, not money.',
+  },
+  'core/team/teamPaid.ts:dailyBudgetTokens': {
+    category: 'nonMoney',
+    reason: 'Token count, not money.',
+  },
+  'core/team/capValidation.ts:teamDailyBudgetTokens': {
+    category: 'nonMoney',
+    reason: 'Token count, not money.',
+  },
+  'core/team/intensity.ts:dailyBudgetTokens': {
+    category: 'nonMoney',
+    reason: 'Token count, not money.',
+  },
+  'core/team/teamMeter.ts:teamDailyBudgetTokens': {
+    category: 'nonMoney',
+    reason: 'Token count, not money.',
+  },
+  'core/team/teamMeter.ts:workspaceDailyBudgetTokens': {
+    category: 'nonMoney',
+    reason: 'Token count, not money.',
+  },
+  'core/team/modelSettings.ts:thinkingBudgetTokens': {
+    category: 'nonMoney',
+    reason: 'Token count, not money.',
+  },
+  'core/team/modelSettings.ts:contextCapTokens': {
+    category: 'nonMoney',
+    reason: 'Token count, not money.',
+  },
+  'core/team/teamPool.ts:tokensCap': { category: 'nonMoney', reason: 'Token count, not money.' },
+  'core/backends/modelapi/goals.ts:tokenBudget': {
+    category: 'nonMoney',
+    reason: 'Token count, not money.',
+  },
+  'core/backends/modelapi/codecs/anthropic.ts:thinkingBudget': {
+    category: 'nonMoney',
+    reason: 'Model thinking budget in tokens, not money.',
+  },
+  'core/backends/modelapi/codecs/gemini.ts:explicitBudget': {
+    category: 'nonMoney',
+    reason: 'Model thinking budget in tokens, not money.',
+  },
+  'core/backends/modelapi/ModelApiHost.ts:mediaBudgetMaxEncodedChars': {
+    category: 'nonMoney',
+    reason: 'Character count, not money.',
+  },
+  'core/codeIntel/repoMap.ts:timeBudgetMs': {
+    category: 'nonMoney',
+    reason: 'Duration in milliseconds, not money.',
+  },
+  'core/reporting/history.ts:probeBudgetMs': {
+    category: 'nonMoney',
+    reason: 'Duration in milliseconds, not money.',
+  },
+  'shared/retryPolicy.ts:retryAfterCapMs': {
+    category: 'nonMoney',
+    reason: 'Duration in milliseconds, not money.',
+  },
+  'core/team/intensity.ts:runningCap': {
+    category: 'nonMoney',
+    reason: 'Worker count, not money.',
+  },
+  'core/team/intensity.ts:configuredCap': {
+    category: 'nonMoney',
+    reason: 'Worker count, not money.',
+  },
+  // --- sanctioned: price-card and per-token/per-hour rates (the M95 pricing
+  // compatibility port) and vendor wire fields captured as sent.
+  'core/agent/agentBackend.ts:inputUsdPerMTokens': {
+    category: 'sanctioned',
+    reason:
+      'M95 provider capability record: catalog per-unit price, display and comparison only (PLAN.md:27519).',
+  },
+  'core/agent/agentBackend.ts:outputUsdPerMTokens': {
+    category: 'sanctioned',
+    reason:
+      'M95 provider capability record: catalog per-unit price, display and comparison only (PLAN.md:27519).',
+  },
+  'shared/protocol.ts:inputUsdPerMTokens': {
+    category: 'sanctioned',
+    reason:
+      'M95 provider capability record: catalog per-unit price, display and comparison only (PLAN.md:27519).',
+  },
+  'shared/protocol.ts:outputUsdPerMTokens': {
+    category: 'sanctioned',
+    reason:
+      'M95 provider capability record: catalog per-unit price, display and comparison only (PLAN.md:27519).',
+  },
+  'core/team/intensity.ts:cachedUsdPerMTok': {
+    category: 'sanctioned',
+    reason: 'Price-card per-unit rate: catalog price, display and comparison only (PLAN.md:17272).',
+  },
+  'core/team/intensity.ts:usdPerMTok': {
+    category: 'sanctioned',
+    reason: 'Price-card per-unit rate: catalog price, display and comparison only (PLAN.md:17272).',
+  },
+  'core/team/intensity.ts:usdPerHourLow': {
+    category: 'sanctioned',
+    reason: 'Price-card per-hour rate: catalog price, display and comparison only (PLAN.md:17272).',
+  },
+  'core/team/intensity.ts:usdPerHourHigh': {
+    category: 'sanctioned',
+    reason: 'Price-card per-hour rate: catalog price, display and comparison only (PLAN.md:17272).',
+  },
+  'core/team/autofill.ts:usdPerMTokInput': {
+    category: 'sanctioned',
+    reason: 'Price-card per-unit rate: catalog price, display and comparison only (PLAN.md:17272).',
+  },
+  'core/team/capValidation.ts:usdPerMTok': {
+    category: 'sanctioned',
+    reason: 'Price-card per-unit rate: catalog price, display and comparison only (PLAN.md:17272).',
+  },
+  'core/team/preview.ts:usdPerMTokInput': {
+    category: 'sanctioned',
+    reason: 'Price-card per-unit rate: catalog price, display and comparison only (PLAN.md:17272).',
+  },
+  'core/team/preview.ts:usdPerMTokOutput': {
+    category: 'sanctioned',
+    reason: 'Price-card per-unit rate: catalog price, display and comparison only (PLAN.md:17272).',
+  },
+  'core/team/preview.ts:usdPerMTokCachedInput': {
+    category: 'sanctioned',
+    reason: 'Price-card per-unit rate: catalog price, display and comparison only (PLAN.md:17272).',
+  },
+  'shared/estimate.ts:hourlyUsd': {
+    category: 'sanctioned',
+    reason: 'Catalog price shape: per-hour rate, display and comparison only (PLAN.md:17272).',
+  },
+  'shared/estimate.ts:accountUsdPerHour': {
+    category: 'sanctioned',
+    reason:
+      'Estimator per-hour demand rate in USD/hour, display and comparison only (PLAN.md:17272).',
+  },
+  'core/backends/modelapi/codecs/responses.ts:cost_in_usd_ticks': {
+    category: 'sanctioned',
+    reason:
+      'Vendor wire field captured exactly as sent (PLAN.md:4230); converted to exact money at src/core/backends/modelapi/codecs/responses.ts:361 (settledCostOf).',
+  },
+  'core/usage/journalRecord.ts:costInUsdTicks': {
+    category: 'sanctioned',
+    reason:
+      'Vendor wire unit carried as sent (xAI integer ticks of 1e-10 USD per token, PLAN.md:4230); converted at src/core/usage/journalRecord.ts:164.',
+  },
+  'core/backends/modelapi/modelPolicy.ts:costInUsdTicks': {
+    category: 'sanctioned',
+    reason:
+      'Vendor-reported tick input carried as sent (PLAN.md:4230); converted exactly at src/core/providers/priceCard.ts:254.',
+  },
+  'core/providers/priceCard.ts:costInUsdTicks': {
+    category: 'sanctioned',
+    reason:
+      'Vendor-reported tick input carried as sent (PLAN.md:4230); converted exactly at src/core/providers/priceCard.ts:254.',
+  },
+  // --- trackedDebt: current numeric money M121 converts to UsdAmount.
+  'core/usage/accountUsage.ts:settledUsd': {
+    category: 'trackedDebt',
+    reason: 'Versioned read of pre-exact journal rows; M121 converts to UsdAmount.',
+  },
+  'core/usage/accountUsage.ts:reservedUsd': {
+    category: 'trackedDebt',
+    reason: 'Versioned read of pre-exact journal rows; M121 converts to UsdAmount.',
+  },
+  'core/usage/accountUsage.ts:uncertainUsd': {
+    category: 'trackedDebt',
+    reason: 'Versioned read of pre-exact journal rows; M121 converts to UsdAmount.',
+  },
+  'shared/usage.ts:costUsd': {
+    category: 'trackedDebt',
+    reason: 'OpenRouter /key wire row rendered as money; M121 converts to UsdAmount.',
+  },
+  'shared/usage.ts:todayUsd': {
+    category: 'trackedDebt',
+    reason: 'OpenRouter /key wire row rendered as money; M121 converts to UsdAmount.',
+  },
+  'shared/usage.ts:monthUsd': {
+    category: 'trackedDebt',
+    reason: 'OpenRouter /key wire row rendered as money; M121 converts to UsdAmount.',
+  },
+  'shared/usage.ts:limitUsd': {
+    category: 'trackedDebt',
+    reason: 'OpenRouter /key wire row rendered as money; M121 converts to UsdAmount.',
+  },
+  'shared/usage.ts:remainingUsd': {
+    category: 'trackedDebt',
+    reason: 'OpenRouter /key wire row rendered as money; M121 converts to UsdAmount.',
+  },
+  'shared/modelsPanel.ts:dayUsd': {
+    category: 'trackedDebt',
+    reason: 'Key-usage wire shape rendered as money; M121 converts to UsdAmount.',
+  },
+  'shared/modelsPanel.ts:monthUsd': {
+    category: 'trackedDebt',
+    reason: 'Key-usage wire shape rendered as money; M121 converts to UsdAmount.',
+  },
+  'shared/modelsPanel.ts:limitUsd': {
+    category: 'trackedDebt',
+    reason: 'Key-usage wire shape rendered as money; M121 converts to UsdAmount.',
+  },
+  'shared/modelsPanel.ts:remainingUsd': {
+    category: 'trackedDebt',
+    reason: 'Key-usage wire shape rendered as money; M121 converts to UsdAmount.',
+  },
+  'shared/usagePage.ts:usd': {
+    category: 'trackedDebt',
+    reason: 'Persisted usage-journal numeric row; M121 converts to UsdAmount.',
+  },
+  'shared/usagePage.ts:apiEquivalentUsd': {
+    category: 'trackedDebt',
+    reason: 'Persisted usage-journal numeric row; M121 converts to UsdAmount.',
+  },
+  'shared/usagePage.ts:spentUsd': {
+    category: 'trackedDebt',
+    reason: 'Persisted usage-journal numeric row; M121 converts to UsdAmount.',
+  },
+  'shared/usagePage.ts:capUsd': {
+    category: 'trackedDebt',
+    reason: 'Persisted usage-journal numeric row; M121 converts to UsdAmount.',
+  },
+  'shared/usagePage.ts:uncertainUsd': {
+    category: 'trackedDebt',
+    reason: 'Persisted usage-journal numeric row; M121 converts to UsdAmount.',
+  },
+  'shared/usagePage.ts:projectedUsd': {
+    category: 'trackedDebt',
+    reason: 'Persisted usage-journal numeric row; M121 converts to UsdAmount.',
+  },
+  'shared/usagePage.ts:cacheUsd': {
+    category: 'trackedDebt',
+    reason: 'Persisted usage-journal numeric row; M121 converts to UsdAmount.',
+  },
+  'shared/usageJournal.ts:usd': {
+    category: 'trackedDebt',
+    reason: 'Persisted usage-journal numeric row; M121 converts to UsdAmount.',
+  },
+  'shared/usageJournal.ts:apiEquivalentUsd': {
+    category: 'trackedDebt',
+    reason: 'Persisted usage-journal numeric row; M121 converts to UsdAmount.',
+  },
+  'shared/usageJournal.ts:usedUsd': {
+    category: 'trackedDebt',
+    reason: 'Persisted usage-journal numeric row; M121 converts to UsdAmount.',
+  },
+  'shared/usageJournal.ts:limitUsd': {
+    category: 'trackedDebt',
+    reason: 'Persisted usage-journal numeric row; M121 converts to UsdAmount.',
+  },
+  'shared/usageJournal.ts:remainingUsd': {
+    category: 'trackedDebt',
+    reason: 'Persisted usage-journal numeric row; M121 converts to UsdAmount.',
+  },
+  'core/usage/aggregate.ts:usd': {
+    category: 'trackedDebt',
+    reason: 'Usage accumulator numeric dollars; M121 converts to UsdAmount.',
+  },
+  'shared/team.ts:costUsd': {
+    category: 'trackedDebt',
+    reason: 'Numeric team attempt and usage cost; M121 converts to UsdAmount.',
+  },
+  'shared/team.ts:reportedCostUsd': {
+    category: 'trackedDebt',
+    reason: 'Numeric team attempt and usage cost; M121 converts to UsdAmount.',
+  },
+  'shared/team.ts:estimatedCostUsd': {
+    category: 'trackedDebt',
+    reason: 'Numeric team attempt and usage cost; M121 converts to UsdAmount.',
+  },
+  'shared/teamView.ts:costUsd': {
+    category: 'trackedDebt',
+    reason: 'Team view display-state cost; M121 converts to UsdAmount.',
+  },
+  'shared/teamView.ts:spentUsdToday': {
+    category: 'trackedDebt',
+    reason: 'Team view display-state cost; M121 converts to UsdAmount.',
+  },
+  'shared/teamView.ts:budgetUsdToday': {
+    category: 'trackedDebt',
+    reason: 'Team view display-state budget; M121 converts to UsdAmount.',
+  },
+  'core/team/preview.ts:usdLow': {
+    category: 'trackedDebt',
+    reason: 'Team price-preview total in USD; M121 converts to UsdAmount.',
+  },
+  'core/team/preview.ts:usdHigh': {
+    category: 'trackedDebt',
+    reason: 'Team price-preview total in USD; M121 converts to UsdAmount.',
+  },
+  'core/team/preview.ts:usd': {
+    category: 'trackedDebt',
+    reason: 'Team price-preview total in USD; M121 converts to UsdAmount.',
+  },
+  'shared/scheduleV2.ts:paidCapUsd': {
+    category: 'trackedDebt',
+    reason:
+      'Schedule cap in v2 numeric files and JSON drafts (versioned z.codec boundary); M121 converts to UsdAmount.',
+  },
+  'shared/scheduleV2.ts:usd': {
+    category: 'trackedDebt',
+    reason:
+      'Schedule amount in v2 numeric files and JSON drafts (versioned z.codec boundary); M121 converts to UsdAmount.',
+  },
+  'shared/scheduleV2.ts:retainedLiabilityUsd': {
+    category: 'trackedDebt',
+    reason:
+      'Schedule liability in v2 numeric files and JSON drafts (versioned z.codec boundary); M121 converts to UsdAmount.',
+  },
+  'core/backends/modelapi/schemas.ts:provider_cost_usd': {
+    category: 'trackedDebt',
+    reason:
+      "Codec-normalized captured provider cost in dollars (the old text guard's pre-filter missed snake_case); M121 converts to UsdAmount.",
+  },
+  // Spread-copies of team's numeric traffic shape (`...teamTrafficMetricsSchema.shape`
+  // at modelsPanel.ts:671), not the exact `costUsd: legacyUsdSchema` field at line 92.
+  // They convert together with the team shape under M121.
+  'shared/modelsPanel.ts:costUsd': {
+    category: 'trackedDebt',
+    reason:
+      'Spread-copy of the numeric team traffic costs (modelsPanel.ts:671); M121 converts to UsdAmount.',
+  },
+  'shared/modelsPanel.ts:reportedCostUsd': {
+    category: 'trackedDebt',
+    reason:
+      'Spread-copy of the numeric team traffic costs (modelsPanel.ts:671); M121 converts to UsdAmount.',
+  },
+  'shared/modelsPanel.ts:estimatedCostUsd': {
+    category: 'trackedDebt',
+    reason:
+      'Spread-copy of the numeric team traffic costs (modelsPanel.ts:671); M121 converts to UsdAmount.',
+  },
+}
+
+// ---------- Part 1: runtime walk of the actual exported zod schemas ----------
+
+interface ZodSchemaLike {
+  readonly _zod: { readonly def: { readonly type: string } & Record<string, unknown> }
+  readonly safeParse: (value: unknown) => { readonly success: boolean; readonly data?: unknown }
+}
+
+function asSchema(value: unknown): ZodSchemaLike | null {
+  if (typeof value !== 'object' || value === null || !('_zod' in value)) return null
+  const zod = (value as { _zod?: unknown })._zod
+  if (typeof zod !== 'object' || zod === null || !('def' in zod)) return null
+  const def = (zod as { def?: unknown }).def
+  return typeof def !== 'object' ||
+    def === null ||
+    typeof (def as { type?: unknown }).type !== 'string' ||
+    typeof (value as { safeParse?: unknown }).safeParse !== 'function'
+    ? null
+    : (value as ZodSchemaLike)
+}
+
+function shapeOf(def: ZodSchemaLike['_zod']['def']): Record<string, unknown> {
+  const shape = def['shape']
+  if (typeof shape === 'function') {
+    const resolved: unknown = (shape as () => unknown)()
+    return typeof resolved === 'object' && resolved !== null
+      ? (resolved as Record<string, unknown>)
+      : {}
+  }
+  return typeof shape === 'object' && shape !== null ? (shape as Record<string, unknown>) : {}
+}
+
+// Structural children, ignoring key names. Pipes contribute only their
+// OUTPUT schema: a numeric input that parses to a canonical string (the
+// `legacyUsdSchema` boundary shape) is exact money, not a finding.
+function childSchemas(def: ZodSchemaLike['_zod']['def']): ZodSchemaLike[] {
+  const child = (value: unknown): ZodSchemaLike[] => {
+    const schema = asSchema(value)
+    return schema === null ? [] : [schema]
+  }
+  const children = (value: unknown): ZodSchemaLike[] =>
+    Array.isArray(value) ? value.flatMap((entry) => child(entry)) : child(value)
+  switch (def.type) {
+    case 'optional':
+    case 'nullable':
+    case 'readonly':
+    case 'default':
+    case 'prefault':
+    case 'catch': {
+      return child(def['innerType'])
+    }
+    case 'pipe': {
+      return child(def['out'])
+    }
+    case 'union': {
+      return children(def['options'])
+    }
+    case 'object': {
+      return Object.values(shapeOf(def)).flatMap((entry) => child(entry))
+    }
+    case 'array': {
+      return child(def['element'])
+    }
+    case 'tuple': {
+      return [...children(def['items']), ...child(def['rest'])]
+    }
+    case 'record': {
+      return child(def['valueType'])
+    }
+    case 'lazy': {
+      try {
+        const getter = def['getter']
+        return typeof getter === 'function' ? child((getter as () => unknown)()) : []
+      } catch {
+        return []
+      }
+    }
+    default: {
+      return []
+    }
+  }
+}
+
+const MONEY_PROBES: readonly unknown[] = [0, '0', 'probe-marker', null, undefined, true, [], {}]
+
+// What one probe round proves about a leaf: some probe parsed to a number,
+// some probe parsed to a non-number, or nothing parsed at all. A probe must
+// never throw: some production transforms raise instead of failing cleanly
+// (a throwing probe proves nothing, so it is skipped like a failed one).
+function probeLeaf(schema: ZodSchemaLike): 'number' | 'other' | 'silent' {
+  for (const probe of MONEY_PROBES) {
+    try {
+      const result = schema.safeParse(probe)
+      if (result.success) return typeof result.data === 'number' ? 'number' : 'other'
+    } catch {
+      continue
+    }
+  }
+  return 'silent'
+}
+
+// Does this leaf schema parse to a JavaScript number? Wrappers unwrap, pipes
+// judge their output, unions/arrays/tuples/records judge their members, and a
+// bare transform is judged by probing what it actually parses to: a numeric
+// output is a finding, a proven non-number output is exact money, and a
+// transform no probe can satisfy has an undeclared output, which on a
+// money-named key is a finding too.
+function isNumericLeaf(schema: ZodSchemaLike, seen: Set<ZodSchemaLike>): boolean {
+  if (seen.has(schema)) return false
+  seen.add(schema)
+  const def = schema._zod.def
+  switch (def.type) {
+    case 'number': {
+      return true
+    }
+    case 'optional':
+    case 'nullable':
+    case 'readonly':
+    case 'default':
+    case 'prefault':
+    case 'catch': {
+      const inner = asSchema(def['innerType'])
+      return inner !== null && isNumericLeaf(inner, seen)
+    }
+    case 'pipe': {
+      const out = asSchema(def['out'])
+      return out !== null && isNumericLeaf(out, seen)
+    }
+    case 'union': {
+      const options = def['options']
+      return (
+        Array.isArray(options) &&
+        options.some((option) => {
+          const inner = asSchema(option)
+          return inner !== null && isNumericLeaf(inner, seen)
+        })
+      )
+    }
+    case 'array': {
+      const element = asSchema(def['element'])
+      return element !== null && isNumericLeaf(element, seen)
+    }
+    case 'tuple': {
+      const items = [def['items'], def['rest']].flat()
+      return items.some((item) => {
+        const inner = asSchema(item)
+        return inner !== null && isNumericLeaf(inner, seen)
+      })
+    }
+    case 'record': {
+      const value = asSchema(def['valueType'])
+      return value !== null && isNumericLeaf(value, seen)
+    }
+    case 'lazy': {
+      try {
+        const getter = def['getter']
+        if (typeof getter !== 'function') return false
+        const inner = asSchema((getter as () => unknown)())
+        return inner !== null && isNumericLeaf(inner, seen)
+      } catch {
+        return false
+      }
+    }
+    case 'transform': {
+      // No declared output is visible at runtime, so probe the behavior.
+      return probeLeaf(schema) !== 'other'
+    }
+    case 'string':
+    case 'boolean':
+    case 'bigint':
+    case 'literal':
+    case 'enum':
+    case 'never': {
+      return false
+    }
+    default: {
+      // Dates, URLs, templates, custom schemas and any future leaf kind:
+      // probe the behavior; only a proven numeric output is a finding.
+      const inner = childSchemas(def)
+      return inner.length > 0
+        ? inner.some((entry) => isNumericLeaf(entry, seen))
+        : probeLeaf(schema) === 'number'
+    }
+  }
+}
+
+const KNOWN_DEF_TYPES: ReadonlySet<string> = new Set([
+  'array',
+  'bigint',
+  'boolean',
+  'catch',
+  'coerce',
+  'custom',
+  'date',
+  'datetime',
+  'default',
+  'discriminatedUnion',
+  'enum',
+  'file',
+  'float32',
+  'float64',
+  'int',
+  'int32',
+  'int64',
+  'ipv4',
+  'ipv6',
+  'lazy',
+  'literal',
+  'map',
+  'nan',
+  'never',
+  'neverReadonly',
+  'nonoptional',
+  'nullable',
+  'null',
+  'number',
+  'object',
+  'optional',
+  'pipe',
+  'prefault',
+  'promise',
+  'readonly',
+  'record',
+  'set',
+  'string',
+  'stringbool',
+  'success',
+  'template_literal',
+  'transform',
+  'tuple',
+  'uint32',
+  'uint64',
+  'undefined',
+  'union',
+  'unknown',
+  'url',
+  'uuid',
+  'void',
+])
+
+interface RuntimeVerdict {
+  readonly flagged: ReadonlySet<string>
+  readonly numeric: ReadonlySet<string>
+}
+
+// A finding is attributed to the module that declares the key, not merely
+// the first module that re-exports its schema object: `teamView`'s budget
+// shape reaches the walk through `team` too, and `usagePage` rows through
+// `usageCompanion`. Every reaching file is recorded; the key is attributed
+// to the first one (sorted) whose source declares it, falling back to the
+// first reacher for computed keys no source text names.
+interface ShapeRecord {
+  readonly files: Set<string>
+  readonly keys: { readonly key: string; readonly inner: ZodSchemaLike }[]
+}
+
+function escapeRegExp(text: string): string {
+  return text.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
+}
+
+function walkSchema(
+  file: string,
+  schema: ZodSchemaLike,
+  descended: Set<ZodSchemaLike>,
+  seenDefTypes: Set<string>,
+  records: Map<ZodSchemaLike, ShapeRecord>,
+): void {
+  const record = records.get(schema)
+  if (record !== undefined) {
+    record.files.add(file)
+    return
+  }
+  const fresh: ShapeRecord = { files: new Set([file]), keys: [] }
+  records.set(schema, fresh)
+  if (descended.has(schema)) return
+  descended.add(schema)
+  const def = schema._zod.def
+  seenDefTypes.add(def.type)
+  if (def.type === 'object') {
+    const shape = shapeOf(def)
+    for (const [key, value] of Object.entries(shape)) {
+      const inner = asSchema(value)
+      if (inner !== null) fresh.keys.push({ key, inner })
+    }
+  }
+  for (const entry of childSchemas(def)) walkSchema(file, entry, descended, seenDefTypes, records)
+}
+
+function walkModuleExports(
+  file: string,
+  namespace: Record<string, unknown>,
+  descended: Set<ZodSchemaLike>,
+  seenDefTypes: Set<string>,
+  records: Map<ZodSchemaLike, ShapeRecord>,
+): void {
+  for (const value of Object.values(namespace)) {
+    const schema = asSchema(value)
+    if (schema !== null) walkSchema(file, schema, descended, seenDefTypes, records)
+  }
+}
+
+// Every module under src/shared and src/core, loaded with vitest's normal
+// module loading. Collection-time eager loading keeps the 5 s test timeout
+// for the walk itself; the earlier sequential dynamic import did not fit.
+const RUNTIME_MODULES: Record<string, Record<string, unknown>> = {
+  ...import.meta.glob('../../src/shared/**/*.ts', { eager: true }),
+  ...import.meta.glob('../../src/core/**/*.ts', { eager: true }),
+}
+
+function analyzeRuntime(
+  hasKeyDecl: (file: string, key: string) => boolean,
+): RuntimeVerdict & { readonly defTypes: ReadonlySet<string> } {
+  const descended = new Set<ZodSchemaLike>()
+  const seenDefTypes = new Set<string>()
+  const records = new Map<ZodSchemaLike, ShapeRecord>()
+  const modulePaths = Object.keys(RUNTIME_MODULES).toSorted((left, right) =>
+    left.localeCompare(right),
+  )
+  for (const path of modulePaths) {
+    const file = path.replaceAll('\\', '/').replace(/^\.\.\/\.\.\/src\//, '')
+    walkModuleExports(file, RUNTIME_MODULES[path] ?? {}, descended, seenDefTypes, records)
+  }
+  // The structural walk descends each schema once, so a repeat visit records
+  // its file only on the object itself. Propagate every file to every
+  // descendant to a fixpoint: a schema nested under two modules belongs to
+  // both reachers, and attribution then picks the one that declares the key.
+  let isChanged = true
+  while (isChanged) {
+    isChanged = false
+    for (const [schema, record] of records) {
+      for (const child of childSchemas(schema._zod.def)) {
+        const target = records.get(child)
+        if (target === undefined) continue
+        for (const file of record.files) {
+          if (target.files.has(file)) {
+            continue
+          }
+
+          target.files.add(file)
+          isChanged = true
+        }
+      }
+    }
+  }
+  const flagged = new Set<string>()
+  const numeric = new Set<string>()
+  for (const record of records.values()) {
+    const reachers = [...record.files].toSorted((left, right) => left.localeCompare(right))
+    for (const { key, inner } of record.keys) {
+      if (!isNumericLeaf(inner, new Set())) continue
+      const owner = reachers.find((file) => hasKeyDecl(file, key)) ?? reachers[0] ?? '<fixture>'
+      const id = `${owner}:${key}`
+      numeric.add(id)
+      if (MONEY_KEY.test(key)) flagged.add(id)
+    }
+  }
+  return { flagged, numeric, defTypes: seenDefTypes }
+}
+
+// Judge one exported-looking schema map the way the tree walk judges real
+// modules: used by the bypass drills below on fixture schemas.
+function judgeSchemas(schemas: Readonly<Record<string, unknown>>): ReadonlySet<string> {
+  const descended = new Set<ZodSchemaLike>()
+  const seenDefTypes = new Set<string>()
+  const records = new Map<ZodSchemaLike, ShapeRecord>()
+  walkModuleExports('<fixture>', schemas, descended, seenDefTypes, records)
+  const flagged = new Set<string>()
+  for (const record of records.values()) {
+    for (const { key, inner } of record.keys) {
+      if (MONEY_KEY.test(key) && isNumericLeaf(inner, new Set())) flagged.add(`<fixture>:${key}`)
+    }
+  }
+  return flagged
+}
+
+// ---------- Part 2: kept text scan for plain TypeScript declarations ----------
+
+interface TextFinding {
   readonly file: string
-  readonly line: number
   readonly key: string
-  readonly value: string
 }
 
 const QUOTE_CHARS = new Set(['"', "'", '`'])
@@ -287,10 +883,9 @@ function readInitializer(
   return { name: match[1], init: text, last }
 }
 
-function isBoundaryInit(init: string): boolean {
-  return init.includes('transform') || init.includes('.pipe(') || init.includes('z.codec(')
-}
-
+// Local numeric aliases only: `type X = number` and `const X = <zod number
+// expression>`, transitively. Imported schemas are judged by the runtime
+// walk instead, which resolves the real objects.
 function localNumerics(lines: readonly string[]): Set<string> {
   const numeric = new Set<string>()
   const inits = new Map<string, string>()
@@ -304,21 +899,19 @@ function localNumerics(lines: readonly string[]): Set<string> {
     if (match[1] !== undefined) numeric.add(match[1])
   }
   for (const [name, init] of inits) {
-    if (SANCTIONED.has(name) || isBoundaryInit(init)) continue
     if (/z\s*\.\s*(coerce\s*\.\s*)?number\b/.test(stripStrings(init))) numeric.add(name)
   }
   let isChanged = true
   while (isChanged) {
     isChanged = false
     for (const [name, init] of inits) {
-      if (numeric.has(name) || SANCTIONED.has(name) || isBoundaryInit(init)) continue
+      if (numeric.has(name)) continue
       const ids = stripStrings(init).match(/[A-Za-z_$][\w$]*/g) ?? []
       if (ids.every((id) => !numeric.has(id))) continue
       numeric.add(name)
       isChanged = true
     }
   }
-  for (const name of SANCTIONED) numeric.delete(name)
   return numeric
 }
 
@@ -333,39 +926,15 @@ function splitTopLevel(text: string): string[] {
     if (isQuoted) continue
     if (OPENERS.includes(char)) depth += 1
     if (CLOSERS.includes(char)) depth -= 1
-    if (char !== ',' || depth !== 0) continue
+    // Commas and semicolons both separate members (`a: number; b: number`
+    // on one interface line); neither appears at depth 0 inside a type.
+    if (depth !== 0 || (char !== ',' && char !== ';')) continue
     parts.push(current.slice(0, -1))
     current = ''
   }
   parts.push(current)
   return parts
 }
-
-function unwrapZCall(value: string): { readonly fn: string; readonly args: string[] } | null {
-  const match = /^z\s*\.\s*([A-Za-z_$][\w$]*)\s*\(/.exec(value.trim())
-  if (match?.[1] === undefined) return null
-  const text = value.trim()
-  const start = text.indexOf('(')
-  const end = findCloser(text, start)
-  return start === -1 ||
-    end < 0 ||
-    text
-      .slice(end + 1)
-      .trim()
-      .replace(/[,;}\]]+$/, '') !== ''
-    ? null
-    : { fn: match[1], args: splitTopLevel(text.slice(start + 1, end)) }
-}
-
-const WRAPPER_FNS = new Set([
-  'optional',
-  'nullable',
-  'readonly',
-  'default',
-  'prefault',
-  'catch',
-  'array',
-])
 
 function isBareAlias(clean: string, numerics: ReadonlySet<string>): boolean {
   // Bare aliases only: `scheduleShape.paidCapUsd` and `four.toolCalling` are
@@ -379,35 +948,42 @@ function isBareAlias(clean: string, numerics: ReadonlySet<string>): boolean {
   })
 }
 
-// Iterative descent over wrapper arguments; a stack replaces recursion.
-function isNumericValue(value: string, numerics: ReadonlySet<string>): boolean {
-  const pending: { readonly text: string; readonly depth: number }[] = [{ text: value, depth: 0 }]
-  let current = pending.pop()
-  while (current !== undefined) {
-    if (current.depth <= 8 && current.text.length <= 3000) {
-      // Never strip `)`: it closes wrapper calls (`z.optional(amount)`) that
-      // the paren matcher must see balanced.
-      const trimmed = current.text.trim().replace(/[,;}\]]+\s*$/, '')
-      const clean = stripStrings(trimmed)
-      if (/z\s*\.\s*(coerce\s*\.\s*)?number\b/.test(clean)) return true
-      const call = unwrapZCall(trimmed)
-      if (call === null) {
-        if (/^number\b/.test(clean) || isBareAlias(clean, numerics)) return true
-      } else if (WRAPPER_FNS.has(call.fn)) {
-        pending.push({ text: call.args[0] ?? '', depth: current.depth + 1 })
-      } else if (call.fn === 'record') {
-        pending.push({ text: call.args[1] ?? '', depth: current.depth + 1 })
-      } else if (call.fn === 'union') {
-        const first = (call.args[0] ?? '').trim()
-        const members = first.startsWith('[')
-          ? splitTopLevel(first.slice(1).replace(/\]\s*$/, ''))
-          : call.args
-        for (const member of members) pending.push({ text: member, depth: current.depth + 1 })
+// The first top-level segment of a `key: value` declaration is numeric when
+// it is (or aliases) a number. Test only the first segment: later siblings
+// belong to other keys (`coldCacheUsd: amount, })` tests `amount`, not the blob).
+// Transparent wrappers (`z.optional`, `z.union`, `z.record`, ...) descend into
+// the args that carry the value. Anything else (`z.pipe`, `z.codec`,
+// `z.transform`, `z.object`, ...) has an output the text cannot judge, so the
+// text leaves it alone and the runtime walk judges the real output schema.
+function isNumericValue(value: string, numerics: ReadonlySet<string>, depth = 0): boolean {
+  if (depth > 8) return false
+  const first = splitTopLevel(value)[0] ?? ''
+  const clean = stripStrings(first.trim().replace(/[,;}\]]+\s*$/, ''))
+  if (/^number\b/.test(clean)) return true
+  const call = /^z\s*\.\s*([A-Za-z_$][\w$]*)\s*\(/.exec(clean)
+  if (call?.[1] !== undefined) {
+    const start = clean.indexOf('(')
+    const end = findCloser(clean, start)
+    if (end > start) {
+      const args = splitTopLevel(clean.slice(start + 1, end))
+      if (
+        ['optional', 'nullable', 'readonly', 'default', 'prefault', 'catch', 'array'].includes(
+          call[1],
+        )
+      )
+        return args[0] !== undefined && isNumericValue(args[0], numerics, depth + 1)
+      if (call[1] === 'union') {
+        const head = (args[0] ?? '').trim()
+        const members = head.startsWith('[')
+          ? splitTopLevel(head.slice(1).replace(/\]\s*$/, ''))
+          : args
+        return members.some((member) => isNumericValue(member, numerics, depth + 1))
       }
+      if (call[1] === 'record')
+        return args[1] !== undefined && isNumericValue(args[1], numerics, depth + 1)
     }
-    current = pending.pop()
   }
-  return false
+  return /z\s*\.\s*(coerce\s*\.\s*)?number\b/.test(clean) || isBareAlias(clean, numerics)
 }
 
 // The top-level bracket groups of `text`, so nested object literals are
@@ -426,13 +1002,14 @@ function innerGroups(text: string): string[] {
   return groups
 }
 
-// Iterative descent: a stack replaces recursion over nested literals.
+// Iterative descent: a stack replaces recursion over nested literals. Every
+// numeric declaration feeds `numericIds`; money-named ones also feed `hits`.
 function scanText(
   text: string,
-  line: number,
   file: string,
   numerics: ReadonlySet<string>,
-  hits: Finding[],
+  hits: TextFinding[],
+  numericIds: Set<string>,
 ): void {
   const pending = [text]
   const head = /^\s*(?:readonly\s+)?([A-Za-z_$][\w$]*)\s*[?!]?\s*:\s*([\s\S]*)$/
@@ -448,10 +1025,10 @@ function scanText(
         }
         const key = match[1]
         const rest = match[2] ?? ''
-        // Test only the first top-level segment: later siblings belong to
-        // other keys (`coldCacheUsd: amount, })` tests `amount`, not the blob).
-        if (MONEY_KEY.test(key) && isNumericValue(splitTopLevel(rest)[0] ?? '', numerics))
-          hits.push({ file, line, key, value: rest.trim().slice(0, 90) })
+        if (isNumericValue(rest, numerics)) {
+          numericIds.add(`${file}:${key}`)
+          if (MONEY_KEY.test(key)) hits.push({ file, key })
+        }
         pending.push(rest)
       }
     }
@@ -459,64 +1036,15 @@ function scanText(
   }
 }
 
-function exportedNumerics(lines: readonly string[], numeric: ReadonlySet<string>): Set<string> {
-  const exported = new Set<string>()
-  const source = lines.join('\n')
-  for (const name of numeric) {
-    const isDirect = new RegExp(String.raw`export\s+(?:const|type)\s+${name}\b`).test(source)
-    const isListed = new RegExp(String.raw`export\s*\{[^}]*\b${name}\b[^}]*\}`).test(source)
-    if (isDirect || isListed) exported.add(name)
-  }
-  return exported
-}
-
-function resolveImport(from: string, spec: string, known: ReadonlySet<string>): string | null {
-  if (!spec.startsWith('.')) return null
-  const base = from.split('/').slice(0, -1).join('/')
-  const target = `${base}/${spec}`.split('/').filter((part) => part !== '.')
-  const stack: string[] = []
-  for (const part of target) {
-    if (part === '..') stack.pop()
-    else stack.push(part)
-  }
-  const joined = stack.join('/')
-  const candidates = [`${joined}.ts`, `${joined}.tsx`, `${joined}/index.ts`]
-  return candidates.find((candidate) => known.has(candidate)) ?? null
-}
-
-function analyze(
+function analyzeText(
   files: readonly string[],
-  all: readonly string[],
-  exportedByFile: Map<string, Set<string>>,
   linesOf: (file: string) => string[],
-): Finding[] {
-  const hits: Finding[] = []
-  const known = new Set(all)
-  const numericsOf = (file: string): Set<string> => {
-    const cached = exportedByFile.get(file)
-    if (cached !== undefined) return cached
-    const lines = linesOf(file)
-    const computed = exportedNumerics(lines, localNumerics(lines))
-    exportedByFile.set(file, computed)
-    return computed
-  }
+): { readonly flagged: TextFinding[]; readonly numericIds: ReadonlySet<string> } {
+  const hits: TextFinding[] = []
+  const numericIds = new Set<string>()
   for (const file of files) {
     const lines = linesOf(file)
-    const numeric = new Set(localNumerics(lines))
-    const importPattern = /import\s+(?:type\s+)?\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g
-    const matches = lines.join('\n').matchAll(importPattern)
-    for (const match of matches) {
-      const target = resolveImport(file, match[2] ?? '', known)
-      if (target === null) continue
-      const provided = numericsOf(target)
-      const members = (match[1] ?? '').split(',')
-      for (const entry of members) {
-        const [original, alias] = entry.trim().split(/\s+as\s+/, 2)
-        const name = (alias ?? original ?? '').trim()
-        const from = (original ?? '').trim()
-        if (name !== '' && provided.has(from)) numeric.add(name)
-      }
-    }
+    const numeric = localNumerics(lines)
     for (const [index, line] of lines.entries()) {
       if (line.trim() === '') continue
       let text = line
@@ -531,17 +1059,21 @@ function analyze(
           text += ` ${lines[last] ?? ''}`
         }
       }
-      scanText(text, index + 1, file, numeric, hits)
+      scanText(text, file, numeric, hits, numericIds)
     }
-    for (const [index, line] of lines.entries()) {
+    for (const line of lines) {
       const constant = /(?:^|[;{\s])const\s+([A-Za-z_$][\w$]*)\s*=\s*(-?\d[\d_]*(?:\.\d+)?)\b/.exec(
         line,
       )
-      if (constant?.[1] !== undefined && MONEY_KEY.test(constant[1]))
-        hits.push({ file, line: index + 1, key: constant[1], value: constant[2] ?? '' })
+      if (constant?.[1] === undefined || !MONEY_KEY.test(constant[1])) {
+        continue
+      }
+
+      numericIds.add(`${file}:${constant[1]}`)
+      hits.push({ file, key: constant[1] })
     }
   }
-  return hits
+  return { flagged: hits, numericIds }
 }
 
 describe('structural exact-money guard', () => {
@@ -563,26 +1095,103 @@ describe('structural exact-money guard', () => {
       sources.set(file, lines)
       return lines
     }
-    // Cheap pre-filter: only files mentioning a money-named key pay for parsing.
-    // The key test mirrors MONEY_KEY: the pattern may sit mid-word
-    // (`inputUsdPerMTokens`, `retryAfterCapMs`).
-    const candidates = files.filter((file) =>
-      /\w*(?:Usd|Cost|Price|Budget|Cap)\w*\s*[?!]?\s*:|spend\w*\s*[?!]?\s*:|const\s+\w*(?:Usd|Cost|Price|Budget|Cap)\w*\s*=/.test(
-        raw.get(file) ?? '',
-      ),
-    )
-    const exportedByFile = new Map<string, Set<string>>()
-    const hits = analyze(candidates, files, exportedByFile, linesOf)
-    const seen = new Set<string>()
-    const unexpected = hits.filter((hit) => {
-      const id = `${hit.file}:${hit.key}`
-      if (Object.hasOwn(ALLOW_LIST, id)) {
-        seen.add(id)
-        return false
+    // Cheap pre-filter: only files mentioning a money hint pay for parsing.
+    const candidates = files.filter((file) => MONEY_HINT.test(raw.get(file) ?? ''))
+    const text = analyzeText(candidates, linesOf)
+    const stripped = new Map<string, string>()
+    const hasKeyDecl = (file: string, key: string): boolean => {
+      let entry = stripped.get(file)
+      if (entry === undefined) {
+        entry = linesOf(file).join('\n')
+        stripped.set(file, entry)
       }
-      return true
+      return new RegExp(String.raw`\b${escapeRegExp(key)}\b\s*[?!]?\s*:`).test(entry)
+    }
+    const runtime = analyzeRuntime(hasKeyDecl)
+    // The glob must see the same tree the text scan reads: a silent empty
+    // glob would pass vacuously.
+    expect(Object.keys(RUNTIME_MODULES).length).toBeGreaterThan(0)
+    expect(RUNTIME_MODULES['../../src/shared/usdSchema.ts']).toBeDefined()
+    // A zod definition kind the walker does not know is a coverage hole, not
+    // a pass: name it here before the walk can silently skip it.
+    expect([...runtime.defTypes].filter((type) => !KNOWN_DEF_TYPES.has(type))).toEqual([])
+    const flagged = new Set<string>([
+      ...text.flagged.map((hit) => `${hit.file}:${hit.key}`),
+      ...runtime.flagged,
+    ])
+    const numericIds = new Set<string>([...text.numericIds, ...runtime.numeric])
+    const unexpected = [...flagged]
+      .filter((id) => !Object.hasOwn(ALLOW_LIST, id))
+      .toSorted((left, right) => left.localeCompare(right))
+    const problems: string[] = []
+    for (const [id, entry] of Object.entries(ALLOW_LIST)) {
+      if (entry.category === 'nonMoney') {
+        if (flagged.has(id))
+          problems.push(
+            `${id}: listed as nonMoney but matches the money pattern; move it to sanctioned or trackedDebt`,
+          )
+        else if (!numericIds.has(id)) problems.push(`${id}: stale nonMoney entry`)
+      } else {
+        if (!flagged.has(id)) problems.push(`${id}: stale ${entry.category} entry`)
+        if (entry.category === 'trackedDebt' && !entry.reason.includes('M121'))
+          problems.push(`${id}: trackedDebt entry without M121`)
+        if (entry.category === 'sanctioned' && !/PLAN\.md:\d+/.test(entry.reason))
+          problems.push(`${id}: sanctioned entry without a PLAN citation`)
+      }
+    }
+    problems.sort((left, right) => left.localeCompare(right))
+    expect({ unexpected, problems }).toEqual({ unexpected: [], problems: [] })
+  })
+
+  // Each bypass form the review caught must fail the guard when injected.
+  // Fixture schemas live in this test, never as edits to `src`.
+  it('flags a numeric pipe alias on a money key', () => {
+    const amount = z.pipe(z.number(), z.number())
+    const schema = z.strictObject({ nested: z.strictObject({ fooUsd: amount }) })
+    expect([...judgeSchemas({ schema })]).toEqual(['<fixture>:fooUsd'])
+  })
+
+  it('flags a numeric transform alias on a money key', () => {
+    const amount = z.pipe(
+      z.number(),
+      z.transform((value) => value),
+    )
+    const schema = z.strictObject({ fooUsd: amount })
+    expect([...judgeSchemas({ schema })]).toEqual(['<fixture>:fooUsd'])
+  })
+
+  it('flags z._default over a numeric amount on a money key', () => {
+    const amount = z.number()
+    const schema = z.strictObject({ fooUsd: z._default(amount, 0) })
+    expect([...judgeSchemas({ schema })]).toEqual(['<fixture>:fooUsd'])
+  })
+
+  it('flags an imported numeric schema wrapped in a local optional', async () => {
+    const { reexportedNumeric } = await import('./helpers/moneyGuardReexport')
+    const schema = z.strictObject({ fooUsd: z.optional(reexportedNumeric) })
+    expect([...judgeSchemas({ schema })]).toEqual(['<fixture>:fooUsd'])
+  })
+
+  it('flags a quoted money key', () => {
+    // Spelled with a computed key, as a quoted `'quotedUsd':` source
+    // spelling would be: the runtime walk reads the shape, not the text.
+    const key = 'quotedUsd'
+    const schema = z.strictObject({ [key]: z.number() })
+    expect([...judgeSchemas({ schema })]).toEqual(['<fixture>:quotedUsd'])
+  })
+
+  it('flags Record<string, number> under a money key', () => {
+    const schema = z.strictObject({ recordUsd: z.record(z.string(), z.number()) })
+    expect([...judgeSchemas({ schema })]).toEqual(['<fixture>:recordUsd'])
+  })
+
+  it('leaves exact boundary money alone', async () => {
+    const { legacyUsdSchema, usdInputSchema } = await import('../../src/shared/usdSchema')
+    const schema = z.strictObject({
+      boundaryUsd: legacyUsdSchema,
+      inputUsd: z.optional(usdInputSchema),
+      labelUsd: z.string(),
     })
-    const stale = Object.keys(ALLOW_LIST).filter((id) => !seen.has(id))
-    expect({ unexpected, stale }).toEqual({ unexpected: [], stale: [] })
+    expect([...judgeSchemas({ schema })]).toEqual([])
   })
 })
