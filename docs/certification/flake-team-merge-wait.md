@@ -149,16 +149,18 @@ never be complete. P3: an unexplained `as` on the extracted `track`.
 
 Design:
 
-- **Explicit completion.** A scene is played only when its final
-  continuation calls `scenarioDone()`. The mark is set by that call alone,
+- **Explicit completion.** Scenes must schedule all work through the counted
+  helpers and call `scenarioDone()` from their final continuation; a scene is
+  played only when it does. The mark is set by that call alone,
   as soon as nothing the scene (`later`, `whenFound`, `whenEvent`, `track`) or
   the fake host (`hostLater`, `hostTrack`, the page theme included) scheduled
   is outstanding, and never after a failure. Running out of scheduled work no
   longer marks anything.
 - **Runtime enforcement.** A scene helper called after `scenarioDone()` fails
   the scene, as does a second call. The fake host may still answer the
-  webview afterwards. A failure at any time, before or after the call, removes
-  the mark for good and records itself in `<html data-scenario-failed>`.
+  webview afterwards. A counted failure at any time, before or after the call,
+  removes the mark for good and records itself in
+  `<html data-scenario-failed>`.
 - **Scope.** The scenes a test waits on are `PLAYED_SCENARIOS`
   (`scripts/lib/harnessServer.mjs`): `team-tree`, `team-tree-320`,
   `team-cards`, `question`, `legal-preview` (the team and capture tests'
@@ -180,7 +182,11 @@ Design:
   used as the settled signal: after the mark the webview still renders what
   the scene delivered (the team cards' lazy chunk is exactly what the team
   tests then time) and its status line keeps changing, so the scene's own
-  logged moves are what must stop.
+  logged moves are what must stop. The coverage verifies ordering, a quiet
+  window for logged moves and (since the next review) the absence of page
+  errors. Work started outside the helpers (raw timers, detached promises) is
+  not detected: keeping it out of scenes is a code-review rule for scene
+  authors, not something the harness proves.
 - **P3.** The extracted page function is checked at runtime
   (`pageFunction`: `typeof` guard, then `Reflect.apply`); no assertion remains.
 
@@ -207,6 +213,42 @@ Review gates, repository deadlines: `teamHarness.test.mjs` (38),
 three times on Kubuntu and three times on the Win11 VM, on snapshots equal to
 the commit; `typecheck:unit`, ESLint `--max-warnings=0` and Prettier on the
 changed files and jscpd (0 clones) all exit 0.
+
+## Review RVTEAMFLAKE3 (Codex, P2): page errors and honest limits
+
+Finding: the completion coverage could not see work started outside the
+counted helpers. A raw `setTimeout` that removed the tree or threw after the
+mark, a microtask after `scenarioDone()`, and a raw timer longer than the
+1.5 s window all passed, and page errors were not collected.
+
+Final round, no further redesign. `sceneLog` now collects every page error
+and console error (only the browser's own `/favicon.ico` request, which has
+no file to serve, is ignored) from page creation to the end of the quiet
+window, and `expectSceneFinished` fails a listed scene on any of them; the
+injected-failure cases expect exactly that one page error. The reviewer's
+raw-timer-throw probe is a regression: `team-tree` served with a raw
+`setTimeout` that throws 600 ms after its final click passes every logged
+check, and fails only on its page error.
+
+The claims now say what is proved. Scenes must schedule all work through the
+counted helpers and call `scenarioDone()` from their final continuation. The
+coverage test verifies ordering, a quiet window for logged moves and the
+absence of page errors. Work started outside the helpers (raw timers,
+detached promises) is not detected, so it is a code-review rule for scene
+authors, not something the harness proves: a raw timer that changes the DOM
+without failing, or that runs after the window, still passes.
+
+| Drill                                                   | Result                                                                                      |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| The probe with page errors collected (Kubuntu)          | exit 0: the regression sees `pageerror: review raw scene failure` and the check fails on it |
+| Red drill: page errors not collected, as in `7422708dd` | exit 1: the regression fails (`expected [] to deeply equal [ Array(1) ]`)                   |
+
+The drill restored `teamHarness.test.mjs` byte for byte.
+
+Gates: `teamHarness.test.mjs` (39), `harnessWaits.test.ts` (46) and
+`harnessCapture.test.mjs` (7) passed 92/92 on Kubuntu at repository
+deadlines; ESLint `--max-warnings=0` and Prettier on the changed files and
+jscpd (0 clones) exit 0.
 
 ## Before and after under starvation
 

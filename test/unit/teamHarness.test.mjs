@@ -569,16 +569,33 @@ function instrumentScene({ endSelector, failFinalStep }) {
 
 // Opens a scene with the log above, waits for its end (or, with
 // failFinalStep, for its recorded failure), then keeps watching for the quiet
-// window and returns the log.
-async function sceneLog(scenario, { failFinalStep = false } = {}) {
+// window. Returns the log and every page error and console error the page
+// raised meanwhile. `harnessVariant` serves an edited harness to this page.
+async function sceneLog(scenario, { failFinalStep = false, harnessVariant } = {}) {
   const page = await rig.browser.newPage({
     viewport: { width: scenario === 'team-tree-320' ? 320 : 690, height: 760 },
+  })
+  const errors = []
+  page.on('pageerror', (error) => {
+    errors.push(`pageerror: ${error.message}`)
+  })
+  page.on('console', (message) => {
+    // The browser's own favicon request has no file to serve; it is not the scene's.
+    if (message.type() === 'error' && !message.location().url.endsWith('/favicon.ico')) {
+      errors.push(`console.error: ${message.text()}`)
+    }
   })
   try {
     await page.addInitScript(instrumentScene, {
       endSelector: SCENE_ENDS[scenario]?.selector ?? null,
       failFinalStep,
     })
+    if (harnessVariant !== undefined) {
+      const body = harnessVariant(readFileSync('test/harness/index.html', 'utf8'))
+      await page.route('**/test/harness/index.html*', (route) =>
+        route.fulfill({ contentType: 'text/html', body }),
+      )
+    }
     const doneBy = Date.now() + SCENE_DONE_TIMEOUT_MS
     await page.goto(`${rig.origin}/test/harness/index.html?scenario=${scenario}&theme=light`, {
       timeout: SCENE_DONE_TIMEOUT_MS,
@@ -591,10 +608,27 @@ async function sceneLog(scenario, { failFinalStep = false } = {}) {
       await sceneDone(page, scenario, doneBy)
     }
     await page.waitForTimeout(SCENE_QUIET_WINDOW_MS)
-    return await page.evaluate(() => globalThis.sceneLog)
+    return { log: await page.evaluate(() => globalThis.sceneLog), errors }
   } finally {
     await page.close()
   }
+}
+
+// What the coverage can see of a finished scene: one mark, at its end, no
+// logged move in the quiet window after it, and no page or console error.
+// Work started outside the counted helpers is not logged; only its errors are.
+function expectSceneFinished(scenario, { log, errors }) {
+  const marks = log.filter((entry) => entry.kind === 'mark')
+  expect(marks).toEqual([expect.objectContaining({ played: scenario, failed: null })])
+  const markedAt = log.indexOf(marks[0])
+  const end = SCENE_ENDS[scenario]
+  if (end.selector === undefined) {
+    expect(log.slice(0, markedAt).some((entry) => end.action(entry))).toBe(true)
+  } else {
+    expect(marks[0].endShown).toBe(true)
+  }
+  expect(log.slice(markedAt + 1)).toEqual([])
+  expect(errors, errors.join('; ')).toEqual([])
 }
 
 describe('harness scenes end when they say so', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }, () => {
@@ -603,35 +637,44 @@ describe('harness scenes end when they say so', { timeout: REAL_HARNESS_CASE_TIM
   })
 
   it.each(PLAYED_SCENARIOS)(
-    '%s is marked played only at its end, then makes no further move',
+    '%s is marked played only at its end, then makes no move and raises no error',
     async (scenario) => {
-      const log = await sceneLog(scenario)
-      const marks = log.filter((entry) => entry.kind === 'mark')
-      expect(marks).toEqual([expect.objectContaining({ played: scenario, failed: null })])
-      const markedAt = log.indexOf(marks[0])
-      const end = SCENE_ENDS[scenario]
-      if (end.selector === undefined) {
-        expect(log.slice(0, markedAt).some((entry) => end.action(entry))).toBe(true)
-      } else {
-        expect(marks[0].endShown).toBe(true)
-      }
-      // Nothing scripted happens in the quiet window after the mark.
-      expect(log.slice(markedAt + 1)).toEqual([])
+      expectSceneFinished(scenario, await sceneLog(scenario))
     },
   )
 
   it.each(PLAYED_SCENARIOS)(
     '%s never carries the mark when its final step fails',
     async (scenario) => {
-      const log = await sceneLog(scenario, { failFinalStep: true })
+      const { log, errors } = await sceneLog(scenario, { failFinalStep: true })
       const marks = log.filter((entry) => entry.kind === 'mark')
       expect(marks.some((entry) => entry.played !== null)).toBe(false)
       expect(marks.at(-1)).toMatchObject({ failed: 'Error: injected final-step failure' })
+      expect(errors).toEqual(['pageerror: injected final-step failure'])
     },
   )
 
   it('fails a scene that never calls scenarioDone()', async () => {
     // `banner` plays its steps and stops without saying it is done.
     await expect(sceneLog('banner')).rejects.toThrow('banner never called scenarioDone()')
+  })
+
+  it('fails a listed scene whose raw timer throws after its mark', async () => {
+    // RVTEAMFLAKE3's probe: a timer outside the counted helpers is not logged
+    // and cannot fail the scene itself, but its page error fails the check.
+    const ending = '            control.click()\n            scenarioDone()\n'
+    const result = await sceneLog('team-tree', {
+      harnessVariant: (html) => {
+        if (html.split(ending).length !== 2) throw new Error('team-tree changed its ending')
+        return html.replace(
+          ending,
+          "            control.click()\n            setTimeout(() => {\n              throw new Error('review raw scene failure')\n            }, 600)\n            scenarioDone()\n",
+        )
+      },
+    })
+    expect(result.errors).toEqual(['pageerror: review raw scene failure'])
+    expect(() => {
+      expectSceneFinished('team-tree', result)
+    }).toThrow('review raw scene failure')
   })
 })

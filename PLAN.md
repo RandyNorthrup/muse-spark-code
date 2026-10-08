@@ -19869,13 +19869,17 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
       docs/certification/flake-team-merge-wait.md; commit with hooks.
 - [x] Review RVTEAMFLAKE P2: count awaited native events (`whenEvent`) and
       awaited promises (`track`); jump-scroll regressions and a red drill.
-- [x] Review RVTEAMFLAKE2 (third round, redesigned): a scene is played only
-      when its final continuation calls `scenarioDone()`; scene work after it
-      fails the scene; a failure clears the mark for good and is recorded.
-      The static async guard is replaced by browser coverage of every
-      `PLAYED_SCENARIOS` scene (marked only at its end, no move after it, never
-      marked when its final step fails, a scene without the call fails), and
-      the extracted `track` is checked at runtime instead of asserted.
+- [x] Review RVTEAMFLAKE2 (third round, redesigned): scenes schedule all
+      work through the counted helpers and call `scenarioDone()` from their
+      final continuation; counted scene work after it fails the scene; a
+      counted failure clears the mark for good and is recorded. The static
+      async guard is replaced by browser coverage of every `PLAYED_SCENARIOS`
+      scene, and the extracted `track` is checked at runtime.
+- [x] Review RVTEAMFLAKE3 (final): the coverage test verifies ordering, a
+      quiet window for logged moves and the absence of page errors (now
+      collected; raw-timer-throw probe). Work started outside the helpers
+      (raw timers, detached promises) is not detected: a code-review rule for
+      scene authors, not something the harness proves.
 
 Scope is the browser harness and its owning tests. No push; the lead pushes.
 
