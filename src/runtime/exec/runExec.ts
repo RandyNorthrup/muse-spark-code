@@ -22,7 +22,8 @@ import type { AcpMediaFactory } from '../../acp/media'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
-import { uiLocale, fill, formatUsd, plural } from '../../shared/l10n/text'
+import { uiLocale, fill, plural } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import {
   ACP_AGENT_NAME,
   ACP_COMPACT_COMMAND,

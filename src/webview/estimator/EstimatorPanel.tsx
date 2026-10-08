@@ -11,11 +11,11 @@ import {
   fill,
   formatDateTime,
   formatNumber,
-  formatUsd,
   formatUnit,
   UI_TEXT,
   uiLocale,
 } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import './estimator.css'
 
 export interface EstimatorPanelPort {

@@ -8,7 +8,8 @@ import {
   TEXT_ATTACHMENT_MEDIA_TYPE,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill, formatUsd } from '../../shared/l10n/text'
+import { fill } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import { mediaInfoSchema, type MediaInfo } from '../../shared/media'
 import type { BackendKind } from '../../shared/protocol'
 import type { AudioAction, AudioRouteOptions } from '../../shared/audioRouting'

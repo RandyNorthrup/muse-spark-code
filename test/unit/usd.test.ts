@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
-import { formatExactUsd as formatUsd } from '../../src/shared/l10n/exactUsd'
+import { formatUsd } from '../../src/shared/l10n/exactUsd'
 import {
   Usd,
   isPositiveUsd,

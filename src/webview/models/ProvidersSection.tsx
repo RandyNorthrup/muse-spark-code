@@ -5,7 +5,8 @@
 
 import { useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
-import { fill, formatUsd, plural } from '../../shared/l10n/text'
+import { fill, plural } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import type {
   ModelsPanelState,
   PanelDraft,

@@ -23,7 +23,8 @@ import {
   UI_TEXT,
   DEFAULT_MODEL_ID,
 } from '../../shared/constants'
-import { fill, formatNumber, formatUsd, uiLocale } from '../../shared/l10n/text'
+import { fill, formatNumber, uiLocale } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import {
   paidFeaturePrice,
   freezePaidQuote,

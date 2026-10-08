@@ -5,7 +5,8 @@
 // facet messages and renders the rows it gets back.
 
 import { OLLAMA_NUM_CTX_OPTIONS, UI_TEXT } from '../../shared/constants'
-import { fill, formatNumber, formatUsd, plural } from '../../shared/l10n/text'
+import { fill, formatNumber, plural } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { ModelPriceNote, ModelRow, ModelSort } from '../../shared/modelsPanel'
 import { Badge, type BadgeKind } from './components/Badge'
 import { DataTable, type DataColumn } from './components/DataTable'

@@ -6,7 +6,8 @@ import {
   PROVIDER_PRICE_MAX_DECIMALS,
   TOKENS_PER_MILLION,
 } from './constants'
-import { fill, formatNumber, formatUsdAtPrecision, uiLocale } from './l10n/text'
+import { fill, formatNumber, uiLocale } from './l10n/text'
+import { formatUsdAtPrecision } from './l10n/exactUsd'
 import { Usd } from './usd'
 import { USD_DECIMAL_RADIX } from './usdConstants'
 import { modelApiPaidTier } from './paidBoundary'

@@ -9,7 +9,8 @@ import {
   REDACTED_MARK,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill, formatNumber, formatUsd } from '../../shared/l10n/text'
+import { fill, formatNumber } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import { stderrLogger } from '../stderrLog'
 import type { ExecOutput } from './execArgs'
 import {
