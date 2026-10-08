@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Wait for a known screenshot scenario to start after the webview handshake before
+  scanning or capturing its UI, preventing empty welcome screens from being certified.
+
 - Traverse reader-owned arrays without treating generated indices as text,
   retaining recursive secret scrubbing and the existing plan performance budget.
 
