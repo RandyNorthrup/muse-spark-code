@@ -78,6 +78,15 @@ beforeAll(async () => {
     executablePath,
     headless: true,
   })
+  // Warm the browser, server and bundle once, inside the setup deadline, so the
+  // first case's bounded wait measures the scene and not a cold start.
+  const warm = await rig.browser.newPage()
+  try {
+    await warm.goto(`${rig.origin}/test/harness/index.html?scenario=team-tree&theme=light`)
+    await warm.locator('.team-tree').waitFor({ timeout: REAL_HARNESS_PREPARE_TIMEOUT_MS })
+  } finally {
+    await warm.close()
+  }
 }, REAL_HARNESS_PREPARE_TIMEOUT_MS)
 afterAll(async () => {
   await rig.browser?.close()

@@ -57,7 +57,13 @@ async function stopOrphan(
   }
 }
 
-describe('C1 native Windows launch boundary', () => {
+// These cases compile and drive the real Windows job helper (C#) and real
+// child processes. Hosted Windows runners passed 15 s in PR #140 while the
+// Win11 rig took a few seconds, so the suite has a named deadline.
+// PLAN.md §8 (2026-10-07).
+const REAL_WINDOWS_JOB_TIMEOUT_MS = 60_000
+
+describe('C1 native Windows launch boundary', { timeout: REAL_WINDOWS_JOB_TIMEOUT_MS }, () => {
   it.runIf(process.platform === 'win32')(
     'registers a short CLI in a native job, preserves its arguments and cancels its whole tree',
     async () => {

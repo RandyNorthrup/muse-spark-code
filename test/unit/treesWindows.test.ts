@@ -44,7 +44,13 @@ function pendingJobAnswer(run: ReturnType<typeof jobReader>['run']) {
   return finish
 }
 
-describe('Windows resource job reader', () => {
+// These cases compile and drive the real Windows job helper (C#) and real
+// child processes. Hosted Windows runners passed 15 s in PR #140 while the
+// Win11 rig took a few seconds, so the suite has a named deadline.
+// PLAN.md §8 (2026-10-07).
+const REAL_WINDOWS_JOB_TIMEOUT_MS = 60_000
+
+describe('Windows resource job reader', { timeout: REAL_WINDOWS_JOB_TIMEOUT_MS }, () => {
   it('uses the verified native handle action and validates honest results without a bare job kill', async () => {
     const run = vi.fn((_file: string, args: readonly string[]) =>
       Promise.resolve(args.at(-1)?.includes('::Contains(') ? 'true' : '"done"'),
