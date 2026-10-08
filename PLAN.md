@@ -20345,6 +20345,28 @@ No new dependency or editor-specific behavior; all shared journal consumers
 receive these fixes. Full quality and combined editor wiring remain lead/W work
 as required by the rig brief; do not run full quality or merge in this lane.
 
+### LEFT017 — Combined 0.17.0 integration leftovers (2026-10-08)
+
+**Status: in progress.** Rig lane `rel017/left`, base `7a4fc2ab3`; two-hour
+repair window. Keep all assertions, caps, scanner rules and deadlines.
+
+- [ ] Register the three M115 editor commands and lazily connect the panel bridge.
+- [ ] Verify unique Help IDs and resolve all accessibility readiness failures.
+- [ ] Resolve SAST research, report-root and companion-template findings.
+- [ ] Repair visual source reconstruction; refresh real audit and scene coverage.
+- [ ] Share duplicate production and test helpers; zero jscpd clones.
+- [x] Remove unused compactNodeReference after demonstrating its obsolete test fails.
+- [ ] Cover account English in the browser probe's actual entry graph.
+- [ ] Profile and repair the 10,000-fire journal without changing its 240 s limit.
+- [ ] Add G76 and bound lint-staged argument batches for Windows command shims.
+- [ ] Replay affected tests and required gates in a fresh npm-ci clone; record
+      exact outcomes in docs/certification/int0170-combined.md.
+
+The lane brief authorizes hook batching and scanner network access required by
+its exact SAST command, overriding older shared prohibitions for these actions.
+No quality aggregate, merge, push, paid call or credential read is authorized.
+Build caps owned by the separate shrinking lane remain an explicit §7 deferral.
+
 ### INT0170B — Complete 0.17.0 integration certification (2026-10-07)
 
 Latest committed-clone replay at `33c369046` passes the entire static job and every accessibility page. Two additional timing failures remain: integrated usage exceeds its ordinary 5 s test deadline, and the 10,000-milestone reader reaches 325 ms against 200 ms under coverage. A restored whole-file usage diagnostic reproduces the timeout and measures recorded-turn/journal/state preparation at 1,524 ms before the authenticated page flow. Move only that real fixture preparation into its default-deadline beforeAll, retaining every assertion inside the existing test and all three cases. For the reader's second performance repair, remove object-entry tuple allocation and redundant unchanged-value writes while still scrubbing every key and nested value; retain the 200 ms benchmark and stop that path if the second repair fails. Prove preserved privacy/recording assertions fail under intentional changes and restore exact bytes before the final committed-clone replay.

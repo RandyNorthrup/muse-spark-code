@@ -162,3 +162,15 @@ journal coverage time) was not addressed in this pass.
 | duplication     | 1    | 4 new clones: `src/acp/agent.ts` 2052–2059, `src/shared/l10n/text.ts` 156–162, two test fixtures (paidDailyBudget, modelApiElicitation) |
 | lint (full)     | n/r  | not run in full; the pre-commit hook linted every changed file of steps 1–2 at zero warnings                                            |
 | check:visual    | n/r  | not run (full reviewed matrix needs the hosted replay)                                                                                  |
+
+## Leftovers (LEFT017)
+
+Lane `rel017/left`, base `7a4fc2ab3`, Linux rig, 2026-10-08. All tests
+use repository deadlines, hooks remain enabled, no merge or push.
+
+- Item 6: `compactNodeReference` is referenced only by its own declaration
+  and unit owner. Production `scripts/build.mjs` uses `nodeReferenceData`
+  from `scripts/lib/deferredBundles.mjs`. Before removal, the whole obsolete
+  test fails with `Missing generated reference boundary` (exit 1); the
+  concurrent browser-English owner passes all five tests. Removed plugin,
+  declaration and obsolete owner. Plain knip result follows.
