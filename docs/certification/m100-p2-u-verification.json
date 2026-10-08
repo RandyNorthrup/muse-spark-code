@@ -1,0 +1,113 @@
+{
+  "commit": "3415a2859e7ca222ef7b1d948acc28a537dfd2be",
+  "freshClone": "/tmp/fixm100p2u-verify-20261007-2",
+  "ci": true,
+  "npmCiExit": 0,
+  "timeoutOverride": false,
+  "maxFilesPerVitestRun": 3,
+  "maxWorkers": 3,
+  "checks": [
+    {
+      "gate": "own-1-ui",
+      "exit": 0,
+      "tests": "43 passed (43)"
+    },
+    {
+      "gate": "own-1-harness",
+      "exit": 0,
+      "tests": "113 passed (113)"
+    },
+    {
+      "gate": "own-2-ui",
+      "exit": 0,
+      "tests": "43 passed (43)"
+    },
+    {
+      "gate": "own-2-harness",
+      "exit": 0,
+      "tests": "113 passed (113)"
+    },
+    {
+      "gate": "own-3-ui",
+      "exit": 0,
+      "tests": "43 passed (43)"
+    },
+    {
+      "gate": "own-3-harness",
+      "exit": 0,
+      "tests": "113 passed (113)"
+    },
+    {
+      "gate": "boundary-regressions",
+      "exit": 0,
+      "tests": "81 passed (81)"
+    },
+    {
+      "gate": "build",
+      "exit": 0
+    },
+    {
+      "gate": "a11y",
+      "exit": 0
+    },
+    {
+      "gate": "keyboard",
+      "exit": 0
+    },
+    {
+      "gate": "a11y-pseudo",
+      "exit": 0
+    },
+    {
+      "gate": "five-typechecks",
+      "exit": 0
+    },
+    {
+      "gate": "lint",
+      "exit": 0
+    },
+    {
+      "gate": "prettier",
+      "exit": 0
+    },
+    {
+      "gate": "knip",
+      "exit": 0
+    },
+    {
+      "gate": "duplication",
+      "exit": 0
+    },
+    {
+      "gate": "l10n",
+      "exit": 0
+    },
+    {
+      "gate": "reference",
+      "exit": 0
+    },
+    {
+      "gate": "host-api",
+      "exit": 0
+    }
+  ],
+  "englishA11yPages": 24,
+  "pseudoA11yPages": 24,
+  "a11yViolations": 0,
+  "keyboardThemes": 4,
+  "existingBudgetChanges": false,
+  "budgetKiB": {
+    "startup": 900,
+    "legacyDeferred": 50,
+    "devices": 50,
+    "qr": 25,
+    "hostDevices": 100
+  },
+  "measuredKiB": {
+    "startup": 733.9,
+    "legacyDeferred": 31.9,
+    "devices": 40.1,
+    "qr": 0.9,
+    "hostDevices": 82.2
+  }
+}

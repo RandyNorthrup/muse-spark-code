@@ -651,16 +651,16 @@ repaired committed tree. Shared-file approvals come from the rig brief;
 `qrcode-generator@2.0.4` remains lane W's install, with no dependency change here.
 No model attempts, inference spend, real pairing or non-loopback listeners.
 
-| Finding | Root repair and regression                                                                                                                                                                                                                                          |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1 P2    | `scripts/lib/webviewBundles.mjs`: QR inventory derives into the split gate, separate 25 KiB cap; `webviewBundles.test.mjs` proves complete closure and unchanged 50 KiB legacy/Devices caps with Windows paths.                                                     |
-| 2 P2    | `test/harness/index.html`: initial states omit setup, replies alone supply correlated facts; `devicesPhase2Harness.test.mjs` tests all six actual fixture declarations and Chrome readiness. Devices startup waits for its mounted document rather than chat-ready. |
-| 3 P2    | Owner/step-up harness scenes click peer-bound Pause; same suite asserts selectors and real owner/prompt readiness.                                                                                                                                                  |
-| 4 P2    | `DeviceCard.tsx` receives the observation independently of action facts and matches its pair; combined `devicesPhase2Views.test.tsx` tests matching and foreign throttles, status and unknown time.                                                                 |
-| 5 P2    | `DevicesView.tsx` mounts `OwnerGrants` for a bound refusal alone; same suite tests revoke then refusal-only `grant-expired` and `owner-mismatch`, with no stale revoke button.                                                                                      |
-| 6 P2    | `OwnerGrants.tsx` labels all six quota dimensions using existing translations and Intl formats; two grants differing only in heavy checks/artifact bytes visibly differ.                                                                                            |
-| 7 P2    | `QrFigure.tsx` clamps SVG width and auto height, preserves aspect ratio/viewBox/quiet zone; unit regression plus real 177-module matrix in a 320 px harness.                                                                                                        |
-| 8 P3    | `DevicesApp.tsx` skips QR rendering/import without an encoder; configured QR announces loading, keeps selectable text, reports failure with Retry, and owns a fresh lazy intent on the next Pair. `devicesQrLoading.test.tsx` and `DevicesApp.test.tsx` prove it.   |
+| Finding | Root repair and regression                                                                                                                                                                                                                                                        |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 P2    | `scripts/lib/webviewBundles.mjs:140`: QR inventory derives into the split gate, separate 25 KiB cap; `webviewBundles.test.mjs:42` proves complete closure and unchanged 50 KiB legacy/Devices caps with Windows paths.                                                            |
+| 2 P2    | `test/harness/index.html:567`: initial states omit setup, replies alone supply correlated facts; `devicesPhase2Harness.test.mjs:34` tests all six actual fixture declarations and Chrome readiness. Devices startup waits for its mounted document rather than chat-ready.        |
+| 3 P2    | `test/harness/index.html:6298` owner/step-up scenes click peer-bound Pause; `devicesPhase2Harness.test.mjs:57` asserts selectors and real owner/prompt readiness.                                                                                                                 |
+| 4 P2    | `DeviceCard.tsx:49` receives the observation independently of action facts and matches its pair; combined `devicesPhase2Views.test.tsx:540` tests matching and foreign throttles, status and unknown time.                                                                        |
+| 5 P2    | `DevicesView.tsx:277` mounts `OwnerGrants` for a bound refusal alone; `devicesPhase2Views.test.tsx:566` tests revoke then refusal-only `grant-expired` and `owner-mismatch`, with no stale revoke button.                                                                         |
+| 6 P2    | `OwnerGrants.tsx:110` labels all six quota dimensions using existing translations and Intl formats; `devicesPhase2Views.test.tsx:602` checks two grants differing only in heavy checks/artifact bytes visibly differ.                                                             |
+| 7 P2    | `QrFigure.tsx:53` clamps SVG width and auto height, preserves aspect ratio/viewBox/quiet zone; `devicesPhase2Views.test.tsx:635` plus `devicesPhase2Harness.test.mjs:133` checks the real 177-module matrix in a 320 px harness.                                                  |
+| 8 P3    | `DevicesApp.tsx:43,212` skips QR rendering/import without an encoder; configured QR announces loading, keeps selectable text, reports failure with Retry, and owns a fresh lazy intent on the next Pair. `devicesQrLoading.test.tsx:44,65` and `DevicesApp.test.tsx:48` prove it. |
 
 **Base failures on `025b3accc`, before implementation changes:** existing
 phase-2 suite plus six regressions **5 failed / 22 passed**; budget suite
@@ -698,11 +698,63 @@ QR **0.9/25 KiB**, host Devices **82.2/100 KiB**. The approved encoder's
 installed measurement remains W's responsibility. All six Chrome scenes and
 large-QR measurement pass; restored owning batches pass **43 + 113 = 156 tests**, without test selection or timeout overrides. Plain knip (two inherited hints), duplication (**0 clones**), l10n (**14 tables, 0 problems**), reference and host API all exit **0**.
 
-**Fresh clone:** required next: `npm ci`, `CI=true`, six owning files three
-full passes at repository deadlines, five typechecks, changed-file ESLint and
-prettier, plain knip, duplication, l10n, reference, host API, production build,
-six-scene a11y and Devices keyboard. Results are added after the first code
-commit; nothing pending is reported as certified.
+**Final fresh clone:** `/tmp/fixm100p2u-verify-20261007-2`, cloned at
+`3415a2859e7ca222ef7b1d948acc28a537dfd2be`. `CI=true npm ci` exit **0**;
+all following commands also use `CI=true`. Six owning files, three complete
+passes: **43 + 113 = 156 passed each**, **468 checks total**, repository
+case deadlines, at most three files/workers per invocation and no
+`--testTimeout`. Shared production build/browser startup is in one named
+`beforeAll` preparation hook; no case has a raised timeout. Extra
+`harnessWaits`, `devicesPanel` and `devicePhase2Contracts`: **81 passed**.
+
+| Gate on final committed-code clone                                                                                      | Exit / result                                                                                                              |
+| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck` (five projects)                                                                                     | 0                                                                                                                          |
+| ESLint on every changed code/script file, `--max-warnings=0`                                                            | 0                                                                                                                          |
+| Prettier on every changed text file                                                                                     | 0                                                                                                                          |
+| Plain `npx knip`                                                                                                        | 0; two inherited configuration hints                                                                                       |
+| `npm run duplication`                                                                                                   | 0; no clones                                                                                                               |
+| `node scripts/check-l10n.mjs`                                                                                           | 0; 14 UI tables, 0 problems                                                                                                |
+| `npm run check:reference`                                                                                               | 0; 18 Devices entries current                                                                                              |
+| `npm run check:host-api`                                                                                                | 0; 0 problems                                                                                                              |
+| `npm run build`                                                                                                         | 0; all existing caps unchanged, measured budgets above                                                                     |
+| `npm run test:a11y -- devices-qr devices-discovery devices-owners devices-prompts-narrow devices-power devices-blocked` | 0; 24 pages, 0 violated/undecided rules, every page ready                                                                  |
+| Same six-scene a11y command with `--lang=pseudo`                                                                        | 0; 24 pages, 0 violated/undecided rules, every page ready                                                                  |
+| `node scripts/devices-keyboard.mjs`                                                                                     | 0; pairing/copy/comparison/caps/unlink at 320 px in four themes, missing asset honestly refused with Retry and no requests |
+
+The first clone at `d7f54ecf8` passed the same owning/static/build/a11y
+checks, but exposed the keyboard script's inherited stale Devices-specific
+failure/Reload wording. The shared panel actually says `surfaceLoadFailed`
+and offers `surfaceLoadRetry`. `3415a2859` reads both expectations from the
+English table; positive failure/retry and no-pair/no-request assertions remain.
+The final committed script passes in the second fresh clone.
+
+**Accessibility red proof:** temporarily blank the native address label in
+`DeviceCard.tsx`, rebuild production assets, and run real axe on discovery in
+four themes: exit **1**, `label` violated on **4 elements**, all **4 pages**
+returned results. Restore exact bytes, SHA-256
+`e9b29cee4382a13605bc186ad39bc03cb4b80e76eaf86a6cbc7430e4c5c55517`;
+final English/pseudo runs above are green. This supplements all nine finding
+drills rather than replacing any assertion.
+
+**Browser/visual proof:** all six scenes ready at **320 px** in four themes
+and pseudo-locale (**30 scenes**, 0 page errors, every scroll width 320).
+All 30 full-page screenshots reviewed, plus the large-QR screenshot. The
+177-module test matrix, with four-module quiet zone, has `viewBox="0 0 185 185"` and renders **296 × 296 px** in its **296 px** container at a 320 px
+viewport. Browser capture is stamped `d7f54ecf8`; runtime/UI source is unchanged
+in `3415a2859` (only the keyboard check and docs changed). These public synthetic
+fixtures certify UI and recovery, not physical pairing or an actual encoder.
+
+Committed machine-readable receipts:
+`m100-p2-u-verification.json`, `m100-p2-u-browser.json`,
+`m100-p2-u-keyboard.json`, `m100-p2-u-drills.json`; screenshots in
+`m100-p2-u-shots/`. All local commits kept hooks on (lint-staged's
+`--no-stash` prevents its automatic backup stash; staged lint/format and
+Gitleaks still run), and their diffs were re-read after hooks. Every drilled
+source hash still matches after hooks. No merge, push, rebase, stash, dependency
+change, model call or paid call. **All eight findings fixed; no lane blocker.**
+Aggregate quality/coverage and real-host/encoder qualification remain lane W's
+joined-tree obligations under the brief, recorded in PLAN §7.
 
 ### Lane W handoff: approved QR encoder dependency (not installed here)
 

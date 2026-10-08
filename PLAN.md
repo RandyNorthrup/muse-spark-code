@@ -35839,6 +35839,16 @@ heading and localized Retry control without dropping the no-pair/no-request
 assertions. The four-theme keyboard flow and missing-asset recovery must both
 pass on the committed script.
 
+**FIXM100P2U completed:** all eight review findings fixed and drilled.
+Fresh committed-code clone at `3415a2859`: 156 owning tests pass three times,
+81 boundary/harness tests pass, all scoped static/build gates exit 0, English
+and pseudo a11y cover 48 ready pages with zero findings, and four-theme
+320 px keyboard/missing-asset checks pass. Thirty screenshots reviewed;
+177-module QR measures 296 px square inside its narrow container. Existing
+caps, assertion levels and case deadlines unchanged. No lane blocker;
+W retains real-host facts, approved encoder install and aggregate qualification.
+Full receipts: lane U in `docs/certification/m100-phase2.md`.
+
 **M100P2BASE integration scope (2026-10-07, macmini).** Merge only
 `23c67925f` into release head `9d1ab33c3` with `--no-ff`, preserving both
 branches and 0.15.0. Rebuild generated inventories. Verify committed work

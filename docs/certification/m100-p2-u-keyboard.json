@@ -1,0 +1,96 @@
+[
+  {
+    "theme": "light",
+    "width": 320,
+    "browser": "153.0.8010.52",
+    "keys": ["Enter", "Tab", "Space", "Control+A", "Escape"],
+    "actions": [
+      "pair",
+      "importInvitation",
+      "confirmFingerprint",
+      "importConfirmation",
+      "offer",
+      "unlink"
+    ],
+    "textFallbackSelection": true,
+    "comparisonFocus": true,
+    "groupedFingerprintAnnouncement": "0123 4567 89ab cdef 0123 4567 89ab cdef 0123 4567 89ab cdef 0123 4567 89ab cdef",
+    "fingerprintGroupsUnbroken": true,
+    "decisionRowsEqual": true,
+    "noApprovalGrantRequests": true,
+    "unlinkCancelFocus": true,
+    "overflow": false
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "browser": "153.0.8010.52",
+    "keys": ["Enter", "Tab", "Space", "Control+A", "Escape"],
+    "actions": [
+      "pair",
+      "importInvitation",
+      "confirmFingerprint",
+      "importConfirmation",
+      "offer",
+      "unlink"
+    ],
+    "textFallbackSelection": true,
+    "comparisonFocus": true,
+    "groupedFingerprintAnnouncement": "0123 4567 89ab cdef 0123 4567 89ab cdef 0123 4567 89ab cdef 0123 4567 89ab cdef",
+    "fingerprintGroupsUnbroken": true,
+    "decisionRowsEqual": true,
+    "noApprovalGrantRequests": true,
+    "unlinkCancelFocus": true,
+    "overflow": false
+  },
+  {
+    "theme": "hc-dark",
+    "width": 320,
+    "browser": "153.0.8010.52",
+    "keys": ["Enter", "Tab", "Space", "Control+A", "Escape"],
+    "actions": [
+      "pair",
+      "importInvitation",
+      "confirmFingerprint",
+      "importConfirmation",
+      "offer",
+      "unlink"
+    ],
+    "textFallbackSelection": true,
+    "comparisonFocus": true,
+    "groupedFingerprintAnnouncement": "0123 4567 89ab cdef 0123 4567 89ab cdef 0123 4567 89ab cdef 0123 4567 89ab cdef",
+    "fingerprintGroupsUnbroken": true,
+    "decisionRowsEqual": true,
+    "noApprovalGrantRequests": true,
+    "unlinkCancelFocus": true,
+    "overflow": false
+  },
+  {
+    "theme": "hc-light",
+    "width": 320,
+    "browser": "153.0.8010.52",
+    "keys": ["Enter", "Tab", "Space", "Control+A", "Escape"],
+    "actions": [
+      "pair",
+      "importInvitation",
+      "confirmFingerprint",
+      "importConfirmation",
+      "offer",
+      "unlink"
+    ],
+    "textFallbackSelection": true,
+    "comparisonFocus": true,
+    "groupedFingerprintAnnouncement": "0123 4567 89ab cdef 0123 4567 89ab cdef 0123 4567 89ab cdef 0123 4567 89ab cdef",
+    "fingerprintGroupsUnbroken": true,
+    "decisionRowsEqual": true,
+    "noApprovalGrantRequests": true,
+    "unlinkCancelFocus": true,
+    "overflow": false
+  },
+  {
+    "scenario": "missing lazy Devices asset",
+    "localizedFailure": true,
+    "reload": true,
+    "deviceRequests": 0
+  }
+]
