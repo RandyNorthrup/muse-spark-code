@@ -1251,3 +1251,40 @@ moves.
 (devices 100.4 of 125 KiB, every other cap unchanged), `check:host-api`
 (0 problems) and `check:l10n` exit 0. ESLint `--max-warnings=0` and Prettier are
 clean on the changed files.
+
+### RVM100WSB (Codex) re-review fix: one P2, 2026-10-08
+
+The lead confirmed the D6 cap of 125 KiB.
+
+**In-flight preparations kept their helper.** `dispose()` drained only
+completed preparations' disposers. So a binding registered by a preparation
+still awaiting its dependencies or the service factory stayed alive, forever
+if that preparation never settled. Now every registration joins the method
+lifetime (`deviceBundle.ts:97`) the moment it is made (`:110`) and is released
+at most once (`:98`). `dispose()` ends every live registration at once,
+in-flight ones included (`:145`). A registration made after revocation ends
+immediately (`:112`). The pending preparation then releases its own
+registrations, which are already released, and settles as `revoked` (`:128`,
+`:129`).
+
+**Tests** (`windowsStorageProtection.test.ts`, "disposal while a preparation
+is still pending"; on Windows the real native helper, elsewhere the stand-in):
+
+- With dependencies held, disposal ends the helper. Its process has exited and
+  `ping` is refused. Releasing the held dependencies settles as `revoked`, with
+  exactly one binding disposal and no factory call.
+- With the factory held, the same holds, and the late service is disposed once.
+- A resource registered after revocation is disposed immediately, and only once.
+
+**Regression and drill.** Against `2712a2192`'s `deviceBundle.ts`, both held
+tests fail at the 15 s test timeout (2 failed, 37 passed). Drill: keeping
+registrations out of the method lifetime fails 3 tests (2 failed in the new set,
+1 in the earlier lifecycle test). It was restored from a backup, with SHA-256
+identical before and after.
+
+**Runs (default timeouts).** Win11 VM, the same 29 files: **834 passed, 0
+failed** (100 s). Afterwards no `MuseSparkDeviceStorage-*` process was running.
+Kubuntu, the 32 files: **889 passed, 0 failed**.
+
+**Gates.** All five typechecks, `knip`, `jscpd` (0 clones), `npm run build`
+(devices 100.4 of 125 KiB), `check:host-api` (0 problems) and `check:l10n` exit 0. ESLint `--max-warnings=0` and Prettier are clean on the changed files.
