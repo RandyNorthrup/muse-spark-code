@@ -7,15 +7,6 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-### Fixed
-
-- Release CI fixtures retain both resource commands and agent outcomes, staged
-  multilingual Help checks, and the harness's signed-in readiness handshake.
-  Cold bundle tests own a complete build, and exec package fixtures supply
-  the required native helpers without relaxing production packaging guards.
-- Action-check builds the real Darwin and both Linux native helpers before
-  producing its fake-only ACP candidate.
-
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
@@ -298,6 +289,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Release CI fixtures retain both resource commands and agent outcomes, staged
+  multilingual Help checks, and the harness's signed-in readiness handshake.
+  Cold bundle tests own a complete build, and exec package fixtures supply
+  the required native helpers without relaxing production packaging guards.
+- Action-check builds the real Darwin and both Linux native helpers before
+  producing its fake-only ACP candidate.
+- Restore the merged Windows job helper's compilation for shell commands,
+  resource controls and team process containment. Resource job holders load
+  the same assembly directly without PowerShell module discovery.
+- Keep Windows resource creation, manifest rotation and cleanup bound to
+  verified native handles, including current-user ownership, missing-root
+  completion and preservation of raced directory replacements.
 - Load packed runtime and English regions through explicit CommonJS requires
   under Node 22 loader hooks, preserving archive digest checks and fallback.
 

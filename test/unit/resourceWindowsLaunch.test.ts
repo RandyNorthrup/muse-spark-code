@@ -8,7 +8,7 @@ import { Duplex } from 'node:stream'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { spawnMcpJob } from '../../src/host/backend/mcpJobLaunch'
 import { joinStatement, newShellJob, shellJobAssembly } from '../../src/host/backend/shellJob'
-import { runProgram, windowsPowerShell } from '../../src/host/processTree'
+import { loadJobAssembly, runProgram, windowsPowerShell } from '../../src/host/processTree'
 import { powerShellQuoted } from '../../src/core/shellQuote'
 import { SHELL_JOB_TYPE_NAME, WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../src/shared/constants'
 import { WindowsResourceTreeReader } from '../../src/core/resources/trees/windows'
@@ -31,6 +31,9 @@ import { runResourceCommand } from '../../src/host/backend/toolIo'
 import { ResourceTreeRegistry } from '../../src/core/resources/trees/registry'
 import { fakeInitializeResult } from './helpers/fakeMsp'
 import * as sdk from '@muse-code/sdk'
+import { nativeCreated, useCreatedNative } from './helpers/createdNative'
+
+useCreatedNative()
 
 vi.mock('node:child_process', { spy: true })
 vi.mock('@muse-code/sdk', { spy: true })
@@ -328,7 +331,7 @@ describe('C1 native Windows launch boundary', () => {
             ps.file,
             [
               ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-              `Add-Type -Path ${powerShellQuoted(assembly)}; [void][${SHELL_JOB_TYPE_NAME}]::Terminate(${powerShellQuoted(jobName)}, 1)`,
+              `${loadJobAssembly(assembly)}; [void][${SHELL_JOB_TYPE_NAME}]::Terminate(${powerShellQuoted(jobName)}, 1)`,
             ],
             ps.env,
           )
@@ -391,6 +394,8 @@ describe('C1 native Windows launch boundary', () => {
       const host = resourceGovernorHost({
         inspect: (key) => (key === 'resourceGovernor' ? { globalValue: false } : undefined),
         onError: vi.fn(),
+        registryFile: path.join(folder, 'registry.json'),
+        createdDirectories: nativeCreated,
       })
       const native = vi.spyOn(childProcess, 'spawn')
       native.mockClear()
@@ -499,7 +504,7 @@ describe('C1 native Windows launch boundary', () => {
           ps.file,
           [
             ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-            `${joinStatement(owned)}$s = New-Object Diagnostics.ProcessStartInfo; $s.FileName = ${powerShellQuoted(process.execPath)}; $s.Arguments = '-e "setTimeout(()=>{},30000)"'; $s.UseShellExecute = $false; $s.CreateNoWindow = $true; [Console]::Out.WriteLine(([Diagnostics.Process]::Start($s)).Id)`,
+            `${joinStatement(owned)}$s = [Diagnostics.ProcessStartInfo]::new(); $s.FileName = ${powerShellQuoted(process.execPath)}; $s.Arguments = '-e "setTimeout(()=>{},30000)"'; $s.UseShellExecute = $false; $s.CreateNoWindow = $true; [Console]::Out.WriteLine(([Diagnostics.Process]::Start($s)).Id)`,
           ],
           { env: ps.env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
         )
@@ -520,7 +525,7 @@ describe('C1 native Windows launch boundary', () => {
           ps.file,
           [
             ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-            `Add-Type -Path ${powerShellQuoted(assembly!)}; [void][${SHELL_JOB_TYPE_NAME}]::Terminate(${powerShellQuoted(owned.name)}, 1)`,
+            `${loadJobAssembly(assembly!)}; [void][${SHELL_JOB_TYPE_NAME}]::Terminate(${powerShellQuoted(owned.name)}, 1)`,
           ],
           ps.env,
         )

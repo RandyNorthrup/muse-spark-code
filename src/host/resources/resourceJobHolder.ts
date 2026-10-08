@@ -6,7 +6,7 @@ import {
   SHELL_JOB_TYPE_NAME,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
-import { windowsPowerShell } from '../processTree'
+import { loadJobAssembly, windowsPowerShell } from '../processTree'
 
 /** A sampler infrastructure process, excluded from the job it keeps queryable. */
 export async function holdResourceJob(
@@ -20,7 +20,7 @@ export async function holdResourceJob(
     ps.file,
     [
       ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-      `Add-Type -Path ${powerShellQuoted(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Hold(${powerShellQuoted(job.name)})`,
+      `${loadJobAssembly(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Hold(${powerShellQuoted(job.name)})`,
     ],
     { env: ps.env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] },
   )

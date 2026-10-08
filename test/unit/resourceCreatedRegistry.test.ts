@@ -28,7 +28,7 @@ const nativeVariants: {
   device?: (args: readonly string[]) => Promise<string>
 } = {}
 beforeAll(async () => {
-  if (process.platform !== 'darwin') return
+  if (process.platform === 'linux') return
   nativeVariants.race = await compileCreatedVariant('test/unit/helpers/createdNativeRace.c')
   nativeVariants.device = await compileCreatedVariant('test/unit/helpers/createdNativeDevice.c')
 })
@@ -114,6 +114,8 @@ async function nativeInterleaving(site: string): Promise<void> {
         expect(await readFile(path.join(h.registry.base, names[0]!, 'keep'), 'utf8')).toBe(
           'personal',
         )
+      if (isCreateReplacement)
+        expect(await readdir(path.join(h.registry.base, 'saved-root'))).toEqual([])
       h.exit()
       expect(await h.registry.clean()).toMatchObject({ removed: 0, refused: [expect.any(String)] })
       return
@@ -160,7 +162,7 @@ async function nativeInterleaving(site: string): Promise<void> {
         await writeFile(path.join(h.registry.base, '.race-final'), '')
         if (isPopulated) await writeFile(path.join(h.registry.base, '.race-final-populated'), '')
         directories.mockImplementation(nativeVariants.race)
-        if (isPopulated)
+        if (isPopulated && process.platform !== 'win32')
           await expect(h.registry.remove(created.root)).rejects.toThrow('helper refused')
         else expect(await h.registry.remove(created.root)).toBe(true)
         const createdId = directories.mock.calls.find(
@@ -170,9 +172,15 @@ async function nativeInterleaving(site: string): Promise<void> {
         const replacement = path.join(h.registry.base, `.muse-trash-${String(createdId)}`)
         if (isPopulated)
           expect(await readFile(path.join(replacement, 'keep'), 'utf8')).toBe('personal')
+        else if (process.platform === 'win32') expect(await readdir(replacement)).toEqual([])
         else await expect(readdir(replacement)).rejects.toMatchObject({ code: 'ENOENT' })
-        expect(await readdir(path.join(h.registry.base, 'saved-final'))).toEqual([])
-        await rm(path.join(h.registry.base, 'saved-final'), { recursive: true })
+        const original = path.join(h.registry.base, 'saved-final')
+        if (process.platform === 'win32')
+          await expect(readdir(original)).rejects.toMatchObject({ code: 'ENOENT' })
+        else {
+          expect(await readdir(original)).toEqual([])
+          await rm(original, { recursive: true })
+        }
         directories.mockImplementation(nativeCreated)
       }
       return
@@ -315,7 +323,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
       await rename(created, original)
       await mkdir(created)
       await expect(h.registry.remove(created)).rejects.toThrow(
-        process.platform === 'darwin' ? 'helper refused' : 'identity changed',
+        process.platform === 'linux' ? 'identity changed' : 'helper refused',
       )
       await rm(created, { recursive: true })
       await symlink(outsider, created, 'junction')
@@ -556,7 +564,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('quarantines and rechecks a concurrent root swap without deleting the personal directory', async () => {
-    if (process.platform === 'darwin') {
+    if (process.platform !== 'linux') {
       await nativeInterleaving('source')
       return
     }
@@ -586,7 +594,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('pins the base and protects a personal directory when an ancestor is swapped after realpath', async () => {
-    if (process.platform === 'darwin') {
+    if (process.platform !== 'linux') {
       await nativeInterleaving('base')
       return
     }
@@ -685,7 +693,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
       const trash = path.join(h.registry.base, `.muse-trash-${id}`)
       await mkdir(trash)
       await expect(h.registry.remove(temp.root)).rejects.toThrow(
-        process.platform === 'darwin' ? 'helper refused' : 'quarantine already exists',
+        process.platform === 'linux' ? 'quarantine already exists' : 'helper refused',
       )
       expect(await readdir(trash)).toEqual([])
       expect(await readdir(temp.root)).toContain(RESOURCE_TEMP_MARKER)
@@ -746,7 +754,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('keeps a personal trash replacement swapped after the marker check during base verification', async () => {
-    if (process.platform === 'darwin') {
+    if (process.platform !== 'linux') {
       await nativeInterleaving('root-personal')
       return
     }
@@ -823,7 +831,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('refuses a populated replacement between mkdir and open without stamping or recording its identity', async () => {
-    if (process.platform === 'darwin') {
+    if (process.platform !== 'linux') {
       await nativeInterleaving('create')
       return
     }
@@ -858,7 +866,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('refuses a different-device subdirectory without descending into it', async () => {
-    if (process.platform === 'darwin') {
+    if (process.platform !== 'linux') {
       await nativeInterleaving('device')
       return
     }
@@ -925,7 +933,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('requires current-user ownership of the directory opened immediately after mkdir', async () => {
-    if (process.platform === 'darwin') {
+    if (process.platform !== 'linux') {
       await nativeInterleaving('owner')
       return
     }
@@ -956,7 +964,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('holds a checked nested directory when its name is replaced before empty-only rmdir', async () => {
-    if (process.platform === 'darwin') {
+    if (process.platform !== 'linux') {
       await nativeInterleaving('nested-personal')
       return
     }
@@ -1012,7 +1020,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('refuses a same-device bind mount using the held directory mount ID', async () => {
-    if (process.platform === 'darwin') {
+    if (process.platform !== 'linux') {
       await nativeInterleaving('device')
       return
     }
@@ -1045,7 +1053,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
   it.each(['quarantine', 'nested'])(
     'keeps an empty %s replacement during the walk',
     async (site) => {
-      if (process.platform === 'darwin') {
+      if (process.platform !== 'linux') {
         await nativeInterleaving(site === 'nested' ? 'nested' : 'root')
         return
       }
@@ -1085,7 +1093,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
     },
   )
   it.each(['quarantine', 'restore'])('never overwrites a raced %s destination', async (phase) => {
-    if (process.platform === 'darwin') {
+    if (process.platform !== 'linux') {
       await nativeInterleaving(phase === 'restore' ? 'restore' : 'quarantine')
       return
     }
@@ -1161,7 +1169,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('refuses an empty replacement after native mkdir before Node opens or stamps it', async () => {
-    if (process.platform === 'darwin') {
+    if (process.platform !== 'linux') {
       await nativeInterleaving('create-empty')
       return
     }
@@ -1190,7 +1198,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
     }
   })
   it('documents the final empty-name window while nonempty substitutions keep all file content', async () => {
-    if (process.platform === 'darwin') {
+    if (process.platform !== 'linux') {
       await nativeInterleaving('final')
       return
     }
