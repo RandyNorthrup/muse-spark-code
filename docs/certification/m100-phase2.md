@@ -792,7 +792,11 @@ explicitly includes the host handshake; changes to the existing editor-neutral
 DevicePanel and service are limited to readiness/cache/replay, with no listener,
 pairing, grant or execution authorization. No dependencies or caps changed.
 
-1. **P2 fixed:** Devices subscribes then posts strict `{ type: 'devicesReady' }`.
+1. **P2 fixed:** `src/webview/models/sections/agents/DevicesApp.tsx:196`
+   subscribes then posts strict `{ type: 'devicesReady' }`.
+   Schema: `src/shared/devicesPanel.ts:120`; host cache/publication:
+   `src/core/devices/devicePanel.ts:44`, `src/host/devices/deviceEntry.ts:170`;
+   unconditional harness wait: `test/harness/index.html:6346`.
    `devicesReady.test.tsx` verifies one mount handshake and synchronous host
    delivery; the shared schema refuses chat/task/extra-field handshakes.
    DevicePanel holds observations until ready, captures an initial snapshot
@@ -802,7 +806,8 @@ pairing, grant or execution authorization. No dependencies or caps changed.
    `devicesPanel.test.ts`. Harness requires the real handshake for every
    surface again; all six real Chrome scene checks assert it is the first
    outgoing message before checking readiness and 320 px width.
-2. **P3 fixed:** owners' Pause reply contains owners only; grant refusal first
+2. **P3 fixed:** `test/harness/index.html:571` owners' Pause reply contains
+   owners only; grant refusal first
    appears in the correlated revoke reply. `devicesPhase2Harness.test.mjs`
    executes the actual fixture and proves no pre-revoke refusal and typed
    `grant-revoked` afterwards. Suppressing the actual rendered refusal now
@@ -841,11 +846,51 @@ Restored four-theme keyboard execution exits **0**, with all four
 Refreshed receipt: `docs/certification/m100-u-keyboard.json`, Chrome
 153.0.8010.52, Linux Control+A, all four themes at 320 px.
 
-**Verification status:** all eleven owning files pass locally after restoration:
-**125 + 32 + 28 + 23 = 208 passed**, four batches of at most three files/workers,
-repository deadlines. Initial fresh clone of `01e427bbe` passes all 208 tests
-three times, all five compiler projects, changed-file lint/prettier, plain knip,
-zero-clone jscpd, l10n/reference/host API, production budgets and 48 English/pseudo
-a11y pages. The corrected committed keyboard recorder's final fresh-clone
-qualification is pending. Aggregate quality and installed four-device
-qualification remain lane W's joined-tree work.
+**Final fresh-clone verification:** `/tmp/fixm100p2u2-final-20261008`,
+cloned from committed `aecac0c8196dd4dff55c768462efa1c5584f1c90`.
+`CI=true npm ci` exits **0**. Every command below uses `CI=true`; each
+Vitest invocation has at most three files and `--maxWorkers=3`, with the
+repository's case deadlines and no timeout override, selection or case skip.
+The existing named 60 s beforeAll is build/browser preparation, not a case.
+
+| Owning batch (all paths under `test/unit/`)                                     | Pass 1 | Pass 2 | Pass 3 |
+| ------------------------------------------------------------------------------- | ------ | ------ | ------ |
+| `DevicesApp.test.tsx`, `DevicesView.test.tsx`, `devicesPhase2Views.test.tsx`    | 125    | 125    | 125    |
+| `devicesQrLoading.test.tsx`, `webviewBundles.test.mjs`, `devicesPanel.test.ts`  | 32     | 32     | 32     |
+| `devicesReady.test.tsx`, `devicePanel.test.ts`, `devicesPhase2Harness.test.mjs` | 28     | 28     | 28     |
+| `deviceIntegration.test.ts`, `deviceMessageHandler.test.ts`                     | 23     | 23     | 23     |
+| Total                                                                           | 208    | 208    | 208    |
+
+**624 passed**, zero failed/skipped; all twelve invocations exit **0**.
+The six scene-readiness cases run in headless Chrome each time: the first
+outgoing message is exactly `devicesReady`, the real marker appears, one
+card mounts and document scrollWidth is at most 320. The large-QR check
+still measures the real 177-module square within its container.
+
+| Gate                                 | Exit and receipt                                                                                                  |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Five typecheck projects              | `typecheck:host`, `:webview`, `:unit`, `:e2e`, `:integration`: each **0**                                         |
+| Changed-file ESLint / Prettier       | Each **0**; includes the keyboard script and refreshed JSON                                                       |
+| Plain `npx knip`                     | **0**, two inherited configuration hints, no unused code                                                          |
+| `npx jscpd`                          | **0**, zero clones                                                                                                |
+| `check:l10n`                         | **0**, fourteen UI/usage tables, zero problems                                                                    |
+| `check:reference`                    | **0**, 61 features, Devices' eighteen reference entries current                                                   |
+| `check:host-api`                     | **0**, 366 VS Code APIs, zero problems                                                                            |
+| Production `npm run build`           | **0**, every size/split/host-globals/notices gate passes                                                          |
+| `test:a11y` on all six scenes        | **0**, English: 24 pages, four themes, zero violations/undecided/missing results                                  |
+| Same six scenes with `--lang=pseudo` | **0**, 24 pages, four themes, zero violations/undecided/missing results                                           |
+| `node scripts/devices-keyboard.mjs`  | **0**, four themes at 320 px, strict readiness, all no-grant flags true, missing-asset refusal with zero requests |
+
+Caps unchanged: startup **733.9/900 KiB**, original deferred aggregate
+**31.9/50 KiB**, Devices **40.2/50 KiB**, QR **0.9/25 KiB**, host Devices
+**82.7/100 KiB**. Axe reports eight English and sixteen pseudo elements
+whose contrast it cannot see (obscured or off-screen), unchanged measurement
+limits; no returned rule is undecided. All nine restored hashes still match
+following commit hooks. The refreshed keyboard JSON is byte-identical to the
+final clone's output. Final source and generated receipts leave both trees clean.
+
+**Next / blockers:** no lane U blocker. Lead fetches `m100/p2-u-fix2` and
+integrates these local commits. Lane W retains real host facts, approved encoder
+installation/measurement and installed four-device/full joined-quality
+qualification. No push, rebase, merge, paid/live model call, real second-device
+pairing or listener beyond loopback. Model attempts and spend: **0**.

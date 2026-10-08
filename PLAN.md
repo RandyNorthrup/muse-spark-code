@@ -35818,7 +35818,7 @@ paid/live call or physical-device qualification is introduced.
 
 ### M100 phase 2 — bound owners, discovery, hardened hosts, per-action control (D80, planned)
 
-**FIXM100P2U2 review round 2 (2026-10-08, linuxlt), verification pending.**
+**FIXM100P2U2 review round 2 completed (2026-10-08, linuxlt).**
 Repair RVM100P2UB's P2 missing Devices readiness and P3 premature owners
 readiness. The brief explicitly includes the host handshake: add a strict
 `devicesReady` document message beside the existing action schema, subscribe
@@ -35833,11 +35833,15 @@ reference, host API, production budgets, six-scene Chrome/a11y and keyboard.
 The keyboard recorder must assert the strict handshake separately from actions
 and make its existing no-grant-request receipt an assertion: readiness is not
 a permission action. Drill an injected grant request before refreshing receipts.
-Implementation and nine exact-restoration drills pass; 208 owning tests
-pass three times in the initial fresh clone. Final keyboard-recorder committed
-qualification remains pending. Aggregate qualification
-remains lane W's joined-tree obligation; no push, merge, live model call or
-real pairing. Receipts go in lane U's record.
+Both findings and the keyboard recorder are fixed; nine red drills restore
+exact hashes. Fresh clone of `aecac0c81` with `CI=true npm ci`: 208 owning tests
+pass three times at default deadlines; five typechecks and every scoped static
+and production-build gate exit 0. All six scenes prove ready in Chrome at
+320 px, 48 English/pseudo accessibility pages have no violations or missing
+results, and four-theme keyboard/missing-asset checks pass. Existing caps
+hold. Lane U has no blocker; lane W retains aggregate qualification and
+installed-host wiring. No push, merge, live model call or real pairing.
+Full receipts: lane U in `docs/certification/m100-phase2.md`.
 
 **FIXM100P2U review repair (2026-10-07, linuxlt).** Repair all eight
 RVM100P2U findings within lane U and the brief's approved build inventory
