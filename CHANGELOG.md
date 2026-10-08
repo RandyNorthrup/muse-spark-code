@@ -10,7 +10,7 @@ happened, not what was planned; superseded entries are kept.
 ### Fixed
 
 - Settle quote-menu capture origins after final layout and isolate source-reconstruction fixtures from temporary-directory placement.
-- Capture settled share-view highlighting, usage-dialog account facts and the palette's focus scroll so visual replays no longer race lazy renderers.
+- Capture settled share-view highlighting, usage-dialog account facts and status rows, and the palette's focus scroll so visual replays no longer race lazy renderers.
 
 - Complete integrated visual coverage through real optional UI scenes, decode packed update notes in replay, wrap narrow Models actions and use token focus rings.
 

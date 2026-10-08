@@ -134,8 +134,16 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   // account facts fall back to nothing. Capture their settled render.
   if (scene === 'share' || scene === 'share-narrow')
     await waitForPaint(page, '.code-block-body code.hljs [class^="hljs-"]')
-  if ((await page.locator('h3.usage-heading', { hasText: /^Account$/ }).count()) > 0)
+  if ((await page.locator('h3.usage-heading', { hasText: /^Account$/ }).count()) > 0) {
     await waitForPaint(page, 'dl.usage-facts dt:text-is("Auth method")')
+    // Its status and usage rows also load lazily behind "Reading usage…".
+    const reading = page.locator('[role="status"]', { hasText: /^Reading usage…$/ })
+    for (let attempt = 0; attempt < 100 && (await reading.count()) > 0; attempt += 1) {
+      await page.clock.runFor(100)
+      await delay(10)
+    }
+    if ((await reading.count()) > 0) throw new Error(`Usage rows did not settle: ${scene}`)
+  }
   if (
     [
       'muse-tools',
