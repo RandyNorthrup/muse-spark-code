@@ -388,6 +388,7 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
     ),
     feature('code-output', { ui: 'copyCode' }, { ui: 'referenceCodeOutput' }, [], [], 'the-panel'),
+    // ACP queued late answers retire only at model start (request admission on Model API).
     feature(
       'questions',
       { ui: 'questionSubmit' },
@@ -809,7 +810,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'orchestrator-playbook',
       { ui: 'playbookTitle' },
-      { ui: 'playbookHelpDescription' },
+      { ui: 'playbookRecordHelp' },
       [],
       [],
       'orchestrator-playbook-policy-m116',

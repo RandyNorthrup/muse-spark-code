@@ -68,18 +68,20 @@ describe('real ACP question registry binding', () => {
     h.registry.dispose()
     await h.registry.flush()
   })
-  it('retains an unleased prefix when removing it from disk fails before dispatch', async () => {
+  it('retains a prefix after commit persistence fails and permits a fresh lease', async () => {
     const h = await harness()
     await h.registry.queue(h.message('first'))
+    const lease = (await h.registry.peekQueued())!
     const file = path.join(h.directory, 'queued', 'session-1.json')
     const backup = `${file}.backup`
     await rename(file, backup)
     await mkdir(file)
-    await expect(h.registry.queuedParts()).rejects.toThrow(UI_TEXT.questionAnswerFailed)
+    await expect(h.registry.commitQueued(lease.token)).rejects.toThrow(UI_TEXT.questionAnswerFailed)
     await rmdir(file)
     await rename(backup, file)
-    expect(await h.registry.queuedParts()).toEqual([{ type: 'text', text: 'answer first' }])
-    await h.registry.acknowledgeQueued('taken')
+    const retry = (await h.registry.peekQueued())!
+    expect(retry.parts).toEqual([{ type: 'text', text: 'answer first' }])
+    await h.registry.commitQueued(retry.token)
     h.registry.dispose()
     await h.registry.flush()
   })
@@ -165,47 +167,73 @@ describe('real ACP question registry binding', () => {
     await resumed.flush()
   })
 
-  it('leases a durable queue prefix before dispatch, retaining answers queued concurrently', async () => {
+  it('commits only the leased prefix, retaining answers queued concurrently', async () => {
     const h = await harness()
     expect(await h.registry.queue(h.message('first'))).toBe('taken')
-    expect(await h.registry.queuedParts()).toEqual([{ type: 'text', text: 'answer first' }])
+    const first = (await h.registry.peekQueued())!
+    expect(first.parts).toEqual([{ type: 'text', text: 'answer first' }])
     await h.registry.queue(h.message('second'))
-    await h.registry.acknowledgeQueued('uncertain')
-    expect(await h.registry.queuedParts()).toEqual([{ type: 'text', text: 'answer second' }])
-    await h.registry.acknowledgeQueued('notTaken')
+    await h.registry.commitQueued(first.token)
+    const second = (await h.registry.peekQueued())!
+    expect(second.parts).toEqual([{ type: 'text', text: 'answer second' }])
+    await h.registry.releaseQueued(second.token)
     h.registry.dispose()
     await h.registry.flush()
     const resumed = h.create()
     await resumed.load()
-    expect(await resumed.queuedParts()).toEqual([{ type: 'text', text: 'answer second' }])
-    await resumed.acknowledgeQueued('taken')
+    const retry = (await resumed.peekQueued())!
+    expect(retry.parts).toEqual(second.parts)
+    await resumed.commitQueued(retry.token)
+    expect(await resumed.peekQueued()).toBeUndefined()
     resumed.dispose()
     await resumed.flush()
   })
 
-  it('never retries a queue prefix after a crash between lease and acknowledgement', async () => {
+  it('restart between peek and commit retains the durable answer', async () => {
     const h = await harness()
     await h.registry.queue(h.message('first'))
-    await h.registry.queuedParts()
+    await h.registry.peekQueued()
     const resumed = h.create()
     await resumed.load()
-    expect(await resumed.queuedParts()).toEqual([])
-    await resumed.acknowledgeQueued('taken')
+    const lease = (await resumed.peekQueued())!
+    expect(lease.parts).toEqual([{ type: 'text', text: 'answer first' }])
+    await resumed.commitQueued(lease.token)
     h.registry.dispose()
     resumed.dispose()
     await h.registry.flush()
     await resumed.flush()
   })
 
+  it('serializes concurrent peeks and rejects stale tokens without releasing current ownership', async () => {
+    const h = await harness()
+    await h.registry.queue(h.message('first'))
+    const peeks = await Promise.allSettled([h.registry.peekQueued(), h.registry.peekQueued()])
+    const first = peeks[0]
+    expect(peeks[1]).toMatchObject({ status: 'rejected' })
+    if (first.status !== 'fulfilled' || first.value === undefined) throw new Error('Missing lease')
+    await h.registry.releaseQueued(first.value.token)
+    const second = (await h.registry.peekQueued())!
+    await expect(h.registry.commitQueued(first.value.token)).rejects.toThrow(
+      UI_TEXT.questionQueueLeaseFailed,
+    )
+    await expect(h.registry.releaseQueued(first.value.token)).rejects.toThrow(
+      UI_TEXT.questionQueueLeaseFailed,
+    )
+    await expect(h.registry.peekQueued()).rejects.toThrow(UI_TEXT.questionQueueLeaseFailed)
+    await h.registry.commitQueued(second.token)
+    expect(await h.registry.peekQueued()).toBeUndefined()
+    h.registry.dispose()
+    await h.registry.flush()
+  })
   it('bounds the durable queue and refuses a message from another session', async () => {
     const h = await harness()
     expect(await h.registry.queue({ ...h.message('foreign'), sessionId: 'other' })).toBe('notTaken')
     for (let index = 0; index < 20; index += 1)
       expect(await h.registry.queue(h.message(String(index)))).toBe('taken')
     expect(await h.registry.queue(h.message('overflow'))).toBe('notTaken')
-    await h.registry.queuedParts()
+    const lease = (await h.registry.peekQueued())!
     expect(await h.registry.queue(h.message('leased-overflow'))).toBe('notTaken')
-    await h.registry.acknowledgeQueued('taken')
+    await h.registry.commitQueued(lease.token)
     h.registry.dispose()
     await h.registry.flush()
   })

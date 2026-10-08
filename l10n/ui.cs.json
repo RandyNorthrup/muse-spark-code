@@ -236,6 +236,9 @@
   "playbookFallbackReviewer": "Náhradní kontrolor pro kontroly blokované klasifikátorem: {reviewer}",
   "playbookFallbackNone": "Není určen žádný náhradní kontrolor",
   "playbookResidualAccepted": "Zbytkový problém přijat",
+  "playbookRecordHelp": "Zobrazit kola revizí, rozhodnutí o návrhu, bezpečnostní odmítnutí, nastavení a důvody nesvázaných přijetí.",
+  "playbookResidualUnbound": "Nesvázané přijetí zbytkového nálezu",
+  "playbookResidualUnboundReason": "Žádný dřívější zbytkový nález neodpovídá času a důkazům tohoto přijetí. Nepokrývá žádný zbytkový nález.",
   "playbookLeaseRecord": "Patch-lease {status}: {module} ({lane})",
   "playbookWorkRecord": "Práce {id} na {module}: výchozích commitů: {commits}",
   "playbookVerificationRecord": "Ověření hooků {result} pro {commit} ({scope})",
@@ -253,9 +256,9 @@
   "playbookSaved": "Nastavení příručky byla uložena.",
   "playbookStrikeBadge": {
     "one": "{count} kolo kontroly",
+    "other": "{count} kol kontroly",
     "few": "{count} kola kontroly",
-    "many": "{count} kola kontroly",
-    "other": "{count} kol kontroly"
+    "many": "{count} kola kontroly"
   },
   "playbookRules": {
     "threeStrikes": "Po třech neúspěšných kolech přepracovat návrh",
@@ -548,15 +551,15 @@
     },
     "endAfterRuns": {
       "one": "Ukončit po {count} spuštění",
+      "other": "Ukončit po {count} spuštěních",
       "few": "Ukončit po {count} spuštěních",
-      "many": "Ukončit po {count} spuštěních",
-      "other": "Ukončit po {count} spuštěních"
+      "many": "Ukončit po {count} spuštěních"
     },
     "historyPreview": {
       "one": "Spustilo by se {count}krát za {days} dní",
+      "other": "Spustilo by se {count}krát za {days} dní",
       "few": "Spustilo by se {count}krát za {days} dní",
-      "many": "Spustilo by se {count}krát za {days} dní",
-      "other": "Spustilo by se {count}krát za {days} dní"
+      "many": "Spustilo by se {count}krát za {days} dní"
     }
   },
   "paidDailyBudgetLine": "Společný denní rozpočet pro interaktivní placené doplňky: {budget}. Tab má vlastní samostatný rozpočet.",
@@ -915,28 +918,28 @@
   "exportPreviewFull": "Uložit bez začernění…",
   "exportPreviewOpen": "Začerněný soubor je otevřený v editoru. Dokud nevyberete, nic se nezapíše.",
   "exportPreviewMessages": {
-    "few": "{count} zprávy v této konverzaci",
-    "many": "{count} zpráv v této konverzaci",
     "one": "{count} zpráva v této konverzaci",
-    "other": "{count} zprávy v této konverzaci"
+    "other": "{count} zprávy v této konverzaci",
+    "few": "{count} zprávy v této konverzaci",
+    "many": "{count} zpráv v této konverzaci"
   },
   "exportPreviewPaths": {
-    "few": "{count} cesty skryty",
-    "many": "{count} cest skryto",
     "one": "{count} cesta skryta",
-    "other": "{count} cesty skryty"
+    "other": "{count} cesty skryty",
+    "few": "{count} cesty skryty",
+    "many": "{count} cest skryto"
   },
   "exportPreviewAccounts": {
-    "few": "{count} ID účtu skryty",
-    "many": "{count} ID účtu skryto",
     "one": "{count} ID účtu skryto",
-    "other": "{count} ID účtu skryty"
+    "other": "{count} ID účtu skryty",
+    "few": "{count} ID účtu skryty",
+    "many": "{count} ID účtu skryto"
   },
   "exportPreviewSecrets": {
-    "few": "{count} přihlašovací údaje nebo otisky klíčů odstraněny",
-    "many": "{count} přihlašovacích údajů nebo otisků klíčů odstraněno",
     "one": "{count} přihlašovací údaj nebo otisk klíče odstraněn",
-    "other": "{count} přihlašovací údaje nebo otisky klíčů odstraněny"
+    "other": "{count} přihlašovací údaje nebo otisky klíčů odstraněny",
+    "few": "{count} přihlašovací údaje nebo otisky klíčů odstraněny",
+    "many": "{count} přihlašovacích údajů nebo otisků klíčů odstraněno"
   },
   "exportPreviewKnownCredentials": "Známé podoby přihlašovacích údajů (klíče API, tokeny, hesla, soukromé klíče) a otisk klíče se vždy odstraní. Tajný údaj v jiné podobě zůstane: před sdílením si soubor přečtěte.",
   "exportTooLarge": "Tato konverzace je na soubor exportu relace příliš dlouhá.",
@@ -972,10 +975,10 @@
   "mcpUnreadable": "Soubor nastavení Muse Code se nepodařilo přečíst:",
   "mcpNone": "V {path} nejsou nakonfigurované žádné servery MCP",
   "mcpCount": {
-    "few": "{count} servery MCP v {path}",
-    "many": "{count} serveru MCP v {path}",
     "one": "{count} server MCP v {path}",
-    "other": "{count} serverů MCP v {path}"
+    "other": "{count} serverů MCP v {path}",
+    "few": "{count} servery MCP v {path}",
+    "many": "{count} serveru MCP v {path}"
   },
   "mcpOptional": "volitelný",
   "mcpRequired": "povinný (Muse Code se při jeho selhání zastaví)",
@@ -1005,16 +1008,16 @@
   "mcpStateNotStarted": "Spustí se s vaší další zprávou",
   "mcpStateStarting": "Spouští se…",
   "mcpStateConnected": {
-    "few": "Připojeno: {count} nástroje",
-    "many": "Připojeno: {count} nástroje",
     "one": "Připojeno: {count} nástroj",
-    "other": "Připojeno: {count} nástrojů"
+    "other": "Připojeno: {count} nástrojů",
+    "few": "Připojeno: {count} nástroje",
+    "many": "Připojeno: {count} nástroje"
   },
   "mcpStateUnoffered": {
-    "few": "{count} další nenabízeny",
-    "many": "{count} dalšího nenabízeno",
     "one": "{count} další nenabízen",
-    "other": "{count} dalších nenabízeno"
+    "other": "{count} dalších nenabízeno",
+    "few": "{count} další nenabízeny",
+    "many": "{count} dalšího nenabízeno"
   },
   "mcpStateFailed": "Neběží: {reason}",
   "mcpStateRestricted": "Nespuštěno: tento pracovní prostor je v Omezeném režimu",
@@ -1070,10 +1073,10 @@
   "hooksUserBlock": "settings.json › hooks",
   "hooksUserNone": "Ve vašem nastavení žádné nejsou",
   "hooksUserCount": {
-    "few": "{count} hooky ve vašem nastavení",
-    "many": "{count} hooku ve vašem nastavení",
     "one": "{count} hook ve vašem nastavení",
-    "other": "{count} hooků ve vašem nastavení"
+    "other": "{count} hooků ve vašem nastavení",
+    "few": "{count} hooky ve vašem nastavení",
+    "many": "{count} hooku ve vašem nastavení"
   },
   "hooksManaged": "Spravované hooky",
   "hooksManagedKey": "managed_hooks_path",
@@ -1088,9 +1091,9 @@
   "hooksSparkUserNone": "Nemáte soubor spark-hooks.json.",
   "hooksSparkCount": {
     "one": "{count} hook v souboru {file}",
+    "other": "{count} hooků v souboru {file}",
     "few": "{count} hooky v souboru {file}",
-    "many": "{count} hooku v souboru {file}",
-    "other": "{count} hooků v souboru {file}"
+    "many": "{count} hooku v souboru {file}"
   },
   "hooksSparkAbout": "Muse Code tento soubor nikdy nečte. Obsahuje události, které spouští jen toto rozšíření, a hooky importované z jiných agentů.",
   "hooksBackendMuseCode": "Spouští Muse Code",
@@ -1112,18 +1115,18 @@
   "hookTeammateKept": "Hook nechal {name} pracovat dál: {reason}",
   "hookFileChangedPaused": {
     "one": "Hooky FileChanged jsou na minutu pozastaveny: přišla více než {count} změna.",
+    "other": "Hooky FileChanged jsou na minutu pozastaveny: přišlo více než {count} změn.",
     "few": "Hooky FileChanged jsou na minutu pozastaveny: přišly více než {count} změny.",
-    "many": "Hooky FileChanged jsou na minutu pozastaveny: přišlo více než {count} změny.",
-    "other": "Hooky FileChanged jsou na minutu pozastaveny: přišlo více než {count} změn."
+    "many": "Hooky FileChanged jsou na minutu pozastaveny: přišlo více než {count} změny."
   },
   "hookCorrectionRefused": "Opravené volání od hooku bylo odmítnuto: {reason}",
   "hookCorrectionOtherTool": "uvádí jiný nástroj",
   "hookCorrectionOutside": "sahá mimo pracovní prostor",
   "hookCorrectionTooDeep": {
     "one": "překročilo {count} opravu za sebou",
+    "other": "překročilo {count} oprav za sebou",
     "few": "překročilo {count} opravy za sebou",
-    "many": "překročilo {count} opravy za sebou",
-    "other": "překročilo {count} oprav za sebou"
+    "many": "překročilo {count} opravy za sebou"
   },
   "hookToolRemoved": "hook tento nástroj pro toto kolo odebral",
   "hookMessageEdited": "Upraveno hookem",
@@ -1132,9 +1135,9 @@
   "setupHooksNone": "V souboru spark-hooks.json nejsou nastaveny žádné hooky Setup.",
   "setupHooksRan": {
     "one": "Spuštěn {count} hook Setup.",
+    "other": "Spuštěno {count} hooků Setup.",
     "few": "Spuštěny {count} hooky Setup.",
-    "many": "Spuštěno {count} hooku Setup.",
-    "other": "Spuštěno {count} hooků Setup."
+    "many": "Spuštěno {count} hooku Setup."
   },
   "setupHooksFailed": "Hook Setup selhal: {reason}",
   "manualHookPick": "Který hook spustit?",
@@ -1175,10 +1178,10 @@
   "memoryTitle": "Paměť Muse",
   "memoryNone": "Pro tento pracovní prostor zatím nejsou žádné poznámky v paměti",
   "memoryCount": {
-    "few": "{count} poznámky v paměti",
-    "many": "{count} poznámky v paměti",
     "one": "{count} poznámka v paměti",
-    "other": "{count} poznámek v paměti"
+    "other": "{count} poznámek v paměti",
+    "few": "{count} poznámky v paměti",
+    "many": "{count} poznámky v paměti"
   },
   "memoryIndexDetail": "Rejstřík, který Muse čte na začátku každé relace",
   "memoryNewNote": "Nová poznámka…",
@@ -1271,9 +1274,9 @@
   "gitPushFirstPush": "První nasdílení: větev se tam vytvoří a od teď bude sledovaná.",
   "gitPushCommits": {
     "one": "Nasdílí se {count} potvrzení.",
+    "other": "Nasdílí se {count} potvrzení.",
     "few": "Nasdílejí se {count} potvrzení.",
-    "many": "Nasdílí se {count} potvrzení.",
-    "other": "Nasdílí se {count} potvrzení."
+    "many": "Nasdílí se {count} potvrzení."
   },
   "gitPushNeverForce": "Nikdy vynucené nasdílení: větev, která se rozešla, se odmítne.",
   "gitPushAction": "Nasdílet",
@@ -1303,23 +1306,23 @@
   "gitChangeCounts": "{staged}, {unstaged}",
   "gitStagedCount": {
     "one": "{count} připravená",
+    "other": "{count} připravených",
     "few": "{count} připravené",
-    "many": "{count} připravené",
-    "other": "{count} připravených"
+    "many": "{count} připravené"
   },
   "gitUnstagedCount": {
     "one": "{count} nepřipravená",
+    "other": "{count} nepřipravených",
     "few": "{count} nepřipravené",
-    "many": "{count} nepřipravené",
-    "other": "{count} nepřipravených"
+    "many": "{count} nepřipravené"
   },
   "gitFileStaged": "připraveno",
   "gitFileUnstaged": "nepřipraveno",
   "gitMoreFiles": {
     "one": "a {count} další soubor",
+    "other": "a {count} dalších souborů",
     "few": "a {count} další soubory",
-    "many": "a {count} dalšího souboru",
-    "other": "a {count} dalších souborů"
+    "many": "a {count} dalšího souboru"
   },
   "gitMessageLabel": "Zpráva potvrzení",
   "gitIncludeUnstaged": "Zahrnout nepřipravené změny a nové soubory",
@@ -1346,9 +1349,9 @@
   "gitPrPushFirst": "Větev se nejdříve nasdílí do {remote}, jde o první nasdílení; budete dotázáni.",
   "gitPrPushCommits": {
     "one": "Do {remote} se nejdříve nasdílí {count} potvrzení; budete dotázáni.",
+    "other": "Do {remote} se nejdříve nasdílí {count} potvrzení; budete dotázáni.",
     "few": "Do {remote} se nejdříve nasdílejí {count} potvrzení; budete dotázáni.",
-    "many": "Do {remote} se nejdříve nasdílí {count} potvrzení; budete dotázáni.",
-    "other": "Do {remote} se nejdříve nasdílí {count} potvrzení; budete dotázáni."
+    "many": "Do {remote} se nejdříve nasdílí {count} potvrzení; budete dotázáni."
   },
   "gitPrBehind": "Větev je pozadu za svou upstream větví: žádost o přijetí změn ukazuje, co už je nasdílené.",
   "gitPullRequestLabel": "Žádost o přijetí změn této konverzace",
@@ -1361,39 +1364,39 @@
   "gitChecksNone": "žádné nenahlášeny",
   "gitChecksPassed": {
     "one": "{count} prošla",
+    "other": "{count} prošlo",
     "few": "{count} prošly",
-    "many": "{count} prošlo",
-    "other": "{count} prošlo"
+    "many": "{count} prošlo"
   },
   "gitChecksFailed": {
     "one": "{count} selhala",
+    "other": "{count} selhalo",
     "few": "{count} selhaly",
-    "many": "{count} selhalo",
-    "other": "{count} selhalo"
+    "many": "{count} selhalo"
   },
   "gitChecksRunning": {
     "one": "{count} běží",
+    "other": "{count} běží",
     "few": "{count} běží",
-    "many": "{count} běží",
-    "other": "{count} běží"
+    "many": "{count} běží"
   },
   "gitChecksSkipped": {
     "one": "{count} přeskočena",
+    "other": "{count} přeskočeno",
     "few": "{count} přeskočeny",
-    "many": "{count} přeskočeno",
-    "other": "{count} přeskočeno"
+    "many": "{count} přeskočeno"
   },
   "gitChecksCancelled": {
     "one": "{count} zrušena",
+    "other": "{count} zrušeno",
     "few": "{count} zrušeny",
-    "many": "{count} zrušeno",
-    "other": "{count} zrušeno"
+    "many": "{count} zrušeno"
   },
   "gitChecksNotRead": {
     "one": "{count} další nenačtena",
+    "other": "{count} dalších nenačteno",
     "few": "{count} další nenačteny",
-    "many": "{count} další nenačteno",
-    "other": "{count} dalších nenačteno"
+    "many": "{count} další nenačteno"
   },
   "gitStatusNeedsSignIn": "Chcete-li zobrazit stav, přihlaste se ke GitHubu.",
   "gitCheckedAt": "stav k {time}",
@@ -1662,9 +1665,9 @@
   },
   "reportRowsMore": {
     "one": "Další {count} řádek",
+    "other": "Dalších {count} řádků",
     "few": "Další {count} řádky",
-    "many": "Dalších {count} řádku",
-    "other": "Dalších {count} řádků"
+    "many": "Dalších {count} řádku"
   },
   "reportCliUsage": "Vytvořit deterministickou zprávu z pojmenovaných zdrojů bez volání modelu.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportIssue": "Nahlásit problém…",
@@ -1726,10 +1729,10 @@
   "pdfLabel": "PDF",
   "toolReadPdf": "Načten PDF `{path}` ({pages}, {bytes} B)",
   "toolReadPdfPages": {
-    "few": "{count} stránky",
-    "many": "{count} stránek",
     "one": "{count} stránka",
-    "other": "{count} stránky"
+    "other": "{count} stránky",
+    "few": "{count} stránky",
+    "many": "{count} stránek"
   },
   "toolReadPdfPagesUnknown": "Počet stránek neznámý",
   "toolReadImage": "Načten obrázek `{path}` ({mediaType}, {width}×{height}, {bytes} B)",
@@ -1793,22 +1796,22 @@
   "browserRuntimeReady": "Prohlížeč pro kontrolu v prohlížeči {version} je připraven.",
   "browserCheckDone": "Zkontrolováno {url}: {errors}, {failed}, {blocked}",
   "browserCheckConsoleErrors": {
-    "few": "{count} chyby konzole",
-    "many": "{count} chyby konzole",
     "one": "{count} chyba konzole",
-    "other": "{count} chyb konzole"
+    "other": "{count} chyb konzole",
+    "few": "{count} chyby konzole",
+    "many": "{count} chyby konzole"
   },
   "browserCheckFailedRequests": {
-    "few": "{count} neúspěšné požadavky",
-    "many": "{count} neúspěšného požadavku",
     "one": "{count} neúspěšný požadavek",
-    "other": "{count} neúspěšných požadavků"
+    "other": "{count} neúspěšných požadavků",
+    "few": "{count} neúspěšné požadavky",
+    "many": "{count} neúspěšného požadavku"
   },
   "browserCheckBlockedRequests": {
-    "few": "{count} zablokované požadavky mimo tento počítač",
-    "many": "{count} zablokovaného požadavku mimo tento počítač",
     "one": "{count} zablokovaný požadavek mimo tento počítač",
-    "other": "{count} zablokovaných požadavků mimo tento počítač"
+    "other": "{count} zablokovaných požadavků mimo tento počítač",
+    "few": "{count} zablokované požadavky mimo tento počítač",
+    "many": "{count} zablokovaného požadavku mimo tento počítač"
   },
   "browserCheckUrlRefused": "Otevřít lze jen adresu http:// nebo https:// s prostým názvem hostitele nebo IP adresou a bez uživatelského jména či hesla.",
   "browserCheckInvalidArguments": "Kontrola v prohlížeči byla vyžádána s neplatnými argumenty, proto se nic neotevřelo.",
@@ -1857,16 +1860,16 @@
   "thoughtFor": "Přemýšlení trvalo {duration}",
   "thinkingNow": "Přemýšlí",
   "addedLines": {
-    "few": "Přidány {count} řádky",
-    "many": "Přidáno {count} řádku",
     "one": "Přidán {count} řádek",
-    "other": "Přidáno {count} řádků"
+    "other": "Přidáno {count} řádků",
+    "few": "Přidány {count} řádky",
+    "many": "Přidáno {count} řádku"
   },
   "removedLines": {
-    "few": "Odebrány {count} řádky",
-    "many": "Odebráno {count} řádku",
     "one": "Odebrán {count} řádek",
-    "other": "Odebráno {count} řádků"
+    "other": "Odebráno {count} řádků",
+    "few": "Odebrány {count} řádky",
+    "many": "Odebráno {count} řádku"
   },
   "modified": "Změněno",
   "inLabel": "VSTUP",
@@ -1890,10 +1893,10 @@
   "approvalBrowserCheckWidenResidual": "Povolení také umožní, aby se tato kontrola k hostiteli dostala přes https a WebSockety. Tento provoz je šifrovaný, takže ho rozšíření nemůže zkontrolovat, a web na tomto hostiteli se může přihlásit vaším účtem v tomto počítači (zejména ve Windows).",
   "approvalImageSources": "Na základě {paths}",
   "renameCardMore": {
-    "few": "{files} a {count} další soubory",
-    "many": "{files} a {count} dalšího souboru",
     "one": "{files} a {count} další soubor",
-    "other": "{files} a {count} dalších souborů"
+    "other": "{files} a {count} dalších souborů",
+    "few": "{files} a {count} další soubory",
+    "many": "{files} a {count} dalšího souboru"
   },
   "codeIntelNoService": "Pro {path} neodpověděla žádná jazyková služba, nebo soubor nedeklaruje žádné symboly.",
   "codeIntelTimedOut": "Jazyková služba neodpověděla do {seconds} s.",
@@ -1910,10 +1913,10 @@
   "approvalDecided": "Rozhodnuto",
   "approvalDockLabel": "Čeká na vaše schválení",
   "approvalDockCount": {
-    "few": "Na schválení čekají {count} požadavky",
-    "many": "Na schválení čeká {count} požadavku",
     "one": "Na schválení čeká {count} požadavek",
-    "other": "Na schválení čeká {count} požadavků"
+    "other": "Na schválení čeká {count} požadavků",
+    "few": "Na schválení čekají {count} požadavky",
+    "many": "Na schválení čeká {count} požadavku"
   },
   "approvalDockedNote": "Čeká na vaše schválení, na kartě nad polem zprávy",
   "questionSubmit": "Odeslat",
@@ -1954,6 +1957,8 @@
   "questionNoOpen": "Žádné otevřené otázky.",
   "questionAnswerFailed": "Vaši odpověď se nepodařilo odeslat. Zkuste to znovu.",
   "questionAnswerUncertain": "Vaše odpověď již možná dorazila do Muse. Znovu se neodešle.",
+  "questionQueueLeaseFailed": "Vlastnictví odpovědí ve frontě se změnilo. Zkuste to znovu po dokončení aktuálního zadání.",
+  "questionQueueCommitFailed": "Zadání bylo odesláno, ale odpovědi nelze uložit jako doručené. Zůstávají ve frontě a mohou být zopakovány.",
   "questionDismissFailed": "Otázku se nepodařilo uzavřít.",
   "acpOpenQuestionAsked": "Muse má otázku; tento editor neumí zobrazit formulář. Později můžete odpovědět příkazem /answer.",
   "acpQuestionDeferred": "Otázka {number} je otevřená. Odpovězte příkazem /answer {number} <text>.",
@@ -1965,15 +1970,15 @@
   "acpQuestionsHelp": "Vypište otevřené otázky v této konverzaci.",
   "openQuestionsCount": {
     "one": "{count} otevřená otázka",
+    "other": "{count} otevřených otázek",
     "few": "{count} otevřené otázky",
-    "many": "{count} otevřené otázky",
-    "other": "{count} otevřených otázek"
+    "many": "{count} otevřené otázky"
   },
   "openQuestionsTabCount": {
     "one": "{count} otevřená",
+    "other": "{count} otevřených",
     "few": "{count} otevřené",
-    "many": "{count} otevřené",
-    "other": "{count} otevřených"
+    "many": "{count} otevřené"
   },
   "clarifyNotAccepted": "Vysvětlení nebylo přijato",
   "messageActions": "Akce zprávy",
@@ -2003,52 +2008,52 @@
   "tasksTabEnded": "Konverzace, ke které tento seznam patří, byla uzavřena.",
   "stepSummary": {
     "edited": {
-      "few": "upraveny {count} soubory",
-      "many": "upraveno {count} souboru",
       "one": "upraven soubor",
-      "other": "upraveno {count} souborů"
+      "other": "upraveno {count} souborů",
+      "few": "upraveny {count} soubory",
+      "many": "upraveno {count} souboru"
     },
     "read": {
-      "few": "přečteny {count} soubory",
-      "many": "přečteno {count} souboru",
       "one": "přečten soubor",
-      "other": "přečteno {count} souborů"
+      "other": "přečteno {count} souborů",
+      "few": "přečteny {count} soubory",
+      "many": "přečteno {count} souboru"
     },
     "searched": {
-      "few": "prohledány {count} složky",
-      "many": "prohledáno {count} složek",
       "one": "prohledána složka",
-      "other": "prohledáno {count} složek"
+      "other": "prohledáno {count} složek",
+      "few": "prohledány {count} složky",
+      "many": "prohledáno {count} složek"
     },
     "ran": {
-      "few": "spuštěny {count} příkazy",
-      "many": "spuštěno {count} příkazů",
       "one": "spuštěn příkaz",
-      "other": "spuštěno {count} příkazů"
+      "other": "spuštěno {count} příkazů",
+      "few": "spuštěny {count} příkazy",
+      "many": "spuštěno {count} příkazů"
     },
     "fetched": {
-      "few": "načteny {count} stránky",
-      "many": "načteno {count} stránek",
       "one": "načtena stránka",
-      "other": "načteno {count} stránek"
+      "other": "načteno {count} stránek",
+      "few": "načteny {count} stránky",
+      "many": "načteno {count} stránek"
     },
     "searchedWeb": {
-      "few": "web prohledán {count}krát",
-      "many": "web prohledán {count}krát",
       "one": "prohledán web",
-      "other": "web prohledán {count}krát"
+      "other": "web prohledán {count}krát",
+      "few": "web prohledán {count}krát",
+      "many": "web prohledán {count}krát"
     },
     "used": {
-      "few": "použity {count} nástroje",
-      "many": "použito {count} nástrojů",
       "one": "použit nástroj",
-      "other": "použito {count} nástrojů"
+      "other": "použito {count} nástrojů",
+      "few": "použity {count} nástroje",
+      "many": "použito {count} nástrojů"
     },
     "failed": {
-      "few": "nezdařily se {count}",
-      "many": "nezdařilo se {count}",
       "one": "nezdařil se {count}",
-      "other": "nezdařilo se {count}"
+      "other": "nezdařilo se {count}",
+      "few": "nezdařily se {count}",
+      "many": "nezdařilo se {count}"
     }
   },
   "contextMeterLabel": "Kontext využit z {percent}",
@@ -2080,10 +2085,10 @@
   "noEditorForApply": "Chcete-li kód použít, otevřete textový editor.",
   "diffTitleSuffix": "Úprava od Muse",
   "diffTallyFiles": {
-    "few": "Změněny {count} soubory",
-    "many": "Změněno {count} souboru",
     "one": "Změněn {count} soubor",
-    "other": "Změněno {count} souborů"
+    "other": "Změněno {count} souborů",
+    "few": "Změněny {count} soubory",
+    "many": "Změněno {count} souboru"
   },
   "diffTallyLines": "+{added} −{removed}",
   "diffTallyLabel": "Změny v této konverzaci",
@@ -2108,10 +2113,10 @@
   "historyCurrent": "aktuální",
   "historyForkMark": "rozvětvení",
   "historyTurns": {
-    "few": "{count} kola",
-    "many": "{count} kola",
     "one": "{count} kolo",
-    "other": "{count} kol"
+    "other": "{count} kol",
+    "few": "{count} kola",
+    "many": "{count} kola"
   },
   "resumeItem": "Obnovit",
   "resumeDetail": "Vybrat předchozí konverzaci v tomto pracovním prostoru",
@@ -2124,10 +2129,10 @@
   "forkAndRewind": "Rozvětvit konverzaci a vrátit kód",
   "rewindNothing": "Po této zprávě nejsou žádné úpravy k vrácení.",
   "rewindDone": {
-    "few": "Kód vrácen k této zprávě ({count} úpravy)",
-    "many": "Kód vrácen k této zprávě ({count} úpravy)",
     "one": "Kód vrácen k této zprávě ({count} úprava)",
-    "other": "Kód vrácen k této zprávě ({count} úprav)"
+    "other": "Kód vrácen k této zprávě ({count} úprav)",
+    "few": "Kód vrácen k této zprávě ({count} úpravy)",
+    "many": "Kód vrácen k této zprávě ({count} úpravy)"
   },
   "forkedNotice": "Rozvětveno do nové konverzace.",
   "rewindImagesUnavailable": "Některé obrázky z této zprávy se nepodařilo obnovit.",
@@ -2152,28 +2157,28 @@
   "restoreBothConfirmAction": "Obnovit a vrátit",
   "rewindNotDone": "Konverzace nebyla vrácena.",
   "restoreDone": {
-    "few": "Obnoveny {count} soubory do stavu před touto zprávou.",
-    "many": "Obnoveno {count} souboru do stavu před touto zprávou.",
     "one": "Obnoven {count} soubor do stavu před touto zprávou.",
-    "other": "Obnoveno {count} souborů do stavu před touto zprávou."
+    "other": "Obnoveno {count} souborů do stavu před touto zprávou.",
+    "few": "Obnoveny {count} soubory do stavu před touto zprávou.",
+    "many": "Obnoveno {count} souboru do stavu před touto zprávou."
   },
   "restoreNothing": "Žádný soubor nebylo třeba obnovit.",
   "redoNothing": "Není co znovu vrátit.",
   "redoDone": {
-    "few": "Vráceny zpět {count} soubory.",
-    "many": "Vráceno zpět {count} souboru.",
     "one": "Vrácen zpět {count} soubor.",
-    "other": "Vráceno zpět {count} souborů."
+    "other": "Vráceno zpět {count} souborů.",
+    "few": "Vráceny zpět {count} soubory.",
+    "many": "Vráceno zpět {count} souboru."
   },
   "redoAction": "Znovu",
   "redoLabel": "Znovu: vrátit soubory, které toto obnovení nahradilo",
   "redoGone": "Toto obnovení už nelze provést znovu.",
   "noticeRepeatBadge": "{count}×",
   "noticeRepeated": {
-    "few": "Zobrazeno {count}krát",
-    "many": "Zobrazeno {count}krát",
     "one": "Zobrazeno {count}krát",
-    "other": "Zobrazeno {count}krát"
+    "other": "Zobrazeno {count}krát",
+    "few": "Zobrazeno {count}krát",
+    "many": "Zobrazeno {count}krát"
   },
   "restoreRefusedUnsaved": "Ponecháno beze změny, s neuloženými změnami: {files}",
   "restoreRefusedChanged": "Ponecháno beze změny, mezitím změněno něčím jiným: {files}",
@@ -2184,10 +2189,10 @@
   "restoreRefusedTooLarge": "Nelze obnovit, soubory jsou příliš velké na uchování kopie: {files}",
   "restoreRefusedFailed": "Nepodařilo se změnit: {files}",
   "restoreUnchanged": {
-    "few": "Již v původním stavu: {count} soubory.",
-    "many": "Již v původním stavu: {count} souboru.",
     "one": "Již v původním stavu: {count} soubor.",
-    "other": "Již v původním stavu: {count} souborů."
+    "other": "Již v původním stavu: {count} souborů.",
+    "few": "Již v původním stavu: {count} soubory.",
+    "many": "Již v původním stavu: {count} souboru."
   },
   "restoreWritesIncomplete": "Nic nebylo obnoveno: některé úpravy těchto tahů nebyly plně zaznamenány (opětovné načtení nebo pád během úpravy, případně vypnuté kontrolní body souborů).",
   "restoreLegacyInRange": "Nic nebylo obnoveno: některé z těchto tahů zaznamenala starší verze, ze které tato verze neumí obnovovat.",
@@ -2364,10 +2369,10 @@
   "plansItemDetail": "Uložené plány v .agents/plans: otevřete některý nebo ho proveďte",
   "plansTitle": "Plány",
   "plansCount": {
-    "few": "{count} uložené plány",
-    "many": "{count} uloženého plánu",
     "one": "{count} uložený plán",
-    "other": "{count} uložených plánů"
+    "other": "{count} uložených plánů",
+    "few": "{count} uložené plány",
+    "many": "{count} uloženého plánu"
   },
   "plansNone": "Zatím žádné uložené plány. Uložte některý z odpovědi v režimu plánování.",
   "plansFailed": "Plány se nepodařilo vypsat",
@@ -2402,10 +2407,10 @@
   "signedOutNotice": "Odhlášeno z Muse Spark.",
   "agentsPillTitle": "Zobrazit mapu agentů",
   "agentsCount": {
-    "few": "{count} agenti",
-    "many": "{count} agenta",
     "one": "{count} agent",
-    "other": "{count} agentů"
+    "other": "{count} agentů",
+    "few": "{count} agenti",
+    "many": "{count} agenta"
   },
   "backgroundTasksPillTitle": "Zobrazit úlohy na pozadí",
   "agentMapTitle": "Mapa agentů",
@@ -2433,15 +2438,15 @@
     "queuePosition": "Pozice {position} ve frontě: {reason}",
     "workerCount": {
       "one": "{count} pracovník",
+      "other": "{count} pracovníků",
       "few": "{count} pracovníci",
-      "many": "{count} pracovníka",
-      "other": "{count} pracovníků"
+      "many": "{count} pracovníka"
     },
     "machineLoad": {
       "one": "{count} okno spouští na tomto stroji {workers}.",
+      "other": "{count} oken spouští na tomto stroji {workers}.",
       "few": "{count} okna spouštějí na tomto stroji {workers}.",
-      "many": "{count} okna spouští na tomto stroji {workers}.",
-      "other": "{count} oken spouští na tomto stroji {workers}."
+      "many": "{count} okna spouští na tomto stroji {workers}."
     },
     "board": "Tabule úloh",
     "lanes": "Běhové sloty",
@@ -2688,10 +2693,10 @@
   "workflowChildUntitled": "Agent {number}",
   "workflowAttempt": "pokus {attempt}",
   "workflowsCount": {
-    "few": "{count} pracovní postupy",
-    "many": "{count} pracovního postupu",
     "one": "{count} pracovní postup",
-    "other": "{count} pracovních postupů"
+    "other": "{count} pracovních postupů",
+    "few": "{count} pracovní postupy",
+    "many": "{count} pracovního postupu"
   },
   "workflowsLabel": "Pracovní postupy",
   "workflowTriggerModes": {
@@ -2704,10 +2709,10 @@
   "workflowLaunched": "Spuštěno: běží na pozadí a výsledek ohlásí do této konverzace.",
   "workflowScriptSaved": "Skript uložen v {path}",
   "backgroundTasksCount": {
-    "few": "{count} úlohy na pozadí",
-    "many": "{count} úlohy na pozadí",
     "one": "{count} úloha na pozadí",
-    "other": "{count} úloh na pozadí"
+    "other": "{count} úloh na pozadí",
+    "few": "{count} úlohy na pozadí",
+    "many": "{count} úlohy na pozadí"
   },
   "backgroundTasksLabel": "Úlohy na pozadí",
   "backgroundBadge": "na pozadí",
@@ -2726,15 +2731,15 @@
   "teamMergeNoPaths": "Žádné",
   "teamRunningCount": {
     "one": "{count} běží",
+    "other": "{count} běží",
     "few": "{count} běží",
-    "many": "{count} běží",
-    "other": "{count} běží"
+    "many": "{count} běží"
   },
   "teamMergeMorePaths": {
     "one": "a ještě {count}",
+    "other": "a ještě {count}",
     "few": "a ještě {count}",
-    "many": "a ještě {count}",
-    "other": "a ještě {count}"
+    "many": "a ještě {count}"
   },
   "teamOrchestrator": "Orchestrátor",
   "teamOrchestratorDefault": "Výchozí",
@@ -2761,9 +2766,9 @@
   "teamInterruptedGroup": "Přerušeno",
   "teamTasksCount": {
     "one": "{count} úkol týmu",
+    "other": "{count} úkolů týmu",
     "few": "{count} úkoly týmu",
-    "many": "{count} úkolu týmu",
-    "other": "{count} úkolů týmu"
+    "many": "{count} úkolu týmu"
   },
   "teamPlanTitle": "Plán delegování",
   "teamPlanDelegated": "Delegováno",
@@ -2825,16 +2830,16 @@
   "usageInsightNoLogs": "Na tomto počítači zatím nebyly nalezeny žádné protokoly trasování Muse Code.",
   "usageInsightTotals": "{attempts} ({sessions})",
   "modelAttemptsCount": {
-    "few": "{count} pokusy modelu",
-    "many": "{count} pokusu modelu",
     "one": "{count} pokus modelu",
-    "other": "{count} pokusů modelu"
+    "other": "{count} pokusů modelu",
+    "few": "{count} pokusy modelu",
+    "many": "{count} pokusu modelu"
   },
   "sessionsCount": {
-    "few": "{count} relace",
-    "many": "{count} relace",
     "one": "{count} relace",
-    "other": "{count} relací"
+    "other": "{count} relací",
+    "few": "{count} relace",
+    "many": "{count} relace"
   },
   "durationNow": "nyní",
   "contextCompactTitle": "Kliknutím teď zkomprimujete kontext",
@@ -3010,10 +3015,10 @@
   "scheduleRepeats": "Opakovaně",
   "scheduleNextRun": "Další spuštění: {date}",
   "scheduleFired": {
-    "few": "Spuštěno {count}krát",
-    "many": "Spuštěno {count}krát",
     "one": "Spuštěno {count}krát",
-    "other": "Spuštěno {count}krát"
+    "other": "Spuštěno {count}krát",
+    "few": "Spuštěno {count}krát",
+    "many": "Spuštěno {count}krát"
   },
   "scheduleNone": "Žádné naplánované výzvy",
   "loopItem": "/loop",
@@ -3083,28 +3088,28 @@
   },
   "importNothingFrom": "Z {source} nejsou k importu žádné dovednosti.",
   "importInstalledSummary": {
-    "few": "Importováno ({count}): {skills}",
-    "many": "Importováno ({count}): {skills}",
     "one": "Importováno ({count}): {skills}",
-    "other": "Importováno ({count}): {skills}"
+    "other": "Importováno ({count}): {skills}",
+    "few": "Importováno ({count}): {skills}",
+    "many": "Importováno ({count}): {skills}"
   },
   "importSkippedSummary": {
-    "few": "Přeskočeno ({count}): {skills}",
-    "many": "Přeskočeno ({count}): {skills}",
     "one": "Přeskočeno ({count}): {skills}",
-    "other": "Přeskočeno ({count}): {skills}"
+    "other": "Přeskočeno ({count}): {skills}",
+    "few": "Přeskočeno ({count}): {skills}",
+    "many": "Přeskočeno ({count}): {skills}"
   },
   "importQuarantinedSummary": {
-    "few": "V karanténě ({count}): {skills}",
-    "many": "V karanténě ({count}): {skills}",
     "one": "V karanténě ({count}): {skills}",
-    "other": "V karanténě ({count}): {skills}"
+    "other": "V karanténě ({count}): {skills}",
+    "few": "V karanténě ({count}): {skills}",
+    "many": "V karanténě ({count}): {skills}"
   },
   "importFailedSummary": {
-    "few": "Selhalo ({count}): {skills}",
-    "many": "Selhalo ({count}): {skills}",
     "one": "Selhalo ({count}): {skills}",
-    "other": "Selhalo ({count}): {skills}"
+    "other": "Selhalo ({count}): {skills}",
+    "few": "Selhalo ({count}): {skills}",
+    "many": "Selhalo ({count}): {skills}"
   },
   "bundledSkillsOffer": "Muse Spark obsahuje dovednosti {skills}. Nainstalovat je pro Muse Code? Zkopírují se do vaší konfigurační složky Muse.",
   "bundledSkillsUpdateOffer": "Muse Spark obsahuje novější verzi svých přibalených dovedností ({tag}). Aktualizovat kopii, kterou používá Muse Code?",
@@ -3112,22 +3117,22 @@
   "bundledSkillsUpdate": "Aktualizovat",
   "bundledSkillsNotNow": "Teď ne",
   "bundledSkillsInstalled": {
-    "few": "Pro Muse Code byly nainstalovány {count} přibalené dovednosti ({tag}): {skills}",
-    "many": "Pro Muse Code bylo nainstalováno {count} přibalené dovednosti ({tag}): {skills}",
     "one": "Pro Muse Code byla nainstalována {count} přibalená dovednost ({tag}): {skills}",
-    "other": "Pro Muse Code bylo nainstalováno {count} přibalených dovedností ({tag}): {skills}"
+    "other": "Pro Muse Code bylo nainstalováno {count} přibalených dovedností ({tag}): {skills}",
+    "few": "Pro Muse Code byly nainstalovány {count} přibalené dovednosti ({tag}): {skills}",
+    "many": "Pro Muse Code bylo nainstalováno {count} přibalené dovednosti ({tag}): {skills}"
   },
   "bundledSkillsSkipped": {
-    "few": "Vynechány {count} dovednosti, protože vaše dovednosti mají stejné názvy: {skills}",
-    "many": "Vynecháno {count} dovednosti, protože vaše dovednosti mají stejné názvy: {skills}",
     "one": "Vynechána {count} dovednost, protože jedna z vašich dovedností má stejný název: {skills}",
-    "other": "Vynecháno {count} dovedností, protože vaše dovednosti mají stejné názvy: {skills}"
+    "other": "Vynecháno {count} dovedností, protože vaše dovednosti mají stejné názvy: {skills}",
+    "few": "Vynechány {count} dovednosti, protože vaše dovednosti mají stejné názvy: {skills}",
+    "many": "Vynecháno {count} dovednosti, protože vaše dovednosti mají stejné názvy: {skills}"
   },
   "bundledSkillsRemoved": {
-    "few": "Z Muse Code byly odebrány {count} přibalené dovednosti: {skills}",
-    "many": "Z Muse Code bylo odebráno {count} přibalené dovednosti: {skills}",
     "one": "Z Muse Code byla odebrána {count} přibalená dovednost: {skills}",
-    "other": "Z Muse Code bylo odebráno {count} přibalených dovedností: {skills}"
+    "other": "Z Muse Code bylo odebráno {count} přibalených dovedností: {skills}",
+    "few": "Z Muse Code byly odebrány {count} přibalené dovednosti: {skills}",
+    "many": "Z Muse Code bylo odebráno {count} přibalené dovednosti: {skills}"
   },
   "bundledSkillsNothingToRemove": "Pro Muse Code nejsou nainstalovány žádné přibalené dovednosti, takže nebylo nic odebráno.",
   "bundledSkillsInstallFailed": "Přibalené dovednosti se nepodařilo nainstalovat do {folder}: {reason}",
@@ -3262,22 +3267,22 @@
     "accounting_unverified": "Účtování neověřeno"
   },
   "execTooManyFiles": {
-    "few": "Limit vstupních souborů: {count}.",
-    "many": "Limit vstupních souborů: {count}.",
     "one": "Je povolen nejvýše {count} vstupní soubor.",
-    "other": "Limit vstupních souborů: {count}."
+    "other": "Limit vstupních souborů: {count}.",
+    "few": "Limit vstupních souborů: {count}.",
+    "many": "Limit vstupních souborů: {count}."
   },
   "execRequestCapReached": {
-    "few": "Byl dosažen limit pokusů: {count}.",
-    "many": "Byl dosažen limit pokusů: {count}.",
     "one": "Byl dosažen limit {count} pokusu.",
-    "other": "Byl dosažen limit pokusů: {count}."
+    "other": "Byl dosažen limit pokusů: {count}.",
+    "few": "Byl dosažen limit pokusů: {count}.",
+    "many": "Byl dosažen limit pokusů: {count}."
   },
   "execScanMatches": {
-    "few": "Počet výskytů tajných údajů: {count}",
-    "many": "Počet výskytů tajných údajů: {count}",
     "one": "Nalezen {count} výskyt tajného údaje",
-    "other": "Počet výskytů tajných údajů: {count}"
+    "other": "Počet výskytů tajných údajů: {count}",
+    "few": "Počet výskytů tajných údajů: {count}",
+    "many": "Počet výskytů tajných údajů: {count}"
   },
   "providerKeyStored": "Klíč {provider} je uložen: {store}.",
   "providerKeyNotStored": "Nebyl zadán žádný klíč, nic se neuložilo.",
@@ -3335,23 +3340,23 @@
   "exportArgumentsLabel": "Argumenty:",
   "exportOutputLabel": "Výstup:",
   "exportOutputStored": {
-    "few": "Výstup ({count} bajty) uchovává back-end a není zahrnut.",
-    "many": "Výstup ({count} bajtu) uchovává back-end a není zahrnut.",
     "one": "Výstup ({count} bajt) uchovává back-end a není zahrnut.",
-    "other": "Výstup ({count} bajtů) uchovává back-end a není zahrnut."
+    "other": "Výstup ({count} bajtů) uchovává back-end a není zahrnut.",
+    "few": "Výstup ({count} bajty) uchovává back-end a není zahrnut.",
+    "many": "Výstup ({count} bajtu) uchovává back-end a není zahrnut."
   },
   "exportFilesChanged": {
-    "few": "Změněny {count} soubory: +{added} −{removed}.",
-    "many": "Změněno {count} souboru: +{added} −{removed}.",
     "one": "Změněn {count} soubor: +{added} −{removed}.",
-    "other": "Změněno {count} souborů: +{added} −{removed}."
+    "other": "Změněno {count} souborů: +{added} −{removed}.",
+    "few": "Změněny {count} soubory: +{added} −{removed}.",
+    "many": "Změněno {count} souboru: +{added} −{removed}."
   },
   "exportFailure": "Selhalo: {reason}",
   "exportImagesAttached": {
-    "few": "{count} přiložené obrázky.",
-    "many": "{count} přiloženého obrázku.",
     "one": "{count} přiložený obrázek.",
-    "other": "{count} přiložených obrázků."
+    "other": "{count} přiložených obrázků.",
+    "few": "{count} přiložené obrázky.",
+    "many": "{count} přiloženého obrázku."
   },
   "insertReferenceNoEditor": "Chcete-li vložit odkaz na soubor, otevřete ho v editoru.",
   "insertReferencePanelOpened": "Panel Muse Spark byl otevřen. Odkaz vložíte dalším stisknutím Alt+K.",
@@ -3367,16 +3372,16 @@
   "turnFailed": "Kolo selhalo.",
   "turnRetrying": "Pokus {attempt}/{maxAttempts} selhal ({reason}); nový pokus za {seconds} s.",
   "usageWindowHours": {
-    "few": "{count}hodinové okno",
-    "many": "{count}hodinové okno",
     "one": "{count}hodinové okno",
-    "other": "{count}hodinové okno"
+    "other": "{count}hodinové okno",
+    "few": "{count}hodinové okno",
+    "many": "{count}hodinové okno"
   },
   "usageWindowMinutes": {
-    "few": "{count}minutové okno",
-    "many": "{count}minutové okno",
     "one": "{count}minutové okno",
-    "other": "{count}minutové okno"
+    "other": "{count}minutové okno",
+    "few": "{count}minutové okno",
+    "many": "{count}minutové okno"
   },
   "statusVerbs": {
     "thinking": "Přemýšlí…",
@@ -3451,10 +3456,10 @@
   "paidBestOfNDetail": "{prompt}\n\n{price}\n\nÚčtuje se na váš klíč Model API. Skutečná cena závisí na počtu použitých tokenů. „Povolit jednou“ platí jen pro toto spuštění.",
   "paidConfirmBestOfN": "Stejný prompt se spouští v oddělených pracovních stromech, každý účtovaný na váš klíč Model API. {price} Každé spuštění vyžaduje schválení ve všech režimech oprávnění, včetně režimu Bypass, ledaže Nejlepší z N vždy povolíte v tomto pracovním prostoru. Skutečná cena závisí na použitých tokenech; další placené nástroje stojí navíc. Pouze na backendu Model API.",
   "usagePaidBestOfNAttempts": {
-    "few": "{count} pokusy",
-    "many": "{count} pokusu",
     "one": "{count} pokus",
-    "other": "{count} pokusů"
+    "other": "{count} pokusů",
+    "few": "{count} pokusy",
+    "many": "{count} pokusu"
   },
   "usagePaidBestOfNIncluded": "Odhad ceny nahlášených tokenů: {cost}",
   "paidTeamWorkersName": "Týmoví agenti",
@@ -3468,9 +3473,9 @@
   "paidConfirmTeamWorkers": "Týmové úkoly běží na modelech účtovaných na váš klíč Model API. {price} První volání delegování, které spustí klíčové úkoly, vyžaduje schválení ve všech režimech oprávnění, včetně režimu Bypass, ledaže týmové agenty vždy povolíte v tomto pracovním prostoru. Úkoly předplatného a místní úkoly nejsou placeným použitím. Skutečná cena závisí na použitých tokenech; ostatní placené nástroje stojí navíc.",
   "usagePaidTeamTasks": {
     "one": "{count} týmový úkol",
+    "other": "{count} týmových úkolů",
     "few": "{count} týmové úkoly",
-    "many": "{count} týmových úkolů",
-    "other": "{count} týmových úkolů"
+    "many": "{count} týmových úkolů"
   },
   "teamSwitchReasonCap": "vyčerpán limit {measure}/{window}: použito {used} z {amount}",
   "teamSwitchReasonConcurrency": "žádný volný slot pro běh",
@@ -3510,9 +3515,9 @@
   "tabCopilotConfirmDetail": "Tab už nebude v {language} čekat na vyvolání a bude odesílat vlastní automatické návrhy účtované na váš klíč Model API. Návrhy Copilot můžete kdykoli znovu zapnout v nastavení.",
   "usagePaidTabRequests": {
     "one": "{count} požadavek Tab",
+    "other": "{count} požadavků Tab",
     "few": "{count} požadavky Tab",
-    "many": "{count} požadavku Tab",
-    "other": "{count} požadavků Tab"
+    "many": "{count} požadavku Tab"
   },
   "usagePaidTabTokens": "{tokens} tokenů ({cached} z mezipaměti)",
   "usagePaidTabReported": "Odhad ceny nahlášených tokenů: {cost}",
@@ -3525,9 +3530,9 @@
   "paidConfirmHookModel": "Hooky prompt a agent se před odpovědí ptají modelu a každé spuštění se účtuje na váš klíč Model API. {price} Každé spuštění vyžaduje schválení ve všech režimech oprávnění, včetně režimu Bypass, ledaže modelové hooky vždy povolíte v tomto pracovním prostoru. Skutečná cena závisí na použitých tokenech. Mohou pouze odmítnout, zúžit nebo přidat kontext. Jen pro back-end Model API; na Muse Code místo toho využívají kolo z vašeho předplatného.",
   "usagePaidHookModelRuns": {
     "one": "{count} spuštění hooku",
+    "other": "{count} spuštění hooků",
     "few": "{count} spuštění hooků",
-    "many": "{count} spuštění hooku",
-    "other": "{count} spuštění hooků"
+    "many": "{count} spuštění hooku"
   },
   "hookModelPaidOff": "Hooky modelu jsou vypnuté. Zapněte museSpark.modelApiHookModels, aby se hooky prompt a agent mohly ptát modelu.",
   "paidHookModelDailyBudget": "Sdílený denní rozpočet placených funkcí: {budget}.",
@@ -3537,16 +3542,16 @@
   "boardStatusRunning": "Běží",
   "boardStatusIdle": "Nečinná",
   "boardAwaitingApproval": {
-    "few": "{count} čekající schválení",
-    "many": "{count} čekajícího schválení",
     "one": "{count} čekající schválení",
-    "other": "{count} čekajících schválení"
+    "other": "{count} čekajících schválení",
+    "few": "{count} čekající schválení",
+    "many": "{count} čekajícího schválení"
   },
   "boardChanges": {
-    "few": "{count} změněné soubory",
-    "many": "{count} změněného souboru",
     "one": "{count} změněný soubor",
-    "other": "{count} změněných souborů"
+    "other": "{count} změněných souborů",
+    "few": "{count} změněné soubory",
+    "many": "{count} změněného souboru"
   },
   "boardChangesUnknown": "změny neznámé",
   "boardStartBestOfN": "Nejlepší z N…",
@@ -3575,16 +3580,16 @@
   "bestOfNRunStatusCancelled": "Zrušeno",
   "bestOfNCeilingReached": "zastaveno na limitu požadavků",
   "bestOfNRequests": {
-    "few": "{count} požadavky",
-    "many": "{count} požadavku",
     "one": "{count} požadavek",
-    "other": "{count} požadavků"
+    "other": "{count} požadavků",
+    "few": "{count} požadavky",
+    "many": "{count} požadavku"
   },
   "bestOfNApprovalsDenied": {
-    "few": "{count} zamítnuté schválení",
-    "many": "{count} zamítnutého schválení",
     "one": "{count} zamítnuté schválení",
-    "other": "{count} zamítnutých schválení"
+    "other": "{count} zamítnutých schválení",
+    "few": "{count} zamítnuté schválení",
+    "many": "{count} zamítnutého schválení"
   },
   "bestOfNAttemptFailed": "Selhalo: {reason}",
   "bestOfNTakenMark": "Převzato: {branch}",
@@ -3620,39 +3625,39 @@
   "usagePaidAlwaysNote": "Vždy povoleno v tomto pracovním prostoru, bez dotazu: {features}.",
   "usagePaidAskAgain": "Pokaždé se znovu zeptat",
   "usagePaidSearches": {
-    "few": "{count} hledání",
-    "many": "{count} hledání",
     "one": "{count} hledání",
-    "other": "{count} hledání"
+    "other": "{count} hledání",
+    "few": "{count} hledání",
+    "many": "{count} hledání"
   },
   "usagePaidImages": {
-    "few": "{count} obrázky",
-    "many": "{count} obrázku",
     "one": "{count} obrázek",
-    "other": "{count} obrázků"
+    "other": "{count} obrázků",
+    "few": "{count} obrázky",
+    "many": "{count} obrázku"
   },
   "usagePaidAudio": "{duration} zvuku",
   "usagePaidSubagentRequests": {
-    "few": "{count} požadavky podagentů",
-    "many": "{count} požadavků podagentů",
     "one": "{count} požadavek podagenta",
-    "other": "{count} požadavků podagentů"
+    "other": "{count} požadavků podagentů",
+    "few": "{count} požadavky podagentů",
+    "many": "{count} požadavků podagentů"
   },
   "usagePaidSubagentUnknown": {
-    "few": "U {count} požadavků zatím není známá cena",
-    "many": "U {count} požadavků zatím není známá cena",
     "one": "U {count} požadavku zatím není známá cena",
-    "other": "U {count} požadavků zatím není známá cena"
+    "other": "U {count} požadavků zatím není známá cena",
+    "few": "U {count} požadavků zatím není známá cena",
+    "many": "U {count} požadavků zatím není známá cena"
   },
   "usagePaidSubagentSubset": "Nahlášené náklady podagentů jsou zahrnuty v odhadech ceny tokenů jejich nadřazených konverzací. Nepřičítají se k součtu dalších placených funkcí. Požadavky bez nahlášené spotřeby mohou být přesto účtovány.",
   "usagePaidExtraTotal": "Odhad celkové ceny dalších placených funkcí",
   "usagePaidSubagentReported": "Odhad ceny nahlášených tokenů: {cost}",
   "usagePaidTotal": "Odhadované placené náklady celkem",
   "usagePaidScheduled": {
-    "few": "{count} naplánovaná spuštění",
-    "many": "{count} naplánovaných spuštění",
     "one": "{count} naplánované spuštění",
-    "other": "{count} naplánovaných spuštění"
+    "other": "{count} naplánovaných spuštění",
+    "few": "{count} naplánovaná spuštění",
+    "many": "{count} naplánovaných spuštění"
   },
   "usageScheduledIncluded": "cena tokenů je zahrnuta výše",
   "usagePaidNote": "Odhad podle zveřejněných cen Meta pro toto okno od jeho otevření; skutečné vyúčtování je na řídicím panelu dev.meta.ai. Ceny načteny {date}.",
@@ -3722,10 +3727,10 @@
   "reviewInstructionsTooLong": "Popis toho, co zkontrolovat, je na jednu kontrolu příliš dlouhý; napište ho stručněji.",
   "reviewTruncatedNotice": "Výpis rozdílů je dlouhý, takže ke kontrole odešla jen jeho první část; zbytek změněných souborů si kontrolor přečte sám.",
   "reviewPrivateLeftOut": {
-    "few": "{count} změněné soubory, které mohou obsahovat tajné údaje, byly uvedeny, ale ke kontrole se neodeslaly.",
-    "many": "{count} změněného souboru, který může obsahovat tajné údaje, bylo uvedeno, ale ke kontrole se neodeslalo.",
     "one": "{count} změněný soubor, který může obsahovat tajné údaje, byl uveden, ale ke kontrole se neodeslal.",
-    "other": "{count} změněných souborů, které mohou obsahovat tajné údaje, bylo uvedeno, ale ke kontrole se neodeslalo."
+    "other": "{count} změněných souborů, které mohou obsahovat tajné údaje, bylo uvedeno, ale ke kontrole se neodeslalo.",
+    "few": "{count} změněné soubory, které mohou obsahovat tajné údaje, byly uvedeny, ale ke kontrole se neodeslaly.",
+    "many": "{count} změněného souboru, který může obsahovat tajné údaje, bylo uvedeno, ale ke kontrole se neodeslalo."
   },
   "reviewPlanModeNotice": "Tato kontrola běží v režimu Plán a po jejím skončení se vrátí režim oprávnění, který jste měli. Muse Code v režimu Plán uplatňuje vlastní pravidla povolení, takže kontrola v něm není striktně jen pro čtení.",
   "reviewModeRestored": "Kontrola skončila: režim oprávnění je opět {mode}.",
@@ -3735,34 +3740,34 @@
   "reviewPaneLoading": "Načítání změn…",
   "reviewPaneEmpty": "Tato konverzace nezměnila žádné soubory.",
   "reviewPaneFiles": {
-    "few": "{count} soubory",
-    "many": "{count} souboru",
     "one": "{count} soubor",
-    "other": "{count} souborů"
+    "other": "{count} souborů",
+    "few": "{count} soubory",
+    "many": "{count} souboru"
   },
   "reviewPaneHunks": {
-    "few": "{count} změny",
-    "many": "{count} změny",
     "one": "{count} změna",
-    "other": "{count} změn"
+    "other": "{count} změn",
+    "few": "{count} změny",
+    "many": "{count} změny"
   },
   "reviewPaneAccepted": {
-    "few": "{count} přijaté",
-    "many": "{count} přijaté",
     "one": "{count} přijatá",
-    "other": "{count} přijatých"
+    "other": "{count} přijatých",
+    "few": "{count} přijaté",
+    "many": "{count} přijaté"
   },
   "reviewPaneReverted": {
-    "few": "{count} vrácené",
-    "many": "{count} vrácené",
     "one": "{count} vrácená",
-    "other": "{count} vrácených"
+    "other": "{count} vrácených",
+    "few": "{count} vrácené",
+    "many": "{count} vrácené"
   },
   "reviewPaneOmitted": {
-    "few": "{count} úpravy tu nejsou uvedeny (je jich příliš mnoho, nebo se nepodařilo přečíst jejich změny); z jejich řádků v konverzaci je ale stále otevřete.",
-    "many": "{count} úpravy tu není uvedeno (je jich příliš mnoho, nebo se nepodařilo přečíst jejich změny); z jejich řádků v konverzaci je ale stále otevřete.",
     "one": "{count} úprava tu není uvedena (je jich příliš mnoho, nebo se nepodařilo přečíst její změnu); z jejího řádku v konverzaci ji ale stále otevřete.",
-    "other": "{count} úprav tu není uvedeno (je jich příliš mnoho, nebo se nepodařilo přečíst jejich změny); z jejich řádků v konverzaci je ale stále otevřete."
+    "other": "{count} úprav tu není uvedeno (je jich příliš mnoho, nebo se nepodařilo přečíst jejich změny); z jejich řádků v konverzaci je ale stále otevřete.",
+    "few": "{count} úpravy tu nejsou uvedeny (je jich příliš mnoho, nebo se nepodařilo přečíst jejich změny); z jejich řádků v konverzaci je ale stále otevřete.",
+    "many": "{count} úpravy tu není uvedeno (je jich příliš mnoho, nebo se nepodařilo přečíst jejich změny); z jejich řádků v konverzaci je ale stále otevřete."
   },
   "reviewHunkLines": "Změna {index}, řádky {start}–{end}",
   "reviewHunkLine": "Změna {index}, řádek {start}",
@@ -3788,10 +3793,10 @@
   "reviewAnnounceNotReverted": "Nevrácena {name}: {reason}",
   "reviewFindingsLabel": "Zjištění kontroly",
   "reviewFindingsHeading": {
-    "few": "{count} zjištění",
-    "many": "{count} zjištění",
     "one": "{count} zjištění",
-    "other": "{count} zjištění"
+    "other": "{count} zjištění",
+    "few": "{count} zjištění",
+    "many": "{count} zjištění"
   },
   "reviewNoFindings": "Kontrola nenašla nic, co by stálo za zmínku.",
   "reviewSeverities": {
@@ -3823,18 +3828,18 @@
   "paidUseAutoReviewerTitle": "Nechat automatického kontrolora posoudit toto volání {tool}?",
   "paidUseAutoReviewerDetail": "{action}\n\nSamostatné volání modelu {model} posoudí, zda se akce smí spustit bez vašeho potvrzení. Účtováno vašemu klíči Model API: {price}. Celková cena závisí na použitých tokenech. Zamítnutí vám místo toho ukáže kartu schválení.",
   "usagePaidAutoReviews": {
-    "few": "{count} kontroly",
-    "many": "{count} kontroly",
     "one": "{count} kontrola",
-    "other": "{count} kontrol"
+    "other": "{count} kontrol",
+    "few": "{count} kontroly",
+    "many": "{count} kontroly"
   },
   "paidJudgeName": "Posuzovatel",
   "paidConfirmJudge": "Váš vlastní chatovací model posuzuje každou rizikovou akci Auto, kterou nerozhodne žádné pravidlo, a může jen přidat opatrnost: připravená výstraha změní povolení na dotaz nebo na poznámku na schvalovací kartě. Každé posouzení se účtuje vašemu klíči Model API podle cen za tokeny modelu konverzace:\n{price}\nPosuzovatel se zeptá jednou před prvním účtováním a uvede tyto ceny a sdílený denní rozpočet: {budget}. Přechod z bezplatného zdroje na placený vyžaduje nový souhlas. Na Muse Code běží stejná volání místo toho v rámci vašeho předplatného.",
   "usagePaidJudgeCalls": {
     "one": "{count} posouzení",
+    "other": "{count} posouzení",
     "few": "{count} posouzení",
-    "many": "{count} posouzení",
-    "other": "{count} posouzení"
+    "many": "{count} posouzení"
   },
   "judgeCaution": "Muse Judge doporučuje opatrnost. Rozhodujete vy; tuto akci nemůže schválit.",
   "judgeSubscriptionNotice": "Muse Judge používá váš chatovací model v rámci předplatného Muse a čerpá jeho limity. Každá dávka používá novou izolovanou relaci v režimu Plán. Ochrana při zjištění nástroje relaci zruší, ale nemůže prokázat, že se žádný nástroj nespustil. Může pouze doporučit opatrnost.",
@@ -3860,23 +3865,23 @@
   "permissionRootInvalid": "{setting}: další kořen „{root}“ není absolutní cesta, proto se nepřidá.",
   "permissionRepositoryInvalid": "{setting}: pravidla repozitáře nejsou platná ({detail}) a nepoužijí se.",
   "verifyErrors": {
-    "few": "{count} chyby",
-    "many": "{count} chyby",
     "one": "{count} chyba",
-    "other": "{count} chyb"
+    "other": "{count} chyb",
+    "few": "{count} chyby",
+    "many": "{count} chyby"
   },
   "verifyWarnings": {
-    "few": "{count} upozornění",
-    "many": "{count} upozornění",
     "one": "{count} upozornění",
-    "other": "{count} upozornění"
+    "other": "{count} upozornění",
+    "few": "{count} upozornění",
+    "many": "{count} upozornění"
   },
   "verifyClean": "Žádné chyby ani upozornění",
   "verifyUnchecked": {
-    "few": "{count} soubory nezkontrolovány",
-    "many": "{count} souboru nezkontrolováno",
     "one": "{count} soubor nezkontrolován",
-    "other": "{count} souborů nezkontrolováno"
+    "other": "{count} souborů nezkontrolováno",
+    "few": "{count} soubory nezkontrolovány",
+    "many": "{count} souboru nezkontrolováno"
   },
   "checkOutcomes": {
     "passed": "{name}: prošlo",
@@ -3901,10 +3906,10 @@
   "thenRunTimedOut": "Zastaveno po vypršení časového limitu",
   "thenRunNoExitCode": "Selhalo bez ukončovacího kódu",
   "checksStoppedNotice": {
-    "few": "Kontroly selhaly i po {count} pokusech o opravu za sebou, takže se automaticky nespustí až do vaší další zprávy.",
-    "many": "Kontroly selhaly i po {count} pokusu o opravu za sebou, takže se automaticky nespustí až do vaší další zprávy.",
     "one": "Kontroly selhaly i po {count} pokusu o opravu, takže se automaticky nespustí až do vaší další zprávy.",
-    "other": "Kontroly selhaly i po {count} pokusech o opravu za sebou, takže se automaticky nespustí až do vaší další zprávy."
+    "other": "Kontroly selhaly i po {count} pokusech o opravu za sebou, takže se automaticky nespustí až do vaší další zprávy.",
+    "few": "Kontroly selhaly i po {count} pokusech o opravu za sebou, takže se automaticky nespustí až do vaší další zprávy.",
+    "many": "Kontroly selhaly i po {count} pokusu o opravu za sebou, takže se automaticky nespustí až do vaší další zprávy."
   },
   "exportThenRunLabel": "Poté spuštěno:",
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",
@@ -3930,9 +3935,9 @@
   "keyBoundState": "uloženo, vázáno na {origin}",
   "providerKeyWorks": {
     "one": "Klíč funguje · {count} model",
+    "other": "Klíč funguje · {count} modelů",
     "few": "Klíč funguje · {count} modely",
-    "many": "Klíč funguje · {count} modelů",
-    "other": "Klíč funguje · {count} modelů"
+    "many": "Klíč funguje · {count} modelů"
   },
   "providerTestPaid": "Tato kontrola odešle jeden token a stojí asi {cost}.",
   "providerTestFailed": "Kontrola selhala: {detail}",
@@ -3979,21 +3984,21 @@
   "refreshModels": "Aktualizovat modely",
   "scanNewModels": {
     "one": "{count} nový model od posledního prohledání",
+    "other": "{count} nových modelů od posledního prohledání",
     "few": "{count} nové modely od posledního prohledání",
-    "many": "{count} nových modelů od posledního prohledání",
-    "other": "{count} nových modelů od posledního prohledání"
+    "many": "{count} nových modelů od posledního prohledání"
   },
   "scanRemovedModels": {
     "one": "{count} model odebrán od posledního prohledání",
+    "other": "{count} modelů odebráno od posledního prohledání",
     "few": "{count} modely odebrány od posledního prohledání",
-    "many": "{count} modelů odebráno od posledního prohledání",
-    "other": "{count} modelů odebráno od posledního prohledání"
+    "many": "{count} modelů odebráno od posledního prohledání"
   },
   "scanRepricedModels": {
     "one": "{count} model s novou cenou od posledního prohledání",
+    "other": "{count} modelů s novou cenou od posledního prohledání",
     "few": "{count} modely s novou cenou od posledního prohledání",
-    "many": "{count} modelů s novou cenou od posledního prohledání",
-    "other": "{count} modelů s novou cenou od posledního prohledání"
+    "many": "{count} modelů s novou cenou od posledního prohledání"
   },
   "modelBadges": {
     "recommended": "Doporučeno",
@@ -4149,27 +4154,27 @@
       "empty": "První hledání: žádné uvedené modely.",
       "first": {
         "one": "První hledání: {count} model.",
+        "other": "První hledání: {count} modelů.",
         "few": "První hledání: {count} modely.",
-        "many": "První hledání: {count} modelu.",
-        "other": "První hledání: {count} modelů."
+        "many": "První hledání: {count} modelu."
       },
       "new": {
         "one": "{count} nový model",
+        "other": "{count} nových modelů",
         "few": "{count} nové modely",
-        "many": "{count} nového modelu",
-        "other": "{count} nových modelů"
+        "many": "{count} nového modelu"
       },
       "removed": {
         "one": "{count} odebraný model",
+        "other": "{count} odebraných modelů",
         "few": "{count} odebrané modely",
-        "many": "{count} odebraného modelu",
-        "other": "{count} odebraných modelů"
+        "many": "{count} odebraného modelu"
       },
       "repriced": {
         "one": "{count} model se změněnou cenou",
+        "other": "{count} modelů se změněnou cenou",
         "few": "{count} modely se změněnou cenou",
-        "many": "{count} modelu se změněnou cenou",
-        "other": "{count} modelů se změněnou cenou"
+        "many": "{count} modelu se změněnou cenou"
       },
       "unchanged": "Žádné změny od posledního hledání.",
       "since": "{changes} od posledního hledání."
@@ -4224,9 +4229,9 @@
   "testRunning": "Testuje se…",
   "modelsShownCount": {
     "one": "{shown} z {count} modelu",
+    "other": "{shown} z {count} modelů",
     "few": "{shown} z {count} modely",
-    "many": "{shown} z {count} modelů",
-    "other": "{shown} z {count} modelů"
+    "many": "{shown} z {count} modelů"
   },
   "pricePerMillion": "Ceny za milion tokenů.",
   "modelsNotScanned": "Obnovte, aby se vypsaly modely tohoto poskytovatele.",
@@ -4383,9 +4388,9 @@
   "teamLandingApply": "Použít",
   "teamChangedDuringLanding": {
     "one": "Během landingu se změnil {count} soubor: {files}.",
+    "other": "Během landingu se změnilo {count} souboru: {files}.",
     "few": "Během landingu se změnily {count} soubory: {files}.",
-    "many": "Během landingu se změnilo {count} souboru: {files}.",
-    "other": "Během landingu se změnilo {count} souboru: {files}."
+    "many": "Během landingu se změnilo {count} souboru: {files}."
   },
   "teamCheckModelsOnOpen": "Kontrolovat modely týmu při otevření tohoto okna",
   "teamCheckModelsOnOpenDetail": "Je-li zapnuto a má-li role odlišný vlastní model, panel při otevření okna jednou ověří modely týmu. Právě nastavení druhého modelu tento provoz autorizuje.",
@@ -4422,9 +4427,9 @@
   "teamLevelCostUnknown": "{tokens} tokenů za hodinu; cena neznámá",
   "teamPreviewSwitches": {
     "one": "{count} přepnutí vynucené stropy",
+    "other": "{count} přepnutí vynucená stropy",
     "few": "{count} přepnutí vynucená stropy",
-    "many": "{count} přepnutí vynucených stropy",
-    "other": "{count} přepnutí vynucená stropy"
+    "many": "{count} přepnutí vynucených stropy"
   },
   "teamPreviewDryRunCost": "Nejprve vyzkoušejte s orchestrátorem: jeden tah, zhruba {cost}",
   "teamImportUnknownKey": "Neznámé nastavení {key}: soubor byl odmítnut celý",
@@ -4439,9 +4444,9 @@
   "legalScanEmpty": "Kontrola proběhla bez nálezů.",
   "legalFindingsCount": {
     "one": "{count} nález",
+    "other": "{count} nálezu",
     "few": "{count} nálezy",
-    "many": "{count} nálezů",
-    "other": "{count} nálezu"
+    "many": "{count} nálezů"
   },
   "legalFilesScanned": "Zkontrolované soubory: {count}",
   "legalScanIncomplete": "Neúplná: {checks}",
@@ -4488,9 +4493,9 @@
   "legalFixSelect": "Opravit {id}",
   "legalSelectedCount": {
     "one": "{count} vybráno",
+    "other": "{count} vybráno",
     "few": "{count} vybráno",
-    "many": "{count} vybráno",
-    "other": "{count} vybráno"
+    "many": "{count} vybráno"
   },
   "legalFixAllSafe": "Opravit všechny bezpečné",
   "legalPreviewFixes": "Zobrazit náhled oprav",
@@ -4558,9 +4563,9 @@
     "m036": "Neověřeno: vstupy balíku chybí nebo jsou oproti inventáři zastaralé.",
     "m037": {
       "one": "Distribuce zjištěna z {count} známých vstupů balíku",
+      "other": "Distribuce zjištěna z {count} známých vstupů balíku",
       "few": "Distribuce zjištěna z {count} známých vstupů balíku",
-      "many": "Distribuce zjištěna z {count} známých vstupů balíku",
-      "other": "Distribuce zjištěna z {count} známých vstupů balíku"
+      "many": "Distribuce zjištěna z {count} známých vstupů balíku"
     },
     "m038": "Místní zdroje, distribuce neznámá: chybí vstupy balíku a inventář.",
     "m039": "Neověřeno: distribuce neznámá; bez důkazů balíku nebo souborů se nepředpokládá žádná dodávka.",
@@ -4572,9 +4577,9 @@
     "m045": "Analýza distribuce",
     "m046": {
       "one": "{count} závislost může být distribuováno bez oznámení uvádějícího původ.",
+      "other": "{count} závislostí může být distribuováno bez oznámení uvádějícího původ.",
       "few": "{count} závislosti může být distribuováno bez oznámení uvádějícího původ.",
-      "many": "{count} závislostí může být distribuováno bez oznámení uvádějícího původ.",
-      "other": "{count} závislostí může být distribuováno bez oznámení uvádějícího původ."
+      "many": "{count} závislostí může být distribuováno bez oznámení uvádějícího původ."
     },
     "m047": "Přidejte THIRD_PARTY_NOTICES nebo rovnocenná oznámení pro dodávku.",
     "m048": "{v0} může být distribuován, ale žádné přítomné oznámení ho nejmenuje.",
@@ -4646,37 +4651,37 @@
     "m114": "Kontrola zastavena na limitu: {v0} překračuje rozpočet čtení.",
     "m115": {
       "one": "Neověřeno: zastaveno po {count} souborech; dalších {v1} nepřečteno.",
+      "other": "Neověřeno: zastaveno po {count} souborech; dalších {v1} nepřečteno.",
       "few": "Neověřeno: zastaveno po {count} souborech; dalších {v1} nepřečteno.",
-      "many": "Neověřeno: zastaveno po {count} souborech; dalších {v1} nepřečteno.",
-      "other": "Neověřeno: zastaveno po {count} souborech; dalších {v1} nepřečteno."
+      "many": "Neověřeno: zastaveno po {count} souborech; dalších {v1} nepřečteno."
     },
     "m116": {
       "one": "Neověřeno: dosažen limit důkazů závislostí; {count} položka vynecháno.",
+      "other": "Neověřeno: dosažen limit důkazů závislostí; {count} položek vynecháno.",
       "few": "Neověřeno: dosažen limit důkazů závislostí; {count} položky vynecháno.",
-      "many": "Neověřeno: dosažen limit důkazů závislostí; {count} položek vynecháno.",
-      "other": "Neověřeno: dosažen limit důkazů závislostí; {count} položek vynecháno."
+      "many": "Neověřeno: dosažen limit důkazů závislostí; {count} položek vynecháno."
     },
     "m117": "Neověřeno: licence {v0} v {v1} nerozpoznána.",
     "m118": "Analýza textu licence v {v0}",
     "m119": {
       "one": "Distribuce neznámá při {count} produkčních závislostech; hodnotí se nedistribuované zdroje.",
+      "other": "Distribuce neznámá při {count} produkčních závislostech; hodnotí se nedistribuované zdroje.",
       "few": "Distribuce neznámá při {count} produkčních závislostech; hodnotí se nedistribuované zdroje.",
-      "many": "Distribuce neznámá při {count} produkčních závislostech; hodnotí se nedistribuované zdroje.",
-      "other": "Distribuce neznámá při {count} produkčních závislostech; hodnotí se nedistribuované zdroje."
+      "many": "Distribuce neznámá při {count} produkčních závislostech; hodnotí se nedistribuované zdroje."
     },
     "m120": "Dodejte vstupy balíku nebo inventář pro přesné povinnosti.",
     "m121": "Kontrola zastavena na limitu: zpráva pro {v0} zkrácena",
     "m122": {
       "one": "Zpráva zkrácena: {count} nález nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně.",
+      "other": "Zpráva zkrácena: {count} nálezů nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně.",
       "few": "Zpráva zkrácena: {count} nálezy nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně.",
-      "many": "Zpráva zkrácena: {count} nálezů nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně.",
-      "other": "Zpráva zkrácena: {count} nálezů nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně."
+      "many": "Zpráva zkrácena: {count} nálezů nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně."
     },
     "m123": {
       "one": "Zpráva zkrácena: {count} generovaných výluk nad limit vynecháno.",
+      "other": "Zpráva zkrácena: {count} generovaných výluk nad limit vynecháno.",
       "few": "Zpráva zkrácena: {count} generovaných výluk nad limit vynecháno.",
-      "many": "Zpráva zkrácena: {count} generovaných výluk nad limit vynecháno.",
-      "other": "Zpráva zkrácena: {count} generovaných výluk nad limit vynecháno."
+      "many": "Zpráva zkrácena: {count} generovaných výluk nad limit vynecháno."
     },
     "m124": "Kontrola vytvořila neplatný výsledek: {v0}",
     "m125": "Neověřeno: pole důkazu překračuje limit zprávy a bylo zkráceno.",
@@ -4703,15 +4708,15 @@
     "m146": "Neověřeno: {v0} obsahuje zděděné nebo vnořené Cargo deklarace bez statického řešení.",
     "m147": {
       "one": "Neověřeno: {count} Cargo položka nemá licenci ani odpovídající vložený manifest.",
+      "other": "Neověřeno: {count} Cargo položek nemá licenci ani odpovídající vložený manifest.",
       "few": "Neověřeno: {count} Cargo položky nemá licenci ani odpovídající vložený manifest.",
-      "many": "Neověřeno: {count} Cargo položek nemá licenci ani odpovídající vložený manifest.",
-      "other": "Neověřeno: {count} Cargo položek nemá licenci ani odpovídající vložený manifest."
+      "many": "Neověřeno: {count} Cargo položek nemá licenci ani odpovídající vložený manifest."
     },
     "m148": {
       "one": "Neověřeno: {count} Cargo požadavků bez vyřešené verze v Cargo.lock.",
+      "other": "Neověřeno: {count} Cargo požadavků bez vyřešené verze v Cargo.lock.",
       "few": "Neověřeno: {count} Cargo požadavků bez vyřešené verze v Cargo.lock.",
-      "many": "Neověřeno: {count} Cargo požadavků bez vyřešené verze v Cargo.lock.",
-      "other": "Neověřeno: {count} Cargo požadavků bez vyřešené verze v Cargo.lock."
+      "many": "Neověřeno: {count} Cargo požadavků bez vyřešené verze v Cargo.lock."
     },
     "m149": "Neověřeno: Cargo manifesty a zámky chybí.",
     "m150": "Neověřeno: {v0} je neplatný JSON; požadavky a licence neznámé.",
@@ -4719,44 +4724,44 @@
     "m152": "Neověřeno: rozporné důkazy pro {v0} mezi {v1} a {v2}.",
     "m153": {
       "one": "Neověřeno: {count} Composer požadavků bez zamčené verze v composer.lock.",
+      "other": "Neověřeno: {count} Composer požadavků bez zamčené verze v composer.lock.",
       "few": "Neověřeno: {count} Composer požadavků bez zamčené verze v composer.lock.",
-      "many": "Neověřeno: {count} Composer požadavků bez zamčené verze v composer.lock.",
-      "other": "Neověřeno: {count} Composer požadavků bez zamčené verze v composer.lock."
+      "many": "Neověřeno: {count} Composer požadavků bez zamčené verze v composer.lock."
     },
     "m154": {
       "one": "Neověřeno: {count} Composer balíčků bez licence v zámku nebo instalaci.",
+      "other": "Neověřeno: {count} Composer balíčků bez licence v zámku nebo instalaci.",
       "few": "Neověřeno: {count} Composer balíčků bez licence v zámku nebo instalaci.",
-      "many": "Neověřeno: {count} Composer balíčků bez licence v zámku nebo instalaci.",
-      "other": "Neověřeno: {count} Composer balíčků bez licence v zámku nebo instalaci."
+      "many": "Neověřeno: {count} Composer balíčků bez licence v zámku nebo instalaci."
     },
     "m155": "Neověřeno: composer.json, composer.lock a installed.json chybí.",
     "m156": "Neověřeno: spustitelný kód {v0} se nikdy nespouští; čtou se pouze statická přiřazení.",
     "m157": "Neověřeno: {v0} čten staticky; vypočtená Ruby metadata a podmíněná přiřazení se nevyhodnocují.",
     "m158": {
       "one": "Neověřeno: {count} gem požadavků bez zamčené verze v Gemfile.lock.",
+      "other": "Neověřeno: {count} gem požadavků bez zamčené verze v Gemfile.lock.",
       "few": "Neověřeno: {count} gem požadavků bez zamčené verze v Gemfile.lock.",
-      "many": "Neověřeno: {count} gem požadavků bez zamčené verze v Gemfile.lock.",
-      "other": "Neověřeno: {count} gem požadavků bez zamčené verze v Gemfile.lock."
+      "many": "Neověřeno: {count} gem požadavků bez zamčené verze v Gemfile.lock."
     },
     "m159": {
       "one": "Neověřeno: {count} gems bez licence; přítomné specifikace by pomohly.",
+      "other": "Neověřeno: {count} gems bez licence; přítomné specifikace by pomohly.",
       "few": "Neověřeno: {count} gems bez licence; přítomné specifikace by pomohly.",
-      "many": "Neověřeno: {count} gems bez licence; přítomné specifikace by pomohly.",
-      "other": "Neověřeno: {count} gems bez licence; přítomné specifikace by pomohly."
+      "many": "Neověřeno: {count} gems bez licence; přítomné specifikace by pomohly."
     },
     "m160": "Neověřeno: Gemfile, Gemfile.lock a gemspec chybí.",
     "m161": "Neověřeno: Go náhrady, mapování nástrojů a tranzitivní výběr potřebují kontrolu; součty mohou obsahovat nepoužité verze.",
     "m162": {
       "one": "Neověřeno: {count} Go modulů bez licence; součty a cesty nejsou licence, vložené texty by pomohly.",
+      "other": "Neověřeno: {count} Go modulů bez licence; součty a cesty nejsou licence, vložené texty by pomohly.",
       "few": "Neověřeno: {count} Go modulů bez licence; součty a cesty nejsou licence, vložené texty by pomohly.",
-      "many": "Neověřeno: {count} Go modulů bez licence; součty a cesty nejsou licence, vložené texty by pomohly.",
-      "other": "Neověřeno: {count} Go modulů bez licence; součty a cesty nejsou licence, vložené texty by pomohly."
+      "many": "Neověřeno: {count} Go modulů bez licence; součty a cesty nejsou licence, vložené texty by pomohly."
     },
     "m163": {
       "one": "Neověřeno: {count} Go požadavků nástrojů bez vyřešené verze; licence neznámé.",
+      "other": "Neověřeno: {count} Go požadavků nástrojů bez vyřešené verze; licence neznámé.",
       "few": "Neověřeno: {count} Go požadavků nástrojů bez vyřešené verze; licence neznámé.",
-      "many": "Neověřeno: {count} Go požadavků nástrojů bez vyřešené verze; licence neznámé.",
-      "other": "Neověřeno: {count} Go požadavků nástrojů bez vyřešené verze; licence neznámé."
+      "many": "Neověřeno: {count} Go požadavků nástrojů bez vyřešené verze; licence neznámé."
     },
     "m164": "Neověřeno: go.mod, go.sum a vendor/modules.txt chybí.",
     "m165": "Neověřeno: rozpor licencí {v0} mezi {v1} a {v2}: {v3} proti {v4}.",
@@ -4764,15 +4769,15 @@
     "m167": "Neověřeno: statické POM neřeší tranzitivní Maven graf, rodičovské vlastnosti ani profily.",
     "m168": {
       "one": "Neověřeno: {count} Maven/Gradle požadavků bez vyřešené verze v zámku nebo katalogu.",
+      "other": "Neověřeno: {count} Maven/Gradle požadavků bez vyřešené verze v zámku nebo katalogu.",
       "few": "Neověřeno: {count} Maven/Gradle požadavků bez vyřešené verze v zámku nebo katalogu.",
-      "many": "Neověřeno: {count} Maven/Gradle požadavků bez vyřešené verze v zámku nebo katalogu.",
-      "other": "Neověřeno: {count} Maven/Gradle požadavků bez vyřešené verze v zámku nebo katalogu."
+      "many": "Neověřeno: {count} Maven/Gradle požadavků bez vyřešené verze v zámku nebo katalogu."
     },
     "m169": {
       "one": "Neověřeno: {count} Maven/Gradle balíčků bez licence; přítomné POM by pomohly.",
+      "other": "Neověřeno: {count} Maven/Gradle balíčků bez licence; přítomné POM by pomohly.",
       "few": "Neověřeno: {count} Maven/Gradle balíčků bez licence; přítomné POM by pomohly.",
-      "many": "Neověřeno: {count} Maven/Gradle balíčků bez licence; přítomné POM by pomohly.",
-      "other": "Neověřeno: {count} Maven/Gradle balíčků bez licence; přítomné POM by pomohly."
+      "many": "Neověřeno: {count} Maven/Gradle balíčků bez licence; přítomné POM by pomohly."
     },
     "m170": "Neověřeno: POM, Gradle deklarace, zámky a katalogy chybí.",
     "m171": "Neověřeno: nečitelná npm metadata zámku v {v0}.",
@@ -4780,38 +4785,38 @@
     "m173": "Neověřeno: {v0} překračuje hloubku npm zámku.",
     "m174": {
       "one": "Neověřeno: {count} npm položka v {v1} bez licence nebo odpovídajících instalačních dat.",
+      "other": "Neověřeno: {count} npm položek v {v1} bez licence nebo odpovídajících instalačních dat.",
       "few": "Neověřeno: {count} npm položky v {v1} bez licence nebo odpovídajících instalačních dat.",
-      "many": "Neověřeno: {count} npm položek v {v1} bez licence nebo odpovídajících instalačních dat.",
-      "other": "Neověřeno: {count} npm položek v {v1} bez licence nebo odpovídajících instalačních dat."
+      "many": "Neověřeno: {count} npm položek v {v1} bez licence nebo odpovídajících instalačních dat."
     },
     "m175": "Neověřeno: žádné čitelné Yarn položky v {v0}.",
     "m176": {
       "one": "Neověřeno: {v0} zaznamenává verze bez licencí pro {count} balíčků; instalační data by pomohla.",
+      "other": "Neověřeno: {v0} zaznamenává verze bez licencí pro {count} balíčků; instalační data by pomohla.",
       "few": "Neověřeno: {v0} zaznamenává verze bez licencí pro {count} balíčků; instalační data by pomohla.",
-      "many": "Neověřeno: {v0} zaznamenává verze bez licencí pro {count} balíčků; instalační data by pomohla.",
-      "other": "Neověřeno: {v0} zaznamenává verze bez licencí pro {count} balíčků; instalační data by pomohla."
+      "many": "Neověřeno: {v0} zaznamenává verze bez licencí pro {count} balíčků; instalační data by pomohla."
     },
     "m177": "Neověřeno: nepodporovaný pnpm zámek nebo nečitelná sekce balíčků v {v0}.",
     "m178": "Neověřeno: rozporné důkazy {v0}@{v1} mezi {v2} a {v3}.",
     "m179": {
       "one": "Neověřeno: {count} npm požadavků bez vyřešené verze; tranzitivní licence neznámé.",
+      "other": "Neověřeno: {count} npm požadavků bez vyřešené verze; tranzitivní licence neznámé.",
       "few": "Neověřeno: {count} npm požadavků bez vyřešené verze; tranzitivní licence neznámé.",
-      "many": "Neověřeno: {count} npm požadavků bez vyřešené verze; tranzitivní licence neznámé.",
-      "other": "Neověřeno: {count} npm požadavků bez vyřešené verze; tranzitivní licence neznámé."
+      "many": "Neověřeno: {count} npm požadavků bez vyřešené verze; tranzitivní licence neznámé."
     },
     "m180": "Neověřeno: npm manifesty, zámky a instalační metadata chybí.",
     "m181": "Neověřeno: podmíněné/dynamické NuGet deklarace, rozsahy a konflikty frameworků potřebují kontrolu.",
     "m182": {
       "one": "Neověřeno: {count} NuGet požadavků bez vyřešené verze v zámku, prostředcích nebo centrálních verzích.",
+      "other": "Neověřeno: {count} NuGet požadavků bez vyřešené verze v zámku, prostředcích nebo centrálních verzích.",
       "few": "Neověřeno: {count} NuGet požadavků bez vyřešené verze v zámku, prostředcích nebo centrálních verzích.",
-      "many": "Neověřeno: {count} NuGet požadavků bez vyřešené verze v zámku, prostředcích nebo centrálních verzích.",
-      "other": "Neověřeno: {count} NuGet požadavků bez vyřešené verze v zámku, prostředcích nebo centrálních verzích."
+      "many": "Neověřeno: {count} NuGet požadavků bez vyřešené verze v zámku, prostředcích nebo centrálních verzích."
     },
     "m183": {
       "one": "Neověřeno: {count} NuGet balíčků bez licence; přítomné .nuspec by pomohly.",
+      "other": "Neověřeno: {count} NuGet balíčků bez licence; přítomné .nuspec by pomohly.",
       "few": "Neověřeno: {count} NuGet balíčků bez licence; přítomné .nuspec by pomohly.",
-      "many": "Neověřeno: {count} NuGet balíčků bez licence; přítomné .nuspec by pomohly.",
-      "other": "Neověřeno: {count} NuGet balíčků bez licence; přítomné .nuspec by pomohly."
+      "many": "Neověřeno: {count} NuGet balíčků bez licence; přítomné .nuspec by pomohly."
     },
     "m184": "Neověřeno: NuGet deklarace, zámky a soubory prostředků chybí.",
     "m185": "Neověřeno: {v0} zahrnuje {v1}; libovolné názvy se neřeší rekurzivně.",
@@ -4819,31 +4824,31 @@
     "m187": "Neověřeno: {v0} obsahuje volbu požadavků nebo upravitelný zdroj bez statického řešení.",
     "m188": {
       "one": "Neověřeno: {count} řádek v {v1} používá nečitelný formát.",
+      "other": "Neověřeno: {count} řádků v {v1} používá nečitelný formát.",
       "few": "Neověřeno: {count} řádky v {v1} používá nečitelný formát.",
-      "many": "Neověřeno: {count} řádků v {v1} používá nečitelný formát.",
-      "other": "Neověřeno: {count} řádků v {v1} používá nečitelný formát."
+      "many": "Neověřeno: {count} řádků v {v1} používá nečitelný formát."
     },
     "m189": "Neověřeno: {v0} nejmenuje projekt; požadavky bez přiřazení.",
     "m190": "Neověřeno: nečitelné sekce balíčků v {v0}.",
     "m191": {
       "one": "Neověřeno: {v0} uvádí verze bez licencí pro {count} balíčků; metadata distribuce by pomohla.",
+      "other": "Neověřeno: {v0} uvádí verze bez licencí pro {count} balíčků; metadata distribuce by pomohla.",
       "few": "Neověřeno: {v0} uvádí verze bez licencí pro {count} balíčků; metadata distribuce by pomohla.",
-      "many": "Neověřeno: {v0} uvádí verze bez licencí pro {count} balíčků; metadata distribuce by pomohla.",
-      "other": "Neověřeno: {v0} uvádí verze bez licencí pro {count} balíčků; metadata distribuce by pomohla."
+      "many": "Neověřeno: {v0} uvádí verze bez licencí pro {count} balíčků; metadata distribuce by pomohla."
     },
     "m192": "Neověřeno: instalační verze {v0} se liší; zamčená licence neznámá.",
     "m193": "Neověřeno: statický Python bez zámku a instalačních metadat nedokládá úplné tranzitivní pokrytí; dynamická metadata sestavení se nikdy nevyhodnocují.",
     "m194": {
       "one": "Neověřeno: {count} Python balíčků bez odpovídající licence.",
+      "other": "Neověřeno: {count} Python balíčků bez odpovídající licence.",
       "few": "Neověřeno: {count} Python balíčků bez odpovídající licence.",
-      "many": "Neověřeno: {count} Python balíčků bez odpovídající licence.",
-      "other": "Neověřeno: {count} Python balíčků bez odpovídající licence."
+      "many": "Neověřeno: {count} Python balíčků bez odpovídající licence."
     },
     "m195": {
       "one": "Neověřeno: {count} Python požadavků bez vyřešené verze; tranzitivní licence neznámé.",
+      "other": "Neověřeno: {count} Python požadavků bez vyřešené verze; tranzitivní licence neznámé.",
       "few": "Neověřeno: {count} Python požadavků bez vyřešené verze; tranzitivní licence neznámé.",
-      "many": "Neověřeno: {count} Python požadavků bez vyřešené verze; tranzitivní licence neznámé.",
-      "other": "Neověřeno: {count} Python požadavků bez vyřešené verze; tranzitivní licence neznámé."
+      "many": "Neověřeno: {count} Python požadavků bez vyřešené verze; tranzitivní licence neznámé."
     },
     "m196": "Neověřeno: Python manifesty, zámky a metadata distribuce chybí.",
     "unknown": "neznámé",
@@ -4858,15 +4863,15 @@
     "reversedYears": "rozsah {value} končí před začátkem",
     "selectedPaths": {
       "one": "vybrané cesty: {count}",
+      "other": "vybrané cesty: {count}",
       "few": "vybrané cesty: {count}",
-      "many": "vybrané cesty: {count}",
-      "other": "vybrané cesty: {count}"
+      "many": "vybrané cesty: {count}"
     },
     "moreUnchecked": {
       "one": "a další neověřené položky nad limit vynechány: {count}",
+      "other": "a další neověřené položky nad limit vynechány: {count}",
       "few": "a další neověřené položky nad limit vynechány: {count}",
-      "many": "a další neověřené položky nad limit vynechány: {count}",
-      "other": "a další neověřené položky nad limit vynechány: {count}"
+      "many": "a další neověřené položky nad limit vynechány: {count}"
     },
     "declaration": "{file} uvádí {license}",
     "licenseFile": "soubor licence",

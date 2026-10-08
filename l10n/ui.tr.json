@@ -236,6 +236,9 @@
   "playbookFallbackReviewer": "Sınıflandırıcı tarafından engellenen incelemeler için yedek inceleyici: {reviewer}",
   "playbookFallbackNone": "Adlandırılmış yedek inceleyici yok",
   "playbookResidualAccepted": "Artık madde kabul edildi",
+  "playbookRecordHelp": "İnceleme turlarını, tasarım kararlarını, güvenlik retlerini, ayarları ve bağlanmamış kabullerin nedenlerini göster.",
+  "playbookResidualUnbound": "Bağlanmamış kalan sorun kabulü",
+  "playbookResidualUnboundReason": "Önceki kalan sorunların hiçbiri bu kabulün zamanı ve kanıtlarıyla eşleşmiyor. Hiçbir kalan sorunu kapsamıyor.",
   "playbookLeaseRecord": "Yama kirası {status}: {module} ({lane})",
   "playbookWorkRecord": "{module} üzerinde çalışma {id}: {commits} temel commit",
   "playbookVerificationRecord": "{commit} için kanca doğrulaması {result} ({scope})",
@@ -909,20 +912,20 @@
   "exportPreviewFull": "Gizlemeden kaydet…",
   "exportPreviewOpen": "Gizlenmiş dosya düzenleyicide açık. Siz seçene kadar hiçbir şey yazılmaz.",
   "exportPreviewMessages": {
-    "other": "bu konuşmada {count} ileti",
-    "one": "bu konuşmada {count} ileti"
+    "one": "bu konuşmada {count} ileti",
+    "other": "bu konuşmada {count} ileti"
   },
   "exportPreviewPaths": {
-    "other": "{count} yol gizlendi",
-    "one": "{count} yol gizlendi"
+    "one": "{count} yol gizlendi",
+    "other": "{count} yol gizlendi"
   },
   "exportPreviewAccounts": {
-    "other": "{count} hesap kimliği gizlendi",
-    "one": "{count} hesap kimliği gizlendi"
+    "one": "{count} hesap kimliği gizlendi",
+    "other": "{count} hesap kimliği gizlendi"
   },
   "exportPreviewSecrets": {
-    "other": "{count} kimlik bilgisi veya anahtar özeti kaldırıldı",
-    "one": "{count} kimlik bilgisi veya anahtar özeti kaldırıldı"
+    "one": "{count} kimlik bilgisi veya anahtar özeti kaldırıldı",
+    "other": "{count} kimlik bilgisi veya anahtar özeti kaldırıldı"
   },
   "exportPreviewKnownCredentials": "Bilinen biçimlerdeki kimlik bilgileri (API anahtarları, belirteçler, parolalar, özel anahtarlar) ve anahtar özeti her zaman kaldırılır. Başka biçimdeki bir gizli bilgi kalır: paylaşmadan önce dosyayı okuyun.",
   "exportTooLarge": "Bu konuşma bir oturum dışa aktarma dosyası için çok uzun.",
@@ -958,8 +961,8 @@
   "mcpUnreadable": "Muse Code ayarlar dosyası okunamadı:",
   "mcpNone": "{path} içinde yapılandırılmış MCP sunucusu yok",
   "mcpCount": {
-    "other": "{path} içinde {count} MCP sunucusu",
-    "one": "{path} içinde {count} MCP sunucusu"
+    "one": "{path} içinde {count} MCP sunucusu",
+    "other": "{path} içinde {count} MCP sunucusu"
   },
   "mcpOptional": "isteğe bağlı",
   "mcpRequired": "gerekli (başarısız olursa Muse Code durur)",
@@ -989,12 +992,12 @@
   "mcpStateNotStarted": "Sonraki mesajınızla başlar",
   "mcpStateStarting": "Başlatılıyor…",
   "mcpStateConnected": {
-    "other": "Bağlı: {count} araç",
-    "one": "Bağlı: {count} araç"
+    "one": "Bağlı: {count} araç",
+    "other": "Bağlı: {count} araç"
   },
   "mcpStateUnoffered": {
-    "other": "{count} tane daha sunulmuyor",
-    "one": "{count} tane daha sunulmuyor"
+    "one": "{count} tane daha sunulmuyor",
+    "other": "{count} tane daha sunulmuyor"
   },
   "mcpStateFailed": "Çalışmıyor: {reason}",
   "mcpStateRestricted": "Başlatılmadı: bu çalışma alanı Kısıtlı Mod’da",
@@ -1050,8 +1053,8 @@
   "hooksUserBlock": "settings.json › hooks",
   "hooksUserNone": "Ayarlarınızda yok",
   "hooksUserCount": {
-    "other": "Ayarlarınızda {count} kanca",
-    "one": "Ayarlarınızda {count} kanca"
+    "one": "Ayarlarınızda {count} kanca",
+    "other": "Ayarlarınızda {count} kanca"
   },
   "hooksManaged": "Yönetilen kancalar",
   "hooksManagedKey": "managed_hooks_path",
@@ -1145,8 +1148,8 @@
   "memoryTitle": "Muse belleği",
   "memoryNone": "Bu çalışma alanı için henüz bellek notu yok",
   "memoryCount": {
-    "other": "{count} bellek notu",
-    "one": "{count} bellek notu"
+    "one": "{count} bellek notu",
+    "other": "{count} bellek notu"
   },
   "memoryIndexDetail": "Muse'un her oturumun başında okuduğu dizin",
   "memoryNewNote": "Yeni not…",
@@ -1670,8 +1673,8 @@
   "pdfLabel": "PDF",
   "toolReadPdf": "PDF `{path}` okundu ({pages}, {bytes} bayt)",
   "toolReadPdfPages": {
-    "other": "{count} sayfa",
-    "one": "{count} sayfa"
+    "one": "{count} sayfa",
+    "other": "{count} sayfa"
   },
   "toolReadPdfPagesUnknown": "Sayfa sayısı bilinmiyor",
   "toolReadImage": "Görüntü `{path}` okundu ({mediaType}, {width}×{height}, {bytes} bayt)",
@@ -1735,16 +1738,16 @@
   "browserRuntimeReady": "Tarayıcı denetiminin tarayıcısı {version} hazır.",
   "browserCheckDone": "{url} denetlendi: {errors}, {failed}, {blocked}",
   "browserCheckConsoleErrors": {
-    "other": "{count} konsol hatası",
-    "one": "{count} konsol hatası"
+    "one": "{count} konsol hatası",
+    "other": "{count} konsol hatası"
   },
   "browserCheckFailedRequests": {
-    "other": "{count} başarısız istek",
-    "one": "{count} başarısız istek"
+    "one": "{count} başarısız istek",
+    "other": "{count} başarısız istek"
   },
   "browserCheckBlockedRequests": {
-    "other": "bu bilgisayarın dışına giden {count} istek engellendi",
-    "one": "bu bilgisayarın dışına giden {count} istek engellendi"
+    "one": "bu bilgisayarın dışına giden {count} istek engellendi",
+    "other": "bu bilgisayarın dışına giden {count} istek engellendi"
   },
   "browserCheckUrlRefused": "Yalnızca basit bir ana bilgisayar adı veya IP adresi içeren, kullanıcı adı ya da parola içermeyen bir http:// veya https:// adresi açılabilir.",
   "browserCheckInvalidArguments": "Tarayıcı denetimi geçersiz bağımsız değişkenlerle istendi, bu yüzden hiçbir şey açılmadı.",
@@ -1793,12 +1796,12 @@
   "thoughtFor": "{duration} düşündü",
   "thinkingNow": "Düşünüyor",
   "addedLines": {
-    "other": "{count} satır eklendi",
-    "one": "{count} satır eklendi"
+    "one": "{count} satır eklendi",
+    "other": "{count} satır eklendi"
   },
   "removedLines": {
-    "other": "{count} satır kaldırıldı",
-    "one": "{count} satır kaldırıldı"
+    "one": "{count} satır kaldırıldı",
+    "other": "{count} satır kaldırıldı"
   },
   "modified": "Değiştirildi",
   "inLabel": "GİRİŞ",
@@ -1822,8 +1825,8 @@
   "approvalBrowserCheckWidenResidual": "İzin vermek, bu denetimin ana bilgisayara https ve WebSocket üzerinden de ulaşmasını sağlar. Bu trafik şifrelidir, bu yüzden uzantı onu inceleyemez ve oradaki bir site bu bilgisayarın hesabıyla sizin adınıza oturum açabilir (özellikle Windows’ta).",
   "approvalImageSources": "Başlangıç: {paths}",
   "renameCardMore": {
-    "other": "{files} ve {count} dosya daha",
-    "one": "{files} ve {count} dosya daha"
+    "one": "{files} ve {count} dosya daha",
+    "other": "{files} ve {count} dosya daha"
   },
   "codeIntelNoService": "{path} için hiçbir dil hizmeti yanıt vermedi ya da dosya hiç sembol bildirmiyor.",
   "codeIntelTimedOut": "Dil hizmeti {seconds} saniye içinde yanıt vermedi.",
@@ -1840,8 +1843,8 @@
   "approvalDecided": "Karar verildi",
   "approvalDockLabel": "Onayınız bekleniyor",
   "approvalDockCount": {
-    "other": "Bekleyen onay: {count}",
-    "one": "Bekleyen onay: {count}"
+    "one": "Bekleyen onay: {count}",
+    "other": "Bekleyen onay: {count}"
   },
   "approvalDockedNote": "Onayınız bekleniyor, mesaj kutusunun üstündeki kartta",
   "questionSubmit": "Gönder",
@@ -1882,6 +1885,8 @@
   "questionNoOpen": "Açık soru yok.",
   "questionAnswerFailed": "Yanıtınız gönderilemedi. Yeniden deneyin.",
   "questionAnswerUncertain": "Yanıtınız Muse’a ulaşmış olabilir. Yeniden gönderilmeyecek.",
+  "questionQueueLeaseFailed": "Kuyruktaki yanıtların rezervasyonu değişti. Mevcut istem tamamlandıktan sonra yeniden deneyin.",
+  "questionQueueCommitFailed": "İstem gönderildi, ancak yanıtlar teslim edildi olarak kaydedilemedi. Kuyrukta kalırlar ve tekrarlanabilirler.",
   "questionDismissFailed": "Soru kapatılamadı.",
   "acpOpenQuestionAsked": "Muse’un bir sorusu var; bu düzenleyici form gösteremiyor. Daha sonra /answer ile yanıtlayabilirsiniz.",
   "acpQuestionDeferred": "{number} numaralı soru açık. /answer {number} <text> ile yanıtlayın.",
@@ -1927,36 +1932,36 @@
   "tasksTabEnded": "Bu listenin ait olduğu konuşma kapatıldı.",
   "stepSummary": {
     "edited": {
-      "other": "{count} dosya düzenlendi",
-      "one": "bir dosya düzenlendi"
+      "one": "bir dosya düzenlendi",
+      "other": "{count} dosya düzenlendi"
     },
     "read": {
-      "other": "{count} dosya okundu",
-      "one": "bir dosya okundu"
+      "one": "bir dosya okundu",
+      "other": "{count} dosya okundu"
     },
     "searched": {
-      "other": "{count} klasör arandı",
-      "one": "bir klasör arandı"
+      "one": "bir klasör arandı",
+      "other": "{count} klasör arandı"
     },
     "ran": {
-      "other": "{count} komut çalıştırıldı",
-      "one": "bir komut çalıştırıldı"
+      "one": "bir komut çalıştırıldı",
+      "other": "{count} komut çalıştırıldı"
     },
     "fetched": {
-      "other": "{count} sayfa alındı",
-      "one": "bir sayfa alındı"
+      "one": "bir sayfa alındı",
+      "other": "{count} sayfa alındı"
     },
     "searchedWeb": {
-      "other": "webde {count} kez arandı",
-      "one": "webde arandı"
+      "one": "webde arandı",
+      "other": "webde {count} kez arandı"
     },
     "used": {
-      "other": "{count} araç kullanıldı",
-      "one": "bir araç kullanıldı"
+      "one": "bir araç kullanıldı",
+      "other": "{count} araç kullanıldı"
     },
     "failed": {
-      "other": "{count} başarısız",
-      "one": "{count} başarısız"
+      "one": "{count} başarısız",
+      "other": "{count} başarısız"
     }
   },
   "contextMeterLabel": "Bağlam {percent} kullanıldı",
@@ -1988,8 +1993,8 @@
   "noEditorForApply": "Kodu uygulamak için bir metin düzenleyicisi açın.",
   "diffTitleSuffix": "Muse düzenlemesi",
   "diffTallyFiles": {
-    "other": "{count} dosya değiştirildi",
-    "one": "{count} dosya değiştirildi"
+    "one": "{count} dosya değiştirildi",
+    "other": "{count} dosya değiştirildi"
   },
   "diffTallyLines": "+{added} −{removed}",
   "diffTallyLabel": "Bu konuşmadaki değişiklikler",
@@ -2014,8 +2019,8 @@
   "historyCurrent": "geçerli",
   "historyForkMark": "çatal",
   "historyTurns": {
-    "other": "{count} tur",
-    "one": "{count} tur"
+    "one": "{count} tur",
+    "other": "{count} tur"
   },
   "resumeItem": "Sürdür",
   "resumeDetail": "Bu çalışma alanındaki önceki bir konuşmayı seçin",
@@ -2028,8 +2033,8 @@
   "forkAndRewind": "Konuşmayı çatalla ve kodu geri sar",
   "rewindNothing": "Bu mesajdan sonra geri sarılacak düzenleme yok.",
   "rewindDone": {
-    "other": "Kod bu mesaja geri sarıldı ({count} düzenleme)",
-    "one": "Kod bu mesaja geri sarıldı ({count} düzenleme)"
+    "one": "Kod bu mesaja geri sarıldı ({count} düzenleme)",
+    "other": "Kod bu mesaja geri sarıldı ({count} düzenleme)"
   },
   "forkedNotice": "Yeni bir konuşmaya çatallandı.",
   "rewindImagesUnavailable": "Bu iletideki bazı görseller geri yüklenemedi.",
@@ -2054,22 +2059,22 @@
   "restoreBothConfirmAction": "Geri yükle ve geri sar",
   "rewindNotDone": "Sohbet geri sarılmadı.",
   "restoreDone": {
-    "other": "{count} dosya bu mesajdan önceki hâline geri yüklendi.",
-    "one": "{count} dosya bu mesajdan önceki hâline geri yüklendi."
+    "one": "{count} dosya bu mesajdan önceki hâline geri yüklendi.",
+    "other": "{count} dosya bu mesajdan önceki hâline geri yüklendi."
   },
   "restoreNothing": "Geri yüklenmesi gereken dosya yoktu.",
   "redoNothing": "Geri konulacak bir şey kalmadı.",
   "redoDone": {
-    "other": "{count} dosya geri getirildi.",
-    "one": "{count} dosya geri getirildi."
+    "one": "{count} dosya geri getirildi.",
+    "other": "{count} dosya geri getirildi."
   },
   "redoAction": "Yinele",
   "redoLabel": "Yinele: bu geri yüklemenin değiştirdiği dosyaları geri getir",
   "redoGone": "Bu geri yükleme artık yinelenemez.",
   "noticeRepeatBadge": "{count}×",
   "noticeRepeated": {
-    "other": "{count} kez gösterildi",
-    "one": "{count} kez gösterildi"
+    "one": "{count} kez gösterildi",
+    "other": "{count} kez gösterildi"
   },
   "restoreRefusedUnsaved": "Olduğu gibi bırakıldı, kaydedilmemiş değişiklikler var: {files}",
   "restoreRefusedChanged": "Olduğu gibi bırakıldı, bu arada başka bir şey değiştirdi: {files}",
@@ -2080,8 +2085,8 @@
   "restoreRefusedTooLarge": "Geri yüklenemez, bir kopyasını saklamak için çok büyük: {files}",
   "restoreRefusedFailed": "Değiştirilemedi: {files}",
   "restoreUnchanged": {
-    "other": "Zaten önceki durumda: {count} dosya.",
-    "one": "Zaten önceki durumda: {count} dosya."
+    "one": "Zaten önceki durumda: {count} dosya.",
+    "other": "Zaten önceki durumda: {count} dosya."
   },
   "restoreWritesIncomplete": "Hiçbir şey geri yüklenmedi: bu turlardaki bazı düzenlemeler tam olarak kaydedilmedi (düzenleme sırasında yeniden yükleme veya çökme oldu ya da dosya kontrol noktaları kapalıydı).",
   "restoreLegacyInRange": "Hiçbir şey geri yüklenmedi: bu turların bazıları, bu sürümün geri yükleyemediği eski bir sürümle kaydedildi.",
@@ -2258,8 +2263,8 @@
   "plansItemDetail": ".agents/plans içindeki kayıtlı planlar: birini açın veya uygulayın",
   "plansTitle": "Planlar",
   "plansCount": {
-    "other": "{count} kayıtlı plan",
-    "one": "{count} kayıtlı plan"
+    "one": "{count} kayıtlı plan",
+    "other": "{count} kayıtlı plan"
   },
   "plansNone": "Henüz kayıtlı plan yok. Plan modundaki bir yanıttan bir plan kaydedin.",
   "plansFailed": "Planlar listelenemedi",
@@ -2294,8 +2299,8 @@
   "signedOutNotice": "Muse Spark oturumu kapatıldı.",
   "agentsPillTitle": "Aracı haritasını göster",
   "agentsCount": {
-    "other": "{count} aracı",
-    "one": "{count} aracı"
+    "one": "{count} aracı",
+    "other": "{count} aracı"
   },
   "backgroundTasksPillTitle": "Arka plan görevlerini göster",
   "agentMapTitle": "Aracı haritası",
@@ -2574,8 +2579,8 @@
   "workflowChildUntitled": "Aracı {number}",
   "workflowAttempt": "{attempt}. deneme",
   "workflowsCount": {
-    "other": "{count} iş akışı",
-    "one": "{count} iş akışı"
+    "one": "{count} iş akışı",
+    "other": "{count} iş akışı"
   },
   "workflowsLabel": "İş akışları",
   "workflowTriggerModes": {
@@ -2588,8 +2593,8 @@
   "workflowLaunched": "Başlatıldı: arka planda çalışır ve sonucu bu konuşmaya bildirir.",
   "workflowScriptSaved": "Betik şuraya kaydedildi: {path}",
   "backgroundTasksCount": {
-    "other": "{count} arka plan görevi",
-    "one": "{count} arka plan görevi"
+    "one": "{count} arka plan görevi",
+    "other": "{count} arka plan görevi"
   },
   "backgroundTasksLabel": "Arka plan görevleri",
   "backgroundBadge": "arka plan",
@@ -2701,12 +2706,12 @@
   "usageInsightNoLogs": "Bu makinede henüz Muse Code izleme günlüğü bulunamadı.",
   "usageInsightTotals": "{sessions} genelinde {attempts}",
   "modelAttemptsCount": {
-    "other": "{count} model denemesi",
-    "one": "{count} model denemesi"
+    "one": "{count} model denemesi",
+    "other": "{count} model denemesi"
   },
   "sessionsCount": {
-    "other": "{count} oturum",
-    "one": "{count} oturum"
+    "one": "{count} oturum",
+    "other": "{count} oturum"
   },
   "durationNow": "şimdi",
   "contextCompactTitle": "Şimdi sıkıştırmak için tıklayın",
@@ -2882,8 +2887,8 @@
   "scheduleRepeats": "Yinelenir",
   "scheduleNextRun": "Sonraki çalıştırma: {date}",
   "scheduleFired": {
-    "other": "{count} kez çalıştı",
-    "one": "{count} kez çalıştı"
+    "one": "{count} kez çalıştı",
+    "other": "{count} kez çalıştı"
   },
   "scheduleNone": "Zamanlanmış istem yok",
   "loopItem": "/loop",
@@ -2953,20 +2958,20 @@
   },
   "importNothingFrom": "{source} kaynağından içeri aktarılacak beceri yok.",
   "importInstalledSummary": {
-    "other": "{count} beceri içeri aktarıldı: {skills}",
-    "one": "{count} beceri içeri aktarıldı: {skills}"
+    "one": "{count} beceri içeri aktarıldı: {skills}",
+    "other": "{count} beceri içeri aktarıldı: {skills}"
   },
   "importSkippedSummary": {
-    "other": "{count} beceri atlandı: {skills}",
-    "one": "{count} beceri atlandı: {skills}"
+    "one": "{count} beceri atlandı: {skills}",
+    "other": "{count} beceri atlandı: {skills}"
   },
   "importQuarantinedSummary": {
-    "other": "{count} beceri karantinaya alındı: {skills}",
-    "one": "{count} beceri karantinaya alındı: {skills}"
+    "one": "{count} beceri karantinaya alındı: {skills}",
+    "other": "{count} beceri karantinaya alındı: {skills}"
   },
   "importFailedSummary": {
-    "other": "{count} beceri başarısız oldu: {skills}",
-    "one": "{count} beceri başarısız oldu: {skills}"
+    "one": "{count} beceri başarısız oldu: {skills}",
+    "other": "{count} beceri başarısız oldu: {skills}"
   },
   "bundledSkillsOffer": "Muse Spark, {skills} becerileriyle birlikte gelir. Bunlar Muse Code için yüklensin mi? Muse yapılandırma klasörünüze kopyalanırlar.",
   "bundledSkillsUpdateOffer": "Muse Spark, paketlenmiş becerilerinin daha yeni bir sürümüyle ({tag}) birlikte gelir. Muse Code'un kullandığı kopya güncellensin mi?",
@@ -2974,16 +2979,16 @@
   "bundledSkillsUpdate": "Güncelle",
   "bundledSkillsNotNow": "Şimdi değil",
   "bundledSkillsInstalled": {
-    "other": "Muse Code için {count} paketlenmiş beceri ({tag}) yüklendi: {skills}",
-    "one": "Muse Code için {count} paketlenmiş beceri ({tag}) yüklendi: {skills}"
+    "one": "Muse Code için {count} paketlenmiş beceri ({tag}) yüklendi: {skills}",
+    "other": "Muse Code için {count} paketlenmiş beceri ({tag}) yüklendi: {skills}"
   },
   "bundledSkillsSkipped": {
-    "other": "Kendi becerileriniz aynı adları taşıdığı için {count} beceri dışarıda bırakıldı: {skills}",
-    "one": "Kendi becerilerinizden biri aynı adı taşıdığı için {count} beceri dışarıda bırakıldı: {skills}"
+    "one": "Kendi becerilerinizden biri aynı adı taşıdığı için {count} beceri dışarıda bırakıldı: {skills}",
+    "other": "Kendi becerileriniz aynı adları taşıdığı için {count} beceri dışarıda bırakıldı: {skills}"
   },
   "bundledSkillsRemoved": {
-    "other": "Muse Code'dan {count} paketlenmiş beceri kaldırıldı: {skills}",
-    "one": "Muse Code'dan {count} paketlenmiş beceri kaldırıldı: {skills}"
+    "one": "Muse Code'dan {count} paketlenmiş beceri kaldırıldı: {skills}",
+    "other": "Muse Code'dan {count} paketlenmiş beceri kaldırıldı: {skills}"
   },
   "bundledSkillsNothingToRemove": "Muse Code için yüklü paketlenmiş beceri yok, bu yüzden hiçbir şey kaldırılmadı.",
   "bundledSkillsInstallFailed": "Paketlenmiş beceriler {folder} içine yüklenemedi: {reason}",
@@ -3118,16 +3123,16 @@
     "accounting_unverified": "Maliyet hesabı doğrulanmadı"
   },
   "execTooManyFiles": {
-    "other": "En fazla {count} girdi dosyasına izin verilir.",
-    "one": "En fazla {count} girdi dosyasına izin verilir."
+    "one": "En fazla {count} girdi dosyasına izin verilir.",
+    "other": "En fazla {count} girdi dosyasına izin verilir."
   },
   "execRequestCapReached": {
-    "other": "{count} denemelik istek sınırına ulaşıldı.",
-    "one": "{count} denemelik istek sınırına ulaşıldı."
+    "one": "{count} denemelik istek sınırına ulaşıldı.",
+    "other": "{count} denemelik istek sınırına ulaşıldı."
   },
   "execScanMatches": {
-    "other": "{count} gizli bilgi eşleşmesi",
-    "one": "{count} gizli bilgi eşleşmesi"
+    "one": "{count} gizli bilgi eşleşmesi",
+    "other": "{count} gizli bilgi eşleşmesi"
   },
   "providerKeyStored": "{provider} anahtarı saklandı: {store}.",
   "providerKeyNotStored": "Anahtar girilmedi, bu yüzden hiçbir şey saklanmadı.",
@@ -3183,17 +3188,17 @@
   "exportArgumentsLabel": "Bağımsız değişkenler:",
   "exportOutputLabel": "Çıktı:",
   "exportOutputStored": {
-    "other": "Çıktı ({count} bayt) arka uçta saklanıyor ve dahil edilmedi.",
-    "one": "Çıktı ({count} bayt) arka uçta saklanıyor ve dahil edilmedi."
+    "one": "Çıktı ({count} bayt) arka uçta saklanıyor ve dahil edilmedi.",
+    "other": "Çıktı ({count} bayt) arka uçta saklanıyor ve dahil edilmedi."
   },
   "exportFilesChanged": {
-    "other": "{count} dosya değiştirildi: +{added} −{removed}.",
-    "one": "{count} dosya değiştirildi: +{added} −{removed}."
+    "one": "{count} dosya değiştirildi: +{added} −{removed}.",
+    "other": "{count} dosya değiştirildi: +{added} −{removed}."
   },
   "exportFailure": "Başarısız: {reason}",
   "exportImagesAttached": {
-    "other": "{count} görüntü eklendi.",
-    "one": "{count} görüntü eklendi."
+    "one": "{count} görüntü eklendi.",
+    "other": "{count} görüntü eklendi."
   },
   "insertReferenceNoEditor": "Bir dosyaya başvuru eklemek için dosyayı bir düzenleyicide açın.",
   "insertReferencePanelOpened": "Muse Spark paneli açıldı. Başvuruyu eklemek için Alt+K tuşlarına yeniden basın.",
@@ -3209,12 +3214,12 @@
   "turnFailed": "Tur başarısız oldu.",
   "turnRetrying": "Deneme {attempt}/{maxAttempts} başarısız oldu ({reason}); {seconds} sn içinde yeniden deneniyor.",
   "usageWindowHours": {
-    "other": "{count} saatlik pencere",
-    "one": "{count} saatlik pencere"
+    "one": "{count} saatlik pencere",
+    "other": "{count} saatlik pencere"
   },
   "usageWindowMinutes": {
-    "other": "{count} dakikalık pencere",
-    "one": "{count} dakikalık pencere"
+    "one": "{count} dakikalık pencere",
+    "other": "{count} dakikalık pencere"
   },
   "statusVerbs": {
     "thinking": "Düşünüyor…",
@@ -3289,8 +3294,8 @@
   "paidBestOfNDetail": "{prompt}\n\n{price}\n\nÜcret Model API anahtarınıza yansıtılır. Gerçek maliyet kullanılan token sayısına bağlıdır. “Bir kez izin ver” yalnızca bu çalıştırma için geçerlidir.",
   "paidConfirmBestOfN": "Aynı istem ayrı çalışma ağaçlarında yürütülür; her biri Model API anahtarınıza ücretlendirilir. {price} Bu çalışma alanında N arasından en iyiye her zaman izin vermediğiniz sürece, İzinleri atla dahil her izin modunda her çalıştırma için onay istenir. Gerçek maliyet kullanılan token sayısına bağlıdır; diğer ücretli araçlar ayrıca ücretlendirilir. Yalnızca Model API arka ucunda.",
   "usagePaidBestOfNAttempts": {
-    "other": "{count} deneme",
-    "one": "{count} deneme"
+    "one": "{count} deneme",
+    "other": "{count} deneme"
   },
   "usagePaidBestOfNIncluded": "Bildirilen token tahmini: {cost}",
   "paidTeamWorkersName": "Ekip çalışanları",
@@ -3367,12 +3372,12 @@
   "boardStatusRunning": "Çalışıyor",
   "boardStatusIdle": "Boşta",
   "boardAwaitingApproval": {
-    "other": "{count} bekleyen onay",
-    "one": "{count} bekleyen onay"
+    "one": "{count} bekleyen onay",
+    "other": "{count} bekleyen onay"
   },
   "boardChanges": {
-    "other": "{count} değişen dosya",
-    "one": "{count} değişen dosya"
+    "one": "{count} değişen dosya",
+    "other": "{count} değişen dosya"
   },
   "boardChangesUnknown": "değişiklikler bilinmiyor",
   "boardStartBestOfN": "N arasından en iyi…",
@@ -3401,12 +3406,12 @@
   "bestOfNRunStatusCancelled": "İptal edildi",
   "bestOfNCeilingReached": "istek sınırında durduruldu",
   "bestOfNRequests": {
-    "other": "{count} istek",
-    "one": "{count} istek"
+    "one": "{count} istek",
+    "other": "{count} istek"
   },
   "bestOfNApprovalsDenied": {
-    "other": "{count} reddedilen onay",
-    "one": "{count} reddedilen onay"
+    "one": "{count} reddedilen onay",
+    "other": "{count} reddedilen onay"
   },
   "bestOfNAttemptFailed": "Başarısız: {reason}",
   "bestOfNTakenMark": "Alınan: {branch}",
@@ -3442,29 +3447,29 @@
   "usagePaidAlwaysNote": "Bu çalışma alanında her zaman izin verildi, sormadan: {features}.",
   "usagePaidAskAgain": "Her seferinde yeniden sor",
   "usagePaidSearches": {
-    "other": "{count} arama",
-    "one": "{count} arama"
+    "one": "{count} arama",
+    "other": "{count} arama"
   },
   "usagePaidImages": {
-    "other": "{count} görüntü",
-    "one": "{count} görüntü"
+    "one": "{count} görüntü",
+    "other": "{count} görüntü"
   },
   "usagePaidAudio": "{duration} ses",
   "usagePaidSubagentRequests": {
-    "other": "{count} alt ajan isteği",
-    "one": "{count} alt ajan isteği"
+    "one": "{count} alt ajan isteği",
+    "other": "{count} alt ajan isteği"
   },
   "usagePaidSubagentUnknown": {
-    "other": "maliyeti henüz bildirilmemiş {count} istek",
-    "one": "maliyeti henüz bildirilmemiş {count} istek"
+    "one": "maliyeti henüz bildirilmemiş {count} istek",
+    "other": "maliyeti henüz bildirilmemiş {count} istek"
   },
   "usagePaidSubagentSubset": "Bildirilen alt ajan maliyetleri, bağlı oldukları üst konuşmaların token maliyeti tahminlerine dahildir. Ek özellikler toplamına yeniden eklenmez. Kullanımı bildirilmeyen istekler de ücretlendirilebilir.",
   "usagePaidExtraTotal": "Tahmini ek özellikler toplamı",
   "usagePaidSubagentReported": "Bildirilen token tahmini: {cost}",
   "usagePaidTotal": "Tahmini ücretli toplam",
   "usagePaidScheduled": {
-    "other": "{count} zamanlanmış çalıştırma",
-    "one": "{count} zamanlanmış çalıştırma"
+    "one": "{count} zamanlanmış çalıştırma",
+    "other": "{count} zamanlanmış çalıştırma"
   },
   "usageScheduledIncluded": "token maliyeti yukarıya dahildir",
   "usagePaidNote": "Bu pencere açıldığından beri, Meta'nın yayımladığı fiyatlara dayalı tahmin; asıl fatura dev.meta.ai panosundadır. Fiyatların okunduğu tarih: {date}.",
@@ -3534,8 +3539,8 @@
   "reviewInstructionsTooLong": "Neyin inceleneceğine ilişkin açıklama tek bir inceleme için çok uzun; daha kısa anlatın.",
   "reviewTruncatedNotice": "Fark çıktısı uzun olduğu için incelemeye yalnızca ilk kısmı gönderildi; inceleyen, değişen dosyaların geri kalanını kendisi okur.",
   "reviewPrivateLeftOut": {
-    "other": "Gizli bilgi içerebilecek {count} değişen dosyanın yalnızca adları belirtildi; dosyalar incelemeye gönderilmedi.",
-    "one": "Gizli bilgi içerebilecek {count} değişen dosyanın yalnızca adı belirtildi; dosya incelemeye gönderilmedi."
+    "one": "Gizli bilgi içerebilecek {count} değişen dosyanın yalnızca adı belirtildi; dosya incelemeye gönderilmedi.",
+    "other": "Gizli bilgi içerebilecek {count} değişen dosyanın yalnızca adları belirtildi; dosyalar incelemeye gönderilmedi."
   },
   "reviewPlanModeNotice": "Bu inceleme Planlama modunda çalışır ve bittiğinde önceki izin modunuz geri gelir. Muse Code, Planlama modunda kendi izin kurallarını uygular; bu nedenle bu moddaki bir inceleme tam anlamıyla salt okunur değildir.",
   "reviewModeRestored": "İnceleme sona erdi: izin modu yeniden {mode}.",
@@ -3545,24 +3550,24 @@
   "reviewPaneLoading": "Değişiklikler okunuyor…",
   "reviewPaneEmpty": "Bu konuşma hiçbir dosyayı değiştirmedi.",
   "reviewPaneFiles": {
-    "other": "{count} dosya",
-    "one": "{count} dosya"
+    "one": "{count} dosya",
+    "other": "{count} dosya"
   },
   "reviewPaneHunks": {
-    "other": "{count} değişiklik",
-    "one": "{count} değişiklik"
+    "one": "{count} değişiklik",
+    "other": "{count} değişiklik"
   },
   "reviewPaneAccepted": {
-    "other": "{count} kabul edildi",
-    "one": "{count} kabul edildi"
+    "one": "{count} kabul edildi",
+    "other": "{count} kabul edildi"
   },
   "reviewPaneReverted": {
-    "other": "{count} geri alındı",
-    "one": "{count} geri alındı"
+    "one": "{count} geri alındı",
+    "other": "{count} geri alındı"
   },
   "reviewPaneOmitted": {
-    "other": "{count} düzenleme burada listelenmiyor (gösterilemeyecek kadar çok düzenleme var veya değişiklikleri okunamadı); dökümdeki satırlarından yine de açılabilir.",
-    "one": "{count} düzenleme burada listelenmiyor (gösterilemeyecek kadar çok düzenleme var veya değişikliği okunamadı); dökümdeki satırından yine de açılabilir."
+    "one": "{count} düzenleme burada listelenmiyor (gösterilemeyecek kadar çok düzenleme var veya değişikliği okunamadı); dökümdeki satırından yine de açılabilir.",
+    "other": "{count} düzenleme burada listelenmiyor (gösterilemeyecek kadar çok düzenleme var veya değişiklikleri okunamadı); dökümdeki satırlarından yine de açılabilir."
   },
   "reviewHunkLines": "Değişiklik {index}, satır {start}–{end}",
   "reviewHunkLine": "Değişiklik {index}, satır {start}",
@@ -3588,8 +3593,8 @@
   "reviewAnnounceNotReverted": "{name} geri alınmadı: {reason}",
   "reviewFindingsLabel": "İnceleme bulguları",
   "reviewFindingsHeading": {
-    "other": "{count} bulgu",
-    "one": "{count} bulgu"
+    "one": "{count} bulgu",
+    "other": "{count} bulgu"
   },
   "reviewNoFindings": "İnceleme bildirilecek bir şey bulmadı.",
   "reviewSeverities": {
@@ -3621,8 +3626,8 @@
   "paidUseAutoReviewerTitle": "Bu {tool} çağrısını otomatik inceleyici değerlendirsin mi?",
   "paidUseAutoReviewerDetail": "{action}\n\n{model} modeline yapılan ayrı bir çağrı, işlemin size sormadan çalışıp çalışamayacağını değerlendirir. Model API anahtarınıza faturalandırılır: {price}. Toplam, kullanılan tokenlara göre değişir. İzin vermezseniz bunun yerine onay kartını görürsünüz.",
   "usagePaidAutoReviews": {
-    "other": "{count} inceleme",
-    "one": "{count} inceleme"
+    "one": "{count} inceleme",
+    "other": "{count} inceleme"
   },
   "paidJudgeName": "Değerlendirici",
   "paidConfirmJudge": "Kendi sohbet modeliniz, hiçbir kuralın karara bağlamadığı her riskli Auto işlemini değerlendirir ve yalnızca dikkat ekleyebilir: hazır bir uyarı izni soruya dönüştürür ya da onay kartına not ekler. Her değerlendirme, konuşma modelinin token ücretleri üzerinden Model API anahtarınıza faturalandırılır:\n{price}\nDeğerlendirici ilk ücretlendirmeden önce bir kez onay ister; bu fiyatları ve ortak günlük bütçeyi gösterir: {budget}. Ücretsiz bir kaynaktan ücretli bir kaynağa geçişte yeniden onay ister. Muse Code’da aynı çağrılar bunun yerine aboneliğinizden çalışır.",
@@ -3654,17 +3659,17 @@
   "permissionRootInvalid": "{setting}: ek kök “{root}” mutlak bir yol değil, bu yüzden eklenmiyor.",
   "permissionRepositoryInvalid": "{setting}: deponun kuralları geçerli değil ({detail}) ve uygulanmıyor.",
   "verifyErrors": {
-    "other": "{count} hata",
-    "one": "{count} hata"
+    "one": "{count} hata",
+    "other": "{count} hata"
   },
   "verifyWarnings": {
-    "other": "{count} uyarı",
-    "one": "{count} uyarı"
+    "one": "{count} uyarı",
+    "other": "{count} uyarı"
   },
   "verifyClean": "Hata veya uyarı yok",
   "verifyUnchecked": {
-    "other": "{count} dosya denetlenmedi",
-    "one": "{count} dosya denetlenmedi"
+    "one": "{count} dosya denetlenmedi",
+    "other": "{count} dosya denetlenmedi"
   },
   "checkOutcomes": {
     "passed": "{name}: başarılı",
@@ -3689,8 +3694,8 @@
   "thenRunTimedOut": "Süre sınırında durduruldu",
   "thenRunNoExitCode": "Çıkış kodu olmadan başarısız oldu",
   "checksStoppedNotice": {
-    "other": "Denetimler art arda {count} düzeltme turundan sonra da başarısız oldu; bir sonraki mesajınıza kadar otomatik olarak çalışmayacaklar.",
-    "one": "Denetimler {count} düzeltme turundan sonra da başarısız oldu; bir sonraki mesajınıza kadar otomatik olarak çalışmayacaklar."
+    "one": "Denetimler {count} düzeltme turundan sonra da başarısız oldu; bir sonraki mesajınıza kadar otomatik olarak çalışmayacaklar.",
+    "other": "Denetimler art arda {count} düzeltme turundan sonra da başarısız oldu; bir sonraki mesajınıza kadar otomatik olarak çalışmayacaklar."
   },
   "exportThenRunLabel": "Ardından çalıştırıldı:",
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",

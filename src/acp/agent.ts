@@ -87,6 +87,7 @@ import type {
   AcpQuestionDeferral,
   AcpQuestionRegistry,
   AcpQuestionRegistryFactory,
+  AcpQueuedAnswerLease,
 } from './questionDeferral'
 import {
   acpQuestionClock,
@@ -230,6 +231,10 @@ interface PendingPrompt {
   readonly reject: (error: unknown) => void
   turnId: string | undefined
   isCancelled: boolean
+  answerLease?: AcpQueuedAnswerLease | undefined
+  userMessageId?: string
+  readonly earlyAdmissions: Set<string>
+  answerCommit?: Promise<void>
 }
 
 type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown }
@@ -504,8 +509,31 @@ class AcpSession {
   }
 
   private onEvent(event: AgentEvent): void {
-    if (event.type === 'turnStarted') this.activeTurnId = event.turnId
     switch (event.type) {
+      case 'turnStarted': {
+        this.activeTurnId = event.turnId
+        const pending = this.pending
+        if (pending?.turnId === event.turnId && pending.userMessageId === undefined) {
+          this.commitAnswers(pending)
+        }
+        return
+      }
+      case 'messageAdmitted': {
+        const pending = this.pending
+        if (pending?.answerLease === undefined) return
+        if (pending.turnId === undefined) {
+          pending.earlyAdmissions.add(event.userMessageId)
+          const [oldest] = pending.earlyAdmissions
+          if (oldest !== undefined && pending.earlyAdmissions.size > EARLY_FINISHES_KEPT) {
+            pending.earlyAdmissions.delete(oldest)
+          }
+        } else if (pending.userMessageId === event.userMessageId) this.commitAnswers(pending)
+        return
+      }
+      case 'turnWithdrawn': {
+        this.finishTurn({ ...event, type: 'turnCompleted', terminal: CANCELLED_TERMINAL })
+        return
+      }
       case 'approvalRequested': {
         this.approvals.set(event.approvalId, event)
         void this.askPermission(event)
@@ -569,7 +597,7 @@ class AcpSession {
     }
   }
 
-  private noteTurnId(turnId: string): void {
+  private noteTurnId(turnId: string, disposition: string): void {
     const pending = this.pending
     if (pending === undefined) {
       return
@@ -577,11 +605,38 @@ class AcpSession {
     pending.turnId = turnId
     const early = this.earlyFinishes.get(turnId)
     if (early === undefined) {
-      this.activeTurnId = turnId
+      if (disposition === 'started') this.activeTurnId = turnId
       return
     }
     this.earlyFinishes.delete(turnId)
-    this.settle(pending, early)
+    void this.settle(pending, early)
+  }
+
+  private commitAnswers(pending: PendingPrompt): void {
+    const lease = pending.answerLease
+    if (lease === undefined || pending.isCancelled || this.isDisposed) return
+    pending.answerLease = undefined
+    pending.answerCommit = (async () => {
+      try {
+        await this.questionRegistry?.commitQueued(lease.token)
+        if (!this.isDisposed) this.getQuestions().sentQueued()
+      } catch {
+        // The model is still running: retain pending so another prompt is busy.
+        pending.reject(RequestError.internalError(undefined, UI_TEXT.questionQueueCommitFailed))
+      }
+    })()
+  }
+
+  private async releaseAnswers(pending = this.pending): Promise<void> {
+    if (pending === undefined) return
+    const lease = pending.answerLease
+    if (lease === undefined) return
+    pending.answerLease = undefined
+    try {
+      await this.questionRegistry?.releaseQueued(lease.token)
+    } catch {
+      this.questionStateNotSaved()
+    }
   }
 
   private finishCompaction(status: string): void {
@@ -597,7 +652,7 @@ class AcpSession {
     if (wasActive) this.activeTurnId = undefined
     const pending = this.pending
     if (pending?.turnId === event.turnId) {
-      this.settle(pending, event)
+      void this.settle(pending, event)
       return
     }
     if (pending === undefined && wasActive) {
@@ -617,8 +672,10 @@ class AcpSession {
   }
 
   /** ACP's answer to the prompt: cancelled whenever the client cancelled it (as the spec requires). */
-  private settle(pending: PendingPrompt, event: TurnCompleted): void {
+  private async settle(pending: PendingPrompt, event: TurnCompleted): Promise<void> {
     this.pending = undefined
+    await this.releaseAnswers(pending)
+    await pending.answerCommit
     void this.endQuestions(pending.isCancelled || event.terminal === CANCELLED_TERMINAL).catch(
       () => {
         this.questionStateNotSaved()
@@ -1186,7 +1243,7 @@ class AcpSession {
       part?.type === 'text' &&
       part.text.trim() === `/${ACP_COMPACT_COMMAND}`
     let isUsage: boolean
-    let queued: readonly TurnPart[]
+    let lease: Awaited<ReturnType<AcpQuestionRegistry['peekQueued']>>
     let local: Awaited<ReturnType<typeof acpPlaybook>>
     try {
       local = await acpPlaybook(
@@ -1253,27 +1310,21 @@ class AcpSession {
         return 'end_turn'
       }
       isUsage = await this.usageReply(blocks, preparing)
-      queued =
-        isUsage || isCompact || local !== undefined
-          ? []
-          : ((await this.questionRegistry?.queuedParts()) ?? [])
+      if (!isUsage && !isCompact && local === undefined)
+        lease = await this.questionRegistry?.peekQueued()
     } finally {
       if (this.preparing === preparing) this.preparing = undefined
     }
     if ('error' in preparing) {
-      await this.questionRegistry?.acknowledgeQueued('notTaken')
+      if (lease !== undefined) await this.questionRegistry?.releaseQueued(lease.token)
       throw preparing.error
     }
     if (preparing.isCancelled) {
-      await this.questionRegistry?.acknowledgeQueued('notTaken')
+      if (lease !== undefined) await this.questionRegistry?.releaseQueued(lease.token)
       await this.outbox
       return 'cancelled'
     }
     if (local !== undefined) {
-      // The local command consumed no model turn, so the leased answers are
-      // restored: the next prompt re-leases them instead of failing on the
-      // outstanding lease (and a restart keeps them durable).
-      await this.questionRegistry?.acknowledgeQueued('notTaken')
       this.send({
         sessionUpdate: 'agent_message_chunk',
         content: { type: 'text', text: local.text },
@@ -1287,8 +1338,10 @@ class AcpSession {
     }
     // Outcomes are values: a host exit before turn/start answers must not
     // reject a promise that the prompt has not yet reached (Node would exit).
+    // Promise executors run synchronously; pending is assigned before sendTurn.
+    let pending!: PendingPrompt
     const finished = new Promise<PromptOutcome>((resolve) => {
-      this.pending = {
+      pending = {
         resolve: (reason) => {
           resolve({ reason })
         },
@@ -1297,8 +1350,11 @@ class AcpSession {
         },
         turnId: undefined,
         isCancelled: false,
+        earlyAdmissions: new Set(),
+        answerLease: lease,
       }
     })
+    this.pending = pending
     try {
       if (isCompact) {
         // The same AgentSession core serves interactive ACP and runExec. A
@@ -1307,26 +1363,28 @@ class AcpSession {
         this.finishCompaction(outcome.status)
       } else {
         const starting = this.session.sendTurn(
-          [...queued, ...this.withSkill(parsed.parts)],
+          [...(pending.answerLease?.parts ?? []), ...this.withSkill(parsed.parts)],
           parsed.displayText,
         )
         this.starting = starting
         const submission = await starting
-        this.noteTurnId(submission.turnId)
-        try {
-          await this.questionRegistry?.acknowledgeQueued('taken')
-          if (queued.length > 0) this.getQuestions().sentQueued()
-        } catch {
-          throw RequestError.internalError(undefined, UI_TEXT.questionAnswerUncertain)
+        if (submission.userMessageId !== undefined) pending.userMessageId = submission.userMessageId
+        this.noteTurnId(submission.turnId, submission.disposition)
+        if (submission.disposition !== 'started' && submission.disposition !== 'queued') {
+          throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
+        }
+        if (
+          this.pending === pending &&
+          (pending.userMessageId === undefined
+            ? submission.disposition === 'started' || this.activeTurnId === submission.turnId
+            : pending.earlyAdmissions.has(pending.userMessageId))
+        ) {
+          this.commitAnswers(pending)
         }
       }
     } catch (error: unknown) {
-      try {
-        await this.questionRegistry?.acknowledgeQueued('uncertain')
-      } catch {
-        this.questionStateNotSaved()
-      }
-      this.pending = undefined
+      await this.releaseAnswers(pending)
+      if (this.pending === pending) this.pending = undefined
       if (this.isDisposed) {
         // Let go while starting: a close cancels; a host exit fails.
         const outcome = await finished
@@ -1340,6 +1398,7 @@ class AcpSession {
       this.starting = undefined
     }
     const outcome = await finished
+    await pending.answerCommit
     if ('error' in outcome) {
       throw outcome.error
     }
@@ -1363,6 +1422,7 @@ class AcpSession {
     }
     if (this.pending === undefined) this.activeTurnId = undefined
     else this.pending.isCancelled = true
+    void this.releaseAnswers()
     void this.endQuestions(true).catch(() => {
       this.questionStateNotSaved()
     })
@@ -1387,6 +1447,7 @@ class AcpSession {
       this.preparing.reportAbort?.abort()
     }
     this.pending?.reject(error)
+    void this.releaseAnswers()
     this.pending = undefined
     void this.endQuestions(false).catch(() => {
       this.questionStateNotSaved()
@@ -1428,6 +1489,7 @@ class AcpSession {
     }
     this.isDisposed = true
     this.legalStop?.abort()
+    const releasingAnswers = this.releaseAnswers()
     this.questions?.dispose()
     if (this.questions === undefined) this.questionRegistry?.dispose()
     if (this.preparing !== undefined) {
@@ -1455,6 +1517,7 @@ class AcpSession {
         }
         await this.cancelTurn()
       }
+      await releasingAnswers
       this.session.dispose()
     })()
     let deadline: ReturnType<typeof setTimeout> | undefined

@@ -243,7 +243,12 @@ show status, journal evidence and settings without starting a backend or a
 model turn. Settings changes need a reason and record the owner; turning
 rules off and naming the fallback reviewer for classifier-blocked reviews
 need a real user decision. Residuals stay open per milestone until a
-lead or owner accepts them, and release refuses while any are open.
+lead or owner accepts them, and release refuses while any are open. Record
+views label legacy acceptances with no matching earlier answer as unbound
+and explain why they cover nothing. Local playbook commands leave queued
+late answers untouched; only a turn that starts with the model removes them.
+Queued turns retain them through withdrawal, Stop and process exit; Model API
+waits past submit hooks for request dispatch before announcing delivery.
 Dispatch briefs render structurally and their hashes record before dispatch.
 See the [help reference](docs/reference.md) (`Orchestrator playbook` row
 and the `playbook` CLI command), regenerated with

@@ -1,12 +1,12 @@
 import {
   playbookRecordSchema,
   type PlaybookLane,
+  type PlaybookPolicy,
   type PlaybookRecord,
   type PlaybookReportItem,
   type PlaybookWhyNote,
 } from '../../shared/playbook'
 import { UI_TEXT } from '../../shared/l10n/text'
-import type { PlaybookIntegrationPolicy } from './playbookIntegration'
 
 export type PlaybookReportKind = 'playbook' | 'milestone' | 'fleet'
 
@@ -26,6 +26,8 @@ export interface PlaybookResidualEvidence {
 }
 
 export interface PlaybookResidualAcceptance {
+  /** Position in the supplied journal, so identical legacy records stay distinct. */
+  readonly recordIndex: number
   readonly name: string
   readonly actor: 'lead' | 'owner'
   readonly reason: string
@@ -88,16 +90,21 @@ export interface PlaybookResidualRegister {
  * release while anything is open. */
 export function collectResidualRegister(
   records: readonly PlaybookRecord[],
-  lanes: readonly PlaybookLane[],
+  lanes: readonly PlaybookLane[] | undefined,
   milestoneId: string,
 ): PlaybookResidualRegister {
-  const modules = new Set(
-    lanes.filter((lane) => lane.milestoneId === milestoneId).map((lane) => lane.module.id),
-  )
+  // Record-only surfaces have no lane registry: inspect all recorded modules.
+  // Release callers always supply lanes and retain strict milestone scoping.
+  const modules =
+    lanes === undefined
+      ? undefined
+      : new Set(
+          lanes.filter((lane) => lane.milestoneId === milestoneId).map((lane) => lane.module.id),
+        )
   const placed: PlacedResidualEntry[] = []
   const acceptances: PlacedResidualAcceptance[] = []
   for (const [seq, record] of records.entries()) {
-    if (record.kind === 'round' && modules.has(record.value.module.id)) {
+    if (record.kind === 'round' && (modules === undefined || modules.has(record.value.module.id))) {
       for (const answer of record.value.answers) {
         if (answer.status !== 'residual') continue
         placed.push({
@@ -117,6 +124,7 @@ export function collectResidualRegister(
     if (record.kind !== 'residual' || record.value.milestoneId !== milestoneId) continue
     acceptances.push({
       acceptance: {
+        recordIndex: seq,
         name: record.value.name,
         actor: record.value.actor,
         reason: record.value.reason,
@@ -171,7 +179,7 @@ export function collectResidualRegister(
 /** M113 supplies its current rows, including its residual register and Needs you facts.
  * The integration preserves their payloads and applies the same ordering in all editors. */
 export function collectPlaybookReport<T extends PlaybookReportItem>(
-  policy: PlaybookIntegrationPolicy,
+  policy: Pick<PlaybookPolicy, 'orderReport'> & { getRecord(): readonly PlaybookRecord[] },
   kind: PlaybookReportKind,
   rows: readonly T[],
   showNote: (note: PlaybookWhyNote) => void,

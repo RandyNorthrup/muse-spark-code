@@ -236,6 +236,9 @@
   "playbookFallbackReviewer": "Запасной проверяющий для проверок, заблокированных классификатором: {reviewer}",
   "playbookFallbackNone": "Запасной проверяющий не назначен",
   "playbookResidualAccepted": "Остаточный пункт принят",
+  "playbookRecordHelp": "Показать раунды проверки, проектные решения, отказы по безопасности, настройки и причины непривязанных принятий.",
+  "playbookResidualUnbound": "Непривязанное принятие остаточной проблемы",
+  "playbookResidualUnboundReason": "Ни одна предыдущая остаточная проблема не соответствует времени и свидетельствам этого принятия. Оно не охватывает ни одной остаточной проблемы.",
   "playbookLeaseRecord": "Аренда исправления {status}: {module} ({lane})",
   "playbookWorkRecord": "Работа {id} над {module}: базовых коммитов: {commits}",
   "playbookVerificationRecord": "Проверка хуков {result} для {commit} ({scope})",
@@ -253,9 +256,9 @@
   "playbookSaved": "Настройки регламента сохранены.",
   "playbookStrikeBadge": {
     "one": "{count} раунд ревью",
+    "other": "{count} раунда ревью",
     "few": "{count} раунда ревью",
-    "many": "{count} раундов ревью",
-    "other": "{count} раунда ревью"
+    "many": "{count} раундов ревью"
   },
   "playbookRules": {
     "threeStrikes": "Перепроектировать после трёх неудачных раундов",
@@ -548,15 +551,15 @@
     },
     "endAfterRuns": {
       "one": "Завершить после {count} запуска",
+      "other": "Завершить после {count} запуска",
       "few": "Завершить после {count} запусков",
-      "many": "Завершить после {count} запусков",
-      "other": "Завершить после {count} запуска"
+      "many": "Завершить после {count} запусков"
     },
     "historyPreview": {
       "one": "Запустилось бы {count} раз за {days} дней",
+      "other": "Запустилось бы {count} раза за {days} дней",
       "few": "Запустилось бы {count} раза за {days} дней",
-      "many": "Запустилось бы {count} раз за {days} дней",
-      "other": "Запустилось бы {count} раза за {days} дней"
+      "many": "Запустилось бы {count} раз за {days} дней"
     }
   },
   "paidDailyBudgetLine": "Общий дневной бюджет интерактивных платных дополнений: {budget}. У Tab свой отдельный бюджет.",
@@ -915,28 +918,28 @@
   "exportPreviewFull": "Сохранить без скрытия…",
   "exportPreviewOpen": "Файл со скрытыми данными открыт в редакторе. Ничего не записывается, пока вы не выберете.",
   "exportPreviewMessages": {
-    "few": "{count} сообщения в этой беседе",
-    "many": "{count} сообщений в этой беседе",
     "one": "{count} сообщение в этой беседе",
-    "other": "{count} сообщения в этой беседе"
+    "other": "{count} сообщения в этой беседе",
+    "few": "{count} сообщения в этой беседе",
+    "many": "{count} сообщений в этой беседе"
   },
   "exportPreviewPaths": {
-    "few": "{count} пути скрыты",
-    "many": "{count} путей скрыто",
     "one": "{count} путь скрыт",
-    "other": "{count} пути скрыты"
+    "other": "{count} пути скрыты",
+    "few": "{count} пути скрыты",
+    "many": "{count} путей скрыто"
   },
   "exportPreviewAccounts": {
-    "few": "{count} идентификатора учётной записи скрыты",
-    "many": "{count} идентификаторов учётной записи скрыто",
     "one": "{count} идентификатор учётной записи скрыт",
-    "other": "{count} идентификатора учётной записи скрыты"
+    "other": "{count} идентификатора учётной записи скрыты",
+    "few": "{count} идентификатора учётной записи скрыты",
+    "many": "{count} идентификаторов учётной записи скрыто"
   },
   "exportPreviewSecrets": {
-    "few": "{count} секрета или хеша ключа удалены",
-    "many": "{count} секретов или хешей ключей удалено",
     "one": "{count} секрет или хеш ключа удалён",
-    "other": "{count} секрета или хеша ключа удалены"
+    "other": "{count} секрета или хеша ключа удалены",
+    "few": "{count} секрета или хеша ключа удалены",
+    "many": "{count} секретов или хешей ключей удалено"
   },
   "exportPreviewKnownCredentials": "Учётные данные известных видов (ключи API, токены, пароли, закрытые ключи) и хеш ключа всегда удаляются. Секрет другого вида останется: прочитайте файл, прежде чем делиться им.",
   "exportTooLarge": "Эта беседа слишком длинная для файла экспорта сеанса.",
@@ -972,10 +975,10 @@
   "mcpUnreadable": "Не удалось прочитать файл настроек Muse Code:",
   "mcpNone": "В {path} не настроено ни одного сервера MCP",
   "mcpCount": {
-    "few": "{count} сервера MCP в {path}",
-    "many": "{count} серверов MCP в {path}",
     "one": "{count} сервер MCP в {path}",
-    "other": "{count} сервера MCP в {path}"
+    "other": "{count} сервера MCP в {path}",
+    "few": "{count} сервера MCP в {path}",
+    "many": "{count} серверов MCP в {path}"
   },
   "mcpOptional": "необязательный",
   "mcpRequired": "обязательный (при его сбое Muse Code останавливается)",
@@ -1005,16 +1008,16 @@
   "mcpStateNotStarted": "Запустится с вашим следующим сообщением",
   "mcpStateStarting": "Запуск…",
   "mcpStateConnected": {
-    "few": "Подключен: {count} инструмента",
-    "many": "Подключен: {count} инструментов",
     "one": "Подключен: {count} инструмент",
-    "other": "Подключен: {count} инструмента"
+    "other": "Подключен: {count} инструмента",
+    "few": "Подключен: {count} инструмента",
+    "many": "Подключен: {count} инструментов"
   },
   "mcpStateUnoffered": {
-    "few": "еще {count} не предлагаются",
-    "many": "еще {count} не предлагаются",
     "one": "еще {count} не предлагается",
-    "other": "еще {count} не предлагается"
+    "other": "еще {count} не предлагается",
+    "few": "еще {count} не предлагаются",
+    "many": "еще {count} не предлагаются"
   },
   "mcpStateFailed": "Не работает: {reason}",
   "mcpStateRestricted": "Не запущен: эта рабочая область находится в ограниченном режиме",
@@ -1070,10 +1073,10 @@
   "hooksUserBlock": "settings.json › hooks",
   "hooksUserNone": "В ваших настройках их нет",
   "hooksUserCount": {
-    "few": "{count} хука в ваших настройках",
-    "many": "{count} хуков в ваших настройках",
     "one": "{count} хук в ваших настройках",
-    "other": "{count} хука в ваших настройках"
+    "other": "{count} хука в ваших настройках",
+    "few": "{count} хука в ваших настройках",
+    "many": "{count} хуков в ваших настройках"
   },
   "hooksManaged": "Управляемые хуки",
   "hooksManagedKey": "managed_hooks_path",
@@ -1088,9 +1091,9 @@
   "hooksSparkUserNone": "У вас нет spark-hooks.json.",
   "hooksSparkCount": {
     "one": "{count} хук в {file}",
+    "other": "{count} хука в {file}",
     "few": "{count} хука в {file}",
-    "many": "{count} хуков в {file}",
-    "other": "{count} хука в {file}"
+    "many": "{count} хуков в {file}"
   },
   "hooksSparkAbout": "Muse Code никогда не читает этот файл. В нём хранятся события, которые выполняет только это расширение, и хуки, импортированные из других агентов.",
   "hooksBackendMuseCode": "Выполняет Muse Code",
@@ -1112,18 +1115,18 @@
   "hookTeammateKept": "Хук заставил {name} продолжить работу: {reason}",
   "hookFileChangedPaused": {
     "one": "Хуки FileChanged приостановлены на минуту: поступило больше {count} изменения.",
+    "other": "Хуки FileChanged приостановлены на минуту: поступило больше {count} изменения.",
     "few": "Хуки FileChanged приостановлены на минуту: поступило больше {count} изменений.",
-    "many": "Хуки FileChanged приостановлены на минуту: поступило больше {count} изменений.",
-    "other": "Хуки FileChanged приостановлены на минуту: поступило больше {count} изменения."
+    "many": "Хуки FileChanged приостановлены на минуту: поступило больше {count} изменений."
   },
   "hookCorrectionRefused": "Исправленный хуком вызов отклонён: {reason}",
   "hookCorrectionOtherTool": "он указывает другой инструмент",
   "hookCorrectionOutside": "он выходит за пределы рабочей области",
   "hookCorrectionTooDeep": {
     "one": "он превысил предел в {count} исправление подряд",
+    "other": "он превысил предел в {count} исправления подряд",
     "few": "он превысил предел в {count} исправления подряд",
-    "many": "он превысил предел в {count} исправлений подряд",
-    "other": "он превысил предел в {count} исправления подряд"
+    "many": "он превысил предел в {count} исправлений подряд"
   },
   "hookToolRemoved": "хук убрал этот инструмент на этот ход",
   "hookMessageEdited": "Изменено хуком",
@@ -1132,9 +1135,9 @@
   "setupHooksNone": "В spark-hooks.json не настроено ни одного хука Setup.",
   "setupHooksRan": {
     "one": "Выполнен {count} хук Setup.",
+    "other": "Выполнено {count} хука Setup.",
     "few": "Выполнено {count} хука Setup.",
-    "many": "Выполнено {count} хуков Setup.",
-    "other": "Выполнено {count} хука Setup."
+    "many": "Выполнено {count} хуков Setup."
   },
   "setupHooksFailed": "Сбой хука Setup: {reason}",
   "manualHookPick": "Какой хук запустить?",
@@ -1175,10 +1178,10 @@
   "memoryTitle": "Память Muse",
   "memoryNone": "Для этой рабочей области пока нет заметок в памяти",
   "memoryCount": {
-    "few": "{count} заметки в памяти",
-    "many": "{count} заметок в памяти",
     "one": "{count} заметка в памяти",
-    "other": "{count} заметки в памяти"
+    "other": "{count} заметки в памяти",
+    "few": "{count} заметки в памяти",
+    "many": "{count} заметок в памяти"
   },
   "memoryIndexDetail": "Индекс, который Muse читает в начале каждого сеанса",
   "memoryNewNote": "Новая заметка…",
@@ -1271,9 +1274,9 @@
   "gitPushFirstPush": "Первая отправка: ветвь будет создана там и с этого момента будет отслеживаться.",
   "gitPushCommits": {
     "one": "Будет отправлена {count} фиксация.",
+    "other": "Будут отправлены {count} фиксации.",
     "few": "Будут отправлены {count} фиксации.",
-    "many": "Будут отправлены {count} фиксаций.",
-    "other": "Будут отправлены {count} фиксации."
+    "many": "Будут отправлены {count} фиксаций."
   },
   "gitPushNeverForce": "Никакой принудительной отправки: разошедшаяся ветвь отклоняется.",
   "gitPushAction": "Отправить",
@@ -1303,23 +1306,23 @@
   "gitChangeCounts": "{staged}, {unstaged}",
   "gitStagedCount": {
     "one": "в индексе: {count}",
+    "other": "в индексе: {count}",
     "few": "в индексе: {count}",
-    "many": "в индексе: {count}",
-    "other": "в индексе: {count}"
+    "many": "в индексе: {count}"
   },
   "gitUnstagedCount": {
     "one": "не в индексе: {count}",
+    "other": "не в индексе: {count}",
     "few": "не в индексе: {count}",
-    "many": "не в индексе: {count}",
-    "other": "не в индексе: {count}"
+    "many": "не в индексе: {count}"
   },
   "gitFileStaged": "в индексе",
   "gitFileUnstaged": "не в индексе",
   "gitMoreFiles": {
     "one": "и еще {count} файл",
+    "other": "и еще {count} файла",
     "few": "и еще {count} файла",
-    "many": "и еще {count} файлов",
-    "other": "и еще {count} файла"
+    "many": "и еще {count} файлов"
   },
   "gitMessageLabel": "Сообщение фиксации",
   "gitIncludeUnstaged": "Включить непроиндексированные изменения и новые файлы",
@@ -1346,9 +1349,9 @@
   "gitPrPushFirst": "Сначала ветвь будет отправлена в {remote} (первая отправка); вас спросят.",
   "gitPrPushCommits": {
     "one": "Сначала {count} фиксация будет отправлена в {remote}; вас спросят.",
+    "other": "Сначала {count} фиксации будут отправлены в {remote}; вас спросят.",
     "few": "Сначала {count} фиксации будут отправлены в {remote}; вас спросят.",
-    "many": "Сначала {count} фиксаций будут отправлены в {remote}; вас спросят.",
-    "other": "Сначала {count} фиксации будут отправлены в {remote}; вас спросят."
+    "many": "Сначала {count} фиксаций будут отправлены в {remote}; вас спросят."
   },
   "gitPrBehind": "Ветвь отстает от upstream: запрос на вытягивание показывает то, что уже отправлено.",
   "gitPullRequestLabel": "Запрос на вытягивание этой беседы",
@@ -1361,39 +1364,39 @@
   "gitChecksNone": "нет данных",
   "gitChecksPassed": {
     "one": "пройдено: {count}",
+    "other": "пройдено: {count}",
     "few": "пройдено: {count}",
-    "many": "пройдено: {count}",
-    "other": "пройдено: {count}"
+    "many": "пройдено: {count}"
   },
   "gitChecksFailed": {
     "one": "не пройдено: {count}",
+    "other": "не пройдено: {count}",
     "few": "не пройдено: {count}",
-    "many": "не пройдено: {count}",
-    "other": "не пройдено: {count}"
+    "many": "не пройдено: {count}"
   },
   "gitChecksRunning": {
     "one": "выполняется: {count}",
+    "other": "выполняется: {count}",
     "few": "выполняется: {count}",
-    "many": "выполняется: {count}",
-    "other": "выполняется: {count}"
+    "many": "выполняется: {count}"
   },
   "gitChecksSkipped": {
     "one": "пропущено: {count}",
+    "other": "пропущено: {count}",
     "few": "пропущено: {count}",
-    "many": "пропущено: {count}",
-    "other": "пропущено: {count}"
+    "many": "пропущено: {count}"
   },
   "gitChecksCancelled": {
     "one": "отменено: {count}",
+    "other": "отменено: {count}",
     "few": "отменено: {count}",
-    "many": "отменено: {count}",
-    "other": "отменено: {count}"
+    "many": "отменено: {count}"
   },
   "gitChecksNotRead": {
     "one": "еще не прочитано: {count}",
+    "other": "еще не прочитано: {count}",
     "few": "еще не прочитано: {count}",
-    "many": "еще не прочитано: {count}",
-    "other": "еще не прочитано: {count}"
+    "many": "еще не прочитано: {count}"
   },
   "gitStatusNeedsSignIn": "Войдите в GitHub, чтобы увидеть статус.",
   "gitCheckedAt": "по состоянию на {time}",
@@ -1662,9 +1665,9 @@
   },
   "reportRowsMore": {
     "one": "Ещё {count} строка",
+    "other": "Ещё {count} строки",
     "few": "Ещё {count} строки",
-    "many": "Ещё {count} строк",
-    "other": "Ещё {count} строки"
+    "many": "Ещё {count} строк"
   },
   "reportCliUsage": "Создать детерминированный отчёт из указанных источников без вызова модели.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportIssue": "Сообщить о проблеме…",
@@ -1726,10 +1729,10 @@
   "pdfLabel": "PDF",
   "toolReadPdf": "Прочитан PDF `{path}` ({pages}, {bytes} байт)",
   "toolReadPdfPages": {
-    "few": "{count} страницы",
-    "many": "{count} страниц",
     "one": "{count} страница",
-    "other": "{count} страницы"
+    "other": "{count} страницы",
+    "few": "{count} страницы",
+    "many": "{count} страниц"
   },
   "toolReadPdfPagesUnknown": "Количество страниц неизвестно",
   "toolReadImage": "Прочитано изображение `{path}` ({mediaType}, {width}×{height}, {bytes} байт)",
@@ -1793,22 +1796,22 @@
   "browserRuntimeReady": "Браузер для проверки в браузере {version} готов.",
   "browserCheckDone": "Проверено {url}: {errors}, {failed}, {blocked}",
   "browserCheckConsoleErrors": {
-    "few": "{count} ошибки консоли",
-    "many": "{count} ошибок консоли",
     "one": "{count} ошибка консоли",
-    "other": "{count} ошибки консоли"
+    "other": "{count} ошибки консоли",
+    "few": "{count} ошибки консоли",
+    "many": "{count} ошибок консоли"
   },
   "browserCheckFailedRequests": {
-    "few": "{count} неудачных запроса",
-    "many": "{count} неудачных запросов",
     "one": "{count} неудачный запрос",
-    "other": "{count} неудачного запроса"
+    "other": "{count} неудачного запроса",
+    "few": "{count} неудачных запроса",
+    "many": "{count} неудачных запросов"
   },
   "browserCheckBlockedRequests": {
-    "few": "{count} заблокированных запроса за пределы этого компьютера",
-    "many": "{count} заблокированных запросов за пределы этого компьютера",
     "one": "{count} заблокированный запрос за пределы этого компьютера",
-    "other": "{count} заблокированного запроса за пределы этого компьютера"
+    "other": "{count} заблокированного запроса за пределы этого компьютера",
+    "few": "{count} заблокированных запроса за пределы этого компьютера",
+    "many": "{count} заблокированных запросов за пределы этого компьютера"
   },
   "browserCheckUrlRefused": "Открыть можно только адрес http:// или https:// с простым именем узла или IP-адресом, без имени пользователя и пароля.",
   "browserCheckInvalidArguments": "Проверку в браузере запросили с недопустимыми аргументами, поэтому ничего не открыто.",
@@ -1857,16 +1860,16 @@
   "thoughtFor": "Размышление заняло {duration}",
   "thinkingNow": "Идет размышление",
   "addedLines": {
-    "few": "Добавлено {count} строки",
-    "many": "Добавлено {count} строк",
     "one": "Добавлена {count} строка",
-    "other": "Добавлено {count} строки"
+    "other": "Добавлено {count} строки",
+    "few": "Добавлено {count} строки",
+    "many": "Добавлено {count} строк"
   },
   "removedLines": {
-    "few": "Удалено {count} строки",
-    "many": "Удалено {count} строк",
     "one": "Удалена {count} строка",
-    "other": "Удалено {count} строки"
+    "other": "Удалено {count} строки",
+    "few": "Удалено {count} строки",
+    "many": "Удалено {count} строк"
   },
   "modified": "Изменено",
   "inLabel": "ВХ",
@@ -1890,10 +1893,10 @@
   "approvalBrowserCheckWidenResidual": "Разрешение также позволит этой проверке обращаться к узлу по https и через WebSocket. Этот трафик зашифрован, поэтому расширение не может его проверить, а сайт на этом узле может выполнить вход от вашего имени с учётной записью этого компьютера (особенно в Windows).",
   "approvalImageSources": "На основе {paths}",
   "renameCardMore": {
-    "few": "{files} и ещё {count} файла",
-    "many": "{files} и ещё {count} файлов",
     "one": "{files} и ещё {count} файл",
-    "other": "{files} и ещё {count} файла"
+    "other": "{files} и ещё {count} файла",
+    "few": "{files} и ещё {count} файла",
+    "many": "{files} и ещё {count} файлов"
   },
   "codeIntelNoService": "Ни одна языковая служба не ответила для {path}, или файл не объявляет символов.",
   "codeIntelTimedOut": "Языковая служба не ответила в течение {seconds} с.",
@@ -1910,10 +1913,10 @@
   "approvalDecided": "Решение принято",
   "approvalDockLabel": "Ожидает вашего одобрения",
   "approvalDockCount": {
-    "few": "Ожидают {count} одобрения",
-    "many": "Ожидают {count} одобрений",
     "one": "Ожидает {count} одобрение",
-    "other": "Ожидают {count} одобрения"
+    "other": "Ожидают {count} одобрения",
+    "few": "Ожидают {count} одобрения",
+    "many": "Ожидают {count} одобрений"
   },
   "approvalDockedNote": "Ожидает вашего одобрения, в карточке над полем сообщения",
   "questionSubmit": "Отправить",
@@ -1954,6 +1957,8 @@
   "questionNoOpen": "Нет открытых вопросов.",
   "questionAnswerFailed": "Не удалось отправить ответ. Попробуйте ещё раз.",
   "questionAnswerUncertain": "Ваш ответ мог дойти до Muse. Он не будет отправлен повторно.",
+  "questionQueueLeaseFailed": "Изменилось владение ответами в очереди. Повторите после завершения текущего запроса.",
+  "questionQueueCommitFailed": "Запрос отправлен, но ответы не удалось сохранить как доставленные. Они остаются в очереди и могут быть отправлены повторно.",
   "questionDismissFailed": "Не удалось закрыть вопрос.",
   "acpOpenQuestionAsked": "У Muse есть вопрос; этот редактор не может показать форму. Вы можете ответить позже с помощью /answer.",
   "acpQuestionDeferred": "Вопрос {number} открыт. Ответьте с помощью /answer {number} <text>.",
@@ -1965,15 +1970,15 @@
   "acpQuestionsHelp": "Показать открытые вопросы в этом разговоре.",
   "openQuestionsCount": {
     "one": "{count} открытый вопрос",
+    "other": "{count} открытого вопроса",
     "few": "{count} открытых вопроса",
-    "many": "{count} открытых вопросов",
-    "other": "{count} открытого вопроса"
+    "many": "{count} открытых вопросов"
   },
   "openQuestionsTabCount": {
     "one": "{count} открытый",
+    "other": "{count} открытого",
     "few": "{count} открытых",
-    "many": "{count} открытых",
-    "other": "{count} открытого"
+    "many": "{count} открытых"
   },
   "clarifyNotAccepted": "Объяснение не принято",
   "messageActions": "Действия с сообщением",
@@ -2003,52 +2008,52 @@
   "tasksTabEnded": "Беседа, к которой относится этот список, была закрыта.",
   "stepSummary": {
     "edited": {
-      "few": "изменено {count} файла",
-      "many": "изменено {count} файлов",
       "one": "изменён {count} файл",
-      "other": "изменено {count} файла"
+      "other": "изменено {count} файла",
+      "few": "изменено {count} файла",
+      "many": "изменено {count} файлов"
     },
     "read": {
-      "few": "прочитано {count} файла",
-      "many": "прочитано {count} файлов",
       "one": "прочитан {count} файл",
-      "other": "прочитано {count} файла"
+      "other": "прочитано {count} файла",
+      "few": "прочитано {count} файла",
+      "many": "прочитано {count} файлов"
     },
     "searched": {
-      "few": "выполнен поиск в {count} папках",
-      "many": "выполнен поиск в {count} папках",
       "one": "выполнен поиск в {count} папке",
-      "other": "выполнен поиск в {count} папках"
+      "other": "выполнен поиск в {count} папках",
+      "few": "выполнен поиск в {count} папках",
+      "many": "выполнен поиск в {count} папках"
     },
     "ran": {
-      "few": "выполнено {count} команды",
-      "many": "выполнено {count} команд",
       "one": "выполнена {count} команда",
-      "other": "выполнено {count} команды"
+      "other": "выполнено {count} команды",
+      "few": "выполнено {count} команды",
+      "many": "выполнено {count} команд"
     },
     "fetched": {
-      "few": "получено {count} страницы",
-      "many": "получено {count} страниц",
       "one": "получена {count} страница",
-      "other": "получено {count} страницы"
+      "other": "получено {count} страницы",
+      "few": "получено {count} страницы",
+      "many": "получено {count} страниц"
     },
     "searchedWeb": {
-      "few": "выполнен поиск в Интернете {count} раза",
-      "many": "выполнен поиск в Интернете {count} раз",
       "one": "выполнен поиск в Интернете {count} раз",
-      "other": "выполнен поиск в Интернете {count} раза"
+      "other": "выполнен поиск в Интернете {count} раза",
+      "few": "выполнен поиск в Интернете {count} раза",
+      "many": "выполнен поиск в Интернете {count} раз"
     },
     "used": {
-      "few": "использовано {count} инструмента",
-      "many": "использовано {count} инструментов",
       "one": "использован {count} инструмент",
-      "other": "использовано {count} инструмента"
+      "other": "использовано {count} инструмента",
+      "few": "использовано {count} инструмента",
+      "many": "использовано {count} инструментов"
     },
     "failed": {
-      "few": "не удалось: {count}",
-      "many": "не удалось: {count}",
       "one": "не удался: {count}",
-      "other": "не удалось: {count}"
+      "other": "не удалось: {count}",
+      "few": "не удалось: {count}",
+      "many": "не удалось: {count}"
     }
   },
   "contextMeterLabel": "Контекст использован на {percent}",
@@ -2080,10 +2085,10 @@
   "noEditorForApply": "Откройте текстовый редактор, чтобы применить к нему код.",
   "diffTitleSuffix": "правка Muse",
   "diffTallyFiles": {
-    "few": "Изменено {count} файла",
-    "many": "Изменено {count} файлов",
     "one": "Изменён {count} файл",
-    "other": "Изменено {count} файла"
+    "other": "Изменено {count} файла",
+    "few": "Изменено {count} файла",
+    "many": "Изменено {count} файлов"
   },
   "diffTallyLines": "+{added} −{removed}",
   "diffTallyLabel": "Изменения в этой беседе",
@@ -2108,10 +2113,10 @@
   "historyCurrent": "текущий",
   "historyForkMark": "ответвление",
   "historyTurns": {
-    "few": "{count} хода",
-    "many": "{count} ходов",
     "one": "{count} ход",
-    "other": "{count} хода"
+    "other": "{count} хода",
+    "few": "{count} хода",
+    "many": "{count} ходов"
   },
   "resumeItem": "Возобновить",
   "resumeDetail": "Выбрать предыдущую беседу в этой рабочей области",
@@ -2124,10 +2129,10 @@
   "forkAndRewind": "Ответвить беседу и откатить код",
   "rewindNothing": "После этого сообщения нет правок для отката.",
   "rewindDone": {
-    "few": "Код откачен до этого сообщения ({count} правки)",
-    "many": "Код откачен до этого сообщения ({count} правок)",
     "one": "Код откачен до этого сообщения ({count} правка)",
-    "other": "Код откачен до этого сообщения ({count} правки)"
+    "other": "Код откачен до этого сообщения ({count} правки)",
+    "few": "Код откачен до этого сообщения ({count} правки)",
+    "many": "Код откачен до этого сообщения ({count} правок)"
   },
   "forkedNotice": "Ответвлено в новую беседу.",
   "rewindImagesUnavailable": "Не удалось восстановить некоторые изображения из этого сообщения.",
@@ -2152,28 +2157,28 @@
   "restoreBothConfirmAction": "Восстановить и откатить",
   "rewindNotDone": "Беседа не была откачена.",
   "restoreDone": {
-    "few": "Восстановлено {count} файла до состояния перед этим сообщением.",
-    "many": "Восстановлено {count} файлов до состояния перед этим сообщением.",
     "one": "Восстановлен {count} файл до состояния перед этим сообщением.",
-    "other": "Восстановлено {count} файла до состояния перед этим сообщением."
+    "other": "Восстановлено {count} файла до состояния перед этим сообщением.",
+    "few": "Восстановлено {count} файла до состояния перед этим сообщением.",
+    "many": "Восстановлено {count} файлов до состояния перед этим сообщением."
   },
   "restoreNothing": "Ни один файл не нужно было восстанавливать.",
   "redoNothing": "Больше нечего возвращать.",
   "redoDone": {
-    "few": "Возвращено {count} файла.",
-    "many": "Возвращено {count} файлов.",
     "one": "Возвращен {count} файл.",
-    "other": "Возвращено {count} файла."
+    "other": "Возвращено {count} файла.",
+    "few": "Возвращено {count} файла.",
+    "many": "Возвращено {count} файлов."
   },
   "redoAction": "Повторить",
   "redoLabel": "Повторить: вернуть файлы, замененные этим восстановлением",
   "redoGone": "Это восстановление больше нельзя повторить.",
   "noticeRepeatBadge": "{count}×",
   "noticeRepeated": {
-    "few": "Показано {count} раза",
-    "many": "Показано {count} раз",
     "one": "Показано {count} раз",
-    "other": "Показано {count} раза"
+    "other": "Показано {count} раза",
+    "few": "Показано {count} раза",
+    "many": "Показано {count} раз"
   },
   "restoreRefusedUnsaved": "Оставлены как есть, с несохраненными изменениями: {files}",
   "restoreRefusedChanged": "Оставлены как есть, за это время изменены чем-то другим: {files}",
@@ -2184,10 +2189,10 @@
   "restoreRefusedTooLarge": "Нельзя восстановить: слишком велики для сохранения копии: {files}",
   "restoreRefusedFailed": "Не удалось изменить: {files}",
   "restoreUnchanged": {
-    "few": "Уже как раньше: {count} файла.",
-    "many": "Уже как раньше: {count} файлов.",
     "one": "Уже как раньше: {count} файл.",
-    "other": "Уже как раньше: {count} файла."
+    "other": "Уже как раньше: {count} файла.",
+    "few": "Уже как раньше: {count} файла.",
+    "many": "Уже как раньше: {count} файлов."
   },
   "restoreWritesIncomplete": "Ничего не восстановлено: некоторые правки этих ходов записаны не полностью (перезагрузка или сбой во время редактирования либо файловые контрольные точки были отключены).",
   "restoreLegacyInRange": "Ничего не восстановлено: некоторые из этих ходов записаны предыдущей версией, из которой эта версия не может восстановить файлы.",
@@ -2364,10 +2369,10 @@
   "plansItemDetail": "Сохранённые планы в .agents/plans: откройте план или выполните его",
   "plansTitle": "Планы",
   "plansCount": {
-    "few": "{count} сохранённых плана",
-    "many": "{count} сохранённых планов",
     "one": "{count} сохранённый план",
-    "other": "{count} сохранённого плана"
+    "other": "{count} сохранённого плана",
+    "few": "{count} сохранённых плана",
+    "many": "{count} сохранённых планов"
   },
   "plansNone": "Сохранённых планов пока нет. Сохраните план из ответа в режиме планирования.",
   "plansFailed": "Не удалось получить список планов",
@@ -2402,10 +2407,10 @@
   "signedOutNotice": "Выполнен выход из Muse Spark.",
   "agentsPillTitle": "Показать карту агентов",
   "agentsCount": {
-    "few": "{count} агента",
-    "many": "{count} агентов",
     "one": "{count} агент",
-    "other": "{count} агента"
+    "other": "{count} агента",
+    "few": "{count} агента",
+    "many": "{count} агентов"
   },
   "backgroundTasksPillTitle": "Показать фоновые задачи",
   "agentMapTitle": "Карта агентов",
@@ -2433,15 +2438,15 @@
     "queuePosition": "Позиция {position} в очереди: {reason}",
     "workerCount": {
       "one": "{count} исполнитель",
+      "other": "{count} исполнителя",
       "few": "{count} исполнителя",
-      "many": "{count} исполнителей",
-      "other": "{count} исполнителя"
+      "many": "{count} исполнителей"
     },
     "machineLoad": {
       "one": "{count} окно запускает {workers} на этой машине.",
+      "other": "{count} окна запускают {workers} на этой машине.",
       "few": "{count} окна запускают {workers} на этой машине.",
-      "many": "{count} окон запускают {workers} на этой машине.",
-      "other": "{count} окна запускают {workers} на этой машине."
+      "many": "{count} окон запускают {workers} на этой машине."
     },
     "board": "Доска задач",
     "lanes": "Слоты выполнения",
@@ -2688,10 +2693,10 @@
   "workflowChildUntitled": "Агент {number}",
   "workflowAttempt": "попытка {attempt}",
   "workflowsCount": {
-    "few": "{count} рабочих процесса",
-    "many": "{count} рабочих процессов",
     "one": "{count} рабочий процесс",
-    "other": "{count} рабочего процесса"
+    "other": "{count} рабочего процесса",
+    "few": "{count} рабочих процесса",
+    "many": "{count} рабочих процессов"
   },
   "workflowsLabel": "Рабочие процессы",
   "workflowTriggerModes": {
@@ -2704,10 +2709,10 @@
   "workflowLaunched": "Запущен: выполняется в фоновом режиме и сообщит результат в этой беседе.",
   "workflowScriptSaved": "Скрипт сохранен в {path}",
   "backgroundTasksCount": {
-    "few": "{count} фоновые задачи",
-    "many": "{count} фоновых задач",
     "one": "{count} фоновая задача",
-    "other": "{count} фоновой задачи"
+    "other": "{count} фоновой задачи",
+    "few": "{count} фоновые задачи",
+    "many": "{count} фоновых задач"
   },
   "backgroundTasksLabel": "Фоновые задачи",
   "backgroundBadge": "фоновая",
@@ -2726,15 +2731,15 @@
   "teamMergeNoPaths": "Нет",
   "teamRunningCount": {
     "one": "{count} выполняется",
+    "other": "{count} выполняются",
     "few": "{count} выполняются",
-    "many": "{count} выполняются",
-    "other": "{count} выполняются"
+    "many": "{count} выполняются"
   },
   "teamMergeMorePaths": {
     "one": "и ещё {count}",
+    "other": "и ещё {count}",
     "few": "и ещё {count}",
-    "many": "и ещё {count}",
-    "other": "и ещё {count}"
+    "many": "и ещё {count}"
   },
   "teamOrchestrator": "Оркестратор",
   "teamOrchestratorDefault": "По умолчанию",
@@ -2761,9 +2766,9 @@
   "teamInterruptedGroup": "Прервано",
   "teamTasksCount": {
     "one": "{count} задача команды",
+    "other": "{count} задачи команды",
     "few": "{count} задачи команды",
-    "many": "{count} задач команды",
-    "other": "{count} задачи команды"
+    "many": "{count} задач команды"
   },
   "teamPlanTitle": "План делегирования",
   "teamPlanDelegated": "Делегировано",
@@ -2825,16 +2830,16 @@
   "usageInsightNoLogs": "На этом компьютере пока не найдено журналов трассировки Muse Code.",
   "usageInsightTotals": "{attempts} за {sessions}",
   "modelAttemptsCount": {
-    "few": "{count} попытки модели",
-    "many": "{count} попыток модели",
     "one": "{count} попытка модели",
-    "other": "{count} попытки модели"
+    "other": "{count} попытки модели",
+    "few": "{count} попытки модели",
+    "many": "{count} попыток модели"
   },
   "sessionsCount": {
-    "few": "{count} сеанса",
-    "many": "{count} сеансов",
     "one": "{count} сеанс",
-    "other": "{count} сеанса"
+    "other": "{count} сеанса",
+    "few": "{count} сеанса",
+    "many": "{count} сеансов"
   },
   "durationNow": "сейчас",
   "contextCompactTitle": "Щелкните, чтобы сжать сейчас",
@@ -3010,10 +3015,10 @@
   "scheduleRepeats": "Повторяется",
   "scheduleNextRun": "Следующий запуск: {date}",
   "scheduleFired": {
-    "few": "Запущен {count} раза",
-    "many": "Запущен {count} раз",
     "one": "Запущен {count} раз",
-    "other": "Запущен {count} раза"
+    "other": "Запущен {count} раза",
+    "few": "Запущен {count} раза",
+    "many": "Запущен {count} раз"
   },
   "scheduleNone": "Нет запланированных запросов",
   "loopItem": "/loop",
@@ -3083,28 +3088,28 @@
   },
   "importNothingFrom": "Нет навыков для импорта из {source}.",
   "importInstalledSummary": {
-    "few": "Импортировано {count} навыка: {skills}",
-    "many": "Импортировано {count} навыков: {skills}",
     "one": "Импортирован {count} навык: {skills}",
-    "other": "Импортировано {count} навыка: {skills}"
+    "other": "Импортировано {count} навыка: {skills}",
+    "few": "Импортировано {count} навыка: {skills}",
+    "many": "Импортировано {count} навыков: {skills}"
   },
   "importSkippedSummary": {
-    "few": "Пропущено {count} навыка: {skills}",
-    "many": "Пропущено {count} навыков: {skills}",
     "one": "Пропущен {count} навык: {skills}",
-    "other": "Пропущено {count} навыка: {skills}"
+    "other": "Пропущено {count} навыка: {skills}",
+    "few": "Пропущено {count} навыка: {skills}",
+    "many": "Пропущено {count} навыков: {skills}"
   },
   "importQuarantinedSummary": {
-    "few": "Помещено в карантин {count} навыка: {skills}",
-    "many": "Помещено в карантин {count} навыков: {skills}",
     "one": "Помещен в карантин {count} навык: {skills}",
-    "other": "Помещено в карантин {count} навыка: {skills}"
+    "other": "Помещено в карантин {count} навыка: {skills}",
+    "few": "Помещено в карантин {count} навыка: {skills}",
+    "many": "Помещено в карантин {count} навыков: {skills}"
   },
   "importFailedSummary": {
-    "few": "Не удалось импортировать {count} навыка: {skills}",
-    "many": "Не удалось импортировать {count} навыков: {skills}",
     "one": "Не удалось импортировать {count} навык: {skills}",
-    "other": "Не удалось импортировать {count} навыка: {skills}"
+    "other": "Не удалось импортировать {count} навыка: {skills}",
+    "few": "Не удалось импортировать {count} навыка: {skills}",
+    "many": "Не удалось импортировать {count} навыков: {skills}"
   },
   "bundledSkillsOffer": "Muse Spark поставляется с навыками {skills}. Установить их для Muse Code? Они будут скопированы в вашу папку конфигурации Muse.",
   "bundledSkillsUpdateOffer": "Muse Spark поставляется с более новой версией прилагаемых навыков ({tag}). Обновить копию, которую использует Muse Code?",
@@ -3112,22 +3117,22 @@
   "bundledSkillsUpdate": "Обновить",
   "bundledSkillsNotNow": "Не сейчас",
   "bundledSkillsInstalled": {
-    "few": "Для Muse Code установлено {count} прилагаемых навыка ({tag}): {skills}",
-    "many": "Для Muse Code установлено {count} прилагаемых навыков ({tag}): {skills}",
     "one": "Для Muse Code установлен {count} прилагаемый навык ({tag}): {skills}",
-    "other": "Для Muse Code установлено {count} прилагаемого навыка ({tag}): {skills}"
+    "other": "Для Muse Code установлено {count} прилагаемого навыка ({tag}): {skills}",
+    "few": "Для Muse Code установлено {count} прилагаемых навыка ({tag}): {skills}",
+    "many": "Для Muse Code установлено {count} прилагаемых навыков ({tag}): {skills}"
   },
   "bundledSkillsSkipped": {
-    "few": "Пропущено {count} навыка, так как ваши навыки называются так же: {skills}",
-    "many": "Пропущено {count} навыков, так как ваши навыки называются так же: {skills}",
     "one": "Пропущен {count} навык, так как ваш навык называется так же: {skills}",
-    "other": "Пропущено {count} навыка, так как ваши навыки называются так же: {skills}"
+    "other": "Пропущено {count} навыка, так как ваши навыки называются так же: {skills}",
+    "few": "Пропущено {count} навыка, так как ваши навыки называются так же: {skills}",
+    "many": "Пропущено {count} навыков, так как ваши навыки называются так же: {skills}"
   },
   "bundledSkillsRemoved": {
-    "few": "Из Muse Code удалено {count} прилагаемых навыка: {skills}",
-    "many": "Из Muse Code удалено {count} прилагаемых навыков: {skills}",
     "one": "Из Muse Code удалён {count} прилагаемый навык: {skills}",
-    "other": "Из Muse Code удалено {count} прилагаемого навыка: {skills}"
+    "other": "Из Muse Code удалено {count} прилагаемого навыка: {skills}",
+    "few": "Из Muse Code удалено {count} прилагаемых навыка: {skills}",
+    "many": "Из Muse Code удалено {count} прилагаемых навыков: {skills}"
   },
   "bundledSkillsNothingToRemove": "Прилагаемые навыки для Muse Code не установлены, поэтому ничего не удалено.",
   "bundledSkillsInstallFailed": "Не удалось установить прилагаемые навыки в {folder}: {reason}",
@@ -3262,22 +3267,22 @@
     "accounting_unverified": "Расчёт стоимости не проверен"
   },
   "execTooManyFiles": {
-    "few": "Ограничение входных файлов: {count}.",
-    "many": "Ограничение входных файлов: {count}.",
     "one": "Разрешён не более {count} входной файл.",
-    "other": "Ограничение входных файлов: {count}."
+    "other": "Ограничение входных файлов: {count}.",
+    "few": "Ограничение входных файлов: {count}.",
+    "many": "Ограничение входных файлов: {count}."
   },
   "execRequestCapReached": {
-    "few": "Достигнут лимит попыток: {count}.",
-    "many": "Достигнут лимит попыток: {count}.",
     "one": "Достигнут лимит в {count} попытку.",
-    "other": "Достигнут лимит попыток: {count}."
+    "other": "Достигнут лимит попыток: {count}.",
+    "few": "Достигнут лимит попыток: {count}.",
+    "many": "Достигнут лимит попыток: {count}."
   },
   "execScanMatches": {
-    "few": "Число найденных секретов: {count}",
-    "many": "Число найденных секретов: {count}",
     "one": "Найден {count} секрет",
-    "other": "Число найденных секретов: {count}"
+    "other": "Число найденных секретов: {count}",
+    "few": "Число найденных секретов: {count}",
+    "many": "Число найденных секретов: {count}"
   },
   "providerKeyStored": "Ключ {provider} сохранен: {store}.",
   "providerKeyNotStored": "Ключ не введен, поэтому ничего не сохранено.",
@@ -3335,23 +3340,23 @@
   "exportArgumentsLabel": "Аргументы:",
   "exportOutputLabel": "Вывод:",
   "exportOutputStored": {
-    "few": "Вывод ({count} байта) хранится на бэкенде и не включен.",
-    "many": "Вывод ({count} байт) хранится на бэкенде и не включен.",
     "one": "Вывод ({count} байт) хранится на бэкенде и не включен.",
-    "other": "Вывод ({count} байта) хранится на бэкенде и не включен."
+    "other": "Вывод ({count} байта) хранится на бэкенде и не включен.",
+    "few": "Вывод ({count} байта) хранится на бэкенде и не включен.",
+    "many": "Вывод ({count} байт) хранится на бэкенде и не включен."
   },
   "exportFilesChanged": {
-    "few": "Изменено {count} файла: +{added} −{removed}.",
-    "many": "Изменено {count} файлов: +{added} −{removed}.",
     "one": "Изменен {count} файл: +{added} −{removed}.",
-    "other": "Изменено {count} файла: +{added} −{removed}."
+    "other": "Изменено {count} файла: +{added} −{removed}.",
+    "few": "Изменено {count} файла: +{added} −{removed}.",
+    "many": "Изменено {count} файлов: +{added} −{removed}."
   },
   "exportFailure": "Сбой: {reason}",
   "exportImagesAttached": {
-    "few": "Прикреплено {count} изображения.",
-    "many": "Прикреплено {count} изображений.",
     "one": "Прикреплено {count} изображение.",
-    "other": "Прикреплено {count} изображения."
+    "other": "Прикреплено {count} изображения.",
+    "few": "Прикреплено {count} изображения.",
+    "many": "Прикреплено {count} изображений."
   },
   "insertReferenceNoEditor": "Откройте файл в редакторе, чтобы вставить ссылку на него.",
   "insertReferencePanelOpened": "Панель Muse Spark открыта. Нажмите Alt+K еще раз, чтобы вставить ссылку.",
@@ -3367,16 +3372,16 @@
   "turnFailed": "Не удалось выполнить ход.",
   "turnRetrying": "Попытка {attempt}/{maxAttempts} не удалась ({reason}); повтор через {seconds} с.",
   "usageWindowHours": {
-    "few": "{count}-часовое окно",
-    "many": "{count}-часовое окно",
     "one": "{count}-часовое окно",
-    "other": "{count}-часовое окно"
+    "other": "{count}-часовое окно",
+    "few": "{count}-часовое окно",
+    "many": "{count}-часовое окно"
   },
   "usageWindowMinutes": {
-    "few": "{count}-минутное окно",
-    "many": "{count}-минутное окно",
     "one": "{count}-минутное окно",
-    "other": "{count}-минутное окно"
+    "other": "{count}-минутное окно",
+    "few": "{count}-минутное окно",
+    "many": "{count}-минутное окно"
   },
   "statusVerbs": {
     "thinking": "Размышляю…",
@@ -3451,10 +3456,10 @@
   "paidBestOfNDetail": "{prompt}\n\n{price}\n\nПлата списывается по вашему ключу Model API. Фактическая стоимость зависит от числа использованных токенов. «Разрешить один раз» действует только для данного запуска.",
   "paidConfirmBestOfN": "Тот же запрос выполняется в отдельных рабочих деревьях, каждое за счёт вашего ключа Model API. {price} Каждый запуск требует одобрения в любом режиме разрешений, включая «Обход разрешений», если только вы не разрешите «Лучший из N» всегда в этой рабочей области. Фактическая стоимость зависит от токенов; другие платные инструменты стоят дополнительно. Только на бэкенде Model API.",
   "usagePaidBestOfNAttempts": {
-    "few": "{count} попытки",
-    "many": "{count} попыток",
     "one": "{count} попытка",
-    "other": "{count} попытки"
+    "other": "{count} попытки",
+    "few": "{count} попытки",
+    "many": "{count} попыток"
   },
   "usagePaidBestOfNIncluded": "Оценка стоимости указанных токенов: {cost}",
   "paidTeamWorkersName": "Агенты команды",
@@ -3468,9 +3473,9 @@
   "paidConfirmTeamWorkers": "Задачи команды выполняются на моделях за счёт вашего ключа Model API. {price} Первый вызов делегирования, запускающий платные задачи, требует одобрения в любом режиме разрешений, включая «Обход разрешений», если только вы не разрешите агентов команды всегда в этой рабочей области. Задачи по подписке и локальные задачи не являются платным использованием. Фактическая стоимость зависит от числа использованных токенов; другие платные инструменты стоят дороже.",
   "usagePaidTeamTasks": {
     "one": "{count} задача команды",
+    "other": "{count} задач команды",
     "few": "{count} задачи команды",
-    "many": "{count} задач команды",
-    "other": "{count} задач команды"
+    "many": "{count} задач команды"
   },
   "teamSwitchReasonCap": "лимит {measure}/{window} исчерпан: использовано {used} из {amount}",
   "teamSwitchReasonConcurrency": "нет свободного слота запуска",
@@ -3510,9 +3515,9 @@
   "tabCopilotConfirmDetail": "Tab больше не будет ждать вызова в {language} и будет отправлять собственные автоматические подсказки за счёт вашего ключа Model API. Подсказки Copilot можно снова включить в настройках в любое время.",
   "usagePaidTabRequests": {
     "one": "{count} Tab-запрос",
+    "other": "{count} Tab-запроса",
     "few": "{count} Tab-запроса",
-    "many": "{count} Tab-запросов",
-    "other": "{count} Tab-запроса"
+    "many": "{count} Tab-запросов"
   },
   "usagePaidTabTokens": "{tokens} токенов ({cached} кешировано)",
   "usagePaidTabReported": "Оценка стоимости указанных токенов: {cost}",
@@ -3525,9 +3530,9 @@
   "paidConfirmHookModel": "Хуки prompt и agent обращаются к модели, прежде чем ответить, и каждый запуск оплачивается за счёт вашего ключа Model API. {price} Каждый запуск требует одобрения в любом режиме разрешений, включая «Обход разрешений», если только вы не разрешите хуки с моделью всегда в этой рабочей области. Фактическая стоимость зависит от токенов. Они могут только отклонять, сужать или добавлять контекст. Только на бэкенде Model API; на Muse Code они вместо этого используют ход вашей подписки.",
   "usagePaidHookModelRuns": {
     "one": "{count} запуск хука",
+    "other": "{count} запуска хуков",
     "few": "{count} запуска хуков",
-    "many": "{count} запусков хуков",
-    "other": "{count} запуска хуков"
+    "many": "{count} запусков хуков"
   },
   "hookModelPaidOff": "Хуки с моделью отключены. Включите museSpark.modelApiHookModels, чтобы хуки prompt и agent могли обращаться к модели.",
   "paidHookModelDailyBudget": "Общий дневной бюджет платных функций: {budget}.",
@@ -3537,16 +3542,16 @@
   "boardStatusRunning": "Выполняется",
   "boardStatusIdle": "Простаивает",
   "boardAwaitingApproval": {
-    "few": "{count} ожидающих одобрения",
-    "many": "{count} ожидающих одобрений",
     "one": "{count} ожидающее одобрение",
-    "other": "{count} ожидающего одобрения"
+    "other": "{count} ожидающего одобрения",
+    "few": "{count} ожидающих одобрения",
+    "many": "{count} ожидающих одобрений"
   },
   "boardChanges": {
-    "few": "{count} изменённых файла",
-    "many": "{count} изменённых файлов",
     "one": "{count} изменённый файл",
-    "other": "{count} изменённого файла"
+    "other": "{count} изменённого файла",
+    "few": "{count} изменённых файла",
+    "many": "{count} изменённых файлов"
   },
   "boardChangesUnknown": "изменения неизвестны",
   "boardStartBestOfN": "Лучший из N…",
@@ -3575,16 +3580,16 @@
   "bestOfNRunStatusCancelled": "Отменено",
   "bestOfNCeilingReached": "остановлено на лимите запросов",
   "bestOfNRequests": {
-    "few": "{count} запроса",
-    "many": "{count} запросов",
     "one": "{count} запрос",
-    "other": "{count} запроса"
+    "other": "{count} запроса",
+    "few": "{count} запроса",
+    "many": "{count} запросов"
   },
   "bestOfNApprovalsDenied": {
-    "few": "{count} отклонённых одобрения",
-    "many": "{count} отклонённых одобрений",
     "one": "{count} отклонённое одобрение",
-    "other": "{count} отклонённого одобрения"
+    "other": "{count} отклонённого одобрения",
+    "few": "{count} отклонённых одобрения",
+    "many": "{count} отклонённых одобрений"
   },
   "bestOfNAttemptFailed": "Сбой: {reason}",
   "bestOfNTakenMark": "Взято: {branch}",
@@ -3620,39 +3625,39 @@
   "usagePaidAlwaysNote": "Всегда разрешено в этой рабочей области, без запроса: {features}.",
   "usagePaidAskAgain": "Спрашивать каждый раз",
   "usagePaidSearches": {
-    "few": "{count} поиска",
-    "many": "{count} поисков",
     "one": "{count} поиск",
-    "other": "{count} поиска"
+    "other": "{count} поиска",
+    "few": "{count} поиска",
+    "many": "{count} поисков"
   },
   "usagePaidImages": {
-    "few": "{count} изображения",
-    "many": "{count} изображений",
     "one": "{count} изображение",
-    "other": "{count} изображения"
+    "other": "{count} изображения",
+    "few": "{count} изображения",
+    "many": "{count} изображений"
   },
   "usagePaidAudio": "{duration} аудио",
   "usagePaidSubagentRequests": {
-    "few": "{count} запроса субагента",
-    "many": "{count} запросов субагента",
     "one": "{count} запрос субагента",
-    "other": "{count} запросов субагента"
+    "other": "{count} запросов субагента",
+    "few": "{count} запроса субагента",
+    "many": "{count} запросов субагента"
   },
   "usagePaidSubagentUnknown": {
-    "few": "{count} запроса пока без указанной стоимости",
-    "many": "{count} запросов пока без указанной стоимости",
     "one": "{count} запрос пока без указанной стоимости",
-    "other": "{count} запросов пока без указанной стоимости"
+    "other": "{count} запросов пока без указанной стоимости",
+    "few": "{count} запроса пока без указанной стоимости",
+    "many": "{count} запросов пока без указанной стоимости"
   },
   "usagePaidSubagentSubset": "Заявленные расходы субагентов включены в оценки стоимости токенов их родительских диалогов. Они не прибавляются к общей стоимости дополнительных функций. Запросы без указанных данных об использовании тоже могут тарифицироваться.",
   "usagePaidExtraTotal": "Оценка стоимости дополнительных функций",
   "usagePaidSubagentReported": "Оценка стоимости указанных токенов: {cost}",
   "usagePaidTotal": "Примерная стоимость платных функций",
   "usagePaidScheduled": {
-    "few": "{count} запланированных запуска",
-    "many": "{count} запланированных запусков",
     "one": "{count} запланированный запуск",
-    "other": "{count} запланированного запуска"
+    "other": "{count} запланированного запуска",
+    "few": "{count} запланированных запуска",
+    "many": "{count} запланированных запусков"
   },
   "usageScheduledIncluded": "стоимость токенов учтена выше",
   "usagePaidNote": "Оценка по опубликованным Meta ценам (по состоянию на {date}) для этого окна с момента его открытия; счет определяется панелью мониторинга dev.meta.ai.",
@@ -3722,10 +3727,10 @@
   "reviewInstructionsTooLong": "Описание того, что проверить, слишком длинное для одной проверки; сформулируйте короче.",
   "reviewTruncatedNotice": "Список различий длинный, поэтому на проверку отправлена только его первая часть; остальное в измененных файлах проверяющий прочитает сам.",
   "reviewPrivateLeftOut": {
-    "few": "{count} измененных файла, которые могут содержать секреты, указаны по имени, но не отправлены на проверку.",
-    "many": "{count} измененных файлов, которые могут содержать секреты, указаны по имени, но не отправлены на проверку.",
     "one": "{count} измененный файл, который может содержать секреты, указан по имени, но не отправлен на проверку.",
-    "other": "{count} измененного файла, которые могут содержать секреты, указаны по имени, но не отправлены на проверку."
+    "other": "{count} измененного файла, которые могут содержать секреты, указаны по имени, но не отправлены на проверку.",
+    "few": "{count} измененных файла, которые могут содержать секреты, указаны по имени, но не отправлены на проверку.",
+    "many": "{count} измененных файлов, которые могут содержать секреты, указаны по имени, но не отправлены на проверку."
   },
   "reviewPlanModeNotice": "Эта проверка выполняется в режиме планирования, а прежний режим разрешений вернется после ее завершения. В режиме планирования Muse Code применяет собственные разрешающие правила, поэтому такая проверка не ограничена строго только чтением.",
   "reviewModeRestored": "Проверка завершена: снова действует режим разрешений «{mode}».",
@@ -3735,34 +3740,34 @@
   "reviewPaneLoading": "Чтение изменений…",
   "reviewPaneEmpty": "В этой беседе не изменено ни одного файла.",
   "reviewPaneFiles": {
-    "few": "{count} файла",
-    "many": "{count} файлов",
     "one": "{count} файл",
-    "other": "{count} файла"
+    "other": "{count} файла",
+    "few": "{count} файла",
+    "many": "{count} файлов"
   },
   "reviewPaneHunks": {
-    "few": "{count} изменения",
-    "many": "{count} изменений",
     "one": "{count} изменение",
-    "other": "{count} изменения"
+    "other": "{count} изменения",
+    "few": "{count} изменения",
+    "many": "{count} изменений"
   },
   "reviewPaneAccepted": {
-    "few": "Принято: {count}",
-    "many": "Принято: {count}",
     "one": "Принято: {count}",
-    "other": "Принято: {count}"
+    "other": "Принято: {count}",
+    "few": "Принято: {count}",
+    "many": "Принято: {count}"
   },
   "reviewPaneReverted": {
-    "few": "Отменено: {count}",
-    "many": "Отменено: {count}",
     "one": "Отменено: {count}",
-    "other": "Отменено: {count}"
+    "other": "Отменено: {count}",
+    "few": "Отменено: {count}",
+    "many": "Отменено: {count}"
   },
   "reviewPaneOmitted": {
-    "few": "{count} правки здесь не показаны (их слишком много или не удалось прочитать их изменения); их по-прежнему можно открыть из их строк в беседе.",
-    "many": "{count} правок здесь не показано (их слишком много или не удалось прочитать их изменения); их по-прежнему можно открыть из их строк в беседе.",
     "one": "{count} правка здесь не показана (их слишком много или не удалось прочитать ее изменения); ее по-прежнему можно открыть из ее строки в беседе.",
-    "other": "{count} правки здесь не показано (их слишком много или не удалось прочитать их изменения); их по-прежнему можно открыть из их строк в беседе."
+    "other": "{count} правки здесь не показано (их слишком много или не удалось прочитать их изменения); их по-прежнему можно открыть из их строк в беседе.",
+    "few": "{count} правки здесь не показаны (их слишком много или не удалось прочитать их изменения); их по-прежнему можно открыть из их строк в беседе.",
+    "many": "{count} правок здесь не показано (их слишком много или не удалось прочитать их изменения); их по-прежнему можно открыть из их строк в беседе."
   },
   "reviewHunkLines": "Изменение {index}, строки {start}–{end}",
   "reviewHunkLine": "Изменение {index}, строка {start}",
@@ -3788,10 +3793,10 @@
   "reviewAnnounceNotReverted": "{name} не отменено: {reason}",
   "reviewFindingsLabel": "Результаты проверки",
   "reviewFindingsHeading": {
-    "few": "{count} замечания",
-    "many": "{count} замечаний",
     "one": "{count} замечание",
-    "other": "{count} замечания"
+    "other": "{count} замечания",
+    "few": "{count} замечания",
+    "many": "{count} замечаний"
   },
   "reviewNoFindings": "Проверка не выявила замечаний.",
   "reviewSeverities": {
@@ -3823,18 +3828,18 @@
   "paidUseAutoReviewerTitle": "Позволить автопроверяющему оценить этот вызов {tool}?",
   "paidUseAutoReviewerDetail": "{action}\n\nОтдельный вызов {model} оценит, можно ли выполнить действие без вопроса к вам. Оплата через ваш ключ Model API: {price}. Итоговая сумма зависит от использованных токенов. При запрете вы увидите карточку подтверждения.",
   "usagePaidAutoReviews": {
-    "few": "{count} проверки",
-    "many": "{count} проверок",
     "one": "{count} проверка",
-    "other": "{count} проверки"
+    "other": "{count} проверки",
+    "few": "{count} проверки",
+    "many": "{count} проверок"
   },
   "paidJudgeName": "Оценщик",
   "paidConfirmJudge": "Ваша собственная модель беседы оценивает каждое рискованное действие Auto, которое не решает ни одно правило, и может лишь добавить осторожности: готовая предосторожность превращает разрешение в вопрос или в заметку на карточке подтверждения. Каждое суждение оплачивается через ваш ключ Model API по тарифам за токены модели беседы:\n{price}\nСудья запрашивает согласие один раз перед первым списанием, показывая эти тарифы и общий дневной бюджет: {budget}. При переходе с бесплатного источника на платный согласие запрашивается снова. В Muse Code те же вызовы идут через вашу подписку.",
   "usagePaidJudgeCalls": {
     "one": "{count} суждение",
+    "other": "{count} суждения",
     "few": "{count} суждения",
-    "many": "{count} суждений",
-    "other": "{count} суждения"
+    "many": "{count} суждений"
   },
   "judgeCaution": "Muse Judge рекомендует осторожность. Решение принимаете вы; он не может одобрить это действие.",
   "judgeSubscriptionNotice": "Muse Judge использует вашу модель чата по подписке Muse и расходует её лимиты. Каждый пакет использует новый изолированный сеанс в режиме плана. Защита отменяет сеанс при обнаружении инструмента, но не может доказать, что ни один инструмент не выполнялся. Он может лишь рекомендовать осторожность.",
@@ -3860,23 +3865,23 @@
   "permissionRootInvalid": "{setting}: дополнительный корень «{root}» не является абсолютным путём, поэтому не добавлен.",
   "permissionRepositoryInvalid": "{setting}: правила репозитория недопустимы ({detail}) и не применяются.",
   "verifyErrors": {
-    "few": "{count} ошибки",
-    "many": "{count} ошибок",
     "one": "{count} ошибка",
-    "other": "{count} ошибки"
+    "other": "{count} ошибки",
+    "few": "{count} ошибки",
+    "many": "{count} ошибок"
   },
   "verifyWarnings": {
-    "few": "{count} предупреждения",
-    "many": "{count} предупреждений",
     "one": "{count} предупреждение",
-    "other": "{count} предупреждения"
+    "other": "{count} предупреждения",
+    "few": "{count} предупреждения",
+    "many": "{count} предупреждений"
   },
   "verifyClean": "Нет ошибок и предупреждений",
   "verifyUnchecked": {
-    "few": "{count} файла не проверены",
-    "many": "{count} файлов не проверено",
     "one": "{count} файл не проверен",
-    "other": "{count} файла не проверено"
+    "other": "{count} файла не проверено",
+    "few": "{count} файла не проверены",
+    "many": "{count} файлов не проверено"
   },
   "checkOutcomes": {
     "passed": "{name}: пройдена",
@@ -3901,10 +3906,10 @@
   "thenRunTimedOut": "Остановлено по лимиту времени",
   "thenRunNoExitCode": "Ошибка без кода выхода",
   "checksStoppedNotice": {
-    "few": "Проверки всё ещё не проходили после {count} раундов исправлений подряд, поэтому до вашего следующего сообщения они больше не запустятся автоматически.",
-    "many": "Проверки всё ещё не проходили после {count} раундов исправлений подряд, поэтому до вашего следующего сообщения они больше не запустятся автоматически.",
     "one": "Проверки всё ещё не проходили после {count} раунда исправлений подряд, поэтому до вашего следующего сообщения они больше не запустятся автоматически.",
-    "other": "Проверки всё ещё не проходили после {count} раунда исправлений подряд, поэтому до вашего следующего сообщения они больше не запустятся автоматически."
+    "other": "Проверки всё ещё не проходили после {count} раунда исправлений подряд, поэтому до вашего следующего сообщения они больше не запустятся автоматически.",
+    "few": "Проверки всё ещё не проходили после {count} раундов исправлений подряд, поэтому до вашего следующего сообщения они больше не запустятся автоматически.",
+    "many": "Проверки всё ещё не проходили после {count} раундов исправлений подряд, поэтому до вашего следующего сообщения они больше не запустятся автоматически."
   },
   "exportThenRunLabel": "Затем выполнено:",
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",
@@ -3930,9 +3935,9 @@
   "keyBoundState": "сохранён, привязан к {origin}",
   "providerKeyWorks": {
     "one": "Ключ работает · {count} модель",
+    "other": "Ключ работает · {count} моделей",
     "few": "Ключ работает · {count} модели",
-    "many": "Ключ работает · {count} моделей",
-    "other": "Ключ работает · {count} моделей"
+    "many": "Ключ работает · {count} моделей"
   },
   "providerTestPaid": "Эта проверка отправляет один токен и стоит около {cost}.",
   "providerTestFailed": "Проверка не удалась: {detail}",
@@ -3979,21 +3984,21 @@
   "refreshModels": "Обновить модели",
   "scanNewModels": {
     "one": "{count} новая модель с последней проверки",
+    "other": "{count} новых моделей с последней проверки",
     "few": "{count} новые модели с последней проверки",
-    "many": "{count} новых моделей с последней проверки",
-    "other": "{count} новых моделей с последней проверки"
+    "many": "{count} новых моделей с последней проверки"
   },
   "scanRemovedModels": {
     "one": "{count} модель удалена с последней проверки",
+    "other": "{count} моделей удалено с последней проверки",
     "few": "{count} модели удалены с последней проверки",
-    "many": "{count} моделей удалено с последней проверки",
-    "other": "{count} моделей удалено с последней проверки"
+    "many": "{count} моделей удалено с последней проверки"
   },
   "scanRepricedModels": {
     "one": "{count} модель с новой ценой с последней проверки",
+    "other": "{count} моделей с новой ценой с последней проверки",
     "few": "{count} модели с новой ценой с последней проверки",
-    "many": "{count} моделей с новой ценой с последней проверки",
-    "other": "{count} моделей с новой ценой с последней проверки"
+    "many": "{count} моделей с новой ценой с последней проверки"
   },
   "modelBadges": {
     "recommended": "Рекомендуется",
@@ -4149,27 +4154,27 @@
       "empty": "Первое сканирование: модели не указаны.",
       "first": {
         "one": "Первое сканирование: {count} модель.",
+        "other": "Первое сканирование: {count} модели.",
         "few": "Первое сканирование: {count} модели.",
-        "many": "Первое сканирование: {count} моделей.",
-        "other": "Первое сканирование: {count} модели."
+        "many": "Первое сканирование: {count} моделей."
       },
       "new": {
         "one": "{count} новая модель",
+        "other": "{count} новой модели",
         "few": "{count} новые модели",
-        "many": "{count} новых моделей",
-        "other": "{count} новой модели"
+        "many": "{count} новых моделей"
       },
       "removed": {
         "one": "{count} удалённая модель",
+        "other": "{count} удалённой модели",
         "few": "{count} удалённые модели",
-        "many": "{count} удалённых моделей",
-        "other": "{count} удалённой модели"
+        "many": "{count} удалённых моделей"
       },
       "repriced": {
         "one": "{count} модель с новой ценой",
+        "other": "{count} модели с новой ценой",
         "few": "{count} модели с новой ценой",
-        "many": "{count} моделей с новой ценой",
-        "other": "{count} модели с новой ценой"
+        "many": "{count} моделей с новой ценой"
       },
       "unchanged": "Нет изменений с последнего сканирования.",
       "since": "{changes} с последнего сканирования."
@@ -4224,9 +4229,9 @@
   "testRunning": "Проверка…",
   "modelsShownCount": {
     "one": "{shown} из {count} модели",
+    "other": "{shown} из {count} моделей",
     "few": "{shown} из {count} модели",
-    "many": "{shown} из {count} моделей",
-    "other": "{shown} из {count} моделей"
+    "many": "{shown} из {count} моделей"
   },
   "pricePerMillion": "Цены за миллион токенов.",
   "modelsNotScanned": "Обновите, чтобы вывести модели этого поставщика.",
@@ -4383,9 +4388,9 @@
   "teamLandingApply": "Применить",
   "teamChangedDuringLanding": {
     "one": "{count} файл изменился во время посадки: {files}.",
+    "other": "{count} файла изменилось во время посадки: {files}.",
     "few": "{count} файла изменились во время посадки: {files}.",
-    "many": "{count} файлов изменились во время посадки: {files}.",
-    "other": "{count} файла изменилось во время посадки: {files}."
+    "many": "{count} файлов изменились во время посадки: {files}."
   },
   "teamCheckModelsOnOpen": "Проверять модели команды при открытии этого окна",
   "teamCheckModelsOnOpenDetail": "Когда включено и у роли есть отдельная своя модель, панель один раз проверяет модели команды при открытии окна. Именно настройка второй модели разрешает этот трафик.",
@@ -4422,9 +4427,9 @@
   "teamLevelCostUnknown": "{tokens} токенов в час; цена неизвестна",
   "teamPreviewSwitches": {
     "one": "{count} переключение из-за лимитов",
+    "other": "{count} переключения из-за лимитов",
     "few": "{count} переключения из-за лимитов",
-    "many": "{count} переключений из-за лимитов",
-    "other": "{count} переключения из-за лимитов"
+    "many": "{count} переключений из-за лимитов"
   },
   "teamPreviewDryRunCost": "Сначала попробуйте с оркестратором: один ход, около {cost}",
   "teamImportUnknownKey": "Неизвестный параметр {key}: файл отклонён целиком",
@@ -4439,9 +4444,9 @@
   "legalScanEmpty": "Проверка завершена, замечаний нет.",
   "legalFindingsCount": {
     "one": "{count} замечание",
+    "other": "{count} замечания",
     "few": "{count} замечания",
-    "many": "{count} замечаний",
-    "other": "{count} замечания"
+    "many": "{count} замечаний"
   },
   "legalFilesScanned": "Проверено файлов: {count}",
   "legalScanIncomplete": "Неполная проверка: {checks}",
@@ -4488,9 +4493,9 @@
   "legalFixSelect": "Исправить {id}",
   "legalSelectedCount": {
     "one": "Выбрано: {count}",
+    "other": "Выбрано: {count}",
     "few": "Выбрано: {count}",
-    "many": "Выбрано: {count}",
-    "other": "Выбрано: {count}"
+    "many": "Выбрано: {count}"
   },
   "legalFixAllSafe": "Исправить все безопасные",
   "legalPreviewFixes": "Предпросмотр исправлений",
@@ -4558,9 +4563,9 @@
     "m036": "Не проверено: входы сборки отсутствуют или устарели относительно рабочего каталога.",
     "m037": {
       "one": "Поставка определена по {count} известным входам сборки",
+      "other": "Поставка определена по {count} известным входам сборки",
       "few": "Поставка определена по {count} известным входам сборки",
-      "many": "Поставка определена по {count} известным входам сборки",
-      "other": "Поставка определена по {count} известным входам сборки"
+      "many": "Поставка определена по {count} известным входам сборки"
     },
     "m038": "Локальные исходники, поставка неизвестна: нет входов сборки или перечня пакета.",
     "m039": "Не проверено: набор поставки неизвестен; без доказательств сборки или файлов ничего не считается поставляемым.",
@@ -4572,9 +4577,9 @@
     "m045": "Анализ поставки",
     "m046": {
       "one": "{count} зависимость могут поставляться без файла уведомлений об авторстве.",
+      "other": "{count} зависимостей могут поставляться без файла уведомлений об авторстве.",
       "few": "{count} зависимости могут поставляться без файла уведомлений об авторстве.",
-      "many": "{count} зависимостей могут поставляться без файла уведомлений об авторстве.",
-      "other": "{count} зависимостей могут поставляться без файла уведомлений об авторстве."
+      "many": "{count} зависимостей могут поставляться без файла уведомлений об авторстве."
     },
     "m047": "Добавьте THIRD_PARTY_NOTICES или равноценные уведомления о поставке.",
     "m048": "{v0} может поставляться, но не указан в существующих уведомлениях.",
@@ -4646,37 +4651,37 @@
     "m114": "Проверка остановлена на пределе: {v0} превышает бюджет чтения.",
     "m115": {
       "one": "Не проверено: остановлено после {count} файл; ещё {v1} не прочитано.",
+      "other": "Не проверено: остановлено после {count} файлов; ещё {v1} не прочитано.",
       "few": "Не проверено: остановлено после {count} файла; ещё {v1} не прочитано.",
-      "many": "Не проверено: остановлено после {count} файлов; ещё {v1} не прочитано.",
-      "other": "Не проверено: остановлено после {count} файлов; ещё {v1} не прочитано."
+      "many": "Не проверено: остановлено после {count} файлов; ещё {v1} не прочитано."
     },
     "m116": {
       "one": "Не проверено: предел доказательств зависимостей; {count} запись пропущено.",
+      "other": "Не проверено: предел доказательств зависимостей; {count} записей пропущено.",
       "few": "Не проверено: предел доказательств зависимостей; {count} записи пропущено.",
-      "many": "Не проверено: предел доказательств зависимостей; {count} записей пропущено.",
-      "other": "Не проверено: предел доказательств зависимостей; {count} записей пропущено."
+      "many": "Не проверено: предел доказательств зависимостей; {count} записей пропущено."
     },
     "m117": "Не проверено: лицензия {v0} в {v1} не распознана.",
     "m118": "Анализ текста лицензии в {v0}",
     "m119": {
       "one": "Поставка неизвестна при {count} производственных зависимостях; оцениваются непоставляемые исходники.",
+      "other": "Поставка неизвестна при {count} производственных зависимостях; оцениваются непоставляемые исходники.",
       "few": "Поставка неизвестна при {count} производственных зависимостях; оцениваются непоставляемые исходники.",
-      "many": "Поставка неизвестна при {count} производственных зависимостях; оцениваются непоставляемые исходники.",
-      "other": "Поставка неизвестна при {count} производственных зависимостях; оцениваются непоставляемые исходники."
+      "many": "Поставка неизвестна при {count} производственных зависимостях; оцениваются непоставляемые исходники."
     },
     "m120": "Предоставьте входы сборки или перечень пакета для точных обязательств.",
     "m121": "Проверка остановлена на пределе: отчёт для {v0} усечён",
     "m122": {
       "one": "Отчёт усечён: {count} результат сверх предела {v1} пропущено; блокирующие и требующие исправления оставлены первыми.",
+      "other": "Отчёт усечён: {count} результатов сверх предела {v1} пропущено; блокирующие и требующие исправления оставлены первыми.",
       "few": "Отчёт усечён: {count} результата сверх предела {v1} пропущено; блокирующие и требующие исправления оставлены первыми.",
-      "many": "Отчёт усечён: {count} результатов сверх предела {v1} пропущено; блокирующие и требующие исправления оставлены первыми.",
-      "other": "Отчёт усечён: {count} результатов сверх предела {v1} пропущено; блокирующие и требующие исправления оставлены первыми."
+      "many": "Отчёт усечён: {count} результатов сверх предела {v1} пропущено; блокирующие и требующие исправления оставлены первыми."
     },
     "m123": {
       "one": "Отчёт усечён: {count} исключений генерируемых файл сверх предела пропущено.",
+      "other": "Отчёт усечён: {count} исключений генерируемых файлов сверх предела пропущено.",
       "few": "Отчёт усечён: {count} исключений генерируемых файла сверх предела пропущено.",
-      "many": "Отчёт усечён: {count} исключений генерируемых файлов сверх предела пропущено.",
-      "other": "Отчёт усечён: {count} исключений генерируемых файлов сверх предела пропущено."
+      "many": "Отчёт усечён: {count} исключений генерируемых файлов сверх предела пропущено."
     },
     "m124": "Проверка создала неверный результат: {v0}",
     "m125": "Не проверено: поле доказательства превышает предел отчёта и усечено.",
@@ -4703,15 +4708,15 @@
     "m146": "Не проверено: {v0} содержит унаследованные или вложенные Cargo-объявления без статического разрешения.",
     "m147": {
       "one": "Не проверено: {count} Cargo-запись не имеют лицензии или соответствующего встроенного манифеста.",
+      "other": "Не проверено: {count} Cargo-записей не имеют лицензии или соответствующего встроенного манифеста.",
       "few": "Не проверено: {count} Cargo-записи не имеют лицензии или соответствующего встроенного манифеста.",
-      "many": "Не проверено: {count} Cargo-записей не имеют лицензии или соответствующего встроенного манифеста.",
-      "other": "Не проверено: {count} Cargo-записей не имеют лицензии или соответствующего встроенного манифеста."
+      "many": "Не проверено: {count} Cargo-записей не имеют лицензии или соответствующего встроенного манифеста."
     },
     "m148": {
       "one": "Не проверено: {count} Cargo-требований без разрешённой версии в Cargo.lock.",
+      "other": "Не проверено: {count} Cargo-требований без разрешённой версии в Cargo.lock.",
       "few": "Не проверено: {count} Cargo-требований без разрешённой версии в Cargo.lock.",
-      "many": "Не проверено: {count} Cargo-требований без разрешённой версии в Cargo.lock.",
-      "other": "Не проверено: {count} Cargo-требований без разрешённой версии в Cargo.lock."
+      "many": "Не проверено: {count} Cargo-требований без разрешённой версии в Cargo.lock."
     },
     "m149": "Не проверено: нет Cargo-манифестов или блокировок.",
     "m150": "Не проверено: {v0} — неверный JSON; требования и лицензия неизвестны.",
@@ -4719,44 +4724,44 @@
     "m152": "Не проверено: доказательства для {v0} противоречат между {v1} и {v2}.",
     "m153": {
       "one": "Не проверено: {count} Composer-требований без зафиксированной версии в composer.lock.",
+      "other": "Не проверено: {count} Composer-требований без зафиксированной версии в composer.lock.",
       "few": "Не проверено: {count} Composer-требований без зафиксированной версии в composer.lock.",
-      "many": "Не проверено: {count} Composer-требований без зафиксированной версии в composer.lock.",
-      "other": "Не проверено: {count} Composer-требований без зафиксированной версии в composer.lock."
+      "many": "Не проверено: {count} Composer-требований без зафиксированной версии в composer.lock."
     },
     "m154": {
       "one": "Не проверено: {count} Composer-пакетов без лицензии в блокировке или установленных данных.",
+      "other": "Не проверено: {count} Composer-пакетов без лицензии в блокировке или установленных данных.",
       "few": "Не проверено: {count} Composer-пакетов без лицензии в блокировке или установленных данных.",
-      "many": "Не проверено: {count} Composer-пакетов без лицензии в блокировке или установленных данных.",
-      "other": "Не проверено: {count} Composer-пакетов без лицензии в блокировке или установленных данных."
+      "many": "Не проверено: {count} Composer-пакетов без лицензии в блокировке или установленных данных."
     },
     "m155": "Не проверено: нет composer.json, composer.lock или installed.json.",
     "m156": "Не проверено: исполняемый код {v0} никогда не запускается; читаются только статические присваивания.",
     "m157": "Не проверено: {v0} читается статически; вычисляемые Ruby-метаданные и условные присваивания не исполняются.",
     "m158": {
       "one": "Не проверено: {count} gem-требований без зафиксированной версии в Gemfile.lock.",
+      "other": "Не проверено: {count} gem-требований без зафиксированной версии в Gemfile.lock.",
       "few": "Не проверено: {count} gem-требований без зафиксированной версии в Gemfile.lock.",
-      "many": "Не проверено: {count} gem-требований без зафиксированной версии в Gemfile.lock.",
-      "other": "Не проверено: {count} gem-требований без зафиксированной версии в Gemfile.lock."
+      "many": "Не проверено: {count} gem-требований без зафиксированной версии в Gemfile.lock."
     },
     "m159": {
       "one": "Не проверено: {count} gems без лицензии; имеющиеся спецификации могли бы помочь.",
+      "other": "Не проверено: {count} gems без лицензии; имеющиеся спецификации могли бы помочь.",
       "few": "Не проверено: {count} gems без лицензии; имеющиеся спецификации могли бы помочь.",
-      "many": "Не проверено: {count} gems без лицензии; имеющиеся спецификации могли бы помочь.",
-      "other": "Не проверено: {count} gems без лицензии; имеющиеся спецификации могли бы помочь."
+      "many": "Не проверено: {count} gems без лицензии; имеющиеся спецификации могли бы помочь."
     },
     "m160": "Не проверено: нет Gemfile, Gemfile.lock или gemspec.",
     "m161": "Не проверено: замены Go, сопоставление инструментов и транзитивный выбор требуют проверки; суммы могут включать неиспользуемые версии.",
     "m162": {
       "one": "Не проверено: {count} Go-модулей без лицензии; суммы и пути не лицензии, встроенные тексты могли бы помочь.",
+      "other": "Не проверено: {count} Go-модулей без лицензии; суммы и пути не лицензии, встроенные тексты могли бы помочь.",
       "few": "Не проверено: {count} Go-модулей без лицензии; суммы и пути не лицензии, встроенные тексты могли бы помочь.",
-      "many": "Не проверено: {count} Go-модулей без лицензии; суммы и пути не лицензии, встроенные тексты могли бы помочь.",
-      "other": "Не проверено: {count} Go-модулей без лицензии; суммы и пути не лицензии, встроенные тексты могли бы помочь."
+      "many": "Не проверено: {count} Go-модулей без лицензии; суммы и пути не лицензии, встроенные тексты могли бы помочь."
     },
     "m163": {
       "one": "Не проверено: {count} Go-требований инструментов без разрешённой версии; лицензии неизвестны.",
+      "other": "Не проверено: {count} Go-требований инструментов без разрешённой версии; лицензии неизвестны.",
       "few": "Не проверено: {count} Go-требований инструментов без разрешённой версии; лицензии неизвестны.",
-      "many": "Не проверено: {count} Go-требований инструментов без разрешённой версии; лицензии неизвестны.",
-      "other": "Не проверено: {count} Go-требований инструментов без разрешённой версии; лицензии неизвестны."
+      "many": "Не проверено: {count} Go-требований инструментов без разрешённой версии; лицензии неизвестны."
     },
     "m164": "Не проверено: нет go.mod, go.sum или vendor/modules.txt.",
     "m165": "Не проверено: конфликт лицензий {v0} между {v1} и {v2}: {v3} против {v4}.",
@@ -4764,15 +4769,15 @@
     "m167": "Не проверено: статические POM не разрешают транзитивный Maven-граф, родительские свойства и профили.",
     "m168": {
       "one": "Не проверено: {count} Maven/Gradle-требований без разрешённой версии в блокировках или каталогах.",
+      "other": "Не проверено: {count} Maven/Gradle-требований без разрешённой версии в блокировках или каталогах.",
       "few": "Не проверено: {count} Maven/Gradle-требований без разрешённой версии в блокировках или каталогах.",
-      "many": "Не проверено: {count} Maven/Gradle-требований без разрешённой версии в блокировках или каталогах.",
-      "other": "Не проверено: {count} Maven/Gradle-требований без разрешённой версии в блокировках или каталогах."
+      "many": "Не проверено: {count} Maven/Gradle-требований без разрешённой версии в блокировках или каталогах."
     },
     "m169": {
       "one": "Не проверено: {count} Maven/Gradle-пакетов без лицензии; существующие POM могли бы помочь.",
+      "other": "Не проверено: {count} Maven/Gradle-пакетов без лицензии; существующие POM могли бы помочь.",
       "few": "Не проверено: {count} Maven/Gradle-пакетов без лицензии; существующие POM могли бы помочь.",
-      "many": "Не проверено: {count} Maven/Gradle-пакетов без лицензии; существующие POM могли бы помочь.",
-      "other": "Не проверено: {count} Maven/Gradle-пакетов без лицензии; существующие POM могли бы помочь."
+      "many": "Не проверено: {count} Maven/Gradle-пакетов без лицензии; существующие POM могли бы помочь."
     },
     "m170": "Не проверено: нет POM, Gradle-объявлений, блокировок или каталогов.",
     "m171": "Не проверено: нечитаемые npm-метаданные блокировки в {v0}.",
@@ -4780,38 +4785,38 @@
     "m173": "Не проверено: {v0} превышает глубину npm-блокировки.",
     "m174": {
       "one": "Не проверено: {count} npm-запись в {v1} без лицензии или соответствующих установленных данных.",
+      "other": "Не проверено: {count} npm-записей в {v1} без лицензии или соответствующих установленных данных.",
       "few": "Не проверено: {count} npm-записи в {v1} без лицензии или соответствующих установленных данных.",
-      "many": "Не проверено: {count} npm-записей в {v1} без лицензии или соответствующих установленных данных.",
-      "other": "Не проверено: {count} npm-записей в {v1} без лицензии или соответствующих установленных данных."
+      "many": "Не проверено: {count} npm-записей в {v1} без лицензии или соответствующих установленных данных."
     },
     "m175": "Не проверено: нет читаемых Yarn-записей в {v0}.",
     "m176": {
       "one": "Не проверено: {v0} фиксирует версии без лицензии для {count} пакетов; установленные данные могли бы помочь.",
+      "other": "Не проверено: {v0} фиксирует версии без лицензии для {count} пакетов; установленные данные могли бы помочь.",
       "few": "Не проверено: {v0} фиксирует версии без лицензии для {count} пакетов; установленные данные могли бы помочь.",
-      "many": "Не проверено: {v0} фиксирует версии без лицензии для {count} пакетов; установленные данные могли бы помочь.",
-      "other": "Не проверено: {v0} фиксирует версии без лицензии для {count} пакетов; установленные данные могли бы помочь."
+      "many": "Не проверено: {v0} фиксирует версии без лицензии для {count} пакетов; установленные данные могли бы помочь."
     },
     "m177": "Не проверено: неподдерживаемая pnpm-блокировка или нечитаемый раздел пакетов в {v0}.",
     "m178": "Не проверено: доказательства {v0}@{v1} противоречат между {v2} и {v3}.",
     "m179": {
       "one": "Не проверено: {count} npm-требований без разрешённой версии; транзитивные лицензии неизвестны.",
+      "other": "Не проверено: {count} npm-требований без разрешённой версии; транзитивные лицензии неизвестны.",
       "few": "Не проверено: {count} npm-требований без разрешённой версии; транзитивные лицензии неизвестны.",
-      "many": "Не проверено: {count} npm-требований без разрешённой версии; транзитивные лицензии неизвестны.",
-      "other": "Не проверено: {count} npm-требований без разрешённой версии; транзитивные лицензии неизвестны."
+      "many": "Не проверено: {count} npm-требований без разрешённой версии; транзитивные лицензии неизвестны."
     },
     "m180": "Не проверено: нет npm-манифестов, блокировок или установленных метаданных.",
     "m181": "Не проверено: условные/динамические NuGet-объявления, диапазоны и конфликты платформ требуют проверки.",
     "m182": {
       "one": "Не проверено: {count} NuGet-требований без разрешённой версии в блокировках, ресурсах или центральных файлах.",
+      "other": "Не проверено: {count} NuGet-требований без разрешённой версии в блокировках, ресурсах или центральных файлах.",
       "few": "Не проверено: {count} NuGet-требований без разрешённой версии в блокировках, ресурсах или центральных файлах.",
-      "many": "Не проверено: {count} NuGet-требований без разрешённой версии в блокировках, ресурсах или центральных файлах.",
-      "other": "Не проверено: {count} NuGet-требований без разрешённой версии в блокировках, ресурсах или центральных файлах."
+      "many": "Не проверено: {count} NuGet-требований без разрешённой версии в блокировках, ресурсах или центральных файлах."
     },
     "m183": {
       "one": "Не проверено: {count} NuGet-пакетов без лицензии; существующие .nuspec могли бы помочь.",
+      "other": "Не проверено: {count} NuGet-пакетов без лицензии; существующие .nuspec могли бы помочь.",
       "few": "Не проверено: {count} NuGet-пакетов без лицензии; существующие .nuspec могли бы помочь.",
-      "many": "Не проверено: {count} NuGet-пакетов без лицензии; существующие .nuspec могли бы помочь.",
-      "other": "Не проверено: {count} NuGet-пакетов без лицензии; существующие .nuspec могли бы помочь."
+      "many": "Не проверено: {count} NuGet-пакетов без лицензии; существующие .nuspec могли бы помочь."
     },
     "m184": "Не проверено: нет NuGet-объявлений, блокировок или файлов ресурсов.",
     "m185": "Не проверено: {v0} включает {v1}; произвольные имена не разрешаются рекурсивно.",
@@ -4819,31 +4824,31 @@
     "m187": "Не проверено: {v0} содержит опцию требований или редактируемый источник без статического разрешения.",
     "m188": {
       "one": "Не проверено: {count} строка требований в {v1} имеют неподдерживаемый формат.",
+      "other": "Не проверено: {count} строк требований в {v1} имеют неподдерживаемый формат.",
       "few": "Не проверено: {count} строки требований в {v1} имеют неподдерживаемый формат.",
-      "many": "Не проверено: {count} строк требований в {v1} имеют неподдерживаемый формат.",
-      "other": "Не проверено: {count} строк требований в {v1} имеют неподдерживаемый формат."
+      "many": "Не проверено: {count} строк требований в {v1} имеют неподдерживаемый формат."
     },
     "m189": "Не проверено: {v0} не называет проект; требования не атрибутированы.",
     "m190": "Не проверено: нечитаемые разделы пакетов в {v0}.",
     "m191": {
       "one": "Не проверено: {v0} фиксирует версии без лицензии для {count} пакетов; метаданные дистрибутива могли бы помочь.",
+      "other": "Не проверено: {v0} фиксирует версии без лицензии для {count} пакетов; метаданные дистрибутива могли бы помочь.",
       "few": "Не проверено: {v0} фиксирует версии без лицензии для {count} пакетов; метаданные дистрибутива могли бы помочь.",
-      "many": "Не проверено: {v0} фиксирует версии без лицензии для {count} пакетов; метаданные дистрибутива могли бы помочь.",
-      "other": "Не проверено: {v0} фиксирует версии без лицензии для {count} пакетов; метаданные дистрибутива могли бы помочь."
+      "many": "Не проверено: {v0} фиксирует версии без лицензии для {count} пакетов; метаданные дистрибутива могли бы помочь."
     },
     "m192": "Не проверено: установленная версия {v0} отличается; зафиксированная лицензия неизвестна.",
     "m193": "Не проверено: статический Python без блокировки и установленных метаданных не доказывает транзитивное покрытие; динамические build-метаданные не выполняются.",
     "m194": {
       "one": "Не проверено: {count} Python-пакетов без соответствующей лицензии.",
+      "other": "Не проверено: {count} Python-пакетов без соответствующей лицензии.",
       "few": "Не проверено: {count} Python-пакетов без соответствующей лицензии.",
-      "many": "Не проверено: {count} Python-пакетов без соответствующей лицензии.",
-      "other": "Не проверено: {count} Python-пакетов без соответствующей лицензии."
+      "many": "Не проверено: {count} Python-пакетов без соответствующей лицензии."
     },
     "m195": {
       "one": "Не проверено: {count} Python-требований без разрешённой версии; транзитивные лицензии неизвестны.",
+      "other": "Не проверено: {count} Python-требований без разрешённой версии; транзитивные лицензии неизвестны.",
       "few": "Не проверено: {count} Python-требований без разрешённой версии; транзитивные лицензии неизвестны.",
-      "many": "Не проверено: {count} Python-требований без разрешённой версии; транзитивные лицензии неизвестны.",
-      "other": "Не проверено: {count} Python-требований без разрешённой версии; транзитивные лицензии неизвестны."
+      "many": "Не проверено: {count} Python-требований без разрешённой версии; транзитивные лицензии неизвестны."
     },
     "m196": "Не проверено: нет Python-манифестов, блокировок или метаданных дистрибутива.",
     "unknown": "неизвестно",
@@ -4858,15 +4863,15 @@
     "reversedYears": "интервал {value} заканчивается до начала",
     "selectedPaths": {
       "one": "выбрано путь: {count}",
+      "other": "выбрано путей: {count}",
       "few": "выбрано пути: {count}",
-      "many": "выбрано путей: {count}",
-      "other": "выбрано путей: {count}"
+      "many": "выбрано путей: {count}"
     },
     "moreUnchecked": {
       "one": "и ещё {count} непроверенных элемент пропущено сверх предела",
+      "other": "и ещё {count} непроверенных элементов пропущено сверх предела",
       "few": "и ещё {count} непроверенных элемента пропущено сверх предела",
-      "many": "и ещё {count} непроверенных элементов пропущено сверх предела",
-      "other": "и ещё {count} непроверенных элементов пропущено сверх предела"
+      "many": "и ещё {count} непроверенных элементов пропущено сверх предела"
     },
     "declaration": "{file} объявляет {license}",
     "licenseFile": "файл лицензии",

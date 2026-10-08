@@ -1410,7 +1410,7 @@ Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://githu
 
 ### Orchestrator playbook
 
-Show review strikes, design decisions, safety refusals and rule settings.
+Show review strikes, design decisions, safety refusals, settings and unbound acceptance reasons.
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 

@@ -992,6 +992,8 @@ export interface ActiveTurn {
   schedulePermissions?: PermissionEngine
 
   readonly turnId: string
+  /** Initial message awaiting its first request, after submit/model hooks and admission. */
+  pendingUserMessageId?: string | undefined
   readonly abort: AbortController
   readonly inputParts: TurnPart[]
   confirmedRequest?: ConfirmedModelRequest
@@ -4185,6 +4187,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     body: CreateResponseBody,
     directBudget?: DirectResponseBudget,
     isCompaction = false,
+    turnId?: string,
   ): ResponseAttemptGuard {
     const token = this.owner.token()
     const instructionMaterial = this.instructionMaterial()
@@ -4354,6 +4357,16 @@ export class ModelApiSession implements ScheduledAgentSession {
           directBudget.isSent = true
         }
         this.deps.admitResponseAttempt?.onRequestStarted?.()
+        const turn = this.active
+        if (
+          turnId === undefined ||
+          turn?.turnId !== turnId ||
+          turn.pendingUserMessageId === undefined
+        )
+          return
+        const userMessageId = turn.pendingUserMessageId
+        turn.pendingUserMessageId = undefined
+        this.emit({ type: 'messageAdmitted', userMessageId })
       },
     })
   }
@@ -5167,7 +5180,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.recordedCall = { ...this.recordedCall, kind: 'schedule' }
     const requestReplay = this.requestReplay()
     let final: ResponseObject | undefined
-    const admitAttempt = this.responseAttemptGuard(body)
+    const admitAttempt = this.responseAttemptGuard(body, undefined, false, turnId)
     const responseStream = (
       this.getScheduledRun() === undefined || resolved.client !== this.deps.client
         ? resolved.client
@@ -12107,6 +12120,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         schedulePermissions: new PermissionEngine(mspApprovalMode(queued.scheduleRun.context.mode)),
       }),
       turnId: queued.turnId,
+      ...(queued.userMessageId !== undefined && { pendingUserMessageId: queued.userMessageId }),
       abort: new AbortController(),
       inputParts: [...queued.parts],
       steered: [],

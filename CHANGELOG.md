@@ -151,6 +151,22 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Show an unbound legacy residual acceptance with its no-match reason in
+  CLI, ACP and shared React playbook records, preserving the original
+  decision details. Identical bound/unbound entries are distinguished by
+  journal position. The reader uses browser-safe shared policy contracts. All
+  fourteen languages include the new labels/reasons;
+  queued-answer commit failures explicitly warn that retained answers may
+  repeat on the next prompt.
+
+- Commit ACP's non-destructive queued-answer lease only when its carrying
+  turn starts with the model. Queued submissions retain their durable prefix
+  until that turn starts; withdrawal, unqueue, Stop, release, exit and refused
+  or failed submissions retain answers without announcing delivery. Model
+  API confirms actual request dispatch after submit hooks and admission.
+  Local commands never lease. Failed commit writes retain answers, warn that
+  they may repeat, and keep a still-active turn busy and stoppable.
+
 - Bind the panel's own orchestration to the shared orchestrator playbook:
   subagent, delegate and best-of-N dispatches and the `/review` loop run
   under the policy, with a redesign offered to Plan at the third round.

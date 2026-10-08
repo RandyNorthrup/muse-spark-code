@@ -412,11 +412,17 @@ Open questions are bounded to 20 per session by the shared registry and are
 kept in owner-only storage, removed with their session and excluded from
 logs, exports and report text. A report may include counts only.
 
-Before sending the next prompt, the agent leases its queued answer prefix by
-removing that prefix from disk. Cancellation before dispatch restores it.
-After a taken or uncertain submission it is retired, so a restart cannot send
-an uncertain answer again. A crash between leasing and dispatch can lose the
-prefix; the policy favors avoiding a duplicate when admission is unknown.
+Before sending the next ordinary prompt, the agent takes a non-destructive
+lease on its durable queued-answer prefix. A `started` submission commits
+when the turn starts with the model; a `queued` submission holds the lease
+until its own turn starts. Model API waits for actual request dispatch after
+submit hooks and request admission, because its start ack precedes those
+checks. Withdrawal, unqueue, Stop, session release, process exit and refused
+or failed submission retain answers without a sent announcement. Only a
+successful commit announces that the answer was sent. Failed commit writes
+retain answers, warn that they may repeat, and keep an active turn busy and
+stoppable. A restart before commit retains the prefix; a crash after dispatch
+but before persistence can repeat it on the next prompt.
 
 MCP elicitation forms retain their separate five-minute deadline and cannot
 be answered late. Ordinary approvals and paid-use permission prompts retain
@@ -430,7 +436,11 @@ session's workspace, with no model turn. The same surface answers the
 standalone `playbook` command. Rule changes need a reason and record the
 owner; turning a rule off and naming the fallback reviewer for
 classifier-blocked reviews need a real user decision, and residuals stay
-open per milestone until a lead or owner accepts them. Panel enforcement
+open per milestone until a lead or owner accepts them. Record views show
+unbound legacy acceptances and why they cover no residual. Local commands
+leave queued late answers untouched; only a prompt that starts with the model
+removes its leased prefix. A restart before that commit retains the
+answers, and failed sends release without writing. Panel enforcement
 (leases, outcome receipts, dispatch gating) is not installed here; see
 [the milestone certification](certification/m116.md) for what is bound and
 what waits for M96's planner.

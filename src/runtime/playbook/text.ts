@@ -14,6 +14,7 @@ import type {
   PlaybookSettings,
   PlaybookWhyNote,
 } from '../../shared/playbook'
+import { collectResidualRegister } from '../../core/orchestration/playbookReports'
 import type { PlaybookSnapshot } from './command'
 
 export function playbookNoteText(note: PlaybookWhyNote): string {
@@ -117,7 +118,10 @@ export function playbookDesigns(records: readonly PlaybookRecord[]) {
   return orderedPlaybookRecords(Array.from(designs, ([, design]) => design))
 }
 
-export function playbookRecordText(entry: PlaybookRecord): string {
+export function playbookRecordText(
+  entry: PlaybookRecord,
+  records: readonly PlaybookRecord[] = [entry],
+): string {
   switch (entry.kind) {
     case 'note': {
       return `${playbookNoteText(entry.value)} · ${formatDateTime(entry.value.at)}`
@@ -137,8 +141,14 @@ export function playbookRecordText(entry: PlaybookRecord): string {
     }
     case 'residual': {
       const residual = entry.value
+      const isUnbound = collectResidualRegister(
+        records,
+        undefined,
+        residual.milestoneId,
+      ).unbound.some((acceptance) => acceptance.recordIndex === records.indexOf(entry))
       return [
-        `${UI_TEXT.playbookResidualAccepted}: ${residual.milestoneId} · ${residual.name}`,
+        `${isUnbound ? UI_TEXT.playbookResidualUnbound : UI_TEXT.playbookResidualAccepted}: ${residual.milestoneId} · ${residual.name}`,
+        ...(isUnbound ? [UI_TEXT.playbookResidualUnboundReason] : []),
         `${residual.actor} · ${formatDateTime(residual.at)} · ${residual.reason}`,
       ].join('\n')
     }
@@ -257,18 +267,20 @@ export function playbookText(
   if (view === 'record')
     return records.length === 0
       ? UI_TEXT.playbookEmpty
-      : records.map((entry) => playbookRecordText(entry)).join('\n\n')
+      : records.map((entry) => playbookRecordText(entry, snapshot.records)).join('\n\n')
   const entries = orderedPlaybookRecords([
     ...records.filter((entry) => entry.kind === 'note'),
     ...playbookDesigns(snapshot.records),
   ])
   return [
-    ...entries.filter((entry) => prioritized(entry) < 2).map((entry) => playbookRecordText(entry)),
+    ...entries
+      .filter((entry) => prioritized(entry) < 2)
+      .map((entry) => playbookRecordText(entry, snapshot.records)),
     UI_TEXT.playbookTitle,
     ...playbookCounters(snapshot.records).map((counter) => playbookCounterText(counter)),
     ...entries
       .filter((entry) => prioritized(entry) === 2)
-      .map((entry) => playbookRecordText(entry)),
+      .map((entry) => playbookRecordText(entry, snapshot.records)),
     records.length === 0 ? UI_TEXT.playbookEmpty : '',
     settingsText(snapshot.settings),
   ]

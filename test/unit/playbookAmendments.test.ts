@@ -376,7 +376,7 @@ describe('M116 D100 amendments (W)', () => {
     expect(refused.note.missing).toEqual(['native-binding'])
   })
 
-  it('G24 a legacy acceptance with no preceding answer is unbound, never accepted', () => {
+  it('G24 a legacy acceptance with no preceding answer is unbound, never accepted', async () => {
     const fixture = policyFixture()
     const { policy } = fixture
     const lanes = fakePlaybookLanes()
@@ -402,6 +402,44 @@ describe('M116 D100 amendments (W)', () => {
     // Nothing is open, so release still allows: the stale record blocks
     // nothing, and a fresh acceptance names whatever later opens.
     expect(policy.releaseReady('M116', lanes).kind).toBe('allow')
+    // Shipped CLI/ACP record view must expose why this acceptance cannot bind.
+    const result = await runPlaybookCommand(
+      { view: 'record' },
+      {
+        read: () =>
+          Promise.resolve({ settings: policy.getSettings(), records: policy.getRecord() }),
+        change: () => Promise.reject(new Error('Read-only fixture')),
+      },
+    )
+    expect(result.ok).toBe(true)
+    expect(result.text).toContain('Unbound residual acceptance: M116 · hook-drift-follow-up')
+    expect(result.text).toContain('It covers no residual.')
+    expect(result.text).not.toContain('Residual accepted: M116 · hook-drift-follow-up')
+  })
+
+  it('record view distinguishes identical orphan and bound acceptances by journal position', () => {
+    const { fixture, policy, lanes } = residualNameBed()
+    const round = latestRound(policy, MODULE)
+    const acceptance = {
+      kind: 'residual' as const,
+      value: {
+        milestoneId: 'M116',
+        name: 'native-binding',
+        status: 'accepted' as const,
+        actor: 'owner' as const,
+        reason: 'Legacy decision',
+        at: round.at,
+      },
+    }
+    fixture.tamper([acceptance, ...policy.getRecord(), acceptance])
+    const records = policy.getRecord()
+    const register = collectResidualRegister(records, lanes, 'M116')
+    expect(register.unbound).toHaveLength(1)
+    expect(register.accepted).toHaveLength(1)
+    expect(register.open).toEqual([])
+    const text = playbookText('record', { settings: policy.getSettings(), records: [...records] })
+    expect(text.match(/Unbound residual acceptance: M116 · native-binding/gu)).toHaveLength(1)
+    expect(text.match(/Residual accepted: M116 · native-binding/gu)).toHaveLength(1)
   })
 
   it('G24 integration release runs only with an empty or accepted register', () => {
@@ -490,7 +528,7 @@ describe('M116 D100 amendments (W)', () => {
           at: 100,
         },
       }),
-    ).toContain('Residual accepted')
+    ).toContain('Unbound residual acceptance')
   })
 
   it('runs fallback settings through the shared CLI runner text', async () => {

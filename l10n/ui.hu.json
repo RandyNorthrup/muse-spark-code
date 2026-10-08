@@ -236,6 +236,9 @@
   "playbookFallbackReviewer": "Tartalék felülvizsgáló az osztályozó által blokkolt felülvizsgálatokhoz: {reviewer}",
   "playbookFallbackNone": "Nincs megnevezett tartalék felülvizsgáló",
   "playbookResidualAccepted": "Maradványpont elfogadva",
+  "playbookRecordHelp": "Felülvizsgálati körök, tervezési döntések, biztonsági elutasítások, beállítások és a nem hozzárendelt elfogadások okainak megjelenítése.",
+  "playbookResidualUnbound": "Nem hozzárendelt maradványelfogadás",
+  "playbookResidualUnboundReason": "Egyetlen korábbi maradványmegállapítás sem felel meg az elfogadás idejének és bizonyítékainak. Egyetlen maradványmegállapítást sem fed le.",
   "playbookLeaseRecord": "Javítási bérlet {status}: {module} ({lane})",
   "playbookWorkRecord": "{id} munka ezen: {module}: {commits} alapcommit",
   "playbookVerificationRecord": "Hook-ellenőrzés {result} ehhez: {commit} ({scope})",
@@ -909,20 +912,20 @@
   "exportPreviewFull": "Mentés kitakarás nélkül…",
   "exportPreviewOpen": "A kitakart fájl meg van nyitva a szerkesztőben. Amíg nem választ, semmi sem íródik ki.",
   "exportPreviewMessages": {
-    "other": "{count} üzenet ebben a beszélgetésben",
-    "one": "{count} üzenet ebben a beszélgetésben"
+    "one": "{count} üzenet ebben a beszélgetésben",
+    "other": "{count} üzenet ebben a beszélgetésben"
   },
   "exportPreviewPaths": {
-    "other": "{count} útvonal kitakarva",
-    "one": "{count} útvonal kitakarva"
+    "one": "{count} útvonal kitakarva",
+    "other": "{count} útvonal kitakarva"
   },
   "exportPreviewAccounts": {
-    "other": "{count} fiókazonosító kitakarva",
-    "one": "{count} fiókazonosító kitakarva"
+    "one": "{count} fiókazonosító kitakarva",
+    "other": "{count} fiókazonosító kitakarva"
   },
   "exportPreviewSecrets": {
-    "other": "{count} hitelesítő adat vagy kulcskivonat eltávolítva",
-    "one": "{count} hitelesítő adat vagy kulcskivonat eltávolítva"
+    "one": "{count} hitelesítő adat vagy kulcskivonat eltávolítva",
+    "other": "{count} hitelesítő adat vagy kulcskivonat eltávolítva"
   },
   "exportPreviewKnownCredentials": "Az ismert formájú hitelesítő adatok (API-kulcsok, tokenek, jelszavak, privát kulcsok) és a kulcskivonat mindig törlődnek. Más formájú titok megmarad: megosztás előtt olvassa át a fájlt.",
   "exportTooLarge": "Ez a beszélgetés túl hosszú egy munkamenet-exportfájlhoz.",
@@ -958,8 +961,8 @@
   "mcpUnreadable": "A Muse Code beállításfájlja nem olvasható:",
   "mcpNone": "Nincs MCP-kiszolgáló konfigurálva itt: {path}",
   "mcpCount": {
-    "other": "{count} MCP-kiszolgáló itt: {path}",
-    "one": "{count} MCP-kiszolgáló itt: {path}"
+    "one": "{count} MCP-kiszolgáló itt: {path}",
+    "other": "{count} MCP-kiszolgáló itt: {path}"
   },
   "mcpOptional": "nem kötelező",
   "mcpRequired": "kötelező (a Muse Code leáll, ha hibára fut)",
@@ -989,12 +992,12 @@
   "mcpStateNotStarted": "A következő üzenetével indul",
   "mcpStateStarting": "Indítás…",
   "mcpStateConnected": {
-    "other": "Csatlakozva: {count} eszköz",
-    "one": "Csatlakozva: {count} eszköz"
+    "one": "Csatlakozva: {count} eszköz",
+    "other": "Csatlakozva: {count} eszköz"
   },
   "mcpStateUnoffered": {
-    "other": "további {count} nincs felkínálva",
-    "one": "további {count} nincs felkínálva"
+    "one": "további {count} nincs felkínálva",
+    "other": "további {count} nincs felkínálva"
   },
   "mcpStateFailed": "Nem fut: {reason}",
   "mcpStateRestricted": "Nem indult el: ez a munkaterület korlátozott módban van",
@@ -1050,8 +1053,8 @@
   "hooksUserBlock": "settings.json › hooks",
   "hooksUserNone": "Nincs a beállításaiban",
   "hooksUserCount": {
-    "other": "{count} hook a beállításaiban",
-    "one": "{count} hook a beállításaiban"
+    "one": "{count} hook a beállításaiban",
+    "other": "{count} hook a beállításaiban"
   },
   "hooksManaged": "Felügyelt hookok",
   "hooksManagedKey": "managed_hooks_path",
@@ -1145,8 +1148,8 @@
   "memoryTitle": "Muse-memória",
   "memoryNone": "Ehhez a munkaterülethez még nincsenek memóriajegyzetek",
   "memoryCount": {
-    "other": "{count} memóriajegyzet",
-    "one": "{count} memóriajegyzet"
+    "one": "{count} memóriajegyzet",
+    "other": "{count} memóriajegyzet"
   },
   "memoryIndexDetail": "Az index, amelyet a Muse minden munkamenet elején elolvas",
   "memoryNewNote": "Új jegyzet…",
@@ -1670,8 +1673,8 @@
   "pdfLabel": "PDF",
   "toolReadPdf": "PDF `{path}` beolvasva ({pages}, {bytes} bájt)",
   "toolReadPdfPages": {
-    "other": "{count} oldal",
-    "one": "{count} oldal"
+    "one": "{count} oldal",
+    "other": "{count} oldal"
   },
   "toolReadPdfPagesUnknown": "Az oldalszám ismeretlen",
   "toolReadImage": "Kép `{path}` beolvasva ({mediaType}, {width}×{height}, {bytes} bájt)",
@@ -1735,16 +1738,16 @@
   "browserRuntimeReady": "A böngészős ellenőrzés böngészője ({version}) készen áll.",
   "browserCheckDone": "Ellenőrizve: {url} – {errors}, {failed}, {blocked}",
   "browserCheckConsoleErrors": {
-    "other": "{count} konzolhiba",
-    "one": "{count} konzolhiba"
+    "one": "{count} konzolhiba",
+    "other": "{count} konzolhiba"
   },
   "browserCheckFailedRequests": {
-    "other": "{count} sikertelen kérés",
-    "one": "{count} sikertelen kérés"
+    "one": "{count} sikertelen kérés",
+    "other": "{count} sikertelen kérés"
   },
   "browserCheckBlockedRequests": {
-    "other": "{count} letiltott kérés a számítógépen kívülre",
-    "one": "{count} letiltott kérés a számítógépen kívülre"
+    "one": "{count} letiltott kérés a számítógépen kívülre",
+    "other": "{count} letiltott kérés a számítógépen kívülre"
   },
   "browserCheckUrlRefused": "Csak egyszerű gazdagépnevet vagy IP-címet tartalmazó, felhasználónév és jelszó nélküli http:// vagy https:// cím nyitható meg.",
   "browserCheckInvalidArguments": "A böngészős ellenőrzést érvénytelen argumentumokkal kérték, ezért semmi sem nyílt meg.",
@@ -1793,12 +1796,12 @@
   "thoughtFor": "Gondolkodási idő: {duration}",
   "thinkingNow": "Gondolkodik",
   "addedLines": {
-    "other": "{count} sor hozzáadva",
-    "one": "{count} sor hozzáadva"
+    "one": "{count} sor hozzáadva",
+    "other": "{count} sor hozzáadva"
   },
   "removedLines": {
-    "other": "{count} sor eltávolítva",
-    "one": "{count} sor eltávolítva"
+    "one": "{count} sor eltávolítva",
+    "other": "{count} sor eltávolítva"
   },
   "modified": "Módosítva",
   "inLabel": "BE",
@@ -1822,8 +1825,8 @@
   "approvalBrowserCheckWidenResidual": "Az engedélyezés azt is lehetővé teszi, hogy ez az ellenőrzés https-en és WebSocketen át is elérje a gazdagépet. Ez a forgalom titkosított, így a bővítmény nem tudja megvizsgálni, és egy ottani webhely bejelentkeztetheti Önt ennek a számítógépnek a fiókjával (főleg Windowson).",
   "approvalImageSources": "Kiindulópont: {paths}",
   "renameCardMore": {
-    "other": "{files} és még {count} fájl",
-    "one": "{files} és még {count} fájl"
+    "one": "{files} és még {count} fájl",
+    "other": "{files} és még {count} fájl"
   },
   "codeIntelNoService": "Egyetlen nyelvi szolgáltatás sem válaszolt erre: {path}, vagy a fájl nem deklarál szimbólumokat.",
   "codeIntelTimedOut": "A nyelvi szolgáltatás {seconds} másodpercen belül nem válaszolt.",
@@ -1840,8 +1843,8 @@
   "approvalDecided": "Eldöntve",
   "approvalDockLabel": "Az Ön jóváhagyására vár",
   "approvalDockCount": {
-    "other": "Várakozó jóváhagyás: {count}",
-    "one": "Várakozó jóváhagyás: {count}"
+    "one": "Várakozó jóváhagyás: {count}",
+    "other": "Várakozó jóváhagyás: {count}"
   },
   "approvalDockedNote": "Az Ön jóváhagyására vár, az üzenetmező feletti kártyán",
   "questionSubmit": "Küldés",
@@ -1882,6 +1885,8 @@
   "questionNoOpen": "Nincsenek nyitott kérdések.",
   "questionAnswerFailed": "A válaszát nem sikerült elküldeni. Próbálja újra.",
   "questionAnswerUncertain": "A válasza lehet, hogy eljutott Muse-hoz. Nem küldjük el újra.",
+  "questionQueueLeaseFailed": "Megváltozott a sorban álló válaszok foglalása. Próbálja újra az aktuális kérés befejezése után.",
+  "questionQueueCommitFailed": "A kérés elküldve, de a válaszokat nem sikerült kézbesítettként menteni. A sorban maradnak, és megismétlődhetnek.",
   "questionDismissFailed": "A kérdést nem sikerült lezárni.",
   "acpOpenQuestionAsked": "Muse-nak kérdése van; ez a szerkesztő nem tud űrlapot megjeleníteni. Később az /answer paranccsal válaszolhat.",
   "acpQuestionDeferred": "A(z) {number}. kérdés nyitott. Válaszoljon az /answer {number} <text> paranccsal.",
@@ -1927,36 +1932,36 @@
   "tasksTabEnded": "A beszélgetés, amelyhez ez a lista tartozik, lezárult.",
   "stepSummary": {
     "edited": {
-      "other": "szerkesztett {count} fájlt",
-      "one": "szerkesztett egy fájlt"
+      "one": "szerkesztett egy fájlt",
+      "other": "szerkesztett {count} fájlt"
     },
     "read": {
-      "other": "olvasott {count} fájlt",
-      "one": "olvasott egy fájlt"
+      "one": "olvasott egy fájlt",
+      "other": "olvasott {count} fájlt"
     },
     "searched": {
-      "other": "keresett {count} mappában",
-      "one": "keresett egy mappában"
+      "one": "keresett egy mappában",
+      "other": "keresett {count} mappában"
     },
     "ran": {
-      "other": "futtatott {count} parancsot",
-      "one": "futtatott egy parancsot"
+      "one": "futtatott egy parancsot",
+      "other": "futtatott {count} parancsot"
     },
     "fetched": {
-      "other": "letöltött {count} oldalt",
-      "one": "letöltött egy oldalt"
+      "one": "letöltött egy oldalt",
+      "other": "letöltött {count} oldalt"
     },
     "searchedWeb": {
-      "other": "{count} keresés a weben",
-      "one": "keresett a weben"
+      "one": "keresett a weben",
+      "other": "{count} keresés a weben"
     },
     "used": {
-      "other": "használt {count} eszközt",
-      "one": "használt egy eszközt"
+      "one": "használt egy eszközt",
+      "other": "használt {count} eszközt"
     },
     "failed": {
-      "other": "{count} sikertelen",
-      "one": "{count} sikertelen"
+      "one": "{count} sikertelen",
+      "other": "{count} sikertelen"
     }
   },
   "contextMeterLabel": "Kontextus felhasználva: {percent}",
@@ -1988,8 +1993,8 @@
   "noEditorForApply": "Nyisson meg egy szövegszerkesztőt, hogy kódot alkalmazzon benne.",
   "diffTitleSuffix": "Muse-szerkesztés",
   "diffTallyFiles": {
-    "other": "{count} fájl módosítva",
-    "one": "{count} fájl módosítva"
+    "one": "{count} fájl módosítva",
+    "other": "{count} fájl módosítva"
   },
   "diffTallyLines": "+{added} −{removed}",
   "diffTallyLabel": "Változások ebben a beszélgetésben",
@@ -2014,8 +2019,8 @@
   "historyCurrent": "aktuális",
   "historyForkMark": "elágazás",
   "historyTurns": {
-    "other": "{count} kör",
-    "one": "{count} kör"
+    "one": "{count} kör",
+    "other": "{count} kör"
   },
   "resumeItem": "Folytatás",
   "resumeDetail": "Egy korábbi beszélgetés kiválasztása ezen a munkaterületen",
@@ -2028,8 +2033,8 @@
   "forkAndRewind": "Beszélgetés elágaztatása és a kód visszaállítása",
   "rewindNothing": "Ezt az üzenetet követően nincs visszaállítható szerkesztés.",
   "rewindDone": {
-    "other": "Kód visszaállítva erre az üzenetre ({count} szerkesztés)",
-    "one": "Kód visszaállítva erre az üzenetre ({count} szerkesztés)"
+    "one": "Kód visszaállítva erre az üzenetre ({count} szerkesztés)",
+    "other": "Kód visszaállítva erre az üzenetre ({count} szerkesztés)"
   },
   "forkedNotice": "Elágaztatva egy új beszélgetésbe.",
   "rewindImagesUnavailable": "Az üzenet néhány képét nem sikerült visszaállítani.",
@@ -2054,22 +2059,22 @@
   "restoreBothConfirmAction": "Visszaállítás mindkettőre",
   "rewindNotDone": "A beszélgetés nem állt vissza.",
   "restoreDone": {
-    "other": "{count} fájl visszaállítva az üzenet előtti állapotra.",
-    "one": "{count} fájl visszaállítva az üzenet előtti állapotra."
+    "one": "{count} fájl visszaállítva az üzenet előtti állapotra.",
+    "other": "{count} fájl visszaállítva az üzenet előtti állapotra."
   },
   "restoreNothing": "Egy fájlt sem kellett visszaállítani.",
   "redoNothing": "Nincs több visszateendő módosítás.",
   "redoDone": {
-    "other": "{count} fájl visszahozva.",
-    "one": "{count} fájl visszahozva."
+    "one": "{count} fájl visszahozva.",
+    "other": "{count} fájl visszahozva."
   },
   "redoAction": "Újra",
   "redoLabel": "Újra: a visszaállítás által lecserélt fájlok visszahozása",
   "redoGone": "Ez a visszaállítás már nem ismételhető meg.",
   "noticeRepeatBadge": "{count}×",
   "noticeRepeated": {
-    "other": "Megjelenítve {count} alkalommal",
-    "one": "Megjelenítve {count} alkalommal"
+    "one": "Megjelenítve {count} alkalommal",
+    "other": "Megjelenítve {count} alkalommal"
   },
   "restoreRefusedUnsaved": "Változatlanul hagyva, mentetlen módosításokkal: {files}",
   "restoreRefusedChanged": "Változatlanul hagyva, közben mástól módosult: {files}",
@@ -2080,8 +2085,8 @@
   "restoreRefusedTooLarge": "Nem állíthatók vissza, túl nagyok egy másolat megőrzéséhez: {files}",
   "restoreRefusedFailed": "Nem sikerült módosítani: {files}",
   "restoreUnchanged": {
-    "other": "Már a korábbi állapotban: {count} fájl.",
-    "one": "Már a korábbi állapotban: {count} fájl."
+    "one": "Már a korábbi állapotban: {count} fájl.",
+    "other": "Már a korábbi állapotban: {count} fájl."
   },
   "restoreWritesIncomplete": "Semmi sem lett visszaállítva: e fordulók egyes módosításai nem lettek teljesen rögzítve (újratöltés vagy összeomlás módosítás közben, vagy a fájlok ellenőrzőpontjai ki voltak kapcsolva).",
   "restoreLegacyInRange": "Semmi sem lett visszaállítva: e fordulók némelyikét egy korábbi verzió rögzítette, amelyből ez a verzió nem tud visszaállítani.",
@@ -2258,8 +2263,8 @@
   "plansItemDetail": "Mentett tervek a .agents/plans mappában: nyisson meg vagy valósítson meg egyet",
   "plansTitle": "Tervek",
   "plansCount": {
-    "other": "{count} mentett terv",
-    "one": "{count} mentett terv"
+    "one": "{count} mentett terv",
+    "other": "{count} mentett terv"
   },
   "plansNone": "Még nincs mentett terv. Mentsen egyet egy Tervezés módban adott válaszból.",
   "plansFailed": "A terveket nem sikerült listázni",
@@ -2294,8 +2299,8 @@
   "signedOutNotice": "Kijelentkezett a Muse Sparkból.",
   "agentsPillTitle": "Az ügynöktérkép megjelenítése",
   "agentsCount": {
-    "other": "{count} ügynök",
-    "one": "{count} ügynök"
+    "one": "{count} ügynök",
+    "other": "{count} ügynök"
   },
   "backgroundTasksPillTitle": "A háttérfeladatok megjelenítése",
   "agentMapTitle": "Ügynöktérkép",
@@ -2574,8 +2579,8 @@
   "workflowChildUntitled": "{number}. ügynök",
   "workflowAttempt": "{attempt}. próbálkozás",
   "workflowsCount": {
-    "other": "{count} munkafolyamat",
-    "one": "{count} munkafolyamat"
+    "one": "{count} munkafolyamat",
+    "other": "{count} munkafolyamat"
   },
   "workflowsLabel": "Munkafolyamatok",
   "workflowTriggerModes": {
@@ -2588,8 +2593,8 @@
   "workflowLaunched": "Elindítva: a háttérben fut, és ebbe a beszélgetésbe jelenti az eredményt.",
   "workflowScriptSaved": "A szkript mentési helye: {path}",
   "backgroundTasksCount": {
-    "other": "{count} háttérfeladat",
-    "one": "{count} háttérfeladat"
+    "one": "{count} háttérfeladat",
+    "other": "{count} háttérfeladat"
   },
   "backgroundTasksLabel": "Háttérfeladatok",
   "backgroundBadge": "háttér",
@@ -2701,12 +2706,12 @@
   "usageInsightNoLogs": "Ezen a gépen még nem találhatók Muse Code nyomkövetési naplók.",
   "usageInsightTotals": "{attempts}, {sessions} során",
   "modelAttemptsCount": {
-    "other": "{count} modellkísérlet",
-    "one": "{count} modellkísérlet"
+    "one": "{count} modellkísérlet",
+    "other": "{count} modellkísérlet"
   },
   "sessionsCount": {
-    "other": "{count} munkamenet",
-    "one": "{count} munkamenet"
+    "one": "{count} munkamenet",
+    "other": "{count} munkamenet"
   },
   "durationNow": "most",
   "contextCompactTitle": "Kattintson az azonnali tömörítéshez",
@@ -2882,8 +2887,8 @@
   "scheduleRepeats": "Ismétlődik",
   "scheduleNextRun": "Következő futás: {date}",
   "scheduleFired": {
-    "other": "{count} alkalommal futott",
-    "one": "{count} alkalommal futott"
+    "one": "{count} alkalommal futott",
+    "other": "{count} alkalommal futott"
   },
   "scheduleNone": "Nincsenek ütemezett promptok",
   "loopItem": "/loop",
@@ -2953,20 +2958,20 @@
   },
   "importNothingFrom": "Nincs importálható képesség innen: {source}.",
   "importInstalledSummary": {
-    "other": "Importálva ({count}): {skills}",
-    "one": "Importálva ({count}): {skills}"
+    "one": "Importálva ({count}): {skills}",
+    "other": "Importálva ({count}): {skills}"
   },
   "importSkippedSummary": {
-    "other": "Kihagyva ({count}): {skills}",
-    "one": "Kihagyva ({count}): {skills}"
+    "one": "Kihagyva ({count}): {skills}",
+    "other": "Kihagyva ({count}): {skills}"
   },
   "importQuarantinedSummary": {
-    "other": "Karanténba helyezve ({count}): {skills}",
-    "one": "Karanténba helyezve ({count}): {skills}"
+    "one": "Karanténba helyezve ({count}): {skills}",
+    "other": "Karanténba helyezve ({count}): {skills}"
   },
   "importFailedSummary": {
-    "other": "Sikertelen ({count}): {skills}",
-    "one": "Sikertelen ({count}): {skills}"
+    "one": "Sikertelen ({count}): {skills}",
+    "other": "Sikertelen ({count}): {skills}"
   },
   "bundledSkillsOffer": "A Muse Spark a következő képességekkel érkezik: {skills}. Telepíti őket a Muse Code számára? Az Ön Muse konfigurációs mappájába kerülnek.",
   "bundledSkillsUpdateOffer": "A Muse Spark a mellékelt képességek újabb kiadását hozza ({tag}). Frissíti a Muse Code által használt példányt?",
@@ -2974,16 +2979,16 @@
   "bundledSkillsUpdate": "Frissítés",
   "bundledSkillsNotNow": "Most nem",
   "bundledSkillsInstalled": {
-    "other": "{count} mellékelt képesség ({tag}) telepítve a Muse Code számára: {skills}",
-    "one": "{count} mellékelt képesség ({tag}) telepítve a Muse Code számára: {skills}"
+    "one": "{count} mellékelt képesség ({tag}) telepítve a Muse Code számára: {skills}",
+    "other": "{count} mellékelt képesség ({tag}) telepítve a Muse Code számára: {skills}"
   },
   "bundledSkillsSkipped": {
-    "other": "{count} képesség kimaradt, mert saját képességeinek is ezek a nevei: {skills}",
-    "one": "{count} képesség kimaradt, mert az egyik saját képességének is ez a neve: {skills}"
+    "one": "{count} képesség kimaradt, mert az egyik saját képességének is ez a neve: {skills}",
+    "other": "{count} képesség kimaradt, mert saját képességeinek is ezek a nevei: {skills}"
   },
   "bundledSkillsRemoved": {
-    "other": "{count} mellékelt képesség eltávolítva a Muse Code-ból: {skills}",
-    "one": "{count} mellékelt képesség eltávolítva a Muse Code-ból: {skills}"
+    "one": "{count} mellékelt képesség eltávolítva a Muse Code-ból: {skills}",
+    "other": "{count} mellékelt képesség eltávolítva a Muse Code-ból: {skills}"
   },
   "bundledSkillsNothingToRemove": "Nincs a Muse Code számára telepített mellékelt képesség, így semmi sem lett eltávolítva.",
   "bundledSkillsInstallFailed": "A mellékelt képességeket nem sikerült telepíteni ebbe a mappába ({folder}): {reason}",
@@ -3118,16 +3123,16 @@
     "accounting_unverified": "Elszámolás nincs ellenőrizve"
   },
   "execTooManyFiles": {
-    "other": "Legfeljebb {count} bemeneti fájl engedélyezett.",
-    "one": "Legfeljebb {count} bemeneti fájl engedélyezett."
+    "one": "Legfeljebb {count} bemeneti fájl engedélyezett.",
+    "other": "Legfeljebb {count} bemeneti fájl engedélyezett."
   },
   "execRequestCapReached": {
-    "other": "A kérések elérték a(z) {count} próbás korlátot.",
-    "one": "A kérések elérték a(z) {count} próbás korlátot."
+    "one": "A kérések elérték a(z) {count} próbás korlátot.",
+    "other": "A kérések elérték a(z) {count} próbás korlátot."
   },
   "execScanMatches": {
-    "other": "{count} titkos adat található",
-    "one": "{count} titkos adat található"
+    "one": "{count} titkos adat található",
+    "other": "{count} titkos adat található"
   },
   "providerKeyStored": "A(z) {provider}-kulcs tárolva: {store}.",
   "providerKeyNotStored": "Nem adott meg kulcsot, így semmi sem lett tárolva.",
@@ -3183,17 +3188,17 @@
   "exportArgumentsLabel": "Argumentumok:",
   "exportOutputLabel": "Kimenet:",
   "exportOutputStored": {
-    "other": "A kimenetet ({count} bájt) a háttérrendszer tárolja, és nem része az exportnak.",
-    "one": "A kimenetet ({count} bájt) a háttérrendszer tárolja, és nem része az exportnak."
+    "one": "A kimenetet ({count} bájt) a háttérrendszer tárolja, és nem része az exportnak.",
+    "other": "A kimenetet ({count} bájt) a háttérrendszer tárolja, és nem része az exportnak."
   },
   "exportFilesChanged": {
-    "other": "{count} fájl módosult: +{added} −{removed}.",
-    "one": "{count} fájl módosult: +{added} −{removed}."
+    "one": "{count} fájl módosult: +{added} −{removed}.",
+    "other": "{count} fájl módosult: +{added} −{removed}."
   },
   "exportFailure": "Sikertelen: {reason}",
   "exportImagesAttached": {
-    "other": "{count} kép csatolva.",
-    "one": "{count} kép csatolva."
+    "one": "{count} kép csatolva.",
+    "other": "{count} kép csatolva."
   },
   "insertReferenceNoEditor": "Nyisson meg egy fájlt egy szerkesztőablakban, hogy hivatkozást szúrjon be rá.",
   "insertReferencePanelOpened": "A Muse Spark panel megnyílt. A hivatkozás beszúrásához nyomja meg újra az Alt+K billentyűkombinációt.",
@@ -3209,12 +3214,12 @@
   "turnFailed": "A kör sikertelen volt.",
   "turnRetrying": "{attempt}/{maxAttempts}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva.",
   "usageWindowHours": {
-    "other": "{count} órás időablak",
-    "one": "{count} órás időablak"
+    "one": "{count} órás időablak",
+    "other": "{count} órás időablak"
   },
   "usageWindowMinutes": {
-    "other": "{count} perces időablak",
-    "one": "{count} perces időablak"
+    "one": "{count} perces időablak",
+    "other": "{count} perces időablak"
   },
   "statusVerbs": {
     "thinking": "Gondolkodik…",
@@ -3289,8 +3294,8 @@
   "paidBestOfNDetail": "{prompt}\n\n{price}\n\nA díjat a Model API-kulcsára számlázzák. A tényleges költség a felhasznált tokenektől függ. Az „Engedélyezés egyszer” csak erre a futtatásra érvényes.",
   "paidConfirmBestOfN": "Ugyanaz a prompt külön munkafa-mappákban fut, mindegyik a Model API-kulcsára számlázva. {price} Minden futtatás jóváhagyást igényel minden engedélyezési módban, a Bypass módban is, hacsak nem engedélyezi mindig az N legjobbját ezen a munkaterületen. A tényleges költség a felhasznált tokenektől függ; a többi fizetős eszköz többe kerül. Csak a Model API háttérrendszeren.",
   "usagePaidBestOfNAttempts": {
-    "other": "{count} kísérlet",
-    "one": "{count} kísérlet"
+    "one": "{count} kísérlet",
+    "other": "{count} kísérlet"
   },
   "usagePaidBestOfNIncluded": "Jelentett tokenek becsült költsége: {cost}",
   "paidTeamWorkersName": "Csapatügynökök",
@@ -3367,12 +3372,12 @@
   "boardStatusRunning": "Fut",
   "boardStatusIdle": "Tétlen",
   "boardAwaitingApproval": {
-    "other": "{count} várakozó jóváhagyás",
-    "one": "{count} várakozó jóváhagyás"
+    "one": "{count} várakozó jóváhagyás",
+    "other": "{count} várakozó jóváhagyás"
   },
   "boardChanges": {
-    "other": "{count} módosított fájl",
-    "one": "{count} módosított fájl"
+    "one": "{count} módosított fájl",
+    "other": "{count} módosított fájl"
   },
   "boardChangesUnknown": "változások ismeretlenek",
   "boardStartBestOfN": "N legjobbja…",
@@ -3401,12 +3406,12 @@
   "bestOfNRunStatusCancelled": "Visszavonva",
   "bestOfNCeilingReached": "leállt a kéréskorlátnál",
   "bestOfNRequests": {
-    "other": "{count} kérés",
-    "one": "{count} kérés"
+    "one": "{count} kérés",
+    "other": "{count} kérés"
   },
   "bestOfNApprovalsDenied": {
-    "other": "{count} elutasított jóváhagyás",
-    "one": "{count} elutasított jóváhagyás"
+    "one": "{count} elutasított jóváhagyás",
+    "other": "{count} elutasított jóváhagyás"
   },
   "bestOfNAttemptFailed": "Sikertelen: {reason}",
   "bestOfNTakenMark": "Kiválasztva: {branch}",
@@ -3442,29 +3447,29 @@
   "usagePaidAlwaysNote": "Mindig engedélyezve ezen a munkaterületen, kérdés nélkül: {features}.",
   "usagePaidAskAgain": "Rákérdezés minden alkalommal",
   "usagePaidSearches": {
-    "other": "{count} keresés",
-    "one": "{count} keresés"
+    "one": "{count} keresés",
+    "other": "{count} keresés"
   },
   "usagePaidImages": {
-    "other": "{count} kép",
-    "one": "{count} kép"
+    "one": "{count} kép",
+    "other": "{count} kép"
   },
   "usagePaidAudio": "{duration} hanganyag",
   "usagePaidSubagentRequests": {
-    "other": "{count} alügynöki kérés",
-    "one": "{count} alügynöki kérés"
+    "one": "{count} alügynöki kérés",
+    "other": "{count} alügynöki kérés"
   },
   "usagePaidSubagentUnknown": {
-    "other": "{count} kérés költségét még nem jelentették",
-    "one": "{count} kérés költségét még nem jelentették"
+    "one": "{count} kérés költségét még nem jelentették",
+    "other": "{count} kérés költségét még nem jelentették"
   },
   "usagePaidSubagentSubset": "Az alügynökök jelentett költségeit a szülőbeszélgetéseik tokenköltség-becslései tartalmazzák. Ezeket nem adjuk hozzá a többi fizetős funkció összegéhez. A jelentett használat nélküli kérésekért is felszámíthatnak díjat.",
   "usagePaidExtraTotal": "A többi fizetős funkció becsült összköltsége",
   "usagePaidSubagentReported": "Jelentett tokenek becsült költsége: {cost}",
   "usagePaidTotal": "A fizetős funkciók becsült összege",
   "usagePaidScheduled": {
-    "other": "{count} ütemezett futtatás",
-    "one": "{count} ütemezett futtatás"
+    "one": "{count} ütemezett futtatás",
+    "other": "{count} ütemezett futtatás"
   },
   "usageScheduledIncluded": "a tokenek költsége fent szerepel",
   "usagePaidNote": "Becslés a Meta által közzétett árak alapján (lekérdezve: {date}), erre az ablakra a megnyitása óta; a tényleges számla a dev.meta.ai irányítópultján látható.",
@@ -3534,8 +3539,8 @@
   "reviewInstructionsTooLong": "Annak leírása, hogy mit kell áttekinteni, túl hosszú egyetlen áttekintéshez; fogalmazza meg röviden.",
   "reviewTruncatedNotice": "A diff hosszú, ezért csak az első része került az áttekintéshez; a módosított fájlok többi részét az áttekintő maga olvassa el.",
   "reviewPrivateLeftOut": {
-    "other": "{count} módosított fájl, amely titkos adatokat tartalmazhat, név szerint szerepel, de nem lett elküldve áttekintésre.",
-    "one": "{count} módosított fájl, amely titkos adatokat tartalmazhat, név szerint szerepel, de nem lett elküldve áttekintésre."
+    "one": "{count} módosított fájl, amely titkos adatokat tartalmazhat, név szerint szerepel, de nem lett elküldve áttekintésre.",
+    "other": "{count} módosított fájl, amely titkos adatokat tartalmazhat, név szerint szerepel, de nem lett elküldve áttekintésre."
   },
   "reviewPlanModeNotice": "Ez az áttekintés Tervezés módban fut, és a végén visszaáll a korábbi engedélyezési mód. A Muse Code Tervezés módban a saját engedélyezési szabályait alkalmazza, ezért az áttekintés ott nem feltétlenül végez csak olvasási műveleteket.",
   "reviewModeRestored": "Az áttekintés befejeződött: az engedélyezési mód ismét {mode}.",
@@ -3545,24 +3550,24 @@
   "reviewPaneLoading": "Módosítások beolvasása…",
   "reviewPaneEmpty": "Ez a beszélgetés nem módosított fájlokat.",
   "reviewPaneFiles": {
-    "other": "{count} fájl",
-    "one": "{count} fájl"
+    "one": "{count} fájl",
+    "other": "{count} fájl"
   },
   "reviewPaneHunks": {
-    "other": "{count} módosítás",
-    "one": "{count} módosítás"
+    "one": "{count} módosítás",
+    "other": "{count} módosítás"
   },
   "reviewPaneAccepted": {
-    "other": "{count} elfogadva",
-    "one": "{count} elfogadva"
+    "one": "{count} elfogadva",
+    "other": "{count} elfogadva"
   },
   "reviewPaneReverted": {
-    "other": "{count} visszaállítva",
-    "one": "{count} visszaállítva"
+    "one": "{count} visszaállítva",
+    "other": "{count} visszaállítva"
   },
   "reviewPaneOmitted": {
-    "other": "{count} szerkesztés nem szerepel itt (túl sok a megjelenítéshez, vagy a módosításaik nem olvashatók be); a beszélgetésben lévő soraik továbbra is megnyitják őket.",
-    "one": "{count} szerkesztés nem szerepel itt (túl sok a megjelenítéshez, vagy a módosítása nem olvasható be); a beszélgetésben lévő sora továbbra is megnyitja."
+    "one": "{count} szerkesztés nem szerepel itt (túl sok a megjelenítéshez, vagy a módosítása nem olvasható be); a beszélgetésben lévő sora továbbra is megnyitja.",
+    "other": "{count} szerkesztés nem szerepel itt (túl sok a megjelenítéshez, vagy a módosításaik nem olvashatók be); a beszélgetésben lévő soraik továbbra is megnyitják őket."
   },
   "reviewHunkLines": "{index}. módosítás, {start}–{end}. sor",
   "reviewHunkLine": "{index}. módosítás, {start}. sor",
@@ -3588,8 +3593,8 @@
   "reviewAnnounceNotReverted": "{name} nincs visszaállítva: {reason}",
   "reviewFindingsLabel": "Az áttekintés megállapításai",
   "reviewFindingsHeading": {
-    "other": "{count} megállapítás",
-    "one": "{count} megállapítás"
+    "one": "{count} megállapítás",
+    "other": "{count} megállapítás"
   },
   "reviewNoFindings": "Az áttekintés nem talált jelentenivalót.",
   "reviewSeverities": {
@@ -3621,8 +3626,8 @@
   "paidUseAutoReviewerTitle": "Értékelje az automatikus ellenőrző ezt a(z) {tool}-hívást?",
   "paidUseAutoReviewerDetail": "{action}\n\nEgy külön {model}-hívás értékeli, hogy a művelet futhat-e az Ön megkérdezése nélkül. A díj a Model API-kulcsára terhelődik: {price}. A végösszeg a felhasznált tokenektől függ. Megtagadás esetén inkább a jóváhagyási kártyát látja.",
   "usagePaidAutoReviews": {
-    "other": "{count} ellenőrzés",
-    "one": "{count} ellenőrzés"
+    "one": "{count} ellenőrzés",
+    "other": "{count} ellenőrzés"
   },
   "paidJudgeName": "Értékelő",
   "paidConfirmJudge": "Saját csevegőmodellje értékel minden kockázatos Auto műveletet, amelyről egyetlen szabály sem dönt, és csak óvatosságot adhat hozzá: az elkészült figyelmeztetés az engedélyt kérdéssé alakítja, vagy megjegyzést fűz a jóváhagyási kártyához. Minden értékelés díja a Model API-kulcsára terhelődik a beszélgetés modelljének tokenáraival:\n{price}\nAz értékelő egyszer kér engedélyt az első díj felszámítása előtt, feltüntetve ezeket az árakat és a közös napi keretet: {budget}. Ingyenes forrásról fizetősre váltáskor újra engedélyt kér. A Muse Code rendszerben ugyanezek a hívások az előfizetését használják.",
@@ -3654,17 +3659,17 @@
   "permissionRootInvalid": "{setting}: a(z) „{root}” további gyökér nem abszolút elérési út, ezért nem kerül hozzáadásra.",
   "permissionRepositoryInvalid": "{setting}: a tárház szabályai érvénytelenek ({detail}), és nem lépnek életbe.",
   "verifyErrors": {
-    "other": "{count} hiba",
-    "one": "{count} hiba"
+    "one": "{count} hiba",
+    "other": "{count} hiba"
   },
   "verifyWarnings": {
-    "other": "{count} figyelmeztetés",
-    "one": "{count} figyelmeztetés"
+    "one": "{count} figyelmeztetés",
+    "other": "{count} figyelmeztetés"
   },
   "verifyClean": "Nincs hiba vagy figyelmeztetés",
   "verifyUnchecked": {
-    "other": "{count} fájl nincs ellenőrizve",
-    "one": "{count} fájl nincs ellenőrizve"
+    "one": "{count} fájl nincs ellenőrizve",
+    "other": "{count} fájl nincs ellenőrizve"
   },
   "checkOutcomes": {
     "passed": "{name}: sikeres",
@@ -3689,8 +3694,8 @@
   "thenRunTimedOut": "Az időkorlátnál leállítva",
   "thenRunNoExitCode": "Kilépési kód nélkül sikertelen",
   "checksStoppedNotice": {
-    "other": "Az ellenőrzések {count} egymást követő javítási kör után is hibásak voltak, ezért a következő üzenetéig már nem futnak le automatikusan.",
-    "one": "Az ellenőrzések {count} javítási kör után is hibásak voltak, ezért a következő üzenetéig már nem futnak le automatikusan."
+    "one": "Az ellenőrzések {count} javítási kör után is hibásak voltak, ezért a következő üzenetéig már nem futnak le automatikusan.",
+    "other": "Az ellenőrzések {count} egymást követő javítási kör után is hibásak voltak, ezért a következő üzenetéig már nem futnak le automatikusan."
   },
   "exportThenRunLabel": "Utána futtatva:",
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",

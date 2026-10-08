@@ -1566,8 +1566,8 @@
     {
       "id": "orchestrator-playbook",
       "name": { "ui": "playbookTitle" },
-      "summary": { "ui": "playbookHelpDescription" },
-      "description": { "ui": "playbookHelpDescription" },
+      "summary": { "ui": "playbookRecordHelp" },
+      "description": { "ui": "playbookRecordHelp" },
       "commands": [],
       "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#orchestrator-playbook-policy-m116",

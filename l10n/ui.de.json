@@ -236,6 +236,9 @@
   "playbookFallbackReviewer": "Ersatzprüfung für vom Klassifikator blockierte Prüfungen: {reviewer}",
   "playbookFallbackNone": "Keine Ersatzprüfung benannt",
   "playbookResidualAccepted": "Restpunkt akzeptiert",
+  "playbookRecordHelp": "Prüfrunden, Entwurfsentscheidungen, Sicherheitsablehnungen, Einstellungen und Gründe nicht zugeordneter Annahmen anzeigen.",
+  "playbookResidualUnbound": "Nicht zugeordnete Restbefund-Annahme",
+  "playbookResidualUnboundReason": "Kein früherer Restbefund passt zu Zeitpunkt und Belegen dieser Annahme. Sie deckt keinen Restbefund ab.",
   "playbookLeaseRecord": "Patch-Lease {status}: {module} ({lane})",
   "playbookWorkRecord": "Arbeit {id} an {module}: {commits} Basis-Commits",
   "playbookVerificationRecord": "Hook-Prüfung {result} für {commit} ({scope})",
@@ -909,20 +912,20 @@
   "exportPreviewFull": "Ohne Redigieren speichern…",
   "exportPreviewOpen": "Die redigierte Datei ist im Editor geöffnet. Bis Sie wählen, wird nichts geschrieben.",
   "exportPreviewMessages": {
-    "other": "{count} Nachrichten in dieser Unterhaltung",
-    "one": "{count} Nachricht in dieser Unterhaltung"
+    "one": "{count} Nachricht in dieser Unterhaltung",
+    "other": "{count} Nachrichten in dieser Unterhaltung"
   },
   "exportPreviewPaths": {
-    "other": "{count} Pfade entfernt",
-    "one": "{count} Pfad entfernt"
+    "one": "{count} Pfad entfernt",
+    "other": "{count} Pfade entfernt"
   },
   "exportPreviewAccounts": {
-    "other": "{count} Konto-IDs entfernt",
-    "one": "{count} Konto-ID entfernt"
+    "one": "{count} Konto-ID entfernt",
+    "other": "{count} Konto-IDs entfernt"
   },
   "exportPreviewSecrets": {
-    "other": "{count} Anmeldeinformationen oder Schlüssel-Hashes entfernt",
-    "one": "{count} Anmeldeinformation oder Schlüssel-Hash entfernt"
+    "one": "{count} Anmeldeinformation oder Schlüssel-Hash entfernt",
+    "other": "{count} Anmeldeinformationen oder Schlüssel-Hashes entfernt"
   },
   "exportPreviewKnownCredentials": "Bekannte Formen von Anmeldedaten (API-Schlüssel, Tokens, Passwörter, private Schlüssel) und der Schlüssel-Hash werden immer entfernt. Ein Geheimnis in anderer Form bleibt: Lesen Sie die Datei, bevor Sie sie weitergeben.",
   "exportTooLarge": "Diese Unterhaltung ist zu lang für eine Sitzungsexportdatei.",
@@ -958,8 +961,8 @@
   "mcpUnreadable": "Die Einstellungsdatei von Muse Code konnte nicht gelesen werden:",
   "mcpNone": "In {path} sind keine MCP-Server konfiguriert",
   "mcpCount": {
-    "other": "{count} MCP-Server in {path}",
-    "one": "{count} MCP-Server in {path}"
+    "one": "{count} MCP-Server in {path}",
+    "other": "{count} MCP-Server in {path}"
   },
   "mcpOptional": "optional",
   "mcpRequired": "erforderlich (Muse Code wird beendet, wenn er fehlschlägt)",
@@ -989,12 +992,12 @@
   "mcpStateNotStarted": "Startet mit Ihrer nächsten Nachricht",
   "mcpStateStarting": "Wird gestartet…",
   "mcpStateConnected": {
-    "other": "Verbunden: {count} Tools",
-    "one": "Verbunden: {count} Tool"
+    "one": "Verbunden: {count} Tool",
+    "other": "Verbunden: {count} Tools"
   },
   "mcpStateUnoffered": {
-    "other": "{count} weitere nicht angeboten",
-    "one": "{count} weiteres nicht angeboten"
+    "one": "{count} weiteres nicht angeboten",
+    "other": "{count} weitere nicht angeboten"
   },
   "mcpStateFailed": "Läuft nicht: {reason}",
   "mcpStateRestricted": "Nicht gestartet: Dieser Arbeitsbereich ist im eingeschränkten Modus",
@@ -1050,8 +1053,8 @@
   "hooksUserBlock": "settings.json › hooks",
   "hooksUserNone": "Keine in Ihren Einstellungen",
   "hooksUserCount": {
-    "other": "{count} Hooks in Ihren Einstellungen",
-    "one": "{count} Hook in Ihren Einstellungen"
+    "one": "{count} Hook in Ihren Einstellungen",
+    "other": "{count} Hooks in Ihren Einstellungen"
   },
   "hooksManaged": "Verwaltete Hooks",
   "hooksManagedKey": "managed_hooks_path",
@@ -1145,8 +1148,8 @@
   "memoryTitle": "Muse-Gedächtnis",
   "memoryNone": "Noch keine Gedächtnisnotizen für diesen Arbeitsbereich",
   "memoryCount": {
-    "other": "{count} Gedächtnisnotizen",
-    "one": "{count} Gedächtnisnotiz"
+    "one": "{count} Gedächtnisnotiz",
+    "other": "{count} Gedächtnisnotizen"
   },
   "memoryIndexDetail": "Der Index, den Muse zu Beginn jeder Sitzung liest",
   "memoryNewNote": "Neue Notiz…",
@@ -1670,8 +1673,8 @@
   "pdfLabel": "PDF",
   "toolReadPdf": "PDF `{path}` gelesen ({pages}, {bytes} Byte)",
   "toolReadPdfPages": {
-    "other": "{count} Seiten",
-    "one": "{count} Seite"
+    "one": "{count} Seite",
+    "other": "{count} Seiten"
   },
   "toolReadPdfPagesUnknown": "Seitenzahl unbekannt",
   "toolReadImage": "Bild `{path}` gelesen ({mediaType}, {width}×{height}, {bytes} Byte)",
@@ -1735,16 +1738,16 @@
   "browserRuntimeReady": "Der Browser der Browserprüfung {version} ist bereit.",
   "browserCheckDone": "{url} geprüft: {errors}, {failed}, {blocked}",
   "browserCheckConsoleErrors": {
-    "other": "{count} Konsolenfehler",
-    "one": "{count} Konsolenfehler"
+    "one": "{count} Konsolenfehler",
+    "other": "{count} Konsolenfehler"
   },
   "browserCheckFailedRequests": {
-    "other": "{count} fehlgeschlagene Anfragen",
-    "one": "{count} fehlgeschlagene Anfrage"
+    "one": "{count} fehlgeschlagene Anfrage",
+    "other": "{count} fehlgeschlagene Anfragen"
   },
   "browserCheckBlockedRequests": {
-    "other": "{count} Anfragen außerhalb dieses Computers blockiert",
-    "one": "{count} Anfrage außerhalb dieses Computers blockiert"
+    "one": "{count} Anfrage außerhalb dieses Computers blockiert",
+    "other": "{count} Anfragen außerhalb dieses Computers blockiert"
   },
   "browserCheckUrlRefused": "Geöffnet werden kann nur eine http://- oder https://-Adresse mit einem einfachen Hostnamen oder einer IP-Adresse und ohne Benutzername oder Passwort.",
   "browserCheckInvalidArguments": "Die Browserprüfung wurde mit ungültigen Argumenten angefordert, daher wurde nichts geöffnet.",
@@ -1793,12 +1796,12 @@
   "thoughtFor": "{duration} nachgedacht",
   "thinkingNow": "Denkt nach",
   "addedLines": {
-    "other": "{count} Zeilen hinzugefügt",
-    "one": "{count} Zeile hinzugefügt"
+    "one": "{count} Zeile hinzugefügt",
+    "other": "{count} Zeilen hinzugefügt"
   },
   "removedLines": {
-    "other": "{count} Zeilen entfernt",
-    "one": "{count} Zeile entfernt"
+    "one": "{count} Zeile entfernt",
+    "other": "{count} Zeilen entfernt"
   },
   "modified": "Geändert",
   "inLabel": "EIN",
@@ -1822,8 +1825,8 @@
   "approvalBrowserCheckWidenResidual": "Wenn Sie zulassen, kann diese Prüfung den Host auch über https und WebSockets erreichen. Dieser Verkehr ist verschlüsselt, daher kann die Erweiterung ihn nicht prüfen, und eine Website dort kann Sie mit dem Konto dieses Computers anmelden (vor allem unter Windows).",
   "approvalImageSources": "Ausgehend von {paths}",
   "renameCardMore": {
-    "other": "{files} und {count} weitere Dateien",
-    "one": "{files} und {count} weitere Datei"
+    "one": "{files} und {count} weitere Datei",
+    "other": "{files} und {count} weitere Dateien"
   },
   "codeIntelNoService": "Für {path} hat kein Sprachdienst geantwortet, oder die Datei deklariert keine Symbole.",
   "codeIntelTimedOut": "Der Sprachdienst hat nicht innerhalb von {seconds} Sekunden geantwortet.",
@@ -1840,8 +1843,8 @@
   "approvalDecided": "Entschieden",
   "approvalDockLabel": "Wartet auf Ihre Genehmigung",
   "approvalDockCount": {
-    "other": "Wartende Genehmigungen: {count}",
-    "one": "Wartende Genehmigung: {count}"
+    "one": "Wartende Genehmigung: {count}",
+    "other": "Wartende Genehmigungen: {count}"
   },
   "approvalDockedNote": "Wartet auf Ihre Genehmigung, in der Karte über dem Nachrichtenfeld",
   "questionSubmit": "Senden",
@@ -1882,6 +1885,8 @@
   "questionNoOpen": "Keine offenen Fragen.",
   "questionAnswerFailed": "Ihre Antwort konnte nicht gesendet werden. Versuchen Sie es erneut.",
   "questionAnswerUncertain": "Ihre Antwort hat Muse möglicherweise erreicht. Sie wird nicht erneut gesendet.",
+  "questionQueueLeaseFailed": "Die Zuordnung der Antworten in der Warteschlange hat sich geändert. Nach Abschluss der aktuellen Anfrage erneut versuchen.",
+  "questionQueueCommitFailed": "Die Anfrage wurde gesendet, aber die Antworten konnten nicht als zugestellt gespeichert werden. Sie bleiben in der Warteschlange und können erneut gesendet werden.",
   "questionDismissFailed": "Die Frage konnte nicht geschlossen werden.",
   "acpOpenQuestionAsked": "Muse hat eine Frage; dieser Editor kann kein Formular anzeigen. Sie können später mit /answer antworten.",
   "acpQuestionDeferred": "Frage {number} ist offen. Antworten Sie mit /answer {number} <text>.",
@@ -1927,36 +1932,36 @@
   "tasksTabEnded": "Die Unterhaltung, zu der diese Liste gehört, wurde geschlossen.",
   "stepSummary": {
     "edited": {
-      "other": "{count} Dateien bearbeitet",
-      "one": "eine Datei bearbeitet"
+      "one": "eine Datei bearbeitet",
+      "other": "{count} Dateien bearbeitet"
     },
     "read": {
-      "other": "{count} Dateien gelesen",
-      "one": "eine Datei gelesen"
+      "one": "eine Datei gelesen",
+      "other": "{count} Dateien gelesen"
     },
     "searched": {
-      "other": "{count} Ordner durchsucht",
-      "one": "einen Ordner durchsucht"
+      "one": "einen Ordner durchsucht",
+      "other": "{count} Ordner durchsucht"
     },
     "ran": {
-      "other": "{count} Befehle ausgeführt",
-      "one": "einen Befehl ausgeführt"
+      "one": "einen Befehl ausgeführt",
+      "other": "{count} Befehle ausgeführt"
     },
     "fetched": {
-      "other": "{count} Seiten abgerufen",
-      "one": "eine Seite abgerufen"
+      "one": "eine Seite abgerufen",
+      "other": "{count} Seiten abgerufen"
     },
     "searchedWeb": {
-      "other": "das Web {count} Mal durchsucht",
-      "one": "das Web durchsucht"
+      "one": "das Web durchsucht",
+      "other": "das Web {count} Mal durchsucht"
     },
     "used": {
-      "other": "{count} Tools verwendet",
-      "one": "ein Tool verwendet"
+      "one": "ein Tool verwendet",
+      "other": "{count} Tools verwendet"
     },
     "failed": {
-      "other": "{count} fehlgeschlagen",
-      "one": "{count} fehlgeschlagen"
+      "one": "{count} fehlgeschlagen",
+      "other": "{count} fehlgeschlagen"
     }
   },
   "contextMeterLabel": "Kontext {percent} verwendet",
@@ -1988,8 +1993,8 @@
   "noEditorForApply": "Öffnen Sie einen Texteditor, um Code darauf anzuwenden.",
   "diffTitleSuffix": "Muse-Bearbeitung",
   "diffTallyFiles": {
-    "other": "{count} Dateien geändert",
-    "one": "{count} Datei geändert"
+    "one": "{count} Datei geändert",
+    "other": "{count} Dateien geändert"
   },
   "diffTallyLines": "+{added} −{removed}",
   "diffTallyLabel": "Änderungen in dieser Unterhaltung",
@@ -2014,8 +2019,8 @@
   "historyCurrent": "aktuell",
   "historyForkMark": "Abzweigung",
   "historyTurns": {
-    "other": "{count} Durchgänge",
-    "one": "{count} Durchgang"
+    "one": "{count} Durchgang",
+    "other": "{count} Durchgänge"
   },
   "resumeItem": "Fortsetzen",
   "resumeDetail": "Eine frühere Unterhaltung in diesem Arbeitsbereich auswählen",
@@ -2028,8 +2033,8 @@
   "forkAndRewind": "Unterhaltung abzweigen und Code zurücksetzen",
   "rewindNothing": "Nach dieser Nachricht gibt es keine Bearbeitungen zum Zurücksetzen.",
   "rewindDone": {
-    "other": "Code auf diese Nachricht zurückgesetzt ({count} Bearbeitungen)",
-    "one": "Code auf diese Nachricht zurückgesetzt ({count} Bearbeitung)"
+    "one": "Code auf diese Nachricht zurückgesetzt ({count} Bearbeitung)",
+    "other": "Code auf diese Nachricht zurückgesetzt ({count} Bearbeitungen)"
   },
   "forkedNotice": "In eine neue Unterhaltung abgezweigt.",
   "rewindImagesUnavailable": "Einige Bilder aus dieser Nachricht konnten nicht wiederhergestellt werden.",
@@ -2054,22 +2059,22 @@
   "restoreBothConfirmAction": "Wiederherstellen und zurückspulen",
   "rewindNotDone": "Die Unterhaltung wurde nicht zurückgespult.",
   "restoreDone": {
-    "other": "{count} Dateien auf den Stand vor dieser Nachricht zurückgesetzt.",
-    "one": "{count} Datei auf den Stand vor dieser Nachricht zurückgesetzt."
+    "one": "{count} Datei auf den Stand vor dieser Nachricht zurückgesetzt.",
+    "other": "{count} Dateien auf den Stand vor dieser Nachricht zurückgesetzt."
   },
   "restoreNothing": "Keine Datei musste wiederhergestellt werden.",
   "redoNothing": "Es ist nichts mehr zurückzusetzen.",
   "redoDone": {
-    "other": "{count} Dateien wieder übernommen.",
-    "one": "{count} Datei wieder übernommen."
+    "one": "{count} Datei wieder übernommen.",
+    "other": "{count} Dateien wieder übernommen."
   },
   "redoAction": "Wiederholen",
   "redoLabel": "Wiederholen: die von dieser Wiederherstellung ersetzten Dateien zurückholen",
   "redoGone": "Diese Wiederherstellung kann nicht mehr wiederholt werden.",
   "noticeRepeatBadge": "{count}×",
   "noticeRepeated": {
-    "other": "{count}-mal angezeigt",
-    "one": "{count}-mal angezeigt"
+    "one": "{count}-mal angezeigt",
+    "other": "{count}-mal angezeigt"
   },
   "restoreRefusedUnsaved": "Unverändert gelassen, mit ungespeicherten Änderungen: {files}",
   "restoreRefusedChanged": "Unverändert gelassen, inzwischen anderweitig geändert: {files}",
@@ -2080,8 +2085,8 @@
   "restoreRefusedTooLarge": "Nicht wiederherstellbar, zu groß zum Speichern einer Kopie: {files}",
   "restoreRefusedFailed": "Konnte nicht geändert werden: {files}",
   "restoreUnchanged": {
-    "other": "Bereits wie zuvor: {count} Dateien.",
-    "one": "Bereits wie zuvor: {count} Datei."
+    "one": "Bereits wie zuvor: {count} Datei.",
+    "other": "Bereits wie zuvor: {count} Dateien."
   },
   "restoreWritesIncomplete": "Nichts wurde wiederhergestellt: Einige Bearbeitungen dieser Züge wurden nicht vollständig aufgezeichnet (Neuladen oder Absturz während der Bearbeitung oder deaktivierte Dateicheckpoints).",
   "restoreLegacyInRange": "Nichts wurde wiederhergestellt: Einige dieser Züge wurden von einer früheren Version aufgezeichnet und können von dieser Version nicht wiederhergestellt werden.",
@@ -2258,8 +2263,8 @@
   "plansItemDetail": "Gespeicherte Pläne in .agents/plans: einen öffnen oder umsetzen",
   "plansTitle": "Pläne",
   "plansCount": {
-    "other": "{count} gespeicherte Pläne",
-    "one": "{count} gespeicherter Plan"
+    "one": "{count} gespeicherter Plan",
+    "other": "{count} gespeicherte Pläne"
   },
   "plansNone": "Noch keine gespeicherten Pläne. Speichern Sie einen aus einer Antwort im Planungsmodus.",
   "plansFailed": "Die Pläne konnten nicht aufgelistet werden",
@@ -2294,8 +2299,8 @@
   "signedOutNotice": "Von Muse Spark abgemeldet.",
   "agentsPillTitle": "Agentenkarte anzeigen",
   "agentsCount": {
-    "other": "{count} Agenten",
-    "one": "{count} Agent"
+    "one": "{count} Agent",
+    "other": "{count} Agenten"
   },
   "backgroundTasksPillTitle": "Hintergrundaufgaben anzeigen",
   "agentMapTitle": "Agentenkarte",
@@ -2574,8 +2579,8 @@
   "workflowChildUntitled": "Agent {number}",
   "workflowAttempt": "Versuch {attempt}",
   "workflowsCount": {
-    "other": "{count} Workflows",
-    "one": "{count} Workflow"
+    "one": "{count} Workflow",
+    "other": "{count} Workflows"
   },
   "workflowsLabel": "Workflows",
   "workflowTriggerModes": {
@@ -2588,8 +2593,8 @@
   "workflowLaunched": "Gestartet: Er läuft im Hintergrund und meldet sich in dieser Unterhaltung zurück.",
   "workflowScriptSaved": "Skript gespeichert unter {path}",
   "backgroundTasksCount": {
-    "other": "{count} Hintergrundaufgaben",
-    "one": "{count} Hintergrundaufgabe"
+    "one": "{count} Hintergrundaufgabe",
+    "other": "{count} Hintergrundaufgaben"
   },
   "backgroundTasksLabel": "Hintergrundaufgaben",
   "backgroundBadge": "Hintergrund",
@@ -2701,12 +2706,12 @@
   "usageInsightNoLogs": "Auf diesem Computer wurden noch keine Trace-Protokolle von Muse Code gefunden.",
   "usageInsightTotals": "{attempts} in {sessions}",
   "modelAttemptsCount": {
-    "other": "{count} Modellversuche",
-    "one": "{count} Modellversuch"
+    "one": "{count} Modellversuch",
+    "other": "{count} Modellversuche"
   },
   "sessionsCount": {
-    "other": "{count} Sitzungen",
-    "one": "{count} Sitzung"
+    "one": "{count} Sitzung",
+    "other": "{count} Sitzungen"
   },
   "durationNow": "jetzt",
   "contextCompactTitle": "Klicken, um jetzt zu komprimieren",
@@ -2882,8 +2887,8 @@
   "scheduleRepeats": "Wiederkehrend",
   "scheduleNextRun": "Nächste Ausführung: {date}",
   "scheduleFired": {
-    "other": "{count}-mal ausgeführt",
-    "one": "{count}-mal ausgeführt"
+    "one": "{count}-mal ausgeführt",
+    "other": "{count}-mal ausgeführt"
   },
   "scheduleNone": "Keine geplanten Prompts",
   "loopItem": "/loop",
@@ -2953,20 +2958,20 @@
   },
   "importNothingFrom": "Keine Skills zum Importieren aus {source}.",
   "importInstalledSummary": {
-    "other": "{count} importiert: {skills}",
-    "one": "{count} importiert: {skills}"
+    "one": "{count} importiert: {skills}",
+    "other": "{count} importiert: {skills}"
   },
   "importSkippedSummary": {
-    "other": "{count} übersprungen: {skills}",
-    "one": "{count} übersprungen: {skills}"
+    "one": "{count} übersprungen: {skills}",
+    "other": "{count} übersprungen: {skills}"
   },
   "importQuarantinedSummary": {
-    "other": "{count} unter Quarantäne gestellt: {skills}",
-    "one": "{count} unter Quarantäne gestellt: {skills}"
+    "one": "{count} unter Quarantäne gestellt: {skills}",
+    "other": "{count} unter Quarantäne gestellt: {skills}"
   },
   "importFailedSummary": {
-    "other": "{count} fehlgeschlagen: {skills}",
-    "one": "{count} fehlgeschlagen: {skills}"
+    "one": "{count} fehlgeschlagen: {skills}",
+    "other": "{count} fehlgeschlagen: {skills}"
   },
   "bundledSkillsOffer": "Muse Spark bringt die Skills {skills} mit. Für Muse Code installieren? Sie werden in Ihren Muse-Konfigurationsordner kopiert.",
   "bundledSkillsUpdateOffer": "Muse Spark bringt eine neuere Version seiner mitgelieferten Skills ({tag}) mit. Die Kopie aktualisieren, die Muse Code verwendet?",
@@ -2974,16 +2979,16 @@
   "bundledSkillsUpdate": "Aktualisieren",
   "bundledSkillsNotNow": "Nicht jetzt",
   "bundledSkillsInstalled": {
-    "other": "{count} mitgelieferte Skills ({tag}) für Muse Code installiert: {skills}",
-    "one": "{count} mitgelieferter Skill ({tag}) für Muse Code installiert: {skills}"
+    "one": "{count} mitgelieferter Skill ({tag}) für Muse Code installiert: {skills}",
+    "other": "{count} mitgelieferte Skills ({tag}) für Muse Code installiert: {skills}"
   },
   "bundledSkillsSkipped": {
-    "other": "{count} Skills ausgelassen, weil Ihre eigenen Skills so heißen: {skills}",
-    "one": "{count} Skill ausgelassen, weil einer Ihrer eigenen Skills so heißt: {skills}"
+    "one": "{count} Skill ausgelassen, weil einer Ihrer eigenen Skills so heißt: {skills}",
+    "other": "{count} Skills ausgelassen, weil Ihre eigenen Skills so heißen: {skills}"
   },
   "bundledSkillsRemoved": {
-    "other": "{count} mitgelieferte Skills aus Muse Code entfernt: {skills}",
-    "one": "{count} mitgelieferter Skill aus Muse Code entfernt: {skills}"
+    "one": "{count} mitgelieferter Skill aus Muse Code entfernt: {skills}",
+    "other": "{count} mitgelieferte Skills aus Muse Code entfernt: {skills}"
   },
   "bundledSkillsNothingToRemove": "Für Muse Code sind keine mitgelieferten Skills installiert, daher wurde nichts entfernt.",
   "bundledSkillsInstallFailed": "Die mitgelieferten Skills konnten nicht unter {folder} installiert werden: {reason}",
@@ -3118,16 +3123,16 @@
     "accounting_unverified": "Abrechnung ungeprüft"
   },
   "execTooManyFiles": {
-    "other": "Höchstens {count} Eingabedateien sind erlaubt.",
-    "one": "Höchstens {count} Eingabedatei ist erlaubt."
+    "one": "Höchstens {count} Eingabedatei ist erlaubt.",
+    "other": "Höchstens {count} Eingabedateien sind erlaubt."
   },
   "execRequestCapReached": {
-    "other": "Das Anfragenlimit von {count} Versuchen wurde erreicht.",
-    "one": "Das Anfragenlimit von {count} Versuch wurde erreicht."
+    "one": "Das Anfragenlimit von {count} Versuch wurde erreicht.",
+    "other": "Das Anfragenlimit von {count} Versuchen wurde erreicht."
   },
   "execScanMatches": {
-    "other": "{count} Geheimnisse gefunden",
-    "one": "{count} Geheimnis gefunden"
+    "one": "{count} Geheimnis gefunden",
+    "other": "{count} Geheimnisse gefunden"
   },
   "providerKeyStored": "Der Schlüssel für {provider} ist gespeichert: {store}.",
   "providerKeyNotStored": "Es wurde kein Schlüssel eingegeben, daher wurde nichts gespeichert.",
@@ -3183,17 +3188,17 @@
   "exportArgumentsLabel": "Argumente:",
   "exportOutputLabel": "Ausgabe:",
   "exportOutputStored": {
-    "other": "Die Ausgabe ({count} Byte) wird vom Backend gespeichert und ist nicht enthalten.",
-    "one": "Die Ausgabe ({count} Byte) wird vom Backend gespeichert und ist nicht enthalten."
+    "one": "Die Ausgabe ({count} Byte) wird vom Backend gespeichert und ist nicht enthalten.",
+    "other": "Die Ausgabe ({count} Byte) wird vom Backend gespeichert und ist nicht enthalten."
   },
   "exportFilesChanged": {
-    "other": "{count} Dateien geändert: +{added} −{removed}.",
-    "one": "{count} Datei geändert: +{added} −{removed}."
+    "one": "{count} Datei geändert: +{added} −{removed}.",
+    "other": "{count} Dateien geändert: +{added} −{removed}."
   },
   "exportFailure": "Fehlgeschlagen: {reason}",
   "exportImagesAttached": {
-    "other": "{count} Bilder angehängt.",
-    "one": "{count} Bild angehängt."
+    "one": "{count} Bild angehängt.",
+    "other": "{count} Bilder angehängt."
   },
   "insertReferenceNoEditor": "Öffnen Sie eine Datei in einem Editor, um einen Verweis darauf einzufügen.",
   "insertReferencePanelOpened": "Das Muse Spark-Panel wurde geöffnet. Drücken Sie erneut Alt+K, um den Verweis einzufügen.",
@@ -3209,12 +3214,12 @@
   "turnFailed": "Der Durchgang ist fehlgeschlagen.",
   "turnRetrying": "Versuch {attempt}/{maxAttempts} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s.",
   "usageWindowHours": {
-    "other": "{count}-Stunden-Zeitfenster",
-    "one": "{count}-Stunden-Zeitfenster"
+    "one": "{count}-Stunden-Zeitfenster",
+    "other": "{count}-Stunden-Zeitfenster"
   },
   "usageWindowMinutes": {
-    "other": "{count}-Minuten-Zeitfenster",
-    "one": "{count}-Minuten-Zeitfenster"
+    "one": "{count}-Minuten-Zeitfenster",
+    "other": "{count}-Minuten-Zeitfenster"
   },
   "statusVerbs": {
     "thinking": "Denkt nach…",
@@ -3289,8 +3294,8 @@
   "paidBestOfNDetail": "{prompt}\n\n{price}\n\nAbrechnung über Ihren Model-API-Schlüssel. Die tatsächlichen Kosten hängen von den verwendeten Token ab. „Einmal zulassen“ gilt nur für diesen Durchlauf.",
   "paidConfirmBestOfN": "Der gleiche Prompt läuft in separaten Worktrees, jeweils über Ihren Model-API-Schlüssel abgerechnet. {price} Jeder Durchlauf erfordert in jedem Berechtigungsmodus eine Genehmigung, auch in Bypass, es sei denn, Sie lassen Best-of-N in diesem Arbeitsbereich immer zu. Die tatsächlichen Kosten hängen von den verwendeten Token ab; andere kostenpflichtige Tools kosten zusätzlich. Nur auf dem Model-API-Backend.",
   "usagePaidBestOfNAttempts": {
-    "other": "{count} Versuche",
-    "one": "{count} Versuch"
+    "one": "{count} Versuch",
+    "other": "{count} Versuche"
   },
   "usagePaidBestOfNIncluded": "Gemeldete Tokenschätzung: {cost}",
   "paidTeamWorkersName": "Team-Agenten",
@@ -3367,12 +3372,12 @@
   "boardStatusRunning": "Läuft",
   "boardStatusIdle": "Inaktiv",
   "boardAwaitingApproval": {
-    "other": "{count} wartende Genehmigungen",
-    "one": "{count} wartende Genehmigung"
+    "one": "{count} wartende Genehmigung",
+    "other": "{count} wartende Genehmigungen"
   },
   "boardChanges": {
-    "other": "{count} geänderte Dateien",
-    "one": "{count} geänderte Datei"
+    "one": "{count} geänderte Datei",
+    "other": "{count} geänderte Dateien"
   },
   "boardChangesUnknown": "Änderungen unbekannt",
   "boardStartBestOfN": "Best-of-N…",
@@ -3401,12 +3406,12 @@
   "bestOfNRunStatusCancelled": "Abgebrochen",
   "bestOfNCeilingReached": "am Anfragenlimit gestoppt",
   "bestOfNRequests": {
-    "other": "{count} Anfragen",
-    "one": "{count} Anfrage"
+    "one": "{count} Anfrage",
+    "other": "{count} Anfragen"
   },
   "bestOfNApprovalsDenied": {
-    "other": "{count} abgelehnte Genehmigungen",
-    "one": "{count} abgelehnte Genehmigung"
+    "one": "{count} abgelehnte Genehmigung",
+    "other": "{count} abgelehnte Genehmigungen"
   },
   "bestOfNAttemptFailed": "Fehlgeschlagen: {reason}",
   "bestOfNTakenMark": "Übernommen: {branch}",
@@ -3442,29 +3447,29 @@
   "usagePaidAlwaysNote": "In diesem Arbeitsbereich immer zugelassen, ohne Nachfrage: {features}.",
   "usagePaidAskAgain": "Jedes Mal wieder fragen",
   "usagePaidSearches": {
-    "other": "{count} Suchen",
-    "one": "{count} Suche"
+    "one": "{count} Suche",
+    "other": "{count} Suchen"
   },
   "usagePaidImages": {
-    "other": "{count} Bilder",
-    "one": "{count} Bild"
+    "one": "{count} Bild",
+    "other": "{count} Bilder"
   },
   "usagePaidAudio": "{duration} Audio",
   "usagePaidSubagentRequests": {
-    "other": "{count} Kindanfragen",
-    "one": "{count} Kindanfrage"
+    "one": "{count} Kindanfrage",
+    "other": "{count} Kindanfragen"
   },
   "usagePaidSubagentUnknown": {
-    "other": "Für {count} Anfragen liegen noch keine gemeldeten Kosten vor",
-    "one": "Für {count} Anfrage liegen noch keine gemeldeten Kosten vor"
+    "one": "Für {count} Anfrage liegen noch keine gemeldeten Kosten vor",
+    "other": "Für {count} Anfragen liegen noch keine gemeldeten Kosten vor"
   },
   "usagePaidSubagentSubset": "Die gemeldeten Kosten der Unteragenten sind in den Tokenkostenschätzungen ihrer übergeordneten Unterhaltungen enthalten. Sie werden nicht zur Summe der zusätzlichen kostenpflichtigen Funktionen addiert. Anfragen ohne gemeldete Nutzung können trotzdem berechnet werden.",
   "usagePaidExtraTotal": "Geschätzte Summe zusätzlicher kostenpflichtiger Funktionen",
   "usagePaidSubagentReported": "Gemeldete Tokenschätzung: {cost}",
   "usagePaidTotal": "Geschätzte Summe der kostenpflichtigen Funktionen",
   "usagePaidScheduled": {
-    "other": "{count} geplante Ausführungen",
-    "one": "{count} geplante Ausführung"
+    "one": "{count} geplante Ausführung",
+    "other": "{count} geplante Ausführungen"
   },
   "usageScheduledIncluded": "Tokenkosten oben enthalten",
   "usagePaidNote": "Schätzung anhand der von Meta veröffentlichten Preise, abgerufen am {date}, für dieses Fenster seit dem Öffnen; maßgeblich ist die Abrechnung im Dashboard von dev.meta.ai.",
@@ -3534,8 +3539,8 @@
   "reviewInstructionsTooLong": "Die Beschreibung, was überprüft werden soll, ist für eine Überprüfung zu lang; formulieren Sie sie kürzer.",
   "reviewTruncatedNotice": "Der Diff ist lang, daher wurde nur sein erster Teil mit der Überprüfung gesendet; den Rest der geänderten Dateien liest der Prüfer selbst.",
   "reviewPrivateLeftOut": {
-    "other": "{count} geänderte Dateien, die Geheimnisse enthalten können, wurden genannt, aber nicht zur Überprüfung gesendet.",
-    "one": "{count} geänderte Datei, die Geheimnisse enthalten kann, wurde genannt, aber nicht zur Überprüfung gesendet."
+    "one": "{count} geänderte Datei, die Geheimnisse enthalten kann, wurde genannt, aber nicht zur Überprüfung gesendet.",
+    "other": "{count} geänderte Dateien, die Geheimnisse enthalten können, wurden genannt, aber nicht zur Überprüfung gesendet."
   },
   "reviewPlanModeNotice": "Diese Überprüfung läuft im Modus „Planen“; Ihr bisheriger Berechtigungsmodus kehrt zurück, wenn sie endet. Muse Code wendet im Modus „Planen“ eigene Zulassungsregeln an, daher ist eine Überprüfung dort nicht strikt schreibgeschützt.",
   "reviewModeRestored": "Die Überprüfung ist beendet: Der Berechtigungsmodus ist wieder „{mode}“.",
@@ -3545,24 +3550,24 @@
   "reviewPaneLoading": "Änderungen werden gelesen…",
   "reviewPaneEmpty": "Diese Unterhaltung hat keine Dateien geändert.",
   "reviewPaneFiles": {
-    "other": "{count} Dateien",
-    "one": "{count} Datei"
+    "one": "{count} Datei",
+    "other": "{count} Dateien"
   },
   "reviewPaneHunks": {
-    "other": "{count} Änderungen",
-    "one": "{count} Änderung"
+    "one": "{count} Änderung",
+    "other": "{count} Änderungen"
   },
   "reviewPaneAccepted": {
-    "other": "{count} angenommen",
-    "one": "{count} angenommen"
+    "one": "{count} angenommen",
+    "other": "{count} angenommen"
   },
   "reviewPaneReverted": {
-    "other": "{count} rückgängig gemacht",
-    "one": "{count} rückgängig gemacht"
+    "one": "{count} rückgängig gemacht",
+    "other": "{count} rückgängig gemacht"
   },
   "reviewPaneOmitted": {
-    "other": "{count} Bearbeitungen sind hier nicht aufgeführt (zu viele zum Anzeigen, oder ihre Änderungen konnten nicht gelesen werden); ihre Einträge in der Unterhaltung öffnen sie weiterhin.",
-    "one": "{count} Bearbeitung ist hier nicht aufgeführt (zu viele zum Anzeigen, oder ihre Änderung konnte nicht gelesen werden); ihr Eintrag in der Unterhaltung öffnet sie weiterhin."
+    "one": "{count} Bearbeitung ist hier nicht aufgeführt (zu viele zum Anzeigen, oder ihre Änderung konnte nicht gelesen werden); ihr Eintrag in der Unterhaltung öffnet sie weiterhin.",
+    "other": "{count} Bearbeitungen sind hier nicht aufgeführt (zu viele zum Anzeigen, oder ihre Änderungen konnten nicht gelesen werden); ihre Einträge in der Unterhaltung öffnen sie weiterhin."
   },
   "reviewHunkLines": "Änderung {index}, Zeilen {start}–{end}",
   "reviewHunkLine": "Änderung {index}, Zeile {start}",
@@ -3588,8 +3593,8 @@
   "reviewAnnounceNotReverted": "{name} nicht rückgängig gemacht: {reason}",
   "reviewFindingsLabel": "Befunde der Überprüfung",
   "reviewFindingsHeading": {
-    "other": "{count} Befunde",
-    "one": "{count} Befund"
+    "one": "{count} Befund",
+    "other": "{count} Befunde"
   },
   "reviewNoFindings": "Die Überprüfung hat nichts Meldenswertes gefunden.",
   "reviewSeverities": {
@@ -3621,8 +3626,8 @@
   "paidUseAutoReviewerTitle": "Den Auto-Prüfer diesen {tool}-Aufruf beurteilen lassen?",
   "paidUseAutoReviewerDetail": "{action}\n\nEin separater Aufruf von {model} beurteilt, ob die Aktion ohne Nachfrage ausgeführt werden darf. Abrechnung über Ihren Model-API-Schlüssel: {price}. Der Gesamtbetrag hängt von den verwendeten Token ab. Bei „Verweigern“ sehen Sie stattdessen die Genehmigungskarte.",
   "usagePaidAutoReviews": {
-    "other": "{count} Prüfungen",
-    "one": "{count} Prüfung"
+    "one": "{count} Prüfung",
+    "other": "{count} Prüfungen"
   },
   "paidJudgeName": "Beurteiler",
   "paidConfirmJudge": "Ihr eigenes Chatmodell beurteilt jede riskante Auto-Aktion, die keine Regel klärt, und kann nur zur Vorsicht raten: eine bereite Warnung macht aus einer Freigabe eine Nachfrage oder einen Hinweis auf der Genehmigungskarte. Jede Beurteilung wird Ihrem Model-API-Schlüssel zu den Tokenpreisen des Unterhaltungsmodells berechnet:\n{price}\nDer Beurteiler fragt einmal vor der ersten Berechnung nach und zeigt diese Preise und das gemeinsame Tagesbudget: {budget}. Beim Wechsel von einer kostenlosen zu einer kostenpflichtigen Quelle wird erneut gefragt. Auf Muse Code laufen dieselben Aufrufe stattdessen über Ihr Abonnement.",
@@ -3654,17 +3659,17 @@
   "permissionRootInvalid": "{setting}: Der zusätzliche Stamm „{root}“ ist kein absoluter Pfad und wird nicht hinzugefügt.",
   "permissionRepositoryInvalid": "{setting}: Die Regeln des Repositorys sind ungültig ({detail}) und werden nicht angewendet.",
   "verifyErrors": {
-    "other": "{count} Fehler",
-    "one": "{count} Fehler"
+    "one": "{count} Fehler",
+    "other": "{count} Fehler"
   },
   "verifyWarnings": {
-    "other": "{count} Warnungen",
-    "one": "{count} Warnung"
+    "one": "{count} Warnung",
+    "other": "{count} Warnungen"
   },
   "verifyClean": "Keine Fehler oder Warnungen",
   "verifyUnchecked": {
-    "other": "{count} Dateien nicht geprüft",
-    "one": "{count} Datei nicht geprüft"
+    "one": "{count} Datei nicht geprüft",
+    "other": "{count} Dateien nicht geprüft"
   },
   "checkOutcomes": {
     "passed": "{name} bestanden",
@@ -3689,8 +3694,8 @@
   "thenRunTimedOut": "Beim Zeitlimit angehalten",
   "thenRunNoExitCode": "Ohne Exitcode fehlgeschlagen",
   "checksStoppedNotice": {
-    "other": "Die Prüfungen schlugen auch nach {count} Korrekturrunden in Folge fehl und laufen bis zu Ihrer nächsten Nachricht nicht mehr automatisch.",
-    "one": "Die Prüfungen schlugen auch nach {count} Korrekturrunde fehl und laufen bis zu Ihrer nächsten Nachricht nicht mehr automatisch."
+    "one": "Die Prüfungen schlugen auch nach {count} Korrekturrunde fehl und laufen bis zu Ihrer nächsten Nachricht nicht mehr automatisch.",
+    "other": "Die Prüfungen schlugen auch nach {count} Korrekturrunden in Folge fehl und laufen bis zu Ihrer nächsten Nachricht nicht mehr automatisch."
   },
   "exportThenRunLabel": "Danach ausgeführt:",
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",

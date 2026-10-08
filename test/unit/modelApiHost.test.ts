@@ -3966,6 +3966,7 @@ describe('ModelApiSession: turns', () => {
     expect(kinds(events)).toEqual([
       'turnStarted',
       'sessionStatus',
+      'messageAdmitted',
       'itemStarted:reasoning:inProgress',
       'textDelta',
       'textDelta',
@@ -17026,7 +17027,9 @@ describe('ModelApiHost: taking a message back before a request reads it (M87, PL
     expect(JSON.stringify(t.api.responseBodies()[1])).not.toContain('steer to take back')
     // The running turn was never told it ended early (lane P's warning).
     expect(events.filter((event) => event.type === 'turnWithdrawn')).toEqual([])
-    expect(events.filter((event) => event.type === 'messageAdmitted')).toEqual([])
+    expect(events.filter((event) => event.type === 'messageAdmitted')).toEqual([
+      { type: 'messageAdmitted', userMessageId: running.userMessageId },
+    ])
     expect(session.history().items.filter((item) => item.kind === 'userMessage')).toHaveLength(1)
   })
 

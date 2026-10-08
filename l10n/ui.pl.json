@@ -236,6 +236,9 @@
   "playbookFallbackReviewer": "Recenzent zastępczy dla recenzji zablokowanych przez klasyfikator: {reviewer}",
   "playbookFallbackNone": "Nie wyznaczono recenzenta zastępczego",
   "playbookResidualAccepted": "Punkt szczątkowy zaakceptowany",
+  "playbookRecordHelp": "Pokaż rundy przeglądu, decyzje projektowe, odmowy ze względów bezpieczeństwa, ustawienia i powody niepowiązanych akceptacji.",
+  "playbookResidualUnbound": "Niepowiązana akceptacja pozostałego problemu",
+  "playbookResidualUnboundReason": "Żaden wcześniejszy pozostały problem nie pasuje do czasu i dowodów tej akceptacji. Nie obejmuje ona żadnego pozostałego problemu.",
   "playbookLeaseRecord": "Dzierżawa poprawki {status}: {module} ({lane})",
   "playbookWorkRecord": "Praca {id} nad {module}: bazowych commitów: {commits}",
   "playbookVerificationRecord": "Weryfikacja hooków {result} dla {commit} ({scope})",
@@ -253,9 +256,9 @@
   "playbookSaved": "Ustawienia podręcznika zostały zapisane.",
   "playbookStrikeBadge": {
     "one": "{count} runda przeglądu",
+    "other": "{count} rundy przeglądu",
     "few": "{count} rundy przeglądu",
-    "many": "{count} rund przeglądu",
-    "other": "{count} rundy przeglądu"
+    "many": "{count} rund przeglądu"
   },
   "playbookRules": {
     "threeStrikes": "Przeprojektuj po trzech nieudanych rundach",
@@ -548,15 +551,15 @@
     },
     "endAfterRuns": {
       "one": "Zakończ po {count} uruchomieniu",
+      "other": "Zakończ po {count} uruchomieniach",
       "few": "Zakończ po {count} uruchomieniach",
-      "many": "Zakończ po {count} uruchomieniach",
-      "other": "Zakończ po {count} uruchomieniach"
+      "many": "Zakończ po {count} uruchomieniach"
     },
     "historyPreview": {
       "one": "Uruchomiłby się {count} raz w ciągu {days} dni",
+      "other": "Uruchomiłby się {count} razy w ciągu {days} dni",
       "few": "Uruchomiłby się {count} razy w ciągu {days} dni",
-      "many": "Uruchomiłby się {count} razy w ciągu {days} dni",
-      "other": "Uruchomiłby się {count} razy w ciągu {days} dni"
+      "many": "Uruchomiłby się {count} razy w ciągu {days} dni"
     }
   },
   "paidDailyBudgetLine": "Wspólny dzienny budżet interaktywnych płatnych dodatków: {budget}. Tab ma własny osobny budżet.",
@@ -915,28 +918,28 @@
   "exportPreviewFull": "Zapisz bez cenzury…",
   "exportPreviewOpen": "Ocenzurowany plik jest otwarty w edytorze. Nic nie zostanie zapisane, dopóki nie wybierzesz.",
   "exportPreviewMessages": {
-    "few": "{count} wiadomości w tej rozmowie",
-    "many": "{count} wiadomości w tej rozmowie",
     "one": "{count} wiadomość w tej rozmowie",
-    "other": "{count} wiadomości w tej rozmowie"
+    "other": "{count} wiadomości w tej rozmowie",
+    "few": "{count} wiadomości w tej rozmowie",
+    "many": "{count} wiadomości w tej rozmowie"
   },
   "exportPreviewPaths": {
-    "few": "{count} ścieżki ukryte",
-    "many": "{count} ścieżek ukrytych",
     "one": "{count} ścieżka ukryta",
-    "other": "{count} ścieżki ukryte"
+    "other": "{count} ścieżki ukryte",
+    "few": "{count} ścieżki ukryte",
+    "many": "{count} ścieżek ukrytych"
   },
   "exportPreviewAccounts": {
-    "few": "{count} ukryte identyfikatory konta",
-    "many": "{count} ukrytych identyfikatorów konta",
     "one": "{count} ukryty identyfikator konta",
-    "other": "{count} ukryte identyfikatory konta"
+    "other": "{count} ukryte identyfikatory konta",
+    "few": "{count} ukryte identyfikatory konta",
+    "many": "{count} ukrytych identyfikatorów konta"
   },
   "exportPreviewSecrets": {
-    "few": "{count} poświadczenia lub skróty kluczy usunięte",
-    "many": "{count} poświadczeń lub skrótów kluczy usuniętych",
     "one": "{count} poświadczenie lub skrót klucza usunięte",
-    "other": "{count} poświadczenia lub skróty kluczy usunięte"
+    "other": "{count} poświadczenia lub skróty kluczy usunięte",
+    "few": "{count} poświadczenia lub skróty kluczy usunięte",
+    "many": "{count} poświadczeń lub skrótów kluczy usuniętych"
   },
   "exportPreviewKnownCredentials": "Znane postacie poświadczeń (klucze API, tokeny, hasła, klucze prywatne) i skrót klucza są zawsze usuwane. Sekret w innej postaci zostaje: przeczytaj plik, zanim go udostępnisz.",
   "exportTooLarge": "Ta rozmowa jest za długa na plik eksportu sesji.",
@@ -972,10 +975,10 @@
   "mcpUnreadable": "Nie można odczytać pliku ustawień Muse Code:",
   "mcpNone": "W {path} nie skonfigurowano żadnych serwerów MCP",
   "mcpCount": {
-    "few": "{count} serwery MCP w {path}",
-    "many": "{count} serwerów MCP w {path}",
     "one": "{count} serwer MCP w {path}",
-    "other": "{count} serwera MCP w {path}"
+    "other": "{count} serwera MCP w {path}",
+    "few": "{count} serwery MCP w {path}",
+    "many": "{count} serwerów MCP w {path}"
   },
   "mcpOptional": "opcjonalny",
   "mcpRequired": "wymagany (Muse Code zatrzymuje się, jeśli ten serwer zawiedzie)",
@@ -1005,16 +1008,16 @@
   "mcpStateNotStarted": "Uruchomi się z Twoją następną wiadomością",
   "mcpStateStarting": "Uruchamianie…",
   "mcpStateConnected": {
-    "few": "Połączono: {count} narzędzia",
-    "many": "Połączono: {count} narzędzi",
     "one": "Połączono: {count} narzędzie",
-    "other": "Połączono: {count} narzędzia"
+    "other": "Połączono: {count} narzędzia",
+    "few": "Połączono: {count} narzędzia",
+    "many": "Połączono: {count} narzędzi"
   },
   "mcpStateUnoffered": {
-    "few": "{count} kolejne nieoferowane",
-    "many": "{count} kolejnych nieoferowanych",
     "one": "{count} kolejne nieoferowane",
-    "other": "{count} kolejnego nieoferowanego"
+    "other": "{count} kolejnego nieoferowanego",
+    "few": "{count} kolejne nieoferowane",
+    "many": "{count} kolejnych nieoferowanych"
   },
   "mcpStateFailed": "Nie działa: {reason}",
   "mcpStateRestricted": "Nie uruchomiono: ten obszar roboczy jest w trybie ograniczonym",
@@ -1070,10 +1073,10 @@
   "hooksUserBlock": "settings.json › hooks",
   "hooksUserNone": "Brak w Twoich ustawieniach",
   "hooksUserCount": {
-    "few": "{count} hooki w Twoich ustawieniach",
-    "many": "{count} hooków w Twoich ustawieniach",
     "one": "{count} hook w Twoich ustawieniach",
-    "other": "{count} hooka w Twoich ustawieniach"
+    "other": "{count} hooka w Twoich ustawieniach",
+    "few": "{count} hooki w Twoich ustawieniach",
+    "many": "{count} hooków w Twoich ustawieniach"
   },
   "hooksManaged": "Hooki zarządzane",
   "hooksManagedKey": "managed_hooks_path",
@@ -1088,9 +1091,9 @@
   "hooksSparkUserNone": "Nie masz pliku spark-hooks.json.",
   "hooksSparkCount": {
     "one": "{count} hook w pliku {file}",
+    "other": "{count} hooka w pliku {file}",
     "few": "{count} hooki w pliku {file}",
-    "many": "{count} hooków w pliku {file}",
-    "other": "{count} hooka w pliku {file}"
+    "many": "{count} hooków w pliku {file}"
   },
   "hooksSparkAbout": "Muse Code nigdy nie odczytuje tego pliku. Zawiera zdarzenia obsługiwane tylko przez to rozszerzenie oraz hooki zaimportowane z innych agentów.",
   "hooksBackendMuseCode": "Uruchamiane przez Muse Code",
@@ -1112,18 +1115,18 @@
   "hookTeammateKept": "{name} pracuje dalej na żądanie hooka: {reason}",
   "hookFileChangedPaused": {
     "one": "Hooki FileChanged są wstrzymane na minutę: liczba zmian przekroczyła {count}.",
+    "other": "Hooki FileChanged są wstrzymane na minutę: liczba zmian przekroczyła {count}.",
     "few": "Hooki FileChanged są wstrzymane na minutę: liczba zmian przekroczyła {count}.",
-    "many": "Hooki FileChanged są wstrzymane na minutę: liczba zmian przekroczyła {count}.",
-    "other": "Hooki FileChanged są wstrzymane na minutę: liczba zmian przekroczyła {count}."
+    "many": "Hooki FileChanged są wstrzymane na minutę: liczba zmian przekroczyła {count}."
   },
   "hookCorrectionRefused": "Wywołanie poprawione przez hook zostało odrzucone: {reason}",
   "hookCorrectionOtherTool": "wskazuje inne narzędzie",
   "hookCorrectionOutside": "sięga poza obszar roboczy",
   "hookCorrectionTooDeep": {
     "one": "przekroczyło {count} poprawkę z rzędu",
+    "other": "przekroczyło {count} poprawki z rzędu",
     "few": "przekroczyło {count} poprawki z rzędu",
-    "many": "przekroczyło {count} poprawek z rzędu",
-    "other": "przekroczyło {count} poprawki z rzędu"
+    "many": "przekroczyło {count} poprawek z rzędu"
   },
   "hookToolRemoved": "hook usunął to narzędzie na czas tej tury",
   "hookMessageEdited": "Edytowana przez hook",
@@ -1132,9 +1135,9 @@
   "setupHooksNone": "W pliku spark-hooks.json nie skonfigurowano żadnych hooków Setup.",
   "setupHooksRan": {
     "one": "Uruchomiono {count} hook Setup.",
+    "other": "Uruchomiono {count} hooka Setup.",
     "few": "Uruchomiono {count} hooki Setup.",
-    "many": "Uruchomiono {count} hooków Setup.",
-    "other": "Uruchomiono {count} hooka Setup."
+    "many": "Uruchomiono {count} hooków Setup."
   },
   "setupHooksFailed": "Hook Setup nie powiódł się: {reason}",
   "manualHookPick": "Który hook uruchomić?",
@@ -1175,10 +1178,10 @@
   "memoryTitle": "Pamięć Muse",
   "memoryNone": "Brak jeszcze notatek w pamięci dla tego obszaru roboczego",
   "memoryCount": {
-    "few": "{count} notatki w pamięci",
-    "many": "{count} notatek w pamięci",
     "one": "{count} notatka w pamięci",
-    "other": "{count} notatki w pamięci"
+    "other": "{count} notatki w pamięci",
+    "few": "{count} notatki w pamięci",
+    "many": "{count} notatek w pamięci"
   },
   "memoryIndexDetail": "Indeks, który Muse czyta na początku każdej sesji",
   "memoryNewNote": "Nowa notatka…",
@@ -1271,9 +1274,9 @@
   "gitPushFirstPush": "Pierwsze wypchnięcie: gałąź zostanie tam utworzona i od teraz będzie śledzona.",
   "gitPushCommits": {
     "one": "Zostanie wypchnięte {count} zatwierdzenie.",
+    "other": "Zostanie wypchnięte {count} zatwierdzenia.",
     "few": "Zostaną wypchnięte {count} zatwierdzenia.",
-    "many": "Zostanie wypchniętych {count} zatwierdzeń.",
-    "other": "Zostanie wypchnięte {count} zatwierdzenia."
+    "many": "Zostanie wypchniętych {count} zatwierdzeń."
   },
   "gitPushNeverForce": "Nigdy nie wypycha na siłę: gałąź, która się rozeszła, zostanie odrzucona.",
   "gitPushAction": "Wypchnij",
@@ -1303,23 +1306,23 @@
   "gitChangeCounts": "{staged}, {unstaged}",
   "gitStagedCount": {
     "one": "{count} plik przygotowany",
+    "other": "{count} pliku przygotowanego",
     "few": "{count} pliki przygotowane",
-    "many": "{count} plików przygotowanych",
-    "other": "{count} pliku przygotowanego"
+    "many": "{count} plików przygotowanych"
   },
   "gitUnstagedCount": {
     "one": "{count} plik nieprzygotowany",
+    "other": "{count} pliku nieprzygotowanego",
     "few": "{count} pliki nieprzygotowane",
-    "many": "{count} plików nieprzygotowanych",
-    "other": "{count} pliku nieprzygotowanego"
+    "many": "{count} plików nieprzygotowanych"
   },
   "gitFileStaged": "przygotowany",
   "gitFileUnstaged": "nieprzygotowany",
   "gitMoreFiles": {
     "one": "i jeszcze {count} plik",
+    "other": "i jeszcze {count} pliku",
     "few": "i jeszcze {count} pliki",
-    "many": "i jeszcze {count} plików",
-    "other": "i jeszcze {count} pliku"
+    "many": "i jeszcze {count} plików"
   },
   "gitMessageLabel": "Komunikat zatwierdzenia",
   "gitIncludeUnstaged": "Uwzględnij nieprzygotowane zmiany i nowe pliki",
@@ -1346,9 +1349,9 @@
   "gitPrPushFirst": "Gałąź najpierw trafi do {remote} w pierwszym wypchnięciu; pojawi się pytanie o zgodę.",
   "gitPrPushCommits": {
     "one": "{count} zatwierdzenie najpierw trafi do {remote}; pojawi się pytanie o zgodę.",
+    "other": "{count} zatwierdzenia najpierw trafi do {remote}; pojawi się pytanie o zgodę.",
     "few": "{count} zatwierdzenia najpierw trafią do {remote}; pojawi się pytanie o zgodę.",
-    "many": "{count} zatwierdzeń najpierw trafi do {remote}; pojawi się pytanie o zgodę.",
-    "other": "{count} zatwierdzenia najpierw trafi do {remote}; pojawi się pytanie o zgodę."
+    "many": "{count} zatwierdzeń najpierw trafi do {remote}; pojawi się pytanie o zgodę."
   },
   "gitPrBehind": "Gałąź jest w tyle za swoim upstream: żądanie ściągnięcia pokazuje to, co już zostało wypchnięte.",
   "gitPullRequestLabel": "Żądanie ściągnięcia tej rozmowy",
@@ -1361,39 +1364,39 @@
   "gitChecksNone": "brak zgłoszonych",
   "gitChecksPassed": {
     "one": "{count} udana",
+    "other": "{count} udanej",
     "few": "{count} udane",
-    "many": "{count} udanych",
-    "other": "{count} udanej"
+    "many": "{count} udanych"
   },
   "gitChecksFailed": {
     "one": "{count} nieudana",
+    "other": "{count} nieudanej",
     "few": "{count} nieudane",
-    "many": "{count} nieudanych",
-    "other": "{count} nieudanej"
+    "many": "{count} nieudanych"
   },
   "gitChecksRunning": {
     "one": "{count} trwająca",
+    "other": "{count} trwającej",
     "few": "{count} trwające",
-    "many": "{count} trwających",
-    "other": "{count} trwającej"
+    "many": "{count} trwających"
   },
   "gitChecksSkipped": {
     "one": "{count} pominięta",
+    "other": "{count} pominiętej",
     "few": "{count} pominięte",
-    "many": "{count} pominiętych",
-    "other": "{count} pominiętej"
+    "many": "{count} pominiętych"
   },
   "gitChecksCancelled": {
     "one": "{count} anulowana",
+    "other": "{count} anulowanej",
     "few": "{count} anulowane",
-    "many": "{count} anulowanych",
-    "other": "{count} anulowanej"
+    "many": "{count} anulowanych"
   },
   "gitChecksNotRead": {
     "one": "{count} kolejna nieodczytana",
+    "other": "{count} kolejnej nieodczytanej",
     "few": "{count} kolejne nieodczytane",
-    "many": "{count} kolejnych nieodczytanych",
-    "other": "{count} kolejnej nieodczytanej"
+    "many": "{count} kolejnych nieodczytanych"
   },
   "gitStatusNeedsSignIn": "Zaloguj się do serwisu GitHub, aby zobaczyć stan.",
   "gitCheckedAt": "stan na {time}",
@@ -1662,9 +1665,9 @@
   },
   "reportRowsMore": {
     "one": "{count} dodatkowy wiersz",
+    "other": "{count} dodatkowego wiersza",
     "few": "{count} dodatkowe wiersze",
-    "many": "{count} dodatkowych wierszy",
-    "other": "{count} dodatkowego wiersza"
+    "many": "{count} dodatkowych wierszy"
   },
   "reportCliUsage": "Wygeneruj deterministyczny raport z nazwanych źródeł, bez wywołania modelu.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportIssue": "Zgłoś problem…",
@@ -1726,10 +1729,10 @@
   "pdfLabel": "PDF",
   "toolReadPdf": "Odczytano PDF `{path}` ({pages}, {bytes} B)",
   "toolReadPdfPages": {
-    "few": "{count} strony",
-    "many": "{count} stron",
     "one": "{count} strona",
-    "other": "{count} strony"
+    "other": "{count} strony",
+    "few": "{count} strony",
+    "many": "{count} stron"
   },
   "toolReadPdfPagesUnknown": "Liczba stron nieznana",
   "toolReadImage": "Odczytano obraz `{path}` ({mediaType}, {width}×{height}, {bytes} B)",
@@ -1793,22 +1796,22 @@
   "browserRuntimeReady": "Przeglądarka do kontroli w przeglądarce {version} jest gotowa.",
   "browserCheckDone": "Sprawdzono {url}: {errors}, {failed}, {blocked}",
   "browserCheckConsoleErrors": {
-    "few": "{count} błędy konsoli",
-    "many": "{count} błędów konsoli",
     "one": "{count} błąd konsoli",
-    "other": "{count} błędu konsoli"
+    "other": "{count} błędu konsoli",
+    "few": "{count} błędy konsoli",
+    "many": "{count} błędów konsoli"
   },
   "browserCheckFailedRequests": {
-    "few": "{count} nieudane żądania",
-    "many": "{count} nieudanych żądań",
     "one": "{count} nieudane żądanie",
-    "other": "{count} nieudanego żądania"
+    "other": "{count} nieudanego żądania",
+    "few": "{count} nieudane żądania",
+    "many": "{count} nieudanych żądań"
   },
   "browserCheckBlockedRequests": {
-    "few": "{count} zablokowane żądania poza ten komputer",
-    "many": "{count} zablokowanych żądań poza ten komputer",
     "one": "{count} zablokowane żądanie poza ten komputer",
-    "other": "{count} zablokowanego żądania poza ten komputer"
+    "other": "{count} zablokowanego żądania poza ten komputer",
+    "few": "{count} zablokowane żądania poza ten komputer",
+    "many": "{count} zablokowanych żądań poza ten komputer"
   },
   "browserCheckUrlRefused": "Można otworzyć tylko adres http:// lub https:// z prostą nazwą hosta lub adresem IP, bez nazwy użytkownika i hasła.",
   "browserCheckInvalidArguments": "Kontrolę w przeglądarce zlecono z nieprawidłowymi argumentami, więc nic nie zostało otwarte.",
@@ -1857,16 +1860,16 @@
   "thoughtFor": "Czas myślenia: {duration}",
   "thinkingNow": "Myślenie",
   "addedLines": {
-    "few": "Dodano {count} wiersze",
-    "many": "Dodano {count} wierszy",
     "one": "Dodano {count} wiersz",
-    "other": "Dodano {count} wiersza"
+    "other": "Dodano {count} wiersza",
+    "few": "Dodano {count} wiersze",
+    "many": "Dodano {count} wierszy"
   },
   "removedLines": {
-    "few": "Usunięto {count} wiersze",
-    "many": "Usunięto {count} wierszy",
     "one": "Usunięto {count} wiersz",
-    "other": "Usunięto {count} wiersza"
+    "other": "Usunięto {count} wiersza",
+    "few": "Usunięto {count} wiersze",
+    "many": "Usunięto {count} wierszy"
   },
   "modified": "Zmodyfikowano",
   "inLabel": "WE",
@@ -1890,10 +1893,10 @@
   "approvalBrowserCheckWidenResidual": "Zezwolenie pozwoli też tej kontroli docierać do hosta przez https i WebSockety. Ten ruch jest szyfrowany, więc rozszerzenie nie może go sprawdzić, a witryna na tym hoście może zalogować Cię kontem tego komputera (zwłaszcza w systemie Windows).",
   "approvalImageSources": "Na podstawie {paths}",
   "renameCardMore": {
-    "few": "{files} i {count} inne pliki",
-    "many": "{files} i {count} innych plików",
     "one": "{files} i {count} inny plik",
-    "other": "{files} i {count} innego pliku"
+    "other": "{files} i {count} innego pliku",
+    "few": "{files} i {count} inne pliki",
+    "many": "{files} i {count} innych plików"
   },
   "codeIntelNoService": "Żadna usługa językowa nie odpowiedziała dla {path} albo plik nie deklaruje żadnych symboli.",
   "codeIntelTimedOut": "Usługa językowa nie odpowiedziała w ciągu {seconds} s.",
@@ -1910,10 +1913,10 @@
   "approvalDecided": "Zdecydowano",
   "approvalDockLabel": "Oczekuje na Twoje zatwierdzenie",
   "approvalDockCount": {
-    "few": "Oczekują {count} zatwierdzenia",
-    "many": "Oczekuje {count} zatwierdzeń",
     "one": "Oczekuje {count} zatwierdzenie",
-    "other": "Oczekuje {count} zatwierdzenia"
+    "other": "Oczekuje {count} zatwierdzenia",
+    "few": "Oczekują {count} zatwierdzenia",
+    "many": "Oczekuje {count} zatwierdzeń"
   },
   "approvalDockedNote": "Oczekuje na Twoje zatwierdzenie, na karcie nad polem wiadomości",
   "questionSubmit": "Prześlij",
@@ -1954,6 +1957,8 @@
   "questionNoOpen": "Brak otwartych pytań.",
   "questionAnswerFailed": "Nie udało się wysłać odpowiedzi. Spróbuj ponownie.",
   "questionAnswerUncertain": "Odpowiedź mogła dotrzeć do Muse. Nie zostanie wysłana ponownie.",
+  "questionQueueLeaseFailed": "Zmieniła się rezerwacja odpowiedzi w kolejce. Spróbuj ponownie po zakończeniu bieżącego zapytania.",
+  "questionQueueCommitFailed": "Zapytanie wysłano, ale nie udało się zapisać odpowiedzi jako dostarczonych. Pozostają w kolejce i mogą zostać powtórzone.",
   "questionDismissFailed": "Nie udało się zamknąć pytania.",
   "acpOpenQuestionAsked": "Muse ma pytanie; ten edytor nie może wyświetlić formularza. Możesz odpowiedzieć później poleceniem /answer.",
   "acpQuestionDeferred": "Pytanie {number} jest otwarte. Odpowiedz poleceniem /answer {number} <text>.",
@@ -1965,15 +1970,15 @@
   "acpQuestionsHelp": "Wyświetl otwarte pytania w tej rozmowie.",
   "openQuestionsCount": {
     "one": "{count} otwarte pytanie",
+    "other": "{count} otwartego pytania",
     "few": "{count} otwarte pytania",
-    "many": "{count} otwartych pytań",
-    "other": "{count} otwartego pytania"
+    "many": "{count} otwartych pytań"
   },
   "openQuestionsTabCount": {
     "one": "{count} otwarte",
+    "other": "{count} otwartego",
     "few": "{count} otwarte",
-    "many": "{count} otwartych",
-    "other": "{count} otwartego"
+    "many": "{count} otwartych"
   },
   "clarifyNotAccepted": "Wyjaśnienie nie zostało przyjęte",
   "messageActions": "Akcje wiadomości",
@@ -2003,52 +2008,52 @@
   "tasksTabEnded": "Rozmowa, do której należy ta lista, została zamknięta.",
   "stepSummary": {
     "edited": {
-      "few": "edytowano {count} pliki",
-      "many": "edytowano {count} plików",
       "one": "edytowano plik",
-      "other": "edytowano {count} pliku"
+      "other": "edytowano {count} pliku",
+      "few": "edytowano {count} pliki",
+      "many": "edytowano {count} plików"
     },
     "read": {
-      "few": "odczytano {count} pliki",
-      "many": "odczytano {count} plików",
       "one": "odczytano plik",
-      "other": "odczytano {count} pliku"
+      "other": "odczytano {count} pliku",
+      "few": "odczytano {count} pliki",
+      "many": "odczytano {count} plików"
     },
     "searched": {
-      "few": "przeszukano {count} foldery",
-      "many": "przeszukano {count} folderów",
       "one": "przeszukano folder",
-      "other": "przeszukano {count} folderu"
+      "other": "przeszukano {count} folderu",
+      "few": "przeszukano {count} foldery",
+      "many": "przeszukano {count} folderów"
     },
     "ran": {
-      "few": "uruchomiono {count} polecenia",
-      "many": "uruchomiono {count} poleceń",
       "one": "uruchomiono polecenie",
-      "other": "uruchomiono {count} polecenia"
+      "other": "uruchomiono {count} polecenia",
+      "few": "uruchomiono {count} polecenia",
+      "many": "uruchomiono {count} poleceń"
     },
     "fetched": {
-      "few": "pobrano {count} strony",
-      "many": "pobrano {count} stron",
       "one": "pobrano stronę",
-      "other": "pobrano {count} strony"
+      "other": "pobrano {count} strony",
+      "few": "pobrano {count} strony",
+      "many": "pobrano {count} stron"
     },
     "searchedWeb": {
-      "few": "przeszukano sieć {count} razy",
-      "many": "przeszukano sieć {count} razy",
       "one": "przeszukano sieć",
-      "other": "przeszukano sieć {count} razy"
+      "other": "przeszukano sieć {count} razy",
+      "few": "przeszukano sieć {count} razy",
+      "many": "przeszukano sieć {count} razy"
     },
     "used": {
-      "few": "użyto {count} narzędzi",
-      "many": "użyto {count} narzędzi",
       "one": "użyto narzędzia",
-      "other": "użyto {count} narzędzia"
+      "other": "użyto {count} narzędzia",
+      "few": "użyto {count} narzędzi",
+      "many": "użyto {count} narzędzi"
     },
     "failed": {
-      "few": "nie powiodły się: {count}",
-      "many": "nie powiodło się: {count}",
       "one": "nie powiodło się: {count}",
-      "other": "nie powiodło się: {count}"
+      "other": "nie powiodło się: {count}",
+      "few": "nie powiodły się: {count}",
+      "many": "nie powiodło się: {count}"
     }
   },
   "contextMeterLabel": "Wykorzystano {percent} kontekstu",
@@ -2080,10 +2085,10 @@
   "noEditorForApply": "Otwórz edytor tekstu, aby zastosować w nim kod.",
   "diffTitleSuffix": "edycja Muse",
   "diffTallyFiles": {
-    "few": "Zmieniono {count} pliki",
-    "many": "Zmieniono {count} plików",
     "one": "Zmieniono {count} plik",
-    "other": "Zmieniono {count} pliku"
+    "other": "Zmieniono {count} pliku",
+    "few": "Zmieniono {count} pliki",
+    "many": "Zmieniono {count} plików"
   },
   "diffTallyLines": "+{added} −{removed}",
   "diffTallyLabel": "Zmiany w tej rozmowie",
@@ -2108,10 +2113,10 @@
   "historyCurrent": "bieżąca",
   "historyForkMark": "rozwidlenie",
   "historyTurns": {
-    "few": "{count} tury",
-    "many": "{count} tur",
     "one": "{count} tura",
-    "other": "{count} tury"
+    "other": "{count} tury",
+    "few": "{count} tury",
+    "many": "{count} tur"
   },
   "resumeItem": "Wznów",
   "resumeDetail": "Wybierz poprzednią rozmowę w tym obszarze roboczym",
@@ -2124,10 +2129,10 @@
   "forkAndRewind": "Rozwidl rozmowę i cofnij kod",
   "rewindNothing": "Brak edycji po tej wiadomości do cofnięcia.",
   "rewindDone": {
-    "few": "Kod cofnięty do tej wiadomości ({count} edycje)",
-    "many": "Kod cofnięty do tej wiadomości ({count} edycji)",
     "one": "Kod cofnięty do tej wiadomości ({count} edycja)",
-    "other": "Kod cofnięty do tej wiadomości ({count} edycji)"
+    "other": "Kod cofnięty do tej wiadomości ({count} edycji)",
+    "few": "Kod cofnięty do tej wiadomości ({count} edycje)",
+    "many": "Kod cofnięty do tej wiadomości ({count} edycji)"
   },
   "forkedNotice": "Rozwidlono do nowej rozmowy.",
   "rewindImagesUnavailable": "Nie udało się przywrócić części obrazów z tej wiadomości.",
@@ -2152,28 +2157,28 @@
   "restoreBothConfirmAction": "Przywróć i cofnij",
   "rewindNotDone": "Rozmowa nie została cofnięta.",
   "restoreDone": {
-    "few": "Przywrócono {count} pliki do stanu sprzed tej wiadomości.",
-    "many": "Przywrócono {count} plików do stanu sprzed tej wiadomości.",
     "one": "Przywrócono {count} plik do stanu sprzed tej wiadomości.",
-    "other": "Przywrócono {count} pliku do stanu sprzed tej wiadomości."
+    "other": "Przywrócono {count} pliku do stanu sprzed tej wiadomości.",
+    "few": "Przywrócono {count} pliki do stanu sprzed tej wiadomości.",
+    "many": "Przywrócono {count} plików do stanu sprzed tej wiadomości."
   },
   "restoreNothing": "Żaden plik nie wymagał przywrócenia.",
   "redoNothing": "Nie zostało nic do ponownego odtworzenia.",
   "redoDone": {
-    "few": "Przywrócono z powrotem {count} pliki.",
-    "many": "Przywrócono z powrotem {count} plików.",
     "one": "Przywrócono z powrotem {count} plik.",
-    "other": "Przywrócono z powrotem {count} pliku."
+    "other": "Przywrócono z powrotem {count} pliku.",
+    "few": "Przywrócono z powrotem {count} pliki.",
+    "many": "Przywrócono z powrotem {count} plików."
   },
   "redoAction": "Ponów",
   "redoLabel": "Ponów: przywróć pliki zastąpione przez to przywracanie",
   "redoGone": "Tego przywracania nie można już ponowić.",
   "noticeRepeatBadge": "{count}×",
   "noticeRepeated": {
-    "few": "Wyświetlono {count} razy",
-    "many": "Wyświetlono {count} razy",
     "one": "Wyświetlono {count} raz",
-    "other": "Wyświetlono {count} razy"
+    "other": "Wyświetlono {count} razy",
+    "few": "Wyświetlono {count} razy",
+    "many": "Wyświetlono {count} razy"
   },
   "restoreRefusedUnsaved": "Pozostawiono bez zmian, z niezapisanymi zmianami: {files}",
   "restoreRefusedChanged": "Pozostawiono bez zmian, zmienione w międzyczasie przez coś innego: {files}",
@@ -2184,10 +2189,10 @@
   "restoreRefusedTooLarge": "Nie można przywrócić, zbyt duże, aby zachować kopię: {files}",
   "restoreRefusedFailed": "Nie udało się zmienić: {files}",
   "restoreUnchanged": {
-    "few": "Już w poprzednim stanie: {count} pliki.",
-    "many": "Już w poprzednim stanie: {count} plików.",
     "one": "Już w poprzednim stanie: {count} plik.",
-    "other": "Już w poprzednim stanie: {count} pliku."
+    "other": "Już w poprzednim stanie: {count} pliku.",
+    "few": "Już w poprzednim stanie: {count} pliki.",
+    "many": "Już w poprzednim stanie: {count} plików."
   },
   "restoreWritesIncomplete": "Nic nie przywrócono: niektóre edycje z tych tur nie zostały w pełni zapisane (ponowne wczytanie lub awaria podczas edycji albo wyłączone punkty kontrolne plików).",
   "restoreLegacyInRange": "Nic nie przywrócono: niektóre z tych tur zapisała wcześniejsza wersja, z której ta wersja nie może przywracać.",
@@ -2364,10 +2369,10 @@
   "plansItemDetail": "Zapisane plany w .agents/plans: otwórz jeden lub go wdróż",
   "plansTitle": "Plany",
   "plansCount": {
-    "few": "{count} zapisane plany",
-    "many": "{count} zapisanych planów",
     "one": "{count} zapisany plan",
-    "other": "{count} zapisanego planu"
+    "other": "{count} zapisanego planu",
+    "few": "{count} zapisane plany",
+    "many": "{count} zapisanych planów"
   },
   "plansNone": "Nie ma jeszcze zapisanych planów. Zapisz plan z odpowiedzi w trybie planowania.",
   "plansFailed": "Nie udało się wyświetlić listy planów",
@@ -2402,10 +2407,10 @@
   "signedOutNotice": "Wylogowano z Muse Spark.",
   "agentsPillTitle": "Pokaż mapę agentów",
   "agentsCount": {
-    "few": "{count} agenci",
-    "many": "{count} agentów",
     "one": "{count} agent",
-    "other": "{count} agenta"
+    "other": "{count} agenta",
+    "few": "{count} agenci",
+    "many": "{count} agentów"
   },
   "backgroundTasksPillTitle": "Pokaż zadania w tle",
   "agentMapTitle": "Mapa agentów",
@@ -2433,15 +2438,15 @@
     "queuePosition": "Pozycja {position} w kolejce: {reason}",
     "workerCount": {
       "one": "{count} wykonawca",
+      "other": "{count} wykonawcy",
       "few": "{count} wykonawców",
-      "many": "{count} wykonawców",
-      "other": "{count} wykonawcy"
+      "many": "{count} wykonawców"
     },
     "machineLoad": {
       "one": "{count} okno uruchamia {workers} na tej maszynie.",
+      "other": "{count} okna uruchamiają {workers} na tej maszynie.",
       "few": "{count} okna uruchamiają {workers} na tej maszynie.",
-      "many": "{count} okien uruchamia {workers} na tej maszynie.",
-      "other": "{count} okna uruchamiają {workers} na tej maszynie."
+      "many": "{count} okien uruchamia {workers} na tej maszynie."
     },
     "board": "Tablica zadań",
     "lanes": "Sloty wykonania",
@@ -2688,10 +2693,10 @@
   "workflowChildUntitled": "Agent {number}",
   "workflowAttempt": "próba {attempt}",
   "workflowsCount": {
-    "few": "{count} przepływy pracy",
-    "many": "{count} przepływów pracy",
     "one": "{count} przepływ pracy",
-    "other": "{count} przepływu pracy"
+    "other": "{count} przepływu pracy",
+    "few": "{count} przepływy pracy",
+    "many": "{count} przepływów pracy"
   },
   "workflowsLabel": "Przepływy pracy",
   "workflowTriggerModes": {
@@ -2704,10 +2709,10 @@
   "workflowLaunched": "Uruchomiono: działa w tle i zgłasza wynik w tej rozmowie.",
   "workflowScriptSaved": "Skrypt zapisano w {path}",
   "backgroundTasksCount": {
-    "few": "{count} zadania w tle",
-    "many": "{count} zadań w tle",
     "one": "{count} zadanie w tle",
-    "other": "{count} zadania w tle"
+    "other": "{count} zadania w tle",
+    "few": "{count} zadania w tle",
+    "many": "{count} zadań w tle"
   },
   "backgroundTasksLabel": "Zadania w tle",
   "backgroundBadge": "w tle",
@@ -2726,15 +2731,15 @@
   "teamMergeNoPaths": "Brak",
   "teamRunningCount": {
     "one": "{count} w toku",
+    "other": "{count} w toku",
     "few": "{count} w toku",
-    "many": "{count} w toku",
-    "other": "{count} w toku"
+    "many": "{count} w toku"
   },
   "teamMergeMorePaths": {
     "one": "i jeszcze {count}",
+    "other": "i jeszcze {count}",
     "few": "i jeszcze {count}",
-    "many": "i jeszcze {count}",
-    "other": "i jeszcze {count}"
+    "many": "i jeszcze {count}"
   },
   "teamOrchestrator": "Orkiestrator",
   "teamOrchestratorDefault": "Domyślny",
@@ -2761,9 +2766,9 @@
   "teamInterruptedGroup": "Przerwane",
   "teamTasksCount": {
     "one": "{count} zadanie zespołu",
+    "other": "{count} zadania zespołu",
     "few": "{count} zadania zespołu",
-    "many": "{count} zadań zespołu",
-    "other": "{count} zadania zespołu"
+    "many": "{count} zadań zespołu"
   },
   "teamPlanTitle": "Plan delegowania",
   "teamPlanDelegated": "Delegowane",
@@ -2825,16 +2830,16 @@
   "usageInsightNoLogs": "Na tej maszynie nie znaleziono jeszcze dzienników śledzenia Muse Code.",
   "usageInsightTotals": "{sessions}: {attempts}",
   "modelAttemptsCount": {
-    "few": "{count} próby modelu",
-    "many": "{count} prób modelu",
     "one": "{count} próba modelu",
-    "other": "{count} próby modelu"
+    "other": "{count} próby modelu",
+    "few": "{count} próby modelu",
+    "many": "{count} prób modelu"
   },
   "sessionsCount": {
-    "few": "{count} sesje",
-    "many": "{count} sesji",
     "one": "{count} sesja",
-    "other": "{count} sesji"
+    "other": "{count} sesji",
+    "few": "{count} sesje",
+    "many": "{count} sesji"
   },
   "durationNow": "teraz",
   "contextCompactTitle": "Kliknij, aby skompaktować teraz",
@@ -3010,10 +3015,10 @@
   "scheduleRepeats": "Cyklicznie",
   "scheduleNextRun": "Następne uruchomienie: {date}",
   "scheduleFired": {
-    "few": "Uruchomiono {count} razy",
-    "many": "Uruchomiono {count} razy",
     "one": "Uruchomiono {count} raz",
-    "other": "Uruchomiono {count} raza"
+    "other": "Uruchomiono {count} raza",
+    "few": "Uruchomiono {count} razy",
+    "many": "Uruchomiono {count} razy"
   },
   "scheduleNone": "Brak zaplanowanych promptów",
   "loopItem": "/loop",
@@ -3083,28 +3088,28 @@
   },
   "importNothingFrom": "Brak umiejętności do zaimportowania z {source}.",
   "importInstalledSummary": {
-    "few": "Zaimportowano {count} umiejętności: {skills}",
-    "many": "Zaimportowano {count} umiejętności: {skills}",
     "one": "Zaimportowano {count} umiejętność: {skills}",
-    "other": "Zaimportowano {count} umiejętności: {skills}"
+    "other": "Zaimportowano {count} umiejętności: {skills}",
+    "few": "Zaimportowano {count} umiejętności: {skills}",
+    "many": "Zaimportowano {count} umiejętności: {skills}"
   },
   "importSkippedSummary": {
-    "few": "Pominięto {count} umiejętności: {skills}",
-    "many": "Pominięto {count} umiejętności: {skills}",
     "one": "Pominięto {count} umiejętność: {skills}",
-    "other": "Pominięto {count} umiejętności: {skills}"
+    "other": "Pominięto {count} umiejętności: {skills}",
+    "few": "Pominięto {count} umiejętności: {skills}",
+    "many": "Pominięto {count} umiejętności: {skills}"
   },
   "importQuarantinedSummary": {
-    "few": "Poddano kwarantannie {count} umiejętności: {skills}",
-    "many": "Poddano kwarantannie {count} umiejętności: {skills}",
     "one": "Poddano kwarantannie {count} umiejętność: {skills}",
-    "other": "Poddano kwarantannie {count} umiejętności: {skills}"
+    "other": "Poddano kwarantannie {count} umiejętności: {skills}",
+    "few": "Poddano kwarantannie {count} umiejętności: {skills}",
+    "many": "Poddano kwarantannie {count} umiejętności: {skills}"
   },
   "importFailedSummary": {
-    "few": "Błąd importu {count} umiejętności: {skills}",
-    "many": "Błąd importu {count} umiejętności: {skills}",
     "one": "Błąd importu {count} umiejętności: {skills}",
-    "other": "Błąd importu {count} umiejętności: {skills}"
+    "other": "Błąd importu {count} umiejętności: {skills}",
+    "few": "Błąd importu {count} umiejętności: {skills}",
+    "many": "Błąd importu {count} umiejętności: {skills}"
   },
   "bundledSkillsOffer": "Muse Spark zawiera umiejętności {skills}. Zainstalować je dla Muse Code? Zostaną skopiowane do Twojego folderu konfiguracji Muse.",
   "bundledSkillsUpdateOffer": "Muse Spark zawiera nowszą wersję dołączonych umiejętności ({tag}). Zaktualizować kopię używaną przez Muse Code?",
@@ -3112,22 +3117,22 @@
   "bundledSkillsUpdate": "Zaktualizuj",
   "bundledSkillsNotNow": "Nie teraz",
   "bundledSkillsInstalled": {
-    "few": "Zainstalowano {count} dołączone umiejętności ({tag}) dla Muse Code: {skills}",
-    "many": "Zainstalowano {count} dołączonych umiejętności ({tag}) dla Muse Code: {skills}",
     "one": "Zainstalowano {count} dołączoną umiejętność ({tag}) dla Muse Code: {skills}",
-    "other": "Zainstalowano {count} dołączonej umiejętności ({tag}) dla Muse Code: {skills}"
+    "other": "Zainstalowano {count} dołączonej umiejętności ({tag}) dla Muse Code: {skills}",
+    "few": "Zainstalowano {count} dołączone umiejętności ({tag}) dla Muse Code: {skills}",
+    "many": "Zainstalowano {count} dołączonych umiejętności ({tag}) dla Muse Code: {skills}"
   },
   "bundledSkillsSkipped": {
-    "few": "Pominięto {count} umiejętności, ponieważ Twoje umiejętności mają te nazwy: {skills}",
-    "many": "Pominięto {count} umiejętności, ponieważ Twoje umiejętności mają te nazwy: {skills}",
     "one": "Pominięto {count} umiejętność, ponieważ jedna z Twoich umiejętności ma tę nazwę: {skills}",
-    "other": "Pominięto {count} umiejętności, ponieważ Twoje umiejętności mają te nazwy: {skills}"
+    "other": "Pominięto {count} umiejętności, ponieważ Twoje umiejętności mają te nazwy: {skills}",
+    "few": "Pominięto {count} umiejętności, ponieważ Twoje umiejętności mają te nazwy: {skills}",
+    "many": "Pominięto {count} umiejętności, ponieważ Twoje umiejętności mają te nazwy: {skills}"
   },
   "bundledSkillsRemoved": {
-    "few": "Usunięto {count} dołączone umiejętności z Muse Code: {skills}",
-    "many": "Usunięto {count} dołączonych umiejętności z Muse Code: {skills}",
     "one": "Usunięto {count} dołączoną umiejętność z Muse Code: {skills}",
-    "other": "Usunięto {count} dołączonej umiejętności z Muse Code: {skills}"
+    "other": "Usunięto {count} dołączonej umiejętności z Muse Code: {skills}",
+    "few": "Usunięto {count} dołączone umiejętności z Muse Code: {skills}",
+    "many": "Usunięto {count} dołączonych umiejętności z Muse Code: {skills}"
   },
   "bundledSkillsNothingToRemove": "Dla Muse Code nie zainstalowano żadnych dołączonych umiejętności, więc nic nie usunięto.",
   "bundledSkillsInstallFailed": "Nie udało się zainstalować dołączonych umiejętności w {folder}: {reason}",
@@ -3262,22 +3267,22 @@
     "accounting_unverified": "Rozliczenie niezweryfikowane"
   },
   "execTooManyFiles": {
-    "few": "Limit plików wejściowych: {count}.",
-    "many": "Limit plików wejściowych: {count}.",
     "one": "Dozwolony jest najwyżej {count} plik wejściowy.",
-    "other": "Limit plików wejściowych: {count}."
+    "other": "Limit plików wejściowych: {count}.",
+    "few": "Limit plików wejściowych: {count}.",
+    "many": "Limit plików wejściowych: {count}."
   },
   "execRequestCapReached": {
-    "few": "Osiągnięto limit prób: {count}.",
-    "many": "Osiągnięto limit prób: {count}.",
     "one": "Osiągnięto limit {count} próby.",
-    "other": "Osiągnięto limit prób: {count}."
+    "other": "Osiągnięto limit prób: {count}.",
+    "few": "Osiągnięto limit prób: {count}.",
+    "many": "Osiągnięto limit prób: {count}."
   },
   "execScanMatches": {
-    "few": "Liczba znalezionych sekretów: {count}",
-    "many": "Liczba znalezionych sekretów: {count}",
     "one": "Znaleziono {count} sekret",
-    "other": "Liczba znalezionych sekretów: {count}"
+    "other": "Liczba znalezionych sekretów: {count}",
+    "few": "Liczba znalezionych sekretów: {count}",
+    "many": "Liczba znalezionych sekretów: {count}"
   },
   "providerKeyStored": "Klucz {provider} został zapisany: {store}.",
   "providerKeyNotStored": "Nie wpisano klucza, więc nic nie zapisano.",
@@ -3335,23 +3340,23 @@
   "exportArgumentsLabel": "Argumenty:",
   "exportOutputLabel": "Dane wyjściowe:",
   "exportOutputStored": {
-    "few": "Dane wyjściowe ({count} bajty) są przechowywane przez backend i nie zostały dołączone.",
-    "many": "Dane wyjściowe ({count} bajtów) są przechowywane przez backend i nie zostały dołączone.",
     "one": "Dane wyjściowe ({count} bajt) są przechowywane przez backend i nie zostały dołączone.",
-    "other": "Dane wyjściowe ({count} bajta) są przechowywane przez backend i nie zostały dołączone."
+    "other": "Dane wyjściowe ({count} bajta) są przechowywane przez backend i nie zostały dołączone.",
+    "few": "Dane wyjściowe ({count} bajty) są przechowywane przez backend i nie zostały dołączone.",
+    "many": "Dane wyjściowe ({count} bajtów) są przechowywane przez backend i nie zostały dołączone."
   },
   "exportFilesChanged": {
-    "few": "Zmieniono {count} pliki: +{added} −{removed}.",
-    "many": "Zmieniono {count} plików: +{added} −{removed}.",
     "one": "Zmieniono {count} plik: +{added} −{removed}.",
-    "other": "Zmieniono {count} pliku: +{added} −{removed}."
+    "other": "Zmieniono {count} pliku: +{added} −{removed}.",
+    "few": "Zmieniono {count} pliki: +{added} −{removed}.",
+    "many": "Zmieniono {count} plików: +{added} −{removed}."
   },
   "exportFailure": "Niepowodzenie: {reason}",
   "exportImagesAttached": {
-    "few": "Dołączono {count} obrazy.",
-    "many": "Dołączono {count} obrazów.",
     "one": "Dołączono {count} obraz.",
-    "other": "Dołączono {count} obrazu."
+    "other": "Dołączono {count} obrazu.",
+    "few": "Dołączono {count} obrazy.",
+    "many": "Dołączono {count} obrazów."
   },
   "insertReferenceNoEditor": "Otwórz plik w edytorze, aby wstawić do niego odwołanie.",
   "insertReferencePanelOpened": "Otwarto panel Muse Spark. Naciśnij ponownie Alt+K, aby wstawić odwołanie.",
@@ -3367,16 +3372,16 @@
   "turnFailed": "Tura nie powiodła się.",
   "turnRetrying": "Próba {attempt}/{maxAttempts} nie powiodła się ({reason}); ponowienie za {seconds} s.",
   "usageWindowHours": {
-    "few": "Okno {count}-godzinne",
-    "many": "Okno {count}-godzinne",
     "one": "Okno {count}-godzinne",
-    "other": "Okno {count}-godzinne"
+    "other": "Okno {count}-godzinne",
+    "few": "Okno {count}-godzinne",
+    "many": "Okno {count}-godzinne"
   },
   "usageWindowMinutes": {
-    "few": "Okno {count}-minutowe",
-    "many": "Okno {count}-minutowe",
     "one": "Okno {count}-minutowe",
-    "other": "Okno {count}-minutowe"
+    "other": "Okno {count}-minutowe",
+    "few": "Okno {count}-minutowe",
+    "many": "Okno {count}-minutowe"
   },
   "statusVerbs": {
     "thinking": "Myślę…",
@@ -3451,10 +3456,10 @@
   "paidBestOfNDetail": "{prompt}\n\n{price}\n\nOpłata zostanie naliczona z Twojego klucza Model API. Rzeczywisty koszt zależy od liczby użytych tokenów. „Zezwól raz” dotyczy tylko tego uruchomienia.",
   "paidConfirmBestOfN": "Ten sam monit działa w oddzielnych drzewach roboczych, każde rozliczane z Twojego klucza Model API. {price} Każde uruchomienie wymaga zgody w każdym trybie uprawnień, także w trybie Bypass, chyba że zawsze zezwolisz na Najlepszy z N w tym obszarze roboczym. Rzeczywisty koszt zależy od użytych tokenów; inne płatne narzędzia kosztują dodatkowo. Tylko w backendzie Model API.",
   "usagePaidBestOfNAttempts": {
-    "few": "{count} próby",
-    "many": "{count} prób",
     "one": "{count} próba",
-    "other": "{count} prób"
+    "other": "{count} prób",
+    "few": "{count} próby",
+    "many": "{count} prób"
   },
   "usagePaidBestOfNIncluded": "Szacunkowy koszt zgłoszonych tokenów: {cost}",
   "paidTeamWorkersName": "Agenci zespołu",
@@ -3468,9 +3473,9 @@
   "paidConfirmTeamWorkers": "Zadania zespołu działają na modelach rozliczanych z Twojego klucza Model API. {price} Pierwsze wywołanie delegowania, które uruchamia zadania rozliczane z klucza, wymaga zgody w każdym trybie uprawnień, także w trybie Bypass, chyba że zawsze zezwolisz na agentów zespołu w tym obszarze roboczym. Zadania subskrypcyjne i lokalne nie są płatnym użyciem. Rzeczywisty koszt zależy od liczby użytych tokenów; inne płatne narzędzia kosztują dodatkowo.",
   "usagePaidTeamTasks": {
     "one": "{count} zadanie zespołu",
+    "other": "{count} zadań zespołu",
     "few": "{count} zadania zespołu",
-    "many": "{count} zadań zespołu",
-    "other": "{count} zadań zespołu"
+    "many": "{count} zadań zespołu"
   },
   "teamSwitchReasonCap": "wyczerpano limit {measure}/{window}: użyto {used} z {amount}",
   "teamSwitchReasonConcurrency": "brak wolnego miejsca na uruchomienie",
@@ -3510,9 +3515,9 @@
   "tabCopilotConfirmDetail": "Tab nie będzie już czekać na żądanie w {language} i będzie wysyłać własne automatyczne sugestie rozliczane z Twojego klucza Model API. Sugestie Copilot możesz w każdej chwili włączyć ponownie w ustawieniach.",
   "usagePaidTabRequests": {
     "one": "{count} żądanie Tab",
+    "other": "{count} żądań Tab",
     "few": "{count} żądania Tab",
-    "many": "{count} żądań Tab",
-    "other": "{count} żądań Tab"
+    "many": "{count} żądań Tab"
   },
   "usagePaidTabTokens": "{tokens} tokenów ({cached} z pamięci podręcznej)",
   "usagePaidTabReported": "Szacunkowy koszt zgłoszonych tokenów: {cost}",
@@ -3525,9 +3530,9 @@
   "paidConfirmHookModel": "Hooki prompt i agent pytają model, zanim odpowiedzą, a każde uruchomienie jest rozliczane z Twojego klucza Model API. {price} Każde uruchomienie wymaga zgody w każdym trybie uprawnień, także w trybie Bypass, chyba że zawsze zezwolisz na hooki modelu w tym obszarze roboczym. Rzeczywisty koszt zależy od użytych tokenów. Mogą tylko odmówić, zawęzić lub dodać kontekst. Tylko w backendzie Model API; w Muse Code zużywają zamiast tego turę z Twojej subskrypcji.",
   "usagePaidHookModelRuns": {
     "one": "{count} uruchomienie hooka",
+    "other": "{count} uruchomienia hooków",
     "few": "{count} uruchomienia hooków",
-    "many": "{count} uruchomień hooków",
-    "other": "{count} uruchomienia hooków"
+    "many": "{count} uruchomień hooków"
   },
   "hookModelPaidOff": "Hooki modelu są wyłączone. Włącz museSpark.modelApiHookModels, aby hooki prompt i agent mogły pytać model.",
   "paidHookModelDailyBudget": "Wspólny dzienny budżet płatnych funkcji: {budget}.",
@@ -3537,16 +3542,16 @@
   "boardStatusRunning": "W toku",
   "boardStatusIdle": "Bezczynna",
   "boardAwaitingApproval": {
-    "few": "{count} oczekujące zgody",
-    "many": "{count} oczekujących zgód",
     "one": "{count} oczekująca zgoda",
-    "other": "{count} oczekujących zgód"
+    "other": "{count} oczekujących zgód",
+    "few": "{count} oczekujące zgody",
+    "many": "{count} oczekujących zgód"
   },
   "boardChanges": {
-    "few": "{count} zmienione pliki",
-    "many": "{count} zmienionych plików",
     "one": "{count} zmieniony plik",
-    "other": "{count} zmienionych plików"
+    "other": "{count} zmienionych plików",
+    "few": "{count} zmienione pliki",
+    "many": "{count} zmienionych plików"
   },
   "boardChangesUnknown": "zmiany nieznane",
   "boardStartBestOfN": "Najlepszy z N…",
@@ -3575,16 +3580,16 @@
   "bestOfNRunStatusCancelled": "Anulowano",
   "bestOfNCeilingReached": "zatrzymano na limicie żądań",
   "bestOfNRequests": {
-    "few": "{count} żądania",
-    "many": "{count} żądań",
     "one": "{count} żądanie",
-    "other": "{count} żądań"
+    "other": "{count} żądań",
+    "few": "{count} żądania",
+    "many": "{count} żądań"
   },
   "bestOfNApprovalsDenied": {
-    "few": "{count} odrzucone zgody",
-    "many": "{count} odrzuconych zgód",
     "one": "{count} odrzucona zgoda",
-    "other": "{count} odrzuconych zgód"
+    "other": "{count} odrzuconych zgód",
+    "few": "{count} odrzucone zgody",
+    "many": "{count} odrzuconych zgód"
   },
   "bestOfNAttemptFailed": "Niepowodzenie: {reason}",
   "bestOfNTakenMark": "Wybrano: {branch}",
@@ -3620,39 +3625,39 @@
   "usagePaidAlwaysNote": "Zawsze dozwolone w tym obszarze roboczym, bez pytania: {features}.",
   "usagePaidAskAgain": "Pytaj za każdym razem",
   "usagePaidSearches": {
-    "few": "{count} wyszukiwania",
-    "many": "{count} wyszukiwań",
     "one": "{count} wyszukiwanie",
-    "other": "{count} wyszukiwania"
+    "other": "{count} wyszukiwania",
+    "few": "{count} wyszukiwania",
+    "many": "{count} wyszukiwań"
   },
   "usagePaidImages": {
-    "few": "{count} obrazy",
-    "many": "{count} obrazów",
     "one": "{count} obraz",
-    "other": "{count} obrazu"
+    "other": "{count} obrazu",
+    "few": "{count} obrazy",
+    "many": "{count} obrazów"
   },
   "usagePaidAudio": "{duration} dźwięku",
   "usagePaidSubagentRequests": {
-    "few": "{count} żądania agentów podrzędnych",
-    "many": "{count} żądań agentów podrzędnych",
     "one": "{count} żądanie agenta podrzędnego",
-    "other": "{count} żądań agentów podrzędnych"
+    "other": "{count} żądań agentów podrzędnych",
+    "few": "{count} żądania agentów podrzędnych",
+    "many": "{count} żądań agentów podrzędnych"
   },
   "usagePaidSubagentUnknown": {
-    "few": "{count} żądania nie mają jeszcze zgłoszonego kosztu",
-    "many": "{count} żądań nie ma jeszcze zgłoszonego kosztu",
     "one": "{count} żądanie nie ma jeszcze zgłoszonego kosztu",
-    "other": "{count} żądania nie mają jeszcze zgłoszonego kosztu"
+    "other": "{count} żądania nie mają jeszcze zgłoszonego kosztu",
+    "few": "{count} żądania nie mają jeszcze zgłoszonego kosztu",
+    "many": "{count} żądań nie ma jeszcze zgłoszonego kosztu"
   },
   "usagePaidSubagentSubset": "Zgłoszone koszty agentów podrzędnych uwzględniono w szacunkowych kosztach tokenów ich rozmów nadrzędnych. Nie dolicza się ich do sumy pozostałych płatnych funkcji. Żądania bez zgłoszonego zużycia mogą mimo to zostać rozliczone.",
   "usagePaidExtraTotal": "Szacunkowy koszt pozostałych płatnych funkcji",
   "usagePaidSubagentReported": "Szacunkowy koszt zgłoszonych tokenów: {cost}",
   "usagePaidTotal": "Szacowany koszt płatnych funkcji",
   "usagePaidScheduled": {
-    "few": "{count} zaplanowane uruchomienia",
-    "many": "{count} zaplanowanych uruchomień",
     "one": "{count} zaplanowane uruchomienie",
-    "other": "{count} zaplanowanego uruchomienia"
+    "other": "{count} zaplanowanego uruchomienia",
+    "few": "{count} zaplanowane uruchomienia",
+    "many": "{count} zaplanowanych uruchomień"
   },
   "usageScheduledIncluded": "koszt tokenów uwzględniono powyżej",
   "usagePaidNote": "Szacunek według opublikowanych przez Meta cen (odczytanych {date}) dla tego okna od jego otwarcia; rachunkiem jest pulpit dev.meta.ai.",
@@ -3722,10 +3727,10 @@
   "reviewInstructionsTooLong": "Opis tego, co przejrzeć, jest za długi na jeden przegląd; ujmij go krócej.",
   "reviewTruncatedNotice": "Różnice są obszerne, więc do przeglądu trafiła tylko ich pierwsza część; recenzent sam odczyta resztę zmienionych plików.",
   "reviewPrivateLeftOut": {
-    "few": "Wymieniono z nazwy {count} zmienione pliki, które mogą zawierać wpisy tajne, ale nie wysłano ich do przeglądu.",
-    "many": "Wymieniono z nazwy {count} zmienionych plików, które mogą zawierać wpisy tajne, ale nie wysłano ich do przeglądu.",
     "one": "Wymieniono z nazwy {count} zmieniony plik, który może zawierać wpisy tajne, ale nie wysłano go do przeglądu.",
-    "other": "Wymieniono z nazwy {count} zmienionego pliku, który może zawierać wpisy tajne, ale nie wysłano go do przeglądu."
+    "other": "Wymieniono z nazwy {count} zmienionego pliku, który może zawierać wpisy tajne, ale nie wysłano go do przeglądu.",
+    "few": "Wymieniono z nazwy {count} zmienione pliki, które mogą zawierać wpisy tajne, ale nie wysłano ich do przeglądu.",
+    "many": "Wymieniono z nazwy {count} zmienionych plików, które mogą zawierać wpisy tajne, ale nie wysłano ich do przeglądu."
   },
   "reviewPlanModeNotice": "Ten przegląd działa w trybie planowania, a po jego zakończeniu wróci Twój poprzedni tryb uprawnień. W trybie planowania Muse Code stosuje własne reguły zezwalające, więc przegląd w tym trybie nie jest ściśle tylko do odczytu.",
   "reviewModeRestored": "Przegląd się zakończył: tryb uprawnień to ponownie {mode}.",
@@ -3735,34 +3740,34 @@
   "reviewPaneLoading": "Odczytywanie zmian…",
   "reviewPaneEmpty": "Ta rozmowa nie zmieniła żadnych plików.",
   "reviewPaneFiles": {
-    "few": "{count} pliki",
-    "many": "{count} plików",
     "one": "{count} plik",
-    "other": "{count} pliku"
+    "other": "{count} pliku",
+    "few": "{count} pliki",
+    "many": "{count} plików"
   },
   "reviewPaneHunks": {
-    "few": "{count} zmiany",
-    "many": "{count} zmian",
     "one": "{count} zmiana",
-    "other": "{count} zmiany"
+    "other": "{count} zmiany",
+    "few": "{count} zmiany",
+    "many": "{count} zmian"
   },
   "reviewPaneAccepted": {
-    "few": "{count} zaakceptowane",
-    "many": "{count} zaakceptowanych",
     "one": "{count} zaakceptowana",
-    "other": "{count} zaakceptowanej"
+    "other": "{count} zaakceptowanej",
+    "few": "{count} zaakceptowane",
+    "many": "{count} zaakceptowanych"
   },
   "reviewPaneReverted": {
-    "few": "{count} cofnięte",
-    "many": "{count} cofniętych",
     "one": "{count} cofnięta",
-    "other": "{count} cofniętej"
+    "other": "{count} cofniętej",
+    "few": "{count} cofnięte",
+    "many": "{count} cofniętych"
   },
   "reviewPaneOmitted": {
-    "few": "{count} edycje nie są tu wymienione (za dużo do pokazania lub nie udało się odczytać ich zmian); nadal można je otworzyć z ich wierszy w zapisie rozmowy.",
-    "many": "{count} edycji nie jest tu wymienionych (za dużo do pokazania lub nie udało się odczytać ich zmian); nadal można je otworzyć z ich wierszy w zapisie rozmowy.",
     "one": "{count} edycja nie jest tu wymieniona (za dużo do pokazania lub nie udało się odczytać jej zmiany); nadal można ją otworzyć z jej wiersza w zapisie rozmowy.",
-    "other": "{count} edycji nie jest tu wymienione (za dużo do pokazania lub nie udało się odczytać ich zmian); nadal można je otworzyć z ich wierszy w zapisie rozmowy."
+    "other": "{count} edycji nie jest tu wymienione (za dużo do pokazania lub nie udało się odczytać ich zmian); nadal można je otworzyć z ich wierszy w zapisie rozmowy.",
+    "few": "{count} edycje nie są tu wymienione (za dużo do pokazania lub nie udało się odczytać ich zmian); nadal można je otworzyć z ich wierszy w zapisie rozmowy.",
+    "many": "{count} edycji nie jest tu wymienionych (za dużo do pokazania lub nie udało się odczytać ich zmian); nadal można je otworzyć z ich wierszy w zapisie rozmowy."
   },
   "reviewHunkLines": "Zmiana {index}, wiersze {start}–{end}",
   "reviewHunkLine": "Zmiana {index}, wiersz {start}",
@@ -3788,10 +3793,10 @@
   "reviewAnnounceNotReverted": "{name} nie została cofnięta: {reason}",
   "reviewFindingsLabel": "Wyniki przeglądu",
   "reviewFindingsHeading": {
-    "few": "{count} uwagi",
-    "many": "{count} uwag",
     "one": "{count} uwaga",
-    "other": "{count} uwagi"
+    "other": "{count} uwagi",
+    "few": "{count} uwagi",
+    "many": "{count} uwag"
   },
   "reviewNoFindings": "Przegląd nie wykazał niczego do zgłoszenia.",
   "reviewSeverities": {
@@ -3823,18 +3828,18 @@
   "paidUseAutoReviewerTitle": "Czy automatyczny oceniający ma ocenić to wywołanie {tool}?",
   "paidUseAutoReviewerDetail": "{action}\n\nOsobne wywołanie modelu {model} ocenia, czy akcję można uruchomić bez pytania Ciebie. Rozliczane przez Twój klucz Model API: {price}. Łączna kwota zależy od użytych tokenów. Po odmowie zobaczysz zamiast tego kartę zatwierdzenia.",
   "usagePaidAutoReviews": {
-    "few": "{count} oceny",
-    "many": "{count} ocen",
     "one": "{count} ocena",
-    "other": "{count} oceny"
+    "other": "{count} oceny",
+    "few": "{count} oceny",
+    "many": "{count} ocen"
   },
   "paidJudgeName": "Oceniający",
   "paidConfirmJudge": "Twój własny model rozmowy ocenia każdą ryzykowną akcję Auto, której nie rozstrzyga żadna reguła, i może jedynie dodać ostrożności: gotowe ostrzeżenie zamienia zezwolenie w pytanie albo w notatkę na karcie zatwierdzenia. Każdy osąd jest rozliczany przez Twój klucz Model API według stawek za tokeny modelu rozmowy:\n{price}\nOceniający pyta o zgodę raz przed pierwszą opłatą, pokazując te stawki i wspólny budżet dzienny: {budget}. Przejście ze źródła bezpłatnego na płatne wymaga ponownej zgody. W Muse Code te same wywołania korzystają z Twojej subskrypcji.",
   "usagePaidJudgeCalls": {
     "one": "{count} osąd",
+    "other": "{count} osądy",
     "few": "{count} osądy",
-    "many": "{count} osądów",
-    "other": "{count} osądy"
+    "many": "{count} osądów"
   },
   "judgeCaution": "Muse Judge zaleca ostrożność. Decyzja należy do Ciebie; nie może zatwierdzić tej czynności.",
   "judgeSubscriptionNotice": "Muse Judge używa Twojego modelu czatu w ramach subskrypcji Muse i zużywa jej limity. Każda partia korzysta z nowej, odizolowanej sesji w trybie Planu. Zabezpieczenie anuluje sesję po wykryciu narzędzia, ale nie może dowieść, że żadne narzędzie nie zostało uruchomione. Może tylko zalecać ostrożność.",
@@ -3860,23 +3865,23 @@
   "permissionRootInvalid": "{setting}: dodatkowy katalog główny „{root}” nie jest ścieżką bezwzględną, więc nie zostaje dodany.",
   "permissionRepositoryInvalid": "{setting}: reguły repozytorium są nieprawidłowe ({detail}) i nie są stosowane.",
   "verifyErrors": {
-    "few": "{count} błędy",
-    "many": "{count} błędów",
     "one": "{count} błąd",
-    "other": "{count} błędu"
+    "other": "{count} błędu",
+    "few": "{count} błędy",
+    "many": "{count} błędów"
   },
   "verifyWarnings": {
-    "few": "{count} ostrzeżenia",
-    "many": "{count} ostrzeżeń",
     "one": "{count} ostrzeżenie",
-    "other": "{count} ostrzeżenia"
+    "other": "{count} ostrzeżenia",
+    "few": "{count} ostrzeżenia",
+    "many": "{count} ostrzeżeń"
   },
   "verifyClean": "Brak błędów i ostrzeżeń",
   "verifyUnchecked": {
-    "few": "{count} pliki niesprawdzone",
-    "many": "{count} plików niesprawdzonych",
     "one": "{count} plik niesprawdzony",
-    "other": "{count} pliku niesprawdzonego"
+    "other": "{count} pliku niesprawdzonego",
+    "few": "{count} pliki niesprawdzone",
+    "many": "{count} plików niesprawdzonych"
   },
   "checkOutcomes": {
     "passed": "{name}: zaliczone",
@@ -3901,10 +3906,10 @@
   "thenRunTimedOut": "Zatrzymano po upływie limitu czasu",
   "thenRunNoExitCode": "Niepowodzenie bez kodu wyjścia",
   "checksStoppedNotice": {
-    "few": "Sprawdzenia nadal kończyły się błędem po {count} kolejnych rundach poprawek, więc do Twojej następnej wiadomości nie uruchomią się już automatycznie.",
-    "many": "Sprawdzenia nadal kończyły się błędem po {count} kolejnych rundach poprawek, więc do Twojej następnej wiadomości nie uruchomią się już automatycznie.",
     "one": "Sprawdzenia nadal kończyły się błędem po {count} rundzie poprawek, więc do Twojej następnej wiadomości nie uruchomią się już automatycznie.",
-    "other": "Sprawdzenia nadal kończyły się błędem po {count} rundy poprawek z rzędu, więc do Twojej następnej wiadomości nie uruchomią się już automatycznie."
+    "other": "Sprawdzenia nadal kończyły się błędem po {count} rundy poprawek z rzędu, więc do Twojej następnej wiadomości nie uruchomią się już automatycznie.",
+    "few": "Sprawdzenia nadal kończyły się błędem po {count} kolejnych rundach poprawek, więc do Twojej następnej wiadomości nie uruchomią się już automatycznie.",
+    "many": "Sprawdzenia nadal kończyły się błędem po {count} kolejnych rundach poprawek, więc do Twojej następnej wiadomości nie uruchomią się już automatycznie."
   },
   "exportThenRunLabel": "Następnie uruchomiono:",
   "exportThenRunSkipped": "then_run `{command}`: {outcome}",
@@ -3930,9 +3935,9 @@
   "keyBoundState": "przechowywany, powiązany z {origin}",
   "providerKeyWorks": {
     "one": "Klucz działa · {count} model",
+    "other": "Klucz działa · {count} modeli",
     "few": "Klucz działa · {count} modele",
-    "many": "Klucz działa · {count} modeli",
-    "other": "Klucz działa · {count} modeli"
+    "many": "Klucz działa · {count} modeli"
   },
   "providerTestPaid": "To sprawdzenie wysyła jeden token i kosztuje około {cost}.",
   "providerTestFailed": "Sprawdzenie nie powiodło się: {detail}",
@@ -3979,21 +3984,21 @@
   "refreshModels": "Odśwież modele",
   "scanNewModels": {
     "one": "{count} nowy model od ostatniego skanowania",
+    "other": "{count} nowych modeli od ostatniego skanowania",
     "few": "{count} nowe modele od ostatniego skanowania",
-    "many": "{count} nowych modeli od ostatniego skanowania",
-    "other": "{count} nowych modeli od ostatniego skanowania"
+    "many": "{count} nowych modeli od ostatniego skanowania"
   },
   "scanRemovedModels": {
     "one": "{count} model usunięty od ostatniego skanowania",
+    "other": "{count} modeli usuniętych od ostatniego skanowania",
     "few": "{count} modele usunięte od ostatniego skanowania",
-    "many": "{count} modeli usuniętych od ostatniego skanowania",
-    "other": "{count} modeli usuniętych od ostatniego skanowania"
+    "many": "{count} modeli usuniętych od ostatniego skanowania"
   },
   "scanRepricedModels": {
     "one": "{count} model z nową ceną od ostatniego skanowania",
+    "other": "{count} modeli z nową ceną od ostatniego skanowania",
     "few": "{count} modele z nową ceną od ostatniego skanowania",
-    "many": "{count} modeli z nową ceną od ostatniego skanowania",
-    "other": "{count} modeli z nową ceną od ostatniego skanowania"
+    "many": "{count} modeli z nową ceną od ostatniego skanowania"
   },
   "modelBadges": {
     "recommended": "Polecany",
@@ -4149,27 +4154,27 @@
       "empty": "Pierwsze wyszukiwanie: brak modeli.",
       "first": {
         "one": "Pierwsze wyszukiwanie: {count} model.",
+        "other": "Pierwsze wyszukiwanie: {count} modelu.",
         "few": "Pierwsze wyszukiwanie: {count} modele.",
-        "many": "Pierwsze wyszukiwanie: {count} modeli.",
-        "other": "Pierwsze wyszukiwanie: {count} modelu."
+        "many": "Pierwsze wyszukiwanie: {count} modeli."
       },
       "new": {
         "one": "{count} nowy model",
+        "other": "{count} nowego modelu",
         "few": "{count} nowe modele",
-        "many": "{count} nowych modeli",
-        "other": "{count} nowego modelu"
+        "many": "{count} nowych modeli"
       },
       "removed": {
         "one": "{count} usunięty model",
+        "other": "{count} usuniętego modelu",
         "few": "{count} usunięte modele",
-        "many": "{count} usuniętych modeli",
-        "other": "{count} usuniętego modelu"
+        "many": "{count} usuniętych modeli"
       },
       "repriced": {
         "one": "{count} model ze zmienioną ceną",
+        "other": "{count} modelu ze zmienioną ceną",
         "few": "{count} modele ze zmienioną ceną",
-        "many": "{count} modeli ze zmienioną ceną",
-        "other": "{count} modelu ze zmienioną ceną"
+        "many": "{count} modeli ze zmienioną ceną"
       },
       "unchanged": "Brak zmian od ostatniego wyszukiwania.",
       "since": "{changes} od ostatniego wyszukiwania."
@@ -4224,9 +4229,9 @@
   "testRunning": "Testowanie…",
   "modelsShownCount": {
     "one": "{shown} z {count} modelu",
+    "other": "{shown} z {count} modeli",
     "few": "{shown} z {count} modele",
-    "many": "{shown} z {count} modeli",
-    "other": "{shown} z {count} modeli"
+    "many": "{shown} z {count} modeli"
   },
   "pricePerMillion": "Ceny za milion tokenów.",
   "modelsNotScanned": "Odśwież, aby wyświetlić modele tego dostawcy.",
@@ -4383,9 +4388,9 @@
   "teamLandingApply": "Zastosuj",
   "teamChangedDuringLanding": {
     "one": "{count} plik zmienił się podczas lądowania: {files}.",
+    "other": "{count} pliku zmieniło się podczas lądowania: {files}.",
     "few": "{count} pliki zmieniły się podczas lądowania: {files}.",
-    "many": "{count} plików zmieniło się podczas lądowania: {files}.",
-    "other": "{count} pliku zmieniło się podczas lądowania: {files}."
+    "many": "{count} plików zmieniło się podczas lądowania: {files}."
   },
   "teamCheckModelsOnOpen": "Sprawdzaj modele zespołu przy otwarciu tego okna",
   "teamCheckModelsOnOpenDetail": "Gdy włączone i rola ma inny własny model, panel raz sprawdza modele zespołu przy otwarciu okna. Skonfigurowanie drugiego modelu autoryzuje ten ruch.",
@@ -4422,9 +4427,9 @@
   "teamLevelCostUnknown": "{tokens} tokenów na godzinę; cena nieznana",
   "teamPreviewSwitches": {
     "one": "{count} przełączenie wymuszone limitami",
+    "other": "{count} przełączenia wymuszone limitami",
     "few": "{count} przełączenia wymuszone limitami",
-    "many": "{count} przełączeń wymuszonych limitami",
-    "other": "{count} przełączenia wymuszone limitami"
+    "many": "{count} przełączeń wymuszonych limitami"
   },
   "teamPreviewDryRunCost": "Najpierw wypróbuj z orkiestratorem: jedna tura, około {cost}",
   "teamImportUnknownKey": "Nieznane ustawienie {key}: plik odrzucono w całości",
@@ -4439,9 +4444,9 @@
   "legalScanEmpty": "Kontrola zakończona bez ustaleń.",
   "legalFindingsCount": {
     "one": "{count} ustalenie",
+    "other": "{count} ustalenia",
     "few": "{count} ustalenia",
-    "many": "{count} ustaleń",
-    "other": "{count} ustalenia"
+    "many": "{count} ustaleń"
   },
   "legalFilesScanned": "Przeskanowane pliki: {count}",
   "legalScanIncomplete": "Niepełna: {checks}",
@@ -4488,9 +4493,9 @@
   "legalFixSelect": "Napraw {id}",
   "legalSelectedCount": {
     "one": "Wybrano: {count}",
+    "other": "Wybrano: {count}",
     "few": "Wybrano: {count}",
-    "many": "Wybrano: {count}",
-    "other": "Wybrano: {count}"
+    "many": "Wybrano: {count}"
   },
   "legalFixAllSafe": "Napraw wszystkie bezpieczne",
   "legalPreviewFixes": "Podgląd poprawek",
@@ -4558,9 +4563,9 @@
     "m036": "Nie sprawdzono: wejścia pakietu wynikowego są nieobecne lub nieaktualne względem inwentarza.",
     "m037": {
       "one": "Dystrybucja ustalona na podstawie {count} znanych wejść pakietu wynikowego",
+      "other": "Dystrybucja ustalona na podstawie {count} znanych wejść pakietu wynikowego",
       "few": "Dystrybucja ustalona na podstawie {count} znanych wejść pakietu wynikowego",
-      "many": "Dystrybucja ustalona na podstawie {count} znanych wejść pakietu wynikowego",
-      "other": "Dystrybucja ustalona na podstawie {count} znanych wejść pakietu wynikowego"
+      "many": "Dystrybucja ustalona na podstawie {count} znanych wejść pakietu wynikowego"
     },
     "m038": "Źródła lokalne, dystrybucja nieznana: brak wejść pakietu i inwentarza.",
     "m039": "Nie sprawdzono: zbiór dystrybucji nieznany; bez dowodów pakietu lub plików zakłada się brak dostawy.",
@@ -4572,9 +4577,9 @@
     "m045": "Analiza dystrybucji",
     "m046": {
       "one": "{count} zależność może być dostarczanych bez pliku informacji o autorstwie.",
+      "other": "{count} zależności może być dostarczanych bez pliku informacji o autorstwie.",
       "few": "{count} zależności może być dostarczanych bez pliku informacji o autorstwie.",
-      "many": "{count} zależności może być dostarczanych bez pliku informacji o autorstwie.",
-      "other": "{count} zależności może być dostarczanych bez pliku informacji o autorstwie."
+      "many": "{count} zależności może być dostarczanych bez pliku informacji o autorstwie."
     },
     "m047": "Dodaj THIRD_PARTY_NOTICES lub równoważne informacje o dostawie.",
     "m048": "{v0} może być dostarczany, lecz żaden obecny plik informacji go nie wymienia.",
@@ -4646,37 +4651,37 @@
     "m114": "Skan zatrzymany na limicie: {v0} przekracza budżet odczytu.",
     "m115": {
       "one": "Nie sprawdzono: zatrzymano po {count} plikach; dalszych {v1} nie odczytano.",
+      "other": "Nie sprawdzono: zatrzymano po {count} plikach; dalszych {v1} nie odczytano.",
       "few": "Nie sprawdzono: zatrzymano po {count} plikach; dalszych {v1} nie odczytano.",
-      "many": "Nie sprawdzono: zatrzymano po {count} plikach; dalszych {v1} nie odczytano.",
-      "other": "Nie sprawdzono: zatrzymano po {count} plikach; dalszych {v1} nie odczytano."
+      "many": "Nie sprawdzono: zatrzymano po {count} plikach; dalszych {v1} nie odczytano."
     },
     "m116": {
       "one": "Nie sprawdzono: limit dowodów zależności; pominięto {count} wpis.",
+      "other": "Nie sprawdzono: limit dowodów zależności; pominięto {count} wpisów.",
       "few": "Nie sprawdzono: limit dowodów zależności; pominięto {count} wpisy.",
-      "many": "Nie sprawdzono: limit dowodów zależności; pominięto {count} wpisów.",
-      "other": "Nie sprawdzono: limit dowodów zależności; pominięto {count} wpisów."
+      "many": "Nie sprawdzono: limit dowodów zależności; pominięto {count} wpisów."
     },
     "m117": "Nie sprawdzono: licencja {v0} w {v1} nierozpoznana.",
     "m118": "Analiza tekstu licencji w {v0}",
     "m119": {
       "one": "Dystrybucja nieznana przy {count} zależnościach produkcyjnych; oceniane są niedostarczane źródła.",
+      "other": "Dystrybucja nieznana przy {count} zależnościach produkcyjnych; oceniane są niedostarczane źródła.",
       "few": "Dystrybucja nieznana przy {count} zależnościach produkcyjnych; oceniane są niedostarczane źródła.",
-      "many": "Dystrybucja nieznana przy {count} zależnościach produkcyjnych; oceniane są niedostarczane źródła.",
-      "other": "Dystrybucja nieznana przy {count} zależnościach produkcyjnych; oceniane są niedostarczane źródła."
+      "many": "Dystrybucja nieznana przy {count} zależnościach produkcyjnych; oceniane są niedostarczane źródła."
     },
     "m120": "Dostarcz wejścia pakietu lub inwentarz dla dokładnych obowiązków.",
     "m121": "Skan zatrzymany na limicie: raport dla {v0} skrócony",
     "m122": {
       "one": "Raport skrócony: pominięto {count} wynik ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw.",
+      "other": "Raport skrócony: pominięto {count} wyników ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw.",
       "few": "Raport skrócony: pominięto {count} wyniki ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw.",
-      "many": "Raport skrócony: pominięto {count} wyników ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw.",
-      "other": "Raport skrócony: pominięto {count} wyników ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw."
+      "many": "Raport skrócony: pominięto {count} wyników ponad limit {v1}; blokujące i wymagające naprawy zachowano najpierw."
     },
     "m123": {
       "one": "Raport skrócony: pominięto {count} wygenerowanych wykluczeń ponad limit.",
+      "other": "Raport skrócony: pominięto {count} wygenerowanych wykluczeń ponad limit.",
       "few": "Raport skrócony: pominięto {count} wygenerowanych wykluczeń ponad limit.",
-      "many": "Raport skrócony: pominięto {count} wygenerowanych wykluczeń ponad limit.",
-      "other": "Raport skrócony: pominięto {count} wygenerowanych wykluczeń ponad limit."
+      "many": "Raport skrócony: pominięto {count} wygenerowanych wykluczeń ponad limit."
     },
     "m124": "Skan utworzył nieprawidłowy wynik: {v0}",
     "m125": "Nie sprawdzono: pole dowodu przekracza limit raportu i zostało skrócone.",
@@ -4703,15 +4708,15 @@
     "m146": "Nie sprawdzono: {v0} zawiera dziedziczone lub zagnieżdżone deklaracje Cargo nierozwiązane statycznie.",
     "m147": {
       "one": "Nie sprawdzono: {count} wpis Cargo bez licencji lub pasującego dołączonego manifestu.",
+      "other": "Nie sprawdzono: {count} wpisów Cargo bez licencji lub pasującego dołączonego manifestu.",
       "few": "Nie sprawdzono: {count} wpisy Cargo bez licencji lub pasującego dołączonego manifestu.",
-      "many": "Nie sprawdzono: {count} wpisów Cargo bez licencji lub pasującego dołączonego manifestu.",
-      "other": "Nie sprawdzono: {count} wpisów Cargo bez licencji lub pasującego dołączonego manifestu."
+      "many": "Nie sprawdzono: {count} wpisów Cargo bez licencji lub pasującego dołączonego manifestu."
     },
     "m148": {
       "one": "Nie sprawdzono: {count} wymagań Cargo bez rozwiązanej wersji w Cargo.lock.",
+      "other": "Nie sprawdzono: {count} wymagań Cargo bez rozwiązanej wersji w Cargo.lock.",
       "few": "Nie sprawdzono: {count} wymagań Cargo bez rozwiązanej wersji w Cargo.lock.",
-      "many": "Nie sprawdzono: {count} wymagań Cargo bez rozwiązanej wersji w Cargo.lock.",
-      "other": "Nie sprawdzono: {count} wymagań Cargo bez rozwiązanej wersji w Cargo.lock."
+      "many": "Nie sprawdzono: {count} wymagań Cargo bez rozwiązanej wersji w Cargo.lock."
     },
     "m149": "Nie sprawdzono: brak manifestów i blokad Cargo.",
     "m150": "Nie sprawdzono: {v0} to nieprawidłowy JSON; wymagania i licencja nieznane.",
@@ -4719,44 +4724,44 @@
     "m152": "Nie sprawdzono: sprzeczne dowody {v0} między {v1} i {v2}.",
     "m153": {
       "one": "Nie sprawdzono: {count} wymagań Composer bez zablokowanej wersji w composer.lock.",
+      "other": "Nie sprawdzono: {count} wymagań Composer bez zablokowanej wersji w composer.lock.",
       "few": "Nie sprawdzono: {count} wymagań Composer bez zablokowanej wersji w composer.lock.",
-      "many": "Nie sprawdzono: {count} wymagań Composer bez zablokowanej wersji w composer.lock.",
-      "other": "Nie sprawdzono: {count} wymagań Composer bez zablokowanej wersji w composer.lock."
+      "many": "Nie sprawdzono: {count} wymagań Composer bez zablokowanej wersji w composer.lock."
     },
     "m154": {
       "one": "Nie sprawdzono: {count} pakietów Composer bez licencji w blokadzie lub instalacji.",
+      "other": "Nie sprawdzono: {count} pakietów Composer bez licencji w blokadzie lub instalacji.",
       "few": "Nie sprawdzono: {count} pakietów Composer bez licencji w blokadzie lub instalacji.",
-      "many": "Nie sprawdzono: {count} pakietów Composer bez licencji w blokadzie lub instalacji.",
-      "other": "Nie sprawdzono: {count} pakietów Composer bez licencji w blokadzie lub instalacji."
+      "many": "Nie sprawdzono: {count} pakietów Composer bez licencji w blokadzie lub instalacji."
     },
     "m155": "Nie sprawdzono: brak composer.json, composer.lock i installed.json.",
     "m156": "Nie sprawdzono: kod wykonywalny {v0} nigdy nie działa; odczytywane są tylko przypisania statyczne.",
     "m157": "Nie sprawdzono: {v0} odczytywany statycznie; obliczane metadane Ruby i przypisania warunkowe nie są wykonywane.",
     "m158": {
       "one": "Nie sprawdzono: {count} wymagań gem bez zablokowanej wersji w Gemfile.lock.",
+      "other": "Nie sprawdzono: {count} wymagań gem bez zablokowanej wersji w Gemfile.lock.",
       "few": "Nie sprawdzono: {count} wymagań gem bez zablokowanej wersji w Gemfile.lock.",
-      "many": "Nie sprawdzono: {count} wymagań gem bez zablokowanej wersji w Gemfile.lock.",
-      "other": "Nie sprawdzono: {count} wymagań gem bez zablokowanej wersji w Gemfile.lock."
+      "many": "Nie sprawdzono: {count} wymagań gem bez zablokowanej wersji w Gemfile.lock."
     },
     "m159": {
       "one": "Nie sprawdzono: {count} gems bez licencji; obecne specyfikacje mogłyby pomóc.",
+      "other": "Nie sprawdzono: {count} gems bez licencji; obecne specyfikacje mogłyby pomóc.",
       "few": "Nie sprawdzono: {count} gems bez licencji; obecne specyfikacje mogłyby pomóc.",
-      "many": "Nie sprawdzono: {count} gems bez licencji; obecne specyfikacje mogłyby pomóc.",
-      "other": "Nie sprawdzono: {count} gems bez licencji; obecne specyfikacje mogłyby pomóc."
+      "many": "Nie sprawdzono: {count} gems bez licencji; obecne specyfikacje mogłyby pomóc."
     },
     "m160": "Nie sprawdzono: brak Gemfile, Gemfile.lock i gemspec.",
     "m161": "Nie sprawdzono: zamiany Go, mapowanie narzędzi i wybór przechodni wymagają kontroli; sumy mogą obejmować nieużywane wersje.",
     "m162": {
       "one": "Nie sprawdzono: {count} modułów Go bez licencji; sumy i ścieżki nie są licencjami, dołączone teksty mogłyby pomóc.",
+      "other": "Nie sprawdzono: {count} modułów Go bez licencji; sumy i ścieżki nie są licencjami, dołączone teksty mogłyby pomóc.",
       "few": "Nie sprawdzono: {count} modułów Go bez licencji; sumy i ścieżki nie są licencjami, dołączone teksty mogłyby pomóc.",
-      "many": "Nie sprawdzono: {count} modułów Go bez licencji; sumy i ścieżki nie są licencjami, dołączone teksty mogłyby pomóc.",
-      "other": "Nie sprawdzono: {count} modułów Go bez licencji; sumy i ścieżki nie są licencjami, dołączone teksty mogłyby pomóc."
+      "many": "Nie sprawdzono: {count} modułów Go bez licencji; sumy i ścieżki nie są licencjami, dołączone teksty mogłyby pomóc."
     },
     "m163": {
       "one": "Nie sprawdzono: {count} wymagań narzędzi Go bez rozwiązanej wersji; licencje nieznane.",
+      "other": "Nie sprawdzono: {count} wymagań narzędzi Go bez rozwiązanej wersji; licencje nieznane.",
       "few": "Nie sprawdzono: {count} wymagań narzędzi Go bez rozwiązanej wersji; licencje nieznane.",
-      "many": "Nie sprawdzono: {count} wymagań narzędzi Go bez rozwiązanej wersji; licencje nieznane.",
-      "other": "Nie sprawdzono: {count} wymagań narzędzi Go bez rozwiązanej wersji; licencje nieznane."
+      "many": "Nie sprawdzono: {count} wymagań narzędzi Go bez rozwiązanej wersji; licencje nieznane."
     },
     "m164": "Nie sprawdzono: brak go.mod, go.sum i vendor/modules.txt.",
     "m165": "Nie sprawdzono: konflikt licencji {v0} między {v1} i {v2}: {v3} wobec {v4}.",
@@ -4764,15 +4769,15 @@
     "m167": "Nie sprawdzono: statyczne POM nie rozwiązują grafu przechodniego Maven, właściwości rodziców ani profili.",
     "m168": {
       "one": "Nie sprawdzono: {count} wymagań Maven/Gradle bez rozwiązanej wersji w blokadach lub katalogach.",
+      "other": "Nie sprawdzono: {count} wymagań Maven/Gradle bez rozwiązanej wersji w blokadach lub katalogach.",
       "few": "Nie sprawdzono: {count} wymagań Maven/Gradle bez rozwiązanej wersji w blokadach lub katalogach.",
-      "many": "Nie sprawdzono: {count} wymagań Maven/Gradle bez rozwiązanej wersji w blokadach lub katalogach.",
-      "other": "Nie sprawdzono: {count} wymagań Maven/Gradle bez rozwiązanej wersji w blokadach lub katalogach."
+      "many": "Nie sprawdzono: {count} wymagań Maven/Gradle bez rozwiązanej wersji w blokadach lub katalogach."
     },
     "m169": {
       "one": "Nie sprawdzono: {count} pakietów Maven/Gradle bez licencji; obecne POM mogłyby pomóc.",
+      "other": "Nie sprawdzono: {count} pakietów Maven/Gradle bez licencji; obecne POM mogłyby pomóc.",
       "few": "Nie sprawdzono: {count} pakietów Maven/Gradle bez licencji; obecne POM mogłyby pomóc.",
-      "many": "Nie sprawdzono: {count} pakietów Maven/Gradle bez licencji; obecne POM mogłyby pomóc.",
-      "other": "Nie sprawdzono: {count} pakietów Maven/Gradle bez licencji; obecne POM mogłyby pomóc."
+      "many": "Nie sprawdzono: {count} pakietów Maven/Gradle bez licencji; obecne POM mogłyby pomóc."
     },
     "m170": "Nie sprawdzono: brak POM, deklaracji Gradle, blokad i katalogów.",
     "m171": "Nie sprawdzono: nieczytelne metadane blokady npm w {v0}.",
@@ -4780,38 +4785,38 @@
     "m173": "Nie sprawdzono: {v0} przekracza głębokość blokady npm.",
     "m174": {
       "one": "Nie sprawdzono: {count} wpis npm w {v1} bez licencji lub pasujących danych instalacji.",
+      "other": "Nie sprawdzono: {count} wpisów npm w {v1} bez licencji lub pasujących danych instalacji.",
       "few": "Nie sprawdzono: {count} wpisy npm w {v1} bez licencji lub pasujących danych instalacji.",
-      "many": "Nie sprawdzono: {count} wpisów npm w {v1} bez licencji lub pasujących danych instalacji.",
-      "other": "Nie sprawdzono: {count} wpisów npm w {v1} bez licencji lub pasujących danych instalacji."
+      "many": "Nie sprawdzono: {count} wpisów npm w {v1} bez licencji lub pasujących danych instalacji."
     },
     "m175": "Nie sprawdzono: brak czytelnych wpisów Yarn w {v0}.",
     "m176": {
       "one": "Nie sprawdzono: {v0} podaje wersje bez licencji dla {count} pakietów; dane instalacji mogłyby pomóc.",
+      "other": "Nie sprawdzono: {v0} podaje wersje bez licencji dla {count} pakietów; dane instalacji mogłyby pomóc.",
       "few": "Nie sprawdzono: {v0} podaje wersje bez licencji dla {count} pakietów; dane instalacji mogłyby pomóc.",
-      "many": "Nie sprawdzono: {v0} podaje wersje bez licencji dla {count} pakietów; dane instalacji mogłyby pomóc.",
-      "other": "Nie sprawdzono: {v0} podaje wersje bez licencji dla {count} pakietów; dane instalacji mogłyby pomóc."
+      "many": "Nie sprawdzono: {v0} podaje wersje bez licencji dla {count} pakietów; dane instalacji mogłyby pomóc."
     },
     "m177": "Nie sprawdzono: nieobsługiwana blokada pnpm lub nieczytelna sekcja pakietów w {v0}.",
     "m178": "Nie sprawdzono: sprzeczne dowody {v0}@{v1} między {v2} i {v3}.",
     "m179": {
       "one": "Nie sprawdzono: {count} wymagań npm bez rozwiązanej wersji; licencje przechodnie nieznane.",
+      "other": "Nie sprawdzono: {count} wymagań npm bez rozwiązanej wersji; licencje przechodnie nieznane.",
       "few": "Nie sprawdzono: {count} wymagań npm bez rozwiązanej wersji; licencje przechodnie nieznane.",
-      "many": "Nie sprawdzono: {count} wymagań npm bez rozwiązanej wersji; licencje przechodnie nieznane.",
-      "other": "Nie sprawdzono: {count} wymagań npm bez rozwiązanej wersji; licencje przechodnie nieznane."
+      "many": "Nie sprawdzono: {count} wymagań npm bez rozwiązanej wersji; licencje przechodnie nieznane."
     },
     "m180": "Nie sprawdzono: brak manifestów npm, blokad i metadanych instalacji.",
     "m181": "Nie sprawdzono: warunkowe/dynamiczne deklaracje NuGet, zakresy i konflikty frameworków wymagają kontroli.",
     "m182": {
       "one": "Nie sprawdzono: {count} wymagań NuGet bez rozwiązanej wersji w blokadach, zasobach lub centralnych wersjach.",
+      "other": "Nie sprawdzono: {count} wymagań NuGet bez rozwiązanej wersji w blokadach, zasobach lub centralnych wersjach.",
       "few": "Nie sprawdzono: {count} wymagań NuGet bez rozwiązanej wersji w blokadach, zasobach lub centralnych wersjach.",
-      "many": "Nie sprawdzono: {count} wymagań NuGet bez rozwiązanej wersji w blokadach, zasobach lub centralnych wersjach.",
-      "other": "Nie sprawdzono: {count} wymagań NuGet bez rozwiązanej wersji w blokadach, zasobach lub centralnych wersjach."
+      "many": "Nie sprawdzono: {count} wymagań NuGet bez rozwiązanej wersji w blokadach, zasobach lub centralnych wersjach."
     },
     "m183": {
       "one": "Nie sprawdzono: {count} pakietów NuGet bez licencji; obecne .nuspec mogłyby pomóc.",
+      "other": "Nie sprawdzono: {count} pakietów NuGet bez licencji; obecne .nuspec mogłyby pomóc.",
       "few": "Nie sprawdzono: {count} pakietów NuGet bez licencji; obecne .nuspec mogłyby pomóc.",
-      "many": "Nie sprawdzono: {count} pakietów NuGet bez licencji; obecne .nuspec mogłyby pomóc.",
-      "other": "Nie sprawdzono: {count} pakietów NuGet bez licencji; obecne .nuspec mogłyby pomóc."
+      "many": "Nie sprawdzono: {count} pakietów NuGet bez licencji; obecne .nuspec mogłyby pomóc."
     },
     "m184": "Nie sprawdzono: brak deklaracji NuGet, blokad i plików zasobów.",
     "m185": "Nie sprawdzono: {v0} dołącza {v1}; dowolne nazwy nie są rozwiązywane rekurencyjnie.",
@@ -4819,31 +4824,31 @@
     "m187": "Nie sprawdzono: {v0} zawiera opcję wymagań lub edytowalne źródło nierozwiązane statycznie.",
     "m188": {
       "one": "Nie sprawdzono: {count} wiersz w {v1} ma nieobsługiwany format.",
+      "other": "Nie sprawdzono: {count} wierszy w {v1} ma nieobsługiwany format.",
       "few": "Nie sprawdzono: {count} wiersze w {v1} ma nieobsługiwany format.",
-      "many": "Nie sprawdzono: {count} wierszy w {v1} ma nieobsługiwany format.",
-      "other": "Nie sprawdzono: {count} wierszy w {v1} ma nieobsługiwany format."
+      "many": "Nie sprawdzono: {count} wierszy w {v1} ma nieobsługiwany format."
     },
     "m189": "Nie sprawdzono: {v0} nie podaje projektu; wymagania bez atrybucji.",
     "m190": "Nie sprawdzono: nieczytelne sekcje pakietów w {v0}.",
     "m191": {
       "one": "Nie sprawdzono: {v0} podaje wersje bez licencji dla {count} pakietów; metadane dystrybucji mogłyby pomóc.",
+      "other": "Nie sprawdzono: {v0} podaje wersje bez licencji dla {count} pakietów; metadane dystrybucji mogłyby pomóc.",
       "few": "Nie sprawdzono: {v0} podaje wersje bez licencji dla {count} pakietów; metadane dystrybucji mogłyby pomóc.",
-      "many": "Nie sprawdzono: {v0} podaje wersje bez licencji dla {count} pakietów; metadane dystrybucji mogłyby pomóc.",
-      "other": "Nie sprawdzono: {v0} podaje wersje bez licencji dla {count} pakietów; metadane dystrybucji mogłyby pomóc."
+      "many": "Nie sprawdzono: {v0} podaje wersje bez licencji dla {count} pakietów; metadane dystrybucji mogłyby pomóc."
     },
     "m192": "Nie sprawdzono: zainstalowana wersja {v0} różni się; zablokowana licencja nieznana.",
     "m193": "Nie sprawdzono: statyczny Python bez blokad i metadanych instalacji nie dowodzi pełnego pokrycia przechodniego; dynamiczne metadane budowy nigdy nie są wykonywane.",
     "m194": {
       "one": "Nie sprawdzono: {count} pakietów Python bez pasującej licencji.",
+      "other": "Nie sprawdzono: {count} pakietów Python bez pasującej licencji.",
       "few": "Nie sprawdzono: {count} pakietów Python bez pasującej licencji.",
-      "many": "Nie sprawdzono: {count} pakietów Python bez pasującej licencji.",
-      "other": "Nie sprawdzono: {count} pakietów Python bez pasującej licencji."
+      "many": "Nie sprawdzono: {count} pakietów Python bez pasującej licencji."
     },
     "m195": {
       "one": "Nie sprawdzono: {count} wymagań Python bez rozwiązanej wersji; licencje przechodnie nieznane.",
+      "other": "Nie sprawdzono: {count} wymagań Python bez rozwiązanej wersji; licencje przechodnie nieznane.",
       "few": "Nie sprawdzono: {count} wymagań Python bez rozwiązanej wersji; licencje przechodnie nieznane.",
-      "many": "Nie sprawdzono: {count} wymagań Python bez rozwiązanej wersji; licencje przechodnie nieznane.",
-      "other": "Nie sprawdzono: {count} wymagań Python bez rozwiązanej wersji; licencje przechodnie nieznane."
+      "many": "Nie sprawdzono: {count} wymagań Python bez rozwiązanej wersji; licencje przechodnie nieznane."
     },
     "m196": "Nie sprawdzono: brak manifestów Python, blokad i metadanych dystrybucji.",
     "unknown": "nieznane",
@@ -4858,15 +4863,15 @@
     "reversedYears": "zakres {value} kończy się przed początkiem",
     "selectedPaths": {
       "one": "wybrane ścieżki: {count}",
+      "other": "wybrane ścieżki: {count}",
       "few": "wybrane ścieżki: {count}",
-      "many": "wybrane ścieżki: {count}",
-      "other": "wybrane ścieżki: {count}"
+      "many": "wybrane ścieżki: {count}"
     },
     "moreUnchecked": {
       "one": "i dalsze niezweryfikowane elementy pominięte ponad limit: {count}",
+      "other": "i dalsze niezweryfikowane elementy pominięte ponad limit: {count}",
       "few": "i dalsze niezweryfikowane elementy pominięte ponad limit: {count}",
-      "many": "i dalsze niezweryfikowane elementy pominięte ponad limit: {count}",
-      "other": "i dalsze niezweryfikowane elementy pominięte ponad limit: {count}"
+      "many": "i dalsze niezweryfikowane elementy pominięte ponad limit: {count}"
     },
     "declaration": "{file} podaje {license}",
     "licenseFile": "plik licencji",
