@@ -38,6 +38,7 @@ for (const scene of [
   'estimator-result',
   'usage-tokens',
   'vault-approval',
+  'muse-tools',
 ])
   beforeAll(async () => {
     const audit = JSON.parse(await readFile('docs/certification/m114-audit.json', 'utf8'))
@@ -119,6 +120,15 @@ for (const scene of [
   })
 
 describe('M114 real visual capture driver', () => {
+  it('opens lazy tool bodies after the folded steps chunk paints', () => {
+    const frames = captured.result.captures.filter((capture) => capture.scene === 'muse-tools')
+    expect(frames).toHaveLength(6)
+    expect(
+      frames.every((capture) =>
+        capture.components.includes('src/webview/components/ToolBodies.tsx'),
+      ),
+    ).toBe(true)
+  })
   it('keeps canonical account and wizard descendants inside the captured viewport', () => {
     expect(captured.bounds.length).toBe(12)
     for (const box of captured.bounds) {

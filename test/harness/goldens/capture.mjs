@@ -138,6 +138,8 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     ].includes(scene)
   ) {
     for (const selector of ['.steps-toggle', '.tool-toggle', '.workflow-header']) {
+      // The folded tools chunk arrives after the steps group's first paint.
+      if (scene === 'muse-tools' && selector === '.tool-toggle') await waitForPaint(page, selector)
       await page.locator(`${selector}[aria-expanded="false"]`).evaluateAll((buttons) => {
         for (const button of buttons) button.click()
       })

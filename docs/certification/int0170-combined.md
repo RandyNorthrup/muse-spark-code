@@ -207,6 +207,10 @@ No merge, push, live/paid call, changed timeout, byte cap or pixel tolerance.
 - Input checks pass: complete capture/matrix/audit owners 26/26, browser harness
   typecheck, changed-file eslint (zero warnings), stylelint, tokens (zero
   problems), plain knip and jscpd (2,835 files, zero clones).
+- Full capture exposed a delayed folded-tool chunk at frame 6,840: the tool-opening
+  query ran before its controls mounted. Wait for the actual tool control after
+  the steps group paints; the complete capture owner now covers all six tool
+  states. No loading placeholder is accepted as a render.
 - Full archive generation, image review and fresh-clone gate receipts remain
   pending below; no visual certification is claimed until they finish.
 
