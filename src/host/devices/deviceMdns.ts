@@ -145,12 +145,16 @@ interface DnsRecord {
   readonly name: string
   readonly type: number
   readonly data: Buffer
+  /** The whole message: compressed names decode against message offsets. */
+  readonly message: Buffer
+  /** Absolute offset of this record's RDATA inside `message`. */
+  readonly dataOffset: number
 }
 
 function decodeRecords(message: Buffer): {
   isResponse: boolean
   questions: string[]
-  answers: DnsRecord[]
+  records: DnsRecord[]
 } {
   if (message.length < HEADER_BYTES) throw new Error('invalid-frame')
   const flags = readU16(message, FLAGS_OFFSET)
@@ -162,7 +166,7 @@ function decodeRecords(message: Buffer): {
   ]
   if (counts.some((count) => count > MAX_RECORDS)) throw new Error('invalid-frame')
   const questions: string[] = []
-  const answers: DnsRecord[] = []
+  const records: DnsRecord[] = []
   let offset = HEADER_BYTES
   const questionCount = counts[0] ?? 0
   for (let index = 0; index < questionCount; index += 1) {
@@ -172,11 +176,14 @@ function decodeRecords(message: Buffer): {
     offset += QUESTION_FIXED_BYTES
     questions.push(parsed.name)
   }
-  // Walk every section so offsets stay honest, but keep only answers.
+  // Walk every section so offsets stay honest. Answers and Additional records
+  // are kept: a standard DNS-SD response carries PTR in Answers with its
+  // matching SRV/TXT in Additional. Authority records only position the
+  // section that follows.
   const sections = [
     { keep: true, count: counts[1] ?? 0 },
     { keep: false, count: counts[2] ?? 0 },
-    { keep: false, count: counts[3] ?? 0 },
+    { keep: true, count: counts[3] ?? 0 },
   ]
   for (const section of sections) {
     for (let index = 0; index < section.count; index += 1) {
@@ -189,15 +196,17 @@ function decodeRecords(message: Buffer): {
       offset += RECORD_FIXED_BYTES
       if (offset + dataLength > message.length) throw new Error('invalid-frame')
       if (section.keep && (recordClass & ~CLASS_CACHE_FLUSH) === CLASS_IN)
-        answers.push({
+        records.push({
           name: parsed.name,
           type,
           data: message.subarray(offset, offset + dataLength),
+          message,
+          dataOffset: offset,
         })
       offset += dataLength
     }
   }
-  return { isResponse: (flags & FLAG_RESPONSE) !== 0, questions, answers }
+  return { isResponse: (flags & FLAG_RESPONSE) !== 0, questions, records }
 }
 
 function writeRecord(
@@ -276,7 +285,7 @@ export function decodeDeviceMdnsPacket(message: Buffer): {
   try {
     const decoded = decodeRecords(message)
     if (!decoded.isResponse) throw new Error('invalid-frame')
-    for (const answer of decoded.answers) {
+    for (const answer of decoded.records) {
       if (answer.type !== TYPE_TXT || !isOurs(answer.name)) continue
       let serviceId: string | undefined
       let version: number | undefined
@@ -288,7 +297,7 @@ export function decodeDeviceMdnsPacket(message: Buffer): {
         }
       }
       if (serviceId === undefined || version === undefined) continue
-      const port = srvPort(decoded.answers, answer.name)
+      const port = srvPort(decoded.records, answer.name)
       if (port !== undefined) return { serviceId, port, version }
     }
   } catch {
@@ -297,21 +306,25 @@ export function decodeDeviceMdnsPacket(message: Buffer): {
   throw new Error('invalid-frame')
 }
 
-/** The receiver port from the SRV record on the same instance name. */
-function srvPort(answers: readonly DnsRecord[], name: string): number | undefined {
-  for (const answer of answers) {
+/**
+ * The receiver port from the SRV record on the same instance name. The SRV
+ * target is decoded against the whole message: a compressed target is a
+ * pointer into earlier message bytes, never into the detached RDATA.
+ */
+function srvPort(records: readonly DnsRecord[], name: string): number | undefined {
+  for (const record of records) {
     if (
-      answer.type !== TYPE_SRV ||
-      answer.name.toLowerCase() !== name.toLowerCase() ||
-      answer.data.length < SRV_FIXED_BYTES
+      record.type !== TYPE_SRV ||
+      record.name.toLowerCase() !== name.toLowerCase() ||
+      record.data.length < SRV_FIXED_BYTES
     )
       continue
-    const port = answer.data.readUInt16BE(SRV_PORT_OFFSET)
+    const port = record.data.readUInt16BE(SRV_PORT_OFFSET)
     if (port >= 1 && port <= DEVICE_LIMITS.portMax) {
       // The target rides along for structure only; the peer address always
       // comes from the UDP sender, never from this name.
       try {
-        readName(answer.data, SRV_FIXED_BYTES)
+        readName(record.message, record.dataOffset + SRV_FIXED_BYTES)
       } catch {
         continue
       }
@@ -359,43 +372,77 @@ export function createDeviceMdnsPort(
   return {
     async open(interfaceAddress, receive) {
       const socket = createUdpSocket()
-      // Best-effort hints: send failures surface as silence here, never as
-      // peer text. Startup failure rejects and DeviceDiscovery maps it to
-      // the fixed blocked-or-unreachable recovery.
+      // Socket health: any UDP failure closes the socket and fails later
+      // sends with the fixed blocked-or-unreachable word, never with socket
+      // or peer text. DeviceDiscovery maps the rejection (startup) and stops
+      // on the throw (rotation), and the switch turns either into the
+      // Blocked-or-unreachable setup.
+      let isClosed = false
+      let hasFailed = false
+      const hush = (): void => {
+        if (isClosed) return
+        isClosed = true
+        try {
+          socket.close()
+        } catch {
+          /* Closing an already-closed socket is not a failure. */
+        }
+      }
+      const fail = (): Error => {
+        hasFailed = true
+        hush()
+        return new Error('blocked-or-unreachable')
+      }
       let hasOpened = false
       const startup = new Promise<void>((resolve, reject) => {
-        socket.onError((error) => {
-          if (!hasOpened) reject(error)
+        socket.onError(() => {
+          if (!hasOpened) {
+            // A startup-window socket error rejects open; the socket it
+            // created is closed, so retries leak nothing.
+            reject(fail())
+            return
+          }
+          if (!isClosed) fail()
         })
         try {
           socket.bind(MDNS_PORT, () => {
             try {
               socket.setMulticastInterface(interfaceAddress)
               socket.addMembership(MDNS_ADDRESS, interfaceAddress)
-            } catch (error) {
-              reject(error instanceof Error ? error : new Error('blocked-or-unreachable'))
+            } catch {
+              reject(fail())
               return
             }
             hasOpened = true
             resolve()
           })
-        } catch (error) {
-          reject(error instanceof Error ? error : new Error('blocked-or-unreachable'))
+        } catch {
+          reject(fail())
         }
       })
       await startup
       let current: { serviceId: string; port: number } | undefined
+      // Query answers share discovery's packet budget: at most queuedFrames
+      // responses per advertisement rotation, only while an advertisement is
+      // current (discovery advertises and clears it under its policy).
+      let queryAnswers = 0
       const sendCurrent = (): void => {
+        if (hasFailed) throw new Error('blocked-or-unreachable')
         if (current === undefined) return
         try {
           socket.send(responsePacket(current.serviceId, current.port), MDNS_PORT, MDNS_ADDRESS)
         } catch {
-          /* Best-effort announce; the next rotation retries. */
+          throw fail()
         }
+      }
+      const answerQuery = (): void => {
+        if (hasFailed || current === undefined || queryAnswers >= DEVICE_LIMITS.queuedFrames) return
+        queryAnswers += 1
+        sendCurrent()
       }
       socket.onMessage((message, sender) => {
         try {
-          if (isServiceQuery(message)) sendCurrent()
+          if (isServiceQuery(message)) answerQuery()
           receive(message, sender.address)
         } catch {
           /* Ignore untrusted discovery data without reflecting its text. */
@@ -404,15 +451,12 @@ export function createDeviceMdnsPort(
       return {
         advertise(advertisement): void {
           current = { serviceId: advertisement.serviceId, port: advertisement.port }
+          queryAnswers = 0
           sendCurrent()
         },
         close(): void {
           current = undefined
-          try {
-            socket.close()
-          } catch {
-            /* Closing an already-closed socket is not a failure. */
-          }
+          hush()
         },
       }
     },

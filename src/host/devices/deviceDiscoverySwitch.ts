@@ -33,7 +33,27 @@ export interface DeviceDiscoverySwitchDeps {
 export class DeviceDiscoverySwitch {
   private enabled = false
   private loaded = false
+  // One state-changing turn at a time: each handle waits for the previous
+  // turn, so a later OFF always runs after an earlier ON's facts resolve
+  // and wins. A turn's failure reaches only its own caller.
+  private tail: Promise<void> = Promise.resolve()
   public constructor(private readonly deps: DeviceDiscoverySwitchDeps) {}
+
+  private async serialized(work: () => Promise<void>): Promise<void> {
+    const previous = this.tail
+    const turn = (async (): Promise<void> => {
+      await previous
+      await work()
+    })()
+    this.tail = (async (): Promise<void> => {
+      try {
+        await turn
+      } catch {
+        /* A turn's failure reaches only its own caller. */
+      }
+    })()
+    await turn
+  }
 
   private async apply(shouldEnable: boolean): Promise<void> {
     let facts: DeviceDiscoveryFacts | undefined
@@ -113,8 +133,9 @@ export class DeviceDiscoverySwitch {
       })
     }
     const setup: Setup = { viewId: request.viewId, requestId: request.requestId }
+    const shouldEnable = request.action.enabled
     try {
-      await this.apply(request.action.enabled)
+      await this.serialized(() => this.apply(shouldEnable))
     } catch (error) {
       if (error instanceof DevicePairingError && error.reason === 'blocked-or-unreachable') {
         const facts = await this.safeFacts()

@@ -11,7 +11,11 @@ import { DeviceStore } from '../../src/host/devices/deviceStore'
 import type { DeviceExecutionHost } from '../../src/host/devices/deviceSecrets'
 import type { DeviceWebviewRequest } from '../../src/shared/modelsPanel'
 import { removeDeviceFixture } from './helpers/deviceFixtures'
-import { laneTestHost, startLaneTestHost } from './helpers/deviceLaneHosts'
+import {
+  completeLaneMutualPairing,
+  laneTestHost,
+  startLaneTestHost,
+} from './helpers/deviceLaneHosts'
 
 const localHost: DeviceExecutionHost = laneTestHost
 const facts = {
@@ -41,6 +45,16 @@ function recordingPort() {
   return { port, calls }
 }
 
+function setupRequest(action: DeviceWebviewRequest['action']) {
+  return {
+    type: 'deviceRequest' as const,
+    viewId: '9'.repeat(32),
+    requestId: 'f'.repeat(32),
+    revision: 0,
+    action,
+  }
+}
+
 const stores: DeviceStore[] = []
 const fixture = { parent: '', serial: 0 }
 afterEach(async () => {
@@ -48,7 +62,13 @@ afterEach(async () => {
   fixture.parent = ''
   vi.restoreAllMocks()
 })
-async function radio(id: string, port: DeviceMdnsPort, isOffering = true, host = localHost) {
+async function radio(
+  id: string,
+  port: DeviceMdnsPort,
+  isOffering = true,
+  host = localHost,
+  factsFn: () => Promise<typeof facts> = () => Promise.resolve(facts),
+) {
   fixture.serial += 1
   // Directory names are free text; device ids must be 32 hex chars.
   const deviceId = fixture.serial.toString(16).padStart(32, '0')
@@ -62,7 +82,7 @@ async function radio(id: string, port: DeviceMdnsPort, isOffering = true, host =
     store,
     discovery,
     isPairedReceiverOffering: () => isOffering,
-    localFacts: () => Promise.resolve(facts),
+    localFacts: factsFn,
   })
   const { adapter } = startLaneTestHost(store, host)
   const act = (action: DeviceWebviewRequest['action']) =>
@@ -185,6 +205,25 @@ describe('discovery switch', () => {
     const storedDenied = await store.read()
     expect(storedDenied.discoveryEnabled).toBe(false)
   })
+  it('serializes ON/OFF so a later OFF wins over an earlier ON awaiting facts', async () => {
+    const { port, calls } = recordingPort()
+    const { promise: gate, resolve: releaseFacts } = Promise.withResolvers<typeof facts>()
+    const { control, act, store } = await radio('h', port, true, localHost, () => gate)
+    await control.load()
+    const on = act({ kind: 'setDiscovery', enabled: true })
+    const off = act({ kind: 'setDiscovery', enabled: false })
+    releaseFacts(facts)
+    const [onReply, offReply] = await Promise.all([on, off])
+    expect(onReply.failure).toBeUndefined()
+    expect(offReply.failure).toBeUndefined()
+    // The OFF ran after the ON's facts resolved and wins: discovery is off,
+    // persisted off, and the opened session was closed.
+    expect(control.isEnabled()).toBe(false)
+    const stored = await store.read()
+    expect(stored.discoveryEnabled).toBe(false)
+    expect(calls.open).toBe(1)
+    expect(calls.close).toBe(1)
+  })
   it('refuses the switch on an unqualified host without probing', async () => {
     const { port, calls } = recordingPort()
     const remote = { ...localHost, execution: 'remote' as const }
@@ -196,7 +235,7 @@ describe('discovery switch', () => {
 })
 
 describe('manual entry with discovery fully blocked', () => {
-  it('pairs over typed text while multicast stays denied and silent', async () => {
+  it('completes mutual pairing over typed text while multicast stays denied', async () => {
     const denying: DeviceMdnsPort = {
       open: () => Promise.reject(new Error('multicast-denied-sentinel')),
       decode: () => {
@@ -208,23 +247,18 @@ describe('manual entry with discovery fully blocked', () => {
     await victim.control.load()
     await peer.control.load()
     expect(victim.control.isEnabled()).toBe(false)
-    const localReply = await victim.adapter.handle({
-      type: 'deviceRequest',
-      viewId: '9'.repeat(32),
-      requestId: 'f'.repeat(32),
-      revision: 0,
-      action: { kind: 'pair' },
-    })
-    const peerReply = await peer.adapter.handle({
-      type: 'deviceRequest',
-      viewId: '9'.repeat(32),
-      requestId: 'f'.repeat(32),
-      revision: 0,
-      action: { kind: 'pair' },
-    })
-    expect(localReply.failure).toBeUndefined()
-    expect(peerReply.failure).toBeUndefined()
-    expect(localReply.invitation).toBeDefined()
-    expect(peerReply.invitation).toBeDefined()
+    // Discovery is exercised and denied while pairing proceeds over typed text.
+    const denied = await victim.act({ kind: 'setDiscovery', enabled: true })
+    expect(denied.failure).toBe('blocked-or-unreachable')
+    expect(victim.control.isEnabled()).toBe(false)
+    // Full mutual pairing over typed invitation text, exactly as scanned.
+    const { pairId, fingerprint } = await completeLaneMutualPairing(
+      (action) => victim.adapter.handle(setupRequest(action)),
+      (action) => peer.adapter.handle(setupRequest(action)),
+    )
+    // The pinned proof: the saved fingerprint materials the pair, and an
+    // attacker's pin does not — the denied multicast contributed nothing.
+    await expect(victim.adapter.material(pairId, fingerprint, false)).resolves.toBeDefined()
+    await expect(victim.adapter.material(pairId, '0'.repeat(64), false)).rejects.toThrow('unpaired')
   })
 })

@@ -9,6 +9,7 @@ import { mkdtemp, realpath } from 'node:fs/promises'
 import { hostname, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { DEVICE_LIMITS } from '../../src/shared/constants'
 import { DeviceDiscovery } from '../../src/host/devices/deviceDiscovery'
 import {
   createDeviceMdnsPort,
@@ -17,7 +18,7 @@ import {
 } from '../../src/host/devices/deviceMdns'
 import { DeviceStore } from '../../src/host/devices/deviceStore'
 import { removeDeviceFixture } from './helpers/deviceFixtures'
-import { startLaneTestHost } from './helpers/deviceLaneHosts'
+import { completeLaneMutualPairing, startLaneTestHost } from './helpers/deviceLaneHosts'
 
 // dns-packet 5.6.1 encoding of PTR + SRV(port 4321) + TXT(id, v=1) for
 // instance d-aaa…a under _musespark._tcp.local, TTL 120.
@@ -44,6 +45,8 @@ class FakeSocket implements DeviceMdnsUdpSocket {
   public sent: { message: Buffer; port: number; address: string }[] = []
   public closed = 0
   public bindFails = false
+  public sendFails = false
+  public membershipFails = false
   public bind(port: number, callback: () => void): void {
     if (this.bindFails) {
       queueMicrotask(() => {
@@ -55,9 +58,11 @@ class FakeSocket implements DeviceMdnsUdpSocket {
     queueMicrotask(callback)
   }
   public send(message: Buffer, port: number, address: string): void {
+    if (this.sendFails) throw new Error('send-sentinel')
     this.sent.push({ message, port, address })
   }
   public addMembership(address: string, interfaceAddress: string): void {
+    if (this.membershipFails) throw new Error('membership-sentinel')
     this.memberships.push({ address, interfaceAddress })
   }
   public setMulticastInterface(interfaceAddress: string): void {
@@ -74,6 +79,9 @@ class FakeSocket implements DeviceMdnsUdpSocket {
   }
   public inject(message: Buffer, address: string): void {
     for (const listener of this.messageListeners) listener(message, { address })
+  }
+  public fail(error: Error): void {
+    for (const listener of this.errorListeners) listener(error)
   }
 }
 
@@ -208,6 +216,108 @@ describe('mDNS binding', () => {
     socket.bindFails = true
     await expect(startDiscovery(socket)).rejects.toThrow('blocked-or-unreachable')
   })
+  it('a throwing send fails the announcement as blocked-or-unreachable and closes the socket', async () => {
+    const socket = new FakeSocket()
+    socket.sendFails = true
+    const port = createDeviceMdnsPort(() => socket)
+    const session = await port.open('10.0.0.1', () => undefined)
+    expect(() => {
+      session.advertise(advertisement)
+    }).toThrow('blocked-or-unreachable')
+    expect(socket.closed).toBe(1)
+    expect(socket.sent).toHaveLength(0)
+    // The failure sticks: later sends fail the same fixed way, with no traffic.
+    expect(() => {
+      session.advertise(advertisement)
+    }).toThrow('blocked-or-unreachable')
+    expect(socket.sent).toHaveLength(0)
+    session.close()
+    expect(socket.closed).toBe(1)
+  })
+  it('a post-bind socket error closes the socket and fails later sends', async () => {
+    const socket = new FakeSocket()
+    const port = createDeviceMdnsPort(() => socket)
+    const session = await port.open('10.0.0.1', () => undefined)
+    session.advertise(advertisement)
+    expect(socket.sent).toHaveLength(1)
+    socket.fail(new Error('post-bind-sentinel'))
+    expect(socket.closed).toBe(1)
+    expect(() => {
+      session.advertise(advertisement)
+    }).toThrow('blocked-or-unreachable')
+    expect(socket.sent).toHaveLength(1)
+    session.close()
+  })
+  it('a failed startup closes the socket it created, on every step after bind', async () => {
+    const denied = new FakeSocket()
+    denied.membershipFails = true
+    await expect(
+      createDeviceMdnsPort(() => denied).open('10.0.0.1', () => undefined),
+    ).rejects.toThrow('blocked-or-unreachable')
+    expect(denied.closed).toBe(1)
+    const bindDenied = new FakeSocket()
+    bindDenied.bindFails = true
+    await expect(
+      createDeviceMdnsPort(() => bindDenied).open('10.0.0.1', () => undefined),
+    ).rejects.toThrow('blocked-or-unreachable')
+    expect(bindDenied.closed).toBe(1)
+  })
+  it('a failed first announcement stops discovery with the socket closed', async () => {
+    const socket = new FakeSocket()
+    socket.sendFails = true
+    const discovery = new DeviceDiscovery(
+      createDeviceMdnsPort(() => socket),
+      () => ['10.0.0.1'],
+    )
+    await discovery.start(
+      { isEnabled: () => true, isPairedReceiverOffering: () => true },
+      '10.0.0.1',
+      4321,
+    )
+    expect(socket.sent).toHaveLength(0)
+    expect(socket.closed).toBe(1)
+    discovery.stop()
+  })
+  it('answers service queries only within the packet budget per rotation', async () => {
+    const socket = new FakeSocket()
+    const port = createDeviceMdnsPort(() => socket)
+    const session = await port.open('10.0.0.1', () => undefined)
+    session.advertise(advertisement)
+    for (let index = 0; index < 1000; index += 1) socket.inject(goldenQuery(), '10.0.0.2')
+    expect(socket.sent.length).toBe(1 + DEVICE_LIMITS.queuedFrames)
+    // The next rotation re-arms the same budget.
+    session.advertise(advertisement)
+    socket.inject(goldenQuery(), '10.0.0.2')
+    expect(socket.sent.length).toBe(1 + DEVICE_LIMITS.queuedFrames + 2)
+    session.close()
+  })
+  it('decodes a compressed SRV target against the whole message', () => {
+    const response = goldenResponse()
+    const names = thumbs(response)
+    const srvTypeAt = response.indexOf(Buffer.from([0x00, 0x21]))
+    // SRV RDATA starts past type/class/ttl/rdlength; the target past the
+    // six fixed priority/weight/port bytes. The uncompressed target wire is
+    // 38 bytes; the pointer below lands on 8 bytes of RDATA.
+    const rdLengthAt = srvTypeAt + 8
+    const targetAt = rdLengthAt + 8
+    const target = (names[0] ?? 0) - 1
+    const pointed = Buffer.concat([
+      response.subarray(0, targetAt),
+      Buffer.from([0xc0 | (target >> 8), target & 0xff]),
+      response.subarray(targetAt + 38),
+    ])
+    pointed.writeUInt16BE(8, rdLengthAt)
+    expect(pointed.length).toBe(response.length - 36)
+    expect(decodeDeviceMdnsPacket(pointed)).toEqual(advertisement)
+  })
+  it('uses SRV/TXT records in the Additional section', () => {
+    // A standard DNS-SD layout: PTR in Answers, SRV/TXT in Additional. The
+    // record bytes are contiguous, so only the header counts move.
+    const moved = Buffer.from(goldenResponse())
+    moved.writeUInt16BE(1, 6)
+    moved.writeUInt16BE(2, 10)
+    expect(decodeDeviceMdnsPacket(moved)).toEqual(advertisement)
+  })
   it('drops an incompatible version through the contract parse end to end', async () => {
     const socket = new FakeSocket()
     const discovery = await startDiscovery(socket)
@@ -251,47 +361,9 @@ describe('a spoofed mDNS record never replaces the saved peer pin', () => {
   it('stays an address hint; material still demands the saved fingerprint', async () => {
     const victim = await pairedHost('a')
     const peer = await pairedHost('b')
-    const localReply = await victim.act({ kind: 'pair' })
-    const peerReply = await peer.act({ kind: 'pair' })
-    expect(localReply.failure).toBeUndefined()
-    expect(peerReply.failure).toBeUndefined()
-    const localInvite = localReply.invitation
-    const peerInvite = peerReply.invitation
-    if (localInvite === undefined || peerInvite === undefined) throw new Error('No test invitation')
-    const imported = await victim.act({
-      kind: 'importInvitation',
-      text: JSON.stringify(peerInvite),
-    })
-    expect(imported.failure).toBeUndefined()
-    const confirmationReply = await victim.act({
-      kind: 'confirmFingerprint',
-      invitationId: peerInvite.invitationId,
-      fingerprint: peerInvite.fingerprint,
-    })
-    const confirmation = confirmationReply.confirmation
-    const peerImported = await peer.act({
-      kind: 'importInvitation',
-      text: JSON.stringify(localInvite),
-    })
-    expect(peerImported.failure).toBeUndefined()
-    const peerConfirmationReply = await peer.act({
-      kind: 'confirmFingerprint',
-      invitationId: localInvite.invitationId,
-      fingerprint: localInvite.fingerprint,
-    })
-    const peerConfirmation = peerConfirmationReply.confirmation
-    if (confirmation === undefined || peerConfirmation === undefined)
-      throw new Error('No test confirmation')
-    const completed = await victim.act({
-      kind: 'importConfirmation',
-      confirmation: peerConfirmation,
-    })
-    expect(completed.failure).toBeUndefined()
-    const pairId = confirmation.pairId
+    const { pairId, fingerprint } = await completeLaneMutualPairing(victim.act, peer.act)
     // Positive control: the saved peer fingerprint materials the pair.
-    await expect(
-      victim.adapter.material(pairId, peerInvite.fingerprint, false),
-    ).resolves.toBeDefined()
+    await expect(victim.adapter.material(pairId, fingerprint, false)).resolves.toBeDefined()
     // The drill: an attacker answers discovery pointing at itself. The
     // attacker packet is the golden shape with the attacker's id and port:
     // in hex the id is 61 * 32 and the port 10e1.
@@ -312,9 +384,7 @@ describe('a spoofed mDNS record never replaces the saved peer pin', () => {
     // The hint carries no identity: pairing with the attacker's pin fails,
     // and the saved peer still materials.
     await expect(victim.adapter.material(pairId, '0'.repeat(64), false)).rejects.toThrow('unpaired')
-    await expect(
-      victim.adapter.material(pairId, peerInvite.fingerprint, false),
-    ).resolves.toBeDefined()
+    await expect(victim.adapter.material(pairId, fingerprint, false)).resolves.toBeDefined()
     discovery.stop()
   })
 })
