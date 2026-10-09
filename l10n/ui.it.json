@@ -106,6 +106,7 @@
     "ownerMismatch": "Questa chiave di associazione appartiene a un altro proprietario. Associa di nuovo come proprietario corretto.",
     "stepUpWaiting": "In attesa dell’approvazione rafforzata su {device}.",
     "qrCodeName": "Codice QR dell’invito pubblico",
+    "qrReload": "Non è stato possibile caricare il codice QR; l’invito in testo funziona da solo. «Riprova» ricarica questo pannello: il testo incollato resta, e «Associa dispositivo» mostra di nuovo il tuo invito.",
     "discoveryAdvertises": "L’individuazione annuncia {service} sulla porta {port} (versione {version} del protocollo). L’individuazione non concede alcuna fiducia.",
     "owners": "Proprietari e concessioni",
     "grantRepository": "Repository",

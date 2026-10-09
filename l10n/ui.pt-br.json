@@ -106,6 +106,7 @@
     "ownerMismatch": "Esta chave de pareamento pertence a outro proprietário. Pareie novamente como o proprietário correto.",
     "stepUpWaiting": "Aguardando aprovação reforçada em {device}.",
     "qrCodeName": "Código QR do convite público",
+    "qrReload": "Não foi possível carregar o código QR; o convite em texto funciona sozinho. “Tentar novamente” recarrega este painel: o texto colado é mantido, e “Parear dispositivo” mostra seu convite de novo.",
     "discoveryAdvertises": "A descoberta anuncia {service} na porta {port} (versão {version} do protocolo). A descoberta não concede confiança.",
     "owners": "Proprietários e concessões",
     "grantRepository": "Repositório",

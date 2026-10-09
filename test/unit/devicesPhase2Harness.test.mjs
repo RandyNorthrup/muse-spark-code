@@ -177,20 +177,22 @@ describe('RVM100P2U real Chrome harness readiness', () => {
   })
 })
 
-// RVM100W 7 and 11: the production main entry in real Chrome, on a bare
-// Devices document whose host stub answers nothing by itself. The approved
-// encoder's own chunk is held or refused at the network.
+// RVM100W 7 and 11, RVM100W2 3 and 4: the production main entry in real
+// Chrome, on a bare Devices document whose host stub answers nothing by
+// itself and keeps its webview state across a reload, as VS Code does. The
+// QR chunks (the approved encoder, the figure) are held or refused at the
+// network.
 const DEVICES_PAGE = `<!doctype html><html><head><meta charset="utf-8"><script>
 window.devicesOutbox = []
 window.acquireVsCodeApi = () => ({
   postMessage: (message) => { window.devicesOutbox.push(message) },
-  getState: () => undefined,
-  setState: () => undefined,
+  getState: () => JSON.parse(sessionStorage.getItem('w2-webview-state') ?? 'null') ?? undefined,
+  setState: (state) => { sessionStorage.setItem('w2-webview-state', JSON.stringify(state)) },
 })
 </script></head><body data-surface="devices"><div id="root"></div>
 <script type="module" src="/dist/webview/main.js"></script></body></html>`
-// A string only the encoder module carries, so the chunk is found by content.
-const ENCODER_MARKER = 'qr-matrix-invalid'
+// Strings only each QR module carries, so its chunk is found by content.
+const QR_MARKERS = { encoder: 'qr-matrix-invalid', figure: 'qrCodeName' }
 const harnessInvitation = () => {
   const found = {}
   runInNewContext(`${fixtures}\nfound.invitation = deviceInvitation`, {
@@ -202,18 +204,7 @@ const harnessInvitation = () => {
   return found.invitation
 }
 
-async function openDevicesDocument(page, onEncoder) {
-  await page.route(`${rig.origin}/w2-devices.html`, (route) =>
-    route.fulfill({ contentType: 'text/html', body: DEVICES_PAGE }),
-  )
-  await page.route(`${rig.origin}/dist/webview/**/*.js`, async (route) => {
-    const response = await route.fetch()
-    const body = await response.text()
-    if (body.includes(ENCODER_MARKER) && !route.request().url().endsWith('/main.js'))
-      await onEncoder(route, response, body)
-    else await route.fulfill({ response, body })
-  })
-  await page.goto(`${rig.origin}/w2-devices.html`)
+async function answerReady(page) {
   await page.waitForFunction(() =>
     globalThis.devicesOutbox.some((message) => message.type === 'devicesReady'),
   )
@@ -221,37 +212,73 @@ async function openDevicesDocument(page, onEncoder) {
     globalThis.postMessage({ type: 'deviceState', revision: 1, state: { enabled: false } }, '*')
   })
 }
-async function startPair(page) {
-  await page.locator('.device-pairing > button').first().click()
-  await page.waitForFunction(() =>
-    globalThis.devicesOutbox.some((message) => message.type === 'deviceRequest'),
+/** Opens the document; `onChunk(route, response, body)` serves the chosen QR chunk. */
+async function openDevicesDocument(page, onChunk, chunk = 'encoder') {
+  await page.route(`${rig.origin}/w2-devices.html`, (route) =>
+    route.fulfill({ contentType: 'text/html', body: DEVICES_PAGE }),
   )
-  return await page.evaluate(() =>
-    globalThis.devicesOutbox.find((message) => message.type === 'deviceRequest'),
-  )
+  await page.route(`${rig.origin}/dist/webview/**/*.js`, async (route) => {
+    const response = await route.fetch()
+    const body = await response.text()
+    if (body.includes(QR_MARKERS[chunk]) && !route.request().url().endsWith('/main.js'))
+      await onChunk(route, response, body)
+    else await route.fulfill({ response, body })
+  })
+  await page.goto(`${rig.origin}/w2-devices.html`)
+  await answerReady(page)
 }
-async function replyToPair(page, request) {
+/** Refuses the chosen QR chunk once, then serves it. */
+function refusedOnce() {
+  const counts = { refused: 0 }
+  const onChunk = async (route, response, body) => {
+    if (counts.refused === 0) {
+      counts.refused += 1
+      await route.abort('failed')
+      return
+    }
+    await route.fulfill({ response, body })
+  }
+  return { counts, onChunk }
+}
+const deviceRequests = (page) =>
+  page.evaluate(() =>
+    globalThis.devicesOutbox.filter((message) => message.type === 'deviceRequest'),
+  )
+async function startPair(page) {
+  const requests = await deviceRequests(page)
+  const before = requests.length
+  await page.locator('.device-pairing > button').first().click()
+  await page.waitForFunction(
+    (count) =>
+      globalThis.devicesOutbox.filter((message) => message.type === 'deviceRequest').length > count,
+    before,
+  )
+  const sent = await deviceRequests(page)
+  return sent.at(-1)
+}
+async function replyToPair(page, request, revision = 2) {
   await page.evaluate(
-    ({ request, invitation }) => {
+    ({ request, invitation, revision }) => {
       globalThis.postMessage(
         {
           type: 'deviceState',
-          revision: 2,
+          revision,
           state: { enabled: false },
           setup: { viewId: request.viewId, requestId: request.requestId, invitation },
         },
         '*',
       )
     },
-    { request, invitation: harnessInvitation() },
+    { request, invitation: harnessInvitation(), revision },
   )
 }
 const readyCount = (page) =>
   page.evaluate(
     () => globalThis.devicesOutbox.filter((message) => message.type === 'devicesReady').length,
   )
+const qrImage = (page) => page.locator('.device-public-text svg[role="img"]')
 
-describe('RVM100W Devices bridge and QR encoder in real Chrome', () => {
+describe('RVM100W Devices bridge and QR chunks in real Chrome', () => {
   it('keeps an in-flight Pair while the encoder chunk resolves', async () => {
     const page = await rig.browser.newPage({ viewport: { width: 320, height: 760 } })
     try {
@@ -272,9 +299,7 @@ describe('RVM100W Devices bridge and QR encoder in real Chrome', () => {
       expect(await page.locator('[role="alert"]').count()).toBe(0)
       await replyToPair(page, request)
       await page.locator('.device-public-text textarea').waitFor({ timeout: READY_TIMEOUT_MS })
-      await page
-        .locator('.device-public-text svg[role="img"]')
-        .waitFor({ timeout: READY_TIMEOUT_MS })
+      await qrImage(page).waitFor({ timeout: READY_TIMEOUT_MS })
       expect(await page.locator('[role="alert"]').count()).toBe(0)
       expect(await readyCount(page)).toBe(1)
     } finally {
@@ -282,48 +307,48 @@ describe('RVM100W Devices bridge and QR encoder in real Chrome', () => {
     }
   })
 
-  it('says so with Retry when the encoder chunk fails, and Retry draws the QR', async () => {
-    const page = await rig.browser.newPage({ viewport: { width: 320, height: 760 } })
-    try {
-      let refusals = 0
-      await openDevicesDocument(page, async (route, response, body) => {
-        if (refusals === 0) {
-          refusals += 1
-          await route.abort('failed')
-          return
-        }
-        await route.fulfill({ response, body })
-      })
-      const request = await startPair(page)
-      await replyToPair(page, request)
-      await page.locator('.device-public-text textarea').waitFor({ timeout: READY_TIMEOUT_MS })
-      const failure = page.locator('.device-public-text [role="alert"]')
-      await failure.waitFor({ timeout: READY_TIMEOUT_MS })
-      expect(await failure.textContent()).toContain(EN.surfaceLoadFailed)
-      // The text invitation stays complete and selectable beside the failure.
-      expect(await page.locator('.device-public-text textarea').inputValue()).toContain(
-        harnessInvitation().invitationId,
-      )
-      expect(refusals).toBe(1)
-      // A failed module fetch stays failed for the document: Retry reloads it.
-      await Promise.all([
-        page.waitForEvent('load'),
-        failure.getByRole('button', { name: EN.surfaceLoadRetry }).click(),
-      ])
-      await page.waitForFunction(() =>
-        globalThis.devicesOutbox.some((message) => message.type === 'devicesReady'),
-      )
-      await page.evaluate(() => {
-        globalThis.postMessage({ type: 'deviceState', revision: 1, state: { enabled: false } }, '*')
-      })
-      await replyToPair(page, await startPair(page))
-      await page
-        .locator('.device-public-text svg[role="img"]')
-        .waitFor({ timeout: READY_TIMEOUT_MS })
-      expect(await page.locator('.device-public-text [role="alert"]').count()).toBe(0)
-      expect(await readyCount(page)).toBe(1)
-    } finally {
-      await page.close()
-    }
-  })
+  it.each(['encoder', 'figure'])(
+    'recovers a refused %s chunk by reloading, never over a waiting reply, keeping the draft',
+    async (chunk) => {
+      const page = await rig.browser.newPage({ viewport: { width: 320, height: 760 } })
+      try {
+        const refusal = refusedOnce()
+        await openDevicesDocument(page, refusal.onChunk, chunk)
+        await replyToPair(page, await startPair(page))
+        await page.locator('.device-public-text textarea').waitFor({ timeout: READY_TIMEOUT_MS })
+        const failure = page.locator('.device-public-text [role="alert"]')
+        await failure.waitFor({ timeout: READY_TIMEOUT_MS })
+        // The alert says Retry reloads the panel; the text invitation stays complete.
+        expect(await failure.textContent()).toContain(EN.devices.qrReload)
+        expect(await page.locator('.device-public-text textarea').inputValue()).toContain(
+          harnessInvitation().invitationId,
+        )
+        expect(refusal.counts.refused).toBe(1)
+        const retry = failure.getByRole('button', { name: EN.surfaceLoadRetry })
+        await page.locator('.device-pairing form textarea').fill('peer invitation draft')
+        // A second Pair waits for its reply: no reload may drop it.
+        const waiting = await startPair(page)
+        expect(await retry.isDisabled()).toBe(true)
+        await replyToPair(page, waiting, 3)
+        await page.waitForFunction(
+          () =>
+            !globalThis.document
+              .querySelector('.device-public-text [role="alert"] button')
+              ?.hasAttribute('disabled'),
+        )
+        await Promise.all([page.waitForEvent('load'), retry.click()])
+        await answerReady(page)
+        // The unsent draft came back with the reloaded document.
+        expect(await page.locator('.device-pairing form textarea').inputValue()).toBe(
+          'peer invitation draft',
+        )
+        await replyToPair(page, await startPair(page))
+        await qrImage(page).waitFor({ timeout: READY_TIMEOUT_MS })
+        expect(await page.locator('.device-public-text [role="alert"]').count()).toBe(0)
+        expect(await readyCount(page)).toBe(1)
+      } finally {
+        await page.close()
+      }
+    },
+  )
 })

@@ -5382,3 +5382,62 @@ to the join-fix.
 | `npm run check:reference` | 0    | current; Devices 18 entries                                                                    |
 | `npm run check:host-api`  | 0    | regenerated with `--write` (`env.uiKind`, `UIKind.Web`; extension kind now also in activation) |
 | `npm run build`           | 0    | devices.js **104.6/125 KiB**, activation 467.0/600, Devices QR 21.6/25; no cap raised          |
+
+### Lane W final round — RVM100W2 findings (2026-10-08)
+
+Same worktree and branch, on `f56eea7a4`. Model attempts **0**; no push.
+The join-fix files are untouched.
+
+| #   | Finding                                                                | Fix                                                                                                                                                                                                                                                                                                                                                                                                                            | Regression                                                                                                                                                                                                                                        |
+| --- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | a transient Windows helper failure leaves an unsecured folder forever  | the Devices folder only ever appears already private: POSIX creates it with `mkdir` mode `0700`; Windows claims a uniquely named sibling stage with `secureFresh` and renames it into place. The helper compiles into `devices-helper` beside it (`DEVICES_HELPER_DIR`), so nothing else creates the folder first                                                                                                              | real filesystem: the step before the folder fails once (the Windows helper; the pairing store elsewhere), nothing half made remains, the retry provisions it and the journal opens                                                                |
+| 2   | a recursive `mkdir` result does not prove the leaf was created here    | the leaf is created exclusively (POSIX `mkdir` without `recursive`; Windows `rename`, which refuses an existing folder, measured `EPERM` with the target untouched). An existing folder, or one another creator makes mid-call, is never claimed; it is checked and refused if not private                                                                                                                                     | interleaving: another creator makes Devices (with data) inside this call's claim; only the stage was claimed, their file is intact, no stage remains. Real filesystem: a non-private folder with data is refused, its ACL/mode and data unchanged |
+| 3   | encoder Retry silently drops pairing state and a waiting reply         | Retry is disabled while any Devices request waits for its reply; the alert says Retry reloads the panel, that pasted text is kept and that Pair device shows the invitation again (`devices.qrReload`, all 14 languages); the unsent draft is kept in the document's webview state and restored after the reload                                                                                                               | jsdom: Retry disabled while a Pair waits, enabled after its reply; draft restored and saved. Real Chrome: the same, across the actual reload                                                                                                      |
+| 4   | lane U's QR-figure Retry re-imports a failed module and never recovers | the figure's failure recovers the same way (document reload, same safeguards). The figure also loads with the document and is handed to the view loaded, so a failed figure chunk is reported at once and a QR draws in the same frame as its invitation                                                                                                                                                                       | jsdom: the misleading re-import test now proves the reload (no second import). Real Chrome: a refused figure chunk, and a refused encoder chunk, each recover after Retry                                                                         |
+| 5   | `devices-qr` readiness margin                                          | measured first: on the Win11 VM every product chunk but the QR figure finished ~0.24 s after navigation; the figure loaded only after the invitation reply (~1.2 s), and the rest was the harness's fixed 300 ms settle before each of the scene's four waits. Fix: the figure loads with the document (above), and Devices steps, which only wait for elements a host message or reply creates, probe at once (still bounded) | before/after on the Win11 VM, below; the 2 s deadline is unchanged                                                                                                                                                                                |
+
+**Win11 VM, `goto` to ready marker, seconds (three rounds each).** Before
+(`f56eea7a4`): devices-qr 2.08, 1.99, 1.99; the five other scenes 1.39–1.92.
+After: devices-qr 1.42, 1.44 (a first, cold navigation in that run took 1.0 s
+for `goto` itself and 2.4 s to ready); the other scenes 1.40–1.44, blocked
+0.89. The QR now draws in the same frame as its invitation (`qrSvg` equals
+the ready time). The harness suite passed 19/19 there at its default
+deadlines. On this PC, heavily loaded by other sessions (CPU ~65%), the
+Devices document itself takes 1.3–1.8 s to mount, and the readiness scenes
+still flip at 2 s; the drill below shows the settle change saves ~0.35 s
+here too.
+
+**Red drills (each reverted after).**
+
+- 1: creating the leaf before the helper again (the old order) fails three
+  real-filesystem cases, including the retry case.
+- 2: claiming the existing folder (after a refused rename, or when it is
+  found) fails the interleaving case, the claim-once case and the
+  real-filesystem refusal case.
+- 3: an always-enabled Retry fails the waiting-reply case; dropping the
+  draft save fails the draft case.
+- 4: QrBoundary's re-import Retry fails the reload case in jsdom; that Retry
+  with the old lazy-only figure never recovers a refused figure chunk in
+  real Chrome (15 s timeout).
+- 5: restoring the 300 ms settle for Devices steps adds ~0.35 s to
+  `devices-qr` view→ready on this PC (1.41 s against 1.04–1.11 s).
+
+**Suites.** Natively here: `deviceProductionStorage` + `deviceProductionWiring`
+28/28; `devicesQrLoading` + `DevicesApp` + `devicesPhase2Views` 53/53;
+`harnessWaits` 30/30; `devicesPhase2Harness` 16–19/19 by host load (all three
+new Chrome cases pass). Kubuntu: `deviceProductionStorage` +
+`deviceProductionWiring` + `devicesQrLoading` 33/33, exit 0. Win11 VM:
+`devicesPhase2Harness` 19/19 plus the timing probe, exit 0.
+
+**Gate receipts** (`CI=true`): five typechecks 0; `prettier --check .` 0;
+`check:l10n` 0 (the new `devices.qrReload` string in all 14 tables, each
+naming that table's own Try again and Pair device labels); `check:reference`
+0; `check:host-api` 0; `npm run duplication` 0 clones; `npm run cycles` 0;
+`npm run build` 0 (devices.js **105.2/125 KiB**, Devices QR 21.6/25,
+`main.js` + static imports 736.8/900; no cap raised). Plain `npx knip` first
+crashed out of memory (`Array buffer allocation failed`) while other
+sessions held this PC's memory, not a finding; rerun alone, 0 with the same
+two configuration hints. Full `npm run lint:js` 1: five errors in this
+round's files (`prefer-await`, `no-useless-undefined`,
+`no-await-expression-member`); fixed, and the twelve changed source and test
+files re-linted 0.

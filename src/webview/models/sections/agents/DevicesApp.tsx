@@ -23,12 +23,19 @@ import {
 import type { QrEncoder } from '../devices/qr/encoder'
 import type { MessageSource } from '../../../hostBridge'
 import { DevicesView } from './DevicesView'
+import { DeviceDraftContext, type DeviceDraftStore } from './deviceDraft'
 
 interface DevicesAppProps {
   readonly qrEncoder?: QrEncoder
-  /** Present while the encoder's own chunk failed to load: the QR spot offers this retry. */
-  readonly retryQrEncoder?: () => void
+  /** The QR figure, loaded with the document: drawn with its invitation, no lazy hop. */
+  readonly qrFigure?: ComponentType<QrProps>
+  /** The QR code's own chunks failed to load: the QR spot offers a reload. */
+  readonly isQrUnavailable?: boolean
   readonly loadQr?: QrLoader
+  /** Reloads the document; a failed module fetch stays failed until then. */
+  readonly reload?: () => void
+  /** Keeps the unsent peer-invitation draft across that reload. */
+  readonly draft?: DeviceDraftStore
   readonly messages: MessageSource
   readonly postMessage: (message: DeviceWebviewMessage) => void
 }
@@ -39,14 +46,25 @@ interface QrProps {
 }
 type QrLoader = () => Promise<{ default: ComponentType<QrProps> }>
 const loadQrFigure: QrLoader = () => import('../devices/qr/QrFigure')
+function reloadDocument(): void {
+  window.location.reload()
+}
 
-// A QR chunk that failed to load says so where the QR belongs, with Retry;
-// the selectable text invitation beside it stays complete on its own.
-function QrLoadFailure({ retry }: { readonly retry: () => void }) {
+interface QrRecovery {
+  /** A Devices request is waiting for its reply: a reload now would lose that reply. */
+  readonly isBusy: boolean
+  readonly reload: () => void
+}
+
+// A QR chunk that failed to load says so where the QR belongs. The browser
+// keeps a failed module fetch for the document's lifetime, so Retry reloads
+// the document: offered only while no request waits for its reply, and
+// saying what a reload keeps (the pasted draft) and what Pair shows again.
+function QrLoadFailure({ isBusy, reload }: QrRecovery) {
   return (
     <div role="alert">
-      <p>{UI_TEXT.surfaceLoadFailed}</p>
-      <button type="button" onClick={retry}>
+      <p>{UI_TEXT.devices.qrReload}</p>
+      <button type="button" disabled={isBusy} onClick={reload}>
         {UI_TEXT.surfaceLoadRetry}
       </button>
     </div>
@@ -54,8 +72,8 @@ function QrLoadFailure({ retry }: { readonly retry: () => void }) {
 }
 
 // Each invitation reply owns a fresh lazy intent. Text remains usable during
-// loading/failure; Retry creates a new import rather than caching a null result.
-class QrBoundary extends Component<QrProps & { readonly load: QrLoader }> {
+// loading/failure; a failed chunk recovers through the document reload.
+class QrBoundary extends Component<QrProps & QrRecovery & { readonly load: QrLoader }> {
   public static getDerivedStateFromError() {
     return { failed: true }
   }
@@ -63,11 +81,7 @@ class QrBoundary extends Component<QrProps & { readonly load: QrLoader }> {
   public override render() {
     const Figure = this.state.Figure
     return this.state.failed ? (
-      <QrLoadFailure
-        retry={() => {
-          this.setState({ failed: false, Figure: lazy(this.props.load) })
-        }}
-      />
+      <QrLoadFailure isBusy={this.props.isBusy} reload={this.props.reload} />
     ) : (
       <Suspense fallback={<p role="status">{UI_TEXT.loadingOutput}</p>}>
         <Figure text={this.props.text} encode={this.props.encode} />
@@ -113,14 +127,19 @@ function DevicesDocument({
   messages,
   postMessage,
   qrEncoder,
-  retryQrEncoder,
+  qrFigure: Figure,
+  isQrUnavailable = false,
   loadQr = loadQrFigure,
+  reload = reloadDocument,
+  draft,
 }: DevicesAppProps) {
   const [message, setMessage] = useState<DeviceHostMessage>({
     type: 'deviceState',
     revision: 0,
     state: { enabled: false },
   })
+  // Requests posted and not yet settled; a reload is never offered over one.
+  const [waiting, setWaiting] = useState(0)
   const latestRevision = useRef(0)
   const bridge = useMemo(() => {
     const views = new Map<string, AbortSignal>()
@@ -145,14 +164,18 @@ function DevicesDocument({
             pending.get(request.requestId)?.reject(new Error('invalid-device-message'))
           }
           signal.addEventListener('abort', abort, { once: true })
+          setWaiting((count) => count + 1)
+          const settle = () => {
+            if (pending.delete(request.requestId)) setWaiting((count) => count - 1)
+          }
           pending.set(request.requestId, {
             viewId: request.viewId,
             resolve: (response) => {
-              pending.delete(request.requestId)
+              settle()
               resolve(response)
             },
             reject: (error) => {
-              pending.delete(request.requestId)
+              settle()
               reject(error)
             },
           })
@@ -212,22 +235,33 @@ function DevicesDocument({
       bridge.views.clear()
     }
   }, [bridge, messages, postMessage])
-  // Text-only without an encoder; the QR spot reports a failed encoder load.
+  // Text-only without an encoder; the QR spot reports a failed QR chunk load.
+  const recovery: QrRecovery = { isBusy: waiting > 0, reload }
   let renderQr: ((text: string) => ReactNode) | undefined
-  if (qrEncoder !== undefined)
+  if (qrEncoder !== undefined && Figure !== undefined)
+    renderQr = (text) => <Figure text={text} encode={qrEncoder} />
+  else if (qrEncoder !== undefined)
     renderQr = (text) => (
-      <QrBoundary key={message.setup?.requestId} text={text} encode={qrEncoder} load={loadQr} />
+      <QrBoundary
+        key={message.setup?.requestId}
+        text={text}
+        encode={qrEncoder}
+        load={loadQr}
+        {...recovery}
+      />
     )
-  else if (retryQrEncoder !== undefined) renderQr = () => <QrLoadFailure retry={retryQrEncoder} />
+  else if (isQrUnavailable) renderQr = () => <QrLoadFailure {...recovery} />
   return (
     <main>
-      <DevicesView
-        message={message}
-        port={bridge.port}
-        onState={accept}
-        explicitSetup
-        renderQr={renderQr}
-      />
+      <DeviceDraftContext.Provider value={draft}>
+        <DevicesView
+          message={message}
+          port={bridge.port}
+          onState={accept}
+          explicitSetup
+          renderQr={renderQr}
+        />
+      </DeviceDraftContext.Provider>
     </main>
   )
 }

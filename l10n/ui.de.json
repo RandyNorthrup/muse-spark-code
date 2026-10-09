@@ -105,6 +105,7 @@
     "ownerMismatch": "Dieser Kopplungsschlüssel gehört einem anderen Besitzer. Koppeln Sie erneut als der richtige Besitzer.",
     "stepUpWaiting": "Warten auf erweiterte Genehmigung auf {device}.",
     "qrCodeName": "QR-Code der öffentlichen Einladung",
+    "qrReload": "Der QR-Code konnte nicht geladen werden; die Text-Einladung funktioniert auch ohne ihn. „Erneut versuchen“ lädt dieses Panel neu: Eingefügter Text bleibt erhalten, und „Gerät koppeln“ zeigt Ihre Einladung wieder an.",
     "discoveryAdvertises": "Die Suche kündigt {service} auf Port {port} an (Protokollversion {version}). Die Suche gewährt kein Vertrauen.",
     "owners": "Besitzer und Freigaben",
     "grantRepository": "Repository",

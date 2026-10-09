@@ -104,6 +104,7 @@
     "ownerMismatch": "此配對金鑰屬於其他擁有者。請以正確的擁有者身分重新配對。",
     "stepUpWaiting": "正在等待 {device} 上的升級核准。",
     "qrCodeName": "公開邀請的 QR code",
+    "qrReload": "無法載入 QR code；文字邀請本身即可使用。「重試」會重新載入此面板：貼上的文字會保留，「配對裝置」會再次顯示您的邀請。",
     "discoveryAdvertises": "探索功能會在連接埠 {port} 上宣告 {service}(通訊協定版本 {version})。探索不會授予信任。",
     "owners": "擁有者與授權",
     "grantRepository": "存放庫",

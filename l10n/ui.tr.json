@@ -105,6 +105,7 @@
     "ownerMismatch": "Bu eşleştirme anahtarı başka bir sahibe ait. Doğru sahip olarak yeniden eşleştirin.",
     "stepUpWaiting": "{device} üzerinde artırılmış onay bekleniyor.",
     "qrCodeName": "Herkese açık davetin QR kodu",
+    "qrReload": "QR kodu yüklenemedi; metin davet tek başına çalışır. «Yeniden dene» bu paneli yeniden yükler: yapıştırılan metin korunur ve «Cihaz eşleştir» davetinizi yeniden gösterir.",
     "discoveryAdvertises": "Bulma, {port} bağlantı noktasında {service} hizmetini duyurur (protokol sürümü {version}). Bulma güven vermez.",
     "owners": "Sahipler ve izinler",
     "grantRepository": "Depo",

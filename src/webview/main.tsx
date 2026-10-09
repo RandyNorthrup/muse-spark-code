@@ -8,7 +8,8 @@
 
 import { createRoot } from 'react-dom/client'
 import { lazy, Suspense, useSyncExternalStore } from 'react'
-import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
+import * as z from 'zod/mini'
+import { DEVICE_LIMITS, UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
 import type { WebviewToHostMessage } from '../shared/protocol'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -16,7 +17,9 @@ import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
 import type { QrEncoder } from './models/sections/devices/qr/encoder'
+import type QrFigureComponent from './models/sections/devices/qr/QrFigure'
 import type { DeviceWebviewMessage } from '../shared/devicesPanel'
+import type { DeviceDraftStore } from './models/sections/agents/deviceDraft'
 import { installEmbeddedTable } from './installTable'
 import { installSurfaceRetry, retrySurface } from './surfaceRetry'
 import { restoredUiState } from './state/snapshot'
@@ -31,6 +34,15 @@ const DevicesApp = lazy(async () => {
     return { default: DevicesUnavailable }
   }
 })
+
+// What the Devices document keeps in its webview state across a reload:
+// the unsent peer-invitation draft (public text, never a key). Defined before
+// the mount below runs.
+const savedDevicesState = z.object({
+  devicesDraft: z.string().check(z.maxLength(DEVICE_LIMITS.invitationTextChars)),
+})
+type QrLoad =
+  'loading' | 'failed' | { readonly encoder: QrEncoder; readonly figure: typeof QrFigureComponent }
 
 const TasksApp = lazy(async () => {
   const { TasksApp } = await import('./TasksApp')
@@ -121,37 +133,48 @@ function mountDevices(element: Element): void {
   const postMessage = (message: DeviceWebviewMessage) => {
     api.postMessage(message)
   }
-  const render = (qr: QrEncoderLoad) => {
+  // The unsent peer-invitation draft is kept in this document's webview
+  // state, so a reload (the QR chunk's recovery) never loses it.
+  const saved = savedDevicesState.safeParse(api.getState())
+  const draft: DeviceDraftStore = {
+    initial: saved.success ? saved.data.devicesDraft : '',
+    save: (text) => {
+      api.setState({ devicesDraft: text })
+    },
+  }
+  const render = (qr: QrLoad) => {
     root.render(
       <Suspense fallback={loading}>
         <DevicesApp
           messages={window}
-          {...(qr === 'failed' ? { retryQrEncoder: reloadDocument } : {})}
-          {...(qr !== 'loading' && qr !== 'failed' ? { qrEncoder: qr } : {})}
+          draft={draft}
+          {...(qr === 'failed' ? { isQrUnavailable: true } : {})}
+          {...(qr !== 'loading' && qr !== 'failed'
+            ? { qrEncoder: qr.encoder, qrFigure: qr.figure }
+            : {})}
           postMessage={postMessage}
         />
       </Suspense>,
     )
   }
-  // The approved encoder stays in the lazy QR closure: a static import here
-  // would charge it to startup. Without it the text invitation still works;
-  // a chunk that fails to load says so at the QR, with Retry. The browser
-  // keeps a failed module fetch for the document's lifetime, so Retry
-  // reloads the document, as the Devices chunk's own failure does.
+  // The approved encoder and the QR figure stay in their lazy closure: a
+  // static import here would charge them to startup. Both load with the
+  // document and the figure is handed over loaded, so a QR draws in the same
+  // render as its invitation (no lazy hop after the reply). Without them the
+  // text invitation still works; a chunk that fails to load says so at the
+  // QR, and its Retry reloads the document (the browser keeps a failed
+  // module fetch until then).
   render('loading')
-  void import('./models/sections/devices/qr/qrGeneratorEncoder')
-    .then(({ qrGeneratorEncoder }) => {
-      render(qrGeneratorEncoder)
+  void Promise.all([
+    import('./models/sections/devices/qr/qrGeneratorEncoder'),
+    import('./models/sections/devices/qr/QrFigure'),
+  ])
+    .then(([{ qrGeneratorEncoder }, { default: figure }]) => {
+      render({ encoder: qrGeneratorEncoder, figure })
     })
     .catch(() => {
       render('failed')
     })
-}
-
-type QrEncoderLoad = 'loading' | 'failed' | QrEncoder
-
-function reloadDocument(): void {
-  window.location.reload()
 }
 
 function mountTasks(element: Element): void {

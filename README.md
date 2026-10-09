@@ -4008,8 +4008,10 @@ explicitly with recovery guidance instead of proceeding unchecked. Opening the
 tab starts no listener, discovery, model or remote task. Devices runs in VS
 Code on a local desktop window: in a Remote SSH, Tunnels, WSL, container or web
 window it refuses with recovery guidance before storing anything, and the
-other editors do not offer it yet. If the QR code cannot load, the tab says so
-with **Try again**; the copyable text invitation works on its own. See the
+other editors do not offer it yet. If the QR code cannot load, the tab says so;
+the copyable text invitation works on its own, and **Try again** reloads the tab
+(offered only while no action is waiting), keeping any invitation text you
+pasted. See the
 [feature inventory](docs/devices-reference.md) and
 [integration certification](docs/certification/m100.md).
 

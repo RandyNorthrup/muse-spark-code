@@ -107,6 +107,7 @@
     "ownerMismatch": "Tento párovací klíč patří jinému vlastníkovi. Spárujte znovu jako správný vlastník.",
     "stepUpWaiting": "Čeká se na zvýšené schválení na zařízení {device}.",
     "qrCodeName": "QR kód veřejné pozvánky",
+    "qrReload": "QR kód se nepodařilo načíst; textová pozvánka funguje i bez něj. „Zkusit znovu“ tento panel znovu načte: vložený text zůstane zachován a „Spárovat zařízení“ znovu zobrazí vaši pozvánku.",
     "discoveryAdvertises": "Zjišťování oznamuje {service} na portu {port} (verze protokolu {version}). Zjišťování neuděluje žádnou důvěru.",
     "owners": "Vlastníci a oprávnění",
     "grantRepository": "Úložiště",

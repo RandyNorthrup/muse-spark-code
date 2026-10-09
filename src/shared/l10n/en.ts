@@ -204,6 +204,8 @@ export const EN = {
     ownerMismatch: 'This pair key belongs to a different owner. Pair again as the right owner.',
     stepUpWaiting: 'Waiting for step-up approval on {device}.',
     qrCodeName: 'QR code of the public invitation',
+    qrReload:
+      'The QR code could not load; the text invitation works on its own. Try again reloads this panel: pasted text is kept, and Pair device shows your invitation again.',
     discoveryAdvertises:
       'Discovery advertises {service} on port {port} (protocol version {version}). Discovery grants no trust.',
     owners: 'Owners and grants',

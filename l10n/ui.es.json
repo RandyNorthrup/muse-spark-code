@@ -106,6 +106,7 @@
     "ownerMismatch": "Esta clave de vinculación pertenece a otro propietario. Vincule de nuevo como el propietario correcto.",
     "stepUpWaiting": "Esperando la aprobación reforzada en {device}.",
     "qrCodeName": "Código QR de la invitación pública",
+    "qrReload": "No se pudo cargar el código QR; la invitación en texto funciona por sí sola. «Intentar de nuevo» vuelve a cargar este panel: el texto pegado se conserva y «Emparejar dispositivo» vuelve a mostrar tu invitación.",
     "discoveryAdvertises": "El descubrimiento anuncia {service} en el puerto {port} (versión {version} del protocolo). El descubrimiento no otorga confianza.",
     "owners": "Propietarios y concesiones",
     "grantRepository": "Repositorio",

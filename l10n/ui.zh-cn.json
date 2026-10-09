@@ -104,6 +104,7 @@
     "ownerMismatch": "此配对密钥属于其他所有者。请以正确的所有者身份重新配对。",
     "stepUpWaiting": "正在等待 {device} 上的升级审批。",
     "qrCodeName": "公开邀请的二维码",
+    "qrReload": "无法加载二维码；文本邀请本身即可使用。“重试”会重新加载此面板：粘贴的文本会保留，“配对设备”会再次显示你的邀请。",
     "discoveryAdvertises": "发现功能在端口 {port} 上通告 {service}(协议版本 {version})。发现不会授予信任。",
     "owners": "所有者和授权",
     "grantRepository": "仓库",

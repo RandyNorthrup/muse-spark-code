@@ -162,7 +162,7 @@
       const FIND_INTERVAL_MS = 50
       const FIND_TIMEOUT_MS = 3000
       let pendingFinds = 0
-      const whenFound = (selector, fn) => {
+      const whenFound = (selector, fn, settleMs = SETTLE_MS) => {
         pendingFinds += 1
         const look = (waited) => {
           const element = document.querySelector(selector)
@@ -181,7 +181,7 @@
           }
         }
         // kept-timing: host-message delivery and React paints settle before the first readiness probe.
-        later(SETTLE_MS, () => look(0))
+        later(settleMs, () => look(0))
       }
       const files = [
         'src/extension.ts',
@@ -6230,6 +6230,9 @@
         'devices-power',
         'devices-blocked',
       ]
+      // Each Devices step waits for an element only a host message or its
+      // reply creates, so it cannot match early: probe at once, still bounded.
+      const whenReplied = (selector, fn) => whenFound(selector, fn, 0)
       for (const name of deviceScenes) {
         steps[name] = () => {
           const message = deviceFixture(name)
@@ -6253,10 +6256,10 @@
             checkWidth()
             return
           }
-          whenFound('.device-card', () => {
+          whenReplied('.device-card', () => {
             if (name.startsWith('devices-pairing')) {
               document.querySelector('.device-pairing button').click()
-              whenFound('.device-public-text textarea', () => {
+              whenReplied('.device-public-text textarea', () => {
                 const form = document.querySelector('.device-pairing form')
                 setValue(
                   form.querySelector('textarea'),
@@ -6264,14 +6267,14 @@
                   JSON.stringify(devicePeerInvitation),
                 )
                 form.querySelector('button[type="submit"]').click()
-                whenFound('.device-comparison', checkWidth)
+                whenReplied('.device-comparison', checkWidth)
               })
             } else if (name === 'devices-blocked-narrow') {
               document.querySelector('.device-card form button[type="submit"]').click()
-              whenFound('.devices-view [role="alert"]', checkWidth)
+              whenReplied('.devices-view [role="alert"]', checkWidth)
             } else if (name === 'devices-qr') {
               document.querySelector('.device-pairing button').click()
-              whenFound('.device-public-text textarea', () => {
+              whenReplied('.device-public-text textarea', () => {
                 const form = document.querySelector('.device-pairing form')
                 setValue(
                   form.querySelector('textarea'),
@@ -6279,7 +6282,7 @@
                   JSON.stringify(devicePeerInvitation),
                 )
                 form.querySelector('button[type="submit"]').click()
-                whenFound('.device-comparison', () => {
+                whenReplied('.device-comparison', () => {
                   document.querySelector('.device-public-text button').focus()
                   checkWidth()
                 })
@@ -6287,25 +6290,25 @@
             } else if (name === 'devices-discovery') {
               // Setup facts arrive on the reply: summon one with the switch.
               document.querySelector('.devices-view label input[type="checkbox"]').click()
-              whenFound('.device-discovery-details', checkWidth)
+              whenReplied('.device-discovery-details', checkWidth)
             } else if (name === 'devices-owners') {
               document.querySelector('.device-actions button:first-child').click()
-              whenFound('.device-owners button', () => {
+              whenReplied('.device-owners button', () => {
                 document.querySelector('.device-owners button').click()
-                whenFound('.devices-view [role="alert"]', checkWidth)
+                whenReplied('.devices-view [role="alert"]', checkWidth)
               })
             } else if (name === 'devices-prompts-narrow') {
               document.querySelector('.device-actions button:first-child').click()
-              whenFound('.device-prompts', checkWidth)
+              whenReplied('.device-prompts', checkWidth)
             } else if (name === 'devices-power') {
               document.querySelector('.devices-view label input[type="checkbox"]').click()
-              whenFound('.device-power', checkWidth)
+              whenReplied('.device-power', checkWidth)
             } else if (name === 'devices-blocked') {
               document.querySelector('.device-card form button[type="submit"]').click()
-              whenFound('.device-blocked-setup', checkWidth)
+              whenReplied('.device-blocked-setup', checkWidth)
             } else if (name === 'devices-unlink-narrow') {
               document.querySelector('.device-actions button:last-child').click()
-              whenFound('.device-unlink', checkWidth)
+              whenReplied('.device-unlink', checkWidth)
             } else {
               checkWidth()
             }

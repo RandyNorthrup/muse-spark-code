@@ -106,6 +106,7 @@
     "ownerMismatch": "Cette clé d’appairage appartient à un autre propriétaire. Associez à nouveau en tant que bon propriétaire.",
     "stepUpWaiting": "En attente de l’approbation renforcée sur {device}.",
     "qrCodeName": "QR code de l’invitation publique",
+    "qrReload": "Le QR code n’a pas pu être chargé ; l’invitation en texte fonctionne seule. « Réessayer » recharge ce panneau : le texte collé est conservé, et « Associer un appareil » affiche de nouveau votre invitation.",
     "discoveryAdvertises": "La découverte annonce {service} sur le port {port} (version {version} du protocole). La découverte n’accorde aucune confiance.",
     "owners": "Propriétaires et approbations",
     "grantRepository": "Dépôt",

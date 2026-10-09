@@ -107,6 +107,7 @@
     "ownerMismatch": "Ten klucz parowania należy do innego właściciela. Sparuj ponownie jako właściwy właściciel.",
     "stepUpWaiting": "Oczekiwanie na podwyższone zatwierdzenie na urządzeniu {device}.",
     "qrCodeName": "Kod QR publicznego zaproszenia",
+    "qrReload": "Nie udało się wczytać kodu QR; zaproszenie tekstowe działa samodzielnie. „Spróbuj ponownie” wczytuje ten panel od nowa: wklejony tekst zostaje, a „Sparuj urządzenie” ponownie pokaże Twoje zaproszenie.",
     "discoveryAdvertises": "Wykrywanie ogłasza {service} na porcie {port} (wersja protokołu {version}). Wykrywanie nie przyznaje zaufania.",
     "owners": "Właściciele i uprawnienia",
     "grantRepository": "Repozytorium",

@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
+import { type ReactNode, useContext, useEffect, useId, useRef, useState } from 'react'
 import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
 import { devicePairingConfirmationSchema, type DeviceInvitation } from '../../../../shared/devices'
 import {
@@ -7,6 +7,7 @@ import {
   type DeviceWebviewRequest,
 } from '../../../../shared/devicesPanel'
 import { DeviceFingerprint } from './DeviceFingerprint'
+import { DeviceDraftContext } from './deviceDraft'
 
 export type DeviceAction = DeviceWebviewRequest['action']
 
@@ -24,7 +25,9 @@ export function DevicePairing({
 }) {
   const [local, setLocal] = useState<DeviceInvitation>()
   const [peer, setPeer] = useState<DeviceInvitation>()
-  const [text, setText] = useState('')
+  // The unsent peer-invitation draft survives a document reload (lane W).
+  const draft = useContext(DeviceDraftContext)
+  const [text, setText] = useState(draft?.initial ?? '')
   const [isCompared, setCompared] = useState(false)
   const [error, setError] = useState(false)
   const invitationInputId = useId()
@@ -89,6 +92,7 @@ export function DevicePairing({
           value={text}
           onChange={(event) => {
             setText(event.currentTarget.value)
+            draft?.save(event.currentTarget.value)
           }}
           required
         />

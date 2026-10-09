@@ -105,6 +105,7 @@
     "ownerMismatch": "Ez a párosítási kulcs egy másik tulajdonoshoz tartozik. Párosítson újra megfelelő tulajdonosként.",
     "stepUpWaiting": "Megerősített jóváhagyásra vár a(z) {device} eszközön.",
     "qrCodeName": "A nyilvános meghívó QR-kódja",
+    "qrReload": "A QR-kód nem töltődött be; a szöveges meghívó önmagában is működik. Az Újrapróbálkozás gomb újratölti ezt a panelt: a beillesztett szöveg megmarad, és az Eszköz párosítása ismét megjeleníti a meghívót.",
     "discoveryAdvertises": "A felderítés a(z) {service} szolgáltatást hirdeti a(z) {port} porton (protokollverzió: {version}). A felderítés nem ad bizalmat.",
     "owners": "Tulajdonosok és engedélyek",
     "grantRepository": "Tároló",
