@@ -2,6 +2,7 @@
 // region. Every test here can fail: each guards a value or shape another
 // lane builds on, with its red drill recorded in docs/certification/m96-0.md.
 
+import { Usd } from '../../src/shared/usd'
 import { readFileSync } from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -577,7 +578,7 @@ describe('team schemas', () => {
       output: 500,
       reasoning: 0,
       modelCalls: 3,
-      costUsd: 0.02,
+      costUsd: Usd.from('0.02').toAmount(),
       estimated: false,
     }
     expect(teamUsageSchema.safeParse(usage).success).toBe(true)
