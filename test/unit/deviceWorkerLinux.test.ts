@@ -207,6 +207,17 @@ function fixture(isInstant = false) {
     inhibitor: () => inhibitor,
   }
 }
+/** Starts the cached self-test probe and waits for its real child to exit. */
+async function probing() {
+  const f = fixture()
+  f.state.tasksMax = 1
+  f.state.kernelLimit = 1
+  const check = f.driver.selfTest()
+  await vi.waitFor(() => {
+    expect(f.worker()?.exitCode).toBe(0)
+  })
+  return { f, check }
+}
 async function retire(f: ReturnType<typeof fixture>, job: DeviceWorkerJob) {
   f.state.isEmpty = true
   const result = await job.retirement
@@ -568,13 +579,7 @@ describe('M100/H Linux platform port (fake manager/cgroup/inhibitor)', () => {
     await retire(f, job)
   })
   it('caches a real per-factory probe including query and inhibitor release', async () => {
-    const f = fixture()
-    f.state.tasksMax = 1
-    f.state.kernelLimit = 1
-    const check = f.driver.selfTest()
-    await vi.waitFor(() => {
-      expect(f.worker()?.exitCode).toBe(0)
-    })
+    const { f, check } = await probing()
     f.state.isEmpty = true
     // Readiness must first see populated=1; query/retirement then observe empty.
     expect(await check).toBe(true)
@@ -582,13 +587,7 @@ describe('M100/H Linux platform port (fake manager/cgroup/inhibitor)', () => {
     expect(f.start).toHaveBeenCalledTimes(2)
   })
   it('answers false, never a rejection, when a probe fails with its job unretired', async () => {
-    const f = fixture()
-    f.state.tasksMax = 1
-    f.state.kernelLimit = 1
-    const check = f.driver.selfTest()
-    await vi.waitFor(() => {
-      expect(f.worker()?.exitCode).toBe(0)
-    })
+    const { f, check } = await probing()
     // The cgroup never shows empty and the inhibitor is lost: retirement stays
     // unproved, so the probe's cleanup cannot remove its job.
     f.inhibitor()?.kill()

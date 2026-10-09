@@ -392,16 +392,20 @@ function encoder() {
 function Figure({ text }: { readonly text: string }) {
   return <p>figure:{text}</p>
 }
+/** Waits for the surface's QR renderer, then renders it for one public text. */
+async function renderedQr(): Promise<void> {
+  await waitFor(() => {
+    expect(seen.props.at(-1)?.renderQr).toBeDefined()
+  })
+  render(<>{seen.props.at(-1)?.renderQr?.('public')}</>)
+}
 describe('M100 Devices surface in the lazy chunk', () => {
   it('restores the saved draft, saves edits, and hands over the loaded QR chunks once', async () => {
     const { api, postMessage, setState } = surfaceApi({ devicesDraft: 'saved peer text' })
     const loadQr = vi.fn(() => Promise.resolve({ encoder, figure: Figure }))
     render(<DevicesSurface api={api} messages={window} loadQr={loadQr} />)
     expect(screen.getByLabelText(EN.devices.scan)).toHaveValue('saved peer text')
-    await waitFor(() => {
-      expect(seen.props.at(-1)?.renderQr).toBeDefined()
-    })
-    render(<>{seen.props.at(-1)?.renderQr?.('public')}</>)
+    await renderedQr()
     expect(screen.getByText('figure:public')).toBeVisible()
     fireEvent.change(screen.getByLabelText(EN.devices.scan), { target: { value: 'edited' } })
     expect(setState).toHaveBeenLastCalledWith({ devicesDraft: 'edited' })
@@ -416,10 +420,7 @@ describe('M100 Devices surface in the lazy chunk', () => {
     const { api } = surfaceApi({ devicesDraft: 'x'.repeat(1_000_000) })
     render(<DevicesSurface api={api} loadQr={() => Promise.reject(new Error('chunk refused'))} />)
     expect(screen.getByLabelText(EN.devices.scan)).toHaveValue('')
-    await waitFor(() => {
-      expect(seen.props.at(-1)?.renderQr).toBeDefined()
-    })
-    render(<>{seen.props.at(-1)?.renderQr?.('public')}</>)
+    await renderedQr()
     expect(screen.getByText(EN.devices.qrReload)).toBeVisible()
   })
 })
