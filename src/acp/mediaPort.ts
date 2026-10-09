@@ -23,7 +23,7 @@ import { AcpMedia, type AcpMediaContext, type AcpMediaDeps, type AcpMediaInput }
 export interface RuntimeMediaPortDeps {
   readonly platform: NodeJS.Platform
   readonly io: AcpMediaDeps['io']
-  readonly attached: Pick<AttachedMedia, 'register'>
+  readonly attached: Pick<AttachedMedia, 'register' | 'releaseOwner'>
   readonly newToken: () => string
   readonly transcribesSound: NonNullable<AcpMediaDeps['transcribesSound']>
 }
@@ -62,6 +62,9 @@ async function inlinePart(input: AcpMediaInput, signal: AbortSignal): Promise<Tu
 
 /** One session's media port over the runtime's registry and confined reads. */
 export function runtimeMediaPort(context: AcpMediaContext, deps: RuntimeMediaPortDeps) {
+  // This port's registrations, embedded bytes included, are its own: the
+  // session's release lets go of every one no running turn holds.
+  const owner = deps.newToken()
   return new AcpMedia({
     ...context,
     platform: deps.platform,
@@ -71,6 +74,9 @@ export function runtimeMediaPort(context: AcpMediaContext, deps: RuntimeMediaPor
     // protected and private names.
     assertReadable: () => Promise.resolve(),
     transcribesSound: deps.transcribesSound,
+    release: () => {
+      deps.attached.releaseOwner(owner)
+    },
     prepare: async (input, signal) => {
       const { info } = input
       if (info.kind !== 'video' && info.kind !== 'audio') return await inlinePart(input, signal)
@@ -82,6 +88,7 @@ export function runtimeMediaPort(context: AcpMediaContext, deps: RuntimeMediaPor
           read: (active) => input.source.open(active),
           path: () => Promise.resolve(path),
         },
+        owner,
       )
     },
   })

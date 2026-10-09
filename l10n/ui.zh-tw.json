@@ -827,6 +827,7 @@
     "uploadFailed": "上傳失敗：{reason}",
     "uploadExpired": "上傳已到期。請重新附加 {name}。",
     "sourceChanged": "{name} 在上傳後已變更。請重新附加。",
+    "attachedLimit": "使用中的影片和音訊附件過多。請等候回覆完成後再重新附加。",
     "uploadedFiles": "已上傳的檔案",
     "filesOurs": "由此應用程式上傳",
     "filesOtherApp": "來自其他應用程式",

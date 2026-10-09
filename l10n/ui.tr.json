@@ -831,6 +831,7 @@
     "uploadFailed": "Yükleme başarısız: {reason}",
     "uploadExpired": "Yüklemenin süresi doldu. {name} dosyasını yeniden ekleyin.",
     "sourceChanged": "{name} yüklemeden sonra değişti. Yeniden ekleyin.",
+    "attachedLimit": "Kullanımda çok fazla video ve ses eki var. Bir yanıtın bitmesini bekleyin, ardından yeniden ekleyin.",
     "uploadedFiles": "Yüklenen dosyalar",
     "filesOurs": "Bu uygulama tarafından yüklendi",
     "filesOtherApp": "Başka bir uygulamadan",

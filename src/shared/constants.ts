@@ -1314,6 +1314,9 @@ export const MEDIA_CONVERTER_PROBE_MAX_BYTES = 16 * 1024
 export const MEDIA_CONVERTER_PATH_MAX_CHARS = 4096
 /** An attached file's digest and upload reread, one bounded chunk at a time. */
 export const MEDIA_ATTACHED_READ_CHUNK_BYTES = 1024 * 1024
+/** Attached video and audio registrations a process holds at once (RVMEDIAV 7):
+ * a few messages' worth; the oldest unused one makes room for the next. */
+export const MEDIA_ATTACHED_MAX_ENTRIES = 64
 export const MEDIA_CONVERSION_MAX_RSS_BYTES = 512 * 1024 * 1024
 /** The `code` a kernel-limited encoder launch rejects with when its memory cap hit. */
 export const MEDIA_CONVERSION_MEMORY_CAP_CODE = 'EMEDIA_MEMORY_CAP'

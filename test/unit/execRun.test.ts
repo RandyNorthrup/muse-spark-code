@@ -1734,6 +1734,7 @@ describe('M105 headless attachment entry', () => {
           block: () => Promise.resolve(UI_TEXT.media.cappedRateUnknown),
           attach: () => Promise.reject(new Error('unused')),
           record: () => Promise.reject(new Error('unused')),
+          release: () => undefined,
         }),
     })
     writeFileSync(path.join(h.cwd, 'clip.mp4'), videoFixture())

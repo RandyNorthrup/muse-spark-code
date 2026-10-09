@@ -47,6 +47,8 @@ export interface AcpAttachment {
 export interface AcpMediaPort extends PromptMediaPort {
   readonly attach: (given: string, signal: AbortSignal, mime?: string) => Promise<AcpAttachment>
   readonly record: (signal: AbortSignal) => Promise<AcpAttachment | undefined>
+  /** The session is let go: what it attached and no turn holds is released. */
+  readonly release: () => void
 }
 
 export interface AcpMediaContext {
@@ -81,6 +83,8 @@ export interface AcpMediaDeps extends AcpMediaContext {
    * admitted for transcription; absent, the gate's refusal stands.
    */
   readonly transcribesSound?: (info: MediaInfo) => boolean
+  /** Releases this port's registrations when the session is let go (RVMEDIAV 7). */
+  readonly release?: () => void
   /** Native driver + user options + Stop + preview. Returns only after the user chooses Attach. */
   readonly recordAndPreview?: (
     signal: AbortSignal,
@@ -287,5 +291,9 @@ export class AcpMedia implements AcpMediaPort {
       await preview.dispose()
       throw error
     }
+  }
+
+  public release(): void {
+    this.deps.release?.()
   }
 }

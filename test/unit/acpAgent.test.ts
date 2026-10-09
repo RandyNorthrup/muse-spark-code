@@ -3429,6 +3429,17 @@ describe('M105 ACP attachment commands', () => {
     })
     expect(dispose).toHaveBeenCalledOnce()
   })
+
+  it('releases the media port with the session, so the registry lets go of its sources (RVMEDIAV 7)', async () => {
+    const { h, port } = mediaHarness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await prompt(client, sessionId, '/attach clip.mp4')
+      expect(port.release).not.toHaveBeenCalled()
+      await client.request('session/close', { sessionId })
+    })
+    expect(port.release).toHaveBeenCalledOnce()
+  })
 })
 
 function mediaHarness(isHeadless = false) {
@@ -3449,6 +3460,7 @@ function mediaHarness(isHeadless = false) {
     block: vi.fn(() => Promise.resolve(attachment.part)),
     attach: vi.fn(() => Promise.resolve(attachment)),
     record: vi.fn(() => Promise.resolve(attachment)),
+    release: vi.fn(),
   }
   const factory = vi.fn(() => Promise.resolve(port))
   return { h: harness({ kind: 'modelApi', media: factory, isHeadless }), port, factory, dispose }

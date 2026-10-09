@@ -11,7 +11,7 @@ function testPart() {
   return { type: 'text' as const, text: 'test-only media binding' }
 }
 function bindPart() {
-  return testPart
+  return { part: testPart, release: () => undefined }
 }
 
 function rig(
@@ -105,6 +105,14 @@ describe('M105 E1 host-token attachments', () => {
     expect(await t.port.prepare(other, 'modelApi', 'muse-spark-1.3')).toMatchObject({ ok: false })
     expect(t.open).not.toHaveBeenCalled()
     expect(t.bind).not.toHaveBeenCalled()
+  })
+
+  it('releases the port’s registrations when the conversation clears (RVMEDIAV 7)', () => {
+    const release = vi.fn()
+    const t = rig(videoFixture(), { release })
+    expect(release).not.toHaveBeenCalled()
+    t.port.clear()
+    expect(release).toHaveBeenCalledOnce()
   })
 
   it('checks actual bytes, size, selected capability and ignored audio before binding', async () => {

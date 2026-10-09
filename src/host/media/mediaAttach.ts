@@ -65,12 +65,18 @@ export interface MediaAttachDeps {
   >
   readonly capabilities: (modelId: string) => MediaModelCapabilities
   readonly limits: () => MediaLimits
-  /** Register the approved source and its digest with the host's attached-media registry. */
+  /** Register the approved source and its digest with the host's attached-media
+   * registry; `release` lets go of it when its chip is discarded. */
   readonly bind: (
     file: PickedFile,
     info: MediaFileInfo,
     sha256: string,
-  ) => (summary: AttachmentSummary) => TurnPart
+  ) => {
+    readonly part: (summary: AttachmentSummary) => TurnPart
+    readonly release: () => void
+  }
+  /** The conversation ends: every registration this port made and no turn holds goes. */
+  readonly release?: () => void
   /**
    * D85.7: one `MediaContributorConsent` per port over the editor's own
    * modal (built by the host, so this bundle stays small). On a contributor
@@ -189,7 +195,7 @@ export function createMediaAttachments(deps: MediaAttachDeps): MediaAttachmentPo
         )
         if (!chosen.ok) return chosen
         if (epoch !== generation) return { ok: false, reason: UI_TEXT.attachmentUnreadable }
-        const part = deps.bind(file, sniffed.info, sha256)
+        const bound = deps.bind(file, sniffed.info, sha256)
         return {
           ok: true,
           ...(gate.soundtrackWarning !== undefined && {
@@ -206,8 +212,9 @@ export function createMediaAttachments(deps: MediaAttachDeps): MediaAttachmentPo
                   : { ok: false, reason: UI_TEXT.attachmentUnreadable },
               part: (summary, info) => {
                 if (info !== sniffed.info) throw new Error('Media source mismatch')
-                return part(summary)
+                return bound.part(summary)
               },
+              release: bound.release,
             },
           },
         }
@@ -218,6 +225,7 @@ export function createMediaAttachments(deps: MediaAttachDeps): MediaAttachmentPo
     clear: () => {
       generation += 1
       files.clear()
+      deps.release?.()
     },
   }
 }

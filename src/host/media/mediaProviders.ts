@@ -95,7 +95,7 @@ export function createMediaAttachDeps(
   settings: () => MediaHostSettings,
   open: MediaHostOpen['open'],
   binding: {
-    readonly attached: Pick<AttachedMedia, 'register'>
+    readonly attached: Pick<AttachedMedia, 'register' | 'release' | 'releaseOwner'>
     /** D85.7's question, as the editor's own modal. */
     readonly askContributor?: ConstructorParameters<typeof MediaContributorConsent>[0]
     readonly transcribesSound?: MediaAttachDeps['transcribesSound']
@@ -106,6 +106,8 @@ export function createMediaAttachDeps(
     binding.askContributor === undefined
       ? undefined
       : new MediaContributorConsent(binding.askContributor)
+  // This port's registrations are its own: a new conversation lets them go.
+  const owner = randomUUID()
   return {
     newToken: () => randomUUID(),
     open,
@@ -116,8 +118,17 @@ export function createMediaAttachDeps(
         randomUUID(),
         { name: file.name, info, sha256 },
         reopeningSource(() => open(file)),
+        owner,
       )
-      return () => part
+      return {
+        part: () => part,
+        release: () => {
+          binding.attached.release(part.token)
+        },
+      }
+    },
+    release: () => {
+      binding.attached.releaseOwner(owner)
     },
     ...(consent !== undefined && {
       chooseContributor: (request) => consent.choose(request),

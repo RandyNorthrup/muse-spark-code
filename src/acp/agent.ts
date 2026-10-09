@@ -2106,6 +2106,16 @@ class AcpSession {
         .splice(0)
         .flatMap((attachment) => (attachment.dispose === undefined ? [] : [attachment.dispose()])),
     )
+    // The registry lets go of what this session attached (RVMEDIAV 7).
+    if (this.media === undefined) return
+    let port: AcpMediaPort
+    try {
+      port = await this.media
+    } catch {
+      // A port that never loaded registered nothing.
+      return
+    }
+    port.release()
   }
 }
 

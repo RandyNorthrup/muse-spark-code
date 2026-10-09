@@ -831,6 +831,7 @@
     "uploadFailed": "Upload fehlgeschlagen: {reason}",
     "uploadExpired": "Der Upload ist abgelaufen. Hänge {name} erneut an.",
     "sourceChanged": "{name} wurde seit dem Upload geändert. Hänge die Datei erneut an.",
+    "attachedLimit": "Zu viele Video- und Audioanhänge sind in Verwendung. Warte, bis eine Antwort fertig ist, und hänge die Datei dann erneut an.",
     "uploadedFiles": "Hochgeladene Dateien",
     "filesOurs": "Von dieser App hochgeladen",
     "filesOtherApp": "Aus einer anderen App",

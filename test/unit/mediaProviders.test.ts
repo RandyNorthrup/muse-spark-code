@@ -15,6 +15,11 @@ import { videoFixture, wavFixture } from './helpers/media/fixtures'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 
+/** The attach limits a host's settings supply. */
+function settings() {
+  return { mediaMaxUploadMiB: 25, screenRecordingMaxSeconds: 120 }
+}
+
 describe('M105 W host media providers', () => {
   it('reads upload and recording limits from settings', () => {
     expect(
@@ -82,11 +87,13 @@ describe('M105 W host media providers', () => {
     const info = sniffMediaBytes(bytes)
     if (info === undefined) throw new Error('fixture must sniff')
     const sha256 = createHash('sha256').update(bytes).digest('hex')
-    const part = deps.bind(
-      { name: 'clip.mov', fsPath: '/approved/clip.mov', relativePath: undefined },
-      info,
-      sha256,
-    )({ id: 'chip', name: 'clip.mov', mediaType: info.mediaType, sizeBytes: info.sizeBytes })
+    const part = deps
+      .bind(
+        { name: 'clip.mov', fsPath: '/approved/clip.mov', relativePath: undefined },
+        info,
+        sha256,
+      )
+      .part({ id: 'chip', name: 'clip.mov', mediaType: info.mediaType, sizeBytes: info.sizeBytes })
     expect(part).toMatchObject({ type: 'media', name: 'clip.mov', sha256 })
     // Metadata and a token only: no bytes or path in the part.
     expect(JSON.stringify(part)).not.toContain('/approved')
@@ -100,6 +107,29 @@ describe('M105 W host media providers', () => {
     expect(Buffer.concat(chunks).equals(Buffer.from(bytes))).toBe(true)
     expect(part.type === 'media' && (await attached.path(part.token))).toBe('/approved/clip.mov')
     expect(open).toHaveBeenCalledTimes(2)
+  })
+
+  it('releases a discarded chip’s registration and, with the conversation, the port’s own (RVMEDIAV 7)', () => {
+    const attached = new AttachedMedia()
+    const bytes = videoFixture()
+    const info = sniffMediaBytes(bytes)
+    if (info === undefined) throw new Error('fixture must sniff')
+    const sha256 = createHash('sha256').update(bytes).digest('hex')
+    const open = vi.fn(() => Promise.resolve(undefined))
+    const deps = createMediaAttachDeps(settings, open, { attached })
+    const other = createMediaAttachDeps(settings, open, { attached })
+    const file = { name: 'clip.mov', fsPath: '/approved/clip.mov', relativePath: undefined }
+    const summary = { id: 'chip', name: 'clip.mov', mediaType: info.mediaType, sizeBytes: 1 }
+    const discarded = deps.bind(file, info, sha256)
+    const kept = deps.bind(file, info, sha256)
+    const elsewhere = other.bind(file, info, sha256)
+    discarded.release()
+    expect(attached.resolve(discarded.part(summary))).toBeUndefined()
+    expect(attached.resolve(kept.part(summary))).toBeDefined()
+    deps.release?.()
+    expect(attached.resolve(kept.part(summary))).toBeUndefined()
+    // Another composer's registration is not this port's to release.
+    expect(attached.resolve(elsewhere.part(summary))).toBeDefined()
   })
 
   it('stops an attached source whose bytes changed before its last chunk goes', async () => {

@@ -839,6 +839,7 @@
     "uploadFailed": "Przesyłanie nie powiodło się: {reason}",
     "uploadExpired": "Przesłany plik wygasł. Dołącz ponownie {name}.",
     "sourceChanged": "{name} zmienił się od przesłania. Dołącz go ponownie.",
+    "attachedLimit": "W użyciu jest zbyt wiele załączników wideo i audio. Poczekaj, aż odpowiedź się zakończy, a następnie dołącz plik ponownie.",
     "uploadedFiles": "Przesłane pliki",
     "filesOurs": "Przesłano przez tę aplikację",
     "filesOtherApp": "Z innej aplikacji",

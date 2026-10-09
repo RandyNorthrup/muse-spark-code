@@ -831,6 +831,7 @@
     "uploadFailed": "A feltöltés sikertelen: {reason}",
     "uploadExpired": "A feltöltés lejárt. Csatolja újra a(z) {name} fájlt.",
     "sourceChanged": "A(z) {name} megváltozott a feltöltés óta. Csatolja újra.",
+    "attachedLimit": "Túl sok videó- és hangmelléklet van használatban. Várd meg, amíg egy válasz befejeződik, majd csatold újra.",
     "uploadedFiles": "Feltöltött fájlok",
     "filesOurs": "Ez az alkalmazás töltötte fel",
     "filesOtherApp": "Másik alkalmazásból",

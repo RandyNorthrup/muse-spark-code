@@ -827,6 +827,7 @@
     "uploadFailed": "업로드 실패: {reason}",
     "uploadExpired": "업로드가 만료되었습니다. {name}을(를) 다시 첨부하세요.",
     "sourceChanged": "업로드 후 {name}이(가) 변경되었습니다. 다시 첨부하세요.",
+    "attachedLimit": "사용 중인 동영상 및 오디오 첨부 파일이 너무 많습니다. 응답이 끝날 때까지 기다린 후 다시 첨부하세요.",
     "uploadedFiles": "업로드된 파일",
     "filesOurs": "이 앱에서 업로드함",
     "filesOtherApp": "다른 앱에서 가져옴",

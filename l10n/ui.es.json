@@ -835,6 +835,7 @@
     "uploadFailed": "Error al subir: {reason}",
     "uploadExpired": "La subida ha caducado. Adjunta {name} de nuevo.",
     "sourceChanged": "{name} ha cambiado desde la subida. Adjúntalo de nuevo.",
+    "attachedLimit": "Hay demasiados adjuntos de vídeo y audio en uso. Espera a que termine una respuesta y vuelve a adjuntarlo.",
     "uploadedFiles": "Archivos subidos",
     "filesOurs": "Subido por esta aplicación",
     "filesOtherApp": "De otra aplicación",

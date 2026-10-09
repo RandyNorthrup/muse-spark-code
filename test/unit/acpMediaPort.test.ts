@@ -6,9 +6,9 @@ import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { runtimeMediaPort, type RuntimeMediaPortDeps } from '../../src/acp/mediaPort'
 import type { AcpMediaContext } from '../../src/acp/media'
-import { AttachedMedia } from '../../src/core/media/attachedMedia'
+import { AttachedMedia, type AttachedSource } from '../../src/core/media/attachedMedia'
 import { sniffMediaBytes } from '../../src/core/media/limits'
-import { UI_TEXT } from '../../src/shared/constants'
+import { MEDIA_ATTACHED_MAX_ENTRIES, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { videoFixture, wavFixture } from './helpers/media/fixtures'
 
@@ -108,5 +108,116 @@ describe('the runtime media port (M105 lane V seam 5)', () => {
       width: 1,
       height: 1,
     })
+  })
+})
+
+/** A source over fixed bytes that counts its reads, or one whose file is gone. */
+function counted(bytes: Uint8Array | undefined) {
+  const reads = { count: 0 }
+  const chunk = bytes === undefined ? undefined : Promise.resolve(bytes)
+  const source: AttachedSource = {
+    read: async function* () {
+      reads.count += 1
+      if (chunk === undefined) throw new Error('old file gone')
+      yield await chunk
+    },
+    path: () => Promise.resolve(undefined),
+  }
+  return { source, reads }
+}
+
+function wavRecord(bytes: Uint8Array) {
+  const info = sniffMediaBytes(bytes)
+  if (info?.kind !== 'audio') throw new Error('fixture must sniff as audio')
+  return { name: 'clip.wav', info, sha256: createHash('sha256').update(bytes).digest('hex') }
+}
+
+describe('attached-media registrations: identity, ownership and bound (RVMEDIAV 5, 7)', () => {
+  it('uploads from the current token, never an obsolete byte-identical registration (finding 5)', async () => {
+    const bytes = wavFixture()
+    const registry = new AttachedMedia()
+    // /a/clip.wav attached, its chip discarded and the file deleted; then
+    // the byte-identical /b/clip.wav attached.
+    const stale = counted(undefined)
+    const fresh = counted(bytes)
+    registry.register('stale', wavRecord(bytes), stale.source)
+    const part = registry.register('fresh', wavRecord(bytes), fresh.source)
+    const record = registry.resolve(part)
+    if (record === undefined) throw new Error('expected the fresh record')
+    const read = await Array.fromAsync(registry.source(record)?.open(signal) ?? [])
+    expect(Buffer.concat(read)).toEqual(Buffer.from(bytes))
+    expect([stale.reads.count, fresh.reads.count]).toEqual([0, 1])
+  })
+
+  it('removes a discarded registration; a turn that claimed it keeps it until it ends (finding 5, 7)', () => {
+    const bytes = wavFixture()
+    const registry = new AttachedMedia()
+    const discarded = registry.register('discarded', wavRecord(bytes), counted(bytes).source)
+    registry.release('discarded')
+    expect(registry.resolve(discarded)).toBeUndefined()
+    const sent = registry.register('sent', wavRecord(bytes), counted(bytes).source, 'composer')
+    const complete = registry.claim([sent])
+    registry.release('sent')
+    registry.releaseOwner('composer')
+    expect(registry.resolve(sent)).toBeDefined()
+    complete()
+    expect(registry.resolve(sent)).toBeUndefined()
+  })
+
+  it('lets a released session go of its embedded bytes, keeping the running turn’s (finding 7)', async () => {
+    const attached = new AttachedMedia()
+    let next = 0
+    const media = runtimeMediaPort(
+      {
+        cwd: '/ws',
+        sessionId: 'session',
+        backend: 'modelApi',
+        modelId: () => CONTRIBUTOR,
+        interactive: true,
+      },
+      {
+        platform: 'linux',
+        io: {
+          realPath: (given) => Promise.resolve(given),
+          readMedia: () => Promise.reject(new Error('embedded only')),
+          readBytes: () => Promise.reject(new Error('embedded only')),
+        },
+        attached,
+        newToken: () => `token-${String(++next)}`,
+        transcribesSound: () => true,
+      },
+    )
+    const data = Buffer.from(wavFixture()).toString('base64')
+    const parts = []
+    for (let index = 0; index < 3; index++) {
+      const part = await media.block({ type: 'audio', data, mimeType: 'audio/wav' }, signal)
+      if (typeof part === 'string') throw new Error(part)
+      parts.push(part)
+    }
+    const [running, ...idle] = parts
+    if (running === undefined) throw new Error('expected parts')
+    const complete = attached.claim([running])
+    media.release()
+    for (const part of idle) expect(attached.resolve(part)).toBeUndefined()
+    expect(attached.resolve(running)).toBeDefined()
+    complete()
+    expect(attached.resolve(running)).toBeUndefined()
+  })
+
+  it('holds a process-wide bound: the oldest idle registration makes room, in-use ones refuse (finding 7)', () => {
+    const bytes = wavFixture()
+    const registry = new AttachedMedia()
+    const parts = Array.from({ length: MEDIA_ATTACHED_MAX_ENTRIES }, (_, index) =>
+      registry.register(`token-${String(index)}`, wavRecord(bytes), counted(bytes).source),
+    )
+    const [oldest, second] = parts
+    if (oldest === undefined || second === undefined) throw new Error('expected parts')
+    registry.register('one-more', wavRecord(bytes), counted(bytes).source)
+    expect(registry.resolve(oldest)).toBeUndefined()
+    expect(registry.resolve(second)).toBeDefined()
+    registry.claim([...parts.slice(1), { type: 'media', token: 'one-more', ...wavRecord(bytes) }])
+    expect(() => registry.register('refused', wavRecord(bytes), counted(bytes).source)).toThrow(
+      UI_TEXT.media.attachedLimit,
+    )
   })
 })

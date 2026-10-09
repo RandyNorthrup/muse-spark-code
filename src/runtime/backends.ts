@@ -630,6 +630,13 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       if (registry === undefined) throw new Error(UI_TEXT.attachmentUnreadable)
       return registry.read(token, signal)
     },
+    // Nothing registered yet: a turn has nothing to claim.
+    claim: (parts) => {
+      const release = registry?.claim(parts)
+      return () => {
+        release?.()
+      }
+    },
   }
   const mediaIo = new Map<string, ToolIo>()
   const credentials = new CredentialStore(
@@ -853,6 +860,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         ...Array.from(modelApiHosts.values(), ({ manager }) => manager),
       ]
       await Promise.all(managers.map((manager) => manager.dispose()))
+      // Every attached source, embedded bytes included, ends with the runtime.
+      registry?.clear()
     },
   }
 }

@@ -17372,7 +17372,7 @@ function syntheticMediaPart() {
   return { type: 'text' as const, text: 'synthetic media part' }
 }
 function bindSyntheticMediaPart() {
-  return syntheticMediaPart
+  return { part: syntheticMediaPart, release: () => undefined }
 }
 function mediaRig(bytes = videoFixture(), backendKind: 'museCode' | 'modelApi' = 'modelApi') {
   const t = setup({ backendKind })

@@ -1007,6 +1007,8 @@ export const EN = {
     uploadFailed: 'Upload failed: {reason}',
     uploadExpired: 'The upload expired. Attach {name} again.',
     sourceChanged: '{name} changed since upload. Attach it again.',
+    attachedLimit:
+      'Too many video and audio attachments are in use. Wait for a reply to finish, then attach again.',
     uploadedFiles: 'Uploaded files',
     filesOurs: 'Uploaded by this app',
     filesOtherApp: 'From another app',

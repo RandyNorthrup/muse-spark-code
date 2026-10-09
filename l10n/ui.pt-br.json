@@ -835,6 +835,7 @@
     "uploadFailed": "Falha no envio: {reason}",
     "uploadExpired": "O envio expirou. Anexe {name} novamente.",
     "sourceChanged": "{name} mudou desde o envio. Anexe-o novamente.",
+    "attachedLimit": "Há anexos de vídeo e áudio demais em uso. Aguarde o término de uma resposta e anexe novamente.",
     "uploadedFiles": "Arquivos enviados",
     "filesOurs": "Enviado por este aplicativo",
     "filesOtherApp": "De outro aplicativo",

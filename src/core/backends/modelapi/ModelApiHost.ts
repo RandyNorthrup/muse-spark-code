@@ -1153,6 +1153,8 @@ export interface ActiveTurn {
   pendingUserMessageId?: string | undefined
   readonly abort: AbortController
   readonly inputParts: TurnPart[]
+  /** The attached media this turn carries, released when it ends (RVMEDIAV 7). */
+  readonly mediaClaims: (() => void)[]
   /** In-memory request choice, never the session's persisted model setting. */
   audioMessage?: PreparedAudioMessage
   confirmedRequest?: ConfirmedModelRequest
@@ -13178,6 +13180,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         continue
       }
       turn.inputParts.push(...parts)
+      if (this.deps.attachedMedia !== undefined)
+        turn.mediaClaims.push(this.deps.attachedMedia.claim(parts))
       this.recordTranscript(turn.turnId, row)
       turn.steered.shift()
       // It is in the request now (M87): an Edit can no longer take it back.
@@ -13786,6 +13790,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(queued.userMessageId !== undefined && { pendingUserMessageId: queued.userMessageId }),
       abort: new AbortController(),
       inputParts: [...queued.parts],
+      mediaClaims:
+        this.deps.attachedMedia === undefined ? [] : [this.deps.attachedMedia.claim(queued.parts)],
       steered: [],
       acceptedTextAttachmentBytes: textAttachmentBytes(queued.parts),
       modelFailure: undefined,
@@ -14080,6 +14086,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     // Every exit preserves input the last request did not admit, including
     // incomplete replies and steering accepted while finalization awaited.
     this.promoteSteered(turn)
+    // Its one-use media tokens end with it: a later turn attaches again.
+    for (const release of turn.mediaClaims.splice(0)) release()
     this.active = undefined
     const pendingRun = this.owner.run(turn.turnId)
     if (pendingRun !== undefined && turn.scheduleRun === undefined) {

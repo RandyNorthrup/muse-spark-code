@@ -827,6 +827,7 @@
     "uploadFailed": "アップロード失敗: {reason}",
     "uploadExpired": "アップロードの期限が切れました。{name} を再度添付してください。",
     "sourceChanged": "アップロード後に {name} が変更されました。再度添付してください。",
+    "attachedLimit": "使用中の動画・音声の添付が多すぎます。応答が終わるのを待ってから、もう一度添付してください。",
     "uploadedFiles": "アップロード済みファイル",
     "filesOurs": "このアプリがアップロード",
     "filesOtherApp": "別のアプリから",

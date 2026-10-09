@@ -835,6 +835,7 @@
     "uploadFailed": "Caricamento non riuscito: {reason}",
     "uploadExpired": "Il caricamento è scaduto. Allega di nuovo {name}.",
     "sourceChanged": "{name} è cambiato dopo il caricamento. Allegalo di nuovo.",
+    "attachedLimit": "Troppi allegati video e audio sono in uso. Attendi la fine di una risposta, poi allegalo di nuovo.",
     "uploadedFiles": "File caricati",
     "filesOurs": "Caricato da questa app",
     "filesOtherApp": "Da un’altra app",

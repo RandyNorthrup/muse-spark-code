@@ -839,6 +839,7 @@
     "uploadFailed": "Nahrání selhalo: {reason}",
     "uploadExpired": "Platnost nahrání vypršela. Znovu přiložte {name}.",
     "sourceChanged": "{name} se od nahrání změnil. Znovu jej přiložte.",
+    "attachedLimit": "Používá se příliš mnoho videí a zvukových příloh. Počkejte na dokončení odpovědi a pak přílohu připojte znovu.",
     "uploadedFiles": "Nahrané soubory",
     "filesOurs": "Nahráno touto aplikací",
     "filesOtherApp": "Z jiné aplikace",

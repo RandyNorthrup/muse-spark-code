@@ -579,6 +579,8 @@ describe('attached video through the session media service (M105 lane V seam 1)'
       expect(rig.files.uploads).toHaveLength(1)
       expect(JSON.stringify(rig.api.responseBodies()[1])).toContain(fileId)
       expect(reads.count).toBe(1)
+      // The finished turn's one-use token is released (RVMEDIAV 7).
+      expect(registry.resolve(part)).toBeUndefined()
     } finally {
       await rig.host.close()
     }

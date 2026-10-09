@@ -835,6 +835,7 @@
     "uploadFailed": "Échec de l’envoi : {reason}",
     "uploadExpired": "Le fichier envoyé a expiré. Joignez à nouveau {name}.",
     "sourceChanged": "{name} a changé depuis l’envoi. Joignez-le à nouveau.",
+    "attachedLimit": "Trop de pièces jointes vidéo et audio sont en cours d’utilisation. Attendez la fin d’une réponse, puis joignez-la à nouveau.",
     "uploadedFiles": "Fichiers envoyés",
     "filesOurs": "Téléversé par cette application",
     "filesOtherApp": "Depuis une autre application",

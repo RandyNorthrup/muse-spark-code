@@ -6,7 +6,11 @@
 // and the audio seam converts or transcribes from it. No bytes, path or
 // credential ever reaches the browser, the transcript or the session file.
 import { createHash } from 'node:crypto'
-import { MEDIA_ATTACHED_READ_CHUNK_BYTES, UI_TEXT } from '../../shared/constants'
+import {
+  MEDIA_ATTACHED_MAX_ENTRIES,
+  MEDIA_ATTACHED_READ_CHUNK_BYTES,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { storedMediaPartSchema, type StoredMediaPart } from '../../shared/media'
 import type { MediaFilePart, TurnPart } from '../agent/agentBackend'
@@ -24,6 +28,15 @@ export interface AttachedSource {
 interface Entry {
   readonly media: StoredMediaPart
   readonly source: AttachedSource
+  /** Who attached it (a composer, an ACP session); released with its owner. */
+  readonly owner: string | undefined
+  /** Turns using it now: a claimed entry outlives discard and owner release. */
+  claims: number
+}
+
+/** One attached file's identity as a record carries it: digest, name and size. */
+function identity(media: StoredMediaPart): string {
+  return `${media.sha256}\u{0}${String(media.info.sizeBytes)}\u{0}${media.name}`
 }
 
 /**
@@ -50,9 +63,16 @@ async function* verified(
   if (held !== undefined) yield held
 }
 
-/** One per host: the attach port writes, the media service and audio seam read. */
+/**
+ * One per host: the attach port writes, the media service and audio seam
+ * read. Registrations are owned (RVMEDIAV 7): a discarded chip, a disposed
+ * session or a finished turn releases its own, a running turn keeps the
+ * ones it claimed, and the whole registry is bounded.
+ */
 export class AttachedMedia {
   private readonly entries = new Map<string, Entry>()
+  /** The token each identity last resolved through: its source is the one uploaded. */
+  private readonly current = new Map<string, string>()
 
   private entry(part: TurnPart): Entry | undefined {
     if (part.type !== 'media') return undefined
@@ -64,20 +84,80 @@ export class AttachedMedia {
       : undefined
   }
 
-  /** Registers a sniffed, hashed file under its one-use token. */
-  public register(token: string, media: StoredMediaPart, source: AttachedSource): MediaFilePart {
+  private delete(token: string): void {
+    const entry = this.entries.get(token)
+    if (entry === undefined) return
+    this.entries.delete(token)
+    const key = identity(entry.media)
+    if (this.current.get(key) === token) this.current.delete(key)
+  }
+
+  /**
+   * Registers a sniffed, hashed file under its one-use token. At the bound,
+   * the oldest registration no turn is using makes room; when every one is
+   * in use, the attachment is refused.
+   */
+  public register(
+    token: string,
+    media: StoredMediaPart,
+    source: AttachedSource,
+    owner?: string,
+  ): MediaFilePart {
     const parsed = storedMediaPartSchema.parse(media)
     if (parsed.info.kind !== 'video' && parsed.info.kind !== 'audio')
       throw new Error('Only video and audio attach by token')
     if (this.entries.has(token)) throw new Error('Duplicate media path token')
-    this.entries.set(token, { media: parsed, source })
+    if (this.entries.size >= MEDIA_ATTACHED_MAX_ENTRIES) {
+      const idle = [...this.entries].find(([, entry]) => entry.claims === 0)
+      if (idle === undefined) throw new Error(UI_TEXT.media.attachedLimit)
+      this.delete(idle[0])
+    }
+    this.entries.set(token, { media: parsed, source, owner, claims: 0 })
     return { type: 'media', token, name: parsed.name, info: parsed.info, sha256: parsed.sha256 }
   }
 
   /** The stored record a `media` part stands for; a stale or forged part has none. */
   public resolve(part: TurnPart): StoredMediaPart | undefined {
     const entry = this.entry(part)
-    return entry === undefined ? undefined : storedMediaPartSchema.parse(entry.media)
+    if (entry === undefined || part.type !== 'media') return undefined
+    this.current.set(identity(entry.media), part.token)
+    return storedMediaPartSchema.parse(entry.media)
+  }
+
+  /**
+   * A turn takes the media parts it carries: discard and owner release pass
+   * them by, and the returned completion releases them (one-use tokens).
+   */
+  public claim(parts: readonly TurnPart[]): () => void {
+    const tokens = parts.flatMap((part) =>
+      part.type === 'media' && this.entries.has(part.token) ? [part.token] : [],
+    )
+    for (const token of tokens) {
+      const entry = this.entries.get(token)
+      if (entry !== undefined) entry.claims += 1
+    }
+    let isDone = false
+    return () => {
+      if (isDone) return
+      isDone = true
+      for (const token of tokens) {
+        const entry = this.entries.get(token)
+        if (entry === undefined) continue
+        entry.claims -= 1
+        if (entry.claims === 0) this.delete(token)
+      }
+    }
+  }
+
+  /** A discarded attachment: gone unless a running turn holds it. */
+  public release(token: string): void {
+    if (this.entries.get(token)?.claims === 0) this.delete(token)
+  }
+
+  /** A disposed composer or session: its registrations no turn holds are gone. */
+  public releaseOwner(owner: string): void {
+    for (const [token, entry] of this.entries)
+      if (entry.owner === owner && entry.claims === 0) this.delete(token)
   }
 
   /** The audio seam's view: metadata and the opaque token, never a path. */
@@ -102,35 +182,39 @@ export class AttachedMedia {
     return await this.entries.get(token)?.source.path()
   }
 
-  /** The upload source for an attached record, matched by digest, name and size. */
+  /**
+   * The upload source for an attached record (RVMEDIAV 5): the token that
+   * record last resolved through, else the newest registration with its
+   * digest, name and size. An older, obsolete registration never shadows it.
+   */
   public source(media: StoredMediaPart): UploadSource | undefined {
-    for (const entry of this.entries.values()) {
-      if (
-        entry.media.sha256 !== media.sha256 ||
-        entry.media.name !== media.name ||
-        entry.media.info.sizeBytes !== media.info.sizeBytes
-      )
-        continue
-      return {
-        name: media.name,
-        mime: media.info.mediaType,
-        bytes: media.info.sizeBytes,
-        open: (signal) => verified(entry.source.read(signal), entry.media),
-      }
+    const key = identity(media)
+    const token = this.current.get(key)
+    let entry = token === undefined ? undefined : this.entries.get(token)
+    if (entry === undefined)
+      for (const candidate of this.entries.values())
+        if (identity(candidate.media) === key) entry = candidate
+    if (entry === undefined) return undefined
+    const found = entry
+    return {
+      name: media.name,
+      mime: media.info.mediaType,
+      bytes: media.info.sizeBytes,
+      open: (signal) => verified(found.source.read(signal), found.media),
     }
-    return undefined
   }
 
-  /** New conversation: every token lapses. */
+  /** The runtime closes: every token lapses. */
   public clear(): void {
     this.entries.clear()
+    this.current.clear()
   }
 }
 
 /** What the session's media service and audio seam read; the attach port writes. */
 export type AttachedMediaPort = Pick<
   AttachedMedia,
-  'resolve' | 'source' | 'audio' | 'path' | 'read'
+  'resolve' | 'source' | 'audio' | 'path' | 'read' | 'claim'
 >
 
 /**

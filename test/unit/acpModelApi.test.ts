@@ -7,6 +7,7 @@ import { Readable } from 'node:stream'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
 import { createRuntimeBackend } from '../../src/runtime/backends'
+import { AttachedMedia } from '../../src/core/media/attachedMedia'
 import { pinnedHttpsRequest } from '../../src/host/web/pinnedRequest'
 import { paidGrantsFile, agentDataFolder } from '../../src/runtime/dataFolder'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
@@ -260,6 +261,26 @@ describe('the ACP agent on the Model API backend (M63)', () => {
     }
     expect(offered).toContain('write_file')
     await t.runtime.close()
+  })
+
+  it('clears the attached-media registry, embedded sources included, when the runtime closes (RVMEDIAV 7)', async () => {
+    const clear = vi.spyOn(AttachedMedia.prototype, 'clear')
+    const t = setup(allowOnce)
+    try {
+      const media = await t.runtime.media?.({
+        cwd: t.workspace,
+        sessionId: 'session',
+        backend: 'modelApi',
+        modelId: () => 'muse-spark-1.3',
+        interactive: true,
+      })
+      expect(media).toBeDefined()
+      expect(clear).not.toHaveBeenCalled()
+    } finally {
+      await t.runtime.close()
+    }
+    expect(clear).toHaveBeenCalledOnce()
+    clear.mockRestore()
   })
 
   it('converts an admitted public page through the portable runtime worker', async () => {
