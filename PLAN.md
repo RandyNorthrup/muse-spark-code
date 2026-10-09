@@ -20317,20 +20317,40 @@ regression cases fail on `2fa594639`; 26 red drills. Open: RVM124 finding 15
 KiB; `dist/extension.js` unchanged. Record:
 [`docs/certification/m124-local.md`](docs/certification/m124-local.md).
 
-| From → to                                                      | When                                                                                                                  |
-| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `received` → `admitted` / `refused` / `cancelled`              | Admission (kill switch, rate token, strict input, grant, scope, confidential policy, durable admitted receipt) or not |
-| `admitted` → `dispatching`                                     | A read, retry, status or Stop: the gate passed; its lease or owner port starts in that tick                           |
-| `admitted` → `awaitingApproval`                                | A write: durable intent receipt, pending lease, our page holds the exact intent                                       |
-| `admitted` → `refused` / `cancelled` / `failed`                | Reused request id, stale target, no room, receipt failure / the authority stopped it / an owner read failed           |
-| `awaitingApproval` → `approved`                                | Our page approved the shown digest                                                                                    |
-| `awaitingApproval` → `cancelled` / `refused` / `failed`        | Denied, expired, Stop, disconnect, revocation, kill switch, client cancel / no approval surface / owner failure       |
-| `approved` → `dispatching`                                     | Dispatch receipt written ahead, authority and target read again, final gate and the approval's CAS: the write starts  |
-| `approved` → `cancelled` / `failed`                            | The final gate refused / the receipt or re-read failed                                                                |
-| `dispatching` → `settled` / `refused` / `cancelled` / `failed` | Done (reads past the delivery gate) / result over 64 KiB or withheld / a read's delivery gate refused / owner failure |
+| From → to                                                      | When                                                                                                                                                                                    |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `received` → `admitted` / `refused` / `cancelled`              | Admission (kill switch, rate token, strict input, grant, scope, confidential policy, durable admitted receipt) or not                                                                   |
+| `admitted` → `dispatching`                                     | A read, retry, status or Stop: the gate passed; its lease or owner port starts in that tick                                                                                             |
+| `admitted` → `awaitingApproval`                                | A write: durable intent receipt, pending lease, our page holds the exact intent                                                                                                         |
+| `admitted` → `refused` / `cancelled` / `failed`                | Reused request id, stale target, no room, receipt failure / the authority stopped it / an owner read failed                                                                             |
+| `awaitingApproval` → `approved`                                | Our page approved the shown digest and the approved receipt is durable                                                                                                                  |
+| `awaitingApproval` → `cancelled` / `refused` / `failed`        | Denied, expired, Stop, disconnect, revocation, kill switch, client cancel / no approval surface / receipt or owner failure                                                              |
+| `approved` → `dispatching`                                     | Dispatch receipt written ahead, target re-read, then the authority re-read as the last wait; final gate and CAS: the write starts                                                       |
+| `approved` → `cancelled` / `failed`                            | The final gate refused / the receipt or the target re-read failed                                                                                                                       |
+| `dispatching` → `settled` / `refused` / `cancelled` / `failed` | A read past its delivery gate with a durable settled receipt, or a returned write / result over 64 KiB or withheld / a read before its delivery gate / owner or settled-receipt failure |
 
 `settled`, `refused`, `cancelled` and `failed` are terminal; a started write
-is never cancelled (Stop answers `stopRequested`).
+or a committed read result is never cancelled (Stop answers
+`stopRequested`).
+
+**M124 round 4 (2026-10-09, same branch).** The review of the redesign
+(RVM124R3: 1 P1, 4 P2) found the defect class one level down: acting on
+authority captured before a wait. Closed: the final gate reads a live
+authority (`AuthorityPort`: the store's is updated on a file-system notice
+for the grant or kill-switch file and re-read as the last wait before every
+final gate; an older reading never overwrites a newer one), after the
+target re-read, so revocation, the kill switch, a replaced scope or a
+removed workspace or user library during that re-read writes nothing (P1);
+admitted, awaiting-approval, approved, dispatching and a read's settled
+receipts are written ahead and fail closed, and `move` refuses those
+transitions without them (P2-2); the whole call, delivery included, races
+its operation's end and the connection's close (P2-3); the transport never
+waits for the journal, whose best-effort receipts are tallied with a
+`count` under a full backlog, so Stop is never queued behind receipts
+(P2-4); only an edge of the table is journaled (finding 5). 20 regression
+cases fail on `ddd7d8da3`; 37 red drills. RVM124 finding 15 stays open
+(what remains is in the record). `dist/connector.js` 101,671 bytes of 100
+KiB; `dist/extension.js` unchanged.
 
 - **Goal.** Other agents can inspect the user's fleet and evidence, request
   bounded orchestration, ask for deterministic advice/reports, and manage

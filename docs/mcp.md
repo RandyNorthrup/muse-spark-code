@@ -153,11 +153,13 @@ Stop; a client that leaves 1 MiB of replies unread, or closes either pipe,
 is disconnected, and its pending approvals are cancelled. Stop and schedule
 cancel never meet these limits, the kill switch or an audit failure.
 
-Revoking a grant, switching the connector off or disconnecting stops every
-call that has not started its effect, at once: an approved save whose write
-has not begun is cancelled, a read in progress is not answered, and no call
-takes a slot after it ended. A write already under way finishes (Stop then
-answers `stopRequested`).
+Revoking a grant, changing its scopes or workspaces, switching the
+connector off or disconnecting stops every call that has not started its
+effect, at once: an approved save whose write has not begun is cancelled, a
+read in progress is not answered, and no call takes a slot after it ended.
+The connector notices a change to its grant or kill-switch file as it
+happens, and reads both again right before every effect. A write already
+under way finishes (Stop then answers `stopRequested`).
 
 ## What it records and returns
 
@@ -171,11 +173,16 @@ unknown method, busy) leaves one `transport` line with its JSON-RPC code
 only. Your `mcp grant` and `mcp revoke` leave a `control` line in that
 connection's file; `mcp kill` and `mcp resume` in `connector/audit/_owner.jsonl`.
 These control lines are best effort: your own command never waits for the
-journal. If the journal cannot be written, calls refuse with
-`audit_unavailable` (and that refusal's own line may be missing too); a
-journal that does not answer within 5 seconds counts as failed until it
-does. Stop is the exception: it never waits for the journal. The live file
-rotates at 10 MiB; the older segment is removed after 30 days. Results pass the shared redactor (registered credentials,
+journal. Each step's line is written before the step happens; if the
+journal cannot be written, nothing starts and the call refuses with
+`audit_unavailable` (that refusal's own line may be missing too), and a read
+whose final line cannot be written is never answered `ok`. A journal that
+does not answer within 5 seconds counts as failed until it does. Stop is
+the exception: it never waits for the journal. Nothing that reads your
+client's frames waits for it either: when 64 lines are being written at
+once, further refusal lines are counted into one line with a `count` until
+the journal catches up. The live file rotates at 10 MiB; the older segment
+is removed after 30 days. Results pass the shared redactor (registered credentials,
 known key patterns, your home folder and other absolute paths) and a final
 whole-result scrub; a result that still changes there is withheld. Prompt
 bodies and previews you allow are returned to the calling agent and may

@@ -21,14 +21,16 @@ happened, not what was planned; superseded entries are kept.
   share publishing answer `unavailable`, with their reason. Connections
   are granted in your own terminal (`mcp grant`, with workspaces, families
   and an optional content flag) and stopped with `mcp revoke` or `mcp
-  kill`; paid authority stays zero. Revoking, switching off or
+  kill`; paid authority stays zero. Revoking, narrowing, switching off or
   disconnecting stops at once every call that has not started its effect,
-  an approved save included. Results are scrubbed; every call leaves one
-  audit line per step and exactly one that says how it ended, refused
+  an approved save included; the connector notices those changes as they
+  happen and reads them again right before every effect. Results are
+  scrubbed; every call leaves one audit line per step, written before the
+  step, and exactly one that says how it ended, refused
   frames and your own grant, revoke, kill and resume commands leave theirs
   too; frames, results, rates, polls and pending approvals are bounded,
   and the limits are shared by every process of a connection. The
-  connector loads from its own `connector.js` (97.5 KiB, budget 100 KiB);
+  connector loads from its own `connector.js` (99.3 KiB, budget 100 KiB);
   activation is unchanged and `acp.js` gains only the 1.3 KiB loader. The
   hosted connector for ChatGPT and claude.ai (OAuth over HTTPS) is planned,
   not built; no client has been qualified yet, and the client setup

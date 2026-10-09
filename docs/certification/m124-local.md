@@ -446,3 +446,180 @@ add`) and the configuration snippets: running them writes the owner's
   `y` ran through the interactive port, not a real terminal.
 - RVM124 finding 15 (storage ownership, Windows DACL) stays open.
 - The open items of the local phase above are unchanged.
+
+## M124 round 4: live authority, fail-closed receipts, raced waits (RVM124R3, 2026-10-09)
+
+Same branch, from `ddd7d8da3`: the code in `70568cb39`; three tests for
+guards that had none of their own in `a788286d3` and `277bda2f3`; this
+record and the docs in the commit after them. Vitest on Kubuntu and the Mac
+mini through `rig-test.sh` and natively on Windows (repository default
+timeouts, complete owning files). No model call, key, network request or
+client configuration change; **zero model attempts**.
+
+The review of the redesign (`RVM124R3.report.md`: 1 P1, 4 P2) found the
+same defect class one level down: acting on authority captured before a
+wait. Design §3a now says what is true; its earlier claim that the
+authority was read again after every wait before an effect was false.
+
+### What changed
+
+- **A live authority.** `AuthorityPort.current()` is read synchronously at
+  every gate. The store's implementation is updated on a file-system notice
+  for the grant or kill-switch file (a recursive watch on the connector
+  folder, while it exists) and re-read as the last wait before every final
+  gate; an older reading never overwrites a newer one, and it is switched
+  off until its first reading. The approved write's final gate now follows
+  the target re-read and that authority re-read, with nothing awaited
+  before the write. The test harness's authority is live (the test's state
+  is read at every gate); a `snapshot` mode (no change notice ever arrives)
+  proves the re-read before each final gate on its own.
+- **Fail-closed receipts.** Admitted, awaiting approval, approved,
+  dispatching and a read's settled receipt are written ahead; a failed one
+  means no transition and no effect, and `move` refuses those transitions
+  without their receipt (Stop excepted). A read whose settled receipt fails
+  answers `audit_unavailable`. A write's settled receipt is best effort (the
+  write has happened). `writeAhead` journals only an edge of the table from
+  the current state.
+- **Every wait raced.** The whole call, delivery included, races its
+  operation's end and the connection's close. A result decided at its
+  delivery gate is committed (no longer cancelled) while its receipt is
+  written, at most the journal's five-second timeout; a disconnect answers
+  it at once.
+- **Nothing waits for the journal.** The transport no longer waits for the
+  receipts' backlog. A best-effort receipt that meets 64 receipts being
+  written is tallied and written later as one line with its `count`
+  (memory: one counter per distinct receipt), so Stop and cancellation
+  notices are never queued behind receipts.
+
+### Closure, RVM124R3
+
+| Finding                                                               | Sev | Status     | Regression test (fails on `ddd7d8da3`)                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------------------------------------------- | --- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1: approved write after revocation or kill during the target re-read  | P1  | **Closed** | `starts no approved write after revocation / the kill switch / a scope replacement / the workspace’s removal / the user library’s removal while the target is re-read`; `reads the authority again before the write when no change notice arrives`; `starts no owner read after the kill switch during the admitted / dispatching receipt wait`; runtime `keeps the live authority current…`, `drops an authority reading that finishes after a newer one` |
+| 2: non-write-ahead receipt failures ignored                           | P2  | **Closed** | `starts no write when the approved receipt cannot be written`; `starts no owner read when the dispatching receipt cannot be written`; `never answers ok when a read’s settled receipt cannot be written`; `moves to a receipted state only written ahead…`                                                                                                                                                                                                 |
+| 3: cancellation and deadline did not settle a call in delivery's wait | P2  | **Closed** | `settles a call cancelled while delivery reads the authority, at once`; `settles a call at its deadline while delivery reads the authority`; `never holds the transport’s shutdown on a call waiting in delivery, over stdio`; `keeps a result decided at its delivery gate…`                                                                                                                                                                              |
+| 4: Stop and cancellation behind the audit backlog                     | P2  | **Closed** | `answers Stop at once while the journal backlog is full, over stdio`                                                                                                                                                                                                                                                                                                                                                                                       |
+| 5: admission journalled an exit from a terminal operation             | P2  | **Closed** | `journals no edge out of a call cancelled while admission waits`; `moves to a receipted state only written ahead, and writes ahead only an edge of the table`                                                                                                                                                                                                                                                                                              |
+| RVM124 15 (inherited): storage ownership, Windows DACL                | P2  | **Open**   | None (see below)                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+
+Two further cases guard mechanisms `ddd7d8da3` did not have, so they pass
+there: `bounds receipts being written under a flood and still counts every
+refusal` (the tally) and `never holds the transport’s shutdown on a
+committed delivery’s receipt`. The case for finding 4 has no mutation drill
+of its own: its guard is that nothing in the transport waits for the
+journal any more; its red evidence is its failure on `ddd7d8da3`, where
+that wait existed.
+
+**What remains for RVM124 finding 15**, exactly:
+
+1. A POSIX trusted-path verifier. None exists on this branch: the
+   `TrustedPathVerifier` port says M104/TRUSTED-PATH binds it at
+   integration. The connector needs it for its folder chain (`connector`,
+   `grants`, `limits`, `audit`) and the grant, kill-switch and audit-key
+   files: owned by the current user, no group or other write (no read for
+   the key), regular files, no link below the data folder, verified before
+   they are trusted and after they are created.
+2. Windows: `windowsTrustedPathVerifier` (owner SID and replacement rights
+   through `Get-Acl`) exists for M115, but it starts a PowerShell per path
+   component, which the connector's no-child-process rule and its start-up
+   time do not allow as is; nothing creates the connector folders with an
+   explicit owner-only DACL either.
+3. The audit key is accepted on its 32-byte length alone; it needs the same
+   owner check.
+4. `dist/connector.js` has 729 bytes of budget left: the verifier has to
+   load as its own lazy chunk with a budget of its own.
+5. Qualification on the Win11 rig with a planted foreign-writable folder,
+   a junction and a hard-linked grant, and the same on Linux and macOS.
+
+### Tests
+
+At `277bda2f3` (the record's commit changes no code):
+
+| File                                    | Cases | Kubuntu | Mac mini | Windows (native) | On `ddd7d8da3` (Kubuntu, new tests overlaid) |
+| --------------------------------------- | ----: | ------- | -------- | ---------------- | -------------------------------------------- |
+| `test/unit/connectorRegistry.test.ts`   |    66 | pass    | pass     | —                | 18 fail (the round-4 cases), 48 pass         |
+| `test/unit/connectorRuntime.test.ts`    |    14 | pass    | pass     | pass             | 2 fail (the live authority), 12 pass         |
+| `test/unit/connectorLimitsLock.test.ts` |     8 | pass    | pass     | pass             | — (unchanged)                                |
+| `test/e2e/connectorStdio.e2e.test.ts`   |     3 | pass    | pass     | —                | — (unchanged)                                |
+
+20 cases fail on `ddd7d8da3`, each on its finding's own assertion (an
+approved prompt written after revocation, kill or a narrowed grant; an
+owner read started after the kill switch; an `ok` answer without its
+receipt; a call left pending after cancellation or its deadline; Stop
+unanswered behind 64 held receipts; a `cancelled → admitted` receipt; no
+`authority` on the store).
+
+### Red drills (all at `277bda2f3`)
+
+37 mutations, each run against the complete owning file on Kubuntu: all 37
+turned their tests red (exit 1), all 37 restored byte-exact. The round-3
+drills R2, R8 and R12 are superseded (their code was replaced by RF, G1,
+G7 and G10); R1 and R9 target the new code.
+
+| #   | Guard                                                    | Mutation                             | Failing test(s) (count)                                                             |
+| --- | -------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------- |
+| G1  | The write's final gate follows the target re-read (P1)   | gate moved before the target re-read | the six target re-read cases and the snapshot write case (7)                        |
+| RF  | The authority re-read before every final gate (P1)       | `isClear` stops re-reading           | the snapshot cases, delivery-race and held-lookup cases (8)                         |
+| G2  | The owner read's final gate (P1)                         | drop it                              | `…kill switch during the dispatching receipt wait` (1)                              |
+| G3  | Approved receipt fails closed (P2-2)                     | ignore its answer                    | `starts no write when the approved receipt cannot be written` (1)                   |
+| G4  | Dispatching receipt fails closed (P2-2)                  | ignore its answer                    | `starts no owner read when the dispatching receipt cannot be written` (1)           |
+| G5  | Settled receipt withholds the result (P2-2)              | settle whatever the receipt answers  | `never answers ok when a read’s settled receipt cannot be written` (1)              |
+| G6  | A receipted transition needs its receipt (P2-2)          | drop the guard in `move`             | `moves to a receipted state only written ahead…` (1)                                |
+| G7  | Every wait races the call's end (P2-3)                   | `return await work`                  | the cancellation, deadline and shutdown cases (9)                                   |
+| G8  | A disconnect settles every call at once (P2-3)           | race the operation's end only        | `never holds the transport’s shutdown on a committed delivery’s receipt` (1)        |
+| G9  | A committed result is not cancelled (P2-3)               | drop `!this.isCommitted`             | `keeps a result decided at its delivery gate…` (1)                                  |
+| G10 | Best-effort receipts tallied under a full backlog (P2-4) | never tally                          | `bounds receipts being written under a flood…` (1)                                  |
+| G11 | Only an edge of the table is written ahead (finding 5)   | drop the table check                 | `journals no edge out of a call cancelled while admission waits`; the unit case (2) |
+| G12 | A changed grant or kill switch is read at once (store)   | the watch never re-reads             | runtime `keeps the live authority current…` (1)                                     |
+| G13 | An older reading never wins (store)                      | drop the reading order               | runtime `drops an authority reading that finishes after a newer one` (1)            |
+| R1  | The final gate checks the authority                      | state check only                     | every target re-read and dispatch-receipt-wait authority case (10)                  |
+| R3  | Kill switch in the authority                             | `return undefined`                   | every kill switch case (5)                                                          |
+| R4  | Disconnect in the authority                              | drop it                              | `…the client disconnects during the dispatch receipt wait` (1)                      |
+| R5  | Grant, scope and policy in the authority                 | `: undefined`                        | revocation, scope, workspace, user library, policy and read-withholding cases (10)  |
+| R6  | The gate itself                                          | `return true`                        | `…dispatching receipt wait`; the gate unit case (2)                                 |
+| R7  | A lease recorded after its call ended is freed           | free only after `settled`            | the two lease cases (2)                                                             |
+| R9  | A refusal at delivery ends the call refused              | drop it                              | `records a final result refused for its size…` (1)                                  |
+| R10 | Stop follows the operation's scope                       | named workspace only                 | `lets the user-library grant stop a user-library save…` (1)                         |
+| R11 | Transport receipts                                       | drop `transport(code)`               | the transport receipt and flood cases (2)                                           |
+| R13 | A hung journal counts as failed                          | drop it                              | `counts a hung journal as failed…` (1)                                              |
+| R14 | A started write is never cancelled                       | `isStartedWrite = false`             | `reports stopRequested…`; the table unit case (2)                                   |
+| R15 | Terminal states have no exits                            | `settled: ['cancelled']`             | the table unit case (1)                                                             |
+| R16 | The kill control receipt                                 | drop it                              | runtime `parses only its own words…` (1)                                            |
+| R17 | A signal aborted before attaching cancels                | drop it                              | the gate unit case (1)                                                              |
+| R18 | A late hold runs at once                                 | drop it                              | the hold unit case (1)                                                              |
+| L1  | No age: the watched lease                                | every lock expired                   | the live-lock and both debit cases (3)                                              |
+| L2  | Takeover moves only the judged instance                  | any moved instance counts            | the two-contender case (1)                                                          |
+| L3  | Note id as well as identity                              | identity only                        | the two-contender case (1)                                                          |
+| L4  | Owner provably gone                                      | `isGone: false`                      | the provably-gone and two-contender cases (2)                                       |
+| L5  | Torn note watched briefly                                | never expires                        | the torn-lock case (1)                                                              |
+| L6  | Fence: exclusive link                                    | `rename`                             | the lost-holder case (1)                                                            |
+| L7  | Fence: ours must be the newest                           | `< 0`                                | the pruned-generation case (1)                                                      |
+| L8  | A holder never publishes past its lease                  | drop `isHeld`                        | the own-lease case (1)                                                              |
+
+Restored SHA-256 (HEAD blobs at `277bda2f3`):
+
+| File                               | SHA-256                                                            |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| `src/core/connector/registry.ts`   | `24a52c2e60edf30296a89a4222ce8e58ab1b39b7e2c438c76a4470c5301dcd27` |
+| `src/core/connector/operations.ts` | `3fc3162588c05b17f9d3b5f20c114cace84846865ffe4414d29338481c7c54bf` |
+| `src/core/connector/protocol.ts`   | `754e8eb977036a2f3d0a1f0056d88dc458b851d470228a2878992c4c5681c420` |
+| `src/core/connector/audit.ts`      | `1b10653587db35e711976fd0493f3765159cb49631e81dc9cf5e2cdfda38b4ea` |
+| `src/runtime/connector/command.ts` | `8fa174b4be846820ae37a5597815334b4e3f2a1b7feadcd7c48534b0be4432c9` |
+| `src/runtime/connector/store.ts`   | `4705a47d8d590be2763ce41ac218a170d0d350413cac4a0c9ef278b8659fbca3` |
+
+### Gates and sizes
+
+- `npx tsc -p .`, the unit project: exit 0 (the e2e project keeps its two
+  pre-existing `acpFixture.ts` errors). ESLint `--max-warnings=0` and
+  Prettier on every changed file: clean; the pre-commit hook changed
+  nothing; gitleaks: no leaks. `npx knip`: exit 0 (two pre-existing hints).
+  `npm run cycles`: none. `npm run duplication`: only the two clones that
+  predate this lane (exit 1 on `2fa594639` too); the five this round first
+  added in its tests were factored out before commit.
+- `check:host-api` (record regenerated: `node:fs` +1 for the watch),
+  `check:l10n`, `check:reference`, `check:plan`, `check:roadmap`: pass.
+- `npm run build` on Kubuntu: exit 0, every budget `ok`.
+  `dist/connector.js` 101,671 bytes (99.3 KiB of its 100 KiB budget, 729
+  bytes left; no cap raised). `dist/extension.js` 563,348 bytes, SHA-256
+  `34b93af4…381e371a`, unchanged.
+- Not run here: the aggregate `npm run quality` (hosted CI is the gate).

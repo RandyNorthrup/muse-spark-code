@@ -227,36 +227,40 @@ Reads cause only internal audit bookkeeping. Report/prompt/share content
 returns to the calling platform and may enter its retained conversation;
 the initial disclosure UI must say this explicitly.
 
-### 3a. One state machine and one authority for every call (M124R3, 2026-10-09)
+### 3a. One state machine and one authority for every call (M124R3 and round 4, 2026-10-09)
 
 The third review round (RVM124B) found an approved write that still started
 after revocation, the kill switch or a disconnect, reads that took leases
 after their call had ended, and refusals without receipts. Each was a check
 placed before an `await` and trusted after it. The local phase therefore
 runs every call, read, write or Stop, as one **operation** walking one
-transition table (`src/core/connector/operations.ts`), under one authority:
+transition table (`src/core/connector/operations.ts`), under one authority.
+The fourth round (RVM124R3) found the same class one level down: the final
+gate read authority captured before the target re-read, some receipts were
+not fail-closed, delivery's wait was not raced, and Stop waited behind the
+journal. The rules below are the corrected ones.
 
-| From               | To                 | When                                                                                                                                                                                |
-| ------------------ | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `received`         | `admitted`         | Kill switch off, a rate token, strict input, the grant admits the tool, scope and workspace or user library, the workspace is not confidential, and the admitted receipt is durable |
-| `received`         | `refused`          | Unknown or unavailable tool, kill switch, rate limit, invalid input, grant refusal, or the admitted receipt could not be written                                                    |
-| `received`         | `cancelled`        | The authority stopped it before admission (client cancellation, deadline, disconnect)                                                                                               |
-| `admitted`         | `dispatching`      | A read, retry, status or Stop: the gate passed and its lease or owner port starts in the same tick                                                                                  |
-| `admitted`         | `awaitingApproval` | A write: the intent receipt is durable, the pending lease is held, and our page holds the exact intent                                                                              |
-| `admitted`         | `refused`          | Request id reused with other bytes, table full, stale target, no pending room, or the intent receipt failed                                                                         |
-| `admitted`         | `cancelled`        | The authority stopped it (any cause below)                                                                                                                                          |
-| `admitted`         | `failed`           | An owner read failed                                                                                                                                                                |
-| `awaitingApproval` | `approved`         | Our page approved the shown digest                                                                                                                                                  |
-| `awaitingApproval` | `cancelled`        | Denied, expired, Stop, disconnect, revocation, the kill switch, or the client cancelled before the reply                                                                            |
-| `awaitingApproval` | `refused`          | No approval surface could be shown                                                                                                                                                  |
-| `awaitingApproval` | `failed`           | An owner failure                                                                                                                                                                    |
-| `approved`         | `dispatching`      | The dispatch receipt was written ahead, the authority and target were read again, and the final gate and the one-use approval's compare-and-swap passed; the write starts now       |
-| `approved`         | `cancelled`        | The final gate refused (Stop, revocation, kill switch, disconnect, confidential policy, expiry, changed target)                                                                     |
-| `approved`         | `failed`           | The dispatch receipt or the re-read failed                                                                                                                                          |
-| `dispatching`      | `settled`          | The effect returned, and for a read the delivery gate passed (authority read again)                                                                                                 |
-| `dispatching`      | `refused`          | A read's result is refused at delivery: over 64 KiB, or withheld by the final scrub                                                                                                 |
-| `dispatching`      | `cancelled`        | A read only: the delivery gate refused (client gone, deadline, revocation, kill switch); a started write is never cancelled                                                         |
-| `dispatching`      | `failed`           | The owner port failed                                                                                                                                                               |
+| From               | To                 | When                                                                                                                                                                                        |
+| ------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `received`         | `admitted`         | Kill switch off, a rate token, strict input, the grant admits the tool, scope and workspace or user library, the workspace is not confidential, and the admitted receipt is durable         |
+| `received`         | `refused`          | Unknown or unavailable tool, kill switch, rate limit, invalid input, grant refusal, or the admitted receipt could not be written                                                            |
+| `received`         | `cancelled`        | The authority stopped it before admission (client cancellation, deadline, disconnect)                                                                                                       |
+| `admitted`         | `dispatching`      | A read, retry, status or Stop: the gate passed and its lease or owner port starts in the same tick                                                                                          |
+| `admitted`         | `awaitingApproval` | A write: the intent receipt is durable, the pending lease is held, and our page holds the exact intent                                                                                      |
+| `admitted`         | `refused`          | Request id reused with other bytes, table full, stale target, no pending room, or the intent receipt failed                                                                                 |
+| `admitted`         | `cancelled`        | The authority stopped it (any cause below)                                                                                                                                                  |
+| `admitted`         | `failed`           | An owner read failed                                                                                                                                                                        |
+| `awaitingApproval` | `approved`         | Our page approved the shown digest, and the approved receipt is durable                                                                                                                     |
+| `awaitingApproval` | `cancelled`        | Denied, expired, Stop, disconnect, revocation, the kill switch, or the client cancelled before the reply                                                                                    |
+| `awaitingApproval` | `refused`          | No approval surface could be shown                                                                                                                                                          |
+| `awaitingApproval` | `failed`           | The approved receipt failed, or an owner failure                                                                                                                                            |
+| `approved`         | `dispatching`      | The dispatch receipt was written ahead, the target re-read, then the authority read again as the last wait; the final gate and the approval's compare-and-swap passed; the write starts now |
+| `approved`         | `cancelled`        | The final gate refused (Stop, revocation, kill switch, disconnect, a changed scope, workspace or user library, confidential policy, expiry, changed target)                                 |
+| `approved`         | `failed`           | The dispatch receipt or the target re-read failed                                                                                                                                           |
+| `dispatching`      | `settled`          | A read: its delivery gate passed (authority read again) and its settled receipt is durable. A write: it returned (its settled receipt is best effort; the write happened)                   |
+| `dispatching`      | `refused`          | A read's result is refused at delivery: over 64 KiB, or withheld by the final scrub                                                                                                         |
+| `dispatching`      | `cancelled`        | A read only, before its delivery gate (client gone, deadline, revocation, kill switch); a started write or a committed result is never cancelled                                            |
+| `dispatching`      | `failed`           | The owner port failed, or a read's settled receipt failed (answered `audit_unavailable`)                                                                                                    |
 
 `settled`, `refused`, `cancelled` and `failed` are terminal: no edge leaves
 them, so a call ends exactly once. `muse_operation_get` shows a projection:
@@ -269,29 +273,54 @@ an approval that expired.
 deadline, the connection's disconnect, the kill switch, and the grant the
 operation was admitted under (same generation, the tool's scopes, its
 workspace or the user library, and the workspace's confidential policy,
-through the same `admit` as admission). Its inputs are read again (`refresh`)
-after every wait that precedes an effect, and every such read is applied to
-every live operation at once, so a pending approval leaves the page the
-moment a revocation or the kill switch is seen. Stop is exempt from the kill
-switch, never from the grant.
+through the same `admit` as admission). It reads a **live** authority
+(`AuthorityPort.current()`), never a copy taken before a wait. The store's
+live authority is updated the moment the connector learns of a change: a
+file-system notice for the grant or kill-switch file (a recursive watch on
+the connector folder, while it exists), and a re-read as the last wait
+before every final gate; a reading that finishes after a newer one is
+dropped, and until the first reading it counts as switched off. Every
+change is applied to every live operation at once, so a pending approval
+leaves the page as soon as a revocation or the kill switch is seen. Stop is
+exempt from the kill switch, never from the grant. What remains is the
+cross-process window every file-backed authority has: a revocation written
+by another process after that last re-read, during the synchronous gate and
+effect start, is ordered after the effect.
 
 **One final gate** stands immediately before each effect: the rate token, a
 read or pending lease, the approval intent, the owner port, the write; and
-again before a read's result is delivered. Nothing awaits between a passed
-gate and the start of its effect. A lease is released whenever its
-operation ends, including when it ended before the lease was recorded, so a
-settled call can never hold or acquire anything.
+again before a read's result is delivered. It comes after every other wait
+of that step (receipts, the target re-read, the authority re-read), and
+nothing awaits between a passed gate and the start of its effect. A lease is
+released whenever its operation ends, including when it ended before the
+lease was recorded, so a settled call can never hold or acquire anything.
+
+**Every wait is raced.** A call's whole work, its delivery included, races
+its operation's end and the connection's close: cancellation and the
+15-second deadline answer it at once, and closing the transport never waits
+for it. A read's result is committed at its delivery gate: from then on it
+is not cancelled, and it is sent only once its settled receipt is durable
+(at most the journal's five-second timeout); a disconnect still answers the
+call at once.
 
 **Receipts.** Every transition writes one receipt (`from` → `event`), so
-every call ends in exactly one terminal receipt that carries its reason. The
-admitted, intent and dispatch receipts are written ahead and must be durable
-before their effect (fail closed); Stop's are best effort. A frame refused
-before any call exists (parse error, invalid request or params, unknown
-method, over the frame bound, busy) gets one `transport` receipt with its
-JSON-RPC code only. The owner's `grant`, `revoke`, `kill` and `resume` leave
-`control` receipts. The transport reads no further frame while 64 receipts
-are being written, and a journal whose append outlives five seconds counts
-as failed until it answers.
+every call ends in exactly one terminal receipt that carries its reason.
+The admitted, awaiting-approval, approved, dispatching and (for a read)
+settled receipts are written ahead and fail closed: a failed one means the
+transition and its effect never happen (a read is answered
+`audit_unavailable`, never `ok`), and `move` refuses those transitions
+without their receipt. Only an edge of the table from the operation's
+current state is ever journaled. A refusal's, a cancellation's and Stop's
+receipts are best effort, and so is a write's settled receipt (the write has
+happened; its state stays the truth). A frame refused before any call
+exists (parse error, invalid request or params, unknown method, over the
+frame bound, busy) gets one `transport` receipt with its JSON-RPC code only.
+The owner's `grant`, `revoke`, `kill` and `resume` leave `control` receipts.
+The transport never waits for the journal: a best-effort receipt that meets
+64 receipts being written is tallied and written later as one line with its
+`count`, so Stop and cancellation notices are never queued behind receipts.
+A journal whose append outlives five seconds counts as failed until it
+answers.
 
 **Stop's authority follows the operation's own scope.** A call admitted to
 the user library belongs to the user library whatever workspace it named, so
