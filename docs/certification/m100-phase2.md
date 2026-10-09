@@ -5850,8 +5850,9 @@ test sees ready at **1.00 to 1.23 s** after `goto` with the host 65 to 87%
 busy; under 3x renderer CPU throttling the page is ready at 1.16 to 1.54 s.
 So the page's own work is about 0.6 s plus a fixed 0.3 s harness settle, and
 the rest is CPU contention: the recorded misses came from runs on a loaded
-host (the join record above notes 58 to 91% CPU from other sessions, with
-three test files at once).
+host (the join record above notes 58 to 91% CPU from other sessions; on
+Windows `vitest.config.ts` runs files one at a time, so the load was not the
+suite's own).
 
 The "2.1 to 3.1 s" figures overstate it. They came from runs with a
 temporary 10 s deadline, and Playwright's `waitFor` backoff
@@ -5895,8 +5896,8 @@ Windows on-access scanning of newly written files (Defender's service is
 running on the VM; it is off by policy on this PC) and a cold file cache.
 Kubuntu's slots hard-link `node_modules` and have no scanner, consistent
 with it never failing there. The recorded failures add load on top of the cold
-build: the join-fix sweep ran three files at once on a VM shared with other
-lanes, and this PC was then at 58 to 91% CPU with vitest itself timing out
+build: the join-fix sweep ran on a VM shared with other lanes (its three-file
+batches still run one file at a time on Windows), and this PC was then at 58 to 91% CPU with vitest itself timing out
 starting workers. Hosted Windows CI runs this file in its test job right
 after `npm ci` on a cold runner (`build.yml`: no build step before
 `npx vitest run`), so it carries the cold-build part of the same risk. The 60 s
@@ -5907,3 +5908,129 @@ The first readiness case after the browser starts (`devices-qr`, first in
 `SCENES`) also pays the browser's first-page start-up: 2.6 s for the case
 in the warm VM run against 1.2 to 1.3 s for the others, its 2 s wait
 included. That is one more reason `devices-qr` misses first under load.
+
+### Lead decisions on the open items (2026-10-08, 21:13 onward)
+
+Same worktree and branch, hooks on, no push; no cap, baseline, readiness
+bound or preparation budget changed; the 300 ms harness settle is unchanged.
+Model attempts **0**.
+
+**Gotcha (filed by the lead).** A shared constant whose string equals a
+browser text group's name (here `DEVICES_STORAGE_DIR = 'devices'` in
+`src/shared/constants.ts`) makes the l10n splitter
+(`browserTextKeys`, `scripts/lib/uiTextRegions.mjs`) load that whole group
+eagerly in the webview startup, silently: only `browserUiText.test.mjs` and the
+startup byte baseline notice.
+
+#### 1. Devices storage folder renamed (`DEVICES_STORAGE_DIR = 'device-storage'`)
+
+The folder value is never released, so there is no migration. The constant
+now says why it must never equal a text key. Every use follows it:
+`extension.ts` already used the constant; `deviceProductionStorage` and
+`deviceProductionWiring` now build their folders and the Windows stage-name
+pattern (`.device-storage-<32 hex>.stage`) from `DEVICES_STORAGE_DIR` and
+`DEVICES_HELPER_DIR` instead of literals. No user doc names the folder.
+
+- `browserUiText.test.mjs`: **6/6** (it failed "loads surface English on
+  demand" on the merge, passes on the base: that pair is the red/green
+  drill). The startup-source scan finds **495** eager keys, `devices` not
+  among them (496 with it on the merge), so the Devices English table is
+  back in its own lazy chunk.
+
+#### 2. Startup bytes: W's Devices mount moved into the lazy Devices chunk
+
+None of W's `main.tsx` additions were first-paint code: the zod schema for
+the saved draft, the draft store, the single `postMessage` callback and the
+QR chunk loading run only for the Devices surface, and that surface's first
+paint is the loading line it already showed before W. They now live in
+`DevicesSurface`, exported from `DevicesApp.tsx` (the existing lazy chunk
+entry); `main.tsx` is back to the base shape: one lazy import, the loading
+fallback, `DevicesUnavailable` when the chunk fails. Two jsdom cases cover
+`DevicesSurface` (saved draft restored and saved, QR chunks handed over,
+exactly one `devicesReady`; an oversized saved state dropped and a refused QR
+chunk reported at the QR spot). The `main.tsx` source check now also refuses
+any of that logic in the entry (drill: W's `main.tsx` fails it).
+
+| Webview startup (`webviewBundle` FIXDIET1 measure, bytes) | Value       |
+| --------------------------------------------------------- | ----------- |
+| review baseline 733.8 KiB                                 | 751,411     |
+| base `d1a776f40`                                          | 751,541     |
+| merge `8303ff76f` (eager `devices` table + W mount)       | **754,498** |
+| after item 1 only                                         | 752,098     |
+| after items 1 and 2                                       | **751,511** |
+
+The merge's +2,957 over the base is gone (30 bytes under the base). The
+baseline itself still fails by 100 bytes, as the base does; it was not
+edited: the 0.17 integration lane re-pins it, and M100 is re-measured
+against that when it merges after 0.17. Production build (Kubuntu): `main.js` + static imports **733.9 / 900 KiB** (736.8 on the merge), Devices webview chunk **41.8 / 50 KiB** (40.6; it now carries the mount), Devices QR 21.6 / 25, `dist/devices.js` 105.4 / 125; no cap changed.
+
+#### 3. One shared production build per run (vitest global setup)
+
+`test/unit/productionBuild.ts` (registered as `globalSetup` in
+`vitest.config.ts`) runs `scripts/build.mjs --production` once, before any
+file starts and outside every hook deadline, only when the run selects a
+suite that serves `dist/` (`devicesPhase2Harness`, `teamHarness`), and
+provides `productionBuild` to the suites. Both suites dropped their own build
+and refuse with "No shared production build in this run" when it is missing;
+`teamHarness` keeps its pseudo-locale step. A run without those suites
+skips the build (`productionBuild.test.ts`, 2/2, covers the selection with
+either path separator). The 60 s preparation budgets and the 2 s readiness
+bound are unchanged; the build has its own named 10-minute bound so a hung
+build fails the run with its output. Drill: with `globalSetup` emptied the
+Devices harness fails at file level with that refusal; restored, 19/19.
+
+`devicesPhase2Harness` preparation, before and after (instrumented copy,
+never committed):
+
+| Machine, slot                    | `beforeAll` before (build inside) | `beforeAll` after | file result       |
+| -------------------------------- | --------------------------------- | ----------------- | ----------------- |
+| this PC, warm                    | 5.6 s (build 5.2 s)               | **0.45 s**        | 19/19 ×3          |
+| Win11 VM, cold (fresh slot)      | about 35 s                        | **0.84 s**        | 19/19, copy 19/19 |
+| Win11 VM, warm (same slot again) | 8.3 s (build 7.8 s)               | **0.53 s**        | 19/19, copy 19/19 |
+
+On the VM the cold run was a fresh slot (new checkout and `node_modules`
+copy; snapshot `62c991e8`, the four items before the lint-only test
+refactors) and the warm run the same slot again on the committed tree
+(`eff4fd60`). Each ran the instrumented copy and the real suite together:
+**38/38** both times (68.9 s and 47.7 s for the run, global build
+included); the readiness cases took 1.20 to 1.94 s cold and 1.22 to 2.23 s
+warm, page start and close included, every 2 s wait met. The hook's 60 s budget now covers well under a
+second of work on either machine. On this PC there is no colder state to
+measure: its `node_modules` is long-lived and Defender is off by policy.
+
+#### 4. Linux self-test answers false, never a rejection
+
+`deviceWorkerLinux.ts`: the self-test's cleanup now catches `remove()`'s
+synchronous refusal for an unretired probe job, so the job keeps its slot
+and `selfTest()` resolves `false`. New case "answers false, never a
+rejection, when a probe fails with its job unretired" (real probe child,
+inhibitor lost while the cgroup is still populated). Drill: with the old
+`await ignoreFailure(job?.remove())` the case fails, "promise rejected
+… { reason: 'uncertain', detail: 'result' } instead of resolving"; with the
+fix it passes, and the cached second self-test also answers `false`.
+
+#### Verification
+
+Kubuntu, one run of the working tree as committed up to `a97163630`, less
+the helper commit `09eba821a` (which only restructures two of the new
+tests; both rerun green on this PC), snapshot `17712e60`, `--maxWorkers=3`,
+default timeouts: the 46 device and Devices
+files plus `teamHarness`, `browserUiText`, `webviewBundle` and
+`productionBuild`, 50 files: **49 passed; 1,736 tests passed, 1 failed, 39
+skipped**. The one failure is the FIXDIET1 baseline above (751,511 against
+751,411), left for the 0.17 re-pin. `devicesPhase2Harness` 19/19 and
+`teamHarness` 23/23 ran on the one shared build; `deviceWorkerLinux` 36/36
+natively, the new case included. Gates on the same content there (snapshot `5472e663`): five
+typechecks, `format:check`, `check:host-api`, `check:l10n`,
+`check:reference`, `cycles`, plain `knip` (the same two configuration hints)
+and the production build with caps all **exit 0**; `duplication` exit 1 on
+two clones in the new tests, fixed in `09eba821a` (0 clones after).
+ESLint `--max-warnings=0` on every changed file: exit 0.
+
+This PC, natively: `DevicesApp`, `deviceProductionWiring`,
+`deviceProductionStorage` 50/50; `deviceWorkerLinux`, `DevicesApp`,
+`productionBuild` 60/60 (58/58 after the helper commit); `devicesQrLoading`,
+`devicesPhase2Views`, `DevicesView` 111/111; `browserUiText` 6/6;
+`teamHarness` 23/23 (40.0 s) on the shared build; `devicesPhase2Harness`
+19/19 in three runs (one instrumented). `webviewBundle` fails only the same
+baseline case, with the same 751,511 bytes as Linux.

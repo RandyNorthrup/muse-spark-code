@@ -35986,8 +35986,13 @@ whole-suite run found three `test:unit` failures the device sweeps never
 run: `execStdio` (storage-lane fixture, fixed in `5b370cf8d`),
 `browserUiText` (W's `DEVICES_STORAGE_DIR = 'devices'` literal makes the
 whole `devices` English table eager) and the FIXDIET1 startup baseline
-(over by 130 bytes on the base, 3,087 after W). The last two are open for
-the lead. Remaining: lane K after 0.17 lands on main, then the four-machine
+(over by 130 bytes on the base, 3,087 after W). Lead decisions, same
+branch: the storage folder is `device-storage` (gotcha: a shared constant
+equal to a text group's name loads that group eagerly), W's Devices mount
+moved into the lazy Devices chunk (startup 751,511 bytes, under the base;
+the baseline itself is re-pinned by the 0.17 lane), the real-Chrome
+harnesses share one production build from a vitest global setup, and the
+Linux self-test answers false instead of rejecting. Remaining: lane K after 0.17 lands on main, then the four-machine
 installed-host qualification and hosted macOS CI for the Darwin-native
 cases.
 
