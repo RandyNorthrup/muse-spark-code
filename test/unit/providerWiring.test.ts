@@ -71,8 +71,12 @@ function latestState(panel: FakeWebviewPanel) {
   throw new Error('Missing panel state')
 }
 async function message(panel: FakeWebviewPanel, value: unknown, done: () => void) {
+  const before = panel.webview.postMessage.mock.calls.length
   panel.webview.messages.fire(value)
-  await vi.waitFor(done)
+  await vi.waitFor(() => {
+    expect(panel.webview.postMessage.mock.calls.length).toBeGreaterThan(before)
+    done()
+  })
 }
 async function fixture(preset: string, capture: string) {
   const root = await mkdtemp(path.join(tmpdir(), 'provwire-'))
@@ -94,6 +98,8 @@ async function fixture(preset: string, capture: string) {
   })
   await seam.store.add({ ...entry, address: entry.address ?? '' })
   let body = await capturedBody(preset, capture)
+  const keyBody = preset === 'openrouter' ? await capturedBody(preset, '02-key-usage.json') : body
+  let keyStatus = 200
   const calls: { path: string; headers: Readonly<Record<string, string>> }[] = []
   const services = createConfiguredProviderServices(undefined, {
     configFile,
@@ -102,7 +108,11 @@ async function fixture(preset: string, capture: string) {
     resolve: () => Promise.resolve(['8.8.8.8']),
     send: (target, _body, headers) => {
       calls.push({ path: target.url.pathname, headers })
-      return Promise.resolve(pinnedResponse(body))
+      return Promise.resolve(
+        target.url.pathname === '/api/v1/key'
+          ? pinnedResponse(keyBody, keyStatus)
+          : pinnedResponse(body),
+      )
     },
   })
   const host = testProvidersHost({
@@ -157,10 +167,109 @@ async function fixture(preset: string, capture: string) {
     replaceBody: (value: typeof body) => {
       body = value
     },
+    rejectKey: () => {
+      keyStatus = 401
+    },
   }
 }
 
 describe('PROVWIRE production provider wiring', () => {
+  it('F3: invalid captured-rate fields remain unpriced rather than becoming free', async () => {
+    const f = await fixture('openrouter', '01-models-list.json')
+    const body = z
+      .object({ data: z.array(z.record(z.string(), z.json())) })
+      .parse(await capturedBody('openrouter', '01-models-list.json'))
+    const free = body.data[0]
+    if (free === undefined) throw new Error('Missing captured free model')
+    free['pricing'] = { prompt: '0', completion: '0', input_cache_read: '-1' }
+    f.replaceBody(body)
+    await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
+      expect(latestState(f.panel).scans['openrouter']?.status).toBe('done')
+    })
+    expect(latestState(f.panel).models.find((row) => row.modelId === free['id'])).toMatchObject({
+      priceNote: 'unpriced',
+      freeOrLocal: false,
+    })
+    f.controller.dispose()
+  })
+  it.each([
+    ['groq', 'openai/gpt-oss-120b', 0.15, 0.6, 0.075],
+    ['together', 'deepseek-ai/DeepSeek-V4.1-Flash', 0.3, 1.2, 0.006],
+    ['xai', 'grok-4.20-0309-non-reasoning', 1.25, 2.5, 0.2],
+    ['huggingface', 'Qwen/Qwen3.8-27B', 0.47, 3.19, undefined],
+  ])(
+    'F3: %s rates keep the capture unit through the production projection',
+    async (preset, model, input, output, cached) => {
+      const f = await fixture(preset, '01-models-list.json')
+      await message(f.panel, { type: 'models/scan', providerId: preset }, () => {
+        expect(latestState(f.panel).scans[preset]?.status).toBe('done')
+      })
+      expect(latestState(f.panel).models.find((row) => row.modelId === model)).toMatchObject({
+        inputPerMillion: input,
+        outputPerMillion: output,
+        cachedPerMillion: cached,
+        priceNote: 'priced',
+        freeOrLocal: false,
+      })
+      f.controller.dispose()
+    },
+  )
+  it('F3: captured OpenRouter prices and free flags survive scans, filters and repricing', async () => {
+    const f = await fixture('openrouter', '01-models-list.json')
+    await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
+      expect(latestState(f.panel).scans['openrouter']?.status).toBe('done')
+    })
+    const sonnet = latestState(f.panel).models.find(
+      (row) => row.modelId === 'anthropic/claude-sonnet-5.5',
+    )
+    expect(sonnet).toMatchObject({
+      inputPerMillion: 2,
+      outputPerMillion: 10,
+      cachedPerMillion: 0.2,
+      priceNote: 'priced',
+    })
+    expect(latestState(f.panel).models.filter((row) => row.freeOrLocal)).toHaveLength(2)
+    await message(
+      f.panel,
+      {
+        type: 'models/filter',
+        filter: { freeOrLocal: true },
+        sort: { key: 'name', direction: 'asc' },
+      },
+      () => {
+        expect(latestState(f.panel).models).toHaveLength(2)
+      },
+    )
+    expect(latestState(f.panel).models.every((row) => row.priceNote === 'free')).toBe(true)
+    await message(
+      f.panel,
+      {
+        type: 'models/filter',
+        filter: { maxInputPerMillion: 1 },
+        sort: { key: 'name', direction: 'asc' },
+      },
+      () => {
+        expect(latestState(f.panel).models).toHaveLength(3)
+      },
+    )
+    expect(
+      latestState(f.panel).models.some((row) => row.modelId === 'anthropic/claude-sonnet-5.5'),
+    ).toBe(false)
+    // Sensitivity drill over captured fields, not an assertion of live rates.
+    const body = z
+      .object({ data: z.array(z.record(z.string(), z.json())) })
+      .parse(await capturedBody('openrouter', '01-models-list.json'))
+    const priced = body.data.find((row) => row['id'] === 'anthropic/claude-sonnet-5.5')
+    if (priced === undefined) throw new Error('Missing captured Sonnet')
+    const pricing = z.record(z.string(), z.string()).parse(priced['pricing'])
+    priced['pricing'] = { ...pricing, input_cache_write_1h: '0.000005' }
+    f.replaceBody(body)
+    await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
+      expect(latestState(f.panel).scans['openrouter']?.repricedCount).toBe(1)
+    })
+    expect(f.warnings).toEqual([])
+    f.controller.dispose()
+  })
   it.each([
     ['gemini', '01-models-list.json', 3],
     ['ollama', '02-tags.json', 7],

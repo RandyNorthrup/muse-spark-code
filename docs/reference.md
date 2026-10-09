@@ -28,6 +28,8 @@ Add a model provider with an API key and pick a model.
 
 openRouterServices=absent: OpenRouter account connection and key usage are not available yet. Paste a key to use models.
 
+Prices per million tokens.
+
 ```json
 {
   "management": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],

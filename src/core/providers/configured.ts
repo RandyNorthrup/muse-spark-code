@@ -39,6 +39,7 @@ import { ApiKeyAuthSource, NoAuthSource } from '../backends/modelapi/authSource'
 import { CodecClient, type WireCodec } from '../backends/modelapi/providerClient'
 import { RequestTransport, parseJsonResponse, ModelApiError } from '../backends/modelapi/transport'
 import { withDeadline } from '../timeouts'
+import { Usd } from '../../shared/usd'
 import {
   ADDRESS_FAMILIES,
   ANTHROPIC_MAX_ARGUMENT_BYTES,
@@ -802,6 +803,31 @@ export function createConfiguredProviderServices(
           ],
         )
         const four = capabilities.capabilitiesOf({ capabilityRecord: record })
+        const listed = priceCard.listedPriceCard(preset.id, native)
+        const card = listed !== undefined && priceCard.isValidPriceCard(listed) ? listed : undefined
+        const isPlan = presets.planKeyPresetById(entry.preset) !== undefined
+        const isLocal = entry.auth === 'none'
+        const isFree =
+          !isPlan &&
+          (isLocal ||
+            (card !== undefined &&
+              [
+                card.input,
+                card.output,
+                card.cachedInput,
+                card.cacheWrite,
+                card.cacheWrite1h,
+                card.request,
+                card.image,
+                card.longContextTier?.input,
+                card.longContextTier?.output,
+                card.longContextTier?.cachedInput,
+              ].every((rate) => (rate ?? 0) === 0)))
+        let priceFingerprint = 'unpriced'
+        if (isPlan) priceFingerprint = 'plan'
+        else if (isLocal) priceFingerprint = 'local'
+        else if (card !== undefined)
+          priceFingerprint = JSON.stringify({ card, upstreams: native['providers'] })
         return {
           id,
           label: modelRef.sanitizeModelLabel(
@@ -811,10 +837,18 @@ export function createConfiguredProviderServices(
           vision: four.vision,
           reasoning: four.reasoning,
           context: record.limits.contextTokens,
-          priceFingerprint:
-            presets.planKeyPresetById(entry.preset) === undefined ? 'unpriced' : 'plan',
-          isFree: entry.auth === 'none',
-          isLocal: entry.auth === 'none',
+          priceFingerprint,
+          ...(!isPlan &&
+            card !== undefined && {
+              inputPerMillion: Number(Usd.from(card.input).times(TOKENS_PER_MILLION).toAmount()),
+              outputPerMillion: Number(Usd.from(card.output).times(TOKENS_PER_MILLION).toAmount()),
+              cachedPerMillion:
+                card.cachedInput === undefined
+                  ? undefined
+                  : Number(Usd.from(card.cachedInput).times(TOKENS_PER_MILLION).toAmount()),
+            }),
+          isFree,
+          isLocal,
         }
       })
     },

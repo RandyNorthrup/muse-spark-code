@@ -114,6 +114,36 @@ count; Anthropic requests omit `anthropic-version: 2023-06-01` (3 failed).
 After fix: `providerWiring`, `configuredProviders`, `providerPanelSeam`:
 **35 tests passed**, repository deadlines, macmini.
 
+### F3 — Scanned prices and free rows
+
+Cause: `scanRows` projected capabilities but discarded all pricing metadata.
+The projection now validates captured price shapes, keeps input/output/cache
+rates, detects zero-cost cloud models, and fingerprints the complete price
+card (including cache writes and long-context rates). HF fingerprints also
+retain the captured upstream records. Plan and local rows keep their own
+price kind. Invalid rates remain unpriced, never free. Per-million display
+uses the shared decimal USD arithmetic, avoiding binary multiplication noise.
+
+The real-facade tests replay `openrouter/01-models-list.json`,
+`groq/01-models-list.json`, `together/01-models-list.json`,
+`xai/01-models-list.json` and `huggingface/01-models-list.json`. Decimal strings
+are USD/token, Together/HF numeric rates are USD/million, xAI rates are ticks
+of 1e-10 USD/token, as recorded in M95. HF shows the highest captured rate
+among live priced upstreams for each column, since routing may select any of
+them; no price is inferred for an upstream that supplies none. No live rate
+is claimed. These direct cloud captures have no workspace; replay makes
+**0 model attempts**. The sensitivity case changes only a captured
+`input_cache_write_1h` field to prove repricing, not a current-provider price.
+
+Failing first: Sonnet's 2/10/0.2 USD per million was absent and unpriced.
+After fix: **53 tests pass** in `providerWiring`, `providersModel`,
+`configuredProviders`. The test's first projection run exposed binary numeric
+noise, resolved with existing decimal arithmetic; the next run exposed a test
+message missing the bridge's required sort field, corrected in the fixture.
+No further production rewrite was needed. Two overlapping drill launches were
+discarded: the production file was restored to the known-good SHA-256 and the
+drills repeated sequentially. Only the independent receipts below count.
+
 ### Red drills (byte-exact restoration)
 
 Every drill runs a whole owning test file at repository deadlines, records
@@ -122,3 +152,7 @@ exit 1, restores the original bytes in `finally`, and compares SHA-256.
 | Finding | Deliberate break                            | Red result                                                    | Restored SHA-256                                                   |
 | ------- | ------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------ |
 | F2      | Remove the preset fallback in scan dispatch | 3 tests fail: Gemini/Ollama refusal, Anthropic header missing | `158d0578ca5bfc5de0bb2205a81f3b23b81940dca4227fd5782c39a517860d11` |
+| F3      | Drop the captured price card                | 5 rate/filter tests fail                                      | `6cd4ff8be66dac1f7d04838637f1bbe4f5e4845a777f471b46366b4235d3815d` |
+| F3      | Force free flags off                        | Free/filter test fails                                        | `6cd4ff8be66dac1f7d04838637f1bbe4f5e4845a777f471b46366b4235d3815d` |
+| F3      | Replace the price fingerprint with unpriced | Cache-write repricing test fails                              | `6cd4ff8be66dac1f7d04838637f1bbe4f5e4845a777f471b46366b4235d3815d` |
+| F3      | Accept negative optional decimal rates      | Invalid rate becomes free; test fails                         | `b819faafadb2ebc95468920c0b4eb3ba9c8cc653333560a669c1c6542c0b4c2b` |

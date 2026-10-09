@@ -61,7 +61,8 @@
           "conditions": [
             { "when": "openRouterServices=absent", "text": { "ui": "providerOpenRouterServices" } }
           ]
-        }
+        },
+        { "ui": "pricePerMillion" }
       ],
       "facts": {
         "management": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
