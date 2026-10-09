@@ -376,6 +376,8 @@ export const MAKER_REVIEW_ELF_CLASS_OFFSET = 4
 export const MAKER_REVIEW_ELF_ENDIAN_OFFSET = 5
 export const PANEL_RELOAD_EVENT = 'muse-panel-reload'
 export const MAKER_STOP_SHELL_ID = 'maker-stop-shell'
+// A Stop's own delivery deadline (serial open/write/close, HTTP POST); past it Stop is unconfirmed.
+export const MAKER_STOP_DEADLINE_MS = 5000
 export const MAKER_RELOAD_STATE_KEY = 'maker-panel-reload'
 export const MAKER_DIGEST_RADIX = 16
 // M103 U: bounded preview geometry and UI defaults; no device opens at startup.

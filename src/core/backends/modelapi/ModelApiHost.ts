@@ -109,6 +109,7 @@ import {
   SCHEDULE_MIN_INTERVAL_MS,
   SCHEDULE_POLL_INTERVAL_MS,
   SEARCHES_PER_PRICE_UNIT,
+  MAKER_STOP_DEADLINE_MS,
   SHELL_DEFAULT_TIMEOUT_MS,
   SKILL_FILE_NAME,
   STORED_SESSION_VERSION,
@@ -9502,7 +9503,7 @@ export class ModelApiSession implements AgentSession {
     try {
       if (this.deps.io.runHardwareStop === undefined) throw new Error(UI_TEXT.hardwareRefused)
       const result = await this.deps.io.runHardwareStop(stop)
-      outcome = shellOutcome(result, SHELL_DEFAULT_TIMEOUT_MS)
+      outcome = shellOutcome(result, MAKER_STOP_DEADLINE_MS)
       if (result.exitCode === 0 && outcome.failureReason === undefined) return outcome
     } catch (error: unknown) {
       outcome = toolFailure(describe(error))

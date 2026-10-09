@@ -1,5 +1,6 @@
 import * as childProcess from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import * as fsPromises from 'node:fs/promises'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { fakeStopServer, stopUnconfirmedNotice } from './helpers/fakeMakerMachine'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -13,7 +14,7 @@ import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { shellOutcome } from '../../src/core/backends/modelapi/tools'
 import { runCommand, createToolIo, createHardwareStopRunner } from '../../src/host/backend/toolIo'
-import { UI_TEXT } from '../../src/shared/constants'
+import { MAKER_STOP_DEADLINE_MS, UI_TEXT } from '../../src/shared/constants'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { fakeMspHost } from './helpers/fakeMsp'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -24,6 +25,7 @@ import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { memoryToolIo } from './helpers/fakeToolIo'
 
 vi.mock('node:child_process', { spy: true })
+vi.mock('node:fs/promises', { spy: true })
 
 const roots: string[] = []
 afterEach(() => {
@@ -426,5 +428,35 @@ describe('Design 5 guard4 regressions', () => {
         targets: [{ address: '/dev/ttyUSB0', stop: 'M112\n' }],
       }),
     ).toBe(true)
+  })
+  it('RVM103W P2 a serial Stop whose port never opens settles unconfirmed at its deadline', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const opening = Promise.withResolvers<fsPromises.FileHandle>()
+      vi.mocked(fsPromises.open).mockImplementationOnce(() => opening.promise)
+      const runner = createHardwareStopRunner({
+        platform: process.platform,
+        systemRoot: undefined,
+        log: () => undefined,
+      })
+      let settled: unknown
+      void runner({ kind: 'serial', address: '/dev/ttyUSB0', payload: 'M112\n' }).then((result) => {
+        settled = result
+      })
+      await vi.advanceTimersByTimeAsync(MAKER_STOP_DEADLINE_MS - 1)
+      expect(settled).toBeUndefined()
+      await vi.advanceTimersByTimeAsync(1)
+      expect(settled).toMatchObject({ exitCode: null, isTimedOut: true })
+      // The late port still receives Stop and is closed, never leaked.
+      const port = path.join(workspace(), 'port')
+      const late = await fsPromises.open(port, 'w')
+      opening.resolve(late)
+      await vi.waitFor(() => {
+        expect(late.fd).toBe(-1)
+      })
+      expect(readFileSync(port, 'latin1')).toBe('M112\n')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

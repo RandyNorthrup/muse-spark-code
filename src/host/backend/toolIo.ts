@@ -51,13 +51,13 @@ import {
   FILE_REFUSAL_MODEL_TEXT,
   HOOK_OUTPUT_MAX_BYTES,
   HOOK_STDIN_MAX_BYTES,
+  MAKER_STOP_DEADLINE_MS,
   MAX_DOCUMENT_BYTES,
   MODEL_TEXT,
   PDF_HEADER_WINDOW_BYTES,
   RUNTIME_MAKER_AGENT_SHELL,
   SEARCH_TIMEOUT_MS,
   SHELL_DRAIN_GRACE_MS,
-  SHELL_DEFAULT_TIMEOUT_MS,
   SHELL_OUTPUT_MAX_CHARS,
   type TERMINAL_ENV_KEYS,
   TOOL_FILE_MAX_BYTES,
@@ -521,11 +521,37 @@ async function runHardwareStop(
   stop: HardwareStop,
 ): Promise<ShellResult> {
   if (stop.kind === 'serial') {
-    const port = await open(stop.address, 'w')
+    // An open or write the device never finishes cannot hold Stop's caller: past
+    // the deadline delivery is unconfirmed, and a late handle still writes and closes.
+    const delivery = (async () => {
+      const port = await open(stop.address, 'w')
+      try {
+        await port.writeFile(Buffer.from(stop.payload, 'latin1'))
+      } finally {
+        await port.close()
+      }
+      return true
+    })()
+    let timer: ReturnType<typeof setTimeout> | undefined
     try {
-      await port.writeFile(Buffer.from(stop.payload, 'latin1'))
+      const isDelivered = await Promise.race([
+        delivery,
+        new Promise<false>((resolve) => {
+          timer = setTimeout(() => {
+            resolve(false)
+          }, MAKER_STOP_DEADLINE_MS)
+        }),
+      ])
+      if (!isDelivered)
+        return {
+          stdout: '',
+          stderr: 'Stop delivery timed out',
+          exitCode: null,
+          isTimedOut: true,
+          isCancelled: false,
+        }
     } finally {
-      await port.close()
+      clearTimeout(timer)
     }
     return { stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }
   }
@@ -558,7 +584,7 @@ async function runHardwareStop(
     ],
     cwd: undefined,
     env: {},
-    timeoutMs: SHELL_DEFAULT_TIMEOUT_MS,
+    timeoutMs: MAKER_STOP_DEADLINE_MS,
     signal: undefined,
     tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
   })
