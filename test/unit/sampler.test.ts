@@ -124,17 +124,40 @@ describe('machine resource sampler', () => {
   it('uses availableMemory on Darwin without confusing free pages or memorystatus_level with bytes', async () => {
     const r = rig('darwin')
     vi.mocked(r.port.freeMemory).mockReturnValue(10)
+    // Free pages are read only to recognize a free-page figure; they are never headroom.
     expect(await r.sampler.sample()).toMatchObject({
       memoryAvailableBytes: 3000,
       memoryUsedPercent: 62.5,
     })
-    expect(r.port.freeMemory).not.toHaveBeenCalled()
     vi.mocked(r.port.availableMemory).mockReturnValue(null)
     expect(await r.sampler.sample()).toMatchObject({
       memoryAvailableBytes: null,
       memoryUsedPercent: null,
     })
     expect(r.port.read).not.toHaveBeenCalled()
+  })
+
+  // CIFIX017R3: Node 22.23.3 (libuv 1.51.0) on the Mac mini answered
+  // availableMemory() with exactly freemem(), 6,216,175,616 bytes, while
+  // inactive pages held another 9.99 GB; Node 24.21.0 (libuv 1.52.1) answered
+  // 16,297,594,880. On the 7 GB hosted runner the free pages read as critical
+  // and every governed spawn after the first waited 20 seconds.
+  it('reports Darwin headroom unknown when availableMemory is only the free pages', async () => {
+    const r = rig('darwin')
+    vi.mocked(r.port.freeMemory).mockReturnValue(300)
+    vi.mocked(r.port.availableMemory).mockReturnValue(300)
+    expect(await r.sampler.sample()).toMatchObject({
+      memoryAvailableBytes: null,
+      memoryUsedPercent: null,
+    })
+    // Pages freed between the reads cannot pass the same free-page figure off.
+    vi.mocked(r.port.freeMemory).mockReturnValueOnce(310).mockReturnValueOnce(290)
+    vi.mocked(r.port.availableMemory).mockReturnValue(305)
+    expect(await reading(r, 'memoryAvailableBytes')).toBeNull()
+    vi.mocked(r.port.freeMemory).mockReturnValueOnce(290).mockReturnValueOnce(310)
+    expect(await reading(r, 'memoryAvailableBytes')).toBeNull()
+    vi.mocked(r.port.availableMemory).mockReturnValue(3000)
+    expect(await reading(r, 'memoryAvailableBytes')).toBe(3000)
   })
 
   it('does not fabricate total, oversized, fractional or negative memory readings', async () => {
