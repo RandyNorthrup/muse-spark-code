@@ -15,6 +15,11 @@ import path from 'node:path'
 import { withoutCredentials } from '../../../src/runtime/credentialVariables'
 
 export const PRODUCTION_BUILD_KEY = 'productionBuild'
+declare module 'vitest' {
+  export interface ProvidedContext {
+    [PRODUCTION_BUILD_KEY]: string
+  }
+}
 export const PRODUCTION_BUILD_SUITES = [
   '/runtimeChatGptPackage.test.ts',
   '/webviewBundle.test.mjs',
