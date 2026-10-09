@@ -34,13 +34,15 @@ it('certifies lazy slash-command registration without increasing activation byte
   expect(startup.has(entry[0])).toBe(false)
   // It loads with the registry: in its entry chunk or a chunk that entry
   // imports statically (a chunk esbuild shares with another lazy surface).
-  const withRegistry = [entry[0]]
-  for (let index = 0; index < withRegistry.length; index += 1) {
-    const imports = meta.outputs[withRegistry[index]]?.imports ?? []
-    for (const edge of imports)
-      if (edge.kind === 'import-statement' && !withRegistry.includes(edge.path))
-        withRegistry.push(edge.path)
+  const withRegistry = new Set()
+  const queue = [entry[0]]
+  while (queue.length > 0) {
+    const file = queue.pop()
+    if (withRegistry.has(file)) continue
+    withRegistry.add(file)
+    const imports = meta.outputs[file]?.imports ?? []
+    for (const edge of imports) if (edge.kind === 'import-statement') queue.push(edge.path)
   }
-  expect(withRegistry).toContain(owners[0][0])
+  expect(withRegistry.has(owners[0][0])).toBe(true)
   expect(statSync(path.join(build.root, 'dist/extension.js')).size).toBeLessThanOrEqual(587_451)
 })
