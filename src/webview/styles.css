@@ -1679,20 +1679,38 @@ body {
   line-height: 1.5;
 }
 
-/* Six decorative circles keep the old loop's still pose. The heartbeat
-   supplies activity; this mark does not run a second decorative loop. */
+/* Six circles expand and gather in a slow loop (owner, 2026-10-04: a looping
+   mark; 2026-10-09: keep it moving). Reduced motion holds the loop's middle
+   pose. */
 /* stylelint-disable custom-property-pattern -- the original pen's polar
-   geometry uses --angle and --offset, recorded in PLAN section 8. */
+   geometry uses --angle, --offset, --amplitude and --scale, recorded in PLAN
+   section 8. */
+@property --amplitude {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --scale {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
 .status-mark {
   --offset: 30deg;
+
+  /* The whole mark at 75 %: 12 px box, 2.25 px circles and spread; 16 px sat a
+     little large beside the status text (owner, 2026-10-09). */
+  --ms-status-mark-unit: calc(var(--ms-radius-xs) * 0.75);
 
   position: relative;
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: var(--ms-icon-size);
-  height: var(--ms-icon-size);
+  width: calc(var(--ms-icon-size) * 0.75);
+  height: calc(var(--ms-icon-size) * 0.75);
   overflow: visible;
   isolation: isolate;
 }
@@ -1700,8 +1718,8 @@ body {
 .status-mark-circle {
   position: absolute;
   inset: 0;
-  width: var(--ms-radius-xs);
-  height: var(--ms-radius-xs);
+  width: var(--ms-status-mark-unit);
+  height: var(--ms-status-mark-unit);
   margin: auto;
   border-radius: var(--ms-radius-circle);
   background: radial-gradient(
@@ -1711,11 +1729,40 @@ body {
     var(--ms-status-high)
   );
   mix-blend-mode: lighten;
+
+  /* The still pose is the loop's middle, so the mark stays visible without motion. */
+  --amplitude: var(--ms-status-mark-unit);
+  --scale: 3;
+
   transform: translate(
-      calc(cos(var(--angle)) * var(--ms-radius-xs)),
-      calc(sin(var(--angle)) * var(--ms-radius-xs) * -1)
+      calc(cos(var(--angle)) * var(--amplitude)),
+      calc(sin(var(--angle)) * var(--amplitude) * -1)
     )
-    scale(3) rotate(calc(-1 * var(--angle) + 17deg));
+    scale(var(--scale)) rotate(calc(-1 * var(--angle) + 17deg));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .status-mark-circle {
+    animation: status-mark-expand 4.01s cubic-bezier(0.8, 0, 0.2, 1) infinite alternate;
+  }
+}
+
+/* 0.16.0's loop (amplitude 4.5 → 3 px, scale 1 → 3) at the mark's 75 % size. */
+@keyframes status-mark-expand {
+  0% {
+    --amplitude: calc(var(--ms-status-mark-unit) * 1.5);
+    --scale: 1;
+  }
+
+  50% {
+    --amplitude: var(--ms-status-mark-unit);
+    --scale: 3;
+  }
+
+  100% {
+    --amplitude: calc(var(--ms-status-mark-unit) * 1.5);
+    --scale: 3;
+  }
 }
 
 .status-mark-circle:nth-child(1) {

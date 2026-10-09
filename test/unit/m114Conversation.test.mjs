@@ -461,9 +461,13 @@ describe('M114 P1 conversation contract', () => {
         .locator('.tool-chevron')
         .evaluate((el) => (el.innerHTML = '<span class="chevron">›</span>'))
       expect(await styleValue(page, '.chevron', 'transitionDuration')).toBe('0.12s')
-      for (const c of ['cursor', 'tool-dot-running', 'mic-listening', 'status-mark-circle']) {
+      for (const c of ['cursor', 'tool-dot-running', 'mic-listening']) {
         expect(await styleValue(page, `.${c}`, 'animationName'), c).toBe('none')
       }
+      // The status mark is the one decorative loop the owner keeps (2026-10-09).
+      expect(await styleValue(page, '.status-mark-circle', 'animationName')).toBe(
+        'status-mark-expand',
+      )
       await page.emulateMedia({ reducedMotion: 'reduce' })
       for (const c of ['chevron', 'jump-latest', 'chip-remove', 'code-block-button', 'todo-open']) {
         expect(await styleValue(page, `.${c}`, 'transitionDuration'), c).toBe('0s')

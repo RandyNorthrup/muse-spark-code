@@ -5192,13 +5192,15 @@ choices:
   the line's gap.
   Owner's request 2026-10-04: the bullet is now a small looping
   circle-pattern mark (after Inclushe's circle pattern animation lighten,
-  CodePen OPWreWR, MIT, written fresh with no pointer tracking).
+  CodePen OPWreWR, MIT, written fresh with no pointer tracking). Owner,
+  2026-10-09: the mark drawn at 75 % (12 px box) — 16 px sat a little large
+  beside the text.
   - **Our own trace, Vahid's animation (amended 2026-10-04, owner's
     verdict: the first cut drew a static path with a highlight sliding
     along it; the highlight must CREATE the shape).** The trace is a
     `<canvas>` port of Vahid's HTML5 Canvas Heart Monitor (CodePen MWvmvd,
     MIT; written fresh, credited in the module): a beam moves right in
-    6 ms ticks along our P/QRS/T wave, then wraps and repeats. Each frame
+    7 ms ticks along our P/QRS/T wave, then wraps and repeats. Each frame
     clears the canvas and strokes only the beam's last
     `HEARTBEAT_BEAM_TRAIL_TICKS` (100 ticks, half a sweep) of path, fading
     by age from opaque at the beam to nothing (`trailSegments`). Nothing
@@ -5211,8 +5213,9 @@ choices:
     `src/webview/heartbeatBeam.ts`, our waveform sampled in the 0..100 by
     0..24 box (flat at 12; P bump 18–29; dip at 38, spike to y=2 at 43 and
     down to 22 at 48, back at 53; T bump 63–73; flat). One sweep takes
-    about 1.2 s (half a pixel per tick: the reference's 0.6 s reads as
-    frantic at this size), driven by one `requestAnimationFrame` loop with
+    about 1.4 s (half a pixel per 7 ms tick: the reference's 0.6 s reads as
+    frantic at this size, and 1.2 s still read a little fast — owner,
+    2026-10-09), driven by one `requestAnimationFrame` loop with
     fixed ticks, paused while the page is hidden. Step and trail tunables
     are `HEARTBEAT_BEAM_*` in `src/shared/constants.ts`.
   - **Size and place.** 1.5 em high (inside one line of the 13 px text)
@@ -42679,9 +42682,9 @@ before a repaired one loads (2026-09-30).
 
 | `test/unit/playbookSurface.test.ts` (M116 W) | `as never` on a hostile rule name | The unknown-rule refusal branch is reachable only with a rule outside `PLAYBOOK_CONFIGURABLE_RULES`, which a typed test cannot spell; the test-only cast feeds one in and asserts nothing is persisted. An inline comment names that invariant. Lane W product code holds no cast. | 2026-10-07 |
 
-| File                                                                  | Construct                                                                              | Reason                                                                                                                                                                                                                                                                                           | Added      |
-| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
-| `src/webview/styles.css`, status-mark section and reduced-motion pose | `stylelint-disable`/`stylelint-enable custom-property-pattern` (one polar-angle range) | The owner's request keeps the pen's `--angle` and `--offset` names; obsolete amplitude/scale keyframes and the separate reduced-motion range were removed in P1 so the keyframes read against the original; the repo's own custom properties take an `ms-` prefix. Inline comments name the pen. | 2026-10-04 |
+| File                                                                  | Construct                                                                              | Reason                                                                                                                                                                                                                                                          | Added      |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/webview/styles.css`, status-mark section and reduced-motion pose | `stylelint-disable`/`stylelint-enable custom-property-pattern` (one polar-angle range) | The owner's request keeps the pen's `--angle`, `--offset`, `--amplitude` and `--scale` names (the loop came back on 2026-10-09, owner: "moving", the 0.16.0 loop at 75 %); the repo's own custom properties take an `ms-` prefix. Inline comments name the pen. | 2026-10-09 |
 
 | File                                                                                | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
