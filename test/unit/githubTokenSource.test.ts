@@ -186,10 +186,11 @@ describe('scopes', () => {
 })
 
 describe('the OAuth App (Q-M123)', () => {
-  it('refuses the device flow while the client id is unset', () => {
-    // The owner registers the app (PLAN.md Q-M123); until then this is empty.
-    expect(GITHUB_OAUTH_CLIENT_ID).toBe('')
-    expect(refusal(() => requireOAuthClientId())).toBe('clientIdUnset')
+  it('uses the registered app and refuses the device flow for an empty client id', () => {
+    // The owner registered the app on 2026-10-08 (PLAN.md Q-M123): public, no secret.
+    expect(requireOAuthClientId()).toBe(GITHUB_OAUTH_CLIENT_ID)
+    expect(GITHUB_OAUTH_CLIENT_ID).toBe('Ov23liXlNSPBbFyJ0A1z')
+    expect(refusal(() => requireOAuthClientId(''))).toBe('clientIdUnset')
     expect(refusal(() => requireOAuthClientId(' '.repeat(3)))).toBe('clientIdUnset')
     expect(requireOAuthClientId('Iv1.fakeclientid0000')).toBe('Iv1.fakeclientid0000')
   })

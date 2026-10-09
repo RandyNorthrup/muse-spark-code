@@ -76,6 +76,12 @@ export function cliCommands() {
       text: { ui: 'referenceAuthClear' },
     },
     {
+      route: 'authGitHub',
+      name: 'auth github login|logout|status',
+      description: UI_TEXT.referenceAuthGitHub,
+      text: { ui: 'referenceAuthGitHub' },
+    },
+    {
       route: 'setup',
       name: 'setup',
       description: UI_TEXT.referenceSetup,
