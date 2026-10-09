@@ -20,6 +20,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Models & Agents: **Scan this computer** offers every local server that answers
+  ("Ollama on port 11434"); choosing one opens its wizard with the local port
+  filled, and an empty scan says nothing is running yet and names each local app
+  with its usual port. Previously it kept only the first answer, asked for a
+  local port it never used, and said nothing when nothing answered. Mistral's
+  plan key now has its own "Mistral plan" label and a sentence saying it uses
+  the subscription's credits, not pay-as-you-go billing. The Copilot sign-in
+  has its own sentence (VS Code's granted models, billed to the Copilot plan
+  or AI credits) instead of repeating ChatGPT's notice.
 - Models & Agents: the provider picker works again. In 0.16.0 it showed only
   "That did not work" and listed no provider, Anthropic included, because
   Mistral's plan key carried the Subscription sign-in category the panel's
