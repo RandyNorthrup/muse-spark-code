@@ -314,7 +314,8 @@ final record is committed separately with the same installed hooks.
    at repository timeouts with no test filters; every restore was byte-exact.
 4. Complete: final owning suites, scoped static/build gates and exact
    built-artifact/package parity checks pass.
-5. Pending: installed-hook commit and staged/committed diff verification.
+5. Complete: installed hooks passed; staged/committed patches byte-identical,
+   source hashes unchanged, diffs re-read and worktree clean.
 
 No new runtime surface, command, setting, dependency, cap or gate. Aggregate
 quality and universal release qualification remain lead-owned under the
@@ -375,3 +376,9 @@ Next: lead reviews/integrates this fix and runs aggregate quality and
 universal VSIX qualification. No remaining code blocker in the scoped
 checks. Those broader gates remain lead-owned; no merge, push, rebase,
 hook/threshold relaxation, credential read or paid/live model call.
+
+Code commit: `3a6f67d65a76fcad9b9a07faeef7a5087894390b`. Unchanged
+`.husky/_` ran ESLint fix, Prettier and staged gitleaks (no leaks). Saved
+staged and committed binary patches compare byte-for-byte equal; both
+production source hashes above still match. Staged and committed diffs were
+re-read. This final receipt is committed separately with the same hooks.
