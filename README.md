@@ -3814,7 +3814,13 @@ each skipped candidate. A review excludes every author and authoring engine,
 including borrowed coders and agents earlier in a handoff chain. An idle agent
 can help a secondary role after at least sixty seconds of unmet demand;
 upcoming main-role work and cooldown keep it home. Main-role demand emits a
-recall with a bounded deadline. The preference editor, installed host bindings
+recall with a bounded deadline. Recall events have stable ids, are delivered
+once after scheduling drains, and allow the consumer to wake or retire work.
+Tasks without a preference snapshot keep the existing selection. If every
+preferred reviewer is skipped, review stays blocked with those reasons:
+recoverable shortages queue under the role's queue policy; otherwise it asks
+for an eligible reviewer. The self policy cannot waive review or select an author.
+The preference editor, installed host bindings
 and execution of handoffs remain pending in the other M120 lanes. With no
 preference list or secondary roles, the existing selection and requests stay
 unchanged.

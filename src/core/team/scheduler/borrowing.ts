@@ -4,11 +4,12 @@ import {
   TEAM_TASK_MINUTES_DEFAULT,
 } from '../../../shared/constants'
 import type { TeamBoardTask } from '../../../shared/team'
-import type {
-  TeamCandidate,
-  TeamPreferenceList,
-  TeamRoleAssignment,
-  TeamTaskConditions,
+import {
+  isTaskAuthor,
+  type TeamCandidate,
+  type TeamPreferenceList,
+  type TeamRoleAssignment,
+  type TeamTaskConditions,
 } from '../../../shared/teamPreference'
 import {
   decideBorrow,
@@ -27,6 +28,7 @@ import type { TaskPicker, PickContext, SchedulerEntry } from './pick'
 
 /** Lane H consumes this decision; S never stops a worker or captures work. */
 export interface SchedulerRecallEvent {
+  readonly id: string
   readonly taskId: string
   readonly attempt: number
   readonly atMs: number
@@ -47,6 +49,11 @@ export interface SchedulerBorrowPort {
 
 /** Board-derived live D109 state; no independent timers or hidden task queue. */
 export class SchedulerBorrowing {
+  private readonly borrowed = new Map<string, { candidateId: string; mainRole: string }>()
+  private readonly pending = new Map<string, SchedulerRecallEvent>()
+  private readonly delivered = new Map<string, SchedulerRecallEvent>()
+  private readonly lastRecall = new Map<string, { signature: string; number: number }>()
+  private delivering = false
   constructor(
     private readonly board: TaskBoard,
     private readonly port: SchedulerBorrowPort,
@@ -107,12 +114,46 @@ export class SchedulerBorrowing {
       })
     }
     const queued = tasks
-      .filter((task) => task.state === 'ready' && !task.held)
+      .filter(
+        (task) =>
+          task.state === 'ready' &&
+          !task.held &&
+          context.selection?.(task).preference !== undefined,
+      )
       .map((task) => {
         const isMainFree = this.picker.rank([task], context).length > 0
         this.board.demand(task.id, context.now, isMainFree)
         const selection = context.selection?.(task)
-        const conditions = selection === undefined ? undefined : selectionConditions(selection)
+        let conditions = selection === undefined ? undefined : selectionConditions(selection)
+        if (selection !== undefined && conditions !== undefined) {
+          // A review's captured identities belong to that review, including borrowed agents.
+          const authors = lists
+            .flatMap((list) => list.pool)
+            .filter(
+              (candidate) =>
+                isTaskAuthor(
+                  candidate.id,
+                  selection.engine?.(candidate) ??
+                    candidate.agent?.model ??
+                    selection.defaultAgent.modelId,
+                  conditions,
+                ) ||
+                isTaskAuthor(
+                  candidate.id,
+                  candidate.agent?.model ?? selection.defaultAgent.modelId,
+                  conditions,
+                ),
+            )
+          conditions = {
+            ...conditions,
+            authorCandidates: [
+              ...new Set([
+                ...(conditions.authorCandidates ?? []),
+                ...authors.map((candidate) => candidate.id),
+              ]),
+            ],
+          }
+        }
         return {
           taskId: task.id,
           roleId: task.roleId,
@@ -127,8 +168,6 @@ export class SchedulerBorrowing {
         }
       })
     const cooldowns = this.board.snapshot().borrowCooldowns ?? []
-    const first = tasks[0]
-    const identities = first === undefined ? undefined : context.selection?.(first)
     const agents: BorrowAgent[] = this.port.assignments().map((assignment) => {
       const candidate = lists
         .find((list) => list.role === assignment.mainRole)
@@ -144,6 +183,7 @@ export class SchedulerBorrowing {
         ),
       )
       const attempt = running?.attempts.findLast((item) => item.state !== 'retired')
+      const identities = running === undefined ? undefined : context.selection?.(running)
       const isBorrowed =
         running?.handoff?.chain.some(
           (link) =>
@@ -156,6 +196,7 @@ export class SchedulerBorrowing {
         ...assignment,
         engine:
           (candidate === undefined ? undefined : identities?.engine?.(candidate)) ??
+          attempt?.modelId ??
           candidate?.agent?.model ??
           context.entries.find((entry) => entry.id === assignment.candidateId)?.modelId ??
           '',
@@ -196,6 +237,7 @@ export class SchedulerBorrowing {
   }
 
   async tick(context: PickContext, journal: () => Promise<void>): Promise<PickContext> {
+    this.borrowed.clear()
     if (this.port.assignments().every((assignment) => assignment.secondaryRoles.length === 0))
       return context
     const lists = this.port.lists()
@@ -210,14 +252,23 @@ export class SchedulerBorrowing {
     await journal()
     for (const decision of recalls) {
       const task = this.board.task(decision.taskId)
-      await this.port.recall({
-        taskId: task.id,
-        attempt: task.currentAttempt,
-        atMs: context.now,
-        decision,
-      })
+      const key = JSON.stringify([task.id, task.currentAttempt])
+      const signature = JSON.stringify(decision)
+      const previous = this.lastRecall.get(key)
+      const number =
+        previous?.signature === signature ? previous.number : (previous?.number ?? 0) + 1
+      const id = JSON.stringify([task.id, task.currentAttempt, number])
+      this.lastRecall.set(key, { signature, number })
+      if (!this.delivered.has(id))
+        this.pending.set(id, {
+          id,
+          taskId: task.id,
+          attempt: task.currentAttempt,
+          atMs: context.now,
+          decision,
+        })
     }
-    const borrowed = new Map<string, { candidate: TeamCandidate; entry: SchedulerEntry }>()
+    const borrowed = this.borrowed
     const taken = new Set<string>()
     const decisions: BorrowDecision[] = []
     const ordered = snapshot.queued.toSorted(
@@ -260,16 +311,40 @@ export class SchedulerBorrowing {
       if (candidate === undefined || home === undefined)
         throw new Error('team:borrowCandidateMissing')
       taken.add(decision.candidateId)
-      borrowed.set(task.id, {
+      borrowed.set(task.id, { candidateId: candidate.id, mainRole: home.roleId })
+    }
+    this.port.decisions(decisions)
+    return this.apply(context)
+  }
+
+  /** Recheck proposed lenders against fresh facts without another borrow/recall tick. */
+  apply(context: PickContext): PickContext {
+    const borrowed = new Map<string, { candidate: TeamCandidate; entry: SchedulerEntry }>()
+    const lists = this.port.lists()
+    const assignments = this.port.assignments()
+    for (const [taskId, proposed] of this.borrowed) {
+      const task = this.board.task(taskId)
+      const assignment = assignments.find(
+        (item) => item.candidateId === proposed.candidateId && item.mainRole === proposed.mainRole,
+      )
+      if (!assignment?.secondaryRoles.includes(task.roleId)) continue
+      const candidate = lists
+        .find((list) => list.role === proposed.mainRole)
+        ?.pool.find((item) => item.id === proposed.candidateId)
+      const home = context.entries.find(
+        (item) => item.id === proposed.candidateId && item.roleId === proposed.mainRole,
+      )
+      if (candidate === undefined || home === undefined) continue
+      borrowed.set(taskId, {
         candidate,
         entry: {
           ...home,
           roleId: task.roleId,
-          eligible: (item) => item.id === task.id && home.eligible(item),
+          eligible: (item) => item.id === taskId && home.eligible(item),
         },
       })
     }
-    this.port.decisions(decisions)
+    if (borrowed.size === 0) return context
     return {
       ...context,
       entries: [...context.entries, ...Array.from(borrowed.values(), (item) => item.entry)],
@@ -280,6 +355,21 @@ export class SchedulerBorrowing {
         if (selection === undefined) throw new Error('team:borrowSelectionMissing')
         return selection
       },
+    }
+  }
+
+  /** The scheduler clears its drain before delivering; callbacks may wake or retire. */
+  async deliver(): Promise<void> {
+    if (this.delivering) return
+    this.delivering = true
+    try {
+      for (const [id, event] of this.pending) {
+        this.pending.delete(id)
+        this.delivered.set(id, event)
+        await this.port.recall(event)
+      }
+    } finally {
+      this.delivering = false
     }
   }
 
@@ -296,6 +386,9 @@ export class SchedulerBorrowing {
   }
 
   retired(task: TeamBoardTask, attemptNumber: number): void {
+    this.lastRecall.delete(JSON.stringify([task.id, attemptNumber]))
+    for (const [id, event] of this.delivered)
+      if (event.taskId === task.id && event.attempt === attemptNumber) this.delivered.delete(id)
     const attempt = task.attempts.find((item) => item.number === attemptNumber)
     if (attempt?.endedAt === undefined) return
     if (

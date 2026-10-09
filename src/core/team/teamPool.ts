@@ -717,6 +717,7 @@ export class TeamScheduler {
 
   private async drain(): Promise<void> {
     const considered = new Set<string>()
+    let didBorrow = false
     while (this.hasWake && this.canDispatch()) {
       this.hasWake = false
       this.board.refresh(this.deps.now())
@@ -728,8 +729,15 @@ export class TeamScheduler {
         canStart: (task, entry) =>
           !considered.has(task.id) && supplied.canStart(task, entry) && this.hasSlot(task, entry),
       }
-      if (this.borrowing !== undefined)
-        context = await this.borrowing.tick(context, () => this.deps.journal(this.board.snapshot()))
+      if (this.borrowing !== undefined) {
+        if (didBorrow) context = this.borrowing.apply(context)
+        else {
+          didBorrow = true
+          context = await this.borrowing.tick(context, () =>
+            this.deps.journal(this.board.snapshot()),
+          )
+        }
+      }
       const pick = this.picker.pick(tasks, context)
       if (!pick) {
         for (const task of tasks)
@@ -767,10 +775,7 @@ export class TeamScheduler {
             now: this.deps.now(),
             canStart: (task, entry) => live.canStart(task, entry) && this.hasSlot(task, entry),
           }
-          if (this.borrowing !== undefined)
-            checked = await this.borrowing.tick(checked, () =>
-              this.deps.journal(this.board.snapshot()),
-            )
+          if (this.borrowing !== undefined) checked = this.borrowing.apply(checked)
           const refreshed = this.picker.rank([current], checked)[0]?.entry
           if (
             refreshed?.id !== pick.entry.id ||
@@ -892,6 +897,7 @@ export class TeamScheduler {
     } finally {
       this.draining = undefined
     }
+    await this.borrowing?.deliver()
   }
 
   async retired(ref: Pick<SlotRequest, 'taskId' | 'attempt'>): Promise<void> {

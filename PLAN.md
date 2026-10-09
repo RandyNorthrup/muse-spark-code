@@ -37332,6 +37332,17 @@ M95 currently sends OpenRouter's provider order to the service; it has no local
 configured-candidate selector to replace. Lane W owns installed host bindings;
 lane H owns stopping and capturing work. Lane S receipts: `docs/certification/m120-s.md`.
 
+**Lane S round 2 (RVM120SG, 2026-10-09).** Repair all four P2 findings:
+borrowing evaluates once per wake, with stable recall ids delivered exactly
+once outside the drain and safe scheduler re-entry; agent identities and
+review exclusions use their own assignment/task snapshots; tasks without
+preferences keep D75 selection and do not enter borrowing; exhausted reviewer
+preferences block review/merge with skips and the role's exhaustion policy.
+Add the reviewer's reproductions before fixes, prove each guard by byte-exact
+red drills, run all team suites and request goldens at repository timeouts,
+and certify changed-file formatting/lint and all five typechecks. No merge,
+push, live/paid call or aggregate quality (lead-owned under the rig brief).
+
 - **Goal:** D103 across every balancing surface.
 - **Order:** after the Wednesday set, and before the M110/M111 resume.
   M110's node orchestrator uses it.

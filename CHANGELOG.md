@@ -81,6 +81,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M120 scheduler borrowing runs once per wake and delivers stable recall events
+  once after the drain, allowing consumers to wake or retire without deadlock.
+  Recall uses the agent's own task identity and each review's captured engine
+  exclusions. Legacy tasks remain outside borrowing. Exhausted reviewer
+  preferences block merge with skip reasons and queue or ask for an eligible
+  reviewer instead of allowing an unreviewed merge (RVM120SG).
+
 - Windows recorder destinations accept native 8.3 temporary-folder spelling
   while still refusing traversal and existing destinations (CIFIX017W).
 

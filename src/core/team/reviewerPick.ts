@@ -1,7 +1,12 @@
 import { selectTeamEntry } from './selection'
-import type { TeamSelectionSnapshot, TeamSelection } from './teamPool'
+import {
+  answerExhausted,
+  type TeamSelectionSnapshot,
+  type TeamSelection,
+  type TeamExhaustedAnswer,
+} from './teamPool'
 import type { TeamSkip } from '../../shared/teamPreference'
-import { TEAM_TASKS_PER_TURN_DEFAULT } from '../../shared/constants'
+import { TEAM_TASKS_PER_TURN_DEFAULT, TEAM_QUEUE_MAX_WAIT_MS } from '../../shared/constants'
 // The reviewer's pick (M96 lane I, PLAN.md D75): `merge` of a writing task
 // is refused until a `code-review` task has reviewed the branch's current
 // head. The runner chooses the first entry with headroom whose model
@@ -29,25 +34,52 @@ export interface ReviewPick {
   readonly skips?: readonly TeamSkip[]
 }
 
+/** Configured preferences exhausted: the gate must wait or ask, never waive review. */
+export interface ReviewUnavailable {
+  readonly kind: 'noneEligible'
+  readonly roleId: string
+  readonly skips: readonly TeamSkip[]
+  readonly exhausted: TeamExhaustedAnswer
+}
+
+export function pickReviewer(
+  authors: readonly string[],
+  candidates: readonly ReviewCandidate[],
+  isSameModel: (left: string, right: string) => boolean,
+): ReviewPick | undefined
+export function pickReviewer(
+  authors: readonly string[],
+  candidates: readonly ReviewCandidate[],
+  isSameModel: (left: string, right: string) => boolean,
+  live: { readonly snapshot: TeamSelectionSnapshot; selected?(selection: TeamSelection): void },
+): ReviewPick | ReviewUnavailable | undefined
+
 /**
  * The first entry with headroom whose model differs from every author, or
  * — when every reviewer with headroom shares an author's model — the first
  * entry with headroom, marked `sameModel`. No reviewer with headroom (or
  * none staffed) is `undefined`: the merge then goes ahead marked "not
- * reviewed" (reviewGate.ts).
+ * reviewed" (reviewGate.ts). With preferences, exhaustion is explicit and blocks.
  */
 export function pickReviewer(
   authors: readonly string[],
   candidates: readonly ReviewCandidate[],
   isSameModel: (left: string, right: string) => boolean,
   live?: { readonly snapshot: TeamSelectionSnapshot; selected?(selection: TeamSelection): void },
-): ReviewPick | undefined {
+): ReviewPick | ReviewUnavailable | undefined {
   const snapshot = live?.snapshot
   if (snapshot?.preference !== undefined) {
     const availability = snapshot.availability
     if (availability === undefined) throw new Error('team:availabilityMissing')
+    const pool = {
+      roleId: snapshot.preference.role,
+      entries: [],
+      // Self cannot waive review or authorize an excluded author; ask for an eligible reviewer.
+      policy: snapshot.preference.exhausted === 'queue' ? ('queue' as const) : ('ask' as const),
+      continueOnNext: false,
+    }
     const selection = selectTeamEntry(
-      { roleId: snapshot.preference.role, entries: [], policy: 'queue', continueOnNext: false },
+      pool,
       {
         ...snapshot,
         conditions: {
@@ -82,7 +114,25 @@ export function pickReviewer(
           sameModel: false,
           skips: selection.skips ?? [],
         }
-      : undefined
+      : {
+          kind: 'noneEligible',
+          roleId: pool.roleId,
+          skips: selection.kind === 'exhausted' ? (selection.skips ?? []) : [],
+          exhausted: answerExhausted(
+            pool,
+            selection.kind === 'exhausted'
+              ? selection.reasons.map((reason) =>
+                  selection.skips?.some(
+                    (skip) => skip.candidateId === reason.entryId && skip.reason === 'busy',
+                  )
+                    ? { ...reason, reason: 'concurrent' as const }
+                    : reason,
+                )
+              : [],
+            snapshot.nowMs,
+            TEAM_QUEUE_MAX_WAIT_MS,
+          ),
+        }
   }
   const ready = candidates.filter((candidate) => candidate.hasHeadroom)
   const other = ready.find((candidate) =>

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { selectTeamEntry, TeamLiveAvailability } from '../../src/core/team/selection'
 import { pickReviewer } from '../../src/core/team/reviewerPick'
+import { reviewGate } from '../../src/core/team/reviewGate'
 import { TaskPicker } from '../../src/core/team/scheduler/pick'
 import { teamPreferenceListSchema, type TeamCandidate } from '../../src/shared/teamPreference'
 import { TEAM_TASKS_PER_TURN_DEFAULT } from '../../src/shared/constants'
@@ -31,6 +32,82 @@ function select(snapshot: ReturnType<typeof selectionSnapshot>) {
 }
 
 describe('M120 live preference selection', () => {
+  it.each(['ask', 'queue', 'self'] as const)(
+    'blocks an author-only reviewer preference through the review gate under %s policy',
+    (exhausted) => {
+      const list = preference(['author'])
+      list.exhausted = exhausted
+      const reviewer = pickReviewer(
+        ['model-author'],
+        [{ entryId: 'author', modelId: 'model-author', hasHeadroom: true }],
+        isSameTeamModel,
+        {
+          snapshot: {
+            ...selectionSnapshot(),
+            preference: list,
+            availability: live().availability,
+            conditions: { authorEngines: ['model-author'] },
+          },
+        },
+      )
+      expect(reviewer).toMatchObject({
+        kind: 'noneEligible',
+        skips: [{ candidateId: 'author', reason: 'author' }],
+        exhausted: { decision: 'ask' },
+      })
+      for (const requiresDifferentModel of [false, true]) {
+        expect(
+          reviewGate({
+            reviewer,
+            reviewedHead: undefined,
+            branchHead: 'head',
+            requireDifferentModel: requiresDifferentModel,
+          }),
+        ).toMatchObject({
+          ok: false,
+          reason: 'noneEligible',
+          skips: [{ candidateId: 'author', reason: 'author' }],
+          exhausted: { decision: 'ask' },
+        })
+      }
+    },
+  )
+
+  it('waits for busy preferred reviewers and asks when the configured pool is empty', () => {
+    const list = preference(['reviewer'])
+    list.exhausted = 'queue'
+    const snapshot = {
+      ...selectionSnapshot({ nowMs: 0 }),
+      preference: list,
+      availability: live().availability,
+    }
+    const reviewer = pickReviewer(
+      [],
+      [{ entryId: 'reviewer', modelId: 'model-reviewer', hasHeadroom: true }],
+      isSameTeamModel,
+      { snapshot: { ...snapshot, runningByEntry: new Map([['reviewer', 1]]) } },
+    )
+    expect(
+      reviewGate({
+        reviewer,
+        reviewedHead: undefined,
+        branchHead: 'head',
+        requireDifferentModel: true,
+      }),
+    ).toMatchObject({
+      ok: false,
+      reason: 'noneEligible',
+      exhausted: { decision: 'queue', untilMs: 0 },
+      skips: [{ candidateId: 'reviewer', reason: 'busy' }],
+    })
+    list.pool.length = 0
+    expect(pickReviewer([], [], isSameTeamModel, { snapshot })).toMatchObject({
+      kind: 'noneEligible',
+      skips: [],
+      exhausted: { decision: 'ask' },
+    })
+  })
+
   it('matches fourteen byte-exact D75 selection receipts captured from the accepted base', () => {
     expect(legacy.source).toBe('6c8d14348')
     const cases = legacySelectionCases()
@@ -184,7 +261,7 @@ describe('M120 live preference selection', () => {
         snapshot: { ...snapshot, preference: { ...list, pool: list.pool.slice(0, -1) } },
         selected,
       }),
-    ).toBeUndefined()
+    ).toMatchObject({ kind: 'noneEligible' })
     expect(selected).toHaveBeenCalledWith(expect.objectContaining({ kind: 'exhausted' }))
     expect(() =>
       select({ ...snapshot, authorship: { ...snapshot.authorship, engines: new Map() } }),
