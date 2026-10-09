@@ -14744,7 +14744,9 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     })
 
     const large = await handoffConversation()
-    large.api.script({ text: 'x'.repeat(PLAN_FILE_MAX_BYTES + 1) })
+    // One delta: the bound is on the whole brief, and 52,000 five-character
+    // deltas made this case take seconds on a loaded runner (5 s deadline).
+    large.api.script({ text: 'x'.repeat(PLAN_FILE_MAX_BYTES + 1), isSingleTextDelta: true })
     large.t.surface.posted.length = 0
     await large.controller.handle(handoff('h1'))
     await vi.waitFor(() => {
