@@ -43,13 +43,21 @@ import type { TrustedPathVerifier } from '../../src/runtime/trustedPathPort'
 import { verifySystemdSearchDirectories } from '../../src/runtime/schedules/effectiveDefinition'
 
 function nativeFixtureVerifier(uid: number, stopAt?: string): TrustedPathVerifier {
-  return {
+  const verifier: TrustedPathVerifier = {
     async verify(file: string, options: { leafKind: 'file' | 'directory' }) {
       let component = file
       for (;;) {
         const info = await lstat(component)
         const isLeaf = component === file
-        if (
+        // A root-owned link (Ubuntu 24.04's /etc/xdg/systemd/user ->
+        // ../../systemd/user, a systemd 255 search path) is as trusted as its
+        // target; its own parent chain is still walked below.
+        if (info.isSymbolicLink() && info.uid === 0) {
+          const target = await verifier.verify(await realpath(component), {
+            leafKind: isLeaf ? options.leafKind : 'directory',
+          })
+          if ('refused' in target) return target
+        } else if (
           info.isSymbolicLink() ||
           (info.uid !== 0 && info.uid !== uid) ||
           (info.mode & 0o022) !== 0 ||
@@ -67,6 +75,7 @@ function nativeFixtureVerifier(uid: number, stopAt?: string): TrustedPathVerifie
       }
     },
   }
+  return verifier
 }
 
 // These native helpers prove credential fencing and path selection; shared
