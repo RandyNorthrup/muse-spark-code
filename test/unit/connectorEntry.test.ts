@@ -145,7 +145,7 @@ async function shutDownWhileDraining(data: string): Promise<void> {
     expect(isDone).toBe(false)
     draining.resolve(undefined)
     expect(await running).toBe(0)
-    // The client's calls were stopped first; the runtime then waited for them.
+    // The transport stopped the client's calls first; the runtime then waited for them.
     expect(disconnect.mock.invocationCallOrder[0]).toBeLessThan(
       drained.mock.invocationCallOrder[0] ?? 0,
     )

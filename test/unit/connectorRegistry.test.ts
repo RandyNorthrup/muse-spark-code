@@ -1205,10 +1205,16 @@ describe('M124 one state machine, one authority (RVM124B)', () => {
       await expectNoWriteAfter(h, await approvedAtTargetRead(h, save), change, cause)
     })
 
-  // Admission's receipt, then the read's dispatching receipt (round 4 P1).
-  for (const hold of ['admitted', 'dispatching'])
-    it(`starts no owner read after the kill switch during the ${hold} receipt wait (round 4 P1)`, async () => {
-      const h = await harness()
+  // Admission's receipt, then the read's dispatching receipt (round 4 P1);
+  // `snapshot`: no change notice arrives, the re-read before the gate must see it (round 5).
+  for (const [hold, mode] of [
+    ['admitted', 'live'],
+    ['dispatching', 'live'],
+    ['admitted', 'snapshot'],
+    ['dispatching', 'snapshot'],
+  ] as const)
+    it(`starts no owner read after the kill switch during the ${hold} receipt wait, ${mode} authority (round 4 P1)`, async () => {
+      const h = await harness(memoryLimits(), mode)
       const answer = await answerAfter(h, hold, (held) => {
         held.state.killed = true
       })

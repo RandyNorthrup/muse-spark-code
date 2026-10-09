@@ -292,8 +292,8 @@ read or pending lease, the approval intent, the owner port, the write; and
 again before a read's result is delivered. It is a plain synchronous call
 made by the effect's own caller after that caller's last wait (receipts,
 the target re-read, the authority re-read); in the same synchronous block
-the operation moves into `dispatching` (a failed move aborts the effect)
-and the effect starts. No await, promise continuation or async call sits
+the operation moves into `dispatching` (a failed move aborts the effect
+and ends the call `failed`) and the effect starts. No await, promise continuation or async call sits
 between them (round 5: a test queues an observer right after the gate that
 cancels, revokes or kills, and sees the effect either already started or
 never started). A lease is released whenever its operation ends, including
@@ -312,10 +312,10 @@ disconnect comes first, the caller is answered with that refusal at once,
 the result is never sent, and the receipt still finishes on its own and
 records the decided result.
 
-**Shutdown.** When the client goes, the runtime finishes only after every
-pending operation has ended (a started write, a committed receipt; at most
-one call deadline) and the approval page's start-up has settled; that page
-is then closed. A page that finishes starting after the client left opens
+**Shutdown.** When the client goes, the transport first stops every call
+(the disconnect); the runtime finishes only after every pending operation has
+ended (a started write, a committed receipt; at most one call deadline) and
+the approval page's start-up has settled; that page is then closed. A page that finishes starting after the client left opens
 no browser.
 
 **Receipts.** Every transition writes one receipt (`from` → `event`), so

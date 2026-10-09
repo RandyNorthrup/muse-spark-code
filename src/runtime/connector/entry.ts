@@ -167,8 +167,9 @@ export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> 
     await serveStdio({ input: deps.stdin, output: deps.stdout }, new ConnectorProtocol(registry))
     return 0
   } finally {
-    // Done only once pending work and the page's own start-up have settled.
-    registry.disconnect()
+    // The transport has disconnected the registry (its own finally): every
+    // call is stopped. Done only once pending work and the page's own
+    // start-up have settled.
     isClosing = true
     await registry.drained()
     await closePage(starting)
