@@ -33027,6 +33027,20 @@ before a repaired one loads (2026-09-30).
   `ask` path deliver no payload review, so MakerApproval refuses them.
   Their stale tests (`vscodeMakerHost` ×3, `runtimeMakerAcp` ×1) fail the
   same way at `01b38ddce`. Receipts: `docs/certification/m103.md` FIXM103W4.
+  FIXM103W5 (2026-10-08) resolves those two paths. On each, the prompt is
+  the review: the VS Code modal (with its rendered preview receipt for long
+  payloads) and the ACP permission request (the whole frozen request as
+  text content, which every ACP client renders) show target, action,
+  payload and digest for one request id. Only that prompt's allow submits a
+  complete `makerPayloadReviewed` for exactly its id and digest through the
+  engine's review callback, then answers; deny/close sends none. A missing
+  callback, a mismatched id or digest, or a refused review never yields an
+  allow (ACP settles `reject_once` at once, before presence). MakerApproval
+  is unchanged. Editors without the VS Code modal (JetBrains, Visual Studio,
+  Eclipse, Zed, Xcode, Neovim/Emacs/Sublime) reach approval through the ACP
+  permission prompt or the companion surface, so every path now has a
+  review route. Installed-editor and physical receipts remain the lead's
+  gates. Receipts: `docs/certification/m103.md` FIXM103W5.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting
