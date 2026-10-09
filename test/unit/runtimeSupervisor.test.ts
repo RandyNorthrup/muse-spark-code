@@ -10,7 +10,7 @@ import { mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import * as fs from 'node:fs/promises'
 import * as childProcess from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { createConnection } from 'node:net'
+import { createConnection, createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -128,15 +128,30 @@ async function closedOwner(pid: number) {
   await fs.mkdir(registry, { mode: 0o700 })
   const ownerId = randomUUID()
   const record = path.join(registry, `${workspaceKey(directory)}-${ownerId}.json`)
+  const pipe =
+    process.platform === 'win32'
+      ? String.raw`\\.\pipe\muse-stop-${randomUUID()}`
+      : path.join(directory, 'control')
+  // A closed socket must first have been bindable. UUID nesting exceeded
+  // Darwin's sun_path and tested EINVAL instead of the owner's closing window.
+  const control = createServer()
+  await new Promise<void>((resolve, reject) => {
+    control.once('error', reject)
+    control.listen(pipe, resolve)
+  })
+  const address = control.address()
+  await new Promise<void>((resolve, reject) => {
+    control.close((error) => {
+      if (error === undefined) resolve()
+      else reject(error)
+    })
+  })
   await writeFile(
     record,
     JSON.stringify({
       trustRoot: await fs.realpath(directory),
       pid,
-      pipe:
-        process.platform === 'win32'
-          ? String.raw`\\.\pipe\muse-stop-${randomUUID()}`
-          : path.join(directory, `closed-${ownerId}`, 'control'),
+      pipe,
       token: 'a'.repeat(64),
       generation: 'b'.repeat(32),
       ownerId,
@@ -144,7 +159,7 @@ async function closedOwner(pid: number) {
     }),
     { mode: 0o600 },
   )
-  return { registry, record }
+  return { registry, record, address }
 }
 
 describe('M104H2 runtime supervision', () => {
@@ -187,6 +202,27 @@ describe('M104H2 runtime supervision', () => {
         await stopWorkspace(registry, directory, directory)
         await run
       }
+    },
+  )
+
+  it.runIf(process.platform !== 'win32')(
+    'publishes a closed socket at its real bound address within the portable pathname limit',
+    async () => {
+      const { record, address } = await closedOwner(process.pid)
+      const owner = ownerSchema.parse(JSON.parse(await readFile(record, 'utf8')))
+      expect(owner.pipe).toBe(address)
+      expect(Buffer.byteLength(owner.pipe)).toBeLessThanOrEqual(RUNTIME_STOP_SOCKET_BYTES)
+      await expect(fs.stat(owner.pipe)).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(
+        new Promise<void>((resolve, reject) => {
+          const socket = createConnection(owner.pipe)
+          socket.once('error', reject)
+          socket.once('connect', () => {
+            socket.destroy()
+            resolve()
+          })
+        }),
+      ).rejects.toMatchObject({ code: 'ENOENT' })
     },
   )
 

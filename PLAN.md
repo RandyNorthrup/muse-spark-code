@@ -19787,6 +19787,20 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**FIXM104L9 closing-owner qualification (2026-10-08, complete on macOS).**
+RVM104L8 finding 1 came from the fixture's invalid 128-byte control pathname.
+It now binds and closes a real 84-byte socket at the recorded address.
+The product's 103-byte refusal and authenticated/dead-owner checks stay
+unchanged. The new regression fired when the old address was restored;
+the complete test file was then restored byte-exact. Three consecutive
+supervisor/watchdog pairs pass (47 each), trusted-path/registry passes
+(68, two existing skips), and native lifecycle passes (three), at repository
+deadlines with no new fixture survivors. Five typechecks, scoped lint/format,
+host API, deadcode, duplication, localization, reference and production build
+pass. Receipts: `docs/certification/m104-l.md`. M104 remains open for lead
+integration, Linux/Windows/editor qualification and the existing controller
+composition/containment questions. No new product scope or GUI change.
+
 **FIXM104L8 macOS lifecycle repair (2026-10-08, complete on macOS).** Reproduce
 the supervisor/watchdog/trusted-path failures on the unsandboxed MacBook;
 repair recursion, Stop preflight (including forwarding skipped-record diagnostics)
@@ -21461,6 +21475,16 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**FIXM104L9 scoped qualification (2026-10-08).** The rig/common brief
+reserves full quality and coverage for the lead and prohibits merges/pushes.
+This test-fixture repair runs the required three supervisor/watchdog pairs,
+trusted-path/registry and native lifecycle at repository deadlines, with
+process checks after every run, five typechecks, changed-file lint/format
+and host-API verification. The real socket probe and byte-exact invalid-record
+drill qualify the closing-owner tests; the 103-byte product cap is unchanged.
+Additional shared-rule static/build receipts are recorded in
+`docs/certification/m104-l.md`; no integrated or GUI qualification is claimed.
 
 **FIXM104L6 scoped certification (2026-10-06).** The rig brief reserves
 aggregate quality/coverage for the lead. Twelve complete owning/adjacent files

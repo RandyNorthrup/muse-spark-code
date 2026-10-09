@@ -37,6 +37,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Closing-owner Stop tests bind and close a real portable-length socket before
+  publishing its record, avoiding macOS `EINVAL` from an oversized fixture
+  pathname while retaining the product's 103-byte refusal.
+
 - Independent POSIX Stop sockets use a verified runtime root even when owner
   registries are deeply nested, and reject oversized addresses before launch.
   Runtime tests retain and reap detached fixture descendants after parent exit,
