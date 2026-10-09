@@ -221,41 +221,69 @@ describe('decideBorrow: who may lend', () => {
   })
 
   it('review ≠ author: a borrowed coder and its engine never review the task it coded', () => {
-    const coder = { ...reviewer('codex'), mainRole: 'engineering', secondaryRoles: ['code-review'] }
-    const sameEngine = { ...coder, candidateId: 'codex-2' }
-    const review: BorrowQueuedTask = {
+    // rev-a (main role review) was borrowed to code code-1, which muse started.
+    const authors = taskAuthorCandidates('muse', {
+      taskId: 'code-1',
+      roleId: 'engineering',
+      chain: [
+        {
+          kind: 'borrow',
+          atMs: T0,
+          candidateId: 'rev-a',
+          mainRole: 'code-review',
+          borrowingRole: 'engineering',
+        },
+        {
+          kind: 'move',
+          atMs: T0 + MINUTE,
+          trigger: 'returnToPreferred',
+          fromCandidateId: 'rev-a',
+          toCandidateId: 'claude',
+          work: { commits: [], newFiles: [] },
+        },
+      ],
+    })
+    expect(authors).toStrictEqual(['muse', 'rev-a', 'claude'])
+    const review = (conditions: BorrowQueuedTask['conditions']): BorrowQueuedTask => ({
       taskId: 'review-1',
       roleId: 'code-review',
       queuedAtMs: T0,
       unmetSinceMs: T0,
       mainCandidateFree: false,
       preference: [],
-      conditions: {
-        authorCandidates: taskAuthorCandidates('muse', {
-          taskId: 'code-1',
-          roleId: 'engineering',
-          chain: [
-            {
-              kind: 'borrow',
-              atMs: T0,
-              candidateId: 'codex',
-              mainRole: 'engineering',
-              borrowingRole: 'engineering',
-            },
-          ],
-        }),
-        authorEngines: ['codex-engine'],
+      conditions,
+    })
+    // Its own review is never main-role work for it: no due-soon, no recall.
+    const byCandidate = review({ authorCandidates: authors })
+    expect(nextMainWorkInMs(reviewer('rev-a'), snapshot(late, { queued: [byCandidate] }))).toBe(
+      Infinity,
+    )
+    const lentAgain = reviewer('rev-a', {
+      running: {
+        taskId: 'code-2',
+        roleId: 'engineering',
+        startedAtMs: T0,
+        timeBoxMs: HOUR,
+        borrowed: true,
       },
+    })
+    expect(
+      decideRecall(snapshot(late, { agents: [lentAgain], queued: [byCandidate] })),
+    ).toMatchObject([{ kind: 'keep', reason: 'noMainWork' }])
+    // A coder on the same engine never lends itself to that review.
+    const sameEngine = {
+      ...reviewer('rev-b'),
+      mainRole: 'engineering',
+      secondaryRoles: ['code-review'],
     }
     expect(
-      decideBorrow(snapshot(late, { agents: [coder, sameEngine], queued: [review] }))[0],
-    ).toMatchObject({
-      reason: 'noLender',
-      skips: [
-        { candidateId: 'codex', reason: 'author' },
-        { candidateId: 'codex-2', reason: 'author' },
-      ],
-    })
+      decideBorrow(
+        snapshot(late, {
+          agents: [sameEngine],
+          queued: [review({ authorCandidates: authors, authorEngines: ['rev-b-engine'] })],
+        }),
+      )[0],
+    ).toMatchObject({ reason: 'noLender', skips: [{ candidateId: 'rev-b', reason: 'author' }] })
   })
 
   it('cooldown: no borrow within 3 min of coming back, then borrows at 3:00', () => {
