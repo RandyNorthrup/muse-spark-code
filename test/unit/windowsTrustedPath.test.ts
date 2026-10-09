@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { readFile, mkdtemp, mkdir, rm, writeFile, symlink } from 'node:fs/promises'
+import { readFile, mkdtemp, mkdir, realpath, rm, writeFile, symlink } from 'node:fs/promises'
 import { promisify } from 'node:util'
 import path from 'node:path'
 import os from 'node:os'
@@ -183,7 +183,7 @@ describe('shared Windows trusted-path vectors', () => {
         const verifier = windowsTrustedPathVerifier(async (file, args) => {
           const script = Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le')
           calls.push(script)
-          return script.includes(`Get-Acl -LiteralPath '${refused.replaceAll("'", "''")}'`)
+          return script.includes(`$target = '${refused.replaceAll("'", "''")}'`)
             ? { exitCode: 0, stdout: 'false' }
             : await run(file, args)
         })
@@ -217,6 +217,32 @@ describe('shared Windows trusted-path vectors', () => {
       expect(
         await windowsTrustedPathVerifier(run, io).verify(leaf, { leafKind: 'file' }),
       ).toMatchObject({ refused: true, component: leaf })
+    } finally {
+      await removeTemporaryDirectory(directory)
+    }
+  })
+
+  // CIFIX017W2: on hosted Windows runners a probe that used Get-Item, Get-Acl
+  // and ConvertTo-Json took over 15 s to load their modules, for each
+  // component. With module auto-loading off, any such cmdlet fails the probe.
+  it('verifies a folder and a file with the CLR alone, loading no PowerShell module', async () => {
+    if (process.platform !== 'win32') return
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'm115-trust-clr-'))
+    try {
+      await ownerOnly(directory)
+      const leaf = path.join(directory, 'agent.js')
+      await writeFile(leaf, 'fixture')
+      const scripts: string[] = []
+      const withoutModules = windowsTrustedPathVerifier((file, args) => {
+        const script = `$PSModuleAutoLoadingPreference = 'None'; ${Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le')}`
+        scripts.push(script)
+        return run(file, [...args.slice(0, -1), Buffer.from(script, 'utf16le').toString('base64')])
+      })
+      expect(await withoutModules.verify(leaf, { leafKind: 'file', root: directory })).toEqual({
+        ok: true,
+        path: await realpath(leaf),
+      })
+      expect(scripts).toHaveLength(2)
     } finally {
       await removeTemporaryDirectory(directory)
     }
