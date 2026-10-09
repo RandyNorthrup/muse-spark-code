@@ -152,7 +152,13 @@ const BUDGETS = [
   { path: 'dist/webview/whatsNew.js', budgetKiB: 25 },
   // HELPREF: an independent lazy page, sharing the caller's React and text.
   { path: 'dist/webview/referencePage.js', budgetKiB: 50 },
-  { path: 'dist/reference.js', budgetKiB: 100 },
+  // M103W-REFERENCE-BUDGET (lead decision, 2026-10-08): the lazily loaded
+  // /help reference must list every feature (owner rule), so the restored
+  // makers scope (catalog entry, 4 CLI rows, 6 --hardware rows, 9 maker_*
+  // skills) keeps 103,165 measured bytes under this 102 KiB cap. M78b
+  // precedent (Model API 400 -> 475 KiB). The next reference growth beyond
+  // this cap brings its own diet.
+  { path: 'dist/reference.js', budgetKiB: 102 },
   { path: 'dist/webview/makerPreview.js', budgetKiB: 25 },
   // The ACP agent (M63, PLAN.md D62), a process of its own installed once,
   // never loaded by VS Code: the engine without the webview or the Model API

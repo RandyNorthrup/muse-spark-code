@@ -32668,6 +32668,27 @@ in §7), or the lead directs a scope or compression change. This lane ships
 coherent reference content under the unchanged cap and leaves the size gate
 red until the lead rules.
 
+**M103W-REFERENCE-BUDGET resolved (2026-10-08, FIXM103W2 lane, lead
+decision).** Old cap 102,400 B (100 KiB); measured `dist/reference.js`
+103,165 B (100.7 KiB), +765 B. The +765 B is all restored makers scope,
+pinned by `check:reference` (54 features, 46 commands, 60 settings, 26
+slash, 132 CLI, exit 0) and `referenceGenerator.test.mjs` (55 tests):
+
+| Module                     | Evidence                                                                                                                    |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Makers catalog entry       | `makers` feature row in `src/shared/featureCatalog.ts` and the generated reference                                          |
+| 4 maker CLI rows           | maker CLI rows restored with the lease2 merge (reference coherence; guard4 tree was reference-STALE)                        |
+| 6 `--hardware` option rows | `--hardware` CLI option rows in the generated reference                                                                     |
+| 9 `maker_*` skills         | `maker_cad/cnc/firmware/kicad/micropython/pi/printers/ros/simulation` first-party skill names in `reference.generated.json` |
+| Tightened description      | `browserCheckExtraHosts` description (shared with the same escalation)                                                      |
+
+The model compressor already interns repeats (the `--hardware`
+description and the `description`/`summary` keys appear once), so no
+honest cut exists. M78b precedent: Model API 400 → 475 KiB, recorded in
+§7 (Q-M78b). New cap 104,448 B (102 KiB) in `scripts/check-bundle-size.mjs`,
+no other cap changed. Rule: the next reference growth beyond the new cap
+brings its own diet. Recorded in `docs/certification/m103.md`.
+
 ## 8. Escape hatches register
 
 | REDM103G location                                                      | Escape hatch                                                                        | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Date       |
