@@ -2,7 +2,16 @@ import { Buffer } from 'node:buffer'
 import { spawn } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import type * as ChildProcess from 'node:child_process'
-import fs, { chmod, lstat, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import fs, {
+  chmod,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
@@ -29,6 +38,10 @@ vi.mock('node:child_process', async (original) => {
 })
 
 const fake: MediaConverter = { kind: 'ffmpeg', command: process.execPath }
+// Discovery on another POSIX platform judges commands with POSIX path rules;
+// this host's node path (C:\... on Windows) is not absolute there. These
+// cases inject the probe or mock spawn, so nothing runs this path.
+const posixFake: MediaConverter = { kind: 'ffmpeg', command: '/opt/muse-test/bin/ffmpeg' }
 const fixture = { workspace: '', input: '' }
 const directories: string[] = []
 
@@ -46,6 +59,19 @@ afterEach(async () => {
 afterAll(async () => {
   await rm(fixture.workspace, { recursive: true, force: true })
 })
+
+// A folder (or a video file in one) inside this checkout. The system temp
+// can sit on another drive (Windows runners: C: temp, D: checkout), where
+// path.relative() returns an absolute path that would test nothing.
+async function checkoutLocal(name?: string): Promise<string> {
+  await mkdir('temp', { recursive: true })
+  const directory = await mkdtemp(path.resolve('temp/m105-local-'))
+  directories.push(directory)
+  if (name === undefined) return directory
+  const file = path.join(directory, name)
+  await writeFile(file, videoFixture())
+  return file
+}
 
 function outputPath(args: readonly string[]): string {
   const output = args.at(-1)
@@ -139,12 +165,12 @@ describe('M105 converter discovery', () => {
     expect(
       await locateMediaConverter({
         platform: 'aix',
-        configuredConverters: [fake, { kind: 'ffmpeg', command: 'relative/ffmpeg' }],
+        configuredConverters: [posixFake, { kind: 'ffmpeg', command: 'relative/ffmpeg' }],
         trustedPath: { verify },
         probeVersion,
       }),
     ).toMatchObject({ ok: false })
-    expect(verify).toHaveBeenCalledExactlyOnceWith(fake.command, { leafKind: 'file' })
+    expect(verify).toHaveBeenCalledExactlyOnceWith(posixFake.command, { leafKind: 'file' })
     expect(probeVersion).not.toHaveBeenCalled()
   })
 
@@ -159,7 +185,7 @@ describe('M105 converter discovery', () => {
       expect(
         await locateMediaConverter({
           platform: 'aix',
-          configuredConverters: [fake],
+          configuredConverters: [posixFake],
           trustedPath: { verify: () => Promise.resolve('ok') },
           probeVersion: () => Promise.resolve(banner),
         }),
@@ -169,7 +195,7 @@ describe('M105 converter discovery', () => {
     expect(
       await locateMediaConverter({
         platform: 'aix',
-        configuredConverters: [fake],
+        configuredConverters: [posixFake],
         trustedPath: { verify: () => Promise.resolve('ok') },
         probeVersion,
       }),
@@ -200,7 +226,7 @@ describe('M105 converter discovery', () => {
       })
       const result = await locateMediaConverter({
         platform: 'aix',
-        configuredConverters: [fake],
+        configuredConverters: [posixFake],
         trustedPath: { verify: () => Promise.resolve('ok') },
       })
       expect(result.ok).toBe(mode === 'known')
@@ -590,9 +616,9 @@ describe('M105 private local conversion', () => {
       await convertToMp4(fixture.input, { kind: 'ffmpeg', command: 'ffmpeg' }, { run }),
     ).toMatchObject({ ok: false })
     expect(await convertToMp4('relative.webm', fake, { run })).toMatchObject({ ok: false })
-    expect(
-      await convertToMp4(path.relative(process.cwd(), fixture.input), fake, { run }),
-    ).toMatchObject({ ok: false })
+    const relativeInput = path.relative(process.cwd(), await checkoutLocal('clip.webm'))
+    expect(path.isAbsolute(relativeInput)).toBe(false)
+    expect(await convertToMp4(relativeInput, fake, { run })).toMatchObject({ ok: false })
     expect(await convertToMp4(fixture.workspace, fake, { run })).toMatchObject({ ok: false })
     expect(run).not.toHaveBeenCalled()
   })
@@ -638,12 +664,12 @@ describe('M105 private local conversion', () => {
     } finally {
       Object.defineProperty(process, 'platform', descriptor)
     }
-    const privateDirectory = await mkdtemp(path.join(fixture.workspace, 'private-factory-'))
+    const privateDirectory = path.relative(process.cwd(), await checkoutLocal())
+    expect(path.isAbsolute(privateDirectory)).toBe(false)
     expect(
       await convertToMp4(fixture.input, fake, {
         run,
-        createPrivateDirectory: () =>
-          Promise.resolve(path.relative(process.cwd(), privateDirectory)),
+        createPrivateDirectory: () => Promise.resolve(privateDirectory),
       }),
     ).toMatchObject({ ok: false })
     expect(await readFile(fixture.input)).toEqual(Buffer.from(videoFixture()))
