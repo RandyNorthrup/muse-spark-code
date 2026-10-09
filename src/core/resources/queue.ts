@@ -8,7 +8,7 @@ import {
   type ResourceStatus,
 } from '../../shared/resources'
 import { type ResourceEvents } from './events'
-import { ResourcePausedError } from './paused'
+import { ResourcePausedError } from './launch'
 
 /** T/C1 bind the registry here. null is unknown, so throttle cannot admit. */
 export interface ResourceRunningWork {

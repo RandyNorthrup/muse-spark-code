@@ -32,7 +32,7 @@ import {
 } from '../processTree'
 import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import type { JobHelper } from './jobSource'
-import { isResourcePaused } from '../../core/resources/paused'
+import { isResourcePaused } from '../../core/resources/launch'
 
 // The C# (C# 5, which Windows PowerShell 5.1's `Add-Type` compiles) is the
 // shipped native/windows/MuseSparkJob.cs with the shared Win32 half

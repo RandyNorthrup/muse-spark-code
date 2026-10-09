@@ -26,6 +26,14 @@ happened, not what was planned; superseded entries are kept.
   real-Git schedule test dropped from about 12.4 s to about 8.3 s. CLI
   shutdown now waits for a stopped tree to exit before it cleans up its
   temporary folder, and keeps (and reports) a tree that never exits.
+- On Windows a governed command counts as finished only when its helper
+  reports that it emptied the whole job. A helper that was killed, or could
+  not empty the job in time, is reported, and the command's temporary folder
+  is kept for recovery. A child refused by the process cap, or a job stopped
+  at its memory cap, now fails the command with that reason even when the
+  command exits 0. The prepared helper is checked byte for byte before every
+  launch; a changed one is refused and rebuilt. Shutdown now waits for the
+  helper's report before it cleans up.
 - Read-only probes (Git ref and history reads, gh reads, birth probes, media
   version checks) keep resource admission and tree containment without a
   per-command temporary folder. That folder needed a packaged native helper,

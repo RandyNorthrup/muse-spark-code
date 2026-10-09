@@ -12,14 +12,21 @@ import { createServer, type Socket } from 'node:net'
 import * as z from 'zod/mini'
 import { environmentValue, setEnvironmentVariable } from '../../core/backends/musecode/launch'
 import { redactSecrets } from '../../core/redact'
-import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
+import {
+  resourceEnvironment,
+  type ResourceLease,
+  type ResourcePipedProcess,
+} from '../../core/resources/launch'
 import { stopResourceTree } from '../../core/resources/admission'
 import {
   MCP_JOB_CONFIG_VARIABLE,
   MCP_JOB_HANDSHAKE_MAX_CHARS,
   MCP_JOB_NONCE_BYTES,
+  RESOURCE_JOB_INT32_MAX,
+  RESOURCE_JOB_INT32_MIN,
   RESOURCE_JOB_RECORD_MAX_CHARS,
   RESOURCE_JOB_RECORD_WAIT_MS,
+  RESOURCE_JOB_UINT32_MAX,
 } from '../../shared/constants'
 import { resourceProcessIdentitySchema, type ResourceProcessIdentity } from '../../shared/resources'
 
@@ -33,16 +40,28 @@ export interface JobAttestationLimits {
 }
 
 const count = z.number().check(z.int(), z.nonnegative())
+const JOB_LIMITS = ['activeProcess', 'jobMemory', 'processMemory'] as const
+// The native record's own ranges: a Win32 exit code is signed 32-bit, job counts are DWORDs.
+const uint32 = z.number().check(z.int(), z.nonnegative(), z.lte(RESOURCE_JOB_UINT32_MAX))
+const int32 = z
+  .number()
+  .check(z.int(), z.gte(RESOURCE_JOB_INT32_MIN), z.lte(RESOURCE_JOB_INT32_MAX))
 /** The helper's one final record, sent after the job was ended and drained. */
 const jobRecordSchema = z.strictObject({
   v: z.literal(1),
   ending: z.enum(['exit', 'stopped', 'owner', 'spawnRate']),
-  exitCode: z.number().check(z.int()),
+  exitCode: int32,
   emptied: z.boolean(),
   cpuMs: count,
   peakJobMemoryBytes: count,
-  totalProcesses: count,
-  activeProcessLimit: count,
+  totalProcesses: uint32,
+  capRefusals: uint32,
+  // Which job limits the kernel enforced (completion-port messages), each at most once.
+  limits: z.array(z.enum(JOB_LIMITS)).check(
+    z.maxLength(JOB_LIMITS.length),
+    z.refine((reasons) => new Set(reasons).size === reasons.length),
+  ),
+  activeProcessLimit: uint32,
 })
 export type JobRecord = z.infer<typeof jobRecordSchema>
 
@@ -120,6 +139,11 @@ function attestedChannel() {
       pending += bytes.toString('utf8')
       for (let end = pending.indexOf('\n'); end !== -1; end = pending.indexOf('\n')) {
         const text = pending.slice(0, end)
+        // Bounded before parsing: a complete oversized line is refused, not read.
+        if (text.length > RESOURCE_JOB_RECORD_MAX_CHARS) {
+          socket?.destroy()
+          return
+        }
         pending = pending.slice(end + 1)
         if (!isAccepted(text)) {
           // A protocol violation: the helper reads EOF as STOP and ends the job.
@@ -299,14 +323,15 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
 }
 
 /**
- * SPAWN017C: a portable contained or probe launch. The helper's observed exit
- * proves the tree gone (it ended and drained the job, or the kernel ended it
- * when the helper's only handle closed); its record carries the final usage.
- * The caller registers and completes the lease.
+ * SPAWN017C: a portable contained or probe launch. Only the helper's record
+ * saying it drained the job (`emptied: true`) proves the tree gone; a killed
+ * helper's job is ended by the kernel, but that end is not observed. The record
+ * also carries the final usage and any limit the kernel enforced. The caller
+ * registers and completes the lease.
  */
 export function spawnAttestedJob(
   launch: McpJobLaunch & { readonly attestation: JobAttestationLimits },
-): { child: ChildProcessWithoutNullStreams; control: AttestedJobControl } {
+): { child: ResourcePipedProcess['child']; control: AttestedJobControl } {
   const prepared = prepareMcpJobLaunch(launch)
   const attested = prepared.attested
   if (attested === undefined) throw new Error('Attested job channel unavailable')

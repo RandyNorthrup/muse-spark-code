@@ -2,6 +2,7 @@ import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
+import * as z from 'zod/mini'
 import { admitBootstrap, admitResource, resourceWindowsJob, stopResourceTree } from './admission'
 import {
   resourceEnvironment,
@@ -11,6 +12,7 @@ import {
   type ResourceHandoffProcess,
   type ResourceInteractiveProcess,
   type ResourceLease,
+  type ResourceTreeOutcome,
 } from './launch'
 import type { AttestedJobControl, JobRecord } from '../../host/backend/mcpJobLaunch'
 import type { ResourceProcessIdentity } from '../../shared/resources'
@@ -63,15 +65,15 @@ const ATTESTED_JOB = {
 }
 
 /**
- * After the helper's observed exit the tree is gone: the helper ended and
- * drained the job, or the kernel ended it when the helper's only handle closed.
- * A missing record leaves usage uncertain; it never refuses the completion.
+ * Only a record saying the helper drained the job (`emptied: true`) proves
+ * whole-tree retirement and known usage. A missing record, an undrained job
+ * or a killed helper is uncertain: the lease's uncertain path, never complete(true).
  */
 async function settleAttested(
   resource: ResourceLease,
   control: AttestedJobControl,
   code: number | null,
-): Promise<void> {
+): Promise<ResourceTreeOutcome> {
   let answers: [ResourceProcessIdentity | undefined, JobRecord | undefined]
   try {
     answers = await Promise.all([control.root, control.record])
@@ -80,20 +82,28 @@ async function settleAttested(
     answers = [undefined, undefined]
   }
   const [root, record] = answers
+  const isProved = record?.emptied === true
+  const capRefusals = record?.capRefusals ?? 0
+  const limits = record?.limits ?? []
   if (root !== undefined)
     resource.settle?.({
       root,
       scope: `attested-${String(root.pid)}-${root.startTime}`,
       usage:
-        record === undefined
-          ? null
-          : {
+        record !== undefined && isProved
+          ? {
               cpuSeconds: record.cpuMs / MILLISECONDS_PER_SECOND,
               residentBytes: record.peakJobMemoryBytes,
-            },
+            }
+          : null,
     })
-  if (code !== 0 || record?.ending === 'spawnRate') resource.failed?.()
-  resource.complete(true)
+  if (code !== 0 || record?.ending === 'spawnRate' || limits.length > 0) resource.failed?.()
+  if (isProved) resource.complete(true)
+  else if (resource.uncertain === undefined) {
+    resource.failed?.()
+    resource.complete(false)
+  } else resource.uncertain()
+  return { isRetirementProved: isProved, capRefusals, limits }
 }
 
 /** Emergency bootstrap termination cannot depend on the helper being compiled. */
@@ -246,7 +256,7 @@ async function spawnPiped(
   profile: 'contained' | 'probe' | 'bootstrap',
   file: string,
   args: readonly string[],
-  options: ResourceProcessOptions,
+  { jobMemoryBytes, ...options }: ResourceProcessOptions,
   extraDescriptors: readonly number[],
   resource: ResourceLease,
   signal: AbortSignal | undefined,
@@ -255,12 +265,15 @@ async function spawnPiped(
   let child: ChildProcess
   let stop: () => Promise<void>
   let payloadPid: (() => Promise<number | undefined>) | undefined
+  let outcome = (): Promise<ResourceTreeOutcome | undefined> => Promise.resolve(undefined)
   if (isTreeOwned(profile) && process.platform === 'win32') {
     const job = await untilAborted(resourceWindowsJob(), signal)
     if (job === undefined || extraDescriptors.length > 0) {
       signal?.throwIfAborted()
       throw new Error('Native governed process launch unavailable')
     }
+    // Before every launch: a changed helper is refused (typed) and never runs.
+    await untilAborted(job.verify(), signal)
     const { spawnAttestedJob } = await import('../../host/backend/mcpJobLaunch.js')
     signal?.throwIfAborted()
     const { child: launcher, control } = spawnAttestedJob({
@@ -271,6 +284,7 @@ async function spawnPiped(
       env: options.env ?? {},
       isVerbatim: false,
       resource,
+      jobMemoryLimit: jobMemoryBytes,
       attestation: ATTESTED_JOB,
       log: () => {
         /* Callers report fixed failure words. */
@@ -278,25 +292,52 @@ async function spawnPiped(
     })
     spawned.value = true
     child = launcher
-    // STOP asks the helper to end and drain the job; if it cannot answer, ending
-    // the helper closes the job's only handle and the kernel ends the tree.
-    stop = async () => {
-      if (launcher.exitCode !== null || launcher.signalCode !== null) return
-      const exited = (async () => {
+    const exited = (async () => {
+      try {
         await once(launcher, 'exit')
         return true
-      })()
-      control.stop()
-      if (!(await Promise.race([exited, delay(TREE_EXIT_WAIT_MS, false)]))) launcher.kill()
+      } catch {
+        return false
+      }
+    })()
+    const isRunning = () => launcher.exitCode === null && launcher.signalCode === null
+    const settlement = (async (): Promise<ResourceTreeOutcome> => {
+      let code: number | null = null
+      try {
+        ;[code] = z
+          .tuple([z.nullable(z.number()), z.nullable(z.string())])
+          .parse(await once(launcher, 'exit'))
+      } catch {
+        // A spawn that never started was completed by its error handler; any
+        // other unreadable exit proves nothing and takes the uncertain path.
+        if (launcher.pid === undefined)
+          return { isRetirementProved: true, capRefusals: 0, limits: [] }
+      }
+      return await settleAttested(resource, control, code)
+    })()
+    // STOP asks the helper to end and drain the job; if it cannot answer, ending
+    // the helper closes the job's only handle and the kernel ends the tree. A
+    // dispatched kill is not completion: the settlement (an emptied record, or the
+    // bounded uncertain outcome) is awaited before stop returns.
+    stop = async () => {
+      if (isRunning()) {
+        control.stop()
+        if (!(await Promise.race([exited, delay(TREE_EXIT_WAIT_MS, false)]))) {
+          launcher.kill()
+          await Promise.race([exited, delay(TREE_EXIT_WAIT_MS, false)])
+        }
+      }
+      if (!isRunning()) await settlement
     }
     resource.register({ pid: launcher.pid, profile, attested: true, stop })
-    launcher.once('exit', (code) => {
-      void settleAttested(resource, control, code)
-    })
     launcher.once('error', () => {
       resource.failed?.()
       if (launcher.pid === undefined) resource.complete(true)
     })
+    outcome = async () => {
+      if (launcher.pid === undefined) return
+      return await settlement
+    }
     payloadPid = async () => {
       const root = await control.root
       return root?.pid
@@ -360,7 +401,7 @@ async function spawnPiped(
   }
   // The helper reported the payload root's PID before resuming it.
   const pid = payloadPid ?? (() => Promise.resolve(child.pid))
-  return { child: Object.assign(child, { stdin, stdout, stderr }), stop, pid }
+  return { child: Object.assign(child, { stdin, stdout, stderr }), stop, pid, outcome }
 }
 
 export function spawnResourceProcess(
@@ -387,9 +428,11 @@ export async function spawnResourceProcess(
   profile: ResourceLaunchProfile,
   file: string,
   args: readonly string[],
-  options: ResourceProcessOptions,
+  launchOptions: ResourceProcessOptions,
   extraDescriptors: readonly number[] = [],
 ): Promise<ResourceInteractiveProcess | ResourceHandoffProcess | ResourcePipedProcess> {
+  // The memory cap is the attested job's, never a spawn option.
+  const { jobMemoryBytes, ...options } = launchOptions
   if (profile === 'handoff') {
     // The named deadline covers the handoff's admission and the adapter's run.
     const deadline = AbortSignal.timeout(RESOURCE_HANDOFF_TIMEOUT_MS)
@@ -407,7 +450,16 @@ export async function spawnResourceProcess(
       return Promise.resolve(spawnInteractive(file, args, options, resource, signal))
     })
   return await withLease(profile, signal, (resource, spawned) =>
-    spawnPiped(profile, file, args, options, extraDescriptors, resource, signal, spawned),
+    spawnPiped(
+      profile,
+      file,
+      args,
+      { ...options, jobMemoryBytes },
+      extraDescriptors,
+      resource,
+      signal,
+      spawned,
+    ),
   )
 }
 

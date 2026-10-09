@@ -5,6 +5,7 @@ import { resolveExecutable } from '../executables'
 import { environmentValue } from '../backends/musecode/launch'
 import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
 import { spawnResourceProcess } from './process'
+import { ResourceCapRefusedError, ResourceMemoryLimitError } from './launch'
 
 function resolveCommand(command: string, env: NodeJS.ProcessEnv): string {
   const file = path.isAbsolute(command)
@@ -59,11 +60,12 @@ export async function execResourceFile(
   const deadline = AbortSignal.timeout(options.timeout ?? PROCESS_TABLE_TIMEOUT_MS)
   const signal =
     options.signal === undefined ? deadline : AbortSignal.any([options.signal, deadline])
-  const { child, stop } = await spawnResourceProcess(profile, file, args, {
+  const launched = await spawnResourceProcess(profile, file, args, {
     env,
     ...(options.cwd !== undefined && { cwd: options.cwd }),
     signal,
   })
+  const { child, stop } = launched
   child.stdin.end()
   return await new Promise((resolve, reject) => {
     const out: Buffer[] = []
@@ -99,6 +101,12 @@ export async function execResourceFile(
       signal.removeEventListener('abort', abort)
       void (async () => {
         await stopping
+        const outcome = await launched.outcome()
+        // A refused child or an enforced memory cap is a typed failure, even after exit 0.
+        const memory = outcome?.limits.find((limit) => limit !== 'activeProcess')
+        if (memory !== undefined) throw new ResourceMemoryLimitError(memory)
+        if (outcome !== undefined && outcome.capRefusals > 0)
+          throw new ResourceCapRefusedError(outcome.capRefusals)
         const result = {
           stdout: Buffer.concat(out).toString('utf8'),
           stderr: Buffer.concat(err).toString('utf8'),

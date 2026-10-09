@@ -4,7 +4,7 @@
 // earlier sources removed. M27's shell job assembly and M50's MCP launcher
 // take the same steps with their own names and compiler options.
 
-import { runBootstrap } from '../../core/resources/bootstrap'
+import { runBootstrap } from '../../core/bootstrapCommand'
 import { withoutCredentials } from '../../core/credentialEnvironment'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'

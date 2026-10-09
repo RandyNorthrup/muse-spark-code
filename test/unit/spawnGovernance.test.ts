@@ -132,6 +132,7 @@ function governedLease() {
   vi.spyOn(admission, 'resourceWindowsJob').mockResolvedValue({
     assemblyPath: assembly,
     executablePath: job.path,
+    verify: () => Promise.resolve(),
   })
   return { lease, reader, launch: () => registered }
 }

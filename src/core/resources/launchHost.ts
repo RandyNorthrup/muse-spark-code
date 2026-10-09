@@ -7,6 +7,7 @@ import {
   RESOURCE_TREE_SAMPLE_MS,
   RESOURCE_TEMP_KEEP_MS,
   RESOURCE_DISPOSE_POLL_MS,
+  RESOURCE_SETTLED_ROWS_MAX,
   TREE_EXIT_WAIT_MS,
 } from '../../shared/constants'
 import type {
@@ -85,6 +86,11 @@ export interface ResourceLaunchHostOptions {
   readonly tempRoots?: ResourceTempRoots | undefined
   readonly created?: Pick<CreatedRegistry, 'finish' | 'clean'> | undefined
   readonly onCleanup?: ((result: CreatedCleanup) => void) | undefined
+  /**
+   * A history recorder drains `settled()` (M107-J-C1-T-accounting). Without one,
+   * no attested row is kept: nothing would ever read it.
+   */
+  readonly isSettledRead?: boolean | undefined
 }
 
 /** C1: admission reservations plus OS-proved registry entries, shared by the window. */
@@ -101,6 +107,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   private readonly admissionCancels = new Set<() => void>()
   private readonly cleanupTimers = new Set<() => void>()
   private settledRows: { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[] = []
+  private settledDropped = 0
   private readonly unsubscribe: () => void
   private readonly unsubscribeSample: () => void
 
@@ -315,8 +322,17 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       await this.sampleTree(work)
       if (work.ticket !== undefined) await work.registry?.kill(work.ticket)
     } else await launched.stop()
+    // An attested stop returns after its settlement retired the work (emptied
+    // record) or took the uncertain path; still here means never observed.
+    if (launched.attested === true) {
+      if (this.work.has(work)) {
+        work.known = false
+        this.options.onError()
+      }
+      return
+    }
     // Other profiles have no registry binding: their own stop ended what they own.
-    if (launched.attested === true || !isTreeBound(launched.profile)) {
+    if (!isTreeBound(launched.profile)) {
       this.retire(work)
       return
     }
@@ -447,7 +463,13 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
         return result?.status === 'done'
       },
       settle: (settlement: ResourceSettlement) => {
-        // History's work source: the attested job's own final accounting.
+        // History's work source: the attested job's own final accounting, kept only
+        // for a bound reader, and bounded between its reads.
+        if (this.options.isSettledRead !== true) return
+        if (this.settledRows.length >= RESOURCE_SETTLED_ROWS_MAX) {
+          this.settledRows.shift()
+          this.settledDropped++
+        }
         this.settledRows.push({
           ticket: {
             id: randomUUID(),
@@ -459,6 +481,12 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
           },
           usage: settlement.usage,
         })
+      },
+      uncertain: () => {
+        // Exit never observed: release admission, keep the temp root, report it.
+        work.failed = true
+        this.retire(work, false)
+        this.options.onError()
       },
       register: (process) => {
         if (!this.work.has(work)) return
@@ -545,11 +573,21 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     })
   }
 
-  /** Settled attested trees since the last read (ResourceRecordWorkSource rows). */
-  settled(): readonly { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[] {
+  /**
+   * Settled attested trees since the last read, at most RESOURCE_SETTLED_ROWS_MAX
+   * (oldest dropped and counted), kept only with `isSettledRead`. M107's history
+   * recorder reads it as part of its ResourceRecordWorkSource; no production
+   * host binds that reader yet, so production keeps no rows.
+   */
+  settled(): {
+    readonly rows: readonly { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[]
+    readonly dropped: number
+  } {
     const rows = this.settledRows
+    const dropped = this.settledDropped
     this.settledRows = []
-    return rows
+    this.settledDropped = 0
+    return { rows, dropped }
   }
 
   tickets(): readonly ResourceTicket[] {

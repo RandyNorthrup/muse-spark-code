@@ -6,8 +6,18 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as admission from '../../src/core/resources/admission'
 import { spawnResourceProcess } from '../../src/core/resources/process'
-import { spawnAttestedJob, type JobAttestationLimits } from '../../src/host/backend/mcpJobLaunch'
-import { RESOURCE_JOB_RECORD_WAIT_MS } from '../../src/shared/constants'
+import { connect } from 'node:net'
+import * as z from 'zod/mini'
+import {
+  prepareMcpJobLaunch,
+  spawnAttestedJob,
+  type JobAttestationLimits,
+} from '../../src/host/backend/mcpJobLaunch'
+import {
+  MCP_JOB_CONFIG_VARIABLE,
+  RESOURCE_JOB_RECORD_MAX_CHARS,
+  RESOURCE_JOB_RECORD_WAIT_MS,
+} from '../../src/shared/constants'
 import { fixtureJobLifecycle } from './helpers/mcpFixtures'
 import { fakeResourceLease } from './helpers/resources/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -60,11 +70,12 @@ function end(child: childProcess.ChildProcess): void {
   if (child.exitCode === null && child.signalCode === null) child.kill()
 }
 function lease() {
-  const fake = { ...fakeResourceLease(), failed: vi.fn(), settle: vi.fn() }
+  const fake = { ...fakeResourceLease(), failed: vi.fn(), settle: vi.fn(), uncertain: vi.fn() }
   vi.mocked(admission.admitResource).mockResolvedValue(fake)
   vi.mocked(admission.resourceWindowsJob).mockResolvedValue({
     executablePath: executable(),
     assemblyPath: path.join(scratch.folder, 'unused-reader.dll'),
+    verify: () => Promise.resolve(),
   })
   return fake
 }
@@ -128,14 +139,15 @@ describe.runIf(process.platform === 'win32')('attested Windows job (SPAWN017C)',
     } finally {
       end(child)
     }
-    // Without a record, settling waits for the record bound, then reports usage uncertain.
+    // Without a record, settling waits for the record bound, then takes the uncertain path.
     await vi.waitFor(
       () => {
-        expect(fake.complete).toHaveBeenCalledWith(true)
+        expect(fake.uncertain).toHaveBeenCalledOnce()
       },
       { timeout: RESOURCE_JOB_RECORD_WAIT_MS * 2 },
     )
-    // No record: settled with usage null (uncertain), never refused.
+    // A killed helper proves nothing: never complete(true), usage null.
+    expect(fake.complete).not.toHaveBeenCalledWith(true)
     expect(fake.settle).toHaveBeenCalledWith(expect.objectContaining({ usage: null }))
   })
 
@@ -191,11 +203,110 @@ describe.runIf(process.platform === 'win32')('attested Windows job (SPAWN017C)',
     child.stdin.end()
     await once(child, 'exit')
     expect(await readFile(file, 'utf8')).toMatch(/^refused:/u)
+    // The job's completion port reports the refusal; the root's exit 0 does not hide it.
     expect(await control.record).toMatchObject({
       ending: 'exit',
+      exitCode: 0,
       emptied: true,
+      capRefusals: 1,
+      limits: ['activeProcess'],
       activeProcessLimit: 2,
     })
+  })
+
+  it('reports the job memory limit when a child commits past it, and the tree is gone', async () => {
+    const file = marker('memory')
+    // Root and child each start Node; the child then commits far past the job's limit.
+    const script = `const cp=require('node:child_process');const c=cp.spawn(process.execPath,['-e','const a=[];for(let i=0;i<64;i++)a.push(Buffer.alloc(16*1024*1024,1));setInterval(()=>{},1000)'],{stdio:'ignore'});require('node:fs').writeFileSync(${JSON.stringify(file)},String(c.pid));c.once('exit',(code)=>process.exit(code===0?0:7))`
+    const { child, control } = spawnAttestedJob({
+      executablePath: executable(),
+      file: process.execPath,
+      args: ['-e', script],
+      cwd: process.cwd(),
+      env,
+      isVerbatim: false,
+      log: () => undefined,
+      jobMemoryLimit: 192 * 1024 * 1024,
+      attestation: limits,
+    })
+    child.stdin.end()
+    const [code] = await once(child, 'exit')
+    expect(code).toBe(7)
+    const record = await control.record
+    expect(record).toMatchObject({ emptied: true, limits: ['jobMemory'] })
+    expect(isAlive(Number(await readFile(file, 'utf8')))).toBe(false)
+  })
+
+  it('reports no cap refusal for children started one after another', async () => {
+    const script = `const cp=require('node:child_process');const one=()=>new Promise((r)=>cp.spawn(process.execPath,['-e','0'],{stdio:'ignore'}).once('exit',r));(async()=>{await one();await one();await one();process.exit(0)})()`
+    const { child, control } = spawnAttestedJob({
+      executablePath: executable(),
+      file: process.execPath,
+      args: ['-e', script],
+      cwd: process.cwd(),
+      env,
+      isVerbatim: false,
+      log: () => undefined,
+      attestation: { ...limits, activeProcessLimit: 2 },
+    })
+    child.stdin.end()
+    await once(child, 'exit')
+    const record = await control.record
+    expect(record).toMatchObject({ emptied: true, capRefusals: 0, limits: [] })
+    // Root and three children at least (Node on Windows may start a helper of its own).
+    expect(record?.totalProcesses).toBeGreaterThanOrEqual(4)
+  })
+
+  it.each([
+    [
+      'an oversized complete line',
+      (record: string) => `RESULT ${record}${' '.repeat(RESOURCE_JOB_RECORD_MAX_CHARS)}`,
+    ],
+    [
+      'an exit code beyond signed 32 bits',
+      (record: string) => `RESULT ${record.replace('"exitCode":0', '"exitCode":4294967296')}`,
+    ],
+    [
+      'a count beyond unsigned 32 bits',
+      (record: string) =>
+        `RESULT ${record.replace('"totalProcesses":1', '"totalProcesses":4294967296')}`,
+    ],
+  ])('refuses %s from the control pipe', async (_name, line) => {
+    const prepared = prepareMcpJobLaunch({
+      executablePath: executable(),
+      file: process.execPath,
+      args: [],
+      cwd: process.cwd(),
+      env,
+      isVerbatim: false,
+      log: () => undefined,
+      attestation: limits,
+    })
+    const config = z
+      .object({ controlPipe: z.string(), controlNonce: z.string() })
+      .parse(
+        JSON.parse(
+          Buffer.from(prepared.env[MCP_JOB_CONFIG_VARIABLE] ?? '', 'base64').toString('utf8'),
+        ),
+      )
+    const control = prepared.attested?.control
+    if (control === undefined) throw new Error('Attested channel missing')
+    const socket = connect(`\\\\.\\pipe\\${config.controlPipe}`)
+    try {
+      await once(socket, 'connect')
+      socket.write(`READY ${config.controlNonce}\n`)
+      const [go] = await once(socket, 'data')
+      expect(String(go)).toBe(`GO ${config.controlNonce}\n`)
+      const record =
+        '{"v":1,"ending":"exit","exitCode":0,"emptied":true,"cpuMs":1,"peakJobMemoryBytes":1,"totalProcesses":1,"capRefusals":0,"limits":[],"activeProcessLimit":16}'
+      socket.write(`${line(record)}\n`)
+      // The owner destroys the pipe on a refused line; the record stays unknown.
+      await once(socket, 'close')
+      expect(await control.record).toBeUndefined()
+    } finally {
+      socket.destroy()
+      prepared.closeControl()
+    }
   })
 
   it('ends a job whose spawn rate exceeds its limit and says so in the record', async () => {

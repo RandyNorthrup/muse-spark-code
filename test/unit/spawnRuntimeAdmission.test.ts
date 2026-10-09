@@ -9,7 +9,7 @@ import {
   resourceWindowsJob,
 } from '../../src/core/resources/admission'
 import { runtimeResources } from './helpers/resources/runtime'
-import { runBootstrap } from '../../src/core/resources/bootstrap'
+import { runBootstrap } from '../../src/core/bootstrapCommand'
 import { runtimeResourceJobs } from '../../src/runtime/resources/entry'
 import { TreeTempRoots } from '../../src/host/resources/tempRoots'
 import { localGitRefs } from '../../src/core/schedules/events/git'
@@ -18,6 +18,7 @@ import * as childProcess from 'node:child_process'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
 import { windowsVaultExecutable } from '../../src/host/vault/slots/windowsVaultBuild'
 import { createToolIo } from '../../src/host/backend/toolIo'
+import { ResourceHelperChangedError } from '../../src/host/backend/helperIntegrity'
 
 vi.mock('node:child_process', { spy: true })
 
@@ -148,6 +149,7 @@ describe('runtime global admission', () => {
     const jobs = {
       assemblyPath: String.raw`C:\fixture\job.dll`,
       executablePath: String.raw`C:\fixture\job.exe`,
+      verify: vi.fn(() => Promise.resolve()),
     }
     const prepare = vi.fn<typeof runtimeResourceJobs>()
     prepare.mockResolvedValueOnce(undefined).mockResolvedValue(jobs)
@@ -155,10 +157,23 @@ describe('runtime global admission', () => {
     try {
       await expect(resourceWindowsJob()).resolves.toBeUndefined()
       const concurrent = await Promise.all([resourceWindowsJob(), resourceWindowsJob()])
-      expect(concurrent).toEqual([jobs, jobs])
-      await expect(resourceWindowsJob()).resolves.toEqual(jobs)
+      const shape = {
+        assemblyPath: jobs.assemblyPath,
+        executablePath: jobs.executablePath,
+        verify: expect.any(Function),
+      }
+      expect(concurrent).toEqual([shape, shape])
+      const ready = await resourceWindowsJob()
+      expect(ready).toEqual(shape)
       // One failed preparation, then one shared successful one.
       expect(prepare).toHaveBeenCalledTimes(2)
+      // Each launch verifies the shared helper; a changed one re-prepares next time.
+      await ready?.verify()
+      expect(jobs.verify).toHaveBeenCalledOnce()
+      jobs.verify.mockRejectedValueOnce(new ResourceHelperChangedError())
+      await expect(ready?.verify()).rejects.toMatchObject({ code: 'helperChanged' })
+      await resourceWindowsJob()
+      expect(prepare).toHaveBeenCalledTimes(3)
     } finally {
       resources.dispose()
       fixture.host.dispose()

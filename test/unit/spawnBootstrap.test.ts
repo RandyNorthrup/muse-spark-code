@@ -5,12 +5,12 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as admission from '../../src/core/resources/admission'
-import { runBootstrap } from '../../src/core/resources/bootstrap'
+import { runBootstrap } from '../../src/core/bootstrapCommand'
 import { compileJob } from '../../src/host/backend/jobBuild'
 import { windowsVaultExecutable } from '../../src/host/vault/slots/windowsVaultBuild'
 import { fakeResourceLease } from './helpers/resources/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
-import { ResourcePausedError } from '../../src/core/resources/paused'
+import { ResourcePausedError } from '../../src/core/resources/launch'
 
 vi.mock('../../src/core/resources/admission', { spy: true })
 afterEach(() => vi.restoreAllMocks())

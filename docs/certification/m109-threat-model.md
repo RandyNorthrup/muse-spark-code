@@ -29,7 +29,14 @@ profile (`src/core/resources/process.ts`), and no call site chooses
   helper holds the only handle to an unnamed kill-on-close job without
   breakaway, the kernel enforces the process cap, the helper ends and drains
   the job before it exits, and one final record carries the usage. A killed
-  helper closes that handle and the kernel ends the tree.
+  helper closes that handle and the kernel ends the tree, but that end is not
+  observed: only a drained record retires the work; anything else keeps the
+  temp root and is reported. The record also names cap refusals and enforced
+  memory limits. The helper's bytes are hashed around its self-test and again
+  before every launch (a same-user process can forge size and times, not a
+  hash); a changed helper is refused and rebuilt. The check-to-exec window
+  that remains is the same user's own, as for any other file the extension
+  runs.
 - `probe` (bounded, read-only commands: Git ref and report reads, gh reads,
   birth and version probes): contained like the above but with no temp root,
   because it writes nothing. Each call site names it and the inventory records

@@ -6,7 +6,7 @@ import { legalScanLoader } from '../host/ide/legalScanBundle'
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
 import { spawnResourceProcess, handoffResourceFile } from '../core/resources/admission'
-import { isResourcePaused } from '../core/resources/paused'
+import { isResourcePaused } from '../core/resources/launch'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { open, writeFile, realpath, lstat } from 'node:fs/promises'

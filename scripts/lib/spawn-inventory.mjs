@@ -68,8 +68,53 @@ function calledName(expression, aliases, source) {
  * only when no `.` precedes it: `x.exec(` is a site only for a child_process
  * namespace, and that file names child_process.
  */
-const CANDIDATE =
-  /child_process|spawn|execFile|execSync|fork|ResourceFile|runBootstrap|(?<![.\w])exec\b/u
+// Plain substrings first (cheap); a word-bounded check only for the short words.
+const CANDIDATE_WORDS = [
+  'child_process',
+  'worker_threads',
+  'spawn',
+  'execFile',
+  'execSync',
+  'fork',
+  'ResourceFile',
+  'runBootstrap',
+  ...[...PROCESS_WRAPPERS].filter((name) => name !== 'zx'),
+]
+const CANDIDATE_BOUNDED = /\bWorker\b|\bzx\b|(?<![.\w])exec\b/u
+const CANDIDATE = {
+  test: (text) =>
+    CANDIDATE_WORDS.some((word) => text.includes(word)) || CANDIDATE_BOUNDED.test(text),
+}
+const isWorkerModule = (text) => text === 'worker_threads' || text === 'node:worker_threads'
+/** The module a `require('m')` or `(await) import('m')` initializer loads, if literal. */
+function loadedModule(initializer) {
+  let expression = initializer
+  while (ts.isAwaitExpression(expression) || ts.isParenthesizedExpression(expression))
+    expression = expression.expression
+  if (!ts.isCallExpression(expression)) return
+  const loader = expression.expression
+  const isLoader =
+    loader.kind === ts.SyntaxKind.ImportKeyword ||
+    (ts.isIdentifier(loader) && loader.text === 'require')
+  const [argument] = expression.arguments
+  return isLoader && argument !== undefined && ts.isStringLiteral(argument)
+    ? argument.text
+    : undefined
+}
+/** Bounded concurrency: a cold Windows checkout pays per open file, not per byte. */
+const READ_CONCURRENCY = 16
+async function readAll(files) {
+  const texts = new Map()
+  let next = 0
+  const worker = async () => {
+    while (next < files.length) {
+      const index = next++
+      texts.set(files[index], await fs.promises.readFile(files[index], 'utf8'))
+    }
+  }
+  await Promise.all(Array.from({ length: READ_CONCURRENCY }, worker))
+  return new Map(files.map((name) => [name, texts.get(name)]))
+}
 const sourceFiles = (root) =>
   fs
     .readdirSync(path.join(root, 'src'), { recursive: true })
@@ -82,20 +127,12 @@ const testFiles = (root) =>
     .map((file) => path.join(root, 'test', file))
 
 /**
- * Both corpora, read in parallel. A first read of thousands of files is slow on
- * a fresh Windows checkout; a test reads them here, in its hook, once.
+ * The source corpus, read with bounded concurrency. A first read of thousands of
+ * files is slow on a fresh Windows checkout; a test reads it here, in its hook.
+ * Test files are not prefetched: a proof reads them lazily, likeliest first.
  */
 export async function readCorpus(root) {
-  const read = async (files) =>
-    new Map(
-      await Promise.all(
-        files.map(
-          async (file) => /** @type {const} */ ([file, await fs.promises.readFile(file, 'utf8')]),
-        ),
-      ),
-    )
-  const [sources, tests] = await Promise.all([read(sourceFiles(root)), read(testFiles(root))])
-  return { sources, tests: tests.values().toArray() }
+  return { sources: await readAll(sourceFiles(root)) }
 }
 
 function sourceTree(root, corpus) {
@@ -120,13 +157,19 @@ function sourceTree(root, corpus) {
   /** Files whose text contains `word`; any use of `word` must be in one of them. */
   const containing = (word) =>
     [...texts].filter(([, text]) => word.test(text)).map(([file]) => parse(file))
-  // Test texts are read once per scan, not once per proof.
-  let testTexts = corpus?.tests
-  const tests = () => {
-    testTexts ??= testFiles(root).map((file) => fs.readFileSync(file, 'utf8'))
-    return testTexts
+  // Each test file is read at most once per scan, and only when a proof needs it.
+  let names
+  const testTexts = new Map()
+  const tests = () => (names ??= testFiles(root))
+  const testText = (name) => {
+    let text = testTexts.get(name)
+    if (text === undefined) {
+      text = fs.readFileSync(name, 'utf8')
+      testTexts.set(name, text)
+    }
+    return text
   }
-  return { containing, tests }
+  return { containing, tests, testText, testsRead: () => testTexts.size }
 }
 
 /** Every source process site, including embedded supervisor programs and aliased imports. */
@@ -138,6 +181,8 @@ export function scanSpawnSites(root, corpus) {
     const aliases = new Map()
     // Namespace or default bindings of child_process (import * as cp, require).
     const namespaces = new Set()
+    // Local names of worker_threads' Worker (any `.Worker` member also counts).
+    const workers = new Set(['Worker'])
     const counts = new Map()
     const add = (operation, node, isEmbedded = false) => {
       const name = `${isEmbedded ? 'embedded:' : ''}${operation}`
@@ -158,7 +203,92 @@ export function scanSpawnSites(root, corpus) {
         selected,
       })
     }
+    // A Worker class by its local name, or any `.Worker` / `['Worker']` member
+    // (a namespace, default import or re-export of worker_threads, spelled any way).
+    const isWorkerClass = (expression) =>
+      ts.isIdentifier(expression)
+        ? workers.has(expression.text)
+        : (ts.isPropertyAccessExpression(expression) && expression.name.text === 'Worker') ||
+          (ts.isElementAccessExpression(expression) &&
+            ts.isStringLiteralLike(expression.argumentExpression) &&
+            expression.argumentExpression.text === 'Worker')
+    const launchOf = (expression) => {
+      if (ts.isIdentifier(expression)) {
+        const operation = aliases.get(expression.text) ?? expression.text
+        return operations.has(operation) ? operation : undefined
+      }
+      if (!ts.isPropertyAccessExpression(expression)) return
+      const operation = expression.name.text
+      if (!operations.has(operation)) return
+      // `x.exec` is RegExp.exec unless x is a child_process binding.
+      if (
+        operation === 'exec' &&
+        !(ts.isIdentifier(expression.expression) && namespaces.has(expression.expression.text))
+      )
+        return
+      return operation
+    }
     const imports = (node) => {
+      if (
+        ts.isImportDeclaration(node) &&
+        ts.isStringLiteral(node.moduleSpecifier) &&
+        isWorkerModule(node.moduleSpecifier.text)
+      ) {
+        const bindings = node.importClause?.namedBindings
+        if (bindings !== undefined && ts.isNamedImports(bindings))
+          for (const entry of bindings.elements)
+            if ((entry.propertyName ?? entry.name).text === 'Worker') workers.add(entry.name.text)
+      }
+      // A re-export carries a launch past this file's own uses: it is a site.
+      if (
+        ts.isExportDeclaration(node) &&
+        node.moduleSpecifier !== undefined &&
+        ts.isStringLiteral(node.moduleSpecifier)
+      ) {
+        if (isChildModule(node.moduleSpecifier.text)) add('import', node)
+        if (isWrapperModule(node.moduleSpecifier.text)) add('wrapper', node)
+        if (
+          isWorkerModule(node.moduleSpecifier.text) &&
+          (node.exportClause === undefined ||
+            (ts.isNamedExports(node.exportClause) &&
+              node.exportClause.elements.some(
+                (entry) => (entry.propertyName ?? entry.name).text === 'Worker',
+              )) ||
+            ts.isNamespaceExport(node.exportClause))
+        )
+          add('worker', node)
+      }
+      // Any binding of a `Worker` property is that class: `{ Worker: Thread } = …`.
+      if (ts.isVariableDeclaration(node) && ts.isObjectBindingPattern(node.name))
+        for (const element of node.name.elements) {
+          const property = element.propertyName ?? element.name
+          if (
+            ts.isIdentifier(property) &&
+            property.text === 'Worker' &&
+            ts.isIdentifier(element.name)
+          )
+            workers.add(element.name.text)
+        }
+      // `const Thread = Worker` or `= wt.Worker`.
+      if (
+        ts.isVariableDeclaration(node) &&
+        ts.isIdentifier(node.name) &&
+        node.initializer !== undefined &&
+        isWorkerClass(node.initializer)
+      )
+        workers.add(node.name.text)
+      // `const run = spawn.bind(null)`: a bound launch is that launch.
+      if (
+        ts.isVariableDeclaration(node) &&
+        ts.isIdentifier(node.name) &&
+        node.initializer !== undefined &&
+        ts.isCallExpression(node.initializer) &&
+        ts.isPropertyAccessExpression(node.initializer.expression) &&
+        node.initializer.expression.name.text === 'bind'
+      ) {
+        const operation = launchOf(node.initializer.expression.expression)
+        if (operation !== undefined) aliases.set(node.name.text, operation)
+      }
       if (
         ts.isImportDeclaration(node) &&
         ts.isStringLiteral(node.moduleSpecifier) &&
@@ -187,24 +317,22 @@ export function scanSpawnSites(root, corpus) {
           const operation = aliases.get(property.text) ?? property.text
           if (operations.has(operation)) aliases.set(element.name.text, operation)
         }
-      // `const launch = cp.spawn`
+      // `const launch = cp.spawn` (and `cp.exec` on a child_process binding)
       if (
         ts.isVariableDeclaration(node) &&
         ts.isIdentifier(node.name) &&
         node.initializer !== undefined &&
-        ts.isPropertyAccessExpression(node.initializer) &&
-        operations.has(node.initializer.name.text) &&
-        node.initializer.name.text !== 'exec'
-      )
-        aliases.set(node.name.text, node.initializer.name.text)
+        ts.isPropertyAccessExpression(node.initializer)
+      ) {
+        const operation = launchOf(node.initializer)
+        if (operation !== undefined) aliases.set(node.name.text, operation)
+      }
+      // `const cp = require('child_process')` or `await import(…)`: a namespace.
       if (
         ts.isVariableDeclaration(node) &&
         ts.isIdentifier(node.name) &&
         node.initializer !== undefined &&
-        ts.isCallExpression(node.initializer) &&
-        ts.isIdentifier(node.initializer.expression) &&
-        node.initializer.expression.text === 'require' &&
-        node.initializer.arguments.some((arg) => ts.isStringLiteral(arg) && isChildModule(arg.text))
+        isChildModule(loadedModule(node.initializer) ?? '')
       )
         namespaces.add(node.name.text)
       if (
@@ -221,17 +349,30 @@ export function scanSpawnSites(root, corpus) {
         if (operations.has(operation)) aliases.set(node.name.text, operation)
       }
       if (
-        ts.isVariableDeclaration(node) &&
-        ts.isIdentifier(node.name) &&
-        node.initializer !== undefined &&
-        ts.isIdentifier(node.initializer)
-      ) {
-        const operation = aliases.get(node.initializer.text) ?? node.initializer.text
-        if (operations.has(operation)) aliases.set(node.name.text, operation)
-      }
-      ts.forEachChild(node, imports)
+        !ts.isVariableDeclaration(node) ||
+        !ts.isIdentifier(node.name) ||
+        node.initializer === undefined ||
+        !ts.isIdentifier(node.initializer)
+      )
+        return
+      const operation = aliases.get(node.initializer.text) ?? node.initializer.text
+      if (operations.has(operation)) aliases.set(node.name.text, operation)
     }
-    imports(source)
+    // One traversal: bindings are collected everywhere, and only the nodes that can
+    // be sites are kept, in source order, to be checked once every binding is known.
+    const candidates = []
+    const walk = (node) => {
+      imports(node)
+      if (
+        ts.isCallExpression(node) ||
+        ts.isNewExpression(node) ||
+        ts.isTemplateExpression(node) ||
+        (ts.isStringLiteralLike(node) && LAUNCH_TEXT.test(node.text))
+      )
+        candidates.push(node)
+      ts.forEachChild(node, walk)
+    }
+    walk(source)
     const visit = (node, isEmbedded = false) => {
       if (ts.isCallExpression(node)) {
         const expression = node.expression
@@ -252,6 +393,13 @@ export function scanSpawnSites(root, corpus) {
           node.arguments.some((arg) => ts.isStringLiteral(arg) && isWrapperModule(arg.text))
         )
           add('wrapper', node, isEmbedded)
+        if (
+          ts.isPropertyAccessExpression(expression) &&
+          ['call', 'apply'].includes(expression.name.text)
+        ) {
+          const operation = launchOf(expression.expression)
+          if (operation !== undefined) add(`call:${operation}`, node, isEmbedded)
+        }
         const name = calledName(expression, aliases, source)
         if (name !== undefined && operations.has(name)) {
           // `x.exec(` is RegExp.exec unless x is a child_process binding.
@@ -262,24 +410,21 @@ export function scanSpawnSites(root, corpus) {
           if (!isOtherExec) add(`call:${name}`, node, isEmbedded)
         }
       }
-      if (
-        ts.isNewExpression(node) &&
-        (ts.isIdentifier(node.expression)
-          ? node.expression.text === 'Worker'
-          : ts.isPropertyAccessExpression(node.expression) &&
-            node.expression.name.text === 'Worker') &&
-        node.arguments?.some(
-          (arg) =>
-            ts.isObjectLiteralExpression(arg) &&
-            arg.properties.some(
+      if (ts.isNewExpression(node) && isWorkerClass(node.expression)) {
+        const [, options] = node.arguments ?? []
+        // Program text (eval) is a site; options that cannot be read statically are too.
+        const isEval =
+          options !== undefined &&
+          (!ts.isObjectLiteralExpression(options) ||
+            options.properties.some(
               (property) =>
-                property.name !== undefined &&
-                ts.isIdentifier(property.name) &&
-                property.name.text === 'eval',
-            ),
-        ) === true
-      )
-        add('worker', node, isEmbedded)
+                !ts.isPropertyAssignment(property) ||
+                (property.name !== undefined &&
+                  ts.isIdentifier(property.name) &&
+                  property.name.text === 'eval'),
+            ))
+        if (isEval) add('worker', node, isEmbedded)
+      }
       // Interpolated program text is undecidable: it is a site to list (or remove).
       if (
         !isEmbedded &&
@@ -299,23 +444,82 @@ export function scanSpawnSites(root, corpus) {
         )
         visit(nested, true)
       }
-      ts.forEachChild(node, (child) => visit(child, isEmbedded))
+      // Only an embedded program is walked here; the file's own nodes were collected.
+      if (isEmbedded) ts.forEachChild(node, (child) => visit(child, true))
     }
-    visit(source)
+    for (const node of candidates) visit(node)
   }
   return { sites, program: tree }
 }
 
-/** A call written in a top-level initializer, outside any function, runs when the module loads. */
+/**
+ * A function expression that may run where it is written: called at once
+ * (an IIFE) or handed to a call, which can call it before returning.
+ */
+function runsInPlace(node) {
+  let current = node
+  while (ts.isParenthesizedExpression(current.parent)) current = current.parent
+  const parent = current.parent
+  return (
+    (ts.isCallExpression(parent) || ts.isNewExpression(parent)) &&
+    (parent.expression === current || (parent.arguments ?? []).includes(current))
+  )
+}
+
+/**
+ * A call that runs when the module loads: written outside any deferred
+ * function, or inside code evaluated with its class (static fields and blocks,
+ * decorators, `extends`, computed names) or with its enclosing call (IIFEs,
+ * callbacks handed to a load-time call). Only an uncalled function or method
+ * body, or an instance member, defers it.
+ */
 function runsAtLoad(node) {
   const parent = node.parent
   const isCallee =
     (ts.isCallExpression(parent) || ts.isNewExpression(parent)) && parent.expression === node
   if (!isCallee) return false
-  for (let current = parent; !ts.isSourceFile(current); current = current.parent)
-    if (ts.isFunctionLike(current) || ts.isClassLike(current)) return false
+  let isEagerMember = false
+  for (let current = parent; !ts.isSourceFile(current); current = current.parent) {
+    if (ts.isDecorator(current)) {
+      // Evaluated when its class is defined, whatever member or parameter it decorates.
+      isEagerMember = true
+      while (!ts.isClassLike(current.parent) && !ts.isSourceFile(current.parent))
+        current = current.parent
+      continue
+    }
+    const isStatic =
+      ts.isPropertyDeclaration(current) &&
+      (ts.getModifiers(current) ?? []).some(
+        (modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword,
+      )
+    if (
+      isStatic ||
+      ts.isClassStaticBlockDeclaration(current) ||
+      ts.isHeritageClause(current) ||
+      ts.isComputedPropertyName(current)
+    ) {
+      isEagerMember = true
+      continue
+    }
+    if (ts.isClassLike(current)) {
+      if (!isEagerMember) return false
+      isEagerMember = false
+      continue
+    }
+    if ((ts.isArrowFunction(current) || ts.isFunctionExpression(current)) && runsInPlace(current))
+      continue
+    if (ts.isFunctionLike(current)) return false
+  }
   return true
 }
+
+/** Lowercase words of a symbol or path, for ranking likely test files first. */
+const words = (text) =>
+  text
+    .replaceAll(/([a-z])([A-Z])/gu, '$1 $2')
+    .toLowerCase()
+    .split(/[^a-z]+/u)
+    .filter((word) => word.length > 2)
 
 const indexes = new WeakMap()
 /**
@@ -386,11 +590,17 @@ export function proveTestOnly(program, symbol, root) {
       }
     }
   }
-  const tests = program.tests()
-  // A call or a member use in a test, not merely an import binding.
-  const isExercised = [...chain].some((name) =>
-    tests.some((text) => text.includes(`${name}(`) || text.includes(`${name}.`)),
-  )
+  // A call or a member use in a test, not merely an import binding. Tests are
+  // read lazily, files sharing a word with the chain first; the first use ends it.
+  const wanted = new Set([...chain].flatMap((name) => words(name)))
+  const ranked = program
+    .tests()
+    .map((file) => ({ file, score: words(relativeTo(file)).filter((w) => wanted.has(w)).length }))
+    .toSorted((left, right) => right.score - left.score || left.file.localeCompare(right.file))
+  const isExercised = ranked.some(({ file }) => {
+    const text = program.testText(file)
+    return [...chain].some((name) => text.includes(`${name}(`) || text.includes(`${name}.`))
+  })
   return {
     references,
     exercised: isExercised,

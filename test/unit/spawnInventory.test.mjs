@@ -109,7 +109,20 @@ describe('complete production process inventory', () => {
   })
 })
 
-// RVSPAWN017C's probes: each construct is a site the guard must see.
+const driverFiles = (caller) => ({
+  'src/driver.ts': [
+    "import { spawn } from 'node:child_process'",
+    "export function createNativeTeamProcessDriver() { return spawn('x', []) }",
+  ].join('\n'),
+  'src/caller.ts': [
+    "import { createNativeTeamProcessDriver as createDriver } from './driver'",
+    ...caller,
+  ].join('\n'),
+  'test/driver.test.ts': 'createNativeTeamProcessDriver()\n',
+})
+
+// RVSPAWN017C and RVSPAWN4W probes. Each construct is its own source file, so no
+// other file's child_process text can carry it past the candidate prefilter.
 describe('inventory guard probes', () => {
   const roots = []
   afterAll(() => {
@@ -124,64 +137,151 @@ describe('inventory guard probes', () => {
     }
     return folder
   }
+  const sitesOf = (files) => {
+    const folder = fixture({ ...files, 'test/placeholder.test.ts': '' })
+    const byFile = {}
+    for (const site of scanSpawnSites(folder).sites) (byFile[site.file] ??= []).push(site.site)
+    return byFile
+  }
+  // The probe's program text interpolates a value: `${code}` inside its template.
+  const interpolation = ['$', '{code}'].join('')
 
-  it('sees destructured and property launch aliases, process wrappers and worker programs', () => {
-    // The probe's program text interpolates a value: \`${code}\` inside its template.
-    const interpolation = ['$', '{code}'].join('')
-    const folder = fixture({
-      'src/probe.ts': [
-        "import * as cp from 'node:child_process'",
-        "import { spawn } from 'node:child_process'",
-        "import { execa } from 'execa'",
-        "import { Worker } from 'node:worker_threads'",
-        'export function reviewExtraLaunch() {',
-        '  const { spawn: launch } = { spawn }',
-        "  return launch(process.execPath, ['-e', 'process.exit(0)'])",
-        '}',
-        'export function viaProperty() {',
-        '  const run = cp.execFile',
-        "  return run(process.execPath, ['-v'])",
-        '}',
-        "export const wrapped = () => execa('node', ['-v'])",
-        'export function worker(code: string) {',
-        '  return new Worker(',
-        `    \`require("node:child_process").spawn(${interpolation})\`,`,
-        '    { eval: true },',
-        '  )',
-        '}',
-        '',
-      ].join('\n'),
-      'test/placeholder.test.ts': '',
+  it('sees each launch construct in a file of its own', () => {
+    expect(
+      sitesOf({
+        'src/destructured.ts': [
+          "import { spawn } from 'node:child_process'",
+          'const { spawn: launch } = { spawn }',
+          "export const go = () => launch(process.execPath, ['-v'])",
+        ].join('\n'),
+        'src/property.ts': [
+          "import * as cp from 'node:child_process'",
+          'const run = cp.execFile',
+          "export const go = () => run(process.execPath, ['-v'])",
+        ].join('\n'),
+        'src/execAlias.ts': [
+          "import * as cp from 'node:child_process'",
+          'const run = cp.exec',
+          "export const go = () => run('node -v')",
+        ].join('\n'),
+        'src/bound.ts': [
+          "import { spawn } from 'node:child_process'",
+          'const run = spawn.bind(null)',
+          "export const go = () => run(process.execPath, ['-v'])",
+        ].join('\n'),
+        'src/called.ts': [
+          "import { spawn } from 'node:child_process'",
+          "export const go = () => spawn.call(null, process.execPath, ['-v'])",
+        ].join('\n'),
+        'src/wrapper.ts': [
+          "import { execa } from 'execa'",
+          "export const go = () => execa('node', ['-v'])",
+        ].join('\n'),
+        'src/worker.ts': [
+          "import { Worker as Thread } from 'node:worker_threads'",
+          'export const go = (code: string) => new Thread(code, { eval: true })',
+        ].join('\n'),
+        'src/workerDefault.ts': [
+          "import threads from 'node:worker_threads'",
+          'export const go = (code: string) => new threads.Worker(code, { eval: true })',
+        ].join('\n'),
+        'src/workerDynamic.ts': [
+          'export async function go(code: string) {',
+          "  const { Worker: Thread } = await import('node:worker_threads')",
+          '  return new Thread(code, { eval: true })',
+          '}',
+        ].join('\n'),
+        'src/workerAlias.ts': [
+          "import * as wt from 'node:worker_threads'",
+          'const Thread = wt.Worker',
+          'export const go = (code: string) => new Thread(code, { eval: true })',
+        ].join('\n'),
+        'src/workerOptions.ts': [
+          "import { Worker } from 'node:worker_threads'",
+          'export const go = (file: string, options: object) => new Worker(file, options)',
+        ].join('\n'),
+        'src/workerReexport.ts': "export { Worker as Thread } from 'node:worker_threads'",
+        'src/reexport.ts': "export { spawn as launch } from 'node:child_process'",
+        'src/dynamicNamespace.ts': [
+          'export async function go() {',
+          "  const cp = await import('node:child_process')",
+          "  return cp.exec('node -v')",
+          '}',
+        ].join('\n'),
+        'src/program.ts': [
+          'export const program = (code: string) =>',
+          `  \`require("node:child_process").spawn(${interpolation})\``,
+        ].join('\n'),
+      }),
+    ).toEqual({
+      'src/destructured.ts': ['src/destructured.ts#import:1', 'src/destructured.ts#call:spawn:1'],
+      'src/property.ts': ['src/property.ts#import:1', 'src/property.ts#call:execFile:1'],
+      'src/execAlias.ts': ['src/execAlias.ts#import:1', 'src/execAlias.ts#call:exec:1'],
+      'src/bound.ts': ['src/bound.ts#import:1', 'src/bound.ts#call:spawn:1'],
+      'src/called.ts': ['src/called.ts#import:1', 'src/called.ts#call:spawn:1'],
+      'src/wrapper.ts': ['src/wrapper.ts#wrapper:1'],
+      'src/worker.ts': ['src/worker.ts#worker:1'],
+      'src/workerDefault.ts': ['src/workerDefault.ts#worker:1'],
+      'src/workerDynamic.ts': ['src/workerDynamic.ts#worker:1'],
+      'src/workerAlias.ts': ['src/workerAlias.ts#worker:1'],
+      'src/workerOptions.ts': ['src/workerOptions.ts#worker:1'],
+      'src/workerReexport.ts': ['src/workerReexport.ts#worker:1'],
+      'src/reexport.ts': ['src/reexport.ts#import:1'],
+      'src/dynamicNamespace.ts': [
+        'src/dynamicNamespace.ts#import:1',
+        'src/dynamicNamespace.ts#call:exec:1',
+      ],
+      'src/program.ts': ['src/program.ts#embedded:dynamic:1'],
     })
-    const sites = scanSpawnSites(folder).sites.map((site) => site.site)
-    expect(sites).toEqual(
-      expect.arrayContaining([
-        'src/probe.ts#call:spawn:1',
-        'src/probe.ts#call:execFile:1',
-        'src/probe.ts#wrapper:1',
-        'src/probe.ts#worker:1',
-        'src/probe.ts#embedded:dynamic:1',
-      ]),
-    )
   })
 
-  it('follows an aliased import of a test-only symbol to its production caller', () => {
-    const folder = fixture({
-      'src/driver.ts': [
-        "import { spawn } from 'node:child_process'",
-        "export function createNativeTeamProcessDriver() { return spawn('x', []) }",
-        '',
-      ].join('\n'),
-      'src/caller.ts': [
-        "import { createNativeTeamProcessDriver as createDriver } from './driver'",
-        'export const driver = createDriver()',
-        '',
-      ].join('\n'),
-      'test/driver.test.ts': 'createNativeTeamProcessDriver()\n',
-    })
+  const referencesOf = (files) => {
+    const folder = fixture(files)
     const { program } = scanSpawnSites(folder)
-    expect(proveTestOnly(program, 'createNativeTeamProcessDriver', folder).references).toEqual([
+    return proveTestOnly(program, 'createNativeTeamProcessDriver', folder).references
+  }
+
+  it('follows an aliased import of a test-only symbol to its production caller', () => {
+    expect(referencesOf(driverFiles(['export const driver = createDriver()']))).toEqual([
       'src/caller.ts:createDriver',
     ])
+  })
+
+  it('treats class static fields and static blocks as load-time production code', () => {
+    expect(
+      referencesOf(driverFiles(['export class Holder {', '  static driver = createDriver()', '}'])),
+    ).toEqual(['src/caller.ts:createDriver'])
+    expect(
+      referencesOf(
+        driverFiles(['export class Holder {', '  static {', '    createDriver()', '  }', '}']),
+      ),
+    ).toEqual(['src/caller.ts:createDriver'])
+    // An instance method runs only when called: still test-only.
+    expect(
+      referencesOf(
+        driverFiles([
+          'export class Holder {',
+          '  make() {',
+          '    return createDriver()',
+          '  }',
+          '}',
+        ]),
+      ),
+    ).toEqual([])
+  })
+
+  it('treats decorators, IIFEs and callbacks handed to a load-time call as production', () => {
+    const decorate = 'const mark = (_value: unknown) => (target: unknown) => target'
+    for (const caller of [
+      [decorate, '@mark(createDriver())', 'export class Holder {}'],
+      [decorate, 'export class Holder {', '  @mark(createDriver())', '  make() {}', '}'],
+      ['export const driver = (() => createDriver())()'],
+      ['export const drivers = [1].map(() => createDriver())'],
+    ])
+      expect(referencesOf(driverFiles(caller)), caller.join('\n')).toEqual([
+        'src/caller.ts:createDriver',
+      ])
+    // A function that is only stored runs when called: its uses decide, and here there are none.
+    expect(referencesOf(driverFiles(['export const make = () => createDriver()']))).toEqual([])
   })
 })

@@ -86,8 +86,22 @@ export function lazyRuntimeResources(
     const current = jobs
     try {
       const ready = await current
-      if (ready === undefined && jobs === current) jobs = undefined
-      return ready
+      if (ready === undefined) {
+        if (jobs === current) jobs = undefined
+        return
+      }
+      // Each launch verifies the sealed helper; a changed one re-prepares next time.
+      return {
+        ...ready,
+        verify: async () => {
+          try {
+            await ready.verify()
+          } catch (error: unknown) {
+            if (jobs === current) jobs = undefined
+            throw error
+          }
+        },
+      }
     } catch (error: unknown) {
       if (jobs === current) jobs = undefined
       throw error

@@ -5,6 +5,7 @@ import type {
   ResourceProcessOptions,
   ResourceInteractiveProcess,
   ResourcePipedProcess,
+  ResourceWindowsJob,
 } from './launch'
 import type { ResourceLaunchHost } from './launchHost'
 import type { ResourceHostSettings } from './resourceGovernorEntry'
@@ -126,9 +127,7 @@ export async function inResourceClass<T>(
   return host === undefined ? await action() : await host.inClass(workClass, action)
 }
 
-export async function resourceWindowsJob(): Promise<
-  { readonly assemblyPath: string; readonly executablePath: string } | undefined
-> {
+export async function resourceWindowsJob(): Promise<ResourceWindowsJob | undefined> {
   return await state.options?.windowsJob?.()
 }
 

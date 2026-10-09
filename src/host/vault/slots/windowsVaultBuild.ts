@@ -1,4 +1,4 @@
-import { runBootstrap } from '../../../core/resources/bootstrap'
+import { runBootstrap } from '../../../core/bootstrapCommand'
 import { createHash, randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -6,7 +6,7 @@ import path from 'node:path'
 import { UI_TEXT } from '../../../shared/constants'
 import { compileJob, jobFileName, type JobBuild } from '../../backend/jobBuild'
 import type { RunProgram } from '../../processTree'
-import { isResourcePaused } from '../../../core/resources/paused'
+import { isResourcePaused } from '../../../core/resources/launch'
 import {
   windowsVaultGuardScript,
   type WindowsVaultExecutable,

@@ -11,6 +11,7 @@ import {
   RESOURCE_FOREGROUND_WAIT_MS,
   RESOURCE_GIB_BYTES,
   RESOURCE_DISPOSE_POLL_MS,
+  RESOURCE_SETTLED_ROWS_MAX,
   TREE_EXIT_WAIT_MS,
 } from '../../src/shared/constants'
 import { resourceSettingsSchema, type ResourceSample } from '../../src/shared/resources'
@@ -145,6 +146,91 @@ describe('C1 process admission and registration', () => {
     }
     expect(registry.finish).not.toHaveBeenCalled()
     expect(h.errors).toHaveBeenCalled()
+  })
+  it('retires attested work on dispose only through its settlement', async () => {
+    const registry = created()
+    const h = setup({ created: registry })
+    const lease = await h.host.admit('toolShell')
+    let finishStop: (() => void) | undefined
+    const stop = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishStop = () => {
+            lease.complete(true)
+            resolve()
+          }
+        }),
+    )
+    lease.register({ pid: 700, profile: 'contained', attested: true, stop })
+    h.host.dispose()
+    await settle()
+    // A dispatched stop is not completion: nothing is finished until the settlement.
+    expect(stop).toHaveBeenCalledOnce()
+    expect(registry.finish).not.toHaveBeenCalled()
+    finishStop?.()
+    await settle()
+    expect(registry.finish).toHaveBeenCalledOnce()
+    expect(h.errors).not.toHaveBeenCalled()
+  })
+  it('keeps attested work whose stop returned unsettled as uncertain and reports it', async () => {
+    const registry = created()
+    const h = setup({ created: registry })
+    const lease = await h.host.admit('toolShell')
+    lease.register({
+      pid: 700,
+      profile: 'contained',
+      attested: true,
+      stop: () => Promise.resolve(),
+    })
+    h.host.dispose()
+    await settle()
+    expect(registry.finish).not.toHaveBeenCalled()
+    expect(h.errors).toHaveBeenCalled()
+  })
+  it('releases admission but keeps the temp root on the uncertain path', async () => {
+    const registry = created()
+    const h = setup({ created: registry })
+    const lease = await h.host.admit('toolShell')
+    lease.register({
+      pid: 700,
+      profile: 'contained',
+      attested: true,
+      stop: () => Promise.resolve(),
+    })
+    lease.uncertain?.()
+    await settle()
+    expect(registry.finish).not.toHaveBeenCalled()
+    expect(h.errors).toHaveBeenCalledOnce()
+    // Retired: a later dispose has nothing left to stop or report.
+    h.host.dispose()
+    await settle()
+    expect(h.errors).toHaveBeenCalledOnce()
+  })
+  it('keeps no settled rows while no history reader is bound', async () => {
+    const h = setup()
+    const lease = await h.host.admit('toolShell')
+    for (let index = 0; index < 50; index++)
+      lease.settle?.({
+        root: { pid: 700 + index, startTime: '1' },
+        scope: 'attested-fixture',
+        usage: null,
+      })
+    expect(h.host.settled()).toEqual({ rows: [], dropped: 0 })
+  })
+  it('bounds settled rows for a bound reader and counts the dropped ones', async () => {
+    const h = setup({ isSettledRead: true })
+    const lease = await h.host.admit('toolShell')
+    for (let index = 0; index < RESOURCE_SETTLED_ROWS_MAX + 88; index++)
+      lease.settle?.({
+        root: { pid: 700 + index, startTime: '1' },
+        scope: 'attested-fixture',
+        usage: null,
+      })
+    const first = h.host.settled()
+    expect(first.rows).toHaveLength(RESOURCE_SETTLED_ROWS_MAX)
+    expect(first.dropped).toBe(88)
+    expect(first.rows[0]?.ticket.root.pid).toBe(700 + 88)
+    expect(h.host.settled()).toEqual({ rows: [], dropped: 0 })
   })
   it('keeps an SDK root exit unknown while exact identity registration is still pending', async () => {
     const h = setup()

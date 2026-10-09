@@ -7656,8 +7656,13 @@ export const RESOURCE_JOB_SAMPLE_MS = 250
 export const RESOURCE_JOB_EMPTY_MS = 5000
 export const RESOURCE_JOB_RECORD_MAX_CHARS = 1024
 export const RESOURCE_JOB_RECORD_WAIT_MS = 2000
+export const RESOURCE_JOB_INT32_MIN = -2_147_483_648
+export const RESOURCE_JOB_INT32_MAX = 2_147_483_647
+export const RESOURCE_JOB_UINT32_MAX = 4_294_967_295
 /** Disposal re-reads a stopped tree this often until TREE_EXIT_WAIT_MS proves or abandons it. */
 export const RESOURCE_DISPOSE_POLL_MS = 250
+/** Settled attested rows kept between history reads; older ones are dropped and counted. */
+export const RESOURCE_SETTLED_ROWS_MAX = 512
 
 // M108 X: machine-local testing options. These never change vendor/paid gates.
 // D88 amendment b: developer options expire after seven days.

@@ -35,6 +35,11 @@
     "reason": "Process type import and injected contained shell port; account/ordinary MSP use their admitted native transport."
   },
   {
+    "site": "src/core/bootstrapCommand.ts#call:spawnResourceProcess:1",
+    "profile": "bootstrap",
+    "reason": "Compiler selects bootstrap with heavy admission, combined output bound, deadline and OS whole-tree stop."
+  },
+  {
     "site": "src/core/browser/browserRun.ts#call:spawn:1",
     "profile": "contained",
     "reason": "Injected browser process port is supplied by browserProcess admission and containment."
@@ -119,11 +124,6 @@
     "site": "src/core/resources/admission.ts#call:spawnResourceProcess:2",
     "profile": "contained",
     "reason": "Lazy facade forwards contained and bootstrap launches to the single governed launcher; hand-offs use handoffResourceFile only."
-  },
-  {
-    "site": "src/core/resources/bootstrap.ts#call:spawnResourceProcess:1",
-    "profile": "bootstrap",
-    "reason": "Compiler selects bootstrap with heavy admission, combined output bound, deadline and OS whole-tree stop."
   },
   {
     "site": "src/core/resources/commands.ts#call:spawnResourceProcess:1",
@@ -462,6 +462,11 @@
     "site": "src/host/voice/voiceProcesses.ts#import:2",
     "profile": "contained",
     "reason": "Voice helper takes resource admission, job/group launch and registered retirement."
+  },
+  {
+    "site": "src/host/web/pageConverter.ts#worker:1",
+    "profile": "contained",
+    "reason": "Worker thread, not a process: the fixed bundled page converter (dist/pageWorker.js), never eval program text; resourceLimits heap cap and WEB_FETCH_CONVERT_TIMEOUT_MS, terminated by its owner. Listed because its options are not a literal."
   },
   {
     "site": "src/runtime/main.ts#call:handoffResourceFile:1",

@@ -6,7 +6,7 @@ import {
   type ResourceLaunchRequest,
   type ResourcePermit,
 } from '../../src/core/resources/queue'
-import { ResourcePausedError } from '../../src/core/resources/paused'
+import { ResourcePausedError } from '../../src/core/resources/launch'
 import { RESOURCE_GIB_BYTES } from '../../src/shared/constants'
 import {
   resourceEventSchema,

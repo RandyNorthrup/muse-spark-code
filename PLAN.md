@@ -32,6 +32,31 @@ unchanged 15 s deadline. RVSPAWN017C's four P2s are fixed in the same round
 (dispose ownership until observed exit, scanner aliases/wrappers/workers,
 alias-resolved test-only proof, caller deadline over shared preparation).
 
+**RVSPAWN4W fixes (2026-10-08, amends the paragraph above).** Only a record
+saying the helper drained the job (`emptied: true`) proves whole-tree
+retirement and known usage; a missing record, an undrained job or a killed
+helper takes the lease's uncertain path (admission released, temp root kept
+for recovery, failure reported), never complete(true). Dispose awaits that
+settlement; a dispatched kill is not completion. The job's completion port
+reports cap refusals and enforced memory limits in the record (`capRefusals`,
+`limits`), which governed commands raise as typed errors even after exit 0;
+`jobMemoryBytes` hands a portable launch's memory cap to the Windows job
+(the media converter maps `jobMemory` to its memory-cap error). The prepared
+helper is hashed around its self-test and re-hashed before every launch; a
+changed one is refused, removed and recompiled. Attested usage rows are kept
+only for a bound history reader (none in production yet,
+M107-J-C1-T-accounting), at most RESOURCE_SETTLED_ROWS_MAX between reads.
+RESULT lines are bounded before parsing and keep native 32-bit ranges. The
+inventory scanner and test-only proof cover wrappers, aliased/default/dynamic
+Workers, bound/called launches, re-exports, dynamic-import namespaces and
+load-time class, decorator, IIFE and callback evaluation; the stale Windows
+launch fixtures pass the bootstrap runner seam. Bundle cohorts: the pause,
+cap and memory errors live in `launch.ts`, helper integrity in
+`src/host/backend/`, and `runBootstrap` (a facade client, not policy) in
+`src/core/bootstrapCommand.ts`, so no `src/core/resources/` policy module
+rides in `extension.js`, `acp.js` or the runtime bundles any more (the
+cohort check was red since `e50ef9f49` and `867d9d7cf`).
+
 **SPAWN017C gitRefs root cause (2026-10-08, win11; merged from
 rel017/spawn3).** Every bounded command was admitted as ordinary work with a
 helper-backed temp root: six native created-file round trips, needing a

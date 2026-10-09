@@ -6,12 +6,20 @@ import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as admission from '../../src/core/resources/admission'
 import { spawnResourceProcess } from '../../src/core/resources/process'
-import { handoffResourceFile } from '../../src/core/resources/commands'
+import { execResourceFile, handoffResourceFile } from '../../src/core/resources/commands'
+import * as jobLaunch from '../../src/host/backend/mcpJobLaunch'
+import { isResourceCapRefused, isResourceMemoryLimit } from '../../src/core/resources/launch'
+import {
+  ResourceHelperChangedError,
+  isResourceHelperChanged,
+} from '../../src/host/backend/helperIntegrity'
+import { PassThrough } from 'node:stream'
 import { RESOURCE_HANDOFF_TIMEOUT_MS } from '../../src/shared/constants'
 import { fakeResourceLease } from './helpers/resources/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 
 vi.mock('../../src/core/resources/admission', { spy: true })
+vi.mock('../../src/host/backend/mcpJobLaunch', { spy: true })
 vi.mock('node:child_process', { spy: true })
 afterEach(() => vi.restoreAllMocks())
 
@@ -231,5 +239,199 @@ describe('explicit portable launch profiles', () => {
     await expect(
       handoffResourceFile(process.execPath, ['-e', 'process.exit(3)'], { env: process.env }),
     ).rejects.toThrow('Governed handoff failed')
+  })
+})
+
+/** The rejection a promise settles with, or undefined when it resolves. */
+async function rejectionOf(pending: Promise<unknown>): Promise<unknown> {
+  try {
+    await pending
+    return undefined
+  } catch (error: unknown) {
+    return error
+  }
+}
+
+const record = (changes: Partial<jobLaunch.JobRecord> = {}): jobLaunch.JobRecord => ({
+  v: 1,
+  ending: 'exit',
+  exitCode: 0,
+  emptied: true,
+  cpuMs: 1500,
+  peakJobMemoryBytes: 4096,
+  totalProcesses: 1,
+  capRefusals: 0,
+  limits: [],
+  activeProcessLimit: 128,
+  ...changes,
+})
+/** `recordAfterMs`: the helper's record reaches Node that long after the launch. */
+function setup(answer: jobLaunch.JobRecord | undefined, isAutoExit = false, recordAfterMs = 0) {
+  const lease = { ...fakeResourceLease(), failed: vi.fn(), settle: vi.fn(), uncertain: vi.fn() }
+  vi.mocked(admission.admitResource).mockResolvedValue(lease)
+  const verify = vi.fn(() => Promise.resolve())
+  vi.mocked(admission.resourceWindowsJob).mockResolvedValue({
+    assemblyPath: 'fixture.dll',
+    executablePath: 'fixture.exe',
+    verify,
+  })
+  const child = Object.assign(new childProcess.ChildProcess(), {
+    stdin: new PassThrough(),
+    stdout: new PassThrough(),
+    stderr: new PassThrough(),
+  })
+  Object.defineProperty(child, 'pid', { value: 4141 })
+  const exit = (code: number) => {
+    Object.defineProperty(child, 'exitCode', { value: code, configurable: true })
+    child.emit('exit', code, null)
+    child.stdout.end()
+    child.stderr.end()
+    child.emit('close', code, null)
+  }
+  // Module spies keep their calls across tests; each case reads only its own.
+  vi.mocked(jobLaunch.spawnAttestedJob).mockClear()
+  vi.mocked(jobLaunch.spawnAttestedJob).mockImplementation(() => {
+    if (isAutoExit)
+      setImmediate(() => {
+        exit(0)
+      })
+    return {
+      child,
+      control: {
+        root: Promise.resolve({ pid: 4242, startTime: '133' }),
+        record: new Promise<jobLaunch.JobRecord | undefined>((resolve) => {
+          setTimeout(() => {
+            resolve(answer)
+          }, recordAfterMs)
+        }),
+        stop: vi.fn(),
+      },
+    }
+  })
+  return { lease, exit, verify }
+}
+const asWindows = async (action: () => Promise<void>) => {
+  const platform = Object.getOwnPropertyDescriptor(process, 'platform')
+  Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+  try {
+    await action()
+  } finally {
+    if (platform !== undefined) Object.defineProperty(process, 'platform', platform)
+  }
+}
+
+describe('attested Windows settlement (helper faked, any platform)', () => {
+  it('proves retirement only from an emptied record', async () => {
+    await asWindows(async () => {
+      const { lease, exit } = setup(record())
+      const launched = await spawnResourceProcess('contained', 'fixture', [], { env: {} })
+      exit(0)
+      expect(await launched.outcome()).toEqual({
+        isRetirementProved: true,
+        capRefusals: 0,
+        limits: [],
+      })
+      expect(lease.complete).toHaveBeenCalledWith(true)
+      expect(lease.uncertain).not.toHaveBeenCalled()
+      expect(lease.settle).toHaveBeenCalledWith(
+        expect.objectContaining({ usage: { cpuSeconds: 1.5, residentBytes: 4096 } }),
+      )
+    })
+  })
+
+  it.each([
+    ['an undrained job (emptied: false)', record({ emptied: false })],
+    ['a missing record', undefined],
+  ])('takes the uncertain path for %s', async (_name, answer) => {
+    await asWindows(async () => {
+      const { lease, exit } = setup(answer)
+      const launched = await spawnResourceProcess('contained', 'fixture', [], { env: {} })
+      exit(0)
+      expect(await launched.outcome()).toEqual({
+        isRetirementProved: false,
+        capRefusals: 0,
+        limits: [],
+      })
+      expect(lease.uncertain).toHaveBeenCalledOnce()
+      expect(lease.complete).not.toHaveBeenCalledWith(true)
+      expect(lease.settle).toHaveBeenCalledWith(expect.objectContaining({ usage: null }))
+    })
+  })
+
+  it('signals a cap refusal, typed, even when the root exits 0', async () => {
+    await asWindows(async () => {
+      const { lease } = setup(record({ capRefusals: 1, limits: ['activeProcess'] }), true)
+      const failure = await rejectionOf(
+        execResourceFile('contained', process.execPath, ['-v'], {
+          encoding: 'utf8',
+          env: {},
+        }),
+      )
+      expect(isResourceCapRefused(failure)).toBe(true)
+      expect(failure).toMatchObject({ refusals: 1 })
+      expect(lease.failed).toHaveBeenCalled()
+    })
+  })
+
+  it('reports an enforced job memory limit as a typed memory cap', async () => {
+    await asWindows(async () => {
+      const { lease } = setup(record({ exitCode: 134, limits: ['jobMemory'] }), true)
+      const failure = await rejectionOf(
+        execResourceFile('contained', process.execPath, ['-v'], {
+          encoding: 'utf8',
+          env: {},
+        }),
+      )
+      expect(isResourceMemoryLimit(failure)).toBe(true)
+      expect(failure).toMatchObject({ limit: 'jobMemory' })
+      expect(lease.failed).toHaveBeenCalled()
+    })
+  })
+
+  it('returns from stop only after the settlement retired the tree', async () => {
+    await asWindows(async () => {
+      // The record is read off the pipe after the helper's exit event.
+      const { lease, exit } = setup(record(), false, 50)
+      const launched = await spawnResourceProcess('contained', 'fixture', [], { env: {} })
+      const launch = vi.mocked(jobLaunch.spawnAttestedJob).mock.results.at(-1)
+      if (launch?.type !== 'return') throw new Error('attested launch missing')
+      // The helper answers STOP by draining the job and exiting a moment later.
+      vi.mocked(launch.value.control.stop).mockImplementation(() => {
+        setImmediate(() => {
+          exit(5)
+        })
+      })
+      await launched.stop()
+      // A dispatched STOP is not completion: the emptied record was settled first.
+      expect(launch.value.control.stop).toHaveBeenCalledOnce()
+      expect(lease.complete).toHaveBeenCalledWith(true)
+    })
+  })
+
+  it('hands a memory cap to the attested job only', async () => {
+    await asWindows(async () => {
+      setup(record(), true)
+      const launched = await spawnResourceProcess('contained', 'fixture', [], {
+        env: {},
+        jobMemoryBytes: 64 * 1024 * 1024,
+      })
+      await launched.outcome()
+      expect(jobLaunch.spawnAttestedJob).toHaveBeenCalledWith(
+        expect.objectContaining({ jobMemoryLimit: 64 * 1024 * 1024 }),
+      )
+    })
+  })
+
+  it('refuses a changed helper before launching it', async () => {
+    await asWindows(async () => {
+      const { lease, verify } = setup(record())
+      verify.mockRejectedValueOnce(new ResourceHelperChangedError())
+      const failure = await rejectionOf(
+        spawnResourceProcess('contained', 'fixture', [], { env: {} }),
+      )
+      expect(isResourceHelperChanged(failure)).toBe(true)
+      expect(jobLaunch.spawnAttestedJob).not.toHaveBeenCalled()
+      expect(lease.complete).toHaveBeenCalledWith(true)
+    })
   })
 })

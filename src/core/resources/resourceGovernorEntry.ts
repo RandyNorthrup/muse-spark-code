@@ -6,7 +6,7 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { statfs } from 'node:fs/promises'
 import { TreeTempRoots } from '../../host/resources/tempRoots'
-import type { ResourceTempRoots } from './launch'
+import type { ResourceTempRoots, ResourceWindowsJob } from './launch'
 import { ResourceDiskSampler, type ResourceDiskTarget } from './disk'
 import { CreatedRegistry, type CreatedCleanup, type CreatedPathProof } from './createdRegistry'
 import { BOUNDED_FILE_READ_CHUNK_BYTES, RESOURCE_SAMPLE_MS } from '../../shared/constants'
@@ -55,11 +55,7 @@ export interface ResourceHostSettings {
   readonly localization?: { readonly table: UiText; readonly locale: string } | undefined
   readonly inspect: ResourceSettingsReader
   readonly onError: () => void
-  readonly windowsJob?:
-    | (() => Promise<
-        { readonly assemblyPath: string; readonly executablePath: string } | undefined
-      >)
-    | undefined
+  readonly windowsJob?: (() => Promise<ResourceWindowsJob | undefined>) | undefined
 }
 const state: { host?: ResourceLaunchHost } = {}
 

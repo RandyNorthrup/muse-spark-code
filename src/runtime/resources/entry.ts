@@ -10,8 +10,8 @@ import type { ResourceHistoryPort, ResourceMachineStore, RuntimeResources } from
 import { resourceMachineStore } from './settings'
 import { jobSourceReader } from '../../host/backend/jobSource'
 import { shellJobAssembly } from '../../host/backend/shellJob'
-import { mcpJobExecutable } from '../../host/backend/mcpJobExecutable'
-import { runBootstrap } from '../../core/resources/bootstrap'
+import { sealedMcpJobExecutable } from '../../host/backend/mcpJobExecutable'
+import { runBootstrap } from '../../core/bootstrapCommand'
 
 export interface ResourceEntryOptions {
   machineDir: string
@@ -39,10 +39,10 @@ export async function runtimeResourceJobs(storageDir: string, packageRoot: strin
     },
   }
   const assemblyPath = await shellJobAssembly(deps)()
-  const executablePath = await mcpJobExecutable(deps)()
-  return assemblyPath === undefined || executablePath === undefined
+  const helper = await sealedMcpJobExecutable(deps)()
+  return assemblyPath === undefined || helper === undefined
     ? undefined
-    : { assemblyPath, executablePath }
+    : { assemblyPath, executablePath: helper.path, verify: helper.verify }
 }
 
 /** W builds this entry as dist/resourceGovernor.js and ships it beside acp.js. */
