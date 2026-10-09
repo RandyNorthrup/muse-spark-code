@@ -178,6 +178,9 @@ describe('shared Windows trusted-path vectors', () => {
       await mkdir(nested)
       const leaf = path.join(nested, 'agent.js')
       await writeFile(leaf, 'fixture')
+      // Hosted runners spell %TEMP% in 8.3 form (RUNNER~1): the verifier probes
+      // and answers with resolved paths, while refusals name the path as given.
+      const resolvedNested = await realpath(nested)
       const refusing = (refused: string) => {
         const calls: string[] = []
         const verifier = windowsTrustedPathVerifier(async (file, args) => {
@@ -190,21 +193,21 @@ describe('shared Windows trusted-path vectors', () => {
         return { calls, verifier }
       }
       // The default root is the file's own folder: refused there, nothing else asked.
-      const atRoot = refusing(nested)
+      const atRoot = refusing(resolvedNested)
       expect(await atRoot.verifier.verify(leaf, { leafKind: 'file' })).toMatchObject({
         refused: true,
         component: nested,
       })
       expect(atRoot.calls).toHaveLength(1)
       // An explicit root: the root passes, the component below it is refused.
-      const belowRoot = refusing(nested)
+      const belowRoot = refusing(resolvedNested)
       expect(
         await belowRoot.verifier.verify(leaf, { leafKind: 'file', root: directory }),
       ).toMatchObject({ refused: true, component: nested })
       expect(belowRoot.calls).toHaveLength(2)
       expect(
         await windowsTrustedPathVerifier(run).verify(leaf, { leafKind: 'file', root: directory }),
-      ).toEqual({ ok: true, path: leaf })
+      ).toEqual({ ok: true, path: await realpath(leaf) })
       // Fake the reparse metadata: no security settings or persistent junctions change.
       const io = {
         realpath: vi.fn().mockResolvedValue(leaf),
@@ -261,6 +264,8 @@ describe('shared Windows trusted-path vectors', () => {
       await mkdir(data, { recursive: true })
       const leaf = path.join(data, 'agent.js')
       await writeFile(leaf, 'fixture')
+      // The verifier answers with the resolved path (hosted %TEMP% is 8.3).
+      const resolvedLeaf = await realpath(leaf)
       const verifier = windowsTrustedPathVerifier(run)
 
       // A relocated profile: a junction above the root.
@@ -269,7 +274,7 @@ describe('shared Windows trusted-path vectors', () => {
       const viaProfile = path.join(profile, 'data', 'agent.js')
       expect(
         await verifier.verify(viaProfile, { leafKind: 'file', root: path.join(profile, 'data') }),
-      ).toEqual({ ok: true, path: leaf })
+      ).toEqual({ ok: true, path: resolvedLeaf })
 
       // The root itself a junction to an owner-only folder elsewhere.
       const rootLink = path.join(directory, 'root-link')
@@ -279,11 +284,11 @@ describe('shared Windows trusted-path vectors', () => {
           leafKind: 'file',
           root: rootLink,
         }),
-      ).toEqual({ ok: true, path: leaf })
+      ).toEqual({ ok: true, path: resolvedLeaf })
       // Without an explicit root a file's own folder is its root: also a link, also accepted.
       expect(await verifier.verify(path.join(rootLink, 'agent.js'), { leafKind: 'file' })).toEqual({
         ok: true,
-        path: leaf,
+        path: resolvedLeaf,
       })
 
       // Below the root: a junction escaping the tree, and one staying inside it.
