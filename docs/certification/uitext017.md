@@ -1618,3 +1618,137 @@ approval cards (panel-owned buttons only) and the report renderer pages.
 | Key          | Old      | New      |
 | ------------ | -------- | -------- |
 | `latencyP95` | p95 延遲 | P95 延遲 |
+
+## 6. Review fixes (RVUITEXT P2, 2026-10-09, lane UITEXT2)
+
+The P1 (pill width measured under the burst animation) was fixed by the lead
+on the release branch and is out of scope here; GooeyMenuContent's measuring
+code is untouched. This section records the two P2 fixes.
+
+Rule recheck: Chicago-style per §3 (articles, coordinating conjunctions and
+short prepositions lower case unless first or last). One deliberate deviation
+from the review's table: `importNeedsKey` reads `Needs a Key`, not `Needs a
+Key` — the article stays lower case in the middle, matching the sweep's own
+`Send to {model} as a Video`.
+
+### 6.1 Missed labels now Title Case — `src/shared/l10n/en.ts` (52 strings)
+
+| Key                               | Old                                               | New                                               |
+| --------------------------------- | ------------------------------------------------- | ------------------------------------------------- |
+| `sharePrompt`                     | Share prompt…                                     | Share Prompt…                                     |
+| `apiKeyPrompt`                    | Meta Model API key                                | Meta Model API Key                                |
+| `toolOutputTitle`                 | {tool} tool output ({id})                         | {tool} Tool Output ({id})                         |
+| `clickToExpand`                   | Click to expand                                   | Click to Expand                                   |
+| `exportDefaultTitle`              | Muse conversation                                 | Muse Conversation                                 |
+| `mcpBuiltIn`                      | built in                                          | Built In                                          |
+| `worktreeLocked`                  | locked                                            | Locked                                            |
+| `workflowAttempt`                 | attempt {attempt}                                 | Attempt {attempt}                                 |
+| `reviewDefaultBase`               | default base                                      | Default Base                                      |
+| `importNeedsKey`                  | needs a key                                       | Needs a Key                                       |
+| `providerConnect`                 | Connect {provider} account                        | Connect {provider} Account                        |
+| `accounts.none`                   | No account selected                               | No Account Selected                               |
+| `developer.allowMultiple`         | Allow several accounts of one provider on this PC | Allow Several Accounts of One Provider on This PC |
+| `planUi.providerMark`             | Using {provider} plan                             | Using {provider} Plan                             |
+| `hooksFormatTag`                  | {format} format                                   | {format} Format                                   |
+| `keyMissing`                      | No key stored                                     | No Key Stored                                     |
+| `agentsCount.one`                 | {count} agent                                     | {count} Agent                                     |
+| `agentsCount.other`               | {count} agents                                    | {count} Agents                                    |
+| `backgroundTasksCount.one`        | {count} background task                           | {count} Background Task                           |
+| `backgroundTasksCount.other`      | {count} background tasks                          | {count} Background Tasks                          |
+| `teamTasksCount.one`              | {count} team task                                 | {count} Team Task                                 |
+| `teamTasksCount.other`            | {count} team tasks                                | {count} Team Tasks                                |
+| `openQuestionsTabCount.one`       | {count} open                                      | {count} Open                                      |
+| `openQuestionsTabCount.other`     | {count} open                                      | {count} Open                                      |
+| `reviewFindingsHeading.one`       | {count} finding                                   | {count} Finding                                   |
+| `reviewFindingsHeading.other`     | {count} findings                                  | {count} Findings                                  |
+| `vault.grantsCount.one`           | {count} grant                                     | {count} Grant                                     |
+| `vault.grantsCount.other`         | {count} grants                                    | {count} Grants                                    |
+| `agentStatuses.inProgress`        | running                                           | Running                                           |
+| `agentStatuses.completed`         | completed                                         | Completed                                         |
+| `agentStatuses.failed`            | failed                                            | Failed                                            |
+| `agentStatuses.cancelled`         | cancelled                                         | Cancelled                                         |
+| `agentStatuses.interrupted`       | interrupted                                       | Interrupted                                       |
+| `agentStatuses.resultReady`       | result ready                                      | Result Ready                                      |
+| `agentStatuses.queued`            | queued                                            | Queued                                            |
+| `agentStatuses.closed`            | closed                                            | Closed                                            |
+| `workflowChildStatuses.scheduled` | queued                                            | Queued                                            |
+| `workflowChildStatuses.started`   | running                                           | Running                                           |
+| `workflowChildStatuses.usage`     | running                                           | Running                                           |
+| `workflowChildStatuses.completed` | completed                                         | Completed                                         |
+| `workflowChildStatuses.terminal`  | finished                                          | Finished                                          |
+| `teamWorkerMerged`                | merged                                            | Merged                                            |
+| `teamWorkerDiscarded`             | discarded                                         | Discarded                                         |
+| `teamEntryStates.ready`           | ready                                             | Ready                                             |
+| `teamEntryStates.capped`          | capped                                            | Capped                                            |
+| `teamEntryStates.rateLimited`     | rate limited                                      | Rate Limited                                      |
+| `teamEntryStates.usageLimited`    | at usage limit                                    | At Usage Limit                                    |
+| `teamEntryStates.unavailable`     | unavailable                                       | Unavailable                                       |
+| `skillScopes.bundled`             | built-in                                          | Built-In                                          |
+| `skillScopes.user`                | yours                                             | Yours                                             |
+| `skillScopes.project`             | this project                                      | This Project                                      |
+| `skillScopes.plugin`              | plugin                                            | Plugin                                            |
+
+### 6.2 Missed labels now Title Case — `src/shared/l10n/usageEn.ts` (8 strings)
+
+| Key                    | Old                              | New                              |
+| ---------------------- | -------------------------------- | -------------------------------- |
+| `exportCallsCsv.one`   | Per-call CSV (last {count} day)  | Per-Call CSV (Last {count} Day)  |
+| `exportCallsCsv.other` | Per-call CSV (last {count} days) | Per-Call CSV (Last {count} Days) |
+| `cacheWrite1hTokens`   | {duration} cache writes          | {duration} Cache Writes          |
+| `modelDetail`          | Model detail                     | Model Detail                     |
+| `windowHours.one`      | {count}-hour window              | {count}-Hour Window              |
+| `windowHours.other`    | {count}-hour window              | {count}-Hour Window              |
+| `windowMinutes.one`    | {count}-minute window            | {count}-Minute Window            |
+| `windowMinutes.other`  | {count}-minute window            | {count}-Minute Window            |
+
+### 6.3 Error text restored, label keys split
+
+| Key                                      | Old (sweep)      | New              |
+| ---------------------------------------- | ---------------- | ---------------- |
+| `media.durationUnknown` (error)          | Duration Unknown | Duration unknown |
+| `media.durationUnknownLabel` (new label) | —                | Duration Unknown |
+| `media.uploadStop` (error)               | Stop Upload      | Stop upload      |
+| `media.uploadStopLabel` (new label)      | —                | Stop Upload      |
+| `teamRunners.busy` (error, no split)     | All Slots Busy   | All slots busy   |
+
+`teamRunners.busy` has no label consumer: every use (`checkSlots.ts:310`,
+`:312`, `:327`, `sshRunner.ts:254`) throws, and the runners views never read
+`.busy`. So the text was restored with no new key.
+
+`media.durationUnknown` label consumers moved to the new key: the composer
+chips (`AttachmentChips.tsx:28`) and the chip cost line
+(`AttachmentMediaCost.tsx:20`). Every other consumer keeps the error key with
+the original wording: the `PaidUsage.addVoiceBatch` and `transcribeBatch`
+throws, the `modalityGate`/`limits` refusal reasons, and the replay-metadata
+duration interpolations (`modelapi/tools.ts:1227`, `replayMedia.ts:54`,
+`acp/agent.ts:704`).
+
+`media.uploadStop` label consumer moved to the new key: the companion stop
+button (`CompanionMedia.tsx:276`). The transport and runtime upload throws
+(`webview/media/transport.ts:72,74`, `runtime/companion/upload.ts:234,241,252`)
+keep the error key.
+
+New keys translated in all 14 `l10n/ui.*.json` tables by copying the error
+key's existing translation (unchanged text, each locale's own convention).
+German `agentsCount.one` (`{count} Agent`) now coincides with English, so
+`agentsCount.one` joins the `de` allowlist in `l10n/untranslated.json`, as the
+sweep did for the German loanwords.
+
+Left alone on purpose: `usageEn.cacheWrite5mTokens` (same sentence-case shape
+as `cacheWrite1hTokens` but no UI consumer), `teamRunningCount` /
+`teamRunningOf` (`{count} running`, same class, not in the review's list),
+`vault.itemsCount` (`{count} item(s)`), and the review's excluded set
+(placeholders, sentences, fact lines, wire labels).
+
+Docs: `docs/sharing-reference.md` regenerated (the two `Share Prompt…`
+rows); README's bold toolbar-menu quote now reads **Share Prompt**;
+`test/harness/usage-check.mjs` clicks `Per-Call CSV (Last 30 Days)`.
+
+Tests added (one literal error-text assertion per error key):
+`paidFeatures.test.ts` (voice batch `-1` throws `Duration unknown`),
+`companionMediaTransport.test.ts` (aborted upload throws `Stop upload`),
+`checkSlots.test.ts` (busy host throws `All slots busy`). Existing
+chip-display tests (`AttachmentMediaCost`, `Composer`, `companionMedia`)
+cover the new label keys through the components. Guard-fire drill: with
+`media.durationUnknown` temporarily recased to `Duration Unknown`, the new
+paidFeatures test fails; restored byte-exact (SHA-256 match).

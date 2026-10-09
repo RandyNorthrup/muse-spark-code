@@ -86,7 +86,7 @@ describe('ProvidersSection', () => {
         )}
       />,
     )
-    expect(screen.queryByRole('button', { name: 'Connect OpenRouter account' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Connect OpenRouter Account' })).toBeNull()
     expect(
       screen.getByText(
         'OpenRouter account connection and key usage are not available yet. Paste a key to use models.',
@@ -210,7 +210,7 @@ describe('ProvidersSection', () => {
     render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.enterKey }))
     expect(post).toHaveBeenCalledWith({ type: 'providers/enterKey', mode: 'new' })
-    fireEvent.click(screen.getByRole('button', { name: 'Connect OpenRouter account' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Connect OpenRouter Account' }))
     expect(post).toHaveBeenCalledWith({ type: 'providers/connect' })
   })
 

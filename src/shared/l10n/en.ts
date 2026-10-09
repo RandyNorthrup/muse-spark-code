@@ -184,7 +184,7 @@ export const EN = {
   promptInsert: 'Insert Into Chat',
   promptFileInvalid: 'The prompt file is invalid or unsupported.',
   shareChat: 'Share Chat…',
-  sharePrompt: 'Share prompt…',
+  sharePrompt: 'Share Prompt…',
   shareFull: 'Full Transcript',
   shareConversation: 'Conversation Only',
   shareCodeBlocks: 'Include Code Blocks',
@@ -977,7 +977,8 @@ export const EN = {
     nativeSpeechPurpose:
       'Muse Spark Code turns what you say into text with the speech recogniser built into macOS.',
 
-    durationUnknown: 'Duration Unknown',
+    durationUnknown: 'Duration unknown',
+    durationUnknownLabel: 'Duration Unknown',
     sound: 'Sound',
     noSound: 'No Sound',
     soundUnknown: 'Sound Unknown',
@@ -1009,7 +1010,8 @@ export const EN = {
     useStandard: 'Use the Standard Model',
     uploadPending: 'Waiting to upload',
     uploadProgress: 'Uploaded {uploaded} of {total}',
-    uploadStop: 'Stop Upload',
+    uploadStop: 'Stop upload',
+    uploadStopLabel: 'Stop Upload',
     uploadFailed: 'Upload failed: {reason}',
     uploadExpired: 'The upload expired. Attach {name} again.',
     sourceChanged: '{name} changed since upload. Attach it again.',
@@ -1084,7 +1086,7 @@ export const EN = {
     retry: 'ChatGPT is temporarily unavailable. Try again.',
     // M95b: plan billing, allowance recovery and Copilot's required content note.
     chatGptMark: 'Using ChatGPT Plan',
-    providerMark: 'Using {provider} plan',
+    providerMark: 'Using {provider} Plan',
     manage: 'Manage Usage',
     noticeTitle: 'You’re Using Your ChatGPT Plan',
     noticeDetail: 'ChatGPT Plus/Pro requests share your allowance; they add none.',
@@ -1177,7 +1179,7 @@ export const EN = {
   signOutStopFailed:
     'Backend shutdown failed. This window is gated; close VS Code and check credentials before reopening.',
   retryAction: 'Check Again',
-  apiKeyPrompt: 'Meta Model API key',
+  apiKeyPrompt: 'Meta Model API Key',
   apiKeyPlaceholder: 'LLM_…',
   apiKeyInvalid:
     'A Model API key starts with LLM_ (older keys look like LLM|<numeric id>|<secret>).',
@@ -1214,8 +1216,8 @@ export const EN = {
   messageSentAt: 'Sent {time}',
   messageReceivedAt: 'Received {time}',
   openOutputTitle: 'Click to open the output in an editor',
-  toolOutputTitle: '{tool} tool output ({id})',
-  clickToExpand: 'Click to expand',
+  toolOutputTitle: '{tool} Tool Output ({id})',
+  clickToExpand: 'Click to Expand',
   openOutputFailed: 'Could not open the output',
   working: 'Working…',
   attachTitle: 'Attach',
@@ -1488,7 +1490,7 @@ export const EN = {
     'Muse Code did not return this conversation’s history (it is too long to replay), so there is nothing to write as Markdown. Export session log… saves the whole record.',
   exportCliMissing: 'Exporting the session log needs the Muse Code CLI, which is not installed.',
   exportOpen: 'Open',
-  exportDefaultTitle: 'Muse conversation',
+  exportDefaultTitle: 'Muse Conversation',
   // Session export, import and share (M84, PLAN.md D49).
   exportJsonItem: 'Export Session as JSON…',
   exportJsonDetail: 'A portable file you can import or share',
@@ -1613,7 +1615,7 @@ export const EN = {
   mcpStateFailed: 'Not running: {reason}',
   mcpStateRestricted: 'Not started: this workspace is in Restricted Mode',
   mcpStateNotLoaded: 'Not loaded: see the warning',
-  mcpBuiltIn: 'built in',
+  mcpBuiltIn: 'Built In',
   mcpBuiltInDetail:
     'The extension’s own getDiagnostics: the errors and warnings in VS Code’s Problems panel',
   mcpRestartModelApi: 'Restart the MCP Servers',
@@ -1717,7 +1719,7 @@ export const EN = {
     'Run by this window: on the Model API backend, and on both backends for the events the extension itself handles',
   hooksFormatModelApiOnly: 'Hooks in another agent’s format run only on the Model API backend.',
   // {format}: the source agent's name, such as Cursor.
-  hooksFormatTag: '{format} format',
+  hooksFormatTag: '{format} Format',
   // {event}: a hook event's name as the file writes it.
   hooksMuseEventRefused:
     '{event} is a Muse Code event: configure it in .muse/hooks.json, so it runs once.',
@@ -1876,7 +1878,7 @@ export const EN = {
   worktreeRemoveTitle: 'Remove a Worktree',
   worktreeRemovePlaceholder: 'The folder is deleted; its branch stays',
   worktreeDetached: '(detached HEAD)',
-  worktreeLocked: 'locked',
+  worktreeLocked: 'Locked',
   worktreePrunable: 'its folder is gone',
   worktreeRemoveConfirm: 'Remove this worktree? Its folder is deleted.',
   worktreeBranchKept: 'The branch stays:',
@@ -2674,7 +2676,7 @@ export const EN = {
   acpAnswerHelp: 'Answer an earlier open question: /answer <n> <text>',
   acpQuestionsHelp: 'List the open questions in this conversation.',
   openQuestionsCount: forms({ one: '{count} open question', other: '{count} open questions' }),
-  openQuestionsTabCount: forms({ one: '{count} open', other: '{count} open' }),
+  openQuestionsTabCount: forms({ one: '{count} Open', other: '{count} Open' }),
   clarifyNotAccepted: 'The explanation was not accepted',
   /** Replying to an output and quoting a highlighted passage (M17). */
   messageActions: 'Message Actions',
@@ -3186,7 +3188,7 @@ export const EN = {
   signedOutNotice: 'Signed out of Muse Spark.',
   // The Agent map, the usage modal, the banner and the compact button (M14).
   agentsPillTitle: 'Show the agent map',
-  agentsCount: forms({ one: '{count} agent', other: '{count} agents' }),
+  agentsCount: forms({ one: '{count} Agent', other: '{count} Agents' }),
   // M46: the header pill while background work runs and no agent is shown.
   backgroundTasksPillTitle: 'Show the background tasks',
   agentMapTitle: 'Agent Map',
@@ -3412,7 +3414,7 @@ export const EN = {
     environmentNames: 'Environment Names',
     online: 'Online',
     offline: 'Offline',
-    busy: 'All Slots Busy',
+    busy: 'All slots busy',
     testFailed: 'Runner self-test failed',
     commandTooLong:
       'The Windows runner command exceeds the process command-line limit. Shorten the setup command or check.',
@@ -3459,14 +3461,14 @@ export const EN = {
   // A subagent's or background task's status as Muse Code reports it; one
   // not listed here is shown as it came.
   agentStatuses: {
-    inProgress: 'running',
-    completed: 'completed',
-    failed: 'failed',
-    cancelled: 'cancelled',
-    interrupted: 'interrupted',
-    resultReady: 'result ready',
-    queued: 'queued',
-    closed: 'closed',
+    inProgress: 'Running',
+    completed: 'Completed',
+    failed: 'Failed',
+    cancelled: 'Cancelled',
+    interrupted: 'Interrupted',
+    resultReady: 'Result Ready',
+    queued: 'Queued',
+    closed: 'Closed',
   },
   agentTokens: '{tokens} tokens',
   agentContextTokens: '{tokens} tokens in context',
@@ -3506,15 +3508,15 @@ export const EN = {
   workflowAgentsLabel: 'Workflow Agents',
   // A workflow agent's status before it ends; one not listed shows as it came.
   workflowChildStatuses: {
-    scheduled: 'queued',
-    started: 'running',
-    usage: 'running',
-    completed: 'completed',
-    terminal: 'finished',
+    scheduled: 'Queued',
+    started: 'Running',
+    usage: 'Running',
+    completed: 'Completed',
+    terminal: 'Finished',
   },
   // An agent the workflow gave no label; {number} counts from 1.
   workflowChildUntitled: 'Agent {number}',
-  workflowAttempt: 'attempt {attempt}',
+  workflowAttempt: 'Attempt {attempt}',
   workflowsCount: forms({ one: '{count} workflow', other: '{count} workflows' }),
   workflowsLabel: 'Workflows',
   // Muse Code's `run.workflow_trigger_mode`, one sentence per value.
@@ -3531,8 +3533,8 @@ export const EN = {
   workflowLaunched: 'Launched: it runs in the background and reports back to this conversation.',
   workflowScriptSaved: 'Script saved at {path}',
   backgroundTasksCount: forms({
-    one: '{count} background task',
-    other: '{count} background tasks',
+    one: '{count} Background Task',
+    other: '{count} Background Tasks',
   }),
   backgroundTasksLabel: 'Background Tasks',
   backgroundBadge: 'Background',
@@ -3541,8 +3543,8 @@ export const EN = {
   // delegation, switch, waiting-for-you and merge cards, the worker label's
   // group excluded (it splices technical names), and the Usage Team section.
   teamTreeLabel: 'Team',
-  teamWorkerMerged: 'merged',
-  teamWorkerDiscarded: 'discarded',
+  teamWorkerMerged: 'Merged',
+  teamWorkerDiscarded: 'Discarded',
   teamRunningOf: '{used} of {amount} running',
   teamWorkerFinished: 'Team task {task}: {status}.',
   teamTreeKeyboardHint:
@@ -3563,11 +3565,11 @@ export const EN = {
   teamEntryUntitled: 'Entry {number}',
   // A pool entry's state; one not listed here is shown as it came.
   teamEntryStates: {
-    ready: 'ready',
-    capped: 'capped',
-    rateLimited: 'rate limited',
-    usageLimited: 'at usage limit',
-    unavailable: 'unavailable',
+    ready: 'Ready',
+    capped: 'Capped',
+    rateLimited: 'Rate Limited',
+    usageLimited: 'At Usage Limit',
+    unavailable: 'Unavailable',
   },
   teamCapUsed: '{used} of {amount}',
   teamEstimated: 'Estimated',
@@ -3581,7 +3583,7 @@ export const EN = {
   teamQueuedGroup: 'Queued',
   teamUnmergedGroup: 'Unmerged',
   teamInterruptedGroup: 'Interrupted',
-  teamTasksCount: forms({ one: '{count} team task', other: '{count} team tasks' }),
+  teamTasksCount: forms({ one: '{count} Team Task', other: '{count} Team Tasks' }),
   teamPlanTitle: 'Delegation Plan',
   teamPlanDelegated: 'Delegated',
   teamPlanKept: 'Kept by the Main Agent',
@@ -3948,10 +3950,10 @@ export const EN = {
   processExitCode: 'exit code {code}',
   // Where a skill in the Manage Skills pick comes from, keyed by the CLI's scope.
   skillScopes: {
-    bundled: 'built-in',
-    user: 'yours',
-    project: 'this project',
-    plugin: 'plugin',
+    bundled: 'Built-In',
+    user: 'Yours',
+    project: 'This Project',
+    plugin: 'Plugin',
   },
   importNothingFrom: 'No skills to import from {source}.',
   // The import's outcome, one sentence per kind; {skills} lists the ids.
@@ -4721,7 +4723,7 @@ export const EN = {
   // The base-branch and commit pickers.
   reviewPickBase: 'The branch to compare this one with',
   reviewPickCommit: 'The commit to review',
-  reviewDefaultBase: 'default base',
+  reviewDefaultBase: 'Default Base',
   // Why a review did not start, on its card.
   reviewBusy: 'A review starts once the current turn has ended.',
   reviewRestricted:
@@ -4796,7 +4798,7 @@ export const EN = {
   reviewAnnounceNotReverted: '{name} not reverted: {reason}',
   // The findings list under a review's reply.
   reviewFindingsLabel: 'Review Findings',
-  reviewFindingsHeading: forms({ one: '{count} finding', other: '{count} findings' }),
+  reviewFindingsHeading: forms({ one: '{count} Finding', other: '{count} Findings' }),
   reviewNoFindings: 'The review found nothing to report.',
   reviewSeverities: {
     critical: 'Critical',
@@ -4995,7 +4997,7 @@ export const EN = {
   getKey: 'Get a Key',
   enterKey: 'Enter Key…',
   // {provider}: the preset's name.
-  providerConnect: 'Connect {provider} account',
+  providerConnect: 'Connect {provider} Account',
   providerConnectWaiting: 'Waiting for {provider} in the browser…',
   // The OAuth loopback's callback page, shown in the browser.
   oauthCallbackDone: 'You can close this window and return to VS Code.',
@@ -5022,7 +5024,7 @@ export const EN = {
   providerExport: 'Export',
   providerImport: 'Import',
   providerImportPreviewTitle: 'Import Preview',
-  importNeedsKey: 'needs a key',
+  importNeedsKey: 'Needs a Key',
   providerOpenRouterServices:
     'OpenRouter account connection and key usage are not available yet. Paste a key to use models.',
   refreshModels: 'Refresh Models',
@@ -5291,7 +5293,7 @@ export const EN = {
   importUntrusted: 'This file is untrusted: check every address before importing.',
   openRouterOrder: 'Preferred Provider Order',
   openRouterFallback: 'Fall Back to Other Providers',
-  keyMissing: 'No key stored',
+  keyMissing: 'No Key Stored',
   testRunning: 'Testing…',
   // {shown}: the filtered rows; {count}: every row.
   modelsShownCount: forms({
@@ -5986,7 +5988,7 @@ export const EN = {
   legalScanAgain: 'Scan Again',
   // M108: shared by the Models panel, usage page, ACP and runtime.
   accounts: {
-    none: 'No account selected',
+    none: 'No Account Selected',
     id: 'Account ID',
     use: 'Use Account',
     earlier: 'Move Earlier',
@@ -6093,7 +6095,7 @@ export const EN = {
   developer: {
     title: 'Developer Options',
     badge: 'Developer Mode',
-    allowMultiple: 'Allow several accounts of one provider on this PC',
+    allowMultiple: 'Allow Several Accounts of One Provider on This PC',
     unlockWarning:
       'Local testing options, off by default. Account limits, vendor terms and paid confirmations still apply.',
     multipleWarning:
@@ -6293,7 +6295,7 @@ export const EN = {
         'Old entries remain mirrored for {count} minor releases. Undo migration is available until removal.',
     }),
     itemsCount: forms({ one: '{count} item', other: '{count} items' }),
-    grantsCount: forms({ one: '{count} grant', other: '{count} grants' }),
+    grantsCount: forms({ one: '{count} Grant', other: '{count} Grants' }),
   },
 }
 

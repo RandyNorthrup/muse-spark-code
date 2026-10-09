@@ -317,7 +317,7 @@ describe('UsageApp', () => {
   it('exports each format with the exact query and correlates results without inventing grants', () => {
     const { host, state, send } = setup()
     for (const [name, format] of [
-      ['Per-call CSV (last 30 days)', 'callsCsv'],
+      ['Per-Call CSV (Last 30 Days)', 'callsCsv'],
       ['Summary CSV', 'summaryCsv'],
       ['Versioned JSON', 'json'],
     ] as const) {
@@ -467,7 +467,7 @@ describe('UsageApp', () => {
       model: 'model-1',
     })
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    expect(screen.queryByRole('heading', { name: 'Model detail: openai / model-1' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Model Detail: openai / model-1' })).toBeNull()
   })
 
   it('keeps an empty model trend readable without an empty chart table', () => {
@@ -481,7 +481,7 @@ describe('UsageApp', () => {
     }
     setup(state)
     const detail = screen
-      .getByRole('heading', { name: 'Model detail: meta / model-0' })
+      .getByRole('heading', { name: 'Model Detail: meta / model-0' })
       .closest('section')!
     expect(within(detail).getByText('No model calls in this range.')).toBeInTheDocument()
     expect(within(detail).queryByRole('table', { hidden: true })).toBeNull()

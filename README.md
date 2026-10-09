@@ -5078,7 +5078,7 @@ duplicate, import, share, and insertion. Scope labels distinguish **My prompts**
 from workspace prompts; **Copy to My Prompts** makes a personal copy.
 
 The composer's compact **Prompt Library** toolbar menu offers **Save Prompt**,
-**Share prompt** and **Use Saved Prompt…**. Right-click the input for the same
+**Share Prompt** and **Use Saved Prompt…**. Right-click the input for the same
 actions: VS Code uses its native menu; other shared-panel hosts open the compact
 menu at the pointer. Save and Share appear only with nonblank text. Escape closes
 the compact menu and returns focus to the input. Outside VS Code,

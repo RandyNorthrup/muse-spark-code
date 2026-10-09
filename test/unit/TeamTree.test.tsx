@@ -123,7 +123,7 @@ describe('TeamTree', () => {
     expect(screen.getByText(/room for 2 more/)).toBeDefined()
     expect(screen.getByText('Add the retry')).toBeDefined()
     expect(screen.getByText('agents/engineering/t1')).toBeDefined()
-    expect(screen.getByText('Queued')).toBeDefined()
+    expect(screen.getByRole('treeitem', { name: 'Queued, 1' })).toBeDefined()
     expect(screen.getByText('Unmerged')).toBeDefined()
     expect(screen.getByText('Estimated')).toBeDefined()
     expect(screen.getByText(/\$1.20 of \$50.00 · Today/)).toBeDefined()
@@ -143,12 +143,12 @@ describe('TeamTree', () => {
     ).toBeDefined()
     expect(
       screen.getByRole('treeitem', {
-        name: 'Add the retry, engineering, muse-spark-1.3, running',
+        name: 'Add the retry, engineering, muse-spark-1.3, Running',
       }),
     ).toBeDefined()
     expect(
       screen.getByRole('treeitem', {
-        name: 'engineering, Entry 2, muse, Muse Code, 0 running, capped',
+        name: 'engineering, Entry 2, muse, Muse Code, 0 running, Capped',
       }),
     ).toBeDefined()
   })
@@ -223,7 +223,7 @@ describe('AgentMap team region', () => {
   it('shows the team tree with its task count', async () => {
     setup()
     renderAgentMap({ team: tree, teamActions: actions() })
-    expect(await screen.findByText(/Team · 4 team tasks/)).toBeDefined()
+    expect(await screen.findByText(/Team · 4 Team Tasks/)).toBeDefined()
     expect(await screen.findByRole('tree', { name: 'Team' })).toBeDefined()
   })
 
@@ -231,7 +231,7 @@ describe('AgentMap team region', () => {
     setup()
     renderAgentMap()
     expect(screen.queryByRole('tree')).toBeNull()
-    expect(screen.queryByText(/team tasks/)).toBeNull()
+    expect(screen.queryByText(/Team Tasks/)).toBeNull()
   })
 })
 
@@ -239,14 +239,14 @@ describe('Header team pill', () => {
   it('counts the team tasks and marks them running', () => {
     setup()
     render(<Header {...headerProps()} teamTaskCount={2} runningTeamTaskCount={1} />)
-    expect(screen.getByRole('button', { name: '2 team tasks' })).toBeDefined()
+    expect(screen.getByRole('button', { name: '2 Team Tasks' })).toBeDefined()
   })
 
   it('stays today’s pill without team tasks', () => {
     setup()
     render(<Header {...headerProps()} agentCount={1} />)
-    expect(screen.getByRole('button', { name: '1 agent' })).toBeDefined()
-    expect(screen.queryByText(/team tasks/)).toBeNull()
+    expect(screen.getByRole('button', { name: '1 Agent' })).toBeDefined()
+    expect(screen.queryByText(/Team Tasks/)).toBeNull()
   })
 
   it('shows no pill with nothing to show', () => {

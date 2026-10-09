@@ -670,7 +670,7 @@ describe('App conversation', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Stop: PowerShell/ }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'stopTask', itemId: 'c1' })
     // The header pill counts it, and the map's Stop All reaches the host.
-    fireEvent.click(screen.getByRole('button', { name: '1 background task' }))
+    fireEvent.click(screen.getByRole('button', { name: '1 Background Task' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Stop All' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'stopAllTasks' })
   })
@@ -1571,7 +1571,7 @@ describe('App editor integration (M5)', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'notes.md' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'openFile', path: 'notes.md' })
-    fireEvent.click(screen.getByText('Click to expand'))
+    fireEvent.click(screen.getByText('Click to Expand'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'openEditDiff',
       itemId: 'ed',
@@ -1922,10 +1922,10 @@ describe('App session history (M6)', () => {
       },
     })
     const pill = screen.getByTitle('Show the agent map')
-    expect(pill).toHaveTextContent('1 agent')
+    expect(pill).toHaveTextContent('1 Agent')
     fireEvent.click(pill)
     const map = await screen.findByRole('dialog', { name: 'Agent Map' })
-    expect(map).toHaveTextContent('1 agent · click an agent for details')
+    expect(map).toHaveTextContent('1 Agent · click an agent for details')
     fireEvent.click(screen.getByRole('button', { name: /Map the workspace/ }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'readChildSession', sessionId: 'child-1' })
     expect(map).toHaveTextContent('Reading the agent’s transcript…')
@@ -2023,7 +2023,7 @@ describe('App session history (M6)', () => {
     expect(screen.queryByRole('button', { name: 'Cancel workflow' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Skip ping|Retry ping/ })).toBeNull()
     const pill = screen.getByTitle('Show the agent map')
-    expect(pill).toHaveTextContent('2 agents')
+    expect(pill).toHaveTextContent('2 Agents')
     fireEvent.click(pill)
     // The map reads the account facts fresh, as the usage dialog does.
     expect(postMessage).toHaveBeenCalledWith({ type: 'readUsage' })

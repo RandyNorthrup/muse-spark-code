@@ -62,7 +62,11 @@ happened, not what was planned; superseded entries are kept.
   notices, tooltips that are sentences, placeholders and error messages keep
   sentence case. Other languages keep their own convention; their labels and
   badges that began in lower case ("aktuell", "payant") now start with a
-  capital.
+  capital. A follow-up pass cases sixty labels the first pass missed (count
+  and state labels such as **1 Background Task** and **Running**) and keeps
+  error text that shares a key with a label in sentence case (`Duration
+  unknown`, `Stop upload`, `All slots busy`), with separate label keys for
+  the chips and buttons that show those words.
 - **A sent message's menu is shorter and its pills fit their labels.**
   **Fork conversation from here** is now **Fork Conversation**, and **Fork
   conversation and rewind code** is now **Fork and Rewind**, in every

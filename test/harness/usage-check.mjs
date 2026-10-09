@@ -110,7 +110,7 @@ try {
               await page.getByRole('button', { name: 'Refresh', exact: true }).click()
               await page.locator('.usage-page[aria-busy="false"]').waitFor()
               for (const format of [
-                'Per-call CSV (last 30 days)',
+                'Per-Call CSV (Last 30 Days)',
                 'Summary CSV',
                 'Versioned JSON',
               ]) {

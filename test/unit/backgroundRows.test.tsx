@@ -171,7 +171,7 @@ describe('the header pill (M46)', () => {
         onOpenAgents={onOpenAgents}
       />,
     )
-    const pill = screen.getByRole('button', { name: '1 background task' })
+    const pill = screen.getByRole('button', { name: '1 Background Task' })
     expect(pill).toHaveAttribute('title', UI_TEXT.backgroundTasksPillTitle)
     fireEvent.click(pill)
     expect(onOpenAgents).toHaveBeenCalledOnce()
@@ -188,7 +188,7 @@ describe('the header pill (M46)', () => {
         onOpenAgents={vi.fn()}
       />,
     )
-    expect(screen.getByRole('button', { name: '2 agents · 3 background tasks' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: '2 Agents · 3 Background Tasks' })).toHaveAttribute(
       'title',
       UI_TEXT.agentsPillTitle,
     )

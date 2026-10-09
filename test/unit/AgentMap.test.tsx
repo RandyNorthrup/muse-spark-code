@@ -190,16 +190,16 @@ describe('AgentMap', () => {
   it('draws the conversation, its agents with duration and tokens, and the background tasks', () => {
     const props = renderMap()
     const map = screen.getByRole('dialog', { name: 'Agent Map' })
-    expect(map).toHaveTextContent('2 agents · click an agent for details')
+    expect(map).toHaveTextContent('2 Agents · click an agent for details')
     expect(map).toHaveTextContent('Chrome control update')
     expect(map).toHaveTextContent('muse-spark-1.3 · 705.9K tokens in context')
     expect(screen.getByRole('button', { name: /Map the workspace/ })).toHaveTextContent(
-      '1m 30s · 77.6K tokens · closed',
+      '1m 30s · 77.6K tokens · Closed',
     )
-    expect(screen.getByRole('button', { name: /Review the diff/ })).toHaveTextContent('running')
-    expect(map).toHaveTextContent('1 background task')
+    expect(screen.getByRole('button', { name: /Review the diff/ })).toHaveTextContent('Running')
+    expect(map).toHaveTextContent('1 Background Task')
     expect(screen.getByRole('list', { name: 'Background Tasks' })).toHaveTextContent(
-      'PowerShellRun delayed output command · running · ActiveStop',
+      'PowerShellRun delayed output command · Running · ActiveStop',
     )
     fireEvent.click(screen.getByRole('button', { name: /Map the workspace/ }))
     expect(props.onSelectAgent).toHaveBeenCalledWith('sa1')
@@ -218,7 +218,7 @@ describe('AgentMap', () => {
     const stops = screen.getAllByRole('button', { name: /^Stop: / })
     expect(stops).toHaveLength(1)
     expect(stops[0]).toHaveAccessibleName('Stop: PowerShell Run delayed output command')
-    expect(list).toHaveTextContent('cancelled')
+    expect(list).toHaveTextContent('Cancelled')
     fireEvent.click(screen.getByRole('button', { name: /^Stop: / }))
     expect(props.onStopTask).toHaveBeenCalledWith('bg1')
     fireEvent.click(screen.getByRole('button', { name: 'Stop All' }))
@@ -257,7 +257,7 @@ describe('AgentMap', () => {
       },
     })
     const map = screen.getByRole('dialog', { name: 'Agent Map' })
-    expect(map).toHaveTextContent('Role: explorer · 1m 30s · 77.6K tokens · closed')
+    expect(map).toHaveTextContent('Role: explorer · 1m 30s · 77.6K tokens · Closed')
     expect(map).toHaveTextContent('Mapped 12 files')
     expect(screen.getByRole('list', { name: 'Agent Transcript' })).toHaveTextContent(
       'userMap the workspace',
@@ -418,10 +418,10 @@ describe('AgentMap workflows (M47)', () => {
 
 describe('agentStatusLabel (M40)', () => {
   it('says a known status in the installed table and shows an unknown one as it came', () => {
-    expect(agentStatusLabel('inProgress')).toBe('running')
-    expect(agentStatusLabel('resultReady')).toBe('result ready')
-    expect(agentStatusLabel('queued')).toBe('queued')
-    expect(agentStatusLabel('closed')).toBe('closed')
+    expect(agentStatusLabel('inProgress')).toBe('Running')
+    expect(agentStatusLabel('resultReady')).toBe('Result Ready')
+    expect(agentStatusLabel('queued')).toBe('Queued')
+    expect(agentStatusLabel('closed')).toBe('Closed')
     expect(agentStatusLabel('paused')).toBe('paused')
     expect(agentStatusLabel('toString')).toBe('toString')
     setUiText({ ...EN, agentStatuses: { ...EN.agentStatuses, completed: 'abgeschlossen' } }, 'de')
