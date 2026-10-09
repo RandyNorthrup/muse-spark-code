@@ -258,14 +258,14 @@ async function tabHarness(options: {
       tabTrigger: 'automatic',
       tabWithCopilot: 'both',
     }),
+    isSnoozed: () => false,
+    isTrusted: () => true,
     isPaidOn: () => true,
     isKeyStored: () => true,
-    isTrusted: () => true,
-    isSnoozed: () => false,
-    realPath: (absolutePath) => Promise.resolve(absolutePath),
+    filesExclude: () => ({}),
     foreignSetting: () => undefined,
     isCopilotExtensionPresent: () => false,
-    filesExclude: () => ({}),
+    realPath: (absolutePath) => Promise.resolve(absolutePath),
     workspaceRoots: (absolutePath) => (absolutePath.startsWith('/ws/') ? ['/ws'] : []),
     ignoreFileExists: () => false,
     runGit: () => Promise.reject(new GitExitError(1, '', 'check-ignore')),
@@ -315,6 +315,35 @@ async function tabHarness(options: {
       return result
     },
   }
+}
+
+/** The request ended with nothing POSTed, nothing counted and its reservation released. */
+async function expectNothingSent(
+  tab: Awaited<ReturnType<typeof tabHarness>>,
+  request: Promise<vscode.InlineCompletionItem[]>,
+): Promise<void> {
+  await expect(request).resolves.toEqual([])
+  expect(tab.posts()).toEqual([])
+  expect(tab.sent).toEqual([])
+  await vi.waitFor(() => {
+    expect(tab.settled).toEqual([NOTHING_SENT])
+  })
+  tab.handle.dispose()
+}
+
+/** A window whose guard allows Standard only, after one Standard request was allowed and served. */
+async function servedStandard() {
+  const window = tabWindow(workspaceStores())
+  const tab = await tabHarness({
+    consent: window.consent,
+    hooks: HOOKS,
+    guard: (model) => JSON.stringify({ permission: model === STANDARD ? 'allow' : 'deny' }),
+  })
+  const standard = tab.serve()
+  await window.popup.opened(1)
+  window.popup.answer('once')
+  await expect(standard).resolves.toHaveLength(1)
+  return { window, tab }
 }
 
 describe('RVM94KR2 1: a question answers only its own key', () => {
@@ -488,28 +517,13 @@ describe('RVM94KR2 4: the last check runs at the HTTP send', () => {
     )
     await tab.runner.noteConfigFile(SPARK, 'spark-hooks')
     tab.credentials.release.resolve(undefined)
-    await expect(request).resolves.toEqual([])
-    expect(tab.posts()).toEqual([])
-    expect(tab.sent).toEqual([])
-    await vi.waitFor(() => {
-      expect(tab.settled).toEqual([NOTHING_SENT])
-    })
-    tab.handle.dispose()
+    await expectNothingSent(tab, request)
   })
 })
 
 describe('RVM94KR2 5: a cached read verdict is bound to its model and epoch', () => {
   it('asks a model-sensitive guard again for another model', async () => {
-    const window = tabWindow(workspaceStores())
-    const tab = await tabHarness({
-      consent: window.consent,
-      hooks: HOOKS,
-      guard: (model) => JSON.stringify({ permission: model === STANDARD ? 'allow' : 'deny' }),
-    })
-    const standard = tab.serve()
-    await window.popup.opened(1)
-    window.popup.answer('once')
-    await expect(standard).resolves.toHaveLength(1)
+    const { window, tab } = await servedStandard()
     tab.state.model = CONTRIBUTOR
     await expect(tab.serve()).resolves.toEqual([])
     expect(tab.guardModels).toEqual([STANDARD, CONTRIBUTOR])
@@ -519,16 +533,7 @@ describe('RVM94KR2 5: a cached read verdict is bound to its model and epoch', ()
   })
 
   it('reuses no verdict while a model switch’s ConfigChange observer waits', async () => {
-    const window = tabWindow(workspaceStores())
-    const tab = await tabHarness({
-      consent: window.consent,
-      hooks: HOOKS,
-      guard: (model) => JSON.stringify({ permission: model === STANDARD ? 'allow' : 'deny' }),
-    })
-    const standard = tab.serve()
-    await window.popup.opened(1)
-    window.popup.answer('once')
-    await expect(standard).resolves.toHaveLength(1)
+    const { tab } = await servedStandard()
     const observer = Promise.withResolvers<undefined>()
     tab.state.observer = observer.promise
     tab.state.model = CONTRIBUTOR
@@ -635,12 +640,6 @@ describe('RVM94KR2: every await point revalidates, and the send checks last', ()
     await held.reached.promise
     await change(tab, window)
     held.release.resolve(undefined)
-    await expect(request).resolves.toEqual([])
-    expect(tab.posts()).toEqual([])
-    expect(tab.sent).toEqual([])
-    await vi.waitFor(() => {
-      expect(tab.settled).toEqual([NOTHING_SENT])
-    })
-    tab.handle.dispose()
+    await expectNothingSent(tab, request)
   })
 })
