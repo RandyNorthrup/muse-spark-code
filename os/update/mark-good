@@ -43,9 +43,10 @@
 #      unit lists 3 in SuccessExitStatus so FailureAction=reboot does not
 #      reboot a machine that is already where it should be;
 #   1  anything unhandled (an unreadable state, a refusal, a failed reboot
-#      request): the unit fails and FailureAction=reboot reboots. A reboot
-#      never re-arms a Pi trial (the firmware tryboot flag is one-shot) and
-#      the next run records the pending trial as fallen back.
+#      request): the unit fails and FailureAction=reboot reboots. A refused
+#      EFI mark-bad keeps the trial marker so the next run retries the mark.
+#      A reboot never re-arms a Pi trial (the firmware tryboot flag is
+#      one-shot) and the next run records the pending trial as fallen back.
 #
 # Bounds (H09/H15): the overall deadline runs on the monotonic clock
 # (MUSE_PROC_UPTIME, default /proc/uptime) and is checked before each probe
@@ -356,11 +357,17 @@ else
     slot=$(rauc_slot_for efi "$trial")
     if [ "$booted" != "$trial" ]; then
         # Not running the trial (fallback or BootOrder change): record bad,
-        # clear the consumed trial, stay on the running slot, no reboot.
+        # clear the consumed trial, stay on the running slot, no reboot. A
+        # refused mark keeps the marker and fails (exit 1, never the handled
+        # 3) so the next run retries the mark instead of losing it.
         log "fell-back trial=$trial booted=$booted"
-        rauc_mark bad "$slot" || log "continuing-without-rauc-mark"
-        rm -f "$EFI_TRIAL_FILE" || fail "efi-trial-clear"
-        handled "fell-back"
+        if rauc_mark bad "$slot"; then
+            rm -f "$EFI_TRIAL_FILE" || fail "efi-trial-clear"
+            handled "fell-back"
+        else
+            log "keeping-trial-marker for-retry slot=$slot"
+            fail "rauc-bad slot=$slot"
+        fi
     fi
     if probe_until_ready; then
         rauc_mark good "$slot" || fail "rauc-good"
@@ -369,9 +376,15 @@ else
         exit 0
     fi
     log "probe-failed efi trial=$trial"
-    rauc_mark bad "$slot" || log "continuing-to-reboot-without-rauc-mark"
-    rm -f "$EFI_TRIAL_FILE" || fail "efi-trial-clear"
-    log "rebooting-to-stable"
-    "$REBOOT" >/dev/null 2>&1 || fail "no-reboot"
-    handled "probe-failed reboot-requested"
+    # A refused mark keeps the marker and fails: the unit's FailureAction
+    # reboots off the failed trial, and the next run retries the mark.
+    if rauc_mark bad "$slot"; then
+        rm -f "$EFI_TRIAL_FILE" || fail "efi-trial-clear"
+        log "rebooting-to-stable"
+        "$REBOOT" >/dev/null 2>&1 || fail "no-reboot"
+        handled "probe-failed reboot-requested"
+    else
+        log "keeping-trial-marker for-retry slot=$slot"
+        fail "rauc-bad slot=$slot"
+    fi
 fi

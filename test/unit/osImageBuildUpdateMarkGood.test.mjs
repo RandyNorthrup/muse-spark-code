@@ -393,6 +393,49 @@ describe.skipIf(noTimeout)(`M110-OS2 trial-boot mark-good: EFI${efiReason}`, () 
     expect(rebooted(h)).toBe(false)
   })
 
+  it('keeps the EFI marker and exits unhandled when RAUC refuses mark-bad after fallback', () => {
+    const h = efi()
+    writeFileSync(path.join(h.dir, 'efi-trial'), 'B\n')
+    writeFileSync(path.join(h.dir, 'cmdline'), 'root=/dev/x muse.slot=A quiet\n')
+    const refusing = fakeExecutable(
+      h.bin,
+      'rauc-refuses',
+      `echo "$@" >> ${posixPath(h.raucLog)}\nexit 1`,
+    )
+    const result = runMarkGood(h, { MUSE_READYZ_PROBE: h.probeOk, MUSE_RAUC_CMD: refusing })
+    // The refusal is not a handled fallback: the marker stays so the next
+    // run retries the mark, and the exit is a failure (never 3).
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('rauc-refused mark=bad slot=usr.1')
+    expect(readFileSync(path.join(h.dir, 'efi-trial'), 'utf8').trim()).toBe('B')
+    expect(rebooted(h)).toBe(false)
+  })
+
+  it('keeps the EFI marker and exits unhandled when RAUC refuses mark-bad on probe failure', () => {
+    const h = efi()
+    writeFileSync(path.join(h.dir, 'efi-trial'), 'B\n')
+    writeFileSync(path.join(h.dir, 'cmdline'), 'root=/dev/x muse.slot=B quiet\n')
+    const refusing = fakeExecutable(
+      h.bin,
+      'rauc-refuses',
+      `echo "$@" >> ${posixPath(h.raucLog)}\nexit 1`,
+    )
+    const refused = runMarkGood(h, {
+      MUSE_READYZ_PROBE: h.probeBad,
+      MUSE_RAUC_CMD: refusing,
+    })
+    expect(refused.status).toBe(1)
+    expect(refused.stderr).toContain('rauc-refused mark=bad slot=usr.1')
+    expect(readFileSync(path.join(h.dir, 'efi-trial'), 'utf8').trim()).toBe('B')
+    // The next run retries the refused mark: with a working RAUC the same
+    // failing trial is recorded bad, the marker is cleared, exit is handled.
+    const retry = runMarkGood(h, { MUSE_READYZ_PROBE: h.probeBad })
+    expect(retry.status).toBe(3)
+    expect(readFileSync(h.raucLog, 'utf8').match(/status mark-bad usr\.1/g)).toHaveLength(2)
+    expect(() => readFileSync(path.join(h.dir, 'efi-trial'))).toThrow()
+    expect(rebooted(h)).toBe(true)
+  })
+
   it('fails closed on a corrupt EFI marker or a missing slot stamp', () => {
     const h = efi()
     writeFileSync(path.join(h.dir, 'efi-trial'), 'sometimes\n')
