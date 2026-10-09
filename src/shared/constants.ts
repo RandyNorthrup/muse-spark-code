@@ -586,6 +586,9 @@ export const SETTING_DEFAULTS = {
   'reports.network': 'whenSignedIn',
   'reports.keepHistory': true,
   'reports.agentSources': [],
+  // M123 (PLAN.md D104 source c): read the user's own `gh` login, off by
+  // default; machine-scoped so a repository cannot turn it on.
+  'github.useGhLogin': false,
   // M108 (PLAN.md D88.5): swap at the next request boundary and spread
   // background work across accounts, both on by default; machine-scoped so a
   // repository cannot pool the user's accounts.
@@ -829,6 +832,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'accountSwap',
   'accountParallel',
   'accounts.severalOnThisDevice',
+  // Reading the user's `gh` token is the user's choice (M123, D104 source c).
+  'github.useGhLogin',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.
@@ -1681,6 +1686,34 @@ export const GITHUB_REQUEST_TIMEOUT_MS = 20_000
 // One page of check runs and one of commit statuses are read; a pull request
 // with more says how many were not.
 export const GITHUB_CHECKS_PAGE_SIZE = 100
+
+// --- GitHub outside VS Code (M123, PLAN.md D104) ---
+
+// The token sources, first available wins: (a) the editor's own sign-in by
+// lease, (b) the runtime's device-flow sign-in, (c) the user's `gh` login.
+export const GITHUB_TOKEN_SOURCE_ORDER = ['editorLease', 'deviceFlow', 'ghLogin'] as const
+// The scopes any source may ask for: `repo` (M71's), and `read:org` only
+// once a lane proves a call needs it. Nothing else is ever requested.
+export const GITHUB_PERMITTED_SCOPES: readonly string[] = ['repo', 'read:org']
+// GitHub names a token's scopes in this response header (comma-separated).
+export const GITHUB_SCOPES_HEADER = 'x-oauth-scopes'
+// The project's OAuth App (Q-M123): public, no secret. Empty until the owner
+// registers the app; the device flow refuses to start while it is.
+export const GITHUB_OAUTH_CLIENT_ID = ''
+// GitHub's device flow (docs.github.com, "Authorizing OAuth apps", device
+// flow, read 2026-10-08). Only this verification address is ever opened.
+export const GITHUB_DEVICE_CODE_URL = 'https://github.com/login/device/code'
+export const GITHUB_DEVICE_TOKEN_URL = 'https://github.com/login/oauth/access_token'
+export const GITHUB_DEVICE_VERIFICATION_URL = 'https://github.com/login/device'
+export const GITHUB_DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code'
+// GitHub's defaults when its reply omits them, and the step `slow_down` adds.
+export const GITHUB_DEVICE_CODE_EXPIRES_S = 900
+export const GITHUB_DEVICE_POLL_INTERVAL_S = 5
+export const GITHUB_DEVICE_SLOW_DOWN_STEP_S = 5
+// An editor lease lives at most this long, whatever the editor says.
+export const GITHUB_LEASE_TTL_MS = 15 * 60_000
+// `gh auth token` for github.com only (D104 source c).
+export const GH_AUTH_TOKEN_ARGS: readonly string[] = ['auth', 'token', '--hostname', 'github.com']
 // GitHub's own limits on a pull request's title and description.
 export const PULL_REQUEST_TITLE_MAX_CHARS = 256
 export const PULL_REQUEST_BODY_MAX_CHARS = 65_536

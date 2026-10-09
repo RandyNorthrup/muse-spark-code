@@ -1153,7 +1153,7 @@
         "museSpark.removeWorktree",
         "museSpark.openPullRequestInConversation"
       ],
-      "settings": [],
+      "settings": ["museSpark.github.useGhLogin"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests",
       "backends": ["museCode", "modelApi"],
       "paid": false,
@@ -4254,6 +4254,17 @@
       "name": "museSpark.accounts.severalOnThisDevice",
       "description": "Allow several accounts of one provider on this PC for testing, each in its own isolated local profile. Turning it on asks the provider’s vendor-terms confirmation first. Off by default; only this machine’s setting is used.",
       "descriptionKey": "config.accounts.severalOnThisDevice.description",
+      "type": "boolean",
+      "default": false,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": false }
+    },
+    {
+      "id": "museSpark.github.useGhLogin",
+      "name": "museSpark.github.useGhLogin",
+      "description": "Lets pull requests use your existing GitHub CLI sign-in (`gh auth token`), tried last, after the editor's own GitHub sign-in and Muse Spark's. The token is read for one request at a time and never stored. Off by default; user settings only, so a repository cannot turn it on.",
+      "descriptionKey": "config.github.useGhLogin.description",
       "type": "boolean",
       "default": false,
       "scope": "machine",

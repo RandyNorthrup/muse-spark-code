@@ -1,0 +1,152 @@
+// In-memory stand-ins for M123's contracts (PLAN.md D104), for the lanes
+// that build on them: a token source that hands out a test's canary, the
+// runtime's pull request link store, the fake `gh` and a RuntimeGitDeps
+// with every editor call recorded.
+
+import { fileURLToPath } from 'node:url'
+import { PULL_REQUEST_LINKS_KEPT } from '../../../../src/shared/constants'
+import type {
+  PullRequestLinkRecord,
+  PullRequestLinkStore,
+  RuntimeGitDeps,
+} from '../../../../src/core/git/runtimeGit'
+import type {
+  GitHubCredential,
+  GitHubTokenSource,
+  GitHubTokenSourceKind,
+} from '../../../../src/core/git/tokenSource'
+
+export interface FakeTokenSource extends GitHubTokenSource {
+  /** The modes each `credential` call came with, in order. */
+  readonly asked: ('ask' | 'silent')[]
+  readonly rejectedBearers: string[]
+  signedOut: boolean
+}
+
+/**
+ * A source that has `bearer` on `silent` when `isSignedIn`, and on `ask`
+ * always (the user signs in). `expiresAt` is passed through.
+ */
+export function fakeTokenSource(
+  kind: GitHubTokenSourceKind,
+  options: {
+    readonly bearer: string
+    readonly isSignedIn: boolean
+    readonly expiresAt?: number
+    readonly fetch?: typeof fetch
+  },
+): FakeTokenSource {
+  let isSignedIn = options.isSignedIn
+  const source: FakeTokenSource = {
+    kind,
+    asked: [],
+    rejectedBearers: [],
+    signedOut: false,
+    credential: (mode) => {
+      source.asked.push(mode)
+      if (mode === 'ask') {
+        isSignedIn = true
+      }
+      const credential: GitHubCredential = {
+        source: kind,
+        bearer: options.bearer,
+        fetch: options.fetch ?? fetch,
+        expiresAt: options.expiresAt,
+      }
+      return Promise.resolve(isSignedIn ? credential : undefined)
+    },
+    rejected: (credential) => {
+      source.rejectedBearers.push(credential.bearer)
+      isSignedIn = false
+      return Promise.resolve()
+    },
+    signOut: () => {
+      source.signedOut = true
+      isSignedIn = false
+      return Promise.resolve()
+    },
+  }
+  return source
+}
+
+/** The link store's contract in memory: per repository root, the newest PULL_REQUEST_LINKS_KEPT. */
+export function fakePullRequestLinkStore(): PullRequestLinkStore {
+  const roots = new Map<string, Map<string, PullRequestLinkRecord>>()
+  return {
+    get: (root, sessionId) => Promise.resolve(roots.get(root)?.get(sessionId)),
+    set: (root, sessionId, link) => {
+      const links = new Map(roots.get(root))
+      links.set(sessionId, link)
+      roots.set(
+        root,
+        new Map(
+          [...links]
+            .toSorted(([, left], [, right]) => right.linkedAt - left.linkedAt)
+            .slice(0, PULL_REQUEST_LINKS_KEPT),
+        ),
+      )
+      return Promise.resolve()
+    },
+  }
+}
+
+/**
+ * How a test starts the fake `gh`: Node with the script, since a `.mjs`
+ * is not executable on Windows. The source under test takes the resolved
+ * command and its leading arguments from the test.
+ */
+export function fakeGhInvocation(): { readonly command: string; readonly args: readonly string[] } {
+  return {
+    command: process.execPath,
+    args: [fileURLToPath(new URL('../../../fixtures/github/fake-gh.mjs', import.meta.url))],
+  }
+}
+
+/** The fake `gh`'s FAKE_GH_STATE for these accounts, `active` signed in. */
+export function fakeGhState(accounts: Readonly<Record<string, string>>, active?: string): string {
+  return JSON.stringify({ accounts, ...(active !== undefined && { active }) })
+}
+
+function quiet(): void {
+  // The fake adapter's log keeps nothing.
+}
+
+export interface EditorCalls {
+  readonly terminals: { readonly command: readonly string[]; readonly cwd: string }[]
+  readonly folders: string[]
+  readonly externals: string[]
+}
+
+/** RuntimeGitDeps for `repositoryRoot`, every editor call recorded in `calls`. */
+export function fakeRuntimeGitDeps(
+  repositoryRoot: string,
+  overrides: Partial<RuntimeGitDeps> = {},
+): { readonly deps: RuntimeGitDeps; readonly calls: EditorCalls } {
+  const calls: EditorCalls = { terminals: [], folders: [], externals: [] }
+  const deps: RuntimeGitDeps = {
+    repositoryRoot,
+    // Found on PATH by the child process; a test that checks resolution passes its own.
+    gitPath: 'git',
+    tokenSources: [],
+    links: fakePullRequestLinkStore(),
+    isTrusted: () => true,
+    openInTerminal: (command, cwd) => {
+      calls.terminals.push({ command, cwd })
+      return Promise.resolve()
+    },
+    openFolder: (path) => {
+      calls.folders.push(path)
+      return Promise.resolve()
+    },
+    openExternal: (url) => {
+      calls.externals.push(url)
+      return Promise.resolve()
+    },
+    dataFolder: `${repositoryRoot}/.fake-runtime-data`,
+    userAgent: 'muse-spark-code/0.0.0-test',
+    signal: new AbortController().signal,
+    log: { trace: quiet, info: quiet, warn: quiet, error: quiet },
+    ...overrides,
+  }
+  return { deps, calls }
+}

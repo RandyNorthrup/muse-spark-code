@@ -160,6 +160,8 @@
     "test/e2e/fake-muse/serve.mjs",
     // The fake stdio MCP server the M50 tests start as a child process.
     "test/unit/helpers/fakeMcpServer.mjs",
+    // M123's fake GitHub CLI, started by path as the runtime starts `gh`.
+    "test/fixtures/github/fake-gh.mjs",
     // The fake stdio ACP agent the M96 lane W tests start as a child process.
     "test/unit/helpers/fakeTeamAcpAgent.mjs",
     // A bounded orphan-child process drill, launched by path at runtime.
