@@ -13,9 +13,9 @@ import {
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { listFiles } from '@vscode/vsce/out/package.js'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { webviewDeferredBudgetGroups } from '../../scripts/lib/webviewBundles.mjs'
-import { buildProductionPackage } from './helpers/productionPackage'
+import { PRODUCTION_BUILD_KEY, buildProductionPackage } from './helpers/productionPackage'
 
 const ENTRY = 'dist/webview/main.js'
 const SIZE_GATE = path.resolve('scripts/check-bundle-size.mjs')
@@ -32,7 +32,7 @@ beforeAll(() => {
   )
   // Own the complete production graph: Node and policy checks must work in a
   // cold checkout, and deliberate metafile mutations must not race other suites.
-  buildProductionPackage(process.cwd(), built.production)
+  buildProductionPackage(process.cwd(), built.production, inject(PRODUCTION_BUILD_KEY))
   // The owned build shares the read-only dependency install through a junction.
   // esbuild records those inputs relative to its real location. Canonicalize
   // that fixture prefix while retaining every source and byte contribution.

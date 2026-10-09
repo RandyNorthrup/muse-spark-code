@@ -26,7 +26,7 @@ import { brotliDecompressSync } from 'node:zlib'
 import { pathToFileURL } from 'node:url'
 import * as z from 'zod/mini'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { resolveExecutable } from '../../src/core/executables'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import {
@@ -38,7 +38,11 @@ import {
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
-import { buildProductionPackage, packageImagePreload } from '../unit/helpers/productionPackage'
+import {
+  PRODUCTION_BUILD_KEY,
+  buildProductionPackage,
+  packageImagePreload,
+} from '../unit/helpers/productionPackage'
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..')
 const TEMP = path.join(ROOT, 'temp')
@@ -377,7 +381,7 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
 
 // Build immutable inputs once during file setup. The cold archive hook's
 // unchanged 60-second budget belongs to packaging, rather than build + pack.
-buildProductionPackage(ROOT, BUILD_ROOT)
+buildProductionPackage(ROOT, BUILD_ROOT, inject(PRODUCTION_BUILD_KEY))
 
 describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   let preparedPackage: { dir: string; run: ReturnType<typeof command> } | undefined

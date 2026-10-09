@@ -37925,6 +37925,19 @@ lane A's first step.
 
 ## 7. Gates
 
+**CIFIX017W inherited production-build blocker (2026-10-09, win11).** The
+release head's two full What's New releases serialize to 79,510 bytes,
+above the unchanged 76,800-byte decoded-content bound. LF normalization
+does not change that size. `encodeWhatsNewContent` refuses before bundling;
+the package test's captured data-URL stack previously masked it as ENOBUFS.
+Preserve the real build refusal and its full disk-backed diagnostics. Shared
+package-build qualification uses a clearly named private source fixture
+with abbreviated previous-release notes; it cannot certify the actual
+release build or replace final runs against the committed tree. The lead
+must resolve release-note representation within the existing cap before
+actual-source packaging can be green. No cap, threshold or test timeout is
+changed; aggregate quality remains lead-owned under the rig/common rules.
+
 **CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting
 journals/cache/engine, schedule-runtime and M114 panel/conversation failures
 from hosted run 37897298018 on the macbook rig. Repair only the shared

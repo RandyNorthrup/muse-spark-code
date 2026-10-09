@@ -12,10 +12,14 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { brotliDecompressSync } from 'node:zlib'
 import * as z from 'zod/mini'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from 'vitest'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import { removeFolder } from './helpers/temporaryFolders'
-import { buildProductionPackage, packageImagePreload } from './helpers/productionPackage'
+import {
+  PRODUCTION_BUILD_KEY,
+  buildProductionPackage,
+  packageImagePreload,
+} from './helpers/productionPackage'
 
 const roots: string[] = []
 const root = process.cwd()
@@ -143,7 +147,7 @@ function pack(dir: string) {
 describe('ChatGPT ACP package', () => {
   let prepared: { dir: string; run: ReturnType<typeof pack> } | undefined
   beforeAll(() => {
-    buildProductionPackage(root, production)
+    buildProductionPackage(root, production, inject(PRODUCTION_BUILD_KEY))
     const dir = fixture()
     prepared = { dir, run: pack(dir) }
   }, ARCHIVE_SETUP_TIMEOUT_MS)

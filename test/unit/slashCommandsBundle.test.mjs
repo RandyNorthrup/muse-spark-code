@@ -1,7 +1,7 @@
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { afterAll, beforeAll, expect, it } from 'vitest'
-import { buildProductionPackage } from './helpers/productionPackage'
+import { afterAll, beforeAll, expect, inject, it } from 'vitest'
+import { PRODUCTION_BUILD_KEY, buildProductionPackage } from './helpers/productionPackage'
 import { webviewStartupOutputs } from '../../scripts/lib/webviewBundles.mjs'
 
 const build = { root: '' }
@@ -11,7 +11,7 @@ beforeAll(() => {
   // The rig may put temp/ outside the checkout; generated fixtures need the
   // same formatting configuration as the actual production build.
   cpSync('.prettierrc.json', path.join(build.root, '.prettierrc.json'))
-  buildProductionPackage(process.cwd(), build.root)
+  buildProductionPackage(process.cwd(), build.root, inject(PRODUCTION_BUILD_KEY))
 })
 afterAll(() => rmSync(build.root, { recursive: true, force: true }))
 
