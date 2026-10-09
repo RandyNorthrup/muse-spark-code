@@ -66,6 +66,13 @@ happened, not what was planned; superseded entries are kept.
   agent, headless `exec` and team workers speak the same ACP v1; the SDK's
   transport is unchanged, so the agent's 32 MiB line override and the
   session-router seam carry over as they were.
+- **A sent message's menu is shorter and its pills fit their labels.**
+  **Fork conversation from here** is now **Fork Conversation**, and **Fork
+  conversation and rewind code** is now **Fork and Rewind**, in every
+  language. Every radial menu's pills stay one size, but that size is now
+  the longest label's own width instead of a fixed 272 px, so short menus
+  no longer carry empty blue space; only a label wider than the panel ends
+  in an ellipsis with the whole label in its tooltip.
 - The README's Resources screenshot is retaken with the rest of the set (the
   same Linux Chrome build and fonts); the other 18 screenshots still match the
   current UI and are unchanged.

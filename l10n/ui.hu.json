@@ -2350,10 +2350,10 @@
   "renameTitle": "A beszélgetés átnevezése",
   "renamePlaceholder": "Beszélgetés neve",
   "rewindMenuLabel": "Elágaztatás vagy visszaállítás",
-  "forkFromHere": "Beszélgetés elágaztatása innen",
+  "forkFromHere": "Beszélgetés elágaztatása",
   "rewindConversationToHere": "Beszélgetés visszaállítása idáig",
   "rewindCodeToHere": "Kód visszaállítása eddig a pontig",
-  "forkAndRewind": "Beszélgetés elágaztatása és a kód visszaállítása",
+  "forkAndRewind": "Elágaztatás és visszaállítás",
   "rewindNothing": "Ezt az üzenetet követően nincs visszaállítható szerkesztés.",
   "rewindDone": {
     "one": "Kód visszaállítva erre az üzenetre ({count} szerkesztés)",

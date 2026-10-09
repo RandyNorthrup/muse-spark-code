@@ -2350,10 +2350,10 @@
   "renameTitle": "Bu konuşmayı yeniden adlandır",
   "renamePlaceholder": "Konuşma adı",
   "rewindMenuLabel": "Çatalla veya geri sar",
-  "forkFromHere": "Konuşmayı buradan çatalla",
+  "forkFromHere": "Konuşmayı çatalla",
   "rewindConversationToHere": "Sohbeti buraya geri sar",
   "rewindCodeToHere": "Kodu buraya geri sar",
-  "forkAndRewind": "Konuşmayı çatalla ve kodu geri sar",
+  "forkAndRewind": "Çatalla ve geri sar",
   "rewindNothing": "Bu mesajdan sonra geri sarılacak düzenleme yok.",
   "rewindDone": {
     "one": "Kod bu mesaja geri sarıldı ({count} düzenleme)",

@@ -2399,10 +2399,10 @@
   "renameTitle": "Renomear esta conversa",
   "renamePlaceholder": "Nome da conversa",
   "rewindMenuLabel": "Bifurcar ou retroceder",
-  "forkFromHere": "Bifurcar a conversa a partir daqui",
+  "forkFromHere": "Bifurcar conversa",
   "rewindConversationToHere": "Retroceder a conversa até aqui",
   "rewindCodeToHere": "Retroceder o código até aqui",
-  "forkAndRewind": "Bifurcar a conversa e retroceder o código",
+  "forkAndRewind": "Bifurcar e retroceder",
   "rewindNothing": "Não há edições após esta mensagem para retroceder.",
   "rewindDone": {
     "one": "Código retrocedido até esta mensagem ({count} edição)",

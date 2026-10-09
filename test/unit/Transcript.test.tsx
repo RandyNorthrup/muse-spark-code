@@ -1058,6 +1058,60 @@ describe('Transcript replies (M25)', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
+  it('fans the user card’s menu around its ⋯: one width, the longest label’s, inside 320 px', () => {
+    const width = vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(320)
+    const height = vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(600)
+    // The ⋯ near the panel's right edge; each pill's max-content width is
+    // 56 px of icon and padding, 7 px a character.
+    const rect = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains('row-actions-button')
+          ? new DOMRect(280, 287, 26, 26)
+          : new DOMRect(0, 0, 56 + 7 * (this.getAttribute('aria-label') ?? '').length, 40)
+      })
+    renderTranscript(
+      [{ kind: 'user', seq: 1, id: 'u', text: 'hello', status: 'sent', attachments: [] }],
+      { onFork: vi.fn(), onRewind: vi.fn(), onForkRewind: vi.fn() },
+    )
+    const trigger = screen.getByRole('button', { name: UI_TEXT.rowMoreActions })
+    fireEvent.click(trigger)
+    const pills = screen.getAllByRole('menuitem')
+    expect(pills.map((pill) => pill.getAttribute('aria-label'))).toEqual([
+      'Fork Conversation',
+      'Fork and Rewind',
+      UI_TEXT.rowRewindGroup,
+    ])
+    // "Fork Conversation" is the longest: 56 + 7 × 17 = 175 px, every pill.
+    const boxes = pills.map((pill) => ({
+      left: Number(pill.style.left.replace('px', '')),
+      top: Number(pill.style.top.replace('px', '')),
+      width: pill.style.width,
+    }))
+    expect(new Set(boxes.map((box) => box.width))).toEqual(new Set(['175px']))
+    // Stacked one above another around the ⋯'s middle (y 300), to its left
+    // (the side with room), on an arc: the middle pill reaches farthest.
+    const tops = boxes.map((box) => box.top)
+    expect(tops).toEqual(tops.toSorted((a, b) => a - b))
+    expect(tops[0]).toBeLessThan(300)
+    expect((tops.at(-1) ?? 0) + 40).toBeGreaterThan(300)
+    for (const box of boxes) {
+      expect(box.left).toBeGreaterThanOrEqual(8)
+      expect(box.left + 175).toBeLessThanOrEqual(293 - 16)
+    }
+    expect(boxes[1]?.left).toBeLessThan(boxes[0]?.left ?? 0)
+    // Arrow keys move through the pills; Escape closes and returns to ⋯.
+    expect(pills[0]).toHaveFocus()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowDown' })
+    expect(pills[1]).toHaveFocus()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(trigger).toHaveFocus()
+    for (const spy of [width, height, rect]) {
+      spy.mockRestore()
+    }
+  })
+
   it('offers the rewind alone where the host cannot fork (D26)', () => {
     const onRewind = vi.fn()
     renderTranscript(

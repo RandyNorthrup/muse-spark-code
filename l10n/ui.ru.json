@@ -2448,10 +2448,10 @@
   "renameTitle": "Переименовать эту беседу",
   "renamePlaceholder": "Название беседы",
   "rewindMenuLabel": "Ответвить или откатить",
-  "forkFromHere": "Ответвить беседу отсюда",
+  "forkFromHere": "Ответвить беседу",
   "rewindConversationToHere": "Откатить беседу до этого места",
   "rewindCodeToHere": "Откатить код до этого места",
-  "forkAndRewind": "Ответвить беседу и откатить код",
+  "forkAndRewind": "Ответвить и откатить",
   "rewindNothing": "После этого сообщения нет правок для отката.",
   "rewindDone": {
     "one": "Код откачен до этого сообщения ({count} правка)",

@@ -405,7 +405,7 @@ describe('App shell', () => {
         fireEvent.keyDown(await screen.findByRole('combobox'), { key: 'Enter' })
       } else {
         fireEvent.click(userMenuButtons()[1]!)
-        fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation from here' }))
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Fork Conversation' }))
       }
       expect(textarea()).toHaveValue('keep draft')
       expect(screen.getByLabelText('Remove shot.png')).toBeInTheDocument()
@@ -1673,7 +1673,7 @@ describe('App session history (M6)', () => {
     const menus = userMenuButtons()
     expect(menus).toHaveLength(2)
     fireEvent.click(menus[1]!)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation from here' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork Conversation' }))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'forkSession',
       lastTurnId: 't1',
@@ -1682,7 +1682,7 @@ describe('App session history (M6)', () => {
     expect(screen.queryByRole('menu')).toBeNull()
     // Before the first message there is nothing to keep: a new conversation.
     fireEvent.click(menus[0]!)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation from here' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork Conversation' }))
     expect(postMessage).toHaveBeenLastCalledWith(
       expect.objectContaining({ type: 'clearConversation' }),
     )
@@ -1885,7 +1885,7 @@ describe('App session history (M6)', () => {
       ],
     })
     fireEvent.click(menus[1]!)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation and rewind code' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Fork and Rewind' }))
     // One host action: the rewind, then the fork (M72), never two racing messages.
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'rewindCode',

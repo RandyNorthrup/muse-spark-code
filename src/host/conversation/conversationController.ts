@@ -3497,7 +3497,7 @@ export class ConversationController {
   /**
    * "Rewind code to here": the edits after a message, reverted newest first
    * (M13), after the same confirmation as a file restore (M72). With `fork`
-   * ("Fork conversation and rewind code") the fork follows the rewind in
+   * ("Fork and Rewind") the fork follows the rewind in
    * this one action, so neither can overtake the other; declining the
    * confirmation does neither.
    */

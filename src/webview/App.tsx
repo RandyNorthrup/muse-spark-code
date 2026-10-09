@@ -2090,7 +2090,7 @@ export function App({
     },
     [store, onNewConversation, dispatch, postMessage],
   )
-  // "Fork conversation and rewind code" (M72): one host action, so the fork
+  // "Fork and Rewind" (M72): one host action, so the fork
   // cannot overtake the rewind's confirmation; a fork before the first
   // message is a new conversation.
   const onForkRewind = useCallback(

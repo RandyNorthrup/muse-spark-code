@@ -160,10 +160,24 @@ describe('GooeyMenu', () => {
     expect(onSelect).toHaveBeenCalledOnce()
   })
 
-  it.each([1024, 320])(
-    'draws every pill one size in a %s px panel, a long pseudo-locale label included',
-    (width) => {
+  it.each([
+    [1024, 469],
+    [320, 304],
+  ])(
+    'draws every pill as wide as the widest label in a %s px panel, a long pseudo-locale label included',
+    (width, expected) => {
       vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(width)
+      const natural: number[] = []
+      // Each pill's max-content width: 56 px of icon and padding, 7 px a character.
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        const label = this.getAttribute('aria-label') ?? ''
+        if (this.classList.contains('gooey-menu-pill')) {
+          natural.push(this.style.width === 'max-content' ? 56 + 7 * label.length : -1)
+        }
+        return new DOMRect(0, 0, 56 + 7 * label.length, 40)
+      })
       render(
         <GooeyMenu
           items={[
@@ -181,20 +195,48 @@ describe('GooeyMenu', () => {
           onClose={vi.fn()}
         />,
       )
+      // Measured once, drawn at max-content, before the first paint.
+      expect(natural).toEqual([84, 469, 196])
       const pills = screen.getAllByRole('menuitem')
-      // The owner, 2026-10-04: "they should be a uniform size". The width is
-      // the widest that keeps the whole fan inside 320 px: 320 - 2 × 8 - 32.
+      // The owner, 2026-10-09: uniform, "only as long as the text in the
+      // longest text button"; only a narrower panel cuts it, to 320 - 2 × 8.
       for (const pill of pills) {
-        expect(pill.style.width).toBe('272px')
+        expect(pill.style.width).toBe(`${String(expected)}px`)
         expect(pill.style.height).toBe('40px')
         const left = Number(pill.style.left.replace('px', ''))
         expect(left).toBeGreaterThanOrEqual(8)
-        expect(left + 272).toBeLessThanOrEqual(width - 8)
+        expect(left + expected).toBeLessThanOrEqual(width - 8)
       }
       // They scale in one after another, 30 ms apart.
       expect(pills.map((pill) => pill.style.animationDelay)).toEqual(['0ms', '30ms', '60ms'])
     },
   )
+
+  it('measures each burst on its own and again when the labels change', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return new DOMRect(0, 0, 56 + 7 * (this.getAttribute('aria-label') ?? '').length, 40)
+    })
+    const { rerender, onClose } = setup()
+    const widths = () => new Set(screen.getAllByRole('menuitem').map((pill) => pill.style.width))
+    // "Disabled" is the first burst's longest label: 56 + 7 × 8.
+    expect(widths()).toEqual(new Set(['112px']))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind' }))
+    // "Disabled child": 56 + 7 × 14.
+    expect(widths()).toEqual(new Set(['154px']))
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    expect(widths()).toEqual(new Set(['112px']))
+    rerender(
+      <GooeyMenu
+        items={[{ id: 'copy', label: 'Copy', icon: 'C', onSelect: vi.fn() }]}
+        label="Actions"
+        origin={{ x: 160, y: 380 }}
+        onClose={onClose}
+      />,
+    )
+    expect(widths()).toEqual(new Set(['84px']))
+  })
 
   it('puts a clipped label whole in the tooltip, after an item’s own title', () => {
     drawn('scrollWidth', (node) => (node.classList.contains('gooey-menu-pill-label') ? 300 : 0))

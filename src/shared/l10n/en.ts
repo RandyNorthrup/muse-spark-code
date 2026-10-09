@@ -2807,10 +2807,10 @@ export const EN = {
   renamePlaceholder: 'Conversation name',
   // The user card's menu (Claude Code's rewind button): fork, rewind, both.
   rewindMenuLabel: 'Fork or rewind',
-  forkFromHere: 'Fork conversation from here',
+  forkFromHere: 'Fork Conversation',
   rewindConversationToHere: 'Rewind conversation to here',
   rewindCodeToHere: 'Rewind code to here',
-  forkAndRewind: 'Fork conversation and rewind code',
+  forkAndRewind: 'Fork and Rewind',
   rewindNothing: 'No edits after this message to rewind.',
   rewindDone: forms({
     one: 'Code rewound to this message ({count} edit)',

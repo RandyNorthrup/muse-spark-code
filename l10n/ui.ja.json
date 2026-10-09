@@ -2301,10 +2301,10 @@
   "renameTitle": "この会話の名前を変更",
   "renamePlaceholder": "会話名",
   "rewindMenuLabel": "フォークまたは巻き戻し",
-  "forkFromHere": "ここから会話をフォーク",
+  "forkFromHere": "会話をフォーク",
   "rewindConversationToHere": "会話をここまで巻き戻す",
   "rewindCodeToHere": "コードをここまで巻き戻す",
-  "forkAndRewind": "会話をフォークしてコードを巻き戻す",
+  "forkAndRewind": "フォークして巻き戻す",
   "rewindNothing": "このメッセージ以降に巻き戻す編集はありません。",
   "rewindDone": {
     "other": "コードをこのメッセージの時点まで巻き戻しました ({count} 件の編集)"

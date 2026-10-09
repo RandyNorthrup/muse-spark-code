@@ -33,13 +33,14 @@ function clamp(value: number, low: number, high: number): number {
 
 /**
  * Every pill's width (the owner, 2026-10-04: "they should be a uniform
- * size"): the widest that keeps the whole fan inside a 320 px panel, so no
- * label grows its pill; a longer label ends in an ellipsis. A panel
- * narrower still gives each pill its width less the edge padding.
+ * size"; 2026-10-09: "only as long as the text in the longest text
+ * button"): `natural`, the widest pill's own max-content width as the
+ * browser laid it out, so no pill is wider than its longest label needs.
+ * Only a panel too narrow for it gives each pill its width less the edge
+ * padding, and a longer label ends in an ellipsis.
  */
-export function gooeyPillWidth(viewport: MenuViewport): number {
-  const fixed = GOOEY_MENU.narrowPanel - 2 * GOOEY_MENU.edgePadding - GOOEY_MENU.bow
-  return Math.max(0, Math.min(fixed, viewport.width - 2 * GOOEY_MENU.edgePadding))
+export function gooeyPillWidth(viewport: MenuViewport, natural: number): number {
+  return Math.max(0, Math.min(natural, viewport.width - 2 * GOOEY_MENU.edgePadding))
 }
 
 /**
@@ -56,6 +57,7 @@ function column(
   side: GooeySide,
   count: number,
   viewport: MenuViewport,
+  natural: number,
 ): readonly GooeyPill[] {
   if (count === 0) {
     return []
@@ -75,7 +77,7 @@ function column(
   const lifts = tops.map((top) => top + height / 2 - anchor.y)
   const span = Math.max(...lifts.map((lift) => Math.abs(lift))) + step / 2
   const curve = lifts.map((lift) => Math.sqrt(1 - (lift / span) ** 2))
-  const width = gooeyPillWidth(viewport)
+  const width = gooeyPillWidth(viewport, natural)
   const spread = Math.max(...curve) - Math.min(...curve)
   const across = viewport.width - 2 * pad
   const bow = spread > 0 ? clamp((across - width) / spread, 0, GOOEY_MENU.bow) : GOOEY_MENU.bow
@@ -105,6 +107,7 @@ export function gooeyLayout(
   origin: MenuPoint,
   count: number,
   viewport: MenuViewport,
+  natural: number,
 ): GooeyPillLayout {
   const pad = GOOEY_MENU.edgePadding
   const point = {
@@ -112,7 +115,7 @@ export function gooeyLayout(
     y: clamp(origin.y, pad, viewport.height - pad),
   }
   const side: GooeySide = point.x < viewport.width / 2 ? 1 : -1
-  return { origin: point, side, pills: column(point, side, count, viewport) }
+  return { origin: point, side, pills: column(point, side, count, viewport, natural) }
 }
 
 /**
@@ -125,6 +128,7 @@ export function gooeySecondBurst(
   index: number,
   count: number,
   viewport: MenuViewport,
+  natural: number,
 ): GooeyPillLayout | undefined {
   const pill = layout.pills[index]
   if (pill === undefined) {
@@ -134,6 +138,6 @@ export function gooeySecondBurst(
   return {
     origin: centre,
     side: layout.side,
-    pills: column({ x: layout.origin.x, y: centre.y }, layout.side, count, viewport),
+    pills: column({ x: layout.origin.x, y: centre.y }, layout.side, count, viewport, natural),
   }
 }
