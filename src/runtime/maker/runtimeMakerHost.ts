@@ -76,8 +76,6 @@ export class RuntimeMakerHost implements MakerHost {
   }
   private enabled = false
   private enableGeneration = 0
-  /** Document epoch (PLAN M103 FIXM103W8): reviews and `auth` are valid only in the epoch that made them. */
-  private epoch = 0
   private readonly listeners = new Set<(message: MakerHostMessage) => void>()
   private readonly pending = new Map<
     string,
@@ -91,6 +89,12 @@ export class RuntimeMakerHost implements MakerHost {
   >()
   private machines: readonly MakerMachineSummary[] = []
   private ports: readonly Extract<MakerTarget, { kind: 'serial' }>[] = []
+  /**
+   * Document epoch (PLAN M103 FIXM103W8): reviews and `auth` are valid only in
+   * the epoch that made them. Public so the companion can stamp each review
+   * upload with the epoch it started in; only `newDocument` assigns it.
+   */
+  epoch = 0
   readonly secrets: MakerSecrets
   readonly serialProvider?: MakerSerialProvider
   private constructor(
@@ -221,6 +225,8 @@ export class RuntimeMakerHost implements MakerHost {
       })
       this.emit({ v: 1, type: 'makerApproval', request })
       if (this.deps.ask !== undefined) {
+        // The editor prompt shows this epoch's request; its answer cannot review a new document.
+        const epoch = this.epoch
         void this.deps
           .ask(request)
           .then(async (answer) => {
@@ -229,6 +235,7 @@ export class RuntimeMakerHost implements MakerHost {
             const grant =
               parsed?.decision === 'allow_once' &&
               parsed.id === request.id &&
+              epoch === this.epoch &&
               didReview({
                 v: 1,
                 type: 'makerPayloadReviewed',

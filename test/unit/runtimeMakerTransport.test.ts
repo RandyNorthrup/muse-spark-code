@@ -416,6 +416,70 @@ describe('companion boundary', () => {
       expect(engine.answer(await pending) !== undefined).toBe(isReviewedAgain)
     },
   )
+  it('RVM103W3 P2 a review upload started before a session resume cannot review the new document', async () => {
+    const { service, server, launched } = await servedCompanion()
+    const headers = await launched()
+    const snapshot: ApprovalRequest = {
+      id: randomUUID(),
+      digest: crypto.createHash('sha256').update('payload').digest('hex'),
+      expiresAt: Date.now() + 30_000,
+      kind: 'command',
+      target: { kind: 'workspace', workspace: path.resolve('.') },
+      action: 'program',
+      payload: 'payload',
+    }
+    const engine = new MakerApproval(snapshot, () => service.host.hardwareEnabled())
+    const pending = service.host.confirm(snapshot, (raw) => engine.review(raw))
+    const review = JSON.stringify({
+      v: 1,
+      type: 'makerPayloadReviewed',
+      id: snapshot.id,
+      digest: snapshot.digest,
+      isComplete: true,
+    })
+    // The old document starts its review upload but its final bytes are delayed.
+    const held = request(`${server.url}/message`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Length': Buffer.byteLength(review) },
+    })
+    const done = new Promise<{ status: number; text: string }>((resolve, reject) => {
+      held.on('response', (response) => {
+        let text = ''
+        response.setEncoding('utf8')
+        response.on('data', (chunk: string) => {
+          text += chunk
+        })
+        response.on('end', () => {
+          resolve({ status: response.statusCode ?? 0, text })
+        })
+      })
+      held.on('error', reject)
+    })
+    held.write(review.slice(0, 8))
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    // The replacement document resumes before the old upload completes.
+    expect(await status(server.url, '/session', headers, '')).toBe(200)
+    held.end(review.slice(8))
+    await expect(done).resolves.toMatchObject({ status: 403 })
+    // The new document reviews again and its exact allow binds.
+    expect(await http(server.url, '/message', headers, review)).toMatchObject({ text: 'true' })
+    const answer = JSON.stringify({
+      v: 1,
+      type: 'makerAnswer',
+      answer: {
+        id: snapshot.id,
+        digest: snapshot.digest,
+        target: snapshot.target,
+        decision: 'allow_once',
+      },
+    })
+    const presence = await http(server.url, '/presence', headers, answer)
+    const grant = z.object({ grant: z.string() }).parse(JSON.parse(presence.text)).grant
+    expect(
+      await status(server.url, '/answer', { ...headers, 'X-Maker-Approval': grant }, answer),
+    ).toBe(204)
+    expect(engine.answer(await pending)).toBeDefined()
+  })
   it.each(['reviewed', 'incomplete', 'other digest', 'other target', 'unreviewed'] as const)(
     'companion approval through the real service dispatches only after an exact review: %s',
     async (variant) => {

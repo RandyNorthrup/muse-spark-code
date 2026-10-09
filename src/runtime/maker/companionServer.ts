@@ -63,6 +63,8 @@ export async function startCompanion(deps: CompanionDeps) {
   const mcp = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
   const streams = new Set<ServerResponse>()
   const active = new Set<AbortController>()
+  // One dereference: the host reference is fixed for the server's lifetime.
+  const host = deps.host
   let origin = ''
   const server = createServer((request, response) => {
     void handle(request, response).catch(() => {
@@ -139,7 +141,7 @@ export async function startCompanion(deps: CompanionDeps) {
         return
       }
       launch = ''
-      deps.host?.newDocument()
+      host?.newDocument()
       // HTTP loopback cannot use Secure/__Host-. Name and value bind this host-only cookie to this instance and port.
       response.setHeader(
         'Set-Cookie',
@@ -197,14 +199,14 @@ export async function startCompanion(deps: CompanionDeps) {
         response.writeHead(HTTP_STATUS.forbidden).end()
         return
       }
-      deps.host?.newDocument()
+      host?.newDocument()
       bootstrap(response)
       return
     }
     if (request.url === '/events' && request.method === 'GET') {
       response.writeHead(HTTP_STATUS.ok, { 'Content-Type': 'text/event-stream' })
       streams.add(response)
-      const unsubscribe = deps.host?.subscribe((message) => {
+      const unsubscribe = host?.subscribe((message) => {
         const frame = `data: ${JSON.stringify(message)}\n\n`
         if (response.writableLength + Buffer.byteLength(frame) > RUNTIME_MAKER_MAX_BYTES)
           response.destroy()
@@ -224,6 +226,9 @@ export async function startCompanion(deps: CompanionDeps) {
         response.writeHead(HTTP_STATUS.forbidden).end()
         return
       }
+      // The review binds to the document that sent it: stamp the epoch before
+      // the body can suspend across a replacement document's reset.
+      const epoch = host?.epoch
       const raw = await body(request)
       if (request.url === '/answer' || request.url === '/presence') {
         const parsed = makerSurfaceMessageSchema.safeParse(raw)
@@ -233,7 +238,7 @@ export async function startCompanion(deps: CompanionDeps) {
         }
         if (request.url === '/presence') {
           try {
-            const grant = await deps.host?.authorize(parsed.data.answer)
+            const grant = await host?.authorize(parsed.data.answer)
             response
               .writeHead(grant === undefined ? HTTP_STATUS.forbidden : HTTP_STATUS.ok, {
                 'Content-Type': 'application/json',
@@ -256,7 +261,7 @@ export async function startCompanion(deps: CompanionDeps) {
         }
         response
           .writeHead(
-            deps.host?.answer(parsed.data.answer, request.headers['x-maker-approval']?.toString())
+            host?.answer(parsed.data.answer, request.headers['x-maker-approval']?.toString())
               ? RUNTIME_MAKER_HTTP_NO_CONTENT
               : HTTP_STATUS.forbidden,
           )
@@ -270,7 +275,11 @@ export async function startCompanion(deps: CompanionDeps) {
       }
       const message = parsed.data
       // The request channel never carries approval authority, even with a valid session cookie.
-      if (message.type === 'makerAnswer') {
+      // A review upload started in an older document cannot review the new one.
+      if (
+        message.type === 'makerAnswer' ||
+        (message.type === 'makerPayloadReviewed' && epoch !== host?.epoch)
+      ) {
         response.writeHead(HTTP_STATUS.forbidden).end()
         return
       }
@@ -342,8 +351,8 @@ export async function startCompanion(deps: CompanionDeps) {
   return {
     url: origin,
     async open(): Promise<string> {
-      if (deps.host === undefined) throw new Error(UI_TEXT.makerPresenceUnavailable)
-      await deps.host.requirePresence(UI_TEXT.makerLaunchConnect, { panel: origin })
+      if (host === undefined) throw new Error(UI_TEXT.makerPresenceUnavailable)
+      await host.requirePresence(UI_TEXT.makerLaunchConnect, { panel: origin })
       launch = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
       isLaunchDelivered = false
       launchExpires = Date.now() + RUNTIME_MAKER_LAUNCH_CODE_MS
@@ -354,7 +363,7 @@ export async function startCompanion(deps: CompanionDeps) {
       headers: { Authorization: `Bearer ${mcp}` },
     },
     async close(): Promise<void> {
-      deps.host?.cancelApprovals()
+      host?.cancelApprovals()
       for (const controller of active) controller.abort()
       for (const response of streams) response.end()
       server.closeAllConnections()

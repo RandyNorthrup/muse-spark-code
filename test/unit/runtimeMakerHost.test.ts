@@ -415,6 +415,24 @@ describe('runtime maker host', () => {
       expect(host.answer(answer, fresh)).toBe(true)
       expect(engine.answer(await pending)).toBeDefined()
     })
+    it('editor ask: an answer resolving after a new document settles reject without prompting', async () => {
+      const asked = Promise.withResolvers<unknown>()
+      const { host, deps } = await fixture({ ask: () => asked.promise })
+      await host.setHardware(true, 'bench')
+      const snapshot = { ...request(), expiresAt: Date.now() + 30_000 }
+      const engine = new MakerApproval(snapshot, () => host.hardwareEnabled())
+      const pending = host.confirm(snapshot, (raw) => engine.review(raw))
+      host.newDocument()
+      asked.resolve({
+        id: snapshot.id,
+        digest: snapshot.digest,
+        target: snapshot.target,
+        decision: 'allow_once',
+      })
+      expect(await pending).toMatchObject({ id: snapshot.id, decision: 'reject_once' })
+      expect(engine.answer(await pending)).toBeUndefined()
+      expect(deps.presence.check).toHaveBeenCalledTimes(1)
+    })
     it('close: a cancelled request accepts no review, authentication or answer', async () => {
       const { host, pending, didReview, answer } = await confirming()
       host.cancelApprovals()
