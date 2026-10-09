@@ -2757,6 +2757,14 @@ export const TEAM_MAX_REASSIGNMENTS = 2
 export const TEAM_DIVERGE_REPEATS = 3
 export const TEAM_DIVERGE_SIZE_FACTOR = 3
 export const TEAM_START_STAGGER_MS = 5000
+// D109 borrow/recall timers (M120 lane 0): each role's defaults; the demand
+// wait never goes below its floor.
+export const TEAM_BORROW_DEMAND_WAIT_MS = 60_000
+export const TEAM_BORROW_DEMAND_WAIT_MIN_MS = 60_000
+export const TEAM_BORROW_LOOKAHEAD_MS = 10 * 60_000
+export const TEAM_BORROW_FINISH_GRACE_MS = 5 * 60_000
+export const TEAM_BORROW_RECALL_WAIT_MS = 2 * 60_000
+export const TEAM_BORROW_COOLDOWN_MS = 3 * 60_000
 export const TEAM_DIFF_POLL_MS = 30_000
 export const TEAM_MERGE_BATCH_MAX = 4
 export const TEAM_MERGE_BATCH_SMALL_LINES = 200
