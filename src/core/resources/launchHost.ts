@@ -98,9 +98,20 @@ export interface ResourceLaunchHostOptions {
   readonly onCleanup?: ((result: CreatedCleanup) => void) | undefined
   /**
    * A history recorder drains `settled()` (M107-J-C1-T-accounting; the window's,
-   * POSTSPAWN). Without one, no attested row is kept: nothing would ever read it.
+   * POSTSPAWN; the runtime's while it records, H–C1). Without one, no attested
+   * row is kept: nothing would ever read it.
    */
-  readonly isSettledRead?: boolean | undefined
+  readonly isSettledRead?: boolean | (() => boolean) | undefined
+  /**
+   * H–C1: the runtime's one governor is shared, not owned. This host then never
+   * pushes settings into it, starts it or disposes it; the runtime host does.
+   */
+  readonly isGovernorShared?: boolean | undefined
+  /**
+   * H–C1: registered work changed (admitted, proved, unknown or retired), so the
+   * runtime's queue reads this host's occupancy again.
+   */
+  readonly onWorkChanged?: (() => void) | undefined
 }
 
 /** C1: admission reservations plus OS-proved registry entries, shared by the window. */
@@ -133,14 +144,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       events: options.events,
       capacity: (kind) => options.governor.capacity(kind),
       diskBlocked: () => options.governor.diskBlocked(),
-      running: {
-        backgroundCount: (kind) => {
-          const entries = [...this.work].filter(
-            (work) => work.kind === kind && work.class === 'background',
-          )
-          return entries.some((work) => !work.known) ? null : entries.length
-        },
-      },
+      running: { backgroundCount: (kind) => this.backgroundCount(kind) },
     })
     this.unsubscribeSample = options.governor.onSample(() => {
       this.queue.wake()
@@ -181,11 +185,22 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     const settings = this.options.settings()
     const signature = JSON.stringify(settings)
     if (signature !== this.settings) {
-      this.options.governor.updateSettings(settings)
+      // A shared governor already follows its owner's settings and run flags.
+      if (this.options.isGovernorShared !== true) this.options.governor.updateSettings(settings)
       this.settings = signature
       this.changed()
     }
     return settings
+  }
+
+  /** The runtime's queue reads registered work through this (H–C1). */
+  private workChanged(): void {
+    if (this.disposed) return
+    try {
+      this.options.onWorkChanged?.()
+    } catch {
+      this.options.onError()
+    }
   }
 
   private finishTemp(work: Work): void {
@@ -235,6 +250,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     if (work.ticket !== undefined) work.registry?.unregister(work.ticket)
     work.permit.release()
     this.changed()
+    this.workChanged()
     if (isTreeGone) this.finishTemp(work)
     if ([...this.work].some((entry) => entry.process !== undefined)) {
       return
@@ -337,6 +353,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
         }),
       )
       this.queue.wake()
+      this.workChanged()
     } finally {
       this.pending = undefined
     }
@@ -484,7 +501,8 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   ): Promise<ResourceLease> {
     if (this.disposed) throw new Error('Resource launch host disposed')
     this.applySettings()
-    if (this.options.admission === undefined) this.options.governor.start()
+    if (this.options.admission === undefined && this.options.isGovernorShared !== true)
+      this.options.governor.start()
     const isCheckpoint = workClass === 'checkpoint'
     if (isCheckpoint) {
       if (checkpointDestination === undefined) throw new Error('Checkpoint destination unavailable')
@@ -572,7 +590,8 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       settle: (settlement: ResourceSettlement) => {
         // History's work source: the attested job's own final accounting, kept only
         // for a bound reader, and bounded between its reads.
-        if (this.options.isSettledRead !== true) return
+        const isRead = this.options.isSettledRead
+        if (!(typeof isRead === 'function' ? isRead() : isRead === true)) return
         if (this.settledRows.length >= RESOURCE_SETTLED_ROWS_MAX) {
           this.settledRows.shift()
           this.settledDropped++
@@ -683,9 +702,10 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
 
   /**
    * Settled attested trees since the last read, at most RESOURCE_SETTLED_ROWS_MAX
-   * (oldest dropped and counted), kept only with `isSettledRead`. The window's
-   * history recorder reads it with `treeUsage()` as its ResourceRecordWorkSource
-   * (POSTSPAWN); a window without history keeps no rows.
+   * (oldest dropped and counted), kept only with `isSettledRead`. History
+   * recorders read it with `treeUsage()` through `workRows()`, their
+   * ResourceRecordWorkSource (POSTSPAWN; the runtime's, H–C1); a host without
+   * a recorder keeps no rows.
    */
   settled(): {
     readonly rows: readonly { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[]
@@ -715,7 +735,29 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     return [...retired, ...live]
   }
 
+  /**
+   * The harness-work rows a history recorder reads (window and runtime alike):
+   * attested settlements since the last read, then the registered trees.
+   */
+  workRows(): readonly ResourceTreeUsageRow[] {
+    return [...this.settled().rows, ...this.treeUsage()]
+  }
+
+  /**
+   * Running background work of one kind: its registered trees and admitted
+   * reservations, or null while any of them is unproved (unknown is busy).
+   * This queue reads it, and the runtime's queue reads it too (H–C1).
+   */
+  backgroundCount(kind: ResourceKind): number | null {
+    const entries = [...this.work].filter(
+      (work) => work.kind === kind && work.class === 'background',
+    )
+    return entries.some((work) => !work.known) ? null : entries.length
+  }
+
   dispose(): void {
+    // The window's configuration and the runtime host may both dispose it.
+    if (this.disposed) return
     this.disposed = true
     this.statusListeners.clear()
     this.cancelTreeSample?.()
@@ -725,7 +767,8 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     for (const cancel of this.admissionCancels) cancel()
     for (const cancel of this.cleanupTimers) cancel()
     this.queue.dispose()
-    this.options.governor.dispose()
+    // A shared governor is the runtime host's to dispose (H–C1).
+    if (this.options.isGovernorShared !== true) this.options.governor.dispose()
     for (const work of this.work) void this.stopOnDispose(work).catch(this.options.onError)
   }
 }

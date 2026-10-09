@@ -1,10 +1,16 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import path from 'node:path'
 import { lazyBundleLoader } from '../../host/lazyBundle'
 import type { Logger } from '../../host/logger'
 import { UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
-import type { ResourceEntryOptions, createResources } from './entry'
-import type { RuntimeResources } from './port'
+import type { ResourceSettings } from '../../shared/resources'
+import type {
+  ResourceHostSettings,
+  createResources,
+} from '../../core/resources/resourceGovernorEntry'
+import type { ResourceEntryOptions } from './entry'
+import type { ResourceWorkContext, RuntimeResources } from './port'
 import { configureResources } from '../../core/resources/admission'
 import { runtimeResourceJobs } from './jobs'
 
@@ -21,6 +27,26 @@ function isResourceModule(value: unknown): value is ResourceModule {
   )
 }
 
+/** H–C1: what one command contributes to its process's one governor. */
+export interface RuntimeResourceRun {
+  /** Headless's run flags over the machine values. */
+  readonly overrides?: Partial<ResourceSettings> | undefined
+  /** The ACP agent's usage-history consent; every other command only reads history. */
+  readonly isRecordingHistory?: (() => boolean) | undefined
+}
+
+/**
+ * The process's one governor (H–C1): every command, the ACP agent and headless
+ * runs share it, and so do the spawns admitted through the process's port.
+ */
+export interface ProcessResources extends RuntimeResources {
+  /**
+   * The ACP agent's recording consent or headless's run flags. Before the first
+   * governed use or after it: they apply at the next settings sync or sample.
+   */
+  configure(run: RuntimeResourceRun): ProcessResources
+}
+
 /** Creating/subscribing the facade never loads the bundle or reads machine settings. */
 export function lazyRuntimeResources(
   options: ResourceEntryOptions & {
@@ -28,7 +54,7 @@ export function lazyRuntimeResources(
     log: Logger
     loadBundle?: (file: string) => unknown
   },
-): RuntimeResources {
+): ProcessResources {
   const module = lazyBundleLoader({
     bundlePath: path.join(options.distDir, 'resourceGovernor.js'),
     log: options.log,
@@ -37,18 +63,34 @@ export function lazyRuntimeResources(
     unavailable: () => UI_TEXT.resourceUnavailable,
     ...(options.loadBundle !== undefined && { loadBundle: options.loadBundle }),
   })
-  let pending: Promise<RuntimeResources> | undefined
-  let loaded: RuntimeResources | undefined
+  type Loaded = Awaited<ReturnType<typeof createResources>>
+  let pending: Promise<Loaded> | undefined
+  let loaded: Loaded | undefined
   const state = { isDisposed: false }
   const subscriptions = new Set<(host: RuntimeResources) => () => void>()
   const bound = new Map<(host: RuntimeResources) => () => void, () => void>()
+  // H–C1: the run is read live, so a command's flags or consent never need a second governor.
+  let overrides = options.overrides
+  let isRecordingHistory = options.isRecordingHistory
+  // H–C1: the session whose turn admits a spawn hears about it; never in a payload.
+  const sessions = new AsyncLocalStorage<ResourceWorkContext>()
   const load = async () => {
     if (state.isDisposed) throw new Error(UI_TEXT.resourceUnavailable)
     pending ??= (async () => {
       await Promise.resolve()
-      let created: RuntimeResources | undefined
+      let created: Loaded | undefined
       try {
-        const host = await module().createResources(options, UI_TEXT, uiLocale())
+        const host = await module().createResources(
+          {
+            ...options,
+            overrides: () => (typeof overrides === 'function' ? overrides() : overrides),
+            // Always bound, off unless the ACP agent consents: it may say so after loading.
+            isRecordingHistory: () => isRecordingHistory?.() ?? false,
+            spawns,
+          },
+          UI_TEXT,
+          uiLocale(),
+        )
         created = host
         if (state.isDisposed) {
           throw new Error(UI_TEXT.resourceUnavailable)
@@ -106,7 +148,7 @@ export function lazyRuntimeResources(
       throw error
     }
   }
-  const disposeAdmission = configureResources({
+  const spawns: ResourceHostSettings = {
     registryFile: path.join(options.machineDir, 'resource-created.json'),
     inspect: () => ({}),
     onError: () => {
@@ -134,7 +176,7 @@ export function lazyRuntimeResources(
             const host = await load()
             await host.status(signal)
             signal?.throwIfAborted()
-            return await host.admit(request, undefined, signal)
+            return await host.admit(request, sessions.getStore(), signal)
           })(),
         ])
       } finally {
@@ -142,8 +184,22 @@ export function lazyRuntimeResources(
       }
     },
     windowsJob,
+  }
+  const disposeAdmission = configureResources({
+    ...spawns,
+    // H–C1: the process's spawns are the runtime host's launches, sharing its one governor.
+    runtime: async () => {
+      const host = await load()
+      return host.launches?.()
+    },
   })
-  return {
+  const facade: ProcessResources = {
+    configure(run) {
+      if (state.isDisposed) throw new Error(UI_TEXT.resourceUnavailable)
+      if (run.overrides !== undefined) overrides = run.overrides
+      if (run.isRecordingHistory !== undefined) isRecordingHistory = run.isRecordingHistory
+      return facade
+    },
     async command(action, isJson) {
       const host = await load()
       return await host.command(action, isJson)
@@ -170,7 +226,10 @@ export function lazyRuntimeResources(
     workChanged() {
       loaded?.workChanged()
     },
+    inSession: (sessionId, action) => sessions.run({ sessionId }, action),
     dispose() {
+      // The ACP agent or a headless run and the process itself may both close it.
+      if (state.isDisposed) return
       disposeAdmission()
       state.isDisposed = true
       for (const unsubscribe of bound.values()) unsubscribe()
@@ -179,4 +238,5 @@ export function lazyRuntimeResources(
       loaded?.dispose()
     },
   }
+  return facade
 }

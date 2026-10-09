@@ -1,16 +1,14 @@
 import * as acp from '@agentclientprotocol/sdk'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createAcpAgent } from '../../src/acp/agent'
 import { aggregateResources } from '../../src/core/usage/aggregate'
-import { AcpPaidUse } from '../../src/acp/paid'
 import { acpResourceCommand, acpResourceUpdates } from '../../src/acp/resources'
 import { RESOURCE_EXIT_MS, RESOURCE_GIB_BYTES, UI_TEXT } from '../../src/shared/constants'
 import { fill, formatBytes } from '../../src/shared/l10n/text'
 import { resourceRecordSchema } from '../../src/shared/resources'
 import type { RuntimeResources } from '../../src/runtime/resources/port'
 import { FakeAgentHost, type FakeAgentSession } from './helpers/fakeAgent'
-import { memoryPaidGrants } from './helpers/paidGrants'
 import { runtimeResources } from './helpers/resources/runtime'
+import { openAcpSession, resourceAcpAgent } from './helpers/resources/runtimeScenes'
 
 const resources: RuntimeResources[] = []
 afterEach(() => {
@@ -34,27 +32,7 @@ async function scene() {
   const permissions = vi.fn((): acp.RequestPermissionResponse => ({
     outcome: { outcome: 'cancelled' },
   }))
-  const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-  const agent = createAcpAgent({
-    backend: {
-      kind: 'museCode',
-      hostFor: () => Promise.resolve(backend),
-      readiness: () => Promise.resolve({ state: 'ready' }),
-    },
-    resources: fixture.host,
-    questions: 'decline',
-    paid: new AcpPaidUse({
-      flagged: [],
-      canRemember: () => false,
-      grants: memoryPaidGrants(),
-      log,
-    }),
-    log,
-    version: 'test',
-    defaultCwd: process.cwd(),
-    options: { canBypass: false, allowsContributorModels: false, initialMode: 'manual' },
-    signIn: { id: 'test', name: 'test', description: 'test', args: [], command: 'test' },
-  })
+  const agent = resourceAcpAgent(backend, fixture.host)
   const client = acp
     .client({ name: 'm107h' })
     .onNotification('session/update', ({ params }) => {
@@ -69,14 +47,7 @@ async function scene() {
     ) => Promise<void>,
   ) =>
     client.connectWith(agent, async (connection) => {
-      await connection.request('initialize', {
-        protocolVersion: acp.PROTOCOL_VERSION,
-        clientCapabilities: {},
-      })
-      const { sessionId } = await connection.request('session/new', {
-        cwd: process.cwd(),
-        mcpServers: [],
-      })
+      const sessionId = await openAcpSession(connection)
       const session = backend.sessions[0]
       if (session === undefined) throw new Error('missing fake session')
       await test(connection, sessionId, session)

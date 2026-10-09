@@ -62,6 +62,9 @@ async function disposeHost(onError: () => void): Promise<void> {
 }
 
 async function createHost(configured: ResourceHostSettings): Promise<ResourceLaunchHost> {
+  // H–C1: the runtime's one governor host builds its process's launches.
+  const shared = await configured.runtime?.()
+  if (shared !== undefined) return shared
   const bundle = await import('./resourceGovernorEntry.js')
   state.flush = bundle.flushResourceHistory
   const host = bundle.resourceGovernorHost(configured)
@@ -86,8 +89,14 @@ async function createHost(configured: ResourceHostSettings): Promise<ResourceLau
 async function load(): Promise<ResourceLaunchHost | undefined> {
   if (state.isDisposed) throw new Error('Resource admission disposed')
   if (state.options === undefined) return undefined
-  state.pending ??= createHost(state.options)
-  return await state.pending
+  const pending = (state.pending ??= createHost(state.options))
+  try {
+    return await pending
+  } catch (error: unknown) {
+    // A failed load refuses this launch; the next one tries again.
+    if (state.pending === pending) delete state.pending
+    throw error
+  }
 }
 
 /**

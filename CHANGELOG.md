@@ -71,6 +71,18 @@ happened, not what was planned; superseded entries are kept.
 - The Model API backend's session store loads with that backend instead of
   at activation (its own `dist/modelApiSessions.js`), taking 24.5 KB off the
   activation bundle; sessions are kept and read as before (ACTBUD017).
+- The ACP agent's resource history now includes its own work (M107 H–C1).
+  Each `muse-spark-code-acp` process runs one resource governor, shared by the
+  agent, a headless `exec` run and terminal commands instead of each starting
+  another. The tools, checks and other processes the agent starts are that
+  governor's work: at throttle one background item per kind runs and the next
+  starts when it finishes, where before none started until the level dropped.
+  Their CPU time and peak memory appear as harness work in
+  `resources history`, `usage resources`, ACP `/usage resources` and every
+  editor's usage page, as the VS Code window's already did (not yet on
+  macOS). An ACP conversation now gets the resource notice when its own
+  turn's work waits, and a headless run's own deferred or refused work is a
+  v2 `resource` event in its output.
 
 ### Fixed
 

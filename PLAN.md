@@ -31908,6 +31908,41 @@ quality/coverage and non-Linux native receipts remain the lead's release gate.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**M107 H–C1 — the runtime spawn binding (2026-10-09, after 0.17.0; D87.2).**
+Its prerequisites, SPAWN017C's governed launches and W2's resource history,
+shipped in 0.17.0. Each runtime process (the ACP agent, a headless run, a
+terminal command) now has one governor: `run()` makes the process facade once,
+and the ACP agent (its usage-history consent) and headless `exec` (its run
+flags) configure that facade instead of making second ones. Every spawn
+admitted through the process's port is a launch of that governor: the runtime
+host builds the process's `ResourceLaunchHost` around its own governor, events
+and settings (`createResources`'s `spawns`), so no second governor or sampler
+exists. Its registered work is the runtime queue's occupancy (one background
+launch per kind at throttle, unknown trees still busy, retirement wakes the
+queue); its attested settlements and registered trees are the agent journal's
+harness-work rows, which `resources history`, `usage resources`, ACP
+`/usage resources` and every editor's usage page read; headless's v2 sink
+subscribes to that same governor, so a run's own deferrals and refusals are
+v2 `resource` events. Design choices where this plan left them open, each
+keeping governed admission, the activation budget and all editors equal:
+(1) a command's flags or consent given after the first governed use apply at
+the next settings sync or sample, rather than refusing; (2) the shared
+governor is the runtime host's alone: the launch host never pushes settings
+into it, starts it or disposes it, so safe points, created-root cleanup on
+pressure and transport results follow the one governor, as in the window;
+(3) attested rows are kept only while the process records (the agent's
+consent), so one-shot and headless processes keep none; (4) local session
+correlation: the ACP agent runs each turn inside its session, so the spawns
+that turn admits notify that session (headless's client drops those chunks);
+(5) a failed load of the launches refuses that spawn and the next one retries.
+Nothing new loads at activation; `extension.js` and `modelApi.js` are
+unchanged. Left open, named: tool-call correlation (`_meta` on the deferred
+tool call needs the engine's item-to-tool-call id at the spawn site); macOS
+records no harness rows until T–C1's native identity binds portable launches;
+the runtime sampler's disk targets stay DK's handoff; installed-editor
+receipts. Records:
+[`docs/certification/m107.md`](docs/certification/m107.md#m107-hc1--the-runtime-spawn-binding).
+
 **M107 W chip — the U–C1/W window binding (2026-10-08, for 0.17).** PR #140's
 review found the chip never mounted. The window's `ResourceLaunchHost` now
 keeps one cached, schema-checked status (replaced only when its content
@@ -32032,7 +32067,7 @@ usage-history days (D87.11 "under D82's retention and rollups"), shown as an
 "Earlier days" table and text. The ACP agent's harness-work rows remain the
 H–C1 runtime binding (D87.2; `docs/certification/m107.md` handoffs): its spawns
 do not yet pass a registered launch host, so it records none rather than an
-estimate. Production browser scenes: four themes × 320/690 px × history,
+estimate (closed by M107 H–C1, 2026-10-09). Production browser scenes: four themes × 320/690 px × history,
 unavailable and empty, 0 axe violations, no overflow, committed in
 `docs/certification/m107-w-history/`.
 
@@ -42832,7 +42867,9 @@ and exact reserved permit; M100 consumes R's offer/receiver/retirement ports;
 M102 binds J's journal retention/collector-scoped reads and usage mount.
 M104 B/b–d supplies native/companion status and settings. These ports remain
 unbound on this base; no shipped fake stands in. See the exact handoff matrix
-in `docs/certification/m107.md`.
+in `docs/certification/m107.md`. **H–C1 closed (M107 H–C1, 2026-10-09):** the
+runtime's launches share its one governor, occupancy, events (headless's v2
+sink) and history journal; tool-call correlation and macOS rows stay named.
 
 - **M118INT remaining dependency/CI work.** Shared React/VS Code and installed
   CLI/ACP bindings are certified with bounded fake-only checks and unchanged
@@ -42899,7 +42936,8 @@ The harness-placement dispatch and PID/tick assumptions below remain unchanged.
   ACP agent's harness-work rows need the H–C1 runtime spawn binding (one
   governor per process, registered launch host), recorded in
   `docs/ide-compatibility/resources.md`; installed-editor (not harness)
-  qualification stays with the lead's native/editor run.
+  qualification stays with the lead's native/editor run. The rows are bound
+  by M107 H–C1 (2026-10-09), except on macOS until T–C1's native identity.
 - **FIXM118X / RVM118X (2026-10-06).** All four reviewed P2 adapter
   findings are fixed; no P1/P2/P3 finding is deferred. Regression failures,
   byte-exact red drills and bounded Kubuntu checks are recorded in

@@ -28,7 +28,11 @@ import { LinuxResourceTreeReader } from './trees/linux'
 import { WindowsResourceTreeReader } from './trees/windows'
 import type { ResourceAdmission, ResourceLaunchRequest } from './queue'
 // POSTSPAWN: the launcher and helper preparation live in dist/resourceProcess.js.
-export { createResources } from '../../runtime/resources/entry'
+import {
+  createResources as createRuntimeResources,
+  type ResourceEntryOptions,
+  type RuntimeLaunchShare,
+} from '../../runtime/resources/entry'
 // U–C1: the window's status item and pause notices load with the governor, never at activation.
 export {
   createResourceStatus,
@@ -52,6 +56,11 @@ export interface ResourceHostSettings {
     request: ResourceLaunchRequest,
     signal?: AbortSignal,
   ) => Promise<ResourceAdmission>
+  /**
+   * H–C1: the runtime's one governor host builds this process's launches;
+   * undefined (an embedding without them) falls back to this host's own.
+   */
+  readonly runtime?: (() => Promise<ResourceLaunchHost | undefined>) | undefined
   /** W/H supply T's remaining native identity ports; absence is explicitly unknown. */
   readonly bindNativeTree?:
     ((launch: ResourceProcessLaunch) => Promise<ResourceTreeBinding | null>) | undefined
@@ -72,7 +81,27 @@ export interface ResourceHostSettings {
   readonly onError: () => void
   readonly windowsJob?: (() => Promise<ResourceWindowsJob | undefined>) | undefined
 }
-const state: { host?: ResourceLaunchHost; recorder?: ResourceHistoryRecorder } = {}
+const state: { recorder?: ResourceHistoryRecorder } = {}
+
+/**
+ * The runtime's entry (H–C1). With `spawns`, the process's governed launches
+ * are built around the runtime host's one governor, so their occupancy, their
+ * events and their harness-work rows are that governor's: never a second one.
+ */
+export async function createResources(
+  options: ResourceEntryOptions & { readonly spawns?: ResourceHostSettings | undefined },
+  table: UiText,
+  locale: string,
+): ReturnType<typeof createRuntimeResources> {
+  const { spawns, ...entry } = options
+  return await createRuntimeResources(
+    spawns === undefined
+      ? entry
+      : { ...entry, launches: (share) => resourceGovernorHost(spawns, share) },
+    table,
+    locale,
+  )
+}
 
 /**
  * Window disposal (RVM107W2 P2): the open minute and any pending snapshot are
@@ -98,11 +127,19 @@ export async function flushResourceHistory(): Promise<void> {
   }
 }
 
-/** Loaded by the first governed launch; a CommonJS module is shared by all bundles. */
-export function resourceGovernorHost(options: ResourceHostSettings): ResourceLaunchHost {
+/**
+ * Loaded by the first governed launch; a CommonJS module is shared by all bundles.
+ * The window owns its governor; the runtime passes `share`, its own (H–C1).
+ */
+export function resourceGovernorHost(
+  options: ResourceHostSettings,
+  share?: RuntimeLaunchShare,
+): ResourceLaunchHost {
   if (options.localization !== undefined)
     setUiText(options.localization.table, options.localization.locale)
-  const settings = () => readResourceSettings(options.inspect)
+  const settings = share?.settings ?? (() => readResourceSettings(options.inspect))
+  // This call's own host: the registry's exit proof asks it, never a later one.
+  const launched: { host?: ResourceLaunchHost } = {}
   const clock: ResourceClock = {
     now: () => Date.now(),
     setTimeout: (callback, delayMs) => {
@@ -153,7 +190,7 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
                     path.join(__dirname, '..', 'native', 'linux', process.arch, 'muse-created'),
                     args,
                   )),
-              exited: (owner) => Promise.resolve(state.host?.hasRetired(owner) ?? false),
+              exited: (owner) => Promise.resolve(launched.host?.hasRetired(owner) ?? false),
               archivedAndClean: () =>
                 Promise.reject(new Error('Archive/clean proof is not installed')),
               freeBytes: async (file) => {
@@ -190,25 +227,28 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
       return await new TreeTempRoots(store.base, store, disks).create(owner)
     },
   }
-  const events = new ResourceEvents(options.onError)
-  const governor = new ResourceGovernor({
-    clock,
-    events,
-    settings: settings(),
-    sampler: createMachineResourceSampler(
-      settings,
-      {
-        timeoutMs: RESOURCE_SAMPLE_MS,
-        maxOutputBytes: BOUNDED_FILE_READ_CHUNK_BYTES,
-      },
-      disks,
-    ),
-    // No relocation route exists on this build: M100's paired-device offers and
-    // M96c/C2's attempt claim/retirement are not joined, and nothing constructs
-    // R's relocator. Pressure goes from throttle to pause and status says why.
-    hasRelocationTarget: null,
-    onError: options.onError,
-  })
+  // H–C1: the runtime lends its one governor and its events; the window owns its own.
+  const events = share?.events ?? new ResourceEvents(options.onError)
+  const governor =
+    share?.governor ??
+    new ResourceGovernor({
+      clock,
+      events,
+      settings: settings(),
+      sampler: createMachineResourceSampler(
+        settings,
+        {
+          timeoutMs: RESOURCE_SAMPLE_MS,
+          maxOutputBytes: BOUNDED_FILE_READ_CHUNK_BYTES,
+        },
+        disks,
+      ),
+      // No relocation route exists on this build: M100's paired-device offers and
+      // M96c/C2's attempt claim/retirement are not joined, and nothing constructs
+      // R's relocator. Pressure goes from throttle to pause and status says why.
+      hasRelocationTarget: null,
+      onError: options.onError,
+    })
   const linux = process.platform === 'linux' ? new LinuxResourceTreeReader() : undefined
   const readers = new Map<string, WindowsResourceTreeReader>()
   const bindTree = async (launch: ResourceProcessLaunch): Promise<ResourceTreeBinding | null> => {
@@ -265,7 +305,7 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
     // No guessed macOS start time or Windows membership: W/H bind remaining native scopes.
     return (await options.bindNativeTree?.(launch)) ?? null
   }
-  state.host = new ResourceLaunchHost({
+  const host = new ResourceLaunchHost({
     ...(options.admission !== undefined && { admission: options.admission }),
     governor,
     events,
@@ -279,15 +319,18 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
     onError: options.onError,
     // POSTSPAWN: attested Windows launches are never tree-sampled; their final
     // job accounting is history's only record of them, kept while it is read.
-    isSettledRead: options.history !== undefined,
+    isSettledRead: share?.isRecording ?? options.history !== undefined,
+    // H–C1: the runtime host owns the governor; its queue reads this occupancy.
+    ...(share !== undefined && { isGovernorShared: true, onWorkChanged: share.workChanged }),
   })
-  if (options.history !== undefined) {
+  launched.host = host
+  // The runtime's own recorder reads these launches (H–C1); the window records here.
+  if (share === undefined && options.history !== undefined) {
     // The governor's own sample and event streams; recording never gates admission.
-    const host = state.host
     const recorder = (state.recorder = resourceHistoryRecorder(
       options.history,
       // Each read drains the settled rows, so an attested tree is recorded once.
-      { read: () => Promise.resolve([...host.settled().rows, ...host.treeUsage()]) },
+      { read: () => Promise.resolve(host.workRows()) },
       options.onError,
     ))
     governor.onSample(() => {
@@ -297,5 +340,5 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
       recorder.event(event)
     })
   }
-  return state.host
+  return host
 }

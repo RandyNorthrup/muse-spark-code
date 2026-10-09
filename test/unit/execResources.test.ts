@@ -2,11 +2,9 @@ import { execFile } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { PassThrough } from 'node:stream'
 import { promisify } from 'node:util'
 import { build } from 'esbuild'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import * as runtimeBackends from '../../src/runtime/backends'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { agentDataFolder } from '../../src/runtime/dataFolder'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
@@ -21,10 +19,9 @@ import {
 import type { RuntimeResources } from '../../src/runtime/resources/port'
 import { resourceStatusSchema } from '../../src/shared/resources'
 import { resourceHistorySchema } from '../../src/shared/resourceHistory'
-import { FakeAgentHost } from './helpers/fakeAgent'
-import { memorySecrets } from './helpers/fakes'
 import { outputWriter, resultRecord } from './helpers/execContract'
 import { runtimeResources } from './helpers/resources/runtime'
+import { fakeExecDeps, turnHost, useRuntimeHost } from './helpers/resources/runtimeScenes'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const hosts: RuntimeResources[] = []
@@ -192,9 +189,6 @@ describe('M107 H headless flags and v2 egress', () => {
   it('routes actual runExec resource changes to v2 output and stderr, forces relocation off, and cleans up', async () => {
     const options = parseCommandLine(['exec', '--output', 'jsonl', 'fake task'])
     if (options.command !== 'exec') throw new Error('bad options')
-    const backend = new FakeAgentHost()
-    const start = backend.startSession.getMockImplementation()
-    if (start === undefined) throw new Error('missing fake start')
     const fixture = await runtimeResources({ relocate: 'off' })
     hosts.push(fixture.host)
     let lateNotice: Parameters<RuntimeResources['subscribeEvents']>[0] | undefined
@@ -210,42 +204,23 @@ describe('M107 H headless flags and v2 egress', () => {
       }
     })
     const factory = vi.fn(() => fixture.host)
-    backend.startSession.mockImplementation(async (options) => {
-      const session = await start(options)
-      const fake = backend.sessions.at(-1)
-      if (fake === undefined) throw new Error('missing fake session')
-      fake.sendTurn.mockImplementation(async () => {
-        const admission = await fixture.host.admit(
-          { kind: 'check', class: 'background', priority: 0 },
-          { sessionId: session.sessionId },
-        )
-        const permit = await admission.ready
-        fixture.reading.memoryAvailableBytes = 1
-        lateStatus = await fixture.host.status()
-        permit.release()
-        fake.emit({ type: 'turnCompleted', turnId: 'fake-turn', terminal: 'completed' })
-        return { turnId: 'fake-turn', disposition: 'started' }
-      })
-      return session
+    const backend = turnHost(async (fake, sessionId) => {
+      const admission = await fixture.host.admit(
+        { kind: 'check', class: 'background', priority: 0 },
+        { sessionId },
+      )
+      const permit = await admission.ready
+      fixture.reading.memoryAvailableBytes = 1
+      lateStatus = await fixture.host.status()
+      permit.release()
+      fake.emit({ type: 'turnCompleted', turnId: 'fake-turn', terminal: 'completed' })
+      return { turnId: 'fake-turn', disposition: 'started' }
     })
-    const realRuntime = runtimeBackends.createRuntimeBackend
-    vi.spyOn(runtimeBackends, 'createRuntimeBackend').mockImplementation((options) => ({
-      ...realRuntime(options),
-      backend: {
-        kind: 'museCode',
-        readiness: () => Promise.resolve({ state: 'ready' }),
-        hostFor: () => Promise.resolve(backend),
-      },
-      close() {
-        if (lateStatus !== undefined)
-          lateNotice?.(
-            { type: 'override', atMs: 0, untilMs: 1 },
-            lateStatus,
-            'late-resource-canary',
-          )
-        return Promise.resolve()
-      },
-    }))
+    useRuntimeHost(backend, () => {
+      if (lateStatus !== undefined)
+        lateNotice?.({ type: 'override', atMs: 0, untilMs: 1 }, lateStatus, 'late-resource-canary')
+      return Promise.resolve()
+    })
     const out = outputWriter()
     const err = outputWriter()
     const lifecycle = createLifecycle({
@@ -261,28 +236,17 @@ describe('M107 H headless flags and v2 egress', () => {
     })
     const dispose = vi.spyOn(fixture.host, 'dispose')
     try {
-      const code = await runExec(lifecycle, {
-        options: options.options,
-        version: 'test',
-        distDir: '/unused',
-        platform: process.platform,
-        env: {},
-        homeDir: '/unused',
-        processCwd: process.cwd(),
-        stdin: new PassThrough(),
-        stdout: out,
-        stderr: err,
-        storeSecrets: memorySecrets(),
-        runGit: () => Promise.resolve(''),
-        fetch: vi.fn(() => Promise.reject(new Error('network forbidden'))),
-        sleep: () => Promise.resolve(),
-        now: () => fixture.clock.now(),
-        readFile: () => Promise.reject(new Error('unused')),
-        randomHex: () => 'fixed',
-        log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-        createResources: factory,
-        resourceOverrides: { relocate: 'paired' },
-      })
+      const code = await runExec(
+        lifecycle,
+        fakeExecDeps({
+          options: options.options,
+          stdout: out,
+          stderr: err,
+          now: () => fixture.clock.now(),
+          createResources: factory,
+          resourceOverrides: { relocate: 'paired' },
+        }),
+      )
       expect(code).toBe(0)
       expect(factory).toHaveBeenCalledWith({ relocate: 'off' })
       const events = out.chunks.map((chunk) => execEventV2Schema.parse(JSON.parse(chunk)))

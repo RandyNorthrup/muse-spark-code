@@ -97,6 +97,14 @@ const settle = async () => {
       setImmediate(resolve)
     })
 }
+/** An attested job's final accounting (SPAWN017C), for H–C1's recording gate. */
+function attestedSettlement(pid: number) {
+  return {
+    root: { pid, startTime: '1' },
+    scope: 'attested-fixture',
+    usage: { cpuSeconds: 2, residentBytes: 4096 },
+  }
+}
 function created() {
   return {
     finish: vi.fn(() => Promise.resolve()),
@@ -217,6 +225,65 @@ describe('C1 process admission and registration', () => {
     expect(first.dropped).toBe(88)
     expect(first.rows[0]?.ticket.root.pid).toBe(700 + 88)
     expect(h.host.settled()).toEqual({ rows: [], dropped: 0 })
+  })
+  it('H–C1 keeps attested rows only while the runtime records history', async () => {
+    let isRecording = false
+    const h = setup({ isSettledRead: () => isRecording })
+    const lease = await h.host.admit('toolShell')
+    lease.settle?.(attestedSettlement(701))
+    isRecording = true
+    lease.settle?.(attestedSettlement(702))
+    expect(h.host.workRows()).toEqual([
+      {
+        ticket: expect.objectContaining({ root: { pid: 702, startTime: '1' }, kind: 'toolShell' }),
+        usage: { cpuSeconds: 2, residentBytes: 4096 },
+      },
+    ])
+    expect(h.host.workRows()).toEqual([])
+    h.host.dispose()
+  })
+  it('H–C1 stops owned work once though the runtime host and the admission port both close it', async () => {
+    const h = setup({ isGovernorShared: true })
+    const lease = await h.host.admit('toolShell')
+    const stop = vi.fn(() => Promise.resolve())
+    lease.register({ pid: 700, group: true, stop })
+    h.host.dispose()
+    h.host.dispose()
+    expect(stop).toHaveBeenCalledTimes(1)
+  })
+  it('H–C1 never drives a shared governor and reports each registered work change', async () => {
+    const workChanged = vi.fn()
+    const h = setup({ isGovernorShared: true, onWorkChanged: workChanged })
+    const update = vi.spyOn(h.governor, 'updateSettings')
+    const start = vi.spyOn(h.governor, 'start')
+    const dispose = vi.spyOn(h.governor, 'dispose')
+    const lease = await h.host.admit('check', undefined, 'background')
+    expect(h.host.backgroundCount('check')).toBe(1)
+    lease.register({ pid: 700, group: true })
+    // An unproved tree is busy, never idle.
+    expect(h.host.backgroundCount('check')).toBeNull()
+    await h.host.refreshTrees()
+    expect(h.host.backgroundCount('check')).toBe(1)
+    expect(workChanged).toHaveBeenCalled()
+    // The registered tree's reading is a harness-work row, then its final one once.
+    expect(h.host.workRows()).toEqual([
+      {
+        ticket: expect.objectContaining({ kind: 'check', class: 'background' }),
+        usage: { cpuSeconds: 1, residentBytes: 100 },
+      },
+    ])
+    const beforeRetirement = workChanged.mock.calls.length
+    lease.complete(true)
+    expect(workChanged.mock.calls.length).toBeGreaterThan(beforeRetirement)
+    expect(h.host.backgroundCount('check')).toBe(0)
+    expect(h.host.workRows()).toEqual([
+      expect.objectContaining({ usage: { cpuSeconds: 1, residentBytes: 100 } }),
+    ])
+    h.host.dispose()
+    h.host.dispose()
+    expect(update).not.toHaveBeenCalled()
+    expect(start).not.toHaveBeenCalled()
+    expect(dispose).not.toHaveBeenCalled()
   })
   it('keeps an SDK root exit unknown while exact identity registration is still pending', async () => {
     const h = setup()
