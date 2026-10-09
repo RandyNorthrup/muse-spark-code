@@ -177,10 +177,11 @@ scripts/check-l10n.mjs` (0 problems), `npm run check:reference`
    spans, and package only parsed spans. Regress CR-only, Setext, fenced
    and indented headings. The six new parser cases failed before the fix;
    all 36 content, 13 HTML and 10 panel tests now pass.
-3. Gates complete: all eight drills fired and restored byte-exact; focused
-   tests and requested static/build checks pass. Commit and post-hook diff
-   verification are in progress. Full quality and universal release
-   qualification remain lead-owned, per the rig brief.
+3. Complete: all eight drills fired and restored byte-exact; focused tests
+   and requested static/build checks pass. Code committed with installed
+   hooks; staged and committed patches compared byte-exact and re-read.
+   Full quality and universal release qualification remain lead-owned,
+   per the rig brief.
 
 Round 4 supersedes round 3's provisional-admission and heading-boundary
 claims above; the earlier sections record historical work and results.
@@ -285,4 +286,10 @@ Next: lead reviews this round, integrates it, and runs full quality and
 universal VSIX release qualification. No code blocker found in the focused
 checks. Those broader release gates were not run: the rig brief prohibits
 lane-wide quality; the universal package remains lead-owned. Installed
-hook and committed-diff verification are pending the local commit.
+hooks and committed-diff verification passed for code commit
+`4b60b7ae2fbd80c5d68693ba1078e394350e0530`: unchanged
+`.husky/_` ran ESLint fix, Prettier and staged gitleaks (no leaks).
+The saved staged patch and committed patch compared byte-for-byte equal;
+both source SHA-256 values above remained unchanged. The staged and
+committed diffs were re-read, and the worktree was clean afterward. This
+final record is committed separately with the same installed hooks.
