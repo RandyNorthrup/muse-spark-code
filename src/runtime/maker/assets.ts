@@ -5,6 +5,7 @@ import { uiLocale } from '../../shared/l10n/text'
 
 // The installed shared panel supplies every view; this script is only its host bridge.
 // Both directions parse with the deferred maker schemas; /events opens only once they load.
+// A reloaded document resumes its cookie session; only a first load spends the one-shot launch code.
 const BRIDGE = `let state;
 let connect;
 const connected=new Promise(resolve=>{connect=resolve;});
@@ -34,11 +35,14 @@ window.acquireVsCodeApi = () => ({
 const ready=import('/assets/main.js');
 const schemas=ready.then(main=>main.makerBoundarySchemas());
 const {companionBootstrapSchema,companionLaunchSchema}=await ready;
+let response=await fetch('/session',{method:'POST'});
+if(!response.ok) {
 const delivery=await fetch('/launch-code',{method:'POST'});
 if(!delivery.ok) throw new Error('maker-launch-refused');
 const launch=companionLaunchSchema.parse(await delivery.json());
-const response=await fetch('/launch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(launch)});
+response=await fetch('/launch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(launch)});
 if(!response.ok) throw new Error('maker-launch-refused');
+}
 const bootstrap=companionBootstrapSchema.parse(await response.json());
 window.museSparkThonnyProvider=bootstrap.provider;
 connect();

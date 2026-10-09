@@ -209,120 +209,133 @@ describe('runtime maker command execution without a credential store or device',
     expect(assets.get('/bridge.js')?.body).toContain("fetch('/launch-code'")
     expect(assets.get('/bridge.js')?.body).not.toContain('location.hash')
   })
-  it('delivers /events approvals and notices after the HTTP makerReady, parsed by the deferred schemas', async () => {
-    const fixture = await commands(false)
-    const assets = await companionAssets(fixture.distDirectory)
-    const bridge = String(assets.get('/bridge.js')?.body)
-    // The startup bundle is the only module the bridge imports; everything else is a fake transport.
-    const entry = "import('/assets/main.js')"
-    expect(bridge.split(entry)).toHaveLength(2)
-    const v = 1
-    const state = {
-      v,
-      type: 'makerState',
-      isTrusted: false,
-      hardwareEnabled: false,
-      isInteractive: true,
-      machines: [],
-      ports: [],
-    }
-    const approval = {
-      v,
-      type: 'makerApproval',
-      request: {
-        kind: 'command',
-        id: randomUUID(),
-        digest: 'a'.repeat(64),
-        target: { kind: 'serial', port: '/dev/ttyACM0' },
-        expiresAt: Date.now() + 1000,
-        action: 'program',
-        payload: 'firmware bytes',
-      },
-    }
-    const closed = { v, type: 'makerApprovalClosed', id: approval.request.id }
-    const notice = { v, type: 'makerNotice', notice: 'physicalStopRequired' }
-    const fetch = vi.fn((url: string) =>
-      Promise.resolve(
-        Response.json(
-          { '/launch-code': { launch: 'b'.repeat(64) }, '/launch': {}, '/message': state }[url],
+  it.each([false, true])(
+    'delivers /events approvals and notices after the HTTP makerReady, parsed by the deferred schemas (reloaded: %s)',
+    async (isReload) => {
+      const fixture = await commands(false)
+      const assets = await companionAssets(fixture.distDirectory)
+      const bridge = String(assets.get('/bridge.js')?.body)
+      // The startup bundle is the only module the bridge imports; everything else is a fake transport.
+      const entry = "import('/assets/main.js')"
+      expect(bridge.split(entry)).toHaveLength(2)
+      const v = 1
+      const state = {
+        v,
+        type: 'makerState',
+        isTrusted: false,
+        hardwareEnabled: false,
+        isInteractive: true,
+        machines: [],
+        ports: [],
+      }
+      const approval = {
+        v,
+        type: 'makerApproval',
+        request: {
+          kind: 'command',
+          id: randomUUID(),
+          digest: 'a'.repeat(64),
+          target: { kind: 'serial', port: '/dev/ttyACM0' },
+          expiresAt: Date.now() + 1000,
+          action: 'program',
+          payload: 'firmware bytes',
+        },
+      }
+      const closed = { v, type: 'makerApprovalClosed', id: approval.request.id }
+      const notice = { v, type: 'makerNotice', notice: 'physicalStopRequired' }
+      // A reload resumes the cookie session; its spent launch code is refused.
+      const fetch = vi.fn((url: string) =>
+        Promise.resolve(
+          url === (isReload ? '/launch-code' : '/session')
+            ? new Response(null, { status: 401 })
+            : Response.json(
+                {
+                  '/session': {},
+                  '/launch-code': { launch: 'b'.repeat(64) },
+                  '/launch': {},
+                  '/message': state,
+                }[url],
+              ),
         ),
-      ),
-    )
-    const surface = new EventTarget() as EventTarget & {
-      acquireVsCodeApi: () => { postMessage: (message: unknown) => void }
-    }
-    const delivered: unknown[] = []
-    const errors: unknown[] = []
-    surface.addEventListener('message', (event) => {
-      delivered.push((event as MessageEvent).data)
-    })
-    surface.addEventListener('error', (event) => {
-      errors.push((event as Event & { error: unknown }).error)
-    })
-    class ErrorEvent extends Event {
-      constructor(
-        type: string,
-        readonly init: { error: unknown },
-      ) {
-        super(type)
+      )
+      const surface = new EventTarget() as EventTarget & {
+        acquireVsCodeApi: () => { postMessage: (message: unknown) => void }
       }
-      get error() {
-        return this.init.error
+      const delivered: unknown[] = []
+      const errors: unknown[] = []
+      surface.addEventListener('message', (event) => {
+        delivered.push((event as MessageEvent).data)
+      })
+      surface.addEventListener('error', (event) => {
+        errors.push((event as Event & { error: unknown }).error)
+      })
+      class ErrorEvent extends Event {
+        constructor(
+          type: string,
+          readonly init: { error: unknown },
+        ) {
+          super(type)
+        }
+        get error() {
+          return this.init.error
+        }
       }
-    }
-    const streams: { onmessage?: (event: { data: string }) => void }[] = []
-    class EventSource {
-      onmessage?: (event: { data: string }) => void
-      constructor(url: string) {
-        expect(url).toBe('/events')
-        streams.push(this)
+      const streams: { onmessage?: (event: { data: string }) => void }[] = []
+      class EventSource {
+        onmessage?: (event: { data: string }) => void
+        constructor(url: string) {
+          expect(url).toBe('/events')
+          streams.push(this)
+        }
       }
-    }
-    const schemasLoaded = Promise.withResolvers<undefined>()
-    const main = {
-      ...(await import('../../src/shared/companionProtocol')),
-      async makerBoundarySchemas() {
-        await schemasLoaded.promise
-        return await import('../../src/webview/maker/boundaries')
-      },
-    }
-    // The bridge is a module body with top-level await: run it as an async function body.
-    const AsyncFunction = main.makerBoundarySchemas.constructor as new (
-      ...parameters: string[]
-    ) => (...values: unknown[]) => Promise<void>
-    const running = new AsyncFunction(
-      'window',
-      'fetch',
-      'EventSource',
-      'MessageEvent',
-      'ErrorEvent',
-      'importMain',
-      bridge.replace(entry, 'importMain()'),
-    )(surface, fetch, EventSource, MessageEvent, ErrorEvent, () => Promise.resolve(main))
-    surface.acquireVsCodeApi().postMessage({ v, type: 'makerReady' })
-    // /events stays closed until the maker schemas have loaded: no frame arrives unparsed.
-    await vi.waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/launch', expect.anything())
-    })
-    expect(streams).toEqual([])
-    schemasLoaded.resolve(undefined)
-    await running
-    await vi.waitFor(() => {
-      expect(delivered).toEqual([state])
-    })
-    const [stream] = streams
-    expect(streams).toHaveLength(1)
-    for (const frame of [approval, notice, closed])
-      stream?.onmessage?.({ data: JSON.stringify(frame) })
-    expect(delivered).toEqual([state, approval, notice, closed])
-    // A frame the schema refuses throws instead of reaching the shared UI.
-    expect(() =>
-      stream?.onmessage?.({ data: JSON.stringify({ ...notice, notice: 'invented' }) }),
-    ).toThrow()
-    expect(delivered).toHaveLength(4)
-    expect(errors).toEqual([])
-    expect(fetch.mock.calls.map(([url]) => url)).toEqual(['/launch-code', '/launch', '/message'])
-  })
+      const schemasLoaded = Promise.withResolvers<undefined>()
+      const main = {
+        ...(await import('../../src/shared/companionProtocol')),
+        async makerBoundarySchemas() {
+          await schemasLoaded.promise
+          return await import('../../src/webview/maker/boundaries')
+        },
+      }
+      // The bridge is a module body with top-level await: run it as an async function body.
+      const AsyncFunction = main.makerBoundarySchemas.constructor as new (
+        ...parameters: string[]
+      ) => (...values: unknown[]) => Promise<void>
+      const running = new AsyncFunction(
+        'window',
+        'fetch',
+        'EventSource',
+        'MessageEvent',
+        'ErrorEvent',
+        'importMain',
+        bridge.replace(entry, 'importMain()'),
+      )(surface, fetch, EventSource, MessageEvent, ErrorEvent, () => Promise.resolve(main))
+      surface.acquireVsCodeApi().postMessage({ v, type: 'makerReady' })
+      // /events stays closed until the maker schemas have loaded: no frame arrives unparsed.
+      await vi.waitFor(() => {
+        expect(fetch).toHaveBeenCalledWith(isReload ? '/session' : '/launch', expect.anything())
+      })
+      expect(streams).toEqual([])
+      schemasLoaded.resolve(undefined)
+      await running
+      await vi.waitFor(() => {
+        expect(delivered).toEqual([state])
+      })
+      const [stream] = streams
+      expect(streams).toHaveLength(1)
+      for (const frame of [approval, notice, closed])
+        stream?.onmessage?.({ data: JSON.stringify(frame) })
+      expect(delivered).toEqual([state, approval, notice, closed])
+      // A frame the schema refuses throws instead of reaching the shared UI.
+      expect(() =>
+        stream?.onmessage?.({ data: JSON.stringify({ ...notice, notice: 'invented' }) }),
+      ).toThrow()
+      expect(delivered).toHaveLength(4)
+      expect(errors).toEqual([])
+      expect(fetch.mock.calls.map(([url]) => url)).toEqual(
+        isReload ? ['/session', '/message'] : ['/session', '/launch-code', '/launch', '/message'],
+      )
+    },
+  )
   it.each([
     ['hardware', 'enable', '--reason', 'bench', '--trust-workspace'],
     ['machines', 'add', '--registration', JSON.stringify(registration), '--trust-workspace'],

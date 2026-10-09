@@ -72,6 +72,16 @@ export async function startCompanion(deps: CompanionDeps) {
   })
   server.requestTimeout = RUNTIME_MAKER_TIMEOUT_MS
   server.headersTimeout = RUNTIME_MAKER_TIMEOUT_MS
+  // Bootstrap is a session, never physical approval authority.
+  function bootstrap(response: ServerResponse): void {
+    response.writeHead(HTTP_STATUS.ok, { 'Content-Type': 'application/json' }).end(
+      JSON.stringify(
+        companionBootstrapSchema.parse({
+          ...(deps.provider !== undefined && { provider: deps.provider }),
+        }),
+      ),
+    )
+  }
   function beginRequest(response: ServerResponse): AbortController {
     const controller = new AbortController()
     active.add(controller)
@@ -134,14 +144,7 @@ export async function startCompanion(deps: CompanionDeps) {
         'Set-Cookie',
         `${cookieName()}=${cookieValue()}; HttpOnly; SameSite=Strict; Path=/`,
       )
-      // Bootstrap is a session, never physical approval authority.
-      response.writeHead(HTTP_STATUS.ok, { 'Content-Type': 'application/json' }).end(
-        JSON.stringify(
-          companionBootstrapSchema.parse({
-            ...(deps.provider !== undefined && { provider: deps.provider }),
-          }),
-        ),
-      )
+      bootstrap(response)
       return
     }
     if (request.url === '/mcp') {
@@ -185,6 +188,12 @@ export async function startCompanion(deps: CompanionDeps) {
         ?.slice(cookieName().length + 1) ?? ''
     if (!isSame(cookie, cookieValue())) {
       response.writeHead(HTTP_STATUS.unauthorized).end()
+      return
+    }
+    // A reloaded document holds the session cookie; the launch code is already spent.
+    if (request.url === '/session' && request.method === 'POST') {
+      if (incomingOrigin === origin) bootstrap(response)
+      else response.writeHead(HTTP_STATUS.forbidden).end()
       return
     }
     if (request.url === '/events' && request.method === 'GET') {

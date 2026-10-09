@@ -124,6 +124,19 @@ describe('companion boundary', () => {
     expect(companionLaunchSchema.parse(JSON.parse(delivery.text)).launch).toMatch(/^[a-f0-9]{64}$/)
     expect(await status(server.url, '/launch-code', { Origin: server.url }, '')).toBe(401)
   })
+  it('a reloaded document resumes only its own cookie session after the launch code is spent', async () => {
+    const server = await companion()
+    expect(await status(server.url, '/session', { Origin: server.url }, '')).toBe(401)
+    const cookie = await session(server)
+    expect(await status(server.url, '/launch-code', { Origin: server.url }, '')).toBe(401)
+    expect(await status(server.url, '/session', { Cookie: cookie }, '')).toBe(403)
+    const resumed = await http(server.url, '/session', { Origin: server.url, Cookie: cookie }, '')
+    expect(resumed.status).toBe(200)
+    expect(resumed.headers['set-cookie']).toBeUndefined()
+    expect(JSON.parse(resumed.text)).toEqual({
+      provider: { host: '127.0.0.1', port: 12_345, token: 'panel-provider-only' },
+    })
+  })
   it.each(['0.0.0.0', '192.168.1.2', 'localhost'])('refuses bind %s', async (bind) => {
     await expect(companion(bind)).rejects.toThrow('maker-loopback-required')
   })
