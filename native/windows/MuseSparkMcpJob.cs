@@ -57,7 +57,7 @@ public static class MuseSparkMcpJob {
   [DllImport("kernel32.dll", SetLastError = true)]
   static extern bool SetInformationJobObject(IntPtr job, int infoClass, ref EXTENDED_LIMITS info, int length);
   [DllImport("kernel32.dll", SetLastError = true)]
-  static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+  static extern bool IsProcessInJob(IntPtr process, IntPtr job, out bool member);
   [DllImport("kernel32.dll", SetLastError = true)]
   static extern uint ResumeThread(IntPtr thread);
   [DllImport("kernel32.dll", SetLastError = true)]
@@ -88,6 +88,8 @@ public static class MuseSparkMcpJob {
   const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
   const uint STARTF_USESTDHANDLES = 0x00000100;
   const int PROC_THREAD_ATTRIBUTE_HANDLE_LIST = 0x00020002;
+  // Windows 10+: the child is created inside these jobs (M105 VB, RVMEDIAVB 3).
+  const int PROC_THREAD_ATTRIBUTE_JOB_LIST = 0x0002000D;
   const uint DUPLICATE_SAME_ACCESS = 0x2;
   const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
   const uint JOB_OBJECT_LIMIT_JOB_MEMORY = 0x200;
@@ -204,9 +206,20 @@ public static class MuseSparkMcpJob {
   public static int Run(string executable, string[] arguments, string cwd, uint parentPid,
     string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
     ulong jobMemoryLimit, bool debugPipes, Action<uint, IntPtr> beforeResume) {
+    return Run(executable, arguments, cwd, parentPid, childEnvironment, verbatimArguments,
+      controlPipe, controlNonce, jobMemoryLimit, debugPipes, beforeResume, null);
+  }
+
+  // `afterCreate` runs the instant CreateProcessW returns, the child still
+  // suspended: only the native regression's harness passes it, to end this
+  // launcher there and prove that no child outlives it.
+  public static int Run(string executable, string[] arguments, string cwd, uint parentPid,
+    string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
+    ulong jobMemoryLimit, bool debugPipes, Action<uint, IntPtr> beforeResume,
+    Action<uint> afterCreate) {
     IntPtr job = IntPtr.Zero, input = IntPtr.Zero, output = IntPtr.Zero, error = IntPtr.Zero;
     IntPtr parent = IntPtr.Zero;
-    IntPtr attributeList = IntPtr.Zero, handleList = IntPtr.Zero;
+    IntPtr attributeList = IntPtr.Zero, handleList = IntPtr.Zero, jobList = IntPtr.Zero;
     IntPtr environmentBlock = IntPtr.Zero;
     IntPtr descriptors = IntPtr.Zero;
     var extraHandles = new List<IntPtr>();
@@ -234,12 +247,21 @@ public static class MuseSparkMcpJob {
       input = InheritStandard(-10);
       output = InheritStandard(-11);
       error = InheritStandard(-12);
+      // Two attributes: the inherited-handle list and the job list.
       IntPtr attributeSize = IntPtr.Zero;
-      InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref attributeSize);
+      InitializeProcThreadAttributeList(IntPtr.Zero, 2, 0, ref attributeSize);
       attributeList = Marshal.AllocHGlobal(attributeSize);
-      if (!InitializeProcThreadAttributeList(attributeList, 1, 0, ref attributeSize))
+      if (!InitializeProcThreadAttributeList(attributeList, 2, 0, ref attributeSize))
         throw new Win32Exception(Marshal.GetLastWin32Error());
       attributesReady = true;
+      // Membership is part of creation: there is no instant in which the
+      // suspended child exists outside the job, so a launcher ended at any
+      // point closes the job's last handle and kill-on-close ends the child.
+      jobList = Marshal.AllocHGlobal(IntPtr.Size);
+      Marshal.WriteIntPtr(jobList, job);
+      if (!UpdateProcThreadAttribute(attributeList, 0, new IntPtr(PROC_THREAD_ATTRIBUTE_JOB_LIST),
+        jobList, new IntPtr(IntPtr.Size), IntPtr.Zero, IntPtr.Zero))
+        throw new Win32Exception(Marshal.GetLastWin32Error());
       var inherited = new List<IntPtr> { input, output, error };
       if (debugPipes) {
         STARTUPINFO incoming;
@@ -292,8 +314,12 @@ public static class MuseSparkMcpJob {
         environmentBlock, cwd, ref startup, out process))
         throw new Win32Exception(Marshal.GetLastWin32Error());
       created = true;
-      if (!AssignProcessToJobObject(job, process.hProcess))
+      if (afterCreate != null) afterCreate(process.dwProcessId);
+      // Read back what creation did; a child outside its job never resumes.
+      bool member;
+      if (!IsProcessInJob(process.hProcess, job, out member))
         throw new Win32Exception(Marshal.GetLastWin32Error());
+      if (!member) throw new Exception("the child is not in its job");
       assigned = true;
       if (beforeResume != null) beforeResume(process.dwProcessId, process.hProcess);
       if (WaitForSingleObject(parent, 0) != WAIT_TIMEOUT) throw new Exception("creating Node process exited before resume");
@@ -318,6 +344,7 @@ public static class MuseSparkMcpJob {
       if (attributesReady) DeleteProcThreadAttributeList(attributeList);
       if (attributeList != IntPtr.Zero) Marshal.FreeHGlobal(attributeList);
       if (handleList != IntPtr.Zero) Marshal.FreeHGlobal(handleList);
+      if (jobList != IntPtr.Zero) Marshal.FreeHGlobal(jobList);
       if (environmentBlock != IntPtr.Zero) Marshal.FreeHGlobal(environmentBlock);
       if (job != IntPtr.Zero) CloseHandle(job);
       if (parent != IntPtr.Zero) CloseHandle(parent);
