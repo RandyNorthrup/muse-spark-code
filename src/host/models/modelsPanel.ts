@@ -88,7 +88,7 @@ function newDraft(preset?: PresetInfo): PanelDraft {
     connected: false,
     costAccepted: false,
     models: [],
-    privacy: 'no-training',
+    privacy: 'zdr',
     providerOrder: [],
     allowFallbacks: false,
     privateConfirmed: false,

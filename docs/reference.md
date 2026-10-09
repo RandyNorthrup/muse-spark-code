@@ -30,6 +30,8 @@ openRouterServices=absent: OpenRouter account connection and key usage are not a
 
 Prices per million tokens.
 
+provider=openrouter&privacy=zdr: Only providers that retain no data are used.
+
 ```json
 {
   "management": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],

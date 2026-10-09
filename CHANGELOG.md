@@ -20,6 +20,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- OpenRouter's key test checks its key endpoint before saying the key works.
+  The panel and CLI share the same free-check contract, so a successful public
+  model list cannot stand in for a credential check.
+- New OpenRouter setups in Models & Agents default to no data retention,
+  matching the shared setup flow and saved privacy routing.
 - Models & Agents shows captured provider prices and recognizes free cloud
   models. Free and price filters include the right rows, and a refreshed
   cache price counts as a price change.

@@ -170,6 +170,18 @@ Failing first: the key endpoint is absent, and fake key refusal still publishes
 ok (2 tests failed). Final `providerWiring`, `providersX`, `providersXFix`:
 **63 tests pass** at repository deadlines. Scoped ESLint passes.
 
+### F5 — ZDR in the panel wizard
+
+Cause: `newDraft` chose no-training despite the shared wizard and D74's ZDR
+default. Its default now is `zdr`. The production-catalogue test starts a
+fresh wizard, enters a synthetic key through the native password box, tests
+against the captured OpenRouter key/list receipts, ticks a model and saves.
+The draft and the actual providers file both retain `privacy: zdr`; the key
+never crosses postMessage. Failing first: the draft publishes no-training.
+After fix: `providerWiring`, `modelsPanel`, `providersFlow` pass at repository
+deadlines. Help's provider detail names the existing localized no-retention
+policy under an explicit OpenRouter/ZDR condition; generated reference updated.
+
 ### Red drills (byte-exact restoration)
 
 Every drill runs a whole owning test file at repository deadlines, records
@@ -185,3 +197,4 @@ exit 1, restores the original bytes in `finally`, and compares SHA-256.
 | F4      | Skip the shared provider-key check                       | 4 panel/CLI/HF tests fail                                     | `4cdc0eff6a5de9ba9239be94481cb6163e6240be05ae96dcec3c535d45b5fd25` |
 | F4      | Also list after a separate identity origin               | HF key-test count/path test fails                             | `4cdc0eff6a5de9ba9239be94481cb6163e6240be05ae96dcec3c535d45b5fd25` |
 | F4      | Refuse the captured identity path instead of other paths | HF key test fails                                             | `3fd26e9d63f0bf6e1ee6d588213fda8df41df2bc107effd616bfb74c285058a5` |
+| F5      | Restore no-training as the panel default                 | Fresh wizard default test fails                               | `dd2bcf0a0b5d3331ac08d3f92b1c6bbb5f50f3163dac9e18e3a72daeddf3bc3c` |

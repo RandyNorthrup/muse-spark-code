@@ -85,7 +85,7 @@ async function message(panel: FakeWebviewPanel, value: unknown, done: () => void
     done()
   })
 }
-async function fixture(preset: string, capture: string) {
+async function fixture(preset: string, capture: string, isConfigured = true) {
   const root = await mkdtemp(path.join(tmpdir(), 'provwire-'))
   roots.push(root)
   const configFile = path.join(root, 'providers.json')
@@ -103,7 +103,7 @@ async function fixture(preset: string, capture: string) {
     auth: info.auth,
     models: [],
   })
-  await seam.store.add({ ...entry, address: entry.address ?? '' })
+  if (isConfigured) await seam.store.add({ ...entry, address: entry.address ?? '' })
   let body = await capturedBody(preset, capture)
   let keyBody = body
   if (preset === 'openrouter') keyBody = await capturedBody(preset, '02-key-usage.json')
@@ -183,6 +183,40 @@ async function fixture(preset: string, capture: string) {
 }
 
 describe('PROVWIRE production provider wiring', () => {
+  it('F5: a fresh OpenRouter wizard defaults to ZDR and saves that routing choice', async () => {
+    const f = await fixture('openrouter', '01-models-list.json', false)
+    await message(f.panel, { type: 'providers/select', presetId: 'openrouter' }, () => {
+      expect(latestState(f.panel).drafts.wizard?.privacy).toBe('zdr')
+    })
+    window.showInputBox.mockResolvedValue('sk-or-synthetic-wizard-test-key')
+    await message(f.panel, { type: 'providers/enterKey', mode: 'new' }, () => {
+      expect(latestState(f.panel).drafts.wizard?.keyPresent).toBe(true)
+    })
+    await message(f.panel, { type: 'providers/test', acceptCost: false }, () => {
+      expect(latestState(f.panel).scans['openrouter']?.status).toBe('done')
+    })
+    await message(
+      f.panel,
+      {
+        type: 'models/tick',
+        scope: { scope: 'wizard' },
+        ref: 'openrouter/inclusionai/ling-3.1-flash',
+        ticked: true,
+      },
+      () => {
+        expect(latestState(f.panel).drafts.wizard?.models).toEqual(['inclusionai/ling-3.1-flash'])
+      },
+    )
+    await message(f.panel, { type: 'providers/save', useNow: false }, () => {
+      expect(latestState(f.panel).drafts.wizard).toBeUndefined()
+    })
+    const saved = await f.seam.store.list()
+    expect(saved[0]?.routing?.privacy).toBe('zdr')
+    expect(JSON.stringify(f.panel.webview.postMessage.mock.calls)).not.toContain(
+      'sk-or-synthetic-wizard-test-key',
+    )
+    f.controller.dispose()
+  })
   it('F4: CLI probe uses the same key-first contract with captured OpenRouter responses', async () => {
     const f = await fixture('openrouter', '01-models-list.json')
     const resolved = await resolveProvider(
