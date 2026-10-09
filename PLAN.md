@@ -5106,13 +5106,15 @@ choices:
   the line's gap.
   Owner's request 2026-10-04: the bullet is now a small looping
   circle-pattern mark (after Inclushe's circle pattern animation lighten,
-  CodePen OPWreWR, MIT, written fresh with no pointer tracking).
+  CodePen OPWreWR, MIT, written fresh with no pointer tracking). Owner,
+  2026-10-09: the mark drawn at 75 % (12 px box) — 16 px sat a little large
+  beside the text.
   - **Our own trace, Vahid's animation (amended 2026-10-04, owner's
     verdict: the first cut drew a static path with a highlight sliding
     along it; the highlight must CREATE the shape).** The trace is a
     `<canvas>` port of Vahid's HTML5 Canvas Heart Monitor (CodePen MWvmvd,
     MIT; written fresh, credited in the module): a beam moves right in
-    6 ms ticks along our P/QRS/T wave, then wraps and repeats. Each frame
+    7 ms ticks along our P/QRS/T wave, then wraps and repeats. Each frame
     clears the canvas and strokes only the beam's last
     `HEARTBEAT_BEAM_TRAIL_TICKS` (100 ticks, half a sweep) of path, fading
     by age from opaque at the beam to nothing (`trailSegments`). Nothing
@@ -5130,9 +5132,8 @@ choices:
     2026-10-09), driven by one `requestAnimationFrame` loop with
     fixed ticks, paused while the page is hidden. Step and trail tunables
     are `HEARTBEAT_BEAM_*` in `src/shared/constants.ts`.
-  - **Size and place.** 16 × 56 px (`--ms-space-16` high, 3.5× as wide;
-    72 × 20 sat a little large beside the text — owner, 2026-10-09),
-    backed by `devicePixelRatio`. The working line's grid
+  - **Size and place.** 1.5 em high (inside one line of the 13 px text)
+    and 6 em wide, backed by `devicePixelRatio`. The working line's grid
     (`auto auto 1fr`) puts the trace right after the verb box with the
     line's gap, so mark, verb and trace read as one unit. The verb box is
     as wide as the longest verb in the installed language (every verb sits

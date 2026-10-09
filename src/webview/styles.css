@@ -1589,9 +1589,8 @@ body {
    trace's box. The working line's grid puts it right after the verb box. */
 .heartbeat-trace {
   color: var(--ms-progress);
-  /* 56 × 16 px: 72 × 20 sat a little large beside the status text (owner, 2026-10-09). */
-  width: calc(var(--ms-space-16) * 3.5);
-  height: var(--ms-space-16);
+  width: calc(var(--ms-space-24) * 3);
+  height: var(--ms-space-20);
 }
 
 /* M107 U: shared resources chip, popover and Traffic/task row. */
@@ -1687,13 +1686,17 @@ body {
 .status-mark {
   --offset: 30deg;
 
+  /* The whole mark at 75 %: 12 px box, 2.25 px circles and spread; 16 px sat a
+     little large beside the status text (owner, 2026-10-09). */
+  --ms-status-mark-unit: calc(var(--ms-radius-xs) * 0.75);
+
   position: relative;
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: var(--ms-icon-size);
-  height: var(--ms-icon-size);
+  width: calc(var(--ms-icon-size) * 0.75);
+  height: calc(var(--ms-icon-size) * 0.75);
   overflow: visible;
   isolation: isolate;
 }
@@ -1701,8 +1704,8 @@ body {
 .status-mark-circle {
   position: absolute;
   inset: 0;
-  width: var(--ms-radius-xs);
-  height: var(--ms-radius-xs);
+  width: var(--ms-status-mark-unit);
+  height: var(--ms-status-mark-unit);
   margin: auto;
   border-radius: var(--ms-radius-circle);
   background: radial-gradient(
@@ -1713,8 +1716,8 @@ body {
   );
   mix-blend-mode: lighten;
   transform: translate(
-      calc(cos(var(--angle)) * var(--ms-radius-xs)),
-      calc(sin(var(--angle)) * var(--ms-radius-xs) * -1)
+      calc(cos(var(--angle)) * var(--ms-status-mark-unit)),
+      calc(sin(var(--angle)) * var(--ms-status-mark-unit) * -1)
     )
     scale(3) rotate(calc(-1 * var(--angle) + 17deg));
 }
