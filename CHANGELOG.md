@@ -23,20 +23,28 @@ happened, not what was planned; superseded entries are kept.
   (Arduino IDE 2, some forks), the commit form, commit, push and
   commit-message drafts now run through your own `git` on `PATH`, in the
   conversation as before; VS Code and hosts with the Git extension are
-  unchanged. A push always asks first, naming the remote and its URL
-  (credentials masked), the branch, its target and the commit count; with
-  several remotes and no upstream you pick one. Pushes plan with the same
-  refusals as VS Code (never a force-push), run hooks and signers as you
-  configured them, and keep your own credential helpers, SSH agent and
-  token variables (reads stay quiet). A push git itself rejects opens the
-  same command in a terminal; a refusal, Cancel or a lost trust never does.
-  Cancel, switching or closing the conversation stops pending Git. A commit
-  is refused when the staged or working-tree bytes changed after the form
-  opened, and two conversations on one repository commit one at a time.
-  The native service binds to the folder it was given and refuses a link
-  or replacement put in its place; new files for a draft are read only
-  through real folders inside it. Pull requests are not available on this
-  route yet (lane P), nor is a GitHub sign-in (lanes A and L). Other
+  unchanged. A push always asks first, naming the remote and every URL Git
+  will push it to (after any `insteadOf`/`pushInsteadOf` rewrite; user
+  names, passwords and query values masked), the branch, its target and
+  the commit count; with several remotes and no upstream you pick one.
+  Pushes plan with the same refusals as VS Code (never a force-push), run
+  hooks and signers as you configured them, and keep your own credential
+  helpers, SSH agent and GitHub token variables (`GH_TOKEN`,
+  `GITHUB_TOKEN` and their Enterprise forms); no other credential, model or
+  provider key reaches Git, and reads stay quiet. Just before Git starts,
+  after every wait, the push or commit is checked again against what you
+  confirmed (destination, branch commit, staged and working-tree bytes),
+  and anything changed is refused. A push Git itself rejects opens the
+  same command in a terminal, only in the same repository with the plan
+  unchanged; a refusal, Cancel or a lost trust never does. Cancel,
+  switching or closing the conversation stops pending Git. Commits and
+  pushes on one repository take turns across conversations and editor
+  windows. The native service binds to the folder it was given and
+  refuses a link or replacement it finds in its place; new files for a
+  draft are read only through real folders inside it. It does not defend
+  against another program of yours swapping folders while it works
+  (PLAN.md D104's threat boundary). Pull requests are not available on
+  this route yet (lane P), nor is a GitHub sign-in (lanes A and L). Other
   editors (JetBrains, Visual Studio, Eclipse, Zed and the rest) get this
   adapter when the shared panel route lands (M104, lane U); nothing there
   is wired yet.

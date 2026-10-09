@@ -19035,12 +19035,45 @@ owns it.
      environment.** Every other Git call keeps `quietGitEnvironment` (no
      credentials, no prompt). These two are the harness's own processes, not
      model tools, so they keep the user's credential helpers, SSH agent and
-     token variables, as a terminal would, with `GIT_TERMINAL_PROMPT=0`.
-     They never gain anything of ours: no `http.extraHeader`, no credential
-     helper of ours, no token variable. Model-run processes keep D89.5's
-     fence. A push that needs typed credentials fails with the remote named,
-     and offers **Open in terminal**: the same command in the editor's
-     terminal (MHP `terminal/create`, F23), for the user to finish.
+     Git token routes, as a terminal would, with `GIT_TERMINAL_PROMPT=0`.
+     The environment is an allow-list per operation (RVM123G2, 2026-10-09):
+     of credential variables, only `GIT_PUSH_CREDENTIAL_VARIABLES`
+     (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`,
+     `GITHUB_ENTERPRISE_TOKEN`) as captured at start; never a model or
+     provider key, whatever its name. They never gain anything of ours: no
+     `http.extraHeader`, no credential helper of ours, no token variable.
+     Model-run processes keep D89.5's fence. A push that needs typed
+     credentials fails with the remote named, and offers **Open in
+     terminal**: the same command in the editor's terminal (MHP
+     `terminal/create`, F23), for the user to finish, only in the same
+     repository with the confirmed plan revalidated, and in the same
+     allow-listed environment where the host honours it (VS Code's
+     `strictEnv`).
+   - **Threat boundary (the lead, 2026-10-09, RVM123G2).** In scope and
+     enforced: untrusted repository content (configuration, hooks,
+     attributes, filters, remotes, credential helpers, submodules, links
+     inside the tree); stale state (a plan, stamp or confirmation that no
+     longer matches what will run); cancellation and session or owner
+     changes; secrets (no credential, model key or provider key reaches
+     any Git child, terminal, log, error or the model unless that
+     operation needs that credential); confinement of every read made on
+     the model's behalf to the bound repository. Out of scope, a residual,
+     never claimed: a same-user process renaming, swapping or replacing
+     directories inside the user's own workspace between a check and the
+     operating system acting on a path. It already holds the user's
+     authority, and path-based APIs cannot close that race. Guards still
+     fail closed on every change they detect.
+   - **One bound pipeline per mutation:** plan → the user's confirmation →
+     admission (a per-repository transaction lock file in git's common
+     directory, shared by every editor and runtime process, then the
+     host's admission) → final revalidation (the state git reads sealed,
+     then the whole plan compared with what was confirmed: remote, every
+     push URL as git resolves it, refspec, target, the branch's commit,
+     the configuration files; or the commit stamp) → spawn (the runner's
+     last synchronous check after its own admission and the Windows job's
+     preparation, and again at the Windows helper's payload GO: arguments,
+     signal, owner, trust, the root a real directory with its bound
+     identity, the lock still held, the seal intact).
 
 2. **GitHub stays on M71's REST client; the token comes from layered
    sources.** `src/core/git/github.ts` (`api.github.com`, API version
@@ -20253,13 +20286,23 @@ Lane G landed 2026-10-09 without the planned `src/core/git/process.ts` move: the
 Lane G repair (RVM123G, 6 P1 + 10 P2, 2026-10-09, branch `m123/g2`, Windows host). All sixteen findings fixed in one pass; each has a test that fails on `b9baa882d` and a red drill (`docs/certification/m123.md`).
 
 - **`RuntimeGitDeps` grew** (lane 0's file, additive): `confirmPush` (M71's push modal: remote, masked URL, branch, target, commits), `pickRemote`, `userEnvironment` (D104's push/fetch exception) and the optional `admitWorkspaceCommand` (M72's admission). `ConversationGitPort` is unchanged.
-- **The service binds the root at construction** (canonical path plus volume and file id) and refuses a link, junction or replacement folder at that path, at every operation and again at the spawn. The runner's `beforeRun` (after admission and the Windows job's preparation) rechecks the arguments, the operation's signal and owner, trust and the root's identity. Every method takes the caller's operation (signal and owner check); Cancel, a session change and disposal abort it. Mutations are serialized per physical repository across conversations in a process, each revalidating inside the lock (the commit stamp; the push re-planned and compared with what was confirmed). Two runtime processes on one repository still rely on git's own index lock between commands: a residual until the runtime has one owner per repository (M104's panel route).
+- **The service binds the root at construction** (canonical path plus volume and file id) and refuses a link, junction or replacement folder at that path, at every operation and again at the spawn. The runner's `beforeRun` (after admission and the Windows job's preparation) rechecks the arguments, the operation's signal and owner, trust and the root's identity. Every method takes the caller's operation (signal and owner check); Cancel, a session change and disposal abort it. Mutations are serialized per physical repository across conversations in a process, each revalidating inside the lock (the commit stamp; the push re-planned and compared with what was confirmed). Two runtime processes on one repository still rely on git's own index lock between commands: a residual until the runtime has one owner per repository (M104's panel route). (Superseded by the third round below: a lock file shared across processes.)
 - **Commit stamps** carry the status records (modes and index object names) and a SHA-256 of the unstaged and new files' bytes, read confined by identity (`confinedFiles.ts`: every ancestor a real folder before and after the open, the handle the file just seen). Draft prompts read new files the same way.
 - **Redact before truncate:** the adapter redacts git's whole text before its cut; `createGitProcess` drops a partial last word of stderr once its cap cut it.
 - **The terminal fallback** opens only for git's own failure of the confirmed push while the conversation still owns a trusted operation, with the resolved `gitPath` in the bound root.
-- **Credentials:** the governed Windows job keeps `isUserEnvironment`; the standalone runtime keeps the Git routes it takes out at start (no `*_API_KEY`, no provider key) for the push and the fetch only (`src/runtime/gitUserEnvironment.ts`). `createGitProcess` takes an absolute `executable` (the resolved `gitPath`).
+- **Credentials:** the governed Windows job keeps `isUserEnvironment`; the standalone runtime keeps the Git routes it takes out at start (no `*_API_KEY`, no provider key) for the push and the fetch only (`src/runtime/gitUserEnvironment.ts`). `createGitProcess` takes an absolute `executable` (the resolved `gitPath`). (Superseded by the third round below: a named allow-list.)
 - **Status:** porcelain-v2 `u` records are parsed past their ten fields. **Worktrees:** `pr-worktrees/` must be a real folder directly under the resolved data folder, checked before and at the spawn.
 - **Wired:** the in-process route for a VS Code-family host without `vscode.git` (`conversationGitEntry.ts` picks `createRuntimeGit` when the extension is absent; `gitWindow.ts` supplies VS Code's push modal, remote pick, terminal, trust, hold and admission). Pull requests on that route wait for lane P. **Not wired:** every other editor (the runtime panel route is M104/lane U); the standalone runtime's `runtimeGitUserEnvironment` is that route's `userEnvironment`.
+
+Lane G third round (RVM123G2, 6 P1 + 6 P2, 2026-10-09, branch `m123/g3`, Windows host): a redesign, not a patch, under D104's threat boundary (the lead's decision, recorded in D104). Record: `docs/certification/m123.md`, with the closure of all 28 findings of both reviews.
+
+- **One bound pipeline** for every mutation: plan → confirmation → admission → final revalidation → spawn (D104). `src/runtime/panel/git/transaction.ts` holds the per-repository lock file (`GIT_TRANSACTION_LOCK_FILE` in git's common directory: exclusive create, a holder record, a refresh every `GIT_TRANSACTION_LOCK_REFRESH_MS`, takeover only of a holder whose process ended on this machine or that went silent for `GIT_TRANSACTION_LOCK_STALE_MS`, a fresh lock moved by mistake put back) and the seal (HEAD, the index, packed and loose refs, the reftable list, every configuration file git named, sampled before the revalidation, compared at the spawn). The in-process queue is gone (R7, R8).
+- **Final revalidation after every wait:** inside the lock and the host's admission, the push plan is read again and compared whole (remote, every push URL from `git remote get-url --push --all` so a `pushInsteadOf` rewrite is shown and bound, refspec, target, upstream use, commit count, the branch's commit, the configuration files) and the commit stamp likewise; the seal then carries that to the spawn, after the runner's own admission and the Windows job's preparation (R2, R9). After `add -A`, what got staged must be what the form showed, or nothing is committed (the staging stays).
+- **The spawn's last check** also runs at the Windows helper's payload authorization: `McpJobLaunch.authorize` is called on READY, and a refusal withholds GO, so the payload never starts (R1). It checks the root is a real directory (`lstat`, no link even to the same folder) with its bound identity (R10 detection), the lock still held and the seal intact.
+- **Credentials:** an allow-list per operation; push and fetch get only `GIT_PUSH_CREDENTIAL_VARIABLES` on both launch routes, from the runtime's start capture, the service, the runner and the VS Code-family route, whose terminal opens with `strictEnv` in the same environment (R3). The terminal fallback opens only after `confirmedPushRoot` revalidated the bound repository and the plan (R5).
+- **Confirmation text:** `maskRemoteUrl` masks every query value and fragment and judges the percent-decoded spelling too (R11).
+- **Construction:** the root's identity is sampled synchronously when the service is made (R6 detection). **Tests** run git as their own identity with an isolated home and global configuration (R12).
+- **Residuals under the boundary:** R4 (a same-user ancestor swap and restore around a path-based open), the windows R6 and R10 leave (host approval to construction; a swap of the root's own ancestors), a config include whose file is created between revalidation and spawn, a host that ignores `strictEnv`, and the pre-existing `dist/resourceGovernor.js` cap failure (identical on the base).
 
 - **Acceptance per editor (all with fakes, no live calls).** The first
   available token source wins, and the user may sign in with any later one.
