@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Cursor's Tab hooks now run at Tab's two points (M94 lane K, revived as
+  M94KR on the 0.17.0 base). `beforeTabFileRead` guards fail closed before
+  completion dispatch, with verdicts cached per path and content digest and
+  invalidated on configuration changes; `afterTabFileEdit` observes accepts
+  with actual line text and never blocks. The guard and dispatch bridge stay
+  in the lazy Tab bundle, all hook callers share the production runner's
+  process cap, and a bundle-load failure logs fixed words only. The final
+  live check remains open; see `docs/certification/m94-k.md`.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

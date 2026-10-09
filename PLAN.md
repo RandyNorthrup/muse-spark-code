@@ -19322,7 +19322,7 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
   `isInlineEdit`/`showRange` to reach a stable `vscode.d.ts` (D73, research
   V16 and V17). Each VS Code release's notes are read for it. When it lands,
   M94b is planned against that release and the engine floor it needs.
-- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K wires `beforeTabFileRead` and `afterTabFileEdit` to them. Until then M91 imports them as "waiting for inline completions", where they run nothing.
+- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K (built 2026-10-09 as M94KR, awaiting review) wires `beforeTabFileRead` and `afterTabFileEdit` to them. Other extension-event imports still wait for M91b.
 
 - **M93:** No new owner choice blocks the shipped workflow. Last 50 entries,
   a 2,000-character encoded URL and 20 recorded failures a window a minute are
@@ -19780,7 +19780,7 @@ observe the named tests fail, restore byte-exact and record the evidence in
   `isInlineEdit`/`showRange` to reach a stable `vscode.d.ts` (D73, research
   V16 and V17). Each VS Code release's notes are read for it. When it lands,
   M94b is planned against that release and the engine floor it needs.
-- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K wires `beforeTabFileRead` and `afterTabFileEdit` to them. Until then M91 imports them as "waiting for inline completions", where they run nothing.
+- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K (built 2026-10-09 as M94KR, awaiting review) wires `beforeTabFileRead` and `afterTabFileEdit` to them. Other extension-event imports still wait for M91b.
 
 - **M93:** No new owner choice blocks the shipped workflow. Last 50 entries,
   a 2,000-character encoded URL and 20 recorded failures a window a minute are
@@ -28904,7 +28904,8 @@ and is its own pull request, with its own capture and certification
 **Status 2026-10-04: lanes 0/P/C/L/H/U integrated; lane W finishing wiring
 and verification on `feature/m94-tab`, merged with `main-sync`.** The plan
 is D73, Q-M94a–d and this section; the research is
-`docs/certification/m94-research.md`. Lane K waits for M91 and the final live
+`docs/certification/m94-research.md`. Lane K is built (revived 2026-10-09
+on the 0.17.0 base as M94KR, M91 merged) and awaits review; the final live
 check remains with the lead. W also moves the small status item into the
 activation shim, translates the multi-line picker, and wires recent-edit
 and definition snippets through the same privacy checks as the current file.
@@ -28928,8 +28929,9 @@ the exact redacted prompt reservation before the engine receives it.
   protected or ignored file. It never touches a conversation's cache or
   history. Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks run at
   its two points.
-- **Depends on.** Main, for every lane except K. Lane K needs M91 (D70) on
-  main: its hook runner, `spark-hooks.json` and the Cursor format adapter.
+- **Depends on.** Main, for every lane except K. Lane K needed M91 (D70) on
+  main: its hook runner, `spark-hooks.json` and the Cursor format adapter
+  (merged before the 2026-10-09 revival).
 - **Scope.**
   - D73's provider: the fast and multi-line modes, the debounce, the
     typing-through cache, the filters and partial accept (VS Code's own).
@@ -29017,7 +29019,8 @@ the exact redacted prompt reservation before the engine receives it.
      its loader. Then the integration test against a local fake Model API, at
      the 1.99 floor and at stable.
   6. **Lane U:** the Account & usage row.
-  7. **Lane K (after M91 merges):** the two hook points. Their fixtures come
+  7. **Lane K (built 2026-10-09 as M94KR, awaiting review):** the two hook
+     points. Their fixtures come
      from real hook scripts run on the rigs (a POSIX shell script and a
      PowerShell one, each allowing, denying and crashing), not from a guess
      (AGENTS rule 13: the contract is Cursor's page, the fixtures are the
