@@ -549,6 +549,25 @@ describe('decideRecall', () => {
     }
   })
 
+  it('finish grace stays anchored to demand: older demand recalls a later finish', () => {
+    // Demand began at minute 9 but the borrowed task is expected to finish
+    // at minute 15. The 5-minute grace ends at minute 14, so at minute 11
+    // the task is recalled even though its finish is still in the future.
+    // A grace restarted on every tick would return `finish` instead.
+    const roles = { engineering: { medianDurationMs: 15 * MINUTE } }
+    const demand = T0 + 9 * MINUTE
+    const now = T0 + 11 * MINUTE
+    const queued = [reviewWork({ queuedAtMs: demand, unmetSinceMs: demand })]
+    expect(decideRecall(snapshot(now, { agents: [lent()], queued, roles }))).toStrictEqual([
+      {
+        kind: 'recall',
+        candidateId: 'rev-a',
+        taskId: 'code-1',
+        deadlineMs: now + 2 * MINUTE,
+      },
+    ])
+  })
+
   it('finish grace: zero grace recalls at once and an overdue task gets no grace', () => {
     const demand = T0 + 9 * MINUTE
     const queued = [reviewWork({ queuedAtMs: demand, unmetSinceMs: demand })]
