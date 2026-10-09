@@ -562,8 +562,11 @@ does not yet execute them in this build. When that lane lands, a local
   binds); never in a file, a setting, a log, a child process's arguments or
   environment, or anything sent to a model. `auth github logout` deletes
   it and leaves a new sign-in generation (a random id, no secret) under
-  `museSpark.github.deviceFlow.generation`; a token issued before it, by a
-  sign-in or refresh still finishing in another window, is never used again; revoke the grant itself on GitHub's page for the app
+  `museSpark.github.deviceFlow.generation` (beside a sign-out count under
+  `museSpark.github.deviceFlow.signOutEpoch`, so a rotation that beat a
+  concurrent refresh to GitHub survives that refresh's refusal); once the
+  sign-out has finished, no later call uses a token issued before it, by a
+  sign-in or refresh still finishing in another window or otherwise; revoke the grant itself on GitHub's page for the app
   (`https://github.com/settings/connections/applications/Ov23liXlNSPBbFyJ0A1z`).
   Your `gh` login is read (`gh auth token`) only when you turn on
   `museSpark.github.useGhLogin` in user or machine settings, held for one

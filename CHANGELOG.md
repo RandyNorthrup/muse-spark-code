@@ -19,8 +19,11 @@ happened, not what was planned; superseded entries are kept.
   any other sign-in address is refused. With `museSpark.github.useGhLogin`
   on in user or machine settings, your `gh` login is used instead, read per
   call and never stored. Signing out in one window also ends sign-ins and
-  refreshes still running in others: no token issued before the sign-out
-  is used after it. The panel and pull requests outside VS Code use
+  refreshes still running in others: once the sign-out has finished, no
+  later call uses a token issued before it (a call already overlapping
+  the sign-out may still return its earlier token). A refresh that loses
+  a race with another window's rotation keeps the winner's renewed pair
+  instead of signing out. The panel and pull requests outside VS Code use
   these sources once M123's other lanes land.
 
 - **Groundwork for Git and pull requests in every editor** (M123 lane 0,
