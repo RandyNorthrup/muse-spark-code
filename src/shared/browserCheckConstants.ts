@@ -51,8 +51,9 @@ export const BROWSER_BLANK_PAGE = 'about:blank'
 // store). Each must appear exactly once, byte for byte, in what the browser
 // reports. No `--use-mock-keychain`: it means something on macOS only, where
 // the pinned shell adds it itself (captured), so passing it too would double
-// it.
-export const BROWSER_LAUNCH_FLAGS: readonly string[] = [
+// it. Built in a pure call so bundles that never launch a browser drop it:
+// esbuild keeps an unused array of template literals.
+export const BROWSER_LAUNCH_FLAGS: readonly string[] = /* @__PURE__ */ (() => [
   '--remote-debugging-pipe',
   '--enable-automation',
   `--proxy-bypass-list=${BROWSER_PROXY_BYPASS}`,
@@ -71,7 +72,7 @@ export const BROWSER_LAUNCH_FLAGS: readonly string[] = [
   '--disable-quic',
   '--password-store=basic',
   '--window-size=1280,800',
-]
+])()
 // Switches whose presence refuses a check, whatever their value (spec §6.4):
 // another proxy or resolver, a debugging port, extensions, profiles, web
 // security, certificates, ports, the sandbox, features and field trials,
