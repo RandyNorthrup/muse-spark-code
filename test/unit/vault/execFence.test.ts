@@ -6,6 +6,7 @@ import { withoutCredentials, withoutKeyringRoutes } from '../../../src/runtime/c
 import { vaultFenceEnvironment } from '../../../src/core/vault/exec/fence'
 import { shellArguments } from '../../../src/host/backend/toolIo'
 import { fakeMuseCodeManager } from '../helpers/museCodeManager'
+import { SHELL_DEFAULT_TIMEOUT_MS } from '../../../src/shared/constants'
 
 describe('M109 X credential fence', () => {
   it.each([false, true])(
@@ -28,12 +29,13 @@ describe('M109 X credential fence', () => {
       const result = await io.runShell(
         process.platform === 'win32' ? 'Get-ChildItem Env:' : 'env',
         process.cwd(),
-        1000,
+        SHELL_DEFAULT_TIMEOUT_MS,
         undefined,
         undefined,
         undefined,
         interactive,
       )
+      expect(result.isTimedOut).toBe(false)
       expect(result.exitCode).toBe(0)
       expect(result.stdout.includes('/ambient/fake-worker-route')).toBe(interactive)
     },
