@@ -189,6 +189,16 @@ them, the milestone plan, and the certification checklist.
     copy or reproduction without the owner's explicit go for that pull
     request (PLAN.md D102).
 
+17. **Keep the roadmap current.** Every milestone change (a new milestone, a
+    status line, a release, a changed user-facing limit or label) updates its
+    entry in `docs/roadmap/entries.json` and regenerates `ROADMAP.md` with
+    `npm run roadmap:generate` in the same change. Release preparation adds
+    PLAN.md §10's `X.Y.Z preparation (…)` record; publication adds
+    `X.Y.Z released (…)`; regenerate after each. `npm run check:roadmap`
+    fails on a stale file, a milestone without an entry or an entry for a
+    milestone PLAN.md does not have (PLAN.md M122; CONTRIBUTING.md has the
+    entry format).
+
 ## Layout
 
 ```
@@ -408,27 +418,28 @@ media/                icons, banner, social preview, README screenshots
 
 ## Commands
 
-| Task                           | Command                                         |
-| ------------------------------ | ----------------------------------------------- |
-| All gates (local)              | `npm run quality`                               |
-| The gates CI runs everywhere   | `npm run quality:gates`                         |
-| Accessibility gate             | `npm run test:a11y`                             |
-| Token generation / gate        | `npm run build:tokens` / `npm run check:tokens` |
-| Visual regression              | `npm run check:visual`                          |
-| Reference gate                 | `npm run check:reference`                       |
-| Localization gate              | `npm run check:l10n`                            |
-| Host API record (D60)          | `npm run check:host-api` (`-- --write`)         |
-| Panel in the pseudo-locale     | `npm run harness:shots -- --lang=pseudo`        |
-| Unit tests with coverage       | `npm run test:unit`                             |
-| Integration tests              | `npm run test:integration`                      |
-| Dev build / watch              | `npm run build:dev` / `npm run watch`           |
-| Production build + size budget | `npm run build`                                 |
-| Package `.vsix`                | `npm run package`                               |
-| Package the ACP agent (D62)    | `npm run package:acp`                           |
-| Exec schemas (M80)             | `npm run schema:exec` (`-- --check`)            |
-| Fake-only test package (M80)   | `node scripts/package-acp-test.mjs`             |
-| Scan staged text (M80)         | `muse-spark-code-acp scan-secrets <file>`       |
-| Host checks (hosts.yml)        | `sh test/hosts/run-<host>.sh`                   |
+| Task                           | Command                                              |
+| ------------------------------ | ---------------------------------------------------- |
+| All gates (local)              | `npm run quality`                                    |
+| The gates CI runs everywhere   | `npm run quality:gates`                              |
+| Accessibility gate             | `npm run test:a11y`                                  |
+| Token generation / gate        | `npm run build:tokens` / `npm run check:tokens`      |
+| Visual regression              | `npm run check:visual`                               |
+| Reference gate                 | `npm run check:reference`                            |
+| Roadmap generation / gate      | `npm run roadmap:generate` / `npm run check:roadmap` |
+| Localization gate              | `npm run check:l10n`                                 |
+| Host API record (D60)          | `npm run check:host-api` (`-- --write`)              |
+| Panel in the pseudo-locale     | `npm run harness:shots -- --lang=pseudo`             |
+| Unit tests with coverage       | `npm run test:unit`                                  |
+| Integration tests              | `npm run test:integration`                           |
+| Dev build / watch              | `npm run build:dev` / `npm run watch`                |
+| Production build + size budget | `npm run build`                                      |
+| Package `.vsix`                | `npm run package`                                    |
+| Package the ACP agent (D62)    | `npm run package:acp`                                |
+| Exec schemas (M80)             | `npm run schema:exec` (`-- --check`)                 |
+| Fake-only test package (M80)   | `node scripts/package-acp-test.mjs`                  |
+| Scan staged text (M80)         | `muse-spark-code-acp scan-secrets <file>`            |
+| Host checks (hosts.yml)        | `sh test/hosts/run-<host>.sh`                        |
 
 M80's lanes are integrated and their fake-only suites pass on the rigs; do not
 call exec, the scanner or the Action supported until the hosted action-check

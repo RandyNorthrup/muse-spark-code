@@ -29,6 +29,13 @@ happened, not what was planned; superseded entries are kept.
   JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
   chip and status adapter once their M104 bridges bind them; none does yet.
   ACP and terminals keep `/resources` and `resources status|resume`.
+- **A public roadmap** (M122). [`ROADMAP.md`](ROADMAP.md) lists what is in
+  the next release, in progress, planned and shipped by release, generated
+  from PLAN.md's milestone statuses, the changelog's release headings and
+  curated one-sentence entries in `docs/roadmap/entries.json`.
+  `npm run check:roadmap`, now in `quality:gates` and CI's static gates,
+  fails when the file is stale, a milestone has no entry or an entry names a
+  milestone the plan does not have.
 
 ### Changed
 

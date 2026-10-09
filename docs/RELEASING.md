@@ -31,6 +31,16 @@ built from `CHANGELOG.md` at build time. Before the release PR bumps
 
 The notes stay English; the page's own words are translated.
 
+## Keeping the roadmap's release sections right
+
+`ROADMAP.md` is generated (PLAN.md M122). Its _In the next release_ section
+is the newest `CHANGELOG.md` version while PLAN.md §10 has only a preparation
+record for it. When the release PR adds the dated `## [X.Y.Z]` heading, also
+add `**X.Y.Z preparation (YYYY-MM-DD, …).**` to §10 and run
+`npm run roadmap:generate`. After publication, add the
+`**X.Y.Z released (YYYY-MM-DD, …).**` record and regenerate, so X.Y.Z moves
+under _Shipped_. Without a §10 record a changelog version counts as shipped.
+
 ## Choosing the release build
 
 Tag/manifest and `main` ancestry checks still run first. The lookup considers
