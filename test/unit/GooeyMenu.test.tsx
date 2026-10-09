@@ -169,12 +169,16 @@ describe('GooeyMenu', () => {
       vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(width)
       const natural: number[] = []
       // Each pill's max-content width: 56 px of icon and padding, 7 px a character.
+      // A pill still in its scale(0) burst measures 0 px in a browser, so a
+      // measurement taken with the animation running records -1 here.
       vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
         this: HTMLElement,
       ) {
         const label = this.getAttribute('aria-label') ?? ''
         if (this.classList.contains('gooey-menu-pill')) {
-          natural.push(this.style.width === 'max-content' ? 56 + 7 * label.length : -1)
+          const isUntransformed =
+            this.style.width === 'max-content' && this.style.animationName === 'none'
+          natural.push(isUntransformed ? 56 + 7 * label.length : -1)
         }
         return new DOMRect(0, 0, 56 + 7 * label.length, 40)
       })
@@ -207,8 +211,9 @@ describe('GooeyMenu', () => {
         expect(left).toBeGreaterThanOrEqual(8)
         expect(left + expected).toBeLessThanOrEqual(width - 8)
       }
-      // They scale in one after another, 30 ms apart.
+      // They scale in one after another, 30 ms apart, once drawn.
       expect(pills.map((pill) => pill.style.animationDelay)).toEqual(['0ms', '30ms', '60ms'])
+      expect(pills.map((pill) => pill.style.animationName)).toEqual(['', '', ''])
     },
   )
 

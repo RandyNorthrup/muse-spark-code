@@ -282,6 +282,10 @@ export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuPro
                 top,
                 // One size for every pill: the longest label's (the owner).
                 width: isMeasuring ? 'max-content' : pill?.width,
+                // The burst starts at scale(0), and a scaled rectangle measures
+                // 0 px wide: the measuring pass is never painted, so it holds
+                // the animation off and the burst starts on the drawn pass.
+                animationName: isMeasuring ? 'none' : undefined,
                 height: GOOEY_MENU.pillHeight,
                 transformOrigin: `${String(burst.origin.x - left)}px ${String(burst.origin.y - top)}px`,
                 animationDelay: `${String(index * GOOEY_MENU.staggerMs)}ms`,
