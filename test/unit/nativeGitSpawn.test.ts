@@ -372,36 +372,109 @@ describe('the spawn boundary', () => {
   })
 })
 
+/** A scratch repository one commit ahead of its bare origin, and the folder holding its remotes. */
+interface AheadScratch {
+  readonly dir: string
+  readonly remotes: string
+  readonly origin: string
+  readonly unapproved: string
+}
+
+/**
+ * A confirmed push held in its last wait (the runner's admission, after the
+ * revalidation) while `move` changes where git would send it: the spawn
+ * must refuse it, and nothing may reach the unapproved remote.
+ */
+async function expectMovedDestinationRefused(
+  prepare: (scratch: AheadScratch) => void,
+  move: (scratch: AheadScratch) => void,
+): Promise<void> {
+  const repository = dirtyRepository()
+  const remotes = mkdtempSync(path.join(tmpdir(), 'm123-native-spawn-remotes-'))
+  const scratch: AheadScratch = {
+    dir: repository.dir,
+    remotes,
+    origin: path.join(remotes, 'origin.git'),
+    unapproved: path.join(remotes, 'unapproved.git'),
+  }
+  try {
+    scratchGit(remotes, 'init', '-q', '--bare', scratch.origin)
+    scratchGit(remotes, 'init', '-q', '--bare', scratch.unapproved)
+    scratchGit(scratch.dir, 'remote', 'add', 'origin', scratch.origin)
+    scratchGit(scratch.dir, 'push', '-q', '-u', 'origin', 'main')
+    scratchGit(scratch.dir, 'commit', '-q', '-am', 'Two')
+    prepare(scratch)
+    const { gate, service } = gatedService(scratch.dir, 'push')
+    const plan = await service.planPush()
+    if (!plan.ok) {
+      throw new Error('the scratch repository must be ahead')
+    }
+    const pushing = service.push(plan)
+    await gate.reached
+    move(scratch)
+    gate.release()
+    await expect(pushing).rejects.toThrow('changed')
+    expect(spawnedSubcommands()).not.toContain('push')
+    expect(scratchGit(scratch.unapproved, 'for-each-ref').trim()).toBe('')
+  } finally {
+    rmSync(remotes, { recursive: true, force: true })
+    repository.cleanup()
+  }
+}
+
+/** Whether this machine lets a test make a file link (Windows needs the privilege or Developer Mode). */
+function canLinkFiles(): boolean {
+  const probe = mkdtempSync(path.join(tmpdir(), 'm123-native-link-probe-'))
+  try {
+    writeFileSync(path.join(probe, 'target'), '')
+    symlinkSync(path.join(probe, 'target'), path.join(probe, 'link'), 'file')
+    return true
+  } catch {
+    return false
+  } finally {
+    rmSync(probe, { recursive: true, force: true })
+  }
+}
+
+/** A git configuration file pushing `origin` to `url` (`/` separators: git reads `\` as an escape). */
+function pushUrlConfig(url: string): string {
+  return `[remote "origin"]\n\tpushurl = ${url.replaceAll('\\', '/')}\n`
+}
+
 describe('the final revalidation at the spawn (RVM123G2)', () => {
   it('R2: refuses at the spawn a push whose destination changed during its admission', async () => {
-    const scratch = dirtyRepository()
-    const remotes = mkdtempSync(path.join(tmpdir(), 'm123-native-spawn-remotes-'))
-    try {
-      const origin = path.join(remotes, 'origin.git')
-      const unapproved = path.join(remotes, 'unapproved.git')
-      scratchGit(remotes, 'init', '-q', '--bare', origin)
-      scratchGit(remotes, 'init', '-q', '--bare', unapproved)
-      scratchGit(scratch.dir, 'remote', 'add', 'origin', origin)
-      scratchGit(scratch.dir, 'push', '-q', '-u', 'origin', 'main')
-      scratchGit(scratch.dir, 'commit', '-q', '-am', 'Two')
-      const { gate, service } = gatedService(scratch.dir, 'push')
-      const plan = await service.planPush()
-      if (!plan.ok) {
-        throw new Error('the scratch repository must be ahead')
-      }
-      const pushing = service.push(plan)
-      await gate.reached
-      // Revalidated already; the destination moves in the last wait.
-      scratchGit(scratch.dir, 'config', 'remote.origin.pushurl', unapproved)
-      gate.release()
-      await expect(pushing).rejects.toThrow('changed')
-      expect(spawnedSubcommands()).not.toContain('push')
-      expect(scratchGit(unapproved, 'for-each-ref').trim()).toBe('')
-    } finally {
-      rmSync(remotes, { recursive: true, force: true })
-      scratch.cleanup()
-    }
+    await expectMovedDestinationRefused(
+      () => {
+        // Nothing beyond the origin: the repository's own configuration moves.
+      },
+      (scratch) => {
+        scratchGit(scratch.dir, 'config', 'remote.origin.pushurl', scratch.unapproved)
+      },
+    )
   })
+
+  it.runIf(canLinkFiles())(
+    'P2: refuses at the spawn a push whose linked configuration file was rewritten during its admission',
+    async () => {
+      await expectMovedDestinationRefused(
+        (scratch) => {
+          // An included configuration file that is a link: git reads its target.
+          const target = path.join(scratch.remotes, 'target.gitconfig')
+          const linked = path.join(scratch.remotes, 'linked.gitconfig')
+          writeFileSync(target, pushUrlConfig(scratch.origin))
+          symlinkSync(target, linked, 'file')
+          scratchGit(scratch.dir, 'config', 'include.path', linked.replaceAll('\\', '/'))
+        },
+        (scratch) => {
+          // Only the target changes; the link itself stays as it was.
+          writeFileSync(
+            path.join(scratch.remotes, 'target.gitconfig'),
+            pushUrlConfig(scratch.unapproved),
+          )
+        },
+      )
+    },
+  )
 
   it('R9: refuses at the spawn a commit whose staged bytes changed during its admission', async () => {
     const scratch = dirtyRepository()

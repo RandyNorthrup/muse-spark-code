@@ -29,6 +29,7 @@ import {
 } from '../../src/runtime/panel/git/transaction'
 import {
   GIT_TRANSACTION_LOCK_FILE,
+  GIT_TRANSACTION_LOCK_SETTLE_MS,
   GIT_TRANSACTION_LOCK_STALE_MS,
 } from '../../src/shared/constants'
 import type { RuntimeGitDeps } from '../../src/core/git/runtimeGit'
@@ -150,6 +151,31 @@ describe('the repository transaction lock', () => {
     }
   })
 
+  it('P2: keeps a lock its holder still holds when the file is removed: a newcomer waits', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'm123-native-lock-removed-'))
+    try {
+      const holder = await acquireRepositoryLock(dir, new AbortController().signal, never)
+      // A hook of the holder's running git removes the file.
+      rmSync(path.join(dir, GIT_TRANSACTION_LOCK_FILE))
+      let isTaken = false
+      const take = async (): Promise<Awaited<ReturnType<typeof acquireRepositoryLock>>> => {
+        const lock = await acquireRepositoryLock(dir, new AbortController().signal, never)
+        isTaken = true
+        return lock
+      }
+      const taking = take()
+      await wait(2 * POLL_GRACE_MS)
+      expect(isTaken).toBe(false)
+      expect(holder.isHeld()).toBe(true)
+      holder.release()
+      const taken = await taking
+      expect(taken.isHeld()).toBe(true)
+      taken.release()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('takes over a lock whose holder on this machine has ended', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'm123-native-lock-dead-'))
     try {
@@ -255,19 +281,105 @@ describe('the pipeline', () => {
     }
   })
 
-  it('shows where a pushInsteadOf rewrite sends the push, and binds the push to it', async () => {
+  it('P3: shows the pushInsteadOf destination, pushes there, and refuses once the rewrite changes', async () => {
     const scratch = aheadOfOrigin()
     const rewritten = path.join(scratch.base, 'rewritten.git')
+    const rule = `url.${rewritten}.pushInsteadOf`
     try {
       fixtureGit(scratch.base, 'init', '-q', '--bare', rewritten)
-      fixtureGit(scratch.dir, 'config', `url.${rewritten}.pushInsteadOf`, scratch.origin)
-      const plan = await serviceFor(scratch.dir).planPush()
-      if (!plan.ok) {
+      fixtureGit(scratch.dir, 'config', rule, scratch.origin)
+      // The rewrite goes away while the confirmed push waits for admission:
+      // git would now push to the origin, which nobody confirmed.
+      const unbound = serviceFor(scratch.dir, {
+        admitWorkspaceCommand: async (start) => {
+          fixtureGit(scratch.dir, 'config', '--unset', rule)
+          return await start()
+        },
+      })
+      const confirmed = await unbound.planPush()
+      if (!confirmed.ok) {
         throw new Error('the scratch repository must be ahead')
       }
       // The raw configuration still names the origin; git pushes elsewhere.
-      expect(plan.pushUrls).toEqual([rewritten])
+      expect(confirmed.pushUrls).toEqual([rewritten])
+      await expect(unbound.push(confirmed)).rejects.toThrow('changed')
+      expect(fixtureGit(scratch.origin, 'rev-list', '--count', 'main').trim()).toBe('1')
+      expect(fixtureGit(rewritten, 'for-each-ref').trim()).toBe('')
+      // With the rewrite in place, the confirmed push lands where it was shown.
+      fixtureGit(scratch.dir, 'config', rule, scratch.origin)
+      const service = serviceFor(scratch.dir)
+      const plan = await service.planPush()
+      if (!plan.ok) {
+        throw new Error('the scratch repository must still be ahead')
+      }
+      await service.push(plan)
+      expect(fixtureGit(rewritten, 'rev-parse', 'main').trim()).toBe(
+        fixtureGit(scratch.dir, 'rev-parse', 'main').trim(),
+      )
+      expect(fixtureGit(scratch.origin, 'rev-list', '--count', 'main').trim()).toBe('1')
     } finally {
+      rmSync(scratch.base, { recursive: true, force: true })
+    }
+  })
+
+  it('P2: a hook that removes the lock while its push runs lets no commit start beside it', async () => {
+    const scratch = aheadOfOrigin()
+    const started = path.join(scratch.base, 'hook-started')
+    const released = path.join(scratch.base, 'hook-released')
+    const settled: Promise<unknown>[] = []
+    try {
+      const lockFile = path.join(scratch.dir, '.git', GIT_TRANSACTION_LOCK_FILE)
+      const slashed = (file: string): string => file.replaceAll('\\', '/')
+      // The hook removes the lock, then waits for the test (shell builtins
+      // only: a Windows hook's PATH need not carry `sleep`).
+      writeFileSync(
+        path.join(scratch.dir, '.git', 'hooks', 'pre-push'),
+        [
+          '#!/bin/sh',
+          `: > "${slashed(started)}"`,
+          `rm -f "${slashed(lockFile)}"`,
+          `while [ ! -f "${slashed(released)}" ]; do :; done`,
+          '',
+        ].join('\n'),
+        { mode: 0o755 },
+      )
+      const events: string[] = []
+      const pusher = serviceFor(scratch.dir)
+      const plan = await pusher.planPush()
+      if (!plan.ok) {
+        throw new Error('the scratch repository must be ahead')
+      }
+      const pushAndNote = async (): Promise<void> => {
+        await pusher.push(plan)
+        events.push('push done')
+      }
+      const pushing = Promise.allSettled([pushAndNote()])
+      settled.push(pushing)
+      while (!existsSync(started)) {
+        await wait(10)
+      }
+      writeFileSync(path.join(scratch.dir, 'beside.txt'), 'beside\n')
+      const committer = serviceFor(scratch.dir, {
+        admitWorkspaceCommand: async (start) => {
+          events.push('commit admitted')
+          return await start()
+        },
+      })
+      const committing = Promise.allSettled([committer.commit('Beside the push', true)])
+      settled.push(committing)
+      // Several settle times while the push's hook runs with its lock file gone.
+      await wait(2 * POLL_GRACE_MS)
+      expect(events).toEqual([])
+      writeFileSync(released, '')
+      const [pushed] = await pushing
+      const [committed] = await committing
+      expect(pushed.status).toBe('fulfilled')
+      expect(committed.status).toBe('fulfilled')
+      expect(events).toEqual(['push done', 'commit admitted'])
+    } finally {
+      // The hook never outlives the test: it is released, and both settle.
+      writeFileSync(released, '')
+      await Promise.all(settled)
       rmSync(scratch.base, { recursive: true, force: true })
     }
   })
@@ -299,10 +411,14 @@ describe('the pipeline', () => {
       fixtureGit(scratch.dir, 'add', 'a.txt')
       const service = serviceFor(scratch.dir, {
         admitWorkspaceCommand: async (start) => {
+          // Another holder's lock that already outlived its settle time.
+          const lockFile = path.join(scratch.dir, '.git', GIT_TRANSACTION_LOCK_FILE)
           writeFileSync(
-            path.join(scratch.dir, '.git', GIT_TRANSACTION_LOCK_FILE),
+            lockFile,
             JSON.stringify({ host: hostname(), pid: process.pid, nonce: 'taken' }),
           )
+          const settled = new Date(Date.now() - 2 * GIT_TRANSACTION_LOCK_SETTLE_MS)
+          utimesSync(lockFile, settled, settled)
           return await start()
         },
       })

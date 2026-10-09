@@ -4,37 +4,56 @@
 // carries a revalidated plan to the moment its git starts.
 //
 // - The lock is a file in git's common directory, created exclusively
-//   (`wx`). It names its holder (machine, process, a random nonce), and the
-//   holder refreshes its time while it holds it. A waiter polls, and takes a
-//   lock over only when its holder is gone: on the same machine, its process
-//   ended; anywhere, silent for GIT_TRANSACTION_LOCK_STALE_MS. A takeover
-//   moves the file aside first and keeps it only if it is the one judged
-//   stale, so a fresh lock is put back. The holder checks at each spawn that
-//   the file is still its own, so a lock lost anyway refuses its payload.
+//   (`wx`). It names its holder (machine, process, a random nonce). A
+//   waiter polls, and takes a lock over only when its holder is gone: on
+//   the same machine, its process ended; anywhere, silent for
+//   GIT_TRANSACTION_LOCK_STALE_MS. A takeover moves the file aside first and
+//   keeps it only if it is the one judged stale, so a fresh lock is put back.
+// - The holder keeps the lock for the whole transaction, every git it runs
+//   included (RVM123G3G): every GIT_TRANSACTION_LOCK_WATCH_MS it refreshes
+//   its file, and puts its own back when the file is gone (a hook removed
+//   it) or a newcomer's is still settling. A newcomer trusts its new file
+//   only after GIT_TRANSACTION_LOCK_SETTLE_MS, so it never runs beside a
+//   holder that is still alive. A newcomer that outlived the settle time
+//   means the lock was lost, and the old holder's spawn check refuses.
 // - The seal is the state git reads for a payload (HEAD, the index, packed
 //   and loose refs, the reftable list, the configuration files), sampled
 //   synchronously by identity, size and times BEFORE the plan is
 //   revalidated, and compared again synchronously at the last line before
-//   the payload process starts, after every wait. A change anywhere in
-//   between refuses the payload.
+//   the payload process starts, after every wait. A link is sampled with
+//   the file it leads to. A change anywhere in between refuses the payload.
 // - Both detect and fail closed. Neither defeats a same-user process that
 //   rewrites a file and restores its times, or swaps directories between a
 //   check and the operating system acting on a path: D104's threat boundary
 //   leaves that process out, since it already holds the user's authority.
 
 import { randomUUID } from 'node:crypto'
-import { readFileSync, unlinkSync } from 'node:fs'
-import { link, readFile, rename, rm, stat, utimes, writeFile } from 'node:fs/promises'
+import {
+  readFileSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+  utimesSync,
+  writeFileSync,
+  type BigIntStats,
+} from 'node:fs'
+import { link, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { hostname } from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { fileReadIdentity, lstatIdentitySync } from '../../../core/fs/fileIdentity'
+import {
+  fileReadIdentity,
+  lstatIdentitySync,
+  statIdentitySync,
+} from '../../../core/fs/fileIdentity'
 import { isMissingPath } from '../../../host/canonicalPath'
 import {
   GIT_TRANSACTION_LOCK_FILE,
   GIT_TRANSACTION_LOCK_POLL_MS,
   GIT_TRANSACTION_LOCK_REFRESH_MS,
+  GIT_TRANSACTION_LOCK_SETTLE_MS,
   GIT_TRANSACTION_LOCK_STALE_MS,
+  GIT_TRANSACTION_LOCK_WATCH_MS,
 } from '../../../shared/constants'
 
 const ALREADY_EXISTS = 'EEXIST'
@@ -137,6 +156,101 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
   })
 }
 
+/** Creates the lock file with `text` if no lock exists; false when one does. */
+async function isCreated(file: string, text: string): Promise<boolean> {
+  try {
+    await writeFile(file, text, { flag: 'wx' })
+    return true
+  } catch (error: unknown) {
+    if (errorCode(error) !== ALREADY_EXISTS) {
+      throw error
+    }
+    return false
+  }
+}
+
+/** Whether the lock file holds exactly `text`, read now. */
+function isOwnLock(file: string, text: string): boolean {
+  try {
+    return readFileSync(file, 'utf8') === text
+  } catch {
+    return false
+  }
+}
+
+/**
+ * A newcomer's own new file, trusted only once it outlived the settle time:
+ * a holder whose file was removed puts its own back within
+ * GIT_TRANSACTION_LOCK_WATCH_MS, over a newcomer's (RVM123G3G). A Cancel
+ * meanwhile removes the newcomer's file again.
+ */
+async function isSettled(
+  file: string,
+  text: string,
+  signal: AbortSignal,
+  check: () => void,
+): Promise<boolean> {
+  await pause(GIT_TRANSACTION_LOCK_SETTLE_MS, signal)
+  try {
+    check()
+  } catch (error: unknown) {
+    if (isOwnLock(file, text)) {
+      unlinkSync(file)
+    }
+    throw error
+  }
+  return isOwnLock(file, text)
+}
+
+/**
+ * The holder's watch while it holds the lock, through every wait and every
+ * git it runs (RVM123G3G): its own file is refreshed; a removed file (a
+ * hook of the running git) or a newcomer's still settling is replaced by
+ * its own at once; a newcomer's file that outlived the settle time means
+ * the lock was lost, and every later spawn check refuses.
+ */
+function keepHolding(file: string, text: string, onLost: () => void): () => void {
+  let touchedAt = Date.now()
+  const keep = (): void => {
+    let found: { readonly text: string; readonly ageMs: number } | undefined
+    try {
+      found = { text: readFileSync(file, 'utf8'), ageMs: Date.now() - statSync(file).mtimeMs }
+    } catch (error: unknown) {
+      if (!isMissingPath(error)) {
+        throw error
+      }
+    }
+    if (found?.text === text) {
+      if (Date.now() - touchedAt >= GIT_TRANSACTION_LOCK_REFRESH_MS) {
+        const now = new Date()
+        utimesSync(file, now, now)
+        touchedAt = now.getTime()
+      }
+      return
+    }
+    if (found !== undefined && found.ageMs >= GIT_TRANSACTION_LOCK_SETTLE_MS) {
+      clearInterval(watch)
+      onLost()
+      return
+    }
+    const ours = `${file}.${randomUUID()}`
+    writeFileSync(ours, text)
+    renameSync(ours, file)
+    touchedAt = Date.now()
+  }
+  const watch = setInterval(() => {
+    try {
+      keep()
+    } catch {
+      // Unreadable or unwritable: the spawn check reads the file itself.
+    }
+  }, GIT_TRANSACTION_LOCK_WATCH_MS)
+  watch.unref()
+  return () => {
+    clearInterval(watch)
+  }
+}
+
 /**
  * Takes the repository's transaction lock in `commonDir`, waiting while
  * another holder (this process or any other) has it. `check` runs after
@@ -152,13 +266,11 @@ export async function acquireRepositoryLock(
   const text = JSON.stringify({ host: hostname(), pid: process.pid, nonce })
   for (;;) {
     check()
-    try {
-      await writeFile(file, text, { flag: 'wx' })
-      break
-    } catch (error: unknown) {
-      if (errorCode(error) !== ALREADY_EXISTS) {
-        throw error
+    if (await isCreated(file, text)) {
+      if (await isSettled(file, text, signal, check)) {
+        break
       }
+      continue
     }
     const held = await heldLock(file)
     check()
@@ -172,36 +284,15 @@ export async function acquireRepositoryLock(
     await pause(GIT_TRANSACTION_LOCK_POLL_MS, signal)
   }
   let isReleased = false
-  const isHeld = (): boolean => {
-    if (isReleased) {
-      return false
-    }
-    try {
-      return readFileSync(file, 'utf8') === text
-    } catch {
-      return false
-    }
-  }
-  const touch = async (): Promise<void> => {
-    if (!isHeld()) {
-      return
-    }
-    const now = new Date()
-    try {
-      await utimes(file, now, now)
-    } catch {
-      // Gone or taken: the spawn check reads that, not this refresh.
-    }
-  }
-  const refresh = setInterval(() => {
-    void touch()
-  }, GIT_TRANSACTION_LOCK_REFRESH_MS)
-  refresh.unref()
+  let isLost = false
+  const stopWatching = keepHolding(file, text, () => {
+    isLost = true
+  })
   return {
-    isHeld,
+    isHeld: () => !isReleased && !isLost && isOwnLock(file, text),
     release: () => {
-      clearInterval(refresh)
-      if (isHeld()) {
+      stopWatching()
+      if (!isReleased && isOwnLock(file, text)) {
         try {
           unlinkSync(file)
         } catch {
@@ -219,18 +310,38 @@ export interface StateSeal {
   readonly marks: readonly string[]
 }
 
-/** One file's identity, size, times and mode; its absence is a mark too. */
+/** One sample: identity, size, times and mode. */
+function sampleOf(stats: BigIntStats): string {
+  return JSON.stringify([fileReadIdentity(stats), stats.ctimeNs.toString(), stats.mode.toString()])
+}
+
+/** How a sample failed: an absence is a mark too. */
+function missingMark(error: unknown): string {
+  return isMissingPath(error) ? 'absent' : 'unreadable'
+}
+
+/**
+ * One file's mark: its own entry, and for a link also the file git reads
+ * through it (RVM123G3G: a linked configuration file rewritten behind an
+ * unchanged link changes the mark).
+ */
 function markOf(file: string): string {
+  let own: BigIntStats
   try {
-    const stats = lstatIdentitySync(file)
-    return JSON.stringify([
-      fileReadIdentity(stats),
-      stats.ctimeNs.toString(),
-      stats.mode.toString(),
-    ])
+    own = lstatIdentitySync(file)
   } catch (error: unknown) {
-    return isMissingPath(error) ? 'absent' : 'unreadable'
+    return missingMark(error)
   }
+  if (!own.isSymbolicLink()) {
+    return sampleOf(own)
+  }
+  let target: string
+  try {
+    target = sampleOf(statIdentitySync(file))
+  } catch (error: unknown) {
+    target = missingMark(error)
+  }
+  return JSON.stringify([sampleOf(own), target])
 }
 
 /** Samples `files` now, synchronously. */
