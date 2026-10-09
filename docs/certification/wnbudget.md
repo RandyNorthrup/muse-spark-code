@@ -394,7 +394,7 @@ re-read. This final receipt is committed separately with the same hooks.
    validate once before selection, and share the result with packaging.
 3. Complete: deliberate guard mutations, byte-exact restorations, owned
    What's New/packaging tests, one tsc, lint/format and production build.
-4. In progress: commit with installed hooks, re-read staged/committed diffs,
+4. Complete: commit with installed hooks, re-read staged/committed diffs,
    and report the head, receipts, remaining lead-owned gates.
 
 No new runtime surface, command, setting, dependency, budget or gate.
@@ -474,3 +474,11 @@ credential read or paid/live model call.
 Next: lead reviews/integrates this fix and runs aggregate quality and
 universal VSIX qualification. No remaining code blocker in the scoped
 checks; those broader gates remain lead-owned under the rig/common rules.
+
+Code commit: `c15d9c47ab45cb0e5da5069668cb9c68bf2ed157`. Unchanged
+`.husky/_` ran ESLint fix, Prettier and staged gitleaks (no leaks).
+Saved staged and committed binary patches compare byte-for-byte equal;
+both production source hashes above still match. Staged and committed
+diffs were re-read, and the worktree was clean before this receipt.
+This final certification receipt is committed separately with the same
+installed hooks; code and its verification bytes are unchanged.
