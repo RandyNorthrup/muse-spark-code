@@ -1,7 +1,14 @@
+import type { HardwareStop } from '../../maker/guard/hardwareCommands'
 import { redactDiagnosticEvent } from '../../redact'
+import { createHardwareContexts } from '../../maker/hardwareContext'
 import { HardwareApproval } from '../../maker/ports'
 import { SessionHardwareGuard, type HardwareBinding } from '../../maker/sessionGuard'
-import { hardwareAction, hardwareTargets, isHardwareStop } from '../../maker/guard/hardwareCommands'
+import {
+  hardwareAction,
+  hardwareTargets,
+  isHardwareStop,
+  hardwareStop,
+} from '../../maker/guard/hardwareCommands'
 import { isHardwareWorkspace, hardwareShellNote } from '../../maker/guard/shellPolicy'
 import { parseShell } from '../../maker/guard/shellParse'
 import type { HardwareContext } from '../../maker/guard/httpCommands'
@@ -2172,7 +2179,11 @@ export class ModelApiSession implements AgentSession {
   ) {
     this.workspaceEdits.add(this.ledger)
     this.modelId = modelId
-    this.permissions = new PermissionEngine(approvalMode)
+    this.permissions = new PermissionEngine(
+      approvalMode === 'allowAll' && isHardwareWorkspace(deps.hardwareContext?.())
+        ? 'promptUnmatched'
+        : approvalMode,
+    )
     this.hardwareGuard = new SessionHardwareGuard(
       () => ({
         ...deps.hardwareContext?.(),
@@ -2389,6 +2400,7 @@ export class ModelApiSession implements AgentSession {
     shouldReplayContext = true,
     shouldShowMessages = true,
     foreignContext?: ForeignDispatchContext,
+    shouldSkip = false,
   ): Promise<HookDispatch> {
     const runHook = this.deps.io.runHook?.bind(this.deps.io)
     const hooks = this.enabledHooks()
@@ -2397,7 +2409,7 @@ export class ModelApiSession implements AgentSession {
       : undefined
     const runHookHttp = this.deps.io.runHookHttp?.bind(this.deps.io)
     const result = await dispatchHooks(
-      hooks,
+      shouldSkip ? [] : hooks,
       event,
       this.hookPayload(event, turnId, fields),
       matcher,
@@ -9474,6 +9486,31 @@ export class ModelApiSession implements AgentSession {
     this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.hookOutputReplaced })
   }
 
+  private registeredStop(call: FunctionCallItem): HardwareStop | undefined {
+    const command = pick(argumentsOf(call), 'command')
+    return command !== undefined && classifyTool(call.name) === 'shell'
+      ? hardwareStop(
+          command,
+          this.deps.platform === 'win32' ? 'powershell' : 'bash',
+          this.hardwareGuard.current(),
+        )
+      : undefined
+  }
+
+  private async executeHardwareStop(stop: HardwareStop): Promise<ToolOutcome> {
+    let outcome: ToolOutcome
+    try {
+      if (this.deps.io.runHardwareStop === undefined) throw new Error(UI_TEXT.hardwareRefused)
+      const result = await this.deps.io.runHardwareStop(stop)
+      outcome = shellOutcome(result, SHELL_DEFAULT_TIMEOUT_MS)
+      if (result.exitCode === 0 && outcome.failureReason === undefined) return outcome
+    } catch (error: unknown) {
+      outcome = toolFailure(describe(error))
+    }
+    this.emit({ type: 'backendNotice', level: 'error', text: UI_TEXT.hardwareStopUnconfirmed })
+    return { ...outcome, failureReason: UI_TEXT.hardwareStopUnconfirmed }
+  }
+
   /** Permission check, execution and the transcript row for one tool call. */
   private async runCall(
     turnId: string,
@@ -9501,6 +9538,7 @@ export class ModelApiSession implements AgentSession {
       selection === undefined || isToolAllowedBySelection(call.name, selection)
         ? undefined
         : `${call.name}: ${UI_TEXT.hookToolRemoved}`
+    const canonicalStop = this.registeredStop(call)
     const pre: HookDispatch =
       selectionReason === undefined
         ? await this.runHooks(
@@ -9514,6 +9552,9 @@ export class ModelApiSession implements AgentSession {
             toolMatcherNames(call.name),
             signal,
             false,
+            true,
+            undefined,
+            canonicalStop !== undefined,
           )
         : {
             blockedReason: selectionReason,
@@ -9552,19 +9593,22 @@ export class ModelApiSession implements AgentSession {
     const slot: AdmissionSlot = {}
     let result: CallResult
     try {
-      result =
-        pre.blockedReason === undefined
-          ? await this.decideAndRun(
-              turnId,
-              itemId,
-              effectiveCall,
-              signal,
-              goalCommandRevision,
-              slot,
-              isInteractiveShell,
-              pre.forceApproval,
-            )
-          : { outcome: toolFailure(pre.blockedReason), isRejected: true }
+      if (canonicalStop !== undefined) {
+        result = { outcome: await this.executeHardwareStop(canonicalStop), isRejected: false }
+      } else if (pre.blockedReason === undefined) {
+        result = await this.decideAndRun(
+          turnId,
+          itemId,
+          effectiveCall,
+          signal,
+          goalCommandRevision,
+          slot,
+          isInteractiveShell,
+          pre.forceApproval,
+        )
+      } else {
+        result = { outcome: toolFailure(pre.blockedReason), isRejected: true }
+      }
     } catch (error: unknown) {
       if (error instanceof AbortedError || signal.aborted) {
         this.finishCall(
@@ -12476,6 +12520,10 @@ export class ModelApiHost implements AgentHost {
   }
 
   public constructor(private readonly deps: ModelApiHostDeps) {
+    if (deps.hardwareContext?.().hardwareOwner === undefined) {
+      const owner = createHardwareContexts(deps.hardwareContext)(deps.workspaceRoot)
+      this.deps = { ...deps, hardwareContext: () => owner.current() }
+    }
     this.workspaceEdits = deps.workspaceEdits ?? new WorkspaceEdits()
     // Elicitations outside any tool call have no session to ask: they are
     // declined, and the pool declares the capability while this stands
@@ -12915,6 +12963,7 @@ export class ModelApiHost implements AgentHost {
   }
 
   public async startSession(options: StartSessionOptions): Promise<AgentSession> {
+    this.deps.hardwareContext?.().hardwareOwner?.startSession()
     if (options.approvalMode === 'allowAll' && isHardwareWorkspace(this.deps.hardwareContext?.()))
       throw new Error(UI_TEXT.hardwareBypassNotice)
     if (!(APPROVAL_MODES as readonly string[]).includes(options.approvalMode)) {

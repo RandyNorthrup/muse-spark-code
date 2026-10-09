@@ -118,6 +118,7 @@ async function start(options: StartOptions = {}) {
   const log = new FakeLogOutputChannel()
   // Built directly on POSIX paths: the manager would take this machine's platform.
   const host = new ModelApiHost({
+    hardwareContext: () => ({ hardwareSessionLatched: false }),
     ...disabledPaidFeatures,
     ...(options.hasSubagents === true && {
       isPaidFeatureOn: (feature: PaidFeature) => feature === 'subagents',

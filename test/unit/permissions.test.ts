@@ -448,7 +448,7 @@ describe('M103-G physical-action settle', () => {
       engine.judge({
         ...bash("echo 'M112' > /dev/ttyUSB0"),
         isUnattended: true,
-        hardware: { targets: [{ address: '/dev/ttyUSB0', stop: 'M112' }] },
+        hardware: { targets: [{ address: '/dev/ttyUSB0', stop: 'M112\n' }] },
       }).verdict,
     ).toBe('allow')
     expect(

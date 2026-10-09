@@ -304,6 +304,7 @@ export class PermissionEngine {
       countSecretMatches(query.command, []) === 0
     )
       return settled('allow', 'hardwareDetected')
+    if (query.hardware?.isInventoryKnown === false) return settled('deny', 'hardwareDetected')
     const { decision, rule } = judgeCommand(policy.commandRules, query.command, policyDialect)
     if (decision === 'forbid') {
       return settled('deny', 'forbidRule', rule)

@@ -812,6 +812,32 @@ happened, not what was planned; superseded entries are kept.
   budget with six real copies, then checks the exact read bound and reuse of
   the same directory cursor. It avoids hundreds of unnecessary disk operations
   and no longer accepts repeated traversal restarts as eventual success.
+- **Design 5 hardware review: Muse Code entry fences.** Refuse work submissions
+  after a hardware latch at every wire attempt, including steering, child
+  messages/follow-ups and goal wakes. Select the actual workspace owner; reject
+  mismatched leases. Read stored sessions before refusing hardware resume, so
+  the CLI cannot restart queued hardware work. Hardware Modes help directs
+  Muse Code users to Model API; its message ships in the browser's English
+  fallback as well as the installed language table.
+
+- **Design 5 hardware review: Stop and marker failures.** Model API Stop
+  transport failures now fail their row and tell the user delivery is
+  unconfirmed. Marker scans reject special files before opening and check
+  opened regular files without following links or waiting for FIFO writers.
+
+- **M103 hardware guard, fifth structural design (unreleased).** Share the
+  hardware context and latch across production entrypoints; detect the planned
+  machine/firmware markers and fail closed on missing scans. Reject Bypass at
+  session start and downgrade resume before pending requests. Refuse Muse Code
+  hardware turns/allow frames until MSP provides a spawn fence; direct users to
+  Model API. Normalize registered Stop despite captured staged metadata and
+  execute it through a trusted adapter without shell profiles or curl config.
+  Compare emitted serial bytes and preserve actual entry-refusal reasons.
+  Require visible, focused webview approval. Physical/USB/editor qualification
+  and OS lock presence remain open; unknown inventory refuses agent shells
+  until qualified. Uncertain Stop delivery is reported honestly. Unchanged
+  bundle caps apply.
+
 - **M103 hardware guard, fourth design (unreleased; external CLI and physical
   qualification remain open).** Every hardware shell command needs fresh exact
   host approval; the shell allowlist is deleted. Hardware mode latches for the

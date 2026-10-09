@@ -2651,5 +2651,7 @@
   "hardwareActuateWarning": "このコマンドはポートへの書き込み、または機械へのコマンド送信を行うようです。",
   "hardwareIrreversibleWarning": "ヒューズ、eFuse、またはロックビットへの不可逆な書き込みのようです。",
   "hardwareTargetNote": "対象の固定: {targets}",
-  "hardwareBindingUnavailable": "このデバイスアダプターはプロセス開始時に承認された対象を確認できません。何も送信されていません。"
+  "hardwareBindingUnavailable": "このデバイスアダプターはプロセス開始時に承認された対象を確認できません。何も送信されていません。 ハードウェアコマンドには Model API バックエンドを使用してください。",
+  "hardwarePresenceRequired": "ハードウェアコマンドを承認する前に、表示中の会話パネルにフォーカスしてください。",
+  "hardwareStopUnconfirmed": "Stop の送信を確認できませんでした。機械を確認し、物理的な非常停止装置を使用してください。"
 }

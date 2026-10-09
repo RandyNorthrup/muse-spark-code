@@ -80,6 +80,7 @@ function manager(
 ) {
   const log = new FakeLogOutputChannel()
   const created = new MuseCodeBackendManager({
+    hardwareContext: () => ({ hardwareSessionLatched: false, isInventoryKnown: true }),
     // Fake CLI harness owns no stored-checkpoint restore service.
     beforeWorkspaceHostStart: () => Promise.resolve(),
     log,

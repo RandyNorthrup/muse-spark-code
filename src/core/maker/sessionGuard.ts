@@ -1,7 +1,6 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import path from 'node:path'
+import { HardwareWorkspace } from './hardwareContext'
 import type { AgentEvent, ApprovalChoice, ApprovalSubject } from '../../shared/agentEvents'
-import { MAX_DOCUMENT_BYTES, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import {
   approvalHardwareAction,
   scrubHardwareApproval,
@@ -22,49 +21,17 @@ export interface HardwareBinding {
   readonly assertCanStart: () => void
 }
 
-/** Read project markers once, before any session command can be admitted. */
-function hasMakerProject(root: string | undefined): boolean {
-  if (root === undefined) return false
-  try {
-    const entries = readdirSync(root, { withFileTypes: true })
-    if (
-      entries.some(
-        (entry) =>
-          (entry.isFile() || entry.isSymbolicLink()) &&
-          /^(?:platformio\.ini|sdkconfig(?:\.defaults)?|pico_sdk_import\.cmake)$|\.ino$/i.test(
-            entry.name,
-          ),
-      )
-    )
-      return true
-    for (const entry of entries) {
-      if (
-        entry.isDirectory() &&
-        !/^(?:\.|node_modules|vendor|dist|build)/.test(entry.name) &&
-        readdirSync(path.join(root, entry.name), { withFileTypes: true }).some(
-          (file) => (file.isFile() || file.isSymbolicLink()) && /\.ino$/i.test(file.name),
-        )
-      )
-        return true
-    }
-    if (entries.every((entry) => !(entry.isFile() && entry.name === 'CMakeLists.txt'))) return false
-    const cmake = path.join(root, 'CMakeLists.txt')
-    return (
-      statSync(cmake).size > MAX_DOCUMENT_BYTES ||
-      /IDF_PATH|pico_sdk_import|pico_sdk_init/.test(readFileSync(cmake, 'utf8'))
-    )
-  } catch (error: unknown) {
-    // A workspace that cannot be inspected cannot establish ordinary mode.
-    return !(error instanceof Error && 'code' in error && error.code === 'ENOENT')
-  }
-}
-
 function isStop(subject: ApprovalSubject, context: HardwareContext): boolean {
   return (
     subject.kind === 'shell' &&
     subject.command !== undefined &&
-    subject.stages === undefined &&
     isHardwareStop(subject.command, 'bash', context)
+  )
+}
+
+function isHardwareRefused(event: Card, context: HardwareContext): boolean {
+  return (
+    !isHardwareWorkspace(context) && approvalHardwareAction(event.subject, context) === 'refused'
   )
 }
 
@@ -72,9 +39,9 @@ function isStop(subject: ApprovalSubject, context: HardwareContext): boolean {
 export class SessionHardwareGuard {
   private readonly approvals = new Map<string, HardwareApproval>()
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>()
-  private isLatched = false
-  private lastObservation = ''
+  private readonly owner: HardwareWorkspace
   private activeCommands = 0
+  private readonly stopActivity: () => void
   private readonly stopObserving: (() => void) | undefined
 
   public constructor(
@@ -83,21 +50,17 @@ export class SessionHardwareGuard {
     private readonly reject: (id: string) => void,
   ) {
     const initial = context()
-    this.isLatched = hasMakerProject(initial.workspaceRoot)
+    this.owner = initial.hardwareOwner ?? new HardwareWorkspace(context)
+    this.stopActivity = this.owner.trackActivity(
+      () =>
+        this.activeCommands > 0 ||
+        this.approvals.size > 0 ||
+        this.context().isCommandActive === true ||
+        this.context().hasActiveDeviceSession === true,
+    )
     this.observe(initial)
     this.stopObserving = initial.onHardwareObserved?.((observed) => {
       this.observe(observed)
-    })
-  }
-
-  private observation(context: HardwareContext): string {
-    return JSON.stringify({
-      workspace: context.isHardwareWorkspace,
-      maker: context.isMakerEnabled,
-      project: context.isHardwareProject,
-      board: context.hasConnectedBoard,
-      targets: context.targets,
-      roots: context.boardRoots,
     })
   }
 
@@ -114,16 +77,15 @@ export class SessionHardwareGuard {
 
   /** Inventory events latch on; no event or disappearing marker can latch off. */
   public observe(context: HardwareContext): void {
-    // A session output tag is not inventory evidence from a host observation.
-    const { hardwareSessionLatched: _previousSession, ...evidence } = context
-    this.isLatched ||= isHardwareWorkspace(evidence)
-    this.lastObservation = this.observation(context)
+    this.owner.observe(context)
   }
 
   public current(): HardwareContext {
-    const live = this.context()
-    if (this.observation(live) !== this.lastObservation) this.observe(live)
-    return { ...live, isHardwareWorkspace: this.isLatched, hardwareSessionLatched: this.isLatched }
+    return {
+      ...this.context(),
+      ...this.owner.current(),
+      isUnattended: this.context().isUnattended === true,
+    }
   }
 
   /** The host UI alone owns this method; neither tool arguments nor MSP expose it. */
@@ -136,8 +98,7 @@ export class SessionHardwareGuard {
       live.hasActiveDeviceSession === true
     )
       throw new Error(UI_TEXT.hardwareRefused)
-    this.isLatched = false
-    this.lastObservation = this.observation(live)
+    this.owner.reset()
   }
 
   /** Hold this lease through command/device-session completion, including background runs. */
@@ -157,7 +118,8 @@ export class SessionHardwareGuard {
     liveTargets: () => readonly TargetIdentity[],
     now: () => number,
   ): HardwareBinding | undefined {
-    if (this.current().isUnattended === true) return undefined
+    if (this.current().isUnattended === true || this.current().isInventoryKnown === false)
+      return undefined
     if (!approval.accept(answer, liveTargets(), now())) return undefined
     let isConsumed = false
     return Object.freeze({
@@ -174,7 +136,8 @@ export class SessionHardwareGuard {
             (target, index) =>
               target.address !== approval.request.targets[index]?.address ||
               target.vidPid !== approval.request.targets[index].vidPid ||
-              target.usbSerial !== approval.request.targets[index].usbSerial,
+              target.usbSerial !== approval.request.targets[index].usbSerial ||
+              target.connectionId !== approval.request.targets[index].connectionId,
           )
         )
           throw new Error(UI_TEXT.hardwareExpired)
@@ -183,12 +146,25 @@ export class SessionHardwareGuard {
   }
 
   public scrub(event: Card, toolName: string | undefined): Card {
-    return scrubHardwareApproval(
+    const scrubbed = scrubHardwareApproval(
       isPhysicalTool(toolName ?? '')
         ? { ...event, subject: { ...event.subject, toolName } }
         : event,
       this.current(),
     )
+    if (
+      !isStop(scrubbed.subject, this.current()) &&
+      (isDeviceAction(approvalHardwareAction(scrubbed.subject, this.current())) ||
+        (scrubbed.subject.kind === 'shell' && isHardwareWorkspace(this.current())))
+    )
+      return {
+        ...scrubbed,
+        availableChoices: scrubbed.availableChoices.filter(
+          (choice) => choice.decision === 'abort' || choice.decision === 'deny',
+        ),
+        note: UI_TEXT.hardwareBindingUnavailable,
+      }
+    return scrubbed
   }
 
   /** Return false when a refused action must not reach any approval surface. */
@@ -236,7 +212,7 @@ export class SessionHardwareGuard {
     }
     if (approval === undefined) return true
     markHardwareApproval(event)
-    if (approval.request.action === 'refused') {
+    if (isHardwareRefused(event, context)) {
       this.reject(event.approvalId)
       return false
     }
@@ -260,67 +236,20 @@ export class SessionHardwareGuard {
     return true
   }
 
-  public validate(
-    key: string,
-    id: string,
-    offered: ApprovalChoice | undefined,
-    subject: ApprovalSubject | undefined,
-  ): void {
+  public validate(offered: ApprovalChoice | undefined, subject: ApprovalSubject | undefined): void {
     if (offered?.decision === 'abort' || offered?.decision === 'deny') return
     const context = this.current()
-    if (subject !== undefined && isStop(subject, context)) return
     if (
       subject !== undefined &&
-      subject.kind !== 'shell' &&
-      isDeviceAction(approvalHardwareAction(subject, context))
+      (isDeviceAction(approvalHardwareAction(subject, context)) ||
+        isStop(subject, context) ||
+        (subject.kind === 'shell' && isHardwareWorkspace(context)))
     )
-      throw new Error(UI_TEXT.hardwareBindingUnavailable)
-    const pending = this.pending(id)
-    if (
-      (context.isUnattended === true ||
-        (pending !== undefined &&
-          'permissionMode' in pending &&
-          pending.permissionMode === 'bypassPermissions')) &&
-      (isHardwareWorkspace(context) ||
-        (subject !== undefined && isDeviceAction(approvalHardwareAction(subject, context))))
-    )
-      throw new Error(UI_TEXT.hardwareUnattended)
-    if (subject?.kind === 'shell' && isHardwareWorkspace(context) && offered?.scope !== 'once')
-      throw new Error(UI_TEXT.hardwareRefused)
-    const approval = this.approvals.get(key)
-    if (approval === undefined) {
-      if (
-        subject !== undefined &&
-        (isDeviceAction(approvalHardwareAction(subject, context)) ||
-          (subject.kind === 'shell' && isHardwareWorkspace(context)))
+      throw new Error(
+        context.isUnattended === true && !isStop(subject, context)
+          ? UI_TEXT.hardwareUnattended
+          : UI_TEXT.hardwareBindingUnavailable,
       )
-        throw new Error(UI_TEXT.hardwareRefused)
-      return
-    }
-    const current = this.pending(id)
-    if (offered === undefined || subject === undefined || current === undefined)
-      throw new Error(UI_TEXT.hardwareRefused)
-    if (offered.decision === 'approved' && offered.scope !== 'once')
-      throw new Error(UI_TEXT.hardwareRefused)
-    if (
-      offered.decision === 'approved' &&
-      approval.request.payload !== this.payload({ ...current, subject })
-    )
-      throw new Error(UI_TEXT.hardwareRefused)
-    if (
-      offered.decision === 'approved' &&
-      !approval.accept(
-        { id, digest: approval.request.digest, decision: 'sendOnce' },
-        hardwareTargets(
-          subject.command ?? subject.target ?? subject.host ?? subject.toolName ?? subject.kind,
-          'bash',
-          context,
-          subject.stages?.map((stage) => stage.argv),
-        ),
-        Date.now(),
-      )
-    )
-      throw new Error(UI_TEXT.hardwareExpired)
   }
 
   public settled(key: string): void {
@@ -330,6 +259,7 @@ export class SessionHardwareGuard {
   }
 
   public dispose(): void {
+    this.stopActivity()
     this.stopObserving?.()
     for (const timer of this.timers.values()) clearTimeout(timer)
     this.timers.clear()

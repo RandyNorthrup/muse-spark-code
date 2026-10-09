@@ -360,6 +360,7 @@ function setup(
     initialPermissionMode?: ConversationDeps['initialPermissionMode']
     isBypassAllowed?: boolean
     isHardwareWorkspace?: boolean
+    isHardwareApprovalPresent?: () => boolean
     /** A remote window and the answer to its Bypass confirmation (D24). */
     isRemoteWindow?: boolean
     confirmsRemoteBypass?: boolean
@@ -541,6 +542,7 @@ function setup(
     },
     log,
     options.timeouts,
+    () => ({ hardwareSessionLatched: false }),
   )
   const auth = fakeAuth(options.status)
   const gitFake = fakeGitWindow(options.git)
@@ -741,6 +743,7 @@ function setup(
     },
     isBypassAllowed: () => isBypassAllowed,
     isHardwareWorkspace: () => options.isHardwareWorkspace === true,
+    isHardwareApprovalPresent: options.isHardwareApprovalPresent ?? (() => true),
     isRemoteWindow: options.isRemoteWindow ?? false,
     confirmRemoteBypass: () => {
       remoteBypassPrompts += 1
@@ -9791,6 +9794,7 @@ describe('ConversationController: scheduled prompts (M52)', () => {
     })
     const modelHost = new ModelApiHost({
       client: fakeModelApiClient(api, t.log),
+      hardwareContext: () => ({ hardwareSessionLatched: false }),
       workspaceRoot: '/ws',
       platform: 'linux',
       io: noopToolIo,
@@ -15764,4 +15768,53 @@ it('requires current sign-in for open answers and dismissals before marking or s
   const saved = await t.questionStore.load('s1')
   expect(saved[0]?.state).toBe('open')
   await t.host.close()
+})
+
+describe('Design 5 hardware approval presence', () => {
+  it('P2.4 hidden or unfocused panel cannot approve; focused visible panel can', async () => {
+    let isPresent = false
+    const t = setup({
+      hasApprovalUi: true,
+      isHardwareWorkspace: true,
+      isHardwareApprovalPresent: () => isPresent,
+    })
+    try {
+      await t.send('presence', 'hello')
+      const decision = {
+        type: 'decideApproval',
+        approvalId: 'a1',
+        choiceId: 'allow_once',
+        requirementId: { approvalId: 'a1', sourceIndex: 0 },
+      } as const
+      t.server.handle('approval/decide', (params) => ({
+        commandId: params['commandId'],
+        terminal: true,
+      }))
+      t.server.notify('approval/requested', {
+        ...raceRequested('s1'),
+        approvalId: 'a1',
+        currentRequirementId: decision.requirementId,
+        subject: { kind: 'shell', command: 'npm test' },
+      })
+      await vi.waitFor(() => {
+        expect(t.surface.posted).toContainEqual(
+          expect.objectContaining({
+            type: 'agentEvent',
+            event: expect.objectContaining({ type: 'approvalRequested', approvalId: 'a1' }),
+          }),
+        )
+      })
+      await t.controller.handle(decision)
+      expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+      expect(t.surface.posted).toContainEqual(
+        expect.objectContaining({ type: 'notice', text: UI_TEXT.hardwarePresenceRequired }),
+      )
+      isPresent = true
+      await t.controller.handle(decision)
+      expect(t.server.requestsFor('approval/decide')).toHaveLength(1)
+    } finally {
+      t.controller.dispose()
+      await t.host.close()
+    }
+  })
 })

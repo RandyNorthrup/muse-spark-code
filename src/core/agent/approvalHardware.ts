@@ -29,14 +29,14 @@ export function approvalHardwareAction(
   subject: ApprovalSubject,
   context: HardwareContext = {},
 ): ActionClass | undefined {
-  if (isPhysicalTool(subject.toolName ?? '')) return 'actuate'
-  if (subject.kind !== 'shell') return undefined
   if (
+    subject.kind === 'shell' &&
     subject.command !== undefined &&
-    subject.stages === undefined &&
     isHardwareStop(subject.command, 'bash', context)
   )
     return undefined
+  if (isPhysicalTool(subject.toolName ?? '')) return 'actuate'
+  if (subject.kind !== 'shell') return undefined
   const actions = [
     ...(subject.command === undefined
       ? []
@@ -61,7 +61,6 @@ export function scrubHardwareApproval<T extends ApprovalCard>(
   if (
     event.subject.kind === 'shell' &&
     event.subject.command !== undefined &&
-    event.subject.stages === undefined &&
     isHardwareStop(event.subject.command, 'bash', context)
   )
     return event

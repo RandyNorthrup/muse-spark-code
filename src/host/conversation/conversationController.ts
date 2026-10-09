@@ -8,6 +8,7 @@ import type {
   QuestionStore,
 } from '../../shared/questions'
 import { startApprovalJudge } from '../../core/judge/use'
+import { approvalHardwareAction } from '../../core/agent/approvalHardware'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
 // source of truth for the composer settings that outlive a webview reload
@@ -391,6 +392,7 @@ export interface ConversationDeps {
   /** The `allowDangerouslySkipPermissions` setting: whether Bypass is offered. */
   readonly isBypassAllowed: () => boolean
   readonly isHardwareWorkspace?: () => boolean
+  readonly isHardwareApprovalPresent?: () => boolean
   /**
    * A remote window (`vscode.env.remoteName`): a dev container's settings can
    * switch Bypass on there, so it needs one explicit yes (PLAN.md D24).
@@ -1131,6 +1133,8 @@ export class ConversationController {
   private voiceContextRevision = 0
   /** Approvals "Edit automatically" answered itself (D24): their resolution is labelled so. */
   private readonly autoApproved = new Set<string>()
+  private readonly hardwareCards = new Set<string>()
+  private readonly approvalChoices = new Map<string, ReadonlySet<string>>()
   /**
    * The Auto reviewer on Muse Code (M90, PLAN.md D69): this conversation's
    * approvals in its hands (and its breaker), made on the first review.
@@ -1688,6 +1692,7 @@ export class ConversationController {
   private postComposerState(): void {
     this.post({
       type: 'composerState',
+      ...(this.deps.isHardwareWorkspace?.() === true && { isHardwareWorkspace: true }),
       effort: this.effort,
       isThinkingEnabled: this.isThinkingEnabled,
       permissionMode: this.permissionMode,
@@ -2216,6 +2221,8 @@ export class ConversationController {
       this.notice(event.level, event.text)
       return
     }
+    if (event.type === 'approvalRequested' || event.type === 'approvalUpdated')
+      this.trackHardwareApproval(event)
     switch (event.type) {
       case 'approvalRequested': {
         this.questionApprovals.add(event.approvalId)
@@ -2251,6 +2258,8 @@ export class ConversationController {
         this.questionApprovals.delete(event.approvalId)
         this.judgeCards.get(event.approvalId)?.discard()
         this.judgeCards.delete(event.approvalId)
+        this.hardwareCards.delete(event.approvalId)
+        this.approvalChoices.delete(event.approvalId)
         this.noteShellApprovalResolved(event)
         if (this.session !== undefined) {
           this.deps.pendingPrompts.resolve(this.session.sessionId, event.approvalId)
@@ -2727,10 +2736,35 @@ export class ConversationController {
     this.deps.openExternal(url)
   }
 
+  private trackHardwareApproval(
+    event: Extract<AgentEvent, { type: 'approvalRequested' | 'approvalUpdated' }>,
+  ): void {
+    this.approvalChoices.set(
+      event.approvalId,
+      new Set(
+        event.availableChoices
+          .filter((choice) => choice.decision !== 'abort' && choice.decision !== 'deny')
+          .map((choice) => choice.choiceId),
+      ),
+    )
+    if (this.deps.isHardwareWorkspace?.()) this.postComposerState()
+    if (this.deps.isHardwareWorkspace?.() || approvalHardwareAction(event.subject) !== undefined)
+      this.hardwareCards.add(event.approvalId)
+  }
+
   private async decideApproval(
     message: Extract<ConversationMessage, { type: 'decideApproval' }>,
   ): Promise<void> {
     if (this.session === undefined) {
+      return
+    }
+    if (
+      (this.hardwareCards.has(message.approvalId) || this.deps.isHardwareWorkspace?.()) &&
+      (this.approvalChoices.get(message.approvalId)?.has(message.choiceId) ??
+        message.choiceId !== 'abort') &&
+      this.deps.isHardwareApprovalPresent?.() !== true
+    ) {
+      this.notice('warning', UI_TEXT.hardwarePresenceRequired)
       return
     }
     // The stage is logged: a multi-command line is one approval decided

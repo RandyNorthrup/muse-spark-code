@@ -156,7 +156,11 @@ export class FakeMspServer implements DuplexTransport {
         continue
       }
       this.requests.push(frame)
-      const handler = this.handlers.get(frame.method)
+      // M6 captured the same envelope for read and resume. Reuse a scripted
+      // resume fixture for read-only preflight unless a test supplies its own.
+      const handler =
+        this.handlers.get(frame.method) ??
+        (frame.method === 'session/read' ? this.handlers.get('session/resume') : undefined)
       if (frame.id === undefined || this.silenced.has(frame.method)) {
         continue
       }

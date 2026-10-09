@@ -690,6 +690,7 @@ function fixture(c: FenceCase) {
   let ids = 0
   const log = new FakeLogOutputChannel()
   const host = new ModelApiHost({
+    hardwareContext: () => ({ hardwareSessionLatched: false }),
     ...disabledPaidFeatures,
     isPaidFeatureOn: (feature) => PAID.has(feature),
     allowsPaidUse: () => Promise.resolve(true),

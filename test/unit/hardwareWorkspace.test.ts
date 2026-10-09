@@ -62,13 +62,14 @@ describe('fourth design: hardware latch and immutable dispatch binding', () => {
       isDisposed = true
     }
     const guard = latch(() => ({
+      hardwareSessionLatched: false,
       onHardwareObserved: (observe) => {
         observer = observe
         return stopObserving
       },
     }))
     expect(guard.current().isHardwareWorkspace).toBe(false)
-    observer?.({ targets: [{ address: 'COM5', usbSerial: 'board-one' }] })
+    observer?.({ targets: [{ address: 'COM5', usbSerial: 'board-one', connectionId: 'node-one' }] })
     expect(guard.current().isHardwareWorkspace).toBe(true)
     guard.dispose()
     expect(isDisposed).toBe(true)
@@ -110,10 +111,15 @@ describe('fourth design: hardware latch and immutable dispatch binding', () => {
     },
   )
 
-  it.each(['address', 'vidPid', 'usbSerial', 'expiry', 'unattended', 'unchanged'])(
+  it.each(['address', 'vidPid', 'usbSerial', 'connectionId', 'expiry', 'unattended', 'unchanged'])(
     'R3F3/F4: binding survives the answer and rejects a pre-spawn change to %s',
     (change) => {
-      const target = { address: 'COM5', vidPid: '303a:1001', usbSerial: 'board-one' }
+      const target = {
+        address: 'COM5',
+        vidPid: '303a:1001',
+        usbSerial: 'board-one',
+        connectionId: 'node-one',
+      }
       let live = target
       let isUnattended = false
       let now = 1
@@ -129,7 +135,7 @@ describe('fourth design: hardware latch and immutable dispatch binding', () => {
       if (binding === undefined) throw new Error('Missing binding')
       expect(Object.isFrozen(binding)).toBe(true)
       expect(Object.isFrozen(binding.request.targets[0])).toBe(true)
-      if (['address', 'vidPid', 'usbSerial'].includes(change))
+      if (['address', 'vidPid', 'usbSerial', 'connectionId'].includes(change))
         live = { ...target, [change]: 'replacement' }
       else if (change === 'expiry') now = MACHINE_APPROVAL_TTL_MS
       else if (change === 'unattended') isUnattended = true
@@ -376,4 +382,17 @@ describe('300 developer command/dialect pairs inside and outside hardware', () =
       }
     },
   )
+})
+
+it.each(APPROVAL_MODES)('unknown inventory refuses opaque hardware commands in %s', (mode) => {
+  const engine = new PermissionEngine(mode)
+  engine.allowForSession('shell', 'python opaque.py')
+  expect(
+    engine.judge({
+      toolName: 'shell',
+      toolClass: 'shell',
+      command: 'python opaque.py',
+      hardware: { isInventoryKnown: false },
+    }),
+  ).toMatchObject({ verdict: 'deny', settledBy: 'hardwareDetected', hasSessionChoice: false })
 })

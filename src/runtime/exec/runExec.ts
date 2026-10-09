@@ -441,6 +441,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       const agent = createAcpAgent({
         questions: 'decline',
         backend: tap.backend,
+        isHardwareWorkspace: runtime.isHardwareWorkspace,
         version: deps.version,
         options: {
           canBypass: false,

@@ -10,6 +10,7 @@ import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
+import { createHardwareContexts } from './core/maker/hardwareContext'
 import * as z from 'zod/mini'
 import type { AgentHost, BackendKind } from './core/agent/agentBackend'
 import { environmentValue, terminalEnvironment } from './core/backends/musecode/launch'
@@ -67,6 +68,7 @@ import {
 import { type ShellJobDeps, shellJobAssembly } from './host/backend/shellJob'
 import {
   createToolIo,
+  createHardwareStopRunner,
   readPickedFile,
   toolImagePreviewIo,
   hookEnvironment,
@@ -752,6 +754,9 @@ async function activateWindow(
   // directory and memory have always been keyed by. Only the checkpoint store
   // uses the canonical root (below), and it accepts both spellings.
   const workspaceRoot = firstFolderPath()
+  const hardwareContexts = createHardwareContexts()
+  const hardware = hardwareContexts(workspaceRoot)
+  const hardwareContext = (root = workspaceRoot) => hardwareContexts(root).current()
   const nativeStarts = new AbortController()
   context.subscriptions.push({
     dispose: () => {
@@ -1270,7 +1275,19 @@ async function activateWindow(
     log,
     voice,
   )
+  const stopHardware = createHardwareStopRunner({
+    platform: process.platform,
+    systemRoot: process.env['SystemRoot'],
+    log: (message) => {
+      log.trace(message)
+    },
+  })
   const backend = new MuseCodeBackendManager({
+    hardwareContext,
+    runHardwareStop: async (stop) => {
+      const result = await stopHardware(stop)
+      if (result.exitCode !== 0) throw new Error(UI_TEXT.hardwareRefused)
+    },
     beforeWorkspaceHostStart: async () => {
       await checkpoints.markNativeBackend()
     },
@@ -1715,6 +1732,7 @@ async function activateWindow(
   // The workspace's files and a shell (M7): the Model API backend's tools,
   // and the files the ide server's image tools read and write (M44).
   const toolIo = createToolIo({
+    hardwareContext,
     platform: process.platform,
     listFiles: listWorkspaceFiles,
     systemRoot: process.env['SystemRoot'],
@@ -2195,6 +2213,7 @@ async function activateWindow(
         })
   const modelApi = new ModelApiBackendManager({
     judge,
+    hardwareContext,
     log,
     // Each Model API turn's unit (M86): its record before it runs, its own
     // recorded writes while it does, then its writes drained, its unit folded
@@ -2886,6 +2905,9 @@ async function activateWindow(
           },
           files,
           isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
+          isHardwareWorkspace: () => hardware.current().isHardwareWorkspace === true,
+          isHardwareApprovalPresent: () =>
+            vscode.window.state.focused && surface.isApprovalPresent?.() === true,
           isRemoteWindow: vscode.env.remoteName !== undefined,
           confirmRemoteBypass: async () =>
             (await vscode.window.showWarningMessage(
@@ -3146,7 +3168,13 @@ async function activateWindow(
     extensionUri: context.extensionUri,
     l10n,
     log,
-    getSettings: () => toSettingsSnapshot(currentSettings()),
+    getSettings: () =>
+      toSettingsSnapshot({
+        ...currentSettings(),
+        allowDangerouslySkipPermissions:
+          currentSettings().allowDangerouslySkipPermissions &&
+          hardware.current().isHardwareWorkspace !== true,
+      }),
     onInputFocusChanged: (surface, isFocused) => {
       isInputFocused = isFocused
       if (isFocused) {

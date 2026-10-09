@@ -4,12 +4,8 @@ export {
   hardwareArgvAction,
   hardwareTargets,
   isHardwareStop,
+  hardwareStop,
 } from './guard/hardwareCommands'
 export { parseShell } from './guard/shellParse'
-export {
-  isHardwareWorkspace,
-  hardwareShellNote,
-  hardwareApprovalMode,
-  prepareHardwareTurn,
-} from './guard/shellPolicy'
+export { isHardwareWorkspace, hardwareShellNote } from './guard/shellPolicy'
 export { setUiText as setHardwareText } from '../../shared/l10n/text'

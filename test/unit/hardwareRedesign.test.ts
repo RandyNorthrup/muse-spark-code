@@ -131,7 +131,7 @@ describe('REDM103G review regressions and fail-closed rules', () => {
         machine,
       ),
     ).toBe(true)
-    const serial = { targets: [{ address: '/dev/ttyUSB0', stop: 'M112' }] }
+    const serial = { targets: [{ address: '/dev/ttyUSB0', stop: 'M112\n' }] }
     expect(isHardwareStop("echo 'M112' > /dev/ttyUSB0", 'bash', serial)).toBe(true)
     expect(isHardwareStop("echo 'M112' > /dev/ttyUSB1", 'bash', serial)).toBe(false)
   })

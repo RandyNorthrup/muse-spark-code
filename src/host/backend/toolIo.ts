@@ -1,3 +1,5 @@
+import { hardwareStop, type HardwareStop } from '../../core/maker/guard/hardwareCommands'
+import type { HardwareContext } from '../../core/maker/guard/httpCommands'
 // The file system and shell the Model API tool harness runs on (M7): the
 // workspace's own files through node:fs, the file listing through the same
 // lister the @-mention index uses (so .gitignore applies), and one shell
@@ -55,6 +57,7 @@ import {
   RUNTIME_MAKER_AGENT_SHELL,
   SEARCH_TIMEOUT_MS,
   SHELL_DRAIN_GRACE_MS,
+  SHELL_DEFAULT_TIMEOUT_MS,
   SHELL_OUTPUT_MAX_CHARS,
   type TERMINAL_ENV_KEYS,
   TOOL_FILE_MAX_BYTES,
@@ -68,6 +71,7 @@ import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from 
 import { joinStatement, newShellJob } from './shellJob'
 
 export interface ToolIoDeps {
+  readonly hardwareContext?: () => HardwareContext
   readonly platform: NodeJS.Platform
   readonly listFiles: () => Promise<readonly string[]>
   readonly systemRoot: string | undefined
@@ -504,6 +508,52 @@ export function toolImagePreviewIo(
   }
 }
 
+export function createHardwareStopRunner(
+  deps: Pick<ToolIoDeps, 'platform' | 'systemRoot' | 'log'>,
+): (stop: HardwareStop) => Promise<ShellResult> {
+  return (stop) => runHardwareStop(deps, stop)
+}
+
+async function runHardwareStop(
+  deps: Pick<ToolIoDeps, 'platform' | 'systemRoot' | 'log'>,
+  stop: HardwareStop,
+): Promise<ShellResult> {
+  if (stop.kind === 'serial') {
+    const port = await open(stop.address, 'w')
+    try {
+      await port.writeFile(Buffer.from(stop.payload, 'latin1'))
+    } finally {
+      await port.close()
+    }
+    return { stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }
+  }
+  const file =
+    deps.platform === 'win32'
+      ? path.win32.join(deps.systemRoot ?? '', 'System32', 'curl.exe')
+      : '/usr/bin/curl'
+  if (!(deps.platform === 'win32' ? path.win32 : path.posix).isAbsolute(file))
+    return unstartedShell('Absolute Stop transport unavailable')
+  return await runCommand({
+    file,
+    args: [
+      '-q',
+      '--config',
+      deps.platform === 'win32' ? 'NUL' : '/dev/null',
+      '--noproxy',
+      '*',
+      '--fail',
+      '-X',
+      'POST',
+      stop.address,
+    ],
+    cwd: undefined,
+    env: {},
+    timeoutMs: SHELL_DEFAULT_TIMEOUT_MS,
+    signal: undefined,
+    tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
+  })
+}
+
 export function createToolIo(deps: ToolIoDeps): ToolIo {
   const interpreter = shellInterpreter(deps.platform, deps.systemRoot, deps.env(), existsSync)
   const hasUnsavedChanges = (absolutePath: string) =>
@@ -678,7 +728,17 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     listFiles: deps.listFiles,
     searchFiles: (job) => searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS),
     realPath: canonicalPath,
+    runHardwareStop: createHardwareStopRunner(deps),
     async runShell(command, cwd, timeoutMs, signal, limit, assertCanRun, isInteractive = false) {
+      const context = deps.hardwareContext?.()
+      if (context?.isHardwareWorkspace === true) {
+        const stop = hardwareStop(
+          command,
+          deps.platform === 'win32' ? 'powershell' : 'bash',
+          context,
+        )
+        if (stop !== undefined) return await runHardwareStop(deps, stop)
+      }
       if (interpreter === undefined) {
         const missing = deps.platform === 'win32' ? 'Windows PowerShell' : BASH
         return unstartedShell(`${missing} was not found on the absolute entries of PATH`)
@@ -802,7 +862,7 @@ export class BoundedText {
 export interface CommandRun {
   readonly file: string
   readonly args: readonly string[]
-  readonly cwd: string
+  readonly cwd: string | undefined
   readonly env: NodeJS.ProcessEnv
   readonly timeoutMs: number
   readonly signal: AbortSignal | undefined
@@ -858,8 +918,8 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
     const startedAt = Date.now()
     try {
       run.assertCanStart?.()
-    } catch {
-      resolve(refusedShellEntry())
+    } catch (error: unknown) {
+      resolve(refusedShellEntry(error instanceof Error ? error.message : String(error)))
       return
     }
     const child = startProcess(run)

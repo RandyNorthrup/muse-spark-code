@@ -2651,5 +2651,7 @@
   "hardwareActuateWarning": "이 명령은 포트에 쓰거나 기계 명령을 보내는 것으로 보입니다.",
   "hardwareIrreversibleWarning": "되돌릴 수 없는 퓨즈, eFuse 또는 잠금 비트 쓰기로 보입니다.",
   "hardwareTargetNote": "대상 바인딩: {targets}",
-  "hardwareBindingUnavailable": "이 장치 어댑터는 프로세스 시작 시 승인된 대상을 확인할 수 없습니다. 아무것도 전송하지 않았습니다."
+  "hardwareBindingUnavailable": "이 장치 어댑터는 프로세스 시작 시 승인된 대상을 확인할 수 없습니다. 아무것도 전송하지 않았습니다. 하드웨어 명령에는 Model API 백엔드를 사용하세요.",
+  "hardwarePresenceRequired": "하드웨어 명령을 승인하기 전에 표시된 대화 패널에 포커스를 맞추세요.",
+  "hardwareStopUnconfirmed": "Stop 전달을 확인할 수 없습니다. 기계를 확인하고 물리적 비상 정지 장치를 사용하세요."
 }

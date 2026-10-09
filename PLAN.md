@@ -12134,6 +12134,50 @@ terminal attendance is never authority.
 
 #### Guard redesign (REDM103G, 2026-10-05)
 
+**Fifth design (M103G5, 2026-10-06, structural redesign after RVM103G4).**
+One hardware-context module owns bounded marker detection, host inventory and
+workspace latches, injected from the extension/runtime composition roots into
+both backend managers, the controller and ACP/headless. Missing/unreadable
+roots fail closed. New sessions select their mode from the owner's workspace
+before the start request; resume applies the safe mode before pending requests.
+Registered Stop is classified from command bytes only, regardless of staged
+subject metadata. Its host adapter uses direct execution with absolute tools
+and no profile/config; the CLI copy is rejected. The captured MSP has no
+synchronous pre-spawn fence, so hardware turns and hardware approvals on Muse
+Code refuse with a Model API migration message rather than sending allow.
+Model API retains its immutable, single-use binding at native entry. Hardware
+webview approval also requires current host window focus and surface visibility
+and focus. OS session-lock presence remains a named residual. Every RVM103G4
+finding gets a guard4 red regression and restored evidence; no real hardware,
+paid calls, gate weakening, pushes or merges are authorized.
+
+Unknown or failed native inventory refuses hardware shells and cannot be
+cleared by an idle reset. Windows discovery is unknown until qualified in lane
+H; native filesystem generations bind POSIX ports without claiming USB serial
+identity. Registered Stop skips hook/trust/Plan gates and runs in a dedicated
+adapter; an uncertain result says delivery is unconfirmed. Per-root providers
+also cover attempt worktrees, and legacy host sources are normalized through
+the owner before mode selection. Marker reads are bounded by the named file
+and byte ceilings, with directory and file handles closed on every exit.
+
+**Design 5 review fixes (FIXM103G5, 2026-10-07).** RVM103G5's three P1
+and two P2 findings require a refusal at every Muse Code execution-submission
+boundary, including retries after awaits; root-aware composition callbacks
+must select the actual workspace lease or reject a mismatch. Resume first
+reads the captured session envelope without attaching, and refuses hardware
+before `session/resume` can restart queued work. Stop failure or uncertain
+delivery on Model API emits the dedicated unconfirmed notice and a failed
+row. Marker sniffing rejects special files and validates an opened regular
+file through a nonblocking, no-follow boundary. Regression tests run red on
+`39144b519`, then green; fresh-clone CI coverage repeats three times at the
+repository timeout. All five typechecks and unchanged static/build gates
+follow. Fakes/simulators only; shared core covers every editor/runtime.
+The P3 Modes-menu finding uses the existing translated migration text in
+latched Muse Code sessions; ordinary and Model API descriptions stay accurate.
+That key must live outside the host-only English block removed by the browser
+build. An actual browser-fallback bundle regression and production screenshot
+prove the message ships; all translated tables and bundle caps stay unchanged.
+
 **Fourth design (REDM103G3, lead ruling after RVM103G3).** Every agent shell
 command in a hardware session asks the host UI once for the exact command;
 there is no shell read allowlist, standing grant, reviewer grant or classifier
@@ -30887,8 +30931,7 @@ panel (M104); M103's maker pages are built on the same server and bridge.
 (h) Publishing accounts (PyPI, ACP registry, Eclipse update site) are the
 owner's; release assets and install docs ship meanwhile.
 
-**Status 2026-10-05: planned; guard fourth-design wiring authorized and applied
-(REDM103G3 continuation).**
+**Status 2026-10-07: M103 planned overall; lane G fifth structural design implemented and focused-certified (M103G5); independent review pending.**
 RVM103G3's six P1 findings invalidate the third-design safety certification.
 Fourth-design implementation and gate-fire receipts belong in
 `docs/certification/m103-g.md`; external CLI process-entry enforcement and
@@ -31585,6 +31628,18 @@ and updates both READMEs; the absent catalogue cannot be regenerated here. Refer
 integration check once that catalogue exists. Receipts and every red drill
 are in `docs/certification/m103-t.md`; no local gate is disabled.
 no local gate is disabled.
+
+**M103G5 focused-lane deferral (2026-10-07).** The rig brief requires complete
+owning files in batches of at most three and the static/build gates. Aggregate
+quality/coverage, hosted OS/editor matrix and physical qualification remain
+lead gates, as in the prior guard receipts; no threshold or cap is waived.
+Next slice: independent design-5 review, then lane H Windows/USB inventory and
+lane D registry integration, using simulator receipts before physical work.
+FIXM103G5 repeats every complete owning file with coverage in a fresh committed
+clone under `CI=true`, three times at default timeouts. Its `--shard=1/1`
+collects every selected test using the repository's existing CI shard policy;
+aggregate full-map coverage thresholds remain the lead's merge gate. No cap,
+threshold, ignore, timeout, test skip or hook is changed.
 
 **REDM103G3 continuation (2026-10-05, Windows 11 rig).** The lead approves
 the nine pending wiring/docs files and accepts the fourth-design guard's

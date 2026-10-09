@@ -389,6 +389,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   await journal.startup()
   const agent = createAcpAgent({
     backend: runtime.backend,
+    isHardwareWorkspace: runtime.isHardwareWorkspace,
     version: packageVersion(),
     options: {
       canBypass: maker === undefined && options.canBypass,

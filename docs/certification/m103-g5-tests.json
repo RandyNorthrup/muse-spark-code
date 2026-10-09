@@ -1,0 +1,133 @@
+[
+  {
+    "files": [
+      "test/unit/modelApiHost.test.ts",
+      "test/unit/hardwareCommands.test.ts",
+      "test/unit/hardwareWorkspace.test.ts"
+    ],
+    "exit": 0,
+    "summary": ["\n\n Test Files  3 passed (3)", "      Tests  909 passed (909)"]
+  },
+  {
+    "files": [
+      "test/unit/App.test.tsx",
+      "test/unit/conversationController.test.ts",
+      "test/unit/webviewSetup.test.ts"
+    ],
+    "exit": 0,
+    "summary": ["\n Test Files  3 passed (3)", "      Tests  707 passed (707)"]
+  },
+  {
+    "files": [
+      "test/unit/hardwareContextOwner.test.ts",
+      "test/unit/hardwareDesign5.test.ts",
+      "test/unit/approvalHardware.test.ts"
+    ],
+    "exit": 0,
+    "summary": ["\n\n Test Files  3 passed (3)", "      Tests  57 passed (57)"]
+  },
+  {
+    "files": [
+      "test/unit/hardwareRedesign.test.ts",
+      "test/unit/hardwareShellProbes.test.ts",
+      "test/unit/guardSecrets.test.ts"
+    ],
+    "exit": 0,
+    "summary": ["\n\n Test Files  3 passed (3)", "      Tests  30 passed (30)"]
+  },
+  {
+    "files": [
+      "test/unit/permissions.test.ts",
+      "test/unit/permissionModes.test.ts",
+      "test/unit/uiState.test.ts"
+    ],
+    "exit": 0,
+    "summary": ["\n\n Test Files  3 passed (3)", "      Tests  266 passed (266)"]
+  },
+  {
+    "files": [
+      "test/unit/MuseCodeHost.test.ts",
+      "test/unit/museCodeBackendManager.test.ts",
+      "test/unit/modelApiBackendManager.test.ts"
+    ],
+    "exit": 0,
+    "summary": ["\n\n Test Files  3 passed (3)", "      Tests  131 passed (131)"]
+  },
+  {
+    "files": [
+      "test/unit/modelApiBundle.test.ts",
+      "test/unit/acpAgent.test.ts",
+      "test/unit/acpModelApi.test.ts"
+    ],
+    "exit": 0,
+    "summary": ["\n\n Test Files  3 passed (3)", "      Tests  111 passed (111)"]
+  },
+  {
+    "files": [
+      "test/unit/acpRuntime.test.ts",
+      "test/unit/execRun.test.ts",
+      "test/unit/museCodeReviewer.test.ts"
+    ],
+    "exit": 0,
+    "summary": ["\n\n Test Files  3 passed (3)", "      Tests  137 passed (137)"]
+  },
+  {
+    "files": [
+      "test/unit/museCodeReviewerBundle.test.ts",
+      "test/unit/approvalRules.test.ts",
+      "test/unit/protocol.test.ts"
+    ],
+    "exit": 0,
+    "summary": ["\n\n Test Files  3 passed (3)", "      Tests  224 passed (224)"]
+  },
+  {
+    "files": [
+      "test/unit/chatPanel.test.ts",
+      "test/unit/toolIo.test.ts",
+      "test/unit/toolIoCommandAdmission.test.ts"
+    ],
+    "exit": 0,
+    "summary": ["\n\n Test Files  3 passed (3)", "      Tests  65 passed | 2 skipped (67)"]
+  },
+  {
+    "files": [
+      "test/unit/toolIoBounded.test.ts",
+      "test/unit/modelApiPolicyFence.test.ts",
+      "test/unit/modelApiCodeIntel.test.ts"
+    ],
+    "exit": 0,
+    "summary": ["\n\n Test Files  3 passed (3)", "      Tests  120 passed (120)"]
+  },
+  {
+    "files": [
+      "test/unit/modelApiPacking.test.ts",
+      "test/unit/verifyLoop.test.ts",
+      "test/unit/paidDailyBudget.test.ts"
+    ],
+    "exit": 0,
+    "summary": ["\n\n Test Files  3 passed (3)", "      Tests  107 passed (107)"]
+  },
+  {
+    "files": [
+      "test/unit/bestOfNAttempts.test.ts",
+      "test/unit/approvalSecrets.test.ts",
+      "test/unit/permissionPolicy.test.ts"
+    ],
+    "exit": 0,
+    "summary": ["\n\n Test Files  3 passed (3)", "      Tests  38 passed (38)"]
+  },
+  {
+    "files": [
+      "test/unit/runtimeConsent.test.ts",
+      "test/unit/fileIdentity.test.ts",
+      "test/e2e/museCode.e2e.test.ts"
+    ],
+    "exit": 0,
+    "summary": ["\n\n Test Files  3 passed (3)", "      Tests  27 passed (27)"]
+  },
+  {
+    "files": ["test/e2e/acpStdio.e2e.test.ts"],
+    "exit": 0,
+    "summary": ["\n\n Test Files  1 passed (1)", "      Tests  9 passed (9)"]
+  }
+]

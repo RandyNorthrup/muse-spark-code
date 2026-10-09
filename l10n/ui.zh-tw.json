@@ -2651,5 +2651,7 @@
   "hardwareActuateWarning": "此命令似乎會向連接埠寫入資料或傳送機器命令。",
   "hardwareIrreversibleWarning": "這看起來像是不可逆的熔絲、eFuse 或鎖定位元寫入。",
   "hardwareTargetNote": "目標綁定：{targets}",
-  "hardwareBindingUnavailable": "此裝置介面卡無法在處理程序啟動時驗證已核准的目標。未傳送任何內容。"
+  "hardwareBindingUnavailable": "此裝置介面卡無法在處理程序啟動時驗證已核准的目標。未傳送任何內容。 請使用 Model API 後端執行硬體命令。",
+  "hardwarePresenceRequired": "核准硬體命令前，請將焦點移至可見的對話面板。",
+  "hardwareStopUnconfirmed": "無法確認 Stop 已送達。請檢查機器並使用其實體急停裝置。"
 }

@@ -113,7 +113,9 @@ function answeringHost(): FakeHostHandle {
 function setup(options: { readonly timeoutMs?: number } = {}) {
   const handle = answeringHost()
   const log = new FakeLogOutputChannel()
-  const host = new MuseCodeHost(handle.host, log)
+  const host = new MuseCodeHost(handle.host, log, undefined, () => ({
+    hardwareSessionLatched: false,
+  }))
   const folder = mkdtempSync(path.join(tmpdir(), 'muse-reviewer-'))
   folders.push(folder)
   const root = path.join(folder, 'museCodeReviewer')
@@ -675,7 +677,9 @@ describe('the Auto reviewer on Muse Code (M90)', () => {
     await allowOnce(t, 1, shellRequest('a1'))
     // Muse Code restarted: the conversation's host is a new one.
     const restarted = answeringHost()
-    const newHost = new MuseCodeHost(restarted.host, t.log)
+    const newHost = new MuseCodeHost(restarted.host, t.log, undefined, () => ({
+      hardwareSessionLatched: false,
+    }))
     t.hold(shellRequest('a2'), CONTRIBUTOR, newHost)
     answer(restarted, await reviewTurn(restarted, 1), CAPTURED_REPLY)
     await vi.waitFor(() => {

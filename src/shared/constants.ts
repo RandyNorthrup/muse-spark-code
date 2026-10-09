@@ -224,7 +224,9 @@ export interface CheckCommandSetting {
 }
 
 // M103 lane D: maker-detect bounds. Detection only offers checks; it never runs them.
-export const MAKER_DETECT_MAX_FILES = 256
+// M103 guard design 5 (reviewed): the hardware marker scan shares this
+// ceiling; exceeding it fails closed.
+export const MAKER_DETECT_MAX_FILES = 4096
 // M103 R: owner storage and bounded loopback/runtime surfaces.
 export const RUNTIME_MAKER_BUNDLE_FILE = 'runtimeMaker.js'
 export const RUNTIME_MAKER_MAX_BYTES = 64 * 1024

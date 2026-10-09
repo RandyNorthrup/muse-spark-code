@@ -740,6 +740,41 @@ describe('App conversation', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
+  it('Design 5 hides Bypass after hardware latches despite an enabled setting', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'authState', status: 'signedIn', backend: 'museCode' })
+    deliver({
+      type: 'settingsChanged',
+      settings: { ...testSettings, allowDangerouslySkipPermissions: true },
+    })
+    deliver({
+      type: 'composerState',
+      effort: 'high',
+      isThinkingEnabled: true,
+      permissionMode: 'manual',
+      isHardwareWorkspace: true,
+    })
+    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    expect(
+      screen.queryByRole('menuitemradio', { name: /Bypass permissions/ }),
+    ).not.toBeInTheDocument()
+    expect(screen.getAllByRole('menuitemradio')).toHaveLength(4)
+    expect(screen.getAllByText(UI_TEXT.hardwareBindingUnavailable)).toHaveLength(4)
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    deliver({
+      type: 'composerState',
+      effort: 'high',
+      isThinkingEnabled: true,
+      permissionMode: 'auto',
+      isHardwareWorkspace: true,
+    })
+    fireEvent.keyDown(textarea(), {
+      key: 'Tab',
+      shiftKey: true,
+    })
+    expect(postMessage).toHaveBeenCalledWith({ type: 'setPermissionMode', mode: 'manual' })
+  })
+
   it('lists Bypass permissions only while the setting allows it', () => {
     const postMessage = renderReady()
     deliver({
@@ -2323,7 +2358,10 @@ describe('App webview and UI state (M25)', () => {
     act(() => {
       window.dispatchEvent(new FocusEvent('focus'))
     })
-    expect(postMessage).toHaveBeenLastCalledWith({ type: 'surfaceFocused' })
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'surfaceFocused',
+      focused: document.hasFocus(),
+    })
   })
 
   it("offers the browser's Copy in the highlighted-text menu", () => {

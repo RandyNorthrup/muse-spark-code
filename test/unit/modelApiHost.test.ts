@@ -528,7 +528,7 @@ function setup(
     bundledSkills: options.bundledSkills,
     personalAgentsRoot: options.personalAgentsRoot,
     ...(options.isUnattended !== undefined && { isUnattended: options.isUnattended }),
-    ...(options.hardwareContext !== undefined && { hardwareContext: options.hardwareContext }),
+    hardwareContext: () => ({ hardwareSessionLatched: false, ...options.hardwareContext?.() }),
     isWorkspaceTrusted: () =>
       typeof options.isTrusted === 'function' ? options.isTrusted() : (options.isTrusted ?? true),
     isConfidentialWorkspace: confidentialOf(options.isConfidentialWorkspace),
@@ -736,13 +736,94 @@ describe('M103-G hardware dispatch boundary', () => {
         targets: [{ address: 'https://printer.local', stop: '/printer/emergency_stop' }],
       }),
     })
+    const stops: unknown[] = []
+    t.io.runHardwareStop = (stop) => {
+      stops.push(stop)
+      return hookReply('fake Stop receipt')
+    }
     const { session, events, turnDone } = await startSession(t, 'onRequest')
     t.api.script({ calls: [shellCall(command)] }, { text: 'done' })
     await session.sendTurn([{ type: 'text', text: 'stop' }])
     await turnDone()
     expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
-    expect(t.shellCalls.map((call) => call.command)).toEqual([command])
+    expect(t.shellCalls).toHaveLength(0)
+    expect(stops).toEqual([
+      { kind: 'http', address: 'https://printer.local/printer/emergency_stop' },
+    ])
   })
+
+  it('Design 5 registered Stop bypasses Plan, trust and PreToolUse gates', async () => {
+    const t = setup({
+      isTrusted: false,
+      hooks: hooksFor('PreToolUse', 'deny-stop'),
+      hardwareContext: () => ({
+        targets: [{ address: 'https://printer.local', stop: '/printer/emergency_stop' }],
+      }),
+    })
+    const dispatch = vi.fn(() => hookReply('simulated stop'))
+    const hook = vi.fn(() => denyHook())
+    t.io.runHardwareStop = dispatch
+    t.io.runHook = hook
+    const { session, events, turnDone } = await startSession(t, 'denyUnmatched')
+    t.api.script(
+      { calls: [shellCall('curl -X POST https://printer.local/printer/emergency_stop')] },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'stop' }])
+    await turnDone()
+    expect(dispatch).toHaveBeenCalledOnce()
+    expect(hook).not.toHaveBeenCalled()
+    expect(t.shellCalls).toHaveLength(0)
+    expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+  })
+
+  it.each(['http503', 'notStarted', 'throws', 'missingAdapter'])(
+    'Design 5 review P2.4 Stop delivery is unconfirmed and the row fails: %s',
+    async (failure) => {
+      const t = setup({
+        hardwareContext: () => ({
+          targets: [{ address: 'https://printer.local', stop: '/printer/emergency_stop' }],
+        }),
+      })
+      const dispatch = vi.fn(() => {
+        if (failure === 'throws') throw new Error('simulated transport failure')
+        return Promise.resolve({
+          stdout: '',
+          stderr: failure === 'http503' ? 'simulated HTTP 503' : 'simulated spawn failure',
+          exitCode: failure === 'http503' ? 22 : null,
+          isTimedOut: false,
+          isCancelled: false,
+        })
+      })
+      if (failure !== 'missingAdapter') t.io.runHardwareStop = dispatch
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
+      await completeToolCalls(
+        t,
+        session,
+        turnDone,
+        [shellCall('curl -X POST https://printer.local/printer/emergency_stop')],
+        'stop',
+        { text: 'done' },
+      )
+      expect(dispatch).toHaveBeenCalledTimes(failure === 'missingAdapter' ? 0 : 1)
+      expect(events).toContainEqual({
+        type: 'backendNotice',
+        level: 'error',
+        text: UI_TEXT.hardwareStopUnconfirmed,
+      })
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: 'itemCompleted',
+          item: expect.objectContaining({
+            status: 'failed',
+            failureReason: UI_TEXT.hardwareStopUnconfirmed,
+          }),
+        }),
+      )
+      expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+      expect(t.shellCalls).toHaveLength(0)
+    },
+  )
 
   it('hardware workspace hooks never start a process or grant a model shell command', async () => {
     const runHook = vi.fn(permitHook)

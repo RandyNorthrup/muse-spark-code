@@ -330,6 +330,7 @@ export interface UiState {
   readonly effort: EffortLevel
   readonly isThinkingEnabled: boolean
   readonly permissionMode: PermissionMode
+  readonly isHardwareWorkspace: boolean
   readonly attachments: readonly AttachmentSummary[]
   /** Invalidates browser reads when the composer changes conversations or clears. */
   readonly attachmentEpoch: number
@@ -626,6 +627,7 @@ export const initialUiState: UiState = {
   effort: DEFAULT_EFFORT,
   isThinkingEnabled: true,
   permissionMode: 'manual',
+  isHardwareWorkspace: false,
   attachments: [],
   attachmentEpoch: 0,
   attachmentSettlements: [],
@@ -3231,6 +3233,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         effort: message.effort,
         isThinkingEnabled: message.isThinkingEnabled,
         permissionMode: message.permissionMode,
+        isHardwareWorkspace: message.isHardwareWorkspace ?? state.isHardwareWorkspace,
       }
     }
     case 'mentionResults': {

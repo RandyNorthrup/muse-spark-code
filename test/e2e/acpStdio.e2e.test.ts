@@ -421,6 +421,7 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     // The platform the file is read for; the fake CLI answers on this one.
     const runtimeReadingFor = (platform: NodeJS.Platform) =>
       createRuntimeBackend({
+        hardwareInventory: () => ({ hardwareSessionLatched: false, isInventoryKnown: true }),
         options: { ...MUSE_CODE_OPTIONS, museBinary: fake.binaryPath },
         version: LAID_OUT_VERSION,
         distDir: path.dirname(AGENT),
@@ -497,6 +498,7 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     secrets.values.set(SECRET_KEYS.modelApiKey, 'LLM|1|secret')
     const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
     const runtime = createRuntimeBackend({
+      hardwareInventory: () => ({ hardwareSessionLatched: false, isInventoryKnown: true }),
       options: { ...MUSE_CODE_OPTIONS, backend: 'modelApi' },
       version: LAID_OUT_VERSION,
       distDir: path.dirname(AGENT),

@@ -2849,5 +2849,7 @@
   "hardwareActuateWarning": "Parece que este comando escribe en un puerto o envía un comando a una máquina.",
   "hardwareIrreversibleWarning": "Esto parece una escritura irreversible de fusibles, eFuses o bits de bloqueo.",
   "hardwareTargetNote": "Vinculación del destino: {targets}",
-  "hardwareBindingUnavailable": "Este adaptador de dispositivo no puede verificar el destino aprobado al iniciar el proceso. No se envió nada."
+  "hardwareBindingUnavailable": "Este adaptador de dispositivo no puede verificar el destino aprobado al iniciar el proceso. No se envió nada. Use el backend Model API para los comandos de hardware.",
+  "hardwarePresenceRequired": "Enfoque el panel visible de la conversación antes de aprobar un comando de hardware.",
+  "hardwareStopUnconfirmed": "No se pudo confirmar la entrega de Stop. Compruebe la máquina y use su parada de emergencia física."
 }

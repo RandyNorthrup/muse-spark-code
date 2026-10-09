@@ -149,7 +149,9 @@ function setup(
       },
     ],
   }))
-  const host = new MuseCodeHost(handle.host, log, options.timeouts)
+  const host = new MuseCodeHost(handle.host, log, options.timeouts, () => ({
+    hardwareSessionLatched: false,
+  }))
   return { ...handle, log, host }
 }
 
@@ -1365,7 +1367,11 @@ function hostOn(platformOs: string, version: string) {
     sessionDurability: 'ephemeral',
   })
   const log = new FakeLogOutputChannel()
-  return { ...handle, log, host: new MuseCodeHost(handle.host, log) }
+  return {
+    ...handle,
+    log,
+    host: new MuseCodeHost(handle.host, log, undefined, () => ({ hardwareSessionLatched: false })),
+  }
 }
 
 /** A stage of the captured eight-stage approval. */

@@ -19,6 +19,7 @@ export function fakeManagerDeps(
 ): ModelApiBackendManagerDeps {
   return {
     log,
+    hardwareContext: () => ({ hardwareSessionLatched: false }),
     getApiKey: () => Promise.resolve('LLM|1|secret'),
     io: noopToolIo,
     listAttemptFiles: () => Promise.resolve([]),

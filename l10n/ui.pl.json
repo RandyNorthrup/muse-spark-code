@@ -2948,5 +2948,7 @@
   "hardwareActuateWarning": "To polecenie wygląda na zapis do portu lub wysłanie polecenia do maszyny.",
   "hardwareIrreversibleWarning": "Wygląda to na nieodwracalny zapis bezpiecznika, eFuse lub bitu blokady.",
   "hardwareTargetNote": "Powiązanie z celem: {targets}",
-  "hardwareBindingUnavailable": "Ten adapter urządzenia nie może zweryfikować zatwierdzonego celu przy uruchamianiu procesu. Nic nie wysłano."
+  "hardwareBindingUnavailable": "Ten adapter urządzenia nie może zweryfikować zatwierdzonego celu przy uruchamianiu procesu. Nic nie wysłano. Do poleceń sprzętowych użyj backendu Model API.",
+  "hardwarePresenceRequired": "Przed zatwierdzeniem polecenia sprzętowego ustaw fokus na widocznym panelu rozmowy.",
+  "hardwareStopUnconfirmed": "Nie można potwierdzić dostarczenia Stop. Sprawdź maszynę i użyj jej fizycznego wyłącznika awaryjnego."
 }

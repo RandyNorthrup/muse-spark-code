@@ -11,13 +11,9 @@ export {
   hardwareArgvAction,
   hardwareTargets,
   isHardwareStop,
+  hardwareStop,
 } from './guard/hardwareCommands'
-export {
-  isHardwareWorkspace,
-  hardwareShellNote,
-  hardwareApprovalMode,
-  prepareHardwareTurn,
-} from './guard/shellPolicy'
+export { isHardwareWorkspace, hardwareShellNote } from './guard/shellPolicy'
 export { parseShell } from './guard/shellParse'
 export { approvalHardwareAction, scrubHardwareApproval } from '../agent/approvalHardware'
 export {
@@ -42,3 +38,5 @@ export function setHardwareText(
   setUiText(table, locale)
   if (readers !== undefined) configureHardwareSecrets(readers)
 }
+
+export { hardwareApprovalMode, prepareHardwareTurn } from './guard/modes'

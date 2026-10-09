@@ -23,7 +23,7 @@ const EXPORTS = new Map(
     ],
     [
       'src/core/maker/guard/hardwareCommands.ts',
-      ['hardwareAction', 'hardwareArgvAction', 'hardwareTargets', 'isHardwareStop'],
+      ['hardwareAction', 'hardwareArgvAction', 'hardwareTargets', 'isHardwareStop', 'hardwareStop'],
     ],
     [
       'src/core/maker/guard/shellPolicy.ts',
@@ -90,9 +90,14 @@ export const hardwareGuardSplit = guardSplit(
 export const hardwareShellSplit = guardSplit(
   'hardware-shell-split',
   new Map(
-    [...EXPORTS].filter(([source]) =>
-      /[\\/]guard[\\/](?:hardwareCommands|shellParse|shellPolicy)\.ts$/.test(source),
-    ),
+    [...EXPORTS]
+      .filter(([source]) =>
+        /[\\/]guard[\\/](?:hardwareCommands|shellParse|shellPolicy)\.ts$/.test(source),
+      )
+      .map(([source, names]) => [
+        source,
+        names.filter((name) => name !== 'hardwareApprovalMode' && name !== 'prepareHardwareTurn'),
+      ]),
   ),
   'hardwareShell.js',
   false,

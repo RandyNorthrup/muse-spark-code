@@ -83,7 +83,9 @@ describe('museCodeReviewerPort', () => {
       commandId: params['commandId'],
       status: 'accepted',
     }))
-    const host = new MuseCodeHost(handle.host, log)
+    const host = new MuseCodeHost(handle.host, log, undefined, () => ({
+      hardwareSessionLatched: false,
+    }))
     const conversation = new FakeAgentSession('s1', 'muse-spark-1.3-contributor')
     const showCard = vi.fn()
     port

@@ -563,6 +563,7 @@ describe('createRuntimeBackend', () => {
     fetch: typeof globalThis.fetch = fakeModelApi().fetch,
   ) {
     return createRuntimeBackend({
+      hardwareInventory: () => ({ hardwareSessionLatched: false, isInventoryKnown: true }),
       options: { ...DEFAULTS, ...options },
       version: '0.0.0-test',
       distDir,
@@ -831,6 +832,7 @@ describe('createRuntimeBackend', () => {
     await grants.add(workspace, ['webSearch'])
     const runtimeOn = (backend: ServeOptions['backend']) =>
       createRuntimeBackend({
+        hardwareInventory: () => ({ hardwareSessionLatched: false, isInventoryKnown: true }),
         options: { ...DEFAULTS, backend },
         version: '0.0.0-test',
         distDir: dist.folder,
@@ -892,6 +894,7 @@ describe('credential variables (AGENTS.md rule 8; Codex on a209130)', () => {
     vi.stubEnv('META_API_KEY', '')
     try {
       const runtime = createRuntimeBackend({
+        hardwareInventory: () => ({ hardwareSessionLatched: false, isInventoryKnown: true }),
         options: DEFAULTS,
         version: '0.0.0-test',
         distDir: folder(),

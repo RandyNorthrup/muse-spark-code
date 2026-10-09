@@ -156,3 +156,34 @@ describe('configureWebview', () => {
     expect(webview.postMessage).not.toHaveBeenCalled()
   })
 })
+
+it('Design 5 surface requires current focus, visibility and active panel', () => {
+  const webview = new FakeWebview()
+  let isVisible = true
+  let isActive = true
+  const surface = configureWebview(webview, fakeHostContext(), {
+    id: 'presence',
+    restoredSessionId: undefined,
+    reveal: () => undefined,
+    markUnread: () => undefined,
+    setTitle: () => undefined,
+    onFocused: () => undefined,
+    isVisible: () => isVisible,
+    isActive: () => isActive,
+  })
+  try {
+    expect(surface.isApprovalPresent?.()).toBe(false)
+    webview.messages.fire({ type: 'surfaceFocused', focused: true })
+    expect(surface.isApprovalPresent?.()).toBe(true)
+    isVisible = false
+    expect(surface.isApprovalPresent?.()).toBe(false)
+    isVisible = true
+    isActive = false
+    expect(surface.isApprovalPresent?.()).toBe(false)
+    isActive = true
+    webview.messages.fire({ type: 'surfaceFocused', focused: false })
+    expect(surface.isApprovalPresent?.()).toBe(false)
+  } finally {
+    surface.dispose()
+  }
+})
