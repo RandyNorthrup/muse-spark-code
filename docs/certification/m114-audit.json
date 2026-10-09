@@ -24,7 +24,7 @@
     "scale": {
       "dimensions": ["radius", "typographySpacing"],
       "grade": "partial",
-      "fix": "Replace literal radii/spacing/type/alpha with source scales; radius xs/sm/md/lg/xl/pill/circle and spacing-1…8; use typography and state alpha roles. Preserve geometry constants until owning layout lane approves changes.",
+      "fix": "Replace literal radii/spacing/type/alpha with source scales; radius xs/sm/md/lg/xl/pill/circle and spacing-1\u20268; use typography and state alpha roles. Preserve geometry constants until owning layout lane approves changes.",
       "evidence": "styles.css literal 999px/50%/3px/20px radii, em sizes, font-weight 600, and pixel gaps; generated layout aliases are already present."
     },
     "states": {
@@ -73,7 +73,7 @@
       "dimensions": ["typographySpacing", "focus"],
       "grade": "fail",
       "fix": "Keep the page root on editor-surface; replace h1/h2/h3/code em sizes and 1.5/1.25 line heights with token roles, use code/link/quote roles and 2 px focus around links/buttons/input/pre.",
-      "evidence": "whatsNew.css body, h1–h4, pre/code, button and a:focus-visible; no pressed/disabled styles."
+      "evidence": "whatsNew.css body, h1\u2013h4, pre/code, button and a:focus-visible; no pressed/disabled styles."
     },
     "inherited": {
       "dimensions": [],
@@ -5330,7 +5330,7 @@
       },
       "roles": ["colour.surface", "colour.text", "typography.font-size", "typography.font-ui"],
       "findings": ["roles", "scale", "motion"],
-      "fix": "Token-bind decorative gradient/size/radius/alpha; classify the 4.01 s breathing loop explicitly as an activity exception requiring owner resolution, since D94 specifies 120–240 ms motion.",
+      "fix": "Token-bind decorative gradient/size/radius/alpha; classify the 4.01 s breathing loop explicitly as an activity exception requiring owner resolution, since D94 specifies 120\u2013240 ms motion.",
       "evidence": [
         {
           "file": "src/webview/styles.css",

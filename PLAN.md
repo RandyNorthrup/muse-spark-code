@@ -37774,10 +37774,19 @@ Keep all thresholds and repository deadlines. Full quality remains the lead's
 gate under the shared lane rules; no merge, push or live/paid calls.
 
 - [x] Prove historical schedule loading fails before the repair and passes after.
-- [ ] Resolve visual comparisons and identify the aggregate's actual failure.
+- [x] Resolve visual comparisons and identify the aggregate's actual failure.
 - [x] Refresh source receipts and pass the owning audit suite.
 - [ ] Pass full visual, six-theme accessibility and default-timeout stability gates.
 - [ ] Record evidence and local hooks-on commits in `docs/certification/cifixv.md`.
+
+Reviewed full baseline: `CIFIXV-integrated-accessibility-review-2026-10-09`,
+9,792 images / 447,310,229 bytes; all 884 distinct changed images reviewed,
+27 named scenes. The artifact action's `digest-mismatch: error` is an input;
+the aggregate requires successful schedule shards and complete receipts.
+Bounded external gate deferral: full `jscpd` still reports the inherited
+51-token clone in `test/unit/modelApiLoopGuarantees.test.ts:741` and `:890`.
+That suite is another lane's scope; leave code and duplication limits intact
+for the lead's integration gate. Receipt: `docs/certification/cifixv.md`.
 
 **MERGESPAWN (2026-10-08).** `rel017/spawn4` is merged into `release/0.17.0`
 with both sides' behaviour; the reporting bundles now share resource
