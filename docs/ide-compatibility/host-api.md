@@ -495,14 +495,14 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |
 | `node:events`            | 3     |
-| `node:fs`                | 72    |
+| `node:fs`                | 73    |
 | `node:fs/promises`       | 112   |
 | `node:http`              | 15    |
 | `node:https`             | 2     |
 | `node:module`            | 2     |
 | `node:net`               | 20    |
 | `node:os`                | 35    |
-| `node:path`              | 198   |
+| `node:path`              | 199   |
 | `node:perf_hooks`        | 3     |
 | `node:process`           | 10    |
 | `node:readline`          | 1     |
@@ -510,7 +510,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:stream`            | 17    |
 | `node:stream/promises`   | 3     |
 | `node:string_decoder`    | 3     |
-| `node:timers/promises`   | 26    |
+| `node:timers/promises`   | 25    |
 | `node:tls`               | 1     |
 | `node:url`               | 8     |
 | `node:util`              | 10    |

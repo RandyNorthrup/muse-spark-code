@@ -82,9 +82,23 @@ const worktreeRecordSchema = z.object({
    * tells it apart where an inode number is reused).
    */
   folderIdentity: z.optional(z.string()),
-  /** Who runs a pending checkout: a process that is gone leaves it to be taken over. */
+  /**
+   * The fence of the records lease hold that last wrote this record (M123,
+   * src/core/locks/fileLease.ts): a checkout's reservation names it, so any
+   * other writer's change to the record is seen as a change.
+   */
+  fence: z.optional(z.number()),
+  /**
+   * Who runs a pending checkout: a process that is gone leaves it to be
+   * taken over. Linux births are clock ticks of the boot `bootId` names.
+   */
   pendingOwner: z.optional(
-    z.object({ host: z.string(), pid: z.number(), processStart: z.number() }),
+    z.object({
+      host: z.string(),
+      pid: z.number(),
+      processStart: z.number(),
+      bootId: z.optional(z.string()),
+    }),
   ),
 })
 

@@ -11,6 +11,12 @@
 // Every generation names its parent's write id, so a publish into a
 // number the sweep had freed (a writer delayed past the kept generations)
 // is recognized as never in effect.
+//
+// Every generation also carries the fence of the lease (core/locks/
+// fileLease.ts) its writer held. A publish is a compare-and-swap on it: it
+// goes ahead only while the head's fence is below the writer's own and the
+// writer's lease is still current (checked synchronously just before the
+// link), so a writer whose lease another took over never publishes.
 
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
@@ -33,6 +39,8 @@ const generationSchema = z.object({
   generation: z.number(),
   writeId: z.string(),
   parent: z.nullable(z.string()),
+  /** The writer's lease fence. */
+  fence: z.optional(z.number()),
   records: z.unknown(),
 })
 
@@ -42,6 +50,8 @@ export interface RecordHead {
   readonly generation: number
   /** The head's write id; undefined before the first write or for an unreadable head. */
   readonly writeId: string | undefined
+  /** The fence of the lease the head was written under; undefined before the first write. */
+  readonly fence: number | undefined
   readonly records: readonly WorktreeRecord[]
 }
 
@@ -68,24 +78,67 @@ async function names(fs: RecordStoreFs, folder: string): Promise<readonly string
   }
 }
 
-async function latestGeneration(fs: RecordStoreFs, folder: string): Promise<number> {
+function latestOf(listed: readonly string[]): number {
   let latest = 0
-  const listed = await names(fs, folder)
   for (const name of listed) {
     latest = Math.max(latest, generationOf(name) ?? 0)
   }
   return latest
 }
 
-function parseGeneration(
-  generation: number,
-  bytes: Buffer,
-): { readonly writeId: string; readonly parent: string | null; readonly raw: unknown } | undefined {
+async function latestGeneration(fs: RecordStoreFs, folder: string): Promise<number> {
+  return latestOf(await names(fs, folder))
+}
+
+interface ParsedGeneration {
+  readonly writeId: string
+  readonly parent: string | null
+  readonly fence: number | undefined
+  readonly raw: unknown
+}
+
+function parseGeneration(generation: number, bytes: Buffer): ParsedGeneration | undefined {
   try {
     const parsed = generationSchema.safeParse(JSON.parse(bytes.toString('utf8')))
     return parsed.success && parsed.data.generation === generation
-      ? { writeId: parsed.data.writeId, parent: parsed.data.parent, raw: parsed.data.records }
+      ? {
+          writeId: parsed.data.writeId,
+          parent: parsed.data.parent,
+          fence: parsed.data.fence,
+          raw: parsed.data.records,
+        }
       : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function headOf(generation: number, parsed: ParsedGeneration | undefined): RecordHead {
+  return parsed === undefined
+    ? { generation, writeId: undefined, fence: undefined, records: [] }
+    : {
+        generation,
+        writeId: parsed.writeId,
+        fence: parsed.fence,
+        records: parseWorktreeRegistry(parsed.raw),
+      }
+}
+
+/**
+ * The head, synchronously, for a gate with no await before it acts.
+ * Undefined when it cannot be read whole (the caller refuses).
+ */
+export function readRecordHeadSync(fs: RecordStoreFs, folder: string): RecordHead | undefined {
+  try {
+    const generation = latestOf(fs.readdirSync(folder))
+    if (generation === 0) {
+      return headOf(generation, undefined)
+    }
+    const parsed = parseGeneration(
+      generation,
+      fs.readFileSync(path.join(folder, generationName(generation))),
+    )
+    return parsed === undefined ? undefined : headOf(generation, parsed)
   } catch {
     return undefined
   }
@@ -103,7 +156,7 @@ export async function readRecordHead(
   for (let attempt = 1; ; attempt += 1) {
     const generation = await latestGeneration(fs, folder)
     if (generation === 0) {
-      return { generation, writeId: undefined, records: [] }
+      return headOf(generation, undefined)
     }
     let bytes: Buffer
     try {
@@ -118,9 +171,8 @@ export async function readRecordHead(
     const parsed = parseGeneration(generation, bytes)
     if (parsed === undefined) {
       log.warn('The worktree records could not be read; starting with none')
-      return { generation, writeId: undefined, records: [] }
     }
-    return { generation, writeId: parsed.writeId, records: parseWorktreeRegistry(parsed.raw) }
+    return headOf(generation, parsed)
   }
 }
 
@@ -160,23 +212,33 @@ async function isInEffect(
  */
 export type GenerationWrite = 'written' | 'lost' | 'unverified'
 
-/** Writes `records` as the generation after `head`. */
+/**
+ * Writes `records` as the generation after `head`, under the lease whose
+ * fence is `fence`: refused (`lost`) while the head was written under an
+ * equal or later fence, or when `isLeaseCurrent` (a synchronous check, made
+ * just before the link) says the lease is no longer current.
+ */
 export async function writeNextGeneration(
   fs: RecordStoreFs,
   folder: string,
   head: RecordHead,
   records: readonly WorktreeRecord[],
-  canPublish: () => Promise<boolean>,
+  fence: number,
+  isLeaseCurrent: () => boolean,
 ): Promise<GenerationWrite> {
+  if (head.fence !== undefined && head.fence >= fence) {
+    return 'lost'
+  }
   const generation = head.generation + 1
   const writeId = randomUUID()
   const stage = path.join(folder, `${STAGE_PREFIX}${randomUUID()}${ATOMIC_TEMPORARY_SUFFIX}`)
   await fs.createExclusive(
     stage,
-    JSON.stringify({ generation, writeId, parent: head.writeId ?? null, records }),
+    JSON.stringify({ generation, writeId, parent: head.writeId ?? null, fence, records }),
+    'flushed',
   )
   try {
-    if (!(await canPublish())) {
+    if (!isLeaseCurrent()) {
       return 'lost'
     }
     try {

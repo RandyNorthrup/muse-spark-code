@@ -1750,13 +1750,13 @@ export const PULL_REQUEST_LINKS_KEPT = 200
 // (the fencing check) is read again and applied again this many times;
 // then it fails loudly, never writing over what it did not read (M123).
 export const WORKTREE_RECORD_SAVE_ATTEMPTS = 3
-// The worktree records' cross-process lock (M123, PLAN.md M123's lock
-// protocol), every duration on the monotonic clock: a waiter gives up
-// loudly past the timeout; a holder holds for its lease, and a waiter takes
-// over an instance it has itself watched unchanged for that lease (never
-// more than the lease below, whatever a note asks); an instance whose
-// owner note is missing or torn (a crash between create and write) is
-// taken over once watched for the unreadable bound.
+// The worktree records' file lease (M123, PLAN.md M123's lock protocol,
+// src/core/locks/fileLease.ts), every duration on the monotonic clock: a
+// waiter gives up loudly past the timeout; a holder holds for its lease,
+// and a waiter takes over an instance it has itself watched unchanged for
+// that lease (never more than the lease below, whatever a note asks); an
+// instance whose owner note is missing or torn (a crash between create and
+// write) is taken over once watched for the unreadable bound.
 export const WORKTREE_RECORD_LOCK_TIMEOUT_MS = 10_000
 export const WORKTREE_RECORD_LOCK_POLL_MS = 10
 export const WORKTREE_RECORD_LOCK_LEASE_MS = 30_000
@@ -1773,11 +1773,10 @@ export const PROCESS_START_QUERY_TIMEOUT_MS = 10_000
 // start time cannot be read): every step before the folder exists is
 // bounded far below it (M123).
 export const PENDING_CHECKOUT_RECOVERY_MS = 60 * 60 * 1000
-// A checkout that took over a stale reservation can find the displaced
-// one's folder still in the way, just before that one notices it lost
-// and removes it: the claim is tried this many times, this far apart (M123).
-export const CHECKOUT_FOLDER_CLAIM_ATTEMPTS = 3
-export const CHECKOUT_FOLDER_CLAIM_RETRY_MS = 250
+// A file lease's newest fences kept beside its lock (src/core/locks/
+// fileLease.ts); older ones are removed by the next acquisition. Only the
+// highest is ever compared.
+export const FILE_LEASE_FENCES_KEPT = 8
 // The newest record generations kept; older ones, and stage or retired-lock
 // files older than the sweep age (a crash's leftovers), are removed.
 export const WORKTREE_RECORD_GENERATIONS_KEPT = 8
