@@ -42842,7 +42842,13 @@ a discovered gap refreshes the status; provider bodies are scrubbed of the
 active key. Residuals closed: one served-model rule for the cascade and the
 CLI/MCP, CLI key preflight (`gap: key` before any claim), CLI claims in the
 D78 daily journal, the window's paid Judge row, and the M95 providers' pinned
-transport behind their endpoint policy.
+transport behind their endpoint policy. Lead decision (2026-10-08,
+multi-vendor rule): C is gated by its own availability only (an explicit
+engine in user settings and its key), never the Meta judge's paid gate, price
+acceptance or backend; a C-only `separate` run never shows the Meta judge's
+popup; a separate judge set only in workspace settings is named (gap `scope`,
+status line and log), never honoured. The status field `separateGap` became
+`gap` to pay for the code (`dist/wire.js` stays 51,196 of 51,200 bytes).
 
 **Lead live-capture steps for the remaining sides (M98P2R).** These are
 the lead's steps, not owner blocks; no lane creates or requests a

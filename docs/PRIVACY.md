@@ -203,8 +203,9 @@ extension's state; ACP ChatGPT tallies currently live for the process lifetime.
 - **Experimental SystemOne judge (M98 phase 2, opt-in, untested).** Only when
   you set `museSpark.judge.separate` (or `--separate`) to
   `openrouter-jev:typesafe/jev-1.13` (or another captured route) and choose
-  the explicit `separate` or `both` engine, the judged action's state and the
-  judge's question, with secrets redacted first, go to **OpenRouter**
+  the explicit `separate` or `both` engine in your user settings (a
+  repository's workspace settings cannot turn it on), the judged action's
+  state and the judge's question, with secrets redacted first, go to **OpenRouter**
   (`https://openrouter.ai/api/v1/systemone`), billed to your own OpenRouter
   key from Models & Providers. The window asks first, in the route's own
   popup, with the price and the shared daily budget; the CLI sends only under

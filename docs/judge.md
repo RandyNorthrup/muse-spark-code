@@ -231,3 +231,11 @@ behind their endpoint policy, and the reply is scrubbed of the active key
 before any result. The CLI checks the key before any claim and settles into
 the D78 daily journal on top of its hard run budget. One served-model rule
 (`isServedJudgeModel`) serves the cascade and the CLI/MCP checks.
+
+The route is gated by its own availability only (multi-vendor rule): an
+explicit `separate`/`both` engine and its key, never the Meta judge's paid
+gate, price acceptance or the window's backend. An explicit `separate` run on
+a buildable route needs no Meta judge consent and never shows its popup. The
+settings stay machine-scoped; a separate judge selected only in the
+workspace's settings files is named with gap `scope` in the status line and
+logged once, never honoured.

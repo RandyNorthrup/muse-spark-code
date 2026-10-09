@@ -2291,7 +2291,12 @@ route's own popup (Allow once or Deny): an "always" Judge grant never covers
 it, and "Ask again" in Account & usage asks again. Each request is a paid
 Judge row in Account & usage; the CLI settles it into the same shared daily
 budget on top of `--budget-usd` and refuses a missing key before any charge
-(`"gap":"key"`). Every other id names its
+(`"gap":"key"`). It works on either backend with only its own engine setting
+and key: the Meta judge's price acceptance is never needed, and an explicit
+`separate` run never shows the Meta judge's popup. Like every paid setting it
+is read from user settings only; set only in workspace settings, it is not
+used and the status line says "Separate judge is set in workspace settings;
+paid settings are read from user settings only". Every other id names its
 gap after the reason: "Separate judge needs its provider key in Models &
 Providers", "...this provider model needs a captured structured or logprob
 judge request first" (bring-your-own models), "...the local judge needs a

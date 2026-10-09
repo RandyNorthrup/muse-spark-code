@@ -41,7 +41,12 @@ happened, not what was planned; superseded entries are kept.
   refuses a missing key before any charge with `"gap":"key"` and settles the
   charge into the shared daily budget on top of `--budget-usd`. Served dated
   model names (`typesafe/jev-1.13-20260917`) are accepted by one rule in
-  `both` runs too.
+  `both` runs too. The route is gated by its own engine setting and key
+  alone, on the Muse Code backend as on the Model API: it never needs the
+  Meta judge's price acceptance, and an explicit `separate` run never shows
+  the Meta judge's popup. Set only in workspace settings, it is not used
+  (paid settings are read from user settings), and the status line and the
+  log say so in place of staying silent.
 
 - Judge phase-2 status now reports separate and cascade modes, explains automatic same-model fallback in every UI language, and refuses verdicts after endpoint, profile, owner or turn changes. Automatic cascade selection validates recorded independent profiles and held-out paired M75 evidence. One request-only judge runtime reaches the cascade from the window, CLI and MCP surfaces given a real binding; the experimental embedding fast path stays capability-gated with its attempt ceiling published before dispatch, paid consent asked once, and verified-local models behind explicit opt-in. The production phase-2 binding builds every surface's runtime from real C/E/J sides and recorded evidence; each missing input (unverified source, fitted profiles, adoption receipt, embedding labels) is named in the status line in all 14 languages instead of a silent phase-1 fallback. No live separate source or recorded evidence ships yet, so the production window (`src/extension.ts`), CLI and MCP (`src/runtime/main.ts`) report those gaps rather than dispatching separate, cascade or embedding runs.
 
