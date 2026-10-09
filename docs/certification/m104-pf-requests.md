@@ -34,6 +34,12 @@
 No request authorizes an ownership-crossing edit or a live/paid call. The older
 merge-wait entries below are historical and already satisfied by PF's base.
 
+PF4 real core verification now passes 60 tests; all 20 deliberate controls fire
+and restore exact bytes. The final 92 owning Vitest tests pass at default
+deadlines. Plain Knip again identifies only the unregistered drill entry above.
+These receipts remove the previous sandbox blocker, not the runtime/installed
+qualification prerequisites. See [m104-pf4.md](m104-pf4.md).
+
 No other lane's files are edited. Requests below are prerequisites, not
 implemented features or support receipts.
 

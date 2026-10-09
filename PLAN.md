@@ -19202,6 +19202,18 @@ TCC prompt, signing account, notarization, publication or support promotion.
 Each coherent group gets a hook-on commit and scoped gate/mutation receipts;
 console-level scenarios remain a named owner-at-console gap.
 
+**M104PF4 native command checkpoint (before code).** Reproduce cancellation
+before the queued loopback listener starts and repeated-start ownership. Fence
+the actual buffer write with a cancellable command transaction, preserving
+digest/UTF-16/selection checks and one write/undo. Resolve native navigation to
+a regular workspace file before xed, refusing foreign hosts, URL credentials,
+traversal/symlink escapes, directories and invalid lines. Read focus from the
+bound native window plus application activity. Core tests use controlled
+window state and missing-window permission paths; they never show a window,
+activate an application, click UI or invoke microphone/speech APIs. Compile the
+complete app/extension separately without running its UI scheme. Actual
+commands/undo/focus/permissions still need the owner at the console.
+
 **M104PF continuation 2 (2026-10-06, authorized before code).** Merge
 `m104/pa` at `fa60c3763` with `--no-ff`, preserving both lanes' documentation.
 Adopt its frozen MHP 1.3 in F's Xcode fixtures, generated bundle and distribution

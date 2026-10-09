@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Xcode command callbacks now fence cancellation at buffer commit and prevent
+  listener/client startup after cancellation or close. File navigation resolves
+  regular workspace files before xed, and focus reports the bound window's state.
+  Core tests cover these paths without UI automation or privacy prompts.
+
 - Xcode's MHP 1.3 relay now validates the full frozen editor/panel snapshot,
   isolates recoverable request and panel faults, enforces union/array limits,
   and returns the contract's native permission/version/failure codes. Added

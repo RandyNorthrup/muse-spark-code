@@ -47,6 +47,20 @@ final class RuntimeLauncher {
     }
     .first { FileManager.default.isExecutableFile(atPath: $0.path) }
   }
+  static func navigationFile(_ file: URL, workspace: URL, line: Int) throws -> URL {
+    guard file.isFileURL, workspace.isFileURL, line > 0, line <= NativeMhp.maximumInteger,
+      file.host == nil || file.host == "" || file.host == "localhost",
+      file.user == nil, file.password == nil, file.query == nil, file.fragment == nil
+    else { throw NativeFailure.invalid }
+    let root = try Self.workspace(workspace).resolvingSymlinksInPath().standardizedFileURL
+    let target = file.resolvingSymlinksInPath().standardizedFileURL
+    guard target.pathComponents.starts(with: root.pathComponents) else {
+      throw NativeFailure.denied
+    }
+    let values = try target.resourceValues(forKeys: [.isRegularFileKey])
+    guard values.isRegularFile == true else { throw NativeFailure.invalid }
+    return target
+  }
   var isRunning: Bool {
     lock.lock()
     defer { lock.unlock() }

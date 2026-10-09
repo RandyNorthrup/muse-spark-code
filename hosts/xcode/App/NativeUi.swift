@@ -12,13 +12,15 @@ final class NativeUi: ObservableObject {
   private var filePanel: NSSavePanel?
   private var fileInvocation = UUID()
   private let filePanelFactory: @MainActor (Bool) -> NSSavePanel
+  private let applicationActive: @MainActor () -> Bool
 
   init(
     filePanelFactory: @escaping @MainActor (Bool) -> NSSavePanel = {
       $0 ? NSOpenPanel() : NSSavePanel()
-    }
+    }, applicationActive: @escaping @MainActor () -> Bool = { NSApp?.isActive == true }
   ) {
     self.filePanelFactory = filePanelFactory
+    self.applicationActive = applicationActive
   }
 
   func close() {
@@ -66,7 +68,8 @@ final class NativeUi: ObservableObject {
       } else {
         reply(.failure(NativeFailure.launch))
       }
-    case "window/state": reply(.success(["focused": NSApp.isActive]))
+    case "window/state":
+      reply(.success(["focused": window?.isKeyWindow == true && applicationActive()]))
     case "window/attention":
       notice = params["message"] as? String
       NSApp.requestUserAttention(.informationalRequest)

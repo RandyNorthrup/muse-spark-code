@@ -68,6 +68,17 @@ enum NativeFailure: String, Error, LocalizedError {
   }
 }
 enum BufferEdit {
+  static func commit(
+    _ reply: BufferReply, request: BufferRequest, current: String,
+    currentSelection: BufferSelection,
+    cancellation: MhpCancellation, write: (String) -> Void
+  ) throws {
+    try cancellation.withActive {
+      let updated = try apply(
+        reply, request: request, current: current, currentSelection: currentSelection)
+      write(updated)
+    }
+  }
   static func digest(_ text: String) -> String {
     SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
   }

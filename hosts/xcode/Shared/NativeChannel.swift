@@ -144,6 +144,16 @@ final class CommandListener {
     completion: @escaping (Result<BufferReply, Error>) -> Void
   ) {
     queue.async {
+      guard !self.finished else {
+        ready(.failure(NativeFailure.cancelled))
+        completion(.failure(NativeFailure.cancelled))
+        return
+      }
+      guard self.completion == nil else {
+        ready(.failure(NativeFailure.invalid))
+        completion(.failure(NativeFailure.invalid))
+        return
+      }
       self.completion = completion
       do {
         try request.validate()
@@ -258,11 +268,17 @@ final class CommandClient {
   private var timeout: DispatchWorkItem?
   private var contextCompletion: ((Result<BufferRequest, Error>) -> Void)?
   private var closed: (() -> Void)?
+  private var stopped = false
   func connect(
     link: CallbackLink, completion: @escaping (Result<BufferRequest, Error>) -> Void,
     closed: @escaping () -> Void = {}
   ) {
     queue.async {
+      guard !self.stopped else {
+        completion(.failure(NativeFailure.cancelled))
+        closed()
+        return
+      }
       self.contextCompletion = completion
       self.closed = closed
       guard let port = NWEndpoint.Port(rawValue: link.port) else {
@@ -326,6 +342,7 @@ final class CommandClient {
   }
   func close() { queue.async { self.shutdown() } }
   private func shutdown() {
+    stopped = true
     timeout?.cancel()
     timeout = nil
     bearer = ""

@@ -105,6 +105,17 @@ The companion/MHP file-opening route still needs integration. Multiple selection
 invalid UTF-16 positions, stale buffers/selections, denied edits, and late/cancelled
 commands cannot apply a replacement.
 
+Command listener startup is single-use. Cancellation before queued startup and
+closing a command client before its exchange return cancellation without opening
+another owner. The command's cancellation token also fences the queued app
+launch and the actual buffer write. Approved writes recheck the command digest
+and selection, then commit once; cancellation cannot undo a write already
+admitted. Native focus state requires the bound window to be key while the app
+is active. File navigation passes a canonical regular workspace file to xed;
+directories, nonlocal/credential-bearing URLs, escapes and invalid lines refuse.
+These have core component receipts; actual Xcode commands, undo, focus and
+permission interaction still need the owner at the console.
+
 The extension starts an ephemeral **127.0.0.1-only** callback listener for each
 invocation. It sends a one-use launch code in the app URL fragment. The app
 exchanges that code for an invocation-specific memory bearer before receiving
@@ -137,6 +148,12 @@ node hosts/xcode/Scripts/generate.mjs
 node hosts/xcode/Scripts/prepare-tests.mjs
 xcodebuild -project hosts/xcode/MuseSpark.xcodeproj -scheme NativeCore -configuration Debug -derivedDataPath temp/m104pf4/DerivedData -destination 'platform=macOS,arch=x86_64' test CODE_SIGN_IDENTITY=-
 node test/m104/mac/nativeDrills.mjs --core
+```
+
+Compile the app, extension and their test bundles without running UI tests:
+
+```sh
+xcodebuild -project hosts/xcode/MuseSpark.xcodeproj -scheme MuseSpark -configuration Debug -derivedDataPath temp/m104pf4/DerivedData -destination 'platform=macOS,arch=x86_64' build-for-testing CODE_SIGNING_ALLOWED=NO
 ```
 
 The drill runs the complete core scheme after each deliberate mutation and

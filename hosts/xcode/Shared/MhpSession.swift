@@ -10,6 +10,12 @@ final class MhpCancellation {
     defer { lock.unlock() }
     return alive
   }
+  func withActive<T>(_ operation: () throws -> T) throws -> T {
+    lock.lock()
+    defer { lock.unlock() }
+    guard alive else { throw NativeFailure.cancelled }
+    return try operation()
+  }
   func whenCancelled(_ callback: @escaping () -> Void) {
     lock.lock()
     if alive { onCancel = callback }

@@ -272,15 +272,19 @@ final class PanelModel: ObservableObject {
     if picker.runModal() == .OK, let file = picker.url { openInXcode(file, line: 1) }
   }
   func openInXcode(_ file: URL, line: Int) {
-    guard let workspace = workspace, file.isFileURL, line > 0,
-      file.resolvingSymlinksInPath().path.hasPrefix(workspace.resolvingSymlinksInPath().path + "/")
-    else {
-      error = UI_TEXT.linkOutsideWorkspace
+    guard let workspace = workspace else {
+      error = UI_TEXT.xcodeWorkspaceRequired
+      return
+    }
+    let target: URL
+    do { target = try RuntimeLauncher.navigationFile(file, workspace: workspace, line: line) } catch
+    {
+      self.error = UI_TEXT.linkOutsideWorkspace
       return
     }
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
-    process.arguments = ["xed", "--line", String(line), "--", file.path]
+    process.arguments = ["xed", "--line", String(line), "--", target.path]
     process.environment = RuntimeLauncher.environment(ProcessInfo.processInfo.environment)
     process.standardOutput = FileHandle.nullDevice
     process.standardError = FileHandle.nullDevice

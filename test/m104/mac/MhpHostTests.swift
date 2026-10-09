@@ -2,6 +2,112 @@ import Foundation
 import XCTest
 
 final class MhpHostTests: XCTestCase {
+  func testClosedClientCannotRestartAnAuthenticatedCommandExchange() throws {
+    let ready = expectation(description: "closed client refused")
+    let listenerClosed = expectation(description: "listener cleanup")
+    let request = BufferRequest(
+      id: UUID().uuidString, command: .ask, text: "value",
+      selection: BufferSelection(
+        start: BufferPosition(line: 0, column: 0), end: BufferPosition(line: 0, column: 0)),
+      contentUTI: "public.swift-source", digest: BufferEdit.digest("value"))
+    let listener = CommandListener()
+    let client = CommandClient()
+    var closes = 0
+    client.close()
+    listener.start(
+      request: request,
+      ready: { result in
+        guard case .success(let link) = result else {
+          XCTFail("fixture listener failed")
+          return
+        }
+        client.connect(
+          link: link,
+          completion: { result in
+            if case .success = result {
+              XCTFail("closed client exchanged the launch credential")
+            } else if case .failure(let error) = result {
+              XCTAssertEqual(error as? NativeFailure, .cancelled)
+            }
+            ready.fulfill()
+          }, closed: { closes += 1 })
+      }, completion: { _ in listenerClosed.fulfill() })
+    wait(for: [ready], timeout: 1)
+    client.close()
+    listener.cancel()
+    wait(for: [listenerClosed], timeout: 1)
+    XCTAssertEqual(closes, 1)
+  }
+  func testCancelledBeforeStartupNeverCreatesACommandListener() throws {
+    let ready = expectation(description: "cancelled startup")
+    let completed = expectation(description: "cancelled command")
+    let listener = CommandListener()
+    listener.cancel()
+    let request = BufferRequest(
+      id: UUID().uuidString, command: .ask, text: "value",
+      selection: BufferSelection(
+        start: BufferPosition(line: 0, column: 0), end: BufferPosition(line: 0, column: 0)),
+      contentUTI: "public.swift-source", digest: BufferEdit.digest("value"))
+    listener.start(
+      request: request,
+      ready: { result in
+        if case .success = result { XCTFail("cancelled listener opened a port") }
+        ready.fulfill()
+      },
+      completion: { result in
+        if case .failure(let error) = result {
+          XCTAssertEqual(error as? NativeFailure, .cancelled)
+        } else {
+          XCTFail("cancelled listener completed successfully")
+        }
+        completed.fulfill()
+      })
+    wait(for: [ready, completed], timeout: 1)
+    listener.cancel()
+  }
+  func testRepeatedListenerStartupPreservesTheFirstOwner() throws {
+    let firstReady = expectation(description: "original listener")
+    let secondReady = expectation(description: "repeated start rejected")
+    let firstCompleted = expectation(description: "original cancellation")
+    let secondCompleted = expectation(description: "repeated invocation rejected")
+    let listener = CommandListener()
+    let request = BufferRequest(
+      id: UUID().uuidString, command: .ask, text: "value",
+      selection: BufferSelection(
+        start: BufferPosition(line: 0, column: 0), end: BufferPosition(line: 0, column: 0)),
+      contentUTI: "public.swift-source", digest: BufferEdit.digest("value"))
+    listener.start(
+      request: request,
+      ready: { result in
+        if case .failure = result { XCTFail("original listener failed") }
+        firstReady.fulfill()
+      },
+      completion: { result in
+        if case .failure(let error) = result {
+          XCTAssertEqual(error as? NativeFailure, .cancelled)
+        } else {
+          XCTFail("original cancellation lost")
+        }
+        firstCompleted.fulfill()
+      })
+    listener.start(
+      request: request,
+      ready: { result in
+        if case .success = result { XCTFail("duplicate listener opened a port") }
+        secondReady.fulfill()
+      },
+      completion: { result in
+        if case .failure(let error) = result {
+          XCTAssertEqual(error as? NativeFailure, .invalid)
+        } else {
+          XCTFail("duplicate invocation succeeded")
+        }
+        secondCompleted.fulfill()
+      })
+    wait(for: [firstReady, secondReady, secondCompleted], timeout: 1)
+    listener.cancel()
+    wait(for: [firstCompleted], timeout: 1)
+  }
   func testRequestIdWindowEvictsOnlyCompletedIdsAndRetainsTypedIdentity() throws {
     let responses = expectation(description: "completed requests")
     responses.expectedFulfillmentCount = NativeMhp.maximumQueuedMessages + 2
@@ -402,16 +508,25 @@ final class MhpHostTests: XCTestCase {
       workspace: URL(fileURLWithPath: "/tmp/workspace"), locale: "en",
       theme: ["kind": "dark", "tokens": [String: String]()], trusted: false)
     session.receive(try bytes(initialized()))
-    session.receive(
-      try bytes([
-        "jsonrpc": "2.0", "id": 1, "method": "editor/open",
-        "params": ["uri": "file:///tmp/workspace/file.swift"],
-      ]))
-    let failure = try XCTUnwrap(
-      JSONSerialization.jsonObject(with: XCTUnwrap(replies.last)) as? [String: Any])
-    try MhpSchema().checkFailure(failure)
-    XCTAssertEqual(
-      (failure["error"] as? [String: Any])?["message"] as? String, "MHP_UNSUPPORTED_CAPABILITY")
+    let calls: [(String, [String: Any])] = [
+      ("editor/open", ["uri": "file:///workspace/file.swift"]),
+      ("documents/list", [:]),
+      ("tab/register", ["languages": ["swift"], "trigger": "invoke"]),
+      ("voice/capture", ["action": "start"]),
+      (
+        "codeIntel/hover",
+        ["uri": "file:///workspace/file.swift", "position": ["line": 0, "character": 0]]
+      ),
+    ]
+    for (id, call) in calls.enumerated() {
+      session.receive(try bytes(["jsonrpc": "2.0", "id": id, "method": call.0, "params": call.1]))
+      let failure = try XCTUnwrap(
+        JSONSerialization.jsonObject(with: XCTUnwrap(replies.last)) as? [String: Any])
+      try MhpSchema().checkFailure(failure)
+      XCTAssertEqual(
+        (failure["error"] as? [String: Any])?["message"] as? String, "MHP_UNSUPPORTED_CAPABILITY",
+        call.0)
+    }
     session.close()
   }
 }

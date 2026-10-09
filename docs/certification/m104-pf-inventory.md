@@ -2,6 +2,11 @@
 
 Current reviewed MHP 1.3 snapshot after authorized merge `0b643f521` of A `fa60c3763` (including B/C). Native checkpoint `ff8a5056d` builds on continuation base `e6942cc59`. Source hash and structured dimensions are in [m104-pf-inventory.json](m104-pf-inventory.json). Earlier unadopted-integration notes are superseded.
 
+The current [PF4 continuation](m104-pf4.md) adds real protocol, loopback command,
+buffer admission, navigation and focus component receipts on Xcode 26.3 Intel.
+It retains all installed/backend/provider gaps below; no row or editor status
+is promoted. The JSON inventory remains the prior checkpoint's source snapshot.
+
 The frozen registry has **56 rows × 25 editor IDs = 1,400 cells, all M**.
 The older INT implementation table’s 38 M / 18 P is a different, source-level
 inventory. This lane closes **zero complete installed row receipts**. Historical
