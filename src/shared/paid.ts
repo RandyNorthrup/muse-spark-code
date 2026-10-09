@@ -20,7 +20,6 @@ import { isJudgeEngineOn } from '../core/judge/engine'
 import {
   BEST_OF_N_DEFAULT_ATTEMPTS,
   BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
-  MUSE_CODE_PAID_FEATURES,
   DEFAULT_MODEL_ID,
   CONTRIBUTOR_MODEL_SUFFIX,
   MODEL_API_PRICES_PER_MILLION,
@@ -39,7 +38,6 @@ import {
 } from './constants'
 import { fill, formatNumber } from './l10n/text'
 import { formatUsd } from './l10n/exactUsd'
-import type { BackendKind } from './protocol'
 
 /** Consent and dispatch share this immutable, exact, feature-specific authorization. */
 export const paidQuoteSchema = /* @__PURE__ */ (() =>
@@ -273,20 +271,7 @@ export type PaidUseRequest =
       readonly dailyBudgetUsd?: UsdAmount | undefined
     }
 
-/**
- * The paid features a window can use (M44, PLAN.md D37): every one on the
- * Model API backend; on Muse Code, the extension's features billed to a
- * stored key, including key-billed team tasks; none without that key.
- */
-export function usablePaidFeatures(
-  backend: BackendKind | undefined,
-  isKeyStored: boolean,
-): readonly PaidFeature[] {
-  if (backend === 'modelApi') {
-    return PAID_FEATURES
-  }
-  return backend === 'museCode' && isKeyStored ? MUSE_CODE_PAID_FEATURES : []
-}
+export { paidFeatureName, usablePaidFeatures } from './paidBoundary'
 
 /**
  * The paid features Account & usage lists (the review of PR #30): the ones
@@ -311,25 +296,6 @@ export function listedPaidFeatures(
       (feature === 'hookModels' && (tally.hookModelRuns ?? 0) > 0) ||
       (feature === 'judge' && (tally.judgeCalls ?? 0) > 0),
   )
-}
-
-/** The feature's short name, as the badge and the dialog show it. */
-export function paidFeatureName(feature: PaidFeature): string {
-  const names: Readonly<Record<PaidFeature, string>> = {
-    webSearch: UI_TEXT.paidWebSearchName,
-    imageGeneration: UI_TEXT.paidImageGenerationName,
-    voice: UI_TEXT.paidVoiceName,
-    scheduledPrompts: UI_TEXT.paidScheduledName,
-    subagents: UI_TEXT.paidSubagentsName,
-    autoReviewer: UI_TEXT.paidAutoReviewerName,
-    bestOfN: UI_TEXT.paidBestOfNName,
-    teamWorkers: UI_TEXT.paidTeamWorkersName,
-    tab: UI_TEXT.paidTabName,
-    hookModels: UI_TEXT.paidHookModelName,
-    judge: UI_TEXT.paidJudgeName,
-    legalExplanation: UI_TEXT.paidLegalExplanationName,
-  }
-  return names[feature]
 }
 
 /** Exact scheduled-run tariff; unknown models cannot authorize a paid request. */
@@ -452,13 +418,13 @@ export function paidFeaturePrice(feature: PaidFeature, searchPriceUsd?: UsdAmoun
 }
 
 import { modelApiPaidTier, type PaidTally } from './paidBoundary'
-export {
-  paidTallySchema,
-  EMPTY_PAID_TALLY,
-  modelApiPaidTier,
-  paidStateSchema,
-} from './paidBoundary'
+export { paidTallySchema, EMPTY_PAID_TALLY, modelApiPaidTier } from './paidBoundary'
 export type { PaidTally, PaidState } from './paidBoundary'
+// The lazy money hub (`src/webview/money.ts`) reaches every exact display
+// through this module alone, so no webview surface imports exactUsd or usd
+// directly and their shared chunks stay out of every startup closure.
+export { formatUsd } from './l10n/exactUsd'
+export { Usd, isPositiveUsd } from './usd'
 /** The estimated cost of one feature's use in the tally, in dollars. */
 export function paidCostUsd(feature: PaidFeature, tally: PaidTally): UsdAmount {
   switch (feature) {

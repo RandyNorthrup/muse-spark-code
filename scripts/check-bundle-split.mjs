@@ -857,6 +857,28 @@ for (const file of TEAM_UI_ONLY) {
   }
 }
 
+// STARTUP017: exact money arithmetic loads with the lazy money chunk, never
+// with chat startup. A startup importer reintroduces usd.ts through paid.ts,
+// tokenRatePrice.ts, exactUsd.ts or insights.ts alike, so every one is
+// guarded, not only usd.ts itself.
+const MONEY_STARTUP_NEVER = [
+  'src/shared/usd.ts',
+  'src/shared/l10n/exactUsd.ts',
+  'src/shared/tokenRatePrice.ts',
+  'src/core/usage/insights.ts',
+  'src/shared/paid.ts',
+]
+for (const file of MONEY_STARTUP_NEVER) {
+  const carrying = Object.entries(webview.outputs).filter(([, output]) =>
+    Object.keys(output.inputs ?? {}).some((input) => input.replaceAll('\\', '/') === file),
+  )
+  if (carrying.length === 0) problems.push(`webview no longer carries ${file}`)
+  for (const [output] of carrying) {
+    if (initialWebview.has(output))
+      problems.push(`${output} carries exact-money ${file} in the initial webview graph`)
+  }
+}
+
 // What's New's page script (M99) is a few lines that pass clicks back: it
 // carries no package, not the display table and not constants.ts (which
 // re-exports that table), only the script and its markup contract.

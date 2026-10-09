@@ -31,6 +31,7 @@ import {
   REVIEW_SLASH_COMMAND,
   ARE_SCHEDULES_ON_BY_DEFAULT,
   IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT,
+  type PaidFeature,
   type SubagentAction,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
@@ -58,12 +59,14 @@ import {
   nextPermissionMode,
   permissionModeDetail,
 } from '../shared/permissionModes'
-import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared/paid'
+import { paidFeatureName, usablePaidFeatures } from '../shared/paidBoundary'
+import { MoneyUnavailable, usePriceOf } from './money'
+import { usePaidFeaturePrices } from './moneyHooks'
 import type * as PaletteRegistryModule from '../shared/paletteRegistry'
+import type * as SchedulePromptModule from './schedules/prompt'
 import type { PaletteAction } from '../shared/palette'
 import type { scheduleChannel } from './schedules/channel'
 import type { ScheduleRequest } from '../shared/scheduleV2'
-import { schedulePromptAction } from './schedules/prompt'
 import type { SlashCommand } from '../shared/slashCommands'
 import type { GitAction, GitDraftKind } from '../shared/git'
 import {
@@ -429,6 +432,15 @@ export function modelLabelFor(state: UiState): string {
 }
 
 /** The reference's provider (`openrouter` of `openrouter/…`); undefined for Meta's bare ids. */
+/** The `/schedule` prompt mapping, loaded on first submit; undefined when its chunk fails. */
+async function loadSchedulePrompt(): Promise<typeof SchedulePromptModule | undefined> {
+  try {
+    return await import('./schedules/prompt')
+  } catch {
+    return undefined
+  }
+}
+
 function providerOf(modelId: string): string | undefined {
   const slash = modelId.indexOf('/')
   return slash === -1 ? undefined : modelId.slice(0, slash)
@@ -437,28 +449,39 @@ function providerOf(modelId: string): string | undefined {
 /**
  * The composer's paid badge (M33, PLAN.md D30): the paid features that are
  * on, named, with their prices in the tooltip. Shown on the Model API
- * backend only, the one that uses them.
+ * backend only, the one that uses them. The names paint with startup; the
+ * prices wait for the lazy money chunk, so the tooltip arrives just after.
  */
-function paidBadgeFor(
-  state: UiState,
-): { readonly label: string; readonly title: string } | undefined {
+function paidBadgeFeatures(state: UiState): readonly PaidFeature[] {
   // The features on that this backend uses (M44: the key's images and voice on Muse Code).
   const usable = usablePaidFeatures(state.auth.backend, state.paid.isKeyStored)
-  const features = state.paid.features.filter((feature) => usable.includes(feature))
+  return state.paid.features.filter((feature) => usable.includes(feature))
+}
+
+function paidBadgeFor(
+  state: UiState,
+  prices: ReadonlyMap<PaidFeature, string> | undefined,
+): { readonly label: string; readonly title: string | undefined } | undefined {
+  const features = paidBadgeFeatures(state)
   if (features.length === 0) {
     return undefined
   }
-  const title = fill(UI_TEXT.paidBadgeTitle, {
-    prices: features
-      .map((feature) => `${paidFeatureName(feature)} ${paidFeaturePrice(feature)}`)
-      .join('; '),
+  const label = fill(UI_TEXT.paidBadge, {
+    features: features.map((feature) => paidFeatureName(feature)).join(', '),
   })
+  const priced: string[] = []
+  for (const feature of features) {
+    const price = prices?.get(feature)
+    if (price === undefined) {
+      return { label, title: undefined }
+    }
+    priced.push(`${paidFeatureName(feature)} ${price}`)
+  }
+  const title = fill(UI_TEXT.paidBadgeTitle, { prices: priced.join('; ') })
   // What no longer asks here (M58) is said too: loud even when silent.
   const always = features.filter((feature) => state.paid.alwaysAllowed.includes(feature))
   return {
-    label: fill(UI_TEXT.paidBadge, {
-      features: features.map((feature) => paidFeatureName(feature)).join(', '),
-    }),
+    label,
     title:
       always.length === 0
         ? title
@@ -539,6 +562,8 @@ export function App({
   const [isOwnStore] = useState(externalStore === undefined)
   const state = useSyncExternalStore(store.subscribe, store.getState)
   const { dispatch } = store
+  // The composer badge's exact prices arrive with the lazy money chunk.
+  const badgePrices = usePaidFeaturePrices(paidBadgeFeatures(state))
   const selectedModel = state.models.find((model) => model.modelId === state.model?.modelId)
   const selectedProvider = providerOf(state.model?.modelId ?? '') ?? selectedModel?.providerId
   const hasPlan =
@@ -716,7 +741,11 @@ export function App({
     },
     [getScheduleChannel, dispatch],
   )
+  // Each close of the surface ends the commands submitted over it: a
+  // `/schedule` mapping still loading then posts and stashes nothing.
+  const schedulesSurfaceCloses = useRef(0)
   const onCloseSchedulesSurface = useCallback(() => {
+    schedulesSurfaceCloses.current += 1
     setPendingSchedulePrompt(undefined)
     dispatch({ type: 'schedulesSurfaceClosed' })
   }, [dispatch])
@@ -1219,46 +1248,74 @@ export function App({
         })
         return
       }
-      const action = schedulePromptAction(
-        text,
-        props.workspaceKey,
-        props.defaultDraft,
-        now(),
-        parseLoopPrompt,
-      )
-      if (action === undefined) {
-        postMessage({ type: 'openSchedules', view: 'list' })
-        return
+      // The prompt mapping loads on first use, so startup carries only the
+      // prefix check above. The command lives as long as the surface it was
+      // submitted over, its session and its conversation: abandoned before
+      // the mapping arrives, it posts and stashes nothing. A failed load
+      // warns and hands the command back to an empty composer (never over
+      // a newer draft), so it can be sent again without retyping.
+      const workspaceKey = props.workspaceKey
+      const defaultDraft = props.defaultDraft
+      const submittedAt = now()
+      const closesAtSubmit = schedulesSurfaceCloses.current
+      const isCommandLive = (): boolean => {
+        const latest = store.getState()
+        return (
+          schedulesSurfaceCloses.current === closesAtSubmit &&
+          latest.schedulesSurface?.workspaceKey === workspaceKey &&
+          latest.sessionId === current.sessionId &&
+          latest.attachmentEpoch === current.attachmentEpoch
+        )
       }
-      if (action.kind === 'open') {
-        // Only a prompt draft carries text for the editor; a report draft
-        // (M115 RA) opens the editor over its own args, with nothing stashed.
-        const draftAction = action.draft?.action
-        if (draftAction?.kind === 'prompt' && draftAction.prompt !== '')
-          setPendingSchedulePrompt({
-            prompt: draftAction.prompt,
-            surface: current.schedulesSurface,
-          })
-        postMessage({ type: 'openSchedules', view: action.view })
-        return
-      }
-      if (action.kind === 'request') {
-        void getScheduleChannel()
-          .then((channel) => channel.request(action.request))
-          .then((response) => {
-            if (response.kind === 'refused')
-              dispatch({ type: 'noticeRaised', level: 'warning', text: response.reason })
-          })
-          .catch((error: unknown) => {
-            dispatch({
-              type: 'noticeRaised',
-              level: 'warning',
-              text: error instanceof Error ? error.message : UI_TEXT.scheduleCommandFailed,
+      void loadSchedulePrompt().then((mapping) => {
+        if (!isCommandLive()) return
+        if (mapping === undefined) {
+          if (store.getState().draft === '')
+            dispatch({ type: 'draftChanged', draft: current.draft })
+          dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.scheduleCommandFailed })
+          return
+        }
+        const action = mapping.schedulePromptAction(
+          text,
+          workspaceKey,
+          defaultDraft,
+          submittedAt,
+          parseLoopPrompt,
+        )
+        if (action === undefined) {
+          postMessage({ type: 'openSchedules', view: 'list' })
+          return
+        }
+        if (action.kind === 'open') {
+          // Only a prompt draft carries text for the editor; a report draft
+          // (M115 RA) opens the editor over its own args, with nothing stashed.
+          const draftAction = action.draft?.action
+          if (draftAction?.kind === 'prompt' && draftAction.prompt !== '')
+            setPendingSchedulePrompt({
+              prompt: draftAction.prompt,
+              surface: store.getState().schedulesSurface,
             })
-          })
-        return
-      }
-      dispatch({ type: 'noticeRaised', level: 'warning', text: action.reason })
+          postMessage({ type: 'openSchedules', view: action.view })
+          return
+        }
+        if (action.kind === 'request') {
+          void getScheduleChannel()
+            .then((channel) => channel.request(action.request))
+            .then((response) => {
+              if (response.kind === 'refused')
+                dispatch({ type: 'noticeRaised', level: 'warning', text: response.reason })
+            })
+            .catch((error: unknown) => {
+              dispatch({
+                type: 'noticeRaised',
+                level: 'warning',
+                text: error instanceof Error ? error.message : UI_TEXT.scheduleCommandFailed,
+              })
+            })
+          return
+        }
+        dispatch({ type: 'noticeRaised', level: 'warning', text: action.reason })
+      })
       return
     }
     // Model API schedules are extension-owned. Muse Code's cron remains a
@@ -2522,9 +2579,12 @@ export function App({
     ],
   )
   const slashLoadState = paletteModule === undefined ? 'loading' : 'ready'
+  // Paid toggle rows name their prices once the lazy money chunk arrives;
+  // nothing loads until the palette's registry does.
+  const palettePriceOf = usePriceOf(undefined, paletteModule !== undefined)
   const paletteGroups = useMemo(
-    () => paletteModule?.buildPalette(paletteContext) ?? [],
-    [paletteModule, paletteContext],
+    () => paletteModule?.buildPalette(paletteContext, palettePriceOf) ?? [],
+    [paletteModule, paletteContext, palettePriceOf],
   )
   const onOpenUsage = useCallback(() => {
     openOverlay('usage')
@@ -2593,6 +2653,7 @@ export function App({
         onSelectModel={onSelectModel}
         onBack={onPaletteBack}
         onClose={slot.onClose}
+        onRetryMoney={retrySurface}
         isAttached
         keepFocus
         keys={slashPaletteKeys}
@@ -2846,6 +2907,7 @@ export function App({
           onAction={onPaletteAction}
           onSelectModel={onSelectModel}
           onBack={onPaletteBack}
+          onRetryMoney={retrySurface}
           onClose={closeOverlay}
         />
       )
@@ -3297,6 +3359,9 @@ export function App({
             onClose={onCloseSchedulesSurface}
           />
         )}
+        {/* A failed money load leaves every price out, said here with Retry,
+            which rebuilds the document (the palette says it inside itself). */}
+        <MoneyUnavailable isInert={isModalOpen} onRetry={retrySurface} />
         {estimatorFailure?.reason === UI_TEXT.surfaceLoadFailed ? (
           <div role="alert" inert={isModalOpen}>
             {UI_TEXT.surfaceLoadFailed}
@@ -3404,7 +3469,7 @@ export function App({
             }
             permissionMode={state.permissionMode}
             context={state.context}
-            paidBadge={paidBadgeFor(state)}
+            paidBadge={paidBadgeFor(state, badgePrices)}
             onOpenUsage={onOpenUsage}
             focusRequests={state.focusRequests}
             pendingInsert={state.pendingInsert}

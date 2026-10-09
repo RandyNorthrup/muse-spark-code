@@ -17,7 +17,9 @@ describe('schedule text contract', () => {
       Object.keys(UI_TEXT.scheduleV2.delivery).toSorted((left, right) => left.localeCompare(right)),
     ).toEqual([...SCHEDULE_DELIVERIES].toSorted((left, right) => left.localeCompare(right)))
     expect(
-      Object.keys(UI_TEXT.scheduleV2.outcomes).toSorted((left, right) => left.localeCompare(right)),
+      Object.keys(UI_TEXT.scheduleSettlement.outcomes).toSorted((left, right) =>
+        left.localeCompare(right),
+      ),
     ).toEqual([...SCHEDULE_FIRE_OUTCOMES].toSorted((left, right) => left.localeCompare(right)))
     expect(
       Object.keys(UI_TEXT.scheduleV2.events).toSorted((left, right) => left.localeCompare(right)),

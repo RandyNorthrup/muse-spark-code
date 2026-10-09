@@ -713,6 +713,18 @@ export const EN = {
       'Playbook: {actor} reviews {module} as the recorded fallback reviewer ({reason}).',
     residualOpen: 'Needs you: {lane} has open residuals: {missing}.',
   },
+  // STARTUP017: a restored settlement row's words paint with chat startup;
+  // the rest of the schedule English loads with the schedule surfaces.
+  scheduleSettlement: {
+    sent: 'Sent on schedule',
+    outcomes: {
+      ran: 'Ran',
+      refused: 'Refused',
+      missed: 'Missed',
+      skipped: 'Skipped',
+      failed: 'Failed',
+    },
+  },
   // M115 lane 0: strings for the lazy schedule surfaces and adapters.
   scheduleV2: {
     editor: {
@@ -743,7 +755,6 @@ export const EN = {
       conditions: 'Conditions (field=value, one per line)',
       endDate: 'End date and time (UTC)',
       afterRuns: 'End after N runs',
-      sent: 'Sent on schedule',
       cost: 'Cost',
       grantHelp:
         'One entry per line. Paths stay inside this workspace; protected paths and tools that require a person are always refused.',
@@ -875,13 +886,6 @@ export const EN = {
       open: 'Open in the background',
       skip: 'Skip the fire',
       runOnce: 'Run once to catch up',
-    },
-    outcomes: {
-      ran: 'Ran',
-      refused: 'Refused',
-      missed: 'Missed',
-      skipped: 'Skipped',
-      failed: 'Failed',
     },
     events: {
       pullRequestOpened: 'Pull request opened',
@@ -2558,6 +2562,7 @@ export const EN = {
   loadingOutput: 'Loading…',
   surfaceLoadFailed: 'This panel could not load.',
   surfaceLoadRetry: 'Try again',
+  moneyLoadFailed: 'Prices could not load.',
   toolFailed: 'Failed',
   toolRejected: 'Rejected',
   // M46: a task the user (or Stop) ended.

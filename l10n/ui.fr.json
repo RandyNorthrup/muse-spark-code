@@ -551,6 +551,16 @@
     "fallbackReviewer": "Guide : {actor} examine {module} comme examinateur de repli enregistré ({reason}).",
     "residualOpen": "Votre intervention est requise : {lane} comporte des points résiduels ouverts : {missing}."
   },
+  "scheduleSettlement": {
+    "sent": "Envoyé selon la programmation",
+    "outcomes": {
+      "ran": "Exécuté",
+      "refused": "Refusé",
+      "missed": "Manqué",
+      "skipped": "Ignoré",
+      "failed": "Échoué"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -584,7 +594,6 @@
       "conditions": "Conditions (champ=valeur, une par ligne)",
       "endDate": "Date et heure de fin (UTC)",
       "afterRuns": "Terminer après N exécutions",
-      "sent": "Envoyé selon la programmation",
       "cost": "Coût",
       "grantHelp": "Une entrée par ligne. Les chemins restent dans cet espace de travail ; les chemins protégés et les outils nécessitant une personne sont toujours refusés.",
       "auditKinds": {
@@ -705,13 +714,6 @@
       "open": "Ouvrir en arrière-plan",
       "skip": "Ignorer l’exécution",
       "runOnce": "Rattraper une seule fois"
-    },
-    "outcomes": {
-      "ran": "Exécuté",
-      "refused": "Refusé",
-      "missed": "Manqué",
-      "skipped": "Ignoré",
-      "failed": "Échoué"
     },
     "events": {
       "pullRequestOpened": "Demande de fusion ouverte",
@@ -2159,6 +2161,7 @@
   "loadingOutput": "Chargement…",
   "surfaceLoadFailed": "Impossible de charger ce panneau.",
   "surfaceLoadRetry": "Réessayer",
+  "moneyLoadFailed": "Impossible de charger les prix.",
   "toolFailed": "Échec",
   "toolRejected": "Refusé",
   "toolStopped": "Arrêté",

@@ -4,7 +4,8 @@ import { formatUsd } from '../../shared/l10n/exactUsd'
 import { deferred } from '../components/DeferredSurface'
 import type { ScheduleTargetChoice } from './ports'
 import type { ToolEntry } from '../state/uiState'
-import { parseScheduleSettlement, scheduleTargetText } from './presentation'
+import { scheduleTargetText } from './presentation'
+import { parseScheduleSettlement } from './settlement'
 
 const ScheduleBody = deferred(async () => {
   const module = await import('../components/ToolBodies')
@@ -27,8 +28,8 @@ export function ScheduleRunBody({
     <div className="schedule-v2-fire">
       <strong>
         {fire.outcome === 'ran'
-          ? UI_TEXT.scheduleV2.editor.sent
-          : UI_TEXT.scheduleV2.outcomes[fire.outcome]}
+          ? UI_TEXT.scheduleSettlement.sent
+          : UI_TEXT.scheduleSettlement.outcomes[fire.outcome]}
       </strong>
       <p>
         {formatDateTime(fire.occurrenceMs)} ·{' '}
@@ -40,7 +41,7 @@ export function ScheduleRunBody({
       <ul>
         {fire.refusedActions.map((action, index) => (
           <li key={index} dir="auto">
-            {UI_TEXT.scheduleV2.outcomes.refused}: {action.tool} · {action.reason}
+            {UI_TEXT.scheduleSettlement.outcomes.refused}: {action.tool} · {action.reason}
           </li>
         ))}
       </ul>

@@ -549,6 +549,16 @@
     "fallbackReviewer": " playbook：{actor} 作为已记录的备选评审人复查 {module} ({reason})。",
     "residualOpen": "需要您处理：{lane} 存在未关闭的遗留事项：{missing}。"
   },
+  "scheduleSettlement": {
+    "sent": "按计划发送",
+    "outcomes": {
+      "ran": "已运行",
+      "refused": "已拒绝",
+      "missed": "已错过",
+      "skipped": "已跳过",
+      "failed": "失败"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -582,7 +592,6 @@
       "conditions": "条件（字段=值，每行一项）",
       "endDate": "结束日期和时间 (UTC)",
       "afterRuns": "运行 N 次后结束",
-      "sent": "按计划发送",
       "cost": "费用",
       "grantHelp": "每行一项。路径必须位于此工作区内；受保护的路径和需要人工操作的工具始终会被拒绝。",
       "auditKinds": {
@@ -703,13 +712,6 @@
       "open": "在后台打开",
       "skip": "跳过执行",
       "runOnce": "补执行一次"
-    },
-    "outcomes": {
-      "ran": "已运行",
-      "refused": "已拒绝",
-      "missed": "已错过",
-      "skipped": "已跳过",
-      "failed": "失败"
     },
     "events": {
       "pullRequestOpened": "拉取请求已打开",
@@ -2089,6 +2091,7 @@
   "loadingOutput": "正在加载…",
   "surfaceLoadFailed": "无法加载此面板。",
   "surfaceLoadRetry": "重试",
+  "moneyLoadFailed": "无法加载价格。",
   "toolFailed": "失败",
   "toolRejected": "已拒绝",
   "toolStopped": "已停止",

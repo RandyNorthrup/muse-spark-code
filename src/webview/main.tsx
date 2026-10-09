@@ -100,6 +100,8 @@ function mountTasks(element: Element): void {
 }
 
 function mountChat(element: Element): void {
+  // Exact prices load outside startup (STARTUP017): the mounted surfaces
+  // fetch the money chunk through its hooks, each retrying on its own.
   const host = vsCodeHostBridge(window)
   // What throws here reaches the host's log (M39): a render the boundary
   // caught, an error or a rejected promise nothing handled, a host message.

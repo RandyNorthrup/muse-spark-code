@@ -10,7 +10,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill, plural } from '../../src/shared/l10n/text'
 import { Badge } from '../../src/webview/models/components/Badge'
-import { CostNotice, formatTestCost } from '../../src/webview/models/components/CostNotice'
+import { CostNotice } from '../../src/webview/models/components/CostNotice'
+import { loadMoneyDisplay } from '../../src/webview/money'
 import { DataTable, type DataTableProps } from '../../src/webview/models/components/DataTable'
 import { FilterBar } from '../../src/webview/models/components/FilterBar'
 import { InlineError } from '../../src/webview/models/components/InlineError'
@@ -72,7 +73,7 @@ describe('KeyState', () => {
 })
 
 describe('CostNotice', () => {
-  it('states the cost and asks before the paid check', () => {
+  it('asks before the paid check while the exact cost loads (STARTUP017)', async () => {
     const onAccept = vi.fn()
     const onDecline = vi.fn()
     render(
@@ -82,22 +83,34 @@ describe('CostNotice', () => {
         onDecline={onDecline}
       />,
     )
-    expect(
-      screen.getByText(
-        fill(UI_TEXT.providerTestPaid, { cost: formatTestCost(Usd.from(0.000002).toAmount()) }),
-      ),
-    ).toBeDefined()
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.suggestionAccept }))
-    expect(onAccept).toHaveBeenCalledTimes(1)
+    // Consent is given to a stated price (this file's first money load):
+    // Accept waits for the cost line, while Cancel never waits.
+    const accept = screen.getByRole('button', { name: UI_TEXT.suggestionAccept })
+    expect(accept).toBeDisabled()
+    expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.loadingOutput)
+    fireEvent.click(accept)
+    expect(onAccept).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardCancel }))
     expect(onDecline).toHaveBeenCalledTimes(1)
+    const money = await loadMoneyDisplay()
+    expect(
+      await screen.findByText(
+        fill(UI_TEXT.providerTestPaid, {
+          cost: money.formatTestCost(Usd.from(0.000002).toAmount()),
+        }),
+      ),
+    ).toBeDefined()
+    expect(accept).toBeEnabled()
+    fireEvent.click(accept)
+    expect(onAccept).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps a fraction of a cent readable', () => {
-    expect(formatTestCost(Usd.from(0.000002).toAmount())).not.toBe(
-      formatTestCost(Usd.from(0).toAmount()),
+  it('keeps a fraction of a cent readable', async () => {
+    const money = await loadMoneyDisplay()
+    expect(money.formatTestCost(Usd.from(0.000002).toAmount())).not.toBe(
+      money.formatTestCost(Usd.from(0).toAmount()),
     )
-    expect(formatTestCost(Usd.from(0.05).toAmount())).toContain('0.05')
+    expect(money.formatTestCost(Usd.from(0.05).toAmount())).toContain('0.05')
   })
 })
 
@@ -205,6 +218,38 @@ describe('SuggestionCard', () => {
       'disabled',
       true,
     )
+  })
+
+  it('never offers Accept for a value not yet stated (STARTUP017)', () => {
+    const onAccept = vi.fn()
+    const { rerender } = render(
+      <SuggestionCard
+        title={UI_TEXT.suggestSessionBudget}
+        reason="From history."
+        value=""
+        isValueShown={false}
+        accepted={false}
+        onAccept={onAccept}
+        onChange={vi.fn()}
+      />,
+    )
+    const accept = screen.getByRole('button', { name: UI_TEXT.suggestionAccept })
+    expect(accept).toBeDisabled()
+    fireEvent.click(accept)
+    expect(onAccept).not.toHaveBeenCalled()
+    rerender(
+      <SuggestionCard
+        title={UI_TEXT.suggestSessionBudget}
+        reason="From history."
+        value="$2.00"
+        isValueShown={true}
+        accepted={false}
+        onAccept={onAccept}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(accept)
+    expect(onAccept).toHaveBeenCalledTimes(1)
   })
 })
 

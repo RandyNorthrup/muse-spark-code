@@ -51,10 +51,18 @@ it('keeps account, developer and help values out of startup and loads them exact
   expect(built.bundle.UI_TEXT.sendTitle).toBe(EN.sendTitle)
   expect(() => built.bundle.UI_TEXT.referenceIntro).toThrow('English surface is not loaded')
   expect(() => built.bundle.UI_TEXT.accounts).toThrow('English surface is not loaded')
+  // STARTUP017: a restored settlement row's words paint with startup; the
+  // rest of the schedule English loads only with the schedule surfaces.
+  expect(built.bundle.UI_TEXT.scheduleSettlement).toEqual(EN.scheduleSettlement)
+  expect(() => built.bundle.UI_TEXT.scheduleV2).toThrow('English surface is not loaded: scheduleV2')
   const chunk = Object.entries(built.meta.outputs).find(([, output]) =>
     Object.hasOwn(output.inputs, 'browser-surface-english:browser-surface-english'),
   )
   expect(chunk).toBeDefined()
+  const scheduleChunk = Object.entries(built.meta.outputs).find(([, output]) =>
+    Object.hasOwn(output.inputs, 'browser-schedule-english:browser-schedule-english'),
+  )
+  expect(scheduleChunk?.[0]).not.toBe(chunk[0])
   const main = Object.entries(built.meta.outputs).find(([file]) => file.endsWith('probe.mjs'))
   const seen = new Set()
   const reachesLoader = (file) => {

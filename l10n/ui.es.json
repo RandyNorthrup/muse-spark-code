@@ -551,6 +551,16 @@
     "fallbackReviewer": "Guía: {actor} revisa {module} como revisor suplente registrado ({reason}).",
     "residualOpen": "Se necesita tu decisión: {lane} tiene asuntos pendientes abiertos: {missing}."
   },
+  "scheduleSettlement": {
+    "sent": "Enviado según la programación",
+    "outcomes": {
+      "ran": "Ejecutado",
+      "refused": "Rechazado",
+      "missed": "Perdido",
+      "skipped": "Omitido",
+      "failed": "Fallido"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -584,7 +594,6 @@
       "conditions": "Condiciones (campo=valor, una por línea)",
       "endDate": "Fecha y hora de fin (UTC)",
       "afterRuns": "Finalizar tras N ejecuciones",
-      "sent": "Enviado según la programación",
       "cost": "Coste",
       "grantHelp": "Una entrada por línea. Las rutas permanecen en este espacio de trabajo; siempre se rechazan las rutas protegidas y las herramientas que requieren una persona.",
       "auditKinds": {
@@ -705,13 +714,6 @@
       "open": "Abrir en segundo plano",
       "skip": "Omitir la ejecución",
       "runOnce": "Recuperar una vez"
-    },
-    "outcomes": {
-      "ran": "Ejecutado",
-      "refused": "Rechazado",
-      "missed": "Perdido",
-      "skipped": "Omitido",
-      "failed": "Fallido"
     },
     "events": {
       "pullRequestOpened": "Solicitud de incorporación abierta",
@@ -2159,6 +2161,7 @@
   "loadingOutput": "Cargando…",
   "surfaceLoadFailed": "No se pudo cargar este panel.",
   "surfaceLoadRetry": "Intentar de nuevo",
+  "moneyLoadFailed": "No se pudieron cargar los precios.",
   "toolFailed": "Error",
   "toolRejected": "Rechazado",
   "toolStopped": "Detenido",

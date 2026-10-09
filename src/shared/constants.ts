@@ -1,4 +1,4 @@
-import { usdAmountSchema } from './usd'
+import { usdAmountSchema } from './usdSchema'
 // Every tunable and user-visible literal lives here. The no-magic-numbers lint
 // rule is disabled for this file only; everywhere else a bare literal is an
 // error. Keep entries grouped and named for what they mean, not what they are.
