@@ -13,14 +13,15 @@
 
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
 const { options, roots } = JSON.parse(
   readFileSync(path.join(ROOT, 'scripts', 'cycles.json'), 'utf8'),
 )
-const manifestPath = createRequire(import.meta.url).resolve('dpdm/package.json')
+// import.meta.resolve, so the dead-code gate sees dpdm in use.
+const manifestPath = fileURLToPath(import.meta.resolve('dpdm/package.json'))
 const cli = path.join(
   path.dirname(manifestPath),
   JSON.parse(readFileSync(manifestPath, 'utf8')).bin.dpdm,
