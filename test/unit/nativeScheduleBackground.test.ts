@@ -807,6 +807,12 @@ describe('native background lifecycle', () => {
       const files = nodeBackgroundFiles(verifier)
       const agentFile = path.join(directory, 'agent.js')
       await writeFile(agentFile, 'process.exitCode = 0', { mode: 0o600 })
+      // Hosted runners keep node in a world-writable tool cache
+      // (/opt/hostedtoolcache), which production rightly refuses as the
+      // launcher before it reaches the drop-in; launch a private copy instead.
+      const launcher = path.join(directory, 'node')
+      await copyFile(process.execPath, launcher)
+      await chmod(launcher, 0o700)
       // Create only what is missing and chmod only what this fixture created:
       // pre-existing system directories keep their own modes.
       for (const dir of [path.dirname(path.dirname(dropDirectory)), path.dirname(dropDirectory)]) {
@@ -830,7 +836,7 @@ describe('native background lifecycle', () => {
         platform: 'linux',
         homeDir: directory,
         dataDir: directory,
-        executable: process.execPath,
+        executable: launcher,
         agentFile,
         uid,
         effectiveUid: uid,
