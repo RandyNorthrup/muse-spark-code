@@ -197,5 +197,13 @@
     "regenerated": false,
     "candidateSha256": "5606d582b0dac55731a0cd77dd46b78a7104e1f4f0e5cd5d83ddc813d93f23e7",
     "receiptSha256": "0ff3e86c550876dbd82d3a5b93c48ce97b52da99ff24b8d60b6f699114831547"
+  },
+  "accessibility": {
+    "kind": "integrated-six-theme-true-width-scoped-axe-observation",
+    "pages": 1632,
+    "pagesWithViolations": 0,
+    "pagesWithIncompleteFindings": 315,
+    "incompleteFindings": 315,
+    "receiptSha256": "6e4a563a55ce836ee5e8ea5c0a46376c4209f89d55e24aa845b8b82f9b93d582"
   }
 }

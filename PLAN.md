@@ -37776,12 +37776,15 @@ gate under the shared lane rules; no merge, push or live/paid calls.
 - [x] Prove historical schedule loading fails before the repair and passes after.
 - [x] Resolve visual comparisons and identify the aggregate's actual failure.
 - [x] Refresh source receipts and pass the owning audit suite.
-- [ ] Pass full visual, six-theme accessibility and default-timeout stability gates.
-- [ ] Record evidence and local hooks-on commits in `docs/certification/cifixv.md`.
+- [x] Pass full visual, six-theme accessibility and default-timeout stability gates.
+- [x] Record evidence and local hooks-on commits in `docs/certification/cifixv.md`.
 
 Reviewed full baseline: `CIFIXV-integrated-accessibility-review-2026-10-09`,
 9,792 images / 447,310,229 bytes; all 884 distinct changed images reviewed,
-27 named scenes. The artifact action's `digest-mismatch: error` is an input;
+27 named scenes. Full pixel gate passed; six-theme scoped axe passed on
+1,632 pages with zero violations, retaining all 315 incomplete findings.
+All 43 owning tests passed at repository defaults; production build passed.
+The artifact action's `digest-mismatch: error` is an input;
 the aggregate requires successful schedule shards and complete receipts.
 Bounded external gate deferral: full `jscpd` still reports the inherited
 51-token clone in `test/unit/modelApiLoopGuarantees.test.ts:741` and `:890`.

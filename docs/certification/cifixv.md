@@ -18,8 +18,8 @@ call, dependency, hook, timeout or threshold change.
    1,632 changed pixels versus the unchanged allowance of 12. Compared the
    original and candidate PNGs: the intended `vis017` input-boundary contrast
    repair changes `--ms-border` to `--ms-boundary`. The later accounts link
-   token repair is also intentional. Full baseline generation and image review
-   and full pixel replay are complete. `digest-mismatch: error` alone
+   token repair is also intentional. Full baseline generation, image review
+   and pixel replay are complete. `digest-mismatch: error` alone
    is an artifact-action input echo, not a named pixel scene. The aggregate
    requires `needs.visual-shards.result == success` before merging six valid
    receipts (`.github/workflows/build.yml:181`); the failed schedule shards
@@ -54,6 +54,13 @@ call, dependency, hook, timeout or threshold change.
   candidate 447,310,992 bytes. Receipt `temp/m114-visual-result.json` binds
   the exact formatted manifest; no baseline reconstruction was needed on this
   matching rig environment.
+- `npm run check:visual:a11y`: exit 0, 1,632 pages across all six themes and
+  both widths, zero pages with violations. All 315 incomplete findings on
+  315 pages remain in the full scoped axe receipt; they are not silently
+  treated as resolved. This complements the repository's separate full-scenario
+  `test:a11y` gate, which remains lead-owned. Receipt
+  `temp/m114-s-accessibility.json`, also retained in the external review archive;
+  SHA-256 `6e4a563a55ce836ee5e8ea5c0a46376c4209f89d55e24aa845b8b82f9b93d582`.
 - Separately reconstructed actual base `f5e0760c3` through `snapshot` and
   served its real schedule editor/list/timeline in Chrome: 12/12 captures,
   light/high-contrast dark and 320/690 px. Historical checkout removed after
@@ -145,5 +152,19 @@ reason, and restored the original file bytes in `finally` with SHA-256 checks.
 Logs: `temp/cifixv-drill-historical-schedule-root.log`,
 `temp/cifixv-drill-current-accounts-classification.log`;
 machine receipt `temp/cifixv-drills.json`. All final owning suites passed after
-restoration. Accessibility results follow when complete.
-Full quality and hosted CI replay remain lead-owned.
+restoration.
+
+## Handoff
+
+Local fix commit `484964c46c307b48a5f00b127c4bf358dd27aebf` and reviewed
+baseline commit `6fce1aff0a7838039ca62a358148a0d544808d39` use the installed
+hooks: eslint/Prettier where applicable and gitleaks. Re-read staged and
+committed diffs after each; the reviewed manifest's bytes match the passing
+pixel receipt after the hook. This closing evidence commit adds the completed
+axe result and closes PLAN's scoped checklist without changing capture inputs.
+
+No visual-scope blocker remains. Full quality and hosted CI replay remain
+lead-owned; the inherited `modelApiLoopGuarantees` duplication failure is the
+recorded integration blocker. The lead can fetch this branch, integrate these
+local commits, repair that other-lane clone and rerun the hosted shard/aggregate
+jobs. No merge or push occurred in this lane.
