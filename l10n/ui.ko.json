@@ -3300,6 +3300,7 @@
   "whatsNewOpenSetting": "설정 열기",
   "whatsNewNotesInEnglish": "릴리스 노트는 영어로 제공됩니다.",
   "whatsNewNoNotes": "버전 {version}에는 릴리스 노트가 없습니다.",
+  "whatsNewEarlierNotes": "이전 노트: 전체 변경 기록을 참조하세요",
   "whatsNewFullChangelog": "GitHub의 전체 변경 기록",
   "whatsNewReadme": "GitHub의 README",
   "whatsNewStarGithub": "Muse Spark Code가 마음에 드시나요? GitHub에서 별을 눌러 주시면 다른 사람들도 더 쉽게 찾을 수 있어요.",

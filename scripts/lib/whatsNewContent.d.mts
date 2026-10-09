@@ -22,4 +22,22 @@ export function highlightsProblem(
   releases: readonly ReleaseNotes[],
   version: string,
 ): string | undefined
+export interface ShippedPlanEntry {
+  readonly version: string
+  readonly full: boolean
+  readonly omitted?: boolean | undefined
+}
+
+export interface WhatsNewSelection {
+  readonly releases: ReleaseNotes[]
+  readonly shortened: boolean
+  /** The full-notes window newest first: `full` false ships Highlights only, `omitted` ships nothing. */
+  readonly plan: ShippedPlanEntry[]
+}
+
+export function selectWhatsNewReleases(
+  allReleases: readonly ReleaseNotes[],
+  repository: string,
+  maxDecodeBytes?: number,
+): WhatsNewSelection
 export function writeWhatsNewContent(root?: string): { releases: number; bytes: number }

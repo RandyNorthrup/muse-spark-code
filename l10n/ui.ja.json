@@ -3300,6 +3300,7 @@
   "whatsNewOpenSetting": "設定を開く",
   "whatsNewNotesInEnglish": "リリースノートは英語です。",
   "whatsNewNoNotes": "バージョン {version} にはリリースノートが含まれていません。",
+  "whatsNewEarlierNotes": "以前のノート: 完全な変更履歴をご覧ください",
   "whatsNewFullChangelog": "GitHub の完全な変更履歴",
   "whatsNewReadme": "GitHub の README",
   "whatsNewStarGithub": "Muse Spark Code は気に入りましたか？GitHub でスターを付けると、ほかの人にも見つけてもらいやすくなります。",

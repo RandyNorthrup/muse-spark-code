@@ -13,6 +13,12 @@ import {
 } from '../../scripts/lib/uiTextRegions.mjs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { stageVsix, packagedChangelog } from '../../scripts/package-vsix.mjs'
+import {
+  contributedIds,
+  parseChangelog,
+  repositoryUrl,
+  selectWhatsNewReleases,
+} from '../../scripts/lib/whatsNewContent.mjs'
 import { renderPackageReadme } from '../../scripts/check-badges.mjs'
 import { compactVsix } from '../../scripts/lib/compactVsix.mjs'
 import { readZip } from '@vscode/vsce/out/zip.js'
@@ -644,6 +650,75 @@ describe('VSIX packaging', () => {
     expect(shipped).toContain('[Complete release history]')
     expect(packagedChangelog('## [0.1.0] - 2026-01-01\n\nNotes')).toContain('Notes')
     expect(() => packagedChangelog('No releases')).toThrow('No released')
+  })
+  it('ships the writer’s plan, so the packaged notes agree with What’s New on what is shown', () => {
+    const repository = 'https://github.com/example/repo'
+    const changelog = [
+      '## [2.0.0] - 2026-10-09',
+      '',
+      '### Highlights',
+      '',
+      '- **New.** Shiny new detail stays.',
+      '',
+      '### Added',
+      '',
+      `- New detail stays. ${'y'.repeat(2000)}`,
+      '',
+      '## [1.9.0] - 2026-10-01',
+      '',
+      '### Highlights',
+      '',
+      '- **Old.** Stable highlight stays.',
+      '',
+      '### Added',
+      '',
+      `- Old detail goes. ${'y'.repeat(2000)}`,
+      '',
+      '## [1.8.0] - 2026-09-01',
+      '',
+      '### Highlights',
+      '',
+      '- **Ancient.** Dusty.',
+      '',
+    ].join('\n')
+    const parsed = parseChangelog(
+      changelog,
+      { commands: new Set(), settings: new Set() },
+      repository,
+    )
+    const shortened = selectWhatsNewReleases(parsed, repository, 3000)
+    expect(shortened.plan).toEqual([
+      { version: '2.0.0', full: true },
+      { version: '1.9.0', full: false },
+    ])
+    const packaged = packagedChangelog(changelog, shortened.plan, repository)
+    expect(packaged).toContain('New detail stays.')
+    expect(packaged).toContain('Stable highlight stays.')
+    expect(packaged).toContain(`[Full notes for 1.9.0](${repository}/blob/main/CHANGELOG.md).`)
+    expect(packaged).not.toContain('Old detail goes.')
+    expect(packaged).not.toContain('## [1.8.0]')
+    expect(packaged).toContain('[Complete release history]')
+    const omitted = selectWhatsNewReleases(parsed, repository, 2400)
+    expect(omitted.plan).toEqual([
+      { version: '2.0.0', full: true },
+      { version: '1.9.0', full: false, omitted: true },
+    ])
+    const withoutSecond = packagedChangelog(changelog, omitted.plan, repository)
+    expect(withoutSecond).toContain('## [2.0.0]')
+    expect(withoutSecond).not.toContain('1.9.0')
+  })
+  it('packs the writer’s plan for the real CHANGELOG exactly as the legacy slice', () => {
+    const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
+    const source = readFileSync('CHANGELOG.md', 'utf8')
+    const repository = repositoryUrl(manifest)
+    const selection = selectWhatsNewReleases(
+      parseChangelog(source, contributedIds(manifest), repository),
+      repository,
+    )
+    expect(selection.plan).toEqual(
+      selection.releases.map((release) => ({ version: release.version, full: true })),
+    )
+    expect(packagedChangelog(source, selection.plan, repository)).toBe(packagedChangelog(source))
   })
   it('generates both static badges from the manifest, with no unresolved token', () => {
     const version = JSON.parse(

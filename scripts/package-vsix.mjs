@@ -5,6 +5,12 @@ import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'no
 import path from 'node:path'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
 import { compactVsix } from './lib/compactVsix.mjs'
+import {
+  contributedIds,
+  parseChangelog,
+  repositoryUrl,
+  selectWhatsNewReleases,
+} from './lib/whatsNewContent.mjs'
 import { pathToFileURL } from 'node:url'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
 import { assertNoVsixFonts } from './notices-fonts.mjs'
@@ -15,10 +21,30 @@ const HISTORY = 'https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHAN
 const COMPACT_JSON =
   /^(?:l10n\/(?:ui|usage)\.[^/]+\.json|dist\/(?:providerCatalog|whatsNew)\.json|package(?:\.nls(?:\.[^/]+)?)?\.json)$/
 
-export function packagedChangelog(text) {
+/**
+ * A planned release's Highlights section as written, from its Markdown range.
+ */
+function highlightsMarkdown(range) {
+  const start = /^### Highlights\r?$/m.exec(range)
+  if (start === null) return
+  const rest = range.slice(start.index)
+  const next = /^### /m.exec(rest.slice('### Highlights'.length))
+  return rest.slice(0, next === null ? rest.length : '### Highlights'.length + next.index).trimEnd()
+}
+
+/**
+ * The Marketplace and VS Code changelog tab's CHANGELOG.md: the Unreleased
+ * Highlights when there are any, then the planned releases, then the link
+ * to the complete history. `plan` is the writer's selection
+ * (`selectWhatsNewReleases`): each entry ships in full, or as its
+ * Highlights only with a link to its full notes (an `omitted` entry ships
+ * nothing), so the packaged notes agree with What's New's page on what is
+ * shown. Without a plan the newest RECENT_RELEASES releases ship in full,
+ * as always.
+ */
+export function packagedChangelog(text, plan, repository) {
   const headings = text.matchAll(/^## \[\d+\.\d+\.\d+\].*$/gm).toArray()
   if (headings.length === 0) throw new Error('No released changelog section')
-  const end = headings[RECENT_RELEASES]?.index ?? text.length
   const firstRelease = headings[0].index
   const prefix = text.slice(0, firstRelease)
   const highlights = prefix
@@ -29,7 +55,28 @@ export function packagedChangelog(text) {
   const unreleased = prefix.includes('## [Unreleased]')
     ? `# Changelog\n\n## [Unreleased]\n\n${highlights === '' ? '' : `### Highlights\n\n${highlights}\n\n`}[Complete Unreleased notes](${HISTORY}#unreleased).\n\n`
     : prefix
-  return `${unreleased}${text.slice(firstRelease, end).trimEnd()}\n\n[Complete release history](${HISTORY}).\n`
+  if (plan === undefined) {
+    const end = headings[RECENT_RELEASES]?.index ?? text.length
+    return `${unreleased}${text.slice(firstRelease, end).trimEnd()}\n\n[Complete release history](${HISTORY}).\n`
+  }
+  const changelog = repository === undefined ? HISTORY : `${repository}/blob/main/CHANGELOG.md`
+  const shipped = []
+  for (const entry of plan) {
+    const at = headings.findIndex((heading) => heading[0].startsWith(`## [${entry.version}]`))
+    if (at === -1) throw new Error(`packagedChangelog: no released section for ${entry.version}`)
+    if (entry.omitted === true) continue
+    const range = text.slice(headings[at].index, headings[at + 1]?.index ?? text.length).trimEnd()
+    if (entry.full) {
+      shipped.push(range)
+      continue
+    }
+    const section = highlightsMarkdown(range)
+    if (section === undefined)
+      throw new Error(`packagedChangelog: no Highlights section for ${entry.version}`)
+    const heading = headings[at][0]
+    shipped.push(`${heading}\n\n${section}\n\n[Full notes for ${entry.version}](${changelog}).`)
+  }
+  return `${unreleased}${shipped.join('\n\n')}\n\n[Complete release history](${HISTORY}).\n`
 }
 
 export async function stageVsix(root, stage) {
@@ -89,9 +136,19 @@ export async function stageVsix(root, stage) {
       JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')).version,
     ),
   )
+  // The packaged notes ship the writer's own selection (full, Highlights
+  // only, or left out), so they agree with What's New's page on what is
+  // shown; the writer refuses when the newest release alone is over budget.
+  const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
+  const changelogText = readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8')
+  const repository = repositoryUrl(manifest)
+  const selection = selectWhatsNewReleases(
+    parseChangelog(changelogText, contributedIds(manifest), repository),
+    repository,
+  )
   writeFileSync(
     path.join(stage, 'CHANGELOG.md'),
-    packagedChangelog(readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8')),
+    packagedChangelog(changelogText, selection.plan, repository),
   )
   return files
 }

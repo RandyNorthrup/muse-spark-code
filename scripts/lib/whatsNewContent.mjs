@@ -29,15 +29,19 @@ import { gfmFromMarkdown } from 'mdast-util-gfm'
 import { gfm } from 'micromark-extension-gfm'
 import { loadL10n } from './l10nSource.mjs'
 
-const { encodeWhatsNewContent } = await loadL10n(process.cwd())
+const { encodeWhatsNewContent, WHATS_NEW_CONTENT_DECODE_MAX_BYTES } = await loadL10n(process.cwd())
 
 export const HIGHLIGHTS_HEADING = 'Highlights'
 export const MAX_HIGHLIGHTS = 5
 export const CONTENT_FILE = 'dist/whatsNew.json'
 const SCHEMA_VERSION = 1
-// Keep the current release and its immediate predecessor in full. Eight
-// releases measured 177,802 bytes, far beyond the content's 40 KiB budget.
-// Earlier details remain available through the page's full-changelog link.
+// The full-notes window: the current release and its immediate
+// predecessor. Eight releases measured 177,802 bytes, far beyond the
+// content's budget, and since 0.17.0 even two full releases can exceed the
+// decoded bound — so `selectWhatsNewReleases` ships the newest in full and
+// fits older releases of this window around it (Highlights only, or left
+// out), instead of failing the build. Earlier details remain available
+// through the page's full-changelog link.
 const FULL_NOTES_RELEASES = 2
 const RELEASE_HEADING = /^\[(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\] - (\d{4}-\d{2}-\d{2})$/
 const UNRELEASED_HEADING = '[Unreleased]'
@@ -323,21 +327,134 @@ export function highlightsProblem(releases, version) {
     : undefined
 }
 
-/** Writes dist/whatsNew.json from CHANGELOG.md and package.json under `root`; returns its size. */
-export function writeWhatsNewContent(root = '.') {
-  const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
-  const changelog = readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8')
-  const allReleases = parseChangelog(changelog, contributedIds(manifest), repositoryUrl(manifest))
-  const releases = allReleases.slice(0, FULL_NOTES_RELEASES)
+/**
+ * The decoded bytes of a content envelope, exactly as the build writes it:
+ * the `shortened` flag is present only when the selection set it.
+ */
+function envelopeBytes(releases, shortened) {
+  return Buffer.byteLength(
+    JSON.stringify(
+      shortened
+        ? { schema: SCHEMA_VERSION, releases, shortened: true }
+        : { schema: SCHEMA_VERSION, releases },
+    ),
+  )
+}
+
+/** A release's Highlights with a link to its full notes in CHANGELOG on GitHub. */
+function highlightsOnly(release, repository) {
+  return {
+    ...release,
+    sections: [
+      {
+        heading: '',
+        blocks: [
+          {
+            t: 'p',
+            c: [
+              {
+                t: 'link',
+                href: `${repository}/blob/${BRANCH}/CHANGELOG.md`,
+                c: [{ t: 'text', v: `Full notes for ${release.version}` }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  }
+}
+
+/**
+ * The releases the build ships, within the decoded bound (post-0.17.0: two
+ * full releases no longer always fit, so the writer is budget-aware).
+ *
+ * - The newest release always ships in full. Alone over the bound, the
+ *   writer refuses, naming the release, its size and the bound, so the
+ *   author trims the notes instead of the build hiding them.
+ * - Older releases of the full-notes window follow newest first while the
+ *   decoded total fits. One that does not fit in full ships as its
+ *   Highlights only (plus a link to its full notes); one whose Highlights
+ *   do not fit either is left out. Either way the selection is `shortened`.
+ * - The standing rule still holds: when nothing shipped has Highlights, the
+ *   newest earlier Highlights ship with their notes omitted (left out
+ *   instead when even they do not fit). That rule alone never `shortened`.
+ *
+ * Deterministic: the same CHANGELOG always gives byte-identical output.
+ *
+ * @param {import('../../src/core/whatsNew/whatsNewContent').ReleaseNotes[]} allReleases parsed, newest first
+ * @param {string} repository the repository's web address, for the full-notes links
+ * @param {number} maxDecodeBytes the decoded bound the envelope must stay within
+ */
+export function selectWhatsNewReleases(
+  allReleases,
+  repository,
+  maxDecodeBytes = WHATS_NEW_CONTENT_DECODE_MAX_BYTES,
+) {
+  if (allReleases.length === 0) {
+    return { releases: [], shortened: false, plan: [] }
+  }
+  const [newest, ...older] = allReleases
+  const newestBytes = envelopeBytes([newest], false)
+  if (newestBytes > maxDecodeBytes) {
+    throw new Error(
+      `CHANGELOG.md ${newest.version}: its release notes decode to ${String(newestBytes)} bytes, over the What's New bound of ${String(maxDecodeBytes)} bytes; trim the notes (docs/RELEASING.md)`,
+    )
+  }
+  const releases = [newest]
+  const plan = [{ version: newest.version, full: true }]
+  let isShortened = false
+  const canFit = (candidate, makesShortened) =>
+    envelopeBytes([...releases, candidate], isShortened || makesShortened) <= maxDecodeBytes
+  const predecessors = older.slice(0, FULL_NOTES_RELEASES - 1)
+  for (const candidate of predecessors) {
+    if (canFit(candidate, false)) {
+      releases.push(candidate)
+      plan.push({ version: candidate.version, full: true })
+      continue
+    }
+    const short = highlightsOnly(candidate, repository)
+    if (canFit(short, true)) {
+      releases.push(short)
+      plan.push({ version: candidate.version, full: false })
+      isShortened = true
+      continue
+    }
+    plan.push({ version: candidate.version, full: false, omitted: true })
+    isShortened = true
+  }
   if (releases.every((release) => release.highlights.length === 0)) {
     const latestHighlights = allReleases
       .slice(FULL_NOTES_RELEASES)
       .find((release) => release.highlights.length > 0)
     if (latestHighlights !== undefined) {
-      releases.push({ ...latestHighlights, sections: [] })
+      // The standing rule's entry ships without the full-notes link, as
+      // always; only the budget skipping it counts as shortened.
+      const short = { ...latestHighlights, sections: [] }
+      if (canFit(short, true)) {
+        releases.push(short)
+      } else {
+        isShortened = true
+      }
     }
   }
-  const text = encodeWhatsNewContent(JSON.stringify({ schema: SCHEMA_VERSION, releases }))
+  return { releases, shortened: isShortened, plan }
+}
+
+/** Writes dist/whatsNew.json from CHANGELOG.md and package.json under `root`; returns its size. */
+export function writeWhatsNewContent(root = '.') {
+  const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
+  const changelog = readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8')
+  const repository = repositoryUrl(manifest)
+  const allReleases = parseChangelog(changelog, contributedIds(manifest), repository)
+  const { releases, shortened } = selectWhatsNewReleases(allReleases, repository)
+  const text = encodeWhatsNewContent(
+    JSON.stringify(
+      shortened
+        ? { schema: SCHEMA_VERSION, releases, shortened: true }
+        : { schema: SCHEMA_VERSION, releases },
+    ),
+  )
   const target = path.join(root, CONTENT_FILE)
   mkdirSync(path.dirname(target), { recursive: true })
   writeFileSync(target, text)

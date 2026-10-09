@@ -3519,6 +3519,7 @@
   "whatsNewOpenSetting": "Otwórz ustawienie",
   "whatsNewNotesInEnglish": "Informacje o wydaniu są w języku angielskim.",
   "whatsNewNoNotes": "Wersja {version} nie zawiera informacji o wydaniu.",
+  "whatsNewEarlierNotes": "Wcześniejsze informacje: zobacz pełny dziennik zmian",
   "whatsNewFullChangelog": "Pełny dziennik zmian w serwisie GitHub",
   "whatsNewReadme": "README w serwisie GitHub",
   "whatsNewStarGithub": "Podoba Ci się Muse Spark Code? Gwiazdka na GitHubie pomoże innym go odkryć.",

@@ -3300,6 +3300,7 @@
   "whatsNewOpenSetting": "打开设置",
   "whatsNewNotesInEnglish": "发行说明为英文。",
   "whatsNewNoNotes": "版本 {version} 未附带发行说明。",
+  "whatsNewEarlierNotes": "早期说明：请查看完整更新日志",
   "whatsNewFullChangelog": "GitHub 上的完整更新日志",
   "whatsNewReadme": "GitHub 上的 README",
   "whatsNewStarGithub": "喜欢 Muse Spark Code 吗？在 GitHub 上点个星标，能帮助更多人发现它。",
