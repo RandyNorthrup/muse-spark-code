@@ -15,6 +15,7 @@
 import { GIT_WORKTREE_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { type GitHubClient, isCommitSha, type PullRequest } from '../../core/git/github'
+import { pullRequestCheckoutConfirmation } from '../../core/git/heldCheckoutCore'
 import { githubRepositoryOf, repositoryLabel } from '../../core/git/githubRemote'
 import {
   type GitHubRemote,
@@ -106,22 +107,6 @@ function githubRemotes(repository: GitRepository): readonly GitHubRemote[] {
     const github = url === undefined ? undefined : githubRepositoryOf(url)
     return github === undefined ? [] : [{ name: remote.name, repository: github }]
   })
-}
-
-/** What the confirmation says about where the pull request goes and how it is held. */
-function confirmationDetail(pullRequest: PullRequest, isOwn: boolean): string {
-  const from =
-    pullRequest.headRepository === undefined
-      ? pullRequest.headRef
-      : `${pullRequest.headRepository}:${pullRequest.headRef}`
-  return [
-    pullRequest.title,
-    fill(UI_TEXT.openPullRequestBy, { author: pullRequest.author.login }),
-    fill(UI_TEXT.openPullRequestBranches, { head: from, base: pullRequest.baseRef }),
-    isOwn ? UI_TEXT.openPullRequestOwnDetail : UI_TEXT.openPullRequestHeldDetail,
-    ...(isOwn ? [] : [UI_TEXT.openPullRequestUnfilteredDetail]),
-    UI_TEXT.gitCommandConsequences,
-  ].join('\n')
 }
 
 /** Why the flow cannot start here, or undefined. */
@@ -273,7 +258,7 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
   }
   const isConfirmed = await deps.confirm(
     fill(UI_TEXT.openPullRequestConfirm, { number: pullRequest.number }),
-    confirmationDetail(pullRequest, isOwn),
+    pullRequestCheckoutConfirmation(pullRequest, isOwn),
     UI_TEXT.openPullRequestAction,
   )
   check()
