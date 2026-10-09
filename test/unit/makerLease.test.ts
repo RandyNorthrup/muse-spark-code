@@ -8,6 +8,7 @@ import {
   open,
   readFile,
   readdir,
+  rename,
   rm,
   symlink,
   unlink,
@@ -86,8 +87,12 @@ function generationFile(directory: string, record: HardwareLeaseRecord) {
   )
 }
 
-async function claim(deps: Awaited<ReturnType<typeof fixture>>, resource = 'port:test') {
-  const result = await claimHardwareLease(deps, resource, 'owner', () => Promise.resolve())
+async function claim(
+  deps: Awaited<ReturnType<typeof fixture>>,
+  resource = 'port:test',
+  stop = () => Promise.resolve(),
+) {
+  const result = await claimHardwareLease(deps, resource, 'owner', stop)
   if (result.status !== 'acquired') throw new Error('test-claim')
   return result
 }
@@ -867,6 +872,104 @@ describe('hardware lease', () => {
     await writeFile(path.join(deps.directory, `stop-v1.${key}.corrupt.json`), '{')
     await expect(stopAllHardwareLeases(deps)).rejects.toThrow('lease-stop-failed')
   })
+
+  it.each(['native', 'posix'])(
+    'RVM103W6 P1: a renamed live Stop index is unconfirmed with %s scan semantics',
+    async (semantics) => {
+      const deps = await fixture()
+      const stop = vi.fn(() => Promise.resolve())
+      const active = await claimHardwareLease(deps, 'port:actual', 'owner', stop)
+      if (active.status !== 'acquired') throw new Error('test-claim')
+      const claimFile = generationFile(deps.directory, active.record)
+      const renamed = generationFile(deps.directory, {
+        ...active.record,
+        resource: 'port:other',
+      }).replace('claim-v1.', 'stop-v1.')
+      await rename(claimFile.replace('claim-v1.', 'stop-v1.'), renamed)
+      // Keep the production claim, live endpoint and PID/start identity intact.
+      expect(await readFile(claimFile, 'utf8')).toBe(JSON.stringify(active.record))
+      expect(await deps.processStartTime(active.record.pid)).toBe(active.record.startedAt)
+      if (semantics === 'posix') {
+        // Windows has no POSIX uid/mode; adapt only directory metadata at this seam.
+        const fs = await vi.importActual<typeof FsPromises>('node:fs/promises')
+        const getUserId = process.getuid
+        vi.mocked(lstat).mockImplementation(async (file) => {
+          const stat = await fs.lstat(file)
+          if (String(file).replaceAll('\\', '/') === deps.directory.replaceAll('\\', '/'))
+            Object.defineProperties(stat, {
+              uid: { value: getUserId?.() },
+              mode: { value: 0o4_0700 },
+            })
+          return stat
+        })
+      }
+      const scan = semantics === 'posix' ? { ...deps, platform: 'linux' as const } : deps
+      await expect(stopAllHardwareLeases(scan)).rejects.toThrow('lease-stop-failed')
+      expect(await stopHardwareLease(scan, 'port:actual')).toEqual({
+        stopped: false,
+        sessions: [
+          {
+            record: active.record,
+            party: 'unknown',
+            status: 'failed',
+            reason: 'lease-stop-unrecognized',
+          },
+        ],
+      })
+      expect(stop).not.toHaveBeenCalled()
+      expect(await readFile(renamed, 'utf8')).toBe(JSON.stringify(active.record))
+    },
+  )
+
+  it.each(['live', 'unknown'])(
+    'RVM103W6 P1: still contacts recognised owners alongside a renamed %s owner',
+    async (identity) => {
+      const deps = await fixture()
+      const missed = vi.fn(() => Promise.resolve())
+      const reached = vi.fn(() => Promise.resolve())
+      const active = await claimHardwareLease(deps, 'port:actual', 'owner', missed)
+      if (active.status !== 'acquired') throw new Error('test-claim')
+      await claimHardwareLease(deps, 'port:recognised', 'other owner', reached)
+      await rename(
+        generationFile(deps.directory, active.record).replace('claim-v1.', 'stop-v1.'),
+        generationFile(deps.directory, { ...active.record, resource: 'port:other' }).replace(
+          'claim-v1.',
+          'stop-v1.',
+        ),
+      )
+      const scan =
+        identity === 'unknown'
+          ? {
+              ...deps,
+              processStartTime: () => Promise.reject(new Error('test-identity-unavailable')),
+            }
+          : deps
+      await expect(stopAllHardwareLeases(scan)).rejects.toThrow('lease-stop-failed')
+      expect(missed).not.toHaveBeenCalled()
+      expect(reached).toHaveBeenCalledTimes(1)
+    },
+  )
+
+  it.each(['duplicate', 'gone'])(
+    'RVM103W6 P1: a renamed %s index does not raise a false Stop alarm',
+    async (kind) => {
+      const deps = await fixture()
+      const stop = vi.fn(() => Promise.resolve())
+      const active = await claim(deps, 'port:actual', stop)
+      const file = generationFile(deps.directory, active.record).replace('claim-v1.', 'stop-v1.')
+      const renamed = generationFile(deps.directory, {
+        ...active.record,
+        resource: 'port:other',
+      }).replace('claim-v1.', 'stop-v1.')
+      if (kind === 'duplicate') await link(file, renamed)
+      else await rename(file, renamed)
+      const scan =
+        kind === 'gone' ? { ...deps, processStartTime: () => Promise.resolve(undefined) } : deps
+      await expect(stopAllHardwareLeases(scan)).resolves.toBeUndefined()
+      expect(stop).toHaveBeenCalledTimes(kind === 'duplicate' ? 1 : 0)
+      expect(await readFile(renamed, 'utf8')).toBe(JSON.stringify(active.record))
+    },
+  )
 
   it('refuses unsafe directory ownership, modes and symlink ancestors', async () => {
     const deps = await fixture()

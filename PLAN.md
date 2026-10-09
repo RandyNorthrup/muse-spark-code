@@ -30360,6 +30360,18 @@ Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**FIXM103W12 review repair (2026-10-09, win11, RVM103W6 P1).** Account
+for a readable Stop index whose filename carries another resource's hash by
+the resource in its body as well as its filename prefix. A mismatched entry
+remains unconfirmed unless its owner was reached through a recognised entry
+or its holder is proven gone; keep contacting other recognised owners. Prove
+the acquired-owner/renamed-index case through real lease publication and
+native Windows Stop, exercise POSIX scan semantics, and record a byte-exact
+red drill in `docs/certification/m103.md`. Retain both confined POSIX socket
+spellings and case-insensitive Windows environment lookup. No new command,
+setting, dependency, wire shape, paid call or budget change; aggregate quality
+and integration remain lead-owned under the rig brief.
+
 **REDM103V redesign (2026-10-06, Kubuntu; lead design).** Replace V's
 approval receipt booleans with one small state machine per approval UUID:
 awaiting-render → rendered(digest) → decided or revoked, with both terminal
@@ -32109,6 +32121,19 @@ aggregate certification record.
 
 ## 7. Gates
 
+**FIXM103W12 bounded Windows verification (2026-10-09, win11).** The rig
+brief leaves aggregate quality/integration with the lead. Run complete native
+lease/Stop files at the repository timeout, changed-file lint/format, one unit
+`tsc --noEmit` (production included), and scoped static/build checks. Sixteen
+stock failures reproduce with base lease bytes: helper-file expectations,
+ownership refusals and eight five-second timeouts. Rig folders default to an
+Administrators owner; older fixtures change access without setting the owner.
+Notices also fails at base; jscpd reports six clones in untouched tests. The
+new setup clone was removed by reusing the claim helper. Size/split/host-global
+checks pass; runtimeMaker grows 47 B within its cap. These inherited checks
+remain lead-owned; no new regression fails and no gate is weakened. D16 and
+receipts: `docs/certification/m103.md` FIXM103W12.
+
 **M103INT bounded integration receipts (2026-10-05, Kubuntu).** The explicit
 rig brief requires the seven named merges, lanes I/0, owning suites and
 static/build checks, and forbids aggregate quality/full-unit runs. Five
@@ -33152,6 +33177,18 @@ before a repaired one loads (2026-09-30).
   PowerShell's module path. Two more computed constants carry
   `/* @__PURE__ */` (§8), so runtimeMaker stays inside its unchanged cap.
   Receipts: `docs/certification/m103.md` FIXM103W11.
+  FIXM103W12 (2026-10-09, win11, RVM103W6 P1) closes a remaining readable
+  index gap: Stop-all discovered the resource from the record body, but the
+  per-resource scan discarded entries carrying another resource's filename
+  hash before unrecognised-owner accounting. The scan now includes a Stop
+  entry when either its filename prefix or its body names this resource;
+  a mismatched filename stays unconfirmed under the existing reached-owner
+  and proven-gone exceptions. Other recognised owners still receive Stop.
+  Acquired-owner regressions retain the real endpoint, claim and PID/start
+  identity; native Windows CLI Stop exits 1 with physical-stop advice, and
+  the directory scan also exercises POSIX metadata semantics on Windows.
+  Both POSIX endpoint spellings and Windows environment casing remain as in
+  round 11. Receipts: `docs/certification/m103.md` FIXM103W12.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

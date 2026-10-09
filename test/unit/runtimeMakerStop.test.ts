@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises'
 import { makePrivateFolder, makerTempRoot } from './helpers/makerTemp'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -253,6 +253,55 @@ describe('independent runtime Stop', () => {
   })
 
   describe('FIXM103W11 RVM103W5 P1: an owner Stop cannot confirm is never a stopped one', () => {
+    it('RVM103W6 P1: stop-machine --all fails for an acquired owner with another resource hash in its Stop filename', async () => {
+      const f = await fixture()
+      const folder = path.join(f.directory, 'leases')
+      await makePrivateFolder(folder)
+      const lease = {
+        ...(await makerLeaseDeps(folder)),
+        ...runtimeLeaseIdentity(process.platform, process.env),
+      }
+      const stopped = vi.fn(() => Promise.resolve())
+      const claim = await claimHardwareLease(lease, 'port:actual', 'owner', stopped)
+      if (claim.status !== 'acquired') throw new Error('claim')
+      try {
+        const suffix = `.${claim.record.id}.${claim.record.generation}.json`
+        const actualKey = createHash('sha256').update(claim.record.resource).digest('hex')
+        const otherKey = createHash('sha256').update('port:other').digest('hex')
+        await rename(
+          path.join(folder, `stop-v1.${actualKey}${suffix}`),
+          path.join(folder, `stop-v1.${otherKey}${suffix}`),
+        )
+        expect(await readFile(path.join(folder, `claim-v1.${actualKey}${suffix}`), 'utf8')).toBe(
+          JSON.stringify(claim.record),
+        )
+        expect(await lease.processStartTime(claim.record.pid)).toBe(claim.record.startedAt)
+        const command = parseMakerCommand(['stop-machine', '--all'])
+        if (command === undefined) throw new Error('command')
+        const print = vi.fn(),
+          reportFailure = vi.fn()
+        expect(
+          await runRuntimeMaker(command, {
+            ...f.deps,
+            workspace: f.root,
+            distDirectory: '',
+            env: process.env,
+            readSecret: vi.fn(),
+            print,
+            reportFailure,
+            done: new AbortController().signal,
+            table: EN,
+            locale: 'en',
+          }),
+        ).toBe(1)
+        expect(reportFailure).toHaveBeenCalledExactlyOnceWith(devicesFailed())
+        expect(print).not.toHaveBeenCalledWith(UI_TEXT.makerSoftwareStopWarning)
+        expect(f.http).toHaveBeenCalledWith('POST', '/printer/emergency_stop')
+        expect(stopped).not.toHaveBeenCalled()
+      } finally {
+        await claim.release()
+      }
+    })
     it.skipIf(process.platform === 'win32')(
       'stop-machine --all reaches an owner a previous build published under the whole-id socket',
       async () => {

@@ -684,10 +684,15 @@ export async function stopHardwareLease(
   const unrecognized: (HardwareLeaseRecord | null)[] = []
   const entries = (await isPrivateDirectory(deps, true)) ? await readdir(directory) : []
   for (const entry of entries) {
-    if (!entry.startsWith(`stop-v1.${resourceKey(resource)}.`) || !entry.endsWith('.json')) continue
+    if (!entry.startsWith('stop-v1.') || !entry.endsWith('.json')) continue
     const file = path.join(directory, entry)
     const record = await readRecord(file, deps.maxRecordBytes)
-    if (record === undefined) continue
+    // A renamed index still belongs to the resource it names, even with another hash.
+    if (
+      record === undefined ||
+      (!entry.startsWith(`stop-v1.${resourceKey(resource)}.`) && record?.resource !== resource)
+    )
+      continue
     // Never follow an entry that is not this folder's own confined record.
     if (
       record === null ||

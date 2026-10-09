@@ -87,6 +87,11 @@ happened, not what was planned; superseded entries are kept.
   machine's physical emergency stop instead. On Windows, maker sends and
   Stop also work when the environment spells `SystemRoot` in another case.
 
+- Stop all machines reports an unconfirmed Stop when a live device owner's
+  readable Stop index filename carries another resource's hash. It still
+  attempts other recognised owners and directs you to the physical emergency
+  stop instead of reporting success.
+
 - Hardware Stop has its own 5-second delivery deadline. A serial port that
   never opens or drains, or an HTTP Stop that never answers, now reports Stop
   unconfirmed instead of leaving the caller waiting; a late serial port still
