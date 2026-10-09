@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import {
   closeSync,
   cpSync,
+  existsSync,
   mkdirSync,
   openSync,
   readdirSync,
@@ -15,15 +16,19 @@ import path from 'node:path'
 import { withoutCredentials } from '../../../src/runtime/credentialVariables'
 
 export const PRODUCTION_BUILD_KEY = 'productionBuild'
+export const VISUAL_BUILD_KEY = 'visualBuild'
 declare module 'vitest' {
   export interface ProvidedContext {
     [PRODUCTION_BUILD_KEY]: string
+    [VISUAL_BUILD_KEY]: string
   }
 }
 export const PRODUCTION_BUILD_SUITES = [
   '/runtimeChatGptPackage.test.ts',
   '/webviewBundle.test.mjs',
   '/execStdio.e2e.test.ts',
+  '/visualStability.test.mjs',
+  '/m114ConversationReview.test.mjs',
 ]
 
 export function buildProductionPackage(root: string, folder: string, shared?: unknown): void {
@@ -38,8 +43,7 @@ export function buildProductionPackage(root: string, folder: string, shared?: un
     'l10n',
     'docs',
     'media',
-    'test/integration',
-    'test/packaging',
+    'test',
   ])
     cpSync(path.join(root, source), path.join(folder, source), { recursive: true })
   for (const file of [
@@ -62,6 +66,11 @@ export function buildProductionPackage(root: string, folder: string, shared?: un
     if (path.dirname(output) !== path.resolve(folder)) throw new Error('Invalid fixture output')
     rmSync(output, { recursive: true, force: true })
     cpSync(path.join(shared, 'dist'), output, { recursive: true })
+    // build.mjs also compiles the current Linux architecture's created-path
+    // helper beside dist (build-linux-helper.mjs); the packager requires it.
+    const linuxHelpers = path.join(shared, 'native', 'linux')
+    if (existsSync(linuxHelpers))
+      cpSync(linuxHelpers, path.join(folder, 'native', 'linux'), { recursive: true })
     return
   }
   // A failed build's data-URL stack can exceed execFileSync's default buffer

@@ -3,12 +3,7 @@
 // skips only the POSIX signal rows). Fake fetch/keyring injection lives only in
 // a test-owned Node preload, never in a production loader flag. No request can
 // reach the network in this suite.
-import {
-  execFileSync,
-  spawn,
-  spawnSync,
-  type ChildProcessWithoutNullStreams,
-} from 'node:child_process'
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
   chmodSync,
@@ -28,7 +23,6 @@ import * as z from 'zod/mini'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { resolveExecutable } from '../../src/core/executables'
-import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import {
   execEventV2Schema,
   validateResult,
@@ -38,6 +32,7 @@ import {
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { buildCreatedHelper } from './createdHelperFixture'
 import {
   PRODUCTION_BUILD_KEY,
   buildProductionPackage,
@@ -787,17 +782,15 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
       const darwinHelper = path.join(BUILD_ROOT, 'native/darwin/muse-dictate')
-      if (process.platform === 'darwin') {
-        if (!existsSync(darwinHelper))
-          execFileSync(BASH, ['native/darwin/build.sh'], {
-            cwd: BUILD_ROOT,
-            env: withoutCredentials(process.env),
-            stdio: 'pipe',
-            timeout: BUILD_TIMEOUT,
-          })
-      } else {
-        // Package admission needs every platform. Foreign helpers are inert
-        // fixture bytes; only the current platform's real helper can execute.
+      if (process.platform === 'darwin' || process.platform === 'linux') {
+        const currentHelper =
+          process.platform === 'darwin'
+            ? darwinHelper
+            : path.join(BUILD_ROOT, 'native/linux', process.arch, 'muse-created')
+        if (!existsSync(currentHelper)) buildCreatedHelper(ROOT, BUILD_ROOT)
+      }
+      if (process.platform !== 'darwin') {
+        // Foreign helpers are inert fixture bytes; the current helper is real.
         writeFileSync(darwinHelper, 'test-owned inert Darwin helper\n')
       }
       for (const arch of ['x64', 'arm64']) {

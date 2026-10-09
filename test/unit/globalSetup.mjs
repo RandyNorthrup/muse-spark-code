@@ -14,9 +14,11 @@ import {
   buildRegionalEnglish,
 } from './helpers/l10nBuilds.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
+import { startReviewBrowser } from './helpers/reviewBrowser.mjs'
 import {
   PRODUCTION_BUILD_KEY,
   PRODUCTION_BUILD_SUITES,
+  VISUAL_BUILD_KEY,
   buildProductionPackage,
 } from './helpers/productionPackage'
 
@@ -46,13 +48,33 @@ export default async function setup(project) {
       throw new Error(`Shared production build failed; diagnostics: ${log}`, { cause: error })
     }
     project.provide(PRODUCTION_BUILD_KEY, production)
+    if (
+      testFiles.some((file) => file.replaceAll('\\', '/').endsWith('/visualStability.test.mjs'))
+    ) {
+      // Staging a complete capture root copies fixture inputs too; keep that
+      // disk work before workers, outside each scene's ten-second hook.
+      const visual = path.join(root, 'visual')
+      buildProductionPackage(process.cwd(), visual, production)
+      project.provide(VISUAL_BUILD_KEY, visual)
+    }
   }
   await Promise.all([
     buildBrowserEnglish(path.join(root, BROWSER_ENGLISH)),
     buildRegionalEnglish(path.join(root, REGIONAL_ENGLISH)),
   ])
   project.provide(L10N_BUILDS_KEY, root)
-  return async () => {
+  let browser
+  try {
+    browser = await startReviewBrowser(project, testFiles)
+  } catch (error) {
     await removeFolder(root)
+    throw error
+  }
+  return async () => {
+    try {
+      await browser?.close()
+    } finally {
+      await removeFolder(root)
+    }
   }
 }

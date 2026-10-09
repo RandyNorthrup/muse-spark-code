@@ -1,5 +1,16 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**CIFIX017L2 Linux/macOS hosted-CI round 2 (2026-10-09).** Repair run
+37980345168 and agent-package run 37980344591 at their causes: shared native
+created-path fixtures, slow visual setup and resource-history disposal,
+forced-colour state measurement, lazy-chunk rejection delivery, and M118 ACP
+stdio lifecycle. Review the inherited uncommitted fixture change before use.
+Preserve all deadlines, gates, caps, tolerances and baselines. No subagents,
+merge, rebase, push or paid/live call. The rig/common brief delegates aggregate
+quality to the lead; run scoped gates and complete owning suites directly,
+at most three files per invocation. Record exact restoration drills and Linux
+and available macOS receipts in `docs/certification/cifix017.md`, round 2.
+
 **CIFIX017W Windows hosted-CI repair (2026-10-09, win11).** Reproduce the
 0.17.0 Windows failures from run 37950960680 in the release worktree. Repair
 recorder native path identity under 8.3 temporary ancestors, expensive native
@@ -37968,6 +37979,18 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CIFIX017L2 scoped rig qualification (2026-10-09, Kubuntu).** The lane's
+explicit rig/common brief prohibits aggregate `npm run quality` and full-suite
+runs; the lead owns those gates. Run the complete owning files, at most three
+per invocation, at repository deadlines, plus five type projects, changed-file
+lint/format, plain knip, duplication, localization, host API and the production
+build. Preserve every assertion and cap. The approved `macmini` SSH route
+refuses host-key verification; no trust setting is changed. Linux receipts
+alone cannot close the macOS-only outline/image failure or M118 ACP timeout.
+Record the missing platform receipts and failure-stage diagnostics in
+`docs/certification/cifix017.md`; this is a qualification deferral, not a
+release-green claim.
 
 **CIFIX017W inherited production-build blocker (2026-10-09, win11).** The
 release head's two full What's New releases serialize to 79,510 bytes,
