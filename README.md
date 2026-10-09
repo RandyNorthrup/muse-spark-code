@@ -2928,11 +2928,13 @@ integration owners; editor font settings continue to decide inside editors.
   receives its English result.
 - **Multimodal integration status (M105).** The picker recognizes video and
   audio; paste/drop sends approved host URI tokens without reading their bytes
-  in the browser. A bytes-only audio/video paste is refused. Production video
-  and audio delivery remains unavailable until the selected-model capability,
-  Files storage billing and ownership, consent and exact-budget bindings land.
-  `mediaAudioAction` selects the intended audio route; it does not enable an
-  unbound transcription adapter. Muse Spark 1.3 ignores a video's soundtrack;
+  in the browser. A bytes-only audio/video paste is refused. On the Muse Spark
+  1.2 and 1.3 contributor models, a Model API `read_file` of a workspace mp4 or
+  mov uploads the file to Meta's Files API once, with a seven-day expiry, and
+  later turns replay its file id; other models refuse video with the reason.
+  Attaching video or audio and transcription are not available yet (see the
+  matrix below). `mediaAudioAction` selects the intended audio route; it does
+  not enable transcription. Muse Spark 1.3 ignores a video's soundtrack;
   1.2 hears it, according to the recorded captures. Standalone Meta audio is
   refused because the capture found it silently ignored.
   **Attach screen recording…** and ACP `/record` require an installed recorder
@@ -2940,15 +2942,17 @@ integration owners; editor font settings continue to decide inside editors.
   screen recording** can inspect an existing Linux recording, but admission
   still requires the media bindings. Remote windows need the companion route,
   whose server is pending M104. The Windows VM has no working direct-capture
-  receipt. Configured future uploads have a `mediaMaxUploadMiB` cap and
-  `mediaUploadExpiryDays` expiry; **Delete uploaded files…** requires the real
-  account ledger. These commands do not establish provider/editor certification.
+  receipt. `mediaMaxUploadMiB` caps an upload. Uploads carry a seven-day
+  expiry; `mediaUploadExpiryDays` is not yet applied to them. Deleting a
+  session, or the `cleanupPeriodDays` purge, deletes its provider files that no
+  other session uses. **Delete uploaded files…** is not bound in this build.
+  These commands do not establish provider/editor certification.
 
-  | Backend/model                                | Images and PDFs                                                                                            | Video                                                                                                            | Standalone audio                                                              |
-  | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-  | Model API, current production binding        | Inline; on contributor models priced at the calibrated bound, and a PDF (no page rate) refused when capped | `read_file` of mp4/mov on the 1.2/1.3 contributor models (Files upload, id replay); attaching: not available yet | Not available yet: no Meta model hears it, and transcription waits for lane V |
-  | Muse Code                                    | Existing image path; established document rules                                                            | Off: U16/MSP capture pending                                                                                     | Off: needs captured Model API route                                           |
-  | Gemini / OpenAI-compatible and other vendors | Their future captured capability record                                                                    | Off: lane V and vendor captures pending                                                                          | Off: captured capability/codec pending                                        |
+  | Backend/model                                | Images and PDFs                                                                                                                                                                                                                           | Video                                                                                                            | Standalone audio                                                              |
+  | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+  | Model API, current production binding        | Inline; on contributor models every image (attached, read or from an MCP tool) is priced at the calibrated bound. No PDF page rate exists: an uncapped PDF counts its bytes, a capped one is refused. Models without captures count bytes | `read_file` of mp4/mov on the 1.2/1.3 contributor models (Files upload, id replay); attaching: not available yet | Not available yet: no Meta model hears it, and transcription waits for lane V |
+  | Muse Code                                    | Existing image path; established document rules                                                                                                                                                                                           | Off: U16/MSP capture pending                                                                                     | Off: needs captured Model API route                                           |
+  | Gemini / OpenAI-compatible and other vendors | Their future captured capability record                                                                                                                                                                                                   | Off: lane V and vendor captures pending                                                                          | Off: captured capability/codec pending                                        |
 
   Attaching video or audio from the panel, the CLI or ACP, and transcribing
   sound, are not available yet. Five bindings are missing: attach-port

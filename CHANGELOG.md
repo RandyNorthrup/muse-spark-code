@@ -41,6 +41,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- An image an MCP tool returns is priced at the calibrated image bound on the
+  Muse Spark contributor models, like every other image, so a capped turn no
+  longer under-reserves it at its few encoded bytes. Models without a media
+  capture keep counting its bytes (RVMEDIAW2).
+- The Model API factory drops a caller-supplied audio preparation callback;
+  the only audio path is the one the bundle binds itself (RVMEDIAW2).
+- The privacy notice and the README now say what a contributor-model
+  `read_file` of a video already does: the bytes go to Meta's Files API, the
+  upload expires after seven days, and session deletion or the retention purge
+  deletes it (RVMEDIAW2).
+
 - Media request tariffs accept exact USD amounts only and reject numeric
   JavaScript callers before admission. Ordinary session reservations share the
   atomic-admission lock, preventing competing owners from publishing during an

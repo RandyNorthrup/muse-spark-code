@@ -252,21 +252,47 @@ export class ReplayMedia {
     return estimator.estimate(model.provider, model.modelId, media, isCapped)
   }
 
-  /** Every media item a request body carries: upload records and inline visuals. */
+  /** Every media item a request body carries: upload records and inline visuals,
+   * including the images an MCP tool returned inside its function output. */
   private requestMedia(body: CreateResponseBody): MediaCostItem[] {
     const model = this.lazyModel(body.model)
-    return body.input.flatMap((item) =>
-      item.type === 'message' && item.role === 'user'
+    // Inline bytes are counted by the provider as sent; the bound reserves,
+    // but the bill never becomes a calibration point.
+    const inline = (part: InputContentPart): MediaCostItem[] => {
+      const visual = this.inlineVisual(part, model)
+      return visual === undefined ? [] : [{ ...visual, inlinePriced: true }]
+    }
+    return body.input.flatMap((item): MediaCostItem[] => {
+      if (item.type === 'function_call_output')
+        return typeof item.output === 'string' ? [] : item.output.flatMap((part) => inline(part))
+      return item.type === 'message' && item.role === 'user'
         ? item.content.flatMap((part): MediaCostItem[] => {
             const upload = this.parts.get(part)
-            if (upload !== undefined) return [upload]
-            const visual = this.inlineVisual(part, model)
-            // Inline bytes are counted by the provider as sent; the bound
-            // reserves, but the bill never becomes a calibration point.
-            return visual === undefined ? [] : [{ ...visual, inlinePriced: true }]
+            return upload === undefined ? inline(part) : [upload]
           })
-        : [],
-    )
+        : []
+    })
+  }
+
+  /** The parts that keep their own bytes in the count; each priced one becomes its bound. */
+  private priceContent<T extends InputContentPart>(
+    content: readonly T[],
+    isUser: boolean,
+    model: () => MediaModelCapabilities,
+    priced: BudgetMediaPart[],
+  ): T[] {
+    return content.filter((part) => {
+      const media = this.parts.get(part) ?? (isUser ? this.inlineVisual(part, model) : undefined)
+      if (media === undefined) return true
+      const estimate = this.price(media, model())
+      // Uncapped with no rate: the part's own bytes stay in the count.
+      if (estimate === undefined) return true
+      priced.push({
+        mediaIdentity: JSON.stringify(media),
+        upperBoundInputTokens: estimate.upperBoundInputTokens,
+      })
+      return false
+    })
   }
 
   private managed(input: readonly InputItem[]): InputContentPart[] {
@@ -310,25 +336,19 @@ export class ReplayMedia {
     const parts: (string | BudgetMediaPart)[] = [...requestParts({ ...body, input: [] })]
     const model = this.lazyModel(body.model)
     for (const item of body.input) {
+      const priced: BudgetMediaPart[] = []
+      if (item.type === 'function_call_output' && typeof item.output !== 'string') {
+        // An MCP tool's image (M50) is priced like every other image on a
+        // model whose record prices images; elsewhere its bytes stay counted.
+        const output = this.priceContent(item.output, true, model, priced)
+        parts.push(JSON.stringify({ ...item, output }), ...priced)
+        continue
+      }
       if (item.type !== 'message') {
         parts.push(JSON.stringify(item))
         continue
       }
-      const priced: BudgetMediaPart[] = []
-      const content = item.content.filter((part) => {
-        const media =
-          this.parts.get(part) ??
-          (item.role === 'user' ? this.inlineVisual(part, model) : undefined)
-        if (media === undefined) return true
-        const estimate = this.price(media, model())
-        // Uncapped with no rate: the part's own bytes stay in the count.
-        if (estimate === undefined) return true
-        priced.push({
-          mediaIdentity: JSON.stringify(media),
-          upperBoundInputTokens: estimate.upperBoundInputTokens,
-        })
-        return false
-      })
+      const content = this.priceContent(item.content, item.role === 'user', model, priced)
       parts.push(JSON.stringify({ ...item, content }), ...priced)
     }
     return parts

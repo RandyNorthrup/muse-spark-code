@@ -26,6 +26,8 @@ import { Usd, type UsdAmount } from '../../src/shared/usd'
 import type { AgentSession, TurnPart } from '../../src/core/agent/agentBackend'
 import type { SessionStore } from '../../src/core/backends/modelapi/sessionStore'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import type { McpToolSource } from '../../src/core/backends/modelapi/mcp/pool'
+import { fakeMcpSource } from './helpers/fakeMcpSource'
 import {
   fakeModelApi,
   fakeModelApiClient,
@@ -115,6 +117,9 @@ async function factory(options: {
   readonly readMedia?: NonNullable<ToolIo['readMedia']>
   readonly ledgerDir?: string
   readonly api?: ReturnType<typeof fakeModelApi>
+  readonly mcp?: McpToolSource
+  /** Properties a caller should not be able to install (cast past the type). */
+  readonly strayHost?: Readonly<Record<string, unknown>>
 }): Promise<Rig> {
   const api = options.api ?? fakeModelApi()
   const files = fakeFilesApi(api.fetch)
@@ -131,9 +136,10 @@ async function factory(options: {
       : { sessionBudgetUsd: () => Usd.from(options.capUsd ?? '0').toAmount() }
   // The production binding's three inputs: an uploads root, a Files-capable
   // client (the fake routes /files) and the key's account.
+  const { mcp } = options
   const host = await createModelApiHost({
     hookSettingsPath: undefined,
-    createMcpServers: undefined,
+    createMcpServers: mcp === undefined ? undefined : () => mcp,
     uiLocale: 'en',
     uiText: EN,
     client: { ...fakeModelApiClientSettings(log), fetch: transport.fetch },
@@ -149,6 +155,7 @@ async function factory(options: {
       confirmContributorModel: () => Promise.resolve(true),
       isPaidFeatureOn: () => true,
       store,
+      ...options.strayHost,
     },
   })
   return { api, files, io, store, host, log }
@@ -388,6 +395,77 @@ describe('one production media service per session (M105 W redesign)', () => {
     } finally {
       await rig.host.close()
     }
+  })
+
+  it('drops a caller-supplied audio port: the bundle binds the only one (RVMEDIAW2 2)', async () => {
+    // The factory spread hostDeps, so a stray prepareAudioMessage was
+    // accepted and ran on an ordinary turn. Audio preparation is now the
+    // bundle's own binding; a caller's callback never runs.
+    const stray = vi.fn(() => Promise.resolve(undefined))
+    const rig = await factory({ strayHost: { prepareAudioMessage: stray } })
+    try {
+      const h = await start(rig, CONTRIBUTOR)
+      rig.api.script({ text: 'Hello.' })
+      expect(await turn(h, [{ type: 'text', text: 'Hi' }])).toBeUndefined()
+      expect(terminal(h.events)).toMatchObject({ terminal: 'completed' })
+      expect(stray).not.toHaveBeenCalled()
+      expect(rig.log.warn).toHaveBeenCalledWith(
+        'A caller-supplied audio preparation port was ignored',
+      )
+    } finally {
+      await rig.host.close()
+    }
+  })
+
+  it('prices an MCP image at the seeded bound in a capped contributor turn (RVMEDIAW2 3)', async () => {
+    // An MCP tool's image rides inside function_call_output. It was
+    // byte-counted (a 1x1 PNG is a few dozen tokens), under-reserving
+    // against the cap; it now reserves the image's seeded upper bound.
+    const image = `data:image/png;base64,${PNG.toString('base64')}`
+    const reservedFor = async (hasImage: boolean) => {
+      const mcp = fakeMcpSource([{ server: 'pics', tool: 'snap', isReadOnly: true }])
+      mcp.outcomes = [
+        {
+          output: 'mcp ok',
+          ...(hasImage && {
+            outputParts: [
+              { type: 'input_text', text: 'mcp ok' },
+              { type: 'input_image', image_url: image, detail: 'auto' },
+            ],
+          }),
+          visibleOutput: 'mcp ok',
+        },
+      ]
+      const rig = await factory({ capUsd: '1', mcp })
+      const reserved = watchReservations(rig.store)
+      try {
+        const h = await start(rig, CONTRIBUTOR)
+        rig.api.script(
+          { calls: [{ name: 'mcp__pics__snap', arguments: '{}', callId: 'snap-1' }] },
+          { text: 'A tile.' },
+        )
+        expect(await turn(h, [{ type: 'text', text: 'Snap it' }])).toBeUndefined()
+        expect(terminal(h.events)).toMatchObject({ terminal: 'completed' })
+        expect(mcp.calls).toHaveLength(1)
+        const followup = JSON.stringify(rig.api.responseBodies()[1])
+        expect(followup.includes(image)).toBe(hasImage)
+        return reserved
+      } finally {
+        await rig.host.close()
+      }
+    }
+    const withImage = await reservedFor(true)
+    const without = await reservedFor(false)
+    expect(withImage).toHaveLength(2)
+    expect(without).toHaveLength(2)
+    const delta = Usd.from(withImage[1]!).subtract(Usd.from(without[1]!))
+    const tokens = (count: number) =>
+      Usd.from(MODEL_API_PRICES_PER_MILLION.contributor.input)
+        .times(count)
+        .divide(TOKENS_PER_MILLION)
+    // The bound, plus at most the few tokens of the output's part structure.
+    expect(delta.compare(tokens(IMAGE_BOUND))).toBeGreaterThanOrEqual(0)
+    expect(delta.compare(tokens(IMAGE_BOUND + 64))).toBeLessThanOrEqual(0)
   })
 
   it('refuses an MP3 read honestly: production binds no transcription port', async () => {

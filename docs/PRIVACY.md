@@ -1062,14 +1062,38 @@ those adapters require explicit target permission and their missing owning hosts
 
 ## Multimodal integration boundary (M105)
 
-Video/audio provider delivery and native recording are not yet enabled by the
-production bindings. Their portable adapters are tested with fakes. Once
-bound, uploads send file bytes to the selected provider and persist until the
-configured expiry or successful deletion; session deletion releases ownership
-before deleting an unshared upload. Metadata alone is retained in history and
-exports; exports omit provider file IDs. Contributor models may train on the
-inputs. A screen recording includes visible screen content; microphone and
-system sound require separate opt-ins, and Attach follows a private preview.
-Discard deletes local temporary bytes. Unknown storage billing refuses upload;
-batch transcription requires price/budget consent before any paid request.
+**What leaves the machine today.** On the Muse Spark 1.2 and 1.3 contributor
+models, a Model API `read_file` of a workspace mp4 or mov (an approved read,
+under the session's permission rules) uploads the file's bytes to Meta's Files
+API with the stored Model API key. One upload is made per file content
+(SHA-256) and account; later turns send only its provider file id. Every upload
+asks Meta to delete it seven days after creation (`expires_after`); the
+`mediaUploadExpiryDays` setting is not yet applied to these uploads.
+Contributor models may train on the inputs. Other models refuse the video with
+the reason, and nothing is uploaded.
+
+**Storage billing.** Meta describes Files storage as a 100 GiB per-team quota
+and publishes no storage rate; the billing dashboard showed no storage meter
+(capture U6c, PLAN D85.6). Uploads therefore ask nothing beyond the read's own
+approval. If Meta publishes a storage rate, uploads become a paid feature
+under the usual ask-once rule.
+
+**What stays on the machine.** History, exports, the usage journal and logs
+keep only metadata: name, media type, size, duration, SHA-256, expiry, provider
+and file id. Exports and shares omit the file id. No local copy of the video
+is made.
+
+**Deletion and purge.** Deleting a session, and the `cleanupPeriodDays`
+retention purge, release that session's references and delete each provider
+file that no other session still uses (`DELETE /v1/files/{id}`). If Meta
+refuses a deletion, the session is kept and the failure is reported, so its
+file reference is never silently dropped. Meta's expiry removes the file in
+any case. **Delete uploaded files…** is not bound in this build.
+
+**Not enabled yet.** Attaching video or audio from the panel, the CLI or ACP,
+batch transcription and native recording are not enabled by the production
+bindings; their adapters are tested with fakes. A screen recording includes
+visible screen content; microphone and system sound require separate opt-ins,
+and Attach follows a private preview. Discard deletes local temporary bytes.
+Batch transcription requires price and budget consent before any paid request.
 See [M105 certification](certification/m105.md) for the missing bindings.

@@ -45,6 +45,7 @@ import type { MediaReplaySession } from '../../core/media/replayMedia'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
+import type { ModelApiHostDeps } from '../../core/backends/modelapi/ModelApiHost'
 
 /**
  * Whether a spark-hooks.json exists, user's or project's, in a trusted
@@ -95,7 +96,13 @@ async function loadSparkHooks(sources: HookLoadDeps): Promise<readonly Extension
 /** The host over the given dependencies, its stored sessions read. */
 export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<ModelApiHost> {
   setUiText(deps.uiText, deps.uiLocale)
-  const { host: hostDeps, hookSettingsPath } = deps
+  const { hookSettingsPath } = deps
+  // One audio path (RVMEDIAW2 2): the bundle binds it itself, so a caller's
+  // callback, typed away or not, is dropped here and never runs.
+  const { prepareAudioMessage: strayAudioPort, ...hostDeps } = deps.host as typeof deps.host &
+    Pick<ModelApiHostDeps, 'prepareAudioMessage'>
+  if (strayAudioPort !== undefined)
+    hostDeps.log.warn('A caller-supplied audio preparation port was ignored')
   const sourcesFor = () =>
     hookSettingsPath === undefined || hostDeps.isHooksEnabled?.() !== true
       ? undefined

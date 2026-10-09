@@ -38,8 +38,15 @@ export interface ModelApiBundleDeps {
   readonly client: ModelApiClientDeps
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
   readonly createProviderClient?: (meta: ProviderClient) => Promise<ProviderClient>
-  /** The host's, but for what the bundle makes itself: the client, the hooks and the MCP pool. */
-  readonly host: Omit<ModelApiHostDeps, 'client' | 'loadHooks' | 'mcpServers'>
+  /**
+   * The host's, but for what the bundle makes itself: the client, the hooks,
+   * the MCP pool and audio preparation, which is the bundle's own binding and
+   * never a caller's (RVMEDIAW2 2).
+   */
+  readonly host: Omit<
+    ModelApiHostDeps,
+    'client' | 'loadHooks' | 'mcpServers' | 'prepareAudioMessage'
+  >
   /** Muse Code's settings file, read for hooks while `host.isHooksEnabled` says so (M51). */
   readonly hookSettingsPath: string | undefined
   /** The MCP servers for the host (M50), made with the bundle's pool; undefined runs none. */
