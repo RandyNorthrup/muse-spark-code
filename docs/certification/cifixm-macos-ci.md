@@ -28,6 +28,26 @@ compare SHA-256, then rerun the three files with repository deadlines.
 Restored helper hash: `3a0c0e4a92279a17263a52fafb53897ff3fa7494397be1beb50c6d00d872c466`;
 rerun: **15/15 passed**. Changed-file ESLint passed.
 
+## Schedule platform fixture
+
+The generic due-workspace case inherited `process.platform`, then always
+expected foreground reconciliation. On macOS a wake intentionally closes
+its engines without reconciliation: the independent after-exit helper owns
+rearm. This is a wrong fixture expectation, not a scheduler product defect.
+
+The case now runs explicitly as Linux, Windows and macOS and verifies the
+appropriate rearm owner while retaining lease, control, engine and closure
+assertions. Default-timeout result: **17/17 passed**. Red drill removes the
+`!isMacWake` reconciliation guard: **3 failed / 14 passed**. Product source
+restored byte-for-byte, SHA-256
+`3b2ada291024b6cf663632a26f74903aa840398c332313d24b01b228bd350ceb`;
+final rerun **17/17 passed**.
+
+Commit `f3ffc6ce2` also captured this fixture edit made while its hook ran.
+The mandatory committed-diff reread caught the extra file; history is kept
+intact. Its verification and formatting are completed in the next commit.
+Do not mutate the worktree while a hook-enabled commit is in flight.
+
 ## Native helper diagnosis
 
 The brief's `113717543639` job is the aggregate **dictation helper (macos)**,
@@ -47,6 +67,6 @@ gate error. Further scoped static checks and browser verification follow.
 `PLAN.md` §7 records this repair scope; 0.17.0 remains preparation, unpublished.
 M114 retains its existing planned status and integrated-pixel certification
 requirements. No feature, setting, command or release label changes.
-Next lane slice: explicit schedule-platform coverage, repeated M114 browser
-reproductions, then scoped static/build verification. The lead owns integrated
+Next lane slice: repeated M114 browser reproductions and remaining scoped
+static/build verification. Cycle detection already passes on this base. The lead owns integrated
 quality, Linux build/deferred-bundle/cycle fixes and CIFIXV's pixel baselines.
