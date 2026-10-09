@@ -1,9 +1,18 @@
+import { execFileSync } from 'node:child_process'
 import { readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { makeFixtures } from '../harness/goldens/fixtures.mjs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { captureMatrix } from '../harness/goldens/capture.mjs'
 import { decodePng } from '../../scripts/lib/visualImages.mjs'
+
+// The scenes load the real browser bundles from dist/webview; a clean
+// checkout has none, so build them first (as visualStability.test.mjs does).
+beforeAll(() => {
+  execFileSync(process.execPath, ['scripts/build.mjs', '--production', '--webview-only'], {
+    stdio: 'pipe',
+  })
+})
 
 const captured = {
   result: undefined,
