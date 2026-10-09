@@ -137,6 +137,9 @@ export const DEVICES_PANEL_VIEW_TYPE = 'museSpark.devicesPanel'
 // Machine-scoped Devices storage (pairing store, attempt journal) under the
 // editor's global storage. Devices starts off; see D80.
 export const DEVICES_STORAGE_DIR = 'devices'
+// The Windows storage helper's compile cache, beside the Devices folder: it
+// must not create that folder, which is only ever created already private.
+export const DEVICES_HELPER_DIR = 'devices-helper'
 export const TASKS_MOVE_TO_WINDOW_COMMAND = 'workbench.action.moveEditorToNewWindow'
 // `contributes.walkthroughs[0].id`, opened as `<publisher>.<name>#<id>`.
 export const WALKTHROUGH_ID = 'museSpark.gettingStarted'

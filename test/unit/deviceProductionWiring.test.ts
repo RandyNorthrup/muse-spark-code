@@ -4,7 +4,7 @@
 // driver selection; the tab serves the Devices surface lazily. Each case
 // fails on the join base, where none of these modules exist.
 import { existsSync } from 'node:fs'
-import { mkdtemp, rm, stat } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -484,32 +484,84 @@ describe('M100/W production dependencies', () => {
     expect(fakeStoreState.created[0]?.directory).toBe(path.join(directory, 'pairing'))
   })
 
-  it('claims only a Windows Devices folder this call created', async () => {
+  it('creates the Windows Devices folder already claimed, then never claims it again', async () => {
     const parent = await lane()
     const directory = path.join(parent, 'devices')
-    const claimed: string[] = []
-    // Only the claim is observed; the fake store and journal use no binding.
-    const protection: DeviceStorageProtection = {
-      assertPrivate: () => Promise.resolve(),
-      assertSafeAncestor: () => Promise.resolve(),
-      secureFresh: (file) => {
-        claimed.push(file)
-        return Promise.resolve()
-      },
-      replace: () => Promise.resolve(),
-      syncDirectory: () => Promise.resolve(),
-    }
+    const claims = recordingProtection()
     const bundle = fakeBundle({
-      helper: () => Promise.resolve({ protection, dispose: releaseFakeHelper }),
+      helper: () => Promise.resolve({ protection: claims.protection, dispose: releaseFakeHelper }),
     })
     const first = await openDeviceProductionDeps(bundle, context(directory, windows), unbound())
     await first.dispose()
-    expect(claimed).toEqual([directory])
+    // Only a uniquely named stage of this call's own is claimed, then renamed into place.
+    expect(claims.claimed).toHaveLength(1)
+    expect(path.dirname(claims.claimed[0] ?? '')).toBe(parent)
+    expect(path.basename(claims.claimed[0] ?? '')).toMatch(/^\.devices-[a-f0-9]{32}\.stage$/)
+    expect(existsSync(directory)).toBe(true)
+    expect(await stagesIn(parent)).toEqual([])
     const second = await openDeviceProductionDeps(bundle, context(directory, windows), unbound())
     await second.dispose()
-    expect(claimed).toEqual([directory])
+    expect(claims.claimed).toHaveLength(1)
+  })
+
+  it('never claims a Devices folder another creator made while this call staged its own', async () => {
+    const parent = await lane()
+    const directory = path.join(parent, 'devices')
+    const planted = path.join(directory, 'theirs.txt')
+    // Another creator makes Devices (with data) between this call's check and its rename.
+    const claims = recordingProtection(async () => {
+      await mkdir(directory)
+      await writeFile(planted, 'not ours')
+    })
+    const bundle = fakeBundle({
+      helper: () => Promise.resolve({ protection: claims.protection, dispose: releaseFakeHelper }),
+    })
+    const deps = await openDeviceProductionDeps(bundle, context(directory, windows), unbound())
+    await deps.dispose()
+    expect(claims.claimed.map((file) => path.basename(file))).toEqual([
+      expect.stringMatching(/^\.devices-[a-f0-9]{32}\.stage$/),
+    ])
+    expect(claims.claimed).not.toContain(directory)
+    expect(await readFile(planted, 'utf8')).toBe('not ours')
+    expect(await stagesIn(parent)).toEqual([])
+  })
+
+  it('leaves an existing POSIX Devices folder as it is, for the store and journal to check', async () => {
+    const parent = await lane()
+    const directory = path.join(parent, 'devices')
+    await mkdir(directory, { mode: 0o755 })
+    const before = await modeOf(directory)
+    const uid = await ownerOf(parent)
+    const deps = await openDeviceProductionDeps(
+      fakeBundle(),
+      context(directory, { userId: () => uid }),
+      unbound(),
+    )
+    await deps.dispose()
+    expect(await modeOf(directory)).toBe(before)
   })
 })
+
+/** A Windows binding that records claims; `onClaim` runs inside the first claim. */
+function recordingProtection(onClaim?: () => Promise<void>) {
+  const claimed: string[] = []
+  // Only the claim is observed; the fake store and journal use no binding.
+  const protection: DeviceStorageProtection = {
+    assertPrivate: () => Promise.resolve(),
+    assertSafeAncestor: () => Promise.resolve(),
+    secureFresh: async (file) => {
+      claimed.push(file)
+      if (claimed.length === 1) await onClaim?.()
+    },
+    replace: () => Promise.resolve(),
+    syncDirectory: () => Promise.resolve(),
+  }
+  return { protection, claimed }
+}
+async function stagesIn(parent: string): Promise<string[]> {
+  const names = await readdir(parent)
+  return names.filter((name) => name.endsWith('.stage'))
+}
 
 function unbound() {
   return unboundDeviceLanePorts(new FakeLogOutputChannel())

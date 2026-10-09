@@ -213,7 +213,7 @@ import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvi
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
 import { TasksPanel } from './host/views/tasksPanel'
 import { deviceExecutionHost, devicesWindow } from './host/views/devicesPanelTab'
-import { DEVICES_BUNDLE_FILE, DEVICES_STORAGE_DIR } from './shared/constants'
+import { DEVICES_BUNDLE_FILE, DEVICES_HELPER_DIR, DEVICES_STORAGE_DIR } from './shared/constants'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface } from './host/views/chatSurface'
 import type { WebviewHostContext } from './host/views/webviewSetup'
@@ -3813,7 +3813,7 @@ async function activateWindow(
     log,
     production: {
       storageDirectory: path.join(context.globalStorageUri.fsPath, DEVICES_STORAGE_DIR),
-      helperDirectory: path.join(context.globalStorageUri.fsPath, DEVICES_STORAGE_DIR, 'helper'),
+      helperDirectory: path.join(context.globalStorageUri.fsPath, DEVICES_HELPER_DIR),
       systemRoot: process.env['SystemRoot'],
       extensionPath: context.extensionPath,
       secrets: context.secrets,

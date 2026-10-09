@@ -7,10 +7,11 @@
 // answer the ready handshake and refuse Pair with a typed, correlated
 // `unsupported-host`.
 import { existsSync } from 'node:fs'
-import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { AttemptJournal } from '../../src/core/devices/attemptJournal'
+import { DevicePairingError } from '../../src/core/devices/pairing'
 import { createDeviceService } from '../../src/host/devices/deviceEntry'
 import {
   openDeviceProductionDeps,
@@ -64,7 +65,7 @@ async function storageDirectory(): Promise<string> {
 function context(directory: string): DeviceProductionContext {
   return {
     storageDirectory: directory,
-    helperDirectory: path.join(directory, 'helper'),
+    helperDirectory: path.join(path.dirname(directory), 'devices-helper'),
     systemRoot: process.env['SystemRoot'],
     extensionPath: process.cwd(),
     secrets: memorySecrets(),
@@ -97,6 +98,60 @@ describe('RVM100W production storage on a real filesystem', () => {
     expect(second.store).not.toBe(first.store)
     await second.dispose()
     expect(await readdir(path.join(directory, 'pairing'))).not.toContain('.pairing.lock')
+  })
+
+  it('recovers from a first-use failure before the folder exists: the retry provisions it', async () => {
+    const directory = await storageDirectory()
+    // RVM100W2 1: the step before the Devices folder fails once (the Windows
+    // helper's start; elsewhere, where no helper exists, the pairing store).
+    const failures = { left: 1 }
+    const failOnce = <T>(run: () => Promise<T>): Promise<T> => {
+      if (failures.left === 0) return run()
+      failures.left -= 1
+      return Promise.reject(new DevicePairingError('storage'))
+    }
+    const flaky: DeviceProductionBundle =
+      process.platform === 'win32'
+        ? {
+            ...realBundle,
+            startWindowsStorageProtection: (options) =>
+              failOnce(() => realBundle.startWindowsStorageProtection(options)),
+          }
+        : {
+            ...realBundle,
+            DeviceStore: {
+              open: (...args) => realBundle.DeviceStore.open(...args),
+              create: (...args) => failOnce(() => realBundle.DeviceStore.create(...args)),
+            },
+          }
+    await expect(
+      openDeviceProductionDeps(flaky, context(directory), unbound()),
+    ).rejects.toMatchObject({ reason: 'storage' })
+    expect(failures.left).toBe(0)
+    // Nothing half made is left to repair: no folder on Windows, a private one elsewhere.
+    if (process.platform === 'win32') expect(existsSync(directory)).toBe(false)
+    else expect(await ownerOnlyEvidence(directory, true)).toBe('700')
+    const deps = await openDeviceProductionDeps(flaky, context(directory), unbound())
+    expect(await ownerOnlyEvidence(directory, true)).toBe('700')
+    expect(existsSync(path.join(directory, 'attempts', 'attempts.json'))).toBe(true)
+    const parentEntries = await readdir(path.dirname(directory))
+    expect(parentEntries.filter((name) => name.endsWith('.stage'))).toEqual([])
+    await deps.dispose()
+  })
+
+  it('never claims a Devices folder another creator made: it is checked and refused', async () => {
+    const directory = await storageDirectory()
+    // Another creator's folder, with data in it: not private (inherited ACL
+    // on Windows, 0755 elsewhere).
+    await mkdir(directory, { recursive: true, mode: 0o755 })
+    await writeFile(path.join(directory, 'theirs.txt'), 'not ours', { mode: 0o600 })
+    const before = await ownerOnlyEvidence(directory, true)
+    expect(before).not.toBe('700')
+    await expect(
+      openDeviceProductionDeps(realBundle, context(directory), unbound()),
+    ).rejects.toMatchObject({ reason: 'storage' })
+    expect(await ownerOnlyEvidence(directory, true)).toBe(before)
+    expect(await readFile(path.join(directory, 'theirs.txt'), 'utf8')).toBe('not ours')
   })
 
   it('closes the opened store, releasing its lock, when the journal fails', async () => {

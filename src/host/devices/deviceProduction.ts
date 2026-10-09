@@ -7,7 +7,7 @@
 // choice with its execution binding. Every K-owned port below refuses with
 // an explicit typed error until K binds it — nothing returns an empty success.
 import { randomBytes } from 'node:crypto'
-import { mkdir, stat } from 'node:fs/promises'
+import { lstat, mkdir, rename, rmdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { DEVICE_LIMITS } from '../../shared/constants'
 import { DevicePairingError } from '../../core/devices/pairing'
@@ -173,17 +173,80 @@ async function assertJournalOwner(
   if (ownership.uid !== uid) throw new DevicePairingError('storage')
 }
 
-/**
- * Creates the private Devices folder, with any missing parent, owner-only
- * (`0700` where POSIX modes apply). Reports whether this call created it, so
- * Windows claims only a folder this process made; an existing folder is
- * checked by the store and journal, never repaired.
- */
-async function didCreateDevicesDirectory(directory: string): Promise<boolean> {
+const PRIVATE_DIRECTORY_MODE = Number('0o700')
+
+function hasErrorCode(error: unknown, code: string): boolean {
+  return error instanceof Error && 'code' in error && error.code === code
+}
+
+/** Any missing parent of the Devices folder, owner-only where POSIX modes apply. */
+async function provisionParents(directory: string): Promise<void> {
   try {
-    return (await mkdir(directory, { recursive: true, mode: Number('0o700') })) !== undefined
+    await mkdir(path.dirname(directory), { recursive: true, mode: PRIVATE_DIRECTORY_MODE })
   } catch {
     throw new DevicePairingError('storage')
+  }
+}
+
+async function removeStage(stage: string): Promise<void> {
+  try {
+    await rmdir(stage)
+  } catch {
+    return
+  }
+}
+
+/**
+ * Creates the Devices folder itself, exclusively and already private, so no
+ * failure or race can leave it half made. POSIX: `mkdir` with mode `0700`.
+ * Windows: a uniquely named sibling is created, claimed with `secureFresh`
+ * and renamed into place; Windows refuses to rename a folder onto an
+ * existing one. A Devices folder this call did not create is never claimed
+ * or repaired: the store and journal check it, and refuse one that is not
+ * private.
+ */
+async function provisionDevicesDirectory(
+  directory: string,
+  protection: DeviceStorageProtection | undefined,
+  randomId: () => string,
+): Promise<void> {
+  if (protection === undefined) {
+    try {
+      await mkdir(directory, { mode: PRIVATE_DIRECTORY_MODE })
+    } catch (error) {
+      if (!hasErrorCode(error, 'EEXIST')) throw new DevicePairingError('storage')
+    }
+    return
+  }
+  try {
+    await lstat(directory)
+    return
+  } catch (error) {
+    if (!hasErrorCode(error, 'ENOENT')) throw new DevicePairingError('storage')
+  }
+  const parent = path.dirname(directory)
+  const stage = path.join(parent, `.${path.basename(directory)}-${randomId()}.stage`)
+  try {
+    await mkdir(stage)
+  } catch {
+    throw new DevicePairingError('storage')
+  }
+  let isStaged = true
+  try {
+    await protection.secureFresh(stage, true)
+    try {
+      await rename(stage, directory)
+      isStaged = false
+    } catch {
+      // Another creator got there first: that folder is validated, never claimed.
+    }
+    if (!isStaged) await protection.syncDirectory(parent)
+  } catch {
+    throw new DevicePairingError('storage')
+  } finally {
+    // Only this call's own empty stage; never recursive. A stage left behind
+    // is empty and harmless; the claim never depended on removing it.
+    if (isStaged) await removeStage(stage)
   }
 }
 
@@ -220,7 +283,7 @@ export async function openDeviceProductionDeps(
     }
   }
   try {
-    const isFresh = await didCreateDevicesDirectory(context.storageDirectory)
+    await provisionParents(context.storageDirectory)
     // Windows storage protection rides this preparation's scope; other
     // platforms use POSIX owner/mode checks and directory fsync. A missing
     // system root refuses explicitly before any helper starts.
@@ -234,10 +297,8 @@ export async function openDeviceProductionDeps(
       })
       owned.push(binding.dispose)
       protection = binding.protection
-      // Windows has no mode bits: the folder this call created gets its
-      // protected owner-only ACL before the journal requires one.
-      if (isFresh) await protection.secureFresh(context.storageDirectory, true)
     }
+    await provisionDevicesDirectory(context.storageDirectory, protection, randomId)
     const pairingDirectory = path.join(context.storageDirectory, 'pairing')
     let store: DeviceStore
     try {
