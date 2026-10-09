@@ -6,7 +6,7 @@ import { uiLocale } from '../../shared/l10n/text'
 import type { ResourceEntryOptions, createResources } from './entry'
 import type { RuntimeResources } from './port'
 import { configureResources } from '../../core/resources/admission'
-import type { runtimeResourceJobs } from './jobs'
+import { runtimeResourceJobs } from './jobs'
 
 interface ResourceModule {
   createResources: typeof createResources
@@ -18,19 +18,6 @@ function isResourceModule(value: unknown): value is ResourceModule {
     value !== null &&
     'createResources' in value &&
     typeof value.createResources === 'function'
-  )
-}
-/** POSTSPAWN: helper preparation ships with the launcher, in dist/resourceProcess.js. */
-interface ProcessModule {
-  runtimeResourceJobs: typeof runtimeResourceJobs
-}
-function isProcessModule(value: unknown): value is ProcessModule {
-  // The same same-build contract as isResourceModule (PLAN.md section 8).
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'runtimeResourceJobs' in value &&
-    typeof value.runtimeResourceJobs === 'function'
   )
 }
 
@@ -47,14 +34,6 @@ export function lazyRuntimeResources(
     log: options.log,
     label: 'resource governor',
     isBundle: isResourceModule,
-    unavailable: () => UI_TEXT.resourceUnavailable,
-    ...(options.loadBundle !== undefined && { loadBundle: options.loadBundle }),
-  })
-  const processModule = lazyBundleLoader({
-    bundlePath: path.join(options.distDir, 'resourceProcess.js'),
-    log: options.log,
-    label: 'resource process launcher',
-    isBundle: isProcessModule,
     unavailable: () => UI_TEXT.resourceUnavailable,
     ...(options.loadBundle !== undefined && { loadBundle: options.loadBundle }),
   })
@@ -102,7 +81,7 @@ export function lazyRuntimeResources(
   // (compiles and self-tests) both Windows job helpers once; a failure is retried.
   let jobs: ReturnType<typeof runtimeResourceJobs> | undefined
   const windowsJob = async () => {
-    jobs ??= processModule().runtimeResourceJobs(options.machineDir, path.dirname(options.distDir))
+    jobs ??= runtimeResourceJobs(options.machineDir, path.dirname(options.distDir))
     const current = jobs
     try {
       const ready = await current

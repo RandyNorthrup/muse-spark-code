@@ -1,4 +1,4 @@
-import type * as ResourceAdmission from '../../src/core/resources/admission'
+import type * as ResourceLauncher from '../../src/core/resources/launcher'
 import {
   copyFile,
   mkdtemp,
@@ -72,8 +72,8 @@ function nativeFixtureVerifier(uid: number, stopAt?: string): TrustedPathVerifie
 // These native helpers prove credential fencing and path selection; shared
 // admission and native containment are proved independently in spawnGovernance.
 // The OS helper runner (backgroundProcessRunner) uses the bounded command path.
-vi.mock('../../src/core/resources/admission', async (original) => {
-  const actual = await original<typeof ResourceAdmission>()
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const actual = await original<typeof ResourceLauncher>()
   const { fixtureResourceProcess, fixtureResourceCommand } =
     await import('./helpers/resourceProcess')
   return {

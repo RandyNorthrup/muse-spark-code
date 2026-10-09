@@ -1,4 +1,4 @@
-import { spawnResourceProcess } from '../../../core/resources/admission'
+import { spawnResourceProcess } from '../../../core/resources/launcher'
 import path from 'node:path'
 import {
   UI_TEXT,

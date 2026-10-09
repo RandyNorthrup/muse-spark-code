@@ -62,8 +62,14 @@ export const stopResourceTree=async()=>{throw new Error('Unused fixture stop')};
 export const assertResourceWrite=async()=>{};
 export const resourceSafePoint=async()=>{};
 export const reportResourceTransport=async()=>{};
+`,
+          }))
+          builder.onLoad({ filter: /resources[\\/]launcher\.ts$/ }, () => ({
+            loader: 'ts',
+            contents: `
 export const spawnResourceProcess=async()=>{throw new Error('Unused fixture launch')};
 export const execResourceFile=async()=>{throw new Error('Unused fixture command')};
+export const handoffResourceFile=async()=>{throw new Error('Unused fixture hand-off')};
 `,
           }))
         },

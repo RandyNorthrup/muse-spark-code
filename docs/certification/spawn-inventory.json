@@ -106,22 +106,22 @@
     "reason": "GitHub reads select the bounded credential-stripped contained command adapter."
   },
   {
-    "site": "src/core/resources/admission.ts#call:execResourceFile:1",
+    "site": "src/core/resources/launcher.ts#call:execResourceFile:1",
     "profile": "contained",
     "reason": "Lazy facade forwards this branch’s profile to the single governed launcher."
   },
   {
-    "site": "src/core/resources/admission.ts#call:handoffResourceFile:1",
+    "site": "src/core/resources/launcher.ts#call:handoffResourceFile:1",
     "profile": "handoff",
     "reason": "Lazy facade forwards this branch’s profile to the single governed launcher."
   },
   {
-    "site": "src/core/resources/admission.ts#call:spawnResourceProcess:1",
+    "site": "src/core/resources/launcher.ts#call:spawnResourceProcess:1",
     "profile": "interactive",
     "reason": "Lazy facade forwards this branch’s profile to the single governed launcher."
   },
   {
-    "site": "src/core/resources/admission.ts#call:spawnResourceProcess:2",
+    "site": "src/core/resources/launcher.ts#call:spawnResourceProcess:2",
     "profile": "contained",
     "reason": "Lazy facade forwards contained and bootstrap launches to the single governed launcher; hand-offs use handoffResourceFile only."
   },

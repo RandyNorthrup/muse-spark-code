@@ -8,13 +8,13 @@ import {
   windowsTrustedPathVerifier,
 } from '../../src/runtime/windowsTrustedPath'
 import { backgroundProcessRunner } from '../../src/runtime/schedules/nodeBackgroundIo'
-import type * as ResourceAdmission from '../../src/core/resources/admission'
+import type * as ResourceLauncher from '../../src/core/resources/launcher'
 
 // The ACL policy table runs through the schedule runner's OS helper command;
 // since spawn4 that is the governed bounded command, whose admission and
 // containment are proved in spawnGovernance and spawnRuntimeAdmission.
-vi.mock('../../src/core/resources/admission', async (original) => {
-  const actual = await original<typeof ResourceAdmission>()
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const actual = await original<typeof ResourceLauncher>()
   const { fixtureResourceCommand } = await import('./helpers/resourceProcess')
   return { ...actual, execResourceFile: fixtureResourceCommand }
 })

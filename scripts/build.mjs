@@ -127,7 +127,7 @@ const RESOURCE_PROCESS_OUTFILE = 'dist/resourceProcess.js'
 // POSTSPAWN: the vault MCP launch (scrubber, leases), on the first vault-backed server.
 const MCP_VAULT_ENTRY = 'src/host/backend/mcpVaultEntry.ts'
 const MCP_VAULT_OUTFILE = 'dist/mcpVault.js'
-const RESOURCE_ADMISSION_ENTRY = 'src/core/resources/admission.ts'
+const RESOURCE_ADMISSION_ENTRY = 'src/core/resources/admissionEntry.ts'
 const RESOURCE_ADMISSION_OUTFILE = 'dist/resourceAdmission.js'
 const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
 const PROVIDERS_OUTFILE = 'dist/providers.js'

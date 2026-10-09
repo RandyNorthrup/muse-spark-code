@@ -340,13 +340,17 @@ export const RESOURCE_PROCESS_ONLY = [
   'src/core/resources/resourceProcessEntry.ts',
   'src/core/resources/process.ts',
   'src/core/resources/commands.ts',
-  'src/runtime/resources/jobs.ts',
 ]
+// The MCP job launch, which the launcher shares with the window's activation.
+export const RESOURCE_PROCESS_SHARED = ['src/host/backend/mcpJobLaunch.ts']
 // POSTSPAWN: launch and helper-preparation code the window's activation also
 // uses for its own helpers and MCP servers; the governor carries none of it,
-// so its 125 KiB cap measures policy alone.
+// so its 125 KiB cap measures policy alone. The helper preparation launches
+// through the lazy launcher (bootstrap compiles), so it ships with its callers
+// (activation, the runtime's dist/acp.js), never inside the launcher it loads.
 export const RESOURCE_LAUNCH_SHARED = [
-  'src/host/backend/mcpJobLaunch.ts',
+  ...RESOURCE_PROCESS_SHARED,
+  'src/runtime/resources/jobs.ts',
   'src/host/processTree.ts',
   'src/host/backend/jobBuild.ts',
   'src/host/backend/shellJob.ts',
@@ -760,9 +764,10 @@ export function checkDeferredBundles(inputsOf) {
       problems.push(
         `${RESOURCE_GOVERNOR_BUNDLE.output} carries ${file}, which loads only with the governed launcher (${RESOURCE_PROCESS_BUNDLE.output})`,
       )
+  }
+  for (const file of RESOURCE_PROCESS_SHARED)
     if (!inputsOf(RESOURCE_PROCESS_BUNDLE).has(file))
       problems.push(`${RESOURCE_PROCESS_BUNDLE.output} no longer carries ${file}`)
-  }
   // CAPS017: account services take the engine's backend factory through their
   // port; the backend closure stays in dist/runtimeEngine.js.
   const runtimeAccounts = ON_FIRST_USE.find((bundle) => bundle.output === 'dist/runtimeAccounts.js')
@@ -917,7 +922,13 @@ export function checkResourceBundles(inputsOf, bundles) {
     for (const raw of inputsOf(bundle).keys()) {
       const file = raw.replaceAll('\\', '/')
       if (!file.startsWith('src/core/resources/')) continue
-      if (file === 'src/core/resources/admission.ts') {
+      if (
+        [
+          'src/core/resources/admission.ts',
+          'src/core/resources/launcher.ts',
+          'src/core/resources/admissionEntry.ts',
+        ].includes(file)
+      ) {
         if (output !== 'dist/resourceAdmission.js')
           problems.push(`${output} duplicates resource admission`)
       } else if (
@@ -1067,13 +1078,25 @@ export const sharedWire = {
 }
 
 // One process-wide admission configuration, shared by every lazy Node bundle.
+// Admission's state and the lazy launch shims (launcher.ts) ship once, in
+// dist/resourceAdmission.js (admissionEntry.ts re-exports both).
+const RESOURCE_ADMISSION_SOURCES = new Set(
+  ['src/core/resources/admission.ts', 'src/core/resources/launcher.ts'].map((file) =>
+    path.resolve(file),
+  ),
+)
 export const sharedResourceAdmission = {
   name: 'shared-resource-admission',
   setup(build) {
-    build.onResolve({ filter: /(?:^|\/)admission(?:\.[jt]s)?$/ }, (args) => {
-      if (args.kind === 'entry-point') return
+    build.onResolve({ filter: /(?:^|\/)(?:admission|launcher)(?:\.[jt]s)?$/ }, (args) => {
+      if (
+        args.kind === 'entry-point' ||
+        path.resolve(build.initialOptions.outfile ?? '') ===
+          path.resolve('dist/resourceAdmission.js')
+      )
+        return
       const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
-      return source === path.resolve('src/core/resources/admission.ts')
+      return RESOURCE_ADMISSION_SOURCES.has(source)
         ? { path: './resourceAdmission.js', external: true }
         : undefined
     })

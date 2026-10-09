@@ -5,7 +5,7 @@ import { legalScanLoader } from '../host/ide/legalScanBundle'
 // the log reads goes to stderr, except the sign-in commands' own output.
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
-import { spawnResourceProcess, handoffResourceFile } from '../core/resources/admission'
+import { spawnResourceProcess, handoffResourceFile } from '../core/resources/launcher'
 import { isResourcePaused } from '../core/resources/launch'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'

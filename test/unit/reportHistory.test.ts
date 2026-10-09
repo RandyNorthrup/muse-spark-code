@@ -1,4 +1,4 @@
-import * as ResourceAdmission from '../../src/core/resources/admission'
+import * as ResourceLauncher from '../../src/core/resources/launcher'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { createHash } from 'node:crypto'
@@ -40,15 +40,15 @@ import { removeFolder } from './helpers/temporaryFolders'
 
 // Filesystem races use a direct, bounded identity probe; native admission is
 // proved by spawnRuntimeAdmission and the real-Git schedule suite.
-vi.mock('../../src/core/resources/admission', async (original) => {
+vi.mock('../../src/core/resources/launcher', async (original) => {
   const { execFile } = await import('node:child_process')
   const { promisify } = await import('node:util')
   return {
-    ...(await original<typeof ResourceAdmission>()),
+    ...(await original<typeof ResourceLauncher>()),
     execResourceFile: vi.fn(
       (
         _profile,
-        ...args: Parameters<typeof ResourceAdmission.execResourceFile> extends [
+        ...args: Parameters<typeof ResourceLauncher.execResourceFile> extends [
           unknown,
           ...infer Rest,
         ]
@@ -81,7 +81,7 @@ beforeAll(async () => {
       {
         name: 'fixture-identity-probe',
         setup(builder) {
-          builder.onLoad({ filter: /resources[\\/]admission\.ts$/ }, () => ({
+          builder.onLoad({ filter: /resources[\\/]launcher\.ts$/ }, () => ({
             loader: 'js',
             contents:
               "import { execFile } from 'node:child_process'; import { promisify } from 'node:util'; export const execResourceFile=(_profile,...args)=>promisify(execFile)(...args);",
@@ -193,7 +193,7 @@ describe('report history', () => {
       expect(probe).toHaveBeenCalledTimes(2)
       if (process.platform === 'win32') {
         const commands = vi
-          .mocked(ResourceAdmission.execResourceFile)
+          .mocked(ResourceLauncher.execResourceFile)
           .mock.calls.flatMap((call) => call[2])
           .join(' ')
         expect(commands).toContain('[Diagnostics.Process]::GetProcessById')

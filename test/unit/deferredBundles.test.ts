@@ -23,6 +23,7 @@ import {
 import {
   RESOURCE_LAUNCH_SHARED,
   RESOURCE_PROCESS_ONLY,
+  RESOURCE_PROCESS_SHARED,
   checkDeferredBundles,
   checkResourceBundles,
   deferredCohort,
@@ -99,7 +100,7 @@ beforeAll(async () => {
       resourceProcess: 'src/core/resources/resourceProcessEntry.ts',
       mcpVault: 'src/host/backend/mcpVaultEntry.ts',
       resourceJournal: 'src/runtime/resources/resourceJournalEntry.ts',
-      resourceAdmission: 'src/core/resources/admission.ts',
+      resourceAdmission: 'src/core/resources/admissionEntry.ts',
       mcpPool: 'src/core/backends/modelapi/mcpPoolEntry.ts',
       modelApiCodeIntel: 'src/core/backends/modelapi/codeIntelEntry.ts',
       schedules: 'src/runtime/schedules/schedulesBundle.ts',
@@ -459,10 +460,14 @@ describe('deferred cohort bundles', () => {
     expect(checkDeferredBundles(bundleInputs)).toEqual([])
   })
   it('POSTSPAWN loads the governed launcher in its own bundle, never inside the governor', () => {
-    for (const file of [...RESOURCE_PROCESS_ONLY, ...RESOURCE_LAUNCH_SHARED]) {
+    for (const file of [...RESOURCE_PROCESS_ONLY, ...RESOURCE_PROCESS_SHARED])
       expect(inputs('resourceProcess')).toContain(file)
+    for (const file of [...RESOURCE_PROCESS_ONLY, ...RESOURCE_LAUNCH_SHARED])
       expect(inputs('resourceGovernor')).not.toContain(file)
-    }
+    // The helper preparation launches through the launcher, so it rides with
+    // the runtime that calls it, never inside the bundle it loads.
+    expect(inputs('acp')).toContain('src/runtime/resources/jobs.ts')
+    expect(inputs('resourceProcess')).not.toContain('src/runtime/resources/jobs.ts')
     for (const name of ['extension', 'modelApi', 'acp'])
       for (const file of RESOURCE_PROCESS_ONLY) expect(inputs(name)).not.toContain(file)
     expect(bundleText('resourceAdmission')).toContain('./resourceProcess.js')
@@ -1392,21 +1397,26 @@ it('loads both governor factories with shared validation without probing at cons
   runtime.dispose()
 })
 
-it('POSTSPAWN loads the launcher bundle beside the governor with the runtime helper preparation', () => {
+it('POSTSPAWN loads the launcher bundle beside the governor, without the runtime helper preparation', () => {
   const callable = z.custom<(...args: never[]) => unknown>((value) => typeof value === 'function')
   const launcher = z
     .object({
       spawnResourceProcess: callable,
       execResourceFile: callable,
       handoffResourceFile: callable,
-      runtimeResourceJobs: callable,
     })
     .safeParse(loadSupportBundle('resourceProcess'))
   expect(launcher.success).toBe(true)
+  for (const name of ['resourceProcess', 'resourceGovernor'])
+    expect(
+      z.object({ runtimeResourceJobs: callable }).safeParse(loadSupportBundle(name)).success,
+    ).toBe(false)
+  // Admission's state and the lazy launch shims ship together, once.
   expect(
-    z.object({ runtimeResourceJobs: callable }).safeParse(loadSupportBundle('resourceGovernor'))
-      .success,
-  ).toBe(false)
+    z
+      .object({ configureResources: callable, spawnResourceProcess: callable })
+      .safeParse(loadSupportBundle('resourceAdmission')).success,
+  ).toBe(true)
 })
 
 it('refuses a raster codec leaked into the lazy Model API parent', () => {

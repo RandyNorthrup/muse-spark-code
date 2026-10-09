@@ -1,4 +1,4 @@
-import { spawnResourceProcess } from '../../resources/admission'
+import { spawnResourceProcess } from '../../resources/launcher'
 import { type Socket } from 'node:net'
 import * as z from 'zod/mini'
 import { VAULT_APPROVAL_TTL_MS, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'

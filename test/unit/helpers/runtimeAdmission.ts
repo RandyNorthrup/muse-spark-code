@@ -4,7 +4,6 @@ import path from 'node:path'
 import { vi } from 'vitest'
 import { lazyRuntimeResources } from '../../../src/runtime/resources/load'
 import { createResources } from '../../../src/runtime/resources/entry'
-import { runtimeResourceJobs } from '../../../src/runtime/resources/jobs'
 import { resourceWindowsJob } from '../../../src/core/resources/admission'
 import { removeFolder } from './temporaryFolders'
 
@@ -20,7 +19,7 @@ export async function fixtureRuntimeAdmission() {
     overrides: { enabled: false },
     log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     onError: vi.fn(),
-    loadBundle: () => ({ createResources, runtimeResourceJobs }),
+    loadBundle: () => ({ createResources }),
   })
   if (process.platform === 'win32') {
     const job = await resourceWindowsJob()

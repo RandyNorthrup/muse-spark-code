@@ -24,7 +24,7 @@
     "test/harness/reporting/verify.mjs",
     "src/extension.ts",
     "src/core/resources/resourceGovernorEntry.ts",
-    "src/core/resources/admission.ts",
+    "src/core/resources/admissionEntry.ts",
     "src/runtime/exec/runExec.ts",
     "src/runtime/runtimeAccountingEntry.ts",
     "src/runtime/runtimeEngineEntry.ts",

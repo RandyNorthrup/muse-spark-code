@@ -1,4 +1,4 @@
-import type * as ResourceAdmission from '../../src/core/resources/admission'
+import type * as ResourceLauncher from '../../src/core/resources/launcher'
 import { Buffer } from 'node:buffer'
 import { spawn } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
@@ -40,8 +40,8 @@ vi.mock('node:child_process', async (original) => {
 
 // Conversion policy owns its byte/RSS/deadline guards; the native launch
 // boundary has separate containment and admission regressions in spawnGovernance.
-vi.mock('../../src/core/resources/admission', async (original) => {
-  const actual = await original<typeof ResourceAdmission>()
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const actual = await original<typeof ResourceLauncher>()
   const { fixtureResourceProcess } = await import('./helpers/resourceProcess')
   return {
     ...actual,

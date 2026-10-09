@@ -1,5 +1,5 @@
-import type * as ResourceAdmission from '../../src/core/resources/admission'
-import * as admission from '../../src/core/resources/admission'
+import type * as ResourceLauncher from '../../src/core/resources/launcher'
+import * as launcher from '../../src/core/resources/launcher'
 import { EventEmitter } from 'node:events'
 import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -13,8 +13,8 @@ import type { RunProgram } from '../../src/host/processTree'
 
 const processStub = vi.hoisted(() => ({ spawn: vi.fn(), execFile: vi.fn() }))
 vi.mock('node:child_process', () => processStub)
-vi.mock('../../src/core/resources/admission', async (original) => {
-  const actual = await original<typeof ResourceAdmission>()
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const actual = await original<typeof ResourceLauncher>()
   const fixture = await import('./helpers/resourceProcess')
   return { ...actual, spawnResourceProcess: vi.fn(fixture.fixtureResourceProcess) }
 })
@@ -442,8 +442,8 @@ describe('Windows vault helper compiler', () => {
     expect(processStub.spawn).toHaveBeenCalledTimes(2)
     expect(environments).toEqual([{}, {}])
     // The guard runs as a bootstrap launch: it builds what containment needs.
-    expect(
-      vi.mocked(admission.spawnResourceProcess).mock.calls.map(([profile]) => profile),
-    ).toEqual(['bootstrap', 'bootstrap'])
+    expect(vi.mocked(launcher.spawnResourceProcess).mock.calls.map(([profile]) => profile)).toEqual(
+      ['bootstrap', 'bootstrap'],
+    )
   })
 })

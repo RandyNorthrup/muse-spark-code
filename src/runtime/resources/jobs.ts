@@ -5,8 +5,8 @@ import { runBootstrap } from '../../core/bootstrapCommand'
 
 /**
  * Compile only on first Windows process use, under bootstrap admission.
- * POSTSPAWN: ships in the launcher's bundle (dist/resourceProcess.js), not
- * with the governor's policy.
+ * Ships with the runtime (dist/acp.js), which already carries the job
+ * builders: it launches through the lazy launcher, so it is not part of it.
  */
 export async function runtimeResourceJobs(storageDir: string, packageRoot: string) {
   const systemRoot = process.env['SystemRoot']

@@ -1,4 +1,4 @@
-import type * as ResourceAdmission from '../../../src/core/resources/admission'
+import type * as ResourceLauncher from '../../../src/core/resources/launcher'
 import { afterEach, afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { execFileSync, type SpawnOptions } from 'node:child_process'
 import { mkdtemp, rm, stat, chmod, writeFile } from 'node:fs/promises'
@@ -32,8 +32,8 @@ import { VAULT_LIMITS, UI_TEXT } from '../../../src/shared/constants'
 // verifier starts that helper through the governed contained launch, whose
 // admission and containment spawnBoundaries proves; these protocol tests keep
 // the slot fixture's direct launch, with the socket handed over as fd 3.
-vi.mock('../../../src/core/resources/admission', async (original) => {
-  const actual = await original<typeof ResourceAdmission>()
+vi.mock('../../../src/core/resources/launcher', async (original) => {
+  const actual = await original<typeof ResourceLauncher>()
   const { fixtureResourceProcess } = await import('../helpers/resourceProcess')
   return {
     ...actual,

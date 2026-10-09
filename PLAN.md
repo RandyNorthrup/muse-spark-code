@@ -611,6 +611,20 @@ start (scrubber, leases, governed launch) moved off activation into
 587,122 B. No existing cap changes. Evidence:
 `docs/certification/int0170-combined.md`, POSTSPAWN.
 
+**REL017INT import cycles (2026-10-09, kubuntu).** `npm run cycles` had been
+red since spawn4: the admission facade (`src/core/resources/admission.ts`)
+both held the window's admission state and lazily imported the launcher
+entry, whose modules import that state (process, MCP job launch); and the
+launcher entry re-exported the runtime's Windows helper preparation, whose
+bootstrap compiles launch through the same facade. The lazy launch shims now
+live in `src/core/resources/launcher.ts`, shipped with the state in
+`dist/resourceAdmission.js` (entry `admissionEntry.ts`; the shared-admission
+plugin and the M107 resource check cover both files); the helper preparation
+(`src/runtime/resources/jobs.ts`) is loaded statically by the runtime and
+ships in `dist/acp.js`, which already carried the job builders.
+`dist/resourceProcess.js` 35.6 → 24.1 KiB; `dist/acp.js` 233.1 → 234.9 KiB (cap 850);
+no cap changed. Record: `docs/certification/rel017int.md`.
+
 **CAPS017 (2026-10-08, Windows host + kubuntu).** The combined 0.17.0
 candidate's nine over-cap bundles fit their unchanged caps after structural
 shrinks: the wire boundary shares five schemas it already carried, the

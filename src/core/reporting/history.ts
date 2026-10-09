@@ -1,4 +1,4 @@
-import { execResourceFile } from '../resources/admission'
+import { execResourceFile } from '../resources/launcher'
 import * as z from 'zod/mini'
 import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'

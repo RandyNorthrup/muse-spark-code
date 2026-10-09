@@ -1,5 +1,5 @@
 import { type ExecFileOptionsWithStringEncoding } from 'node:child_process'
-import { execResourceFile } from '../../resources/admission'
+import { execResourceFile } from '../../resources/launcher'
 import * as z from 'zod/mini'
 import {
   GITHUB_API_BASE_URL,

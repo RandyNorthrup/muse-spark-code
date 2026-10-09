@@ -1,4 +1,4 @@
-import { execResourceFile } from '../../core/resources/admission'
+import { execResourceFile } from '../../core/resources/launcher'
 import { constants as fsConstants, existsSync } from 'node:fs'
 import { open, opendir, realpath } from 'node:fs/promises'
 import {

@@ -57,7 +57,7 @@ describe('complete production process inventory', () => {
       if (
         /call:(spawnResourceProcess|execResourceFile)/.test(entry.site) &&
         ![
-          'src/core/resources/admission.ts',
+          'src/core/resources/launcher.ts',
           'src/core/resources/process.ts',
           'src/core/resources/commands.ts',
         ].includes(site.file)

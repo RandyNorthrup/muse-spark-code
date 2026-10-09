@@ -3,14 +3,11 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { lazyRuntimeResources } from '../../src/runtime/resources/load'
-import {
-  admitBootstrap,
-  execResourceFile,
-  resourceWindowsJob,
-} from '../../src/core/resources/admission'
+import { admitBootstrap, resourceWindowsJob } from '../../src/core/resources/admission'
+import { execResourceFile } from '../../src/core/resources/launcher'
 import { runtimeResources } from './helpers/resources/runtime'
 import { runBootstrap } from '../../src/core/bootstrapCommand'
-import { runtimeResourceJobs } from '../../src/runtime/resources/jobs'
+import * as runtimeJobs from '../../src/runtime/resources/jobs'
 import { TreeTempRoots } from '../../src/host/resources/tempRoots'
 import { localGitRefs } from '../../src/core/schedules/events/git'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -21,11 +18,13 @@ import { createToolIo } from '../../src/host/backend/toolIo'
 import { ResourceHelperChangedError } from '../../src/host/backend/helperIntegrity'
 
 vi.mock('node:child_process', { spy: true })
+// The runtime prepares its Windows helpers through this module (load.ts).
+vi.mock('../../src/runtime/resources/jobs', { spy: true })
 
 /** Binds global process admission to the fixture's runtime queue, as `run()` does. */
 function bindRuntime(
   host: Awaited<ReturnType<typeof runtimeResources>>['host'],
-  bundle: { machineDir?: string; runtimeResourceJobs?: typeof runtimeResourceJobs } = {},
+  bundle: { machineDir?: string } = {},
 ) {
   return lazyRuntimeResources({
     distDir: path.resolve('dist'),
@@ -33,12 +32,7 @@ function bindRuntime(
     sleep: () => Promise.resolve(),
     log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     onError: vi.fn(),
-    loadBundle: () => ({
-      createResources: () => Promise.resolve(host),
-      ...(bundle.runtimeResourceJobs !== undefined && {
-        runtimeResourceJobs: bundle.runtimeResourceJobs,
-      }),
-    }),
+    loadBundle: () => ({ createResources: () => Promise.resolve(host) }),
   })
 }
 
@@ -151,9 +145,9 @@ describe('runtime global admission', () => {
       executablePath: String.raw`C:\fixture\job.exe`,
       verify: vi.fn(() => Promise.resolve()),
     }
-    const prepare = vi.fn<typeof runtimeResourceJobs>()
+    const prepare = vi.mocked(runtimeJobs.runtimeResourceJobs)
     prepare.mockResolvedValueOnce(undefined).mockResolvedValue(jobs)
-    const resources = bindRuntime(fixture.host, { runtimeResourceJobs: prepare })
+    const resources = bindRuntime(fixture.host)
     try {
       await expect(resourceWindowsJob()).resolves.toBeUndefined()
       const concurrent = await Promise.all([resourceWindowsJob(), resourceWindowsJob()])
@@ -177,6 +171,7 @@ describe('runtime global admission', () => {
     } finally {
       resources.dispose()
       fixture.host.dispose()
+      prepare.mockReset()
     }
   })
 })
@@ -187,10 +182,7 @@ describe('bounded runtime commands', () => {
   beforeAll(async () => {
     fixture.current = await runtimeResources()
     state.machineDir = await mkdtemp(path.join(tmpdir(), 'spawn017c-'))
-    const resources = bindRuntime(fixture.current.host, {
-      machineDir: state.machineDir,
-      runtimeResourceJobs,
-    })
+    const resources = bindRuntime(fixture.current.host, { machineDir: state.machineDir })
     state.dispose = () => {
       resources.dispose()
     }

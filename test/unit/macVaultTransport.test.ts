@@ -1,4 +1,4 @@
-import type * as ResourceAdmission from '../../src/core/resources/admission'
+import type * as ResourceLauncher from '../../src/core/resources/launcher'
 import { EventEmitter } from 'node:events'
 import { PassThrough, Writable } from 'node:stream'
 import { randomBytes } from 'node:crypto'
@@ -9,8 +9,8 @@ import { macVaultTransport } from '../../src/runtime/vault/slots/macVaultTranspo
 
 const mocks = vi.hoisted(() => ({ spawn: vi.fn() }))
 vi.mock('node:child_process', () => ({ spawn: mocks.spawn }))
-vi.mock('../../src/core/resources/admission', async (original) => {
-  const actual = await original<typeof ResourceAdmission>()
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const actual = await original<typeof ResourceLauncher>()
   const fixture = await import('./helpers/resourceProcess')
   return { ...actual, spawnResourceProcess: fixture.fixtureResourceProcess }
 })
