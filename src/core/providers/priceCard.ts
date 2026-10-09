@@ -245,9 +245,12 @@ export function reserveWorstCaseUsd(
 export function settleUsageAmount(
   card: PriceCard,
   usage: PricedUsage,
-  reported?: { readonly cost?: number | undefined; readonly costInUsdTicks?: number | undefined },
+  reported?: {
+    readonly cost?: UsdAmount | undefined
+    readonly costInUsdTicks?: number | undefined
+  },
 ): UsdAmount | undefined {
-  if (reported?.cost !== undefined && Number.isFinite(reported.cost) && reported.cost >= 0) {
+  if (reported?.cost !== undefined && Usd.from(reported.cost).compare(Usd.from(0)) >= 0) {
     return Usd.from(reported.cost).toAmount()
   }
   if (reported?.costInUsdTicks !== undefined) {
@@ -297,7 +300,10 @@ export function reserveRequestUsd(card: PriceCard, usage: PricedUsage): number {
 export function settleUsageUsd(
   card: PriceCard,
   usage: PricedUsage,
-  reported?: { readonly cost?: number | undefined; readonly costInUsdTicks?: number | undefined },
+  reported?: {
+    readonly cost?: UsdAmount | undefined
+    readonly costInUsdTicks?: number | undefined
+  },
 ): number | undefined {
   const amount = settleUsageAmount(card, usage, reported)
   return amount === undefined ? undefined : Number(amount)
