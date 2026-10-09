@@ -21,6 +21,7 @@ import {
   type RuntimeCheckoutDeps,
 } from '../../src/runtime/panel/pullRequests/checkout'
 import {
+  createFileWorktreeRecordStore,
   createMemoryWorktreeRecordStore,
   holdForRoots,
 } from '../../src/runtime/panel/pullRequests/records'
@@ -404,6 +405,61 @@ describe('worktree record store (M123 lane P)', () => {
     await store.remove(record.folder, record.createdAt, undefined)
     expect(await store.recordFor(record.folder)).toBeUndefined()
     expect(await store.release(`${record.folder}-missing`, 3000)).toBeUndefined()
+  })
+
+  it('never lets a stale window’s read restore trust or drop records', async () => {
+    const dataFolder = await mkdtemp(path.join(tmpdir(), 'm123p-records-'))
+    const log = recordingLogger()
+    const heldRoot = path.join(dataFolder, 'pr-worktrees')
+    const folder = path.join(heldRoot, '51-abcdef12')
+    const origin = {
+      repository: 'RandyNorthrup/muse-spark-code',
+      number: 51,
+      url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/51',
+      title: 'A foreign pull request',
+      author: 'Piangpi1997',
+      headSha: CAPTURED_PULL_FORK.head.sha,
+      isAuthoredByUser: false,
+    } as const
+    // Window A caches a trusted checkout of the worktree.
+    const windowA = createFileWorktreeRecordStore(dataFolder, 'linux', log)
+    await windowA.put({
+      folder,
+      repositoryRoot: '/repo',
+      createdAt: 1000,
+      pullRequest: { ...origin },
+      isHeld: true,
+      trustConfirmedAt: 1500,
+    })
+    // The worktree is removed; window B checks out the updated pull
+    // request at the same folder, held without confirmation, and records
+    // an unrelated checkout too.
+    const windowB = createFileWorktreeRecordStore(dataFolder, 'linux', log)
+    const held = {
+      folder,
+      repositoryRoot: '/repo',
+      createdAt: 2000,
+      pullRequest: { ...origin },
+      isHeld: true,
+      isCheckoutPending: true,
+    } as const
+    await windowB.put({ ...held })
+    const otherFolder = path.join(heldRoot, '56-fedcba98')
+    await windowB.put({
+      folder: otherFolder,
+      repositoryRoot: '/repo',
+      createdAt: 2000,
+      pullRequest: { ...origin, number: 56 },
+      isHeld: true,
+      isCheckoutPending: true,
+    })
+    // A subsequent read in the stale window must see the new record, and
+    // — reads never write — must not put the old trust back.
+    expect(await windowA.recordFor(folder)).toEqual({ ...held })
+    const fresh = createFileWorktreeRecordStore(dataFolder, 'linux', log)
+    expect(await fresh.recordFor(folder)).toEqual({ ...held })
+    expect(await fresh.recordFor(otherFolder)).toBeDefined()
+    expect(holdForRoots([folder], [heldRoot], await fresh.list(), 'linux')?.folder).toBe(folder)
   })
 })
 

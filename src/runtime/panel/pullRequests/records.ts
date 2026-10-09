@@ -10,8 +10,10 @@
 // version or a hand edit left that does not validate reads as none (the
 // hold is by location anyway).
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
+import { setTimeout as delay } from 'node:timers/promises'
 import path from 'node:path'
+import { bytesFingerprint } from '../../../core/verify/fingerprint'
 import {
   holdFor,
   parseWorktreeRegistry,
@@ -21,6 +23,8 @@ import {
   type WorktreeRecord,
 } from '../../../core/worktreeConversations'
 import type { CoreLogger } from '../../../core/logging'
+import { writeFileAtomically, writeFileIfUnchanged } from '../../../host/fsAtomic'
+import { WORKTREE_RECORD_SAVE_ATTEMPTS } from '../../../shared/constants'
 
 const RECORDS_FILE = 'worktree-records.json'
 
@@ -46,6 +50,10 @@ function completeRecord(record: WorktreeRecord): WorktreeRecord {
   const completed = { ...record }
   delete completed.isCheckoutPending
   return completed
+}
+
+function slashedPut(record: WorktreeRecord): WorktreeRecord {
+  return { ...record, folder: slashed(record.folder) }
 }
 
 /** The hold on `root` under any of `heldRoots`, released only by the card. */
@@ -106,25 +114,45 @@ export function createMemoryWorktreeRecordStore(platform: NodeJS.Platform): Work
   }
 }
 
-/** The records as a JSON file under the runtime data folder. */
+/**
+ * The records as a JSON file under the runtime data folder. No window
+ * keeps the registry: every operation reads the file first, so a window
+ * that read earlier never writes its stale snapshot back over a newer
+ * checkout, and reads never write at all. A save whose file another
+ * window rewrote first is read again and retried; operations in this
+ * window queue, so they never interleave a read and a write.
+ */
 export function createFileWorktreeRecordStore(
   dataFolder: string,
   platform: NodeJS.Platform,
   log: CoreLogger,
 ): WorktreeRecordStore {
   const file = path.join(dataFolder, RECORDS_FILE)
-  const memory = createMemoryWorktreeRecordStore(platform)
-  let isLoaded = false
-  const load = async (): Promise<void> => {
-    if (isLoaded) {
-      return
-    }
-    isLoaded = true
-    try {
-      const raw: unknown = JSON.parse(await readFile(file, 'utf8'))
-      for (const record of parseWorktreeRegistry(raw)) {
-        await memory.put(record)
+  const atomic = { sleep: delay }
+  let tail: Promise<void> = Promise.resolve()
+  const enqueue = <T>(work: () => Promise<T>): Promise<T> => {
+    const previous = tail
+    const next = (async (): Promise<T> => {
+      await previous
+      return await work()
+    })()
+    tail = (async (): Promise<void> => {
+      try {
+        await next
+      } catch {
+        // A failed operation releases the next queued one.
       }
+    })()
+    return next
+  }
+  const readRegistry = async (): Promise<{
+    readonly found: boolean
+    readonly fingerprint: string | undefined
+    readonly records: readonly WorktreeRecord[]
+  }> => {
+    let bytes: Buffer
+    try {
+      bytes = await readFile(file)
     } catch (error: unknown) {
       // Missing or unreadable: start empty (the hold is by location
       // anyway). Anything else of the extension's never runs git there.
@@ -135,31 +163,111 @@ export function createFileWorktreeRecordStore(
       if (code !== 'ENOENT') {
         log.warn('The worktree records could not be read; starting with none')
       }
+      return { found: false, fingerprint: undefined, records: [] }
     }
-  }
-  const save = async (): Promise<void> => {
+    let raw: unknown
     try {
-      await mkdir(dataFolder, { recursive: true })
-      await writeFile(file, JSON.stringify(await memory.list()), 'utf8')
+      raw = JSON.parse(bytes.toString('utf8'))
     } catch {
-      log.warn('The worktree records could not be kept')
+      log.warn('The worktree records could not be read; starting with none')
+      return { found: true, fingerprint: bytesFingerprint(bytes), records: [] }
+    }
+    return {
+      found: true,
+      fingerprint: bytesFingerprint(bytes),
+      records: parseWorktreeRegistry(raw),
     }
   }
-  const wrap =
-    <T extends unknown[], R>(call: (...args: T) => Promise<R>) =>
-    async (...args: T): Promise<R> => {
-      await load()
-      const result = await call(...args)
-      await save()
-      return result
-    }
+  const mutate = <T>(
+    apply: (records: readonly WorktreeRecord[]) => {
+      readonly records: readonly WorktreeRecord[]
+      readonly result: T
+    },
+  ): Promise<T> =>
+    enqueue(async () => {
+      for (let attempt = 1; ; attempt += 1) {
+        const read = await readRegistry()
+        const applied = apply(read.records)
+        const content = JSON.stringify(applied.records)
+        try {
+          if (read.fingerprint === undefined) {
+            // Gone, or bytes no edit matches: replace it whole.
+            await writeFileAtomically(file, content, atomic)
+            return applied.result
+          }
+          const wrote = await writeFileIfUnchanged(file, read.fingerprint, content, atomic)
+          if (wrote === 'written') {
+            return applied.result
+          }
+          if (attempt >= WORKTREE_RECORD_SAVE_ATTEMPTS) {
+            log.warn('The worktree records could not be kept')
+            await writeFileAtomically(file, content, atomic)
+            return applied.result
+          }
+        } catch {
+          log.warn('The worktree records could not be kept')
+          return applied.result
+        }
+      }
+    })
   return {
-    list: () => wrap(() => memory.list())(),
-    recordFor: (folder) => wrap(() => memory.recordFor(folder))(),
-    put: (record) => wrap(() => memory.put(record))(),
-    complete: (folder, createdAt) => wrap(() => memory.complete(folder, createdAt))(),
+    list: () =>
+      enqueue(async () => {
+        const read = await readRegistry()
+        return read.records
+      }),
+    recordFor: (folder) =>
+      enqueue(async () => {
+        const read = await readRegistry()
+        return recordFor(read.records, slashed(folder), platform)
+      }),
+    put: (record) =>
+      mutate((records) => {
+        const stored = slashedPut(record)
+        return {
+          records: withRecord(records, stored, platform),
+          result: recordFor(records, stored.folder, platform),
+        }
+      }),
+    complete: (folder, createdAt) =>
+      mutate((records) => {
+        const found = recordFor(records, slashed(folder), platform)
+        if (found === undefined) {
+          return { records, result: undefined }
+        }
+        return {
+          records:
+            found.createdAt === createdAt
+              ? withRecord(records, completeRecord(found), platform)
+              : records,
+          result: undefined,
+        }
+      }),
     remove: (folder, createdAt, previous) =>
-      wrap(() => memory.remove(folder, createdAt, previous))(),
-    release: (folder, now) => wrap(() => memory.release(folder, now))(),
+      mutate((records) => {
+        const found = recordFor(records, slashed(folder), platform)
+        if (found === undefined) {
+          return { records, result: undefined }
+        }
+        if (found.createdAt !== createdAt) {
+          return { records, result: undefined }
+        }
+        return {
+          records:
+            previous === undefined
+              ? records.filter((entry) => entry !== found)
+              : withRecord(records, previous, platform),
+          result: undefined,
+        }
+      }),
+    release: (folder, now) =>
+      mutate((records) => {
+        const found = recordFor(records, slashed(folder), platform)
+        if (found === undefined) {
+          return { records, result: undefined }
+        }
+        const released: WorktreeRecord = { ...found, isHeld: false, trustConfirmedAt: now }
+        return { records: withRecord(records, released, platform), result: released }
+      }),
   }
 }

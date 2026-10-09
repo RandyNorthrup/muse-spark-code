@@ -1746,6 +1746,9 @@ export const HELD_FILE_MODE = 0o666
 export const HELD_EXECUTABLE_MODE = 0o777
 // The conversations whose pull request is remembered, newest first.
 export const PULL_REQUEST_LINKS_KEPT = 200
+// A file worktree-record save whose file another window rewrote first is
+// read again and retried this many times before the last write wins (M123).
+export const WORKTREE_RECORD_SAVE_ATTEMPTS = 3
 // --- Review (M70, PLAN.md D49) ---
 
 // `/review …` in the prompt. The command and its keywords are commands, like
