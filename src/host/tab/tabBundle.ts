@@ -11,7 +11,7 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 // guard and dispatch bridge are constructed inside the lazy Tab bundle.
 
 import * as vscode from 'vscode'
-import type { TabHookContext, TabHooksDeps } from '../../core/tab/tabHooks'
+import type { TabHookContext, TabHookPolicy, TabHooksDeps } from '../../core/tab/tabHooks'
 import type { ExtensionHookRunner } from '../extensionHooksRunner'
 import type {
   TabEngine,
@@ -147,10 +147,55 @@ export interface TabSpendGate {
 /**
  * Lane L's once-per-window question (Q-M94a, PLAN.md D48): Allow once covers
  * this window, Allow always persists for the workspace, Deny snoozes the
- * window. True proceeds, false sends nothing.
+ * window. True proceeds, false sends nothing. It is asked for the request's
+ * own model, the one the request then sends (RVM94KR 3).
  */
 export interface TabUseConsent {
-  requestUse(): Promise<boolean>
+  requestUse(model: string): Promise<boolean>
+}
+
+/** What `modelBoundTabConsent` asks the paid gate, and where it keeps the model it allowed. */
+export interface TabModelConsentDeps {
+  /** D48's question for this model; `isNewModel` asks even under a kept grant. */
+  readonly allows: (model: string, isNewModel: boolean) => Promise<boolean>
+  /** The model the last allowing answer named (extension-private workspace state). */
+  readonly allowedModel: () => string | undefined
+  readonly rememberAllowedModel: (model: string) => Promise<void>
+}
+
+/**
+ * Binds Tab's answer to the model it named (RVM94KR 3, Q-M94b): the
+ * question names the request's model, and a request for another model than
+ * the one last allowed asks again, Allow always included, so the training
+ * note of the model sent is always in a confirmation. Requests for one model
+ * share an open question.
+ */
+export function modelBoundTabConsent(deps: TabModelConsentDeps): TabUseConsent {
+  let open: { readonly model: string; readonly answer: Promise<boolean> } | undefined
+  const isUseAllowed = async (model: string): Promise<boolean> => {
+    const allowed = deps.allowedModel()
+    const isAllowed = await deps.allows(model, allowed !== undefined && allowed !== model)
+    if (isAllowed && allowed !== model) {
+      await deps.rememberAllowedModel(model)
+    }
+    return isAllowed
+  }
+  return {
+    requestUse: async (model) => {
+      if (open?.model === model) {
+        return await open.answer
+      }
+      const current = { model, answer: isUseAllowed(model) }
+      open = current
+      try {
+        return await current.answer
+      } finally {
+        if (open === current) {
+          open = undefined
+        }
+      }
+    },
+  }
 }
 
 /** What the provider hands the engine: the redacted window, its mode and the filters' lines. */
@@ -196,12 +241,17 @@ export interface TabAcceptedEdit {
  * Lane K's hook bridge (M94 step 7, after M91 merges): `beforeRead` answers
  * whether a file's text may enter a request (every failure refuses, and an
  * oversize payload is refused unrun); `afterEdit` observes an accept and
- * never blocks. With no configured hooks every read is allowed and every
- * accept is unobserved.
+ * never blocks. With no hook configuration at all every read is allowed and
+ * every accept is unobserved; a hook file that did not load whole refuses
+ * every read (RVM94KR 1).
  */
 export interface TabHookBridge {
   beforeRead(absolutePath: string, content: string, context: TabHookContext): Promise<boolean>
   afterEdit(edit: TabAcceptedEdit): void
+  /** Settles the hook configuration in force; a request binds to it at its start (RVM94KR 2). */
+  bindPolicy(): Promise<TabHookPolicy>
+  /** The hook policy's key now: a request whose bound key moved is dropped. */
+  policyKey(): string
   dispose?(): void
 }
 
@@ -270,7 +320,7 @@ export interface TabProviderDeps {
     | {
         readonly isHooksEnabled: () => boolean
         readonly load: () => Promise<
-          Pick<ExtensionHookRunner, 'configurationVersion' | 'hasTabHooks' | 'runTab'> | undefined
+          Pick<ExtensionHookRunner, 'configurationVersion' | 'tabHookState' | 'runTab'> | undefined
         >
       }
     | undefined
@@ -346,8 +396,29 @@ export const TAB_QUIET_REASONS = [
   'no-suggestion',
   'cancelled-before-send',
   'secret-at-cursor',
+  // A hook file is present but did not load whole (RVM94KR 1).
+  'hooks-invalid',
+  // Trust, a Tab setting, files.exclude or the hooks changed under the request (RVM94KR 2–3).
+  'policy-changed',
 ] as const
 export type TabQuietReason = (typeof TAB_QUIET_REASONS)[number]
+
+/**
+ * The reasons a trigger stops at before the hook configuration is read: they
+ * say nothing about it, so they leave its status as it was.
+ */
+const TAB_REASONS_BEFORE_HOOKS: ReadonlySet<TabQuietReason> = new Set([
+  'suggest-selection',
+  'trigger-setting',
+  'snoozed',
+  'no-key',
+  'paid-off',
+  'untrusted',
+  'scheme',
+  'outside-workspace',
+  'language-off',
+  'copilot',
+])
 
 /** The provider's handle: the provider the shim registers, plus the accept command's entry. */
 export interface TabProviderHandle {
@@ -562,6 +633,8 @@ export function createTabStatusItem(
   )
   item.command = TAB_COMMAND_IDS.menu
   let lastFailure: TabFailureKind | undefined
+  // A hook file did not load whole: shown until a trigger finds it loads (RVM94KR 1).
+  let isHookConfigurationInvalid = false
   let lastContext: boolean | undefined
   // While a timed snooze runs, the bar redraws each minute, so its minutes
   // left count down and its end shows without another event (RVM94HU 9).
@@ -629,7 +702,10 @@ export function createTabStatusItem(
             languageId: language,
           }),
         )
-      if (language !== undefined && !isTabLanguageOn(deps.tabLanguages(), language)) {
+      if (isHookConfigurationInvalid) {
+        item.text = `$(error) ${table.tabStatusHooksInvalid}`
+        item.tooltip = table.tabStatusHooksInvalidDetail
+      } else if (language !== undefined && !isTabLanguageOn(deps.tabLanguages(), language)) {
         item.text = `$(circle-slash) ${fill(table.tabStatusLanguageOff, { language })}`
         item.tooltip = fill(table.tabStatusLanguageOff, { language })
       } else if (isYields) {
@@ -657,6 +733,9 @@ export function createTabStatusItem(
     } else {
       // A later trigger clears the failure: quiet states have their own rows.
       lastFailure = undefined
+    }
+    if (outcome.kind !== 'quiet' || !TAB_REASONS_BEFORE_HOOKS.has(outcome.reason)) {
+      isHookConfigurationInvalid = outcome.kind === 'quiet' && outcome.reason === 'hooks-invalid'
     }
     refresh()
   }
@@ -747,6 +826,10 @@ export function deferredRefresh(refresh: () => Promise<void> | void): () => Prom
 // Extension-private global state (never machine-wide configuration): the
 // timed snooze's end, in epoch milliseconds, shared by every window.
 export const TAB_SNOOZE_STATE_KEY = 'museSpark.tabSnoozedUntil'
+
+// Extension-private workspace state: the model Tab's last allowing answer
+// named, so a request for another model asks again (RVM94KR 3).
+export const TAB_CONSENT_MODEL_STATE_KEY = 'museSpark.tabConsentModel'
 
 // The ledger's folder under the extension's global storage (D73:
 // `tab-spend/<date>/<window>.json`).

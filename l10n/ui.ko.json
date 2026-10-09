@@ -3620,6 +3620,8 @@
   "tabStatusLanguageOff": "Tab 꺼짐({language} 제외)",
   "tabStatusCopilot": "Tab: Copilot이 켜져 있어 수동만 가능",
   "tabStatusError": "Tab 오류({kind})",
+  "tabStatusHooksInvalid": "Tab 일시 중지: 후크 파일에 오류가 있음",
+  "tabStatusHooksInvalidDetail": "spark-hooks.json 파일을 전부 불러오지 못해, 파일이 수정될 때까지 Tab은 어떤 파일도 읽지 않습니다. 문제는 Muse Spark 로그에 있습니다.",
   "tabMenuTurnOff": "Tab 끄기",
   "tabMenuSnoozeShort": "15분간 다시 알림",
   "tabMenuSnoozeLong": "1시간 동안 다시 알림",

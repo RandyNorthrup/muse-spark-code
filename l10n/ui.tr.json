@@ -3704,6 +3704,8 @@
   "tabStatusLanguageOff": "Tab kapalı: {language} için kapalı",
   "tabStatusCopilot": "Tab: Copilot açıkken yalnızca çağrıyla",
   "tabStatusError": "Tab hatası ({kind})",
+  "tabStatusHooksInvalid": "Tab duraklatıldı: kanca dosyasında hatalar var",
+  "tabStatusHooksInvalidDetail": "Bir spark-hooks.json dosyası tamamen yüklenemedi; bu yüzden düzeltilene kadar Tab hiçbir dosyayı okumaz. Sorun Muse Spark günlüğünde belirtilir.",
   "tabMenuTurnOff": "Tab'i kapat",
   "tabMenuSnoozeShort": "15 dakika ertele",
   "tabMenuSnoozeLong": "1 saat ertele",

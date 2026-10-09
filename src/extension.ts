@@ -239,10 +239,12 @@ import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
 import {
   TAB_BUNDLE_FILE,
+  TAB_CONSENT_MODEL_STATE_KEY,
   TAB_LEDGER_DIR,
   TAB_SNOOZE_STATE_KEY,
   type TabFilesExclude,
   createTabActivation,
+  modelBoundTabConsent,
   tabTextChangeEvent,
   deferredRefresh,
 } from './host/tab/tabBundle'
@@ -1461,17 +1463,23 @@ async function activateWindow(
       broadcastPaidState()
     },
     // D48's question, once per window (Q-M94a): the first request asks with
-    // the model's rates and today's budget; Deny snoozes the window.
-    consent: {
-      requestUse: async () => {
-        const settings = currentSettings()
-        return await paid.consent.allows({
-          feature: 'tab',
-          modelId: settings.tabModel,
-          budgetUsd: settings.tabDailyBudgetUsd,
-        })
+    // its own model's rates and today's budget; Deny snoozes the window. A
+    // request for another model than the one last allowed asks again
+    // (RVM94KR 3).
+    consent: modelBoundTabConsent({
+      allows: async (model, isNewModel) =>
+        await paid.consent.allows(
+          { feature: 'tab', modelId: model, budgetUsd: currentSettings().tabDailyBudgetUsd },
+          isNewModel,
+        ),
+      allowedModel: () => {
+        const model = context.workspaceState.get<unknown>(TAB_CONSENT_MODEL_STATE_KEY)
+        return typeof model === 'string' ? model : undefined
       },
-    },
+      rememberAllowedModel: async (model) => {
+        await context.workspaceState.update(TAB_CONSENT_MODEL_STATE_KEY, model)
+      },
+    }),
   })
   tabDisposables.push({
     dispose: () => {

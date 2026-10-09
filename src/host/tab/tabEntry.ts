@@ -72,10 +72,10 @@ export function createTabProvider(deps: TabProviderDeps & TabBundleTable): TabPr
       ? {
           isHooksEnabled: dispatch.isHooksEnabled,
           configurationVersion: () => runner?.configurationVersion() ?? '',
-          hasHooks: async (event) => {
+          hookState: async (event) => {
             runner = await dispatch.load()
             if (runner === undefined) throw new Error('Tab hook dispatch unavailable')
-            return await runner.hasTabHooks(event)
+            return await runner.tabHookState(event)
           },
           run: async (request) => {
             runner = await dispatch.load()
@@ -97,6 +97,8 @@ export function createTabProvider(deps: TabProviderDeps & TabBundleTable): TabPr
       afterEdit: (edit) => {
         hooks.afterEdit({ ...edit, acceptance: edit.inferred ? 'partial' : 'full' }, edit)
       },
+      bindPolicy: hooks.bindPolicy,
+      policyKey: hooks.policyKey,
       dispose: hooks.dispose,
     },
   })

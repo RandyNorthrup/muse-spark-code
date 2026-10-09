@@ -206,6 +206,8 @@ suite('tab completions', () => {
         afterEdit: (edit) => {
           edits.push(edit)
         },
+        bindPolicy: () => Promise.resolve({ key: 'fixture', isConfigurationInvalid: false }),
+        policyKey: () => 'fixture',
       },
     })
     // Tab is on: register at once; the first request loads the bundle.

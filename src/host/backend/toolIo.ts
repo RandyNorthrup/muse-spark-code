@@ -1071,8 +1071,16 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       // Lane K: one production process cap shared by every session and the
       // lazy window/Tab bundles, held in the lazily loaded hook runtime so
       // the hook implementation stays out of activation.
-      const runtime = await import('../../core/backends/modelapi/hookRuntimeEntry.js')
-      const release = await runtime.acquireHookProcessSlot(signal)
+      let release: () => void
+      try {
+        const runtime = await import('../../core/backends/modelapi/hookRuntimeEntry.js')
+        release = await runtime.acquireHookProcessSlot(signal)
+      } catch (error: unknown) {
+        // No process started: a load failure or a cancelled slot wait gives
+        // the admitted lease back, as runCommand does on every exit (RVM94KR 4).
+        resource?.complete(true)
+        throw error
+      }
       try {
         return await runCommand({
           file,

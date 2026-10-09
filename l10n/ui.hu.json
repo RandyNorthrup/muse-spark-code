@@ -3704,6 +3704,8 @@
   "tabStatusLanguageOff": "Tab kikapcsolva ehhez: {language}",
   "tabStatusCopilot": "Tab: csak meghívásra, amíg a Copilot be van kapcsolva",
   "tabStatusError": "Tab-hiba ({kind})",
+  "tabStatusHooksInvalid": "Tab szüneteltetve: a hookfájl hibás",
+  "tabStatusHooksInvalidDetail": "Egy spark-hooks.json fájlt nem sikerült teljesen betölteni, ezért a Tab egy fájlt sem olvas, amíg ki nem javítják. A Muse Spark naplója megnevezi a hibát.",
   "tabMenuTurnOff": "Tab kikapcsolása",
   "tabMenuSnoozeShort": "Szundi 15 percre",
   "tabMenuSnoozeLong": "Szundi egy órára",

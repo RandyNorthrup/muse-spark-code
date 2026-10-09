@@ -3620,6 +3620,8 @@
   "tabStatusLanguageOff": "Tab 已关闭：{language} 不适用",
   "tabStatusCopilot": "Tab：Copilot 开启时仅手动触发",
   "tabStatusError": "Tab 出错（{kind}）",
+  "tabStatusHooksInvalid": "Tab 已暂停：钩子文件有错误",
+  "tabStatusHooksInvalidDetail": "无法完整加载某个 spark-hooks.json 文件，因此在修复之前 Tab 不会读取任何文件。Muse Spark 日志中写明了问题。",
   "tabMenuTurnOff": "关闭 Tab",
   "tabMenuSnoozeShort": "稍后提醒 15 分钟",
   "tabMenuSnoozeLong": "稍后提醒 1 小时",

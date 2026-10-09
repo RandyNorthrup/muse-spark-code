@@ -3872,6 +3872,8 @@
   "tabStatusLanguageOff": "Tab vypnut pro {language}",
   "tabStatusCopilot": "Tab: jen na vyvolání, dokud je zapnutý Copilot",
   "tabStatusError": "Chyba Tab ({kind})",
+  "tabStatusHooksInvalid": "Tab pozastaven: soubor hooků obsahuje chyby",
+  "tabStatusHooksInvalidDetail": "Soubor spark-hooks.json se nepodařilo načíst celý, takže Tab nečte žádný soubor, dokud nebude opraven. Problém uvádí protokol Muse Spark.",
   "tabMenuTurnOff": "Vypnout Tab",
   "tabMenuSnoozeShort": "Odložit o 15 minut",
   "tabMenuSnoozeLong": "Odložit o hodinu",

@@ -22,6 +22,7 @@ import {
   deferredRefresh,
   isTabBundle,
   isTabLanguageOn,
+  modelBoundTabConsent,
   readCopilotPosture,
   shouldYieldToCopilot,
   tabLoader,
@@ -614,6 +615,67 @@ describe('createTabActivation', () => {
     expect(servicesDeps?.windowId).toBe('window-1')
     // The budget is read live from the settings, at each request.
     expect(servicesDeps?.budgetUsd()).toBe(Usd.from(1).toAmount())
+  })
+})
+
+describe('RVM94KR 1: the status says why Tab reads nothing', () => {
+  it('shows a broken hook file until a trigger finds it loads', async () => {
+    const harness = activationHarness()
+    harness.settingOn = true
+    harness.activation.refresh()
+    await loadThroughMenu(harness)
+    const providerDeps = harness.providerDeps()
+    providerDeps?.onOutcome({ kind: 'quiet', reason: 'hooks-invalid' })
+    expect(lastStatusItem().text).toBe(`$(error) ${UI_TEXT.tabStatusHooksInvalid}`)
+    expect(lastStatusItem().tooltip).toBe(UI_TEXT.tabStatusHooksInvalidDetail)
+    // A trigger that stops before the hooks are read says nothing about them.
+    providerDeps?.onOutcome({ kind: 'quiet', reason: 'suggest-selection' })
+    expect(lastStatusItem().text).toBe(`$(error) ${UI_TEXT.tabStatusHooksInvalid}`)
+    providerDeps?.onOutcome({ kind: 'served', mode: 'fast' })
+    expect(lastStatusItem().text).not.toContain(UI_TEXT.tabStatusHooksInvalid)
+    harness.activation.dispose()
+  })
+})
+
+/** The model-bound consent over a recording gate and an in-memory kept model. */
+function consentHarness(initial?: string) {
+  const kept = { model: initial }
+  const allows = vi.fn((_model: string, _isNewModel: boolean) => Promise.resolve(true))
+  const consent = modelBoundTabConsent({
+    allows,
+    allowedModel: () => kept.model,
+    rememberAllowedModel: (model) => {
+      kept.model = model
+      return Promise.resolve()
+    },
+  })
+  return { kept, allows, consent }
+}
+
+describe('RVM94KR 3: modelBoundTabConsent', () => {
+  it('asks about the request’s model, and again for another model under a kept grant', async () => {
+    const h = consentHarness()
+    expect(await h.consent.requestUse('muse-spark-1.3')).toBe(true)
+    expect(h.allows).toHaveBeenLastCalledWith('muse-spark-1.3', false)
+    expect(h.kept.model).toBe('muse-spark-1.3')
+    await h.consent.requestUse('muse-spark-1.3')
+    expect(h.allows).toHaveBeenLastCalledWith('muse-spark-1.3', false)
+    await h.consent.requestUse('muse-spark-1.3-contributor')
+    expect(h.allows).toHaveBeenLastCalledWith('muse-spark-1.3-contributor', true)
+    expect(h.kept.model).toBe('muse-spark-1.3-contributor')
+  })
+
+  it('keeps no model a Deny named, and shares one open question per model', async () => {
+    const h = consentHarness('muse-spark-1.3')
+    const answer = Promise.withResolvers<boolean>()
+    h.allows.mockReturnValueOnce(answer.promise)
+    const first = h.consent.requestUse('muse-spark-1.3-contributor')
+    const second = h.consent.requestUse('muse-spark-1.3-contributor')
+    answer.resolve(false)
+    expect(await first).toBe(false)
+    expect(await second).toBe(false)
+    expect(h.allows).toHaveBeenCalledOnce()
+    expect(h.kept.model).toBe('muse-spark-1.3')
   })
 })
 

@@ -3788,6 +3788,8 @@
   "tabStatusLanguageOff": "Tab desativado para {language}",
   "tabStatusCopilot": "Tab: só ao invocar com o Copilot ativado",
   "tabStatusError": "Erro do Tab ({kind})",
+  "tabStatusHooksInvalid": "Tab pausado: o arquivo de ganchos tem erros",
+  "tabStatusHooksInvalidDetail": "Não foi possível carregar por completo um arquivo spark-hooks.json, então o Tab não lê nenhum arquivo até que ele seja corrigido. O log do Muse Spark indica o problema.",
   "tabMenuTurnOff": "Desativar o Tab",
   "tabMenuSnoozeShort": "Adiar por 15 minutos",
   "tabMenuSnoozeLong": "Adiar por uma hora",

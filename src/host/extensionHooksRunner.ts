@@ -12,7 +12,7 @@
 
 import { randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
-import type { TabHookRun } from '../core/tab/tabHooks'
+import type { TabHookRun, TabHookState } from '../core/tab/tabHooks'
 import type { ShellResult } from '../core/shellResult'
 import { MILLISECONDS_PER_SECOND } from '../shared/constants'
 import {
@@ -23,7 +23,7 @@ import {
   extensionHookPayload,
   fileChangedFields,
   isSetupTriggerMatch,
-  loadSparkHookDefinitions,
+  loadSparkHookSnapshot,
   manualHooks,
   setupFields,
   manualFields,
@@ -38,6 +38,7 @@ import {
   type ExtensionHookRunIo,
   type FileChangedThrottle,
   type SetupTrigger,
+  type SparkHookSnapshot,
 } from '../core/backends/modelapi/extensionHooks'
 import type { HookLoadDeps } from '../core/backends/modelapi/hooks'
 import type { ContextIo } from '../core/context/contextFiles'
@@ -111,12 +112,16 @@ function isSkippedPath(relativePath: string): boolean {
   )
 }
 
+const EMPTY_SNAPSHOT: SparkHookSnapshot = { hooks: [], invalidSources: [] }
+
 export class ExtensionHookRunner {
   private readonly fileChangedThrottle: FileChangedThrottle = createFileChangedThrottle()
   private readonly hostSessionId: string
   private hooks: readonly ExtensionHookDefinition[] = []
+  /** A scope's file is present but did not load whole: Tab reads refuse (RVM94KR 1). */
+  private isTabConfigurationInvalid = false
   private version = 0
-  private pendingReload: Promise<readonly ExtensionHookDefinition[]> | undefined
+  private pendingReload: Promise<SparkHookSnapshot> | undefined
 
   public constructor(private readonly deps: ExtensionHookRunnerDeps) {
     this.hostSessionId = `host:${deps.instanceId ?? randomUUID()}`
@@ -180,13 +185,16 @@ export class ExtensionHookRunner {
     const version = this.version
     const pending =
       this.deps.isWorkspaceTrusted() && this.deps.isHooksEnabled()
-        ? loadSparkHookDefinitions(this.loadDeps)
-        : Promise.resolve([])
+        ? loadSparkHookSnapshot(this.loadDeps)
+        : Promise.resolve(EMPTY_SNAPSHOT)
     this.pendingReload = pending
     try {
-      const hooks = await pending
-      if (version === this.version && this.isArmed()) this.hooks = hooks
-      else if (!this.isArmed()) this.hooks = []
+      const snapshot = await pending
+      const kept = version === this.version && this.isArmed() ? snapshot : undefined
+      if (kept !== undefined || !this.isArmed()) {
+        this.hooks = kept?.hooks ?? []
+        this.isTabConfigurationInvalid = (kept?.invalidSources.length ?? 0) > 0
+      }
     } finally {
       if (this.pendingReload === pending) this.pendingReload = undefined
     }
@@ -200,18 +208,27 @@ export class ExtensionHookRunner {
     return String(this.version)
   }
 
-  public async hasTabHooks(event: TabHookRun['event']): Promise<boolean> {
+  /**
+   * What the snapshot in force says about a Tab event (RVM94KR 1): a hook
+   * file present but not loaded whole is `invalid`, and Tab reads nothing
+   * until it is fixed; only no Tab hook at all is `absent`.
+   */
+  public async tabHookState(event: TabHookRun['event']): Promise<TabHookState> {
     await this.waitForReload()
+    if (this.isTabConfigurationInvalid) return 'invalid'
     const matcher = event === 'beforeTabFileRead' ? 'TabRead' : 'TabWrite'
     return this.hooks.some(
       (hook) => hook.event === event && isExtensionMatch(hook.matcher, matcher, this.deps.warn),
     )
+      ? 'present'
+      : 'absent'
   }
 
   /** Raw endings: Tab decides before fail-open or onFailure handling can run. */
   public async runTab(request: TabHookRun): Promise<readonly ShellResult[] | undefined> {
     await this.waitForReload()
-    if (!this.isArmed()) return undefined
+    // A configuration that did not load whole never answers: undefined refuses.
+    if (!this.isArmed() || this.isTabConfigurationInvalid) return undefined
     const selected = this.hooks.filter(
       (hook) =>
         hook.event === request.event &&

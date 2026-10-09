@@ -487,6 +487,20 @@ function positionAfter(
     : { line: line + breaks.length - 1, character: (breaks.at(-1) ?? '').length }
 }
 
+/**
+ * What one request is bound to from its start (RVM94KR 2–3): the trust, the
+ * Tab settings (its model among them), every `files.exclude` scope it read,
+ * the ignore files' generation and the hook policy. `isCurrent` is read again
+ * before the question, before sending and before the answer is used.
+ */
+interface TabRequestPolicy {
+  /** The settings the request runs with: its model and its modes come from here. */
+  readonly settings: ReturnType<TabProviderDeps['settings']>
+  /** A file's `files.exclude`, bound to the request on its first read. */
+  readonly filesExclude: (uri: TabUri) => TabFilesExclude
+  readonly isCurrent: () => boolean
+}
+
 interface TabTracked extends TabTrackedItem {
   readonly hookContext: TabHookContext
   readonly lineText: string
@@ -573,6 +587,30 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     return undefined
   }
 
+  /** Binds a request to the policy in force; the hook part was settled by the caller. */
+  function bindRequestPolicy(hookKey: string): TabRequestPolicy {
+    const settings = deps.settings()
+    const keyOf = (currentSettings: unknown, currentHookKey: string): string =>
+      JSON.stringify([deps.isTrusted(), currentSettings, ignore.currentGeneration, currentHookKey])
+    const bound = keyOf(settings, hookKey)
+    // At most the current file and TAB_CONTEXT_FILES context files.
+    const scopes: { readonly uri: TabUri; readonly table: string }[] = []
+    return {
+      settings,
+      filesExclude: (uri) => {
+        const table = deps.filesExclude(uri)
+        if (scopes.every((scope) => scope.uri.toString() !== uri.toString())) {
+          scopes.push({ uri, table: JSON.stringify(table) })
+        }
+        return table
+      },
+      isCurrent: () =>
+        !isDisposed() &&
+        keyOf(deps.settings(), deps.hooks?.policyKey() ?? '') === bound &&
+        scopes.every((scope) => JSON.stringify(deps.filesExclude(scope.uri)) === scope.table),
+    }
+  }
+
   /** Related files pass every privacy check before opening or reading text. */
   async function contextSnippets(
     document: TabDocument,
@@ -580,6 +618,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     lineText: string,
     isCancelled: () => boolean,
     hookContext: TabHookContext,
+    policy: TabRequestPolicy,
   ): Promise<string> {
     const checkedGeneration = ignore.currentGeneration
     const candidates = [...(deps.recentEdits?.() ?? [])]
@@ -622,7 +661,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
         rootAbs === undefined ? undefined : relativeInside(rootAbs, candidate.uri.fsPath)
       if (rootAbs === undefined || relativePath === undefined) continue
       const checks: TabFileCheckDeps = {
-        filesExclude: deps.filesExclude(candidate.uri),
+        filesExclude: policy.filesExclude(candidate.uri),
         ignore,
         rootAbs,
         hasSibling: (sibling) => deps.ignoreFileExists(path.join(rootAbs, ...sibling.split('/'))),
@@ -648,7 +687,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
           return ''
         if (
           !isTabLanguageOn(deps.settings().tabLanguages, related.languageId) ||
-          isFilesExcluded(relativePath, deps.filesExclude(candidate.uri), checks.hasSibling)
+          isFilesExcluded(relativePath, policy.filesExclude(candidate.uri), checks.hasSibling)
         )
           continue
         // A large unsaved buffer is refused before reading its text too.
@@ -712,14 +751,28 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     if (firstReason !== undefined) {
       return quiet(firstReason)
     }
+    // The request binds to the policy in force now, the hook configuration
+    // settled first (RVM94KR 2–3). A hook file that did not load whole
+    // refuses every read until it is fixed (RVM94KR 1).
+    const hookPolicy = await deps.hooks?.bindPolicy()
+    if (isDisposed()) {
+      return []
+    }
+    if (hookPolicy?.isConfigurationInvalid === true) {
+      return quiet('hooks-invalid')
+    }
+    const policy = bindRequestPolicy(hookPolicy?.key ?? '')
+    const { settings } = policy
+    // Everything the request reads, asks and sends names this one model.
+    const model = settings.tabModel
     request += 1
     const hookContext: TabHookContext = {
       workspaceRoots: deps.workspaceRoots(document.uri.fsPath),
-      model: deps.settings().tabModel,
+      model,
       generationId: `request-${String(request)}`,
     }
     const checks: TabFileCheckDeps = {
-      filesExclude: deps.filesExclude(document.uri),
+      filesExclude: policy.filesExclude(document.uri),
       ignore,
       rootAbs,
       hasSibling: (sibling) => deps.ignoreFileExists(path.join(rootAbs, ...sibling.split('/'))),
@@ -765,16 +818,25 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     if (isDisposed()) {
       return []
     }
-    // The D48 question, once per window (Q-M94a, lane L): Deny sends nothing.
-    // The shim snoozes the window on `consent-denied`.
-    if (!(await deps.consent.requestUse())) {
+    // A guard, a setting or the model changed under the read: nothing is asked.
+    if (!policy.isCurrent()) {
+      return quiet('policy-changed')
+    }
+    // The D48 question, once per window (Q-M94a, lane L), for the request's
+    // own model: Deny sends nothing. The shim snoozes the window on
+    // `consent-denied`.
+    if (!(await deps.consent.requestUse(model))) {
       return quiet('consent-denied')
+    }
+    // Consent for a model the settings no longer name is never used (RVM94KR 3).
+    if (!policy.isCurrent()) {
+      return quiet('policy-changed')
     }
     const line = document.lineAt(position.line).text
     const mode = chooseTabMode(
       line.slice(0, position.character),
       line.slice(position.character),
-      deps.settings().tabMultiline,
+      settings.tabMultiline,
       isInvoke,
     )
     const offset = toOffset(text, position)
@@ -795,9 +857,9 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
             line,
             () => token.isCancellationRequested || isDisposed(),
             hookContext,
+            policy,
           )
         : ''
-    const model = hookContext.model
     const redactedPath = redactSecrets(relativePath)
     // The worst case is priced on everything sent: the instructions and the
     // one user message (D73, M82's one token per UTF-8 byte; RVM94HU 16).
@@ -820,13 +882,14 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       return quiet('budget')
     }
     // Everything checked before the waits is checked again: a snooze, the
-    // setting, the key, trust, the folders, the language, Copilot or the
-    // ignore files may have changed meanwhile (RVM94HU 2). Nothing was sent,
-    // so the reservation is released.
-    const lateReason = isDisposed()
-      ? 'cancelled-before-send'
-      : (stateQuietReason(document, rootAbs, isInvoke) ??
-        (ignore.currentGeneration === ignoreGeneration ? undefined : 'ineligible-file'))
+    // setting, the key, trust, the folders, the language, Copilot, the
+    // ignore files or the bound policy may have changed meanwhile (RVM94HU
+    // 2, RVM94KR 2). Nothing was sent, so the reservation is released.
+    const sendBlocker = (): TabQuietReason | undefined =>
+      stateQuietReason(document, rootAbs, isInvoke) ??
+      (ignore.currentGeneration === ignoreGeneration ? undefined : 'ineligible-file') ??
+      (policy.isCurrent() ? undefined : 'policy-changed')
+    const lateReason = isDisposed() ? 'cancelled-before-send' : sendBlocker()
     if (lateReason !== undefined) {
       deps.spend.settle(reservation, NOTHING_SENT)
       return quiet(lateReason)
@@ -851,9 +914,12 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       cursorLineBefore: line.slice(0, position.character),
       lineAbove: lines[position.line - 1] ?? '',
       linesBelow: lines.slice(position.line + 1, position.line + 1 + TAB_MULTILINE_MAX_LINES),
-      // Read when the engine's debounce or a free slot ends the wait: a
-      // keystroke since, or a disposed provider, sends nothing (RVM94HU 3).
-      isCancelled: () => token.isCancellationRequested || isDisposed(),
+      // Read when the engine's debounce or a free slot ends the wait, right
+      // before sending: a keystroke since, a disposed provider, or any change
+      // the late check refuses, the bound policy included, sends nothing
+      // (RVM94HU 3, RVM94KR 2).
+      isCancelled: () =>
+        token.isCancellationRequested || isDisposed() || sendBlocker() !== undefined,
     }
     let completion: string | undefined
     try {
@@ -878,6 +944,10 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       }
       deps.log.warn('Tab request failed (request)')
       return []
+    }
+    // An answer reached under a policy that has since moved is not shown.
+    if (!policy.isCurrent()) {
+      return quiet('policy-changed')
     }
     if (completion === undefined) {
       return quiet('no-suggestion')

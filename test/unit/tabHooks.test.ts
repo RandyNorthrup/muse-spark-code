@@ -6,6 +6,7 @@ import {
   type TabHookContext,
   type TabHookEdit,
   type TabHookRun,
+  type TabHookState,
   type TabHooksDeps,
 } from '../../src/core/tab/tabHooks'
 import type { ShellResult } from '../../src/core/shellResult'
@@ -69,16 +70,78 @@ describe('beforeTabFileRead', () => {
   it.each(['dispose', 'trust revoked'])(
     'refuses %s while loading an empty hook snapshot',
     async (change) => {
-      const loading = Promise.withResolvers<boolean>()
-      const h = harness({ hasHooks: () => loading.promise })
+      const loading = Promise.withResolvers<TabHookState>()
+      const h = harness({ hookState: () => loading.promise })
       const pending = h.hooks.beforeRead(EDIT.filePath, 'text', CONTEXT)
       if (change === 'dispose') h.hooks.dispose()
       else h.isWorkspaceTrusted.mockReturnValue(false)
-      loading.resolve(false)
+      loading.resolve('absent')
       expect(await pending).toBe(false)
       expect(h.run).not.toHaveBeenCalled()
     },
   )
+
+  it('refuses every read while a configured hook file did not load whole (RVM94KR 1)', async () => {
+    const h = harness({ hookState: () => Promise.resolve('invalid') })
+    expect(await h.hooks.beforeRead(EDIT.filePath, 'text', CONTEXT)).toBe(false)
+    expect(await h.hooks.beforeRead('/workspace/other.ts', '', CONTEXT)).toBe(false)
+    expect(h.run).not.toHaveBeenCalled()
+    expect(h.log).toHaveBeenCalledWith(
+      'beforeTabFileRead: hook configuration invalid; read refused',
+    )
+    expect(await h.hooks.bindPolicy()).toMatchObject({ isConfigurationInvalid: true })
+  })
+
+  it('reads unguarded only with no Tab hook configured, and refuses without a dispatcher', async () => {
+    const state = vi.fn<NonNullable<TabHooksDeps['hookState']>>().mockResolvedValue('absent')
+    const h = harness({ hookState: state })
+    expect(await h.hooks.beforeRead(EDIT.filePath, 'text', CONTEXT)).toBe(true)
+    expect(h.run).not.toHaveBeenCalled()
+    state.mockResolvedValue('present')
+    h.run.mockResolvedValue([result({ stdout: '{"permission":"deny"}' })])
+    expect(await h.hooks.beforeRead(EDIT.filePath, 'text', CONTEXT)).toBe(false)
+    expect(h.run).toHaveBeenCalledOnce()
+    state.mockRejectedValue(new Error('/private/bundle/path'))
+    expect(await h.hooks.beforeRead(EDIT.filePath, 'other', CONTEXT)).toBe(false)
+    expect(await h.hooks.bindPolicy()).toMatchObject({ isConfigurationInvalid: false })
+    expect(h.log.mock.calls.flat().join(' ')).not.toContain('/private/bundle/path')
+  })
+
+  it('binds a request to the settled configuration, trust and opt-in (RVM94KR 2)', async () => {
+    const loading = Promise.withResolvers<TabHookState>()
+    const h = harness({ hookState: () => loading.promise })
+    const settled = vi.fn()
+    const binding = (async () => {
+      const policy = await h.hooks.bindPolicy()
+      settled()
+      return policy
+    })()
+    await Promise.resolve()
+    expect(settled).not.toHaveBeenCalled()
+    loading.resolve('present')
+    const { key, isConfigurationInvalid } = await binding
+    expect(isConfigurationInvalid).toBe(false)
+    expect(h.hooks.policyKey()).toBe(key)
+    h.configurationVersion.mockReturnValue('config-2')
+    expect(h.hooks.policyKey()).not.toBe(key)
+    h.configurationVersion.mockReturnValue('config-1')
+    h.isHooksEnabled.mockReturnValue(false)
+    expect(h.hooks.policyKey()).not.toBe(key)
+    h.isHooksEnabled.mockReturnValue(true)
+    h.isWorkspaceTrusted.mockReturnValue(false)
+    expect(h.hooks.policyKey()).not.toBe(key)
+    h.isWorkspaceTrusted.mockReturnValue(true)
+    expect(h.hooks.policyKey()).toBe(key)
+    h.hooks.dispose()
+    expect(h.hooks.policyKey()).not.toBe(key)
+  })
+
+  it('binds without loading hooks while they are off', async () => {
+    const state = vi.fn<NonNullable<TabHooksDeps['hookState']>>().mockResolvedValue('invalid')
+    const h = harness({ hookState: state, isHooksEnabled: () => false })
+    expect(await h.hooks.bindPolicy()).toMatchObject({ isConfigurationInvalid: false })
+    expect(state).not.toHaveBeenCalled()
+  })
 
   it('sends full unredacted local text and the request envelope with TabRead and a timeout cap', async () => {
     const h = harness()

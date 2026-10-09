@@ -3620,6 +3620,8 @@
   "tabStatusLanguageOff": "Tab オフ ({language} は対象外)",
   "tabStatusCopilot": "Tab: Copilot がオンのため手動のみ",
   "tabStatusError": "Tab エラー ({kind})",
+  "tabStatusHooksInvalid": "Tab 一時停止: フック ファイルにエラーがあります",
+  "tabStatusHooksInvalidDetail": "spark-hooks.json ファイルを完全には読み込めなかったため、修正されるまで Tab はファイルを読み取りません。問題は Muse Spark のログに記載されています。",
   "tabMenuTurnOff": "Tab をオフにする",
   "tabMenuSnoozeShort": "15 分間スヌーズ",
   "tabMenuSnoozeLong": "1 時間スヌーズ",

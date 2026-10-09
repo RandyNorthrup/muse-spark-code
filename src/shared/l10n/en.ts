@@ -4481,6 +4481,11 @@ export const EN = {
   tabStatusCopilot: 'Tab: on Invoke while Copilot is on',
   // {kind} is the last failure's class, never code or a path.
   tabStatusError: 'Tab failed ({kind})',
+  // A spark-hooks.json file is present but could not be loaded in full, so
+  // Tab reads no file until it is fixed (M94 lane K).
+  tabStatusHooksInvalid: 'Tab paused: hook file has errors',
+  tabStatusHooksInvalidDetail:
+    'A spark-hooks.json file could not be loaded in full, so Tab reads no file until it is fixed. The Muse Spark log names the problem.',
   // The status bar menu: turn off, the snoozes, languages, the multi-line
   // mode, Copilot's row and Account & usage.
   tabMenuTurnOff: 'Turn Tab off',

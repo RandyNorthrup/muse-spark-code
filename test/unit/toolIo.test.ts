@@ -35,15 +35,20 @@ import { posixQuoted } from '../../src/core/shellQuote'
 import type { RunProgram } from '../../src/host/processTree'
 import { removeFolder } from './helpers/temporaryFolders'
 import { readJobSource } from './helpers/jobSource'
+import { fakeResourceLease } from './helpers/resources/fakes'
+import { admitResource } from '../../src/core/resources/admission'
+import { acquireHookProcessSlot } from '../../src/core/backends/modelapi/hookRuntimeEntry'
 
 // Keep native I/O, with replaceable identity samples for deterministic ID collisions.
 vi.mock('node:fs/promises', async (importOriginal) => ({
   ...(await importOriginal<typeof fs>()),
 }))
 // The real job helper compiles under the bootstrap runner; only its admission is a fixture.
+// Resource admission keeps its real (unconfigured) answer unless a case hands out a lease.
 vi.mock('../../src/core/resources/admission', async (original) => {
   const { withFixtureBootstrap } = await import('./helpers/resources/fixtureLaunch')
-  return withFixtureBootstrap(await original())
+  const actual = withFixtureBootstrap(await original())
+  return { ...actual, admitResource: vi.fn(actual.admitResource) }
 })
 
 const INSTALLED_SHELLS: ReadonlySet<string> = new Set([
@@ -319,7 +324,8 @@ const runNode = (cwd: string, script: string, timeoutMs: number) =>
     tree: localTree(),
   })
 
-const io = () =>
+/** The host's tool IO; without jobs, an admitted lease is used as admitted (no job holder). */
+const io = (isJobbed = true) =>
   createToolIo({
     platform: process.platform,
     listFiles: () => Promise.resolve(['a.txt']),
@@ -328,7 +334,7 @@ const io = () =>
     searchWorkerPath: 'unused-here',
     log: () => undefined,
     unsavedFiles: () => [],
-    shellJobAssembly: jobAssembly,
+    shellJobAssembly: isJobbed ? jobAssembly : undefined,
   })
 
 describe('createToolIo: files with unsaved changes', () => {
@@ -990,6 +996,35 @@ describe('shared production hook process cap', () => {
     } finally {
       await writeFile(path.join(folder, 'release'), '')
       await Promise.allSettled(runs)
+      await removeFolder(folder)
+    }
+  })
+
+  it('gives an admitted resource lease back when its slot wait is cancelled (RVM94KR 4)', async () => {
+    const folder = await mkdtemp(path.join(tmpdir(), 'muse-hook-lease-'))
+    const held = await Promise.all(
+      Array.from({ length: HOOK_MAX_RUNNING_COMMANDS }, () => acquireHookProcessSlot(undefined)),
+    )
+    try {
+      const runner = io(false).runHook
+      if (runner === undefined) throw new Error('hook runner missing')
+      // Cancelled while it waits for a slot, and cancelled before it reaches one.
+      for (const isCancelledFirst of [false, true]) {
+        const lease = fakeResourceLease()
+        vi.mocked(admitResource).mockResolvedValueOnce(lease)
+        const signal = new AbortController()
+        if (isCancelledFirst) signal.abort()
+        const waiting = runner('unused', '{}', folder, 10_000, signal.signal)
+        const rejection = expect(waiting).rejects.toThrow('hook command cancelled')
+        await vi.waitFor(() => {
+          expect(admitResource).toHaveBeenLastCalledWith('hook', signal.signal)
+        })
+        signal.abort()
+        await rejection
+        expect(lease.complete).toHaveBeenCalledExactlyOnceWith(true)
+      }
+    } finally {
+      for (const release of held) release()
       await removeFolder(folder)
     }
   })

@@ -3872,6 +3872,8 @@
   "tabStatusLanguageOff": "Tab отключён для {language}",
   "tabStatusCopilot": "Tab: только по вызову, пока включен Copilot",
   "tabStatusError": "Ошибка Tab ({kind})",
+  "tabStatusHooksInvalid": "Tab приостановлен: в файле хуков есть ошибки",
+  "tabStatusHooksInvalidDetail": "Файл spark-hooks.json не удалось загрузить целиком, поэтому Tab не читает файлы, пока он не будет исправлен. Проблема указана в журнале Muse Spark.",
   "tabMenuTurnOff": "Выключить Tab",
   "tabMenuSnoozeShort": "Отложить на 15 минут",
   "tabMenuSnoozeLong": "Отложить на час",

@@ -18,6 +18,21 @@ import type { ShellResult } from '../shellResult'
 
 export type TabHookEvent = 'beforeTabFileRead' | 'afterTabFileEdit'
 
+/**
+ * What the hook configuration in force says about one event (RVM94KR 1): no
+ * Tab hook, a configured one, or a hook file present that did not load
+ * whole. Only `absent` reads without a guard; `invalid` refuses every read.
+ */
+export type TabHookState = 'absent' | 'present' | 'invalid'
+
+/** The hook policy a Tab request binds to at its start (RVM94KR 2). */
+export interface TabHookPolicy {
+  /** Read again before dispatch and before the answer is used: a change drops the request. */
+  readonly key: string
+  /** A configured hook file did not load whole: Tab reads nothing until it is fixed. */
+  readonly isConfigurationInvalid: boolean
+}
+
 export interface TabHookContext {
   readonly workspaceRoots: readonly string[]
   readonly model: string
@@ -61,8 +76,12 @@ export interface TabHooksDeps {
   readonly isHooksEnabled: () => boolean
   /** Changes whenever either scope's hook snapshot changes. */
   readonly configurationVersion: () => string
-  /** Production loads the snapshot lazily; no matching guard must preserve the old read. */
-  readonly hasHooks?: ((event: TabHookEvent) => Promise<boolean>) | undefined
+  /**
+   * Production loads the snapshot lazily and waits for a pending reload:
+   * `absent` preserves the old read, `invalid` refuses it, and a rejection
+   * (no dispatch) refuses it too.
+   */
+  readonly hookState?: ((event: TabHookEvent) => Promise<TabHookState>) | undefined
   readonly run: (request: TabHookRun) => Promise<readonly ShellResult[] | undefined>
   /** Counts and fixed status words only: no payload, output, reason or path. */
   readonly log: (message: string) => void
@@ -126,6 +145,25 @@ export function createTabHooks(deps: TabHooksDeps) {
     return isTrusted() && deps.isHooksEnabled()
   }
 
+  /** Trust, the opt-in and the configuration version: a request's bound key. */
+  function policyKey(): string {
+    return JSON.stringify([isTrusted(), deps.isHooksEnabled(), deps.configurationVersion()])
+  }
+
+  /** Settles the configuration in force first, so its version is the one bound. */
+  async function bindPolicy(): Promise<TabHookPolicy> {
+    let state: TabHookState | undefined
+    if (isAllowed() && deps.hookState !== undefined) {
+      try {
+        state = await deps.hookState('beforeTabFileRead')
+      } catch {
+        // No dispatch: every read refuses on its own path.
+        state = undefined
+      }
+    }
+    return { key: policyKey(), isConfigurationInvalid: state === 'invalid' }
+  }
+
   async function canRead(
     filePath: string,
     content: string,
@@ -133,12 +171,18 @@ export function createTabHooks(deps: TabHooksDeps) {
   ): Promise<boolean> {
     if (!isTrusted()) return false
     if (!deps.isHooksEnabled()) return true
-    if (deps.hasHooks !== undefined) {
+    if (deps.hookState !== undefined) {
+      let state: TabHookState
       try {
-        if (!(await deps.hasHooks('beforeTabFileRead'))) return isTrusted()
+        state = await deps.hookState('beforeTabFileRead')
       } catch {
         return false
       }
+      if (state === 'invalid') {
+        deps.log('beforeTabFileRead: hook configuration invalid; read refused')
+        return false
+      }
+      if (state === 'absent') return isTrusted()
     }
     const capturedVersion = currentVersion()
     const digest = createHash('sha256').update(content).digest('hex')
@@ -260,6 +304,8 @@ export function createTabHooks(deps: TabHooksDeps) {
   return {
     beforeRead: canRead,
     afterEdit,
+    bindPolicy,
+    policyKey,
     dispose: () => {
       isDisposed = true
       verdicts.clear()
