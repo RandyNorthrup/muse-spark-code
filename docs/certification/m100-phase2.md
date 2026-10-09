@@ -6034,3 +6034,56 @@ This PC, natively: `DevicesApp`, `deviceProductionWiring`,
 `teamHarness` 23/23 (40.0 s) on the shared build; `devicesPhase2Harness`
 19/19 in three runs (one instrumented). `webviewBundle` fails only the same
 baseline case, with the same 751,511 bytes as Linux.
+
+### RVM100J2 review fixes (2026-10-08, 21:45 onward)
+
+Codex review RVM100J2 (MacBook, macOS 15.7.9) ran the macOS device sweep,
+**1,786 passed** with the Darwin-native group green, and found one P2 and one
+P3. Both are fixed; no timeout, budget or bound changed.
+
+**P2: the shared build's proof outlived watch reruns.** Vitest keeps a
+global setup for the whole watch session, so after a source edit a rerun
+accepted the first run's build. Now:
+
+- the global setup registers `project.onTestsRerun` and builds again
+  whenever a rerun selects a serving suite (a rerun without one provides no
+  proof);
+- the proof is no longer a flag but the generation it was built from: a
+  SHA-256 over the path and bytes of every tracked build input (`src`,
+  `scripts`, `l10n`, `vendor`, `native`, `media`, `resources`, `skills`,
+  `first-party-skills`, the package, lock, NLS and tsconfig files, the
+  notices), computed after the build (about 0.1 s here);
+- both harnesses call `assertCurrentProductionBuild` in their preparation:
+  no proof refuses with "No shared production build in this run", a proof
+  from other sources with "Stale shared production build: its sources
+  changed after this run built it".
+
+Regressions in `productionBuild.test.ts` (5/5): generation A, an edit, no
+rebuild, is refused, and accepted again once rebuilt; a rerun that selects
+a serving suite builds again and provides the new generation, a rerun
+without one builds nothing. Drills, each restored after: without the
+`onTestsRerun` registration the rerun case fails ("expected to be called 2
+times, but got 1 times"); with the comparison removed the A to B case fails
+("expected [Function] to throw").
+
+**P3: portable self-test fixtures polled for the probe's exit.** Both probe
+cases waited for the real probe child with `vi.waitFor`'s 1 s default and
+failed on the loaded Mac at 1,003 to 1,014 ms. The Linux fixture now keeps
+the first worker child's own `exit` event and the shared `probing()` helper
+awaits it, bounded by the case's own deadline (unchanged). Drill: with the
+probe child slowed to 1.2 s, the old poll fails both cases at 1,011 and
+1,023 ms with the Mac's signature ("expected null to be +0"); the event wait
+passes both; restored, 36/36.
+
+Results: this PC, `productionBuild` + `deviceWorkerLinux` 41/41 and
+`devicesPhase2Harness` 19/19 on the generation-checked build. Kubuntu,
+`productionBuild`, `deviceWorkerLinux`, `deviceWorkerHostNative`,
+`devicesPhase2Harness`, `teamHarness` in one run: **96 passed, 7 skipped**
+(Windows-native), exit 0; `typecheck:unit`, `duplication` (0 clones) and
+plain `knip` exit 0 there. ESLint `--max-warnings=0` on the changed files:
+exit 0.
+
+The review's caveat stands as recorded, not changed here: an unsharded
+whole-suite run lets `webviewBundle.test.mjs` rebuild webview chunks into
+the same `dist/` the Chrome suites serve; the hosted shard placement keeps
+them apart today.
