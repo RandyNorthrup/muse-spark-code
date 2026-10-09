@@ -10,6 +10,7 @@ const POLICY = JSON.parse(
   readFileSync(new URL('../deploy/container/policy.json', import.meta.url), 'utf8'),
 )
 const Digest = z.string().regex(/^sha256:[a-f\d]{64}$/)
+const DockerCommand = z.object({ file: z.string().min(1), args: z.array(z.string()) }).strict()
 const Versions = z.array(
   z.array(
     z.object({
@@ -67,7 +68,8 @@ export function assertNodeImageTag(tag) {
   releaseVersion(tag)
 }
 
-export function nodeImageChannel(tag, pages, execute = execFileSync) {
+export function nodeImageChannel(tag, pages, dockerCommand, execute = execFileSync) {
+  const command = DockerCommand.parse(dockerCommand)
   const candidate = releaseVersion(tag)
   const channel = candidate.pre.length === 0 ? 'stable' : 'preview'
   const current = Versions.parse(pages)
@@ -88,9 +90,17 @@ export function nodeImageChannel(tag, pages, execute = execFileSync) {
       .parse(
         JSON.parse(
           execute(
-            'docker',
-            ['buildx', 'imagetools', 'inspect', '--format', '{{json .Manifest}}', reference],
-            { encoding: 'utf8', stdio: 'pipe' },
+            command.file,
+            [
+              ...command.args,
+              'buildx',
+              'imagetools',
+              'inspect',
+              '--format',
+              '{{json .Manifest}}',
+              reference,
+            ],
+            { encoding: 'utf8', stdio: 'pipe', shell: false },
           ),
         ),
       )

@@ -208,7 +208,7 @@ jobs:
           node --input-type=module -e 'import {assertNodeImageTag} from "./scripts/retain-node-images.mjs"; assertNodeImageTag(process.env.GITHUB_REF_NAME)'
           channel=''
           channel_lookup_failed=0
-          channel=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; import {nodeImageChannel} from "./scripts/retain-node-images.mjs"; console.log(nodeImageChannel(process.env.GITHUB_REF_NAME,JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/node-channel-versions.json","utf8"))))') || channel_lookup_failed=1
+          channel=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; import {nodeImageChannel} from "./scripts/retain-node-images.mjs"; console.log(nodeImageChannel(process.env.GITHUB_REF_NAME,JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/node-channel-versions.json","utf8")),{file:"docker",args:[]}))') || channel_lookup_failed=1
           docker buildx imagetools create --tag "$IMAGE:$GITHUB_REF_NAME" "$REFERENCE"
           if [ "$channel_lookup_failed" = 0 ] && [ -n "$channel" ]; then
             docker buildx imagetools create --tag "$IMAGE:$channel" "$REFERENCE"

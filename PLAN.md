@@ -22534,6 +22534,17 @@ workflow; deliberate rollback requires a separate explicit audited workflow.
 J owns the CHANGELOG/operator documentation handoff. No dependency or gate
 changes, registry writes, live model calls, merges or pushes are authorized.
 
+**Lane C Windows test repair (FIXM110C3, 2026-10-09).** RVF110C2's remaining
+P2 is in scope: a `.cmd` stub cannot run through shell-free Node spawning.
+Make the channel helper's executable and argument prefix an explicit,
+zod-validated dependency. The workflow supplies `docker` with no prefix;
+tests supply the absolute Node executable and a fake `.mjs` script, and
+exercise the same shell-free inspection path without any Docker PATH lookup.
+Remove the simulated Windows resolution test. Record regression failures,
+red drills with byte-exact restoration, and the Node documentation's Windows
+spawning constraint in `docs/certification/m110-c.md`. No shell is enabled,
+and hosted Windows execution remains a lead qualification.
+
 **Roadmap.** Each phase lands on its own integration branch and ships in the
 train named. Estimates are lane-hours of implementation, review and
 certification at the fleet's usual split (Muse implements, Codex reviews by

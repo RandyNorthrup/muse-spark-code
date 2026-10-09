@@ -1,7 +1,9 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { z } from 'zod'
+import { nodeImageChannel } from '../../scripts/retain-node-images.mjs'
 
 const workflow = () => readFileSync('.github/workflows/node-image.yml', 'utf8')
 const job = (name) =>
@@ -17,8 +19,7 @@ const registryVersion = (id, tags) => ({
   created_at: '2026-10-05T00:00:00Z',
   metadata: { container: { tags } },
 })
-const dockerStubBody = () => String.raw`#!${process.execPath}
-const fs = require('node:fs')
+const dockerStubBody = String.raw`import fs from 'node:fs'
 const args = process.argv.slice(2)
 const state = JSON.parse(fs.readFileSync(process.env.FAKE_STATE, 'utf8'))
 if (args[2] === 'inspect') {
@@ -47,27 +48,6 @@ if (args[2] === 'inspect') {
   fs.writeFileSync(process.env.FAKE_STATE, JSON.stringify(state))
 } else process.exit(1)
 `
-const plantDockerStub = (directory, platform = process.platform) => {
-  if (platform === 'win32') {
-    // Windows spawn resolves only PATHEXT names, and an extensionless file
-    // would shadow the shim while failing to execute, so only the .cmd exists.
-    writeFileSync(path.join(directory, 'docker-impl.cjs'), dockerStubBody())
-    writeFileSync(
-      path.join(directory, 'docker.cmd'),
-      '@echo off\r\nnode "%~dp0docker-impl.cjs" %*\r\n',
-    )
-  } else {
-    writeFileSync(path.join(directory, 'docker'), dockerStubBody(), { mode: 0o755 })
-  }
-}
-const resolveWindowsCommand = (directory, command) => {
-  const names = readdirSync(directory)
-  const lower = new Map(names.map((name) => [name.toLowerCase(), name]))
-  const candidates = [command, '.COM', '.EXE', '.BAT', '.CMD'].map((suffix) =>
-    suffix.startsWith('.') ? `${command}${suffix}` : suffix,
-  )
-  return candidates.map((candidate) => lower.get(candidate.toLowerCase())).find(Boolean)
-}
 const promote = (
   tag,
   current,
@@ -80,7 +60,7 @@ const promote = (
   } = {},
 ) => {
   mkdirSync('temp', { recursive: true })
-  const directory = mkdtempSync(path.resolve('temp/m110-c-channel-'))
+  const directory = mkdtempSync(path.resolve('temp/m110-c-channel space &-'))
   const channel = tag.includes('-') ? 'preview' : 'stable'
   const stateFile = path.join(directory, 'state.json')
   const snapshot = path.join(directory, 'snapshot.json')
@@ -97,26 +77,41 @@ const promote = (
     snapshot,
     JSON.stringify(pages ?? [current ? [registryVersion(1, [channel, current])] : []]),
   )
-  plantDockerStub(directory)
+  const dockerScript = path.join(directory, 'docker stub.mjs')
+  const ghScript = path.join(directory, 'gh.mjs')
+  writeFileSync(dockerScript, dockerStubBody)
   writeFileSync(
-    path.join(directory, 'gh'),
-    `#!${process.execPath}
+    ghScript,
+    `import fs from 'node:fs'
 if (process.env.FAKE_REGISTRY_FAILURE === '1') process.exit(1)
-process.stdout.write(require('node:fs').readFileSync(process.env.FAKE_SNAPSHOT, 'utf8'))
+process.stdout.write(fs.readFileSync(process.env.FAKE_SNAPSHOT, 'utf8'))
 `,
-    { mode: 0o755 },
   )
   const publish = job('publish')
   const guardedStart = publish.indexOf('          gh api --paginate --slurp')
   const start = guardedStart === -1 ? publish.indexOf('          channel=stable') : guardedStart
   expect(start).toBeGreaterThan(0)
-  const script = publish.slice(start).replaceAll(/^ {10}/gm, '')
   try {
-    const result = spawnSync('bash', ['-euo', 'pipefail', '-c', script], {
+    // Substitute only the executable dependency; keep the workflow's actual
+    // promotion shell and the helper's real execFileSync implementation.
+    const script = publish
+      .slice(start)
+      .replaceAll(/^ {10}/gm, '')
+      .replace('{file:"docker",args:[]}', 'JSON.parse(process.env.FAKE_DOCKER_COMMAND)')
+    expect(script).toContain('JSON.parse(process.env.FAKE_DOCKER_COMMAND)')
+    const functions = `
+node() { "$FAKE_NODE" "$@"; }
+docker() { "$FAKE_NODE" "$FAKE_DOCKER_SCRIPT" "$@"; }
+gh() { "$FAKE_NODE" "$FAKE_GH_SCRIPT" "$@"; }
+`
+    const result = spawnSync('bash', ['-euo', 'pipefail', '-c', functions + script], {
       encoding: 'utf8',
       env: {
         ...process.env,
-        PATH: `${directory}${path.delimiter}${process.env.PATH}`,
+        FAKE_NODE: process.execPath.replaceAll('\\', '/'),
+        FAKE_DOCKER_SCRIPT: dockerScript.replaceAll('\\', '/'),
+        FAKE_GH_SCRIPT: ghScript.replaceAll('\\', '/'),
+        FAKE_DOCKER_COMMAND: JSON.stringify({ file: process.execPath, args: [dockerScript] }),
         FAKE_STATE: stateFile,
         FAKE_SNAPSHOT: snapshot,
         FAKE_REGISTRY_FAILURE: registryFailure ? '1' : '0',
@@ -279,55 +274,40 @@ describe('node image release admission', () => {
     expect(tags.notaversion).toBeUndefined()
     expect(tags.stable).toBe(currentDigest)
   })
-  it('resolves the docker stub through Windows PATHEXT rules without shadowing', () => {
-    mkdirSync('temp', { recursive: true })
-    const directory = mkdtempSync(path.resolve('temp/m110-c-win32-'))
-    try {
-      plantDockerStub(directory, 'win32')
-      // Windows tries the bare name first, then each PATHEXT extension in
-      // order; the shim must win and no extensionless file may shadow it.
-      expect(resolveWindowsCommand(directory, 'docker')).toBe('docker.cmd')
-      const stateFile = path.join(directory, 'state.json')
-      writeFileSync(stateFile, JSON.stringify({ stable: currentDigest }))
-      const inspect = spawnSync(
-        process.execPath,
-        [
-          path.join(directory, 'docker-impl.cjs'),
-          'buildx',
-          'imagetools',
-          'inspect',
-          '--format',
-          '{{json .Manifest}}',
-          `${image}:stable`,
-        ],
-        {
-          encoding: 'utf8',
-          env: { ...process.env, FAKE_STATE: stateFile, IMAGE: image },
-        },
-      )
-      expect(inspect.status).toBe(0)
-      expect(inspect.stdout).toBe(JSON.stringify({ digest: currentDigest }))
-      const missing = spawnSync(
-        process.execPath,
-        [
-          path.join(directory, 'docker-impl.cjs'),
-          'buildx',
-          'imagetools',
-          'inspect',
-          '--format',
-          '{{json .Manifest}}',
-          `${image}:preview`,
-        ],
-        {
-          encoding: 'utf8',
-          env: { ...process.env, FAKE_STATE: stateFile, IMAGE: image },
-        },
-      )
-      expect(missing.status).toBe(1)
-      expect(missing.stderr).toBe(`ERROR: ${image}:preview: not found\n`)
-    } finally {
-      rmSync(directory, { recursive: true, force: true })
-    }
+  it('passes the configured executable and argument prefix directly without a shell', () => {
+    const execute = vi.fn(() => JSON.stringify({ digest: currentDigest }))
+    const command = { file: process.execPath, args: ['a path with spaces & symbols.mjs'] }
+    expect(
+      nodeImageChannel('v0.15.0', [[registryVersion(1, ['stable', 'v0.14.0'])]], command, execute),
+    ).toBe('stable')
+    expect(execute).toHaveBeenCalledExactlyOnceWith(
+      command.file,
+      [
+        ...command.args,
+        'buildx',
+        'imagetools',
+        'inspect',
+        '--format',
+        '{{json .Manifest}}',
+        `${image}:stable`,
+      ],
+      { encoding: 'utf8', stdio: 'pipe', shell: false },
+    )
+  })
+  it.each([
+    null,
+    'docker',
+    {},
+    { file: '', args: [] },
+    { file: 42, args: [] },
+    { file: 'docker' },
+    { file: 'docker', args: '--version' },
+    { file: 'docker', args: [42] },
+    { file: 'docker', args: [], shell: true },
+  ])('rejects an invalid Docker command before executing: %j', (command) => {
+    const execute = vi.fn()
+    expect(() => nodeImageChannel('v0.15.0', [[]], command, execute)).toThrow(z.ZodError)
+    expect(execute).not.toHaveBeenCalled()
   })
   it('refuses to initialize a channel when registry inspection is unavailable', () => {
     const { result, tags } = promote('v0.14.0', undefined, { isDockerUnavailable: true })
