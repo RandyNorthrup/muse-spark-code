@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -6,6 +7,7 @@ import { brotliCompressSync, brotliDecompressSync, constants as zlibConstants } 
 import { createRequire } from 'node:module'
 import { runInNewContext } from 'node:vm'
 import { build } from 'esbuild'
+import { fromMarkdown } from 'mdast-util-from-markdown'
 import {
   UI_TEXT_REGIONS,
   regionalUiText,
@@ -864,6 +866,76 @@ describe('VSIX packaging', () => {
     expect(packaged).toContain('## [2.0.0-beta.1]')
     expect(packaged).toContain('Beta fix stays.')
     expect(packaged).toContain('Prerelease highlight.')
+  })
+  it.each(['\n', '\r\n'])(
+    'shortens by parsed heading spans under %j, including indented and fenced headings',
+    (eol) => {
+      const repository = 'https://github.com/example/repo'
+      for (const indent of ['', ' ', ' '.repeat(3)]) {
+        const changelog = [
+          '## [1.0.4] - 2026-10-05',
+          '',
+          '### Fixed',
+          '',
+          '- Current fix.',
+          '',
+          '```md',
+          '## [1.0.3] - 2026-10-04',
+          '```',
+          '',
+          `${indent}## [1.0.3] - 2026-10-04`,
+          '',
+          '### Highlights',
+          '',
+          '- Previous highlight.',
+          '',
+          '### Fixed',
+          '',
+          `- Old detailed notes. ${'x'.repeat(80_000)}`,
+          '',
+        ].join(eol)
+        const parsed = parseChangelog(
+          changelog,
+          { commands: new Set(), settings: new Set() },
+          repository,
+        )
+        const selection = selectWhatsNewReleases(parsed, repository)
+        expect(selection.plan).toEqual([
+          { version: '1.0.4', full: true },
+          { version: '1.0.3', full: false },
+        ])
+        const packaged = packagedChangelog(changelog, parsed, selection.plan, repository)
+        expect(packaged).toContain('Current fix.')
+        expect(packaged).toContain('Previous highlight.')
+        expect(packaged).toContain(`[Full notes for 1.0.3](${repository}/blob/main/CHANGELOG.md).`)
+        expect(packaged).not.toContain('Old detailed notes.')
+        expect(Buffer.byteLength(packaged)).toBeLessThan(1000)
+        // The shortened heading remains a heading, including under CRLF.
+        expect(
+          fromMarkdown(packaged)
+            .children.filter((node) => node.type === 'heading' && node.depth === 2)
+            .map((node) => node.children.map((child) => child.value).join('')),
+        ).toEqual(['[1.0.4] - 2026-10-05', '[1.0.3] - 2026-10-04'])
+      }
+    },
+  )
+  it('refuses CR-only and Setext release headings before packaging can diverge from the page', () => {
+    const repository = 'https://github.com/example/repo'
+    const packageText = (text) => {
+      const parsed = parseChangelog(text, { commands: new Set(), settings: new Set() }, repository)
+      return packagedChangelog(
+        text,
+        parsed,
+        selectWhatsNewReleases(parsed, repository).plan,
+        repository,
+      )
+    }
+    expect(() => packageText('## [1.0.4] - 2026-10-05\r\r### Fixed\r\r- Fix.\r')).toThrow(
+      'CHANGELOG.md: CR-only line endings are not supported; use LF or CRLF',
+    )
+    expect(() =>
+      packageText('[1.0.4] - 2026-10-05\n----------------------\n\n### Fixed\n\n- Fix.\n'),
+    ).toThrow('CHANGELOG.md 1.0.4: Setext release headings are not supported')
   })
   it('packages the retained earlier Highlights, so the packaged notes agree with the page', () => {
     const repository = 'https://github.com/example/repo'

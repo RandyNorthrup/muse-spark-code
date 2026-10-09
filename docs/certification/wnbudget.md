@@ -9,8 +9,9 @@ merge or rebase. No paid or live model calls.
 0.17.0's release build failed: two full releases decoded to 79,510 bytes,
 above the unchanged `WHATS_NEW_CONTENT_DECODE_MAX_BYTES` (76,800). The
 notes were hand-tightened for 0.17.0 instead. This lane makes the writer
-budget-aware so a long release can never fail the build again, without
-hiding the newest release.
+budget-aware so older notes cannot invalidate a feasible final plan,
+without hiding the newest release. A newest release that cannot fit still
+gets a named refusal, including an encoded artifact that is too large.
 
 ## What changed
 
@@ -164,3 +165,124 @@ scripts/check-l10n.mjs` (0 problems), `npm run check:reference`
   CHANGELOG ships 0.17.0 + 0.16.0 in full, and the packaged CHANGELOG is
   byte-identical to the pre-fix output (plan and legacy paths,
   SHA-256 `80884cbd…` both ways).
+
+## Round 4 plan (2026-10-09, linuxlt)
+
+1. Complete: enumerate complete feasible plans with the real encoder;
+   add the RVWNBUDGET3 exact-bound predecessor/fallback regression and an
+   exhaustive random-size preference oracle (32 seeded sizes/Highlight
+   combinations; every candidate's byte boundary minus one, exact and plus
+   one, plus a random bound). The oracle also checks input preservation.
+2. Complete: enforce the ATX LF/CRLF heading contract, return heading/body
+   spans, and package only parsed spans. Regress CR-only, Setext, fenced
+   and indented headings. The six new parser cases failed before the fix;
+   all 36 content, 13 HTML and 10 panel tests now pass.
+3. Gates complete: all eight drills fired and restored byte-exact; focused
+   tests and requested static/build checks pass. Commit and post-hook diff
+   verification are in progress. Full quality and universal release
+   qualification remain lead-owned, per the rig brief.
+
+Round 4 supersedes round 3's provisional-admission and heading-boundary
+claims above; the earlier sections record historical work and results.
+
+The current selector enumerates every complete plan in lexicographic
+preference order: full, Highlights + full-notes link, omitted; compare the
+newest release first, then the next. The newest is always full. The
+full-notes window is two releases total. Its standing earlier fallback
+ships only Highlights + link, or is omitted, and is needed only when no
+retained window release has Highlights. That keeps at most three releases
+and at most 27 plans (six with the current window and a needed fallback).
+Each candidate's exact final JSON includes `shortened: true` only for a
+window reduction/omission or omission of a needed fallback. No flag bytes
+are reserved when keeping the standing fallback alone. A candidate must
+fit the decoded bound and succeed with `encodeWhatsNewContent`; the first
+feasible plan wins, with all plans still measured. The writer uses that
+same envelope constructor. No greedy/provisional admission remains.
+
+Release headings must be ATX `## [version] - YYYY-MM-DD`, terminated by LF
+or CRLF. Markdown's one to three leading spaces are accepted (the heading
+span starts at `##`); fenced and four-space indented examples stay code.
+Lone CR anywhere and Setext release headings get named refusals, as do
+noncanonical or unterminated release headings. Each parsed release carries
+non-enumerable whole-section, heading (terminator included), body, and
+Highlights spans. Packaging slices parsed spans only, with no heading
+regex or newline search. The Unreleased and legacy full-window paths keep
+their parsed ranges. No runtime UI markup or localized text changes.
+
+Round 4 packaging baseline: 89 packaging + 2 changelog-version tests pass.
+The packaged shortened heading is checked through mdast: the link after
+Highlights is valid package prose, while source Highlights validation
+requires only its curated list.
+
+### Round 4 finding to test map
+
+| Finding                                                                                                | Regression and result                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RVWNBUDGET3: full predecessor provisionally fits at 76,800 bytes, fallback omission then adds 17 bytes | `reconsiders a full predecessor ...`: failed on round 3 with named 76,817-byte refusal; now chooses newest full, predecessor link, fallback Highlights + link, encoded successfully.                                                      |
+| RVWNBUDGET2: exact-bound fallback lost because an absent flag was reserved                             | Existing `keeps fitting earlier Highlights at the exact bound ...` passes unchanged at 76,800 bytes, with flag absent.                                                                                                                    |
+| RVWNBUDGET: exact-bound newest, link-only patch, prerelease and page/package fallback mismatch         | Existing exact-fit refusal, highlight-less packaging, prerelease packaging, retained-fallback plan and package tests all remain covered.                                                                                                  |
+| Final-plan preference across different note sizes and Highlight presence                               | `chooses the best feasible complete plan ...`: exhaustive independent list for 32 seeded cases, every plan's minus-one/exact/plus-one bound and a random bound; selected content, plan and flag equal the best feasible candidate.        |
+| Decoded fit may exceed encoded budget                                                                  | `rejects decoded fits that the real encoder cannot ship ...`: deterministic high-entropy detail is under 76,800 decoded bytes but refused by the real 40 KiB encoder; older notes become a link, newest-only gets a named refusal.        |
+| RVWNBUDGET3: CR-only and Setext heading divergence                                                     | Parser and packaging pipeline refuse both by name. LF/CRLF heading/body spans include exact terminators; unsupported spelling and unterminated headings are refused.                                                                      |
+| RVWNBUDGET2: fenced and indented heading divergence                                                    | Existing full-note regressions plus six shortened LF/CRLF + 0/1/3-space cases pass; fenced example stays code, old detail absent, both real headings remain Markdown headings. Parser also checks two-space headings and four-space code. |
+
+### Round 4 red drills
+
+Every drill runs its entire owned test file with repository timeouts and
+`--maxWorkers=3`, with no test filters. Backups and logs:
+`$TMPDIR/wnbudget-r4-drills/`. Every mutation fails a behavior assertion,
+then a finally block restores original bytes and compares SHA-256.
+
+| Drill      | Mutation                                                | Observed failure                                                                                |
+| ---------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Flag       | Measure final candidate with `shortened` forced absent  | 3 tests fail: exact-fit newest refusal, full-predecessor/fallback overflow, exhaustive oracle.  |
+| Preference | Replace first feasible choice with last feasible choice | 11 tests fail, including full-note retention and oracle.                                        |
+| Encoder    | Substitute JSON parsing for real encoder admission      | High-entropy encoded-budget regression fails.                                                   |
+| CR         | Remove lone-CR guard                                    | Named line-ending refusal regression fails.                                                     |
+| Setext     | Remove Setext guard                                     | Named Setext refusal regression fails.                                                          |
+| Contract   | Remove ATX/terminator guard                             | Unterminated/noncanonical heading regression fails.                                             |
+| Spans      | Extend parsed heading span to file end                  | LF, CRLF and indented heading-span regressions fail.                                            |
+| Packaging  | Extend the packaged heading through its body span       | Four tests fail: writer's-plan agreement, link-only patch, LF and CRLF shortened-heading cases. |
+
+Writer restored SHA-256 after each of these seven drills:
+`923ce107bba78868bfaa5ed3ad5e2c30aed79af1ae37feb6ba26b464926ab605`.
+Packager restored SHA-256:
+`339bdbc329fecc49ff3dad13e738b70b06f86a83943dfbe62bf69147b75a3e08`.
+All eight drills fired; final gates pass.
+
+### Round 4 final gates (linuxlt)
+
+- Repository timeouts, no `--testTimeout`, at most three files per run:
+  `npx vitest run test/unit/whatsNewContent.test.ts
+test/unit/whatsNewHtml.test.ts test/unit/whatsNewPanel.test.ts
+--maxWorkers=3`: 36 + 13 + 10 = 59 passed.
+  `npx vitest run test/unit/vsixPackaging.test.mjs
+test/unit/changelogVersion.test.ts --maxWorkers=3`: 89 + 2 = 91 passed.
+  Total: 150 passed. Packaging baseline preceded its deliberate mutation;
+  its SHA-256 restore establishes the same passing bytes afterward.
+- `npm run typecheck:unit`: pass (one tsc project, includes source and tests).
+- Prettier on all nine changed files: pass. ESLint `--max-warnings=0` on
+  all five changed code/declaration files: pass.
+- `npm run check:l10n`: 14 UI tables, 14 usage tables, 0 problems.
+- `npm run check:reference`: current (77 features, 71 commands, 100
+  settings, 29 slash, 257 CLI); sharing reference current. No new runtime
+  command, setting, surface or feature-catalog behavior.
+- `npm run check:roadmap`: 207 entries current, with existing planned/partly
+  shipped notices. No milestone status, label, release or roadmap entry
+  changed; D79's selection and source-heading contracts are the plan change.
+- `npm run build`: pass, including tokens, artifact writing, all bundle-size
+  and split gates, host globals and third-party notices. Current measured
+  What's New host 21,552 / 51,200 bytes; browser JS 713 / 25,600 bytes;
+  content 25,347 / 40,960 encoded bytes and 68,401 / 76,800 decoded bytes.
+- Direct built-artifact assertion: decoded artifact equals the chosen
+  complete plan exactly. Real releases 0.17.0 + 0.16.0 stay full with flag
+  absent; real package equals the legacy slice byte-for-byte. Package
+  SHA-256 `80884cbd6619f27d7da8dedf8b777570494ab8c186894f8037f98c978b2547fd`.
+- `git diff --check`: pass. No dependency, cap, timeout, visual markup,
+  localization, credential or paid/model-call changes.
+
+Next: lead reviews this round, integrates it, and runs full quality and
+universal VSIX release qualification. No code blocker found in the focused
+checks. Those broader release gates were not run: the rig brief prohibits
+lane-wide quality; the universal package remains lead-owned. Installed
+hook and committed-diff verification are pending the local commit.

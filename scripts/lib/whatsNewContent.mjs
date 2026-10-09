@@ -257,7 +257,7 @@ function finishRelease(release, repository, allowed) {
  * The released sections of a CHANGELOG, newest first as written.
  *
  * Each release carries its source range in a non-enumerable `range`: the
- * whole `## ` section's start and end offsets, plus the `### Highlights`
+ * whole `## ` section, its LF/CRLF-terminated heading and its body, plus the `### Highlights`
  * subsection's offsets (heading line included) when it has one. The
  * returned array carries the same way a non-enumerable `unreleased`: the
  * `[Unreleased]` section's Highlights content offsets (bullets only), or
@@ -270,6 +270,9 @@ function finishRelease(release, repository, allowed) {
  * @param {string} repository the repository's web address, for relative links
  */
 export function parseChangelog(markdown, allowed, repository) {
+  if (/\r(?!\n)/.test(markdown)) {
+    throw new Error('CHANGELOG.md: CR-only line endings are not supported; use LF or CRLF')
+  }
   const tree = fromMarkdown(markdown, {
     extensions: [gfm()],
     mdastExtensions: [gfmFromMarkdown()],
@@ -311,6 +314,10 @@ export function parseChangelog(markdown, allowed, repository) {
       value: {
         start: current.start,
         end,
+        headingStart: current.start,
+        headingEnd: current.headingEnd,
+        bodyStart: current.headingEnd,
+        bodyEnd: end,
         highlightsStart: current.highlightsStart,
         highlightsEnd: current.highlightsEnd,
       },
@@ -338,6 +345,20 @@ export function parseChangelog(markdown, allowed, repository) {
         }
       } else if (match !== null && node.depth === 2) {
         const [, version, date] = match
+        if (node.position.start.line !== node.position.end.line) {
+          throw new Error(
+            `CHANGELOG.md ${version}: Setext release headings are not supported; use "## [version] - YYYY-MM-DD"`,
+          )
+        }
+        const end = node.position.end.offset
+        let terminator = 0
+        if (markdown[end] === '\n') terminator = 1
+        else if (markdown.slice(end, end + 2) === '\r\n') terminator = 2
+        if (terminator === 0 || markdown.slice(start, end) !== `## ${heading}`) {
+          throw new Error(
+            `CHANGELOG.md ${version}: release headings must be "## [version] - YYYY-MM-DD" followed by LF or CRLF`,
+          )
+        }
         if (seen.has(version)) {
           throw new Error(`CHANGELOG.md has two sections for ${version}`)
         }
@@ -347,6 +368,7 @@ export function parseChangelog(markdown, allowed, repository) {
           date,
           parts: [{ heading: '', nodes: [] }],
           start,
+          headingEnd: end + terminator,
           highlightsStart: undefined,
           highlightsContentStart: undefined,
           highlightsEnd: undefined,
@@ -395,17 +417,12 @@ export function highlightsProblem(releases, version) {
     : undefined
 }
 
-/**
- * The decoded bytes of a content envelope, exactly as the build writes it:
- * the `shortened` flag is present only when the selection set it.
- */
-function envelopeBytes(releases, shortened) {
-  return Buffer.byteLength(
-    JSON.stringify(
-      shortened
-        ? { schema: SCHEMA_VERSION, releases, shortened: true }
-        : { schema: SCHEMA_VERSION, releases },
-    ),
+/** The exact final envelope shared by selection and artifact writing. */
+function contentEnvelope(releases, shortened) {
+  return JSON.stringify(
+    shortened
+      ? { schema: SCHEMA_VERSION, releases, shortened: true }
+      : { schema: SCHEMA_VERSION, releases },
   )
 }
 
@@ -434,23 +451,18 @@ function highlightsOnly(release, repository) {
 }
 
 /**
- * The releases the build ships, within the decoded bound (post-0.17.0: two
- * full releases no longer always fit, so the writer is budget-aware).
+ * Enumerate complete plans, never provisional admissions (D79).
  *
- * - The newest release always ships in full. Alone over the bound, the
- *   writer refuses, naming the release, its size and the bound, so the
- *   author trims the notes instead of the build hiding them.
- * - Older releases of the full-notes window follow newest first while the
- *   decoded total fits. One that does not fit in full ships as its
- *   Highlights only (plus a link to its full notes); one whose Highlights
- *   do not fit either is left out. Either way the selection is `shortened`.
- * - The standing rule still holds: when nothing shipped has Highlights, the
- *   newest earlier Highlights ship as their Highlights with the full-notes
- *   link and enter the plan like any other shortened release (left out
- *   instead when even they do not fit, and the packaged notes agree either
- *   way). That rule alone never `shortened`.
+ * Preference is lexicographic, newest first: full > Highlights + link >
+ * omitted, then the next release. The newest is always full. The standing
+ * fallback has only Highlights + link and omitted forms, and is needed
+ * only when the retained window has no Highlights. Keeping it alone does
+ * not set `shortened`; reducing a window entry or omitting a needed
+ * fallback does. At most three releases and 27 complete plans.
  *
- * Deterministic: the same CHANGELOG always gives byte-identical output.
+ * Every plan is measured with its final flag and the real encoder. All
+ * feasible plans are considered in preference order; the first wins.
+ * No feasible plan means a named refusal, never hiding the newest.
  *
  * @param {import('../../src/core/whatsNew/whatsNewContent').ReleaseNotes[]} allReleases parsed, newest first
  * @param {string} repository the repository's web address, for the full-notes links
@@ -464,69 +476,64 @@ export function selectWhatsNewReleases(
   if (allReleases.length === 0) {
     return { releases: [], shortened: false, plan: [] }
   }
-  const [newest, ...older] = allReleases
-  const newestBytes = envelopeBytes([newest], false)
-  if (newestBytes > maxDecodeBytes) {
-    throw new Error(
-      `CHANGELOG.md ${newest.version}: its release notes decode to ${String(newestBytes)} bytes, over the What's New bound of ${String(maxDecodeBytes)} bytes; trim the notes (docs/RELEASING.md)`,
-    )
-  }
-  const releases = [newest]
-  const plan = [{ version: newest.version, full: true }]
-  let isShortened = false
-  // Whether the envelope exactly as shipped — the candidate admitted (or
-  // left out) and the `shortened` flag set exactly as that decision leaves
-  // it — stays within the bound. No reserved or assumed bytes: a decision
-  // that leaves the flag absent is measured with the flag absent.
-  const canShip = (entries, shortenedAfter) =>
-    envelopeBytes(entries, shortenedAfter) <= maxDecodeBytes
-  const predecessors = older.slice(0, FULL_NOTES_RELEASES - 1)
-  for (const candidate of predecessors) {
-    if (canShip([...releases, candidate], isShortened)) {
-      releases.push(candidate)
-      plan.push({ version: candidate.version, full: true })
-      continue
+  const [newest] = allReleases
+  const predecessors = allReleases.slice(1, FULL_NOTES_RELEASES)
+  const fallback = allReleases
+    .slice(FULL_NOTES_RELEASES)
+    .find((release) => release.highlights.length > 0)
+  let best
+  const admit = (releases, shortened, plan) => {
+    const text = contentEnvelope(releases, shortened)
+    if (Buffer.byteLength(text) > maxDecodeBytes) return
+    try {
+      encodeWhatsNewContent(text)
+    } catch {
+      // A decoded fit can still exceed the encoded artifact budget.
+      return
     }
-    const short = highlightsOnly(candidate, repository)
-    if (canShip([...releases, short], true)) {
-      releases.push(short)
-      plan.push({ version: candidate.version, full: false })
-      isShortened = true
-      continue
-    }
-    plan.push({ version: candidate.version, full: false, omitted: true })
-    isShortened = true
+    best ??= { releases, shortened, plan }
   }
-  if (releases.every((release) => release.highlights.length === 0)) {
-    const latestHighlights = allReleases
-      .slice(FULL_NOTES_RELEASES)
-      .find((release) => release.highlights.length > 0)
-    if (latestHighlights !== undefined) {
-      // The standing rule's entry ships as its Highlights with the
-      // full-notes link, like any other shortened release, and enters the
-      // plan the same way, so the page and the packaged notes agree; only
-      // the budget skipping it counts as shortened, so admitting it is
-      // measured with the flag as it stands.
-      const short = highlightsOnly(latestHighlights, repository)
-      if (canShip([...releases, short], isShortened)) {
-        releases.push(short)
-        plan.push({ version: latestHighlights.version, full: false })
+  const enumerate = (index, releases, shortened, plan) => {
+    const release = predecessors[index]
+    if (release === undefined) {
+      if (fallback !== undefined && releases.every((entry) => entry.highlights.length === 0)) {
+        admit([...releases, highlightsOnly(fallback, repository)], shortened, [
+          ...plan,
+          { version: fallback.version, full: false },
+        ])
+        admit(releases, true, [...plan, { version: fallback.version, full: false, omitted: true }])
       } else {
-        isShortened = true
+        admit(releases, shortened, plan)
       }
+      return
     }
+    enumerate(index + 1, [...releases, release], shortened, [
+      ...plan,
+      { version: release.version, full: true },
+    ])
+    enumerate(index + 1, [...releases, highlightsOnly(release, repository)], true, [
+      ...plan,
+      { version: release.version, full: false },
+    ])
+    enumerate(index + 1, releases, true, [
+      ...plan,
+      { version: release.version, full: false, omitted: true },
+    ])
   }
-  // The `shortened` flag is itself bytes in the shipped envelope: leaving a
-  // release out sets it without adding a release, so the envelope as shipped
-  // is measured here. An exact-fit newest release otherwise ends in the
-  // encoder's generic refusal; instead it gets the named one.
-  const finalBytes = envelopeBytes(releases, isShortened)
-  if (finalBytes > maxDecodeBytes) {
-    throw new Error(
-      `CHANGELOG.md ${newest.version}: its release notes decode to ${String(finalBytes)} bytes, over the What's New bound of ${String(maxDecodeBytes)} bytes; trim the notes (docs/RELEASING.md)`,
-    )
-  }
-  return { releases, shortened: isShortened, plan }
+  enumerate(0, [newest], false, [{ version: newest.version, full: true }])
+  if (best !== undefined) return best
+  const isShortened =
+    predecessors.length > 0 || (newest.highlights.length === 0 && fallback !== undefined)
+  const newestBytes = Buffer.byteLength(contentEnvelope([newest], false))
+  const bytes =
+    newestBytes > maxDecodeBytes
+      ? newestBytes
+      : Buffer.byteLength(contentEnvelope([newest], isShortened))
+  throw new Error(
+    bytes > maxDecodeBytes
+      ? `CHANGELOG.md ${newest.version}: its release notes decode to ${String(bytes)} bytes, over the What's New bound of ${String(maxDecodeBytes)} bytes; trim the notes (docs/RELEASING.md)`
+      : `CHANGELOG.md ${newest.version}: its release notes cannot fit the What's New artifact encoding bound; trim the notes (docs/RELEASING.md)`,
+  )
 }
 
 /** Writes dist/whatsNew.json from CHANGELOG.md and package.json under `root`; returns its size. */
@@ -536,13 +543,7 @@ export function writeWhatsNewContent(root = '.') {
   const repository = repositoryUrl(manifest)
   const allReleases = parseChangelog(changelog, contributedIds(manifest), repository)
   const { releases, shortened } = selectWhatsNewReleases(allReleases, repository)
-  const text = encodeWhatsNewContent(
-    JSON.stringify(
-      shortened
-        ? { schema: SCHEMA_VERSION, releases, shortened: true }
-        : { schema: SCHEMA_VERSION, releases },
-    ),
-  )
+  const text = encodeWhatsNewContent(contentEnvelope(releases, shortened))
   const target = path.join(root, CONTENT_FILE)
   mkdirSync(path.dirname(target), { recursive: true })
   writeFileSync(target, text)

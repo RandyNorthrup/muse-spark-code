@@ -9,12 +9,17 @@ lanes do not push, tag, release, or call paid services.
 ## Writing the Highlights block
 
 Users see each release in What's New (PLAN.md D79, M99): after an update the
-extension opens a page with every new release's Highlights and full notes,
-built from `CHANGELOG.md` at build time. Before the release PR bumps
+extension opens a page built from `CHANGELOG.md` at build time. The newest
+release stays full; older notes ship in full, as Highlights with a full-notes
+link, or are omitted, according to the final decoded and encoded budgets.
+Before the release PR bumps
 `package.json`:
 
 1. Rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` (and start a new,
-   empty `## [Unreleased]` above it).
+   empty `## [Unreleased]` above it). Release headings must be ATX in that
+   exact form, terminated by LF or CRLF. One to three leading spaces are
+   accepted by Markdown; fenced and four-space indented examples stay code.
+   CR-only files and Setext release headings are refused with named errors.
 2. Give the section a `### Highlights` list first, before `### Added`: 3 to
    5 bullets (at most 5), each one sentence or two a user can act on, in the
    form `- **What it is.** What it does for you.`

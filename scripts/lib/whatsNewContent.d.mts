@@ -19,6 +19,14 @@ export interface ChangelogSourceRange {
   readonly start: number
   /** End offset of the whole section: the next `## `/`# ` heading, or the text end. */
   readonly end: number
+  /** Heading span starts at `##` (Markdown's one to three leading spaces are excluded). */
+  readonly headingStart: number
+  /** Heading span includes its LF or CRLF terminator. */
+  readonly headingEnd: number
+  /** Body span starts immediately after the heading terminator. */
+  readonly bodyStart: number
+  /** Body span ends with the whole section. */
+  readonly bodyEnd: number
   /**
    * Start offset of the `### Highlights` subsection (heading line
    * included); undefined when the release has no Highlights section.
@@ -69,7 +77,7 @@ export interface ShippedPlanEntry {
 export interface WhatsNewSelection {
   readonly releases: ReleaseNotes[]
   readonly shortened: boolean
-  /** The full-notes window newest first: `full` false ships Highlights only, `omitted` ships nothing. */
+  /** Window and needed fallback, newest first: `full` false ships Highlights + link, `omitted` ships nothing. */
   readonly plan: ShippedPlanEntry[]
 }
 

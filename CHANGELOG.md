@@ -72,12 +72,16 @@ happened, not what was planned; superseded entries are kept.
   at activation (its own `dist/modelApiSessions.js`), taking 24.5 KB off the
   activation bundle; sessions are kept and read as before (ACTBUD017).
 - What's New fits its content budget by itself: the newest release always
-  ships in full, while an older release ships in full only while the decoded
-  total fits — otherwise as its Highlights with a link to its full notes, or
-  not at all. A shortened page says "Earlier notes: see the full changelog",
+  ships in full. The writer checks every complete plan against both decoded
+  and encoded bounds, preferring older full notes, then Highlights with a
+  full-notes link, then omission, newest first. Keeping earlier Highlights
+  never reserves bytes for a shortening flag the final plan does not need.
+  A shortened page says "Earlier notes: see the full changelog",
   and the packaged changelog shows the same releases. A newest release that
   alone exceeds the budget still fails the build naming the release, so its
-  notes are trimmed instead.
+  notes are trimmed instead. Packaging uses the parser's heading and body
+  spans; release headings require ATX `## [version] - YYYY-MM-DD` with LF or
+  CRLF endings. CR-only files and Setext release headings fail by name.
 
 ### Fixed
 

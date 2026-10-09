@@ -64,8 +64,7 @@ export function packagedChangelog(text, releases, plan, repository) {
       shipped.push(range)
       continue
     }
-    const cut = range.indexOf('\n')
-    const heading = cut === -1 ? range : range.slice(0, cut)
+    const heading = text.slice(release.range.headingStart, release.range.headingEnd).trimEnd()
     if (release.range.highlightsStart === undefined) {
       // A shortened release without Highlights ships as its full-notes
       // link, exactly as the page shows it.

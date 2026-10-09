@@ -5,6 +5,7 @@
 // schema.
 
 import { brotliCompressSync } from 'node:zlib'
+import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -108,8 +109,94 @@ function envelopeBytes(releases: readonly ReleaseNotes[], isShortened: boolean):
   )
 }
 
+const withFallback = (pad: string) =>
+  `## [1.0.4] - 2026-10-05\n\n### Fixed\n\n- Current fix.\n\n` +
+  `## [1.0.3] - 2026-10-04\n\n### Fixed\n\n- Previous fix ${pad}.\n\n` +
+  '## [1.0.2] - 2026-10-03\n\n### Highlights\n\n- Newest Highlights.\n'
+
+const short = (release: ReleaseNotes): ReleaseNotes => ({
+  ...release,
+  sections: [
+    {
+      heading: '',
+      blocks: [
+        {
+          t: 'p',
+          c: [
+            {
+              t: 'link',
+              href: `${REPOSITORY}/blob/main/CHANGELOG.md`,
+              c: [{ t: 'text', v: `Full notes for ${release.version}` }],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+})
+
 describe('parseChangelog', () => {
   const releases = parseChangelog(CHANGELOG, ALLOWED, REPOSITORY)
+
+  it.each(['\n', '\r\n'])(
+    'returns exact heading and body spans for %j terminated ATX headings',
+    (eol) => {
+      const heading = `## [1.0.4] - 2026-10-05${eol}`
+      const body = `${eol}### Fixed${eol}${eol}- Current fix.${eol}`
+      const text = heading + body
+      const release = parseChangelog(text, ALLOWED, REPOSITORY)[0]
+      expect(release?.range).toMatchObject({
+        headingStart: 0,
+        headingEnd: heading.length,
+        bodyStart: heading.length,
+        bodyEnd: text.length,
+      })
+      expect(text.slice(release?.range.headingStart, release?.range.headingEnd)).toBe(heading)
+      expect(text.slice(release?.range.bodyStart, release?.range.bodyEnd)).toBe(body)
+    },
+  )
+
+  it('refuses CR-only and mixed lone-CR files with a named line-ending error', () => {
+    for (const text of [CHANGELOG.replaceAll('\n', '\r'), CHANGELOG + '\r'])
+      expect(() => parseChangelog(text, ALLOWED, REPOSITORY)).toThrow(
+        'CHANGELOG.md: CR-only line endings are not supported; use LF or CRLF',
+      )
+  })
+
+  it('refuses a Setext release heading with a named error', () => {
+    expect(() =>
+      parseChangelog(
+        '[1.0.4] - 2026-10-05\n----------------------\n\n### Fixed\n\n- Fix.\n',
+        ALLOWED,
+        REPOSITORY,
+      ),
+    ).toThrow('CHANGELOG.md 1.0.4: Setext release headings are not supported')
+  })
+
+  it('refuses unterminated or noncanonical release headings', () => {
+    for (const heading of ['## [1.0.4] - 2026-10-05', '## [1.0.4] - 2026-10-05 ##\n'])
+      expect(() => parseChangelog(heading, ALLOWED, REPOSITORY)).toThrow(
+        'CHANGELOG.md 1.0.4: release headings must be "## [version] - YYYY-MM-DD" followed by LF or CRLF',
+      )
+  })
+
+  it('accepts one to three leading spaces, while fenced and four-space indented headings stay code', () => {
+    for (const indent of [' ', '  ', ' '.repeat(3)]) {
+      const text = `${indent}## [1.0.4] - 2026-10-05\n\n### Fixed\n\n- Fix.\n`
+      const parsed = parseChangelog(text, ALLOWED, REPOSITORY)
+      expect(parsed.map((release) => release.version)).toEqual(['1.0.4'])
+      expect(text.slice(parsed[0]?.range.headingStart, parsed[0]?.range.headingEnd)).toBe(
+        '## [1.0.4] - 2026-10-05\n',
+      )
+    }
+    const text =
+      '## [1.0.4] - 2026-10-05\n\n### Fixed\n\n' +
+      '```md\n## [1.0.3] - 2026-10-04\n```\n\n    ## [1.0.2] - 2026-10-03\n'
+    const parsed = parseChangelog(text, ALLOWED, REPOSITORY)
+    expect(parsed.map((release) => release.version)).toEqual(['1.0.4'])
+    expect(JSON.stringify(parsed[0]?.sections)).toContain('1.0.3')
+    expect(JSON.stringify(parsed[0]?.sections)).toContain('1.0.2')
+  })
 
   it('keeps the released sections, newest first, and never the Unreleased one', () => {
     expect(releases.map((release) => [release.version, release.date])).toEqual([
@@ -546,6 +633,131 @@ describe('selectWhatsNewReleases (the budget-aware writer)', () => {
     ])
     expect(selection.releases[2]?.highlights).toHaveLength(1)
     expect(envelopeBytes(selection.releases, selection.shortened)).toBe(bound)
+  })
+
+  it('reconsiders a full predecessor when omitting the fallback would overflow its exact-bound envelope', () => {
+    const bound = WHATS_NEW_CONTENT_DECODE_MAX_BYTES
+    const overhead = envelopeBytes(
+      parseChangelog(withFallback(''), ALLOWED, REPOSITORY).slice(0, 2),
+      false,
+    )
+    const all = parseChangelog(withFallback('x'.repeat(bound - overhead)), ALLOWED, REPOSITORY)
+    expect(envelopeBytes(all.slice(0, 2), false)).toBe(bound)
+    const selection = selectWhatsNewReleases(all, REPOSITORY)
+    expect(selection.plan).toEqual([
+      { version: '1.0.4', full: true },
+      { version: '1.0.3', full: false },
+      { version: '1.0.2', full: false },
+    ])
+    expect(selection.shortened).toBe(true)
+    const plain = JSON.stringify({ schema: 1, releases: selection.releases, shortened: true })
+    expect(Buffer.byteLength(plain)).toBeLessThan(bound)
+    expect(parseWhatsNewContent(encodeWhatsNewContent(plain)).releases).toEqual(selection.releases)
+  })
+
+  it('rejects decoded fits that the real encoder cannot ship, with a named newest-only refusal', () => {
+    const detail = Array.from({ length: 1300 }, (_, index) =>
+      createHash('sha256').update(String(index)).digest('base64'),
+    ).join('')
+    const all = parseChangelog(
+      '## [1.0.4] - 2026-10-05\n\n### Fixed\n\n- Current fix.\n\n' +
+        `## [1.0.3] - 2026-10-04\n\n### Fixed\n\n- ${detail}\n`,
+      ALLOWED,
+      REPOSITORY,
+    )
+    const plain = JSON.stringify({ schema: 1, releases: all })
+    expect(Buffer.byteLength(plain)).toBeLessThan(WHATS_NEW_CONTENT_DECODE_MAX_BYTES)
+    expect(() => encodeWhatsNewContent(plain)).toThrow(UI_TEXT.actionFailed)
+    const selection = selectWhatsNewReleases(all, REPOSITORY)
+    expect(selection.plan).toEqual([
+      { version: '1.0.4', full: true },
+      { version: '1.0.3', full: false },
+    ])
+    expect(selection.shortened).toBe(true)
+    expect(() => selectWhatsNewReleases(all.slice(1), REPOSITORY)).toThrow(
+      "CHANGELOG.md 1.0.3: its release notes cannot fit the What's New artifact encoding bound",
+    )
+  })
+
+  it('chooses the best feasible complete plan against an exhaustive seeded random-size oracle', () => {
+    let seed = 79
+    const random = (max: number) => {
+      seed = (Math.imul(seed, 1_664_525) + 1_013_904_223) >>> 0
+      return seed % max
+    }
+    // Independently list all ranked plans, then filter with the real encoder.
+    // The fallback's short form is its standing policy, not a reduction.
+    for (let sample = 0; sample < 32; sample++) {
+      const all = parseChangelog(
+        [0, 1, 2]
+          .map(
+            (index) =>
+              `## [1.0.${String(4 - index)}] - 2026-10-05\n\n` +
+              (index === 2 || (sample >> index) % 2 === 1
+                ? `### Highlights\n\n- ${'é🚀x'.repeat(random(25) + 1)}\n\n`
+                : '') +
+              `### Fixed\n\n- ${'x'.repeat(random(700))} End.\n`,
+          )
+          .join('\n'),
+        ALLOWED,
+        REPOSITORY,
+      )
+      const newest = all[0]
+      const previous = all[1]
+      const fallback = all[2]
+      if (newest === undefined || previous === undefined || fallback === undefined)
+        throw new Error('oracle fixture requires three releases')
+      const ranked = [previous, short(previous), undefined].flatMap((entry, form) => {
+        const releases = entry === undefined ? [newest] : [newest, entry]
+        const plan = [
+          { version: newest.version, full: true },
+          { version: previous.version, full: form === 0, ...(form === 2 && { omitted: true }) },
+        ]
+        if (releases.some((release) => release.highlights.length > 0))
+          return [{ releases, plan, shortened: form !== 0 }]
+        return [
+          {
+            releases: [...releases, short(fallback)],
+            plan: [...plan, { version: fallback.version, full: false }],
+            shortened: form !== 0,
+          },
+          {
+            releases,
+            plan: [...plan, { version: fallback.version, full: false, omitted: true }],
+            shortened: true,
+          },
+        ]
+      })
+      const before = JSON.stringify(all)
+      const bounds = new Set([
+        random(2500),
+        ...ranked.flatMap((candidate) => {
+          const bytes = envelopeBytes(candidate.releases, candidate.shortened)
+          return [bytes - 1, bytes, bytes + 1]
+        }),
+      ])
+      for (const bound of bounds) {
+        const best = ranked.find((candidate) => {
+          if (envelopeBytes(candidate.releases, candidate.shortened) > bound) return false
+          encodeWhatsNewContent(
+            JSON.stringify(
+              candidate.shortened
+                ? { schema: 1, releases: candidate.releases, shortened: true }
+                : { schema: 1, releases: candidate.releases },
+            ),
+          )
+          return true
+        })
+        if (best === undefined) {
+          expect(() => selectWhatsNewReleases(all, REPOSITORY, bound)).toThrow(
+            'CHANGELOG.md 1.0.4:',
+          )
+        } else {
+          expect(selectWhatsNewReleases(all, REPOSITORY, bound)).toEqual(best)
+        }
+      }
+      expect(JSON.stringify(all)).toBe(before)
+    }
   })
 })
 
