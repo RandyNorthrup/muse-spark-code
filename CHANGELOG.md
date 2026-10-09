@@ -34,7 +34,11 @@ happened, not what was planned; superseded entries are kept.
   generations, so a delayed window can never bring back a trust
   confirmation; the trust card confirms only the very checkout it showed,
   once; and a cancelled or timed-out held checkout is cleaned up (after
-  any file write in flight has stopped) instead of being left trusted.
+  any file write in flight has stopped) instead of being left trusted,
+  removing only the folder it made itself, never one another program put
+  there. A clock change cannot stretch or cut the records lock, and a
+  checkout left behind by a crashed window is taken over even when the
+  system has reused that window's process id.
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
