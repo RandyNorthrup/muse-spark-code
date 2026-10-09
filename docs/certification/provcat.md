@@ -340,13 +340,15 @@ specific reason. Enforcement is not duplicated: the admission path keeps
 reading `sessionBudgetUsd()` per request, which is
 `currentSettings().modelApiSessionBudgetUsd`.
 
-## 2. The panel writes on Save, before the provider, and keeps the draft on failure
+## 2. The panel writes on Save, after the provider, and keeps the draft on failure
 
-`src/host/models/modelsPanel.ts` (`providers/save`) applies the draft's
-number before `saveDraft`: a failed write keeps the draft (and its typed
-value) with the specific error and never reaches `onWizardSaved`, so no
-setup success is reported and nothing is written, which keeps a retry
-clean (a re-`add` of a saved provider id rejects as a duplicate).
+Corrected to the round-4 order: `src/host/models/modelsPanel.ts`
+(`providers/save`) completes `saveDraft` before applying the draft's number.
+A provider-transaction failure leaves the spending limit unchanged. A later
+limit-write failure keeps the saved provider and the draft's typed value,
+reports "Provider saved; the spending limit was not changed" with its specific
+reason, and never reaches `onWizardSaved`, so no full setup success is reported.
+A retry edits the already saved provider instead of adding a duplicate.
 `refresh()` publishes `state.sessionBudget` (effective value plus scope),
 backed by the new `ModelsPanelDeps.sessionBudget`; the new required field
 in `modelsPanelStateSchema` carries it to the webview.
@@ -372,8 +374,10 @@ for the budget).
 `src/host/models/modelsQuickPick.ts` asks one budget input prefilled with
 the effective value (scope named in its hint), re-asks after an invalid
 answer instead of saving advisory garbage, and applies the typed number
-through the same shared function before `saveDraft`: a failed write shows
-its specific error and reports no setup success. `ProviderQuickPickOutcome`
+through the same shared function after `saveDraft` (the round-4 order).
+A later limit-write failure leaves the provider saved, reports that partial
+success with its specific reason, and reports no full setup success.
+`ProviderQuickPickOutcome`
 carries the answered `sessionBudgetUsd`, and `modelsPanelEntry.ts`
 forwards it to `onWizardSaved` instead of the previous explicit
 `undefined`. The entry builds the one VS Code-backed configuration both
@@ -397,15 +401,16 @@ the panel path end to end, the quick-pick path with a scripted UI):
    `SessionBudgetExceededError` from the real `reserveRequest` admission
    arithmetic on a request that no longer fits after it.
 8. Panel: unchanged writes nothing, setup still succeeds.
-9. Panel: a failed write keeps the draft and its typed value, shows the
-   specific error in `draft.errors`, never calls `onWizardSaved`, and the
-   provider store stays empty.
+9. Panel: in the corrected round-4 order, a failed limit write keeps the
+   draft and its typed value, shows partial success and the specific error in
+   `draft.errors`, never calls `onWizardSaved`, and leaves the provider saved.
 10. Quick pick: the typed budget is written through the shared function;
     the field's title, prefill and scope hint are asserted on the input
     call; the success banner names the saved provider and model.
 11. Quick pick: an unchanged number writes nothing.
-12. Quick pick: a failed write shows the specific error, shows no
-    setup-success banner, returns `undefined`, and saves no provider.
+12. Quick pick: in the corrected round-4 order, a failed limit write reports
+    partial success and the specific error, shows no setup-success banner,
+    returns `undefined`, and leaves the provider saved.
 13. Quick pick: an invalid answer is refused with the specific error and
     asked again, never saved silently.
 
@@ -647,3 +652,134 @@ real-browser accessibility or live sign-in is claimed. The explicit brief
 reserves full quality for the lead, and the inherited duplication hold above
 remains. No credentials were inspected, no dependency installed, no model
 call made, and no push, merge or rebase performed.
+
+---
+
+# PROVWIZ2 round 5 — RVPROVWIZ4G (2026-10-09, macmini)
+
+## P2: Save the actual Edit form's limits
+
+`modelsPanel.ts` recognizes a saved connection while its address, format and
+key are unchanged. Editing token limits therefore needs no new credential
+check. Changing any connection field invalidates that exemption; a fresh
+failed test cannot reuse it. Final Save still validates all custom limits.
+The production save transaction replaces the saved entry and retains its
+limits in the shared provider file, which ACP reads through the same schema.
+
+`ProvidersSection.tsx` renders Edit while its host-owned draft exists. Save
+closes the form only when the host clears that draft after success. A failure
+keeps the fields and typed values visible for retry. Save publishes a success
+notice or the specific failure in the draft, with retained credentials and
+known credential shapes redacted and only fixed words logged. The production
+store's refused write names its fixed `invalid` or `io-error` reason without
+publishing raw file contents. Existing localized messages are reused; no UI
+key, wire shape, paid policy, request serializer or dependency changed.
+
+`modelsPanelEdit.test.tsx` connects the rendered shared Providers section to
+`createModelsPanel`, the actual save transaction and the production provider
+store on a private temporary file. It seeds m1 at 128000/4000, opens Edit,
+changes the reply to 8000, presses Save without Test, reads 8000 from the
+production store and file, and reopens Edit to see 128000/8000. A rejected
+store write containing a synthetic bare key shows the specific redacted
+failure, keeps 8000 visible and 4000 stored, then saves on retry without
+retyping. Other cases require Test after address, key or format changes and
+prove the actual production schema's refused write leaves the file unchanged.
+These seven regressions use fake VS Code and services; no request reaches a
+provider. The original five behavior cases failed on the pre-fix implementation.
+
+The existing cancellation test now waits for the host's draft retirement.
+Four spending-limit rollback cases now require the specific transaction
+failure instead of the generic notice, retaining every rollback, prior-limit,
+no-write and no-setup-success assertion.
+
+## P3: Correct the earlier certification contract
+
+Round 3's sections 2 and 4 and their failure-case descriptions now explicitly
+state the round-4 order: provider save finishes before the spending-limit
+write. A later limit failure leaves the provider saved and reports partial
+success with its reason. README and the existing changelog contract already
+match that behavior; the correction is also recorded under Unreleased.
+
+## Default-timeout regressions
+
+All commands ran directly on macmini with complete files, at most three files
+per invocation and `--maxWorkers=3`; no `--testTimeout` override. Ten batches
+passed 28 distinct files and 511 tests:
+
+| Files (`test/unit/`, `.test.ts` / `.test.tsx`)                     | Tests | Exit |
+| ------------------------------------------------------------------ | ----: | ---: |
+| modelsPanelEdit, modelsPanel, modelsPanelSections                  |    66 |    0 |
+| wizardSessionBudget, modelsQuickPick, modelsPanelEntry             |    47 |    0 |
+| modelsPanelBundle, modelsPanelSchemas, modelsPanelReducer          |    25 |    0 |
+| providerWizardSave, modelsApp, modelsWebviewEntry                  |    10 |    0 |
+| modelsComponents, modelsSections, modelsActivationBudget           |    24 |    0 |
+| providersL10n, planKeyPresets, providerPanelSeam                   |    29 |    0 |
+| providerProvidersHost, providerModelScans, subscriptionIntegration |    25 |    0 |
+| configuredProviders, modelApiGoldenRequests, metaRequestGoldens    |   169 |    0 |
+| modelApiShellDirectory, paidConsent, teamSingleModel               |    81 |    0 |
+| manifest                                                           |    35 |    0 |
+
+After the transaction-error drill, the restored Edit and spending-limit suites
+passed all 39 tests again at repository deadlines. The additional failed-retest
+case passed, failed when its guard was deliberately removed, and passed after
+restoration in the final 66-test Edit/host/fields batch. The synthetic tests also
+cover request goldens, paid consent and single-model behavior.
+
+## Deliberate failures and exact restoration
+
+The first eight mutations ran the entire six-test Edit file and exited 1.
+The transaction-error drill ran Edit plus all 33 spending-limit tests; the
+failed-retest drill ran the completed seven-test Edit file. Every
+mutation restored the original file bytes in `finally`; SHA-256 matched after
+each restore. The original and restored hashes are:
+
+| File                                    | SHA-256                                                            |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| src/host/models/modelsPanel.ts          | `bb28773dfa4af58d215980a19cd85f436a70c1b97617523a80945a51112bae22` |
+| src/webview/models/ProvidersSection.tsx | `49e048b379caf90e935d65e4f9dd64aec6bf9d46ea7eaad11815aa412f741b0f` |
+| src/core/providers/panelSeam.ts         | `3a39be64bda8156c5c9b937609f0c3c787883266f05eda29543f6ea31fe4d9e0` |
+
+| Deliberate break                                                  | Failures |
+| ----------------------------------------------------------------- | -------: |
+| Require a fresh credential test for an unchanged saved connection |      2/6 |
+| Reuse the saved connection after address, key or format changes   |      3/6 |
+| Replace the specific save failure with the generic notice         |      1/6 |
+| Omit literal credential redaction                                 |      1/6 |
+| Restore the form's premature local close on Save                  |      4/6 |
+| Replace the production writer's reason with the generic notice    |      1/6 |
+| Discard the edited reply limit while building the entry           |      2/6 |
+| Omit the successful save notice                                   |      1/6 |
+| Hide transaction failures, including all four rollback boundaries |     5/39 |
+| Reuse a saved connection after its fresh test fails               |      1/7 |
+
+## Individual gates and limits of qualification
+
+Changed-file ESLint and Prettier, all five projects in `npm run typecheck`,
+plain `npm run deadcode`, localization (14 UI tables, 14 usage tables,
+0 problems), generated reference and host API gates exit 0. The production
+build, split checks, host globals and notices exit 0; every budget remains
+unchanged. The final added regression is also checked by the unit-project
+compiler and changed-file lint/format.
+
+The unchanged duplication gate exits 1 with the inherited 24 clones,
+312 duplicated lines and 2206 tokens, exactly the prior-round totals; the
+new Edit file has no reported clone. PLAN §7 retains that lead-owned hold.
+The additional failed-retest case initially repeated a seven-line assertion
+block; moving it into the existing connection-case table removed that new
+clone while keeping its assertions and the production-store check.
+No threshold, ignore, hook, retry, test deadline or assertion is weakened.
+
+| Built artifact      |  Bytes | Unchanged cap (bytes) |
+| ------------------- | -----: | --------------------: |
+| dist/extension.js   | 521707 |                614400 |
+| dist/providers.js   | 134642 |                153600 |
+| dist/modelsPanel.js | 111284 |                128000 |
+| dist/uiText.js      |  83695 |                128000 |
+
+Models startup with static imports is 326.5 KiB/500 KiB; the shared surface
+English stays within its 25 KiB cap. No aggregate quality, coverage,
+package/installed-editor, native Settings, real-browser or live sign-in result
+is claimed. Those broader qualifications remain with the lead under the rig
+brief. No dependency was installed, credential inspected, model call made,
+or push, merge or rebase performed. Reference regeneration produced no data
+change; the provider feature's source record documents direct Edit persistence.

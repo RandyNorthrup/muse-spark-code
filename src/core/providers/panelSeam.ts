@@ -10,6 +10,7 @@ import { listedPresets, PRESETS, PLAN_KEY_PRESETS, isKeyShape } from './presets'
 import { checkEndpointUrl } from './endpointPolicy'
 import { createPkcePair } from './pkce'
 import { UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 
 export function createModelsPanelSeam(options: {
   readonly configFile: string
@@ -42,7 +43,10 @@ export function createModelsPanelSeam(options: {
   }
   const save = async (file: unknown) => {
     const result = await writeProvidersFileAtomic(options.configFile, file)
-    if (!result.ok) throw new Error(UI_TEXT.actionFailed)
+    if (!result.ok) {
+      // Result details can contain file contents; publish only the fixed reason.
+      throw new Error(fill(UI_TEXT.providerSaveFailed, { reason: result.reason }))
+    }
   }
   const entry = (row: Awaited<ReturnType<typeof read>>['providers'][number]): ProviderEntry => {
     if (row.address === undefined) throw new Error(UI_TEXT.actionFailed)

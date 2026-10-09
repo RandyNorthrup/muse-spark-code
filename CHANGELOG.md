@@ -20,6 +20,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Saved custom-provider limits persist directly from Edit without another
+  connection test when the address, format and key are unchanged.
+  Save reports success or its specific failure; failed saves keep the form and
+  typed limits open for retry, and the next Edit shows the saved values.
+
 - The provider wizard leaves an untouched spending limit alone and compares
   an edited limit with its prefill at write time. Concurrent changes are shown
   with a confirmation request. Provider save finishes before the limit write;
@@ -87,6 +92,10 @@ happened, not what was planned; superseded entries are kept.
   shared function instead of dropping the value.
 
 ### Documentation
+
+- Correct the provider-wizard round-3 certification text to the round-4
+  contract: provider persistence precedes the spending-limit write, and a
+  later limit failure reports partial success with the provider saved.
 
 - Outside contributions are vetted before they run or land:
   `docs/contributor-vetting.md` checks the person and the change, then

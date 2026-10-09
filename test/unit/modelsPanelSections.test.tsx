@@ -166,6 +166,9 @@ describe('ProvidersSection', () => {
       event: 'cancel',
       providerId: 'ollama',
     })
+    // The host owns draft retirement; cancellation closes on its acknowledgement.
+    expect(screen.getByLabelText(UI_TEXT.providerFields.address)).toBeDefined()
+    rerender(<ProvidersSection {...props({ ...state, drafts: { edits: {} } }, post)} />)
     expect(screen.queryByLabelText(UI_TEXT.providerFields.address)).toBeNull()
   })
 

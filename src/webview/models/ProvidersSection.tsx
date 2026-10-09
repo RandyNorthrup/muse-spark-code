@@ -206,7 +206,6 @@ function ProviderRow({
   readonly props: SectionProps
 }) {
   const { post } = props
-  const [editing, setEditing] = useState(false)
   // A saved provider whose preset card is unavailable stays listed with its
   // reason instead of its controls; removing it still works.
   if (provider.unavailable !== undefined)
@@ -309,11 +308,10 @@ function ProviderRow({
           className="models-button"
           onClick={() => {
             post(
-              editing
-                ? { type: 'providers/wizard', event: 'cancel', providerId: provider.id }
-                : { type: 'providers/edit', providerId: provider.id },
+              editDraft === undefined
+                ? { type: 'providers/edit', providerId: provider.id }
+                : { type: 'providers/wizard', event: 'cancel', providerId: provider.id },
             )
-            setEditing(!editing)
           }}
         >
           {UI_TEXT.providerEdit}
@@ -337,17 +335,15 @@ function ProviderRow({
           {UI_TEXT.providerExport}
         </button>
       </div>
-      {editing && editDraft !== undefined && (
+      {editDraft !== undefined && (
         <EditForm
           draft={editDraft}
           editId={provider.id}
           onSave={() => {
             post({ type: 'providers/save', useNow: false, providerId: provider.id })
-            setEditing(false)
           }}
           onCancel={() => {
             post({ type: 'providers/wizard', event: 'cancel', providerId: provider.id })
-            setEditing(false)
           }}
           onPrefill={(fields) => {
             post({ type: 'providers/prefill', fields, providerId: provider.id })

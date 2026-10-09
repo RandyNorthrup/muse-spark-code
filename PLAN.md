@@ -19855,6 +19855,23 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### PROVWIZ2 round 5 — RVPROVWIZ4G repairs (2026-10-09, macmini)
+
+Save a saved provider's limits without requiring a fresh credential test when
+its connection is unchanged. Address, format and key changes
+still require Test. Keep the real Edit form open until the host removes its
+draft after success; failed saves retain typed values and display the specific
+failure with credential redaction. Report successful saves in the panel.
+Prove Edit → host Save → production provider file → re-open Edit, plus failure
+and retry, through the rendered shared form. Correct the round-3 certification
+text to provider-first persistence and explicit partial success on limit failure.
+Run Models suites at repository deadlines, byte-exact red/restored drills,
+five typechecks, changed-file lint/format and the prescribed individual gates.
+Full quality belongs to the lead per the rig brief; no merge, push, live/paid
+call, dependency or gate change. Existing editor bridges and ACP's provider-file
+reader retain the same limits contract. Record receipts in
+`docs/certification/provcat.md`.
+
 ### PROVWIZ2 round 4 — RVPROVWIZ2 repairs (2026-10-09, macmini)
 
 Owner decisions: an untouched spending-limit field writes nothing; an edited
@@ -44684,6 +44701,15 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**PROVWIZ2 round 5 scoped qualification (2026-10-09).** The rig brief
+reserves aggregate quality for the lead. All 28 owned files pass 511 tests at
+repository deadlines; five typechecks and individual lint, format, deadcode,
+localization, reference, host API and production build checks pass. Ten
+purposeful breaks fail and restore source bytes exactly. Duplication remains
+the inherited 24 clones / 312 lines / 2206 tokens below; no new clone or gate
+change is introduced. Final compiler/lint/format checks include the added
+failed-retest regression. Receipts: `docs/certification/provcat.md`.
 
 **PROVWIZ2 round 4 scoped qualification (2026-10-09).** The explicit lane
 brief and shared rules prohibit aggregate `npm run quality` and reserve it

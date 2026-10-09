@@ -39,6 +39,7 @@ import type { ProvidersHost } from '../providers/providersHost'
 import type { WizardSaveOutcome } from '../providers/wizardSave'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
 import { Usd } from '../../shared/usd'
+import { redactSecrets } from '../../shared/redact'
 import { applyWizardSessionBudget, type SessionBudgetConfig } from './sessionBudget'
 
 export interface ModelsPanelDeps {
@@ -163,6 +164,9 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   // A failed limit write can leave a saved provider. Retrying that draft
   // replaces its saved entry rather than attempting a duplicate add.
   const savedDrafts = new WeakSet<PanelDraft>()
+  // Token limits do not change the saved connection; only connection edits
+  // invalidate this exemption from a fresh credential test.
+  const savedConnections = new WeakSet<PanelDraft>()
   let isDisposed = false
   let navigation: ModelsPanelNavigate | undefined
   let operations = Promise.resolve()
@@ -180,10 +184,23 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const publish = (): void => {
     post({ type: 'modelsPanel/state', state })
   }
-  const fail = (): void => {
+  const fail = (draft?: PanelDraft, error?: unknown): void => {
     // Exception text can contain a bare key even before it is retained.
     log.warn('Models panel operation failed')
-    state.notice = UI_TEXT.actionFailed
+    if (draft === undefined) {
+      state.notice = UI_TEXT.actionFailed
+    } else {
+      // Save failures name their cause with every retained key redacted.
+      state.notice = undefined
+      draft.errors = [
+        redactSecrets(
+          error instanceof Error && error.message !== '' && error.message !== UI_TEXT.actionFailed
+            ? error.message
+            : UI_TEXT.providerSaveWriteConflict,
+          Array.from(credentials.values(), (record) => record.secret),
+        ),
+      ]
+    }
     publish()
   }
   const entryOf = async (id: string): Promise<ProviderEntry> => {
@@ -627,6 +644,9 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           draft.keyPresent = true
           draft.keyShapeOk = true
         }
+        if (secret !== undefined || entry.auth === 'none') {
+          savedConnections.add(draft)
+        }
         state.drafts.edits[entry.id] = draft
         break
       }
@@ -634,6 +654,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         const id = 'providerId' in message ? message.providerId : undefined
         const draft = draftOf(id)
         const oldAddress = draft.address
+        const oldFormat = draft.customFormat
         // A webview grant cannot stand in for native private-network consent.
         const { privateConfirmed: _claimed, ...fields } = message.fields
         Object.assign(draft, fields)
@@ -646,7 +667,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (draft.azureResource !== undefined) {
           draft.address = `https://${draft.azureResource}.openai.azure.com/openai/v1`
         }
+        if (oldFormat !== draft.customFormat) {
+          savedConnections.delete(draft)
+          draft.test = undefined
+        }
         if (oldAddress !== draft.address) {
+          savedConnections.delete(draft)
           credentials.delete(id ?? 'wizard')
           draft.keyPresent = false
           draft.keyShapeOk = false
@@ -691,6 +717,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           draft.keyPresent = true
           draft.keyShapeOk = true
           draft.connected = message.type === 'providers/connect'
+          savedConnections.delete(draft)
           draft.test = undefined
         }
         break
@@ -699,6 +726,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         const id = message.providerId
         const draft = id === undefined ? draftOf() : state.drafts.edits[id]
         const entry = draft === undefined ? await entryOf(id ?? '') : draftEntry(draft, id)
+        if (draft !== undefined) savedConnections.delete(draft)
         const verdict = await providers.confirmAddress(entry.address)
         if (verdict.kind === 'refused') {
           throw new Error(UI_TEXT.actionFailed)
@@ -770,22 +798,32 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           ...(message.providerId !== undefined && (await entryOf(message.providerId))),
           ...draftEntry(draft, message.providerId),
         }
-        if (draft.test?.status !== 'ok') {
-          throw new Error(UI_TEXT.actionFailed)
+        draft.errors = []
+        state.notice = undefined
+        if (draft.test?.status !== 'ok' && !savedConnections.has(draft)) {
+          draft.errors = [UI_TEXT.providerText.wizard.test]
+          break
         }
         const verdict = await providers.confirmAddress(entry.address)
         if (verdict.kind === 'refused') {
-          throw new Error(UI_TEXT.actionFailed)
+          draft.errors = [fill(UI_TEXT.providerAddressInvalid, { detail: verdict.detail })]
+          break
         }
-        const outcome = await providers.saveDraft({
-          provider: { ...entry, privateNetwork: verdict.kind === 'private' },
-          credential: draftSecret(entry, message.providerId),
-          credentialAuth: 'apiKey',
-          defaultModel: draft.defaultModel ?? `${entry.id}/${entry.models[0] ?? ''}`,
-          sessionBudgetUsd: draft.sessionBudgetUsd,
-          useNow: message.useNow,
-          editing: message.providerId !== undefined || savedDrafts.has(draft),
-        })
+        let outcome: WizardSaveOutcome
+        try {
+          outcome = await providers.saveDraft({
+            provider: { ...entry, privateNetwork: verdict.kind === 'private' },
+            credential: draftSecret(entry, message.providerId),
+            credentialAuth: 'apiKey',
+            defaultModel: draft.defaultModel ?? `${entry.id}/${entry.models[0] ?? ''}`,
+            sessionBudgetUsd: draft.sessionBudgetUsd,
+            useNow: message.useNow,
+            editing: message.providerId !== undefined || savedDrafts.has(draft),
+          })
+        } catch (error) {
+          fail(draft, error)
+          break
+        }
         savedDrafts.add(draft)
         // Provider/credential/default/composer rollback must finish before
         // any limit write. A later failure is explicitly a partial save.
@@ -811,6 +849,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             Object.entries(state.drafts.edits).filter(([id]) => id !== message.providerId),
           )
         }
+        state.notice = fill(UI_TEXT.setupComplete, {
+          provider: providers.preset(entry.preset)?.name ?? entry.id,
+          model: outcome.modelRef,
+        })
         if (outcome.composerSet) {
           deps.onWizardSaved(outcome)
         }
@@ -981,8 +1023,13 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }
       try {
         await handle(message)
-      } catch {
-        fail()
+      } catch (error) {
+        fail(
+          message.type === 'providers/save' && message.providerId !== undefined
+            ? state.drafts.edits[message.providerId]
+            : undefined,
+          error,
+        )
       }
     })()
   }

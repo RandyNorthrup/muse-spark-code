@@ -584,7 +584,10 @@ describe('RVPROVWIZ2 production save paths', () => {
       const { panel, saved } = panelSetup({ providers: f.providers, sessionBudget: f.budget })
       await prepareOpenRouter(panel, '0', '5')
       await send(panel, { type: 'providers/save', useNow: true }, () => {
-        expect(latestState(panel).notice).toBe(UI_TEXT.actionFailed)
+        const detail =
+          failure === 'composer' ? 'composer refused' : `${failure} persistence refused`
+        expect(latestState(panel).drafts.wizard?.errors).toEqual([detail])
+        expect(latestState(panel).notice).toBeUndefined()
       })
       await send(panel, { type: 'providers/wizard', event: 'cancel' }, () => {
         expect(latestState(panel).drafts.wizard).toBeUndefined()
