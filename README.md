@@ -62,13 +62,14 @@ hash verification and migrate when read.
 - **Deterministic reports.** `/report` builds project, quality, milestone,
   release and change reports from local facts, in Markdown, HTML, JSON or text,
   with saved history and comparisons; nothing is sent to a model.
-- **Capacity estimates.** `/estimate <goal>` forecasts when a milestone or
-  release can land with the current, minimum or optimum fleet, without a model
-  call.
+- **Capacity estimates (preview).** `/estimate <goal>` and the Estimator are in
+  place and verified with test data. Real forecasts need the plan reader that
+  comes later; until then they say so instead of guessing.
 - **Several accounts per provider.** List provider accounts, see the current
   one and its thresholds; a vendor limit blocks only the affected account.
 - **Orchestrator playbook.** The nine orchestration rules ship as a first-party
-  skill, and `/playbook status`, `record` and `settings` answer locally.
+  skill. In the ACP agent and the CLI, `/playbook status`, `record` and
+  `settings` answer locally; the VS Code panel follows.
 - **Refreshed design.** Shared design tokens and generated palettes style every
   panel surface; an optional pinned OFL font pack serves standalone installs.
 
