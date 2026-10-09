@@ -29,7 +29,12 @@ happened, not what was planned; superseded entries are kept.
   storage and the runtime data folder, and the trust card releases it. The
   bearer travels only in the `Authorization` header; credential-shaped
   strings are masked, never sent. No new setting; the panel wiring follows
-  in lane U. The device-flow sign-in still waits for Q-M123.
+  in lane U. The device-flow sign-in still waits for Q-M123. Windows share
+  the worktree records through a lock file and numbered record
+  generations, so a delayed window can never bring back a trust
+  confirmation; the trust card confirms only the very checkout it showed,
+  once; and a cancelled or timed-out held checkout is cleaned up (after
+  any file write in flight has stopped) instead of being left trusted.
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
