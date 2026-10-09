@@ -1718,16 +1718,15 @@ export const GITHUB_TOKEN_REFRESH_MARGIN_MS = 60_000
 // Where the device-flow token is kept: the OS credential store's account
 // (the M109 vault's `oauth` item once its broker binds, PLAN.md M123).
 export const GITHUB_DEVICE_FLOW_SECRET_KEY = 'museSpark.github.deviceFlow'
-// Beside it, the sign-in generation (a random id, no secret) that Sign out
-// and a refusal renew; a stored pair is read only under the generation it
-// was issued in (PLAN.md M123).
+// Beside it, the sign-in generation (a random id, no secret): the logout
+// barrier. Only Sign out writes it, a fresh value in one write; a stored
+// pair is read only under the generation it was issued in (PLAN.md M123).
 export const GITHUB_DEVICE_FLOW_GENERATION_KEY = 'museSpark.github.deviceFlow.generation'
-// Beside that, the sign-out count (a non-negative integer, no secret) that
-// only Sign out moves: a publish that found a moved generation tells a
-// refusal (the count is unchanged) from a Sign out and keeps a rotation
-// that succeeded through the refusal (PLAN.md M123).
-export const GITHUB_DEVICE_FLOW_SIGN_OUT_EPOCH_KEY = 'museSpark.github.deviceFlow.signOutEpoch'
-export const GITHUB_STORED_TOKEN_VERSION = 2
+// Beside that, the id of the last pair refused (a random id, no secret): a
+// rotation may fill the slot that its own start pair's refusal emptied, and
+// no other (PLAN.md M123).
+export const GITHUB_DEVICE_FLOW_REFUSED_KEY = 'museSpark.github.deviceFlow.refused'
+export const GITHUB_STORED_TOKEN_VERSION = 3
 // Revoking a token through the API needs the app's client secret, which a
 // public client has none of; Sign out opens the app's page on GitHub, where
 // the user revokes the grant.
