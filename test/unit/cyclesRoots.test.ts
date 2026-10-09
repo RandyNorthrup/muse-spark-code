@@ -4,6 +4,7 @@ import ts from 'typescript'
 import * as z from 'zod/mini'
 import { describe, expect, it, vi } from 'vitest'
 import manifest from '../../package.json'
+import cycles from '../../scripts/cycles.json'
 import * as integrationTestSources from '../../scripts/lib/integrationTests.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
@@ -79,12 +80,9 @@ function lazyEntries(): string[] {
   return [...entries]
 }
 
-const command = manifest.scripts.cycles.split(' -T ')
-const rootPatterns = Array.from(
-  (command[1] ?? '').matchAll(/"([^"]+)"|'([^']+)'|(\S+)/g),
-  (match) => normalize(match[1] ?? match[2] ?? match[3] ?? ''),
-)
-const roots = new Set(expand(rootPatterns))
+// The roots live in scripts/cycles.json, read by scripts/cycles.mjs: on the
+// command line they outgrew cmd.exe's 8,191 characters (CIFIX017W2).
+const roots = new Set(expand(cycles.roots))
 const missing = (entries: readonly string[]): string[] =>
   [...new Set(entries)]
     .filter((entry) => !roots.has(normalize(entry)))
@@ -92,7 +90,8 @@ const missing = (entries: readonly string[]): string[] =>
 
 describe('dependency-cycle root coverage (FIXCYCLES, G77)', () => {
   it('retains dpdm circular failures and covers every build entry, including pages and workers', () => {
-    expect(command[0]).toBe('dpdm --no-warning --no-tree --exit-code circular:1')
+    expect(manifest.scripts.cycles).toBe('node scripts/cycles.mjs')
+    expect(cycles.options).toEqual(['--no-warning', '--no-tree', '--exit-code', 'circular:1', '-T'])
     const entries = buildEntries()
     expect(entries).toContain('src/extension.ts')
     expect(entries).toContain('src/webview/components/ReferencePage.tsx')

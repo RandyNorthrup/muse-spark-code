@@ -871,3 +871,32 @@ describe('toolchain pins (AGENTS.md)', () => {
     )
   })
 })
+
+// cmd.exe reads at most 8,191 characters per command line. npm on Windows runs
+// a script as `%ComSpec% /d /s /c "<script>"`, and a tool from node_modules/.bin
+// is npm's .cmd shim, which re-expands every argument into one line of its own
+// (CMD_SHIM_LINE). Measured on Windows 11 (CIFIX017W2): through dpdm's shim in a
+// 51-character .bin folder, an 8,035-character script ran and 8,036 failed
+// with "The syntax of the command is incorrect." (exit 255), as the 8,070-
+// character `cycles` script did on the hosted runner. Each path in those lines
+// may be up to MAX_PATH long, wherever the repository is checked out.
+const CMD_LINE_MAX = 8191
+const MAX_PATH = 260
+const CMD_SHIM_LINE = String.raw`endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\..\%tool%" %*`
+
+describe('npm scripts on Windows (CIFIX017W2)', () => {
+  it('fit cmd.exe’s command line as npm runs them and as a node_modules/.bin shim expands them', () => {
+    const longestPath = 'p'.repeat(MAX_PATH)
+    const lines = (script: string) => [
+      `${longestPath} /d /s /c "${script}"`,
+      CMD_SHIM_LINE.replaceAll(/%(?:COMSPEC|_prog|dp0|tool)%/g, () => longestPath).replace(
+        '%*',
+        () => script,
+      ),
+    ]
+    const tooLong = Object.entries(manifest.scripts).filter(([, script]) =>
+      lines(script).some((line) => line.length > CMD_LINE_MAX),
+    )
+    expect(tooLong.map(([name, script]) => `${name}: ${String(script.length)}`)).toEqual([])
+  })
+})
