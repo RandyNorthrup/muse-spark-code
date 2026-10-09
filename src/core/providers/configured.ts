@@ -348,6 +348,7 @@ export function createConfiguredProviderServices(
     signal = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
   ): Promise<readonly NativeModelMetadata[]> => {
     try {
+      const format = entry.format ?? presetFor(entry).format
       const bound = transportFor(entry, supplied)
       const address = baseAndPath(entry, presetFor(entry).modelsList.path)
       const transport = new RequestTransport({
@@ -361,19 +362,19 @@ export function createConfiguredProviderServices(
         {
           method: 'GET',
           accept: 'application/json',
-          ...(entry.format === 'anthropic' && { headers: { 'anthropic-version': '2023-06-01' } }),
+          ...(format === 'anthropic' && { headers: { 'anthropic-version': '2023-06-01' } }),
         },
         signal,
       )
       const value = await parseJsonResponse(result, (json) => json)
-      if (entry.format === 'anthropic')
+      if (format === 'anthropic')
         return anthropic.parseAnthropicModelsList(value).map((row) => row.native ?? fail())
-      if (entry.format === 'gemini')
+      if (format === 'gemini')
         return gemini.parseGeminiModelsList(value).map((row) => ({
           ...(row.native ?? fail()),
           id: row.id,
         }))
-      return entry.format === 'ollama'
+      return format === 'ollama'
         ? ollama.parseOllamaModelsList(value)
         : modelMetadata.parseNativeModelsList(value)
     } catch {

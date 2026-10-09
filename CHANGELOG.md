@@ -20,6 +20,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Models & Agents can scan Gemini and Ollama after ordinary setup, and
+  Anthropic's scans and key tests send its required version header. Presets
+  supply the wire format when it is absent from saved configuration.
 - Models & Agents: the provider picker works again. In 0.16.0 it showed only
   "That did not work" and listed no provider, Anthropic included, because
   Mistral's plan key carried the Subscription sign-in category the panel's
