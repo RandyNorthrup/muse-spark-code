@@ -18,7 +18,10 @@ import {
   assertLocalDeviceHost,
   type DeviceExecutionHost,
 } from '../../src/host/devices/deviceSecrets'
-import { DEVICES_PANEL_VIEW_TYPE } from '../../src/shared/constants'
+import { DEVICES_PANEL_VIEW_TYPE, DEVICES_STORAGE_DIR } from '../../src/shared/constants'
+
+// The uniquely named sibling a Windows first use claims, then renames into place.
+const STAGE_NAME = new RegExp(String.raw`^\.${DEVICES_STORAGE_DIR}-[a-f0-9]{32}\.stage$`)
 import { parseDeviceHostMessage, type DeviceHostMessage } from '../../src/shared/devicesPanel'
 import {
   DevicesPanelTab,
@@ -429,7 +432,7 @@ describe('M100/W production dependencies', () => {
     ['a tunnel', 'tunnel'],
   ])('refuses %s hosts before touching storage (D80)', async (_name, remoteName) => {
     const parent = await lane()
-    const directory = path.join(parent, 'devices')
+    const directory = path.join(parent, DEVICES_STORAGE_DIR)
     const helperCalls: { directory: string; systemRoot: string; extensionPath: string }[] = []
     const host = deviceExecutionHost({ uiKind: 'desktop', remoteName, extensionKind: 'workspace' })
     expect(host).toEqual({
@@ -468,7 +471,7 @@ describe('M100/W production dependencies', () => {
 
   it('provisions a missing private Devices folder before the store and journal', async () => {
     const parent = await lane()
-    const directory = path.join(parent, 'globalStorage', 'devices')
+    const directory = path.join(parent, 'globalStorage', DEVICES_STORAGE_DIR)
     const uid = await ownerOf(parent)
     const deps = await openDeviceProductionDeps(
       fakeBundle(),
@@ -486,7 +489,7 @@ describe('M100/W production dependencies', () => {
 
   it('creates the Windows Devices folder already claimed, then never claims it again', async () => {
     const parent = await lane()
-    const directory = path.join(parent, 'devices')
+    const directory = path.join(parent, DEVICES_STORAGE_DIR)
     const claims = recordingProtection()
     const bundle = fakeBundle({
       helper: () => Promise.resolve({ protection: claims.protection, dispose: releaseFakeHelper }),
@@ -496,7 +499,7 @@ describe('M100/W production dependencies', () => {
     // Only a uniquely named stage of this call's own is claimed, then renamed into place.
     expect(claims.claimed).toHaveLength(1)
     expect(path.dirname(claims.claimed[0] ?? '')).toBe(parent)
-    expect(path.basename(claims.claimed[0] ?? '')).toMatch(/^\.devices-[a-f0-9]{32}\.stage$/)
+    expect(path.basename(claims.claimed[0] ?? '')).toMatch(STAGE_NAME)
     expect(existsSync(directory)).toBe(true)
     expect(await stagesIn(parent)).toEqual([])
     const second = await openDeviceProductionDeps(bundle, context(directory, windows), unbound())
@@ -506,7 +509,7 @@ describe('M100/W production dependencies', () => {
 
   it('never claims a Devices folder another creator made while this call staged its own', async () => {
     const parent = await lane()
-    const directory = path.join(parent, 'devices')
+    const directory = path.join(parent, DEVICES_STORAGE_DIR)
     const planted = path.join(directory, 'theirs.txt')
     // Another creator makes Devices (with data) between this call's check and its rename.
     const claims = recordingProtection(async () => {
@@ -519,7 +522,7 @@ describe('M100/W production dependencies', () => {
     const deps = await openDeviceProductionDeps(bundle, context(directory, windows), unbound())
     await deps.dispose()
     expect(claims.claimed.map((file) => path.basename(file))).toEqual([
-      expect.stringMatching(/^\.devices-[a-f0-9]{32}\.stage$/),
+      expect.stringMatching(STAGE_NAME),
     ])
     expect(claims.claimed).not.toContain(directory)
     expect(await readFile(planted, 'utf8')).toBe('not ours')
@@ -528,7 +531,7 @@ describe('M100/W production dependencies', () => {
 
   it('leaves an existing POSIX Devices folder as it is, for the store and journal to check', async () => {
     const parent = await lane()
-    const directory = path.join(parent, 'devices')
+    const directory = path.join(parent, DEVICES_STORAGE_DIR)
     await mkdir(directory, { mode: 0o755 })
     const before = await modeOf(directory)
     const uid = await ownerOf(parent)

@@ -135,8 +135,11 @@ export const TASKS_PANEL_VIEW_TYPE = 'museSpark.tasksPanel'
 // webview surface through the lazily loaded Devices bundle.
 export const DEVICES_PANEL_VIEW_TYPE = 'museSpark.devicesPanel'
 // Machine-scoped Devices storage (pairing store, attempt journal) under the
-// editor's global storage. Devices starts off; see D80.
-export const DEVICES_STORAGE_DIR = 'devices'
+// editor's global storage. Devices starts off; see D80. Never a bare UI text
+// key such as `devices`: this file is a webview startup source, and the
+// browser text splitter (scripts/lib/uiTextRegions.mjs) reads a string equal
+// to a key as that key's reader, which would load the whole group eagerly.
+export const DEVICES_STORAGE_DIR = 'device-storage'
 // The Windows storage helper's compile cache, beside the Devices folder: it
 // must not create that folder, which is only ever created already private.
 export const DEVICES_HELPER_DIR = 'devices-helper'

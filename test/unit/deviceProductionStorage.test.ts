@@ -22,6 +22,7 @@ import {
 import { DeviceSecrets } from '../../src/host/devices/deviceSecrets'
 import { DeviceStore } from '../../src/host/devices/deviceStore'
 import type { DeviceHostMessage } from '../../src/shared/devicesPanel'
+import { DEVICES_HELPER_DIR, DEVICES_STORAGE_DIR } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import {
   deviceStorage,
@@ -60,12 +61,12 @@ async function storageDirectory(): Promise<string> {
   const root = await privateDeviceRoot('m100-w2-')
   roots.push(root)
   // Two missing levels: the extension's globalStorage folder may not exist yet either.
-  return path.join(root, 'globalStorage', 'devices')
+  return path.join(root, 'globalStorage', DEVICES_STORAGE_DIR)
 }
 function context(directory: string): DeviceProductionContext {
   return {
     storageDirectory: directory,
-    helperDirectory: path.join(path.dirname(directory), 'devices-helper'),
+    helperDirectory: path.join(path.dirname(directory), DEVICES_HELPER_DIR),
     systemRoot: process.env['SystemRoot'],
     extensionPath: process.cwd(),
     secrets: memorySecrets(),
