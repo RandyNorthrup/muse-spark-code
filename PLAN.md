@@ -37938,6 +37938,13 @@ must resolve release-note representation within the existing cap before
 actual-source packaging can be green. No cap, threshold or test timeout is
 changed; aggregate quality remains lead-owned under the rig/common rules.
 
+The controlled full webview consumer also exits 1 on its resource-policy
+emitted-input negative drill: spawning the complete split check exceeds
+the unchanged Windows 15-second test deadline. Shared fixture copies keep
+the drill and all assertions intact. Split-check latency and actual-release
+content qualification remain with the lead; no green release claim follows
+from the private package fixture.
+
 **CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting
 journals/cache/engine, schedule-runtime and M114 panel/conversation failures
 from hosted run 37897298018 on the macbook rig. Repair only the shared
