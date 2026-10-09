@@ -4,19 +4,21 @@
 // with a recording git port — then end to end on the fixture repositories
 // with the real git runner.
 
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { resolveExecutable } from '../../src/core/executables'
+import { BlobAnswers } from '../../src/core/git/heldCheckoutCore'
 import { heldWorktreesRoot } from '../../src/core/worktreeConversations'
 import { UI_TEXT } from '../../src/shared/constants'
 import {
   createNodePullRequestCheckoutGit,
   pullRequestFetchEnvironment,
   quietPullRequestEnvironment,
+  runBatchChild,
   RuntimePullRequestCheckout,
   type PullRequestCheckoutGit,
   type RuntimeCheckoutDeps,
@@ -25,6 +27,7 @@ import {
   createFileWorktreeRecordStore,
   createMemoryWorktreeRecordStore,
   holdForRoots,
+  recordRevision,
 } from '../../src/runtime/panel/pullRequests/records'
 import type { CoreLogger } from '../../src/core/logging'
 import { fakeGitHub } from './helpers/fakeGitHub'
@@ -325,6 +328,105 @@ describe('runtime pull request checkout (M123 lane P)', () => {
     expect(record?.isCheckoutPending).toBeUndefined()
   })
 
+  it('refuses a second window’s open while the first checkout is pending', async () => {
+    // Two service instances share one file store, as two windows do: the
+    // second follows the pending record instead of racing it, and the
+    // first still completes its checkout.
+    const repositoryRoot = await mkdtemp(path.join(tmpdir(), 'm123p-repo-'))
+    const dataFolder = await mkdtemp(path.join(tmpdir(), 'm123p-data-'))
+    const storageRoot = await mkdtemp(path.join(tmpdir(), 'm123p-vsc-'))
+    const log = recordingLogger()
+    const { deps } = fakeRuntimeGitDeps(repositoryRoot)
+    const heldRoots = [
+      heldWorktreesRoot(storageRoot, process.platform),
+      heldWorktreesRoot(dataFolder, process.platform),
+    ]
+    const addedFolders: string[] = []
+    const makeWindow = () => {
+      const github = fakeGitHub()
+      const recording = recordingGit(CAPTURED_PULL_OWN.head.sha, {}, (call) =>
+        call === 1
+          ? new Promise<void>((resolve) => {
+              setTimeout(resolve, 50)
+            })
+          : Promise.reject(new Error('the worktree folder exists already')),
+      )
+      const checkout = new RuntimePullRequestCheckout({
+        ...deps,
+        repositoryRoot,
+        dataFolder,
+        tokenSources: [
+          fakeTokenSource('deviceFlow', { bearer: CANARY, isSignedIn: true, fetch: github.fetch }),
+        ],
+        platform: process.platform,
+        now: () => 2000,
+        confirm: () => Promise.resolve(true),
+        openFolder: () => Promise.resolve(),
+        baseUrl: 'https://api.github.test',
+        log,
+        isTrusted: () => true,
+        records: createFileWorktreeRecordStore(dataFolder, process.platform, log),
+        heldRoots,
+        git: {
+          ...recording.git,
+          addOwnWorktree: (cwd, folder, sha, check) => {
+            addedFolders.push(folder)
+            return recording.git.addOwnWorktree(cwd, folder, sha, check)
+          },
+        },
+        pathExists: (fsPath) => existsSync(fsPath),
+      } satisfies RuntimeCheckoutDeps)
+      return checkout
+    }
+    const [first, second] = await Promise.all([
+      makeWindow().open('56', OWN_REMOTES, 'origin'),
+      makeWindow().open('56', OWN_REMOTES, 'origin'),
+    ])
+    const succeeded = [first, second].filter((result) => result.ok)
+    const refused = [first, second].filter((result) => !result.ok)
+    expect(succeeded).toHaveLength(1)
+    expect(refused).toHaveLength(1)
+    expect(refused[0]).toEqual({ ok: false, reason: UI_TEXT.gitOperationChanged })
+    // `at` stays optional under every project config; the length
+    // assert above guards the lookup.
+    const winner = succeeded.at(0)
+    if (winner === undefined) {
+      throw new Error('one checkout should succeed')
+    }
+    // Exactly one git add ran, and the surviving record is finished —
+    // never stranded pending by the loser's rollback.
+    expect(addedFolders).toEqual([winner.folder])
+    const fresh = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    const surviving = await fresh.recordFor(winner.folder)
+    expect(surviving?.isCheckoutPending).toBeUndefined()
+  })
+
+  it('releases only a finished checkout from the card', async () => {
+    const setup = await checkoutSetup()
+    const folder = '/data/pr-worktrees/51-abcdef12'
+    const reserved = await setup.records.reserve({
+      folder,
+      repositoryRoot: setup.repositoryRoot,
+      createdAt: 2000,
+      pullRequest: {
+        repository: 'RandyNorthrup/muse-spark-code',
+        number: 51,
+        url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/51',
+        title: 'A foreign pull request',
+        author: 'Piangpi1997',
+        headSha: CAPTURED_PULL_FORK.head.sha,
+        isAuthoredByUser: false,
+      },
+      isHeld: true,
+      isCheckoutPending: true,
+    })
+    expect(reserved.ok).toBe(true)
+    expect(await setup.checkout.releaseHold(folder)).toEqual({
+      ok: false,
+      reason: UI_TEXT.gitOperationChanged,
+    })
+  })
+
   it('refuses a remote named like an option', async () => {
     const { checkout, git } = await checkoutSetup()
     const result = await checkout.open(
@@ -383,7 +485,7 @@ describe('runtime pull request checkout (M123 lane P)', () => {
       throw new Error('held roots missing')
     }
     const vscodeFolder = `${vscodeRoot}/51-abcdef12`
-    await setup.records.put({
+    const vscodeReserved = await setup.records.reserve({
       folder: vscodeFolder,
       repositoryRoot: setup.repositoryRoot,
       createdAt: 2000,
@@ -399,6 +501,7 @@ describe('runtime pull request checkout (M123 lane P)', () => {
       isHeld: true,
       isCheckoutPending: true,
     })
+    expect(vscodeReserved.ok).toBe(true)
     expect(
       holdForRoots([vscodeFolder], setup.heldRoots, await setup.records.list(), process.platform)
         ?.folder,
@@ -438,36 +541,136 @@ describe('pull request git environments (M123 lane P)', () => {
 })
 
 describe('worktree record store (M123 lane P)', () => {
-  it('completes, removes and releases records', async () => {
+  const heldOrigin = {
+    repository: 'RandyNorthrup/muse-spark-code',
+    number: 51,
+    url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/51',
+    title: 'A foreign pull request',
+    author: 'Piangpi1997',
+    headSha: CAPTURED_PULL_FORK.head.sha,
+    isAuthoredByUser: false,
+  } as const
+
+  it('reserves, completes, removes and releases records', async () => {
     const store = createMemoryWorktreeRecordStore(process.platform)
     const record = {
       folder: '/data/pr-worktrees/51-abcdef12',
       repositoryRoot: '/repo',
       createdAt: 2000,
-      pullRequest: {
-        repository: 'RandyNorthrup/muse-spark-code',
-        number: 51,
-        url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/51',
-        title: 'A foreign pull request',
-        author: 'Piangpi1997',
-        headSha: CAPTURED_PULL_FORK.head.sha,
-        isAuthoredByUser: false,
-      },
+      pullRequest: { ...heldOrigin },
       isHeld: true,
       isCheckoutPending: true,
     } as const
-    expect(await store.put({ ...record })).toBeUndefined()
+    const reserved = await store.reserve({ ...record })
+    expect(reserved.ok).toBe(true)
+    if (!reserved.ok) {
+      return
+    }
+    expect(reserved.previous).toBeUndefined()
+    expect(reserved.stored.revision).toBe(1)
     const pending = await store.recordFor(record.folder)
     expect(pending?.isCheckoutPending).toBe(true)
-    await store.complete(record.folder, record.createdAt)
+    // A second reserve never replaces the first checkout's record.
+    const rival = await store.reserve({ ...record, createdAt: 2001 })
+    expect(rival.ok).toBe(false)
+    if (rival.ok) {
+      return
+    }
+    expect(rival.current?.createdAt).toBe(2000)
+    // Only the reserved version completes.
+    expect(await store.complete(record.folder, record.createdAt, 999)).toBe(false)
+    expect(await store.complete(record.folder, record.createdAt, 1)).toBe(true)
     const completed = await store.recordFor(record.folder)
     expect(completed?.isCheckoutPending).toBeUndefined()
+    expect(completed?.revision).toBe(2)
+    // A stale completer that lost re-reads: its version no longer matches.
+    expect(await store.complete(record.folder, record.createdAt, 1)).toBe(false)
     const released = await store.release(record.folder, 3000)
     expect(released?.isHeld).toBe(false)
     expect(released?.trustConfirmedAt).toBe(3000)
-    await store.remove(record.folder, record.createdAt, undefined)
+    expect(await store.remove(record.folder, record.createdAt, 2, undefined)).toBe(false)
+    expect(await store.remove(record.folder, record.createdAt, 3, undefined)).toBe(true)
     expect(await store.recordFor(record.folder)).toBeUndefined()
     expect(await store.release(`${record.folder}-missing`, 3000)).toBeUndefined()
+  })
+
+  it('refuses a release for a checkout still pending', async () => {
+    const store = createMemoryWorktreeRecordStore(process.platform)
+    const folder = '/data/pr-worktrees/51-abcdef12'
+    const reserved = await store.reserve({
+      folder,
+      repositoryRoot: '/repo',
+      createdAt: 2000,
+      pullRequest: { ...heldOrigin },
+      isHeld: true,
+      isCheckoutPending: true,
+    })
+    expect(reserved.ok).toBe(true)
+    // Trust always lands on the finished checkout the user saw, never on
+    // one still being written.
+    expect(await store.release(folder, 3000)).toBeUndefined()
+    const untrusted = await store.recordFor(folder)
+    expect(untrusted?.isCheckoutPending).toBe(true)
+    expect(untrusted?.trustConfirmedAt).toBeUndefined()
+  })
+
+  it('supersedes only the exact version read, and rolls back to it', async () => {
+    const store = createMemoryWorktreeRecordStore(process.platform)
+    const folder = '/data/pr-worktrees/51-abcdef12'
+    const ready = {
+      folder,
+      repositoryRoot: '/repo',
+      createdAt: 1000,
+      pullRequest: { ...heldOrigin },
+      isHeld: true,
+      isCheckoutPending: true,
+    } as const
+    const reserved = await store.reserve({ ...ready })
+    expect(reserved.ok).toBe(true)
+    if (!reserved.ok) {
+      return
+    }
+    expect(await store.complete(folder, 1000, recordRevision(reserved.stored))).toBe(true)
+    expect(await store.release(folder, 1500)).toBeDefined()
+    const finished = await store.recordFor(folder)
+    if (finished === undefined) {
+      throw new Error('record missing')
+    }
+    // A stale version never takes over the finished checkout.
+    const stale = await store.supersede(
+      folder,
+      { createdAt: 1000, revision: 1 },
+      { ...ready, createdAt: 2000, isCheckoutPending: true as const },
+    )
+    expect(stale.ok).toBe(false)
+    const kept = await store.recordFor(folder)
+    expect(kept?.trustConfirmedAt).toBe(1500)
+    // The version read does: the folder is gone and the pull request is
+    // checked out again, pending and unconfirmed.
+    const takeover = await store.supersede(
+      folder,
+      { createdAt: 1000, revision: recordRevision(finished) },
+      {
+        ...ready,
+        createdAt: 2000,
+        trustConfirmedAt: undefined,
+        isCheckoutPending: true as const,
+      },
+    )
+    expect(takeover.ok).toBe(true)
+    if (!takeover.ok) {
+      return
+    }
+    expect(takeover.previous?.trustConfirmedAt).toBe(1500)
+    expect(takeover.stored.trustConfirmedAt).toBeUndefined()
+    const pending = await store.recordFor(folder)
+    expect(pending?.isCheckoutPending).toBe(true)
+    // Its checkout fails: the rollback restores the displaced record.
+    expect(
+      await store.remove(folder, 2000, recordRevision(takeover.stored), takeover.previous),
+    ).toBe(true)
+    const restored = await store.recordFor(folder)
+    expect(restored?.trustConfirmedAt).toBe(1500)
   })
 
   it('names one checkout through either separator and any case on Windows', async () => {
@@ -476,23 +679,17 @@ describe('worktree record store (M123 lane P)', () => {
       folder: String.raw`C:\data\pr-worktrees\51-abcdef12`,
       repositoryRoot: String.raw`C:\repo`,
       createdAt: 1000,
-      pullRequest: {
-        repository: 'RandyNorthrup/muse-spark-code',
-        number: 51,
-        url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/51',
-        title: 'A foreign pull request',
-        author: 'Piangpi1997',
-        headSha: CAPTURED_PULL_FORK.head.sha,
-        isAuthoredByUser: false,
-      },
+      pullRequest: { ...heldOrigin },
       isHeld: true,
       isCheckoutPending: true,
     } as const
-    await store.put({ ...record })
+    const reservedWin = await store.reserve({ ...record })
+    expect(reservedWin.ok).toBe(true)
     // The store keeps `/` separators; either spelling still finds it.
     expect(await store.recordFor('C:/data/pr-worktrees/51-abcdef12')).toEqual({
       ...record,
       folder: 'C:/data/pr-worktrees/51-abcdef12',
+      revision: 1,
     })
     expect(await store.recordFor(String.raw`c:\DATA\PR-WORKTREES\51-ABCDEF12`)).toBeDefined()
   })
@@ -502,21 +699,13 @@ describe('worktree record store (M123 lane P)', () => {
     const log = recordingLogger()
     const heldRoot = path.join(dataFolder, 'pr-worktrees')
     const folder = path.join(heldRoot, '51-abcdef12')
-    const origin = {
-      repository: 'RandyNorthrup/muse-spark-code',
-      number: 51,
-      url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/51',
-      title: 'A foreign pull request',
-      author: 'Piangpi1997',
-      headSha: CAPTURED_PULL_FORK.head.sha,
-      isAuthoredByUser: false,
-    } as const
-    // Window A caches a trusted checkout of the worktree.
+    const origin = { ...heldOrigin }
+    // Window A holds a trusted checkout of the worktree.
     // The store keeps folders with `/` separators, which git accepts on
     // Windows too, so the records compare on either platform.
     const key = folder.replaceAll('\\', '/')
     const windowA = createFileWorktreeRecordStore(dataFolder, process.platform, log)
-    await windowA.put({
+    const trusted = await windowA.reserve({
       folder,
       repositoryRoot: '/repo',
       createdAt: 1000,
@@ -524,9 +713,10 @@ describe('worktree record store (M123 lane P)', () => {
       isHeld: true,
       trustConfirmedAt: 1500,
     })
+    expect(trusted.ok).toBe(true)
     // The worktree is removed; window B checks out the updated pull
-    // request at the same folder, held without confirmation, and records
-    // an unrelated checkout too.
+    // request at the same folder. A blind second reserve cannot merge
+    // over A's record — B takes over exactly the version it read.
     const windowB = createFileWorktreeRecordStore(dataFolder, process.platform, log)
     const held = {
       folder: key,
@@ -536,9 +726,20 @@ describe('worktree record store (M123 lane P)', () => {
       isHeld: true,
       isCheckoutPending: true,
     } as const
-    await windowB.put({ ...held })
+    const refused = await windowB.reserve({ ...held })
+    expect(refused.ok).toBe(false)
+    if (refused.ok || refused.current === undefined) {
+      throw new Error('second reserve should report the trusted record')
+    }
+    const takeover = await windowB.supersede(
+      folder,
+      { createdAt: refused.current.createdAt, revision: recordRevision(refused.current) },
+      { ...held },
+    )
+    expect(takeover.ok).toBe(true)
+    // Window B records an unrelated checkout too.
     const otherFolder = path.join(heldRoot, '56-fedcba98')
-    await windowB.put({
+    const other = await windowB.reserve({
       folder: otherFolder,
       repositoryRoot: '/repo',
       createdAt: 2000,
@@ -546,15 +747,200 @@ describe('worktree record store (M123 lane P)', () => {
       isHeld: true,
       isCheckoutPending: true,
     })
-    // A subsequent read in the stale window must see the new record, and
-    // — reads never write — must not put the old trust back.
-    expect(await windowA.recordFor(folder)).toEqual({ ...held })
+    expect(other.ok).toBe(true)
+    // The stale window's old trust grant can never be written back: the
+    // reserve for it refuses against the fresh state.
+    const stale = await windowA.reserve({
+      folder,
+      repositoryRoot: '/repo',
+      createdAt: 1000,
+      pullRequest: { ...origin },
+      isHeld: true,
+      trustConfirmedAt: 1500,
+    })
+    expect(stale.ok).toBe(false)
+    // A subsequent read in the stale window sees the new record, and —
+    // reads never write — the file keeps B's unconfirmed pending
+    // checkout and the unrelated record.
     const fresh = createFileWorktreeRecordStore(dataFolder, process.platform, log)
-    expect(await fresh.recordFor(folder)).toEqual({ ...held })
+    expect(await windowA.recordFor(folder)).toEqual({ ...held, revision: 2 })
+    expect(await fresh.recordFor(folder)).toEqual({ ...held, revision: 2 })
     expect(await fresh.recordFor(otherFolder)).toBeDefined()
     expect(holdForRoots([folder], [heldRoot], await fresh.list(), process.platform)?.folder).toBe(
       key,
     )
+  })
+
+  it('merges concurrent file mutations instead of losing them', async () => {
+    const dataFolder = await mkdtemp(path.join(tmpdir(), 'm123p-records-race-'))
+    const log = recordingLogger()
+    const heldRoot = path.join(dataFolder, 'pr-worktrees')
+    const folder = path.join(heldRoot, '51-abcdef12')
+    const windowA = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    const windowB = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    // Window A holds the old trusted record.
+    const trusted = await windowA.reserve({
+      folder,
+      repositoryRoot: '/repo',
+      createdAt: 1000,
+      pullRequest: { ...heldOrigin },
+      isHeld: true,
+      trustConfirmedAt: 1500,
+    })
+    expect(trusted.ok).toBe(true)
+    // Window B replaces it with a new pending checkout while window A
+    // adds an unrelated record: the two mutations race the same file.
+    const otherFolder = path.join(heldRoot, '56-fedcba98')
+    const [replaced, added] = await Promise.all([
+      windowB.supersede(
+        folder,
+        { createdAt: 1000, revision: 1 },
+        {
+          folder,
+          repositoryRoot: '/repo',
+          createdAt: 2000,
+          pullRequest: { ...heldOrigin },
+          isHeld: true,
+          isCheckoutPending: true,
+        },
+      ),
+      windowA.reserve({
+        folder: otherFolder,
+        repositoryRoot: '/repo',
+        createdAt: 2000,
+        pullRequest: { ...heldOrigin, number: 56 },
+        isHeld: true,
+        isCheckoutPending: true,
+      }),
+    ])
+    expect(replaced.ok).toBe(true)
+    expect(added.ok).toBe(true)
+    // Whichever mutation won the file first, the final registry keeps
+    // B's unconfirmed pending checkout and A's unrelated record — the
+    // old trust grant is never restored, and no record is dropped.
+    const fresh = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    const current = await fresh.recordFor(folder)
+    expect(current?.isCheckoutPending).toBe(true)
+    expect(current?.trustConfirmedAt).toBeUndefined()
+    expect(await fresh.recordFor(otherFolder)).toBeDefined()
+  })
+})
+
+// A root that answers nothing, with a helper holding the root's stdout
+// open past the root's death, as a git transport can.
+const BATCH_ROOT_WITH_HELPER = [
+  "const { spawn } = require('node:child_process');",
+  "const helper = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: ['ignore', 'inherit', 'ignore'] });",
+  'helper.unref();',
+  "require('node:fs').writeFileSync(process.env['M123P_HELPER_PID_FILE'], String(helper.pid));",
+  'process.stdin.resume();',
+  'setTimeout(() => {}, 60000);',
+].join('\n')
+
+function unreadableBatchAnswers(): BlobAnswers {
+  return new BlobAnswers(
+    [{ path: 'README.md', kind: 'file', oid: '0'.repeat(40), size: 1 }],
+    () => Promise.resolve(),
+    () => new Error('unreadable'),
+  )
+}
+
+async function batchHelperPidOf(pidFile: string): Promise<number | undefined> {
+  for (let attempt = 1; attempt <= 40; attempt += 1) {
+    try {
+      const pid = Number(await readFile(pidFile, 'utf8'))
+      if (Number.isSafeInteger(pid)) {
+        return pid
+      }
+    } catch {
+      // Not written yet.
+    }
+    await new Promise((resolve) => {
+      setTimeout(resolve, 50)
+    })
+  }
+  return undefined
+}
+
+function isBatchPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+describe('pull request batch child (M123 lane P)', () => {
+  it('ends the batch past its deadline and stops the helper tree', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'm123p-batch-'))
+    const pidFile = path.join(dir, 'helper.pid')
+    const child = spawn(process.execPath, ['-e', BATCH_ROOT_WITH_HELPER], {
+      cwd: dir,
+      env: { ...process.env, M123P_HELPER_PID_FILE: pidFile },
+      windowsHide: true,
+      detached: process.platform !== 'win32',
+    })
+    child.stderr.resume()
+    const helperPid = await batchHelperPidOf(pidFile)
+    expect(helperPid).toBeDefined()
+    if (helperPid === undefined) {
+      child.kill('SIGKILL')
+      throw new Error('the helper never started')
+    }
+    expect(isBatchPidAlive(helperPid)).toBe(true)
+    const started = Date.now()
+    await expect(
+      runBatchChild(child, unreadableBatchAnswers(), {
+        deadlineMs: 300,
+        killGraceMs: 1000,
+        platform: process.platform,
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toThrow()
+    // Settled by its own deadline, not by the pipes the helper held.
+    expect(Date.now() - started).toBeLessThan(5000)
+    try {
+      if (process.platform !== 'win32') {
+        for (let attempt = 1; isBatchPidAlive(helperPid) && attempt <= 40; attempt += 1) {
+          await new Promise((resolve) => {
+            setTimeout(resolve, 50)
+          })
+        }
+        expect(isBatchPidAlive(helperPid)).toBe(false)
+      }
+    } finally {
+      try {
+        process.kill(helperPid, 'SIGKILL')
+      } catch {
+        // The deadline already stopped it.
+      }
+      child.kill('SIGKILL')
+    }
+  })
+
+  it('settles a running batch on abort instead of hanging', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'm123p-batch-abort-'))
+    const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], {
+      cwd: dir,
+      windowsHide: true,
+      detached: process.platform !== 'win32',
+    })
+    child.stderr.resume()
+    const controller = new AbortController()
+    const run = runBatchChild(child, unreadableBatchAnswers(), {
+      deadlineMs: 60_000,
+      killGraceMs: 1000,
+      platform: process.platform,
+      signal: controller.signal,
+    })
+    const started = Date.now()
+    setTimeout(() => {
+      controller.abort()
+    }, 200)
+    await expect(run).rejects.toThrow()
+    expect(Date.now() - started).toBeLessThan(5000)
+    child.kill('SIGKILL')
   })
 })
 
