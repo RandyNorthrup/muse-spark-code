@@ -103,6 +103,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly scheduleStore?: ScheduleStore | undefined
   /** Account upload ledger and calibration observations (MONEY017D, D85.2/D85.6). */
   readonly uploadLedgerDir?: string | undefined
+  /** The window's attached-media registry (M105 lane V): the attach port writes it. */
+  readonly attachedMedia?: ModelApiHostDeps['attachedMedia']
   /** The git facts for the prompt's environment section (D15). */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   /** The same facts for a best-of-N worktree (M77): an attempt's own branch. */
@@ -358,6 +360,7 @@ export class ModelApiBackendManager {
         ...(this.deps.uploadLedgerDir !== undefined && {
           uploadLedgerDir: this.deps.uploadLedgerDir,
         }),
+        ...(this.deps.attachedMedia !== undefined && { attachedMedia: this.deps.attachedMedia }),
         getAccountId: async () => {
           if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()
           const key = await this.deps.getApiKey()

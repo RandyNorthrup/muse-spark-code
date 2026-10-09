@@ -41,6 +41,9 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { watchSessionTurns } from './helpers/sessionTurns'
+import { videoFixture } from './helpers/media/fixtures'
+import { AttachedMedia } from '../../src/core/media/attachedMedia'
+import { sniffMediaBytes } from '../../src/core/media/limits'
 
 const CONTRIBUTOR = 'muse-spark-1.3-contributor'
 const STANDARD = 'muse-spark-1.3'
@@ -120,6 +123,8 @@ async function factory(options: {
   readonly mcp?: McpToolSource
   /** Properties a caller should not be able to install (cast past the type). */
   readonly strayHost?: Readonly<Record<string, unknown>>
+  /** The window's attached-media registry (lane V seam 1). */
+  readonly attachedMedia?: AttachedMedia
 }): Promise<Rig> {
   const api = options.api ?? fakeModelApi()
   const files = fakeFilesApi(api.fetch)
@@ -155,6 +160,7 @@ async function factory(options: {
       confirmContributorModel: () => Promise.resolve(true),
       isPaidFeatureOn: () => true,
       store,
+      ...(options.attachedMedia !== undefined && { attachedMedia: options.attachedMedia }),
       ...options.strayHost,
     },
   })
@@ -506,6 +512,141 @@ describe('one production media service per session (M105 W redesign)', () => {
       )
       expect(rig.files.uploads).toHaveLength(0)
       expect(rig.api.requests.some((request) => request.path.includes('/asr/'))).toBe(false)
+    } finally {
+      await rig.host.close()
+    }
+  })
+})
+
+/** An attached mp4 registered as the attach port does: metadata, digest, a reopening source. */
+function attachedVideo(registry: AttachedMedia, token: string, bytes = videoFixture()) {
+  const info = sniffMediaBytes(bytes)
+  if (info === undefined) throw new Error('fixture must sniff')
+  const reads = { count: 0 }
+  const chunk = Promise.resolve(bytes)
+  const part = registry.register(
+    token,
+    { name: 'clip.mp4', info, sha256: createHash('sha256').update(bytes).digest('hex') },
+    {
+      read: async function* () {
+        reads.count += 1
+        yield await chunk
+      },
+      path: () => Promise.resolve(undefined),
+    },
+  )
+  return { part, reads }
+}
+
+describe('attached video through the session media service (M105 lane V seam 1)', () => {
+  it('uploads an attached video once and replays its file id on the next turn', async () => {
+    const registry = new AttachedMedia()
+    const { part, reads } = attachedVideo(registry, 'attach-1')
+    const rig = await factory({ attachedMedia: registry })
+    try {
+      const h = await start(rig, CONTRIBUTOR)
+      rig.api.script({ text: 'A short clip.' }, { text: 'Still the clip.' })
+      expect(await turn(h, [{ type: 'text', text: 'What happens?' }, part])).toBeUndefined()
+      expect(terminal(h.events)).toMatchObject({ terminal: 'completed' })
+      expect(rig.files.uploads).toHaveLength(1)
+      const fileId = rig.files.uploads[0]?.fileId ?? ''
+      const first = JSON.stringify(rig.api.responseBodies()[0])
+      expect(first).toContain('"input_video"')
+      expect(first).toContain(fileId)
+      // No bytes and no path ride the request: only the provider's file id.
+      expect(first).not.toContain('data:video')
+      expect(await turn(h, [{ type: 'text', text: 'And then?' }])).toBeUndefined()
+      expect(rig.files.uploads).toHaveLength(1)
+      expect(JSON.stringify(rig.api.responseBodies()[1])).toContain(fileId)
+      expect(reads.count).toBe(1)
+    } finally {
+      await rig.host.close()
+    }
+  })
+
+  it('refuses a media part the registry does not hold, before any upload or inference', async () => {
+    const registry = new AttachedMedia()
+    const { part } = attachedVideo(registry, 'attach-2')
+    const rig = await factory({ attachedMedia: registry })
+    try {
+      const h = await start(rig, CONTRIBUTOR)
+      for (const forged of [
+        { ...part, token: 'never-issued' },
+        { ...part, sha256: '0'.repeat(64) },
+      ]) {
+        const refusal = await turn(h, [{ type: 'text', text: 'Watch' }, forged])
+        expect(refusal ?? JSON.stringify(h.events)).toContain(
+          fill(UI_TEXT.media.sourceChanged, { name: 'clip.mp4' }),
+        )
+      }
+      expect(rig.files.uploads).toHaveLength(0)
+      expect(rig.api.responseBodies()).toHaveLength(0)
+    } finally {
+      await rig.host.close()
+    }
+  })
+
+  it('refuses an attached video whose bytes changed since it was attached', async () => {
+    const registry = new AttachedMedia()
+    const original = videoFixture()
+    const info = sniffMediaBytes(original)
+    if (info === undefined) throw new Error('fixture must sniff')
+    const changed = new Uint8Array(original)
+    changed[changed.length - 1] = (changed.at(-1) ?? 0) ^ 0xff
+    const chunk = Promise.resolve(changed)
+    const part = registry.register(
+      'attach-3',
+      { name: 'clip.mp4', info, sha256: createHash('sha256').update(original).digest('hex') },
+      {
+        read: async function* () {
+          yield await chunk
+        },
+        path: () => Promise.resolve(undefined),
+      },
+    )
+    const rig = await factory({ attachedMedia: registry })
+    try {
+      const h = await start(rig, CONTRIBUTOR)
+      const refusal = await turn(h, [{ type: 'text', text: 'Watch' }, part])
+      expect(refusal ?? JSON.stringify(h.events)).toContain('clip.mp4')
+      // The changed source never completes an upload.
+      expect(rig.files.uploads).toHaveLength(0)
+      expect(rig.api.responseBodies()).toHaveLength(0)
+    } finally {
+      await rig.host.close()
+    }
+  })
+
+  it('refuses an attached video when the session has no media service, never sending its name alone', async () => {
+    const registry = new AttachedMedia()
+    const { part } = attachedVideo(registry, 'attach-5')
+    // No uploads root: the factory installs no production media service.
+    const rig = await factory({
+      attachedMedia: registry,
+      strayHost: { uploadLedgerDir: undefined },
+    })
+    try {
+      const h = await start(rig, CONTRIBUTOR)
+      const refusal = await turn(h, [{ type: 'text', text: 'Watch' }, part])
+      expect(refusal ?? JSON.stringify(h.events)).toContain(UI_TEXT.media.uploadUnavailable)
+      expect(rig.api.responseBodies()).toHaveLength(0)
+      expect(rig.files.uploads).toHaveLength(0)
+    } finally {
+      await rig.host.close()
+    }
+  })
+
+  it('refuses an attached video on a model with no captured video record', async () => {
+    const registry = new AttachedMedia()
+    const { part } = attachedVideo(registry, 'attach-4')
+    const rig = await factory({ attachedMedia: registry })
+    try {
+      const h = await start(rig, STANDARD)
+      const refusal = await turn(h, [{ type: 'text', text: 'Watch' }, part])
+      expect(refusal ?? JSON.stringify(h.events)).toContain(
+        fill(UI_TEXT.media.videoUnknown, { model: STANDARD }),
+      )
+      expect(rig.files.uploads).toHaveLength(0)
     } finally {
       await rig.host.close()
     }

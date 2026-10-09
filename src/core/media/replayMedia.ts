@@ -471,6 +471,10 @@ export class ReplayMedia {
     budget: MediaBudget,
   ): InputContentPart {
     const raw = this.deps.attachment?.(part)
+    // An attached video or audio part whose token the registry no longer
+    // holds (a new conversation, a forged or stale part) is refused.
+    if (raw === undefined && part.type === 'media')
+      throw new Error(fill(UI_TEXT.media.sourceChanged, { name: part.name }))
     if (raw === undefined) {
       // An inline image or PDF: priced through the one admission path, kept
       // as an inline record, never registered for upload.

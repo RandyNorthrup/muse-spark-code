@@ -157,6 +157,10 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
       ? await import('./productionMediaEntry.js')
       : undefined
   productionMedia?.setUiText(deps.uiText, deps.uiLocale)
+  // Attached video and audio (lane V seam 1): the host's registry resolves a
+  // `media` part to its record and its reverifying source; a tool-read file
+  // reopens through the workspace as before.
+  const attached = hostDeps.attachedMedia
   const host = new ModelApiHost({
     ...hostDeps,
     ...(productionMedia !== undefined &&
@@ -172,11 +176,15 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
             directory: mediaDirectory,
             log: hostDeps.log,
             isCapped: session.isCapped,
-            source: productionMedia.workspaceMediaSource({
-              workspaceRoot: hostDeps.workspaceRoot,
-              platform: hostDeps.platform,
-              io: hostDeps.io,
-            }),
+            source: productionMedia.attachedOrWorkspaceSource(
+              attached,
+              productionMedia.workspaceMediaSource({
+                workspaceRoot: hostDeps.workspaceRoot,
+                platform: hostDeps.platform,
+                io: hostDeps.io,
+              }),
+            ),
+            ...(attached !== undefined && { attachment: (part) => attached.resolve(part) }),
             authorize: (_media, model, gate, signal) => {
               signal.throwIfAborted()
               if (!gate.ok) throw new Error(gate.reason)

@@ -5,7 +5,6 @@ import {
   MEDIA_CALIBRATION_IMAGE_MAX_HEIGHT,
   MEDIA_CALIBRATION_IMAGE_MAX_WIDTH,
   MEDIA_CALIBRATION_VIDEO_MAX_SECONDS,
-  MEDIA_CONTRIBUTOR_CHOICES,
   MEDIA_ID_MAX_CHARS,
   MODEL_API_MEDIA_PER_REQUEST,
   TOKENS_PER_MILLION,
@@ -466,56 +465,4 @@ export async function reserveMediaRequest(request: {
   }
 }
 
-/** Every editor asks through its own modal/permission bridge, before upload. */
-export class MediaContributorConsent {
-  private readonly allowed = new Set<string>()
-  private readonly pending = new Map<string, Promise<'send' | 'useStandard' | 'remove'>>()
-
-  public constructor(
-    private readonly ask: (question: {
-      readonly title: string
-      readonly detail: string
-      readonly choices: typeof MEDIA_CONTRIBUTOR_CHOICES
-    }) => Promise<'send' | 'useStandard' | 'remove'>,
-  ) {}
-
-  public async choose(request: {
-    readonly conversationId: string
-    readonly name: string
-    readonly info: MediaInfo
-    readonly contributor: boolean
-    readonly isScreenRecording: boolean
-  }) {
-    const isSensitive = ['video', 'audio'].includes(request.info.kind)
-    if (
-      !request.isScreenRecording &&
-      (!isSensitive || !request.contributor || this.allowed.has(request.conversationId))
-    )
-      return 'send'
-    const decide = async () => {
-      const choice = z.enum(MEDIA_CONTRIBUTOR_CHOICES).parse(
-        await this.ask({
-          title: request.contributor
-            ? fill(UI_TEXT.media.contributorQuestion, { name: request.name })
-            : UI_TEXT.media.recordingWarning,
-          detail: request.isScreenRecording
-            ? UI_TEXT.media.recordingWarning
-            : UI_TEXT.media.contributorWarning,
-          choices: MEDIA_CONTRIBUTOR_CHOICES,
-        }),
-      )
-      if (choice === 'send' && request.contributor) this.allowed.add(request.conversationId)
-      return choice
-    }
-    if (request.isScreenRecording) return await decide()
-    const pending = this.pending.get(request.conversationId)
-    if (pending !== undefined) return await pending
-    const decision = decide()
-    this.pending.set(request.conversationId, decision)
-    try {
-      return await decision
-    } finally {
-      this.pending.delete(request.conversationId)
-    }
-  }
-}
+export { MediaContributorConsent } from './contributorConsent'

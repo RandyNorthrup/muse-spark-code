@@ -8831,7 +8831,7 @@ export class ConversationController {
       if (!isCurrent()) return undefined
       if (port === undefined) {
         // No port is an unbound pipeline, not an unreadable file (M105 E1 review).
-        rejected(UI_TEXT.media.uploadStorageUnknown)
+        rejected(UI_TEXT.media.uploadUnavailable)
         return
       }
       this.mediaAttachments = port
@@ -8840,7 +8840,9 @@ export class ConversationController {
         rejected(UI_TEXT.attachmentUnreadable)
         return
       }
-      const prepared = await port.prepare(pathToken, host.info.kind, this.modelId)
+      const prepared = await port.prepare(pathToken, host.info.kind, this.modelId, {
+        isScreenRecording,
+      })
       if (!isCurrent()) return undefined
       if (!prepared.ok) {
         rejected(prepared.reason)
@@ -8867,11 +8869,11 @@ export class ConversationController {
       rejected(result.reason)
       return
     } catch (error: unknown) {
-      // The unbound pipeline (W's throwing bind until U6c) keeps its own
-      // words; only a genuine read failure is unreadable (M105 E1 review).
+      // An unbound pipeline keeps its own words; only a genuine read
+      // failure is unreadable (M105 E1 review).
       rejected(
-        error instanceof Error && error.message === UI_TEXT.media.uploadStorageUnknown
-          ? UI_TEXT.media.uploadStorageUnknown
+        error instanceof Error && error.message === UI_TEXT.media.uploadUnavailable
+          ? UI_TEXT.media.uploadUnavailable
           : UI_TEXT.attachmentUnreadable,
       )
       return

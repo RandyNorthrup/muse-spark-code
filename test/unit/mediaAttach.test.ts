@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { createMediaAttachments, type MediaAttachDeps } from '../../src/host/media/mediaAttach'
 import { MEDIA_SNIFF_MAX_BYTES, UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import { ebmlFixture, videoFixture, wavFixture } from './helpers/media/fixtures'
 import { mediaModel } from './helpers/media/replay'
 
@@ -40,13 +42,16 @@ describe('M105 E1 host-token attachments', () => {
     const t = rig(bytes)
     const result = await t.port.prepare(t.token, 'modelApi', 'muse-spark-1.3')
     expect(result.ok).toBe(true)
+    // The sniff reads a bounded head and tail; the digest the upload ledger
+    // and every reopen verify (lane V seam 1) then reads the file once.
     expect(t.read.mock.calls.reduce((sum, [, length]) => sum + length, 0)).toBe(
-      MEDIA_SNIFF_MAX_BYTES,
+      MEDIA_SNIFF_MAX_BYTES + bytes.length,
     )
     expect(t.close).toHaveBeenCalledOnce()
     expect(t.bind).toHaveBeenCalledWith(
       t.file,
       expect.objectContaining({ kind: 'video', mediaType: 'video/mp4', sizeBytes: bytes.length }),
+      createHash('sha256').update(bytes).digest('hex'),
     )
     expect(JSON.stringify(result)).not.toContain('base64')
     expect(JSON.stringify(result)).not.toContain('/approved')
@@ -182,5 +187,90 @@ describe('M105 E1 host-token attachments', () => {
     )
     expect(mismatch.bind).not.toHaveBeenCalled()
     expect(mismatch.close).toHaveBeenCalledOnce()
+  })
+})
+
+describe('D85.7 contributor question at the attach port (M105 lane V seam 1)', () => {
+  const CONTRIBUTOR = 'muse-spark-1.3-contributor'
+
+  it('asks once per conversation on a contributor model, again after a new conversation', async () => {
+    const askContributor = vi.fn(() => Promise.resolve('send' as const))
+    const t = rig(videoFixture(), { askContributor })
+    expect(await t.port.prepare(t.token, 'modelApi', CONTRIBUTOR)).toMatchObject({ ok: true })
+    const second = t.port.issue(t.file)
+    expect(await t.port.prepare(second, 'modelApi', CONTRIBUTOR)).toMatchObject({ ok: true })
+    expect(askContributor).toHaveBeenCalledOnce()
+    expect(askContributor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: fill(UI_TEXT.media.contributorQuestion, { name: 'clip.mov' }),
+        detail: UI_TEXT.media.contributorWarning,
+      }),
+    )
+    t.port.clear()
+    const third = t.port.issue(t.file)
+    expect(await t.port.prepare(third, 'modelApi', CONTRIBUTOR)).toMatchObject({ ok: true })
+    expect(askContributor).toHaveBeenCalledTimes(2)
+    expect(t.bind).toHaveBeenCalledTimes(3)
+  })
+
+  it('binds nothing on Remove, or on Use the Standard model, which names its own refusal', async () => {
+    const removed = rig(videoFixture(), {
+      askContributor: () => Promise.resolve('remove' as const),
+    })
+    expect(await removed.port.prepare(removed.token, 'modelApi', CONTRIBUTOR)).toEqual({
+      ok: false,
+      reason: fill(UI_TEXT.media.contributorDeclined, { name: 'clip.mov' }),
+    })
+    expect(removed.bind).not.toHaveBeenCalled()
+    const standard = rig(videoFixture(), {
+      askContributor: () => Promise.resolve('useStandard' as const),
+      capabilities: (id: string) => {
+        const model = mediaModel(id)
+        return id === CONTRIBUTOR
+          ? model
+          : {
+              ...model,
+              modalities: { ...model.modalities, video: { support: 'unknown', formats: [] } },
+            }
+      },
+    })
+    expect(await standard.port.prepare(standard.token, 'modelApi', CONTRIBUTOR)).toEqual({
+      ok: false,
+      reason: fill(UI_TEXT.media.videoUnknown, { model: 'muse-spark-1.3' }),
+    })
+    const switchable = rig(videoFixture(), {
+      askContributor: () => Promise.resolve('useStandard' as const),
+    })
+    expect(await switchable.port.prepare(switchable.token, 'modelApi', CONTRIBUTOR)).toEqual({
+      ok: false,
+      reason: fill(UI_TEXT.media.useStandardThenAttach, {
+        model: 'muse-spark-1.3',
+        name: 'clip.mov',
+      }),
+    })
+    expect(standard.bind).not.toHaveBeenCalled()
+    expect(switchable.bind).not.toHaveBeenCalled()
+  })
+
+  it('refuses on a contributor model when the editor has no way to ask', async () => {
+    const t = rig(videoFixture())
+    expect(await t.port.prepare(t.token, 'modelApi', CONTRIBUTOR)).toEqual({
+      ok: false,
+      reason: fill(UI_TEXT.media.contributorDeclined, { name: 'clip.mov' }),
+    })
+    expect(t.bind).not.toHaveBeenCalled()
+  })
+
+  it('always asks for a screen recording, even on a Standard model', async () => {
+    const askContributor = vi.fn(() => Promise.resolve('send' as const))
+    const t = rig(videoFixture(), { askContributor })
+    for (const token of [t.token, t.port.issue(t.file)])
+      expect(
+        await t.port.prepare(token, 'modelApi', 'muse-spark-1.3', { isScreenRecording: true }),
+      ).toMatchObject({ ok: true })
+    expect(askContributor).toHaveBeenCalledTimes(2)
+    expect(askContributor).toHaveBeenLastCalledWith(
+      expect.objectContaining({ detail: UI_TEXT.media.recordingWarning }),
+    )
   })
 })

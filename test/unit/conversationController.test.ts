@@ -17380,6 +17380,7 @@ function mediaRig(bytes = videoFixture(), backendKind: 'museCode' | 'modelApi' =
   )
   const close = vi.fn(() => Promise.resolve())
   const bind = vi.fn(bindSyntheticMediaPart)
+  const askContributor = vi.fn(() => Promise.resolve('send' as const))
   let token = 0
   const port = createMediaAttachments({
     newToken: () => `host-token-${String(++token)}`,
@@ -17387,6 +17388,8 @@ function mediaRig(bytes = videoFixture(), backendKind: 'museCode' | 'modelApi' =
     capabilities: mediaModel,
     limits: () => ({}),
     bind,
+    // D85.7: the editor's modal, answered Send (lane V seam 1).
+    askContributor,
   })
   const load = vi.fn(() => Promise.resolve(port))
   const files = {
@@ -17395,7 +17398,7 @@ function mediaRig(bytes = videoFixture(), backendKind: 'museCode' | 'modelApi' =
       t.deps.files.canonicalRelativePath(file.replaceAll('\\', '/')),
   }
   const controller = new ConversationController({ ...t.deps, files, mediaAttachments: load })
-  return { ...t, controller, files, port, load, read, close, bind }
+  return { ...t, controller, files, port, load, read, close, bind, askContributor }
 }
 
 function recordingPort() {
@@ -17450,6 +17453,7 @@ describe('M105 E1 attachment handler', () => {
     expect(t.bind).toHaveBeenCalledWith(
       expect.objectContaining({ fsPath: '/ws/clip.mp4' }),
       expect.objectContaining({ kind: 'video' }),
+      expect.stringMatching(/^[0-9a-f]{64}$/u),
     )
     t.controller.dispose()
   })
@@ -17573,7 +17577,7 @@ describe('M105 E1 attachment handler', () => {
       expect(t.surface.posted).toContainEqual({
         type: 'attachmentRejected',
         name,
-        reason: UI_TEXT.media.uploadStorageUnknown,
+        reason: UI_TEXT.media.uploadUnavailable,
       })
       expect(t.read).not.toHaveBeenCalled()
       controller.dispose()
@@ -17690,6 +17694,10 @@ describe('M105 E1 attachment handler', () => {
       true,
     )
     expect(isAdmitted).toBe(true)
+    // D85.7: a screen recording always asks first (lane V seam 1).
+    expect(t.askContributor).toHaveBeenCalledWith(
+      expect.objectContaining({ detail: UI_TEXT.media.recordingWarning }),
+    )
     const added = t.surface.posted.find((message) => message.type === 'attachmentAdded')
     expect(added).toMatchObject({
       attachment: { media: { info: { kind: 'video' }, isScreenRecording: true } },

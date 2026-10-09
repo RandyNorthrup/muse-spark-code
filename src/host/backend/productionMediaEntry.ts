@@ -4,6 +4,10 @@
 // runtime load it on a session's first upload save or delete. Neither the
 // activation bundle nor dist/modelApi.js carries the replay, the estimator,
 // the calibration seeds, the captured codec or the upload ledger.
-export { createProductionMediaReplay, workspaceMediaSource } from '../../core/media/productionMedia'
+export {
+  attachedOrWorkspaceSource,
+  createProductionMediaReplay,
+  workspaceMediaSource,
+} from '../../core/media/productionMedia'
 export { createSessionUploads } from './sessionUploads'
 export { setUiText } from '../../shared/l10n/text'

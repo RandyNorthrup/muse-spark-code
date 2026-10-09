@@ -4,9 +4,9 @@
 // locally settled observations), the captured Responses codec and the
 // captured model capabilities. The host supplies only what it owns: the
 // HTTP client, the account digest, the storage directory, the session's cap
-// and the source/authorize seams. No attach-token resolver is bound: inline
-// images and PDFs are identified from their own bytes (replayMedia.ts), and
-// attaching video or audio waits for lane V's seams.
+// and the source/authorize seams. Inline images and PDFs are identified from
+// their own bytes (replayMedia.ts); attached video and audio resolve through
+// the host's attached-media registry (lane V), whose sources reverify.
 //
 // Authorization (D85.6 U6c, D85.7): uploads are not billed, so the Files
 // authorizer asks nothing beyond decision 7. A scheduled upload follows an
@@ -44,6 +44,7 @@ import { responsesMediaCodec } from './responsesMediaCodec'
 import { metaMediaCapabilities } from './metaMediaCapabilities'
 import { ReplayMedia, type ReplayMediaDeps, type StoredMediaPart } from './replayMedia'
 import { UploadLedger } from './uploadLedger'
+import type { AttachedMediaPort } from './attachedMedia'
 
 const CALIBRATION_FILE = 'calibration.json'
 const LOCK_SUFFIX = '.lock'
@@ -129,6 +130,8 @@ export interface ProductionMediaDeps {
   readonly directory: string
   readonly log: Pick<CoreLogger, 'warn'>
   readonly source: ReplayMediaDeps['source']
+  /** The host's attached-media registry resolving `media` parts (lane V). */
+  readonly attachment?: ReplayMediaDeps['attachment']
   readonly authorize: ReplayMediaDeps['authorize']
   readonly compactionTail?: ReplayMediaDeps['compactionTail']
   /** The session's cap, read per request (D85.6: unknown refuses only when capped). */
@@ -189,9 +192,22 @@ export function createProductionMediaReplay(deps: ProductionMediaDeps): ReplayMe
         return newest === undefined ? [] : [newest.turnId]
       }),
     source: deps.source,
+    ...(deps.attachment !== undefined && { attachment: deps.attachment }),
     authorize: deps.authorize,
     isCapped: deps.isCapped,
   })
+}
+
+/**
+ * An attached record's own reverifying source first (matched by digest, name
+ * and size in the host's registry), else the workspace reopen a tool-read
+ * file uses. Neither guesses a path.
+ */
+export function attachedOrWorkspaceSource(
+  attached: Pick<AttachedMediaPort, 'source'> | undefined,
+  workspace: ReplayMediaDeps['source'],
+): ReplayMediaDeps['source'] {
+  return async (media, signal) => attached?.source(media) ?? (await workspace(media, signal))
 }
 
 /** Reopen an adopted workspace file for the replay's re-verification. */

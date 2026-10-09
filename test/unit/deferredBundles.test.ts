@@ -39,6 +39,7 @@ import { resourceSettingsSchema } from '../../src/shared/resources'
 import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
 import type { createMediaInspector, createMediaAttachments } from '../../src/host/media/mediaEntry'
 import { createMediaAttachDeps } from '../../src/host/media/mediaProviders'
+import { AttachedMedia } from '../../src/core/media/attachedMedia'
 import { loadUiTable } from '../../src/host/l10n'
 import { fill, setUiText } from '../../src/shared/l10n/text'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -573,6 +574,7 @@ describe('deferred cohort bundles', () => {
         createMediaAttachDeps(
           () => ({ mediaMaxUploadMiB: 1, screenRecordingMaxSeconds: 1 }),
           () => Promise.resolve(undefined),
+          { attached: new AttachedMedia() },
         ),
         german.table,
         german.locale,

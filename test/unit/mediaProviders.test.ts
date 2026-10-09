@@ -1,13 +1,19 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { createMediaAttachments } from '../../src/host/media/mediaAttach'
+import { AttachedMedia } from '../../src/core/media/attachedMedia'
+import { sniffMediaBytes } from '../../src/core/media/limits'
+import { metaMediaCapabilities } from '../../src/core/media/metaMediaCapabilities'
+import { withCapturedMedia } from '../../src/host/media/mediaEntry'
 import {
   createMediaAttachDeps,
   dialogFiltersOption,
   mediaLimitsFromSettings,
   projectMediaCapabilities,
 } from '../../src/host/media/mediaProviders'
-import { UI_TEXT } from '../../src/shared/constants'
 import { videoFixture, wavFixture } from './helpers/media/fixtures'
+import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 describe('M105 W host media providers', () => {
   it('reads upload and recording limits from settings', () => {
@@ -36,19 +42,36 @@ describe('M105 W host media providers', () => {
     expect(capabilities.files).toBe('unknown')
   })
 
-  it('issues unique tokens and refuses binding until the upload work lands', () => {
+  it('takes video, Files and audio from the captured record on a contributor model (lane V)', () => {
+    const capabilities = withCapturedMedia(projectMediaCapabilities('muse-spark-1.3-contributor'))
+    expect(capabilities.modalities.video).toEqual(
+      metaMediaCapabilities('muse-spark-1.3-contributor').modalities.video,
+    )
+    expect(capabilities.modalities.video.support).toBe('yes')
+    expect(capabilities.files).toBe('yes')
+    // U7: input_audio is ignored on Meta, so standalone audio stays refused.
+    expect(capabilities.modalities.audio.support).toBe('no')
+    expect(capabilities.modalities.image.formats).toContain('image/png')
+  })
+
+  it('issues unique tokens and binds a media part the registry resolves (lane V seam 1)', async () => {
+    const bytes = videoFixture()
     const open = vi.fn(() =>
       Promise.resolve({
         source: {
-          sizeBytes: 1,
-          read: () => Promise.resolve(new Uint8Array()),
+          sizeBytes: bytes.length,
+          read: (offset: number, length: number) =>
+            Promise.resolve(bytes.subarray(offset, offset + length)),
         },
+        path: '/approved/clip.mov',
         close: () => Promise.resolve(),
       }),
     )
+    const attached = new AttachedMedia()
     const deps = createMediaAttachDeps(
       () => ({ mediaMaxUploadMiB: 25, screenRecordingMaxSeconds: 120 }),
       open,
+      { attached },
     )
     expect(deps.newToken()).not.toBe(deps.newToken())
     expect(deps.limits()).toEqual({
@@ -56,20 +79,59 @@ describe('M105 W host media providers', () => {
       maxDurationSeconds: 120,
     })
     expect(deps.capabilities('muse-spark-1.3').modelId).toBe('muse-spark-1.3')
-    expect(() =>
-      deps.bind(
-        { name: 'clip.mov', fsPath: '/approved/clip.mov', relativePath: undefined },
-        {
-          kind: 'video',
-          mediaType: 'video/mp4',
-          sizeBytes: 10,
-          width: 1,
-          height: 1,
-          durationSeconds: 1,
-          hasSoundtrack: null,
+    const info = sniffMediaBytes(bytes)
+    if (info === undefined) throw new Error('fixture must sniff')
+    const sha256 = createHash('sha256').update(bytes).digest('hex')
+    const part = deps.bind(
+      { name: 'clip.mov', fsPath: '/approved/clip.mov', relativePath: undefined },
+      info,
+      sha256,
+    )({ id: 'chip', name: 'clip.mov', mediaType: info.mediaType, sizeBytes: info.sizeBytes })
+    expect(part).toMatchObject({ type: 'media', name: 'clip.mov', sha256 })
+    // Metadata and a token only: no bytes or path in the part.
+    expect(JSON.stringify(part)).not.toContain('/approved')
+    expect(attached.resolve(part)).toMatchObject({ name: 'clip.mov', sha256 })
+    // The upload source reopens through the host hook and verifies the digest.
+    const record = attached.resolve(part)
+    if (record === undefined) throw new Error('expected a record')
+    const source = attached.source(record)
+    const stream = source?.open(new AbortController().signal) ?? []
+    const chunks = await Array.fromAsync(stream)
+    expect(Buffer.concat(chunks).equals(Buffer.from(bytes))).toBe(true)
+    expect(part.type === 'media' && (await attached.path(part.token))).toBe('/approved/clip.mov')
+    expect(open).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops an attached source whose bytes changed before its last chunk goes', async () => {
+    const attached = new AttachedMedia()
+    const bytes = videoFixture()
+    const info = sniffMediaBytes(bytes)
+    if (info === undefined) throw new Error('fixture must sniff')
+    const changed = Uint8Array.from(bytes)
+    changed[0] = (changed[0] ?? 0) ^ 0xff
+    const chunks = [changed.subarray(0, 16), changed.subarray(16)].map((chunk) =>
+      Promise.resolve(chunk),
+    )
+    const part = attached.register(
+      'changed',
+      { name: 'clip.mov', info, sha256: createHash('sha256').update(bytes).digest('hex') },
+      {
+        read: async function* () {
+          yield* await Promise.all(chunks)
         },
-      ),
-    ).toThrow(UI_TEXT.media.uploadStorageUnknown)
+        path: () => Promise.resolve(undefined),
+      },
+    )
+    const record = attached.resolve(part)
+    if (record === undefined) throw new Error('expected a record')
+    const stream = attached.source(record)?.open(new AbortController().signal)
+    const iterator = stream?.[Symbol.asyncIterator]()
+    // The first chunk goes only once the second arrived; the last never does.
+    const first = await iterator?.next()
+    expect(first?.done).toBe(false)
+    await expect(iterator?.next()).rejects.toThrow(
+      fill(UI_TEXT.media.sourceChanged, { name: 'clip.mov' }),
+    )
   })
 
   it.each([
@@ -92,6 +154,7 @@ describe('M105 W host media providers', () => {
       ...createMediaAttachDeps(
         () => ({ mediaMaxUploadMiB: 25, screenRecordingMaxSeconds: 120 }),
         open,
+        { attached: new AttachedMedia() },
       ),
       bind,
     })

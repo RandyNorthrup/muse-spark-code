@@ -1,4 +1,5 @@
 import { notify } from './core/events/notify'
+import type { MEDIA_CONTRIBUTOR_CHOICES } from './shared/constants'
 import {
   PAID_APPROVAL_ORDER_DIRECTORY,
   LEGAL_EXPLANATION_BUNDLE_FILE,
@@ -324,6 +325,7 @@ import {
   createMediaSourceOpen,
   dialogFiltersOption,
 } from './host/media/mediaProviders'
+import { AttachedMedia } from './core/media/attachedMedia'
 import { mediaBundleLoader } from './host/media/mediaBundle'
 import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRecordBundle'
 import { createLinuxLatestPort } from './host/media/recordingLatest'
@@ -2505,7 +2507,13 @@ async function activateWindow(
       log,
       context: { workspaceRoot: root, storageRoot, l10n },
     })
+  // M105 lane V seam 1: the window's attached-media registry. The attach
+  // port registers each approved video or audio file (metadata, digest, a
+  // reopening source); the Model API session's media service resolves the
+  // turn's `media` parts through it. It holds no bytes.
+  const attachedMedia = new AttachedMedia()
   const modelApi: ModelApiBackendManager = new ModelApiBackendManager({
+    attachedMedia,
     onServiceFailure: () => {
       notify(
         Array.from(controllers.values(), (controller) => () => {
@@ -3292,6 +3300,25 @@ async function activateWindow(
     canonicalRelativePath: (fsPath) => files.canonicalRelativePath(fsPath),
     recordingTempRoot,
   })
+  // D85.7 in VS Code: a modal with Send, Use the Standard model and Remove;
+  // dismissing it is Remove, so nothing is sent unasked.
+  const askMediaContributor = async (question: {
+    readonly title: string
+    readonly detail: string
+    readonly choices: typeof MEDIA_CONTRIBUTOR_CHOICES
+  }): Promise<(typeof MEDIA_CONTRIBUTOR_CHOICES)[number]> => {
+    const labels = {
+      send: UI_TEXT.media.send,
+      useStandard: UI_TEXT.media.useStandard,
+      remove: UI_TEXT.removeAttachment,
+    } as const
+    const picked = await vscode.window.showWarningMessage(
+      question.title,
+      { modal: true, detail: question.detail },
+      ...question.choices.map((choice) => labels[choice]),
+    )
+    return question.choices.find((choice) => labels[choice] === picked) ?? 'remove'
+  }
   const linuxLatestPort = createLinuxLatestPort({ tempRoot: recordingTempRoot })
   const latestScreenRecording = async (): Promise<ScreenRecordingPreview | undefined> => {
     if (process.platform !== 'linux') return undefined
@@ -3355,8 +3382,9 @@ async function activateWindow(
           },
           files,
           // M105 W (E1-media-host-binding): the lazy attach port. Settings
-          // supply limits, the selected model its capabilities; the M2 bind
-          // refuses until the upload lifecycle lands (U6c, lead-owned).
+          // supply limits, the selected model its capabilities; binding
+          // registers with the window's attached-media registry (lane V
+          // seam 1), and D85.7's contributor question is a modal here.
           mediaAttachments: () =>
             Promise.resolve(
               loadMedia().createMediaAttachments(
@@ -3366,6 +3394,7 @@ async function activateWindow(
                     screenRecordingMaxSeconds: currentSettings().screenRecordingMaxSeconds,
                   }),
                   mediaOpen,
+                  { attached: attachedMedia, askContributor: askMediaContributor },
                 ),
                 UI_TEXT,
                 uiLocale(),

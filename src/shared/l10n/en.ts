@@ -990,6 +990,10 @@ export const EN = {
     cappedRateUnknown: 'This capped session needs a calibrated media rate for {model}.',
     contributorWarning: 'Contributor models may use this media for training.',
     contributorQuestion: 'Send {name} to a Contributor model? It may be used for training.',
+    contributorDeclined: '{name} was not attached.',
+    useStandardThenAttach: 'Switch to {model}, then attach {name} again.',
+    uploadUnavailable:
+      'This session has no file upload service, so video and audio cannot be sent. Use the Model API backend with a Meta key.',
     recordingWarning: 'This recording includes whatever was on your screen.',
     send: 'Send',
     useStandard: 'Use the Standard model',

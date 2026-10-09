@@ -419,6 +419,7 @@ import type {
 } from '../../providers/overflow'
 import type { MediaRequestAccounting } from '../../media/mediaCost'
 import type { MediaReplayPort, MediaReplaySession } from '../../media/replayMedia'
+import type { AttachedMediaPort } from '../../media/attachedMedia'
 import type { UploadedMediaRef } from '../../../shared/media'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
 import {
@@ -776,6 +777,12 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
    * VS Code supplies its global storage, the runtime its agent data folder.
    */
   readonly uploadLedgerDir?: string | undefined
+  /**
+   * The host's attached-media registry (M105 lane V): the attach port writes
+   * video and audio `media` parts, the production replay resolves them to
+   * their records and approved sources. Absent: a `media` part refuses.
+   */
+  readonly attachedMedia?: AttachedMediaPort | undefined
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
   readonly scheduleStore?: ScheduleStore | undefined
   /** SHA-256 digest of the current SecretStorage key, never its plaintext. */
@@ -2032,6 +2039,16 @@ function attachmentsOf(parts: readonly TurnPart[]): NonNullable<ItemSnapshot['at
           },
         ]
       }
+      case 'media': {
+        return [
+          {
+            type: 'file',
+            mediaType: part.info.mediaType,
+            name: part.name,
+            sizeBytes: part.info.sizeBytes,
+          },
+        ]
+      }
       default: {
         return []
       }
@@ -2054,6 +2071,11 @@ function contentPartsFor(
       case 'image':
       case 'file': {
         return mediaPartFor(part)
+      }
+      case 'media': {
+        // A stand-in the session's media service always replaces with the
+        // upload record's metadata, or refuses (`contentParts`): no bytes.
+        return { type: 'input_text', text: part.name }
       }
       case 'skill': {
         // An unknown selector (the catalogue changed under the palette) goes as typed.
@@ -2101,7 +2123,8 @@ function typedText(parts: readonly TurnPart[]): string {
         }
         case 'image':
         case 'file':
-        case 'textFile': {
+        case 'textFile':
+        case 'media': {
           return []
         }
       }
@@ -7277,9 +7300,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     const content = contentPartsFor(parts, (selector) => this.context.skill(selector)).map(
       (inline, index) => {
         const part = parts[index]
-        return part === undefined
-          ? inline
-          : (this.media?.content(part, inline, this.modelId, this.budget) ?? inline)
+        if (part === undefined) return inline
+        // An attached video or audio file needs the session's media service:
+        // without one (no Files transport, no storage) it refuses, never
+        // reaching the model as its bare name.
+        if (part.type === 'media' && this.media === undefined)
+          throw new Error(UI_TEXT.media.uploadUnavailable)
+        return this.media?.content(part, inline, this.modelId, this.budget) ?? inline
       },
     )
     // The budget learns each PDF's pages from its attachment, not its bytes (M54).
