@@ -77,6 +77,9 @@ function prompt(overrides: Partial<SavedPrompt> = {}): SavedPrompt {
   }
 }
 
+/** The test authority has nothing to watch: its state is read live. */
+const stopWatching = () => undefined
+
 interface MemoryLimits extends LimitsPort {
   /** Leases of `kind` held now. */
   readonly leases: (kind: 'read' | 'pending') => number
@@ -173,15 +176,27 @@ async function harness(limits: MemoryLimits = memoryLimits()): Promise<Harness> 
   })
   const scrub = createConnectorScrub(privacy, () => [CANARY])
   const now = () => state.now
-  const deps: RegistryDeps = {
-    connectionId: 'codex',
-    version: '0.0.0-test',
-    now,
+  // The pre-redesign registry's authority ports, so these tests also run against its source.
+  const earlier = {
     grant: async () => {
       await gate('grant')
       return state.grant
     },
     killed: () => Promise.resolve(state.killed),
+  }
+  const deps: RegistryDeps = {
+    ...earlier,
+    connectionId: 'codex',
+    version: '0.0.0-test',
+    now,
+    // Live: a revocation, the kill switch or a changed grant is the test's state, read at every gate.
+    authority: {
+      current: () => ({ grant: state.grant, killed: state.killed }),
+      refresh: async () => {
+        await gate('grant')
+      },
+      watch: () => stopWatching,
+    },
     confidential: () => state.confidential,
     audit: new ConnectorAudit(port, 'codex', now, scrub.text),
     limits,
@@ -638,10 +653,18 @@ interface Receipt {
   readonly reason?: string
   readonly cause?: string
   readonly rpcCode?: number
+  readonly count?: number
 }
 
 function events(h: Harness): Receipt[] {
   return h.state.audit.map((line) => JSON.parse(line) as Receipt)
+}
+
+/** Transport refusals accounted for: each line, or a tallied line's count. */
+function transportRefusals(h: Harness): number {
+  return events(h)
+    .filter((record) => record.event === 'transport')
+    .reduce((sum, record) => sum + (record.count ?? 1), 0)
 }
 
 const TERMINAL = new Set(['settled', 'refused', 'cancelled', 'failed'])
@@ -1003,6 +1026,22 @@ async function approvedAndHeld(h: Harness) {
   return pipe
 }
 
+/** With an approved save held, `change` the authority, let it go: nothing is written. */
+async function expectNoWriteAfter(
+  h: Harness,
+  pipe: ReturnType<typeof stdio>,
+  change: (h: Harness) => void,
+  cause: string,
+): Promise<void> {
+  change(h)
+  release(h)
+  await flush()
+  expect(h.state.writes).toEqual([])
+  expect(cancelCauses(h)).toEqual([cause])
+  pipe.input.end()
+  await pipe.served
+}
+
 function cancelCauses(h: Harness): (string | undefined)[] {
   return events(h)
     .filter((record) => record.event === 'cancelled')
@@ -1033,38 +1072,96 @@ const AUTHORITY_CHANGES: readonly (readonly [string, string, (h: Harness) => voi
   ],
 ]
 
+/** Authority changes while an approved save re-reads its target (RVM124R3 P1). */
+const TARGET_REREAD_CHANGES: readonly (readonly [
+  string,
+  Record<string, unknown>,
+  string,
+  (h: Harness) => void,
+])[] = [
+  [
+    'a confidential policy',
+    WORKSPACE_SAVE,
+    'revoked',
+    (h) => {
+      h.state.confidential = true
+    },
+  ],
+  [
+    'revocation',
+    WORKSPACE_SAVE,
+    'revoked',
+    (h) => {
+      h.state.grant = grantOf({ revoked: true, generation: 2 })
+    },
+  ],
+  [
+    'the kill switch',
+    WORKSPACE_SAVE,
+    'killSwitch',
+    (h) => {
+      h.state.killed = true
+    },
+  ],
+  [
+    'a scope replacement',
+    WORKSPACE_SAVE,
+    'revoked',
+    (h) => {
+      h.state.grant = grantOf({ scopes: ['operations:read', 'prompts:read', 'control:stop'] })
+    },
+  ],
+  [
+    'the workspace’s removal',
+    WORKSPACE_SAVE,
+    'revoked',
+    (h) => {
+      h.state.grant = grantOf({ workspaces: [] })
+    },
+  ],
+  [
+    'the user library’s removal',
+    SAVE,
+    'revoked',
+    (h) => {
+      h.state.grant = grantOf({ userLibrary: false })
+    },
+  ],
+]
+
 describe('M124 one state machine, one authority (RVM124B)', () => {
   for (const [label, cause, change] of AUTHORITY_CHANGES)
     it(`starts no approved write after ${label} during the dispatch receipt wait, over stdio (P1)`, async () => {
       const h = await harness()
-      const pipe = await approvedAndHeld(h)
-      change(h)
-      release(h)
-      await flush()
-      expect(h.state.writes).toEqual([])
-      expect(cancelCauses(h)).toEqual([cause])
-      pipe.input.end()
-      await pipe.served
+      await expectNoWriteAfter(h, await approvedAndHeld(h), change, cause)
     })
 
-  it('starts no approved write when the policy changes while the target is re-read: the final gate itself (P1)', async () => {
+  for (const [label, save, cause, change] of TARGET_REREAD_CHANGES)
+    it(`starts no approved write after ${label} while the target is re-read: the final gate (P1)`, async () => {
+      const h = await harness()
+      const pipe = stdio(h)
+      pipe.call(1, 'muse_prompt_save', save)
+      expect(await pipe.reply(1)).toMatchObject({ status: 'awaitingApproval' })
+      // Held after the approved and dispatching receipts: the live target read.
+      h.state.holds.add('list')
+      await approveFirst(h)
+      await vi.waitFor(() => {
+        expect(h.state.held).toHaveLength(1)
+      })
+      await expectNoWriteAfter(h, pipe, change, cause)
+    })
+
+  it('starts no owner read after the kill switch during the admission receipt wait (round 4 P1)', async () => {
     const h = await harness()
-    const pipe = stdio(h)
-    pipe.call(1, 'muse_prompt_save', WORKSPACE_SAVE)
-    expect(await pipe.reply(1)).toMatchObject({ status: 'awaitingApproval' })
-    // Held after the dispatch receipt and the authority's re-read: the live target read.
-    h.state.holds.add('list')
-    await approveFirst(h)
+    h.state.holds.add('admitted')
+    const answer = h.call('muse_prompt_list', { scope: 'user' })
     await vi.waitFor(() => {
       expect(h.state.held).toHaveLength(1)
     })
-    h.state.confidential = true
+    h.state.killed = true
     release(h)
-    await flush()
-    expect(h.state.writes).toEqual([])
-    expect(cancelCauses(h)).toEqual(['revoked'])
-    pipe.input.end()
-    await pipe.served
+    expect(await answer).toMatchObject({ status: 'refused', reason: 'forbidden' })
+    expect(h.state.reads).toBe(0)
   })
 
   it('starts no approved write after the client disconnects during the dispatch receipt wait, over stdio (P1)', async () => {
@@ -1181,7 +1278,8 @@ describe('M124 one state machine, one authority (RVM124B)', () => {
     pipe.send({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 5 } })
     pipe.send({ jsonrpc: '2.0', id: 2, method: 'resources/list' })
     pipe.send([{ jsonrpc: '2.0', id: 3, method: 'ping' }])
-    // A full transport answers busy.
+    // Those refused tasks finish; then a full transport answers busy.
+    await flush()
     h.state.holds.add('grant')
     for (let id = 10; id <= 10 + CONNECTOR_LIMITS.transportTasks; id += 1)
       pipe.call(id, 'muse_prompt_list', { scope: 'user' })
@@ -1199,18 +1297,36 @@ describe('M124 one state machine, one authority (RVM124B)', () => {
     await pipe.served
   })
 
-  it('reads no further frame while the journal holds its backlog of receipts (P2-4)', async () => {
+  it('bounds receipts being written under a flood and still counts every refusal (P2-4)', async () => {
     const h = await harness()
     h.state.holds.add('transport')
     const pipe = stdio(h)
     const frames = CONNECTOR_LIMITS.auditBacklog * 3
     pipe.input.write('{\n'.repeat(frames))
     await flush()
+    // At most the backlog is being written; the rest is tallied, not queued.
     expect(h.state.held).toHaveLength(CONNECTOR_LIMITS.auditBacklog)
     release(h)
     await vi.waitFor(() => {
-      expect(events(h).filter((record) => record.event === 'transport')).toHaveLength(frames)
+      expect(transportRefusals(h)).toBe(frames)
     })
+    pipe.input.end()
+    await pipe.served
+  })
+
+  it('answers Stop at once while the journal backlog is full, over stdio (round 4 P2-4)', async () => {
+    const h = await harness()
+    const pipe = stdio(h)
+    pipe.call(1, 'muse_prompt_save', SAVE)
+    const pending = await pipe.reply(1)
+    const { operationId } = pending['data'] as { operationId: string }
+    h.state.holds.add('transport')
+    pipe.input.write('{\n'.repeat(CONNECTOR_LIMITS.auditBacklog * 2))
+    await flush()
+    pipe.call(2, 'muse_stop', { target: { kind: 'operation', id: operationId } })
+    expect(await pipe.reply(2)).toMatchObject({ status: 'ok', data: { outcome: 'stopped' } })
+    expect(h.registry.pending()).toEqual([])
+    release(h)
     pipe.input.end()
     await pipe.served
   })
@@ -1349,6 +1465,137 @@ describe('M124 one state machine, one authority (RVM124B)', () => {
   })
 })
 
+/** A protocol frame that calls `name`, and the notice that cancels it. */
+const callFrame = (id: number, name: string, args: unknown) =>
+  JSON.stringify({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: args } })
+const cancelFrame = (id: number) =>
+  JSON.stringify({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: id } })
+
+/**
+ * A prompt read whose owner read is done and whose delivery is held at its
+ * authority read; answers whether its reply has settled yet.
+ */
+async function heldAtDelivery(h: Harness, send: (frame: string) => Promise<unknown>) {
+  h.state.holds.add('list')
+  let isSettled = false
+  const settle = async () => {
+    const value = await send(callFrame(77, 'muse_prompt_list', { scope: 'user' }))
+    isSettled = true
+    return value
+  }
+  const reply = settle()
+  await vi.waitFor(() => {
+    expect(h.state.held.map((hold) => hold.name)).toEqual(['list'])
+  })
+  h.state.holds.add('grant')
+  release(h, 'list')
+  await vi.waitFor(() => {
+    expect(h.state.held.map((hold) => hold.name)).toEqual(['grant'])
+  })
+  return { reply, isSettled: () => isSettled }
+}
+
+describe('M124 round 4: receipts, races and the live gate (RVM124R3)', () => {
+  it('starts no write when the approved receipt cannot be written (P2-2)', async () => {
+    const h = await harness()
+    const pending = await h.call('muse_prompt_save', SAVE)
+    const { operationId } = pending['data'] as { operationId: string }
+    h.state.failEvents.add('approved')
+    await approveFirst(h)
+    await flush()
+    expect(h.state.writes).toEqual([])
+    h.state.now += CONNECTOR_LIMITS.pollMinMs
+    const status = await h.call('muse_operation_get', { operationId })
+    expect(status['data']).toMatchObject({ state: 'failed', reason: 'audit_unavailable' })
+  })
+
+  it('starts no owner read when the dispatching receipt cannot be written (P2-2)', async () => {
+    const h = await harness()
+    h.state.failEvents.add('dispatching')
+    const answer = await h.call('muse_prompt_list', { scope: 'user' })
+    expect(answer).toMatchObject({ status: 'refused', reason: 'audit_unavailable' })
+    expect(h.state.reads).toBe(0)
+  })
+
+  it('never answers ok when a read’s settled receipt cannot be written (P2-2)', async () => {
+    const h = await harness()
+    h.state.failEvents.add('settled')
+    const answer = await h.call('muse_prompt_list', { scope: 'user' })
+    expect(answer).toMatchObject({ status: 'refused', reason: 'audit_unavailable' })
+    expect(JSON.stringify(answer)).not.toContain('libraryGeneration')
+  })
+
+  it('settles a call cancelled while delivery reads the authority, at once (P2-3)', async () => {
+    const h = await harness()
+    const held = await heldAtDelivery(h, (frame) => h.protocol.handle(frame))
+    await h.protocol.handle(cancelFrame(77))
+    await flush()
+    expect(held.isSettled()).toBe(true)
+    expect(await held.reply).toBeUndefined()
+    release(h)
+  })
+
+  it('settles a call at its deadline while delivery reads the authority (P2-3)', async () => {
+    const h = await harness()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const held = await heldAtDelivery(h, (frame) => h.protocol.handle(frame))
+      await vi.advanceTimersByTimeAsync(CONNECTOR_LIMITS.requestDeadlineMs + 1)
+      expect(held.isSettled()).toBe(true)
+      expect(await held.reply).toMatchObject({
+        result: { structuredContent: { status: 'refused', reason: 'unavailable' } },
+      })
+    } finally {
+      release(h)
+      vi.useRealTimers()
+    }
+  })
+
+  it('never holds the transport’s shutdown on a call waiting in delivery, over stdio (P2-3)', async () => {
+    const h = await harness()
+    const pipe = stdio(h)
+    await heldAtDelivery(h, (frame) => {
+      pipe.input.write(`${frame}\n`)
+      return Promise.resolve()
+    })
+    pipe.input.end()
+    let isServed = false
+    void pipe.served.then(() => {
+      isServed = true
+    })
+    await vi.waitFor(() => {
+      expect(isServed).toBe(true)
+    })
+    release(h)
+  })
+
+  it('journals no edge out of a call cancelled while admission waits (finding 5)', async () => {
+    const h = await harness()
+    let takeToken: (() => void) | undefined
+    h.limits.hold = (count) => {
+      if (count !== 1) return undefined
+      const held = Promise.withResolvers<undefined>()
+      takeToken = () => {
+        held.resolve(undefined)
+      }
+      return held.promise
+    }
+    const reply = h.protocol.handle(callFrame(5, 'muse_prompt_list', { scope: 'user' }))
+    await vi.waitFor(() => {
+      expect(takeToken).toBeDefined()
+    })
+    await h.protocol.handle(cancelFrame(5))
+    expect(await reply).toBeUndefined()
+    takeToken?.()
+    await flush()
+    expect(events(h).map((record) => `${record.from ?? ''}>${record.event}`)).toEqual([
+      '>initialize',
+      'received>cancelled',
+    ])
+    expect(h.state.reads).toBe(0)
+  })
+})
+
 function operationOf(tool: string, state: { cause?: ConnectorCancelCause }) {
   const journal: string[] = []
   const operation = new Operation('op', connectorTool(tool), {
@@ -1364,25 +1611,41 @@ function operationOf(tool: string, state: { cause?: ConnectorCancelCause }) {
 }
 
 describe('M124 operation state machine', () => {
-  it('takes only the table’s edges, ends once, and never cancels a started write', () => {
+  it('takes only the table’s edges, ends once, and never cancels a started write', async () => {
     for (const [from, edges] of Object.entries(TRANSITIONS))
       if (['settled', 'refused', 'cancelled', 'failed'].includes(from)) expect(edges).toEqual([])
     const { operation: write, journal } = operationOf('muse_prompt_save', {})
-    expect(write.move('settled')).toBe(false)
-    expect(write.move('admitted')).toBe(true)
-    expect(write.move('dispatching')).toBe(true)
+    expect(write.move('settled', true)).toBe(false)
+    for (const to of ['admitted', 'dispatching'] as const) {
+      expect(await write.writeAhead(to)).toBe(true)
+      expect(write.move(to, true)).toBe(true)
+    }
     expect(write.cancel('stop')).toBe(false)
     expect(write.stop()).toBe('stopRequested')
-    expect(write.move('settled')).toBe(true)
+    expect(await write.writeAhead('settled')).toBe(true)
+    expect(write.move('settled', true)).toBe(true)
     expect(write.move('failed')).toBe(false)
     expect(write.cancel('stop')).toBe(false)
     expect(write.stop()).toBe('alreadyStopped')
     expect(journal).toEqual(['received>admitted', 'admitted>dispatching', 'dispatching>settled'])
     const { operation: read } = operationOf('muse_prompt_list', {})
-    read.move('admitted')
-    read.move('dispatching')
+    read.move('admitted', true)
+    read.move('dispatching', true)
     expect(read.cancel('client')).toBe(true)
     expect(read.state).toBe('cancelled')
+  })
+
+  it('moves to a receipted state only written ahead, and writes ahead only an edge of the table (round 4)', async () => {
+    const { operation, journal } = operationOf('muse_prompt_list', {})
+    // No receipt, no transition: admitted, approved, dispatching and settled are written ahead.
+    expect(operation.move('admitted')).toBe(false)
+    expect(operation.state).toBe('received')
+    expect(operation.cancel('client')).toBe(true)
+    // A terminal operation journals no further edge (RVM124R3 finding 5).
+    expect(await operation.writeAhead('admitted')).toBe(false)
+    expect(journal).toEqual(['received>cancelled'])
+    // Stop's receipts are best effort: it never waits for the journal.
+    expect(operationOf('muse_stop', {}).operation.move('admitted')).toBe(true)
   })
 
   it('runs a hold when the operation leaves its states, or at once when it already has', () => {
@@ -1391,9 +1654,9 @@ describe('M124 operation state machine', () => {
     operation.holdWhile(['received', 'admitted'], () => {
       released.push('lease')
     })
-    operation.move('admitted')
+    operation.move('admitted', true)
     expect(released).toEqual([])
-    operation.move('dispatching')
+    operation.move('dispatching', true)
     expect(released).toEqual(['lease'])
     operation.holdWhile(['admitted'], () => {
       released.push('late')

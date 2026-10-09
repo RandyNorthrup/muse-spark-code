@@ -1,10 +1,13 @@
 // M124 (D106, design §6): a scrubbed, schema-versioned receipt for every
 // call transition, transport refusal and owner command. Private text enters
-// only as a keyed digest, so the journal is no guessing oracle. A failed
-// append refuses new effects (callers check `record`'s answer); Stop never
-// waits for it. A receipt not durable within `auditTimeoutMs` failed, and a
-// journal with such a hung append counts as failed until that append
-// answers, so a stuck disk can neither hold calls nor pile up handles.
+// only as a keyed digest, so the journal is no guessing oracle. A required
+// receipt (`record`) is awaited and a failed append refuses its effect. A
+// best-effort one (`note`: a refusal, a transport refusal, Stop) never waits
+// and never queues: while `auditBacklog` receipts are being written it is
+// tallied, and written later as one line with its count, so a flood of bad
+// frames costs a counter, not memory, and nothing waits behind it. A receipt
+// not durable within `auditTimeoutMs` failed, and a journal with such a hung
+// append counts as failed until that append answers.
 import { createHmac } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { CONNECTOR_LIMITS, CONNECTOR_SCHEMA_VERSION } from '../../shared/constants'
@@ -25,7 +28,8 @@ export class ConnectorAudit {
   /** Receipts being written now, and appends that outlived their timeout. */
   private writing = 0
   private hung = 0
-  private readonly waiting: (() => void)[] = []
+  /** Best-effort receipts that met a full backlog, by their content without call ids. */
+  private readonly tally = new Map<string, { readonly event: AuditEvent; count: number }>()
 
   public constructor(
     private readonly port: AuditPort,
@@ -49,6 +53,16 @@ export class ConnectorAudit {
       // Its record already answered false.
     } finally {
       this.hung -= 1
+      this.flush()
+    }
+  }
+
+  /** Writes tallied receipts, one line each with its count, while there is room. */
+  private flush(): void {
+    for (const [key, entry] of this.tally) {
+      if (this.writing >= CONNECTOR_LIMITS.auditBacklog || this.hung > 0) return
+      this.tally.delete(key)
+      void this.record({ ...entry.event, count: entry.count })
     }
   }
 
@@ -86,17 +100,20 @@ export class ConnectorAudit {
     } finally {
       timer.abort()
       this.writing -= 1
-      if (this.writing < CONNECTOR_LIMITS.auditBacklog)
-        for (const wake of this.waiting.splice(0)) wake()
+      this.flush()
     }
   }
 
-  /** Resolves when fewer than `auditBacklog` receipts are being written. */
-  public ready(): Promise<void> {
-    return this.writing < CONNECTOR_LIMITS.auditBacklog
-      ? Promise.resolve()
-      : new Promise((resolve) => {
-          this.waiting.push(resolve)
-        })
+  /** A best-effort receipt: written now, or tallied while the backlog is full. Never waits. */
+  public note(event: AuditEvent): void {
+    if (this.writing < CONNECTOR_LIMITS.auditBacklog && this.hung === 0) {
+      void this.record(event)
+      return
+    }
+    const kept: AuditEvent = { ...event, callId: undefined, operationId: undefined }
+    const key = JSON.stringify(kept)
+    const entry = this.tally.get(key)
+    if (entry === undefined) this.tally.set(key, { event: kept, count: 1 })
+    else entry.count += 1
   }
 }

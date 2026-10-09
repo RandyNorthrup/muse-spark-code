@@ -42,8 +42,6 @@ export interface ConnectorServer {
   readonly disconnect: () => void
   /** A frame refused before any call existed: one receipt with its JSON-RPC code only. */
   readonly transport: (code: number) => void
-  /** Resolves when the journal can take more receipts. */
-  readonly ready: () => Promise<void>
 }
 
 const REFUSED_WORDS: Readonly<Record<number, string>> = {
@@ -109,11 +107,6 @@ export class ConnectorProtocol {
   public refuse(code: number, id: unknown): Readonly<Record<string, unknown>> {
     this.server.transport(code)
     return error(id, code, REFUSED_WORDS[code] ?? 'Error')
-  }
-
-  /** Resolves when another frame may be read (the receipts' backlog is bounded). */
-  public ready(): Promise<void> {
-    return this.server.ready()
   }
 
   /** One frame in; the reply to write, if any. A cancelled request gets none. */

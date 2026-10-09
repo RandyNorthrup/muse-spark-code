@@ -31,7 +31,7 @@ import { CONNECTOR_TOOLS, connectorTool, type ConnectorToolSpec } from '../../sh
 import { fill } from '../../shared/l10n/text'
 import type { SavedPrompt } from '../../shared/prompts'
 import { ApprovalLedger, type ApprovalBinding } from './approval'
-import type { ConnectorAudit } from './audit'
+import type { AuditEvent, ConnectorAudit } from './audit'
 import { Operation, OperationTable, type OperationEnv, type OperationScope } from './operations'
 import { SharedLimits, admit, isRefusal, refusal, type LimitsPort, type Refusal } from './policy'
 import type { ConnectorCallResult, ConnectorServer, ConnectorToolEntry } from './protocol'
@@ -65,12 +65,30 @@ export interface ApprovalSurface {
   readonly changed: () => void
 }
 
+/** The grant and the kill switch, as the connector knows them now. */
+export interface AuthorityState {
+  readonly grant: ConnectorGrant | undefined
+  readonly killed: boolean
+}
+
+/**
+ * The live authority (design §3a). `current` is read synchronously at every
+ * gate; it changes as soon as the connector learns of a change (a watched
+ * file, or `refresh`), and `watch` hears of each change at once.
+ */
+export interface AuthorityPort {
+  readonly current: () => AuthorityState
+  /** Reads the sources again; `current` answers what was read. */
+  readonly refresh: () => Promise<void>
+  /** Calls `changed` after every change; the answer stops watching. */
+  readonly watch: (changed: () => void) => () => void
+}
+
 export interface RegistryDeps {
   readonly connectionId: string
   readonly version: string
   readonly now: () => number
-  readonly grant: () => Promise<ConnectorGrant | undefined>
-  readonly killed: () => Promise<boolean>
+  readonly authority: AuthorityPort
   readonly confidential: (root: string) => boolean | undefined
   readonly audit: ConnectorAudit
   /** The grant's limits, shared with every other process of this connection. */
@@ -195,13 +213,18 @@ export class ConnectorRegistry implements ConnectorServer {
   private readonly env: OperationEnv
   /** Set by disconnect: the authority stops every live operation and admits nothing. */
   private isClosed = false
-  /** The authority as last read; `refresh` keeps only the newest reading. */
-  private view: { readonly grant: ConnectorGrant | undefined; readonly killed: boolean } = {
-    grant: undefined,
-    killed: false,
-  }
-  private readings = 0
-  private applied = 0
+  /** Aborted by disconnect: every call still answering settles at once. */
+  private readonly closing = new AbortController()
+  private readonly closed = new Promise<void>((resolve) => {
+    this.closing.signal.addEventListener(
+      'abort',
+      () => {
+        resolve()
+      },
+      { once: true },
+    )
+  })
+  private readonly unwatch: () => void
   private readonly cursors = new Map<string, PageCursor>()
   private readonly principal = newId()
   private client = ''
@@ -219,16 +242,20 @@ export class ConnectorRegistry implements ConnectorServer {
     this.env = {
       now: deps.now,
       stopCause: (operation) => this.stopCause(operation),
-      journal: (operation, from, to) => this.journal(operation, from, to),
+      journal: (operation, from, to, isRequired) => this.journal(operation, from, to, isRequired),
       refusalOf: (cause) => this.refusalOf(cause),
     }
+    // A revocation, the kill switch or a changed grant stops live work the moment it is known.
+    this.unwatch = deps.authority.watch(() => {
+      this.sweep()
+    })
   }
 
   /**
-   * The single authority, synchronous: why `operation` must stop now. Before
-   * admission only the call itself and the connection count; after it, the
-   * kill switch and the grant it was admitted under (generation, scopes,
-   * workspace or user library, confidential policy) count too.
+   * The single authority, synchronous, read live: why `operation` must stop
+   * now. Before admission only the call itself and the connection count;
+   * after it, the kill switch and the grant it was admitted under
+   * (generation, scopes, workspace or user library, confidential policy).
    */
   private stopCause(operation: Operation): ConnectorCancelCause | undefined {
     if (this.isClosed) return 'disconnect'
@@ -236,9 +263,9 @@ export class ConnectorRegistry implements ConnectorServer {
       return operation.signal.reason === DEADLINE ? 'deadline' : 'client'
     const { tool, grantGeneration, scope } = operation
     if (tool === undefined || grantGeneration === undefined || scope === undefined) return undefined
-    if (this.view.killed && tool.toolClass !== 'stop' && tool.name !== 'muse_operation_get')
+    const { grant, killed } = this.deps.authority.current()
+    if (killed && tool.toolClass !== 'stop' && tool.name !== 'muse_operation_get')
       return 'killSwitch'
-    const { grant } = this.view
     return grant?.generation === grantGeneration &&
       !isRefusal(admit(grant, tool, scope, this.deps.confidential))
       ? undefined
@@ -277,15 +304,19 @@ export class ConnectorRegistry implements ConnectorServer {
     }
   }
 
-  /** One receipt per transition: who, what, where, and why it ended. */
-  private journal(
+  /**
+   * One receipt per transition: who, what, where, and why it ended. A
+   * required one (written ahead) is awaited; a best-effort one never waits.
+   */
+  private async journal(
     operation: Operation,
     from: ConnectorCallState,
     to: ConnectorCallState,
+    isRequired: boolean,
   ): Promise<boolean> {
     const { tool, scope, grantGeneration } = operation
     const isEnd = ENDS.has(to)
-    return this.deps.audit.record({
+    const event: AuditEvent = {
       event: to,
       from,
       callId: operation.id,
@@ -297,24 +328,39 @@ export class ConnectorRegistry implements ConnectorServer {
       ...(isEnd && operation.cause !== undefined && { cause: operation.cause }),
       ...(to === 'awaitingApproval' &&
         operation.payloadDigest !== undefined && { payloadDigest: operation.payloadDigest }),
-    })
+    }
+    if (isRequired) return await this.deps.audit.record(event)
+    this.deps.audit.note(event)
+    return false
   }
 
   /**
-   * Reads the authority again (the grant and the kill switch) and applies
-   * it to every live operation at once: a revoked or changed grant, the kill
-   * switch or an expired approval stops each one it covers, and a pending
-   * approval leaves the page.
+   * Applies the authority to every live operation at once: a revoked or
+   * changed grant, the kill switch or an expired approval stops each one it
+   * covers, and a pending approval leaves the page.
    */
-  private async refresh(): Promise<void> {
-    const reading = ++this.readings
-    const [grant, killed] = await Promise.all([this.deps.grant(), this.deps.killed()])
-    if (reading > this.applied) {
-      this.applied = reading
-      this.view = { grant, killed }
-    }
+  private sweep(): void {
     this.ledger.expireDue()
     for (const operation of this.live) operation.check()
+  }
+
+  /** Reads the authority's sources again, then sweeps. */
+  private async refresh(): Promise<void> {
+    await this.deps.authority.refresh()
+    this.sweep()
+  }
+
+  /**
+   * The final gate before an effect: the authority is read again as the last
+   * wait, then the gate reads it live; the caller starts the effect in this
+   * same tick.
+   */
+  private async isClear(
+    operation: Operation,
+    expected: readonly ConnectorCallState[],
+  ): Promise<boolean> {
+    await this.refresh()
+    return operation.gate(expected)
   }
 
   private open(tool: ConnectorToolSpec | undefined): Operation {
@@ -338,9 +384,8 @@ export class ConnectorRegistry implements ConnectorServer {
         readonly workspace: ConnectorWorkspaceGrant | undefined
       }
   > {
-    await this.refresh()
-    if (!operation.gate(['received'])) return operation.final()
-    if (name !== 'muse_operation_get' && this.view.killed)
+    if (!(await this.isClear(operation, ['received']))) return operation.final()
+    if (name !== 'muse_operation_get' && this.deps.authority.current().killed)
       return operation.refuse(refusal('forbidden', CONNECTOR_MODEL_TEXT.killSwitch))
     if (!(await this.limits.take())) return operation.refuse(rateLimited())
     const parsed = connectorInputSchemas[name].safeParse(args ?? {})
@@ -368,7 +413,7 @@ export class ConnectorRegistry implements ConnectorServer {
   ):
     | Refusal
     | { readonly grant: ConnectorGrant; readonly workspace: ConnectorWorkspaceGrant | undefined } {
-    const { grant } = this.view
+    const { grant } = this.deps.authority.current()
     const admission = admit(grant, tool, scope, this.deps.confidential)
     if (isRefusal(admission)) return operation.refuse(admission)
     if (grant === undefined) return operation.refuse(forbidden(CONNECTOR_MODEL_TEXT.noGrant))
@@ -446,8 +491,9 @@ export class ConnectorRegistry implements ConnectorServer {
       'dispatching',
     ])
     if (!(await leasing)) return operation.refuse(rateLimited())
-    if (!operation.gate(['admitted'])) return operation.final()
-    operation.move('dispatching')
+    if (!(await operation.writeAhead('dispatching'))) return operation.refuse(auditUnavailable())
+    if (!(await this.isClear(operation, ['admitted']))) return operation.final()
+    operation.move('dispatching', true)
     const outcome = await this.read(
       name,
       admitted.input,
@@ -683,7 +729,9 @@ export class ConnectorRegistry implements ConnectorServer {
     if (claim.kind === 'full') return operation.refuse(rateLimited())
     // A retry answers the kept operation's real state; this call is a status read.
     if (claim.kind === 'same') {
-      operation.move('dispatching')
+      if (!(await operation.writeAhead('dispatching'))) return operation.refuse(auditUnavailable())
+      if (!operation.gate(['admitted'])) return operation.final()
+      operation.move('dispatching', true)
       return claim.operation.state === 'awaitingApproval'
         ? { kind: 'pending', operationId: claim.operation.id }
         : { kind: 'ok', data: claim.operation.view() }
@@ -702,7 +750,8 @@ export class ConnectorRegistry implements ConnectorServer {
       'awaitingApproval',
     ])
     if (!(await leasing)) return operation.refuse(rateLimited())
-    if (!operation.gate(['admitted'])) return operation.final()
+    // The final gate before the intent: nothing awaits between it and the page holding it.
+    if (!(await this.isClear(operation, ['admitted']))) return operation.final()
     // Paid authority is zero in the local phase (Q-M124.4); this tool is free.
     const binding: ApprovalBinding = {
       principal: `${this.deps.connectionId}/${this.principal}`,
@@ -752,30 +801,36 @@ export class ConnectorRegistry implements ConnectorServer {
     if (operation === undefined) return
     const plan = this.plans.get(intentId)
     if (outcome !== 'approved') operation.cancel(outcome)
-    else if (plan !== undefined && operation.move('approved')) void this.dispatch(operation, plan)
+    else if (plan !== undefined) void this.dispatch(operation, plan)
   }
 
   /**
-   * The approved write. The dispatch receipt is written ahead; then the
-   * authority and the target are read again; then the final gate and the
-   * one-use approval's compare-and-swap; then the write starts in that same
-   * tick. Revocation, the kill switch, a disconnect, Stop or a policy change
-   * at any point before the gate leaves no write. It never rejects.
+   * The approved write. The approved and dispatching receipts are written
+   * ahead (a failed one fails the operation: no write); then the target is
+   * read again; then the authority is read again as the last wait; then the
+   * final gate reads it live, with the one-use approval's compare-and-swap,
+   * and the write starts in that same tick. Revocation, the kill switch, a
+   * changed grant, a disconnect, Stop or a policy change at any point before
+   * the gate leaves no write. It never rejects.
    */
   private async dispatch(operation: Operation, plan: WritePlan): Promise<void> {
     try {
+      if (!(await operation.writeAhead('approved'))) {
+        operation.fail(auditUnavailable())
+        return
+      }
+      if (!operation.move('approved', true)) return
       if (!(await operation.writeAhead('dispatching'))) {
         operation.fail(auditUnavailable())
         return
       }
-      await this.refresh()
       const live = libraryGeneration(await this.deps.prompts.list(plan.root, plan.draft.scope))
       // The final gate: nothing awaits between here and the write's start.
-      if (!operation.gate(['approved'])) return
+      if (!(await this.isClear(operation, ['approved']))) return
       if (
         !this.ledger.consume(plan.intentId, {
           ...plan.binding,
-          grantGeneration: this.view.grant?.generation ?? -1,
+          grantGeneration: this.deps.authority.current().grant?.generation ?? -1,
           targetGeneration: live,
         })
       ) {
@@ -790,7 +845,9 @@ export class ConnectorRegistry implements ConnectorServer {
         generation: promptGeneration(prompt),
         untrusted: true,
       })
-      operation.move('settled')
+      // The write is done whatever the journal answers: its state stays the truth.
+      await operation.writeAhead('settled')
+      operation.move('settled', true)
     } catch {
       operation.fail(ownerFailed())
     }
@@ -920,16 +977,48 @@ export class ConnectorRegistry implements ConnectorServer {
     return { result: result(refused, JSON.stringify(refused)), refusal: withheld }
   }
 
+  /** The call's work: its route, then its delivery. */
+  private async answer(
+    operation: Operation,
+    tool: ConnectorToolSpec | undefined,
+    args: unknown,
+    signal: AbortSignal,
+    protocolVersion: string,
+  ): Promise<ConnectorCallResult> {
+    return await this.deliver(
+      operation,
+      await this.attempt(operation, tool, args, signal),
+      protocolVersion,
+    )
+  }
+
+  /**
+   * The call's answer the moment its operation ends or the client goes,
+   * whatever its work still awaits (a lookup, an owner port, a page). A
+   * settled operation answers with its work's result.
+   */
+  private async stopped(
+    operation: Operation,
+    work: Promise<ConnectorCallResult>,
+    protocolVersion: string,
+  ): Promise<ConnectorCallResult> {
+    await Promise.race([operation.ended, this.closed])
+    return operation.state === 'settled'
+      ? await work
+      : this.render(operation.id, operation.final(), protocolVersion).result
+  }
+
   /**
    * The reply. A kept write answers with what its operation is now. Every
    * other call is delivered only through the gate: the authority is read
-   * again (Stop excepted: its effect is done) and a call it stopped answers
-   * its own refusal; the delivered result's end is its one terminal receipt.
+   * again as the last wait (Stop excepted: its effect is done) and a call it
+   * stopped answers its own refusal. A result that passes is committed: its
+   * settled receipt is written before it is sent, and a failed receipt
+   * withholds it (`audit_unavailable`); Stop's receipt is best effort.
    */
   private async deliver(
     operation: Operation,
-    /** The call's answer, or the operation itself when it ended first. */
-    outcome: Outcome | Operation,
+    outcome: Outcome,
     protocolVersion: string,
   ): Promise<ConnectorCallResult> {
     const id = operation.id
@@ -946,15 +1035,27 @@ export class ConnectorRegistry implements ConnectorServer {
         protocolVersion,
       ).result
     }
-    if (outcome instanceof Operation || 'reason' in outcome || !operation.isLive)
+    if ('reason' in outcome || !operation.isLive)
       return this.render(id, operation.final(), protocolVersion).result
-    if (operation.tool?.toolClass !== 'stop') await this.refresh()
-    if (!operation.gate(['dispatching']))
-      return this.render(id, operation.final(), protocolVersion).result
+    const isStop = operation.tool?.toolClass === 'stop'
+    const isClear = isStop
+      ? operation.gate(['dispatching'])
+      : await this.isClear(operation, ['dispatching'])
+    if (!isClear) return this.render(id, operation.final(), protocolVersion).result
     const rendered = this.render(id, outcome, protocolVersion)
-    if (rendered.refusal === undefined) operation.move('settled')
-    else operation.refuse(rendered.refusal)
-    return rendered.result
+    if (rendered.refusal !== undefined) {
+      operation.refuse(rendered.refusal)
+      return rendered.result
+    }
+    if (isStop) {
+      operation.move('settled')
+      return rendered.result
+    }
+    operation.isCommitted = true
+    const isRecorded = (await operation.writeAhead('settled')) && operation.move('settled', true)
+    return isRecorded
+      ? rendered.result
+      : this.render(id, operation.fail(auditUnavailable()), protocolVersion).result
   }
 
   /** The approval page's authenticated decision; the only caller of `decide`. */
@@ -970,7 +1071,8 @@ export class ConnectorRegistry implements ConnectorServer {
 
   public async initialized(client: string): Promise<string> {
     this.client = this.deps.scrub.text(client)
-    const grant = await this.deps.grant()
+    await this.refresh()
+    const { grant } = this.deps.authority.current()
     await this.deps.audit.record({
       event: 'initialize',
       ...(grant !== undefined && { grantGeneration: grant.generation }),
@@ -984,8 +1086,9 @@ export class ConnectorRegistry implements ConnectorServer {
 
   /** Listed: backed tools the grant's scopes allow. Unbacked tools are not listed. */
   public async list(): Promise<readonly ConnectorToolEntry[]> {
-    const grant = await this.deps.grant()
-    void this.deps.audit.record({
+    await this.refresh()
+    const { grant } = this.deps.authority.current()
+    this.deps.audit.note({
       event: 'list',
       ...(grant !== undefined && { grantGeneration: grant.generation }),
     })
@@ -1027,12 +1130,9 @@ export class ConnectorRegistry implements ConnectorServer {
     const bound = AbortSignal.any([signal, expiry.signal])
     operation.attach(bound)
     try {
-      // The call's answer, or its end when the authority stopped it first (a hung owner port included).
-      const first = await Promise.race([
-        this.attempt(operation, tool, args, bound),
-        operation.ended,
-      ])
-      return await this.deliver(operation, first, protocolVersion)
+      // Every wait of the call, delivery's included, races the operation's end and the client's.
+      const work = this.answer(operation, tool, args, bound, protocolVersion)
+      return await Promise.race([work, this.stopped(operation, work, protocolVersion)])
     } finally {
       clearTimeout(timer)
       operation.detach()
@@ -1041,21 +1141,22 @@ export class ConnectorRegistry implements ConnectorServer {
 
   /** A frame refused before any call existed: its receipt carries the JSON-RPC code only. */
   public transport(code: number): void {
-    void this.deps.audit.record({
+    this.deps.audit.note({
       event: 'transport',
       rpcCode: code,
       reason: code === CONNECTOR_RPC_ERRORS.busy ? 'rate_limited' : 'invalid_input',
     })
   }
 
-  /** Resolves when the journal can take more receipts (the transport waits for it). */
-  public ready(): Promise<void> {
-    return this.deps.audit.ready()
-  }
-
-  /** Disconnect: no call is admitted again, and every live operation that has not started its effect stops. */
+  /**
+   * Disconnect: no call is admitted again, every call still answering
+   * settles at once, and every live operation not committed to its effect
+   * stops.
+   */
   public disconnect(): void {
     this.isClosed = true
-    for (const operation of this.live) operation.check()
+    this.closing.abort()
+    this.unwatch()
+    this.sweep()
   }
 }

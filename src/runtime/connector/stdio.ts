@@ -5,9 +5,9 @@
 // Calls run concurrently, so a cancellation can reach a call in flight;
 // replies are written in completion order, within bounded admission. Every
 // frame refused here (too large, invalid UTF-8, busy) leaves one transport
-// receipt; frames are taken one at a time while the receipts' backlog is
-// bounded, so a flood of bad frames waits for the journal instead of
-// piling up in memory.
+// receipt. Nothing here waits for the journal: a receipt that meets a full
+// journal backlog is tallied there (audit.ts), so Stop and cancellation
+// notices are never queued behind receipts.
 import type { Readable, Writable } from 'node:stream'
 import { CONNECTOR_LIMITS, CONNECTOR_RPC_ERRORS, JSON_RPC_ERRORS } from '../../shared/constants'
 import { ConnectorProtocol, type FrameReply } from '../../core/connector/protocol'
@@ -75,7 +75,7 @@ class LineFramer {
  */
 export async function serveStdio(
   handles: StdioHandles,
-  protocol: Pick<ConnectorProtocol, 'handle' | 'close' | 'refuse' | 'ready'>,
+  protocol: Pick<ConnectorProtocol, 'handle' | 'close' | 'refuse'>,
   maxFrameBytes: number = CONNECTOR_LIMITS.frameBytes,
 ): Promise<void> {
   const pending = new Set<Promise<void>>()
@@ -150,18 +150,13 @@ export async function serveStdio(
     })
   }
   const framer = new LineFramer(maxFrameBytes)
-  const take = async (chunk: unknown) => {
+  const take = (chunk: unknown) => {
     const frames = framer.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8'))
-    for (const frame of frames) {
-      // The receipts' backlog is bounded: the next frame waits for the journal.
-      await protocol.ready()
-      if (state.isClosed) return
-      accept(frame)
-    }
+    for (const frame of frames) if (!state.isClosed) accept(frame)
   }
   try {
     for await (const chunk of handles.input) {
-      await take(chunk)
+      take(chunk)
       if (state.isClosed) break
     }
   } catch (error: unknown) {

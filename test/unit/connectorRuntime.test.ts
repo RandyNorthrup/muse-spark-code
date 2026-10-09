@@ -13,6 +13,7 @@ import {
   CONNECTOR_SCHEMA_VERSION,
   UI_TEXT,
 } from '../../src/shared/constants'
+import type { ConnectorGrant } from '../../src/shared/connector'
 import { SharedLimits } from '../../src/core/connector/policy'
 import { ConnectorProtocol, type ConnectorServer } from '../../src/core/connector/protocol'
 import { serveStdio } from '../../src/runtime/connector/stdio'
@@ -40,15 +41,18 @@ async function folder(): Promise<string> {
   return created
 }
 
+const earlierTransport = { ready: () => Promise.resolve() }
+
 function fakeServer(overrides: Partial<ConnectorServer> = {}): ConnectorServer {
   return {
+    // The pre-round-4 transport's journal wait, so these tests also run against that source.
+    ...earlierTransport,
     serverInfo: { name: 'muse-spark-code', version: 'test' },
     initialized: () => Promise.resolve('instructions'),
     list: () => Promise.resolve([]),
     call: () => Promise.resolve({ content: [{ type: 'text', text: '{}' }], isError: false }),
     disconnect: () => undefined,
     transport: () => undefined,
-    ready: () => Promise.resolve(),
     ...overrides,
   }
 }
@@ -63,11 +67,26 @@ function idleProtocol(
     handle: async (raw: string) => (await handle(raw)) as Record<string, unknown> | undefined,
     close,
     refuse: (code: number, id: unknown) => refusals.refuse(code, id),
-    ready: () => Promise.resolve(),
+    ...earlierTransport,
   }
 }
 
 const frame = (message: unknown) => JSON.stringify(message)
+/** A valid grant of `generation` for the default connection. */
+function savedGrant(generation: number): ConnectorGrant {
+  return {
+    schemaVersion: CONNECTOR_SCHEMA_VERSION,
+    connectionId: 'default',
+    generation,
+    createdAt: '2026-10-09T00:00:00.000Z',
+    revoked: false,
+    scopes: ['prompts:read'],
+    userLibrary: true,
+    paidCapMicrousd: 0,
+    workspaces: [],
+  }
+}
+
 /** A clock that never moves: limits spent stay spent. */
 const fixedNow = () => Date.parse('2026-10-09T12:00:00.000Z')
 
@@ -365,6 +384,49 @@ describe('M124 owner-only store and commands', () => {
       expect((await field(stat(path.join(data, 'connector', 'audit.key')), 'mode')) & 0o777).toBe(
         0o600,
       )
+  })
+
+  it('keeps the live authority current: another process’s revocation is seen (round 4 P1)', async () => {
+    const data = await folder()
+    const store = new ConnectorStore(data)
+    await store.saveGrant(savedGrant(1))
+    const authority = store.authority('default')
+    // Switched off until its first reading (fail closed).
+    expect(authority.current()).toEqual({ grant: undefined, killed: true })
+    const changed = vi.fn()
+    const stop = authority.watch(changed)
+    try {
+      await authority.refresh()
+      expect(authority.current()).toMatchObject({ killed: false, grant: { generation: 1 } })
+      // The owner's `mcp revoke`, in another process, rewrites the grant: the watch reads it.
+      await new ConnectorStore(data).saveGrant({ ...savedGrant(2), revoked: true })
+      await vi.waitFor(
+        () => {
+          expect(authority.current().grant?.revoked).toBe(true)
+        },
+        { timeout: 3000 },
+      )
+      expect(changed).toHaveBeenCalled()
+    } finally {
+      stop()
+    }
+  })
+
+  it('drops an authority reading that finishes after a newer one (round 4 P1)', async () => {
+    const store = new ConnectorStore(await folder())
+    const authority = store.authority('default')
+    const older = Promise.withResolvers<undefined>()
+    vi.spyOn(store, 'grant')
+      .mockImplementationOnce(async () => {
+        await older.promise
+        return savedGrant(1)
+      })
+      .mockImplementationOnce(() => Promise.resolve(savedGrant(2)))
+    const first = authority.refresh()
+    await authority.refresh()
+    older.resolve(undefined)
+    await first
+    expect(authority.current().grant?.generation).toBe(2)
   })
 
   it('keeps the limits of one grant across server processes and restarts (RVM124 P2-7)', async () => {

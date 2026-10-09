@@ -239,6 +239,8 @@ export const connectorAuditSchema = z.strictObject({
   from: z.optional(z.enum(CONNECTOR_CALL_STATES)),
   cause: z.optional(z.enum(CONNECTOR_CANCEL_CAUSES)),
   rpcCode: z.optional(z.number().check(z.int())),
+  /** A tallied line: this many identical best-effort receipts met a full journal backlog. */
+  count: z.optional(z.number().check(z.int(), z.positive())),
   control: z.optional(z.enum(['grant', 'revoke', 'kill', 'resume'])),
   callId: z.optional(z.string()),
   tool: z.optional(z.string()),

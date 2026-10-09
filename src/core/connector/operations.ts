@@ -75,10 +75,24 @@ export interface OperationEnv {
     operation: Operation,
     from: ConnectorCallState,
     to: ConnectorCallState,
+    isRequired: boolean,
   ) => Promise<boolean>
   /** A cancellation's words for the client. */
   readonly refusalOf: (cause: ConnectorCancelCause) => Refusal
 }
+
+/**
+ * Transitions whose receipt must be durable before they happen (written
+ * ahead; a failed append means the transition and its effect never happen).
+ * Refusals, cancellations and failures are best effort, and so is Stop.
+ */
+const RECEIPTED: ReadonlySet<ConnectorCallState> = new Set([
+  'admitted',
+  'awaitingApproval',
+  'approved',
+  'dispatching',
+  'settled',
+])
 
 export class Operation {
   private readonly holds: { readonly states: readonly ConnectorCallState[]; run: () => void }[] = []
@@ -104,6 +118,8 @@ export class Operation {
   public lastPolledAt?: number
   /** The call's cancellation and deadline, until its reply is delivered. */
   public signal: AbortSignal | undefined
+  /** Its result was decided at the delivery gate: only its receipt is awaited now. */
+  public isCommitted = false
   /** Resolves with the operation once it is terminal. */
   public readonly ended = new Promise<Operation>((resolve) => {
     this.ending.signal.addEventListener(
@@ -171,18 +187,30 @@ export class Operation {
     if (cause !== undefined) this.cancel(cause)
   }
 
-  /** The receipt for a coming transition, durable before its effect may start. */
-  public writeAhead(to: ConnectorCallState): Promise<boolean> {
-    return this.env.journal(this, this.state, to)
+  /**
+   * The receipt for a coming transition, durable before its effect may
+   * start. Only an edge of the table from the state the operation is in is
+   * journaled; any other answers false and writes nothing.
+   */
+  public async writeAhead(to: ConnectorCallState): Promise<boolean> {
+    return (
+      TRANSITIONS[this.state].includes(to) && (await this.env.journal(this, this.state, to, true))
+    )
   }
 
-  /** One transition from the table; its receipt is written unless it was written ahead. */
+  /**
+   * One transition from the table. A receipted transition happens only
+   * written ahead (Stop's excepted); a terminal refusal's receipt is best
+   * effort.
+   */
   public move(to: ConnectorCallState, isWrittenAhead = false): boolean {
     const from = this.state
     if (!TRANSITIONS[from].includes(to)) return false
+    const isStop = this.tool?.toolClass === 'stop'
+    if (!isWrittenAhead && !isStop && RECEIPTED.has(to)) return false
     this.state = to
     this.updatedAt = this.env.now()
-    if (!isWrittenAhead) void this.env.journal(this, from, to)
+    if (!isWrittenAhead) void this.env.journal(this, from, to, false)
     for (const hold of this.holds.splice(0))
       if (hold.states.includes(to)) this.holds.push(hold)
       else hold.run()
@@ -200,10 +228,17 @@ export class Operation {
     return this.final()
   }
 
-  /** False for a terminal operation and for a write whose effect has started. */
+  /**
+   * False for a terminal operation and for a committed one: a write whose
+   * effect has started, or a result decided at its delivery gate.
+   */
   public cancel(cause: ConnectorCancelCause): boolean {
     const isStartedWrite = this.state === 'dispatching' && this.tool?.toolClass === 'write'
-    return !isStartedWrite && this.end('cancelled', this.env.refusalOf(cause), cause)
+    return (
+      !isStartedWrite &&
+      !this.isCommitted &&
+      this.end('cancelled', this.env.refusalOf(cause), cause)
+    )
   }
 
   /** Stop's effect on this operation; it never waits. */

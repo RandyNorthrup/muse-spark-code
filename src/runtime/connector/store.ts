@@ -42,6 +42,7 @@ import {
   unlink,
   writeFile,
 } from 'node:fs/promises'
+import { watch, type FSWatcher } from 'node:fs'
 import { hostname } from 'node:os'
 import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
@@ -61,6 +62,7 @@ import {
 import { identityOf, sameFile, type FileIdentity } from '../../core/fs/fileIdentity'
 import type { AuditPort } from '../../core/connector/audit'
 import type { LimitsPort } from '../../core/connector/policy'
+import type { AuthorityPort, AuthorityState } from '../../core/connector/registry'
 
 const AUDIT_KEY_BYTES = 32
 // /proc/<pid>/stat after the command's closing parenthesis: the start time
@@ -367,6 +369,52 @@ export class ConnectorStore {
       await rename(temp, target)
     } finally {
       await rm(temp, { force: true })
+    }
+  }
+
+  /**
+   * The connection's live authority (design §3a): its grant and the kill
+   * switch as last read. A change to either file is read at once (a watch
+   * on this folder, while it exists) and `refresh` reads them again; a
+   * reading that finishes after a newer one is dropped. Until the first
+   * reading it is switched off (fail closed).
+   */
+  public authority(connectionId: string): AuthorityPort {
+    let state: AuthorityState = { grant: undefined, killed: true }
+    let started = 0
+    let applied = 0
+    const listeners = new Set<() => void>()
+    const refresh = async () => {
+      const reading = ++started
+      const [grant, killed] = await Promise.all([this.grant(connectionId), this.isKilled()])
+      if (reading < applied) return
+      applied = reading
+      const isChanged = JSON.stringify(state) !== JSON.stringify({ grant, killed })
+      state = { grant, killed }
+      if (isChanged) for (const changed of listeners) changed()
+    }
+    const watched = new Set(['kill-switch.json', path.join('grants', `${connectionId}.json`)])
+    return {
+      current: () => state,
+      refresh,
+      watch: (changed) => {
+        listeners.add(changed)
+        let watcher: FSWatcher | undefined
+        try {
+          watcher = watch(this.root, { recursive: true }, (_event, name) => {
+            if (name !== null && watched.has(name)) void refresh()
+          })
+          watcher.on('error', () => {
+            watcher?.close()
+          })
+        } catch {
+          // No folder yet: the refresh before every gate keeps it current.
+        }
+        return () => {
+          listeners.delete(changed)
+          watcher?.close()
+        }
+      },
     }
   }
 
