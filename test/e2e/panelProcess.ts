@@ -26,6 +26,7 @@ export async function panelProcessFixture() {
   const data = mkdtempSync(path.join(tmpdir(), 'm104-panel-data-'))
   const config = installFakeCredential()
   const fake = installFakeMuse()
+  const fakeInstalls = [fake.installDir]
   const api = fakeModelApi()
   api.script({ text: 'From the fake panel model.' })
   const server = createServer((request, response) => {
@@ -129,6 +130,9 @@ export async function panelProcessFixture() {
   ) {
     if (!readFileSync(agent, 'utf8').includes('FAKE_ONLY_KEYRING'))
       throw new Error('Unsafe process artifact')
+    // 0.17 strips unknown child variables; crash injection belongs to the fake CLI itself.
+    const launchedFake = extra['MUSE_FAKE_START'] === 'crash' ? installFakeMuse('crash') : fake
+    if (launchedFake !== fake) fakeInstalls.push(launchedFake.installDir)
     const child = spawn(
       process.execPath,
       [
@@ -138,7 +142,7 @@ export async function panelProcessFixture() {
         '--backend',
         backend,
         '--muse-binary',
-        fake.binaryPath,
+        launchedFake.binaryPath,
         '--shell-sandbox',
         'off',
         ...(args ?? []),
@@ -258,7 +262,7 @@ export async function panelProcessFixture() {
           resolve()
         })
       })
-      for (const folder of [packageRoot, workspace, data, config, fake.installDir])
+      for (const folder of [packageRoot, workspace, data, config, ...fakeInstalls])
         await removeFolder(folder)
     },
   }

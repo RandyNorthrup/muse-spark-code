@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.rtp:prepend(root .. "/hosts/neovim")
 local muse = require("muse")
 local calls = {}
+local control_calls = {}
 local stopped = 0
 local cancelled = 0
 local chat_adapter = "muse_spark"
@@ -38,6 +39,10 @@ package.preload["codecompanion.adapters"] = function()
   }
 end
 vim.system = function(args, opts, callback)
+  if vim.tbl_contains(args, "stop") then
+    control_calls[#control_calls + 1] = { args = args, opts = opts }
+    return { kill = function() error("control must complete independently") end }
+  end
   calls[#calls + 1] = { args = args, opts = opts, callback = callback }
   return {
     kill = function(_, signal)
@@ -85,9 +90,9 @@ rejects(function()
 end, "empty runtime argv refused")
 print("PASS empty runtime argv refused")
 local opener = { "test-browser" }
-muse.setup({ command = { "agent with spaces", "--backend", "musecode" }, opener = opener })
+muse.setup({ command = { "agent with spaces", "--backend", "museCode" }, opener = opener })
 vim.cmd("MusePanel")
-assert(vim.deep_equal(calls[1].args, { "agent with spaces", "--backend", "musecode", "panel", "--companion" }))
+assert(vim.deep_equal(calls[1].args, { "agent with spaces", "supervise", "panel", "--backend", "museCode", "--companion" }))
 assert(calls[1].opts.clear_env)
 assert(
   calls[1].opts.env.M104_API_KEY == nil and calls[1].opts.env.OPENAI_KEY == nil,
@@ -193,8 +198,14 @@ end
 local adapter = muse.acp_adapter()
 assert(adapter.env.M104_API_KEY == "" and adapter.env.OPENAI_KEY == "", "CodeCompanion adapter blanks credentials")
 assert(adapter.env.m104_api_key == "")
-assert(vim.deep_equal(adapter.commands.default, { "agent with spaces", "--backend", "musecode" }))
+assert(vim.deep_equal(adapter.commands.default, { "agent with spaces", "supervise", "--backend", "museCode" }))
 print("PASS CodeCompanion adapter blanks credentials")
+assert(#control_calls > 0, "Stop reaches independent control command")
+for _, call in ipairs(control_calls) do
+  assert(call.opts.clear_env and call.opts.env.M104_API_KEY == nil, "control scrubs credentials")
+  assert(call.args[2] == "stop", "Stop does not enter supervision or ACP queue")
+end
+print("PASS independent credential-free Stop command")
 vim.system = actual_system
 opener[1] = vim.fn.exepath("python3")
 opener[2] = root .. "/hosts/neovim/test/opener.py"

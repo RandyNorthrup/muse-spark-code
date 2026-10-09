@@ -304,6 +304,7 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     path.join(BUILD_ROOT, 'dist/providerCatalog.json'),
     path.join(dir, 'dist/providerCatalog.json'),
   )
+  cpSync(path.join(BUILD_ROOT, 'dist/whatsNew.json'), path.join(dir, 'dist/whatsNew.json'))
   cpSync(
     path.join(BUILD_ROOT, 'dist/providerCatalog.js'),
     path.join(dir, 'dist/providerCatalog.js'),
@@ -311,6 +312,7 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
   for (const file of [
     'MuseSparkJob.cs',
     'MuseSparkMcpJob.cs',
+    'MuseSparkMcpLauncher.cs',
     'MuseSparkScreenRecord.cs',
     'MuseSparkVault.cs',
     'MuseSparkVaultCng.cs',

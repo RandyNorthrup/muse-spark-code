@@ -214,10 +214,10 @@ describe('vscodeLanguageServices', () => {
       item: { location: { path: FILE }, selection: range(3, 16, 21) },
       otherItems: 2,
     })
-    // None declared at the position: the first.
-    expect(await services.callHierarchy(FILE, { line: 7, character: 0 }, 'incoming')).toMatchObject(
-      { item: { location: { path: '/ws/b.ts' } }, otherItems: 2 },
-    )
+    // 0.17 refuses ambiguity when no item is declared at the requested position.
+    await expect(
+      services.callHierarchy(FILE, { line: 7, character: 0 }, 'incoming'),
+    ).rejects.toThrow('MHP_CALL_HIERARCHY_AMBIGUOUS')
   })
 
   it("reads a rename's edits, notices file operations, and passes a refusal on", async () => {

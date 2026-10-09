@@ -98,6 +98,9 @@ beforeAll(async () => {
   const builds = await Promise.all([
     ...Object.entries({
       resourceGovernor: 'src/core/resources/resourceGovernorEntry.ts',
+      lsp: 'src/runtime/lsp/lspEntry.ts',
+      runtimeWatchdog: 'src/runtime/lsp/watchdogEntry.ts',
+      runtimeProcessAuthority: 'src/runtime/lsp/processAuthority.ts',
       resourceProcess: 'src/core/resources/resourceProcessEntry.ts',
       mcpVault: 'src/host/backend/mcpVaultEntry.ts',
       resourceJournal: 'src/runtime/resources/resourceJournalEntry.ts',
@@ -1071,6 +1074,30 @@ describe('deferred cohort bundles', () => {
     expect(green.status, `${green.stdout}\n${green.stderr}`).toBe(0)
   })
 
+  it('loads the process authority dynamically from every runtime owner without embedding a second copy', () => {
+    for (const name of ['acp', 'lsp', 'runtimeWatchdog']) {
+      const output = fixture(`dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`).meta
+        .outputs[`dist/${name}.js`]
+      expect(output?.imports).toContainEqual(
+        expect.objectContaining({
+          path: './runtimeProcessAuthority.js',
+          kind: 'dynamic-import',
+          external: true,
+        }),
+      )
+      for (const file of ['registry', 'linux', 'mac', 'windows', 'actions', 'posix'])
+        expect(inputs(name)).not.toContain(`src/core/resources/trees/${file}.ts`)
+      for (const file of ['src/runtime/trustedPath.ts', 'src/runtime/lsp/stopReceipt.ts'])
+        expect(inputs(name)).not.toContain(file)
+    }
+    for (const file of [
+      'src/runtime/lsp/processAuthority.ts',
+      'src/runtime/trustedPath.ts',
+      'src/runtime/lsp/stopReceipt.ts',
+    ])
+      expect(inputs('runtimeProcessAuthority')).toContain(file)
+  })
+
   it('keeps board and best-of-N execution out of activation', () => {
     const files = inputs('extension')
     expect(files).not.toContain('src/host/bestOfN/bestOfNManager.ts')
@@ -1261,6 +1288,13 @@ describe('deferred cohort bundles', () => {
       'on the first native schedule wake or maintenance',
     ],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
+    [
+      'acp',
+      'src/runtime/lsp/processAuthority.ts',
+      'on the first supervised launch or guardian action',
+    ],
+    ['lsp', 'src/core/resources/trees/registry.ts', 'on the first governed spawn'],
+    ['runtimeWatchdog', 'src/core/resources/trees/mac.ts', 'on the first governed spawn'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],
     ['acp', 'src/host/support/reportJournal.ts', 'from the recorder bundle'],

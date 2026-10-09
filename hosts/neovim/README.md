@@ -51,3 +51,29 @@ The tests use editor APIs and test-only CodeCompanion/process doubles, plus
 a real sanitized child. They certify launch and cancellation, not the
 pending shared controller's F1–F56 end-to-end conformance. That qualification
 is recorded in `docs/certification/m104-h.md`.
+
+## LSP and independent workspace Stop
+
+`MuseLsp` starts the native LSP client at the project root. Neovim 0.12's
+inline-completion API is negotiated and enabled where present. Ordinary
+completion remains available with inline support: use Neovim's LSP omnifunc
+in Insert mode (`Ctrl-X Ctrl-O`) for an invoked request. Automatic inline
+requests spend nothing under the default Invoke-only policy. Neovim 0.12.5
+has no public API to invoke and display a fresh inline request; the proposed
+API is drafted in `docs/research/neovim-inline-invoke-api-request.md`.
+Set `lsp_args = { "--tab", "--trust-workspace" }`
+in `require("muse").setup` to opt into invoked, paid Tab. A native-store key
+and editor consent are required before any dispatch. Budget and model flags
+are documented in `docs/acp.md`.
+
+ACP and companion launch run through `supervise`. `MuseStop` runs a separate
+credential-free `stop` command at the same project root, so it reaches busy
+runtimes and the shared LSP broker. Panel/review features require B's absent
+controller; the production LSP refuses those routes explicitly.
+
+The real-client offline check builds a fake-only service and runs:
+
+```sh
+node -e "require('esbuild').buildSync({entryPoints:['test/unit/helpers/fakeLsp.ts'],outfile:'temp/native-fake-lsp.js',bundle:true,platform:'node',format:'cjs',target:'node22',logLevel:'silent'})"
+M104_NODE="$(command -v node)" nvim --headless -u NONE -l hosts/neovim/test/lsp.lua
+```

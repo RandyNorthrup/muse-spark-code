@@ -159,6 +159,11 @@
     "src/runtime/panel/engineEntry.ts",
     "src/runtime/panel/backendEntry.ts",
     "src/host/views/runtimePresentationEntry.ts",
+    "src/runtime/lsp/lspEntry.ts",
+    "src/shared/featureCatalog.ts",
+    "src/runtime/lsp/watchdogEntry.ts",
+    // Shipped deferred entry: path/receipt imports map to these native-runtime exports.
+    "src/runtime/lsp/processAuthority.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     "test/m104/{runtime,engines,ui}/**/*.test.{ts,tsx,mjs}",
     // The native loader/budget suite is executed directly with node --test.
@@ -187,6 +192,9 @@
     "test/unit/helpers/fakeMcpServer.mjs",
     // The fake stdio ACP agent the M96 lane W tests start as a child process.
     "test/unit/helpers/fakeTeamAcpAgent.mjs",
+    "test/unit/helpers/fakeLsp.ts",
+    "test/unit/helpers/supervisorParent.ts",
+    "test/unit/helpers/runtimeLspParent.ts",
     // A bounded orphan-child process drill, launched by path at runtime.
     "test/unit/helpers/fakeMcpOrphan.mjs",
     // The Windows job drills launch these finite binary, owner-exit and

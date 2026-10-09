@@ -26,9 +26,14 @@ def main(argv):
         prefix = [argv[1]]
     else:
         raise ValueError("EPANEL_ARGUMENTS")
-    if argv[0] not in ("acp", "panel") or not prefix[0]:
+    if argv[0] not in ("acp", "panel", "lsp", "stop") or not prefix[0]:
         raise ValueError("EPANEL_ARGUMENTS")
-    command = prefix if argv[0] == "acp" else [*prefix, "panel", "--companion"]
+    if argv[0] == "acp":
+        command = [*prefix, "supervise"]
+    elif argv[0] == "panel":
+        command = [*prefix, "supervise", "panel", "--companion"]
+    else:
+        command = [*prefix, argv[0]]
     os.execvpe(prefix[0], command, dict(os.environ))
 
 

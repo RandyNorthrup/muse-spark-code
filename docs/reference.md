@@ -3622,6 +3622,9 @@ These are defaults; editor customizations take precedence.
 
 ## ACP / CLI commands
 
+- `lsp [options]`: Stdio language server with paid Tab opt-in and editor consent.
+- `supervise <runtime arguments>`: Run the runtime with independent authenticated Stop control.
+- `stop [runtime options]`: Stop verified runtime owners in this workspace.
 - `usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json`: Show usage and cost across models, or open the usage page.
 - `exec legal-scan --json / legal [--format text|json] [--out <file>] [--registry]`: Scan the workspace for licensing, attribution and header findings
 - `providers list`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
@@ -3681,6 +3684,18 @@ These are defaults; editor customizations take precedence.
 - `--version / -v`: Print the installed agent version.
 - `vault`: Work with the per-user credential vault from a terminal: status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.
 - `vault --help`: Show the per-user credential vault command usage.
+- `lsp: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode"}`
+- `lsp: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false}`
+- `lsp: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false}`
+- `lsp: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto"}`
+- `lsp: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false}`
+- `lsp: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
+- `lsp: --workspace <value>`: Workspace root for the language server. `{"type":"string","repeatable":false}`
+- `lsp: --tab`: Opt into paid Tab completions with consent. `{"type":"boolean","repeatable":false,"default":false}`
+- `lsp: --tab-model <value>`: Model for paid Tab completions. `{"type":"string","repeatable":false}`
+- `lsp: --tab-daily-budget-usd <value>`: Shared daily Tab budget in USD. `{"type":"string","repeatable":false}`
+- `lsp: --broker-worker`: Internal workspace broker worker. `{"type":"boolean","repeatable":false,"default":false}`
+- `lsp: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `providersAdd: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false}`
 - `providersAdd: --as <value>`: --as: Provider `{"type":"string","repeatable":false}`
 - `providersAdd: --address <value>`: --address: Address `{"type":"string","repeatable":false}`

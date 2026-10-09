@@ -26,6 +26,45 @@ local function environment()
   return result
 end
 
+local function workspace()
+  return vim.fs.root(0, { ".git", ".muse" }) or vim.fn.getcwd()
+end
+
+-- A Node/script prefix is argv, as is an installed executable plus flags.
+local function command_for(verb, supervise)
+  local result = { options.command[1] }
+  local first = 2
+  if options.command[2] and options.command[2]:sub(1, 1) ~= "-" then
+    result[#result + 1] = options.command[2]
+    first = 3
+  end
+  if supervise then result[#result + 1] = "supervise" end
+  if verb then result[#result + 1] = verb end
+  for index = first, #options.command do result[#result + 1] = options.command[index] end
+  return result
+end
+
+function M.lsp()
+  local root = workspace()
+  local env = environment()
+  for name in pairs(vim.fn.environ()) do
+    if credential(name) then env[name] = "" end
+  end
+  local capabilities = vim.lsp.protocol.make_client_capabilities()
+  if vim.lsp.inline_completion then capabilities.textDocument.inlineCompletion = {} end
+  local args = command_for("lsp", false)
+  vim.list_extend(args, { "--workspace", root })
+  vim.list_extend(args, options.lsp_args or {})
+  return vim.lsp.start({ name = "muse_spark", cmd = args, root_dir = root,
+    cmd_env = env, capabilities = capabilities,
+    on_attach = function(client, buffer)
+      if vim.lsp.inline_completion and client.server_capabilities.inlineCompletionProvider then
+        vim.lsp.inline_completion.enable(true, { bufnr = buffer })
+      end
+    end,
+  })
+end
+
 -- Authored launch URL, never an HTTP response or a provider wire shape.
 function M.valid_url(url)
   if type(url) ~= "string" then
@@ -73,12 +112,12 @@ function M.open_companion(url)
   if process then
     error("EPANEL_ALREADY_RUNNING")
   end
-  local args = vim.list_extend(vim.deepcopy(options.command), { "panel", "--companion" })
+  local args = vim.list_extend(command_for("panel", true), { "--companion" })
   local running
   running = vim.system(
     args,
     {
-      cwd = vim.fn.getcwd(),
+      cwd = workspace(),
       env = environment(),
       clear_env = true,
       -- Discard output: no launch code or raw CLI stderr in editor logs.
@@ -99,6 +138,11 @@ function M.open_companion(url)
 end
 
 function M.stop()
+  -- This independent command reaches all supervised owners of the workspace.
+  vim.system(command_for("stop", false), { cwd = workspace(), env = environment(),
+    clear_env = true, stdout = false, stderr = false }, vim.schedule_wrap(function(result)
+    if result.code ~= 0 then vim.notify("EPANEL_STOP", vim.log.levels.ERROR) end
+  end))
   local cancelled = pcall(function()
     local ok, companion = pcall(require, "codecompanion")
     if ok then
@@ -135,7 +179,7 @@ function M.acp_adapter()
   return require("codecompanion.adapters").extend("goose", {
     name = "muse_spark",
     formatted_name = "Muse Spark Code (Unofficial)",
-    commands = { default = vim.deepcopy(options.command) },
+    commands = { default = command_for(nil, true) },
     env = env,
   })
 end
@@ -147,6 +191,7 @@ function M.setup(config)
     M.open_companion(args.args)
   end, { nargs = "?" })
   vim.api.nvim_create_user_command("MuseStop", M.stop, {})
+  vim.api.nvim_create_user_command("MuseLsp", M.lsp, {})
   vim.api.nvim_create_autocmd("VimLeavePre", { callback = M.stop })
 end
 

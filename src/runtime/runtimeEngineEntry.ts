@@ -18,3 +18,7 @@ export function installUsageRecording(recording: UsageRecording): () => void {
     MuseCodeHost.usageRecording = muse
   }
 }
+
+// The LSP worker shares the existing guarded paid-policy owner on first use.
+export { PaidFeatureGate, PaidUsage } from '../core/paid/paidFeatures'
+export { PaidUseConsent, paidUseQuestion } from '../core/paid/paidConsent'

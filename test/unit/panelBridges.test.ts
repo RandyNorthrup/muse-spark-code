@@ -110,7 +110,7 @@ it('refuses a duplicate companion sequence and stops dispatch', async () => {
     bridge.dispose()
   })
   const frame = {
-    mhp: '1.2',
+    mhp: '1.4',
     kind: 'panel',
     surface: binding.surface,
     direction: 'toPanel',

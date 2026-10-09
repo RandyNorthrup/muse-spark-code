@@ -732,8 +732,8 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
         forget: () => unavailable('paidConsent'),
       },
       usage: {
-        add: (feature, units) => {
-          runtime.paid.noteUse(feature, units)
+        add: (feature, units, searchPriceUsd) => {
+          runtime.paid.noteUse(feature, units, searchPriceUsd)
         },
         addBestOfNRequest: () => unavailable('bestOfN'),
         addBestOfNUsage: () => unavailable('bestOfN'),

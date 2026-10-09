@@ -76,5 +76,11 @@ export async function buildRuntimeConversationBundles(folder: string): Promise<v
     runtimePanelPorts: path.resolve('src/runtime/panel/runtimeFeaturesEntry.ts'),
     conversation: path.resolve('src/host/conversation/conversationEntry.ts'),
     sessionBoard: path.resolve('src/host/sessionBoardEntry.ts'),
+    runtimeContext: path.resolve('src/runtime/panel/contextEntry.ts'),
+    runtimeEngines: path.resolve('src/runtime/panel/engineEntry.ts'),
+    runtimeBackendServices: path.resolve('src/runtime/panel/backendEntry.ts'),
+    runtimePresentation: path.resolve('src/host/views/runtimePresentationEntry.ts'),
+    planMarkdown: path.resolve('src/host/planMarkdownEntry.ts'),
+    checkpointStore: path.resolve('src/host/checkpoints/checkpointStoreEntry.ts'),
   })
 }

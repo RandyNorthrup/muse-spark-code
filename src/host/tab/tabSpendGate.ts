@@ -16,7 +16,7 @@ import type {
   TabReservation,
   TabSpendFacts,
   TabSpendGate,
-} from '../vscode/tab/tabBundle'
+} from '../../core/tab/tabSpend'
 
 export interface TabSpendGateDeps {
   readonly ledger: TabLedger

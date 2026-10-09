@@ -58,6 +58,7 @@ loadBundle(path.resolve('dist/modelApi.js'), 'createModelApiHost')
 loadBundle(path.resolve('dist/review.js'), 'createReviewFeatures')
 // The installed agent's own copy of the backend, which `--help` never loads.
 loadBundle(path.resolve(packageRoot, 'dist/modelApi.js'), 'createModelApiHost')
+loadBundle(path.resolve(packageRoot, 'dist/lsp.js'), 'runLsp')
 const agent = path.resolve(packageRoot, 'dist/acp.js')
 const table = createRequire(agent)('./uiText.js').EN
 const {
@@ -82,6 +83,11 @@ function checkUsage(table, locale) {
     env: { LC_ALL: locale },
   })
   assert.equal(help.trim(), formatAcpUsage(table, ACP_AGENT_NAME).trim(), locale)
+  const lspHelp = execFileSync(process.execPath, [agent, 'lsp', '--help'], {
+    encoding: 'utf8',
+    env: { LC_ALL: locale },
+  })
+  assert.equal(lspHelp.trim(), formatAcpUsage(table, ACP_AGENT_NAME).trim(), locale)
 }
 checkUsage(table, 'en_US.UTF-8')
 const archiveFile = path.join(packageRoot, 'l10n', L10N_TABLE_ARCHIVE_FILE)

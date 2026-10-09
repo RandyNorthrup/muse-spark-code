@@ -13,9 +13,9 @@ cannot be launched directly, set `agent` to the installed `node.exe` and
 separate argv entries; this is covered by bootstrap tests, with a native
 Windows receipt still pending. No language server or runtime is downloaded.
 Open a project: **Tools → Muse Spark Code (Unofficial): panel** starts
-`panel --companion` in the startup project's directory, using argv rather
+`supervise panel --companion` in the startup project's directory, using argv rather
 than shell text. **Tools → Muse Spark Code (Unofficial): stop** terminates
-the owned runtime. A failed stop retains ownership so it can be retried.
+the workspace supervisors and owned launcher. A failed stop retains ownership so it can be retried.
 Missing Python, missing project, duplicate launch and failed start/stop
 produce explicit technical errors.
 
@@ -52,3 +52,18 @@ python3 -m unittest discover -s hosts/qtcreator/test -v
 The Lua stub runs in Neovim's real Lua VM; it is not a native Qt Creator
 receipt. The Python tests include a real credential-free runtime child.
 F1–F56 shared-panel qualification is tracked in `docs/certification/m104-h.md`.
+
+## LSP and independent workspace Stop
+
+In Qt Creator's native generic language-client settings, use the installed
+agent with argument `lsp --workspace <project-root>`, selecting the languages
+you want. For the isolated Python launch route, the argv is Python, `-I`, the
+absolute `launch.py`, `lsp`, then the installed agent (and optional
+`--agent-script` Node prefix). Add paid flags to a direct installed-agent LSP
+command only when opting into Tab. Inline-completion support is unqualified;
+ordinary completion items are the negotiated fallback. No user settings are
+changed by this repository. The Lua API alone does not certify this GUI route.
+
+The panel bootstrap now uses `supervise panel`. The Stop action independently
+launches `stop` through the sanitized bootstrap before local cleanup. B's
+controller remains necessary for panel/review behavior.

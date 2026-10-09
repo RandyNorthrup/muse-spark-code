@@ -16,7 +16,7 @@ class WindowCommand:
 
 
 settings = {
-    "command": ["agent with spaces", "--backend", "musecode"],
+    "command": ["agent with spaces", "--backend", "museCode"],
     "opener": ["browser"],
 }
 errors = []
@@ -60,6 +60,37 @@ class ShimTests(unittest.TestCase):
         )
         self.url = "http://127.0.0.1:41234/#k=test-launch"
 
+    def test_independent_stop_is_bounded_and_sanitized(self):
+        with patch.dict(os.environ, {"M104_API_KEY": "test-sentinel"}), patch.object(muse.subprocess, "run", return_value=types.SimpleNamespace(returncode=0)) as run:
+            muse.MuseStopCommand(self.window).run()
+            scheduled[-1]()
+            self.assertEqual(run.call_args.args[0], ["agent with spaces", "stop", "--backend", "museCode"])
+            self.assertEqual(run.call_args.kwargs["cwd"], "/workspace with spaces")
+            self.assertNotIn("M104_API_KEY", run.call_args.kwargs["env"])
+            self.assertEqual(run.call_args.kwargs["timeout"], 15)
+            self.assertFalse(run.call_args.kwargs["shell"])
+
+    def test_lsp_registration_and_environment_override(self):
+        registered = []
+        fake_lsp = types.ModuleType("LSP.plugin")
+        fake_lsp.AbstractPlugin = object
+        fake_lsp.register_plugin = registered.append
+        fake_lsp.unregister_plugin = registered.remove
+        with patch.dict(sys.modules, {"LSP": types.ModuleType("LSP"), "LSP.plugin": fake_lsp}):
+            spec = importlib.util.spec_from_file_location("muse_lsp_fixture", Path(__file__).parents[1] / "muse_spark.py")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        module.plugin_loaded()
+        self.assertEqual(registered, [module.MuseSparkLspPlugin])
+        configuration = types.SimpleNamespace(env={"PATH": "retained"})
+        with patch.dict(os.environ, {"M104_API_KEY": "test-sentinel", "OPENAI_KEY": "test-sentinel"}):
+            module.MuseSparkLspPlugin.on_pre_start(None, None, [], configuration)
+        self.assertEqual(configuration.env["M104_API_KEY"], "")
+        self.assertEqual(configuration.env["OPENAI_KEY"], "")
+        self.assertEqual(configuration.env["PATH"], "retained")
+        module.plugin_unloaded()
+        self.assertEqual(registered, [])
+
     def test_fragment_launch_only(self):
         self.assertTrue(muse.valid_launch_url(self.url))
         self.assertTrue(muse.valid_launch_url("http://[::1]:41234/#k=test-launch"))
@@ -102,7 +133,7 @@ class ShimTests(unittest.TestCase):
             with patch.dict(os.environ, {"M104_API_KEY": "test-sentinel"}):
                 muse.MusePanelCommand(self.window).run()
             args, kwargs = spawn.call_args
-            self.assertEqual(args[0], [*settings["command"], "panel", "--companion"])
+            self.assertEqual(args[0], ["agent with spaces", "supervise", "panel", "--backend", "museCode", "--companion"])
             self.assertEqual(kwargs["cwd"], "/workspace with spaces")
             self.assertNotIn("M104_API_KEY", kwargs["env"])
             self.assertFalse(kwargs["shell"])

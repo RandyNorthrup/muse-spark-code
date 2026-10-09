@@ -202,7 +202,7 @@ describe('F24 v2 portable Best-of-N attempt host', () => {
       await done
       expect(rig.api.responseBodies()).toHaveLength(isOn ? 1 : 0)
       expect(tariff).toHaveBeenCalledTimes(isOn ? 1 : 0)
-      await expect(budget.latestDay()).resolves.toMatchObject({ spentUsd: isOn ? 0.25 : 0 })
+      await expect(budget.latestDay()).resolves.toMatchObject({ spentUsd: isOn ? '0.25' : '0' })
     },
   )
 })

@@ -7573,6 +7573,28 @@ export const RUNTIME_STATE = {
   casAttempts: 8,
   folder: 'panel-state',
 } as const
+/** M104H2: independent runtime owners and their private Stop control channel. */
+export const RUNTIME_STOP = {
+  generationBytes: 16,
+  stoppedExit: 0,
+  signalExitBase: 128,
+  launchFd: 3,
+  graceMs: 500,
+  exitMs: 10_000,
+  pollMs: 25,
+  tokenBytes: 32,
+  pathChars: 1024,
+  handshakeChars: 65,
+  recordBytes: 2048,
+  directoryMode: 0o700,
+  fileMode: 0o600,
+  connections: 8,
+  owners: 8,
+} as const
+
+/** Portable POSIX sun_path capacity, reserving Darwin's terminating byte. */
+export const RUNTIME_STOP_SOCKET_BYTES = 103
+
 // Conversation-only prompts: first chat surface, never activation.
 export const CONVERSATION_MODEL_TEXT = {
   replyContextLead:
@@ -7627,6 +7649,39 @@ export const CONVERSATION_MODEL_TEXT = {
   // address) was; after an import the model reads them.
   exportRedactedPath: '[redacted path]',
   exportRedactedAccount: '[redacted account]',
+} as const
+
+/** M104L: limits shared by stdio LSP and its private workspace broker. */
+export const LSP_SERVER_NOT_INITIALIZED = -32_002
+export const LSP_LIMITS = {
+  groupFields: 4,
+  passwdFields: 7,
+  stickyMode: 0o1000,
+  headerBytes: 8192,
+  headerDelimiterBytes: 4,
+  frameBytes: 4_194_304,
+  queuedBytes: 8_388_608,
+  documentBytes: 1_048_576,
+  documentCount: 128,
+  pendingRequests: 32,
+  uriChars: 4096,
+  messageChars: 65_536,
+  diagnosticCount: 256,
+  diagnosticSeverities: 4,
+  watchdogScanMs: 1000,
+  watchdogPollMs: 250,
+  recordLinkCount: 1n,
+  watchdogProcesses: 512,
+  requestMs: 30_000,
+  startupMs: 10_000,
+  idleMs: 60_000,
+  pollMs: 50,
+  clients: 8,
+  fileMode: 0o600,
+  directoryMode: 0o700,
+  recordBytes: 4096,
+  tokenBytes: 32,
+  socketNameBytes: 8,
 } as const
 
 // `/legal …` in the prompt (M97, PLAN.md D76). Bare it scans the whole

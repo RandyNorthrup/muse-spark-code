@@ -7,144 +7,23 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-- Eclipse retains observed runtime descendant pid/start-time identities across
-  parent-first crashes and refuses reused pids during cleanup, following the
-  JetBrains process model. Both JVM hosts preserve all schema-defined MHP errors
-  through generated Java/Kotlin tables, including unavailable capabilities and
-  permission refusals; the MHP gate checks table drift.
-
-- Redesign Eclipse session shutdown around display-owned native state and
-  atomic cross-thread close admission. Cleanup failures are logged and isolated;
-  runtime-tree termination always runs. Deferred view cleanup retains its logger
-  after plugin stop, and surface retirement survives a closed transport. Window-menu opening scans all restored
-  views, replaces unbound and uncreated placeholders, and activates the owned chat.
-  Descendant-cleanup tests distinguish startup, zombies and reaping. JetBrains
-  native services use an options object and a separate UI collaborator; the
-  constructor, dispatcher and class function count pass unchanged Detekt rules.
-
-- Close the six findings in the M104PE follow-up review: Eclipse preserves
-  absolute file-dialog paths and replaces unbound restored views; diagnostics
-  on both JVM hosts wait for analysis of the edited version, with bounded
-  runtime polling; JetBrains replacement pages retain native bridges and
-  packaged assets; unavailable runtime-setting shortcuts return explicit errors
-  surfaced to the user. Native fixtures wait for readiness and own their fake
-  sessions; Knip tracks the existing native-loader test entrypoint. Linux JVM
-  and fresh-clone verification are recorded in the PE fix round 2 certification.
-
-- Close the M104PE independent review (four P2, one P3) in the Linux/JVM hosts:
-  Eclipse and JetBrains implement 1.3 `ui`, `surfaces`,
-  `commands` and `diagnostics` services (file open/save, runtime HTML
-  presentation, command run, version-attested settled diagnostics) and keep
-  typed unsupported-capability refusals instead of internal errors; JetBrains
-  construction failure restarts in companion mode; the Eclipse Window-menu
-  command activates the runtime's owned surface instead of publishing an
-  unowned session; the native fixture and both host guides negotiate and
-  document MHP 1.3. Runtime-setting shortcuts are explicitly unavailable;
-  installed-product parity still requires the certification matrix.
-- Xcode file-open failures use the existing translated file-open message.
-
-- Xcode's appearance and pending-trust regressions now run in the console-free
-  native core scheme, with both controls verified without starting the app or
-  UI test runner. Installed theme/trust interaction remains unqualified.
-
-- Xcode drops malformed remote panel errors without cancelling native requests
-  on the companion relay. File navigation retains every xed process until it
-  exits, reports failed launches/opens, and tracks termination during Stop.
-  Console-free regressions use malformed frames and a fake process launcher.
-
-- Xcode command callbacks now fence cancellation at buffer commit and prevent
-  listener/client startup after cancellation or close. File navigation resolves
-  regular workspace files before xed, and focus reports the bound window's state.
-  Core tests cover these paths without UI automation or privacy prompts.
-
-- Xcode's MHP 1.3 relay now validates the full frozen editor/panel snapshot,
-  isolates recoverable request and panel faults, enforces union/array limits,
-  and returns the contract's native permission/version/failure codes. Added
-  console-free native core regressions and mutation receipts; installed parity
-  remains unqualified.
-
-- Xcode's native MHP file picker returns the selected file URI, and report
-  export writes only after an active Save decision. File/permission dialogs
-  reject overlaps, cancellation and callbacks from a replaced dialog; failed
-  writes return an explicit failure. Installed-editor qualification remains open.
-
-- Xcode's app and source editor extension ship the linked GitHub star sentence
-  in their packaged descriptions. Xcode, ACP and native distribution READMEs
-  include the same sentence; other native listing changes remain owner requests.
-
-- Xcode and native distribution adopt the integrated MHP 1.3 snapshot.
-  ACP archives include the actual portable engine/presentation factories,
-  protocol, checkpoint/session/plan dependencies and optional Judge/browser
-  bundles. Missing members refuse before native packaging dispatch.
-
-- Native distribution manifests, harness reports and release receipts require
-  the reviewed MHP 1.2 version. Packaging checks product/dependency pins, hashes
-  every injected runtime and deferred browser file, and refuses changed or
-  symlinked inputs. Installed archive/runtime qualification remains separate.
-- The release workflow verifies and stages native archives and receipts after
-  signing/recovery, then includes them in checksums, attestations and the GitHub
-  asset inventory before any native registry publication.
-- Xcode's companion app initiates the reviewed MHP 1.2 contract and validates
-  correlated native traffic instead of reading a raw launch URL. It preserves
-  bounded transport, cancellation, process-group Stop and private browser state.
-  Native package versions follow the product manifest. Installed-editor parity
-  remains experimental and requires the recorded qualification receipts.
-- The standalone carrier guide now describes the shipped authenticated browser
-  renderer and UI bridge and names the remaining native integration gaps.
-- Ship the shared host protocol in the VSIX so the extension loads, and verify
-  activation with the production split. Portable cleanup closes auxiliary views
-  after conversation cancellation. Presentation actions retire completed IDs,
-  compare their selected records and publish fresh state; selected text follows
-  the live confined workspace index. The README contract test follows its 1.3 marker.
-
-- Integrate portable engine and presentation factories in separately checked lazy
-  bundles, including real checkpoint recording, version-attested verification,
-  saved plans, transfer, Tasks, What's New and scrubbed report export.
-- Adopt MHP 1.3 for bounded auxiliary messages and awaited native services;
-  correlate browser actions, defer lifecycle delivery until view adoption,
-  bind companion traffic to its authenticated surface, and queue crash-report
-  recovery until chat readiness. Native adoption and qualification remain open.
-- Verified provider quotes name the complete maximum price, billed provider and
-  shared daily budget; absent or replaced quotes refuse before consent.
-- Tasks and What's New acquisitions preserve the newest requested session and
-  drain superseded opens. Authoritative closes retire Tasks ownership before
-  reopening. Browser clipboard cancellation rejects the result and suppresses
-  late acknowledgements; an already started clipboard write cannot be undone.
-
-- Portable controllers honor contributed host readiness and host selection
-  during restore and login model warm-up, preserving session ownership fences
-  and refusing late admission after release.
-- Portable settings updates publish each conversation's own effective values;
-  root changes preserve worktree overrides, and worktree changes revoke Bypass
-  against that conversation's current permission setting.
-- Runtime engine contributions can own paid policy and accounting, Model API
-  budget/edit/attempt-host services, authentication and account facts.
-  Missing contribution groups retain the existing explicit refusals.
-- The replacement guide now states that both legacy-named MHP snapshots carry
-  1.2. Companion browser certification uses shared, owned Chrome fixtures,
-  explicit readiness and separate integrity scenarios at default deadlines.
-
-- Portable panels publish live runtime-owned settings, replace backend profiles, report failed profile construction, follow editor trust grants and revocations, and retain separate worktree stores. Selected-model records gate compaction, handoff, vision, PDFs and reasoning when supplied by a provider adapter.
-- Browser session retirement revokes old launch codes and bearers, stops their event streams and closes cancelled HTTP calls.
-- Portable attachment picking uses the shared host picker and confined reads; restored handoff dialogs and text-file parts survive reload. Typed engine/presentation factories own their actions, auxiliary views and awaited cleanup.
-
-- Portable panels retire old surface bindings on new, fork and switch, and retain active turns, imported restrictions and rich history on reload. Browser launches keep an immutable session context.
-
-- MHP 1.2 replaces the unshipped 1.1 contract. Editors initiate initialization with host metadata, locale, theme and capabilities; incompatible versions are refused by name.
-
-- Standalone settings and session activity records coordinate independent writers with versioned atomic publication; older activity cannot replace the newest restore target.
-
-- Native panel requests retain bounded, method-validated late-reply correlation after cancellation or timeout so unrelated requests keep working.
-
-- Runtime panel and ACP teardown waits for suspended controller preparation and admitted work before draining storage; concurrent releases share the same completion.
-
 ### Added
 
-- **Experimental editor-carrier integration** (M104). The joined 0.17
-  payloads use MHP 1.4, with generated native schemas for exact money inputs
-  and explicit refusal of older protocol offers. Portable auth reads account
-  facts without loading the account-process SDK. Installed editor and resource
-  parity qualifications remain open.
+- Native and companion panels adopt MHP 1.4, including the 0.17 payloads,
+  bounded auxiliary messages, awaited native services, correlated browser actions
+  and authenticated packaged module loading. Older peers are refused.
+- Portable engine and presentation factories provide checkpoints, version-attested
+  verification, saved plans, transfer, Tasks, What's New and scrubbed report export.
+  Portable auth reads captured account facts without loading its process SDK.
+  Native distribution packages their complete lazy dependencies and validates
+  signed archive inventories before registry publication; qualification stays open.
+- JetBrains and Eclipse provide native file dialogs, commands, HTML surfaces and
+  settled diagnostics for the edited document version. Unavailable settings actions
+  report explicit errors. Their panels retain native bridges after page replacement.
+- Xcode's native prototype provides permission and file dialogs, approved buffer
+  edits, report export, window focus and retained file-navigation processes.
+  Its companion relay validates the shared snapshot and reports native failures.
+  Installed-editor parity remains experimental.
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
@@ -191,13 +70,13 @@ happened, not what was planned; superseded entries are kept.
   _In the next release_ section, never as shipped.
 
 - Experimental standalone `panel --stdio` and `panel --companion` carriers
-  negotiate frozen MHP 1.1, correlate editor services, bind registered
+  negotiate frozen MHP 1.4, correlate editor services, bind registered
   surfaces, bound delivery and replay current conversation history on reload.
   Both use the portable conversation factory and persistent runtime stores.
   The authenticated companion now renders the shared React panel; ACP submits
   rich parts through the composed shared controller while retaining its own
   translation and permissions. Complete editor parity remains open.
-- The standalone companion now admits MHP 1.1 panel/lifecycle messages at
+- The standalone companion now admits MHP 1.4 panel/lifecycle messages at
   `/panel/message` and `/panel/surface`, returns empty 204 admissions and
   typed errors, and streams ordered `event: mhp` frames with sequence IDs
   at `/panel/events`. Existing per-window authentication guards remain.
@@ -222,23 +101,26 @@ happened, not what was planned; superseded entries are kept.
   Native bootstrap and all-editor conformance remain open.
 - JetBrains development plugin: render the shared panel through JCEF's public
   HTML loader with packaged inline assets; add native inline Tab completion
-  over MHP, preserve numeric completion IDs, and adopt the editor-initiated MHP 1.2
+  over MHP, preserve numeric completion IDs, and adopt the editor-initiated MHP 1.4
   initialization contract in its owning parity lane. Replace experimental/default-method API calls and
   bound compatibility to IDEA 2025.3–2026.2. Fake-runtime qualification and
   remaining runtime integration are recorded in `docs/certification/m104-e3.md`.
-- MHP 1.1.0 panel carrier contract: validated shared payloads, ordered
-  session-bound surface envelopes and lifecycle, the `window.museHost`
-  API, and multiplexed NDJSON/companion HTTP/SSE framing. Native consumers
-  get a versioned schema export and lock; frozen v1 editor services remain
-  unchanged. Runtime and browser implementations remain pending in M104.
-- **Xcode native-host prototype (M104X, awaiting integration).** A macOS 14+
-  SwiftUI/WKWebView app and XcodeKit extension, authenticated ephemeral
-  selection callbacks, explicit buffer-edit approval with stale-buffer and
-  selection checks, credential-free runtime launch, and out-of-band Stop.
-  Selected folders/project bundles must exist before launch; invalid startup
-  workspace arguments show the localized error.
-  Shared runtime panel/Tab endpoints and installation qualification remain
-  required; the packaged local build does not claim full feature parity.
+- Experimental stdio LSP with UTF-16 dirty-buffer synchronization, negotiated
+  inline/fallback Tab completions using M94's paid engine, caps and ledger,
+  and one bounded private workspace broker. Stop, usage and help commands
+  work; review diagnostics and approved edit actions have a tested service
+  port but await the separate panel controller in production.
+- Five editor shims now launch supervised runtimes and issue independent
+  workspace Stop commands. POSIX supervision adds a process-identity guardian
+  for observed detached descendants and abrupt supervisor death. Fast
+  double-fork escapes, native Windows and GUI qualification remain open.
+- Neovim LSP, Emacs Eglot, optional Sublime LSP configuration, Qt Creator
+  generic-client setup and Zed Rust LSP source. Neovim's real headless client
+  is qualified against a fake service; Zed SDK compilation is pending.
+- Experimental standalone `supervise` and workspace `stop` commands use
+  authenticated private control outside the request queue, bounded escalation
+  and credential-free child launches. The localized reference includes these
+  commands and LSP options, with a generated runtime/shim catalogue.
 
 ### Changed
 
@@ -320,13 +202,33 @@ happened, not what was planned; superseded entries are kept.
 - Browser session retirement revokes old launch codes and bearers, stops their event streams and closes cancelled HTTP calls.
 - Portable attachment picking uses the shared host picker and confined reads; restored handoff dialogs and text-file parts survive reload. Typed engine/presentation factories own their actions, auxiliary views and awaited cleanup.
 - Portable panels retire old surface bindings on new, fork and switch, and retain active turns, imported restrictions and rich history on reload. Browser launches keep an immutable session context.
-- MHP 1.2 replaces the unshipped 1.1 contract. Editors initiate initialization with host metadata, locale, theme and capabilities; incompatible versions are refused by name.
+- MHP 1.4 replaces the unshipped 1.1 contract. Editors initiate initialization with host metadata, locale, theme and capabilities; incompatible versions are refused by name.
 - Standalone settings and session activity records coordinate independent writers with versioned atomic publication; older activity cannot replace the newest restore target.
 - Native panel requests retain bounded, method-validated late-reply correlation after cancellation or timeout so unrelated requests keep working.
 - Runtime panel and ACP teardown waits for suspended controller preparation and admitted work before draining storage; concurrent releases share the same completion.
 
 ### Fixed
 
+- Portable controllers preserve host readiness, restored selection and session
+  ownership. Paid engine policy and accounting follow the owning runtime; effective
+  settings remain specific to each conversation and worktree.
+- Paid consent asks again only for the selected workspace and reports replaced
+  owners explicitly. Verified quotes name the maximum price, provider and shared
+  budget; absent or replaced quotes refuse before consent.
+- Portable search usage retains the verified exact tariff through the runtime
+  adapters, so completed paid searches are counted correctly.
+- Inspecting an installed watchdog module no longer enters its private process
+  launch pipe; supervised launch registration and EOF refusal are preserved.
+- Tasks and What's New preserve the newest requested session and retire closed
+  ownership before reopening. Completed presentation actions retire their IDs;
+  selected text follows the confined workspace index. Clipboard cancellation
+  suppresses late acknowledgements; an already started write cannot be undone.
+- JetBrains and Eclipse wait for settled diagnostics, isolate shutdown failures
+  and retain observed descendant identities across parent-first crashes. Cleanup
+  refuses reused process IDs; schema-defined MHP errors retain their native codes.
+- Xcode fences cancellation before buffer commit, dialog completion and listener
+  startup. Malformed remote panel errors preserve pending native requests; Stop
+  terminates retained navigation processes, and file-open failures use translated text.
 - Schedule runtime tests cover Linux, Windows and macOS rearm ownership
   explicitly; macOS wake shutdown retains its independent after-exit helper.
 
@@ -1320,6 +1222,83 @@ happened, not what was planned; superseded entries are kept.
   Stop waits for the kernel's empty-cgroup receipt before cleanup, preventing
   an outside same-tick PID replacement from inheriting tree authority.
   Undelegated groups refuse small PID namespaces and recheck identity bounds.
+- Closing-owner Stop tests bind and close a real portable-length socket before
+  publishing its record, avoiding macOS `EINVAL` from an oversized fixture
+  pathname while retaining the product's 103-byte refusal.
+
+- Independent POSIX Stop sockets use a verified runtime root even when owner
+  registries are deeply nested, and reject oversized addresses before launch.
+  Runtime tests retain and reap detached fixture descendants after parent exit,
+  restore spies/platform state on failure, and use async process-table sampling
+  so cleanup cannot block the event loop past the unchanged test deadline.
+  Independent Stop forwards per-record skip diagnostics through its root search.
+
+- Darwin process accounting accepts the OS's unknown/exiting `?Es` state,
+  so an unrelated exiting process cannot make every supervised Stop lose its
+  tree proof. Native birth, group, ancestry and per-member signal checks remain.
+
+- Trusted POSIX runtime paths accept group-writable ancestors only when system
+  lookups prove the group is the user's private primary group. Shared or unknown
+  membership still refuses; private leaves remain 0700. The proof enumerates
+  every passwd primary gid and refuses on any other account, empty enumeration
+  or lookup failure; the getent initgroups/getgrouplist path is removed.
+
+- Independent Stop searches every verified runtime root and remembered root
+  location before signalling, so changed XDG/TMPDIR values or repaired earlier
+  candidates cannot hide a running supervisor. Owner records bind their trust
+  root. Unreadable, empty, truncated or schema-invalid records are skipped and
+  reported, well-formed records from another trust root are skipped as foreign,
+  and Stop proceeds with the valid owners; only duplicate well-formed runs
+  refuse as ambiguous, and no valid run exits 1.
+
+- Private runtime state now verifies every real ancestor through the filesystem
+  root with the shared StrictModes rule, selects only verified platform roots,
+  and binds the resolved record pathname to its held file before contents.
+  Unsafe ancestry, user symlinks above a root and substitution/restoration refuse.
+- Guardian completion receipts are exclusive and bound to the current generation,
+  owner UUID, resource ticket, guardian/root births and observed identities.
+  Copied or stale receipts retain ownership and make independent Stop fail.
+
+- Private LSP records now verify their empty open file and held directory before
+  writing control tokens. All namespaces require a trusted per-user runtime/cache
+  parent chain; unsafe parents and replacement races refuse before publication.
+- Independent Stop after supervisor death requires a guardian completion receipt
+  for observed descendants. Pending/missing receipts return failure, name observed
+  PIDs and retain ownership records.
+- Unexpected POSIX workload signal death preserves 128 + signal and names the
+  signal. Intentional Stop returns 0, including Windows job termination statuses;
+  native Windows rerun remains integration work.
+
+- LSP supervision now registers workload launches with M107's exact process
+  authority before admission and uses its verified per-member actions for
+  every Stop signal. Local `ps lstart` tracking and exited-group sweeps are
+  removed; zombies and genuine reuse of departed PIDs use the shared registry.
+- Private LSP directories are created with final owner-only permissions:
+  no-follow fd verification on POSIX, protected owner/SYSTEM DACL creation and
+  held-handle verification on Windows. Unsafe existing namespaces are refused.
+  Native Windows/Linux qualification and POSIX's final read-to-signal interval
+  remain explicitly recorded.
+
+- The POSIX guardian verifies parent/root birth identities before enrolling
+  descendants and rechecks each process before an individual signal. Broker
+  and Stop records require an owner-only namespace, no symlinks, verified
+  permissions/ACLs and exact file identity; unsafe existing records refuse.
+
+- LSP Stop and shutdown bypass saturated ordinary requests; independent Stop
+  waits across guardian startup. Suggested edits recheck cancellation after
+  final policy admission. Deny or closing Tab consent snoozes that editor
+  connection until reconnect, and supervisor tests build their own guardian
+  rather than depending on production artifacts.
+
+- The POSIX guardian returns failure when it cannot verify current process
+  identities, without signalling an unverified group. Independent Stop also
+  tolerates an owner record disappearing during cleanup while preserving
+  other file errors.
+
+- Zed companion tasks select a known shell and quote each path and argument;
+  ACP registration retains literal argv. Offline shell tests cover paths
+  with spaces and metacharacters; native Zed/Windows qualification is pending.
+
 - Registered resource trees expose verified signal and tree-kill actions, with
   exact birth checks and honest outcomes. Observed descendants retain authority
   after reparenting or starting another session; recycled PIDs need new proof.
@@ -2294,6 +2273,12 @@ happened, not what was planned; superseded entries are kept.
   budget with six real copies, then checks the exact read bound and reuse of
   the same directory cursor. It avoids hundreds of unnecessary disk operations
   and no longer accepts repeated traversal restarts as eventual success.
+- **Companion transport authentication (M104 lane C, awaiting integration).**
+  Per-window memory bearers replace host-wide cookies, preventing credential
+  leakage across loopback ports and isolating tabs and concurrent runtimes.
+  Rejected launches show localized, accessible instructions to reopen the
+  panel from the editor.
+
 - **The README's "What's new" section matches the release again.** 0.12.1 and
   0.13.0 shipped with the README still headed "What's new in 0.12.0". The train now
   describes 0.14.0, the Marketplace README carries the same section, and a

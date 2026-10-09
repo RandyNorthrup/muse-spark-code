@@ -1,6 +1,6 @@
 # Muse Spark Code (Unofficial) for Eclipse
 
-The native host for the frozen MHP 1.3 panel carrier. The plugin owns
+The native host for the frozen MHP 1.4 panel carrier. The plugin owns
 SWT containers and editor services; the shared runtime owns the conversation,
 providers, permissions, paid consent and daily ledger. Authentication stays in
 the runtime OS credential store, through `auth set` in the user's terminal.

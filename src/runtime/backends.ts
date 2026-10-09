@@ -616,8 +616,8 @@ function modelApiManager(
         now: () => Date.now(),
       }),
     isPaidFeatureOn: (feature) => paid.isOn(feature),
-    notePaidUse: (feature, units) => {
-      paid.noteUse(feature, units)
+    notePaidUse: (feature, units, searchPriceUsd) => {
+      paid.noteUse(feature, units, searchPriceUsd)
       // Headless image settlement has its own per-attempt tap in runExec.
       if (deps.exec === undefined) {
         recordPaidUse(deps.usageRecording ?? ModelApiBackendManager.usageRecording, feature, units)

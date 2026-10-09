@@ -385,6 +385,12 @@ export const EN = {
   referenceProviders:
     'List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.',
   referenceCliOptions: {
+    workspace: 'Workspace root for the language server.',
+    tab: 'Opt into paid Tab completions with consent.',
+    'tab-model': 'Model for paid Tab completions.',
+    'tab-daily-budget-usd': 'Shared daily Tab budget in USD.',
+    'broker-worker': 'Internal workspace broker worker.',
+
     'resource-governor':
       '--resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default.',
     'cpu-max': '--cpu-max <percent>: Throttle when CPU stays above this percentage for 30 seconds.',
@@ -4504,6 +4510,16 @@ export const EN = {
   // and the Account & usage row. {price} is a dollar amount in the display
   // language's money format.
   paidTabName: 'Tab completions',
+  referenceLsp: 'Stdio language server with paid Tab opt-in and editor consent.',
+  referenceSupervise: 'Run the runtime with independent authenticated Stop control.',
+  referenceStop: 'Stop verified runtime owners in this workspace.',
+  lspUsage:
+    'muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nLanguage server: explicit paid Tab opt-in; trusted workspace and consent required.',
+  acpStopUnverified: 'Cannot verify Stop — processes may still be running. Observed PIDs: {pids}',
+  acpSupervisorSignal: 'Supervised workload terminated by {signal}.',
+  lspFix: 'Ask Muse to fix',
+  lspExplain: 'Explain',
+  lspApply: 'Apply suggested edit',
   paidConfirmTab:
     'Tab completions send the code around your cursor to Meta as you type, billed to your Model API key. {price} At typical typing that is about $0.80 an hour on Standard and about $0.05 on the contributor model, capped by a daily budget you can change in settings. The contributor model is cheaper, and Meta trains on the code it is sent. Copilot, if on, is yielded to: automatic Tab suggestions pause for its languages unless you run both. Tab asks once per window before its first suggestion.',
   paidUseTabTitle: 'Let Tab suggest in this window?',

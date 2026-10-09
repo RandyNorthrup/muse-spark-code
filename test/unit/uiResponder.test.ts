@@ -36,7 +36,12 @@ it('returns the original typed id and rejects a renderer result invalid for its 
 it('refuses bad envelopes and validates parameters before calling the renderer', async () => {
   const { ui, responder } = rig()
   const request = vi.spyOn(ui, 'request').mockResolvedValue(null)
-  await expect(responder.receive({ ...input(1), method: 'ui/clipboard' })).rejects.toThrow()
+  await expect(responder.receive({ ...input(1), method: 'ui/unknown' })).rejects.toThrow()
+  expect(await responder.receive({ ...input(1), method: 'ui/clipboard' })).toEqual({
+    jsonrpc: '2.0',
+    id: 1,
+    error: { code: MHP_ERROR_CODES.unsupportedCapability, message: 'MHP_UI_FAILED' },
+  })
   await expect(responder.receive({ ...input(1), extra: true })).rejects.toThrow()
   expect(await responder.receive({ ...input(1), params: { title: 'Input' } })).toMatchObject({
     id: 1,

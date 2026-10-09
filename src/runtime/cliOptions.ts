@@ -7,6 +7,7 @@ import { fill } from '../shared/l10n/text'
 export function formatAcpUsage(table: UiText, command: string): string {
   return [
     fill(table.acpUsage, { command }),
+    table.lspUsage,
     fill(table.acpChatGpt.usage, { command }),
     sharingHelp(table),
     fill(table.accounts.cliUsage, { command }),
@@ -133,7 +134,23 @@ const FONTS_OPTIONS = {
   help: { type: 'boolean', short: 'h' },
 } as const satisfies CliParserOptions
 
+const LSP_OPTIONS = {
+  backend: { type: 'string' },
+  'trust-workspace': { type: 'boolean' },
+  'muse-binary': { type: 'string' },
+  'shell-sandbox': { type: 'string' },
+  'allow-contributor-models': { type: 'boolean' },
+  verbose: { type: 'boolean' },
+  workspace: { type: 'string' },
+  tab: { type: 'boolean' },
+  'tab-model': { type: 'string' },
+  'tab-daily-budget-usd': { type: 'string' },
+  'broker-worker': { type: 'boolean' },
+  help: { type: 'boolean', short: 'h' },
+} as const satisfies CliParserOptions
+
 export const CLI_OPTION_REGISTRY = {
+  lsp: { options: LSP_OPTIONS },
   providersAdd: { options: PROVIDER_OPTIONS },
   usage: {
     options: {
@@ -175,6 +192,12 @@ export const CLI_OPTION_REGISTRY = {
 // The description map is exhaustive over the parser's option names. It never
 // chooses an English usage line or a failure message by matching its contents.
 export const CLI_OPTION_TEXT = {
+  workspace: 'workspace',
+  tab: 'tab',
+  'tab-model': 'tab-model',
+  'tab-daily-budget-usd': 'tab-daily-budget-usd',
+  'broker-worker': 'broker-worker',
+
   'usage-history': 'usage-history',
   preset: 'preset',
   as: 'as',
@@ -239,6 +262,7 @@ export const CLI_OPTION_TEXT = {
   seed: 'seed',
 } as const satisfies Readonly<
   Record<
+    | keyof typeof LSP_OPTIONS
     | keyof typeof COMMON_OPTIONS
     | keyof typeof SERVE_OPTIONS
     | keyof typeof PANEL_OPTIONS

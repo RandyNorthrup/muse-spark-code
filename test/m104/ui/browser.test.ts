@@ -75,9 +75,15 @@ beforeAll(async () => {
     minify: true,
     logLevel: 'silent',
   })
-  const notesCss =
-    (await readFile('src/webview/tokens.css', 'utf8')) +
-    (await readFile('src/webview/whatsNew/whatsNew.css', 'utf8'))
+  const notesStyles = await build({
+    entryPoints: ['src/webview/whatsNew/whatsNew.css'],
+    write: false,
+    bundle: true,
+    minify: true,
+    logLevel: 'silent',
+  })
+  const notesCss = notesStyles.outputFiles[0]?.text
+  if (notesCss === undefined) throw new Error('MISSING_NOTES_CSS')
   const tables = new Map<string, unknown>([['en', EN]])
   for (const locale of TABLE_LOCALES)
     tables.set(locale, JSON.parse(await readFile(`l10n/ui.${locale}.json`, 'utf8')))
@@ -162,6 +168,17 @@ beforeAll(async () => {
       ...(webkitExecutable !== undefined && { executablePath: webkitExecutable }),
     }),
   )
+  // Cold engine/page setup is shared; each case retains its default deadline.
+  for (const browser of browsers.values()) {
+    const context = await browser.newContext()
+    try {
+      const page = await context.newPage()
+      await page.goto(fixture.origin)
+      await page.locator('main').waitFor()
+    } finally {
+      await context.close()
+    }
+  }
 })
 
 afterAll(async () => {
@@ -274,6 +291,17 @@ for (const engine of ['chromium', 'webkit']) {
                 .poll(() => page.locator('h1,h2').first().textContent())
                 .toBe(Reflect.get(title, mode))
             await exercise(page, mode)
+            // Contrast is checked at the settled paint after finite entrance motion.
+            await page.evaluate(async () => {
+              await Promise.all(
+                globalThis.document
+                  .getAnimations()
+                  .filter(
+                    (animation) => animation.effect?.getComputedTiming().iterations !== Infinity,
+                  )
+                  .map((animation) => animation.finished),
+              )
+            })
             const violations: unknown = await page.evaluate(async () => {
               const axe = globalThis.window.axe
               const surface =

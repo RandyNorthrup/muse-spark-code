@@ -256,8 +256,8 @@ describe('runtime settings and storage', () => {
         loader: 'ts',
         contents: `
       import { RuntimeSettingsStore } from './src/runtime/settingsStore';
-      const store = new RuntimeSettingsStore(process.argv[1], '/workspace/one');
-      store.setStorage('lastSession', { sessionId: 'process-' + process.argv[2], at: Number(process.argv[2]) }, 'workspace')
+      const store = new RuntimeSettingsStore(process.argv[2], '/workspace/one');
+      store.setStorage('lastSession', { sessionId: 'process-' + process.argv[3], at: Number(process.argv[3]) }, 'workspace')
         .then(() => store.settled()).catch(() => { process.exitCode = 1 });
     `,
       },
@@ -269,10 +269,15 @@ describe('runtime settings and storage', () => {
     })
     const code = output.outputFiles[0]?.text
     if (code === undefined) throw new Error('missing fake writer')
+    // A private script file avoids Linux's per-argument limit as the real bundle grows.
+    const writerRoot = await mkdtemp(path.join(tmpdir(), 'runtime-state-writer-'))
+    folders.push(writerRoot)
+    const writer = path.join(writerRoot, 'writer.cjs')
+    await writeFile(writer, code)
     await store.setStorage('lastSession', { sessionId: 'initial', at: 0 }, 'workspace')
     await Promise.all(
       [1, 2].map((at) =>
-        promisify(execFile)(process.execPath, ['-e', code, root, String(at)], { env: {} }),
+        promisify(execFile)(process.execPath, [writer, root, String(at)], { env: {} }),
       ),
     )
     expect(await store.getStorage('lastSession', 'workspace')).toEqual({

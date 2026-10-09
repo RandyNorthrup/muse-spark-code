@@ -1820,7 +1820,7 @@
     "check:visual": "node scripts/check-visual.mjs",
     "check:visual:a11y": "node test/harness/goldens/a11y.mjs",
     "check:mhp": "node scripts/mhp-schema.mjs --check",
-    "test:host-api": "vitest run --config test/hostApi/vitest.config.mjs test/hostApi --maxWorkers=3 --testTimeout=120000 && vitest run test/unit/mhpContract.test.ts test/unit/mhpPanelContract.test.ts --maxWorkers=3 --testTimeout=120000",
+    "test:host-api": "vitest run --config test/hostApi/vitest.config.mjs test/hostApi --maxWorkers=3 && vitest run test/unit/mhpContract.test.ts test/unit/mhpPanelContract.test.ts --maxWorkers=3",
     "check:host-conformance": "node test/hostApi/run.mjs",
     "package:host": "node scripts/package-hosts/package.mjs"
   },

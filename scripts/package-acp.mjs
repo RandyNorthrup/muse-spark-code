@@ -64,6 +64,9 @@ const BUNDLES = [
   'structuredSchema.js',
   'fontsInstall.js',
   'scheduleBackground.js',
+  'lsp.js',
+  'runtimeWatchdog.js',
+  'runtimeProcessAuthority.js',
   'modelApi.js',
   'resourceAdmission.js',
   'resourceGovernor.js',
@@ -113,9 +116,7 @@ const BUNDLES = [
 ]
 // The C# of the shell tool's Windows job (M27), compiled on first use, as
 // the extension ships it (PLAN.md D6): its own file and the half it shares.
-// No MuseSparkMcpLauncher.cs: ACP forwards MCP servers to Muse Code's own
-// process (src/acp/agent.ts forwardedMcp); its Model API backend runs none.
-// src/runtime/backends.ts composes only shellJobAssembly, never mcpJobExecutable.
+// Independent supervision uses the MCP kill-on-close job launcher as well.
 const JOB_SOURCES = [
   'native/windows/MuseSparkVault.cs',
   'native/windows/MuseSparkVaultCng.cs',
@@ -124,6 +125,7 @@ const JOB_SOURCES = [
   path.join('native', 'windows', 'MuseSparkJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
   path.join('native', 'windows', 'MuseSparkScreenRecord.cs'),
+  path.join('native', 'windows', 'MuseSparkMcpLauncher.cs'),
 ]
 const DARWIN_HELPER = path.join('native', 'darwin', 'muse-dictate')
 const LINUX_HELPERS = ['x64', 'arm64'].map((arch) =>

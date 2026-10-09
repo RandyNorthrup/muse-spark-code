@@ -3,7 +3,7 @@ import { type PaidFeatureGate, type PaidUsage } from '../../core/paid/paidFeatur
 import { unlessAborted } from '../../core/timeouts'
 import type { CoreLogger } from '../../core/logging'
 import { PAID_FEATURES, type PaidFeature } from '../../shared/constants'
-import type { PaidUseDecision, PaidUseRequest } from '../../shared/paid'
+import type { PaidUseDecision, PaidUseRequest, SearchSettlement } from '../../shared/paid'
 import type { UsdAmount } from '../../shared/usd'
 import type { ConversationCompositionPorts } from '../../host/compose/conversationDeps'
 import type { JudgeWindowDeps } from '../../host/judge/judgeBundle'
@@ -211,9 +211,13 @@ export class RuntimePaidUse extends AcpPaidUse {
     )
   }
 
-  public override noteUse(feature: PaidFeature, units: number): void {
+  public override noteUse(
+    feature: PaidFeature,
+    units: number,
+    searchPriceUsd?: UsdAmount | SearchSettlement,
+  ): void {
     if (!Number.isFinite(units) || units < 0) throw new Error('MHP_PAID_USAGE_INVALID')
-    this.runtimeDeps.usage.add(feature, units)
+    this.runtimeDeps.usage.add(feature, units, searchPriceUsd)
   }
 
   public override async forgetUnflagged(): Promise<void> {
@@ -260,8 +264,8 @@ export class RuntimePaidUse extends AcpPaidUse {
         },
       },
       usage: {
-        add: (feature, units) => {
-          this.noteUse(feature, units)
+        add: (feature, units, searchPriceUsd) => {
+          this.noteUse(feature, units, searchPriceUsd)
         },
         addBestOfNRequest: () => {
           this.runtimeDeps.usage.addBestOfNRequest()

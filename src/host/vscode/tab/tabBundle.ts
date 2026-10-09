@@ -10,12 +10,20 @@
 // hooks stay an optional dependency until lane K lands.
 
 import * as vscode from 'vscode'
-import type {
-  TabEngine,
-  TabEngineRequest,
-  TabEngineUsage,
-  TabStream,
-} from '../../../core/tab/tabEngine'
+import type { TabEngine, TabEngineRequest, TabStream } from '../../../core/tab/tabEngine'
+import type { TabReportedUsage, TabSpendGate } from '../../../core/tab/tabSpend'
+import type { TabHookBridge, TabFilesExclude } from '../../../core/tab/tabEligibility'
+export type {
+  TabSpendFacts,
+  TabReportedUsage,
+  TabReservation,
+  TabSpendGate,
+} from '../../../core/tab/tabSpend'
+export type {
+  TabAcceptedEdit,
+  TabHookBridge,
+  TabFilesExclude,
+} from '../../../core/tab/tabEligibility'
 import { COMMAND_IDS, CONTEXT_KEYS, UI_TEXT } from '../../../shared/constants'
 import type { UiText } from '../../../shared/l10n/en'
 import { fill } from '../../../shared/l10n/text'
@@ -102,46 +110,6 @@ function stringTableOf(value: unknown): Record<string, unknown> | undefined {
   return table
 }
 
-/** A request the completion engine (lane C) may bill: facts only, no prices. */
-export interface TabSpendFacts {
-  /** The request's model, for the tier's rates. */
-  readonly model: string
-  /** The redacted window's UTF-8 bytes. */
-  readonly inputBytes: number
-  /** The mode's output cap, reasoning included. */
-  readonly maxOutputTokens: number
-}
-
-/** Usage a finished request reported (the engine reads the stream's usage). */
-export type TabReportedUsage = TabEngineUsage
-
-/**
- * One admitted request's reservation, settled with its own worst case into
- * its own local day's ledger file, also after midnight (RVM94LC finding 1).
- */
-export interface TabReservation {
-  readonly model: string
-  readonly worstCaseUsd: UsdAmount
-  /** The admission's local day (`YYYY-MM-DD`), as the ledger named it. */
-  readonly date: string
-}
-
-/**
- * Lane L's spend side (src/host/tab/tabLedger.ts through tabSpendGate.ts,
- * M94): the hard daily budget across windows. `reserve` writes this
- * request's worst case first and returns its reservation only when it fits
- * (undefined: at the budget, or a missing, corrupt or unreadable ledger);
- * `settle` replaces that reservation with the reported usage (zero for a
- * request never sent; a request that never reports keeps it);
- * `todayTotalUsd` is what the status bar shows.
- */
-export interface TabSpendGate {
-  reserve(facts: TabSpendFacts): Promise<TabReservation | undefined>
-  settle(reservation: TabReservation, usage: TabReportedUsage): void
-  todayTotalUsd(): UsdAmount
-  todayRequests(): number
-}
-
 /**
  * Lane L's once-per-window question (Q-M94a, PLAN.md D48): Allow once covers
  * this window, Allow always persists for the workspace, Deny snoozes the
@@ -164,42 +132,6 @@ export type TabCompletionSnapshot = TabEngineRequest
  * ghost text, never the request.
  */
 export type TabCompletionEngine = TabEngine
-
-/** One accept lane K observes (src/core/tab/tabHooks.ts, M94 step 7). */
-export interface TabAcceptedEdit {
-  /** Absolute path of the edited file. */
-  readonly filePath: string
-  /** The Tab request's id. */
-  readonly generationId: string
-  /** The model the suggestion came from. */
-  readonly model: string
-  /** 1-based, as Cursor sends them. */
-  readonly oldLine: number
-  readonly newLine: number
-  /** 1-based start/end line and column. */
-  readonly range: {
-    readonly startLineNumber: number
-    readonly startColumn: number
-    readonly endLineNumber: number
-    readonly endColumn: number
-  }
-  readonly oldString: string
-  readonly newString: string
-  /** True when the accept was inferred from typing, not from the command. */
-  readonly inferred: boolean
-}
-
-/**
- * Lane K's hook bridge (M94 step 7, after M91 merges): `beforeRead` answers
- * whether a file's text may enter a request (every failure refuses, and an
- * oversize payload is refused unrun); `afterEdit` observes an accept and
- * never blocks. Absent until lane K lands: with no hooks configured every
- * read is allowed and every accept unobserved.
- */
-export interface TabHookBridge {
-  beforeRead(absolutePath: string, content: string): Promise<boolean>
-  afterEdit(edit: TabAcceptedEdit): void
-}
 
 /** The last failure's class, fixed technical words (never code or a path). */
 export const TAB_FAILURE_KINDS = ['load', 'request'] as const
@@ -271,13 +203,6 @@ export interface TabProviderDeps {
  * bundle carries none of the Tab side). Tests hand in the mock's `FakeUri`.
  */
 export type TabUri = vscode.Uri
-
-/**
- * A `files.exclude` table as VS Code reads it: a switch per glob, or a
- * condition (`{ "when": "$(basename).ts" }`) that excludes a match only
- * while the named sibling exists (RVM94HU 14).
- */
-export type TabFilesExclude = Readonly<Record<string, boolean | { readonly when: string }>>
 
 /** One document change the provider watches (over `vscode.TextDocumentChangeEvent` in production). */
 export interface TabDocumentChange {

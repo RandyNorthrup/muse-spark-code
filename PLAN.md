@@ -19228,6 +19228,26 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
+- **Q-M104L-POSIX-CONTAINMENT (updated 2026-10-06).** The shared exact
+  registry and independent EOF guardian reap observed detached children,
+  including after supervisor SIGKILL. Node roots wait for registration and
+  guardian handoff before admission, closing the earlier managed-root handoff
+  window. A complete descendant fork/reparent/exit chain between samples
+  can still escape POSIX user-space ancestry. Without a pidfd, the final
+  kernel birth read and synchronous signal are also non-atomic; the helper
+  return/scheduling interval counts. Adjacent exact comparison/signal and
+  registry epochs mitigate it; no kernel containment guarantee is claimed.
+
+- **Q-M104L-CONTROLLER (2026-10-05).** The required release and C merges
+  contain the M94 engine and authenticated companion transport, but no B
+  panel/controller runtime and no `panel` CLI. The final audit reads local
+  `m104/b` (`584cd637`): its registry lifecycle step is available, but its
+  certification explicitly leaves runtime/panel composition in progress.
+  Which reviewed composition ref supplies review/verify diagnostics and
+  the open-panel/Fix/Explain command port? L implements and tests the LSP
+  service boundary; production advertises no review provider and refuses
+  those commands explicitly until the real controller is composed.
+
 - **Q-CIFIXM-HOSTED-ERRORS (2026-10-09, macbook):** log downloads for
   hosted run 37897298018 return HTTP 403. The two owned M114 browser suites
   pass three times here (159 cases per run, repository deadlines); no visual or
@@ -30227,7 +30247,7 @@ platform receipt remains lead-owned; no gate or Meta fixture was changed.
 
 ### M102 — Usage & cost in every editor (D82)
 
-**Status 2026-10-09: waiting.** Phase-2 integration is in progress; the portable aggregate budget and installed qualification remain open. Retained requirements and receipts follow.
+**Status 2026-10-08: waiting.** LEFT017B explicitly lifts the earlier mapping
 
 **M102INT3 (2026-10-06, Win11).** The rig brief authorizes the no-ff
 merge of M95 round 5 (`5ab3eb2c`), moving usage observations onto its
@@ -37887,6 +37907,292 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**FIXM104L9 closing-owner qualification (2026-10-08, complete on macOS).**
+RVM104L8 finding 1 came from the fixture's invalid 128-byte control pathname.
+It now binds and closes a real 84-byte socket at the recorded address.
+The product's 103-byte refusal and authenticated/dead-owner checks stay
+unchanged. The new regression fired when the old address was restored;
+the complete test file was then restored byte-exact. Three consecutive
+supervisor/watchdog pairs pass (47 each), trusted-path/registry passes
+(68, two existing skips), and native lifecycle passes (three), at repository
+deadlines with no new fixture survivors. Five typechecks, scoped lint/format,
+host API, deadcode, duplication, localization, reference and production build
+pass. Receipts: `docs/certification/m104-l.md`. M104 remains open for lead
+integration, Linux/Windows/editor qualification and the existing controller
+composition/containment questions. No new product scope or GUI change.
+
+**FIXM104L8 macOS lifecycle repair (2026-10-08, complete on macOS).** Reproduce
+the supervisor/watchdog/trusted-path failures on the unsandboxed MacBook;
+repair recursion, Stop preflight (including forwarding skipped-record diagnostics)
+and native process lifecycle causes without
+widening trust or changing `verifyTrustedPath`'s exported API. Keep default
+test deadlines and every platform guard. Track and reap complete fixture
+trees even on failure, repeat the three owning suites plus related runtime
+suites with two workers, and record byte-exact red drills and residuals in
+`docs/certification/m104-l.md`. No merge, push, paid/live model call or
+aggregate quality run; the lead retains integrated platform qualification.
+
+**FIXM104L6 private-group amendment (2026-10-06).** Retain the completed
+RVM104L5 Stop-discovery repair and its regressions. For POSIX ancestors only,
+adopt Debian OpenSSH's user-private-group refinement: group write is safe
+only when the component gid equals the current user's primary gid, its group
+name equals the user name, and system group/user membership lookups prove no
+other user belongs. Linux uses the installed getent interfaces to getgrgid,
+passwd enumeration and getgrouplist (initgroups); Darwin uses those libc
+lookups in the signed helper. Unavailable, malformed or incomplete lookup
+results refuse the exception. Keep private leaves 0700, world-write/sticky,
+owner, symlink, ACL and identity guards unchanged. Windows retains its native
+SID/DACL rule; POSIX groups confer no Windows authority. Extend the shared
+vectors for private, shared and unknown groups, test every condition and
+native Darwin parity, and remove the membership guard in byte-exact red
+drills. No dependency, merge, live call or native Linux/Windows claim.
+
+**FIXM104L5 root discovery (2026-10-06).** Repair RVM104L5's sole P2
+before any signal: independent Stop enumerates every platform candidate in
+its documented order, then previously selected roots recorded in a verified
+stable home fallback. The path-only locator is necessary when all XDG paths
+change; it carries no bearer and grants no authority. Verify each full path,
+read bounded private owner records in every admitted registry, bind their
+chosen canonical trust root, owner UUID and generation, and refuse duplicate
+run identities across roots before contacting any owner. Missing ownership
+is an explicit exit 1/no-such-run; ambiguity is exit 1 with ownership retained.
+Run startup still chooses the first verified platform candidate, but requires
+a verified stable locator namespace before launch; normal completion removes
+its locator, uncertain cleanup retains it. No dependency, guard widening,
+merge, paid/live call or new native-platform claim. Regress environment/trust
+changes, ambiguous copies, untrusted forged roots, root mismatches and empty
+search, with byte-exact red drills in `docs/certification/m104-l.md`.
+
+**REDM104L3 trust redesign (2026-10-06).** Replace the selected-root boundary
+with one shared StrictModes/safe_path verifier over the entire real path.
+Root/current-user ancestors must be non-writable by group/other, except a
+root-owned sticky ancestor immediately followed by a current-user component.
+The private leaf is current-user 0700 and ACL-free on Darwin. Select verified
+platform roots in the brief's order, recording every refusal and the chosen
+path; refuse startup if none qualifies. The Darwin and Windows helpers walk
+the same full ancestry and run shared verdict vectors. After exclusive record
+creation, compare its resolved pathname identity with the held fd and the
+parent with the verified directory before contents. Delete the superseded
+per-root/below-root ancestor checks. Bind guardian observations/completion to
+a random 128-bit generation, owner UUID, resource ticket, guardian and root
+births, and observed member identities. Completion is exclusively created;
+an old receipt cannot be overwritten or reused. Regress every RVM104L4 probe,
+perform the four specified byte-exact drills, and retain prior regressions.
+The existing deferred runtimeProcessAuthority cohort carries the verifier and
+receipt schemas; ACP/LSP/guardian load it on first use under unchanged caps.
+Scoped rig gates only; no merge, live/paid call or native Windows/Linux claim.
+
+**FIXM104L3 (2026-10-06).** Repair RVM104L3 findings 1, 3 and 4 within
+L's files, without new dependencies or weaker guards. Private namespaces
+must be below the per-user runtime/cache root; verify every ancestor through
+that root before creation. Create records exclusively/no-follow, verify the
+empty held file's owner/mode/native ACL and its held directory's pathname
+identity before writing any control token. Independent Stop cannot infer
+completion from owner death: require a guardian completion receipt for all
+observed descendants or retain ownership and report inability to verify,
+including observed PIDs. Preserve ordinary exit codes, map intentional Stop
+to documented exit 0 (including Windows job 143/137), and return 128 + signal
+with a named diagnostic for unexpected POSIX workload signal death. Each
+finding receives a failing regression and byte-exact red drill in m104-l.md.
+Finding 2 (Linux same-tick PID aliasing) is owned by M107T3 and is not changed
+here; native Windows execution stays with integration. No merge is authorized.
+
+**REDM104L continuation (2026-10-06).** The listed `m107/t2` merge
+supplies exact native identities, verified per-member actions and departed/
+zombie enrollment. Replace LSP's local ps/birth table, direct child/group
+signals and exited-tree sweep with that authority. Workload launches wait
+for registration before admission; guardian EOF cleanup uses the same
+registry. Native Windows launch wiring may add the minimal named-job and
+registration handshake to the existing job launcher. A registered launcher
+keeps its own kill-on-close job handle until process exit, avoiding a
+finally-block self-kill before Main can preserve the workload exit code;
+the native Windows rerun must qualify that path. Private namespaces use
+one portable helper: POSIX create 0700 and verify via a no-follow directory
+fd; Windows CreateDirectoryW with a protected owner/SYSTEM DACL and ACL
+verification through the held non-reparse handle. Unsafe existing paths are
+refused. Keep all five P2 regressions and record native Mac and portable
+Linux/Windows receipts and deliberate failures in m104-l.md. Reader sources
+remain unchanged. The first production build measured ACP 857.1/850 KiB,
+LSP 130.2/106 KiB and guardian 42.9/11 KiB: embedding the same native
+authority exceeds all three existing caps. Use the existing deferred-cohort
+dynamic import for one first-use `dist/runtimeProcessAuthority.js` bundle,
+shipped by the ACP packager and guarded by the split check. The ACP package
+also ships the existing universal signed Darwin helper: its package job
+already downloads that artifact, but previously copied only Windows sources.
+Missing native source/artifact refuses packaging. Its first
+41.1 KiB production measurement plus 15%, rounded up, gives a new 50 KiB cap; existing budgets
+remain unchanged. Both POSIX paths retain the adjacent exact identity-read/
+synchronous-signal race without a pidfd; Windows actions retain one handle.
+Aggregate quality and native Linux/Windows/editor qualification remain the
+lead's integration work under the bounded-lane rule in §7.
+
+**REDM104L supervision redesign (2026-10-05):** the owner authorizes the
+listed two-parent merge of `m107/t` (`13f7f252`), LSP-only launch adapters and
+one shared directory helper, while forbidding reader changes except a
+documented additive export. The merge retains both lanes' decisions,
+milestones, translations and reviews. API inspection invokes the brief's
+mandatory dependency stop (Q-REDM104L-T-API): T has no actuator or shipped
+macOS native identity port, discards process state and cannot enroll a
+detached descendant in a group ticket. No parallel identity/tracking
+implementation or partial replacement is introduced. The five former P2
+fixes stay intact; the old supervisor/guardian and create-then-harden
+directory implementation are not yet replaced and their reviewed security
+findings remain open. Lane C's token-file module also creates then hardens,
+so it cannot satisfy secure-at-creation reuse. Once the process dependencies
+are supplied, the directory helper belongs in the portable runtime so C can
+adopt it. Exact checks, API seam receipts and drills are in
+`docs/certification/m104-l.md` under REDM104L.
+
+**FIXM104L review repair (2026-10-05):** fix all seven RVM104L findings
+within the LSP lane, without new dependencies or wider guards. Verify birth
+identity before extending guardian ownership and before each signal; validate
+the private registry, directories and records (owner, mode, symlinks and OS
+ACLs) before trusting them. Queue Stop across guardian startup, recheck
+cancellation after final edit admission, let Stop/shutdown bypass ordinary
+request saturation, snooze denied Tab per connection, and build the guardian
+fixture in supervisor tests. Each finding gets a regression and byte-exact
+red drill in `docs/certification/m104-l.md`. A small lane-local registry
+module is necessary because broker and independent Stop must enforce the
+same ownership/ACL checks without pulling the LSP server into activation.
+It uses the existing exact BigInt file-identity sampler and a fixed single
+record link count in LSP_LIMITS. Stop record filenames use independent UUIDs,
+so OS ACL helpers receive paths without a bearer embedded in the name.
+Fresh per-signal identity queries share the existing Stop deadline, checked
+before and after each query; expired admission sends no signal.
+The synthetic guardian's actual path-built import is declared as a Knip
+entry, matching the existing process-table fixture; no rule/ignore changes.
+Existing controller/native and POSIX observation limits remain unqualified.
+Aggregate quality stays with the lead per §7; no merges are authorized by
+this repair brief.
+
+**FIXM104L9 scoped qualification (2026-10-08).** The rig/common brief
+reserves full quality and coverage for the lead and prohibits merges/pushes.
+This test-fixture repair runs the required three supervisor/watchdog pairs,
+trusted-path/registry and native lifecycle at repository deadlines, with
+process checks after every run, five typechecks, changed-file lint/format
+and host-API verification. The real socket probe and byte-exact invalid-record
+drill qualify the closing-owner tests; the 103-byte product cap is unchanged.
+Additional shared-rule static/build receipts are recorded in
+`docs/certification/m104-l.md`; no integrated or GUI qualification is claimed.
+
+**FIXM104L6 scoped certification (2026-10-06).** The rig brief reserves
+aggregate quality/coverage for the lead. Twelve complete owning/adjacent files
+pass 162 tests with one Windows skip in five serialized default-timeout
+invocations; failed preliminary contention batches and unchanged rechecks are
+recorded as M104L6-ADJACENT-CONTENTION in §9. Three new byte-exact guard drills,
+all five typechecks, scoped ESLint/Prettier, plain Knip, zero-clone duplication,
+cycles, fourteen-table localization, reference and production build guards
+pass. The source-keyed signed native fixtures and production universal Darwin
+build pass. Existing budgets remain unchanged, including authority 49.9/50 KiB.
+The W-owned host-API snapshot remains deferred: current Node counts are
+child_process 17, crypto 55, fs 39, fs/promises 57, os 12, path 99, process 5;
+this amendment adds only the os userInfo import to the prior discrepancy.
+VS Code APIs (332), importing files (31) and theme variables (61) do not change.
+W/lead reviews and regenerates at integration; this lane leaves its file intact.
+Native Linux/Windows and editor qualification remain the lead's reruns.
+
+**FIXM104L5 scoped certification (2026-10-06).** The rig/common brief
+reserves aggregate quality and full coverage for the lead; this repair runs
+12 complete owning/adjacent files (150 passed, one Windows-only skip), six
+byte-exact guard drills, all five typecheck projects and the unchanged
+scoped lint/format, Knip, zero-clone duplication, cycles, localization,
+reference and production size/split/global/notice checks. Repository test
+and hook deadlines are unchanged; expensive native discovery setup is in
+beforeAll. The production CLI dispatch smoke uses an owned fake control
+peer and verifies ambiguity 1/no connection, successful Stop 0 and empty
+search 1; native supervision/guardian cleanup is separately tested. The
+W-owned host-API snapshot remains failed/deferred on the identical prior
+Node counts: child_process 16→17, crypto 54→55, fs 36→39,
+fs/promises 53→57, os 10→11, path 91→99, process 3→5. Its 332 VS Code
+APIs, 31 importing files and 61 theme variables do not change. W/lead
+regenerates and reviews it at integration; this lane leaves it untouched.
+No dependency, guard, size cap, rule, threshold or ignore is widened.
+Certification and native Linux/Windows reruns are in `docs/certification/m104-l.md`.
+
+**REDM104L3 scoped certification (2026-10-06).** The rig brief prohibits
+aggregate quality, merges and native Linux/Windows claims. The 29 complete
+owning/adjacent files pass 443 tests with ten platform skips, using repository
+per-test deadlines and no final CLI timeout override. Two genuinely long
+native operations have named deadlines and inline reasons; certification
+records the earlier exploratory failures, cache and zombie waiter repair.
+All five compilers, changed-file lint/format, plain Knip, zero-clone duplication,
+cycles, localization, reference and production/native builds pass. The existing
+W-owned host-API snapshot is still explicitly failed/deferred: child_process
+16→17, crypto 54→55, fs 36→39, fs/promises 53→57, os 10→11, path 91→99,
+process 3→5. Its 332 VS Code APIs, 31 VS Code-importing files and 61 theme
+variables are unchanged. W/lead must regenerate/review the snapshot and rerun
+the gate during integration; this lane leaves its generated file unchanged.
+No gate rule, threshold, ignore or existing bundle cap is weakened. The four
+required byte-exact guard failures, native copied-receipt proof, chosen root
+and exact reruns owed are in `docs/certification/m104-l.md`.
+
+**FIXM104L3 scoped gates (2026-10-06).** The rig brief forbids aggregate
+quality and merges; the lead retains full integrated coverage/native editor
+gates. Scoped tests, red drills and unchanged static/build guards apply.
+The W-owned host-API snapshot still fails without VS Code/theme changes:
+child_process 16→17, crypto 54→55, fs 36→38, fs/promises 53→56,
+os 10→11, path 91→98, process 3→4. The added imports support the trusted
+cache root and private completion receipts. W/lead regenerates/reviews this
+record at integration; this lane does not edit its generated file or claim
+that check passed.
+
+**REDM104L merge-only dependency stop (2026-10-05).** The listed T merge
+passes all five typechecks, scoped ESLint/Prettier, localization, reference,
+deadcode, duplication and production build gates; 168 distinct tests pass
+with six existing OS-specific skips. Three in-memory guard breaks fail as
+expected and the unchanged-source rerun passes. `check:host-api` exits 1
+on T's inherited, W-owned generated Node import inventory: child_process
+16→17, fs/promises 53→54, path 91→93, process 3→4. These are the merged
+lane's counts; the imported M107-T-host-api-record below describes T's
+standalone base. No API behavior changes and no snapshot repair outside
+scope is made. W/lead must regenerate and review the record at integration.
+Aggregate quality/native/editor qualification remain the lead's gates;
+this merge is not redesign or release acceptance. The essential T API
+stop and all unclosed security findings are in Q-REDM104L-T-API and
+`docs/certification/m104-l.md`. No threshold, guard or skip policy changes.
+
+**FIXM104L8 bounded macOS repair (2026-10-08).** The complete
+supervisor/watchdog/trusted-path suites pass five consecutive direct MacBook
+runs (81 passed, two existing platform skips per run); related owning files
+pass too. Seven byte-exact controls fire. Scoped typechecks, lint/format,
+localization, reference, deadcode, duplication and production build pass.
+The host-API snapshot deferral remains: the full accepted base `5fb288553`
+produces byte-identical failing output, including existing Node import-count
+drift; no Node import is added here. The lead/W lane owns regeneration and
+review at integration. No aggregate quality/full coverage, native Windows/Linux
+or GUI qualification is claimed; M104 and its controller/containment questions
+remain open as documented. Receipts: `docs/certification/m104-l.md`.
+
+**M104L bounded-lane gates (2026-10-05).** The explicit rig/common brief
+reserves aggregate `npm run quality`, full coverage and live/provider drills
+for the lead. This lane runs all five typechecks, changed-file lint/format,
+localization, host API, reference, deadcode, duplication, production build
+and owning fake-only suites; hook-on local commits use those receipts. No
+threshold or rule is weakened. Native GUI, Windows and missing controller
+composition remain unqualified in `docs/certification/m104-h.md`.
+
+**REDM104L resumed certification (2026-10-06).** The continuation consumes
+the completed M107 T2 registry without editing its tree readers. The rig/common
+brief still prohibits aggregate `npm run quality` and full coverage; hook-on
+local commits use the scoped static/build gates and 28 complete owning test
+files (394 passed, nine existing platform skips). All five typechecks, changed
+lint/format, localization, reference, deadcode, duplication and production
+build pass; no existing budget or gate is weakened. The existing W-owned
+host-API snapshot remains deferred: current source reports Node import rows
+`node:child_process` 16→17, `node:crypto` 54→55, `node:fs` 36→38,
+`node:fs/promises` 53→55 and `node:path` 91→97; VS Code API/theme counts do
+not change. W must regenerate/review the snapshot at integration and rerun
+the gate. Native Linux/Windows, controller composition and the lead's full
+integrated quality gate remain required. The exact residual, per-finding
+disposition, 25 deliberate guard violations and rerun list are in
+`docs/certification/m104-l.md`.
+
+M104H2's common lane rules reserve aggregate `npm run quality` for the lead.
+The lane runs the specified local static/build gates and owning fake-only
+suites; full coverage, a11y and native-editor qualification remain with
+integration. The disposition, unqualified parity table and byte-exact drills
+are in `docs/certification/m104-h.md`; no gate threshold or ignore changes.
+
 **M104INT phase-2 join (2026-10-09, kubuntu).** Resume the in-progress
 PD merge after the committed PB merge, then merge accepted PE, PF and LSP
 refs in the authorized order. Preserve 0.17 production contracts, exact money,
@@ -37905,10 +38211,15 @@ MHP 1.4 using the guarded generator and update actual native/frame fixtures;
 retain rejection of older versions. Never rewrite a lock at the same version. Register the existing standalone
 Mac drill as a Knip entry and adapt its package fixture to the real 0.17
 archive and localization preflight; verify archived required bundles byte-exact.
+LSP retains 0.17 exact-money and async price-consent ports, relocates Tab
+eligibility without weakening its gates, and uses a separate registered-job
+path while preserving the unchanged attested launch API. Register the LSP
+CLI options and three commands in the current localized reference framework,
+keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
+**Status 2026-10-09: waiting.** All five phase-2 joins are being verified on Kubuntu; unchanged bundle caps, installed qualification and the next resource-chip parity lane remain blockers. Retained requirements and receipts follow.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
 P3 evidence error inside B's paid engines and their shared guards. One
@@ -38552,9 +38863,77 @@ and are not transferred or accepted as complete by these launcher repairs.
 
 ## 7. Gates
 
-**M104INT portable aggregate blocker (2026-10-09).** The PD/0.17 union
-measures the complete portable JavaScript graph at 1321.0 KiB against its
-unchanged 1100 KiB cap. Portable engines were reduced from 155.6 to 131.7
+**M104INT final-verification fixture repairs (2026-10-09).** Keep every
+changed lane file and bridge/companion suite in the default-deadline inventory.
+Private packages carry all joined factory/native/JSON members; fake crash
+injection lives inside the test-owned CLI because production strips unknown
+child variables. Cross-process settings writers use a private script file,
+not a bundle-sized argument. Paid/contract expectations follow 0.17 exact
+amounts and verified quotes. Accessibility checks all original bridge/theme/
+language/kind combinations after finite entrance motion, split by language and fallback kind
+so each test fits the unchanged deadline. Preserve every locale-specific
+plural form when ordering source tables. No assertions, contrasts, caps or
+platform guards are relaxed; failing receipts remain blockers until corrected.
+
+**M104INT ACP fixture stop (2026-10-09).** Four real-stdio session
+startup cases still fail after the private Linux-helper and joined-factory
+fixture repairs. The creation-registry guard rejects a real directory with
+mode `0775`, matching uid 1000 and no symlink; do not chmod it, weaken the guard
+or rewrite the fixture repeatedly to obtain green. The shared two-fix stop
+rule applies. Temporary permission diagnostics are restored byte-exact.
+The four failures remain a main-integration blocker until the lead fixes the
+fixture's resource ownership/isolation and reruns the whole file.
+
+**M104INT presentation browser fixture repair (2026-10-09).** Compile
+What's New CSS through esbuild like production, including its generated host
+roles; raw concatenation left imports behind already-emitted CSS rules and
+produced false link contrast failures. Audit report surfaces after finite
+entrance motion. Warm each browser's first real page in shared setup so cold
+WebKit work is outside a five-second case. Keep every scene, assertion,
+contrast rule, viewport, browser and repository deadline unchanged.
+
+**M104INT authority ownership repair (2026-10-09).** The new supervision
+bundle must load M107 tree readers and registry from their existing lazy
+governor owner, through its explicit exports. Keep every policy exclusion
+unchanged; remove their duplicate copy from process authority and measure both
+bundles against their original caps. This implements the brief's required
+lazy budget repair without adding a new output, cap, dependency or allowance.
+
+**M104INT verified search settlement forwarding (2026-10-09).** Preserve
+0.17's quoted tariff through the portable paid-use wrapper and each backend/
+composition adapter. Search tallying still refuses a missing tariff; pass the
+returned settlement or exact amount into `PaidUsage.add`, rather than dropping
+its third argument. Cover direct and composition tallying with frozen quotes.
+
+**M104INT installed watchdog import repair (2026-10-09).** The shared
+watchdog is both a direct guardian and a private Node launch preload. Native
+module inventory imports must have no launch-pipe side effect: enter the gate
+only when the actual installed file is explicitly named by Node's `--require`
+argument. Keep exact registration-before-GO, EOF refusal and guardian execution
+unchanged; verify real launches and archive native import/require parity.
+
+**M104INT guardian fixture preload repair (2026-10-09).** Delayed and
+refusing test guardians must retain the actual compiled launch gate in their
+own explicitly preloaded file. A transitive ordinary import is now correctly
+side-effect free, so it cannot stand in for Node's preload contract. Keep the
+native marker assertions, failed-handoff refusal and all default deadlines;
+verify the complete supervisor, watchdog and process-launch files.
+
+**M104INT LSP paid-policy ownership repair (2026-10-09).** Reuse the
+existing lazy runtime engine's paid gate, usage and consent implementations
+for the broker worker, and its Model API client from the existing lazy backend
+factory, installing the caller's language table in each owner before use.
+The frontend stays independent of paid-policy code and no native key is read
+until consented Tab dispatch. Keep the original LSP and runtime-engine caps
+and measure both outputs; no feature or paid-use guard is removed.
+
+**M104INT bundle blockers (2026-10-09).** The PD/0.17 union initially
+measured the complete portable JavaScript graph at 1321.0 KiB; the L join
+measures 1321.5 KiB against its unchanged 1100 KiB cap. LSP measures
+136.8/106 KiB before reusing the existing paid/client owners, then 88.7/106;
+process authority measures 67.8/50 before sharing the governor's tree owner,
+then 40.4/50. Its added Linux containment remains required production behavior.
+Portable engines were reduced from 155.6 to 131.7
 KiB against 150 by isolating account-state facts, but that does not cure the
 browser aggregate. The brief requires stopping budget repair without a lead
 size decision when it cannot fit; no cap or gate is raised. Continue the
@@ -43340,6 +43719,12 @@ threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
 
+| M104L location                        | Escape hatch                               | Reason                                                                                                                                                                                                            | Date       |
+| ------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/lsp/processAuthority.ts` | `nosemgrep` on registered Node spawn       | Installed Node/argv waits on a private launch fd until exact M107 registration; credential variables and keyring routes are removed. No shell or bare PID signal.                                                 | 2026-10-06 |
+| `src/runtime/privateDirectory.ts`     | `nosemgrep` on native fd ACL probe         | Shipped signed Darwin helper reads only inherited no-follow directory, ancestor or empty-record fds, with a credential-free environment.                                                                          | 2026-10-06 |
+| `src/runtime/privateDirectory.ts`     | `nosemgrep` on Windows record helper spawn | Trusted installed C# helper receives the private record only on stdin, uses protected CREATE_NEW/no-reparse handles, and verifies parent/file before writing; credential variables and keyring routes are absent. | 2026-10-06 |
+
 | M104PF location                                                                       | Escape hatch                                        | Reason                                                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `hosts/xcode/Shared/{MhpSchema,MhpSession}.swift`, native UI service and native tests | Swift `Any` at JSONSerialization/service boundaries | Foundation's JSONSerialization exposes heterogeneous JSON as Any. The native validator checks A's reviewed schema and narrows each member before use; correlated results are validated again before writing. No key or credential enters this boundary. |
@@ -43704,6 +44089,116 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M104L6-ADJACENT-CONTENTION (2026-10-06).** A scoped batch once
+  refused a replaced broker recovery-lock pathname; its unchanged full-file
+  recheck and a recheck with HEAD's original trusted-path source pass. Another
+  batch's unchanged M107 native detached-member assertion once observed no
+  enrolled member; the complete native file passes in isolation at repository
+  deadlines. The latter repeats the previously recorded native sampling
+  qualification gap. No weakened identity check, native reader change,
+  timeout override or test filtering is used. Safe for this unmerged lane:
+  replacement still refuses before broker authority is used; process actions
+  still require verified registered identities, with the documented sampled
+  descendant limitation. Follow-up: L/T/integration stress exclusive broker
+  recovery and native enrollment under contention and resolve their lifecycle
+  fixture/admission protocols before declaring qualification. These are named
+  follow-ups, not fixed findings or an aggregate-quality receipt.
+
+- **FIXM104L6 private-group qualification (2026-10-06).** Group write grants
+  no authority unless the component gid, user's primary gid and matching
+  group/user names agree, and both primary and supplementary membership
+  lookups prove exclusivity. Lookup failures refuse; each verification samples
+  membership anew. Linux uses getent's NSS interfaces; no new dependency is
+  installed and missing getent refuses the exception. Darwin's libc predicate
+  and signed full-path helper are tested here; Linux NSS/root selection and
+  Windows native DACL vector runs remain named integration reruns. Safe for
+  this unmerged lane: no native Linux/Windows qualification or changed
+  world-write, private-leaf, ACL, owner, symlink or identity guarantee is
+  claimed. Follow-up: the lead runs the same vector/lifecycle suites on Linux
+  (including umask 002 home ancestry) and Windows, and reviews W's host-API
+  refresh. RVM104L5-F1 remains fixed, with no review residual.
+
+- **FIXM104L7 private-group proof and Stop preflight (2026-10-08).**
+  The glibc `getent initgroups` output never carries a primary gid on its
+  own, and macOS sizes a NULL `getgrouplist` buffer at zero, so neither can
+  prove exclusive membership: both paths are deleted. Admission now needs
+  gid equality with `getpwuid(geteuid()).pw_gid`, a matching group name, an
+  empty/self-only member list, and no other passwd row holding G as its
+  primary gid; any lookup failure, empty enumeration or parse error refuses
+  with the named check. Directory services that do not enumerate
+  (sssd/LDAP with enumeration off) can hide an account sharing G; the rule
+  then relies on the UPG convention, and same-user attacks stay out of scope
+  as recorded above. On macOS the admit branch is unreachable (no
+  UPG-shaped group exists past the staff name check); its logic is proven by
+  the Linux row-shape vectors and its refusal by the signed helper against
+  the real libc. Stop preflights every owner file before signalling:
+  unreadable/empty/truncated/schema-invalid records are skipped and reported
+  (`ESTOP_RECORD_UNUSABLE`), foreign trust roots are skipped and reported
+  (`ESTOP_RECORD_FOREIGN`), and only duplicate well-formed
+  ownerId:generation pairs stay fatal. The skip lines are English
+  model-facing tokens on the existing diagnostic channel, displayed like the
+  neighbouring `ESTOP_ROOT_REFUSED` lines under AGENTS.md's technical
+  "Label: detail" exception, so no new localized string is added. Safe for
+  this unmerged lane: live-supervision suites (control sockets, process
+  table, passwd names) are gated to fail fast with a named block inside a
+  denying sandbox and are certified by the lead outside it; real-Linux UPG
+  admission, the live mixed-root Stop regression and the idle-watchdog CPU
+  bound are named lead reruns on kubuntu/unsandboxed macOS. No guard is
+  widened and no dependency is added.
+
+- **RVM104L5-F1 — fixed by FIXM104L5 (2026-10-06).** Independent Stop
+  no longer chooses only the first root acceptable in its own environment.
+  Full-path-verified platform candidates and verified stable-home path locators
+  discover prior custom roots; bounded private owner records bind their found
+  root and UUID/generation. All owners are preflighted before any signal;
+  duplicate identities refuse and missing runs return exit 1. The locator has
+  no bearer and confers no trust. An unsafe or missing former root is refused,
+  never searched as authority. No P1/P2/P3 from RVM104L5 remains as a residual.
+  Existing same-user, POSIX identity interval, sampled-descendant and separate
+  Linux same-tick release blocker below remain unchanged; native Linux/Windows
+  qualification and the W-owned host-API refresh remain integration work.
+
+- **REDM104L3 private-state boundary (2026-10-06).** Same-user processes
+  are not a security boundary: they can already signal the user's processes
+  and edit the user's files. Full-path verification and post-create identity
+  checks refuse unsafe cross-user namespaces and the demonstrated restoration
+  interleaving; they do not promise protection from arbitrary same-user edits.
+  M107 T2's POSIX identity-recheck-to-signal interval without a pidfd remains
+  the separately documented residual below.
+
+- **RVM104L3-F2 — owned by M107T3 (2026-10-06).** Linux PID/start-tick
+  identity can alias an unrelated incarnation within one exposed clock tick.
+  The seam reproduction is confirmed; native numerical same-tick reuse is
+  unqualified. This is a release blocker, not a safety guarantee. Safe only
+  for this unmerged prototype with no Linux containment claim. Follow-up:
+  M107T3 supplies cgroup-v2 kill/containment and its native receipts; the lead
+  merges that authority and reruns LSP lifecycle qualification.
+
+- **REDM104L POSIX action residual (2026-10-06).** Linux and Darwin
+  recheck the exact kernel birth immediately before synchronous positive-PID
+  kill, with no intervening await in M107's mutation path. Without a pidfd
+  (or an equivalent retained Darwin process handle), a process can exit and
+  its PID can be reused in the interval between that final identity recheck
+  and kill. Registration, fresh ancestry proofs, descendant-first snapshots,
+  no negative/group signals and per-member outcome/exit checks mitigate but
+  do not eliminate that final interval. No native dependency is invented.
+  Windows checks birth, job and live state and terminates through one held
+  process handle. Observed detached/reparented descendants remain enrolled;
+  an entire fork/reparent/exit chain between observations can escape POSIX
+  user-space ancestry, as recorded before this redesign. Stop proves the
+  registered/observed identities departed, never a pidfd containment theorem.
+
+- **M104L-QUALIFICATION (2026-10-05, FIXM104L).** Repairing the seven
+  RVM104L findings does not qualify the missing B controller (review,
+  diagnostics/edit admission, panel/Fix/Explain), deferred Tab related-file,
+  exclusions/hooks/settings parity, POSIX unobserved double-fork/reparent
+  or spawn-to-handoff escapes, Windows/native GUI containment, Zed SDK/native
+  prediction, Neovim fresh-inline invocation or Emacs. Safe only as an
+  explicitly unqualified prototype: missing controller operations refuse
+  and no universal no-orphan/parity claim is made. Follow-up: B/C composition
+  and I/J per-editor/OS live receipts before promotion. See
+  `docs/certification/m104-l.md` and the original `m104-h.md` evidence.
 
 - **FIXM104PB review closure (2026-10-06).** All four RVM104PB P2 findings
   and its P3 subtotal error are repaired; no numbered review finding is

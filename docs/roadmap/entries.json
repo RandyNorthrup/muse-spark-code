@@ -772,7 +772,7 @@
     {
       "id": "M104",
       "title": "Every feature in every editor",
-      "summary": "Every feature working in every supported editor, through that editor's own APIs or the project's own panel, with each new feature arriving in all of them together.",
+      "summary": "Experimental native and companion panels and LSP are joined for verification; bundle budgets, installed-editor receipts and resource-chip parity still block qualification.",
       "area": "editors",
       "labels": ["experimental", "untested"]
     },

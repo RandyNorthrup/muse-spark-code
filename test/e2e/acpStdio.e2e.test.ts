@@ -139,6 +139,12 @@ beforeAll(async () => {
     runtimePanelPorts: path.join(ROOT, 'src/runtime/panel/runtimeFeaturesEntry.ts'),
     conversation: path.join(ROOT, 'src/host/conversation/conversationEntry.ts'),
     sessionBoard: path.join(ROOT, 'src/host/sessionBoardEntry.ts'),
+    runtimeContext: path.join(ROOT, 'src/runtime/panel/contextEntry.ts'),
+    runtimeEngines: path.join(ROOT, 'src/runtime/panel/engineEntry.ts'),
+    runtimeBackendServices: path.join(ROOT, 'src/runtime/panel/backendEntry.ts'),
+    runtimePresentation: path.join(ROOT, 'src/host/views/runtimePresentationEntry.ts'),
+    planMarkdown: path.join(ROOT, 'src/host/planMarkdownEntry.ts'),
+    checkpointStore: path.join(ROOT, 'src/host/checkpoints/checkpointStoreEntry.ts'),
   })
 })
 
@@ -227,7 +233,20 @@ function startAgent(
       return { outcome: { outcome: 'selected', optionId } }
     })
   const stream = acp.ndJsonStream(Writable.toWeb(child.stdin), webReadable(child.stdout))
-  return { updates, wire, stderr, run: (op) => client.connectWith(stream, op) }
+  return {
+    updates,
+    wire,
+    stderr,
+    run: async (op) => {
+      try {
+        return await client.connectWith(stream, op)
+      } catch (error: unknown) {
+        if (error instanceof Error && 'code' in error && error.code === -32_603)
+          throw new Error(stderr.join(''), { cause: error })
+        throw error
+      }
+    },
+  }
 }
 
 async function newSession(client: acp.ClientContext): Promise<string> {
@@ -325,6 +344,7 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
           'memory-max': z.string(),
         }),
         acpChatGpt: z.object({ usage: z.string() }),
+        lspUsage: z.string(),
         scheduleV2: z.object({ runtime: z.object({ usage: z.string() }) }),
         helpReferenceTitle: z.string(),
         referenceIntro: z.string(),

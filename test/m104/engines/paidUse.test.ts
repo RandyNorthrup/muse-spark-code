@@ -110,7 +110,7 @@ describe('interactive paid policy apart from ACP flags', () => {
       cachedTokens: 0,
     })
     expect(usage.current.bestOfNRequests).toBe(1)
-    expect(usage.current.bestOfNCostUsd).toBe(0.25)
+    expect(usage.current.bestOfNCostUsd).toBe('0.25')
     granted.set('/ws', new Set(['bestOfN']))
     granted.set('/other', new Set(['voice']))
     await composition.consent.forget()
@@ -124,8 +124,14 @@ describe('interactive paid policy apart from ACP flags', () => {
     const { paid, ask, granted } = setup()
     const composition = paid.composition('/ws', 'surface')
     ask.mockResolvedValue('always')
-    expect(await composition.consent.allows(WEB_SEARCH)).toBe(true)
-    expect(await composition.consent.allows(WEB_SEARCH)).toBe(true)
+    expect(await composition.consent.allows(WEB_SEARCH)).toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: '0.0025',
+    })
+    expect(await composition.consent.allows(WEB_SEARCH)).toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: '0.0025',
+    })
     expect(ask).toHaveBeenCalledOnce()
     await composition.gate.turnOff('webSearch')
     expect(granted.get('/ws')?.has('webSearch')).toBe(false)
@@ -134,12 +140,23 @@ describe('interactive paid policy apart from ACP flags', () => {
 
   it('asks once per actual use and counts the real paid usage', async () => {
     const { paid, ask, usage } = setup()
-    expect(await paid.allows('/ws', 's', WEB_SEARCH, true)).toBe(true)
+    expect(await paid.allows('/ws', 's', WEB_SEARCH, true)).toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: '0.0025',
+    })
     expect(ask).toHaveBeenCalledOnce()
-    expect(await paid.allows('/ws', 's', WEB_SEARCH, true)).toBe(true)
+    expect(await paid.allows('/ws', 's', WEB_SEARCH, true)).toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: '0.0025',
+    })
     expect(ask).toHaveBeenCalledTimes(2)
-    paid.noteUse('webSearch', 1)
+    const quote = await paid.allows('/ws', 's', WEB_SEARCH, true)
+    if (typeof quote !== 'object') throw new Error('Missing verified search quote')
+    paid.noteUse('webSearch', 1, quote.tariffUsd)
     expect(usage.current.webSearches).toBe(1)
+    expect(usage.current.webSearchCharges).toEqual([{ units: 1, priceUsd: quote.tariffUsd }])
+    paid.composition('/ws', 's').usage.add('webSearch', 1, quote.tariffUsd)
+    expect(usage.current.webSearches).toBe(2)
     expect(() => {
       paid.noteUse('webSearch', NaN)
     }).toThrow()

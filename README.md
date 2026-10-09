@@ -40,7 +40,7 @@ built, what is planned and what each release shipped.
 The [Xcode native-host prototype](hosts/xcode/README.md) pairs a macOS app
 with Xcode Source Editor commands. Its authenticated container and approved
 buffer-edit path have native core/fake-runtime receipts. Its relay uses the
-shared MHP 1.3 panel contract; editor/voice/Tab integration and installed
+shared MHP 1.4 panel contract; editor/voice/Tab integration and installed
 qualification are still required before it can be offered as a supported host.
 
 **Contents:** [What's new](#whats-new-in-0170) · [Roadmap](ROADMAP.md) ·
@@ -694,7 +694,7 @@ flags; the Model API key stays in the OS credential store. The native host
 must offer lifecycle plus surfaces (stdio) or UI (companion), and answer
 correlated service requests. These commands stream the shared conversation
 through the authenticated portable browser renderer and UI bridge. Native
-MHP 1.3 adoption, auxiliary surfaces, feature adapters and assembled editor
+MHP 1.4 adoption, auxiliary surfaces, feature adapters and assembled editor
 qualification remain incomplete. See
 [the integration evidence and remaining gaps](docs/certification/m104-int.md)
 and [macOS qualification](docs/certification/m104-pf.md).
@@ -972,6 +972,107 @@ my own caps, or Cancel; one-account-per-person rules also apply at user caps.
 Accounts sharing a vendor limit group add no capacity against that limit.
 These rules hold on every device and in developer mode. Nothing creates
 accounts, changes request identity or moves a credential to another device.
+The source checkout includes experimental stdio LSP and independent runtime
+supervision for M104. The LSP uses the M94 Tab engine and its caps, file
+eligibility, usage and daily ledger. Paid Tab is off until `--tab` and
+`--trust-workspace` are supplied; its editor consent prompt names the price
+and budget. A native-store Model API key is required only when dispatching.
+One private broker serves each canonical workspace, with eight clients and
+60 seconds of idle time. Conflicting runtime options are refused.
+
+From a built checkout, these offline commands exercise help and Stop:
+
+```sh
+node dist/acp.js lsp --help
+node dist/acp.js supervise --version
+node dist/acp.js stop
+node scripts/gen-reference.mjs
+npm run check:reference
+```
+
+Configure the installed agent's `lsp` command in your editor, with
+`--workspace` pointing to its project root. Neovim supplies `MuseLsp`, Emacs
+supplies `muse-spark-lsp` through Eglot, Sublime has an optional LSP package
+configuration, Qt Creator can use its generic language client, and Zed has
+Rust extension source. Each shim's Stop route runs a separate authenticated
+control command; it can run while the request queue is blocked.
+
+Stop gives TERM 500 ms, then uses verified per-member KILL. Workload launches
+wait for registration with the shared process authority: Linux kernel start
+ticks, macOS kernel microseconds from the shipped signed helper, or Windows
+creation FILETIME/job membership. The POSIX EOF guardian uses that same
+registry after supervisor SIGKILL. Zombies count as exited; observed detached
+or reparented descendants retain their exact identities. A descendant that
+double-forks wholly between observations can still escape this sampling
+policy. Windows uses a named native job and awaits Windows qualification.
+
+The broker and supervisor select a verified private root in platform order: Linux
+`XDG_RUNTIME_DIR`, then configured `XDG_STATE_HOME` / `XDG_CACHE_HOME`, then
+`~/.local/state/muse-spark`; macOS's per-user temporary directory from the
+signed helper, then `~/Library/Application Support/Muse Spark`; Windows
+`%LOCALAPPDATA%\Muse Spark`. Diagnostics record each refused candidate and
+its failing ancestor, and the selected real path. If none qualifies, startup
+refuses. Supervision also requires a verified stable home fallback for path-only
+root locators (`runtime-roots/`): Linux's home state fallback, macOS Application
+Support, or `~/AppData/Local/Muse Spark` on Windows. No control token is in a
+locator. Independent Stop searches every verified platform candidate in the
+order above, then previously selected roots from those locators, verifying each
+again. It finds runs even after XDG/TMPDIR changes or an earlier refused root
+becomes trusted. Each owner record names its canonical trust root. Unusable
+records and trust-root mismatches are reported and skipped without signalling;
+duplicate well-formed owner UUID/generations refuse before any signal, retaining
+ownership. POSIX Stop sockets use the verified platform runtime root even when
+a registry is deeply nested. An address beyond the portable OS limit refuses
+startup with `ESTOP_SOCKET_PATH` before control state or child launch. No matching run exits 1 with `ESTOP_NO_RUN`; ambiguous
+ownership exits 1 with `ESTOP_AMBIGUOUS`. Normal completion removes its locator;
+uncertain cleanup retains it. Verification walks the whole real path to the filesystem/volume root.
+POSIX ancestors must be root/user-owned. Group write is allowed only for
+the user's private group: its gid is the user's primary gid, its name matches
+the user name, and system membership lookups prove it has no other members.
+Unavailable membership information refuses that exception. Linux requires
+`/usr/bin/getent` for those lookups; macOS uses the signed native helper.
+World write is refused except at a root-owned sticky ancestor with an
+immediately user-owned child. The private leaf must be user-owned 0700 and ACL-free on macOS. Windows
+refuses reparse points and other SIDs' mutating grants throughout the ancestry,
+with protected owner/SYSTEM security at the private leaf.
+
+Private directories receive final permissions at creation; unsafe existing
+namespaces are refused. Records are exclusively created without following
+links, and their empty held file's owner, mode, link count and native ACL are
+verified. Before contents, the resolved record pathname must still name that
+held inode, and the parent must still name the verified directory. Windows
+uses CREATE_NEW, protected file security and retained native handles for the
+same checks. Same-user processes can already edit these files and signal the
+user's processes; they are outside this cross-user trust boundary.
+
+POSIX actions recheck the exact birth immediately before synchronous signal,
+without an intervening await. A residual remains between that recheck and
+kill if the PID is reused during that interval; no pidfd binding is installed.
+Windows acts through one retained process handle. Stop requires per-member
+exit receipts rather than counting an admitted signal as completion. After
+owner death it requires the guardian's exclusively created completed receipt
+for every observed descendant, bound to the current random generation, owner
+UUID, resource ticket, guardian/root PIDs and births, and member identities.
+A copied or older receipt cannot retire current ownership. An absent, pending or invalid receipt makes `stop` exit 1 with
+“Cannot verify Stop — processes may still be running” and observed PIDs;
+ownership stays on disk. A later completed guardian receipt allows retirement.
+Intentional Stop returns 0, including the Windows job helper's 143/137
+termination results. Ordinary workload exit codes are preserved; unexpected
+POSIX signal death returns 128 + the signal number and names the signal on
+stderr.
+
+LSP Stop and shutdown remain available when ordinary requests fill their
+queue. Stop during guardian startup waits for child cleanup. Deny or closing
+Tab's paid-use question snoozes Tab for that editor connection until it
+reconnects; another editor connection asks independently.
+
+The required merge sources do not contain the panel/review controller.
+The production LSP explicitly refuses open-panel/Fix/Explain and does not
+advertise review code actions; injected conformance services test diagnostics,
+version/hash checks and approved workspace edits. Native GUI qualification,
+Zed SDK compilation and full editor parity remain open. See the
+[reference](docs/runtime-reference.md) and
+[M104 H/L certification](docs/certification/m104-h.md).
 
 ## Permission modes
 
@@ -5275,6 +5376,13 @@ Optional surfaces also load their shared English text on first use; startup
 keeps first-paint text and the complete translated-table validation contract.
 Surface and keyboard budgets follow the emitted production graph.
 
+The MHP 1.4.0 panel contract for native and companion adapters is
+[documented here](docs/ide-compatibility/host-api-panel-1.1.md). Its JSON
+Schemas reuse the shared panel payload validators. The 1.4 adoption records
+the 0.17 payload changes; older peers are refused by the version handshake.
+Regenerate with `node scripts/mhp-schema.mjs`; verify both version locks and
+snapshots with `node scripts/mhp-schema.mjs --check`. Runtime and native
+bridge implementation and editor qualification remain in M104's other lanes.
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's
 image-proxy copies. It needs no secret; stale caches or network failures warn
@@ -5329,7 +5437,7 @@ and auxiliary record providers use exact typed native contracts; absent catalog,
 credential, process or storage attestations leave those services unavailable.
 Standalone paid consent requires a verified selected-model quote and configured
 hard shared ledger; the stock carrier refuses before a popup when either is absent.
-MHP 1.3 adds saved-plan/manager/role/diff/walkthrough messages, fresh diagnostics,
+MHP 1.4 adds saved-plan/manager/role/diff/walkthrough messages, fresh diagnostics,
 file/save and HTML publication acknowledgements, and protected native GitHub
 leases. OAuth tokens and pasted keys stay with native credential services.
 Native carriers must adopt and qualify the new contract before shipment. The

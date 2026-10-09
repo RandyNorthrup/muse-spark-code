@@ -1018,6 +1018,25 @@ const runtimePanelPortsOptions = {
   outfile: RUNTIME_PANEL_PORTS_OUTFILE,
 }
 
+const lspOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/lsp/lspEntry.ts'],
+  outfile: 'dist/lsp.js',
+  banner: undefined,
+}
+const processAuthorityOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/lsp/processAuthority.ts'],
+  outfile: 'dist/runtimeProcessAuthority.js',
+  banner: undefined,
+}
+const watchdogOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/lsp/watchdogEntry.ts'],
+  outfile: 'dist/runtimeWatchdog.js',
+  banner: undefined,
+}
+
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
 const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
@@ -1328,6 +1347,9 @@ if (isWatch) {
     esbuild.context(tabOptions),
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
+    esbuild.context(lspOptions),
+    esbuild.context(watchdogOptions),
+    esbuild.context(processAuthorityOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
     esbuild.context(resourceProcessOptions),
@@ -1447,6 +1469,9 @@ if (isWatch) {
     tab: esbuild.build(tabOptions),
     prompts: esbuild.build(promptsOptions),
     sharingRuntime: esbuild.build(sharingRuntimeOptions),
+    lsp: esbuild.build(lspOptions),
+    runtimeWatchdog: esbuild.build(watchdogOptions),
+    runtimeProcessAuthority: esbuild.build(processAuthorityOptions),
     modelApi: esbuild.build(modelApiOptions),
     resourceGovernor: esbuild.build(resourceGovernorOptions),
     resourceProcess: esbuild.build(resourceProcessOptions),

@@ -26,7 +26,7 @@ def main(argv):
     if len(argv) == 4 and argv[2] == "--agent-script" and argv[3]:
         mode, value = argv[:2]
         prefix = [value, argv[3]]
-        if mode != "panel":
+        if mode not in ("panel", "lsp", "stop"):
             raise ValueError("EPANEL_ARGUMENTS")
     elif len(argv) == 2:
         mode, value = argv
@@ -36,7 +36,9 @@ def main(argv):
     if not value:
         raise ValueError("EPANEL_ARGUMENTS")
     if mode == "panel":
-        command = [*prefix, "panel", "--companion"]
+        command = [*prefix, "supervise", "panel", "--companion"]
+    elif mode in ("lsp", "stop"):
+        command = [*prefix, mode]
     elif mode == "open":
         match = _LAUNCH.fullmatch(value)
         if not match or not 0 < int(match[1]) <= 65535:

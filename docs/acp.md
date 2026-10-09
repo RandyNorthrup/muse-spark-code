@@ -339,6 +339,66 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 | `--scheduled-prompts`                  | Offer the `/schedule` command with unattended runs (Model API backend only); needs `--max-budget-usd`                             |
 | `--max-budget-usd <USD>`               | Hard spending cap for unattended scheduled runs; without a positive cap paid authorization is refused                             |
 
+## Experimental LSP and workspace Stop (M104L)
+
+The source package also ships `lsp`, a stdio frontend to one private runtime
+per canonical workspace. Use `lsp --workspace <directory>` in a native LSP
+client. It negotiates UTF-16 full document synchronization, inline completion
+or ordinary completion items, and command support. A broker admits at most
+eight clients and exits after 60 seconds without authenticated activity.
+Client versions and content hashes protect dirty-buffer results and edits.
+
+Paid Tab needs `--tab --trust-workspace`; it uses the M94 engine, rate/output
+caps, private and ignored file checks, usage tally and cross-process ledger.
+The daily budget defaults to USD 1 and accepts USD 0.05–50 with
+`--tab-daily-budget-usd`. `--tab-model` accepts the M94 model table;
+contributor models also require `--allow-contributor-models`. Only invoked
+completion runs by default. The first editor prompt names the price, budget
+and training lane. The key stays in the OS credential store and never enters
+a supervised child environment. No paid request is part of the offline tests.
+
+The shims run `supervise` for ACP and companion launch; their independent
+`stop` command reaches authenticated owners of the same workspace outside
+the model queue. POSIX process groups and an independent guardian reap
+observed detached descendants even after supervisor death. Fast double-fork
+escapes before observation remain a platform containment gap. Windows uses
+the existing kill-on-close job helper and still needs a native receipt.
+Intentional Stop exits 0; ordinary workload exit codes are preserved, and
+unexpected POSIX signal death exits 128 + the signal number with the signal
+named on stderr. A dead supervisor is not completion: independent Stop needs
+the guardian's completed receipt for all observed descendants. Otherwise it
+exits 1, reports that processes may still be running with observed PIDs, and
+retains ownership records for a later verified Stop.
+
+Private IPC lives under a verified platform root (Linux XDG runtime/state/cache
+or the home state fallback; macOS per-user temporary directory or Application
+Support; Windows LocalAppData), with owner/write/ACL checks through every
+ancestor. POSIX Stop socket addresses are bounded independently of registry
+depth; oversized addresses refuse before control state or child launch. Records are exclusive and no-follow, and
+held-file permissions/ACLs and directory identity are verified before the
+first content write.
+
+The production LSP supplies `muse.stop`, `muse.usage` and `muse.help`.
+Open-panel/Fix/Explain and review/verify diagnostic publication require the
+absent B controller. It refuses those commands explicitly and advertises no
+review provider. The injected service contract is conformance-tested with
+fake diagnostics and versioned, approved workspace edits. This does not
+qualify review or all F1–F56 features in native editors.
+
+Offline reference commands, also documented in the root README:
+
+```sh
+node dist/acp.js lsp --help
+node dist/acp.js supervise --version
+node dist/acp.js stop
+node scripts/gen-reference.mjs
+npm run check:reference
+```
+
+See [runtime reference](runtime-reference.md) and
+[M104 H/L certification](certification/m104-h.md) for native receipts and
+remaining integration work.
+
 ## What the editor sees
 
 - **Modes**: Manual, Edit automatically, Plan, Auto (and Bypass permissions
@@ -945,7 +1005,7 @@ terminal. No value is accepted or returned in panel messages.
 `muse-spark-code-acp panel --companion` use MHP 1.2 rather than ACP.
 Exactly one transport is required. Backend, workspace-trust, sandbox and
 paid flags retain ACP defaults. A native host negotiates a
-`minimum: mhp/1.2.0`, `maximumExclusive: mhp/1.3.0` range, mandatory
+`minimum: mhp/1.4.0`, `maximumExclusive: mhp/1.5.0` range, mandatory
 lifecycle and the service groups it implements. The runtime requests a
 registered chat surface (stdio) or a launch URL opened through UI (companion).
 Surface `opened` and `ready` precede shared `ready`; sequence numbers start

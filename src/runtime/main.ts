@@ -98,6 +98,14 @@ import {
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import type { ProvidersDeps } from './providersCommands'
 import { takeCredentials } from './credentialVariables'
+import { workspaceKey, paidGrantsFile } from './dataFolder'
+import {
+  stopRuntime,
+  runtimeLocatorDirectory,
+  superviseRuntime,
+  UnverifiedStopError,
+} from './lsp/supervisor'
+import { trustedPrivateRoot } from './privateDirectory'
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
 import type { Logger } from '../host/logger'
@@ -991,6 +999,9 @@ async function main(): Promise<number> {
       }, 'warn'),
     })
   const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
+  const log = stderrLogger((line) => {
+    writeLine(process.stderr, line)
+  }, logLevel(command))
   const servicesInput: RuntimeAccountServicesInput = {
     dataDir: agentDataFolder({
       platform: process.platform,
@@ -1192,9 +1203,6 @@ async function main(): Promise<number> {
       )
     }
   }
-  const log = stderrLogger((line) => {
-    writeLine(process.stderr, line)
-  }, logLevel(command))
   // The language's table goes in before anything reads the text (D33).
   await loadUiTable({
     language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
@@ -1202,6 +1210,52 @@ async function main(): Promise<number> {
     log,
   })
   setProviderPolicyText(UI_TEXT, uiLocale())
+  if (command.command === 'supervise' || command.command === 'stop') {
+    const diagnostic = (message: string) => {
+      log.warn(message)
+    }
+    try {
+      if (command.command === 'stop') {
+        await stopRuntime(process.cwd(), packageRoot, homedir(), diagnostic)
+        return 0
+      }
+      const registry = path.join(
+        await trustedPrivateRoot(packageRoot, diagnostic),
+        `muse-runtime-${workspaceKey(homedir())}`,
+      )
+      const code = await superviseRuntime({
+        registry,
+        locatorDirectory: await runtimeLocatorDirectory(packageRoot, true),
+        cwd: process.cwd(),
+        file: process.execPath,
+        args: [__filename, ...command.args],
+        env: process.env,
+        packageRoot,
+        stdin: process.stdin,
+        stdout: process.stdout,
+        onSignalExit: (signal) => {
+          writeLine(process.stderr, fill(UI_TEXT.acpSupervisorSignal, { signal }))
+        },
+      })
+      if (code !== 0) writeLine(process.stderr, 'ESUPERVISE_EXIT')
+      return code
+    } catch (error: unknown) {
+      if (error instanceof UnverifiedStopError) {
+        writeLine(process.stderr, fill(UI_TEXT.acpStopUnverified, { pids: error.pids.join(', ') }))
+        return EXIT_FAILED
+      }
+      if (
+        error instanceof Error &&
+        (error.message === 'ESTOP_NO_RUN' || error.message === 'ESTOP_AMBIGUOUS')
+      ) {
+        writeLine(process.stderr, error.message)
+        return EXIT_FAILED
+      }
+      // Never expose a private control token, profile path or raw child error.
+      writeLine(process.stderr, 'ESUPERVISE_STOP')
+      return EXIT_FAILED
+    }
+  }
   switch (command.command) {
     case 'resources': {
       const resources = resourcesFor(log)
@@ -1378,6 +1432,30 @@ async function main(): Promise<number> {
     }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
+    }
+    case 'lsp': {
+      const { runLsp } = await import('./lsp/lspEntry')
+      const dataInput = { platform: process.platform, env: process.env, homeDir: homedir() }
+      return await runLsp(command.options, {
+        stdin: process.stdin,
+        stdout: process.stdout,
+        executable: process.execPath,
+        entry: __filename,
+        registry: path.join(
+          await trustedPrivateRoot(packageRoot, (message) => {
+            log.warn(message)
+          }),
+          `muse-runtime-${workspaceKey(homedir())}`,
+        ),
+        dataFolder: agentDataFolder(dataInput),
+        grantsFile: paidGrantsFile(dataInput),
+        secrets,
+        env: process.env,
+        log,
+        table: UI_TEXT,
+        locale: uiLocale(),
+        runGit: processGitRunner(),
+      })
     }
     case 'panel': {
       const runtime = await runtimeFor(command.options, log)

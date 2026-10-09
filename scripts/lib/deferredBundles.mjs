@@ -346,6 +346,23 @@ export const DEFERRED = [
     ],
   },
   {
+    output: 'dist/runtimeProcessAuthority.js',
+    metafile: 'dist/meta/runtimeProcessAuthority.json',
+    use: 'the first supervised launch or guardian action',
+    parents: [
+      BUNDLES.activation,
+      BUNDLES.modelApi,
+      BUNDLES.acp,
+      { output: 'dist/lsp.js', metafile: 'dist/meta/lsp.json' },
+      { output: 'dist/runtimeWatchdog.js', metafile: 'dist/meta/runtimeWatchdog.json' },
+    ],
+    files: [
+      'src/runtime/lsp/processAuthority.ts',
+      'src/runtime/trustedPath.ts',
+      'src/runtime/lsp/stopReceipt.ts',
+    ],
+  },
+  {
     output: 'dist/sessionBoard.js',
     metafile: 'dist/meta/sessionBoard.json',
     files: [
@@ -423,6 +440,17 @@ export const ON_FIRST_USE = [
     output: 'dist/resourceGovernor.js',
     metafile: 'dist/meta/resourceGovernor.json',
     use: 'the first governed spawn',
+    parents: [
+      BUNDLES.activation,
+      BUNDLES.modelApi,
+      BUNDLES.acp,
+      { output: 'dist/lsp.js', metafile: 'dist/meta/lsp.json' },
+      { output: 'dist/runtimeWatchdog.js', metafile: 'dist/meta/runtimeWatchdog.json' },
+      {
+        output: 'dist/runtimeProcessAuthority.js',
+        metafile: 'dist/meta/runtimeProcessAuthority.json',
+      },
+    ],
     files: [
       'src/core/resources/resourceGovernorEntry.ts',
       'src/core/resources/launchHost.ts',
@@ -433,6 +461,9 @@ export const ON_FIRST_USE = [
       'src/core/resources/createdRegistry.ts',
       'src/core/resources/sampler/system.ts',
       'src/core/resources/trees/registry.ts',
+      ...['actions', 'linux', 'mac', 'posix', 'posixTable', 'windows', 'run'].map(
+        (name) => `src/core/resources/trees/${name}.ts`,
+      ),
       'src/runtime/resources/entry.ts',
       'src/runtime/resources/host.ts',
       'src/runtime/resources/settings.ts',
@@ -590,6 +621,19 @@ export const ON_FIRST_USE = [
     ],
   },
   {
+    output: 'dist/lsp.js',
+    metafile: 'dist/meta/lsp.json',
+    use: 'the LSP command',
+    files: [
+      'src/runtime/lsp/lspEntry.ts',
+      'src/runtime/lsp/server.ts',
+      'src/runtime/lsp/transport.ts',
+      'src/runtime/lsp/documents.ts',
+      'src/runtime/lsp/broker.ts',
+      'src/runtime/tabServe.ts',
+    ],
+  },
+  {
     output: 'dist/conversation.js',
     metafile: 'dist/meta/conversation.json',
     use: 'the first chat surface',
@@ -640,6 +684,7 @@ export const ON_FIRST_USE = [
       'src/host/tab/tabSpendGate.ts',
       'src/core/tab/tabCache.ts',
       'src/core/tab/tabContext.ts',
+      'src/core/tab/tabEligibility.ts',
       'src/core/tab/tabEngine.ts',
       'src/core/tab/tabReply.ts',
       'src/core/tab/tabRequest.ts',
@@ -1042,6 +1087,10 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
   [path.resolve('src/core/backends/modelapi/codeIntelEntry.ts'), 'dist/modelApiCodeIntel.js'],
   [path.resolve('src/runtime/schedules/backgroundEntry.ts'), 'dist/scheduleBackground.js'],
+  [path.resolve('src/runtime/lsp/lspEntry.ts'), 'dist/lsp.js'],
+  [path.resolve('src/runtime/lsp/processAuthority.ts'), 'dist/runtimeProcessAuthority.js'],
+  [path.resolve('src/runtime/trustedPath.ts'), 'dist/runtimeProcessAuthority.js'],
+  [path.resolve('src/runtime/lsp/stopReceipt.ts'), 'dist/runtimeProcessAuthority.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
@@ -1077,7 +1126,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:lspEntry|processAuthority|trustedPath|stopReceipt|mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

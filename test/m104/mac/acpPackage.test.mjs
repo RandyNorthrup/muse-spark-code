@@ -33,6 +33,9 @@ const baseline = [
   'acp.js',
   'runtimePanel.js',
   'runtimePanelPorts.js',
+  'lsp.js',
+  'runtimeWatchdog.js',
+  'runtimeProcessAuthority.js',
   'conversation.js',
   'estimator.js',
   'headless.js',
@@ -105,9 +108,13 @@ function prepareFixture() {
   for (const name of ['src', 'node_modules', 'l10n', 'native/runner']) {
     const target = path.join(fixture.root, name)
     rmSync(target, { recursive: true, force: true })
-    symlinkSync(path.resolve(name), target, 'dir')
+    symlinkSync(path.resolve(name), target, process.platform === 'win32' ? 'junction' : 'dir')
   }
-  symlinkSync(path.resolve('scripts/lib'), path.join(fixture.root, 'scripts/lib'), 'dir')
+  symlinkSync(
+    path.resolve('scripts/lib'),
+    path.join(fixture.root, 'scripts/lib'),
+    process.platform === 'win32' ? 'junction' : 'dir',
+  )
   copyFileSync('scripts/check-l10n.mjs', path.join(fixture.root, 'scripts/check-l10n.mjs'))
   for (const name of ['dist/legal-data', 'design/fonts']) {
     mkdirSync(path.join(fixture.root, path.dirname(name)), { recursive: true })
@@ -162,6 +169,7 @@ function prepareFixture() {
     'docs/npm-readme.md',
     'native/windows/MuseSparkJob.cs',
     'native/windows/MuseSparkMcpJob.cs',
+    'native/windows/MuseSparkMcpLauncher.cs',
     'native/windows/MuseSparkVault.cs',
     'native/windows/MuseSparkVaultCng.cs',
     'native/windows/MuseSparkVaultHello.cs',

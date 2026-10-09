@@ -91,15 +91,16 @@ function compileWindowsStub(installDir: string): string {
   return exe
 }
 
-export function installFakeMuse(): FakeMuseInstall {
+export function installFakeMuse(startMode?: 'crash'): FakeMuseInstall {
   const installDir = mkdtempSync(path.join(tmpdir(), 'fake-muse-'))
   writeFileSync(
     path.join(installDir, 'serve.mjs'),
-    readFileSync(SERVE_SOURCE, 'utf8').replace(
-      "const fingerprint = env['MUSE_FAKE_FINGERPRINT'] ?? 'sha256:fake'",
-      () =>
-        `const fingerprint = env['MUSE_FAKE_FINGERPRINT'] ?? ${JSON.stringify(EXPECTED_SCHEMA_FINGERPRINT)}`,
-    ),
+    (startMode === undefined ? '' : `process.env['MUSE_FAKE_START'] = 'crash';\n`) +
+      readFileSync(SERVE_SOURCE, 'utf8').replace(
+        "const fingerprint = env['MUSE_FAKE_FINGERPRINT'] ?? 'sha256:fake'",
+        () =>
+          `const fingerprint = env['MUSE_FAKE_FINGERPRINT'] ?? ${JSON.stringify(EXPECTED_SCHEMA_FINGERPRINT)}`,
+      ),
   )
   if (process.platform === 'win32') {
     const stub = compiledStubs.get('win32') ?? compileWindowsStub(installDir)

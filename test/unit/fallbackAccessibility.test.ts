@@ -195,32 +195,41 @@ afterAll(async () => {
 })
 
 describe.each(['vscode', 'native', 'companion'])('%s fallback WCAG 2.2 AA', (bridge) => {
-  it.each(themes)('%s, every fallback in all 15 languages at 320px', async (theme) => {
+  it.each(
+    themes.flatMap((theme) =>
+      ['en', ...TABLE_LOCALES].flatMap((locale) => kinds.map((kind) => ({ theme, locale, kind }))),
+    ),
+  )('$theme/$locale/$kind at 320px', async ({ theme, locale, kind }) => {
     const { page, origin } = rig
     if (page === undefined || origin === undefined) throw new Error('NO_BROWSER')
-    for (const locale of ['en', ...TABLE_LOCALES]) {
-      await page.goto(`${origin}/?bridge=${bridge}&theme=${theme}&locale=${locale}`)
-      await page.waitForFunction('typeof window.showFallback === "function"')
-      await page.addScriptTag({ content: axe.source })
-      for (const kind of kinds) {
-        await page.evaluate(`window.showFallback(${JSON.stringify(kind)})`)
-        let selector = 'main h1'
-        if (['confirm', 'picker', 'input'].includes(kind)) selector = '[role="dialog"]'
-        else if (kind === 'toasts') selector = '.fallback-toast'
-        else if (kind === 'status') selector = 'progress'
-        await page.locator(selector).waitFor({ state: 'visible' })
-        expect(errors, `${bridge}/${theme}/${locale}/${kind} browser errors`).toEqual([])
-        const raw: unknown = await page.evaluate(
-          'axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } })',
-        )
-        const result = resultSchema.parse(raw)
-        expect(result.violations, `${bridge}/${theme}/${locale}/${kind}`).toEqual([])
-        if (bridge === 'native' && locale === 'en')
-          await page.screenshot({
-            path: path.join(directory, `${theme}-${kind}.png`),
-            animations: 'disabled',
-          })
-      }
-    }
+    await page.goto(`${origin}/?bridge=${bridge}&theme=${theme}&locale=${locale}`)
+    await page.waitForFunction('typeof window.showFallback === "function"')
+    await page.addScriptTag({ content: axe.source })
+    await page.evaluate(`window.showFallback(${JSON.stringify(kind)})`)
+    let selector = 'main h1'
+    if (['confirm', 'picker', 'input'].includes(kind)) selector = '[role="dialog"]'
+    else if (kind === 'toasts') selector = '.fallback-toast'
+    else if (kind === 'status') selector = 'progress'
+    await page.locator(selector).waitFor({ state: 'visible' })
+    // Audit settled colours after finite entrance motion; infinite status animation stays live.
+    await page.evaluate(async () => {
+      await Promise.all(
+        globalThis.document
+          .getAnimations()
+          .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+          .map((animation) => animation.finished),
+      )
+    })
+    expect(errors, `${bridge}/${theme}/${locale}/${kind} browser errors`).toEqual([])
+    const raw: unknown = await page.evaluate(
+      'axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } })',
+    )
+    const result = resultSchema.parse(raw)
+    expect(result.violations, `${bridge}/${theme}/${locale}/${kind}`).toEqual([])
+    if (bridge === 'native' && locale === 'en')
+      await page.screenshot({
+        path: path.join(directory, `${theme}-${kind}.png`),
+        animations: 'disabled',
+      })
   })
 })

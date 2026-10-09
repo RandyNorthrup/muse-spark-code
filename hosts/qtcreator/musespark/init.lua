@@ -142,6 +142,30 @@ function M.stop()
   end
 end
 
+function M.stop_workspace()
+  local a = require("async")
+  local utils = require("Utils")
+  local config = require("config")
+  local project = require("Project").startupProject()
+  if not project then error("EPANEL_WORKSPACE_REQUIRED") end
+  local python = a.wait(utils.FilePath.fromUserInput(config.python):searchInPath())
+  if not python or not python:isExecutableFile() then error("EPANEL_PYTHON_REQUIRED") end
+  local launcher = PluginSpec.pluginDirectory:resolvePath("launch.py")
+  local args = { "-I", launcher:nativePath(), "stop", config.agent }
+  if config.agentScript then
+    args[#args + 1] = "--agent-script"
+    args[#args + 1] = config.agentScript
+  end
+  local child = require("Process").create({ command = python, arguments = args,
+    workingDirectory = project.directory, stdout = function() end,
+    stderr = function(chunk)
+      if chunk ~= "" then require("MessageManager").writeFlashing("EPANEL_STOP") end
+    end,
+  })
+  if not a.wait(child:start()) then error("EPANEL_STOP") end
+  return child
+end
+
 function M.setup()
   local action = require("Action")
   local a = require("async")
@@ -154,7 +178,11 @@ function M.setup()
   })
   action.create("MuseSpark.Stop", {
     text = "Muse Spark Code (Unofficial): stop",
-    onTrigger = a.sync(M.stop),
+    onTrigger = a.sync(function()
+      local ok = pcall(M.stop_workspace)
+      M.stop()
+      if not ok then error("EPANEL_STOP") end
+    end),
     containers = { "QtCreator.Menu.Tools" },
   })
   return true

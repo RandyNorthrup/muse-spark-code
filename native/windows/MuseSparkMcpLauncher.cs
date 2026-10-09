@@ -15,6 +15,8 @@ using System.Text;
 
 [DataContract]
 public sealed class MuseSparkMcpLaunchConfig {
+  [DataMember(Name = "independent", IsRequired = false)] public bool Independent { get; set; }
+  [DataMember(Name = "jobName", IsRequired = false)] public string JobName { get; set; }
   [DataMember(Name = "file", IsRequired = true)] public string File { get; set; }
   [DataMember(Name = "args", IsRequired = true)] public string[] Args { get; set; }
   [DataMember(Name = "cwd", IsRequired = true)] public string Cwd { get; set; }
@@ -65,7 +67,7 @@ public static class MuseSparkMcpJobEntry {
       if (config.Attestation != null) {
         var attest = config.Attestation;
         if (attest.ActiveProcessLimit == 0 || attest.SpawnLimit == 0 || attest.SpawnWindowMs <= 0 ||
-            attest.SampleMs <= 0 || attest.EmptyTimeoutMs <= 0 || config.DebugPipes)
+            attest.SampleMs <= 0 || attest.EmptyTimeoutMs <= 0 || config.DebugPipes || config.JobName != null || config.Independent)
           throw new InvalidDataException("invalid attestation config");
         return MuseSparkMcpJob.RunAttested(config.File, config.Args, config.Cwd,
           config.ParentPid, pairs.ToArray(), config.IsVerbatim, config.ControlPipe,
@@ -76,6 +78,12 @@ public static class MuseSparkMcpJobEntry {
             SampleMs = attest.SampleMs,
             EmptyTimeoutMs = attest.EmptyTimeoutMs,
           });
+      }
+      if (config.JobName != null) {
+        if (config.DebugPipes) throw new InvalidDataException("invalid registered job config");
+        return MuseSparkMcpJob.RunRegistered(config.File, config.Args, config.Cwd,
+          config.ParentPid, pairs.ToArray(), config.IsVerbatim, config.ControlPipe,
+          config.ControlNonce, config.JobMemoryLimit, config.JobName, config.Independent);
       }
       return MuseSparkMcpJob.Run(config.File, config.Args, config.Cwd,
         config.ParentPid, pairs.ToArray(), config.IsVerbatim,

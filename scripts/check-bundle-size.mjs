@@ -280,6 +280,11 @@ const BUDGETS = [
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
   // M105's trusted media inspector stays in its first-use media bundle.
   { path: 'dist/acp.js', budgetKiB: 850 },
+  // New runtime-only LSP/guardian budgets; extension and ACP activation caps stay fixed.
+  { path: 'dist/lsp.js', budgetKiB: 106 },
+  { path: 'dist/runtimeWatchdog.js', budgetKiB: 11 },
+  // Exact process authority split from all three runtime bundles; first measurement 41.1 KiB + 15%, rounded up.
+  { path: 'dist/runtimeProcessAuthority.js', budgetKiB: 50 },
   // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
   { path: 'dist/headless.js', budgetKiB: 100 },
   // M114 F: runtime-only installer, measured with the shared validation API.
