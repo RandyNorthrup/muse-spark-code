@@ -10074,10 +10074,21 @@ we make". His standing ruling: enhancements are on by default.
   with its `shortened` flag (an exact-fit newest release with a predecessor
   left out gets the named refusal, never the encoder's generic one); a
   shortened release without Highlights ships as its full-notes link,
-  exactly as the page shows it; packaging reads the writer's own release
-  pattern (prereleases included), never a second heading inventory; the
-  retained earlier Highlights enter the plan with the full-notes link, so
-  the page and the packaged notes agree in every case.
+  exactly as the page shows it; packaging shared the writer's release
+  pattern (prereleases included) but still inventoried heading lines
+  itself; the retained earlier Highlights enter the plan with the
+  full-notes link, so the page and the packaged notes agree in every case.
+  Round 3 (RVWNBUDGET2, 2026-10-09): one parser, so the class cannot
+  recur. The writer's Markdown parser returns each release's source range
+  (whole-section and `### Highlights` subsection offsets, plus the
+  `[Unreleased]` Highlights content span) as non-enumerable metadata that
+  never enters an envelope, an artifact or any JSON, and the packager
+  slices those ranges — no heading pattern of its own — so a fenced
+  example or an indented heading selects and packages exactly what the
+  writer parsed. Selection admits each candidate iff the envelope exactly
+  as shipped fits, with the `shortened` flag set as that decision leaves
+  it: the retained earlier Highlights reserve no flag bytes when keeping
+  them leaves the flag absent.
 - **Security.** Strict CSP (`default-src 'none'`, the stylesheet from the
   webview origin, one script by nonce, no inline style); every piece of text
   escaped on the host; links carry their address for keyboards and screen

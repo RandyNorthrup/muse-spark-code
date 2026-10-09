@@ -35,12 +35,25 @@ hiding the newest release.
   shipped envelope with its `shortened` flag (an exact-fit newest release
   with a predecessor left out gets the named refusal, never the encoder's
   generic one); a shortened release without Highlights ships as its
-  full-notes link, exactly as the page shows it; packaging reads the
+  full-notes link, exactly as the page shows it; packaging shared the
   writer's own `RELEASE_SECTION_LINE` (prereleases such as 2.0.0-beta.1
-  included), never a second heading inventory; the retained earlier
+  included) but still inventoried heading lines itself; the retained earlier
   Highlights enter the plan with the full-notes link, so the page and the
   packaged notes agree in every case (the exclusion this note stated in
   round 1 is removed).
+- Round 3 (review RVWNBUDGET2, two P2 findings): one parser, so the class
+  cannot recur. `parseChangelog` returns each release's source range
+  (whole `## ` section offsets, `### Highlights` subsection offsets, and
+  the `[Unreleased]` Highlights content span on the returned array) as
+  non-enumerable metadata that never enters an envelope, an artifact or any
+  JSON (`scripts/lib/whatsNewContent.d.mts` types it); `packagedChangelog`
+  and `stageVsix` take the parsed releases and slice those ranges —
+  `RELEASE_SECTION_LINE`, the heading inventory, the `### ` split and
+  `highlightsMarkdown` are deleted from `scripts/package-vsix.mjs`, which
+  matches no heading of its own. Selection admits each candidate iff the
+  envelope exactly as shipped fits, with the `shortened` flag set as that
+  decision leaves it (`canShip`): admitting the retained earlier Highlights
+  is measured with the flag as it stands, reserving nothing.
 
 ## Behaviour → test map
 
@@ -57,6 +70,10 @@ hiding the newest release.
 | Shortened release without Highlights ships as its full-notes link                   | `vsixPackaging`: highlight-less test (plan `full: false`, packaged heading + link, old detail absent)                                    |
 | Prerelease predecessor packages through the writer's own pattern                    | `vsixPackaging`: prerelease test (`2.0.0-beta.1` parsed, planned and packaged)                                                           |
 | Retained earlier Highlights enter the plan with the link; page and package agree    | `whatsNewContent`: plan-entry test + updated fallback/page tests; `vsixPackaging`: fallback-agreement test                               |
+| Parser returns each release's source range; ranges never enter the JSON             | `whatsNewContent`: source-range test (keys unchanged, slices tile end to start, Highlights and Unreleased spans exact)                   |
+| Fenced example heading selects and packages the real section, identically           | `vsixPackaging`: fenced-example test (writer versions, full plan, real beta Highlights/details packaged)                                 |
+| Indented (one leading space) heading selects and packages identically               | `vsixPackaging`: indented-heading test (writer versions, full plan, real beta packaged, no throw)                                        |
+| Exact-bound fallback keeps fitting earlier Highlights, flag absent                  | `whatsNewContent`: exact-bound test (both fixes full + fallback short serialise to exactly 76,800 bytes; kept, `shortened` false)        |
 
 ## Red drills (each broke on purpose, failed, restored byte-exact)
 
@@ -80,6 +97,24 @@ files after every restore):
 | R2  | `packagedChangelog`: highlight-less branch → `throw … no Highlights section for …`                | `ships a shortened release without Highlights …` — `packagedChangelog: no Highlights section for 1.0.3`, 1 failed, 83 skipped | OK `f22fd730…` |
 | R3  | `packagedChangelog`: `RELEASE_SECTION_LINE` → old `/^## \[\d+\.\d+\.\d+\].*$/gm`                  | `packages a prerelease predecessor …` — `packagedChangelog: no released section for 2.0.0-beta.1`, 1 failed, 83 skipped       | OK `f22fd730…` |
 | R4  | `selectWhatsNewReleases`: fallback `plan.push(…)` removed                                         | `enters the retained earlier Highlights in the plan …` — plan 2 entries vs 3, 1 failed, 24 skipped                            | OK `5d04db82…` |
+
+Round 3 (RVWNBUDGET2 findings; baselines `b4e77665…` `79ec5e35…`,
+backups under `$TMPDIR/wnb3-bak`; `sha256sum -c` OK for both
+files after every restore):
+
+| #   | Break                                                                                             | Failing test (observed)                                                                                                                                                | Restore        |
+| --- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| R5  | `selectWhatsNewReleases`: fallback `canShip(…, isShortened)` → `true` (flag bytes reserved again) | `keeps fitting earlier Highlights at the exact bound …` — `expected [ '1.0.4', '1.0.3' ] to deeply equal [ '1.0.4', '1.0.3', '1.0.2' ]`, 1 failed, 26 skipped          | OK `b4e77665…` |
+| R6  | `parseChangelog`: release `highlightsStart/End` → `undefined` (no Highlights ranges)              | `reports each release’s source range …` (whole-file slice vs Highlights block) and `ships the writer’s plan …` (`to contain 'Stable highlight stays.'`), 1 failed each | OK `b4e77665…` |
+| R7  | `parseChangelog`: section close `finish(start)` → `finish(markdown.length)` (ranges never close)  | `ships the writer’s plan …` — `expected … not to contain 'Old detail goes.'` (later sections leak into earlier slices), 1 failed, 85 skipped                           | OK `b4e77665…` |
+
+Fail-before on the pre-fix head (`13fe73c4c`, old files run from a
+scratch mirror): the fenced scenario packages without the real beta
+(`has beta fix: false` — the example text wins); the indented scenario
+throws `packagedChangelog: no released section for 2.0.0-beta.1`. Both
+new regression tests pass on the fixed code. The real CHANGELOG packages
+byte-identically before and after (plan and legacy paths, SHA-256
+`80884cbd…` both ways).
 
 ## Sizes for the real CHANGELOG, before → after
 
@@ -116,3 +151,16 @@ scripts/check-l10n.mjs` (0 problems), `node
 scripts/gen-reference.mjs --check` (current), `npm run build`
   (production): all pass. `dist/whatsNew.json` still 25,347 bytes,
   `shortened` absent; real CHANGELOG ships 0.17.0 + 0.16.0 in full.
+- Round 3 reruns (repo default timeouts, no overrides):
+  `whatsNewContent` 27 passed, `whatsNewHtml` 13 passed,
+  `whatsNewPanel` 10 passed, `changelogVersion` 2 passed,
+  `vsixPackaging` 86 passed.
+- Round 3: `npx prettier --check` (5 files), changed-file ESLint
+  (`--max-warnings=0`, incl. the new `.d.mts` range types),
+  `tsc -p test/unit/tsconfig.json --noEmit`, `node
+scripts/check-l10n.mjs` (0 problems), `npm run check:reference`
+  (current), `npm run build` (production): all pass.
+  `dist/whatsNew.json` still 25,347 bytes, `shortened` absent; real
+  CHANGELOG ships 0.17.0 + 0.16.0 in full, and the packaged CHANGELOG is
+  byte-identical to the pre-fix output (plan and legacy paths,
+  SHA-256 `80884cbd…` both ways).
