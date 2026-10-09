@@ -1030,6 +1030,17 @@ deadline, layout reads); run side by side at `a729dba8a` and on this change
 8 failed in both (modelApiHost 2/669 and m114ConversationReview 6/89, both
 inherited), the other three pass.
 
+Static gates on this host for the final tree: Prettier, ESLint on every
+changed file, typecheck host, unit and e2e, knip, check:host-api, check:plan,
+check:reference, check:l10n, check:badges, check:tokens, lint:css and lint:ps
+all exit 0. jscpd: this round's first draft (and `a729dba8a`'s attested
+tests) repeated launch, fake-compiler and registration blocks in
+attestedJob, mcpJobExecutable and resourceLaunchHost; shared test helpers
+remove them, and only the four inherited clones remain (acp agent,
+exactUsd/text, queuedAnswerBackend/modelApiElicitation, paidDailyBudget).
+dpdm: the same four cycles as `a729dba8a` (all through `admission.ts`'s lazy
+governor import; one now names `bootstrapCommand.ts`), none new.
+
 Not fixed here, same root-cause class as finding 8 but other lanes'
 assertions: windowsVaultTransport's three compiler cases assert the
 pre-bootstrap `execFile` compiler, and nativeScheduleBackground's two cases
@@ -1054,6 +1065,14 @@ unavailable"). Both are unchanged from `a729dba8a`.
   `fb0b12aa3`'s). The stopping of that vitest (PID 75380, this lane's) was
   first refused by the auto-mode classifier and later done by exact PID
   with the owner's go.
+- RVSPAWN4W, scratchpad collision: this lane's drill script and another
+  lane's had the same name in a shared scratchpad folder. One invocation at
+  about 21:26 therefore ran the roadmap lane's drills, which name their own
+  worktree (`mx-roadmap`): each drilled file there was written back to its
+  pre-drill bytes (SHA-256 checked by that script), and the worktree was
+  clean at its own head (`76f9dd15d`) afterwards. A test run there during
+  those seconds could have seen a drilled file. This lane's drills now use a
+  lane-unique file name and fixed root.
 - Coordination: `src/core/schedules/events/git.ts` changed only by the
   profile argument (and spawn3's cause, merged); no ref-reading or
   created-file publication logic changed here.

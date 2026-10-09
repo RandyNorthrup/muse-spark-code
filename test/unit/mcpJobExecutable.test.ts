@@ -35,6 +35,38 @@ async function rejectionOf(pending: Promise<unknown>): Promise<unknown> {
   }
 }
 
+/** A fake csc and launcher self-test: compiling writes `executable` to the /out: path. */
+function fakeCompiler() {
+  const calls = { scripts: [] as string[], selfTests: 0 }
+  const run: RunProgram = async (_file, args) => {
+    if (args[0] === '--self-test') {
+      calls.selfTests++
+      return 'muse-spark-mcp-job-ready\n'
+    }
+    calls.scripts.push(args.join('\n'))
+    const output = args.find((arg) => arg.startsWith('/out:'))?.slice('/out:'.length)
+    if (output === undefined) throw new Error('compiler output was not named')
+    await writeFile(output, 'executable')
+    return ''
+  }
+  return { run, calls }
+}
+
+/** Helper preparation dependencies with a recorded log. */
+function helperDeps(storageDir: string, run: RunProgram) {
+  const logged: string[] = []
+  const deps = {
+    readJobSource,
+    storageDir,
+    systemRoot: String.raw`C:\Windows`,
+    log: (message: string) => {
+      logged.push(message)
+    },
+    run,
+  }
+  return { deps, logged }
+}
+
 beforeAll(async () => {
   paths.root = await realpath(await mkdtemp(path.join(tmpdir(), 'muse-mcp-executable-test-')))
 })
@@ -48,26 +80,9 @@ describe('M50 compiled Windows job executable', () => {
     await mkdir(folder)
     await writeFile(path.join(folder, 'MuseSparkMcpJob-old.exe'), 'stale')
     await writeFile(path.join(folder, 'MuseSparkJob-live.dll'), 'M27')
-    const scripts: string[] = []
-    const run: RunProgram = async (_file, args) => {
-      if (args[0] === '--self-test') return 'muse-spark-mcp-job-ready\n'
-      const script = args.join('\n')
-      scripts.push(script)
-      const output = args.find((arg) => arg.startsWith('/out:'))?.slice('/out:'.length)
-      if (output === undefined) throw new Error('compiler output was not named')
-      await writeFile(output, 'executable')
-      return ''
-    }
-    const logged: string[] = []
-    const deps = {
-      readJobSource,
-      storageDir,
-      systemRoot: String.raw`C:\Windows`,
-      log: (message: string) => {
-        logged.push(message)
-      },
-      run,
-    }
+    const { run, calls } = fakeCompiler()
+    const { scripts } = calls
+    const { deps, logged } = helperDeps(storageDir, run)
     const ready = mcpJobExecutable(deps)
     const name = mcpJobExecutableName(await readJobSource('mcpLauncher'))
     const executable = path.join(folder, name)
@@ -102,29 +117,8 @@ describe('M50 compiled Windows job executable', () => {
 
   it('refuses a changed helper before use and recompiles it on the next call', async () => {
     const storageDir = await mkdtemp(path.join(paths.root, 'sealed-'))
-    let compiles = 0
-    let selfTests = 0
-    const run: RunProgram = async (_file, args) => {
-      if (args[0] === '--self-test') {
-        selfTests++
-        return 'muse-spark-mcp-job-ready\n'
-      }
-      compiles++
-      const output = args.find((arg) => arg.startsWith('/out:'))?.slice('/out:'.length)
-      if (output === undefined) throw new Error('compiler output was not named')
-      await writeFile(output, 'executable')
-      return ''
-    }
-    const logged: string[] = []
-    const deps = {
-      readJobSource,
-      storageDir,
-      systemRoot: String.raw`C:\Windows`,
-      log: (message: string) => {
-        logged.push(message)
-      },
-      run,
-    }
+    const { run, calls } = fakeCompiler()
+    const { deps, logged } = helperDeps(storageDir, run)
     const sealed = sealedMcpJobExecutable(deps)
     const helper = await sealed()
     if (helper === undefined) throw new Error('helper unavailable')
@@ -155,8 +149,8 @@ describe('M50 compiled Windows job executable', () => {
     // The next call re-prepares: the file is compiled again, then self-tested.
     const next = await sealed()
     expect(next?.path).toBe(helper.path)
-    expect(compiles).toBe(2)
-    expect(selfTests).toBe(2)
+    expect(calls.scripts).toHaveLength(2)
+    expect(calls.selfTests).toBe(2)
     expect(await readFile(helper.path, 'utf8')).toBe('executable')
     // The path factory refuses a changed helper (undefined: fail closed) the same way.
     const pathFactory = mcpJobExecutable(deps)
@@ -168,20 +162,12 @@ describe('M50 compiled Windows job executable', () => {
 
   it('fails closed when the compiler cannot build the launcher', async () => {
     const storageDir = await mkdtemp(path.join(paths.root, 'broken-'))
-    const logged: string[] = []
     let compiles = 0
-    const ready = mcpJobExecutable({
-      readJobSource,
-      storageDir,
-      systemRoot: String.raw`C:\Windows`,
-      log: (message) => {
-        logged.push(message)
-      },
-      run: () => {
-        compiles++
-        return Promise.reject(new Error('compiler unavailable'))
-      },
+    const { deps, logged } = helperDeps(storageDir, () => {
+      compiles++
+      return Promise.reject(new Error('compiler unavailable'))
     })
+    const ready = mcpJobExecutable(deps)
     expect(await ready()).toBeUndefined()
     // Unavailable stays unavailable for this binding: no compile per launch.
     expect(await ready()).toBeUndefined()

@@ -49,6 +49,23 @@ function executable(): string {
   if (job.path === undefined) throw new Error('Launcher fixture missing')
   return job.path
 }
+/** The real launcher running Node with `args`, at this file's limits unless changed. */
+function attestedLaunch(
+  args: readonly string[],
+  changes: { attestation?: JobAttestationLimits; jobMemoryLimit?: number } = {},
+) {
+  return {
+    executablePath: executable(),
+    file: process.execPath,
+    args,
+    cwd: process.cwd(),
+    env,
+    isVerbatim: false,
+    log: () => undefined,
+    attestation: limits,
+    ...changes,
+  }
+}
 function isAlive(pid: number): boolean {
   try {
     process.kill(pid, 0)
@@ -153,16 +170,9 @@ describe.runIf(process.platform === 'win32')('attested Windows job (SPAWN017C)',
 
   it('stops the whole job on STOP and reports it as stopped', async () => {
     const file = marker('stop')
-    const { child, control } = spawnAttestedJob({
-      executablePath: executable(),
-      file: process.execPath,
-      args: ['-e', grandchildScript(file, 'setInterval(()=>{},1000)')],
-      cwd: process.cwd(),
-      env,
-      isVerbatim: false,
-      log: () => undefined,
-      attestation: limits,
-    })
+    const { child, control } = spawnAttestedJob(
+      attestedLaunch(['-e', grandchildScript(file, 'setInterval(()=>{},1000)')]),
+    )
     try {
       child.stdin.end()
       await ready(child)
@@ -190,16 +200,9 @@ describe.runIf(process.platform === 'win32')('attested Windows job (SPAWN017C)',
     const file = marker('cap')
     // Root plus one child fill a cap of two; the third process is refused by the kernel.
     const script = `const cp=require('node:child_process');const a=cp.spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});a.once('spawn',()=>{const w=(t)=>{require('node:fs').writeFileSync(${JSON.stringify(file)},t);process.exit(0)};try{const b=cp.spawn(process.execPath,['-e','0'],{stdio:'ignore'});b.once('error',(e)=>w('refused:'+e.code));b.once('spawn',()=>w('started'))}catch(e){w('refused:'+e.code)}})`
-    const { child, control } = spawnAttestedJob({
-      executablePath: executable(),
-      file: process.execPath,
-      args: ['-e', script],
-      cwd: process.cwd(),
-      env,
-      isVerbatim: false,
-      log: () => undefined,
-      attestation: { ...limits, activeProcessLimit: 2 },
-    })
+    const { child, control } = spawnAttestedJob(
+      attestedLaunch(['-e', script], { attestation: { ...limits, activeProcessLimit: 2 } }),
+    )
     child.stdin.end()
     await once(child, 'exit')
     expect(await readFile(file, 'utf8')).toMatch(/^refused:/u)
@@ -218,17 +221,9 @@ describe.runIf(process.platform === 'win32')('attested Windows job (SPAWN017C)',
     const file = marker('memory')
     // Root and child each start Node; the child then commits far past the job's limit.
     const script = `const cp=require('node:child_process');const c=cp.spawn(process.execPath,['-e','const a=[];for(let i=0;i<64;i++)a.push(Buffer.alloc(16*1024*1024,1));setInterval(()=>{},1000)'],{stdio:'ignore'});require('node:fs').writeFileSync(${JSON.stringify(file)},String(c.pid));c.once('exit',(code)=>process.exit(code===0?0:7))`
-    const { child, control } = spawnAttestedJob({
-      executablePath: executable(),
-      file: process.execPath,
-      args: ['-e', script],
-      cwd: process.cwd(),
-      env,
-      isVerbatim: false,
-      log: () => undefined,
-      jobMemoryLimit: 192 * 1024 * 1024,
-      attestation: limits,
-    })
+    const { child, control } = spawnAttestedJob(
+      attestedLaunch(['-e', script], { jobMemoryLimit: 192 * 1024 * 1024 }),
+    )
     child.stdin.end()
     const [code] = await once(child, 'exit')
     expect(code).toBe(7)
@@ -239,16 +234,9 @@ describe.runIf(process.platform === 'win32')('attested Windows job (SPAWN017C)',
 
   it('reports no cap refusal for children started one after another', async () => {
     const script = `const cp=require('node:child_process');const one=()=>new Promise((r)=>cp.spawn(process.execPath,['-e','0'],{stdio:'ignore'}).once('exit',r));(async()=>{await one();await one();await one();process.exit(0)})()`
-    const { child, control } = spawnAttestedJob({
-      executablePath: executable(),
-      file: process.execPath,
-      args: ['-e', script],
-      cwd: process.cwd(),
-      env,
-      isVerbatim: false,
-      log: () => undefined,
-      attestation: { ...limits, activeProcessLimit: 2 },
-    })
+    const { child, control } = spawnAttestedJob(
+      attestedLaunch(['-e', script], { attestation: { ...limits, activeProcessLimit: 2 } }),
+    )
     child.stdin.end()
     await once(child, 'exit')
     const record = await control.record
@@ -272,16 +260,7 @@ describe.runIf(process.platform === 'win32')('attested Windows job (SPAWN017C)',
         `RESULT ${record.replace('"totalProcesses":1', '"totalProcesses":4294967296')}`,
     ],
   ])('refuses %s from the control pipe', async (_name, line) => {
-    const prepared = prepareMcpJobLaunch({
-      executablePath: executable(),
-      file: process.execPath,
-      args: [],
-      cwd: process.cwd(),
-      env,
-      isVerbatim: false,
-      log: () => undefined,
-      attestation: limits,
-    })
+    const prepared = prepareMcpJobLaunch(attestedLaunch([]))
     const config = z
       .object({ controlPipe: z.string(), controlNonce: z.string() })
       .parse(
@@ -311,16 +290,9 @@ describe.runIf(process.platform === 'win32')('attested Windows job (SPAWN017C)',
 
   it('ends a job whose spawn rate exceeds its limit and says so in the record', async () => {
     const script = `const cp=require('node:child_process');for(let i=0;i<5;i++)cp.spawn(process.execPath,['-e','0'],{stdio:'ignore'});setInterval(()=>{},1000)`
-    const { child, control } = spawnAttestedJob({
-      executablePath: executable(),
-      file: process.execPath,
-      args: ['-e', script],
-      cwd: process.cwd(),
-      env,
-      isVerbatim: false,
-      log: () => undefined,
-      attestation: { ...limits, spawnLimit: 3 },
-    })
+    const { child, control } = spawnAttestedJob(
+      attestedLaunch(['-e', script], { attestation: { ...limits, spawnLimit: 3 } }),
+    )
     child.stdin.end()
     const [code] = await once(child, 'exit')
     expect(code).toBe(6)

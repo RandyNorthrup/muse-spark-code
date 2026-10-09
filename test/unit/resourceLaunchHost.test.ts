@@ -103,6 +103,14 @@ function created() {
     clean: vi.fn(() => Promise.resolve({ removed: 0, freedBytes: null })),
   }
 }
+/** One admitted contained launch whose stop returns at once, with its temp-root registry. */
+async function registered(launch: { group: true } | { attested: true }) {
+  const registry = created()
+  const h = setup({ created: registry })
+  const lease = await h.host.admit('toolShell')
+  lease.register({ pid: 700, profile: 'contained', stop: () => Promise.resolve(), ...launch })
+  return { registry, h, lease }
+}
 
 describe('C1 process admission and registration', () => {
   it('kills active work on dispose instead of merely releasing admission', async () => {
@@ -115,10 +123,7 @@ describe('C1 process admission and registration', () => {
     expect(stop).toHaveBeenCalledOnce()
   })
   it('finishes the temp root only after a stopped tree is observed gone, even late', async () => {
-    const registry = created()
-    const h = setup({ created: registry })
-    const lease = await h.host.admit('toolShell')
-    lease.register({ pid: 700, profile: 'contained', group: true, stop: () => Promise.resolve() })
+    const { registry, h } = await registered({ group: true })
     await settle()
     h.host.dispose()
     await settle()
@@ -134,10 +139,7 @@ describe('C1 process admission and registration', () => {
     expect(h.errors).not.toHaveBeenCalled()
   })
   it('keeps a stopped tree that never goes as uncertain, reported, with its temp root', async () => {
-    const registry = created()
-    const h = setup({ created: registry })
-    const lease = await h.host.admit('toolShell')
-    lease.register({ pid: 700, profile: 'contained', group: true, stop: () => Promise.resolve() })
+    const { registry, h } = await registered({ group: true })
     await settle()
     h.host.dispose()
     for (let elapsed = 0; elapsed <= TREE_EXIT_WAIT_MS; elapsed += RESOURCE_DISPOSE_POLL_MS) {
@@ -173,30 +175,14 @@ describe('C1 process admission and registration', () => {
     expect(h.errors).not.toHaveBeenCalled()
   })
   it('keeps attested work whose stop returned unsettled as uncertain and reports it', async () => {
-    const registry = created()
-    const h = setup({ created: registry })
-    const lease = await h.host.admit('toolShell')
-    lease.register({
-      pid: 700,
-      profile: 'contained',
-      attested: true,
-      stop: () => Promise.resolve(),
-    })
+    const { registry, h } = await registered({ attested: true })
     h.host.dispose()
     await settle()
     expect(registry.finish).not.toHaveBeenCalled()
     expect(h.errors).toHaveBeenCalled()
   })
   it('releases admission but keeps the temp root on the uncertain path', async () => {
-    const registry = created()
-    const h = setup({ created: registry })
-    const lease = await h.host.admit('toolShell')
-    lease.register({
-      pid: 700,
-      profile: 'contained',
-      attested: true,
-      stop: () => Promise.resolve(),
-    })
+    const { registry, h, lease } = await registered({ attested: true })
     lease.uncertain?.()
     await settle()
     expect(registry.finish).not.toHaveBeenCalled()
