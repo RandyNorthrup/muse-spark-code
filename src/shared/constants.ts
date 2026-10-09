@@ -5786,6 +5786,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/uiTextSurfaces.js',
   'dist/wire.js',
   'dist/resourceGovernor.js',
+  'dist/resourceJournal.js',
   'dist/resourceAdmission.js',
   'dist/webview/resourceSurface.js',
   'dist/webview/resourceHistory.js',
