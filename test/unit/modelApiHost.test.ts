@@ -2095,7 +2095,7 @@ describe('Model API scheduled prompts (M52)', () => {
   })
 
   it.each(['duplicate', 'different'] as const)(
-    'releases a rejected %s schedule lease without clearing the running generation',
+    'refuses a concurrent %s schedule run before admission without clearing the running generation',
     async (kind) => {
       const firstLease: ResourceLease = {
         register: vi.fn(),
@@ -2149,25 +2149,22 @@ describe('Model API scheduled prompts (M52)', () => {
         await vi.waitFor(() => {
           expect(claim).toHaveBeenCalledTimes(1)
         })
+        // One occurrence at a time holds the lease slot until its turn ends
+        // (the 0.17 schedules/resources merge, 1e5dc24cb): a second run, the
+        // same occurrence or another, is refused before admission or claim.
         const rejected = schedules.run(other.id, other.nextFireAtMs, confirmedRun(other, session))
-        void rejected.catch(() => undefined)
-        await vi.waitFor(() => {
-          expect(claim).toHaveBeenCalledTimes(2)
-        })
+        await expect(rejected).rejects.toThrow(UI_TEXT.scheduleBusy)
+        expect(claim).toHaveBeenCalledOnce()
+        expect(admission).toHaveBeenCalledOnce()
         claims[0]!.resolve(true)
         await running
         await hook.promise
-        claims[1]!.resolve(kind !== 'duplicate')
-        await expect(rejected).rejects.toThrow(
-          kind === 'duplicate' ? UI_TEXT.scheduleAlreadyRun : UI_TEXT.scheduleBusy,
-        )
-        expect(secondLease.complete).toHaveBeenCalledWith(true)
         expect(firstLease.complete).not.toHaveBeenCalled()
         const completed = turnDone()
         release.resolve(true)
         await completed
         expect(firstLease.complete).toHaveBeenCalledExactlyOnceWith(true)
-        expect(secondLease.complete).toHaveBeenCalledExactlyOnceWith(true)
+        expect(secondLease.complete).not.toHaveBeenCalled()
       } finally {
         release.resolve(true)
         await t.host.close()
