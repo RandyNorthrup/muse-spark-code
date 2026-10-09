@@ -1,11 +1,19 @@
 import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { describe, expect, it, onTestFinished } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { CheckRunJournal } from '../../src/core/reporting/checkRuns'
 import { ReportStorage } from '../../src/core/reporting/history'
 import type { CheckRunRecord } from '../../src/core/reporting/sources/types'
 import { reportOptions } from './helpers/reporting/snapshot'
 import { removeFolder } from './helpers/temporaryFolders'
+
+// Report storage's own-process identity probe is a bounded OS command; on
+// Windows and macOS it spawns (Linux reads /proc). Its governed admission is
+// proved by spawnGovernance; here it runs directly.
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const { withFixtureCommand } = await import('./helpers/resources/fixtureLaunch')
+  return withFixtureCommand(await original())
+})
 
 const TEMP = path.resolve(import.meta.dirname, '../../temp')
 const COMMIT = 'a'.repeat(40)

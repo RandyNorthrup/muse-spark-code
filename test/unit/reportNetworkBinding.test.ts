@@ -1,9 +1,17 @@
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { reportingResponseCache } from '../../src/runtime/reporting/network'
 import { REPORT_AS_OF } from './helpers/reporting/runtime'
+
+// Report storage's own-process identity probe is a bounded OS command; on
+// Windows and macOS it spawns (Linux reads /proc). Its governed admission is
+// proved by spawnGovernance; here it runs directly.
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const { withFixtureCommand } = await import('./helpers/resources/fixtureLaunch')
+  return withFixtureCommand(await original())
+})
 
 const folders: string[] = []
 afterEach(async () => {

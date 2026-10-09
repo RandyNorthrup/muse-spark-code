@@ -34,6 +34,12 @@ import { removeFolder } from './helpers/temporaryFolders'
 import { readJobSource } from './helpers/jobSource'
 import { fakeResourceLease } from './helpers/resources/fakes'
 
+// The real job helper compiles under the bootstrap runner; only its admission is a fixture.
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const { withFixtureBootstrap } = await import('./helpers/resources/fixtureLaunch')
+  return withFixtureBootstrap(await original())
+})
+
 const IS_WINDOWS = process.platform === 'win32'
 
 const deps = {

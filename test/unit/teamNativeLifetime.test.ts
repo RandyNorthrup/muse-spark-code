@@ -24,6 +24,12 @@ import {
 import { createTeamJournal } from '../../src/host/team/teamJournal'
 import { createWindowAuthority, createWindowIdentity } from '../../src/host/team/windowIdentity'
 
+// The real job helper compiles under the bootstrap runner; only its admission is a fixture.
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const { withFixtureBootstrap } = await import('./helpers/resources/fixtureLaunch')
+  return withFixtureBootstrap(await original())
+})
+
 const directories: string[] = []
 const stops: (() => Promise<unknown>)[] = []
 const native: { driver: TeamProcessDriver | undefined; directory: string } = {
