@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { makePrivateFolder, makerTempRoot } from './helpers/makerTemp'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runRuntimeMaker } from '../../src/runtime/maker/entry'
@@ -21,7 +21,7 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
 async function fixture() {
-  const root = await mkdtemp(path.join(tmpdir(), 'maker-stop-'))
+  const root = await mkdtemp(path.join(makerTempRoot(), 'maker-stop-'))
   roots.push(root)
   const dataDirectory = path.join(root, 'data')
   const directory = path.join(dataDirectory, 'maker')
@@ -127,6 +127,8 @@ describe('independent runtime Stop', () => {
   })
   it('reaches lease owners even if the machine registry is corrupt', async () => {
     const f = await fixture()
+    // The Windows helper writes its script into the folder, then makes it private.
+    await mkdir(path.join(f.directory, 'leases'), { mode: 0o700 })
     const lease = await makerLeaseDeps(path.join(f.directory, 'leases'))
     const stopped = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
     const claim = await claimHardwareLease(lease, 'port:test-owner', 'test', stopped)
@@ -190,6 +192,8 @@ describe('independent runtime Stop', () => {
   it('dead owner with an absent endpoint is stale and remains untouched without a false Stop alarm', async () => {
     const f = await fixture()
     const leaseDirectory = path.join(f.directory, 'leases')
+    // Private on every host: this case is about the dead owner, not the folder ACL.
+    await makePrivateFolder(leaseDirectory)
     const resource = 'port:crashed'
     const directory = path.join(
       leaseDirectory,

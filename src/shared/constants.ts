@@ -258,6 +258,11 @@ export const MAKER_PRESENCE_POLICY = '/usr/share/polkit-1/actions/org.muse-spark
 export const MAKER_COMPANION_PORT_FIRST = 47_830
 export const MAKER_COMPANION_PORT_END = 47_840
 export const RUNTIME_MAKER_COMPANION_REGISTRY = 'muse-spark-maker-companions'
+// A lease's POSIX Stop socket path: macOS caps sun_path at 104 bytes with its
+// NUL (Linux 108), so the shorter cap holds on both. macOS's data folder alone
+// is about 70 bytes, so the socket is named by the lease id's first characters.
+export const MAKER_LEASE_SOCKET_PATH_BYTES = 103
+export const MAKER_LEASE_SOCKET_NAME_CHARS = 8
 export const RUNTIME_MAKER_MAX_PORT = 65_535
 export const RUNTIME_MAKER_TIMEOUT_MS = 15_000
 export const RUNTIME_MAKER_APPROVAL_MS = 60_000
@@ -1548,7 +1553,7 @@ export const REVIEW_FINDING_TEXT_MAX_CHARS = 4000
 export const REVIEW_FINDING_PATH_MAX_CHARS = 1024
 // The block as the review prompt shows it to the model (English, as all
 // model text is), and what it holds when the review found nothing.
-export const REVIEW_FINDINGS_EXAMPLE = JSON.stringify({
+export const REVIEW_FINDINGS_EXAMPLE = /* @__PURE__ */ JSON.stringify({
   findings: [
     {
       file: 'src/example.ts',
@@ -1559,7 +1564,7 @@ export const REVIEW_FINDINGS_EXAMPLE = JSON.stringify({
     },
   ],
 })
-export const REVIEW_FINDINGS_EMPTY = JSON.stringify({ findings: [] })
+export const REVIEW_FINDINGS_EMPTY = /* @__PURE__ */ JSON.stringify({ findings: [] })
 // The review pane reads at most this many edits' patches, and stops adding
 // files once this many diff lines are listed.
 export const REVIEW_PANE_MAX_EDITS = 200
@@ -2079,14 +2084,16 @@ export const TAB_MODEL_TEXT = {
 
 // An M91 agent handler's tools (PLAN.md D70, lane H): read, grep, list and
 // code intelligence. No writes, no shell, no web; rename is not offered.
-export const HOOK_MODEL_READ_TOOLS: ReadonlySet<string> = new Set([
-  MODEL_API_TOOLS.readFile,
-  MODEL_API_TOOLS.search,
-  MODEL_API_TOOLS.listFiles,
-  ...Object.entries(CODE_INTEL_TOOLS)
-    .filter(([tool]) => tool !== 'renameSymbol')
-    .map(([, name]) => name),
-])
+// Pure (PLAN §8): a bundle that never reads it drops it and the tool tables.
+export const HOOK_MODEL_READ_TOOLS: ReadonlySet<string> = /* @__PURE__ */ (() =>
+  new Set([
+    MODEL_API_TOOLS.readFile,
+    MODEL_API_TOOLS.search,
+    MODEL_API_TOOLS.listFiles,
+    ...Object.entries(CODE_INTEL_TOOLS)
+      .filter(([tool]) => tool !== 'renameSymbol')
+      .map(([, name]) => name),
+  ]))()
 // --- Web fetch (M69, PLAN.md D49; the network-safety design of M44b) ---
 //
 // The same tool on the `ide` session server for Muse Code, whose own
@@ -2415,13 +2422,14 @@ export const AGENT_SOURCE_LABELS: Readonly<Record<AgentSource, string>> = {
 export const BUILTIN_AGENT_EXPLORE_ID = 'explore'
 export const BUILTIN_AGENT_SECOND_OPINION_ID = 'second-opinion'
 export const SECOND_OPINION_AGENT_EFFORT: EffortLevel = 'high'
+// Pure (PLAN §8): a bundle that never reads it drops it and MODEL_API_TOOLS.
 /** The read-only tools Explore may use; the session's own set narrows them further. */
-export const EXPLORE_AGENT_TOOLS: readonly string[] = [
+export const EXPLORE_AGENT_TOOLS: readonly string[] = /* @__PURE__ */ (() => [
   MODEL_API_TOOLS.readFile,
   MODEL_API_TOOLS.search,
   MODEL_API_TOOLS.listFiles,
   MODEL_API_TOOLS.readSkill,
-]
+])()
 // Import from Claude Code, Codex and Cursor (M83, PLAN.md D49): the other
 // agents' MCP servers, hooks, custom agents, slash commands and rules files,
 // converted to Muse Code's shapes. Where each tool keeps them is its own
@@ -3032,7 +3040,7 @@ export const MEMORY_LIST_MAX_NOTES = 500
 export const MEMORY_LIST_MAX_DEPTH = 8
 // An index line's hook, cut to this many characters.
 export const MEMORY_HOOK_MAX_CHARS = 120
-export const MEMORY_MARKDOWN_ESCAPE = String.fromCodePoint(92)
+export const MEMORY_MARKDOWN_ESCAPE = /* @__PURE__ */ String.fromCodePoint(92)
 export const MEMORY_INDEX_MAX_LINES = 200
 export const MEMORY_INDEX_MAX_BYTES = 32 * 1024
 export const MEMORY_TRUNCATED_MARKER = '[MEMORY.md truncated]'
@@ -3870,7 +3878,9 @@ export const VERIFY_TOOLS = {
   /** The extension's automatic step after a round of edits (a row, never a model call). */
   verifyEdits: 'verify_edits',
 } as const
-export const VERIFY_ROW_TOOLS: ReadonlySet<string> = new Set(Object.values(VERIFY_TOOLS))
+export const VERIFY_ROW_TOOLS: ReadonlySet<string> = /* @__PURE__ */ new Set(
+  /* @__PURE__ */ Object.values(VERIFY_TOOLS),
+)
 // The session-rule key of the verify loop's commands (checks, run_checks,
 // then_run): their "Always allow in this session" is theirs alone and never
 // answers for the model's own shell calls, nor the shell's for them (PR #54,

@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, rm, writeFile, readFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
-import { tmpdir } from 'node:os'
+import { makePrivateFolder, makerTempRoot } from './helpers/makerTemp'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createRuntimeMakerService } from '../../src/runtime/maker/service'
 import { parseMakerCommand } from '../../src/runtime/maker/commandArgs'
@@ -22,7 +22,7 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
 async function commands(isTrusted = true, isInteractive = true, lan?: MakerLanPolicy) {
-  const root = await mkdtemp(path.join(tmpdir(), 'maker-commands-'))
+  const root = await mkdtemp(path.join(makerTempRoot(), 'maker-commands-'))
   roots.push(root)
   const workspace = path.join(root, 'workspace')
   await mkdir(workspace)
@@ -46,6 +46,8 @@ async function commands(isTrusted = true, isInteractive = true, lan?: MakerLanPo
       packageRoot: path.resolve('.'),
     },
   })
+  // A host's inherited folder ACL is not under test: the lease folder is private everywhere.
+  await makePrivateFolder(path.join(root, 'data', 'maker', 'leases'))
   const distDirectory = path.join(root, 'dist')
   await mkdir(path.join(distDirectory, 'webview', 'chunks'), { recursive: true })
   await writeFile(path.join(distDirectory, 'webview', 'main.js'), 'export {}')

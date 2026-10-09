@@ -6,19 +6,12 @@ import { listSerialPorts } from '../../core/maker/serial/listPorts'
 import { startSerialProcess } from '../../core/maker/serial/process'
 import { serialAdapterCommand } from '../../core/maker/serial/adapters'
 import { prepareWindowsSerialHelper } from '../../core/maker/serial/windowsHelper'
-import {
-  withNativeLeaseMutex,
-  listenNativeOwnerPipe,
-  type NativeLeaseHelper,
-} from '../../core/maker/serial/nativeLease'
+import { listenNativeOwnerPipe, type NativeLeaseHelper } from '../../core/maker/serial/nativeLease'
 import type { MakerHost } from '../../core/maker/ports'
-import {
-  processStartTime,
-  stopAllHardwareLeases,
-  type LeaseDependencies,
-} from '../../core/maker/lease'
+import { stopAllHardwareLeases, type LeaseDependencies } from '../../core/maker/lease'
 import { killTree, sweepExitedTree, runProgram, windowsPowerShell } from '../../host/processTree'
 import { withoutCredentials, withoutKeyringRoutes } from '../credentialVariables'
+import { runtimeLeaseIdentity } from './stop'
 import {
   RUNTIME_MAKER_APPROVAL_MS,
   RUNTIME_MAKER_CHUNK_BYTES,
@@ -100,9 +93,8 @@ export function nativeSerial(deps: NativeSerialDeps) {
     platform: deps.platform,
     timeoutMs: RUNTIME_MAKER_TIMEOUT_MS,
     maxRecordBytes: RUNTIME_MAKER_MAX_BYTES,
-    processStartTime,
-    exclusive: async (file, operation) =>
-      await withNativeLeaseMutex(await leaseHelper(), file, operation),
+    // Atomic publication never takes the legacy advisory mutex, so none is wired.
+    ...runtimeLeaseIdentity(deps.platform, env),
     ...(deps.platform === 'win32' && {
       listenOwnerPipe: async (endpoint: string, id: string, stop: () => Promise<void>) =>
         await listenNativeOwnerPipe(await leaseHelper(), endpoint, id, stop),

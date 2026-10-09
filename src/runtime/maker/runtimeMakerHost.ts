@@ -91,10 +91,10 @@ export class RuntimeMakerHost implements MakerHost {
   private ports: readonly Extract<MakerTarget, { kind: 'serial' }>[] = []
   /**
    * Document epoch (PLAN M103 FIXM103W8): reviews and `auth` are valid only in
-   * the epoch that made them. Public so the companion can stamp each review
-   * upload with the epoch it started in; only `newDocument` assigns it.
+   * the epoch that made them. Private, so `newDocument` is its only writer
+   * (FIXM103W10): no consumer can restore an old epoch for a stale answer.
    */
-  epoch = 0
+  #epoch = 0
   readonly secrets: MakerSecrets
   readonly serialProvider?: MakerSerialProvider
   private constructor(
@@ -130,6 +130,10 @@ export class RuntimeMakerHost implements MakerHost {
       throw new Error(
         result === 'denied' ? UI_TEXT.makerPresenceDenied : UI_TEXT.makerPresenceUnavailable,
       )
+  }
+  /** Read-only: the companion stamps each review upload with the epoch it started in. */
+  get epoch(): number {
+    return this.#epoch
   }
   isTrusted(): boolean {
     return this.deps.trusted()
@@ -226,7 +230,7 @@ export class RuntimeMakerHost implements MakerHost {
       this.emit({ v: 1, type: 'makerApproval', request })
       if (this.deps.ask !== undefined) {
         // The editor prompt shows this epoch's request; its answer cannot review a new document.
-        const epoch = this.epoch
+        const epoch = this.#epoch
         void this.deps
           .ask(request)
           .then(async (answer) => {
@@ -235,7 +239,7 @@ export class RuntimeMakerHost implements MakerHost {
             const grant =
               parsed?.decision === 'allow_once' &&
               parsed.id === request.id &&
-              epoch === this.epoch &&
+              epoch === this.#epoch &&
               didReview({
                 v: 1,
                 type: 'makerPayloadReviewed',
@@ -278,7 +282,7 @@ export class RuntimeMakerHost implements MakerHost {
     const held = this.pending.get(answer.id)
     if (
       held === undefined ||
-      (held.auth?.epoch === this.epoch && performance.now() < held.auth.expires) ||
+      (held.auth?.epoch === this.#epoch && performance.now() < held.auth.expires) ||
       answer.digest !== held.request.digest ||
       !isSameMakerTarget(answer.target, held.request.target) ||
       Date.now() >= held.request.expiresAt
@@ -307,7 +311,7 @@ export class RuntimeMakerHost implements MakerHost {
       actuate: UI_TEXT.makerPresenceActuate,
       stop: UI_TEXT.makerPresenceActuate,
     }
-    const auth: NonNullable<typeof held.auth> = { epoch: this.epoch, expires: Infinity }
+    const auth: NonNullable<typeof held.auth> = { epoch: this.#epoch, expires: Infinity }
     held.auth = auth
     let isApproved = false
     try {
@@ -323,7 +327,7 @@ export class RuntimeMakerHost implements MakerHost {
       if (
         isApproved &&
         held.auth === auth &&
-        auth.epoch === this.epoch &&
+        auth.epoch === this.#epoch &&
         this.pending.get(answer.id) === held &&
         this.isTrusted() &&
         this.hardwareEnabled() &&
@@ -342,7 +346,7 @@ export class RuntimeMakerHost implements MakerHost {
    * clears its review on any frame but a matching review.
    */
   newDocument(): void {
-    this.epoch += 1
+    this.#epoch += 1
     for (const { review } of this.pending.values()) review({ v: 1, type: 'makerReady' })
   }
   /** The surface's payload review reaches only the pending request's own MakerApproval check. */
@@ -358,7 +362,7 @@ export class RuntimeMakerHost implements MakerHost {
     let isAllowed = parsed.success
     // Transition `answer`: allow needs this epoch's live grant; the engine still needs this epoch's review.
     if (parsed.success && parsed.data.decision === 'allow_once') {
-      const minted = held.auth?.epoch === this.epoch ? held.auth : undefined
+      const minted = held.auth?.epoch === this.#epoch ? held.auth : undefined
       const given = Buffer.from(grant ?? '')
       const expected = Buffer.from(minted?.value ?? '')
       isAllowed =

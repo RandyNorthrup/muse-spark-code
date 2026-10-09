@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { makerTempRoot } from './helpers/makerTemp'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { askMakerPermission } from '../../src/acp/maker'
@@ -17,7 +17,7 @@ afterEach(async () => {
   vi.restoreAllMocks()
 })
 async function fixture(isHome = false, env: NodeJS.ProcessEnv = {}) {
-  const root = await mkdtemp(path.join(tmpdir(), 'maker-acp-'))
+  const root = await mkdtemp(path.join(makerTempRoot(), 'maker-acp-'))
   cleanups.push(() => rm(root, { recursive: true, force: true }))
   const workspace = isHome ? root : path.join(root, 'workspace')
   await mkdir(workspace, { recursive: true })

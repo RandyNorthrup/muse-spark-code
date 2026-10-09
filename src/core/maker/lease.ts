@@ -17,7 +17,12 @@ import * as z from 'zod/mini'
 import {
   CHECKPOINT_JOURNAL_FILE_MODE as OWNER_FILE_MODE,
   CHECKPOINT_STORAGE_MODE as OWNER_DIRECTORY_MODE,
+  MAKER_LEASE_SOCKET_NAME_CHARS,
+  MAKER_LEASE_SOCKET_PATH_BYTES,
+  WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
+import type { RunProgram } from '../../host/processTree'
+import { powerShellQuoted } from '../shellQuote'
 import type { SerialIdentity } from './serial/identity'
 
 const nonEmptyString = z.string().check(z.minLength(1))
@@ -196,10 +201,11 @@ function recordPath(
   )
 }
 
+// A POSIX name from the id's random start fits the socket path cap; a clash fails the bind.
 function leaseEndpoint(deps: LeaseDependencies, id: string): string {
   return deps.platform === 'win32'
     ? String.raw`\\.\pipe\MuseSparkSerial-${id}`
-    : path.join(deps.directory, `${id}.sock`)
+    : path.join(deps.directory, `${id.slice(0, MAKER_LEASE_SOCKET_NAME_CHARS)}.sock`)
 }
 
 function isBoundRecord(
@@ -409,6 +415,10 @@ export async function claimHardwareLease(
     startedAt,
     endpoint: leaseEndpoint(deps, id),
   })
+  // Refuse before any file exists: the OS would refuse the bind (EINVAL on macOS).
+  // A Windows pipe name is 61 bytes, so the one cap holds there too.
+  if (Buffer.byteLength(record.endpoint) > MAKER_LEASE_SOCKET_PATH_BYTES)
+    throw new Error('lease-endpoint-too-long')
   const file = recordPath(directory, record)
   const stopFile = recordPath(directory, record, 'stop')
   const stopTemporary = `${stopFile}.preparing`
@@ -545,19 +555,82 @@ export async function didStopHardwareLease(
   return result.stopped
 }
 
-/** Exact OS start identity for a pid: the Linux starttime field. */
-export async function processStartTime(pid: number): Promise<string | undefined> {
-  if (process.platform !== 'linux') throw new Error('lease-start-identity-unsupported')
-  try {
-    const stat = await readFile(`/proc/${String(pid)}/stat`, 'utf8')
-    const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ')
-    if (fields[0] === 'Z') return undefined
-    const start = fields[19]
-    if (start === undefined || !/^\d+$/.test(start)) throw new Error('lease-stat-unparseable')
-    return start
-  } catch (error: unknown) {
-    if (hasCode(error, 'ENOENT')) return undefined
-    throw error
+/** The platform's process queries: a bounded runner and, on Windows, its PowerShell. */
+export interface LeaseIdentityQuery {
+  readonly platform: NodeJS.Platform
+  readonly run: RunProgram
+  /** `windowsPowerShell(SystemRoot)`; without it every Windows answer is unknown. */
+  readonly powershell?: { readonly file: string; readonly env: NodeJS.ProcessEnv } | undefined
+}
+
+// ps state and lstart; the C locale and UTC make one process print one fixed string.
+const PS_START = /^(\S+)\s+(\w{3} \w{3} [ \d]\d \d\d:\d\d:\d\d \d{4})$/
+
+/**
+ * Holder identity and, on Windows, the private-folder check (PLAN M103
+ * REDM103P). `processStartTime`: undefined proves the pid absent or a zombie;
+ * any doubt throws. Linux: the /proc starttime ticks. macOS: ps lstart, to
+ * the second; a pid is not reused within its start second. Windows: the
+ * creation FILETIME, as the process tree's checked kill compares it.
+ * `isOwnerDirectory`: the current user owns the folder and only that user,
+ * SYSTEM and Administrators are allowed any access; it never repairs one.
+ */
+export function leaseIdentity(
+  query: LeaseIdentityQuery,
+): Pick<LeaseDependencies, 'processStartTime' | 'isOwnerDirectory'> {
+  const powershell = async (script: string) => {
+    if (query.powershell === undefined) throw new Error('lease-identity-unavailable')
+    const { file, env } = query.powershell
+    const output = await query.run(file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], env)
+    return output.trim()
+  }
+  return {
+    processStartTime: async (pid) => {
+      let start: string | undefined
+      if (query.platform === 'win32') {
+        start = await powershell(
+          `try{[Diagnostics.Process]::GetProcessById(${String(pid)}).StartTime.ToFileTimeUtc()}catch [ArgumentException]{'absent'}`,
+        )
+        if (start === 'absent') return
+        start = /^\d+$/.exec(start)?.[0]
+      } else if (query.platform === 'linux') {
+        let stat: string
+        try {
+          stat = await readFile(`/proc/${String(pid)}/stat`, 'utf8')
+        } catch (error: unknown) {
+          if (hasCode(error, 'ENOENT')) return
+          throw error
+        }
+        const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ')
+        if (fields[0] === 'Z') return
+        start = /^\d+$/.exec(fields[19] ?? '')?.[0]
+      } else {
+        let output: string
+        try {
+          output = await query.run('/bin/ps', ['-o', 'stat=,lstart=', '-p', String(pid)], {
+            LC_ALL: 'C',
+            TZ: 'UTC',
+          })
+        } catch (error: unknown) {
+          // ps also fails for a missing pid; only the kernel's ESRCH proves absence.
+          try {
+            process.kill(pid, 0)
+          } catch (error_: unknown) {
+            if (hasCode(error_, 'ESRCH')) return
+          }
+          throw error
+        }
+        const [, state, lstart] = PS_START.exec(output.trim()) ?? []
+        if (state?.startsWith('Z') === true) return
+        start = lstart
+      }
+      if (start === undefined) throw new Error('lease-stat-unparseable')
+      return start
+    },
+    isOwnerDirectory: async (directory) =>
+      (await powershell(
+        `$u=[Security.Principal.WindowsIdentity]::GetCurrent().User;$t=$u.GetType();$a=[IO.Directory]::GetAccessControl(${powerShellQuoted(directory)});$p=$a.GetOwner($t).Value -eq $u.Value;foreach($r in $a.GetAccessRules(1,1,$t)){if($r.AccessControlType -eq 'Allow' -and $r.IdentityReference.Value -notin @($u.Value,'S-1-5-18','S-1-5-32-544')){$p=0}};"$p"`,
+      )) === 'True',
   }
 }
 

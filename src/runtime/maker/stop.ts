@@ -5,13 +5,27 @@ import { FileMachineStorage, MachineRegistry, type MakerLanPolicy } from '../../
 import { MachineHttp } from '../../core/maker/machines/http'
 import {
   didStopHardwareLease,
-  processStartTime,
+  leaseIdentity,
   stopAllHardwareLeases,
   type LeaseDependencies,
 } from '../../core/maker/lease'
 import type { MakerSecrets } from '../../core/maker/ports'
+import { runProgram, windowsPowerShell } from '../../host/processTree'
 import { RUNTIME_MAKER_TIMEOUT_MS, RUNTIME_MAKER_MAX_BYTES, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+
+/** The runtime's lease identity: Windows needs SystemRoot's PowerShell, or every answer is unknown. */
+export function runtimeLeaseIdentity(platform: NodeJS.Platform, env: NodeJS.ProcessEnv) {
+  const systemRoot = env['SystemRoot']
+  return leaseIdentity({
+    platform,
+    run: runProgram,
+    powershell:
+      platform === 'win32' && systemRoot !== undefined
+        ? windowsPowerShell(systemRoot, env)
+        : undefined,
+  })
+}
 
 export interface RuntimeStopDeps {
   readonly dataDirectory: string
@@ -43,10 +57,7 @@ export async function stopRuntimeMachines(
     platform: deps.platform,
     timeoutMs: RUNTIME_MAKER_TIMEOUT_MS,
     maxRecordBytes: RUNTIME_MAKER_MAX_BYTES,
-    processStartTime,
-    exclusive: () => {
-      throw new Error('stop-never-locks')
-    },
+    ...runtimeLeaseIdentity(deps.platform, process.env),
   }
   const registry = new MachineRegistry(new FileMachineStorage(root), deps.secrets, deps.lan)
   const results = await Promise.allSettled([

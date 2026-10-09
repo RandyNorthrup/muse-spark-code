@@ -1,6 +1,6 @@
 import { performance } from 'node:perf_hooks'
 import { mkdtemp, mkdir, readFile, rm, link, symlink, rename } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { makerTempRoot } from './helpers/makerTemp'
 import path from 'node:path'
 import { randomUUID, createHash } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -27,7 +27,7 @@ function request(): ApprovalRequest {
   }
 }
 async function fixture(overrides: Partial<Parameters<typeof RuntimeMakerHost.create>[0]> = {}) {
-  const directory = await mkdtemp(path.join(tmpdir(), 'maker-host-'))
+  const directory = await mkdtemp(path.join(makerTempRoot(), 'maker-host-'))
   directories.push(directory)
   const workspace = path.join(directory, 'workspace')
   await mkdir(workspace)
@@ -423,6 +423,31 @@ describe('runtime maker host', () => {
       const engine = new MakerApproval(snapshot, () => host.hardwareEnabled())
       const pending = host.confirm(snapshot, (raw) => engine.review(raw))
       host.newDocument()
+      asked.resolve({
+        id: snapshot.id,
+        digest: snapshot.digest,
+        target: snapshot.target,
+        decision: 'allow_once',
+      })
+      expect(await pending).toMatchObject({ id: snapshot.id, decision: 'reject_once' })
+      expect(engine.answer(await pending)).toBeUndefined()
+      expect(deps.presence.check).toHaveBeenCalledTimes(1)
+    })
+    it('RVM103W4 P3 no consumer can restore an old epoch; only newDocument advances it', async () => {
+      const asked = Promise.withResolvers<unknown>()
+      const { host, deps } = await fixture({ ask: () => asked.promise })
+      await host.setHardware(true, 'bench')
+      const snapshot = { ...request(), expiresAt: Date.now() + 30_000 }
+      const engine = new MakerApproval(snapshot, () => host.hardwareEnabled())
+      const pending = host.confirm(snapshot, (raw) => engine.review(raw))
+      const saved = host.epoch
+      host.newDocument()
+      expect(host.epoch).toBe(saved + 1)
+      expect(() => {
+        // @ts-expect-error -- RVM103W4 P3: the epoch is read-only; this restore must not compile.
+        host.epoch = saved
+      }).toThrow(TypeError)
+      expect(host.epoch).toBe(saved + 1)
       asked.resolve({
         id: snapshot.id,
         digest: snapshot.digest,

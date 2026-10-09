@@ -4,7 +4,7 @@ import { createHmac, randomUUID } from 'node:crypto'
 import { createConnection, type Socket } from 'node:net'
 import { request } from 'node:http'
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { makePrivateFolder, makerTempRoot } from './helpers/makerTemp'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RuntimeMakerHost } from '../../src/runtime/maker/runtimeMakerHost'
@@ -35,7 +35,7 @@ afterEach(async () => {
   for (const cleanup of cleanups.splice(0).toReversed()) await cleanup()
 })
 async function companion(bind?: string) {
-  const directory = await mkdtemp(path.join(tmpdir(), 'maker-transport-'))
+  const directory = await mkdtemp(path.join(makerTempRoot(), 'maker-transport-'))
   cleanups.push(() => rm(directory, { recursive: true, force: true }))
   const workspace = path.join(directory, 'repo')
   await mkdir(workspace)
@@ -112,7 +112,7 @@ async function session(server: { readonly url: string; readonly launch: string }
 }
 /** The real service behind a companion; `launched` opens a document and returns its headers. */
 async function servedCompanion() {
-  const directory = await mkdtemp(path.join(tmpdir(), 'maker-review-'))
+  const directory = await mkdtemp(path.join(makerTempRoot(), 'maker-review-'))
   cleanups.push(() => rm(directory, { recursive: true, force: true }))
   const workspace = path.join(directory, 'repo')
   await mkdir(workspace)
@@ -125,8 +125,15 @@ async function servedCompanion() {
     presence: { check: vi.fn().mockResolvedValue('approved') },
     interactive: () => true,
     secrets,
-    native: { platform: process.platform, env: {}, packageRoot: path.resolve('.') },
+    // Windows lease identity runs SystemRoot's PowerShell; without it the claim fails closed.
+    native: {
+      platform: process.platform,
+      env: { PATH: process.env['PATH'], SystemRoot: process.env['SystemRoot'] },
+      packageRoot: path.resolve('.'),
+    },
   })
+  // A host's inherited folder ACL is not under test: the lease folder is private everywhere.
+  await makePrivateFolder(path.join(directory, 'data', 'maker', 'leases'))
   // Injected port probe: real discovery needs PowerShell (Windows) or ioreg (macOS).
   vi.spyOn(service.serial, 'ports').mockResolvedValue([])
   cleanups.push(() => service.close())

@@ -23,7 +23,6 @@ import {
   claimHardwareLease as claimLease,
   serialLeaseResource,
   didStopHardwareLease,
-  processStartTime,
   stopAllHardwareLeases,
   stopHardwareLease,
   type HardwareLeaseRecord,
@@ -35,6 +34,7 @@ import {
   isTestProcessAlive,
 } from './helpers/makerSerial'
 import { startSerialProcess } from '../../src/core/maker/serial/process'
+import { MAKER_LEASE_SOCKET_NAME_CHARS } from '../../src/shared/constants'
 import {
   listenNativeOwnerPipe,
   withNativeLeaseMutex,
@@ -759,7 +759,7 @@ describe('hardware lease', () => {
         endpoint:
           deps.platform === 'win32'
             ? String.raw`\\.\pipe\MuseSparkSerial-${id}`
-            : path.join(deps.directory, `${id}.sock`),
+            : path.join(deps.directory, `${id.slice(0, MAKER_LEASE_SOCKET_NAME_CHARS)}.sock`),
       }
       const orphanFile = generationFile(deps.directory, orphan).replace('claim-v1.', 'stop-v1.')
       await writeFile(orphanFile, JSON.stringify(orphan))
@@ -1306,20 +1306,10 @@ setInterval(() => {}, 100);`
   })
 })
 
-describe('hardware lease stop-all and start identity', () => {
+// Start identity on every platform: makerLeaseIdentity.test.ts (FIXM103W10).
+describe('hardware lease stop-all', () => {
   it('stops nothing and throws nothing over an empty lease directory', async () => {
     const deps = await fixture()
     await expect(stopAllHardwareLeases(deps)).resolves.toBeUndefined()
-  })
-
-  it('reads the current process start identity from /proc on Linux', async () => {
-    if (process.platform !== 'linux') return
-    const start = await processStartTime(process.pid)
-    expect(start).toMatch(/^\d+$/)
-  })
-
-  it('reports a missing pid as absent on Linux', async () => {
-    if (process.platform !== 'linux') return
-    await expect(processStartTime(2 ** 31 - 1)).resolves.toBeUndefined()
   })
 })

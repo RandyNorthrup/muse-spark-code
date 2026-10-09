@@ -1,5 +1,5 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { makerTempRoot } from './helpers/makerTemp'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runRuntimeMaker } from '../../src/runtime/maker/entry'
@@ -16,7 +16,7 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
 async function fixture() {
-  const root = await mkdtemp(path.join(tmpdir(), 'maker-presence-'))
+  const root = await mkdtemp(path.join(makerTempRoot(), 'maker-presence-'))
   roots.push(root)
   const workspace = path.join(root, 'workspace')
   await mkdir(workspace)
