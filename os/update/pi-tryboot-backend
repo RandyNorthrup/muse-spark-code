@@ -1,20 +1,36 @@
 #!/bin/sh
 # RAUC custom bootloader backend for Raspberry Pi A/B tryboot (OS2, M110).
 #
-# It owns the `autoboot.txt` contract on the boot FAT: `[all]` carries the
-# stable selection (`tryboot_a_b=1`, `boot_partition=`) and this lane's trial
-# bookkeeping; the `[tryboot]` section names the one-shot trial partition.
-# A crash or reset during a trial falls back to the stable slot by itself:
-# that one-shot property belongs to the Pi firmware, which consumes the
-# tryboot request at boot. Requesting the tryboot at reboot time (the
-# firmware's reboot-reason handshake) is the update agent's job and is
-# qualified on hardware outside the sandbox (Q-M110-OS2-RAUC); this backend
-# never reboots.
+# RAUC 1.13 drives this script as its `bootloader=custom` backend
+# (bootchooser.c `boot_custom_*`): the only calls RAUC core ever makes are
+#   get-current, get-primary, set-primary <A|B>,
+#   get-state <A|B>, set-state <A|B> <good|bad>.
+# `get-trial` is this lane's extension for the mark-good path; RAUC ignores it.
+# In particular RAUC never sends `set-state <slot> active`: that verb belonged
+# to the previous design and is refused here (BAD_STATE).
 #
-# Slot names are RAUC bootnames: partition 1 is A, partition 2 is B, matching
-# OS1's repart order (`muse-pi-boot-a` first) and OS1's initial file, which
-# selects A with B as the dormant `[tryboot]` standby:
-#   [all] tryboot_a_b=1 boot_partition=1 [tryboot] boot_partition=2
+# One-shot trial semantics (the lead's design; the full RAUC call, backend
+# action and autoboot.txt state table is in
+# docs/certification/m110-os2-image-update.md):
+#  - set-primary X ARMS a one-shot tryboot trial of X. The stable [all]
+#    selection is never changed here. (RAUC install.c calls this after writing
+#    the inactive slot when activation is on; mark.c `mark-active` lands here
+#    too. Arming the already-stable slot clears any trial instead.)
+#  - set-state X good, called by mark-good only after /readyz passes while
+#    running X, PROMOTES X to stable. Any other good marking only records, so
+#    an install-time marking can never promote an untried slot.
+#  - set-state X bad records bad; a pending trial of X is cleared and the
+#    untouched stable slot boots next by itself.
+#  - get-primary prints the stable selection, never the trial target.
+#  - get-current prints the firmware's booted slot from the device tree
+#    (MUSE_PI_DEVICE_TREE, default /proc/device-tree), never a mount.
+#
+# Controller partition (OS2-OS1-CONTROLLER handoff in the certification):
+# autoboot.txt lives on a dedicated small controller FAT (label muse-pi-ctl,
+# mounted at BOOT_DIR, default /boot/firmware) that is NOT a RAUC slot.
+# boot-a/boot-b are separate FATs and the only boot slots. This script does
+# not check the mount source: the recipe must mount the controller label at
+# BOOT_DIR, and the tests use that post-handoff layout.
 #
 # Accepted file vocabulary (anything else is refused, never guessed):
 #   sections [all] and [tryboot] only;
@@ -24,28 +40,22 @@
 # No comments, no carriage returns, no padded whitespace, no duplicate keys,
 # no missing required key. Unknown content fails every command (fail closed).
 #
-# RAUC interface: get-primary, set-primary <A|B>, get-state <A|B>,
-# set-state <A|B> <good|bad|active>, get-current; plus the `get-trial`
-# extension (prints A|B|none) that the mark-good path uses. RAUC only calls
-# the first five; the extra command is ignored by RAUC, not by the tests.
+# Device-tree contract (qualification gap Q-M110-OS2-DT, see certification):
+# `$MUSE_PI_DEVICE_TREE/chosen/bootloader/partition` holds the firmware's
+# booted-partition selector, 1 (A) or 2 (B), in autoboot.txt numbering.
+# `$MUSE_PI_DEVICE_TREE/chosen/bootloader/tryboot`, when present, holds 0/1
+# and is validated for well-formedness only; it never changes the answer.
+# A missing or unreadable partition file refuses PI_TRYBOOT_NO_CURRENT.
+# If hardware shows raw GPT numbers instead of selector values, the mapping
+# below (not the callers) changes, with the swap test updated to match.
 #
-# State rules:
-#  - get-primary prints the stable [all] selection, never the trial target.
-#  - set-primary <S> switches stably now: [all]=S, [tryboot]=other, trial off.
-#  - set-state <S> active arms a one-shot trial: S must be the standby slot;
-#    [tryboot]=S and the trial marker is set. The stable selection is kept.
-#  - set-state <S> good records good; it promotes ([all]=S, trial off) only
-#    when a trial targets S and this boot runs S (the mark-good context).
-#    Any other good marking only records, so an install-time marking can
-#    never promote an untried slot.
-#  - set-state <S> bad records bad; a targeted trial is disarmed and the
-#    machine falls back to the untouched stable selection by itself.
-#  - get-state prints the record, defaulting to good for the running primary
-#    and bad for a slot with no record (an unbooted slot is never called
-#    good). Whether RAUC core accepts a bad standby as an install target is
-#    qualified with real slots outside the sandbox (Q-M110-OS2-RAUC).
-#  - get-current reads MUSE_PI_CURRENT_SLOT (A|B) in tests, else the
-#    partition number behind MUSE_PI_BOOT_DIR via findmnt.
+# Concurrency: every read-modify-write (set-primary, set-state) holds one
+# exclusive flock on MUSE_PI_LOCK_FILE (default
+# /run/muse-update/pi-tryboot.lock; the recipe creates /run/muse-update/).
+# The temp file is created only after the lock is held, so any other temp
+# file seen during the write predates this transaction and is a crash
+# leftover: only the writer's own temp file survives cleanup. Readers take no
+# lock (rename is the commit point; temp files are never read back).
 #
 # Writes go to a temp file in the same directory, are fsynced with
 # `sync <file>`, renamed over autoboot.txt, and the directory is synced.
@@ -53,15 +63,18 @@
 # power loss; the temp name (`autoboot.txt.muse-tmp-*`) is never read back,
 # so a torn write leaves either the previous complete file or a stray temp
 # file, never a half-parsed selection. A stray temp file is removed on the
-# next successful write and reported on stderr.
+# next successful locked write and reported on stderr.
 #
 # Environment: MUSE_PI_BOOT_DIR (default /boot/firmware),
-# MUSE_PI_CURRENT_SLOT (test seam for get-current only).
+# MUSE_PI_DEVICE_TREE (default /proc/device-tree),
+# MUSE_PI_LOCK_FILE (default /run/muse-update/pi-tryboot.lock).
 
 set -u
 
 BOOT_DIR="${MUSE_PI_BOOT_DIR:-/boot/firmware}"
 FILE="$BOOT_DIR/autoboot.txt"
+DT_BASE="${MUSE_PI_DEVICE_TREE:-/proc/device-tree}"
+LOCK_FILE="${MUSE_PI_LOCK_FILE:-/run/muse-update/pi-tryboot.lock}"
 
 err() {
     echo "pi-tryboot-backend: PI_TRYBOOT_$1" >&2
@@ -97,6 +110,29 @@ check_slot() {
         A | B) ;;
         *) err "UNKNOWN_SLOT slot=$1" 2 ;;
     esac
+}
+
+# lock_acquire holds one exclusive flock on LOCK_FILE; every read-modify-write
+# command must hold it across read_state and write_state. Readers take no lock.
+lock_acquire() {
+    lock_dir=${LOCK_FILE%/*}
+    case "$lock_dir" in
+        "" | "$LOCK_FILE") lock_dir="." ;;
+    esac
+    if [ ! -d "$lock_dir" ]; then
+        err "NO_LOCK dir=$lock_dir"
+    fi
+    if ! command -v flock >/dev/null 2>&1; then
+        err "NO_LOCK no-flock"
+    fi
+    # The redirection truncates or creates the lock file; the lock itself is
+    # the flock, not the file contents.
+    exec 9>"$LOCK_FILE" || err "NO_LOCK file=$LOCK_FILE"
+    flock 9 || err "NO_LOCK flock"
+}
+
+lock_release() {
+    exec 9>&- || err "NO_LOCK unlock"
 }
 
 # read_state sets P_ALL, P_TRY, TRIAL, ST_A, ST_B or refuses.
@@ -219,7 +255,10 @@ read_state() {
     fi
 }
 
-# write_state <primary> <tryboot> <trial> <state_a> <state_b>
+# write_state <primary> <tryboot> <trial> <state_a> <state_b>.
+# The caller must hold the lock: the temp file is created after the lock, so
+# any other temp file seen here predates this transaction and is a crash
+# leftover. Only this writer's own temp file survives cleanup.
 write_state() {
     w_all="$1"
     w_try="$2"
@@ -234,7 +273,8 @@ write_state() {
         rm -f "$tmp"
         err "NO_BOOT_DIR write"
     }
-    # Remove strays from a torn earlier write; they are never read back.
+    # Strays seen under the lock are crash leftovers, never a live writer's
+    # file: every live writer creates its temp only while holding this lock.
     for stray in "$FILE".muse-tmp-*; do
         if [ "$stray" != "$tmp" ] && [ -f "$stray" ]; then
             rm -f "$stray"
@@ -252,24 +292,31 @@ write_state() {
     sync "$BOOT_DIR" || err "NO_BOOT_DIR dirsync"
 }
 
+# current_slot prints the firmware's booted slot from the device tree, never
+# from a mount. A missing or unreadable partition record refuses NO_CURRENT;
+# a present-but-malformed tryboot flag refuses MALFORMED.
 current_slot() {
-    if [ -n "${MUSE_PI_CURRENT_SLOT:-}" ]; then
-        case "$MUSE_PI_CURRENT_SLOT" in
-            A | B) echo "$MUSE_PI_CURRENT_SLOT" ;;
-            *) err "MALFORMED MUSE_PI_CURRENT_SLOT=$MUSE_PI_CURRENT_SLOT" ;;
-        esac
-        return
+    part_file="$DT_BASE/chosen/bootloader/partition"
+    try_file="$DT_BASE/chosen/bootloader/tryboot"
+    if [ ! -f "$part_file" ] || [ -L "$part_file" ]; then
+        err "NO_CURRENT partition=$part_file"
     fi
-    if ! command -v findmnt >/dev/null 2>&1; then
-        err "NO_CURRENT no-findmnt"
-    fi
-    src=$(findmnt -n -o SOURCE --target "$BOOT_DIR" 2>/dev/null) || err "NO_CURRENT findmnt"
-    num=$(printf '%s' "$src" | sed 's/^.*[^0-9]\([0-9][0-9]*\)$/\1/')
-    case "$num" in
-        1) echo A ;;
-        2) echo B ;;
-        *) err "NO_CURRENT source=$src" ;;
+    part=$(cat "$part_file" 2>/dev/null) || err "NO_CURRENT read"
+    part=$(printf '%s' "$part" | tr -d ' \t\r\n') || err "NO_CURRENT parse"
+    case "$part" in
+        1) slot="A" ;;
+        2) slot="B" ;;
+        *) err "NO_CURRENT partition=$part" ;;
     esac
+    if [ -f "$try_file" ] && [ ! -L "$try_file" ]; then
+        flag=$(cat "$try_file" 2>/dev/null) || err "NO_CURRENT tryboot-read"
+        flag=$(printf '%s' "$flag" | tr -d ' \t\r\n') || err "NO_CURRENT tryboot-parse"
+        case "$flag" in
+            0 | 1) ;;
+            *) err "MALFORMED tryboot=$flag" ;;
+        esac
+    fi
+    echo "$slot"
 }
 
 cmd="${1:-}"
@@ -290,14 +337,22 @@ case "$cmd" in
         current_slot
         ;;
     set-primary)
+        # RAUC's activation call (install.c after writing the slot; mark.c
+        # mark-active). It ARMS a one-shot trial of the named slot and never
+        # changes the stable selection. Naming the already-stable slot clears
+        # any trial instead: there is nothing to try.
         [ "$#" = "2" ] || err "USAGE set-primary" 2
         check_slot "$2"
+        lock_acquire
         read_state
-        if [ "$2" = "A" ]; then
-            write_state "A" "B" "none" "$ST_A" "$ST_B"
+        if [ "$2" = "$P_ALL" ]; then
+            write_state "$P_ALL" "$(other "$P_ALL")" "none" "$ST_A" "$ST_B"
+        elif [ "$2" = "A" ]; then
+            write_state "$P_ALL" "A" "A" "$ST_A" "$ST_B"
         else
-            write_state "B" "A" "none" "$ST_A" "$ST_B"
+            write_state "$P_ALL" "B" "B" "$ST_A" "$ST_B"
         fi
+        lock_release
         ;;
     get-state)
         [ "$#" = "2" ] || err "USAGE get-state" 2
@@ -309,18 +364,12 @@ case "$cmd" in
         [ "$#" = "3" ] || err "USAGE set-state" 2
         check_slot "$2"
         case "$3" in
-            good | bad | active) ;;
+            good | bad) ;;
             *) err "BAD_STATE state=$3" 2 ;;
         esac
+        lock_acquire
         read_state
-        if [ "$3" = "active" ]; then
-            [ "$2" != "$P_ALL" ] || err "NOT_STANDBY slot=$2"
-            if [ "$2" = "A" ]; then
-                write_state "$P_ALL" "A" "A" "$ST_A" "$ST_B"
-            else
-                write_state "$P_ALL" "B" "B" "$ST_A" "$ST_B"
-            fi
-        elif [ "$3" = "good" ]; then
+        if [ "$3" = "good" ]; then
             if [ "$2" = "A" ]; then n_sa="good"; n_sb="$ST_B"; else n_sa="$ST_A"; n_sb="good"; fi
             # Trial passed while running the trial slot: promote. An unknown
             # current slot never promotes (fail closed); it only records.
@@ -342,6 +391,7 @@ case "$cmd" in
                 write_state "$P_ALL" "$P_TRY" "$TRIAL" "$n_sa" "$n_sb"
             fi
         fi
+        lock_release
         ;;
     *) err "USAGE cmd=$cmd" 2 ;;
 esac
