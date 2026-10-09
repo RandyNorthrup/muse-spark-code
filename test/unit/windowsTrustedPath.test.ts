@@ -58,6 +58,10 @@ async function ownerOnly(directory: string): Promise<void> {
     '*S-1-5-32-544:(OI)(CI)F',
   ])
 }
+async function removeTemporaryDirectory(directory: string): Promise<void> {
+  expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
+  await rm(directory, { recursive: true, force: true })
+}
 const verdicts: boolean[] = []
 const taskVectors = [
   {
@@ -205,8 +209,7 @@ describe('shared Windows trusted-path vectors', () => {
         await windowsTrustedPathVerifier(run, io).verify(leaf, { leafKind: 'file' }),
       ).toMatchObject({ refused: true, component: leaf })
     } finally {
-      expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
-      await rm(directory, { recursive: true, force: true })
+      await removeTemporaryDirectory(directory)
     }
   })
 
@@ -278,8 +281,7 @@ describe('shared Windows trusted-path vectors', () => {
         ok: true,
       })
     } finally {
-      expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
-      await rm(directory, { recursive: true, force: true })
+      await removeTemporaryDirectory(directory)
     }
   })
 })
