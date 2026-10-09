@@ -13,6 +13,8 @@ import {
 import { conversationGitFactory } from '../../src/host/git/conversationGitBundle'
 import * as gitEntry from '../../src/host/git/conversationGitEntry'
 import { Usd } from '../../src/shared/usd'
+import type { UsageRecording } from '../../src/core/usage/recording'
+import type { UsageRecord } from '../../src/shared/usageJournal'
 import { MspError } from '@muse-code/sdk'
 import { createMediaAttachments } from '../../src/host/media/mediaAttach'
 import { videoFixture, wavFixture, ebmlFixture } from './helpers/media/fixtures'
@@ -977,6 +979,15 @@ function setup(
     checkpointCalls,
     fileConfirmations,
     whileConfirming,
+  }
+}
+
+function fakeUsageRecording(records: readonly UsageRecord[]): UsageRecording {
+  return {
+    note: vi.fn(),
+    limit: vi.fn(),
+    flush: () => Promise.resolve(),
+    today: () => Promise.resolve(records),
   }
 }
 
@@ -4560,34 +4571,28 @@ describe('ConversationController: account & usage (M8)', () => {
       kind: 'turn',
       outcome: 'completed',
     } as const
-    const usageRecording: NonNullable<ConversationDeps['usageRecording']> = {
-      note: vi.fn(),
-      limit: vi.fn(),
-      flush: () => Promise.resolve(),
-      today: () =>
-        Promise.resolve([
-          {
-            ...base,
-            tokens: { input: 10, output: 5 },
-            cost: { certainty: 'computed', usd: Usd.from('0.1').toAmount() },
-          },
-          { ...base, id: 'two', tokens: { input: 20, output: 3 }, cost: { certainty: 'unpriced' } },
-          {
-            ...base,
-            id: 'local',
-            provider: 'ollama',
-            tokens: { input: 7, output: 2 },
-            cost: { certainty: 'local', usd: Usd.from('0').toAmount() },
-          },
-          {
-            ...base,
-            id: 'uncertain',
-            provider: 'openrouter',
-            tokens: {},
-            cost: { certainty: 'uncertain', usd: Usd.from('0.2').toAmount() },
-          },
-        ]),
-    }
+    const usageRecording = fakeUsageRecording([
+      {
+        ...base,
+        tokens: { input: 10, output: 5 },
+        cost: { certainty: 'computed', usd: Usd.from('0.1').toAmount() },
+      },
+      { ...base, id: 'two', tokens: { input: 20, output: 3 }, cost: { certainty: 'unpriced' } },
+      {
+        ...base,
+        id: 'local',
+        provider: 'ollama',
+        tokens: { input: 7, output: 2 },
+        cost: { certainty: 'local', usd: Usd.from('0').toAmount() },
+      },
+      {
+        ...base,
+        id: 'uncertain',
+        provider: 'openrouter',
+        tokens: {},
+        cost: { certainty: 'uncertain', usd: Usd.from('0.2').toAmount() },
+      },
+    ])
     const t = setup({ usageRecording })
     expect(await firstUsageReport(t)).toMatchObject({
       providers: [
@@ -4636,16 +4641,10 @@ describe('ConversationController: account & usage (M8)', () => {
       outcome: 'completed',
       tokens: { input: 1, output: 1 },
     } as const
-    const usageRecording: NonNullable<ConversationDeps['usageRecording']> = {
-      note: vi.fn(),
-      limit: vi.fn(),
-      flush: () => Promise.resolve(),
-      today: () =>
-        Promise.resolve([
-          { ...base, id: 'one', cost: { certainty: 'computed', usd: Usd.from('0.1').toAmount() } },
-          { ...base, id: 'two', cost: { certainty: 'computed', usd: Usd.from('0.2').toAmount() } },
-        ]),
-    }
+    const usageRecording = fakeUsageRecording([
+      { ...base, id: 'one', cost: { certainty: 'computed', usd: Usd.from('0.1').toAmount() } },
+      { ...base, id: 'two', cost: { certainty: 'computed', usd: Usd.from('0.2').toAmount() } },
+    ])
     const t = setup({ usageRecording })
     // Binary addition would show 0.30000000000000004.
     expect(await firstUsageReport(t)).toMatchObject({
