@@ -24660,6 +24660,28 @@ before a repaired one loads (2026-09-30).
      the owner's install authorization. Those tests skip wherever `bun` is
      absent, CI included.
 
+- **FIXM110OS1-mkosi-tarball (RVM110OS1 P3).** The composer checks the
+  mkosi `--version` string against the `os/pins.json` pin; the source
+  tarball digest beside it is not re-verified. Safe for now: exact-version
+  refusal plus the recipe's `MinimumVersion` floor, and a substituted
+  binary still faces the policy gate and the deterministic recipe.
+  Follow-up: OS6 verifies the tarball digest when it owns publishing.
+
+- **FIXM110OS1-debian-keyring (RVM110OS1 P3).** Debian archive trust rests
+  on the build host's `debian-archive-keyring`; repositories are locked to
+  `main non-free-firmware` with no unsigned fallback. Safe for now: the
+  snapshot date is pinned and packages come from Debian's own archive.
+  Follow-up: OS6 pins the keyring by fingerprint.
+
+- **FIXM110OS1-zstd-path (RVM110OS1 P2/P3).** Pi `.deb` data members the
+  stdlib cannot decode (zstd, which current Pi archives use) go through
+  host `dpkg-deb` into a disposable quarantine and share the tested tree
+  admission; the wiring is proven by a stub-runner test, but no real zstd
+  `.deb` passed through it in the offline lane. Safe for now: disposable
+  quarantine, control member never extracted, full admission before the
+  overlay. Follow-up: qualify with a real Pi `.deb` on the next networked
+  Pi build.
+
 ## 10. Definition of done and release records
 
 M0–M8 certified (owner decision 2026-09-22: both backends ship in v0.1.0);

@@ -61,6 +61,16 @@ happened, not what was planned; superseded entries are kept.
   missing-browser-chunk checks accept Windows filesystem error paths.
 - Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
   Windows while retaining native-platform parsing and containment checks.
+- Node OS Pi staging (RVM110OS1, M110-OS1): the composer verifies the signed
+  Raspberry Pi Packages index with `gpgv` against the manifest-pinned
+  fingerprint and index digest, takes each `.deb` SHA-256 from the verified
+  index, and extracts through member admission that never follows symlinks;
+  Pi builds take the archive keyring as `--pi-keyring` with its digest.
+  The policy gate locks the manifest pins and the installer profile's
+  volatile-overlay cmdline, the ESP size (260M) and the Debian repositories;
+  the composer checks the mkosi version pin and reads Node through the
+  bounded xz-capable archive path. The prior certificate text claiming index
+  verification for the recorded media is corrected.
 
 ## [0.14.0] - 2026-10-05
 

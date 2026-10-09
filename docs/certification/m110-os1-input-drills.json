@@ -527,5 +527,89 @@
     "restoredSha256": "9a6bb894428ccd9a3419d3d49fd9d324826a912d44d947238a32a7acf1a49180",
     "exit": 1,
     "failedTests": ["M110-OS1 immutable image inputs refuses a truncated native Pi boot partition"]
+  },
+  {
+    "control": "None  # DRILL: signature step removed",
+    "file": "os/pi/compose.py",
+    "sourceSha256": "38bf75ec6a85fad9799908457fe122a71e8dcc8441a3f44dc2b6ef43d195a3b0",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses hostile Pi staging input (bad-signature)"
+    ],
+    "restoredSha256": "38bf75ec6a85fad9799908457fe122a71e8dcc8441a3f44dc2b6ef43d195a3b0"
+  },
+  {
+    "control": "stack.append(\"..\")  # DRILL: escape admitted",
+    "file": "os/pi/compose.py",
+    "sourceSha256": "38bf75ec6a85fad9799908457fe122a71e8dcc8441a3f44dc2b6ef43d195a3b0",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a hostile Pi .deb member (symlink-outside) before staging"
+    ],
+    "restoredSha256": "38bf75ec6a85fad9799908457fe122a71e8dcc8441a3f44dc2b6ef43d195a3b0"
+  },
+  {
+    "control": "True,  # DRILL: installer lock removed",
+    "file": "os/check.py",
+    "sourceSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened mkosi.profiles/installer.conf guard (KernelCommandLine=systemd.volatile=overlay)",
+      "M110-OS1 immutable image inputs refuses a weakened mkosi.profiles/installer.conf guard (KernelCommandLine=systemd.volatile=overlay\n)"
+    ],
+    "restoredSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83"
+  },
+  {
+    "control": "pass  # DRILL: fingerprint lock removed",
+    "file": "os/check.py",
+    "sourceSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened pi/manifest.json guard (\"archiveSigningFingerprint\": \"CF8A1AF502A2AA2D763BAE7E82B129927FA3303E\")",
+      "M110-OS1 immutable image inputs refuses hostile Pi staging input (bad-fingerprint)"
+    ],
+    "restoredSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83"
+  },
+  {
+    "control": "if False:  # DRILL: wanted-file admission removed",
+    "file": "os/build.py",
+    "sourceSha256": "469b75d2327fe19b99700c3d4121cbd3d57e433424968672958514a1a8bece73",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs admits only the wanted regular files from an xz archive (link)"
+    ],
+    "restoredSha256": "469b75d2327fe19b99700c3d4121cbd3d57e433424968672958514a1a8bece73"
+  },
+  {
+    "control": "pass  # DRILL: ESP lock removed",
+    "file": "os/check.py",
+    "sourceSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened repart/00-esp.conf guard (260M)"
+    ],
+    "restoredSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83"
+  },
+  {
+    "control": "if False:  # DRILL: version lock removed",
+    "file": "os/build.py",
+    "sourceSha256": "469b75d2327fe19b99700c3d4121cbd3d57e433424968672958514a1a8bece73",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs validates the mkosi input and its staging boundary"
+    ],
+    "restoredSha256": "469b75d2327fe19b99700c3d4121cbd3d57e433424968672958514a1a8bece73"
+  },
+  {
+    "control": "pass  # DRILL: index agreement removed",
+    "file": "os/check.py",
+    "sourceSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs checks Pi package pins against the verified index (disagree)",
+      "M110-OS1 immutable image inputs checks Pi package pins against the verified index (missing)",
+      "M110-OS1 immutable image inputs checks Pi package pins against the verified index (ambiguous)"
+    ],
+    "restoredSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83"
   }
 ]

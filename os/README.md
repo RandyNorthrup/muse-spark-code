@@ -20,6 +20,14 @@ Installer builds additionally need systemd-repart 261 or newer for El Torito.
 The build host needs `qemu-user`/binfmt for ARM builds, `systemd-ukify`,
 `cryptsetup-bin`, `dosfstools`, `mtools`, `dpkg-deb` and `depmod`. The Pi
 composer extracts pinned packages without executing their installation scripts.
+Pi builds additionally need host `gpgv` and the Raspberry Pi archive keyring:
+export the key whose fingerprint equals the manifest's
+`archiveSigningFingerprint` from a trusted host (for example
+`gpg --export <fingerprint> > pi-keyring.gpg`) and pass
+`--pi-keyring pi-keyring.gpg --pi-keyring-sha256 <digest>`; the composer
+verifies the signed Packages index against that fingerprint, takes each
+.deb's SHA-256 from the verified index, and only then extracts through
+member admission.
 Build products, package manifests, checksums and input receipts go only into
 `out/<architecture>/`; intermediates are removed after each build. Pinned
 downloads and package caches are reused and removed after qualification.
