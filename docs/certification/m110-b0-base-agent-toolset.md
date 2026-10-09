@@ -312,15 +312,55 @@ still reports 14 tables and zero problems. The host-API gate reproduces exactly
 the eleven inherited J-owned stale Node-import counts documented above,
 with unchanged VS Code API/importing-file/theme counts (332/31/61).
 
-The repaired amd64 base and build images both built successfully with
-`--pull=false --network none`. Before building, an invalid `debs/unlisted.deb`
-was added to **both** artifact packs and its real SHA-256 appended to each
-pack's diagnostic `SHA256SUMS`; the separately staged image-owned inventories
-were unchanged. Neither invalid package reached dpkg-deb or dpkg (either would
-refuse its non-package bytes). Both builds passed, followed by the existing
-real compiler/tool/skill/ownership smoke as UID 10001, with read-only root,
-no capabilities, no-new-privileges, no network and executable scratch only.
-Receipt: [`m110-b0-review-amd64-smoke.json`](m110-b0-review-amd64-smoke.json).
+The repaired size receipts (`m110-b0-review-base-amd64-size.json`,
+`m110-b0-review-build-amd64-size.json`) record rebuilt images with fresh layer
+digests, including the new 7,847-byte checksums layer, at 181,502,964 and
+388,041,749 compressed bytes against the unchanged 200,000,000/450,000,000
+budgets. The `--network none` build logs remain private under
+`temp/m110-b0-review-*.log`. The re-smoke of the repaired images (the
+compiler/tool/skill/ownership run as UID 10001) cited the same removed file,
+so it is likewise unreceipted and falls under the open item below.
+
+**Correction (RVF110B0 P2):** no tamper-build receipt was captured. The file
+previously cited here, `m110-b0-review-amd64-smoke.json`, was byte-identical
+to the pre-repair `m110-b0-toolset-amd64-smoke.json` (SHA-256
+`5c2bd242e39283b4452cf69b648cb3f8e0f5cc11c608053ab6267eacbf8a26f4`) and
+recorded only tool versions and boolean flags: no build command, image id,
+`unlisted.deb`, checksum rewrite or dpkg call. It has been removed, and the
+claim that a real `--network none` image build ignored an invalid
+`debs/unlisted.deb` is withdrawn. The unlisted-deb case is covered by the
+unit/script tests that actually exercise it, in
+`test/unit/nodeToolsetInstall.test.mjs` (5 passed at the repository default
+timeout): `installs only manifest-named debs in the base pack` and `in the
+build pack` (the fixture plants `debs/unlisted.deb` in the artifact pack and
+the installer dispatches only manifest-named debs);
+`keeps manifest pins when an artifact pack rewrites its checksum list` (the
+planted file's real SHA-256 is appended to the pack's diagnostic `SHA256SUMS`
+while the image-owned inventory is unchanged, and the planted file is still
+not installed); and `refuses changed pinned deb bytes before any package
+inspection or installation` (the dpkg and dpkg-deb call logs stay empty).
+Red drills B0-RV-INSTALL-ORIGINAL, B0-RV-PIN-SOURCE, B0-RV-PIN-DISPATCH and
+B0-RV-PIN-HASH in [`m110-b0-review-drills.json`](m110-b0-review-drills.json)
+record those assertions failing against the pre-repair glob installer and
+being restored byte-exact.
+
+**OPEN qualification item (B0-TAMPER-SMOKE):** the real offline image-build
+tamper smoke has not been run. On a rig with Docker, stage a fresh context,
+plant an invalid `debs/unlisted.deb` in **both** artifact packs, append its
+real SHA-256 to each pack's diagnostic `SHA256SUMS` (leaving the staged
+image-owned inventories unchanged), then run the exact README commands:
+
+```sh
+sudo -n docker build --platform linux/amd64 --network none --target base -f temp/m110-b0-tamper/image-amd64/Containerfile -t muse-toolset-b0-tamper:base temp/m110-b0-tamper/image-amd64
+sudo -n docker build --platform linux/amd64 --network none --target build -f temp/m110-b0-tamper/image-amd64/Containerfile -t muse-toolset-b0-tamper:build temp/m110-b0-tamper/image-amd64
+```
+
+The new receipt must contain the exact build commands, both image ids, the
+planted file name, its SHA-256, and the dpkg selection evidence (the
+installer's dispatched-package list showing only manifest-named debs reached
+dpkg-deb/dpkg), plus the re-smoke output (`test/fixtures/toolset/smoke.py`
+per the README run command). Until that receipt exists, no real-image tamper
+or repaired-image smoke claim stands.
 
 The actual saved images were measured by the unchanged compressed-layer gate:
 
