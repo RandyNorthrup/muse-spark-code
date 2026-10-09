@@ -81,6 +81,14 @@ async function setup(overrides: Partial<ModelApiHostDeps> = {}, { hookRunner = f
   return { api, io, host, log, rawBodies, ...watched }
 }
 
+async function setupCommandHooks(hooks: Record<string, unknown>) {
+  const parsed = parseHookConfig(JSON.stringify({ hooks }), 'project', 'linux').hooks
+  return await setup(
+    { loadHooks: () => Promise.resolve(parsed), isHooksEnabled: () => true },
+    { hookRunner: true },
+  )
+}
+
 async function setupSkillSteering() {
   const hooks = parseSparkHooksConfig(
     '{"hooks":{"UserPromptExpansion":[{"hooks":[{"type":"command","command":"veto"}]}]}}',
@@ -734,20 +742,10 @@ describe('M106 loop guarantees', () => {
   })
 
   it('settles pre and post hooks, writes and shell barriers in call order', async () => {
-    const hooks = parseHookConfig(
-      JSON.stringify({
-        hooks: {
-          PreToolUse: [{ hooks: [{ type: 'command', command: 'pre' }] }],
-          PostToolUse: [{ hooks: [{ type: 'command', command: 'post' }] }],
-        },
-      }),
-      'project',
-      'linux',
-    ).hooks
-    const rig = await setup(
-      { loadHooks: () => Promise.resolve(hooks), isHooksEnabled: () => true },
-      { hookRunner: true },
-    )
+    const rig = await setupCommandHooks({
+      PreToolUse: [{ hooks: [{ type: 'command', command: 'pre' }] }],
+      PostToolUse: [{ hooks: [{ type: 'command', command: 'post' }] }],
+    })
     const phases: string[] = []
     rig.io.runHook = (command, payload) => {
       const parsed: unknown = JSON.parse(payload)
@@ -884,19 +882,9 @@ describe('M106 loop guarantees', () => {
   })
 
   it('does not overlap a hook-forced asking read with reads on either side', async () => {
-    const hooks = parseHookConfig(
-      JSON.stringify({
-        hooks: {
-          PreToolUse: [{ hooks: [{ type: 'command', command: 'pre' }] }],
-        },
-      }),
-      'project',
-      'linux',
-    ).hooks
-    const rig = await setup(
-      { loadHooks: () => Promise.resolve(hooks), isHooksEnabled: () => true },
-      { hookRunner: true },
-    )
+    const rig = await setupCommandHooks({
+      PreToolUse: [{ hooks: [{ type: 'command', command: 'pre' }] }],
+    })
     rig.io.runHook = (_command, payload) =>
       Promise.resolve(
         hookResult(
