@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import {
   closeSync,
   cpSync,
+  existsSync,
   mkdirSync,
   openSync,
   readdirSync,
@@ -62,6 +63,11 @@ export function buildProductionPackage(root: string, folder: string, shared?: un
     if (path.dirname(output) !== path.resolve(folder)) throw new Error('Invalid fixture output')
     rmSync(output, { recursive: true, force: true })
     cpSync(path.join(shared, 'dist'), output, { recursive: true })
+    // build.mjs also compiles the current Linux architecture's created-path
+    // helper beside dist (build-linux-helper.mjs); the packager requires it.
+    const linuxHelpers = path.join(shared, 'native', 'linux')
+    if (existsSync(linuxHelpers))
+      cpSync(linuxHelpers, path.join(folder, 'native', 'linux'), { recursive: true })
     return
   }
   // A failed build's data-URL stack can exceed execFileSync's default buffer
