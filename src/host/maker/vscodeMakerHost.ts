@@ -111,7 +111,11 @@ export class VscodeMakerHost implements MakerHost, vscode.Disposable {
     return !this.isDisposed && this.deps.isInteractive()
   }
 
-  async confirm(raw: ApprovalRequest): Promise<ApprovalAnswer | undefined> {
+  /** Without the engine's review callback no payload review can succeed, so allow_once refuses. */
+  async confirm(
+    raw: ApprovalRequest,
+    didReview: (raw: unknown) => boolean = () => false,
+  ): Promise<ApprovalAnswer | undefined> {
     const request = makerApprovalRequestSchema.parse(raw)
     if (!this.admitted() || Date.now() >= request.expiresAt) return undefined
     const payload = request.kind === 'serial' ? request.payload.value : request.payload
@@ -198,9 +202,22 @@ export class VscodeMakerHost implements MakerHost, vscode.Disposable {
         )
         if (!isCurrent() || (preview !== undefined && !preview.decide(request.id, request.digest)))
           return undefined
+        const digest = preview?.digest ?? shownDigest
+        // The modal (with its rendered preview) is the review: only Send once submits it.
+        if (
+          chosen === send &&
+          !didReview({
+            v: 1,
+            type: 'makerPayloadReviewed',
+            id: request.id,
+            digest,
+            isComplete: true,
+          })
+        )
+          return undefined
         return {
           id: request.id,
-          digest: preview?.digest ?? shownDigest,
+          digest,
           target: request.target,
           decision: chosen === send ? 'allow_once' : 'reject_once',
         }

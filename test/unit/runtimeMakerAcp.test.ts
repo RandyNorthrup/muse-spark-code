@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -51,7 +51,7 @@ function request(): ApprovalRequest {
   return {
     kind: 'command',
     id: randomUUID(),
-    digest: 'a'.repeat(64),
+    digest: createHash('sha256').update('test').digest('hex'),
     expiresAt: Date.now() + 60_000,
     action: 'program',
     target: { kind: 'workspace', workspace: path.resolve('.') },
@@ -88,7 +88,7 @@ describe('real ACP maker runtime admission', () => {
     if (host === undefined) throw new Error('host')
     const snapshot = request()
     const engine = new MakerApproval(snapshot, () => host.isInteractive())
-    expect(engine.answer(await host.confirm(snapshot))).toBeDefined()
+    expect(engine.answer(await host.confirm(snapshot, (raw) => engine.review(raw)))).toBeDefined()
     expect(engine.start(snapshot.target)).toBe(true)
     expect(engine.start(snapshot.target)).toBe(false)
     expect(f.permission).toHaveBeenCalledWith(UI_TEXT.makerApprovalTitle, expect.any(String), [
@@ -120,6 +120,32 @@ describe('real ACP maker runtime admission', () => {
     expect(host.isInteractive()).toBe(true)
     expect(await tools(f.first)).toContain('machine_status')
     expect(await tools(second)).not.toContain('machine_status')
+  })
+  it('the editor prompt is the review: only its exact allow reviews, and refusals never reach presence', async () => {
+    const f = await fixture()
+    f.first.setInteractive(true)
+    await f.first.command('/hardware enable supervised bench')
+    const host = f.services[0]?.host
+    if (host === undefined) throw new Error('host')
+    const authorize = vi.spyOn(host, 'authorize')
+    const unreviewed = new MakerApproval(request(), () => host.isInteractive())
+    expect(unreviewed.answer(await host.confirm(unreviewed.request))).toBeUndefined()
+    f.ask.mockImplementationOnce(async (input) => ({
+      ...(await askMakerPermission(input, f.permission)),
+      digest: 'b'.repeat(64),
+    }))
+    const mismatched = new MakerApproval(request(), () => host.isInteractive())
+    const answer = await host.confirm(mismatched.request, (raw) => mismatched.review(raw))
+    expect(answer).toMatchObject({ decision: 'reject_once' })
+    expect(mismatched.answer(answer)).toBeUndefined()
+    expect(authorize).not.toHaveBeenCalled()
+    f.permission.mockResolvedValueOnce({
+      outcome: { outcome: 'selected', optionId: 'reject_once' },
+    })
+    const didReview = vi.fn(() => true)
+    expect(await host.confirm(request(), didReview)).toMatchObject({ decision: 'reject_once' })
+    expect(didReview).not.toHaveBeenCalled()
+    expect(authorize).not.toHaveBeenCalled()
   })
   it('Muse Code MCP offers no physical action without captured top-level turn provenance, even during an attended turn', async () => {
     const f = await fixture()

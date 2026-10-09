@@ -9,7 +9,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { RUNTIME_MAKER_AGENT_MARKERS, UI_TEXT } from '../../src/shared/constants'
 import { createRuntimeMakerService } from '../../src/runtime/maker/service'
 import { MakerApproval } from '../../src/core/maker/ports'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 
 const roots: string[] = []
 afterEach(async () => {
@@ -120,7 +120,7 @@ describe('terminal spoofing never supplies physical authority', () => {
       const snapshot = {
         kind: 'command' as const,
         id: randomUUID(),
-        digest: 'a'.repeat(64),
+        digest: createHash('sha256').update('flash.bin').digest('hex'),
         expiresAt: Date.now() + 1000,
         action: 'program' as const,
         target: { kind: 'workspace' as const, workspace: deps.workspace },
@@ -128,7 +128,8 @@ describe('terminal spoofing never supplies physical authority', () => {
       }
       const send = vi.fn()
       const engine = new MakerApproval(snapshot, () => service.host.hardwareEnabled())
-      if (engine.answer(await service.host.confirm(snapshot)) !== undefined) send()
+      const answer = await service.host.confirm(snapshot, (raw) => engine.review(raw))
+      if (engine.answer(answer) !== undefined) send()
       expect(send).not.toHaveBeenCalled()
       expect(engine.start(snapshot.target)).toBe(false)
       expect(presence.check).toHaveBeenLastCalledWith(

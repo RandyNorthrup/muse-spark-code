@@ -146,7 +146,7 @@ describe('VS Code maker port', () => {
     vi.mocked(modal).mockImplementation((_message, _options, ...items) => Promise.resolve(items[0]))
     const input = longRequest()
     const approval = new MakerApproval(input, () => true)
-    const pending = host.confirm(approval.request)
+    const pending = host.confirm(approval.request, (raw) => approval.review(raw))
     for (let tick = 0; tick < 10; tick += 1) await Promise.resolve()
     expect(modal).not.toHaveBeenCalled()
     const view = window.createWebviewPanel.mock.results.at(-1)?.value
@@ -180,7 +180,7 @@ describe('VS Code maker port', () => {
     vi.mocked(modal).mockReturnValue(choice.promise)
     const input = longRequest()
     const approval = new MakerApproval(input, () => true)
-    const pending = host.confirm(approval.request)
+    const pending = host.confirm(approval.request, (raw) => approval.review(raw))
     const view = window.createWebviewPanel.mock.results.at(-1)?.value
     if (!(view instanceof FakeWebviewPanel)) throw new Error('missing approval preview')
     view.webview.messages.fire({ v: 1, type: 'makerReady' })
@@ -251,7 +251,8 @@ describe('VS Code maker port', () => {
         digest: inputA.digest,
       })
       for (let tick = 0; tick < 10; tick += 1) await Promise.resolve()
-      const pendingB = host.confirm(inputB)
+      const approvalB = new MakerApproval(inputB, () => true)
+      const pendingB = host.confirm(approvalB.request, (raw) => approvalB.review(raw))
       expect(window.createWebviewPanel).toHaveBeenCalledTimes(2)
       const second = window.createWebviewPanel.mock.results.at(-1)?.value
       if (!(second instanceof FakeWebviewPanel)) throw new Error('missing second preview')
@@ -368,7 +369,7 @@ describe('VS Code maker port', () => {
     const { host } = await harness()
     vi.mocked(modal).mockImplementation((_message, _options, ...items) => Promise.resolve(items[0]))
     const approval = new MakerApproval(request(), () => true)
-    const answer = await host.confirm(approval.request)
+    const answer = await host.confirm(approval.request, (raw) => approval.review(raw))
     const call = vi.mocked(modal).mock.calls[0]
     expect(call?.[1].modal).toBe(true)
     expect(call?.[1].detail).toContain(
@@ -430,7 +431,7 @@ describe('VS Code maker port', () => {
       Reflect.set(input.target, 'port', '/dev/ttyACM1')
       return Promise.resolve(items[0])
     })
-    const answer = await host.confirm(input)
+    const answer = await host.confirm(input, (raw) => approval.review(raw))
     expect(answer).toMatchObject({
       digest: approval.request.digest,
       target: approval.request.target,
@@ -441,6 +442,35 @@ describe('VS Code maker port', () => {
     if (binding === undefined) throw new Error('test binding missing')
     expect(approval.consume(binding, { ...binding.target, port: '/dev/ttyACM1' })).toBe(false)
     expect(approval.consume(binding, binding.target)).toBe(false)
+  })
+  it('submits the exact shown review only on Send once and refuses without a matching review', async () => {
+    const { host } = await harness()
+    const approval = new MakerApproval(request(), () => true)
+    const didReview = vi.fn((raw: unknown) => approval.review(raw))
+    vi.mocked(modal).mockImplementation((_message, _options, ...items) => Promise.resolve(items[1]))
+    expect(await host.confirm(approval.request, didReview)).toMatchObject({
+      decision: 'reject_once',
+    })
+    vi.mocked(modal).mockResolvedValue(undefined)
+    expect(await host.confirm(approval.request, didReview)).toMatchObject({
+      decision: 'reject_once',
+    })
+    expect(didReview).not.toHaveBeenCalled()
+    vi.mocked(modal).mockImplementation((_message, _options, ...items) => Promise.resolve(items[0]))
+    expect(await host.confirm(approval.request)).toBeUndefined()
+    const other = new MakerApproval(request(), () => true)
+    expect(await host.confirm(approval.request, (raw) => other.review(raw))).toBeUndefined()
+    const answer = await host.confirm(approval.request, didReview)
+    expect(didReview).toHaveBeenCalledExactlyOnceWith({
+      v: 1,
+      type: 'makerPayloadReviewed',
+      id: approval.request.id,
+      digest: approval.request.digest,
+      isComplete: true,
+    })
+    expect(approval.answer(answer)).toBeDefined()
+    const unreviewed = new MakerApproval(request(), () => true)
+    expect(unreviewed.answer(await host.confirm(unreviewed.request))).toBeUndefined()
   })
   it('shows serial encoding/reset/flash identity and complete machine analysis', async () => {
     const { host } = await harness()
@@ -460,7 +490,8 @@ describe('VS Code maker port', () => {
       warnsAboutReset: true,
       flashIdentity: { status: 'unknown' },
     }
-    expect(await host.confirm(serial)).toMatchObject({
+    const reviewed = new MakerApproval(serial, () => true)
+    expect(await host.confirm(serial, (raw) => reviewed.review(raw))).toMatchObject({
       digest: serial.digest,
       decision: 'allow_once',
     })

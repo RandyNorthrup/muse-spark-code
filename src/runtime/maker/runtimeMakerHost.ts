@@ -218,12 +218,21 @@ export class RuntimeMakerHost implements MakerHost {
         void this.deps
           .ask(request)
           .then(async (answer) => {
-            const parsed = makerApprovalAnswerSchema.safeParse(answer)
+            const parsed = makerApprovalAnswerSchema.safeParse(answer).data
+            // The editor prompt showed the whole request; its allow is the review of that digest.
             const grant =
-              parsed.success && parsed.data.decision === 'allow_once'
+              parsed?.decision === 'allow_once' &&
+              parsed.id === request.id &&
+              didReview({
+                v: 1,
+                type: 'makerPayloadReviewed',
+                id: request.id,
+                digest: parsed.digest,
+                isComplete: true,
+              })
                 ? await this.authorize(answer)
                 : undefined
-            this.answer(answer, grant)
+            this.answer(grant ? answer : reject, grant)
           })
           .catch(() => {
             this.answer(reject)
