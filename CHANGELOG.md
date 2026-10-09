@@ -327,6 +327,13 @@ happened, not what was planned; superseded entries are kept.
 - The Action's apply tests no longer race a detached Git maintenance repack
   in their fake origin: the fixture turns off receive auto-gc and plain-git
   auto maintenance, and a witness test proves none runs.
+- `/estimate` works on Windows: the local fleet named the machine by Node's
+  `win32` and refused it as an unsupported platform.
+- Developer options open when their storage sits below a linked folder (macOS
+  `/var`, a relocated or redirected profile, a Windows short-name path); only
+  a link at or below the storage root is refused.
+- Translated tables ship in English key order again, so the packaged ACP
+  agent's tables match their source byte for byte.
 
 ### Documentation
 

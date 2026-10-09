@@ -147,6 +147,10 @@ the cap decisions; M115 command registration; the lead's INT0170 open list
 (axe duplicate Help ids, jscpd clones, SAST findings, visual-gate fixture,
 journal coverage time) was not addressed in this pass.
 
+The hosted-CI repair of runs 37866831774 and 37883970931 (lint heap, l10n
+order, visual harness root, merged test contracts, the two product fixes)
+and its per-file classification are in [rel017ci.md](rel017ci.md).
+
 ### Static batch (Windows host, after step 4)
 
 | Gate            | Exit | Note                                                                                                                                    |
