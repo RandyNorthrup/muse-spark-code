@@ -14,9 +14,9 @@ import {
   processStartTime,
   systemBootId,
   type ProcessOwner,
-} from '../../src/runtime/panel/pullRequests/processOwner'
-import { nodeRecordStoreFs } from '../../src/runtime/panel/pullRequests/recordStoreFs'
-import { acquireStoreLock, StoreBusyError } from '../../src/runtime/panel/pullRequests/storeLock'
+} from '../../src/core/locks/processOwner'
+import { nodeLeasePort } from '../../src/core/locks/nodeLeasePort'
+import { acquireFileLease, LeaseBusyError } from '../../src/core/locks/fileLease'
 
 const proc = vi.hoisted(() => new Map<string, string>())
 
@@ -118,12 +118,18 @@ describe('Linux process births (M123 lane P)', () => {
     const lockPath = path.join(folder, 'lock')
     await writeFile(
       lockPath,
-      JSON.stringify({ owner, id: 'live-holder', acquiredAt: Date.now(), leaseMs: 30_000 }),
+      JSON.stringify({
+        owner,
+        id: 'live-holder',
+        renewal: 0,
+        acquiredAt: Date.now(),
+        leaseMs: 30_000,
+      }),
     )
     linuxSystem(50_000, BOOT_TIME + HOUR_SECONDS)
     await expect(
-      acquireStoreLock(lockPath, {
-        fs: nodeRecordStoreFs,
+      acquireFileLease(lockPath, {
+        port: nodeLeasePort,
         now: Date.now,
         monotonic: () => performance.now(),
         sleep: (ms) =>
@@ -136,8 +142,9 @@ describe('Linux process births (M123 lane P)', () => {
         honoredLeaseMs: 30_000,
         unreadableMs: 2000,
         timeoutMs: 200,
+        pollMs: 10,
         watches: new Map(),
       }),
-    ).rejects.toBeInstanceOf(StoreBusyError)
+    ).rejects.toBeInstanceOf(LeaseBusyError)
   })
 })

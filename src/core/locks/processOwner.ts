@@ -1,6 +1,6 @@
-// Which process holds the worktree records' lock or runs a pending checkout
-// (M123, PLAN.md M123's lock protocol): its host, its id, and its birth as
-// the operating system records it. A process id alone proves nothing once
+// Which process holds a file lease (fileLease.ts) or runs a pending
+// checkout (M123, PLAN.md M123's lock protocol): its host, its id, and its
+// birth as the operating system records it. A process id alone proves nothing once
 // the system has given it to another process (Windows reuses ids quickly),
 // so a live id is the same owner only while its birth matches the one
 // recorded.
@@ -31,7 +31,7 @@ import {
   MILLISECONDS_PER_SECOND,
   PROCESS_START_QUERY_TIMEOUT_MS,
   PROCESS_START_TOLERANCE_MS,
-} from '../../../shared/constants'
+} from '../../shared/constants'
 
 const NO_SUCH_PROCESS = 'ESRCH'
 // `/proc/<pid>/stat` after the command's closing parenthesis: field 3 is
