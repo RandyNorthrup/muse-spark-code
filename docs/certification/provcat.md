@@ -446,3 +446,31 @@ final code with the same failures and byte-exact restores.
 | Quick pick passes `undefined` instead of the typed number                   | 4 failures (`wizardSessionBudget` quick-pick ×3, entry quick pick) |
 | Webview Continue posts `next` without the `suggestions/change` commit       | 2 failures in `modelsPanelSections`                                |
 | Host `suggestions/change` requires a suggestion entry that no longer exists | 3 panel-path failures                                              |
+
+---
+
+# PROVWIZ2 round 4 — RVPROVWIZ2 (2026-10-09, macmini)
+
+The lane follows the owner's five decisions in the rig brief. Full aggregate
+quality is reserved for the lead; all lane checks use repository deadlines,
+with at most three test files per invocation and no paid/live calls.
+
+## P3: the native numeric setting boundary
+
+`createSessionBudgetConfig.write` converts the exact USD value to the
+contributed non-negative number and validates its round-trip before updating
+VS Code. Decimal rounding and overflow are refused. The production adapter
+regression now expects numeric `2`, while admission keeps exact decimal USD.
+Four added regressions failed before the repair (string write, precision loss,
+unsafe integer rounding, overflow). The repaired `wizardSessionBudget` and
+`modelsPanelEntry` suites pass all 23 tests at repository deadlines.
+
+Deliberate source breaks, each restored byte-exact with SHA-256:
+
+| Break                                        | Failures | Original and restored SHA-256                                      |
+| -------------------------------------------- | -------- | ------------------------------------------------------------------ |
+| Write the exact string instead of the number | 2/23     | `01b2f5021dffca25a74ad67d89d1aba9f37608fc1a7cbe95dcea91da32a51c76` |
+| Remove the numeric round-trip guard          | 2/17     | `01b2f5021dffca25a74ad67d89d1aba9f37608fc1a7cbe95dcea91da32a51c76` |
+
+No native Settings UI is claimed; these tests observe the real production
+writer/adapter update and exact-decimal admission reader with fake VS Code.

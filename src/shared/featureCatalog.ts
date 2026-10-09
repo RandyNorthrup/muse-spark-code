@@ -73,6 +73,8 @@ const SETTING_CONDITIONS: Readonly<
   sandboxNetwork: 'shellSandbox',
   browserCheckExtraHosts: 'browserNetworkAdmission',
   notifyOnBackgroundTurn: 'turnState&windowFocus',
+  // The provider wizard edits this numeric setting, preserving exact USD
+  // through a validated decimal-to-number boundary.
   modelApiSessionBudgetUsd: 'sessionBudget',
 
   modelApiObservationPacking: 'conversationStart',

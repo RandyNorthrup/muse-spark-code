@@ -17,7 +17,10 @@ import {
   runAddProviderQuickPick,
   type ProviderQuickPickUi,
 } from '../../src/host/models/modelsQuickPick'
-import { applyWizardSessionBudget } from '../../src/host/models/sessionBudget'
+import {
+  applyWizardSessionBudget,
+  createSessionBudgetConfig,
+} from '../../src/host/models/sessionBudget'
 import { readSettings } from '../../src/host/settings'
 import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
@@ -169,6 +172,34 @@ beforeEach(() => {
 })
 
 describe('applyWizardSessionBudget (the one shared function)', () => {
+  it('writes the contributed numeric type through the production settings writer', async () => {
+    let effective: unknown = 0
+    const update = vi.fn((_section: string, value: unknown) => {
+      effective = value
+      return Promise.resolve()
+    })
+    const config = createSessionBudgetConfig(
+      { get: () => effective, inspect: () => undefined, update },
+      { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    )
+    expect(await applyWizardSessionBudget(Usd.from('2.05').toAmount(), config)).toEqual({
+      status: 'written',
+      scope: 'global',
+    })
+    expect(update).toHaveBeenCalledWith('modelApiSessionBudgetUsd', 2.05, 'global')
+    expect(config.read().effectiveUsd).toBe('2.05')
+  })
+
+  it.each(['0.10000000000000001', '9007199254740993', '1' + '0'.repeat(400)])(
+    'refuses a limit the contributed number cannot store exactly: %s',
+    async (value) => {
+      const budget = memorySessionBudgetConfig()
+      const outcome = await applyWizardSessionBudget(Usd.from(value).toAmount(), budget)
+      expect(outcome.status).toBe('failed')
+      expect(budget.writes).toEqual([])
+    },
+  )
+
   it('writes nothing when the wizard value is untouched', async () => {
     const budget = memorySessionBudgetConfig()
     expect(await applyWizardSessionBudget(undefined, budget)).toEqual({ status: 'unchanged' })

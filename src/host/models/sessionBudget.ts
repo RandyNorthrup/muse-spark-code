@@ -76,7 +76,17 @@ export function createSessionBudgetConfig(
         scope,
       }
     },
-    write: (value, scope) => source.update(SESSION_BUDGET_SETTING, value, scope),
+    write: async (value, scope) => {
+      // The contributed setting is a non-negative number. Preserve the
+      // exact decimal on this boundary: refuse overflow or rounding rather
+      // than store an invalid type or a different spending limit.
+      const numeric = Number(value)
+      const parsed = legacyUsdSchema.safeParse(numeric)
+      if (!parsed.success || Usd.from(parsed.data).compare(Usd.from(value)) !== 0) {
+        throw new Error(UI_TEXT.wizardSessionBudgetInvalid)
+      }
+      await source.update(SESSION_BUDGET_SETTING, numeric, scope)
+    },
   }
 }
 

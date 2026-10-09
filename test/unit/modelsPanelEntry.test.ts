@@ -179,8 +179,8 @@ describe('createModelsPanelFeatures', () => {
       modelRef: 'openrouter/m1',
       sessionBudgetUsd: '2',
     })
-    expect(updates).toEqual([{ section: 'modelApiSessionBudgetUsd', value: '2' }])
-    expect(settings.get('modelApiSessionBudgetUsd')).toBe('2')
+    expect(updates).toEqual([{ section: 'modelApiSessionBudgetUsd', value: 2 }])
+    expect(settings.get('modelApiSessionBudgetUsd')).toBe(2)
     expect(composed).toEqual(['openrouter/m1'])
     expect(await built.seam.store.defaultModel()).toBe('openrouter/m1')
     expect(await readProviderCredential(secrets, 'openrouter')).toEqual({

@@ -20,6 +20,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The provider wizard stores the conversation spending limit as the number
+  its native setting requires, refusing amounts that would lose decimal
+  precision or overflow at that boundary.
+
 - Models & Agents: **Scan this computer** offers every local server that answers
   ("Ollama on port 11434"); choosing one opens its wizard with the local port
   filled, and an empty scan says nothing is running yet and names each local app

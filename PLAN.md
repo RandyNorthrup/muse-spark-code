@@ -19855,6 +19855,28 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### PROVWIZ2 round 4 — RVPROVWIZ2 repairs (2026-10-09, macmini)
+
+Owner decisions: an untouched spending-limit field writes nothing; an edited
+value writes only while the setting still equals its prefill. A concurrent
+change is shown with a request to confirm the typed value. Save the provider
+first; a subsequent limit failure must say the provider was saved and the
+limit was not changed, with its reason. Keep saved custom model limits in
+edit/key-change drafts, expose their fields, and persist edits. Back from an
+incomplete Models step keeps entered limits and allows returning to Models.
+The native setting stores a number; refuse exact-decimal input that cannot
+round-trip through its non-negative numeric schema without loss.
+
+Use the production provider store and settings writer in regressions, with
+fake VS Code interactions and no service calls. Run complete Models suites
+in batches of at most three at repository deadlines, five typechecks,
+changed-file lint/format, localization/reference and prescribed individual
+static/build gates. Record deliberate failures and byte-exact restores in
+`docs/certification/provcat.md`; commit finished pieces with installed hooks.
+These shared webview/host repairs retain the existing editor bridge; ACP's
+provider file reads the same stored custom limits. No runtime command changes.
+No merge, push, live/paid call or dependency change is authorized in this lane.
+
 ### FIX0160X — Repair release CI composition (2026-10-07, macmini)
 
 Preserve M106/M107, pinned questions and agent outcomes while repairing the
@@ -44662,6 +44684,13 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**PROVWIZ2 round 4 scoped qualification (2026-10-09).** The explicit lane
+brief and shared rules prohibit aggregate `npm run quality` and reserve it
+for the lead. Run complete owned suites at the repository's default timeout
+and all prescribed individual gates here; do not weaken any gate. Full
+quality, coverage and installed-editor qualification remain with the lead.
+Evidence and deliberate byte-exact drills: `docs/certification/provcat.md`.
 
 **FIX0160W2 scoped Windows qualification (2026-10-07).** The named lane
 brief and shared common rules prohibit aggregate quality and delegate it to
