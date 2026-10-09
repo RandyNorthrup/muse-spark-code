@@ -21,6 +21,7 @@ import { execFile } from 'node:child_process'
 import { withoutCredentials } from '../core/credentialEnvironment'
 import path from 'node:path'
 import {
+  environmentValue,
   setEnvironmentVariable,
   windowsPowerShellModulePath,
 } from '../core/backends/musecode/launch'
@@ -117,7 +118,7 @@ export function windowsPowerShell(
     env,
     'win32',
     PS_MODULE_PATH,
-    windowsPowerShellModulePath(systemRoot, base['ProgramFiles']),
+    windowsPowerShellModulePath(systemRoot, environmentValue(base, 'win32', 'ProgramFiles')),
   )
   return { file: path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH), env }
 }

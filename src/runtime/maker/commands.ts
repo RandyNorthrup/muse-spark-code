@@ -9,6 +9,7 @@ import { stopResultText } from './stop'
 import { runProgram, windowsPowerShell } from '../../host/processTree'
 import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../shared/constants'
 import { powerShellQuoted } from '../../core/shellQuote'
+import { environmentValue } from '../../core/backends/musecode/launch'
 
 export interface MakerCommandDeps {
   readonly service: Awaited<ReturnType<typeof createRuntimeMakerService>>
@@ -137,7 +138,7 @@ export async function openMakerBrowser(
   )
     throw new Error(UI_TEXT.makerUnattendedDenied)
   if (platform === 'win32') {
-    const root = env['SystemRoot']
+    const root = environmentValue(env, platform, 'SystemRoot')
     if (root === undefined) throw new Error(UI_TEXT.makerUnattendedDenied)
     const shell = windowsPowerShell(root)
     await runProgram(

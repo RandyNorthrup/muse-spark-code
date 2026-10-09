@@ -11,6 +11,7 @@ import type { MakerHost } from '../../core/maker/ports'
 import { stopAllHardwareLeases, type LeaseDependencies } from '../../core/maker/lease'
 import { killTree, sweepExitedTree, runProgram, windowsPowerShell } from '../../host/processTree'
 import { withoutCredentials, withoutKeyringRoutes } from '../credentialVariables'
+import { environmentValue } from '../../core/backends/musecode/launch'
 import { runtimeLeaseIdentity } from './stop'
 import {
   RUNTIME_MAKER_APPROVAL_MS,
@@ -38,9 +39,11 @@ export interface NativeSerialDeps {
 }
 export function nativeSerial(deps: NativeSerialDeps) {
   const env = withoutKeyringRoutes(withoutCredentials(deps.env))
+  // Windows names ignore case; a copied environment is a plain object that does not.
+  const systemRoot = environmentValue(deps.env, deps.platform, 'SystemRoot')
   const tree = {
     platform: deps.platform,
-    systemRoot: deps.env['SystemRoot'],
+    systemRoot,
     log: (_message: string) => {
       /* Child diagnostics never enter a surface/log unredacted. */
     },
@@ -49,7 +52,6 @@ export function nativeSerial(deps: NativeSerialDeps) {
   function prepare() {
     helper ??= (async () => {
       if (deps.platform === 'win32') {
-        const systemRoot = deps.env['SystemRoot']
         if (systemRoot === undefined) throw new Error('serial-system-root-required')
         const file = await prepareWindowsSerialHelper({
           directory: deps.dataDirectory,
@@ -108,8 +110,8 @@ export function nativeSerial(deps: NativeSerialDeps) {
       maxAncestors: RUNTIME_MAKER_MAX_ITEMS,
       run: (file, args) => runProgram(file, args, env),
       ...(deps.platform === 'win32' &&
-        deps.env['SystemRoot'] !== undefined && {
-          powershell: windowsPowerShell(deps.env['SystemRoot']).file,
+        systemRoot !== undefined && {
+          powershell: windowsPowerShell(systemRoot).file,
         }),
     })
   }

@@ -1,20 +1,23 @@
 // FIXM103W10 (PLAN M103): the hardware lease's holder identity on every
 // platform, the Windows private-folder check and the bounded POSIX Stop
-// socket. Real-OS cases run on their own platform; the parsers run everywhere
+// socket; FIXM103W11 adds previous-build owners and Windows name casing.
+// Real-OS cases run on their own platform; the parsers run everywhere
 // against a fake process runner.
 import { spawn } from 'node:child_process'
 import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { claimHardwareLease, leaseIdentity } from '../../src/core/maker/lease'
+import { claimHardwareLease, leaseIdentity, stopHardwareLease } from '../../src/core/maker/lease'
 import type { RunProgram } from '../../src/host/processTree'
 import { runtimeLeaseIdentity } from '../../src/runtime/maker/stop'
+import { createRuntimeMakerService } from '../../src/runtime/maker/service'
+import { withoutCredentials, withoutKeyringRoutes } from '../../src/runtime/credentialVariables'
 import {
   MAKER_LEASE_SOCKET_NAME_CHARS,
   MAKER_LEASE_SOCKET_PATH_BYTES,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../src/shared/constants'
-import { makerLeaseDeps } from './helpers/makerSerial'
+import { makerLeaseDeps, previousBuildOwner } from './helpers/makerSerial'
 import { makePrivateFolder, makerTempRoot, runWindowsTool } from './helpers/makerTemp'
 
 const MISSING_PID = 2 ** 31 - 1
@@ -218,4 +221,86 @@ describe.skipIf(process.platform === 'win32')('POSIX Stop socket path (FIXM103W1
     ).rejects.toThrow('lease-endpoint-too-long')
     expect(await readdir(directory)).toEqual([])
   })
+  it('RVM103W5 P1 still reaches an owner a previous build published under the whole-id socket', async () => {
+    const directory = path.join(await temporary('m103w11-legacy-'), 'leases')
+    await makePrivateFolder(directory)
+    const deps = await makerLeaseDeps(directory)
+    const owner = await previousBuildOwner(
+      directory,
+      'port:previous',
+      (await deps.processStartTime(process.pid)) ?? '',
+    )
+    try {
+      expect(await stopHardwareLease(deps, 'port:previous')).toEqual({
+        stopped: true,
+        sessions: [{ record: owner.record, party: 'holder', status: 'stopped' }],
+      })
+      expect(owner.requests).toEqual([{ command: 'stop', id: owner.record.id }])
+      // A new claim sees the live previous owner, not an unknown record.
+      const busy = await claimHardwareLease(deps, 'port:previous', 'test', () => Promise.resolve())
+      expect(busy).toEqual({ status: 'busy', holder: owner.record })
+    } finally {
+      await owner.close()
+    }
+  })
+})
+
+describe('Windows environment names ignore case (FIXM103W11 RVM103W5 P2)', () => {
+  it.each(['SystemRoot', 'SYSTEMROOT', 'systemroot'])(
+    'finds %s and ProgramFiles in any spelling through the real sanitizers',
+    async (name) => {
+      const run = fakeRun('134360343929763446\r\n')
+      const env = withoutKeyringRoutes(
+        withoutCredentials(
+          { [name]: String.raw`D:\Windows`, PROGRAMFILES: String.raw`E:\Apps`, GH_TOKEN: 'never' },
+          [],
+          'win32',
+        ),
+      )
+      const identity = runtimeLeaseIdentity('win32', env, run)
+      expect(await identity.processStartTime(4242)).toBe('134360343929763446')
+      const [file, , childEnv] = run.mock.calls[0] ?? []
+      expect(file).toBe(String.raw`D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`)
+      expect(childEnv?.['PSModulePath']).toBe(
+        String.raw`E:\Apps\WindowsPowerShell\Modules;D:\Windows\System32\WindowsPowerShell\v1.0\Modules`,
+      )
+      expect(childEnv).not.toHaveProperty('GH_TOKEN')
+    },
+  )
+  it.runIf(process.platform === 'win32')(
+    'a real Windows claim succeeds when the environment spells it SYSTEMROOT',
+    async () => {
+      const root = await temporary('m103w11-env-')
+      const workspace = path.join(root, 'workspace')
+      await mkdir(workspace)
+      const service = await createRuntimeMakerService({
+        dataDirectory: path.join(root, 'data'),
+        workspace,
+        trusted: () => true,
+        flagged: () => true,
+        interactive: () => true,
+        presence: { check: vi.fn().mockResolvedValue('approved') },
+        secrets: {
+          get: () => Promise.resolve(undefined),
+          store: () => Promise.resolve(),
+          delete: () => Promise.resolve(),
+        },
+        native: {
+          platform: 'win32',
+          env: { SYSTEMROOT: process.env['SystemRoot'], PATH: process.env['PATH'] },
+          packageRoot: path.resolve('.'),
+        },
+      })
+      try {
+        await makePrivateFolder(path.join(root, 'data', 'maker', 'leases'))
+        const claim = await claimHardwareLease(service.serial.lease, 'port:env', 'test', () =>
+          Promise.resolve(),
+        )
+        expect(claim.status).toBe('acquired')
+        if (claim.status === 'acquired') await claim.release()
+      } finally {
+        await service.close()
+      }
+    },
+  )
 })

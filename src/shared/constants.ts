@@ -1318,13 +1318,15 @@ export const GIT_METADATA_OPTIONS = [
   '-c',
   'core.quotePath=false',
 ] as const
-export const GIT_FILTER_NAMES_ARGS = [
-  'config',
-  '--null',
-  '--name-only',
-  '--get-regexp',
-  String.raw`^filter\..*\.(clean|process|required)$`,
-] as const
+// Pure (PLAN §8): a bundle that never reads it drops it.
+export const GIT_FILTER_NAMES_ARGS = /* @__PURE__ */ (() =>
+  [
+    'config',
+    '--null',
+    '--name-only',
+    '--get-regexp',
+    String.raw`^filter\..*\.(clean|process|required)$`,
+  ] as const)()
 export const GIT_FILTER_NAMES_MAX = 200
 export const GIT_FILTER_NAME_MAX_CHARS = 1024
 
@@ -2278,10 +2280,12 @@ export const IDE_IMAGE_TOOLS = {
 } as const
 // How Muse Code names those tools in its items (`mcp__<server>__<tool>`):
 // their rows are marked paid like the Model API backend's (M44).
-export const IDE_PAID_TOOLS: ReadonlySet<string> = new Set([
-  `mcp__ide__${IDE_IMAGE_TOOLS.generateImage}`,
-  `mcp__ide__${IDE_IMAGE_TOOLS.editImage}`,
-])
+// Pure (PLAN §8): a bundle that never reads it drops it and IDE_IMAGE_TOOLS.
+export const IDE_PAID_TOOLS: ReadonlySet<string> = /* @__PURE__ */ (() =>
+  new Set([
+    `mcp__ide__${IDE_IMAGE_TOOLS.generateImage}`,
+    `mcp__ide__${IDE_IMAGE_TOOLS.editImage}`,
+  ]))()
 // The goal loop on the Model API backend (M45, D38). Muse Code reminds the
 // agent to report progress after about ten model calls without any (its
 // step probe, docs/muse-code/interactive); the same note rides in the

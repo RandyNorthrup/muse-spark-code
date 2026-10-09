@@ -829,18 +829,43 @@ describe('hardware lease', () => {
     const active = await claim(deps)
     const folder = deps.directory
     const prefix = `stop-v1.${createHash('sha256').update('port:test').digest('hex')}.`
-    await writeFile(path.join(folder, `${prefix}corrupt.json`), '{')
-    await writeFile(path.join(folder, `${prefix}large.json`), 'x'.repeat(8192))
     await writeFile(
       path.join(folder, `${prefix}foreign.json`),
       JSON.stringify({ ...active.record, endpoint: 'foreign' }),
     )
     await writeFile(path.join(folder, `${prefix}mismatched.json`), JSON.stringify(active.record))
     try {
+      // Copies of the owner Stop reached are not other owners.
       expect(await didStopHardwareLease(deps, 'port:test')).toBe(true)
+      // FIXM103W11: an unreadable entry may be an owner Stop cannot reach, so Stop is unconfirmed.
+      await writeFile(path.join(folder, `${prefix}corrupt.json`), '{')
+      await writeFile(path.join(folder, `${prefix}large.json`), 'x'.repeat(8192))
+      const unreadable = {
+        party: 'unknown',
+        status: 'failed',
+        reason: 'lease-stop-unrecognized',
+        record: null,
+      }
+      expect(await stopHardwareLease(deps, 'port:test')).toEqual({
+        stopped: false,
+        sessions: [
+          { record: active.record, party: 'holder', status: 'stopped' },
+          unreadable,
+          unreadable,
+        ],
+      })
+      await expect(stopAllHardwareLeases(deps)).rejects.toThrow('lease-stop-failed')
     } finally {
       await active.release()
     }
+  })
+
+  it('RVM103W5 P1 an unreadable Stop index entry alone leaves stop-all unconfirmed', async () => {
+    const deps = await fixture()
+    const key = createHash('sha256').update('port:unreadable').digest('hex')
+    // No other record names this resource, so only the entry itself can report it.
+    await writeFile(path.join(deps.directory, `stop-v1.${key}.corrupt.json`), '{')
+    await expect(stopAllHardwareLeases(deps)).rejects.toThrow('lease-stop-failed')
   })
 
   it('refuses unsafe directory ownership, modes and symlink ancestors', async () => {

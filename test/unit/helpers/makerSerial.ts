@@ -1,5 +1,7 @@
 import { execFile } from 'node:child_process'
-import { readFile, writeFile } from 'node:fs/promises'
+import { createHash, randomUUID } from 'node:crypto'
+import { link, readFile, writeFile } from 'node:fs/promises'
+import net from 'node:net'
 import path from 'node:path'
 import { killTree, sweepExitedTree } from '../../../src/host/processTree'
 import { prepareWindowsSerialHelper } from '../../../src/core/maker/serial/windowsHelper'
@@ -222,3 +224,58 @@ process.stdin.on('end', () => process.exit(0));
 setInterval(() => {}, 100);
 setTimeout(() => process.exit(0), 1500);
 `
+
+/**
+ * An owner published by a build before FIXM103W10, still running: a real
+ * socket named by the whole lease id, its version-1 claim in the head slot and
+ * its Stop index record. It answers each Stop request as the old holder did
+ * and records the request.
+ */
+export async function previousBuildOwner(directory: string, resource: string, startedAt: string) {
+  const id = randomUUID()
+  const generation = randomUUID()
+  const record = {
+    version: 1,
+    id,
+    generation,
+    resource,
+    holder: 'previous build',
+    pid: process.pid,
+    startedAt,
+    endpoint: path.join(directory, `${id}.sock`),
+  }
+  const requests: unknown[] = []
+  const server = net.createServer((socket) => {
+    let input = ''
+    socket.setEncoding('utf8')
+    socket.on('data', (chunk: string) => {
+      input += chunk
+      if (!input.endsWith('\n')) return
+      requests.push(JSON.parse(input))
+      socket.end('{"stopped":true}\n')
+    })
+  })
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(record.endpoint, resolve)
+  })
+  // Its claim record holds the resource's head slot; its Stop index entry is a separate file.
+  const key = createHash('sha256').update(resource).digest('hex')
+  const claim = path.join(directory, `claim-v1.${key}.${id}.${generation}.json`)
+  await writeFile(claim, JSON.stringify(record))
+  await link(claim, path.join(directory, `claim-v1.${key}.head.claim`))
+  await writeFile(
+    path.join(directory, `stop-v1.${key}.${id}.${generation}.json`),
+    JSON.stringify(record),
+  )
+  return {
+    record,
+    requests,
+    close: () =>
+      new Promise<void>((resolve) => {
+        server.close(() => {
+          resolve()
+        })
+      }),
+  }
+}

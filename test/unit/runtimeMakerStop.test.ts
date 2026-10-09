@@ -5,13 +5,17 @@ import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runRuntimeMaker } from '../../src/runtime/maker/entry'
 import { parseMakerCommand } from '../../src/runtime/maker/commandArgs'
-import { stopRuntimeMachines, stopResultText } from '../../src/runtime/maker/stop'
+import {
+  runtimeLeaseIdentity,
+  stopRuntimeMachines,
+  stopResultText,
+} from '../../src/runtime/maker/stop'
 import { createRuntimeMakerService, runtimeMakerLan } from '../../src/runtime/maker/service'
 import { RuntimeMakerStorage } from '../../src/runtime/maker/storage'
 import { MachineHttp } from '../../src/core/maker/machines/http'
 import { claimHardwareLease } from '../../src/core/maker/lease'
-import { makerLeaseDeps } from './helpers/makerSerial'
-import { UI_TEXT } from '../../src/shared/constants'
+import { makerLeaseDeps, previousBuildOwner } from './helpers/makerSerial'
+import { MAKER_LEASE_SOCKET_NAME_CHARS, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { fill } from '../../src/shared/l10n/text'
 
@@ -48,6 +52,33 @@ async function fixture() {
   }
   const http = vi.spyOn(MachineHttp.prototype, 'json').mockResolvedValue({ result: 'ok' })
   return { root, directory, record, deps, http }
+}
+const devicesFailed = () => fill(UI_TEXT.makerStopFailed, { machine: UI_TEXT.makerDevicesTitle })
+// FIXM103W11: a Stop index record for one owner, with the endpoint spelling under test.
+async function owner(endpoint: (folder: string, id: string) => string, pid = process.pid) {
+  const f = await fixture()
+  const folder = path.join(f.directory, 'leases')
+  await makePrivateFolder(folder)
+  const startedAt = await runtimeLeaseIdentity(process.platform, process.env).processStartTime(
+    process.pid,
+  )
+  const id = randomUUID(),
+    generation = randomUUID(),
+    resource = 'port:owner'
+  const record = {
+    version: 1,
+    id,
+    generation,
+    resource,
+    holder: 'owner',
+    pid,
+    startedAt,
+    endpoint: endpoint(folder, id),
+  }
+  const key = createHash('sha256').update(resource).digest('hex')
+  const file = path.join(folder, `stop-v1.${key}.${id}.${generation}.json`)
+  await writeFile(file, JSON.stringify(record))
+  return { f, file, record }
 }
 describe('independent runtime Stop', () => {
   it.each(['home', 'root', 'data-parent', 'linked-data'])(
@@ -219,5 +250,46 @@ describe('independent runtime Stop', () => {
     const result = await stopRuntimeMachines(f.deps)
     expect(result.physicalStopRequired).toEqual([])
     expect(await readFile(file, 'utf8')).toBe(text)
+  })
+
+  describe('FIXM103W11 RVM103W5 P1: an owner Stop cannot confirm is never a stopped one', () => {
+    it.skipIf(process.platform === 'win32')(
+      'stop-machine --all reaches an owner a previous build published under the whole-id socket',
+      async () => {
+        const f = await fixture()
+        const folder = path.join(f.directory, 'leases')
+        await makePrivateFolder(folder)
+        const startedAt = await runtimeLeaseIdentity(
+          process.platform,
+          process.env,
+        ).processStartTime(process.pid)
+        const previous = await previousBuildOwner(folder, 'port:previous', startedAt ?? '')
+        try {
+          expect(await stopRuntimeMachines(f.deps)).toEqual({ physicalStopRequired: [] })
+          expect(previous.requests).toEqual([{ command: 'stop', id: previous.record.id }])
+        } finally {
+          await previous.close()
+        }
+      },
+    )
+    it('an unrecognised live owner leaves Stop unconfirmed with the physical-stop advice', async () => {
+      const { f, file } = await owner(() => 'foreign')
+      await expect(stopRuntimeMachines(f.deps)).rejects.toThrow(devicesFailed())
+      expect(await readdir(path.dirname(file))).toContain(path.basename(file))
+    })
+    it('a live owner Stop cannot reach leaves Stop unconfirmed with the physical-stop advice', async () => {
+      const { f } = await owner((folder, id) =>
+        process.platform === 'win32'
+          ? String.raw`\\.\pipe\MuseSparkSerial-${id}`
+          : path.join(folder, `${id.slice(0, MAKER_LEASE_SOCKET_NAME_CHARS)}.sock`),
+      )
+      await expect(stopRuntimeMachines(f.deps)).rejects.toThrow(devicesFailed())
+    })
+    it('an unrecognised owner whose process is gone raises no alarm and stays untouched', async () => {
+      const { f, file } = await owner(() => 'foreign', 2_147_483_647)
+      const text = await readFile(file, 'utf8')
+      expect(await stopRuntimeMachines(f.deps)).toEqual({ physicalStopRequired: [] })
+      expect(await readFile(file, 'utf8')).toBe(text)
+    })
   })
 })

@@ -524,6 +524,22 @@ describe('runtime maker command execution without a credential store or device',
       }
     },
   )
+  it.each(['SystemRoot', 'SYSTEMROOT'])(
+    'RVM103W5 P2 the Windows opener finds %s in a copied environment',
+    async (name) => {
+      const run = vi.spyOn(processTree, 'runProgram').mockResolvedValue('')
+      try {
+        await openMakerBrowser('http://127.0.0.1:12345/', 'win32', {
+          [name]: String.raw`D:\Windows`,
+        })
+        expect(run.mock.calls[0]?.[0]).toBe(
+          String.raw`D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
+        )
+      } finally {
+        run.mockRestore()
+      }
+    },
+  )
   it.each(['#private-fake-launch', '#' + 'a'.repeat(64), '?launch=private-fake-launch'])(
     'refuses a launcher URL carrying a capability in %s',
     async (suffix) => {

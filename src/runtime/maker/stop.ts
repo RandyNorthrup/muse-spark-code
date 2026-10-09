@@ -10,16 +10,24 @@ import {
   type LeaseDependencies,
 } from '../../core/maker/lease'
 import type { MakerSecrets } from '../../core/maker/ports'
-import { runProgram, windowsPowerShell } from '../../host/processTree'
+import { environmentValue } from '../../core/backends/musecode/launch'
+import { runProgram, windowsPowerShell, type RunProgram } from '../../host/processTree'
 import { RUNTIME_MAKER_TIMEOUT_MS, RUNTIME_MAKER_MAX_BYTES, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 
-/** The runtime's lease identity: Windows needs SystemRoot's PowerShell, or every answer is unknown. */
-export function runtimeLeaseIdentity(platform: NodeJS.Platform, env: NodeJS.ProcessEnv) {
-  const systemRoot = env['SystemRoot']
+/**
+ * The runtime's lease identity: Windows needs SystemRoot's PowerShell, or every
+ * answer is unknown. Its name ignores case, as Windows does, in any copied env.
+ */
+export function runtimeLeaseIdentity(
+  platform: NodeJS.Platform,
+  env: NodeJS.ProcessEnv,
+  run: RunProgram = runProgram,
+) {
+  const systemRoot = environmentValue(env, platform, 'SystemRoot')
   return leaseIdentity({
     platform,
-    run: runProgram,
+    run,
     powershell:
       platform === 'win32' && systemRoot !== undefined
         ? windowsPowerShell(systemRoot, env)

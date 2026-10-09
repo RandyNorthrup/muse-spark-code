@@ -56,7 +56,16 @@ type StopOutcome =
 
 export interface HardwareLeaseStopResult {
   readonly stopped: boolean
-  readonly sessions: readonly (StopOutcome & { readonly record: HardwareLeaseRecord })[]
+  readonly sessions: readonly (
+    | (StopOutcome & { readonly record: HardwareLeaseRecord })
+    | {
+        readonly party: 'unknown'
+        readonly status: 'failed'
+        readonly reason: 'lease-stop-unrecognized'
+        /** null: an unreadable Stop index entry. Stop never connects to either. */
+        readonly record: HardwareLeaseRecord | null
+      }
+  )[]
 }
 
 export interface LeaseDependencies {
@@ -208,12 +217,18 @@ function leaseEndpoint(deps: LeaseDependencies, id: string): string {
     : path.join(deps.directory, `${id.slice(0, MAKER_LEASE_SOCKET_NAME_CHARS)}.sock`)
 }
 
+// Builds before FIXM103W10 named the POSIX socket by the whole id; both stay in this folder.
 function isBoundRecord(
   record: HardwareLeaseRecord,
   deps: LeaseDependencies,
   resource: string,
 ): boolean {
-  return record.resource === resource && record.endpoint === leaseEndpoint(deps, record.id)
+  return (
+    record.resource === resource &&
+    (record.endpoint === leaseEndpoint(deps, record.id) ||
+      (deps.platform !== 'win32' &&
+        record.endpoint === path.join(deps.directory, `${record.id}.sock`)))
+  )
 }
 
 function isMatchingRecord(
@@ -638,18 +653,24 @@ export function leaseIdentity(
 export async function stopAllHardwareLeases(deps: LeaseDependencies): Promise<void> {
   const entries = (await isPrivateDirectory(deps, true)) ? await readdir(deps.directory) : []
   const resources = new Set<string>()
+  let isUnreadable = false
   for (const entry of entries) {
     if (!entry.endsWith('.json')) continue
     const record = await readRecord(path.join(deps.directory, entry), deps.maxRecordBytes)
-    if (record === undefined || record === null) continue
-    resources.add(record.resource)
+    // An unreadable Stop index entry may be an owner whose resource is unknown.
+    if (record === null) isUnreadable ||= entry.startsWith('stop-v1.')
+    else if (record !== undefined) resources.add(record.resource)
   }
   const results = await Promise.allSettled(
     [...resources].map(async (resource) => {
-      await stopHardwareLease(deps, resource)
+      const { sessions } = await stopHardwareLease(deps, resource)
+      // An owner that did not confirm, or that Stop could not recognise, is not stopped.
+      if (sessions.some((session) => session.party !== 'contender' && session.status === 'failed'))
+        throw new Error('lease-stop-unconfirmed')
     }),
   )
-  if (results.some((result) => result.status === 'rejected')) throw new Error('lease-stop-failed')
+  if (isUnreadable || results.some((result) => result.status === 'rejected'))
+    throw new Error('lease-stop-failed')
 }
 
 /** Out-of-band session discovery: Stop never consults admission/claim records. */
@@ -659,18 +680,24 @@ export async function stopHardwareLease(
 ): Promise<HardwareLeaseStopResult> {
   const directory = deps.directory
   const pending: Promise<HardwareLeaseStopResult['sessions'][number] | undefined>[] = []
+  const reached = new Set<string>()
+  const unrecognized: (HardwareLeaseRecord | null)[] = []
   const entries = (await isPrivateDirectory(deps, true)) ? await readdir(directory) : []
   for (const entry of entries) {
     if (!entry.startsWith(`stop-v1.${resourceKey(resource)}.`) || !entry.endsWith('.json')) continue
     const file = path.join(directory, entry)
     const record = await readRecord(file, deps.maxRecordBytes)
+    if (record === undefined) continue
+    // Never follow an entry that is not this folder's own confined record.
     if (
-      record === undefined ||
       record === null ||
       file !== recordPath(directory, record, 'stop') ||
       !isBoundRecord(record, deps, resource)
-    )
+    ) {
+      unrecognized.push(record)
       continue
+    }
+    reached.add(record.id)
     pending.push(
       (async () => {
         // Dispatch first: neither admission nor identity queries can gate a live Stop.
@@ -692,6 +719,15 @@ export async function stopHardwareLease(
   }
   const results = await Promise.all(pending)
   const sessions = results.filter((session) => session !== undefined)
+  // Unconfirmed unless it duplicates an owner reached above or its holder is proven gone.
+  for (const record of unrecognized)
+    if (record === null || (!reached.has(record.id) && (await isSameHolder(record, deps))))
+      sessions.push({
+        party: 'unknown',
+        status: 'failed',
+        reason: 'lease-stop-unrecognized',
+        record,
+      })
   return {
     stopped:
       sessions.some((session) => session.party === 'holder' && session.status === 'stopped') &&
