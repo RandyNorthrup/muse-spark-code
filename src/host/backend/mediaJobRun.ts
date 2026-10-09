@@ -78,6 +78,11 @@ function ignore(): void {
   // Nothing to record: the launcher's close decides the outcome.
 }
 
+/** Read afresh at each call: an await can abort the signal between checks. */
+function isAborted(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true
+}
+
 function isPositiveSafeInteger(value: number): boolean {
   return Number.isSafeInteger(value) && value > 0
 }
@@ -183,7 +188,7 @@ export function jobMemoryLimitedRun(
 ): (command: string, args: readonly string[], options: JobEncoderRunOptions) => Promise<void> {
   const spawnJob = deps.spawnJob ?? spawnMcpJob
   return async (command, args, options) => {
-    if (!isLaunchable(command, options) || options.signal?.aborted === true)
+    if (!isLaunchable(command, options) || isAborted(options.signal))
       throw conversionJobFailure(M50_LAUNCHER_LIMITS)
     let executablePath: string | undefined
     try {
@@ -191,7 +196,8 @@ export function jobMemoryLimitedRun(
     } catch {
       executablePath = undefined
     }
-    if (executablePath === undefined || options.signal?.aborted === true)
+    // Cancellation may have arrived while the launcher was prepared.
+    if (executablePath === undefined || isAborted(options.signal))
       throw conversionJobFailure(M50_LAUNCHER_LIMITS)
     await runInJob(
       {

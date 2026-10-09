@@ -174,6 +174,24 @@ describe('jobMemoryLimitedRun', () => {
     expect(spawnJob).not.toHaveBeenCalled()
   })
 
+  it('refuses a conversion cancelled while the launcher was prepared', async () => {
+    const where = await workspace()
+    const spawnJob = directLauncher()
+    const stop = new AbortController()
+    const jobExecutable = () => {
+      stop.abort()
+      return Promise.resolve(EXECUTABLE)
+    }
+    await expect(
+      jobMemoryLimitedRun({ jobExecutable, spawnJob })(
+        process.execPath,
+        encoder(where, KIB, 'exit0'),
+        options(where, { signal: stop.signal }),
+      ),
+    ).rejects.toMatchObject(FAILED)
+    expect(spawnJob).not.toHaveBeenCalled()
+  })
+
   it('fails a launcher that cannot start, or one that throws', async () => {
     const where = await workspace()
     const missing = jobMemoryLimitedRun({
