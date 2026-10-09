@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AcpPaidUse, paidUseAnswer, paidUseOptions } from '../../src/acp/paid'
+import { PaidOwnerReplacedError } from '../../src/core/paid/paidConsent'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { memoryPaidGrants } from './helpers/paidGrants'
@@ -248,16 +249,32 @@ describe('AcpPaidUse', () => {
     expect(paid.isRemembered(FOLDER, 'webSearch')).toBe(false)
   })
 
-  it('refuses an "always" it cannot keep, and asks again next time', async () => {
+  it('lets an "always" it cannot keep go ahead once, and asks again next time', async () => {
     const grants = memoryPaidGrants()
     vi.spyOn(grants, 'add').mockRejectedValue(new Error('read-only data folder'))
     const log = logger()
     const paid = new AcpPaidUse({ flagged: ['webSearch'], canRemember: () => true, grants, log })
     const asker = vi.fn(() => Promise.resolve('always' as const))
     paid.attach(asker)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(true)
+    expect(log.warn).toHaveBeenCalledWith(
+      'Paid use of webSearch: "always" could not be kept, so it is allowed once: read-only data folder',
+    )
+    expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(true)
+    expect(asker).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses an "always" revoked while the popup was open, and asks again next time', async () => {
+    const grants = memoryPaidGrants()
+    vi.spyOn(grants, 'add').mockRejectedValue(new PaidOwnerReplacedError())
+    const log = logger()
+    const paid = new AcpPaidUse({ flagged: ['webSearch'], canRemember: () => true, grants, log })
+    const asker = vi.fn(() => Promise.resolve('always' as const))
+    paid.attach(asker)
     expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(false)
     expect(log.warn).toHaveBeenCalledWith(
-      'Paid use of webSearch: "always" could not be kept, so it is refused: read-only data folder',
+      'Paid use of webSearch: "always" was revoked before it could be kept, so it is refused',
     )
     expect(log.info).toHaveBeenLastCalledWith(
       'Paid use of webSearch: "always" was not kept, so it is refused',

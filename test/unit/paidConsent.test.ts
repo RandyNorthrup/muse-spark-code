@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  PaidOwnerReplacedError,
   PaidUseConsent,
   paidUseQuestion,
   type PaidUseAnswer,
@@ -38,7 +39,7 @@ function consentWith(
 const SEARCH: PaidUseRequest = { feature: 'webSearch' }
 
 describe('PaidUseConsent (M58)', () => {
-  it('refuses an "always" it cannot keep, and says so', async () => {
+  it('lets an "always" it cannot keep go ahead once, and says so', async () => {
     const log = new FakeLogOutputChannel()
     const consent = new PaidUseConsent({
       isOn: () => true,
@@ -48,12 +49,48 @@ describe('PaidUseConsent (M58)', () => {
       ask: () => Promise.resolve('always'),
       log,
     })
+    await expect(consent.allows(SEARCH)).resolves.toBe(true)
+    expect(log.warn).toHaveBeenCalledWith(
+      'Paid use of webSearch: "always" could not be kept, so it is allowed once: storage is full',
+    )
+    expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
+  })
+
+  it('refuses an "always" revoked while the popup was open, and asks again next time', async () => {
+    const log = new FakeLogOutputChannel()
+    const ask = vi.fn(() => Promise.resolve<PaidUseAnswer>('always'))
+    const consent = new PaidUseConsent({
+      isOn: () => true,
+      canRemember: () => true,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.reject(new PaidOwnerReplacedError()),
+      ask,
+      log,
+    })
     await expect(consent.allows(SEARCH)).resolves.toBe(false)
     expect(log.warn).toHaveBeenCalledWith(
-      'Paid use of webSearch: "always" could not be kept, so it is refused: storage is full',
+      'Paid use of webSearch: "always" was revoked before it could be kept, so it is refused',
     )
     expect(log.info).toHaveBeenLastCalledWith(
       'Paid use of webSearch: "always" was not kept, so it is refused',
+    )
+    await expect(consent.allows(SEARCH)).resolves.toBe(false)
+    expect(ask).toHaveBeenCalledTimes(2)
+  })
+
+  it('treats a same-text plain error as a storage failure, never a revocation', async () => {
+    const log = new FakeLogOutputChannel()
+    const consent = new PaidUseConsent({
+      isOn: () => true,
+      canRemember: () => true,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.reject(new Error('MHP_PAID_OWNER_REPLACED')),
+      ask: () => Promise.resolve('always'),
+      log,
+    })
+    await expect(consent.allows(SEARCH)).resolves.toBe(true)
+    expect(log.warn).toHaveBeenCalledWith(
+      'Paid use of webSearch: "always" could not be kept, so it is allowed once: MHP_PAID_OWNER_REPLACED',
     )
   })
 
