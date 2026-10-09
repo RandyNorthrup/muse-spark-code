@@ -103,8 +103,12 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
           if (!controller.signal.aborted) onError(error_)
         })
         .finally(() => {
-          if (running.current === controller) running.current = undefined
-          if (!controller.signal.aborted) setBusy(false)
+          // The single-flight lock stays until the aborted request
+          // settles: clearing it in the cancel handler would let a
+          // second Save or Push overlap the first on the server.
+          if (running.current !== controller) return
+          running.current = undefined
+          setBusy(false)
         })
     },
     [onError],
@@ -172,8 +176,6 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
           type="button"
           onClick={() => {
             running.current?.abort()
-            running.current = undefined
-            setBusy(false)
           }}
         >
           {UI_TEXT.gitCancel}
@@ -215,8 +217,14 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
               }
               run(async (signal) => {
                 const target = nodeRelativePathSchema.parse(path === '' ? file.name : path)
-                if (path !== '' && (opened?.path !== target || draft !== opened.text))
+                // An upload over the open file with unsaved edits would
+                // orphan the draft: refuse it whether the path box names
+                // the file or is cleared to the upload's own name.
+                if (opened?.path === target) {
+                  if (draft !== opened.text) throw new Error(UI_TEXT.nodeErrors.conflict)
+                } else if (path !== '') {
                   throw new Error(UI_TEXT.nodeErrors.conflict)
+                }
                 const bytes = new Uint8Array(await file.arrayBuffer())
                 const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
                 // Base64 from exact bytes, never UTF-8 conversion of a binary upload.
@@ -235,6 +243,21 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
                   },
                   signal,
                 )
+                // The saved bytes are no longer the open ones: reload the
+                // buffer and digest from the server so the next Save sends
+                // the new digest instead of conflicting on the stale one.
+                if (opened?.path === target) {
+                  const fresh = await port.request(
+                    'node/files/read',
+                    { workspaceId, path: target },
+                    signal,
+                  )
+                  if (signal.aborted) return
+                  setOpened(fresh)
+                  setDraft(fresh.text)
+                  setReview(false)
+                  setGeneration((previous) => previous + 1)
+                }
                 if (!signal.aborted) setNotice(UI_TEXT.nodeWorkspace.saved)
               })
             }}

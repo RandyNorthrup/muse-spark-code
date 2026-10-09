@@ -7,7 +7,8 @@ import {
   type NodePageAuthPort,
 } from '../../src/webview/node/git/network'
 import { validatedNodePort } from '../../src/webview/bridges/nodePort'
-import { UI_TEXT } from '../../src/shared/constants'
+import { NODE_HTTP_STATUS, UI_TEXT } from '../../src/shared/constants'
+import { nodeErrorCode } from './helpers/nodeErrorCode'
 import type {
   NodeMethodName,
   NodeMethodParams,
@@ -172,6 +173,29 @@ describe('M110-U1 Git page admission', () => {
       methods.stage({ workspaceId: 'repo', paths: ['file.txt'] }, controller.signal),
     ).rejects.toThrow()
   })
+  it('throws typed listener errors so refusals map to their catalog code, not unavailable', async () => {
+    const { methods, inspect, run } = runtime()
+    // A head changed since the verified snapshot: conflict, not unavailable.
+    inspect.mockResolvedValueOnce({ ...status, head: 'd'.repeat(40) })
+    expect(await nodeErrorCode(methods.push(params('node/git/push'), signal()))).toBe('conflict')
+    expect(run).not.toHaveBeenCalled()
+    // An altered action digest: forbidden.
+    expect(
+      await nodeErrorCode(
+        methods.push({ ...params('node/git/push'), actionDigest: 'e'.repeat(64) }, signal()),
+      ),
+    ).toBe('forbidden')
+    // A stale local head: conflict.
+    expect(
+      await nodeErrorCode(
+        methods.commit(
+          { workspaceId: 'repo', expectedHead: 'd'.repeat(40), message: 'stale' },
+          signal(),
+        ),
+      ),
+    ).toBe('conflict')
+    expect(NODE_HTTP_STATUS.conflict).toBe(409)
+  })
   it('H10 parses mutation receipts before returning local or network results', async () => {
     const { methods, run } = runtime()
     run.mockResolvedValue({ head: status.head, changed: true, extra: 'untrusted' })
@@ -265,6 +289,25 @@ describe('M110-U1 fresh Git verification', () => {
       runNetworkGit(port, auth, 'node/git/push', 'repo', status, 'origin', signal()),
     ).rejects.toThrow()
     expect(request).not.toHaveBeenCalled()
+  })
+  it('normalizes a short inspected branch to the full network ref', async () => {
+    const { port, request, auth } = browser()
+    const short = { ...status, branch: 'main' }
+    request.mockResolvedValueOnce(short)
+    await runNetworkGit(port, auth, 'node/git/push', 'repo', short, 'origin', signal())
+    expect(request.mock.calls[1]?.[0]).toBe('node/git/push')
+    expect(request.mock.calls[1]?.[1]).toMatchObject({ ref: 'refs/heads/main' })
+    expect(auth.verify).toHaveBeenCalledOnce()
+  })
+  it('admits the full network ref when N inspects the short branch name', async () => {
+    const { methods, run, inspect } = runtime()
+    inspect.mockResolvedValueOnce({ ...status, branch: 'main' })
+    await methods.push(params('node/git/push'), signal())
+    expect(run).toHaveBeenCalledWith(
+      'node/git/push',
+      params('node/git/push'),
+      expect.any(AbortSignal),
+    )
   })
   it('refuses detached, unborn or unknown remote without asking for verification', async () => {
     const { port, auth } = browser()

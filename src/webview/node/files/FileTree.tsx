@@ -292,8 +292,13 @@ export function FileTree({
                     return
                   }
 
-                  setResults(page)
-                  move(0)
+                  // Append like the directory tree: the page already on
+                  // screen stays; only the new entries are added.
+                  setResults((previous) =>
+                    previous === undefined
+                      ? page
+                      : { ...page, entries: [...previous.entries, ...page.entries] },
+                  )
                 })
                 .catch((error: unknown) => {
                   if (!signal.aborted) onError(error)

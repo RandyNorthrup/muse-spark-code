@@ -17,7 +17,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as identity from '../../src/core/fs/fileIdentity'
 import * as filesystem from 'node:fs/promises'
 import { createNodeFileMethods, type NodeFileWorkspacePort } from '../../src/runtime/node/web/files'
-import { NODE_MAX_FILE_BYTES, NODE_MAX_PAGE_ITEMS, UI_TEXT } from '../../src/shared/constants'
+import {
+  NODE_HTTP_STATUS,
+  NODE_MAX_FILE_BYTES,
+  NODE_MAX_PAGE_ITEMS,
+  UI_TEXT,
+} from '../../src/shared/constants'
+import { nodeErrorCode } from './helpers/nodeErrorCode'
 
 vi.mock('node:fs/promises', { spy: true })
 
@@ -313,6 +319,38 @@ describe('M110-U1 files runtime boundary', () => {
     await expect(
       methods.write({ ...file, expectedDigest: digest('hello\n'), text: 'new' }, signal()),
     ).rejects.toThrow()
+  })
+  it('throws typed listener errors so refusals map to their catalog code, not unavailable', async () => {
+    const { root, methods, file, port } = await fixture()
+    // A publisher receipt that does not describe the uploaded bytes.
+    port.replace.mockResolvedValueOnce({ digest: digest('wrong') })
+    expect(
+      await nodeErrorCode(
+        methods.write({ ...file, expectedDigest: digest('hello\n'), text: 'new' }, signal()),
+      ),
+    ).toBe('conflict')
+    // A file grown past the byte bound.
+    await truncate(path.join(root, file.path), NODE_MAX_FILE_BYTES + 1)
+    expect(await nodeErrorCode(methods.read(file, signal()))).toBe('tooLarge')
+    // An over-bound page cursor, refused before filesystem access.
+    // (A cursor outside the identifier shape is refused earlier by the
+    // catalog parse, which the listener already maps to invalidRequest.)
+    port.root.mockClear()
+    expect(
+      await nodeErrorCode(
+        methods.list({ workspaceId: 'repo', directory: null, cursor: 'page-10001' }, signal()),
+      ),
+    ).toBe('invalidRequest')
+    expect(port.root).not.toHaveBeenCalled()
+    // A symlinked leaf, refused before opening.
+    await symlink(path.join(root, file.path), path.join(root, 'leaf.txt'))
+    expect(
+      await nodeErrorCode(methods.read({ workspaceId: 'repo', path: 'leaf.txt' }, signal())),
+    ).toBe('forbidden')
+    // The listener maps the typed code to its HTTP status; a plain
+    // Error would have become unavailable (503) instead.
+    expect(NODE_HTTP_STATUS.conflict).toBe(409)
+    expect(NODE_HTTP_STATUS.tooLarge).toBe(413)
   })
   it('H09 paginates a directory and refuses forged cursors', async () => {
     const { root, methods } = await fixture()

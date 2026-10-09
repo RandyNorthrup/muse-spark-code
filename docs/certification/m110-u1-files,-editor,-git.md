@@ -196,3 +196,52 @@ The lane does not run full `quality`, full unit coverage, live/paid calls or
 installed-editor/OS qualification: the brief delegates those to the lead
 and the named owners. No M110 support/release certification is claimed before
 the real bindings, capture receipts, host API regeneration and lead gates.
+
+## Review fix round: RVM110U1's five P2s
+
+Mac mini, 2026-10-09; `/Users/randy/lanes/FIXM110U2`, branch `m110/u2`,
+base `f6821a988` (m110/u1). No live/model call, credential read, push,
+merge or rebase was performed. Model attempts: **0**. No user-visible
+string was added or changed (14 tables, 164 manifest strings, 0 problems);
+no bundle cap was touched (`dist/extension.js` 437.0/600 KiB,
+`dist/modelApi.js` 447.0/475 KiB, both unchanged from U1). Every test below
+ran with the repository default timeout, at most three files per run.
+
+| #   | Finding (report §)                                                                                   | Fix                                                                                                                                                                                                                                                                                                                                    | Regression test                                                                                                                                                                                                                                                                                                                                                                                                                              | Red drill (base behaviour)                                                                    | Restore               |
+| --- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------- |
+| 1   | Show more replaces the visible list (`FileTree.tsx:295`, `GitPage.tsx:129,202`)                      | Search (`FileTree.tsx:293-300`), status (`GitPage.tsx:129-136`) and branches (`GitPage.tsx:208-214`) append pages with a functional state update, like the directory tree (`FileTree.tsx:88-89`); the search pager no longer jumps to the top                                                                                          | `nodeFileTree.test.tsx` search test now asserts the first-page row stays and the button disappears; new `nodeWorkspaceUi` test appends two status and two branch pages and asserts both pages stay                                                                                                                                                                                                                                           | Base files restored: search test fails (first row gone), git append test fails (`a.txt` gone) | SHA-256 OK both files |
+| 2   | Cancel clears the single-flight lock (`main.tsx:173-176`)                                            | Cancel only aborts (`main.tsx:176-178`); the lock and `busy` clear in `run`'s `finally` after the aborted promise settles (`main.tsx:105-113`)                                                                                                                                                                                         | New `nodeWorkspaceUi` test: after cancel a second open starts no request and Cancel stays; after settle the lock is free (second open dispatches) and the late reply is dropped                                                                                                                                                                                                                                                              | Reverted hunks: second open dispatches immediately (2 reads), test fails                      | SHA-256 OK            |
+| 3   | Upload over the open file keeps the old buffer/digest (`main.tsx:227-238`)                           | Dirty-draft guard fires whether the path box names the file or is cleared (`main.tsx:223-228`); after upload the open buffer, draft and digest reload from the server (`main.tsx:243-258`); Save then sends the new digest                                                                                                             | New `nodeWorkspaceUi` tests: editor shows the uploaded bytes, Save rests, a follow-up edit saves with the new digest; cleared-box dirty upload refuses with `conflict` and sends nothing                                                                                                                                                                                                                                                     | Reverted hunks: both tests fail (old bytes shown; cleared-box upload proceeds)                | SHA-256 OK            |
+| 4   | Plain `Error`s become `unavailable` at the listener (`web/git.ts:55,69`, `web/files.ts:77` et al.)   | All `new Error(UI_TEXT.nodeErrors.*)` in `web/files.ts` (16 sites) and `web/git.ts` (3 sites) throw `NodeListenerError`; `conflict` joins `NodeListenerErrorCode` (`listenerGuard.ts:36-44`) and `NODE_HTTP_STATUS` (`constants.ts:92`, 409). Same messages, so in-process assertions and the client code-to-message map are unchanged | New `nodeFilesPage` test (receipt/stale `conflict`, oversize `tooLarge`, over-bound cursor `invalidRequest`, symlink `forbidden`) and `nodeGitPage` test (changed head `conflict`, altered digest `forbidden`, stale local head `conflict`) assert `instanceof`/code via shared `test/unit/helpers/nodeErrorCode.ts`; new live `nodeListener` test asserts 409/`{"code":"conflict"}` for a typed throw and 503/`unavailable` for a plain one | Reverted throws: both unit tests fail with `expected 'plain' to be 'conflict'`                | SHA-256 OK both files |
+| 5   | Network `ref` requires `refs/heads/` but status `branch` may be short (`network.ts:53`, `git.ts:51`) | Shared `nodeNetworkBranchRef` (`shared/node.ts:291-297`): the page builds the tuple with the full path (`network.ts:53`), N admits it by comparing normalized (`web/git.ts:48-56`, detached still refuses)                                                                                                                             | New `nodeGitPage` tests: short-branch `runNetworkGit` sends `refs/heads/main`; admission accepts the full ref against an inspected short branch                                                                                                                                                                                                                                                                                              | Reverted lines: short-branch send throws a Zod error, admission refuses; both tests fail      | SHA-256 OK both files |
+
+Drill mechanics: each drill saved the fixed file under `$TMPDIR`, restored
+the base behaviour (whole-file checkout for F1, surgical revert for
+F2–F5), ran the named test (exit 1 with the named failure), and copied the
+saved file back with `sha256sum -c` passing on all six restored sources.
+One F4 drill iteration ran against a perl-mangled import (suite transform
+error, not an assertion); the import was repaired and the drill re-ran to a
+real assertion failure before restore.
+
+Test-only helpers (`beginPendingOpen`, `settleLateReply` in
+`nodeWorkspaceUi.test.tsx`, shared `nodeErrorCode`) exist only to satisfy
+the zero-duplication gate after it flagged four clones in the new tests;
+`jscpd` is back to 0 clones, `knip` shows only the two pre-existing hints.
+
+Not run here, left for the lead outside the sandbox: the new live
+`nodeListener` mapping test. This rig's sandbox denies loopback `listen`
+(`node:net` probe returns `EPERM`; the suite's `beforeAll` TLS setup times
+out), so `nodeListener.test.ts` cannot execute here — pre-existing
+environmental block, unrelated to the change; the file typechecks
+(`typecheck:unit` passes). One unreproduced flake: a single failure in an
+early three-file run (test name not captured) followed by three consecutive
+71/71 green runs of the same files; recorded, not chased further on the
+shared rig.
+
+Final verification (all guarded sources restored, Mac mini, 2026-10-09):
+`nodeFilesPage` 29, `nodeGitPage` 23, `nodeWorkspaceUi` 19,
+`nodeFileTree` 6, `nodeListenerGuard` 60 — all passed at the repository
+default timeout. `typecheck:host/unit/webview` passed; scoped ESLint,
+Prettier, `check:l10n` (0 problems), `npm run build` (all size/split/global
+checks), `knip` and `jscpd` (0 clones) passed. No gate weakened, no
+suppression added, no `as` cast, no new dependency.

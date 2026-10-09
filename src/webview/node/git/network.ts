@@ -5,6 +5,7 @@ import {
   type NodeMethodResult,
 } from '../../../shared/hostApi/nodeMethods'
 import { nodeStepUpSchema, type NodeStepUp } from '../../../shared/nodeAuth'
+import { nodeNetworkBranchRef } from '../../../shared/node'
 import { UI_TEXT, NODE_ZERO_DIGEST, NODE_DIGEST_RADIX } from '../../../shared/constants'
 
 export type NetworkGitMethod = 'node/git/fetch' | 'node/git/pull' | 'node/git/push'
@@ -49,7 +50,7 @@ export async function runNetworkGit(
     workspaceId,
     remote: remote.name,
     destination: remote.destination,
-    ref: snapshot.branch,
+    ref: nodeNetworkBranchRef(snapshot.branch),
     expectedHead: snapshot.head,
     stepUpId: 'pending',
     actionDigest: NODE_ZERO_DIGEST,

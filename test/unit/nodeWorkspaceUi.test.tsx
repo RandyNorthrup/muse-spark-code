@@ -152,6 +152,36 @@ afterEach(async () => {
   vi.unstubAllGlobals()
 })
 
+type WorkspaceFixture = Awaited<ReturnType<typeof fixture>>
+function beginPendingOpen({ ui, request }: Pick<WorkspaceFixture, 'ui' | 'request'>): {
+  resolve: (value: unknown) => void
+  pendingSignal: () => AbortSignal | undefined
+} {
+  const pending = Promise.withResolvers<unknown>()
+  let pendingSignal: AbortSignal | undefined
+  request.mockImplementationOnce((_method, _input, signal) => {
+    pendingSignal = signal
+    return pending.promise
+  })
+  fireEvent.click(ui.getByRole('treeitem', { name: 'example.txt' }))
+  return {
+    resolve: (value: unknown) => {
+      pending.resolve(value)
+    },
+    pendingSignal: () => pendingSignal,
+  }
+}
+async function settleLateReply(
+  ui: WorkspaceFixture['ui'],
+  opened: ReturnType<typeof beginPendingOpen>,
+): Promise<void> {
+  await act(async () => {
+    opened.resolve({ path: 'example.txt', text: 'late', digest: hash('late') })
+    await Promise.resolve()
+  })
+  expect(ui.queryByRole('textbox', { name: UI_TEXT.nodeLabels.editor })).toBeNull()
+}
+
 describe('M110-U1 shared workspace UI', () => {
   it.each([
     { locale: 'bad_locale', table: EN },
@@ -187,23 +217,28 @@ describe('M110-U1 shared workspace UI', () => {
   })
   it('H08 serializes file requests and discards a reply after the person cancels', async () => {
     const { ui, request } = await fixture()
-    const { promise, resolve } = Promise.withResolvers<unknown>()
-    let pendingSignal: AbortSignal | undefined
-    request.mockImplementationOnce((_method, _input, signal) => {
-      pendingSignal = signal
-      return promise
-    })
-    fireEvent.click(ui.getByRole('treeitem', { name: 'example.txt' }))
+    const opened = beginPendingOpen({ ui, request })
     fireEvent.click(ui.getByRole('treeitem', { name: 'second.txt' }))
     expect(request.mock.calls.filter(([method]) => method === 'node/files/read')).toHaveLength(1)
     fireEvent.click(ui.getByRole('button', { name: UI_TEXT.gitCancel }))
-    expect(pendingSignal?.aborted).toBe(true)
-    await act(async () => {
-      resolve({ path: 'example.txt', text: 'late', digest: hash('late') })
-      await Promise.resolve()
-    })
-    expect(ui.queryByRole('textbox', { name: UI_TEXT.nodeLabels.editor })).toBeNull()
+    expect(opened.pendingSignal()?.aborted).toBe(true)
+    await settleLateReply(ui, opened)
     expect(ui.queryByRole('alert')).toBeNull()
+  })
+  it('H08 keeps the single-flight lock after cancel until the aborted request settles', async () => {
+    const { ui, request } = await fixture()
+    const opened = beginPendingOpen({ ui, request })
+    fireEvent.click(ui.getByRole('button', { name: UI_TEXT.gitCancel }))
+    // A second request before the first settles must not start: the
+    // aborted call may still be applied on the server.
+    fireEvent.click(ui.getByRole('treeitem', { name: 'second.txt' }))
+    expect(request.mock.calls.filter(([method]) => method === 'node/files/read')).toHaveLength(1)
+    expect(ui.getByRole('button', { name: UI_TEXT.gitCancel })).toBeInTheDocument()
+    await settleLateReply(ui, opened)
+    // Once the aborted request settles the lock is free again.
+    fireEvent.click(ui.getByRole('treeitem', { name: 'second.txt' }))
+    expect(request.mock.calls.filter(([method]) => method === 'node/files/read')).toHaveLength(2)
+    expect(await ui.findByRole('alert')).toHaveTextContent(UI_TEXT.nodeErrors.conflict)
   })
   it('opens, edits and saves with the original digest and keeps editor input through rerenders', async () => {
     const { ui, request, state } = await fixture()
@@ -294,6 +329,55 @@ describe('M110-U1 shared workspace UI', () => {
     expect(await ui.findByRole('alert')).toHaveTextContent(UI_TEXT.nodeErrors.conflict)
     expect(arrayBuffer).not.toHaveBeenCalled()
   })
+  it('reloads the open buffer and digest after an upload over the open file', async () => {
+    const { ui, request, state } = await fixture()
+    fireEvent.click(ui.getByRole('treeitem', { name: 'example.txt' }))
+    await ui.findByRole('textbox', { name: UI_TEXT.nodeLabels.editor })
+    const fallback = request.getMockImplementation()
+    request.mockImplementation((method, input, signal) => {
+      if (
+        method === 'node/files/upload' &&
+        typeof input === 'object' &&
+        input !== null &&
+        'data' in input
+      ) {
+        state.text = Buffer.from(String(input.data), 'base64').toString('utf8')
+        return Promise.resolve({ digest: hash(state.text) })
+      }
+      return fallback?.(method, input, signal) ?? Promise.reject(new Error('no fallback response'))
+    })
+    const file = new File(['uploaded bytes\n'], 'example.txt')
+    fireEvent.change(ui.getByLabelText(UI_TEXT.nodeLabels.upload), { target: { files: [file] } })
+    await ui.findByText(UI_TEXT.nodeWorkspace.saved)
+    // The editor shows the uploaded bytes and Save rests: the draft is
+    // clean against the reloaded digest, not the stale one.
+    expect(ui.getByRole('textbox', { name: UI_TEXT.nodeLabels.editor })).toHaveValue(
+      'uploaded bytes\n',
+    )
+    expect(ui.getByRole('button', { name: UI_TEXT.nodeWorkspace.save })).toBeDisabled()
+    fireEvent.input(ui.getByRole('textbox', { name: UI_TEXT.nodeLabels.editor }), {
+      target: { value: 'uploaded bytes\nedited' },
+    })
+    fireEvent.click(ui.getByRole('button', { name: UI_TEXT.nodeWorkspace.save }))
+    await waitFor(() => {
+      expect(state.text).toBe('uploaded bytes\nedited')
+    })
+  })
+  it('refuses an upload over the open file with a cleared path box while edits are unsaved', async () => {
+    const { ui, request } = await fixture()
+    fireEvent.click(ui.getByRole('treeitem', { name: 'example.txt' }))
+    const editor = await ui.findByRole('textbox', { name: UI_TEXT.nodeLabels.editor })
+    fireEvent.input(editor, { target: { value: 'unsaved' } })
+    // Clearing the path box retargets the upload at the open file by
+    // name; the unsaved-draft guard must still refuse it.
+    fireEvent.change(ui.getByRole('textbox', { name: UI_TEXT.nodeWorkspace.path }), {
+      target: { value: '' },
+    })
+    const file = new File(['replacement'], 'example.txt')
+    fireEvent.change(ui.getByLabelText(UI_TEXT.nodeLabels.upload), { target: { files: [file] } })
+    expect(await ui.findByRole('alert')).toHaveTextContent(UI_TEXT.nodeErrors.conflict)
+    expect(request.mock.calls.some(([method]) => method === 'node/files/upload')).toBe(false)
+  })
   it('H10 refuses a download whose digest does not describe its bytes', async () => {
     const { ui, request } = await fixture()
     fireEvent.click(ui.getByRole('treeitem', { name: 'example.txt' }))
@@ -366,5 +450,57 @@ describe('M110-U1 shared workspace UI', () => {
     fireEvent.click(ui.getByRole('button', { name: UI_TEXT.nodeLabels.stepUp }))
     expect(await ui.findByRole('alert')).toHaveTextContent(UI_TEXT.nodeErrors.conflict)
     expect(request.mock.calls.some(([method]) => method === 'node/git/push')).toBe(false)
+  })
+  it('appends git change and branch pages instead of replacing the visible list', async () => {
+    const { ui, request, state } = await fixture()
+    const destination = {
+      host: 'git.example.invalid',
+      port: 22,
+      user: 'git',
+      repository: 'owner/repo.git',
+      hostKeyDigest: 'a'.repeat(64),
+    }
+    const fallback = request.getMockImplementation()
+    request.mockImplementation((method, input, signal) => {
+      const cursor =
+        typeof input === 'object' &&
+        input !== null &&
+        'cursor' in input &&
+        typeof input.cursor === 'string'
+          ? input.cursor
+          : null
+      if (method === 'node/git/status')
+        return Promise.resolve({
+          branch: 'refs/heads/main',
+          head: state.head,
+          changes: [{ path: cursor === null ? 'a.txt' : 'b.txt', kind: 'modified' }],
+          nextCursor: cursor === null ? 'page-1' : null,
+          remotes: [{ name: 'origin', destination }],
+        })
+      if (method === 'node/git/branches')
+        return Promise.resolve({
+          branches: [
+            {
+              name: cursor === null ? 'refs/heads/main' : 'refs/heads/other',
+              current: cursor === null,
+            },
+          ],
+          nextCursor: cursor === null ? 'page-1' : null,
+        })
+      return fallback?.(method, input, signal) ?? Promise.reject(new Error('no fallback response'))
+    })
+    fireEvent.click(ui.getByRole('button', { name: UI_TEXT.nodeLabels.git }))
+    fireEvent.click(ui.getByRole('button', { name: UI_TEXT.nodeWorkspace.refresh }))
+    await ui.findByText('a.txt')
+    const [statusMore] = await ui.findAllByRole('button', { name: UI_TEXT.shareShowMore })
+    if (statusMore === undefined) throw new Error('status Show more is missing')
+    fireEvent.click(statusMore)
+    await ui.findByText('b.txt')
+    // The first change page must stay: Show more appends like the
+    // directory tree instead of replacing the visible list.
+    expect(ui.getByText('a.txt')).toBeInTheDocument()
+    fireEvent.click(ui.getByRole('button', { name: UI_TEXT.shareShowMore }))
+    await ui.findByText('refs/heads/other')
+    expect(ui.getAllByText('refs/heads/main').length).toBeGreaterThan(1)
   })
 })

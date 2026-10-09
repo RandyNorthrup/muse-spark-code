@@ -89,6 +89,7 @@ export const NODE_HTTP_STATUS = {
   unauthenticated: 401,
   forbidden: 403,
   notFound: 404,
+  conflict: 409,
   tooLarge: 413,
   rateLimited: 429,
   unavailable: 503,

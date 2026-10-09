@@ -95,6 +95,10 @@ describe('M110-U1 bounded keyboard file tree', () => {
     fireEvent.change(ui.getByRole('textbox'), { target: { value: 'editing next query' } })
     fireEvent.click(ui.getByRole('button', { name: UI_TEXT.shareShowMore }))
     await ui.findByRole('treeitem', { name: 'later' })
+    // The first page must stay on screen: Show more appends like the
+    // directory tree instead of replacing the visible list.
+    expect(ui.getByRole('treeitem', { name: 'first' })).toBeInTheDocument()
+    expect(ui.queryByRole('button', { name: UI_TEXT.shareShowMore })).toBeNull()
     expect(request.mock.calls.at(-1)?.[1]).toEqual({
       workspaceId: 'repo',
       query: 'submitted',

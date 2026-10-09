@@ -38,6 +38,7 @@ export type NodeListenerErrorCode =
   | 'unauthenticated'
   | 'forbidden'
   | 'notFound'
+  | 'conflict'
   | 'tooLarge'
   | 'rateLimited'
   | 'unavailable'

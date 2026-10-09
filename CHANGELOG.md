@@ -29,6 +29,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Home-node workspace "Show more" appends search, Git change and branch pages
+  instead of replacing the visible list; cancel keeps the single-flight lock
+  until the aborted request settles; uploads over the open file reload its
+  buffer and digest and refuse a dirty draft even with the path box cleared;
+  file/Git refusals throw typed listener errors so conflict-class failures map
+  to `conflict` (HTTP 409) instead of `unavailable`; short inspected branch
+  names normalize to the full `refs/heads/` network ref on both sides.
 - Home-node WebSocket upgrades accept the browser's `websocket` Fetch
   Metadata destination while HTTP requests keep `empty`; both transports
   continue to reject foreign origins and sites.

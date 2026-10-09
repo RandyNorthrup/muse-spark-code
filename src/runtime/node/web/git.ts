@@ -5,7 +5,8 @@ import {
   type NodeMethodResult,
 } from '../../../shared/hostApi/nodeMethods'
 import { nodeActionDigest } from '../listenerMethods'
-import { UI_TEXT } from '../../../shared/constants'
+import { NodeListenerError } from '../listenerGuard'
+import { nodeNetworkBranchRef } from '../../../shared/node'
 
 type GitMethod = Extract<NodeMethodName, `node/git/${string}`>
 type NetworkMethod = 'node/git/fetch' | 'node/git/pull' | 'node/git/push'
@@ -41,7 +42,7 @@ export function createNodeGitMethods(port: NodeGitPagePort) {
     const params = nodeMethods[method].params.parse(input)
     signal.throwIfAborted()
     if (nodeActionDigest(method, params) !== params.actionDigest)
-      throw new Error(UI_TEXT.nodeErrors.forbidden)
+      throw new NodeListenerError('forbidden')
     const current = nodeMethods['node/git/status'].result.parse(
       await port.inspect(params.workspaceId, signal),
     )
@@ -49,10 +50,11 @@ export function createNodeGitMethods(port: NodeGitPagePort) {
     if (
       remote === undefined ||
       current.head !== params.expectedHead ||
-      current.branch !== params.ref ||
+      current.branch === null ||
+      nodeNetworkBranchRef(current.branch) !== params.ref ||
       JSON.stringify(remote.destination) !== JSON.stringify(params.destination)
     )
-      throw new Error(UI_TEXT.nodeErrors.conflict)
+      throw new NodeListenerError('conflict')
     signal.throwIfAborted()
     return nodeMethods[method].result.parse(await run(method, params, signal))
   }
@@ -66,7 +68,7 @@ export function createNodeGitMethods(port: NodeGitPagePort) {
     const current = nodeMethods['node/git/status'].result.parse(
       await port.inspect(params.workspaceId, signal),
     )
-    if (current.head !== params.expectedHead) throw new Error(UI_TEXT.nodeErrors.conflict)
+    if (current.head !== params.expectedHead) throw new NodeListenerError('conflict')
     signal.throwIfAborted()
     return nodeMethods[method].result.parse(await run(method, params, signal))
   }

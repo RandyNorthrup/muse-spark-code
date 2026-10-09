@@ -126,7 +126,13 @@ export function GitPage({
                     return
                   }
 
-                  setStatus(page)
+                  // Append like the directory tree: keep the changes
+                  // already shown and add only the new page.
+                  setStatus((previous) =>
+                    previous === undefined
+                      ? page
+                      : { ...page, changes: [...previous.changes, ...page.changes] },
+                  )
                   setConfirm(undefined)
                 })
               }}
@@ -199,7 +205,12 @@ export function GitPage({
                     { workspaceId, cursor: branches.nextCursor },
                     signal,
                   )
-                  if (!signal.aborted) setBranches(page)
+                  if (!signal.aborted)
+                    setBranches((previous) =>
+                      previous === undefined
+                        ? page
+                        : { ...page, branches: [...previous.branches, ...page.branches] },
+                    )
                 })
               }}
             >

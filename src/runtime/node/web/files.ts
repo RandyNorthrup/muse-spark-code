@@ -8,8 +8,8 @@ import {
   NODE_MAX_FILE_BYTES,
   NODE_MAX_PAGE_ITEMS,
   NODE_SINGLE_LINK,
-  UI_TEXT,
 } from '../../../shared/constants'
+import { NodeListenerError } from '../listenerGuard'
 import {
   nodeMethods,
   type NodeMethodParams,
@@ -53,7 +53,7 @@ async function checkedPath(root: string, relative: string | null) {
   if (relative !== null) nodeRelativePathSchema.parse(relative)
   const resolvedRoot = await realpath(root)
   if (path.resolve(root).replaceAll('\\', '/') !== resolvedRoot.replaceAll('\\', '/'))
-    throw new Error(UI_TEXT.nodeErrors.forbidden)
+    throw new NodeListenerError('forbidden')
   const names = [root]
   const parts = relative?.split('/') ?? []
   for (const part of parts) names.push(path.join(names.at(-1) ?? root, part))
@@ -61,11 +61,11 @@ async function checkedPath(root: string, relative: string | null) {
   for (const [index, name] of names.entries()) {
     const info = await lstatIdentity(name)
     if (info.isSymbolicLink() || (index < names.length - 1 && !info.isDirectory()))
-      throw new Error(UI_TEXT.nodeErrors.forbidden)
+      throw new NodeListenerError('forbidden')
     identities.push(info)
   }
   const file = names.at(-1) ?? root
-  if (!isWithin(resolvedRoot, await realpath(file))) throw new Error(UI_TEXT.nodeErrors.forbidden)
+  if (!isWithin(resolvedRoot, await realpath(file))) throw new NodeListenerError('forbidden')
   return {
     file,
     info: identities.at(-1),
@@ -74,10 +74,9 @@ async function checkedPath(root: string, relative: string | null) {
         const previous = identities[index]
         const current = await lstatIdentity(name)
         if (previous === undefined || current.isSymbolicLink() || !sameFile(previous, current))
-          throw new Error(UI_TEXT.nodeErrors.conflict)
+          throw new NodeListenerError('conflict')
       }
-      if (!isWithin(resolvedRoot, await realpath(file)))
-        throw new Error(UI_TEXT.nodeErrors.forbidden)
+      if (!isWithin(resolvedRoot, await realpath(file))) throw new NodeListenerError('forbidden')
     },
   }
 }
@@ -86,8 +85,8 @@ async function readBytes(root: string, relative: string, signal: AbortSignal): P
   const checked = await checkedPath(root, relative)
   const before = checked.info
   if (before === undefined || !before.isFile() || before.nlink !== NODE_SINGLE_LINK)
-    throw new Error(UI_TEXT.nodeErrors.forbidden)
-  if (before.size > BigInt(NODE_MAX_FILE_BYTES)) throw new Error(UI_TEXT.nodeErrors.tooLarge)
+    throw new NodeListenerError('forbidden')
+  if (before.size > BigInt(NODE_MAX_FILE_BYTES)) throw new NodeListenerError('tooLarge')
   const handle = await open(
     checked.file,
     constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
@@ -95,7 +94,7 @@ async function readBytes(root: string, relative: string, signal: AbortSignal): P
   try {
     const held = await handleIdentity(handle)
     if (!sameFile(before, held) || held.size !== before.size || held.nlink !== NODE_SINGLE_LINK)
-      throw new Error(UI_TEXT.nodeErrors.conflict)
+      throw new NodeListenerError('conflict')
     const bytes = await boundedRead(handle, signal)
     const after = await handleIdentity(handle)
     if (
@@ -104,7 +103,7 @@ async function readBytes(root: string, relative: string, signal: AbortSignal): P
       after.ctimeNs !== held.ctimeNs ||
       bytes.length !== Number(held.size)
     )
-      throw new Error(UI_TEXT.nodeErrors.conflict)
+      throw new NodeListenerError('conflict')
     await checked.recheck()
     signal.throwIfAborted()
     return bytes
@@ -121,17 +120,17 @@ async function boundedRead(handle: FileHandle, signal: AbortSignal): Promise<Buf
     signal.throwIfAborted()
     const result = await handle.read(bytes, length, bytes.length - length, null)
     length += result.bytesRead
-    if (length > NODE_MAX_FILE_BYTES) throw new Error(UI_TEXT.nodeErrors.tooLarge)
+    if (length > NODE_MAX_FILE_BYTES) throw new NodeListenerError('tooLarge')
     if (result.bytesRead === 0) return bytes.subarray(0, length)
   }
 }
 
 function offsetOf(cursor: string | null): number {
   if (cursor === null) return 0
-  if (!/^page-[0-9]+$/u.test(cursor)) throw new Error(UI_TEXT.nodeErrors.invalidRequest)
+  if (!/^page-[0-9]+$/u.test(cursor)) throw new NodeListenerError('invalidRequest')
   const offset = Number(cursor.slice('page-'.length))
   if (!Number.isSafeInteger(offset) || offset > NODE_GIT_IMPORT_MAX_FILES)
-    throw new Error(UI_TEXT.nodeErrors.invalidRequest)
+    throw new NodeListenerError('invalidRequest')
   return offset
 }
 
@@ -153,12 +152,12 @@ export function createNodeFileMethods(port: NodeFileWorkspacePort) {
     const walk = async (relative: string | null): Promise<void> => {
       signal.throwIfAborted()
       const checked = await checkedPath(root, relative)
-      if (checked.info?.isDirectory() !== true) throw new Error(UI_TEXT.nodeErrors.notFound)
+      if (checked.info?.isDirectory() !== true) throw new NodeListenerError('notFound')
       const children = await opendir(checked.file, { bufferSize: 1 })
       for await (const child of children) {
         signal.throwIfAborted()
         visited += 1
-        if (visited > NODE_GIT_IMPORT_MAX_FILES) throw new Error(UI_TEXT.nodeErrors.tooLarge)
+        if (visited > NODE_GIT_IMPORT_MAX_FILES) throw new NodeListenerError('tooLarge')
         if (child.name === '.git' || child.isSymbolicLink()) continue
         const name = relative === null ? child.name : `${relative}/${child.name}`
         if (!nodeRelativePathSchema.safeParse(name).success) continue
@@ -211,7 +210,7 @@ export function createNodeFileMethods(port: NodeFileWorkspacePort) {
       'text' in params ? Buffer.from(params.text, 'utf8') : Buffer.from(params.data, 'base64')
     const actual = digest(bytes)
     if ('digest' in params && params.digest !== actual)
-      throw new Error(UI_TEXT.nodeErrors.invalidRequest)
+      throw new NodeListenerError('invalidRequest')
     signal.throwIfAborted()
     const result = nodeMethods['node/files/write'].result.parse(
       await port.replace(
@@ -225,7 +224,7 @@ export function createNodeFileMethods(port: NodeFileWorkspacePort) {
         signal,
       ),
     )
-    if (result.digest !== actual) throw new Error(UI_TEXT.nodeErrors.conflict)
+    if (result.digest !== actual) throw new NodeListenerError('conflict')
     return result
   }
   return {
