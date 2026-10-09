@@ -476,6 +476,20 @@ re-measured and ratcheted **down** when the media redesign
 Evidence: `docs/certification/int0170-combined.md`, Bundle regressions after
 the lane merges (INT0170).
 
+**INT0170 resume (2026-10-08, kubuntu).** Merging `m107/w-history` and
+`rel017/startup2` put five budgets over unchanged caps; each is fixed at its
+root. PORTS017's cap checks in `scheduleV2.ts` imported `Usd`, carrying
+`usd.ts` back into chat startup; `compareUsdAmounts` in `usdSchema.ts`
+orders canonical amounts without it. `usageJournal.ts` read `accountIdSchema`
+from `accounts.ts`, whose M108 schemas cannot be tree-shaken (2,056 B in the
+usage service and panel); the id is now the `accountId.ts` leaf. W2's
+resource journal was built into both `resourceGovernor.js` and
+`usageService.js`; it is now one shared bundle, **`dist/resourceJournal.js`**
+(42,085 B; new 50 KiB budget, 41.1 KiB +15% rounded up to 25 KiB), which both
+require (governor 132,526 → 106,550 B, usage service 105,717 → 91,506 B). No
+existing cap rises; the chat startup ratchet is re-pinned by lead decision
+(§8). Evidence: `docs/certification/int0170-combined.md`.
+
 **CAPS017 (2026-10-08, Windows host + kubuntu).** The combined 0.17.0
 candidate's nine over-cap bundles fit their unchanged caps after structural
 shrinks: the wire boundary shares five schemas it already carried, the
@@ -42155,6 +42169,21 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | M108 lane X location                                  | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                    | Date       |
 | ----------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/core/developer/developerOptions.ts`, `serialize` | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the deferred gate uses `new Promise` with a synchronously assigned resolver instead. Every other lane (M62 pattern) does the same. Remove if the minimum host gains `withResolvers`. | 2026-10-06 |
+
+**INT0170 chat startup ratchet (lead decision, 2026-10-08).** The FIXDIET1
+review ratchet in `test/unit/webviewBundle.test.mjs` moves from 733.8 KiB
+(751,411.2 B) to **743.7 KiB (761,548.8 B)**: the combined 0.17.0 first paint
+measures 760,059 B (Kubuntu, production and the test's owned build alike),
+plus about 1.4 KB, the margin 0.16.0 had (749,987 B under 751,411 B). The
+growth is feature code that first paint needs: schedule, media and patch
+message validation in `protocol.ts`, new first-paint English, `App.tsx`,
+the money hub's loader and the M107 chip's window port. STARTUP017 had
+already moved every user-triggered module out, and INT0170 removed the one
+regression (`usd.ts` back in startup through `scheduleV2.ts`) before
+measuring. No other cap changes: the 900 KiB startup cap and the 32.1 KiB
+original-deferred ratchet stay. Module evidence table:
+`docs/certification/int0170-combined.md`, Combined integration: W2 history
+and STARTUP017.
 
 **M91 provisional budget (lead decision, 2026-10-05).** `dist/uiText.js`,
 the English fallback on the startup path, is at 126.8 KiB with M91's strings

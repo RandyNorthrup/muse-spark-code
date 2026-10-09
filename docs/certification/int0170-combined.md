@@ -2898,3 +2898,173 @@ test/e2e/webviewDiet.mjs` exit 0 (27 PASS); a11y on empty, paid,
   schedules-v2-editor: 48 pages, 0 violations. One page
   (light/schedules-v2-list) was not ready in 10 s on the first run; the
   schedule scenes were rerun: 8/8 pages, exit 0.
+
+## Combined integration: W2 history and STARTUP017 (INT0170 resume)
+
+Release-integration lane on `release/0.17.0` (worktree `mx-rel0170`), resumed
+2026-10-08 after the host stop. Builds and suites ran on Kubuntu in
+`rig-test.sh` slots with real `node_modules`; the Windows-sensitive files ran
+on the Windows 11 VM. No model calls were made, hooks ran on every commit and
+nothing was pushed. `rel017/spawn4` (under review) and the `m105/media-*`
+branches were not merged.
+
+### Merges
+
+| Merge       | Branch                          | Conflicts and decisions                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `81b21082b` | `m107/w-history` (`c5d5ec7bf`)  | 25 files. l10n (14): the union of 0.17's 191 and W2's 7 new keys, 2,903 in every table, no key changed on both sides. `admission.ts`, `launchHost.ts`, `resourceGovernorEntry.ts`, `runtime/main.ts`: 0.17's U–C1 window binding and W2's history recorder side by side. `usageText.ts`: W2 moved `usageResourcesText` to `resourceText.ts`; 0.17's exact `formatUsd` import kept. Docs: both entries kept. |
+| `b44f01fed` | `rel017/startup2` (`1e98417c1`) | One file: this record, both appended sections kept. l10n merged cleanly (2,905 UI and 189 usage keys in all 14 tables).                                                                                                                                                                                                                                                                                     |
+
+### Budgets broken by the merges, and their roots
+
+The merged tree (`b44f01fed`) failed five budgets under unchanged caps. Each is
+fixed at its root; no existing cap was raised.
+
+| Budget                         | Merged    | Root (module chain)                                                                                                                                                                                                           | Fix                                                                                                                                                                                    | After      | Cap       |
+| ------------------------------ | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | --------- |
+| Bundle split: money in startup | 1 problem | `main.tsx` → `App.tsx` → `protocol.ts` → `scheduleV2.ts` → `usd.ts`: PORTS017 (`632f79910`) compared schedule caps with `Usd`, after STARTUP017 had moved `usd.ts` out of first paint                                         | `compareUsdAmounts` in `usdSchema.ts` orders two canonical amounts exactly without the arithmetic module (parity test against `Usd.compare` over negative, sub-nano and 2^53+ amounts) | 0 problems | 0         |
+| `dist/resourceGovernor.js`     | 132,526 B | W2's journal (`resourceJournal.ts` 10,087, `nodeUsageFs.ts` 7,510, `resourceRecords.ts` 3,475, `history.ts` 1,307, reset and settings files 999, `fsAtomic.ts` +1,593) built into the governor **and** into the usage service | One shared bundle, `dist/resourceJournal.js` (entry `resourceJournalEntry.ts`), required by both; the `sharedModelApiBoundaries` plugin routes `runtime/resources/history.ts` to it    | 106,550 B  | 128,000 B |
+| `dist/usageService.js`         | 105,717 B | the same journal copy (`resourceJournal.ts` 10,088, `history.ts` 653, reset file 577), plus `accounts.ts` (below)                                                                                                             | the shared journal; the account id leaf                                                                                                                                                | 91,506 B   | 102,400 B |
+| `dist/usagePanel.js`           | 78,509 B  | `usagePanel.ts` → `usagePage.ts` → `usageJournal.ts` → `accounts.ts` for `accountIdSchema` alone; the M108 pool, trigger and event schemas cannot be tree-shaken (2,056 B, also in `usageService.js`)                         | `accountIdSchema` moves to the `src/shared/accountId.ts` leaf; `accounts.ts` re-exports it, so every other reader is unchanged                                                         | 76,495 B   | 76,800 B  |
+| `dist/webview` models body     | 75.0 KiB  | over by bytes after both merges; not traced to one module                                                                                                                                                                     | none of its own: it fell under the cap with the two fixes above (not attributed separately)                                                                                            | 74.9 KiB   | 75 KiB    |
+
+The new bundle's budget follows D6's rule: 42,085 B (41.1 KiB) measured,
++15% is 47.3 KiB, rounded up to 25 KiB gives **50 KiB**. Its inputs are W2's
+own modules plus the constants, `fsAtomic`, path and identity helpers they
+read; zod/mini comes from `validation.js`, the English table from `uiText.js`
+and `Usd` from `modelApiBoundaries.js`. It produces no user-visible text
+(`resourceHistory.ts` contributes only its schemas), so the `l10n/text.ts`
+copy it carries never decides a language. It ships in the VSIX
+(`.vscodeignore`) and the ACP package (`package-acp.mjs`), and
+`check-host-globals` covers it. The split gate's deferred inventory holds it,
+with the governor and the usage service among the parents that must not carry
+its sources. Side effects measured in the same builds: `modelApi.js` 530,208
+→ 528,183 B (its pin, 530,883 B, is unchanged), `usageCompanion.js` 47,086 →
+45,085 B, chat startup 762,044 → 760,059 B.
+
+Sizes per build (Kubuntu, `node scripts/build.mjs --production`, bytes):
+
+| Bundle                  | Merged `b44f01fed` | + startup and account fixes | + shared journal | Cap     |
+| ----------------------- | ------------------ | --------------------------- | ---------------- | ------- |
+| `resourceGovernor.js`   | 132,526            | 132,526                     | 106,550          | 128,000 |
+| `resourceJournal.js`    | —                  | —                           | 42,085           | 51,200  |
+| `usageService.js`       | 105,717            | 103,705                     | 91,506           | 102,400 |
+| `usagePanel.js`         | 78,509             | 76,495                      | 76,495           | 76,800  |
+| `modelApi.js`           | 530,208            | 528,183                     | 528,183          | 537,600 |
+| `modelApiBoundaries.js` | 32,872             | 33,103                      | 33,103           | 51,200  |
+| Chat startup            | 762,044            | 760,059                     | 760,059          | 921,600 |
+
+### Translation table order
+
+The packaged tables are rebuilt in English's key order (`readArchivedUiTable`
+reorders by `EN`), and `vsixPackaging`, `usagePackaging` and
+`runtimeChatGptPackage` require each source table to match that order byte
+for byte. After both merges every table listed W2's seven history keys at the
+end and SECWINPATH's three Windows path keys (`windowsPathRefused`,
+`checkpointStorageUncertain`, `windowsSystemRootMissing`) after the agent
+keys, so 14 locales failed the round trip. Each table is rewritten in
+`en.ts` order: 10 lines move per table, no value changes (parsed tables
+compare equal), Prettier's format is kept.
+
+### Chat startup ratchet (lead decision)
+
+With money out of first paint again, chat startup measures **760,059 B** in
+the production build and **760,059 B** in `webviewBundle`'s owned build,
+against the FIXDIET1 ratchet of 751,411.2 B (733.8 KiB). STARTUP017 already
+moved every user-triggered-only module out (its "Remainder for the lead"
+above); the rest is feature growth. The lead re-pins the ratchet at the
+measured owned build plus about 1.4 KB, the margin 0.16.0 had (749,987 B under
+751,411 B, 1,424 B): **743.7 KiB = 761,548.8 B**. The 900 KiB startup cap,
+the 32.1 KiB original-deferred ratchet and every other cap are unchanged.
+
+What grew in chat startup, 0.16.0 (`4da4ef666`, 749,987 B, 50 outputs) → this
+head (760,059 B, 55 outputs), from `dist/meta/webview.json` (each input's bytes
+summed over `main.js` and its static imports; both builds on Kubuntu):
+
+| Module(s)                                                                                                                                                                                                             | Change (B) | Why it is in first paint                                                                                                                     |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/webview/App.tsx`                                                                                                                                                                                                 | +8,546     | the main component: resource chip window binding, money hub, schedule and estimator routing, deferred-surface handling                       |
+| `src/shared/scheduleV2.ts`, `scheduleEvents.ts`, `scheduleProtocol.ts`, `core/schedules/time/cron.ts`                                                                                                                 | +8,955     | `protocol.ts` validates schedule messages, and restored schedule rows paint from them (STARTUP017)                                           |
+| `src/shared/l10n/en.ts`                                                                                                                                                                                               | +6,415     | new first-paint strings; the per-key split ships only keys startup code reads                                                                |
+| zod/mini core (`schemas`, `registries`, `api`, `checks`, `regexes`, mini `schemas`)                                                                                                                                   | +3,534     | the codecs, ISO date-times and checks the new protocol schemas use                                                                           |
+| `src/shared/media.ts`, `patchDocument.ts`                                                                                                                                                                             | +2,930     | `protocol.ts` validates attachment and patch messages                                                                                        |
+| `src/shared/constants.ts`                                                                                                                                                                                             | +2,275     | constants read by first-paint code; computed declarations esbuild keeps                                                                      |
+| Composer, Transcript, AttachmentChips, `uiState`, `store`, `toolPresentation`, `protocol.ts`                                                                                                                          | +5,518     | feature growth in first-paint state and components                                                                                           |
+| `src/shared/redact.ts`                                                                                                                                                                                                | +1,625     | `state/snapshot.ts` and `state/uiState.ts` redact restored drafts and user rows                                                              |
+| `money.tsx`, `moneyHooks.ts`, `paidBoundary.ts`, `usdSchema.ts`                                                                                                                                                       | +3,144     | the money hub's loader and the schema-only boundary that replaced `paid.ts`, `usd.ts`, `insights.ts` and `tokenRatePrice.ts` (−6,150, below) |
+| `webview/resources/windowPort.ts`, `resourceLoader.ts`                                                                                                                                                                | +553       | M107 U–C1: the chip's window port, so the chip itself stays deferred                                                                         |
+| Everything else, net (`slashRank`, `diffTally`, `toolStatus`, `menuIds`, `settlement` and other leaves split out of deferred bodies; `modelapi/schedules.ts` −800, `browserCheckConstants` −598, `l10n/text.ts` −239) | +816       | the leaves run synchronously at first paint (keystroke ranking, the tally entry, restored settlement rows); the rest shrank                  |
+| `ToolRow`, `palette.ts`, `slashCommands.ts`, `TodoPanel`, `SlashMenu`, `DiffTally`, `diff.ts`, `VerifyParts`, `verifyText`, `MentionMenu`, `MenuOption`                                                               | −30,043    | moved out of first paint by INT0170B, FIXM116I and STARTUP017                                                                                |
+| `paid.ts`, `usd.ts`, `insights.ts`, `tokenRatePrice.ts`                                                                                                                                                               | −6,150     | exact money loads after first paint (STARTUP017; `usd.ts` kept out by the fix above)                                                         |
+| Chunk wrappers (50 → 55 outputs)                                                                                                                                                                                      | +1,954     | the deferred splits above add static chunks                                                                                                  |
+
+No leaf in the table is reached only by a user action; the one regression that
+was (`usd.ts` through `scheduleV2.ts`) is fixed above, and the split gate's
+`MONEY_STARTUP_NEVER` holds it.
+
+### Red drills (Kubuntu, one slot; every break restored)
+
+Four breaks applied together in slot `int0170g` (snapshot of `f74dc661b`
+plus the test fixes below), each owned by its own guard, then restored with
+`git checkout` (0 changed paths) and rebuilt.
+
+| Break                                                                               | Guard result                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| B1: `compareUsdAmounts` returns the reverse order                                   | `usd.test.ts` fails "orders canonical amounts at the boundary exactly as the arithmetic module does"                                                                                                                                                                                                                                                                                       |
+| B2: the plugin no longer routes `runtime/resources/history.ts` to the shared bundle | size exit 1 (`OVER dist/resourceGovernor.js: 129.4 KiB`, `OVER dist/usageService.js: 103.3 KiB`); split exit 1, 7 problems such as `dist/resourceGovernor.js carries src/core/usage/resourceJournal.ts, which loads only on the shared resource journal (dist/resourceJournal.js)`; `deferredBundles` fails the INT0170 case and every case that expects a clean deferred gate (72 of 114) |
+| B3: `usageJournal.ts` reads the id from `accounts.ts` again                         | size exit 1 (`OVER dist/usagePanel.js: 76.7 KiB`), the only change that moves the panel; the INT0170 case's `accounts.ts` assertion                                                                                                                                                                                                                                                        |
+| B4: `scheduleV2.ts` imports from `./usd` again                                      | split exit 1 (`dist/webview/chunks/JIHLMGB5.js carries exact-money src/shared/usd.ts in the initial webview graph`); `webviewBundle` fails "loads exact USD arithmetic and display only with lazy media pricing" and the re-pinned ratchet (`expected 762217 to be less than or equal to 761548.8`)                                                                                        |
+| Restored tree                                                                       | `build.mjs --production`, bundle size and bundle split: exit 0                                                                                                                                                                                                                                                                                                                             |
+
+Before these fixes, the merged tree itself was the natural drill for B4 and
+the size gate: `b44f01fed` failed the split check
+(`dist/webview/chunks/MG3BMPVH.js carries exact-money src/shared/usd.ts in
+the initial webview graph`) and five budgets (table above).
+
+### Gates and suites
+
+Kubuntu unless noted; repository default timeouts throughout.
+
+| Gate / suite                                                                                                                                                                  | Exit | Receipt                                                                                                                                  |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Five typechecks (merged tree); host, webview and unit again after the fixes                                                                                                   | 0    | slots `int0170b`, `int0170c`, `int0170f`                                                                                                 |
+| ESLint `--max-warnings=0`: the merges' 100 source files, then the fixes' files                                                                                                | 0    | Prettier on 142 merged files exit 0; lint-staged on every commit                                                                         |
+| plain knip, cycles, jscpd                                                                                                                                                     | 0    | configuration hints only; 3,090 modules, no cycle; 0 clones                                                                              |
+| `check:l10n`, `check:reference`, `check:plan`, `check:host-api`                                                                                                               | 0    | 0 problems; reference current; 206 milestones, 0 drift; 0 host API problems                                                              |
+| check-tokens, `build.mjs --production`, bundle size, bundle split, host globals, notices                                                                                      | 0    | slot `int0170d`; sizes above; 92 third-party notices                                                                                     |
+| deferredBundles, bundleSize, webviewBundle, vsixPackaging, usagePackaging, resourceAcpPackaging, integrationPackaging, runtimeChatGptPackage, l10n, l10nPacked, browserUiText | 0    | 114, 58, 56, 79, 12, 9, 2, 2, 26, 2 and 5 tests                                                                                          |
+| Full unit run, `npx vitest run test/unit` (slot `int0170full`, rig shared with other lanes, load 13–17 on 10 cores)                                                           | 1    | 1,248 files: 1,210 passed, 34 failed, 4 skipped; 24,627 tests passed, 50 failed, 166 skipped; 1,207 s                                    |
+| Windows 11 VM: resource history, usage journal and service, path identity and aliases, trusted paths, checkpoints, governor launch, `usd`, `scheduleV2`, l10n (18 files)      | 1    | 278 passed, 1 skipped, 1 failed: `resourceHistoryDisposal` (below); the merged tree before the fixes passed 15 of these files, 222 tests |
+
+The full run's 34 failing files, sorted:
+
+- **Caused by the merges, fixed here** (pass in slot `int0170g`):
+  `cyclesRoots` (STARTUP017's lazy targets `src/core/usage/insights.ts`,
+  `src/shared/paid.ts`, `src/webview/schedules/prompt.ts` and the knip
+  entries `test/e2e/startupMoney.mjs`, `test/harness/usage-resource-scenes.mjs`
+  were not cycle roots), `flightRecorder` R2 (the report frame vocabulary
+  lacked `dist/resourceJournal.js`), `visualMatrix` (`src/webview/money.tsx`
+  was not in the audit inputs), `UsageApp` (the model detail price fills in
+  after the money chunk loads; the test now awaits it).
+- **Timeouts under the shared rig's load, passing when rerun on this head**:
+  `checkpointHost`, `scheduleStore`, `colourLiteralRule`, `usageRollup` (all
+  four pass together on this head and on the pre-merge `bdd6abab0`),
+  `runtimeAccountsBundle`, `teamLanding`, `teamNativeLifetime`,
+  `runtimeChatGptPackage` (its 60 s production-package hook; 2/2 in slot
+  `int0170f`; also in CI's list).
+- **Rig environment**: `vault/peer` (`sudo -u nobody` cannot enter the
+  slot's private 0700 temp folder).
+- **Already failing in CI run 37866831774 on `01ee6233b`**, left to the CI
+  triage lane: `museCodeSdk142`, `modelApiLoopGuarantees`, `modelApiHost`,
+  `m114ConversationReview`, `m114Audit` (its source-hash inventory also needs
+  the merged renderers), `playbookOutcomes`, `browserEnglish` (fails the same
+  way on `bdd6abab0`), `teamStartup` (621,882 B on `bdd6abab0`, 621,252 B
+  here, against 608,906 B), `memoryStore`, `modelsActivationBudget`,
+  `autoCompact`, `actionManifest`, `m106Build`, `noticesInput`, `readmeShots`,
+  `resourceHarness`, `resourceHistoryHarness`, `slashCommandsBundle`,
+  `visualCapture`, `tokenFile`, `vault/requestTaint`.
+
+`resourceHistoryDisposal` on Windows waits at most 3 s for Delete history's
+first refused lock; with 17 other files running it saw none in time, and
+alone it passes (4.2 s; it also passed in the first Windows run). It is
+listed for the CI triage lane as load-sensitive.
