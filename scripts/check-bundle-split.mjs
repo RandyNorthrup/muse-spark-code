@@ -1518,7 +1518,14 @@ const boundaryInputs = inputsOf({
   output: boundaryOutput,
   metafile: 'dist/meta/modelApiBoundaries.json',
 })
-for (const source of MODEL_API_BOUNDARY_SOURCES) {
+// Pinned here as well as in the plugin's list, so dropping one from that list
+// fails instead of letting the copies back in unchecked.
+const boundarySources = new Set([
+  ...MODEL_API_BOUNDARY_SOURCES,
+  'src/core/windowsPathSpelling.ts',
+  'src/shared/usdSchema.ts',
+])
+for (const source of boundarySources) {
   if (!boundaryInputs.has(source)) problems.push(`${boundaryOutput} no longer carries ${source}`)
 }
 for (const { output, metafile } of SHIPPED) {
@@ -1527,7 +1534,7 @@ for (const { output, metafile } of SHIPPED) {
   )?.[1]
   if (!details?.imports.some(({ path: imported }) => imported === './modelApiBoundaries.js'))
     continue
-  for (const source of MODEL_API_BOUNDARY_SOURCES) {
+  for (const source of boundarySources) {
     if (Object.hasOwn(details.inputs, source)) {
       problems.push(`${output} loads ${boundaryOutput} and still carries its own copy of ${source}`)
     }
