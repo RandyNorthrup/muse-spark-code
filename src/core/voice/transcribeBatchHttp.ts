@@ -99,8 +99,6 @@ export interface TranscriptionPostDeps {
 }
 
 export interface TranscriptionConversionDeps {
-  /** Confined original audio/video to an absolute input path; undefined refuses. */
-  readonly resolveSourcePath: (source: AudioSource) => Promise<string | undefined>
   readonly locateConverter?: () => Promise<Awaited<ReturnType<typeof locateMediaConverter>>>
   readonly conversionOptions?: MediaConversionOptions
   readonly mintToken?: () => string
@@ -171,16 +169,6 @@ async function verifiedBytes(chunks: AsyncIterable<Uint8Array>): Promise<Uint8Ar
   return bytes
 }
 
-/** Reads a verified stream to its end without keeping it: the digest check alone. */
-async function verifyThrough(chunks: AsyncIterable<Uint8Array>): Promise<void> {
-  const reader = chunks[Symbol.asyncIterator]()
-  let isDone = false
-  while (!isDone) {
-    const next = await reader.next()
-    isDone = next.done === true
-  }
-}
-
 function audioCaps(modelId: string): AudioModelCapabilities {
   if (modelId === 'muse-spark-1.2-contributor' || modelId === 'muse-spark-1.3-contributor') {
     return {
@@ -236,37 +224,24 @@ export function createTranscriptionPorts(
   >()
   const mintToken = deps.mintToken ?? (() => `transcribed-${randomUUID()}`)
 
-  async function resolveAbsolutePath(source: AudioSource): Promise<string> {
-    const original = converted.get(source.pathToken)?.path ?? (await deps.resolveSourcePath(source))
-    if (original === undefined) throw new Error(UI_TEXT.media.converterUnavailable)
-    return original
-  }
-
   const conversion: AudioConversionPort = {
     convert: async (source, mode, signal) => {
       signal.throwIfAborted()
       if (mode !== 'extractWav') throw new Error(UI_TEXT.media.converterUnavailable)
-      const inputPath = await resolveAbsolutePath(source)
-      // The converter reads by path: the attachment is verified against its
-      // approved digest first, so a replaced file refuses before encoding.
-      const isOriginal = !converted.has(source.pathToken)
-      if (isOriginal) await verifyThrough(deps.readSource(source, signal))
-      signal.throwIfAborted()
+      // A file this adapter rendered converts from its own path; an
+      // attachment converts from its digest-verified bytes, written to the
+      // conversion's private folder, never from the user's path (RVMEDIAV2).
+      const renderedPath = converted.get(source.pathToken)?.path
       const located = await (deps.locateConverter ?? locateMediaConverter)()
       if (!located.ok) throw new Error(located.reason)
-      const rendered = await convertToWav16kMono(inputPath, located.converter, {
+      const rendered = await convertToWav16kMono(renderedPath ?? source.name, located.converter, {
         ...deps.conversionOptions,
         signal,
+        ...(renderedPath === undefined && {
+          inputBytes: () => deps.readSource(source, signal),
+        }),
       })
       if (!rendered.ok) throw new Error(rendered.reason)
-      if (isOriginal) {
-        try {
-          await verifyThrough(deps.readSource(source, signal))
-        } catch (error: unknown) {
-          await rendered.dispose()
-          throw error
-        }
-      }
       const token = mintToken()
       converted.set(token, { path: rendered.path, kind: source.info.kind })
       const dispose = async () => {
@@ -310,7 +285,9 @@ export function createTranscriptionPorts(
           // any other WAV is converted, or refused here when no converter is
           // on the machine. Nothing billable has happened yet.
           rendered = await conversion.convert(source, 'extractWav', signal)
-          wav = await deps.readAudioBytes(await resolveAbsolutePath(rendered.source), signal)
+          const renderedWav = converted.get(rendered.source.pathToken)?.path
+          if (renderedWav === undefined) throw new Error(UI_TEXT.media.converterUnavailable)
+          wav = await deps.readAudioBytes(renderedWav, signal)
           name = rendered.source.name
           if (!isBatchContractWav(wav)) throw new Error(UI_TEXT.media.converterUnavailable)
         }

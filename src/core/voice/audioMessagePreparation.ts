@@ -26,7 +26,6 @@ import {
 export interface AudioMessageSeams {
   /** Attach-port tokens to confined sources; lane V binds the registry. */
   readonly resolveSource: (part: TurnPart) => AudioSource | undefined
-  readonly resolveSourcePath: (source: AudioSource) => Promise<string | undefined>
   readonly readAudioBytes: (absolutePath: string, signal: AbortSignal) => Promise<Uint8Array>
   /** Host-owned transcription POST with the Model API key; lane V binds the pinned transport. */
   readonly postTranscription: TranscriptionPostDeps['postTranscription']

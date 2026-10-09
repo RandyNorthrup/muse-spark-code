@@ -56,10 +56,12 @@ export interface ReplayMediaDeps {
    * scheduled run). Only then does an unknown rate refuse. Absent means
    * capped, the fail-safe reading. */
   readonly isCapped?: () => boolean
-  /** Each open repeats confinement and approval checks. No source path is stored. */
+  /** Each open repeats confinement and approval checks. No source path is stored.
+   * `token` is the attach token the record resolved through, when it did. */
   readonly source: (
     media: StoredMediaPart,
     signal: AbortSignal,
+    token?: string,
   ) => Promise<UploadSource | undefined>
   /** C/A bind budget, Contributor and soundtrack choices before any upload/dispatch. */
   readonly authorize: (
@@ -183,6 +185,8 @@ export interface MediaReplayPort {
 export class ReplayMedia {
   private readonly parts = new WeakMap<InputContentPart, StoredMediaPart>()
   private readonly restored = new WeakSet<InputContentPart>()
+  /** The attach token each content resolved through: its source, and no other, uploads (RVMEDIAV2). */
+  private readonly tokens = new WeakMap<InputContentPart, string>()
   private readonly inline = new WeakMap<InputContentPart, InputContentPart>()
   private readonly replacements = new Set<string>()
   /** Inline records: each part's identity read once from its wire bytes
@@ -495,6 +499,7 @@ export class ReplayMedia {
         ? metadataPart(media)
         : inline
     this.parts.set(content, media)
+    if (part.type === 'media') this.tokens.set(content, part.token)
     budget.noteMedia(
       content,
       media.info,
@@ -538,7 +543,7 @@ export class ReplayMedia {
       await this.deps.authorize(media, model, gate, signal)
       signal.throwIfAborted()
       if (route === 'inline' && !this.restored.has(part)) continue
-      const approved = await this.deps.source(media, signal)
+      const approved = await this.deps.source(media, signal, this.tokens.get(part))
       signal.throwIfAborted()
       if (approved === undefined && route === 'inline') continue
       if (approved === undefined && previousFile === undefined)

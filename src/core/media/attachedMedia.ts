@@ -21,22 +21,51 @@ import type { AudioSource } from '../voice/transcribeBatch'
 export interface AttachedSource {
   /** Streams the file's current bytes; throws when it is no longer approved. */
   readonly read: (signal: AbortSignal) => AsyncIterable<Uint8Array>
-  /** The confined absolute path, for the local converter only; undefined refuses. */
-  readonly path: () => Promise<string | undefined>
+}
+
+/**
+ * A registration's state (RVMEDIAV2, PLAN M105's table): `attached` is a
+ * chip only its owner holds; `claimed` is held by an accepted turn still
+ * waiting (queued or steered); `inFlight` by a turn that started. Only
+ * `attached` is evicted at the bound, discarded or released with its owner.
+ */
+export type AttachedState = 'attached' | 'claimed' | 'inFlight'
+
+/** One accepted turn's hold on the media parts it carries. */
+export interface MediaClaim {
+  /** The turn starts, or its steer enters a request: claimed becomes in flight. */
+  readonly start: () => void
+  /** The turn ends, is withdrawn or dropped: the last holder releases the token. */
+  readonly release: () => void
+}
+
+interface Holder {
+  isInFlight: boolean
 }
 
 interface Entry {
   readonly media: StoredMediaPart
+  /** Fixed at registration: a token never reads another token's source. */
   readonly source: AttachedSource
   /** Who attached it (a composer, an ACP session); released with its owner. */
   readonly owner: string | undefined
-  /** Turns using it now: a claimed entry outlives discard and owner release. */
-  claims: number
+  /** The accepted turns holding it; empty while it is only attached. */
+  readonly holders: Set<Holder>
 }
 
-/** One attached file's identity as a record carries it: digest, name and size. */
-function identity(media: StoredMediaPart): string {
-  return `${media.sha256}\u{0}${String(media.info.sizeBytes)}\u{0}${media.name}`
+function stateOf(entry: Entry): AttachedState {
+  if (entry.holders.size === 0) return 'attached'
+  return [...entry.holders].some((holder) => holder.isInFlight) ? 'inFlight' : 'claimed'
+}
+
+/** The bound refused a registration: every entry is held by an accepted turn. */
+class MediaAttachRefusedError extends Error {
+  public override readonly name = 'MediaAttachRefusedError'
+}
+
+/** A refusal across bundles (each carries its own class): by name, not identity. */
+export function isMediaAttachRefusal(error: unknown): error is Error {
+  return error instanceof Error && error.name === 'MediaAttachRefusedError'
 }
 
 /**
@@ -65,14 +94,14 @@ async function* verified(
 
 /**
  * One per host: the attach port writes, the media service and audio seam
- * read. Registrations are owned (RVMEDIAV 7): a discarded chip, a disposed
- * session or a finished turn releases its own, a running turn keeps the
- * ones it claimed, and the whole registry is bounded.
+ * read. Every registration has one owner and one set of turn holders, and
+ * moves attached -> claimed -> in flight -> released (RVMEDIAV2). Its
+ * source is fixed per token: lookups go by token, never by digest, so no
+ * session can redirect another's upload. The bound evicts only attached
+ * entries and otherwise refuses with the translated reason.
  */
 export class AttachedMedia {
   private readonly entries = new Map<string, Entry>()
-  /** The token each identity last resolved through: its source is the one uploaded. */
-  private readonly current = new Map<string, string>()
 
   private entry(part: TurnPart): Entry | undefined {
     if (part.type !== 'media') return undefined
@@ -84,18 +113,10 @@ export class AttachedMedia {
       : undefined
   }
 
-  private delete(token: string): void {
-    const entry = this.entries.get(token)
-    if (entry === undefined) return
-    this.entries.delete(token)
-    const key = identity(entry.media)
-    if (this.current.get(key) === token) this.current.delete(key)
-  }
-
   /**
    * Registers a sniffed, hashed file under its one-use token. At the bound,
-   * the oldest registration no turn is using makes room; when every one is
-   * in use, the attachment is refused.
+   * the oldest attached registration makes room; when every one is claimed
+   * or in flight, the attachment is refused.
    */
   public register(
     token: string,
@@ -108,56 +129,62 @@ export class AttachedMedia {
       throw new Error('Only video and audio attach by token')
     if (this.entries.has(token)) throw new Error('Duplicate media path token')
     if (this.entries.size >= MEDIA_ATTACHED_MAX_ENTRIES) {
-      const idle = [...this.entries].find(([, entry]) => entry.claims === 0)
-      if (idle === undefined) throw new Error(UI_TEXT.media.attachedLimit)
-      this.delete(idle[0])
+      const idle = [...this.entries].find(([, entry]) => stateOf(entry) === 'attached')
+      if (idle === undefined) throw new MediaAttachRefusedError(UI_TEXT.media.attachedLimit)
+      this.entries.delete(idle[0])
     }
-    this.entries.set(token, { media: parsed, source, owner, claims: 0 })
+    this.entries.set(token, { media: parsed, source, owner, holders: new Set() })
     return { type: 'media', token, name: parsed.name, info: parsed.info, sha256: parsed.sha256 }
+  }
+
+  /** A token's state; undefined once released (or never registered). */
+  public state(token: string): AttachedState | undefined {
+    const entry = this.entries.get(token)
+    return entry === undefined ? undefined : stateOf(entry)
   }
 
   /** The stored record a `media` part stands for; a stale or forged part has none. */
   public resolve(part: TurnPart): StoredMediaPart | undefined {
     const entry = this.entry(part)
-    if (entry === undefined || part.type !== 'media') return undefined
-    this.current.set(identity(entry.media), part.token)
-    return storedMediaPartSchema.parse(entry.media)
+    return entry === undefined ? undefined : storedMediaPartSchema.parse(entry.media)
   }
 
   /**
-   * A turn takes the media parts it carries: discard and owner release pass
-   * them by, and the returned completion releases them (one-use tokens).
+   * An accepted turn (queued, steered or started) takes the media parts it
+   * carries: from here the bound, discard and owner release pass them by.
+   * The last holder's release ends the token (one-use).
    */
-  public claim(parts: readonly TurnPart[]): () => void {
-    const tokens = parts.flatMap((part) =>
-      part.type === 'media' && this.entries.has(part.token) ? [part.token] : [],
-    )
-    for (const token of tokens) {
-      const entry = this.entries.get(token)
-      if (entry !== undefined) entry.claims += 1
-    }
-    let isDone = false
-    return () => {
-      if (isDone) return
-      isDone = true
-      for (const token of tokens) {
-        const entry = this.entries.get(token)
-        if (entry === undefined) continue
-        entry.claims -= 1
-        if (entry.claims === 0) this.delete(token)
-      }
+  public claim(parts: readonly TurnPart[]): MediaClaim {
+    const holder: Holder = { isInFlight: false }
+    const held = parts.flatMap((part) => {
+      const entry = part.type === 'media' ? this.entries.get(part.token) : undefined
+      return entry === undefined || part.type !== 'media' ? [] : [[part.token, entry] as const]
+    })
+    for (const [, entry] of held) entry.holders.add(holder)
+    return {
+      start: () => {
+        holder.isInFlight = true
+      },
+      release: () => {
+        for (const [token, entry] of held.splice(0)) {
+          entry.holders.delete(holder)
+          if (entry.holders.size === 0 && this.entries.get(token) === entry)
+            this.entries.delete(token)
+        }
+      },
     }
   }
 
-  /** A discarded attachment: gone unless a running turn holds it. */
+  /** A discarded chip: gone unless an accepted turn holds it. */
   public release(token: string): void {
-    if (this.entries.get(token)?.claims === 0) this.delete(token)
+    const entry = this.entries.get(token)
+    if (entry !== undefined && stateOf(entry) === 'attached') this.entries.delete(token)
   }
 
   /** A disposed composer or session: its registrations no turn holds are gone. */
   public releaseOwner(owner: string): void {
     for (const [token, entry] of this.entries)
-      if (entry.owner === owner && entry.claims === 0) this.delete(token)
+      if (entry.owner === owner && stateOf(entry) === 'attached') this.entries.delete(token)
   }
 
   /** The audio seam's view: metadata and the opaque token, never a path. */
@@ -177,45 +204,44 @@ export class AttachedMedia {
     return verified(entry.source.read(signal), entry.media)
   }
 
-  /** The confined path behind a token, rechecked by the host on every call. */
-  public async path(token: string): Promise<string | undefined> {
-    return await this.entries.get(token)?.source.path()
-  }
-
   /**
-   * The upload source for an attached record (RVMEDIAV 5): the token that
-   * record last resolved through, else the newest registration with its
-   * digest, name and size. An older, obsolete registration never shadows it.
+   * The upload source for the record a token resolved to (RVMEDIAV2): that
+   * token's own registration, and only while it still carries this digest,
+   * name and size. Another registration of the same bytes never stands in.
    */
-  public source(media: StoredMediaPart): UploadSource | undefined {
-    const key = identity(media)
-    const token = this.current.get(key)
-    let entry = token === undefined ? undefined : this.entries.get(token)
-    if (entry === undefined)
-      for (const candidate of this.entries.values())
-        if (identity(candidate.media) === key) entry = candidate
-    if (entry === undefined) return undefined
-    const found = entry
+  public source(token: string, media: StoredMediaPart): UploadSource | undefined {
+    const entry = this.entries.get(token)
+    if (
+      entry?.media.sha256 !== media.sha256 ||
+      entry.media.name !== media.name ||
+      entry.media.info.sizeBytes !== media.info.sizeBytes
+    )
+      return undefined
     return {
       name: media.name,
       mime: media.info.mediaType,
       bytes: media.info.sizeBytes,
-      open: (signal) => verified(found.source.read(signal), found.media),
+      open: (signal) => verified(entry.source.read(signal), entry.media),
     }
   }
 
   /** The runtime closes: every token lapses. */
   public clear(): void {
     this.entries.clear()
-    this.current.clear()
   }
 }
 
 /** What the session's media service and audio seam read; the attach port writes. */
 export type AttachedMediaPort = Pick<
   AttachedMedia,
-  'resolve' | 'source' | 'audio' | 'path' | 'read' | 'claim'
+  'resolve' | 'source' | 'audio' | 'read' | 'claim'
 >
+
+/** Nothing registered yet: a turn has nothing to hold. */
+function nothingHeld(): void {
+  // No registry, so no state to move.
+}
+const NO_CLAIM: MediaClaim = { start: nothingHeld, release: nothingHeld }
 
 /**
  * A host's registry before its first attach (RVMEDIAV 8): the registry loads
@@ -225,21 +251,14 @@ export type AttachedMediaPort = Pick<
 export function lazyAttachedMedia(current: () => AttachedMedia | undefined): AttachedMediaPort {
   return {
     resolve: (part) => current()?.resolve(part),
-    source: (media) => current()?.source(media),
+    source: (token, media) => current()?.source(token, media),
     audio: (part) => current()?.audio(part),
-    path: async (token) => await current()?.path(token),
     read: (token, signal) => {
       const registry = current()
       if (registry === undefined) throw new Error(UI_TEXT.attachmentUnreadable)
       return registry.read(token, signal)
     },
-    // Nothing registered yet: a turn has nothing to claim.
-    claim: (parts) => {
-      const release = current()?.claim(parts)
-      return () => {
-        release?.()
-      }
-    },
+    claim: (parts) => current()?.claim(parts) ?? NO_CLAIM,
   }
 }
 
@@ -254,7 +273,6 @@ export function reopeningSource(
           readonly sizeBytes: number
           readonly read: (offset: number, length: number) => Promise<Uint8Array>
         }
-        readonly path?: string
         readonly close: () => Promise<void>
       }
     | undefined
@@ -276,12 +294,6 @@ export function reopeningSource(
       } finally {
         await opened.close()
       }
-    },
-    path: async () => {
-      const opened = await open()
-      if (opened === undefined) return
-      await opened.close()
-      return opened.path
     },
   }
 }

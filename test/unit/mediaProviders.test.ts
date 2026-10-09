@@ -101,12 +101,12 @@ describe('M105 W host media providers', () => {
     // The upload source reopens through the host hook and verifies the digest.
     const record = attached.resolve(part)
     if (record === undefined) throw new Error('expected a record')
-    const source = attached.source(record)
+    const source = part.type === 'media' ? attached.source(part.token, record) : undefined
     const stream = source?.open(new AbortController().signal) ?? []
     const chunks = await Array.fromAsync(stream)
     expect(Buffer.concat(chunks).equals(Buffer.from(bytes))).toBe(true)
-    expect(part.type === 'media' && (await attached.path(part.token))).toBe('/approved/clip.mov')
-    expect(open).toHaveBeenCalledTimes(2)
+    // One open per read; nothing ever asks the registry for the path.
+    expect(open).toHaveBeenCalledTimes(1)
   })
 
   it('releases a discarded chip’s registration and, with the conversation, the port’s own (RVMEDIAV 7)', () => {
@@ -149,12 +149,11 @@ describe('M105 W host media providers', () => {
         read: async function* () {
           yield* await Promise.all(chunks)
         },
-        path: () => Promise.resolve(undefined),
       },
     )
     const record = attached.resolve(part)
     if (record === undefined) throw new Error('expected a record')
-    const stream = attached.source(record)?.open(new AbortController().signal)
+    const stream = attached.source('changed', record)?.open(new AbortController().signal)
     const iterator = stream?.[Symbol.asyncIterator]()
     // The first chunk goes only once the second arrived; the last never does.
     const first = await iterator?.next()

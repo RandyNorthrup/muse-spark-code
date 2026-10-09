@@ -202,7 +202,6 @@ export function createMediaSourceOpen(deps: MediaSourceOpenDeps): MediaAttachDep
           return chunk.subarray(0, bytesRead)
         },
       },
-      path: absolute,
       close: () => handle.close(),
     }
   }

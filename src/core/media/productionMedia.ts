@@ -199,15 +199,17 @@ export function createProductionMediaReplay(deps: ProductionMediaDeps): ReplayMe
 }
 
 /**
- * An attached record's own reverifying source first (matched by digest, name
- * and size in the host's registry), else the workspace reopen a tool-read
- * file uses. Neither guesses a path.
+ * An attached record's own token's reverifying source (RVMEDIAV2: by the
+ * token it resolved through, never by matching bytes), else the workspace
+ * reopen a tool-read file uses. Neither guesses a path.
  */
 export function attachedOrWorkspaceSource(
   attached: Pick<AttachedMediaPort, 'source'> | undefined,
   workspace: ReplayMediaDeps['source'],
 ): ReplayMediaDeps['source'] {
-  return async (media, signal) => attached?.source(media) ?? (await workspace(media, signal))
+  return async (media, signal, token) =>
+    (token === undefined ? undefined : attached?.source(token, media)) ??
+    (await workspace(media, signal))
 }
 
 /** Reopen an adopted workspace file for the replay's re-verification. */

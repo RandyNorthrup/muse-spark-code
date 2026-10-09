@@ -419,7 +419,7 @@ import type {
 } from '../../providers/overflow'
 import type { MediaRequestAccounting } from '../../media/mediaCost'
 import type { MediaReplayPort, MediaReplaySession } from '../../media/replayMedia'
-import type { AttachedMediaPort } from '../../media/attachedMedia'
+import type { AttachedMediaPort, MediaClaim } from '../../media/attachedMedia'
 import type { ReservePaidExtra } from '../../voice/voiceBatchSeams'
 import type { UploadedMediaRef } from '../../../shared/media'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
@@ -1121,6 +1121,8 @@ interface QueuedTurn {
   readonly goalCommandRevision?: number
   /** A `/review` (M70): the turn runs as the Reviewer, its prompt and read-only tools. */
   readonly isReview?: boolean
+  /** Its attached media, held from acceptance (RVMEDIAV2): the bound never evicts it. */
+  readonly media?: MediaClaim | undefined
 }
 
 // MSP's words for a goal refusal (captured live 2026-09-25), in the error's text.
@@ -1154,7 +1156,7 @@ export interface ActiveTurn {
   readonly abort: AbortController
   readonly inputParts: TurnPart[]
   /** The attached media this turn carries, released when it ends (RVMEDIAV 7). */
-  readonly mediaClaims: (() => void)[]
+  readonly mediaClaims: (MediaClaim | undefined)[]
   /** In-memory request choice, never the session's persisted model setting. */
   audioMessage?: PreparedAudioMessage
   confirmedRequest?: ConfirmedModelRequest
@@ -1163,6 +1165,8 @@ export interface ActiveTurn {
     readonly parts: readonly TurnPart[]
     readonly userMessageId: string
     readonly scheduleRun?: UnattendedRun
+    /** Held since the steer was accepted; in flight once a request takes it. */
+    readonly media?: MediaClaim | undefined
   }[]
   /** Named text accepted for this turn, including steers already drained into replay. */
   acceptedTextAttachmentBytes: number
@@ -13180,8 +13184,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         continue
       }
       turn.inputParts.push(...parts)
-      if (this.deps.attachedMedia !== undefined)
-        turn.mediaClaims.push(this.deps.attachedMedia.claim(parts))
+      steer.media?.start()
+      turn.mediaClaims.push(steer.media)
       this.recordTranscript(turn.turnId, row)
       turn.steered.shift()
       // It is in the request now (M87): an Edit can no longer take it back.
@@ -13193,7 +13197,7 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /** Accepted steering that missed this turn's last request becomes user turns. */
   private promoteSteered(turn: ActiveTurn): void {
-    const promoted = turn.steered.map(({ parts, userMessageId, scheduleRun }) => {
+    const promoted = turn.steered.map(({ parts, userMessageId, scheduleRun, media }) => {
       // A fire whose paid authority lapsed stays unconfirmed: runTurn refuses
       // it at admission, so finalization never throws here.
       const confirmedRequest =
@@ -13204,6 +13208,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         displayText: undefined,
         userMessageId,
         isGoalWake: false,
+        media,
         ...(scheduleRun !== undefined && { resourceClass: 'background' as const, scheduleRun }),
         ...(confirmedRequest !== undefined && { confirmedRequest }),
       }
@@ -13229,6 +13234,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (queued === undefined) {
       return undefined
     }
+    queued.media?.release()
     this.emit({ type: 'turnWithdrawn', turnId: queued.turnId, reason: UI_TEXT.turnUnqueued })
     return queued.parts
   }
@@ -13253,6 +13259,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (effect !== undefined) this.owner.modeApplied(effect, true)
     }
     turn.acceptedTextAttachmentBytes -= textAttachmentBytes(steer.parts)
+    steer.media?.release()
     return steer.parts
   }
 
@@ -13767,6 +13774,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       // A refused occurrence's lease must not hold the slot for later runs.
       this.releaseScheduledResource(queued.turnId)
+      queued.media?.release()
       this.emit({
         type: 'turnCompleted',
         turnId: queued.turnId,
@@ -13779,6 +13787,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     this.owner.startAcknowledged(claim, queued.turnId, true)
     if (queued.scheduleRun !== undefined) this.owner.admitted(claim, queued.turnId)
+    queued.media?.start()
     const turn: ActiveTurn = {
       ...(queued.scheduleRun !== undefined && {
         scheduleRun: queued.scheduleRun,
@@ -13790,8 +13799,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(queued.userMessageId !== undefined && { pendingUserMessageId: queued.userMessageId }),
       abort: new AbortController(),
       inputParts: [...queued.parts],
-      mediaClaims:
-        this.deps.attachedMedia === undefined ? [] : [this.deps.attachedMedia.claim(queued.parts)],
+      mediaClaims: [queued.media],
       steered: [],
       acceptedTextAttachmentBytes: textAttachmentBytes(queued.parts),
       modelFailure: undefined,
@@ -14087,7 +14095,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     // incomplete replies and steering accepted while finalization awaited.
     this.promoteSteered(turn)
     // Its one-use media tokens end with it: a later turn attaches again.
-    for (const release of turn.mediaClaims.splice(0)) release()
+    for (const media of turn.mediaClaims.splice(0)) media?.release()
     this.active = undefined
     const pendingRun = this.owner.run(turn.turnId)
     if (pendingRun !== undefined && turn.scheduleRun === undefined) {
@@ -15139,6 +15147,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(isHookContinuation && { isHookContinuation: true }),
       ...(isReview && { isReview }),
       ...(confirmedRequest !== undefined && { confirmedRequest }),
+      media: this.deps.attachedMedia?.claim(parts),
     }
     // A compaction is a turn too (D26): a message sent during one waits for it.
     if (this.active === undefined && this.compacting === undefined) {
@@ -15355,6 +15364,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.active.steered.push({
       parts,
       userMessageId,
+      media: this.deps.attachedMedia?.claim(parts),
       ...(scheduleRun !== undefined && { scheduleRun }),
     })
     return Promise.resolve({ turnId: expectedTurnId, disposition: 'steered', userMessageId })
@@ -15708,6 +15718,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.resourceAdmissionStop = new AbortController()
     this.deps.judge?.discardSession(this.sessionId)
     for (const dropped of this.queuedTurns.splice(0)) {
+      dropped.media?.release()
       this.emit({
         type: 'turnWithdrawn',
         turnId: dropped.turnId,

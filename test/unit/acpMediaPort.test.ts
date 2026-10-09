@@ -6,7 +6,12 @@ import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { runtimeMediaPort, type RuntimeMediaPortDeps } from '../../src/acp/mediaPort'
 import type { AcpMediaContext } from '../../src/acp/media'
-import { AttachedMedia, type AttachedSource } from '../../src/core/media/attachedMedia'
+import {
+  AttachedMedia,
+  isMediaAttachRefusal,
+  type AttachedSource,
+} from '../../src/core/media/attachedMedia'
+import { attachedOrWorkspaceSource } from '../../src/core/media/productionMedia'
 import { sniffMediaBytes } from '../../src/core/media/limits'
 import { MEDIA_ATTACHED_MAX_ENTRIES, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
@@ -67,16 +72,16 @@ function port(
 }
 
 describe('the runtime media port (M105 lane V seam 5)', () => {
-  it('registers an attached video with the runtime registry, path kept for the converter', async () => {
+  it('registers an attached video with the runtime registry, its path never handed out', async () => {
     const bytes = videoFixture({ soundtrack: false })
     const p = port(bytes)
     const attachment = await p.media.attach('clip.mp4', signal)
     expect(attachment.part).toMatchObject({ type: 'media', token: 'token-1', name: 'clip.mp4' })
     const record = p.attached.resolve(attachment.part)
     expect(record).toMatchObject({ name: 'clip.mp4', info: { kind: 'video' } })
-    expect(await p.attached.path('token-1')).toBe('/ws/clip.mp4')
+    expect(p.attached).not.toHaveProperty('path')
     if (record === undefined) throw new Error('expected a record')
-    const stream = p.attached.source(record)?.open(signal) ?? []
+    const stream = p.attached.source('token-1', record)?.open(signal) ?? []
     const read = await Array.fromAsync(stream)
     expect(Buffer.concat(read).equals(Buffer.from(bytes))).toBe(true)
   })
@@ -121,7 +126,6 @@ function counted(bytes: Uint8Array | undefined) {
       if (chunk === undefined) throw new Error('old file gone')
       yield await chunk
     },
-    path: () => Promise.resolve(undefined),
   }
   return { source, reads }
 }
@@ -144,7 +148,7 @@ describe('attached-media registrations: identity, ownership and bound (RVMEDIAV 
     const part = registry.register('fresh', wavRecord(bytes), fresh.source)
     const record = registry.resolve(part)
     if (record === undefined) throw new Error('expected the fresh record')
-    const read = await Array.fromAsync(registry.source(record)?.open(signal) ?? [])
+    const read = await Array.fromAsync(registry.source('fresh', record)?.open(signal) ?? [])
     expect(Buffer.concat(read)).toEqual(Buffer.from(bytes))
     expect([stale.reads.count, fresh.reads.count]).toEqual([0, 1])
   })
@@ -160,7 +164,7 @@ describe('attached-media registrations: identity, ownership and bound (RVMEDIAV 
     registry.release('sent')
     registry.releaseOwner('composer')
     expect(registry.resolve(sent)).toBeDefined()
-    complete()
+    complete.release()
     expect(registry.resolve(sent)).toBeUndefined()
   })
 
@@ -200,7 +204,7 @@ describe('attached-media registrations: identity, ownership and bound (RVMEDIAV 
     media.release()
     for (const part of idle) expect(attached.resolve(part)).toBeUndefined()
     expect(attached.resolve(running)).toBeDefined()
-    complete()
+    complete.release()
     expect(attached.resolve(running)).toBeUndefined()
   })
 
@@ -219,5 +223,110 @@ describe('attached-media registrations: identity, ownership and bound (RVMEDIAV 
     expect(() => registry.register('refused', wavRecord(bytes), counted(bytes).source)).toThrow(
       UI_TEXT.media.attachedLimit,
     )
+  })
+})
+
+describe('attached-media state machine (RVMEDIAV2, PLAN M105)', () => {
+  it('moves attached -> claimed -> in flight -> released, one transition per call', () => {
+    const bytes = wavFixture()
+    const registry = new AttachedMedia()
+    const part = registry.register('t', wavRecord(bytes), counted(bytes).source, 'composer')
+    expect(registry.state('t')).toBe('attached')
+    const claim = registry.claim([part])
+    expect(registry.state('t')).toBe('claimed')
+    claim.start()
+    expect(registry.state('t')).toBe('inFlight')
+    claim.release()
+    expect(registry.state('t')).toBeUndefined()
+    // A second release is a no-op, never a release of a later holder.
+    claim.release()
+  })
+
+  it('releases a claimed token when its queued turn is withdrawn before it starts', () => {
+    const bytes = wavFixture()
+    const registry = new AttachedMedia()
+    const part = registry.register('t', wavRecord(bytes), counted(bytes).source)
+    registry.claim([part]).release()
+    expect(registry.state('t')).toBeUndefined()
+  })
+
+  it('keeps a token while any holder of its reference set remains', () => {
+    const bytes = wavFixture()
+    const registry = new AttachedMedia()
+    const part = registry.register('t', wavRecord(bytes), counted(bytes).source)
+    const queued = registry.claim([part])
+    const running = registry.claim([part])
+    running.start()
+    queued.release()
+    expect(registry.state('t')).toBe('inFlight')
+    running.release()
+    expect(registry.state('t')).toBeUndefined()
+  })
+
+  it('discard and owner release pass claimed and in-flight tokens by, and take attached ones', () => {
+    const bytes = wavFixture()
+    const registry = new AttachedMedia()
+    const record = wavRecord(bytes)
+    const idle = registry.register('idle', record, counted(bytes).source, 'composer')
+    const queued = registry.register('queued', record, counted(bytes).source, 'composer')
+    const running = registry.register('running', record, counted(bytes).source, 'composer')
+    registry.claim([queued])
+    registry.claim([running]).start()
+    registry.release('queued')
+    registry.release('running')
+    registry.releaseOwner('composer')
+    expect([idle, queued, running].map((part) => registry.state(part.token))).toEqual([
+      undefined,
+      'claimed',
+      'inFlight',
+    ])
+  })
+
+  it('never evicts a claimed (queued) token at the bound; refuses with the typed, translated reason', () => {
+    const bytes = wavFixture()
+    const registry = new AttachedMedia()
+    const record = wavRecord(bytes)
+    const queued = registry.register('queued', record, counted(bytes).source)
+    registry.claim([queued])
+    for (let index = 0; index < MEDIA_ATTACHED_MAX_ENTRIES; index++)
+      registry.register(`later-${String(index)}`, record, counted(bytes).source)
+    expect(registry.state('queued')).toBe('claimed')
+    expect(registry.state('later-0')).toBeUndefined()
+    const all = Array.from({ length: MEDIA_ATTACHED_MAX_ENTRIES - 1 }, (_, index) => ({
+      type: 'media' as const,
+      token: `later-${String(index + 1)}`,
+      ...record,
+    }))
+    registry.claim(all)
+    let refusal: unknown
+    try {
+      registry.register('refused', record, counted(bytes).source)
+    } catch (error: unknown) {
+      refusal = error
+    }
+    expect(isMediaAttachRefusal(refusal)).toBe(true)
+    expect(refusal).toHaveProperty('message', UI_TEXT.media.attachedLimit)
+    expect(registry.state('queued')).toBe('claimed')
+  })
+
+  it('keeps each token on its own source across sessions: another session cannot redirect an upload', async () => {
+    const bytes = wavFixture()
+    const registry = new AttachedMedia()
+    // Session A attached /a/clip.wav (since deleted); session B attached the
+    // byte-identical /b/clip.wav. B resolves, then A resolves meanwhile.
+    const old = counted(undefined)
+    const fresh = counted(bytes)
+    const oldPart = registry.register('old', wavRecord(bytes), old.source, 'session-a')
+    const freshPart = registry.register('fresh', wavRecord(bytes), fresh.source, 'session-b')
+    const freshRecord = registry.resolve(freshPart)
+    if (freshRecord === undefined) throw new Error('expected the fresh record')
+    registry.resolve(oldPart)
+    const source = attachedOrWorkspaceSource(registry, () => Promise.resolve(undefined))
+    const opened = await source(freshRecord, signal, 'fresh')
+    const read = await Array.fromAsync(opened?.open(signal) ?? [])
+    expect(Buffer.concat(read)).toEqual(Buffer.from(bytes))
+    expect([old.reads.count, fresh.reads.count]).toEqual([0, 1])
+    // A record with no token never borrows a registration's source.
+    expect(await source(freshRecord, signal)).toBeUndefined()
   })
 })

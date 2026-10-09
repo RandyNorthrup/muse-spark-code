@@ -8,8 +8,10 @@ import { QUESTION_CLARIFIED } from './helpers/m46Capture'
 import { metaSideCallFormats } from '../../src/core/backends/modelapi/modelCapabilities'
 import {
   M106_CAPTURED_META_MODEL,
+  MEDIA_ATTACHED_MAX_ENTRIES,
   SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
 } from '../../src/shared/constants'
+import { AttachedMedia } from '../../src/core/media/attachedMedia'
 import { conversationGitFactory } from '../../src/host/git/conversationGitBundle'
 import * as gitEntry from '../../src/host/git/conversationGitEntry'
 import { Usd } from '../../src/shared/usd'
@@ -18,6 +20,7 @@ import { createMediaAttachments } from '../../src/host/media/mediaAttach'
 import { MediaContributorConsent } from '../../src/core/media/contributorConsent'
 import { videoFixture, wavFixture, ebmlFixture } from './helpers/media/fixtures'
 import { mediaModel } from './helpers/media/replay'
+import { Readable } from 'node:stream'
 import { Buffer } from 'node:buffer'
 import { createHash, randomUUID } from 'node:crypto'
 import {
@@ -17566,6 +17569,39 @@ describe('M105 E1 attachment handler', () => {
     resolve(prepared)
     await adding
     expect(t.surface.posted.some((message) => message.type === 'attachmentAdded')).toBe(false)
+    t.controller.dispose()
+  })
+
+  it('shows the registry bound’s own cause and recovery, never an unreadable file (RVMEDIAV2)', async () => {
+    const t = mediaRig()
+    // Every registration is held by an accepted turn: the bound refuses.
+    const registry = new AttachedMedia()
+    const record = {
+      name: 'held.wav',
+      info: {
+        kind: 'audio' as const,
+        mediaType: 'audio/wav' as const,
+        sizeBytes: 1,
+        durationSeconds: 1,
+      },
+      sha256: '0'.repeat(64),
+    }
+    const source = { read: () => Readable.from([]) }
+    const held = Array.from({ length: MEDIA_ATTACHED_MAX_ENTRIES }, (_, index) =>
+      registry.register(`held-${String(index)}`, record, source),
+    )
+    registry.claim(held)
+    t.bind.mockImplementation(() => {
+      registry.register('fresh', record, source)
+      return bindSyntheticMediaPart()
+    })
+    t.setPicked([{ name: 'clip.mp4', fsPath: '/ws/clip.mp4', relativePath: 'clip.mp4' }])
+    await t.controller.handle({ type: 'pickFile' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'attachmentRejected',
+      name: 'clip.mp4',
+      reason: UI_TEXT.media.attachedLimit,
+    })
     t.controller.dispose()
   })
 

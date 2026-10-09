@@ -12,7 +12,7 @@ import {
 } from '../../core/media/limits'
 import { modalityGate, type MediaModelCapabilities } from '../../core/media/modalityGate'
 import type { MediaContributorConsent } from '../../core/media/contributorConsent'
-import { sourceDigest } from '../../core/media/attachedMedia'
+import { isMediaAttachRefusal, sourceDigest } from '../../core/media/attachedMedia'
 import { CONTRIBUTOR_MODEL_SUFFIX, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { mediaAttachmentRequestSchema } from '../../shared/media'
@@ -57,8 +57,6 @@ export interface MediaAttachDeps {
   readonly open: (file: PickedFile) => Promise<
     | {
         readonly source: MediaSource
-        /** The confined absolute path, for the local converter only. */
-        readonly path?: string
         readonly close: () => Promise<void>
       }
     | undefined
@@ -195,7 +193,15 @@ export function createMediaAttachments(deps: MediaAttachDeps): MediaAttachmentPo
         )
         if (!chosen.ok) return chosen
         if (epoch !== generation) return { ok: false, reason: UI_TEXT.attachmentUnreadable }
-        const bound = deps.bind(file, sniffed.info, sha256)
+        let bound: ReturnType<MediaAttachDeps['bind']>
+        try {
+          bound = deps.bind(file, sniffed.info, sha256)
+        } catch (error: unknown) {
+          // The registry's bound (RVMEDIAV2): its own translated cause and
+          // recovery reach the chip, in VS Code as in ACP; no read failed.
+          if (isMediaAttachRefusal(error)) return { ok: false, reason: error.message }
+          throw error
+        }
         return {
           ok: true,
           ...(gate.soundtrackWarning !== undefined && {

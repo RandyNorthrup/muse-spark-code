@@ -31,7 +31,7 @@ import {
 import { voiceBatchSeams, type VoiceBatchSeamDeps } from './voiceBatchSeams'
 
 export interface ProductionAudioDeps extends Omit<VoiceBatchSeamDeps, 'sessionId'> {
-  readonly attached: Pick<AttachedMediaPort, 'audio' | 'path' | 'read'>
+  readonly attached: Pick<AttachedMediaPort, 'audio' | 'read'>
   /** Seam 2's transcription POST on the session's Meta client. */
   readonly postTranscription: TranscriptionPostDeps['postTranscription']
   /** The machine-scoped converter path; empty or absent: documented installs. */
@@ -115,7 +115,6 @@ export function createProductionAudio(deps: ProductionAudioDeps) {
       postTranscription: deps.postTranscription,
       readAudioBytes,
       readSource: (source, signal) => deps.attached.read(source.pathToken, signal),
-      resolveSourcePath: (source) => deps.attached.path(source.pathToken),
       locateConverter: () => Promise.resolve(located),
       conversionOptions,
     })

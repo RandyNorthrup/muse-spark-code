@@ -5,7 +5,7 @@
 // seeded upper bound; an unknown rate refuses only under a cap; and an inline
 // visual is never registered for upload. Each case names the review finding
 // it regresses (RVMONEY017D on c2689e116, RVMEDIAW on 27d8f1327).
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
@@ -17,6 +17,7 @@ import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { pdfPageCount } from '../../src/core/pdf'
 import { fill } from '../../src/shared/l10n/text'
 import {
+  MEDIA_ATTACHED_MAX_ENTRIES,
   MODEL_API_PRICES_PER_MILLION,
   TOKENS_PER_MILLION,
   UI_TEXT,
@@ -552,10 +553,26 @@ function attachedVideo(
         reads.count += 1
         yield await chunk
       },
-      path: () => Promise.resolve(undefined),
     },
   )
   return { part, reads }
+}
+
+/** A first reply held open once its request arrives, so later input queues or steers. */
+function holdFirstReply(rig: Rig, after?: { readonly text: string }) {
+  const held = Promise.withResolvers<undefined>()
+  const requested = Promise.withResolvers<undefined>()
+  rig.api.script(
+    {
+      text: 'First.',
+      hold: held.promise,
+      onRequest: () => {
+        requested.resolve(undefined)
+      },
+    },
+    ...(after === undefined ? [] : [after]),
+  )
+  return { held, requested }
 }
 
 describe('attached video through the session media service (M105 lane V seam 1)', () => {
@@ -581,6 +598,72 @@ describe('attached video through the session media service (M105 lane V seam 1)'
       expect(reads.count).toBe(1)
       // The finished turn's one-use token is released (RVMEDIAV 7).
       expect(registry.resolve(part)).toBeUndefined()
+    } finally {
+      await rig.host.close()
+    }
+  })
+
+  it('holds a queued turn’s video from acceptance: the bound never evicts it (RVMEDIAV2)', async () => {
+    const registry = new AttachedMedia()
+    const { part, reads } = attachedVideo(registry, 'queued')
+    const rig = await factory({ attachedMedia: registry })
+    try {
+      const h = await start(rig, CONTRIBUTOR)
+      const { held, requested } = holdFirstReply(rig, { text: 'The clip.' })
+      const both = new Promise<void>((resolve) => {
+        h.session.onEvent(() => {
+          if (h.events.filter((seen) => seen.type === 'turnCompleted').length === 2) resolve()
+        })
+      })
+      await h.session.sendTurn([{ type: 'text', text: 'Hold on.' }])
+      await requested.promise
+      const queued = await h.session.sendTurn([{ type: 'text', text: 'Watch' }, part])
+      expect(queued.disposition).toBe('queued')
+      expect(registry.state('queued')).toBe('claimed')
+      for (let index = 0; index < MEDIA_ATTACHED_MAX_ENTRIES; index++)
+        attachedVideo(registry, `later-${String(index)}`)
+      expect(registry.state('queued')).toBe('claimed')
+      held.resolve(undefined)
+      await both
+      expect(h.events.filter((event) => event.type === 'turnCompleted')).toMatchObject([
+        { terminal: 'completed' },
+        { terminal: 'completed' },
+      ])
+      expect([rig.files.uploads.length, reads.count]).toEqual([1, 1])
+      expect(registry.state('queued')).toBeUndefined()
+    } finally {
+      await rig.host.close()
+    }
+  })
+
+  it('releases a withdrawn queued turn’s and a withdrawn steer’s claims (RVMEDIAV2)', async () => {
+    const registry = new AttachedMedia()
+    const queuedVideo = attachedVideo(registry, 'queued').part
+    const steeredVideo = attachedVideo(registry, 'steered').part
+    const rig = await factory({ attachedMedia: registry })
+    try {
+      const h = await start(rig, CONTRIBUTOR)
+      const { held, requested } = holdFirstReply(rig)
+      const first = await h.session.sendTurn([{ type: 'text', text: 'Hold on.' }])
+      await requested.promise
+      const steer = await h.session.steer(first.turnId, [
+        { type: 'text', text: 'Also' },
+        steeredVideo,
+      ])
+      const queued = await h.session.sendTurn([{ type: 'text', text: 'Watch' }, queuedVideo])
+      expect([registry.state('steered'), registry.state('queued')]).toEqual(['claimed', 'claimed'])
+      for (const submission of [steer, queued]) {
+        const outcome = await h.session.withdrawQueued?.({
+          turnId: submission.turnId,
+          userMessageId: submission.userMessageId,
+          disposition: submission.disposition,
+        })
+        expect(outcome).toMatchObject({ status: 'withdrawn' })
+      }
+      expect([registry.state('steered'), registry.state('queued')]).toEqual([undefined, undefined])
+      const done = h.turnDone()
+      held.resolve(undefined)
+      await done
     } finally {
       await rig.host.close()
     }
@@ -623,7 +706,6 @@ describe('attached video through the session media service (M105 lane V seam 1)'
         read: async function* () {
           yield await chunk
         },
-        path: () => Promise.resolve(undefined),
       },
     )
     const rig = await factory({ attachedMedia: registry })
@@ -680,11 +762,9 @@ function contractWav(): Uint8Array {
   return wavFixture(2, { sampleRate: 16_000 })
 }
 
-/** An attached WAV on disk, registered as the attach port does. */
+/** An attached WAV, registered as the attach port does. */
 function attachedWav(registry: AttachedMedia, token: string) {
   const bytes = contractWav()
-  const file = path.join(scratchDir(), 'note.wav')
-  writeFileSync(file, bytes)
   const info = sniffMediaBytes(bytes)
   if (info === undefined) throw new Error('fixture must sniff')
   const chunk = Promise.resolve(bytes)
@@ -695,7 +775,6 @@ function attachedWav(registry: AttachedMedia, token: string) {
       read: async function* () {
         yield await chunk
       },
-      path: () => Promise.resolve(file),
     },
   )
 }

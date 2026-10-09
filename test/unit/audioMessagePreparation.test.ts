@@ -77,7 +77,6 @@ function rig(options?: { readonly voiceOn?: boolean; readonly isAllowed?: boolea
   const settled: (string | undefined)[] = []
   let voiceSeconds = 0
   const ports = createTranscriptionPorts({
-    resolveSourcePath: (source) => Promise.resolve(paths.get(source.pathToken)),
     readAudioBytes: async (absolutePath) => new Uint8Array(await readFile(absolutePath)),
     readSource: async function* (source) {
       const file = paths.get(source.pathToken)

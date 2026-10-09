@@ -3,6 +3,7 @@
 // ports: a fake encoder stands in for ffmpeg's bytes (its own rendering is
 // proven by the real-ffmpeg test at the bottom), fake HTTP stands in for
 // `/asr/transcribe`, and the T7/T8/T9 receipts pin the money.
+import { Readable } from 'node:stream'
 import { describe, expect, it, vi } from 'vitest'
 import { execFile } from 'node:child_process'
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
@@ -113,6 +114,8 @@ function rig(options?: {
   readonly read?: (absolutePath: string) => Promise<Uint8Array>
   /** Replaces the attachment's verified stream. */
   readonly readSource?: TranscriptionPostDeps['readSource']
+  /** Sees the encoder's arguments before it writes its output. */
+  readonly onRun?: (args: readonly string[]) => Promise<void>
 }) {
   const stubWav = options?.encoderWav
   const posted: Posted[] = []
@@ -123,7 +126,6 @@ function rig(options?: {
   let runs = 0
   const outputs: string[] = []
   const ports = createTranscriptionPorts({
-    resolveSourcePath: (source) => Promise.resolve(paths.get(source.pathToken)),
     readAudioBytes: async (absolutePath) =>
       options?.read === undefined
         ? new Uint8Array(await readFile(absolutePath))
@@ -167,8 +169,9 @@ function rig(options?: {
     conversionOptions: fakeConversionOptions(
       stubWav === undefined
         ? undefined
-        : async (_command, _args, runOptions) => {
+        : async (_command, args, runOptions) => {
             runs += 1
+            await options?.onRun?.(args)
             outputs.push(runOptions.outputPath)
             await writeFile(runOptions.outputPath, stubWav)
           },
@@ -352,6 +355,39 @@ describe('U18 WAV conversion before the batch send', () => {
     r.paths.set(mp3Source.pathToken, path.resolve(MP3_FIXTURE))
     await expect(r.prepare(mp3Source)).rejects.toThrow(changed)
     expect([r.runs, r.posted.length, r.reserved.length]).toEqual([0, 0, 0])
+  })
+
+  it('encodes the verified bytes, never the user path: a swap during conversion is not heard (RVMEDIAV2)', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'muse-swap-'))
+    try {
+      const userPath = path.join(root, 'speech.mp3')
+      const original = new Uint8Array(await readFile(MP3_FIXTURE))
+      const substitute = Uint8Array.from(original, (byte) => byte ^ 0x5a)
+      await writeFile(userPath, original)
+      let encoded: Uint8Array | undefined
+      let encodedPath: string | undefined
+      const r = rig({
+        encoderWav: synthWav(2),
+        // The attachment's verified stream: what the registry approved.
+        readSource: () => Readable.from([original]),
+        onRun: async (args) => {
+          // Swap the user's file while the encoder reads, then restore it.
+          await writeFile(userPath, substitute)
+          encodedPath = args[args.indexOf('-i') + 1]
+          encoded = encodedPath === undefined ? undefined : await readFile(encodedPath)
+          await writeFile(userPath, original)
+        },
+      })
+      r.paths.set(mp3Source.pathToken, userPath)
+      await r.prepare(mp3Source)
+      expect(encodedPath).not.toBe(userPath)
+      expect(encoded === undefined ? undefined : Buffer.from(encoded)).toEqual(
+        Buffer.from(original),
+      )
+      expect(r.posted).toHaveLength(1)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
   })
 
   it('refuses container bytes at the last mile before any HTTP', async () => {

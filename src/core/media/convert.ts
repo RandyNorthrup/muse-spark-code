@@ -291,6 +291,12 @@ interface ConversionRunOptions extends LimitedRunOptions {
 }
 
 export interface MediaConversionOptions extends ConverterVerification {
+  /**
+   * The attachment's digest-verified stream (RVMEDIAV2): written into the
+   * conversion's owner-only folder and encoded from there, so the converter
+   * never opens the user's path. `inputPath` is then only the file's name.
+   */
+  readonly inputBytes?: (signal: AbortSignal | undefined) => AsyncIterable<Uint8Array>
   readonly limits?: MediaLimits
   readonly signal?: AbortSignal
   readonly timeoutMs?: number
@@ -567,6 +573,33 @@ type ConvertedResult<I extends MediaFileInfo> =
     }
   | { readonly ok: false; readonly reason: string }
 
+/** A snapshot keeps its name's extension only when it is a plain one. */
+const SNAPSHOT_EXTENSION = /\.[a-z0-9]{1,8}$/iu
+
+/**
+ * Writes a verified stream to an owner-only file no one else can change. A
+ * stream that throws (its bytes are not the ones attached) refuses with its
+ * own reason; the caller's folder cleanup removes the partial file.
+ */
+async function writeSnapshot(
+  file: string,
+  read: NonNullable<MediaConversionOptions['inputBytes']>,
+  signal: AbortSignal | undefined,
+): Promise<{ readonly ok: true } | { readonly ok: false; readonly reason: string }> {
+  const handle = await open(file, 'wx', OWNER_FILE_MODE)
+  try {
+    for await (const chunk of read(signal)) await handle.write(chunk)
+    return { ok: true }
+  } catch (error: unknown) {
+    return {
+      ok: false,
+      reason: error instanceof Error ? error.message : UI_TEXT.attachmentUnreadable,
+    }
+  } finally {
+    await handle.close()
+  }
+}
+
 /** What differs between the two conversions; the pipeline around it is shared. */
 interface ConversionSpec<I extends MediaFileInfo> {
   readonly outputName: string
@@ -601,7 +634,7 @@ async function convertWith<I extends MediaFileInfo>(
       reason: fill(UI_TEXT.media.conversionFailed, { reason: converter.kind }),
     }) as const
   if (
-    !path.isAbsolute(inputPath) ||
+    (options.inputBytes === undefined && !path.isAbsolute(inputPath)) ||
     !path.isAbsolute(converter.command) ||
     !spec.canUse(converter) ||
     !Number.isSafeInteger(maxOutputBytes) ||
@@ -617,13 +650,6 @@ async function convertWith<I extends MediaFileInfo>(
     return { ok: false, reason: fill(UI_TEXT.media.conversionFailed, { reason: 'permissions' }) }
   let directory: string | undefined
   try {
-    const input = await lstat(inputPath)
-    if (!input.isFile()) return failed()
-    const source = await sniffFile(inputPath, input.size)
-    const known = await knownVersionCommand(converter, options, options.signal)
-    if (!source.ok || !known.ok) return failed()
-    const watch = await memoryWatch(options)
-    if (watch === undefined) return failed()
     const privateDirectory =
       options.createPrivateDirectory === undefined
         ? await mkdtemp(path.join(tmpdir(), 'muse-media-'))
@@ -631,10 +657,23 @@ async function convertWith<I extends MediaFileInfo>(
     if (!path.isAbsolute(privateDirectory)) throw new Error('Invalid private directory')
     directory = privateDirectory
     await chmod(directory, OWNER_DIRECTORY_MODE)
+    let encoded = inputPath
+    if (options.inputBytes !== undefined) {
+      encoded = path.join(directory, `input${SNAPSHOT_EXTENSION.exec(inputPath)?.[0] ?? ''}`)
+      const written = await writeSnapshot(encoded, options.inputBytes, options.signal)
+      if (!written.ok) return written
+    }
+    const input = await lstat(encoded)
+    if (!input.isFile()) return failed()
+    const source = await sniffFile(encoded, input.size)
+    const known = await knownVersionCommand(converter, options, options.signal)
+    if (!source.ok || !known.ok) return failed()
+    const watch = await memoryWatch(options)
+    if (watch === undefined) return failed()
     const output = path.join(directory, spec.outputName)
     const reserved = await open(output, 'wx', OWNER_FILE_MODE)
     await reserved.close()
-    const args = spec.args(converter, source.info, inputPath, output)
+    const args = spec.args(converter, source.info, encoded, output)
     // Recheck immediately before encoding: discovery/probing does not grant trust.
     const command = await recheckedCommand(converter, known.path, options)
     if (command === undefined || isAborted(options.signal)) return failed()

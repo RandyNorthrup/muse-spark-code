@@ -94,7 +94,6 @@ function audio(options: {
         part.type === 'media'
           ? options.sources.find((source) => source.pathToken === part.token)
           : undefined,
-      path: () => Promise.resolve(undefined),
       read: () => {
         throw new Error('must not read')
       },

@@ -238,7 +238,6 @@ describe('the transcription transport (seam 2)', () => {
         transport.requestTranscription(route, signal, { body, contentType }, undefined, dispatch),
       readAudioBytes: () => Promise.reject(new Error('an attachment never reads by path')),
       readSource: () => Readable.from([wav]),
-      resolveSourcePath: () => Promise.resolve('/fixture/clip.wav'),
     })
     const info = mediaInfoSchema.parse({
       kind: 'audio',
