@@ -89,6 +89,10 @@ happened, not what was planned; superseded entries are kept.
 - Cancelling a runtime launch or reaching its deadline now ends the wait even
   while the resource governor's first settings read is still pending; other
   callers keep the same initialization.
+- Attested job accounting in resource history now requires both the host's
+  recording flag and the shared history choice at settlement; turning history
+  off discards buffered rows and their overflow tally, so enabling it later
+  cannot publish work collected while history was off.
 
 - Schedule runtime tests cover Linux, Windows and macOS rearm ownership
   explicitly; macOS wake shutdown retains its independent after-exit helper.

@@ -305,6 +305,15 @@ export function resourceGovernorHost(
     // No guessed macOS start time or Windows membership: W/H bind remaining native scopes.
     return (await options.bindNativeTree?.(launch)) ?? null
   }
+  // The same effective consent gates collection and buffering, including shared settings.
+  const recorder =
+    share === undefined && options.history !== undefined
+      ? resourceHistoryRecorder(
+          options.history,
+          { read: () => Promise.resolve(launched.host?.workRows() ?? []) },
+          options.onError,
+        )
+      : undefined
   const host = new ResourceLaunchHost({
     ...(options.admission !== undefined && { admission: options.admission }),
     governor,
@@ -319,20 +328,15 @@ export function resourceGovernorHost(
     onError: options.onError,
     // POSTSPAWN: attested Windows launches are never tree-sampled; their final
     // job accounting is history's only record of them, kept while it is read.
-    isSettledRead: share?.isRecording ?? options.history !== undefined,
+    isSettledRead: share?.isRecording ?? recorder?.isConsented,
     // H–C1: the runtime host owns the governor; its queue reads this occupancy.
     ...(share !== undefined && { isGovernorShared: true, onWorkChanged: share.workChanged }),
   })
   launched.host = host
   // The runtime's own recorder reads these launches (H–C1); the window records here.
-  if (share === undefined && options.history !== undefined) {
+  if (recorder !== undefined) {
     // The governor's own sample and event streams; recording never gates admission.
-    const recorder = (state.recorder = resourceHistoryRecorder(
-      options.history,
-      // Each read drains the settled rows, so an attested tree is recorded once.
-      { read: () => Promise.resolve(host.workRows()) },
-      options.onError,
-    ))
+    state.recorder = recorder
     governor.onSample(() => {
       recorder.sample(governor.status([]))
     })

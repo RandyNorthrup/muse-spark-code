@@ -2,12 +2,19 @@
 // tree-sampled, so their job's final accounting is the window history's only
 // record of them. Its own file: the window governor host is process-wide.
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { writeFile } from 'node:fs/promises'
+import path from 'node:path'
 import {
   flushResourceHistory,
   resourceGovernorHost,
 } from '../../src/core/resources/resourceGovernorEntry'
 import { resourceHistoryReader } from '../../src/runtime/resources/history'
-import { RESOURCE_GIB_BYTES, RESOURCE_SETTLED_ROWS_MAX } from '../../src/shared/constants'
+import {
+  RESOURCE_GIB_BYTES,
+  RESOURCE_SETTLED_ROWS_MAX,
+  USAGE_HISTORY_DAYS_DEFAULT,
+  USAGE_SETTINGS_FILE,
+} from '../../src/shared/constants'
 import { temporaryFolders, windowHistorySettings } from './helpers/resources/journalFixtures'
 
 // Every governor sample reads the history work source. A scripted machine
@@ -50,6 +57,25 @@ const settlement = (pid: number) => ({
 })
 
 describe('POSTSPAWN: attested launches in the window history', () => {
+  it('never journals a window settlement collected while shared history was off', async () => {
+    const { folder, host } = await windowHost()
+    const file = path.join(folder, USAGE_SETTINGS_FILE)
+    await writeFile(file, JSON.stringify({ enabled: false, days: USAGE_HISTORY_DAYS_DEFAULT }))
+    const lease = await host.admit('other', undefined, 'foreground')
+    lease.settle?.(settlement(4242))
+    lease.complete(true)
+    const before = await resourceHistoryReader(folder).read()
+    expect(before.work).toEqual([])
+    await writeFile(file, JSON.stringify({ enabled: true, days: USAGE_HISTORY_DAYS_DEFAULT }))
+    await vi.waitFor(async () => {
+      await host.refreshStatus()
+      await flushResourceHistory()
+      const history = await resourceHistoryReader(folder).read()
+      expect(history.minutes.length).toBeGreaterThan(0)
+      expect(history.work).toEqual([])
+    })
+  })
+
   it('records an attested launch in history exactly once, beside sampled trees', async () => {
     const { folder, host } = await windowHost()
     const lease = await host.admit('other', undefined, 'foreground')

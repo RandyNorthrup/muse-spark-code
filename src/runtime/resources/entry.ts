@@ -21,7 +21,7 @@ import { resourceMachineStore } from './settings'
 
 /** H–C1: what the process's launch host borrows, plus whether history is read. */
 export interface RuntimeLaunchShare extends RuntimeGovernorShare {
-  /** Attested settlements are kept only while this process records history. */
+  /** Attested settlements require the process's flag and the shared history choice. */
   readonly isRecording: () => boolean
 }
 
@@ -125,7 +125,7 @@ export async function createResources(
     }),
     ...(launches !== undefined && {
       launches: (share: RuntimeGovernorShare) =>
-        launches({ ...share, isRecording: () => isRecordingHistory?.() ?? false }),
+        launches({ ...share, isRecording: recorder?.isConsented ?? (() => false) }),
     }),
   })
   bound.host = host

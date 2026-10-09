@@ -3,7 +3,7 @@
 // command) has one runtime host; the spawns admitted through the process's
 // port share its queue, its events (and so headless's v2 sink), its occupancy
 // and its history journal, where they are the harness-work rows.
-import { readdir, readFile } from 'node:fs/promises'
+import { readdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as acp from '@agentclientprotocol/sdk'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -23,7 +23,13 @@ import { runExec } from '../../src/runtime/exec/runExec'
 import { resourceHistoryReader } from '../../src/runtime/resources/history'
 import { lazyRuntimeResources, type ProcessResources } from '../../src/runtime/resources/load'
 import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
-import { RESOURCE_GIB_BYTES, RESOURCE_HISTORY_MINUTE_MS, UI_TEXT } from '../../src/shared/constants'
+import {
+  RESOURCE_GIB_BYTES,
+  RESOURCE_HISTORY_MINUTE_MS,
+  USAGE_HISTORY_DAYS_DEFAULT,
+  USAGE_SETTINGS_FILE,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { resourceHistorySchema } from '../../src/shared/resourceHistory'
 import type { ResourceSample, ResourceSettings } from '../../src/shared/resources'
@@ -384,6 +390,67 @@ describe('H–C1: the runtime spawn binding', () => {
     expect(stored).toContain('"kind":"other"')
     expect(stored).not.toMatch(/4242|m107hc1-attested-job/u)
   })
+
+  it.each([
+    { name: 'shared choice off', shared: false, agent: true, changesAfterAdmission: false },
+    { name: 'agent flag off', shared: true, agent: false, changesAfterAdmission: false },
+    {
+      name: 'unreadable shared choice',
+      shared: undefined,
+      agent: true,
+      changesAfterAdmission: false,
+    },
+    {
+      name: 'shared choice turned off after admission',
+      shared: false,
+      agent: true,
+      changesAfterAdmission: true,
+    },
+  ])(
+    'never journals an attested settlement collected with $name',
+    async ({ shared, agent, changesAfterAdmission }) => {
+      const folder = await folders.create()
+      const file = path.join(folder, USAGE_SETTINGS_FILE)
+      await writeFile(
+        file,
+        shared === undefined
+          ? 'unreadable usage choice'
+          : JSON.stringify({
+              enabled: changesAfterAdmission || shared,
+              days: USAGE_HISTORY_DAYS_DEFAULT,
+            }),
+      )
+      let isRecording = agent
+      const facade = processFacade(folder, { isRecordingHistory: () => isRecording })
+      stepMinutes()
+      const lease = await admitted(spawnAdmission('other', 'foreground'))
+      if (changesAfterAdmission)
+        await writeFile(file, JSON.stringify({ enabled: false, days: USAGE_HISTORY_DAYS_DEFAULT }))
+      lease?.settle?.({
+        root: { pid: 707, startTime: '70700' },
+        scope: 'm107hc2-off-period',
+        usage: { cpuSeconds: 2, residentBytes: 4096 },
+      })
+      lease?.complete(true)
+      const before = await resourceHistoryReader(folder).read()
+      expect(before.work).toEqual([])
+      // The reviewer's off → settle → on → sample sequence through the real journal.
+      await writeFile(file, JSON.stringify({ enabled: true, days: USAGE_HISTORY_DAYS_DEFAULT }))
+      isRecording = true
+      const history = await vi.waitFor(
+        async () => {
+          await facade.status()
+          const read = await resourceHistoryReader(folder).read()
+          // Close the minute that could have consumed the off-period settlement.
+          expect(read.minutes.length).toBeGreaterThan(2)
+          return read
+        },
+        { timeout: ROW_WAIT_MS },
+      )
+      expect(history.work).toEqual([])
+      expect(await journalText(folder)).not.toContain('"kind":"other"')
+    },
+  )
 
   it('builds the launches around the runtime host’s one governor, whose level holds a safe point', async () => {
     const facade = processFacade(await folders.create())

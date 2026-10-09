@@ -31918,8 +31918,12 @@ Add the held-settings and off → settle → on → sample reproductions, prove
 each guard with byte-exact red drills, and run the owning resource/runtime
 files at repository timeouts plus scoped delivery checks. No paid/live calls,
 dependency, merge, push or rebase; full quality remains the lead's gate.
-First-use cancellation is repaired and drilled; shared history consent remains
-the next finding in this repair round.
+Both findings are repaired with permanent regressions. Runtime and window
+settlement buffers use the recorder's effective consent check; an unreadable
+choice is off. Settlements, samples, events and reads invalidate held rows
+and their overflow tally while consent is off. Scoped verification and
+byte-exact drills are recorded under `docs/certification/m107.md`; full
+quality and the named integration/platform receipts remain with the lead.
 
 **M107 H–C1 — the runtime spawn binding (2026-10-09, after 0.17.0; D87.2).**
 Its prerequisites, SPAWN017C's governed launches and W2's resource history,
@@ -31943,8 +31947,9 @@ the next settings sync or sample, rather than refusing; (2) the shared
 governor is the runtime host's alone: the launch host never pushes settings
 into it, starts it or disposes it, so safe points, created-root cleanup on
 pressure and transport results follow the one governor, as in the window;
-(3) attested rows are kept only while the process records (the agent's
-consent), so one-shot and headless processes keep none; (4) local session
+(3) attested rows are kept only while the process records and the shared
+usage-history choice is on, so one-shot and headless processes keep none;
+(4) local session
 correlation: the ACP agent runs each turn inside its session, so the spawns
 that turn admits notify that session (headless's client drops those chunks);
 (5) a failed load of the launches refuses that spawn and the next one retries.
@@ -37961,6 +37966,22 @@ lane A's first step.
 
 ## 7. Gates
 
+**M107HC2 bounded delivery deferrals (2026-10-09).** Both RVM107HC1
+findings have permanent regressions and byte-exact red drills. All requested
+resource/runtime suites and scoped checks pass (356 tests, 11 existing
+platform skips; all five typechecks, changed-file ESLint/Prettier, localization,
+reference, host API, plan, roadmap and plain Knip). The full aggregate stays
+with the lead under the lane brief. `jscpd` reports only the inherited
+51-token clone in `windowsTrustedPath.test.ts:206` and `:279`; that file is
+byte-identical to `8b3ce3df8`. `npm run build` stops before bundling at the
+existing What's New decode cap: 79,510 bytes versus 76,800, identical for
+the reviewed head's and current changelogs. No cap or gate is weakened;
+the release lane owns that repair. Independent production-option esbuild
+measurements (`write: false`) keep all seven measured bundles within their
+existing caps; extension, Model API, launcher and runtime engine remain
+byte-identical. Full build/split/notices clearance is not claimed. Receipts
+and sizes are in `docs/certification/m107.md`'s M107HC2 record.
+
 **CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting
 journals/cache/engine, schedule-runtime and M114 panel/conversation failures
 from hosted run 37897298018 on the macbook rig. Repair only the shared
@@ -42883,6 +42904,8 @@ unbound on this base; no shipped fake stands in. See the exact handoff matrix
 in `docs/certification/m107.md`. **H–C1 closed (M107 H–C1, 2026-10-09):** the
 runtime's launches share its one governor, occupancy, events (headless's v2
 sink) and history journal; tool-call correlation and macOS rows stay named.
+RVM107HC1's first-load cancellation and shared-consent buffering regressions
+are repaired in M107HC2, with scoped receipts in the same certification.
 
 - **M118INT remaining dependency/CI work.** Shared React/VS Code and installed
   CLI/ACP bindings are certified with bounded fake-only checks and unchanged

@@ -242,6 +242,46 @@ describe('C1 process admission and registration', () => {
     expect(h.host.workRows()).toEqual([])
     h.host.dispose()
   })
+  it.each(['settlement', 'sample', 'event', 'read'] as const)(
+    'drops the settlement buffer and its overflow count when consent is off at a %s',
+    async (boundary) => {
+      let isRecording = true
+      const h = setup({ isSettledRead: () => isRecording })
+      const lease = await h.host.admit('toolShell')
+      // Include an overflow so both retained rows and the dropped-row tally must reset.
+      for (let index = 0; index <= RESOURCE_SETTLED_ROWS_MAX; index++)
+        lease.settle?.(attestedSettlement(700 + index))
+      isRecording = false
+      switch (boundary) {
+        case 'settlement': {
+          lease.settle?.(attestedSettlement(1))
+          break
+        }
+        case 'sample': {
+          await h.read({})
+          break
+        }
+        case 'event': {
+          h.governor.resumeNow()
+          break
+        }
+        case 'read': {
+          expect(h.host.settled()).toEqual({ rows: [], dropped: 0 })
+          break
+        }
+      }
+      isRecording = true
+      expect(h.host.settled()).toEqual({ rows: [], dropped: 0 })
+      // New consented work still records normally after discarding the old buffer.
+      lease.settle?.(attestedSettlement(2))
+      const after = h.host.settled()
+      expect(after.rows).toHaveLength(1)
+      expect(after.rows[0]?.ticket.root.pid).toBe(2)
+      expect(after.dropped).toBe(0)
+      lease.complete(true)
+      h.host.dispose()
+    },
+  )
   it('H–C1 stops owned work once though the runtime host and the admission port both close it', async () => {
     const h = setup({ isGovernorShared: true })
     const lease = await h.host.admit('toolShell')

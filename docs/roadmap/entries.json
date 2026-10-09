@@ -793,7 +793,7 @@
     {
       "id": "M107",
       "title": "Resource limits for your machine",
-      "summary": "Hold back new background work at CPU, memory and disk limits, sharing one runtime governor with cancellable first-use waits and shared history consent under review; moving work to another device is not available yet.",
+      "summary": "Hold back new background work at CPU, memory and disk limits, sharing one runtime governor with cancellable first-use waits and work history that respects shared consent; moving work to another device is not available yet.",
       "area": "platform",
       "release": "0.16.0",
       "labels": ["not available yet"]

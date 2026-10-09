@@ -147,10 +147,12 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       running: { backgroundCount: (kind) => this.backgroundCount(kind) },
     })
     this.unsubscribeSample = options.governor.onSample(() => {
+      this.isSettledRead()
       this.queue.wake()
       this.changed()
     })
     this.unsubscribe = options.events.subscribe((event) => {
+      this.isSettledRead()
       if (event.type === 'levelChanged' && event.to !== 'normal') {
         void options.created
           ?.clean()
@@ -159,6 +161,17 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       }
       this.changed()
     })
+  }
+
+  /** Off consent invalidates held accounting, even when the recorder skips a sample. */
+  private isSettledRead(): boolean {
+    const choice = this.options.isSettledRead
+    const isRead = typeof choice === 'function' ? choice() : choice === true
+    if (!isRead) {
+      this.settledRows = []
+      this.settledDropped = 0
+    }
+    return isRead
   }
 
   /** Queue counts move without an event (grants, releases), so callers mark them too. */
@@ -589,9 +602,8 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       },
       settle: (settlement: ResourceSettlement) => {
         // History's work source: the attested job's own final accounting, kept only
-        // for a bound reader, and bounded between its reads.
-        const isRead = this.options.isSettledRead
-        if (!(typeof isRead === 'function' ? isRead() : isRead === true)) return
+        // for a consented reader, and bounded between its reads.
+        if (!this.isSettledRead()) return
         if (this.settledRows.length >= RESOURCE_SETTLED_ROWS_MAX) {
           this.settledRows.shift()
           this.settledDropped++
@@ -711,6 +723,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     readonly rows: readonly { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[]
     readonly dropped: number
   } {
+    this.isSettledRead()
     const rows = this.settledRows
     const dropped = this.settledDropped
     this.settledRows = []
