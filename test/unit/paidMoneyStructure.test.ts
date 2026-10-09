@@ -147,7 +147,6 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   'host/backend/sessionBudgetJournal.ts:retainedUsd': { category: 'trackedDebt', reason: DEBT },
   'host/backend/sessionBudgetJournal.ts:settledUsd': { category: 'trackedDebt', reason: DEBT },
   'host/backend/sessionBudgetJournal.ts:spentUsd': { category: 'trackedDebt', reason: DEBT },
-  'host/conversation/conversationController.ts:costUsd': { category: 'trackedDebt', reason: DEBT },
   'host/paid/paidDailyBudget.ts:capUsd': { category: 'trackedDebt', reason: DEBT },
   'host/paid/paidDailyBudget.ts:spentUsd': { category: 'trackedDebt', reason: DEBT },
   'host/paid/paidDailyBudget.ts:uncertainUsd': { category: 'trackedDebt', reason: DEBT },
@@ -157,10 +156,6 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   'runtime/usage/usageServiceEntry.ts:apiEquivalentUsd': { category: 'trackedDebt', reason: DEBT },
   'runtime/usage/usageServiceEntry.ts:usd': { category: 'trackedDebt', reason: DEBT },
   'shared/constants.ts:dailyUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/modelsPanel.ts:dayUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/modelsPanel.ts:limitUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/modelsPanel.ts:monthUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/modelsPanel.ts:remainingUsd': { category: 'trackedDebt', reason: DEBT },
   'shared/scheduleV2.ts:paidCapUsd': { category: 'trackedDebt', reason: DEBT },
   'shared/team.ts:costUsd': { category: 'trackedDebt', reason: DEBT },
   'shared/team.ts:estimatedCostUsd': { category: 'trackedDebt', reason: DEBT },
@@ -168,11 +163,6 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   'shared/teamView.ts:budgetUsdToday': { category: 'trackedDebt', reason: DEBT },
   'shared/teamView.ts:costUsd': { category: 'trackedDebt', reason: DEBT },
   'shared/teamView.ts:spentUsdToday': { category: 'trackedDebt', reason: DEBT },
-  'shared/usage.ts:costUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usage.ts:limitUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usage.ts:monthUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usage.ts:remainingUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usage.ts:todayUsd': { category: 'trackedDebt', reason: DEBT },
   'shared/usageJournal.ts:apiEquivalentUsd': { category: 'trackedDebt', reason: DEBT },
   'shared/usageJournal.ts:limitUsd': { category: 'trackedDebt', reason: DEBT },
   'shared/usageJournal.ts:remainingUsd': { category: 'trackedDebt', reason: DEBT },
@@ -185,7 +175,6 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   'shared/usagePage.ts:spentUsd': { category: 'trackedDebt', reason: DEBT },
   'shared/usagePage.ts:uncertainUsd': { category: 'trackedDebt', reason: DEBT },
   'shared/usagePage.ts:usd': { category: 'trackedDebt', reason: DEBT },
-  'webview/models/ProvidersSection.tsx:usd': { category: 'trackedDebt', reason: DEBT },
 }
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url))

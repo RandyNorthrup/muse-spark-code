@@ -4600,7 +4600,7 @@ describe('ConversationController: account & usage (M8)', () => {
           pricing: 'local',
           inputTokens: 7,
           outputTokens: 2,
-          costUsd: 0,
+          costUsd: '0',
         },
         {
           providerId: 'openrouter',
@@ -4614,6 +4614,39 @@ describe('ConversationController: account & usage (M8)', () => {
     const report = t.surface.posted.findLast((message) => message.type === 'usageReport')
     expect(report?.type === 'usageReport' && report.providers?.[0]?.costUsd).toBeUndefined()
     expect(report?.type === 'usageReport' && report.providers?.[2]?.costUsd).toBeUndefined()
+  })
+
+  it('sums a provider row settled dollars exactly (M121)', async () => {
+    const base = {
+      v: 1,
+      type: 'usage',
+      day: '2026-10-05',
+      at: 100,
+      timezoneOffsetMins: 0,
+      client: 'Zed',
+      backend: 'modelApi',
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      startedAt: 1,
+      kind: 'turn',
+      outcome: 'completed',
+      tokens: { input: 1, output: 1 },
+    } as const
+    const usageRecording: NonNullable<ConversationDeps['usageRecording']> = {
+      note: vi.fn(),
+      limit: vi.fn(),
+      flush: () => Promise.resolve(),
+      today: () =>
+        Promise.resolve([
+          { ...base, id: 'one', cost: { certainty: 'computed', usd: 0.1 } },
+          { ...base, id: 'two', cost: { certainty: 'computed', usd: 0.2 } },
+        ]),
+    }
+    const t = setup({ usageRecording })
+    // Binary addition would show 0.30000000000000004.
+    expect(await firstUsageReport(t)).toMatchObject({
+      providers: [{ providerId: 'openai', costUsd: '0.3' }],
+    })
   })
 
   it('reads uploaded account files independently of sign-in and delegates explicit cleanup with confirmation', async () => {
