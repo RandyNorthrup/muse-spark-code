@@ -1991,6 +1991,43 @@ also unavailable while a pull request worktree is held.
 - **Restricted Mode.** None of this runs there, and the panel says why:
   git can run programs a repository's configuration names.
 
+### GitHub sign-in in other editors (M123, in progress)
+
+M123 brings these features to every editor (PLAN.md D104). Its GitHub
+sign-in has three sources; the first one that has a sign-in is used:
+
+1. **The editor's own GitHub sign-in.** VS Code and its forks with GitHub
+   sign-in use it, as above; JetBrains (its GitHub plugin) and Visual
+   Studio follow once their editor leases land (M123 lane L). The token
+   stays in the editor.
+2. **Muse Spark's own sign-in, through GitHub's device flow**, for every
+   other editor and the terminal. Run
+   `muse-spark-code-acp auth github login`: it prints a code and
+   `https://github.com/login/device`; open that page, enter the code and
+   approve the project's app (its name marks it unofficial). It asks for the `repo` scope
+   only. The token goes into this computer's credential store (Windows
+   Credential Manager, the macOS login Keychain or the Secret Service on
+   Linux), never into a file, a setting or a log, and is renewed before it
+   expires. `auth github status` says whether one is stored;
+   `auth github logout` deletes it. The panel's sign-in card shows the same
+   code in every editor once M123 lane U lands.
+3. **Your existing `gh` login**, only if you turn on
+   `museSpark.github.useGhLogin` in your user or machine settings (a
+   repository's settings cannot). Muse Spark then runs
+   `gh auth token --hostname github.com` for each GitHub call and keeps the
+   token only for that call.
+
+**Revoking access.** Signing out deletes the token from this computer.
+GitHub's revocation API needs the app's client secret, which a public app
+like this one does not have, so revoke the grant on GitHub: `logout` prints
+the app's page (`https://github.com/settings/connections/applications/…`),
+where **Revoke** ends it. A token GitHub refuses (401) is deleted, and you
+sign in again.
+
+Until M123 is certified, only the terminal commands above are wired; the
+panel, ACP sessions and pull request actions outside VS Code use these
+sources once lanes G, P, L and U land.
+
 <!-- reference: streamed-argument-previews -->
 
 ## Streamed argument previews

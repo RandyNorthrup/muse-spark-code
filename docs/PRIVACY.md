@@ -546,6 +546,26 @@ does not yet execute them in this build. When that lane lands, a local
   VS Code's per-workspace extension state (its number, address and title,
   by session id), and the worktrees the extension made in its global state
   (folder, repository, branch or pull request, and whether you trusted it).
+- GitHub outside VS Code (M123, PLAN.md D104; in progress). Muse Spark's
+  own GitHub sign-in uses the project's OAuth App (registered by the
+  maintainer, named as unofficial) through GitHub's device flow. It asks for the `repo`
+  scope only: GitHub lets a token with that scope read and write your
+  repositories, public and private, including their code, pull requests,
+  issues and settings such as webhooks. Muse Spark uses it only for the
+  pull request calls M71 makes (to `api.github.com`), but the scope is
+  GitHub's, not ours. The app has no client secret. Sign-in sends GitHub
+  the app's public client id; the code is shown only in Muse Spark's own
+  terminal or panel, and only `https://github.com/login/device` is ever
+  shown or opened. The token (and its refresh token, when GitHub issues
+  expiring tokens) is kept only in this computer's credential store, under
+  the account `museSpark.github.deviceFlow` (the M109 vault once its broker
+  binds); never in a file, a setting, a log, a child process's arguments or
+  environment, or anything sent to a model. `auth github logout` deletes
+  it; revoke the grant itself on GitHub's page for the app
+  (`https://github.com/settings/connections/applications/Ov23liXlNSPBbFyJ0A1z`).
+  Your `gh` login is read (`gh auth token`) only when you turn on
+  `museSpark.github.useGhLogin` in user or machine settings, held for one
+  call, and never stored or changed.
 - The Muse Code CLI keeps its own sign-in. On Windows and Linux it is in
   the CLI's credential file (`~/.config/muse/auth.json`). On macOS the token
   is in your login Keychain (item `ai.meta.dev.credentials`, account

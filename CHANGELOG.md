@@ -9,6 +9,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **GitHub sign-in outside VS Code** (M123 lane A, PLAN.md D104).
+  `muse-spark-code-acp auth github login` signs in with GitHub's device
+  flow and the project's OAuth App (public client id, no secret, `repo`
+  scope only): it prints a code and `https://github.com/login/device`, keeps
+  the token in the operating system's credential store and renews it before
+  it expires; `auth github status` and `auth github logout` (which also
+  prints the app's GitHub page, where the grant is revoked). A reply naming
+  any other sign-in address is refused. With `museSpark.github.useGhLogin`
+  on in user or machine settings, your `gh` login is used instead, read per
+  call and never stored. The panel and pull requests outside VS Code use
+  these sources once M123's other lanes land.
+
 - **Groundwork for Git and pull requests in every editor** (M123 lane 0,
   PLAN.md D104). The shared contracts for the GitHub sign-in sources (the
   editor's own sign-in by lease, Muse Spark's device-flow sign-in, and the

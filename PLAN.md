@@ -19161,7 +19161,11 @@ owns it.
 
 ## 3. Open questions (need the owner)
 
-- **Q-M123 — The GitHub OAuth App (2026-10-08, owner item).** D104's
+- **Q-M123 — The GitHub OAuth App (2026-10-08, owner item).**
+  **Resolved 2026-10-08 (owner): registered.** Client id
+  `Ov23liXlNSPBbFyJ0A1z` (public, in `GITHUB_OAUTH_CLIENT_ID` since M123
+  lane A); device flow on; expiring user tokens on; no client secret is
+  stored or needed. The record below is the request as it was. D104's
   device-flow sign-in (source b) needs an OAuth App registered under the
   owner's GitHub account, and only he can create it. It is Chrome-assisted:
   the lead opens `github.com/settings/applications/new` and fills the form,
@@ -20209,6 +20213,57 @@ github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
     sandbox). Lane A checks and dates them, and captures one sign-in after
     Q-M123 (AGENTS.md rule 14).
 
+- **Lane A landed on `m123/a` (2026-10-09, Kubuntu).** Record:
+  `docs/certification/m123.md` § Lane A.
+  - **Q-M123 resolved.** The owner registered the OAuth App: client id
+    `Ov23liXlNSPBbFyJ0A1z` (public) in `GITHUB_OAUTH_CLIENT_ID`; device
+    flow on; expiring user tokens on; no client secret, and no code path
+    needs one. An empty id is still refused (`clientIdUnset`). gitleaks'
+    `generic-api-key` rule matches the id, so that line carries
+    `gitleaks:allow` (§8).
+  - **Source (b).** `src/core/git/deviceFlow.ts` (request, poll at
+    `interval`, `slow_down` +5 s or GitHub's longer interval, stop before
+    `expires_in`, Cancel, only `https://github.com/login/device`, a user
+    code of letters, digits and hyphens only, refresh with rotation) and
+    `src/runtime/github/deviceFlowSource.ts` (the store port, refresh a
+    minute before expiry, a refused refresh drops the pair and a lost
+    network keeps it, one sign-in at a time, 401 deletes the stored token,
+    Sign out deletes it and opens the app's GitHub page, redactor
+    registration).
+  - **Storage.** The OS keychain through `keyStore.ts` under
+    `museSpark.github.deviceFlow`. The M109 vault's `oauth` item is not
+    used yet: the runtime vault's broker binding (`createRuntimeVault`) is
+    not built on this base, and its commands refuse closed. The source takes
+    any `SecretStore`, so the vault item replaces the keychain in the
+    binding when the broker lands, with the M109 owner.
+  - **Source (c).** `src/runtime/github/ghLoginSource.ts`: only with the
+    user's or machine's own `museSpark.github.useGhLogin`; `gh auth token
+--hostname github.com` through the governed runner, no shell, 4 KiB
+    output cap, credential variables stripped; held for one call,
+    registered with the redactor; `gh`'s login never changed. The runtime
+    has no user-settings store on this base, so the setting is an injected
+    port, bound by the panel's settings (M104 lane B) and lanes G/P.
+  - **CLI.** `auth github login|logout|status` (exact grammar), the code
+    and address printed, never a token.
+  - **Per editor.** The code and address are one template
+    (`UI_TEXT.githubSignIn.code`) passed through the source's `present`
+    port: the CLI prints it now (every editor's terminal, the companion
+    and Neovim/Emacs/Sublime/Zed/Xcode/Qt Creator users); the ACP notice
+    and the panel card bind the same port when lanes G/P (the runtime
+    client) and U (the card) land; `exec` never asks (headless). Source
+    (a) is lane L's.
+  - **Revocation (not re-read).** GitHub's `DELETE
+/applications/{client_id}/token` authenticates with the client id and
+    secret (Basic), which a public client cannot send; Sign out deletes
+    the local token and points at
+    `github.com/settings/connections/applications/<client id>`. From the
+    lane's knowledge of GitHub's docs, not re-read: the docs fetch was
+    refused in this lane's session (2026-10-09). The lead re-reads and
+    dates it.
+  - **Not captured.** The device-flow shapes stay GitHub's documented
+    examples; the fetch to re-read them was refused (2026-10-09), and no
+    live sign-in is allowed without the lead. The parser keeps unknown
+    fields.
 - **Goal.** F36 (M71's Git and pull request features) works in every editor
   in M104's matrix. That means the same forms, drafts, confirmations, links,
   checks and held checkout as in VS Code, with Git run natively by the
@@ -20340,8 +20395,9 @@ github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
     With five lanes in parallel, the critical path is lane 0, then P, U
     and Q.
 - **Certification checklist** (§6.0, plus):
-  - [ ] Q-M123 is answered and the client id is in the constants, or the
+  - [x] Q-M123 is answered and the client id is in the constants, or the
         fake id is recorded as the only blocker, at the top of the report.
+        (Lane A, 2026-10-09.)
   - [ ] Lane 0's contract is frozen, with the schema snapshot.
   - [ ] A receipt per editor in `docs/certification/m123-<host>.md`; the
         matrix is generated; F36 is W in every row.

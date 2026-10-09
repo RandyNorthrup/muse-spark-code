@@ -453,7 +453,8 @@ function records(file: string): z.infer<typeof ghRecord>[] {
 describe('the gh source (D104 source c)', () => {
   let folder: string
   const signal = new AbortController().signal
-  const GH_CANARY = 'gho_canaryGhLoginToken0001'
+  // No `gho_` prefix: only the registration, not a pattern, can redact it.
+  const GH_CANARY = 'canary-gh-login-token-0001'
 
   beforeAll(() => {
     folder = mkdtempSync(path.join(tmpdir(), 'm123a-gh-'))
