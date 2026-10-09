@@ -144,15 +144,44 @@ No further production rewrite was needed. Two overlapping drill launches were
 discarded: the production file was restored to the known-good SHA-256 and the
 drills repeated sequentially. Only the independent receipts below count.
 
+### F4 — A credential check rather than a public-list check
+
+Cause: the configured service always scanned models while the CLI honoured
+`preset.keyTest`. Both now call `presets.runProviderKeyTest`, which runs a
+provider-key check before a same-origin list and refuses paid-token probes.
+Configured checks use the same pinned transport as scans, captured version
+and attribution headers, and bounded JSON validation. A preset's separate
+identity origin is permitted only for that captured key-test path, with fresh
+DNS and public-network checks; the configured provider's own fixed origin is
+still validated. HTTP refusal returns failed, with no public-list fallback.
+No captured paid-token operation is installed or dispatched.
+
+The real panel/facade tests replay OpenRouter's `01-models-list.json` and
+`02-key-usage.json`: success requests `/api/v1/key`, then `/api/v1/models`;
+fake HTTP 401 at `/key` produces failed and never requests `/models`.
+The CLI's real `probeProvider` replays the same pair in the same order.
+HF's `02-whoami-key-test.json` is a redacted structural summary: only status
+and bounded JSON are consumed, no account information reconstructed or shown.
+Its configured key check requests `https://huggingface.co/api/whoami-v2`
+and does not probe the router's public list. These direct captures have no
+workspace; this replay makes **0 model attempts**.
+
+Failing first: the key endpoint is absent, and fake key refusal still publishes
+ok (2 tests failed). Final `providerWiring`, `providersX`, `providersXFix`:
+**63 tests pass** at repository deadlines. Scoped ESLint passes.
+
 ### Red drills (byte-exact restoration)
 
 Every drill runs a whole owning test file at repository deadlines, records
 exit 1, restores the original bytes in `finally`, and compares SHA-256.
 
-| Finding | Deliberate break                            | Red result                                                    | Restored SHA-256                                                   |
-| ------- | ------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------ |
-| F2      | Remove the preset fallback in scan dispatch | 3 tests fail: Gemini/Ollama refusal, Anthropic header missing | `158d0578ca5bfc5de0bb2205a81f3b23b81940dca4227fd5782c39a517860d11` |
-| F3      | Drop the captured price card                | 5 rate/filter tests fail                                      | `6cd4ff8be66dac1f7d04838637f1bbe4f5e4845a777f471b46366b4235d3815d` |
-| F3      | Force free flags off                        | Free/filter test fails                                        | `6cd4ff8be66dac1f7d04838637f1bbe4f5e4845a777f471b46366b4235d3815d` |
-| F3      | Replace the price fingerprint with unpriced | Cache-write repricing test fails                              | `6cd4ff8be66dac1f7d04838637f1bbe4f5e4845a777f471b46366b4235d3815d` |
-| F3      | Accept negative optional decimal rates      | Invalid rate becomes free; test fails                         | `b819faafadb2ebc95468920c0b4eb3ba9c8cc653333560a669c1c6542c0b4c2b` |
+| Finding | Deliberate break                                         | Red result                                                    | Restored SHA-256                                                   |
+| ------- | -------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------ |
+| F2      | Remove the preset fallback in scan dispatch              | 3 tests fail: Gemini/Ollama refusal, Anthropic header missing | `158d0578ca5bfc5de0bb2205a81f3b23b81940dca4227fd5782c39a517860d11` |
+| F3      | Drop the captured price card                             | 5 rate/filter tests fail                                      | `6cd4ff8be66dac1f7d04838637f1bbe4f5e4845a777f471b46366b4235d3815d` |
+| F3      | Force free flags off                                     | Free/filter test fails                                        | `6cd4ff8be66dac1f7d04838637f1bbe4f5e4845a777f471b46366b4235d3815d` |
+| F3      | Replace the price fingerprint with unpriced              | Cache-write repricing test fails                              | `6cd4ff8be66dac1f7d04838637f1bbe4f5e4845a777f471b46366b4235d3815d` |
+| F3      | Accept negative optional decimal rates                   | Invalid rate becomes free; test fails                         | `b819faafadb2ebc95468920c0b4eb3ba9c8cc653333560a669c1c6542c0b4c2b` |
+| F4      | Skip the shared provider-key check                       | 4 panel/CLI/HF tests fail                                     | `4cdc0eff6a5de9ba9239be94481cb6163e6240be05ae96dcec3c535d45b5fd25` |
+| F4      | Also list after a separate identity origin               | HF key-test count/path test fails                             | `4cdc0eff6a5de9ba9239be94481cb6163e6240be05ae96dcec3c535d45b5fd25` |
+| F4      | Refuse the captured identity path instead of other paths | HF key test fails                                             | `3fd26e9d63f0bf6e1ee6d588213fda8df41df2bc107effd616bfb74c285058a5` |

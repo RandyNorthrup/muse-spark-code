@@ -9,6 +9,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createConfiguredProviderServices } from '../../src/core/providers/configured'
 import { createModelsPanelSeam } from '../../src/core/providers/panelSeam'
 import { providerEntrySchema } from '../../src/core/providers/providersFile'
+import { presetById } from '../../src/core/providers/presets'
+import { probeProvider } from '../../src/runtime/providersCommands'
+import { resolveProvider } from '../../src/runtime/exec/providerExec'
 import { createModelsPanel } from '../../src/host/models/modelsPanel'
 import { parseHostToPanelMessage } from '../../src/shared/modelsPanel'
 import { PROVIDER_SECRET_PREFIX } from '../../src/shared/constants'
@@ -38,9 +41,7 @@ async function capturedBody(provider: string, file: string) {
     .object({
       response: z.object({
         body: z.optional(z.json()),
-        bodySummary: z.optional(
-          z.object({ topLevelKeys: z.array(z.string()), sample: z.array(z.json()) }),
-        ),
+        bodySummary: z.optional(z.json()),
       }),
     })
     .parse(value).response
@@ -48,8 +49,14 @@ async function capturedBody(provider: string, file: string) {
     return typeof response.body === 'string'
       ? z.json().parse(JSON.parse(response.body))
       : response.body
-  const summary = response.bodySummary
-  if (summary === undefined) throw new Error('Missing captured body')
+  if (response.bodySummary === undefined) throw new Error('Missing captured body')
+  const listed = z
+    .object({ topLevelKeys: z.array(z.string()), sample: z.array(z.json()) })
+    .safeParse(response.bodySummary)
+  // The HF identity receipt retains only a redacted structural summary;
+  // its key test consumes the HTTP status and bounded JSON, not account data.
+  if (!listed.success) return response.bodySummary
+  const summary = listed.data
   if (summary.topLevelKeys.includes('<array>')) return summary.sample
   return summary.topLevelKeys.includes('models')
     ? { models: summary.sample }
@@ -98,7 +105,9 @@ async function fixture(preset: string, capture: string) {
   })
   await seam.store.add({ ...entry, address: entry.address ?? '' })
   let body = await capturedBody(preset, capture)
-  const keyBody = preset === 'openrouter' ? await capturedBody(preset, '02-key-usage.json') : body
+  let keyBody = body
+  if (preset === 'openrouter') keyBody = await capturedBody(preset, '02-key-usage.json')
+  else if (preset === 'huggingface') keyBody = await capturedBody(preset, '02-whoami-key-test.json')
   let keyStatus = 200
   const calls: { path: string; headers: Readonly<Record<string, string>> }[] = []
   const services = createConfiguredProviderServices(undefined, {
@@ -109,7 +118,7 @@ async function fixture(preset: string, capture: string) {
     send: (target, _body, headers) => {
       calls.push({ path: target.url.pathname, headers })
       return Promise.resolve(
-        target.url.pathname === '/api/v1/key'
+        ['/api/v1/key', '/api/whoami-v2'].includes(target.url.pathname)
           ? pinnedResponse(keyBody, keyStatus)
           : pinnedResponse(body),
       )
@@ -174,6 +183,68 @@ async function fixture(preset: string, capture: string) {
 }
 
 describe('PROVWIRE production provider wiring', () => {
+  it('F4: CLI probe uses the same key-first contract with captured OpenRouter responses', async () => {
+    const f = await fixture('openrouter', '01-models-list.json')
+    const resolved = await resolveProvider(
+      { v: 1, providers: [f.entry] },
+      'openrouter',
+      presetById,
+      () => Promise.resolve(['8.8.8.8']),
+    )
+    if (!resolved.ok) throw new Error('Production provider refused')
+    const paths: string[] = []
+    const keyBody = await capturedBody('openrouter', '02-key-usage.json')
+    const models = await capturedBody('openrouter', '01-models-list.json')
+    const outcome = await probeProvider(
+      (url) => {
+        const pathname = new URL(url instanceof Request ? url.url : url).pathname
+        paths.push(pathname)
+        return Promise.resolve(Response.json(pathname === '/api/v1/key' ? keyBody : models))
+      },
+      resolved.provider,
+      'synthetic-test-key',
+      () => Promise.resolve(['8.8.8.8']),
+    )
+    expect(outcome).toEqual({ ok: true, modelCount: 4 })
+    expect(paths).toEqual(['/api/v1/key', '/api/v1/models'])
+    f.controller.dispose()
+  })
+  it('F4: HF checks the captured identity origin without forwarding the key to its public list', async () => {
+    const f = await fixture('huggingface', '01-models-list.json')
+    await expect(
+      f.providers.testCredential(
+        { ...f.entry, address: f.entry.address ?? '' },
+        'synthetic-test-key',
+      ),
+    ).resolves.toEqual({ kind: 'ok', models: 0 })
+    expect(f.calls.map((call) => call.path)).toEqual(['/api/whoami-v2'])
+    f.controller.dispose()
+  })
+  it('F4: OpenRouter tests its captured key endpoint before the public models list', async () => {
+    const f = await fixture('openrouter', '01-models-list.json')
+    await expect(
+      f.providers.testCredential(
+        { ...f.entry, address: f.entry.address ?? '' },
+        'synthetic-test-key',
+      ),
+    ).resolves.toEqual({ kind: 'ok', models: 4 })
+    expect(f.calls.map((call) => call.path)).toEqual(['/api/v1/key', '/api/v1/models'])
+    f.controller.dispose()
+  })
+  it('F4: a refused key never becomes Key works from a successful public list', async () => {
+    const f = await fixture('openrouter', '01-models-list.json')
+    f.rejectKey()
+    await message(
+      f.panel,
+      { type: 'providers/test', providerId: 'openrouter', acceptCost: false },
+      () => {
+        expect(latestState(f.panel).providers[0]?.test.status).toBe('failed')
+      },
+    )
+    expect(f.calls.map((call) => call.path)).toEqual(['/api/v1/key'])
+    expect(latestState(f.panel).models).toEqual([])
+    f.controller.dispose()
+  })
   it('F3: invalid captured-rate fields remain unpriced rather than becoming free', async () => {
     const f = await fixture('openrouter', '01-models-list.json')
     const body = z

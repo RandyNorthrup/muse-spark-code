@@ -183,12 +183,15 @@ export function createConfiguredProviderServices(
       ? fail()
       : parsed.data.secret
   }
-  const transportFor = (entry: ProviderEntry, supplied?: string) => {
+  const transportFor = (entry: ProviderEntry, supplied?: string, keyTestOrigin?: string) => {
     const preset = presetFor(entry)
-    const base = new URL(entry.address ?? fail())
+    const configuredUrl = new URL(entry.address ?? fail())
+    const base = new URL(keyTestOrigin ?? configuredUrl.href)
     if (
       (!preset.wireCapture && entry.preset !== 'custom' && entry.auth !== 'none') ||
-      (preset.origin.kind === 'fixed' && base.origin !== preset.origin.origin)
+      (preset.origin.kind === 'fixed' && configuredUrl.origin !== preset.origin.origin) ||
+      (keyTestOrigin !== undefined &&
+        (preset.keyTest.kind !== 'provider-key' || preset.keyTest.origin !== keyTestOrigin))
     )
       return fail()
     const auth =
@@ -302,6 +305,11 @@ export function createConfiguredProviderServices(
       verifyEndpoint: async (url: string) => {
         const parsed = new URL(url)
         if (parsed.origin !== base.origin) return fail()
+        if (
+          keyTestOrigin !== undefined &&
+          (preset.keyTest.kind !== 'provider-key' || parsed.pathname !== preset.keyTest.path)
+        )
+          return fail()
         const host = parsed.hostname.replaceAll(/^\[|\]$/g, '')
         const answers =
           isIP(host) === 0
@@ -313,10 +321,11 @@ export function createConfiguredProviderServices(
                 })
               )(host)
             : [host]
-        const verdict = endpointPolicy.checkEndpointUrl(entry.address ?? '', answers)
+        const verdict = endpointPolicy.checkEndpointUrl(base.href, answers)
         if (
           verdict.kind === 'refused' ||
-          (verdict.kind === 'confirm-private' && entry.privateNetwork !== true)
+          (verdict.kind === 'confirm-private' &&
+            (keyTestOrigin !== undefined || entry.privateNetwork !== true))
         )
           return fail()
         const address = answers[0] ?? fail()
@@ -343,6 +352,38 @@ export function createConfiguredProviderServices(
     const prefix = url.pathname.replace(/\/$/, '')
     return { baseUrl: url.origin, path: prefix + path }
   }
+  const getJson = async (
+    entry: ProviderEntry,
+    path: string,
+    supplied: string | undefined,
+    signal: AbortSignal,
+    keyTestOrigin?: string,
+  ) => {
+    const preset = presetFor(entry)
+    const bound = transportFor(entry, supplied, keyTestOrigin)
+    const address =
+      keyTestOrigin === undefined ? baseAndPath(entry, path) : { baseUrl: keyTestOrigin, path }
+    const transport = new RequestTransport({
+      ...bound.transport,
+      auth: bound.auth,
+      verifyEndpoint: bound.verifyEndpoint,
+      baseUrl: address.baseUrl,
+    })
+    const headers: Record<string, string> = {}
+    if ((entry.format ?? preset.format) === 'anthropic') headers['anthropic-version'] = '2023-06-01'
+    if (preset.id === 'openrouter') {
+      const attribution = presets.OPENROUTER_ATTRIBUTION
+      headers[attribution.refererHeader] = attribution.referer
+      headers[attribution.titleHeader] = attribution.title
+      headers[attribution.categoriesHeader] = attribution.categories
+    }
+    const result = await transport.request(
+      address.path,
+      { method: 'GET', accept: 'application/json', headers, retries: 'rateLimitOnly' },
+      signal,
+    )
+    return await parseJsonResponse(result, (json) => z.json().parse(json))
+  }
   const scan = async (
     entry: ProviderEntry,
     supplied?: string,
@@ -350,24 +391,7 @@ export function createConfiguredProviderServices(
   ): Promise<readonly NativeModelMetadata[]> => {
     try {
       const format = entry.format ?? presetFor(entry).format
-      const bound = transportFor(entry, supplied)
-      const address = baseAndPath(entry, presetFor(entry).modelsList.path)
-      const transport = new RequestTransport({
-        ...bound.transport,
-        auth: bound.auth,
-        verifyEndpoint: bound.verifyEndpoint,
-        baseUrl: address.baseUrl,
-      })
-      const result = await transport.request(
-        address.path,
-        {
-          method: 'GET',
-          accept: 'application/json',
-          ...(format === 'anthropic' && { headers: { 'anthropic-version': '2023-06-01' } }),
-        },
-        signal,
-      )
-      const value = await parseJsonResponse(result, (json) => json)
+      const value = await getJson(entry, presetFor(entry).modelsList.path, supplied, signal)
       if (format === 'anthropic')
         return anthropic.parseAnthropicModelsList(value).map((row) => row.native ?? fail())
       if (format === 'gemini')
@@ -853,8 +877,38 @@ export function createConfiguredProviderServices(
       })
     },
     test: async (entry: ProviderEntry, key: string) => {
-      const rows = await scan(entry, key)
-      return { kind: 'ok' as const, models: rows.length }
+      const outcome = await presets.runProviderKeyTest(
+        presetFor(entry).keyTest,
+        new URL(entry.address ?? fail()).origin,
+        async (origin, path) => {
+          try {
+            await getJson(
+              entry,
+              path,
+              key,
+              AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+              origin === new URL(entry.address ?? fail()).origin ? undefined : origin,
+            )
+            return { ok: true, modelCount: undefined }
+          } catch {
+            return { ok: false, paid: false, reason: UI_TEXT.providerProbeUnreachable }
+          }
+        },
+        async () => {
+          try {
+            const rows = await scan(entry, key)
+            return { ok: true, modelCount: rows.length }
+          } catch {
+            return { ok: false, paid: false, reason: UI_TEXT.providerProbeUnparseable }
+          }
+        },
+      )
+      if (outcome.ok) return { kind: 'ok' as const, models: outcome.modelCount ?? 0 }
+      // No captured paid-token request is installed; never dispatch one here.
+      return {
+        kind: 'failed' as const,
+        detail: outcome.paid ? UI_TEXT.modelsPanelUnavailable : outcome.reason,
+      }
     },
   }
 }
