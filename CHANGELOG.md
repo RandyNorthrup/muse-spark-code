@@ -74,6 +74,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Windows recorder destinations accept native 8.3 temporary-folder spelling
+  while still refusing traversal and existing destinations (CIFIX017W).
+
 - Schedule runtime tests cover Linux, Windows and macOS rearm ownership
   explicitly; macOS wake shutdown retains its independent after-exit helper.
 

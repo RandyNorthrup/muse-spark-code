@@ -1,5 +1,17 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**CIFIX017W Windows hosted-CI repair (2026-10-09, win11).** Reproduce the
+0.17.0 Windows failures from run 37950960680 in the release worktree. Repair
+recorder native path identity under 8.3 temporary ancestors, expensive native
+and package setup, resource-history disposal ordering, companion-upload
+cleanup ordering, and the trusted-path test clone at their causes. Keep all
+repository test/hook deadlines and gate caps. Run each of the eight owned
+files twice at repository defaults (at most three files per invocation),
+five typechecks, changed-file ESLint/Prettier, duplication and the shared
+static/build gates. Commit each validated root cause with installed hooks;
+no merge, push, live/paid call or aggregate quality (lead-owned under the
+rig brief). Receipts: `docs/certification/cifix017w.md`.
+
 **LEFT017B visual and deferred-entry completion (2026-10-08, linuxlt).**
 The continuation brief removes LEFT017's mapping scope limit: certify every
 current renderer through an actual harness scene, preserve six themes, two

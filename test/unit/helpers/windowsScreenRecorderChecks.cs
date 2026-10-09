@@ -16,6 +16,8 @@ using Windows.Media.Transcoding;
 
 internal static class WindowsScreenRecorderChecks
 {
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+    private static extern uint GetShortPathName(string path, System.Text.StringBuilder shortPath, uint capacity);
     private const BindingFlags PrivateStatic = BindingFlags.NonPublic | BindingFlags.Static;
     private const BindingFlags Instance = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
     public static string LatestFolder;
@@ -55,6 +57,12 @@ internal static class WindowsScreenRecorderChecks
         try {
             if (args[0] == "--self-test") { Call("Main", (object)args); return; }
             string mode = args[0];
+            if (mode == "shortPath") {
+                System.Text.StringBuilder shortPath = new System.Text.StringBuilder(32768);
+                uint length = GetShortPathName(args[1], shortPath, (uint)shortPath.Capacity);
+                if (length == 0 || length >= shortPath.Capacity) throw new IOException();
+                Console.WriteLine(shortPath.ToString()); return;
+            }
             if (mode == "probe") { Console.WriteLine("exit:" + Call("Main", (object)new string[] { "--probe" })); return; }
             if (mode == "owner") { Thread.Sleep(Timeout.Infinite); return; }
             if (mode == "mainLatest" || mode == "controlledLatest") {
