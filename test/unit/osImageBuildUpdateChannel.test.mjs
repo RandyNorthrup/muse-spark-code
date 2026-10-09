@@ -313,6 +313,48 @@ describe('M110-OS2 signed update channel: machine-code contract for damaged inpu
     expect(result.stderr).not.toContain('Traceback')
   })
 
+  it('round-trips the maximum counter and refuses one past it on both sides', () => {
+    const max = '9223372036854775807' // 2**63 - 1
+    const over = '9223372036854775808' // 2**63
+    const setCounter = (file, digits) =>
+      writeFileSync(
+        file,
+        readFileSync(file, 'utf8').replace(
+          /"metadata_version":\d+/,
+          () => `"metadata_version":${digits}`,
+        ),
+      )
+    // The maximum incoming counter is accepted and persists verbatim: the
+    // same text reads back as installed state (stale, never invalid).
+    const work = directory()
+    const doc = metadata(work, 'meta.json', { version: '1.2.4', metadata_version: 8 })
+    setCounter(doc, max)
+    sign(keys.key, doc)
+    const stateDir = state(work, '1.2.3', 7)
+    const accepted = check(doc, stateDir, keys.pub)
+    expect(accepted.stdout.trim()).toBe('CHANNEL_OK')
+    expect(accepted.status).toBe(0)
+    writeFileSync(path.join(stateDir, 'metadata_version'), `${max}\n`)
+    const reread = check(doc, stateDir, keys.pub)
+    expect(reread.stdout.trim()).toBe('CHANNEL_METADATA_STALE')
+    expect(reread.status).toBe(3)
+    // One past the maximum is refused on the wire (malformed, never verified).
+    const wire = directory()
+    const wireDoc = metadata(wire, 'meta.json', { version: '1.2.4', metadata_version: 8 })
+    setCounter(wireDoc, over)
+    sign(keys.key, wireDoc)
+    const wireOver = check(wireDoc, state(wire, '1.2.3', 7), keys.pub)
+    expect(wireOver.stdout.trim()).toBe('CHANNEL_MALFORMED')
+    expect(wireOver.status).toBe(6)
+    // ...and in the installed state file.
+    const kept = directory()
+    const keptDoc = metadata(kept, 'meta.json', { version: '1.2.4', metadata_version: 8 })
+    sign(keys.key, keptDoc)
+    const keptOver = check(keptDoc, state(kept, '1.2.4', over), keys.pub)
+    expect(keptOver.stdout.trim()).toBe('CHANNEL_STATE_INVALID')
+    expect(keptOver.status).toBe(5)
+  })
+
   it('refuses installed state that is not valid UTF-8 with its code', () => {
     const work = directory()
     const doc = metadata(work, 'meta.json', { version: '1.2.4', metadata_version: 8 })

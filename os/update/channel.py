@@ -29,7 +29,9 @@ Installed state is two files in the state dir (default
 /var/lib/muse-update): `version` and `metadata_version`. A missing,
 corrupt or unreadable state refuses with CHANNEL_STATE_INVALID: the only
 exception is an explicit first-boot seed (`--first-boot`, used by image
-compose/first boot to initialise state as 0.0.0/0).
+compose/first boot to initialise state as 0.0.0/0). Incoming and
+installed counters share one bound (MAX_COUNTER, 2^63-1): anything the
+channel accepts persists verbatim and reads back.
 
 Usage: channel.py check <metadata.json> [--state-dir D] [--key K]
        [--first-boot]
@@ -61,6 +63,10 @@ STATE_DEFAULT = "/var/lib/muse-update"
 # Longest accepted decimal field: far beyond any real version or counter,
 # far below Python's int-conversion limit, so parsing can never raise.
 MAX_DIGITS = 18
+# Largest storable metadata counter: signed 64-bit. ONE bound guards both
+# the incoming signed metadata and the installed-state file, so anything
+# the channel accepts can be persisted verbatim and read back.
+MAX_COUNTER = 2**63 - 1
 
 
 def plain_number(text):
@@ -68,6 +74,19 @@ def plain_number(text):
     if not text.isascii() or not text.isdigit() or len(text) > MAX_DIGITS:
         return None
     return int(text)
+
+
+def valid_counter(value):
+    """True for an int counter the state file can persist and re-read."""
+    return isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= MAX_COUNTER
+
+
+def parse_counter(text):
+    """Return the int of an ASCII-only counter within MAX_COUNTER, else None."""
+    if not text.isascii() or not text.isdigit() or len(text) > len(str(MAX_COUNTER)):
+        return None
+    value = int(text)
+    return value if valid_counter(value) else None
 
 
 def code(name, status):
@@ -118,7 +137,7 @@ def read_installed_state(state_dir, first_boot):
             return ((0,), 0)
         return None
     installed_version = parse_version(version_text)
-    installed_meta = plain_number(meta_text)
+    installed_meta = parse_counter(meta_text)
     if installed_version is None or installed_meta is None:
         return None
     return (installed_version, installed_meta)
@@ -147,9 +166,7 @@ def check(metadata_path, state_dir, key_path, first_boot=False):
     bundle = metadata.get("bundle")
     if (
         version is None
-        or not isinstance(meta_version, int)
-        or isinstance(meta_version, bool)
-        or meta_version < 0
+        or not valid_counter(meta_version)
         or expiry is None
         or not isinstance(bundle, dict)
         or not isinstance(bundle.get("url"), str)
