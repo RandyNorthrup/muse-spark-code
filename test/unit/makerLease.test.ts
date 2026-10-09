@@ -963,6 +963,13 @@ describe('hardware lease', () => {
     }
   })
 
+  it('Stop reports no session for an absent lease folder without creating it', async () => {
+    const deps = await fixture()
+    const missing = { ...deps, directory: path.join(deps.directory, 'maker', 'leases') }
+    await expect(stopAllHardwareLeases(missing)).resolves.toBeUndefined()
+    expect(await stopHardwareLease(missing, 'port:test')).toEqual({ stopped: false, sessions: [] })
+    expect(await readdir(deps.directory)).toEqual([])
+  })
   it('refuses oversized preparation and a missing holder identity before starting an endpoint', async () => {
     const deps = await fixture()
     const listen = vi.fn(deps.listenOwnerPipe)

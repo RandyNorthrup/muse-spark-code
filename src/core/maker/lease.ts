@@ -92,27 +92,36 @@ function resourceKey(resource: string): string {
   return createHash('sha256').update(resource).digest('hex')
 }
 
-async function privateDirectory(deps: LeaseDependencies): Promise<void> {
+// Stop passes isReadOnly: an absent folder holds no lease, and Stop never creates state.
+async function isPrivateDirectory(deps: LeaseDependencies, isReadOnly?: boolean): Promise<boolean> {
   const absolute = path.resolve(deps.directory)
   const root = path.parse(absolute).root
   let current = root
   for (const part of absolute.slice(root.length).split(path.sep)) {
     current = path.join(current, part)
     try {
-      await mkdir(current, { mode: OWNER_DIRECTORY_MODE })
+      if (!isReadOnly) await mkdir(current, { mode: OWNER_DIRECTORY_MODE })
     } catch (error: unknown) {
       if (!hasCode(error, 'EEXIST')) throw error
     }
-    const sample = await lstat(current)
+    let sample
+    try {
+      sample = await lstat(current)
+    } catch (error: unknown) {
+      if (isReadOnly && hasCode(error, 'ENOENT')) return false
+      throw error
+    }
     if (!sample.isDirectory() || sample.isSymbolicLink()) throw new Error('lease-directory-invalid')
   }
   const sample = await lstat(absolute)
   const getUserId = process.getuid
-  if (deps.platform === 'win32') {
-    if (!(await deps.isOwnerDirectory?.(absolute))) throw new Error('lease-directory-not-private')
-  } else if (sample.uid !== getUserId?.() || !sample.mode.toString(2).endsWith('111000000')) {
+  if (
+    deps.platform === 'win32'
+      ? !(await deps.isOwnerDirectory?.(absolute))
+      : sample.uid !== getUserId?.() || !sample.mode.toString(2).endsWith('111000000')
+  )
     throw new Error('lease-directory-not-private')
-  }
+  return true
 }
 
 function hasCode(error: unknown, code: string): boolean {
@@ -385,7 +394,7 @@ export async function claimHardwareLease(
       readonly release: () => Promise<void>
     }
 > {
-  await privateDirectory(deps)
+  await isPrivateDirectory(deps)
   const directory = deps.directory
   const startedAt = await deps.processStartTime(process.pid)
   if (startedAt === undefined) throw new Error('lease-holder-identity-unavailable')
@@ -547,15 +556,14 @@ export async function processStartTime(pid: number): Promise<string | undefined>
     if (start === undefined || !/^\d+$/.test(start)) throw new Error('lease-stat-unparseable')
     return start
   } catch (error: unknown) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return undefined
+    if (hasCode(error, 'ENOENT')) return undefined
     throw error
   }
 }
 
 /** Out-of-band: stop every leased resource. Stop never consults admission/claim records. */
 export async function stopAllHardwareLeases(deps: LeaseDependencies): Promise<void> {
-  await privateDirectory(deps)
-  const entries = await readdir(deps.directory)
+  const entries = (await isPrivateDirectory(deps, true)) ? await readdir(deps.directory) : []
   const resources = new Set<string>()
   for (const entry of entries) {
     if (!entry.endsWith('.json')) continue
@@ -576,10 +584,9 @@ export async function stopHardwareLease(
   deps: LeaseDependencies,
   resource: string,
 ): Promise<HardwareLeaseStopResult> {
-  await privateDirectory(deps)
   const directory = deps.directory
   const pending: Promise<HardwareLeaseStopResult['sessions'][number] | undefined>[] = []
-  const entries = await readdir(directory)
+  const entries = (await isPrivateDirectory(deps, true)) ? await readdir(directory) : []
   for (const entry of entries) {
     if (!entry.startsWith(`stop-v1.${resourceKey(resource)}.`) || !entry.endsWith('.json')) continue
     const file = path.join(directory, entry)
