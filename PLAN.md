@@ -20293,10 +20293,14 @@ reader used by journals and schedules. Calculate period changes and money
 ordering from original `UsdAmount` values in the usage page and portable text;
 numeric chart values serve geometry only. Resolve mapped properties through
 apparent types, union/intersection members and inherited interfaces in the
-type-checker guard. Add reviewer and generated-literal regressions, prove each
+type-checker guard, resolving numeric generic constraints before apparent-type
+boxing can hide them. Add reviewer and generated-literal regressions, prove each
 repair with byte-exact red drills, and retain every existing bundle cap.
 Receipts and scoped verification belong in `docs/certification/m121.md`;
 aggregate quality and the inherited What's New build blocker stay with the lead.
+The generated comparison extremes exposed a money-label failure beyond Intl's
+fraction-digit limit: reuse its localized currency pattern with at most two
+fraction digits, then substitute the original exact fractional digits as before.
 
 ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
 
@@ -37959,6 +37963,22 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**M121A round 3 gate ownership (2026-10-09, kubuntu).** The rig brief and
+shared lane rules forbid aggregate quality in this worktree; the lead owns
+that gate before integration. This lane runs the owning usage/money/schedule
+files at repository timeouts, typecheck, changed-file lint/format, localization
+and the remaining scoped static checks. Full production build retains the
+inherited What's New content-budget refusal; measure current production
+options/plugins in memory without editing the build or raising a cap. Byte
+counts and exact failure receipts are in `docs/certification/m121.md`.
+The unchanged zero-clone duplication gate also retains one six-line clone in
+`test/unit/windowsTrustedPath.test.ts`; that file matches `1494fbf87` byte for
+byte and is outside this lane's money scope. The touched migration test's
+duplicate setup is consolidated without dropping assertions. The lead owns
+the remaining Windows-test repair and the full artifact size/split replay:
+the refused build removes stale browser chunks before stopping, so those
+artifact checks cannot certify a complete current build. No gate is weakened.
 
 **CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting
 journals/cache/engine, schedule-runtime and M114 panel/conversation failures

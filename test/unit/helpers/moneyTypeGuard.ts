@@ -40,6 +40,12 @@ function hasNumber(checker: ts.TypeChecker, type: ts.Type, seen: Set<ts.Type>): 
   if ((type.flags & ts.TypeFlags.NumberLike) !== 0) return true
   if (type.isUnionOrIntersection())
     return type.types.some((member) => hasNumber(checker, member, seen))
+  if ((type.flags & ts.TypeFlags.TypeParameter) !== 0) {
+    // The apparent primitive is boxed: Number hides its numeric holding and
+    // String adds an unrelated numeric length. Judge the actual constraint.
+    const holding = checker.getBaseConstraintOfType(type) ?? checker.getApparentType(type)
+    return holding !== type && hasNumber(checker, holding, seen)
+  }
   const zod = type.getProperty('_zod')
   if (zod !== undefined) {
     // A schema: judge what it parses to, never the schema object itself.
@@ -112,31 +118,48 @@ function declarationName(checker: ts.TypeChecker, node: ts.Node): ts.Node | unde
 }
 
 /**
- * A mapped type's properties are synthesized: no property declaration exists
- * for the visitor, so judge the resolved alias target's properties here
- * (P3-3: `{ [K in 'fooUsd']: number }`).
+ * Mapped and inherited properties may have no declaration for the visitor.
+ * Judge resolved apparent types, every union/intersection constituent and
+ * interface base, so a property need not be common to the whole union.
  */
 function checkAlias(
   checker: ts.TypeChecker,
-  node: ts.TypeAliasDeclaration,
+  node: ts.TypeAliasDeclaration | ts.InterfaceDeclaration,
   file: string,
   flagged: Set<string>,
   numeric: Set<string>,
 ): void {
-  const target = checker.getTypeFromTypeNode(node.type)
+  const target = ts.isTypeAliasDeclaration(node)
+    ? checker.getTypeFromTypeNode(node.type)
+    : checker.getTypeAtLocation(node)
   const alias = node.name.text
-  if (MONEY_HINT.test(alias) && hasNumber(checker, target, new Set())) {
+  if (
+    ts.isTypeAliasDeclaration(node) &&
+    MONEY_HINT.test(alias) &&
+    hasNumber(checker, target, new Set())
+  ) {
     numeric.add(`${file}:${alias}`)
     if (MONEY_KEY.test(alias)) flagged.add(`${file}:${alias}`)
   }
-  for (const property of target.getProperties()) {
-    const key = property.getName()
-    if (key.startsWith('#') || !MONEY_HINT.test(key)) continue
-    const propertyType = checker.getTypeOfSymbol(property)
-    if (isCallable(checker, propertyType) || !hasNumber(checker, propertyType, new Set())) continue
-    numeric.add(`${file}:${key}`)
-    if (MONEY_KEY.test(key)) flagged.add(`${file}:${key}`)
+  const seen = new Set<ts.Type>()
+  const visit = (type: ts.Type): void => {
+    if (seen.has(type)) return
+    seen.add(type)
+    const apparent = checker.getApparentType(type)
+    if (apparent !== type) visit(apparent)
+    if (type.isUnionOrIntersection()) for (const member of type.types) visit(member)
+    if (type.isClassOrInterface()) for (const base of checker.getBaseTypes(type)) visit(base)
+    for (const property of type.getProperties()) {
+      const key = property.getName()
+      if (key.startsWith('#') || !MONEY_HINT.test(key)) continue
+      const propertyType = checker.getTypeOfSymbol(property)
+      if (isCallable(checker, propertyType) || !hasNumber(checker, propertyType, new Set()))
+        continue
+      numeric.add(`${file}:${key}`)
+      if (MONEY_KEY.test(key)) flagged.add(`${file}:${key}`)
+    }
   }
+  visit(target)
 }
 
 /** Walk every declaration of the given source files. */
@@ -154,7 +177,8 @@ function analyzeProgram(
     files += 1
     const file = label(source.fileName)
     const visit = (node: ts.Node): void => {
-      if (ts.isTypeAliasDeclaration(node)) checkAlias(checker, node, file, flagged, numeric)
+      if (ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node))
+        checkAlias(checker, node, file, flagged, numeric)
       const name = declarationName(checker, node)
       const key = name === undefined ? undefined : keyOf(checker, name)
       if (name !== undefined && key !== undefined && MONEY_HINT.test(key)) {

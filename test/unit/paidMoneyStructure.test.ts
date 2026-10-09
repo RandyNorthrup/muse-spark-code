@@ -77,6 +77,14 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   // --- sanctioned: per-unit rates.
   'core/agent/agentBackend.ts:inputUsdPerMTokens': { category: 'sanctioned', reason: RATE },
   'core/agent/agentBackend.ts:outputUsdPerMTokens': { category: 'sanctioned', reason: RATE },
+  'core/backends/musecode/MuseCodeHost.ts:inputUsdPerMTokens': {
+    category: 'sanctioned',
+    reason: RATE,
+  },
+  'core/backends/musecode/MuseCodeHost.ts:outputUsdPerMTokens': {
+    category: 'sanctioned',
+    reason: RATE,
+  },
   'shared/protocol.ts:inputUsdPerMTokens': { category: 'sanctioned', reason: RATE },
   'shared/protocol.ts:outputUsdPerMTokens': { category: 'sanctioned', reason: RATE },
   'core/providers/providerRegistry.ts:inputUsdPerMTokens': { category: 'sanctioned', reason: RATE },
@@ -198,6 +206,27 @@ export const computed = z.object({ [key]: z.number() })`,
   fooUsd: Record<'openai' | 'meta', number>
 }`,
   'mappedMoney.ts': `export type Totals = { [K in 'fooUsd']: number }`,
+  'unionMapped.ts': `export type Totals = { [K in 'fooUsd']: number } | { kind: 'none' }`,
+  'intersectionMapped.ts': `export type Totals = { [K in 'fooUsd']: number } & { kind: 'money' }`,
+  'inheritedMapped.ts': `export interface Totals extends Record<'fooUsd', number> {}`,
+  'inheritedBase.ts': `export interface Base extends Record<'fooUsd', number> {}
+export interface Totals extends Base {}`,
+  'apparentMapped.ts': `export type Totals<T extends Record<'fooUsd', number>> = T`,
+  'apparentValue.ts': `export interface Totals<T extends Record<'provider', number>> {
+  fooUsd: T
+}`,
+  'apparentNumber.ts': `export interface Totals<T extends number> {
+  fooUsd: T
+}`,
+  'nestedUnion.ts': `export interface Totals {
+  fooUsd: { value: number } | { kind: 'none' }
+}`,
+  'exactMapped.ts': `import type { UsdAmount } from '../../../src/shared/usdSchema'
+export type Totals = Record<'fooUsd', UsdAmount> | { kind: 'none' }
+export type Both = Record<'barUsd', UsdAmount> & { kind: 'money' }
+export interface Base extends Record<'bazUsd', UsdAmount> {}
+export interface Inherited extends Base {}
+export interface Generic<T extends UsdAmount> { readonly exactUsd: T }`,
   'pipeAlias.ts': `import * as z from 'zod/mini'
 const amount = z.pipe(z.number(), z.number())
 export const schema = z.object({ nested: z.object({ fooUsd: amount }) })`,
@@ -292,6 +321,23 @@ describe('exact-money type guard', () => {
   it('flags a finite-key record and a mapped money property (RVM121A P3-3)', () => {
     expect(probe('finiteRecord.ts')).toEqual(['finiteRecord.ts:fooUsd'])
     expect(probe('mappedMoney.ts')).toEqual(['mappedMoney.ts:fooUsd'])
+  })
+
+  it.each([
+    'unionMapped.ts',
+    'intersectionMapped.ts',
+    'inheritedMapped.ts',
+    'inheritedBase.ts',
+    'apparentMapped.ts',
+    'apparentValue.ts',
+    'apparentNumber.ts',
+    'nestedUnion.ts',
+  ])('flags resolved money in %s (RVM121B)', (file) => {
+    expect(probe(file)).toEqual([`${file}:fooUsd`])
+  })
+
+  it('leaves exact mapped unions, intersections and inherited interfaces alone', () => {
+    expect(probe('exactMapped.ts')).toEqual([])
   })
 
   it('flags numeric pipe aliases, imported schemas and numeric constants', () => {

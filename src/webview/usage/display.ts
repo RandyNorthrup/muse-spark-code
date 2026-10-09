@@ -97,9 +97,8 @@ export function remainingUsd(spent: UsdAmount, cap: UsdAmount): UsdAmount {
   return left.compare(Usd.from(0)) < 0 ? Usd.from(0).toAmount() : left.toAmount()
 }
 /**
- * Chart geometry for dollars: whole nano-dollars, rounded up, so stacks add
- * as exact integers and a label made from them ceils exactly as the amount
- * would (display rounds up; M121).
+ * Chart geometry for dollars: whole nano-dollars, rounded up. Labels, sorting
+ * and period comparisons use the original amounts, never this projection.
  */
 export function costPlot(amount: UsdAmount | undefined): number | undefined {
   return amount === undefined

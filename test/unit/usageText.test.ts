@@ -9,12 +9,30 @@ import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 import { setUsageText } from '../../src/shared/l10n/usageTable'
 import { usageFixtureDeps, usageFixtureRecord, usageNow } from './helpers/usageFixture'
 import { USAGE_STALE_MS } from '../../src/shared/constants'
+import { MONEY_PERIOD_CASES } from './helpers/moneyPeriodCases'
+import { usageStateFor, usageTotals } from './helpers/usageFixtures'
+import { formatPercent } from '../../src/shared/l10n/text'
 
 afterEach(() => {
   setUiText(EN, 'en')
   setUsageText(USAGE_EN)
 })
 describe('usage text in every editor', () => {
+  it.each(MONEY_PERIOD_CASES)(
+    'compares exact cost %s against %s as %s percent in portable text',
+    (current, previous, percent) => {
+      const state = usageStateFor()
+      state.totals = usageTotals('reported')
+      state.previousTotals = usageTotals('reported')
+      state.totals.costs[0]!.usd = Usd.from(current).toAmount()
+      state.previousTotals.costs[0]!.usd = Usd.from(previous).toAmount()
+      for (const format of ['plain', 'markdown'] as const)
+        expect(usageText(state, format)).toContain(
+          `${formatPercent(percent)} compared with the previous period`,
+        )
+    },
+  )
+
   it('renders daily, model and limit commands as their requested sections', async () => {
     const state = await createUsageService(usageFixtureDeps()).snapshot()
     const daily = usageText(state, 'plain', 'daily')

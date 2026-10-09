@@ -1,8 +1,10 @@
-// Foreign/edited v1 dollars: none has the decimal spelling of its parsed
-// finite, non-negative double. Shared by the parser and real-store probes.
+// Foreign/edited v1 dollars: none passes the exact nonnegative decimal proof.
+// Shared by the parser and real-store probes; -1e-3 exercises a thrown
+// canonicalization even though its parsed double is finite.
 export const INEXACT_MONEY_LITERALS = [
   '0.123456789012345678901',
   '-1e-324',
+  '-1e-3',
   '1e-999999999999999999999',
   '0e-999999999999999999999',
   '-0',

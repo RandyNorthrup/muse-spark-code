@@ -1,4 +1,5 @@
 import { Usd, type UsdAmount } from '../../shared/usd'
+export { usdPeriodDelta as usagePeriodDelta } from '../../shared/usd'
 import type { ResourceKind, ResourceRecord } from '../../shared/resources'
 import {
   RESOURCE_HISTORY_MAX_EVENTS,
@@ -442,14 +443,6 @@ export function usageWindowStatus(
   if (delta > USAGE_PACE_BAND_POINTS) pace = 'ahead'
   else if (delta < -USAGE_PACE_BAND_POINTS) pace = 'under'
   return { freshness: 'fresh', pace }
-}
-export function usagePeriodDelta(
-  current: number | undefined,
-  previous: number | undefined,
-): number | undefined {
-  return current === undefined || previous === undefined || previous === 0
-    ? undefined
-    : ((current - previous) / previous) * 100
 }
 /** Budget readers supply their own admission total, including retained liability. */
 export function usageBurnProjection(

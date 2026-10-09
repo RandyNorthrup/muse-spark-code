@@ -7,11 +7,11 @@ import { USAGE_JOURNAL_ROOT, UsageJournalStore } from '../../src/core/usage/jour
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { withholdReviverSource } from './helpers/withholdReviverSource'
 import { INEXACT_MONEY_LITERALS } from './helpers/inexactMoneyLiterals'
-import { createUsageService } from '../../src/core/usage/usageService'
-import { usageText } from '../../src/core/usage/usageText'
+import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
+import { EN } from '../../src/shared/l10n/en'
 import { plural } from '../../src/shared/l10n/text'
 import { USAGE_TEXT } from '../../src/shared/l10n/usageTable'
-import { usageFixtureDeps } from './helpers/usageFixture'
+import { FakeLogOutputChannel } from './helpers/fakes'
 
 // M121: the usage journal moves from version 1 (JSON-number dollars) to
 // version 2 (exact decimal text). The fixture is a real journal written by
@@ -39,6 +39,22 @@ async function rig() {
   return { root, store }
 }
 
+async function refusesReviewerDollar() {
+  const { root, store } = await rig()
+  const raw = await readFile(path.join(root, RAW_DAY), 'utf8')
+  const line = raw.split('\n').find((text) => text.includes('"id":"r20"'))!
+  // Digits past a double: JSON.parse would round them to 0.12345678901234568.
+  const edited = line
+    .replace('"id":"r20"', '"id":"r99"')
+    .replace('"usd":0.123456789', '"usd":0.123456789012345678901')
+  await writeFile(path.join(root, RAW_DAY), `${edited}\n`, { flag: 'a' })
+  const journal = await store.read()
+  expect(journal.inexactRecords).toBe(1)
+  expect(journal.invalidLines).toBe(0)
+  expect(journal.records.map((record) => record.id)).not.toContain('r99')
+  return { root, store, journal }
+}
+
 describe('usage journal version 1 to version 2 (M121)', () => {
   it('withholds exotic literals through the real store and shows the refusal notice (RVM121B)', async () => {
     const { root, store } = await rig()
@@ -57,12 +73,17 @@ describe('usage journal version 1 to version 2 (M121)', () => {
       invalidLines: 0,
     })
     expect(journal.records.some((record) => record.id.startsWith('exotic-'))).toBe(false)
-    const state = await createUsageService({
-      ...usageFixtureDeps(),
-      now: () => NOW,
-      journal: { ...usageFixtureDeps().journal, read: () => store.read() },
-    }).snapshot()
-    expect(usageText(state)).toContain(
+    const access = createUsageAccess({
+      dataFolder: root,
+      packageRoot: fileURLToPath(new URL('../../', import.meta.url)),
+      host: 'M121',
+      locale: 'en',
+      uiText: EN,
+      log: new FakeLogOutputChannel(),
+    })
+    const state = await access.read({ range: '30d', groupBy: 'provider', metric: 'cost' })
+    expect(state.history.inexactRecords).toBe(INEXACT_MONEY_LITERALS.length)
+    expect(access.usageText(state, 'plain', 'summary')).toContain(
       plural(USAGE_TEXT.inexactRecords, INEXACT_MONEY_LITERALS.length),
     )
     expect(await readFile(path.join(root, RAW_DAY), 'utf8')).toBe(bytes)
@@ -132,35 +153,14 @@ describe('usage journal version 1 to version 2 (M121)', () => {
     // The refusal must not depend on the reviver (M121 P2-1).
     const restore = withholdReviverSource()
     try {
-      const { root, store } = await rig()
-      const raw = await readFile(path.join(root, RAW_DAY), 'utf8')
-      const line = raw.split('\n').find((text) => text.includes('"id":"r20"'))!
-      const edited = line
-        .replace('"id":"r20"', '"id":"r99"')
-        .replace('"usd":0.123456789', '"usd":0.123456789012345678901')
-      await writeFile(path.join(root, RAW_DAY), `${edited}\n`, { flag: 'a' })
-      const journal = await store.read()
-      expect(journal.inexactRecords).toBe(1)
-      expect(journal.invalidLines).toBe(0)
-      expect(journal.records.map((record) => record.id)).not.toContain('r99')
+      await refusesReviewerDollar()
     } finally {
       restore()
     }
   })
 
   it('refuses a version 1 dollar a number cannot carry, counts it and never rewrites it', async () => {
-    const { root, store } = await rig()
-    const raw = await readFile(path.join(root, RAW_DAY), 'utf8')
-    const line = raw.split('\n').find((text) => text.includes('"id":"r20"'))!
-    // Digits past a double: JSON.parse would round them to 0.12345678901234568.
-    const edited = line
-      .replace('"id":"r20"', '"id":"r99"')
-      .replace('"usd":0.123456789', '"usd":0.123456789012345678901')
-    await writeFile(path.join(root, RAW_DAY), `${edited}\n`, { flag: 'a' })
-    const journal = await store.read()
-    expect(journal.inexactRecords).toBe(1)
-    expect(journal.invalidLines).toBe(0)
-    expect(journal.records.map((record) => record.id)).not.toContain('r99')
+    const { root, store, journal } = await refusesReviewerDollar()
     expect(journal.recordCount).toBe(journal.records.length + journal.limits.length + 8 + 1)
 
     const rollupText = await readFile(path.join(root, ROLLUP), 'utf8')

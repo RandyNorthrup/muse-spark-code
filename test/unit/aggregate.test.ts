@@ -380,9 +380,9 @@ describe('usage aggregation', () => {
       )
       expect(Date.parse(result.from) - Date.parse(result.previousTo)).toBe(86_400_000)
     }
-    expect(usagePeriodDelta(3, 2)).toBe(50)
-    expect(usagePeriodDelta(1, 0)).toBeUndefined()
-    expect(usagePeriodDelta(undefined, 1)).toBeUndefined()
+    expect(usagePeriodDelta(a(3), a(2))).toBe(50)
+    expect(usagePeriodDelta(a(1), a(0))).toBeUndefined()
+    expect(usagePeriodDelta(undefined, a(1))).toBeUndefined()
   })
   it('merges raw and rolled-up histogram counts with p50/p95 in the same containing buckets', () => {
     const durations = [

@@ -22,12 +22,55 @@ import {
   remainingUsd,
 } from '../../src/webview/usage/display'
 import { usageStateFor, usageTotals } from './helpers/usageFixtures'
+import { MONEY_PERIOD_CASES } from './helpers/moneyPeriodCases'
+import { formatPercent } from '../../src/shared/l10n/text'
 
 function a(value: string) {
   return Usd.from(value).toAmount()
 }
 
 describe('usage charts', () => {
+  it.each(MONEY_PERIOD_CASES)(
+    'compares exact cost %s against %s as %s percent (RVM121B)',
+    (current, previous, percent) => {
+      const totals = usageTotals('reported')
+      const previousTotals = usageTotals('reported')
+      totals.costs[0]!.usd = a(current)
+      previousTotals.costs[0]!.usd = a(previous)
+      render(<KpiTiles totals={totals} previous={previousTotals} metric="cost" />)
+      expect(
+        screen.getByText(`${formatPercent(percent)} compared with the previous period`),
+      ).toBeVisible()
+    },
+  )
+
+  it.each([
+    ['0.0000000001', '0.00000000001'],
+    ['100000000000000000001', '100000000000000000000'],
+  ])('sorts exact dollars %s and %s in both directions, with unknown last', (large, small) => {
+    const rows = [large, small, undefined].map((amount, index) => ({
+      id: ['a-large', 'z-small', 'a-unknown'][index]!,
+      label: ['Large', 'Small', 'Unknown'][index]!,
+      totals: {
+        ...usageTotals('reported'),
+        costs:
+          amount === undefined
+            ? []
+            : [{ certainty: 'reported' as const, records: 1, usd: a(amount) }],
+      },
+    }))
+    render(<BreakdownTable rows={rows} post={() => undefined} />)
+    const labels = () =>
+      screen
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) => within(row).getByRole('rowheader').textContent)
+    fireEvent.click(screen.getByRole('button', { name: 'Cost: Sort ascending' }))
+    expect(labels()).toEqual(['Small', 'Large', 'Unknown'])
+    fireEvent.click(screen.getByRole('button', { name: 'Cost: Sort descending' }))
+    expect(labels()).toEqual(['Large', 'Small', 'Unknown'])
+  })
+
   it('has one keyboard tab stop, caption, summary, table and bucket description; arrows and Home/End visit each bucket', () => {
     const points = [0, 1, 2].map((index) => ({
       id: String(index),

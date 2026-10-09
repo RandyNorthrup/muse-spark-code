@@ -84,6 +84,11 @@ happened, not what was planned; superseded entries are kept.
 - Legacy money reads fail closed on overflow, underflow, negative zero and
   unconvertible exponents (M121A round 3), preserving the precision-refusal
   notice instead of accepting a rounded zero.
+- Usage period-change percentages and cost sorting use exact dollars,
+  including charges smaller than a nano-dollar. Portable usage summaries
+  share the same exact percentage calculation; very small monetary labels
+  keep their digits beyond Intl's precision limit. The money guard resolves
+  union/intersection members, apparent types and inherited interfaces.
 - Exact money keeps every promise on every Node version (M121A fix round).
   Version 1 journals and schedules read dollars through a small JSON parse
   that keeps each number's written digits, so a literal a double cannot
