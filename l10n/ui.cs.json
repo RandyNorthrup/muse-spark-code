@@ -5369,7 +5369,9 @@
     "helpTerminal": "Spusťte `developer` pro odemknutí; `developer status` zobrazí možnosti tohoto počítače.",
     "commandUsage": "Použití: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
-  "connector": {
+  "mcpConnectorTitle": "MCP konektor pro další agenty",
+  "referenceMcpCommand": "Zpřístupní nástroje Muse Spark Code jiným agentům (Codex, Claude Code, Gemini CLI) přes MCP; každý zápis čeká na vaše schválení.",
+  "acpConnector": {
     "title": "Schválit požadavky konektoru",
     "intro": "Jiný agent požádal Muse Spark Code o následující. Nic se nestane, dokud to zde neschválíte; vlastní nastavení Allow, Auto nebo Bypass tohoto agenta to schválit nemohou.",
     "loading": "Načítání požadavků…",
@@ -5408,8 +5410,7 @@
     "statusContent": " (obsah)",
     "noGrants": "Zatím žádná oprávnění připojení.",
     "unavailable": "Konektor se nepodařilo spustit.",
-    "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status",
-    "reference": "Zpřístupní nástroje Muse Spark Code jiným agentům (Codex, Claude Code, Gemini CLI) přes MCP; každý zápis čeká na vaše schválení."
+    "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status"
   },
   "vault": {
     "title": "Trezor",

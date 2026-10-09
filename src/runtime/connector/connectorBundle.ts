@@ -25,6 +25,6 @@ export function connectorLoader(bundlePath: string, log: Logger): () => Connecto
     log,
     isBundle: isConnectorBundle,
     label: 'connector',
-    unavailable: () => UI_TEXT.connector.unavailable,
+    unavailable: () => UI_TEXT.acpConnector.unavailable,
   })
 }

@@ -144,6 +144,8 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M124: the MCP connector is a runtime command, the same for every editor.
+  ['mcp-connector', ['acp:museCode', 'acp:modelApi']],
   // M116: the playbook journal and settings ride no model call.
   ['orchestrator-playbook', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   // M108/W: several accounts per provider on Settings, the CLI and ACP alike.

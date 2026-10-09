@@ -6120,9 +6120,13 @@ export const EN = {
     commandUsage:
       'Usage: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]',
   },
-  // M109: read each key through UI_TEXT.vault at use time.
-  // M124 (D106): the MCP connector's approval page and its `mcp` terminal commands.
-  connector: {
+  // M124 (D106): the connector's Help & Reference rows.
+  mcpConnectorTitle: 'MCP connector for other agents',
+  referenceMcpCommand:
+    'Serve Muse Spark Code’s tools to other agents (Codex, Claude Code, Gemini CLI) over MCP; every write waits for your approval.',
+  // M124 (D106): the MCP connector’s approval page and its `mcp` terminal commands
+  // (the runtime region, dist/uiTextRuntime.js: activation never reads them).
+  acpConnector: {
     title: 'Approve connector requests',
     intro:
       'Another agent asked Muse Spark Code to do the following. Nothing happens until you approve it here; that agent’s own Allow, Auto or Bypass settings cannot approve it.',
@@ -6165,9 +6169,8 @@ export const EN = {
     unavailable: 'The connector could not start.',
     usage:
       'muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status',
-    reference:
-      'Serve Muse Spark Code’s tools to other agents (Codex, Claude Code, Gemini CLI) over MCP; every write waits for your approval.',
   },
+  // M109: read each key through UI_TEXT.vault at use time.
   vault: {
     title: 'Vault',
     locked: 'Locked',

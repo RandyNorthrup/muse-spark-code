@@ -104,9 +104,9 @@ const PAGE_SCRIPT = String.raw`
 `
 
 function renderPage(nonce: string): string {
-  const text = JSON.stringify(UI_TEXT.connector).replaceAll('<', '<')
-  const title = escapeHtml(UI_TEXT.connector.title)
-  return `<!doctype html><html lang="${escapeHtml(uiLocale())}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark"><title>${title}</title><style nonce="${nonce}">body{font-family:system-ui,sans-serif;margin:0 auto;max-width:48rem;padding:1rem}pre{white-space:pre-wrap;overflow-wrap:anywhere}dt{font-weight:bold}button{margin-inline-end:.5rem;min-height:2.75rem;min-width:2.75rem}</style></head><body><main><h1>${title}</h1><p>${escapeHtml(UI_TEXT.connector.intro)}</p><p id="status" role="status" aria-live="polite"></p><button id="retry" type="button" hidden>${escapeHtml(UI_TEXT.connector.retry)}</button><ul id="intents"></ul></main><script nonce="${nonce}" id="connector-text" type="application/json">${text}</script><script nonce="${nonce}">${PAGE_SCRIPT}</script></body></html>`
+  const text = JSON.stringify(UI_TEXT.acpConnector).replaceAll('<', '<')
+  const title = escapeHtml(UI_TEXT.acpConnector.title)
+  return `<!doctype html><html lang="${escapeHtml(uiLocale())}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark"><title>${title}</title><style nonce="${nonce}">body{font-family:system-ui,sans-serif;margin:0 auto;max-width:48rem;padding:1rem}pre{white-space:pre-wrap;overflow-wrap:anywhere}dt{font-weight:bold}button{margin-inline-end:.5rem;min-height:2.75rem;min-width:2.75rem}</style></head><body><main><h1>${title}</h1><p>${escapeHtml(UI_TEXT.acpConnector.intro)}</p><p id="status" role="status" aria-live="polite"></p><button id="retry" type="button" hidden>${escapeHtml(UI_TEXT.acpConnector.retry)}</button><ul id="intents"></ul></main><script nonce="${nonce}" id="connector-text" type="application/json">${text}</script><script nonce="${nonce}">${PAGE_SCRIPT}</script></body></html>`
 }
 
 export interface ApprovalPage {

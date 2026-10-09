@@ -75,8 +75,8 @@
       "referenceScreenRecording",
       "referenceLatestRecording",
       "referenceUploadedFiles",
-      "connector.usage",
-      "connector.statusWorkspace"
+      "acpConnector.usage",
+      "acpConnector.statusWorkspace"
     ],
     "cs": [
       "groupModel",

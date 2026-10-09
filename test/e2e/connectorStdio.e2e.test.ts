@@ -208,7 +208,7 @@ describe('M124 connector over real stdio', () => {
 
     const kill = spawnSync(process.execPath, [agent, 'mcp', 'kill'], { env, encoding: 'utf8' })
     expect(kill.status).toBe(0)
-    expect(kill.stdout).toContain(UI_TEXT.connector.killOn)
+    expect(kill.stdout).toContain(UI_TEXT.acpConnector.killOn)
     const killedSession = await session(
       [
         INIT,
@@ -232,6 +232,6 @@ describe('M124 connector over real stdio', () => {
       { env, encoding: 'utf8', input: 'y\n' },
     )
     expect(grantAttempt.status).toBe(1)
-    expect(grantAttempt.stderr).toContain(UI_TEXT.connector.grantNeedsTerminal)
+    expect(grantAttempt.stderr).toContain(UI_TEXT.acpConnector.grantNeedsTerminal)
   })
 })

@@ -4919,7 +4919,9 @@
     "helpTerminal": "執行 `developer` 解鎖；`developer status` 顯示本機的選項。",
     "commandUsage": "用法：developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
-  "connector": {
+  "mcpConnectorTitle": "供其他代理使用的 MCP 連接器",
+  "referenceMcpCommand": "透過 MCP 將 Muse Spark Code 的工具提供給其他代理（Codex、Claude Code、Gemini CLI）；每次寫入都會等待您的核准。",
+  "acpConnector": {
     "title": "核准連接器要求",
     "intro": "另一個代理請求 Muse Spark Code 執行下列操作。在您於此處核准之前，不會執行任何操作；該代理本身的 Allow、Auto 或 Bypass 設定無法核准此要求。",
     "loading": "正在載入要求…",
@@ -4958,8 +4960,7 @@
     "statusContent": " (內容)",
     "noGrants": "尚無連線授權。",
     "unavailable": "連接器無法啟動。",
-    "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status",
-    "reference": "透過 MCP 將 Muse Spark Code 的工具提供給其他代理（Codex、Claude Code、Gemini CLI）；每次寫入都會等待您的核准。"
+    "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status"
   },
   "vault": {
     "title": "憑證庫",

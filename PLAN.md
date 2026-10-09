@@ -20256,6 +20256,34 @@ given those numbers to contributor vetting (D102) and agent outcomes
 brief numbered D101, a decision its base did not have; the port names the
 actual dependencies instead (D106.3 and **Depends on** below).
 
+**Local phase receipt (2026-10-09, branch `feature/m124-connector`).**
+Built: `muse-spark-code-acp mcp` (stdio, lazy `dist/connector.js`, 86.3 KiB
+of a new 100 KiB budget: 85.8 KiB measured + 15%, rounded to 25 KiB);
+owner grants (`mcp grant|revoke|kill|resume|status`; widening needs a typed
+terminal confirmation); the registry of design §3 with ten backed tools
+(`muse_prompt_list/get/prepare/save`, `muse_share_preview` for saved
+prompts, `muse_schedule_list`, `muse_schedule_cancel` as a pause,
+`muse_report` in Markdown for nine local kinds, `muse_operation_get`,
+`muse_stop` for connector operations) and twelve that answer `unavailable`
+with a reason (fleet/outcomes/receipts: no cross-process store; lanes and
+teams: no runtime start port; playbook advice and estimate: adapters not
+built; schedule create/update: M115's grant consent not carried; share
+publish: M104's final-action UI); one-use approvals on a loopback page on
+M104 C's companion server; Stop's reserved path; scrub through M118's share
+privacy plus a whole-result pass; keyed-digest audit JSONL; the §6 limits;
+the kill switch. No dependency added (§2 D3 note). Activation is unchanged
+(`dist/extension.js` 563,348 bytes before and after, `dist/uiText.js` +91
+bytes for the region accessor and the two Help strings); `dist/acp.js` grows 1,334 bytes (240,920 →
+242,254) for the loader and the `mcp` dispatch; the connector's English is
+in the runtime region (`dist/uiTextRuntime.js` +788 bytes). Deviations, all
+open: the approval surface is a plain page, not M104's shared React dialog,
+and has no axe/four-theme qualification yet; the page opens in the default
+browser through the existing fixed opener; no MCP client was installed or
+qualified (no account calls), and the README's client commands were checked
+against the vendors' docs (2026-10-09) but not run, because they write the
+owner's global client configuration. Record:
+[`docs/certification/m124-local.md`](docs/certification/m124-local.md).
+
 - **Goal.** Other agents can inspect the user's fleet and evidence, request
   bounded orchestration, ask for deterministic advice/reports, and manage
   schedules/prompts/shares through one connector. Every effect goes through
@@ -20357,7 +20385,7 @@ and the full gate.
         local/remote architecture, editor parity, file ownership and red drills
   - [x] Owner questions in §3; missing orchestrator-link and outcome-contract
         dependencies named; docs-only formatting/hook receipts recorded in §7
-  - [ ] Local stdio phase (2026-10-09): contracts, lazy `mcp` entry, local
+  - [x] Local stdio phase (2026-10-09): contracts, lazy `mcp` entry, local
         grant, registry with unavailable states, our approval page, Stop path,
         scrub, audit, bounds, kill switch; client setup docs; tests and red
         drills

@@ -5069,7 +5069,9 @@
     "helpTerminal": "A feloldáshoz futtassa a `developer` parancsot; a `developer status` megjeleníti a gép beállításait.",
     "commandUsage": "Használat: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
-  "connector": {
+  "mcpConnectorTitle": "MCP-összekötő más ügynökök számára",
+  "referenceMcpCommand": "A Muse Spark Code eszközeinek elérhetővé tétele más ügynökök (Codex, Claude Code, Gemini CLI) számára MCP-n keresztül; minden írás az Ön jóváhagyására vár.",
+  "acpConnector": {
     "title": "Összekötő-kérések jóváhagyása",
     "intro": "Egy másik ügynök a következőre kérte a Muse Spark Code-ot. Semmi sem történik, amíg itt jóvá nem hagyja; az adott ügynök saját Allow, Auto vagy Bypass beállításai nem hagyhatják jóvá.",
     "loading": "Kérések betöltése…",
@@ -5108,8 +5110,7 @@
     "statusContent": " (tartalom)",
     "noGrants": "Még nincs kapcsolatengedély.",
     "unavailable": "Az összekötőt nem sikerült elindítani.",
-    "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status",
-    "reference": "A Muse Spark Code eszközeinek elérhetővé tétele más ügynökök (Codex, Claude Code, Gemini CLI) számára MCP-n keresztül; minden írás az Ön jóváhagyására vár."
+    "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status"
   },
   "vault": {
     "title": "Tároló",

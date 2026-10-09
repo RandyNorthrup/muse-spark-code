@@ -9,6 +9,26 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **MCP connector for other agents, local phase (in progress)** (M124,
+  D106). `muse-spark-code-acp mcp` serves Muse Spark Code's tools over MCP
+  on stdio to Codex, Claude Code or Gemini CLI on the same machine. Built
+  so far: saved prompt list, read, fill and share preview; schedule list
+  and pause; deterministic reports in Markdown; operation status; Stop for
+  connector operations; and saving a new prompt, which waits for your
+  approval on Muse Spark Code's own loopback approval page and cannot be
+  approved by the other agent. Fleet status, agent outcomes, receipts,
+  lanes, teams, playbook advice, estimates, new or edited schedules and
+  share publishing answer `unavailable`, with their reason. Connections
+  are granted in your own terminal (`mcp grant`, with workspaces, families
+  and an optional content flag) and stopped with `mcp revoke` or `mcp
+  kill`; paid authority stays zero. Results are scrubbed, every call is
+  audited, and frames, results, rates, polls and pending approvals are
+  bounded. The connector loads from its own `connector.js` (86.3 KiB,
+  budget 100 KiB); activation is unchanged and `acp.js` gains only the
+  1.3 KiB loader. The hosted connector for ChatGPT and claude.ai (OAuth
+  over HTTPS) is planned, not built; no client has been qualified yet. See
+  `docs/mcp.md`.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

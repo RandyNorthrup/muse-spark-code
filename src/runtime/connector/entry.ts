@@ -55,7 +55,7 @@ export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> 
   const command = parseConnectorCommand(deps.argv)
   const store = new ConnectorStore(deps.dataFolder)
   if (command === undefined) {
-    line(deps.stderr, deps.table.connector.usage)
+    line(deps.stderr, deps.table.acpConnector.usage)
     return 2
   }
   if (command.kind !== 'serve')

@@ -5069,7 +5069,9 @@
     "helpTerminal": "Führen Sie `developer` zum Entsperren aus; `developer status` zeigt die Optionen dieses Rechners.",
     "commandUsage": "Aufruf: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]"
   },
-  "connector": {
+  "mcpConnectorTitle": "MCP-Connector für andere Agenten",
+  "referenceMcpCommand": "Die Tools von Muse Spark Code über MCP für andere Agents (Codex, Claude Code, Gemini CLI) bereitstellen; jeder Schreibvorgang wartet auf Ihre Genehmigung.",
+  "acpConnector": {
     "title": "Konnektor-Anfragen genehmigen",
     "intro": "Ein anderer Agent hat Muse Spark Code gebeten, Folgendes zu tun. Nichts geschieht, bis Sie es hier genehmigen; die eigenen Einstellungen „Allow“, „Auto“ oder „Bypass“ dieses Agents können es nicht genehmigen.",
     "loading": "Anfragen werden geladen…",
@@ -5108,8 +5110,7 @@
     "statusContent": " (Inhalte)",
     "noGrants": "Noch keine Verbindungsberechtigungen.",
     "unavailable": "Der Konnektor konnte nicht gestartet werden.",
-    "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status",
-    "reference": "Die Tools von Muse Spark Code über MCP für andere Agents (Codex, Claude Code, Gemini CLI) bereitstellen; jeder Schreibvorgang wartet auf Ihre Genehmigung."
+    "usage": "muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status"
   },
   "vault": {
     "title": "Tresor",

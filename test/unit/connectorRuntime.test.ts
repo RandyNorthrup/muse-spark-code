@@ -201,7 +201,7 @@ describe('M124 approval page', () => {
       expect(decide).not.toHaveBeenCalled()
       const token = await login(panel)
       const html = await call(panel, '/', 'GET', undefined, headers(panel, token))
-      expect(html.body).toContain(UI_TEXT.connector.title)
+      expect(html.body).toContain(UI_TEXT.acpConnector.title)
       // Request text reaches the page only through the event stream, as data.
       expect(html.body).not.toContain('<script>alert(1)</script>')
       expect(await field(call(panel, '/post', 'POST', body, headers(panel, token)), 'status')).toBe(

@@ -145,7 +145,7 @@ async function grant(
   io: CommandIo,
 ): Promise<number> {
   if (!io.isInteractive) {
-    io.printError(UI_TEXT.connector.grantNeedsTerminal)
+    io.printError(UI_TEXT.acpConnector.grantNeedsTerminal)
     return EXIT_FAILED
   }
   const requested = command.scopes.length === 0 ? DEFAULT_SCOPES : command.scopes
@@ -154,7 +154,7 @@ async function grant(
   // Paid authority stays zero until our UI can enable it (Q-M124.4).
   if (unknown.length > 0 || requested.includes('paid:request')) {
     io.printError(
-      fill(UI_TEXT.connector.grantInvalid, {
+      fill(UI_TEXT.acpConnector.grantInvalid, {
         reason: [...unknown, ...requested.filter((scope) => scope === 'paid:request')].join(', '),
       }),
     )
@@ -169,7 +169,7 @@ async function grant(
       command.workspaces.map((folder) => workspaceGrant(folder, command.content)),
     )
   } catch {
-    io.printError(fill(UI_TEXT.connector.grantInvalid, { reason: 'workspace' }))
+    io.printError(fill(UI_TEXT.acpConnector.grantInvalid, { reason: 'workspace' }))
     return EXIT_USAGE
   }
   const previous = await store.grant(command.connectionId)
@@ -185,17 +185,17 @@ async function grant(
     workspaces,
   })
   if (!next.success) {
-    io.printError(fill(UI_TEXT.connector.grantInvalid, { reason: 'connection' }))
+    io.printError(fill(UI_TEXT.acpConnector.grantInvalid, { reason: 'connection' }))
     return EXIT_USAGE
   }
-  const question = fill(UI_TEXT.connector.grantConfirm, {
+  const question = fill(UI_TEXT.acpConnector.grantConfirm, {
     connection: command.connectionId,
     summary: summary(next.data),
   })
   if (!(await io.confirm(question))) return EXIT_FAILED
   await store.saveGrant(next.data)
   io.print(
-    fill(UI_TEXT.connector.grantSaved, {
+    fill(UI_TEXT.acpConnector.grantSaved, {
       connection: command.connectionId,
       workspaces: workspaces.map((workspace) => `${workspace.id} (${workspace.label})`).join(', '),
     }),
@@ -215,50 +215,55 @@ export async function runConnectorCommand(
     }
     case 'revoke': {
       const current = await store.grant(command.connectionId)
-      if (current !== undefined)
-        await store.saveGrant({ ...current, revoked: true, generation: current.generation + 1 })
-      io.print(fill(UI_TEXT.connector.revoked, { connection: command.connectionId }))
+      if (current === undefined) {
+        io.print(UI_TEXT.acpConnector.noGrants)
+        return 0
+      }
+      await store.saveGrant({ ...current, revoked: true, generation: current.generation + 1 })
+      io.print(fill(UI_TEXT.acpConnector.revoked, { connection: command.connectionId }))
       return 0
     }
     case 'kill': {
       await store.setKilled(true, new Date(io.now()).toISOString())
-      io.print(UI_TEXT.connector.killOn)
+      io.print(UI_TEXT.acpConnector.killOn)
       return 0
     }
     case 'resume': {
-      if (!io.isInteractive || !(await io.confirm(`${UI_TEXT.connector.killOff} (y/N)`))) {
-        io.printError(UI_TEXT.connector.grantNeedsTerminal)
+      if (!io.isInteractive || !(await io.confirm(`${UI_TEXT.acpConnector.killOff} (y/N)`))) {
+        io.printError(UI_TEXT.acpConnector.grantNeedsTerminal)
         return EXIT_FAILED
       }
       await store.setKilled(false, new Date(io.now()).toISOString())
-      io.print(UI_TEXT.connector.killOff)
+      io.print(UI_TEXT.acpConnector.killOff)
       return 0
     }
     case 'status': {
-      io.print((await store.isKilled()) ? UI_TEXT.connector.statusOff : UI_TEXT.connector.statusOn)
+      io.print(
+        (await store.isKilled()) ? UI_TEXT.acpConnector.statusOff : UI_TEXT.acpConnector.statusOn,
+      )
       const grants = await store.grants()
-      if (grants.length === 0) io.print(UI_TEXT.connector.noGrants)
+      if (grants.length === 0) io.print(UI_TEXT.acpConnector.noGrants)
       for (const current of grants) {
         io.print(
-          fill(UI_TEXT.connector.statusGrant, {
+          fill(UI_TEXT.acpConnector.statusGrant, {
             connection: current.connectionId,
-            revoked: current.revoked ? UI_TEXT.connector.statusRevoked : '',
+            revoked: current.revoked ? UI_TEXT.acpConnector.statusRevoked : '',
             scopes: current.scopes.join(', '),
           }),
         )
         for (const workspace of current.workspaces)
           io.print(
-            fill(UI_TEXT.connector.statusWorkspace, {
+            fill(UI_TEXT.acpConnector.statusWorkspace, {
               id: workspace.id,
               root: workspace.root,
-              content: workspace.content ? UI_TEXT.connector.statusContent : '',
+              content: workspace.content ? UI_TEXT.acpConnector.statusContent : '',
             }),
           )
       }
       return 0
     }
     case 'usage': {
-      io.print(UI_TEXT.connector.usage)
+      io.print(UI_TEXT.acpConnector.usage)
       return 0
     }
   }
