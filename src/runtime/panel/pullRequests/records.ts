@@ -10,63 +10,84 @@
 // version or a hand edit left that does not validate reads as none (the
 // hold is by location anyway).
 //
-// One serialized owner per repository (PLAN.md M123): every record carries
-// a per-folder `revision`, and every mutation is validate → act → persist
-// against the fresh state — a stale writer detects it lost and re-reads,
-// never overwrites. The states per folder:
+// The states per folder (PLAN.md M123's table):
 //
 //   absent --reserve--> pending --complete--> ready --release--> trusted
-//   pending --remove--> absent (or the displaced record, on rollback)
-//   ready --supersede--> pending (exactly the version read, folder gone)
+//   pending --discard--> absent
+//   ready | trusted --supersede--> pending (exactly the version read, folder gone)
+//   pending (owner gone, folder gone) --supersede--> pending
 //
-// `reserve` never replaces: a second checkout of a folder in flight is
-// refused, never merged over. `complete` and `remove` name the version
-// `reserve` returned. `release` never marks a pending checkout trusted. A
-// mutation that cannot persist fails loudly; nothing silently restores an
-// older trust grant or drops another window's record.
+// Every mutation names the version it read: the checkout's random
+// `checkoutId` and the record's `revision`. `reserve` never replaces.
+// `release` consumes a trust ticket bound to one finished checkout (its
+// id, revision, head and folder identity): used once, it no longer
+// matches, and any replacement makes a new checkout id. Nothing ever
+// restores an older record: a failed checkout is discarded only when its
+// folder is gone, else it stays pending, held and never trusted.
+//
+// The file store applies each transition to the freshly read head under
+// the cross-window lock (storeLock.ts) and writes it as the next record
+// generation (recordGenerations.ts), whose exclusive creation fences out
+// a writer that lost the lock without knowing it.
 
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { setTimeout as delay } from 'node:timers/promises'
 import path from 'node:path'
-import { bytesFingerprint } from '../../../core/verify/fingerprint'
+import { setTimeout as delay } from 'node:timers/promises'
 import {
   holdFor,
-  parseWorktreeRegistry,
   recordFor,
   withRecord,
+  type PullRequestOrigin,
   type WorktreeHold,
   type WorktreeRecord,
 } from '../../../core/worktreeConversations'
 import type { CoreLogger } from '../../../core/logging'
-import { writeFileAtomically, writeFileIfUnchanged } from '../../../host/fsAtomic'
 import {
-  WORKTREE_RECORD_LOCK_POLL_MS,
-  WORKTREE_RECORD_LOCK_STALE_MS,
+  WORKTREE_RECORD_LOCK_LEASE_MS,
   WORKTREE_RECORD_LOCK_TIMEOUT_MS,
   WORKTREE_RECORD_SAVE_ATTEMPTS,
 } from '../../../shared/constants'
+import { readRecordHead, sweepGenerations, writeNextGeneration } from './recordGenerations'
+import { nodeRecordStoreFs, type RecordStoreFs } from './recordStoreFs'
+import {
+  acquireStoreLock,
+  currentProcessOwner,
+  isProcessOwnerGone,
+  StoreBusyError,
+  type ProcessOwner,
+  type StoreLease,
+} from './storeLock'
 
-const RECORDS_FILE = 'worktree-records.json'
-const RECORDS_LOCK_DIR = 'worktree-records.lock'
-const RECORDS_LOCK_OWNER = 'owner.json'
+const RECORDS_FOLDER = 'worktree-records'
+const RECORDS_LOCK = 'lock'
 
 /** `/` separators, which git accepts on Windows too, so the folders compare. */
 function slashed(folder: string): string {
   return folder.replaceAll('\\', '/')
 }
 
-/** The version a mutation must name: the record it saw. */
+/** The version a mutation must name: the checkout and the record revision it read. */
 export interface RecordVersion {
-  readonly createdAt: number
+  readonly checkoutId: string | undefined
   readonly revision: number
 }
 
+/**
+ * What the held-worktree card showed and the user confirmed: one finished
+ * checkout, by its id, record revision, head and folder identity. Single
+ * use: the release it authorizes moves the revision on.
+ */
+export interface TrustTicket {
+  readonly folder: string
+  readonly checkoutId: string
+  readonly revision: number
+  readonly headSha: string
+  readonly folderIdentity: string
+  /** What the card names; never consulted by the release. */
+  readonly pullRequest: PullRequestOrigin
+}
+
 export type ReserveResult =
-  | {
-      readonly ok: true
-      readonly stored: WorktreeRecord
-      readonly previous: WorktreeRecord | undefined
-    }
+  | { readonly ok: true; readonly stored: WorktreeRecord }
   | { readonly ok: false; readonly current: WorktreeRecord | undefined }
 
 /** The revision a record carries; records an earlier version wrote read as 0. */
@@ -74,12 +95,12 @@ export function recordRevision(record: WorktreeRecord): number {
   return record.revision ?? 0
 }
 
-function isVersion(record: WorktreeRecord, expected: RecordVersion): boolean {
-  return record.createdAt === expected.createdAt && recordRevision(record) === expected.revision
+export function versionOf(record: WorktreeRecord): RecordVersion {
+  return { checkoutId: record.checkoutId, revision: recordRevision(record) }
 }
 
-function withRevision(record: WorktreeRecord, revision: number): WorktreeRecord {
-  return { ...record, revision }
+function isVersion(record: WorktreeRecord, expected: RecordVersion): boolean {
+  return record.checkoutId === expected.checkoutId && recordRevision(record) === expected.revision
 }
 
 export interface WorktreeRecordStore {
@@ -92,35 +113,24 @@ export interface WorktreeRecordStore {
    */
   reserve(record: WorktreeRecord): Promise<ReserveResult>
   /**
-   * ready → pending for exactly the version read, when its folder is gone
-   * and the pull request is checked out again. Any other state, or a
-   * version that moved on, refuses with what is there now.
+   * The exact version read → a new pending checkout, nothing of the old
+   * record kept (no trust). The caller supersedes only a finished record
+   * whose folder is gone, or a pending one whose owner and folder are.
    */
   supersede(folder: string, expected: RecordVersion, record: WorktreeRecord): Promise<ReserveResult>
-  /** pending → ready, only for the version `reserve` returned. */
-  complete(folder: string, createdAt: number, revision: number): Promise<boolean>
-  /** pending → absent (or back to the displaced record): only that version. */
-  remove(
+  /** pending → ready for exactly the version reserved, with the folder's identity. */
+  complete(
     folder: string,
-    createdAt: number,
-    revision: number,
-    previous?: WorktreeRecord,
+    expected: RecordVersion,
+    folderIdentity: string | undefined,
   ): Promise<boolean>
+  /** pending → absent, only that version (its folder is gone). */
+  discard(folder: string, expected: RecordVersion): Promise<boolean>
   /**
-   * ready → trusted. Never marks a pending checkout trusted: a trust the
-   * card confirms always lands on the finished checkout the user saw.
+   * ready → trusted, only for the very checkout the ticket names, once.
+   * Never a pending checkout, never one already trusted.
    */
-  release(folder: string, now: number): Promise<WorktreeRecord | undefined>
-}
-
-function completeRecord(record: WorktreeRecord): WorktreeRecord {
-  const completed = { ...record }
-  delete completed.isCheckoutPending
-  return completed
-}
-
-function slashedPut(record: WorktreeRecord): WorktreeRecord {
-  return { ...record, folder: slashed(record.folder) }
+  release(ticket: TrustTicket, now: number): Promise<WorktreeRecord | undefined>
 }
 
 /** The hold on `root` under any of `heldRoots`, released only by the card. */
@@ -138,226 +148,159 @@ interface Mutation<T> {
   readonly result: T
 }
 
-function reserveTransition(
-  records: readonly WorktreeRecord[],
-  record: WorktreeRecord,
-  platform: NodeJS.Platform,
-): Mutation<ReserveResult> {
-  const current = recordFor(records, record.folder, platform)
-  if (current !== undefined) {
-    return { records, result: { ok: false, current } }
-  }
-  const stored = withRevision(record, 1)
+/** The transitions, pure: each validates against the state it is given. */
+function transitions(platform: NodeJS.Platform) {
   return {
-    records: withRecord(records, stored, platform),
-    result: { ok: true, stored, previous: undefined },
+    reserve: (
+      records: readonly WorktreeRecord[],
+      record: WorktreeRecord,
+    ): Mutation<ReserveResult> => {
+      const current = recordFor(records, record.folder, platform)
+      if (current !== undefined) {
+        return { records, result: { ok: false, current } }
+      }
+      const stored: WorktreeRecord = { ...record, folder: slashed(record.folder), revision: 1 }
+      return { records: withRecord(records, stored, platform), result: { ok: true, stored } }
+    },
+    supersede: (
+      records: readonly WorktreeRecord[],
+      folder: string,
+      expected: RecordVersion,
+      record: WorktreeRecord,
+    ): Mutation<ReserveResult> => {
+      const current = recordFor(records, folder, platform)
+      if (current === undefined || !isVersion(current, expected)) {
+        return { records, result: { ok: false, current } }
+      }
+      const stored: WorktreeRecord = {
+        ...record,
+        folder: current.folder,
+        revision: expected.revision + 1,
+      }
+      delete stored.trustConfirmedAt
+      delete stored.folderIdentity
+      return { records: withRecord(records, stored, platform), result: { ok: true, stored } }
+    },
+    complete: (
+      records: readonly WorktreeRecord[],
+      folder: string,
+      expected: RecordVersion,
+      folderIdentity: string | undefined,
+    ): Mutation<boolean> => {
+      const found = recordFor(records, folder, platform)
+      if (found === undefined || !isVersion(found, expected) || found.isCheckoutPending !== true) {
+        return { records, result: false }
+      }
+      const completed: WorktreeRecord = { ...found, revision: expected.revision + 1 }
+      delete completed.isCheckoutPending
+      delete completed.pendingOwner
+      delete completed.folderIdentity
+      if (folderIdentity !== undefined) {
+        completed.folderIdentity = folderIdentity
+      }
+      return { records: withRecord(records, completed, platform), result: true }
+    },
+    discard: (
+      records: readonly WorktreeRecord[],
+      folder: string,
+      expected: RecordVersion,
+    ): Mutation<boolean> => {
+      const found = recordFor(records, folder, platform)
+      return found === undefined || !isVersion(found, expected) || found.isCheckoutPending !== true
+        ? { records, result: false }
+        : { records: records.filter((entry) => entry !== found), result: true }
+    },
+    release: (
+      records: readonly WorktreeRecord[],
+      ticket: TrustTicket,
+      now: number,
+    ): Mutation<WorktreeRecord | undefined> => {
+      const found = recordFor(records, ticket.folder, platform)
+      if (
+        found === undefined ||
+        found.isCheckoutPending === true ||
+        found.trustConfirmedAt !== undefined ||
+        found.checkoutId === undefined ||
+        !isVersion(found, ticket) ||
+        found.pullRequest?.headSha !== ticket.headSha ||
+        found.folderIdentity === undefined ||
+        found.folderIdentity !== ticket.folderIdentity
+      ) {
+        return { records, result: undefined }
+      }
+      const released: WorktreeRecord = {
+        ...found,
+        isHeld: false,
+        trustConfirmedAt: now,
+        revision: recordRevision(found) + 1,
+      }
+      return { records: withRecord(records, released, platform), result: released }
+    },
   }
 }
 
-function supersedeTransition(
-  records: readonly WorktreeRecord[],
-  folder: string,
-  expected: RecordVersion,
-  record: WorktreeRecord,
-  platform: NodeJS.Platform,
-): Mutation<ReserveResult> {
-  const current = recordFor(records, folder, platform)
-  if (current === undefined || !isVersion(current, expected)) {
-    return { records, result: { ok: false, current } }
-  }
-  const stored = withRevision({ ...record, folder: current.folder }, expected.revision + 1)
-  return {
-    records: withRecord(records, stored, platform),
-    result: { ok: true, stored, previous: current },
-  }
-}
-
-function completeTransition(
-  records: readonly WorktreeRecord[],
-  folder: string,
-  expected: RecordVersion,
-  platform: NodeJS.Platform,
-): Mutation<boolean> {
-  const found = recordFor(records, folder, platform)
-  if (found === undefined || !isVersion(found, expected) || found.isCheckoutPending !== true) {
-    return { records, result: false }
-  }
-  return {
-    records: withRecord(
-      records,
-      withRevision(completeRecord(found), expected.revision + 1),
-      platform,
-    ),
-    result: true,
-  }
-}
-
-function removeTransition(
-  records: readonly WorktreeRecord[],
-  folder: string,
-  expected: RecordVersion,
-  previous: WorktreeRecord | undefined,
-  platform: NodeJS.Platform,
-): Mutation<boolean> {
-  const found = recordFor(records, folder, platform)
-  if (found === undefined || !isVersion(found, expected)) {
-    return { records, result: false }
-  }
-  return {
-    records:
-      previous === undefined
-        ? records.filter((entry) => entry !== found)
-        : withRecord(records, previous, platform),
-    result: true,
-  }
-}
-
-function releaseTransition(
-  records: readonly WorktreeRecord[],
-  folder: string,
-  now: number,
-  platform: NodeJS.Platform,
-): Mutation<WorktreeRecord | undefined> {
-  const found = recordFor(records, folder, platform)
-  if (found === undefined || found.isCheckoutPending === true) {
-    return { records, result: undefined }
-  }
-  const released: WorktreeRecord = withRevision(
-    { ...found, isHeld: false, trustConfirmedAt: now },
-    recordRevision(found) + 1,
-  )
-  return { records: withRecord(records, released, platform), result: released }
-}
-
+/** One window's records, in memory: the transitions over a plain array. */
 export function createMemoryWorktreeRecordStore(platform: NodeJS.Platform): WorktreeRecordStore {
+  const apply = transitions(platform)
   let records: readonly WorktreeRecord[] = []
+  const commit = <T>(mutation: Mutation<T>): Promise<T> => {
+    records = mutation.records
+    return Promise.resolve(mutation.result)
+  }
   return {
     list: () => Promise.resolve(records),
     recordFor: (folder) => Promise.resolve(recordFor(records, slashed(folder), platform)),
-    reserve: (record) => {
-      const applied = reserveTransition(records, slashedPut(record), platform)
-      records = applied.records
-      return Promise.resolve(applied.result)
-    },
-    supersede: (folder, expected, record) => {
-      const applied = supersedeTransition(
-        records,
-        slashed(folder),
-        expected,
-        slashedPut(record),
-        platform,
-      )
-      records = applied.records
-      return Promise.resolve(applied.result)
-    },
-    complete: (folder, createdAt, revision) => {
-      const applied = completeTransition(
-        records,
-        slashed(folder),
-        { createdAt, revision },
-        platform,
-      )
-      records = applied.records
-      return Promise.resolve(applied.result)
-    },
-    remove: (folder, createdAt, revision, previous) => {
-      const applied = removeTransition(
-        records,
-        slashed(folder),
-        { createdAt, revision },
-        previous,
-        platform,
-      )
-      records = applied.records
-      return Promise.resolve(applied.result)
-    },
-    release: (folder, now) => {
-      const applied = releaseTransition(records, slashed(folder), now, platform)
-      records = applied.records
-      return Promise.resolve(applied.result)
-    },
+    reserve: (record) => commit(apply.reserve(records, record)),
+    supersede: (folder, expected, record) =>
+      commit(apply.supersede(records, slashed(folder), expected, record)),
+    complete: (folder, expected, identity) =>
+      commit(apply.complete(records, slashed(folder), expected, identity)),
+    discard: (folder, expected) => commit(apply.discard(records, slashed(folder), expected)),
+    release: (ticket, now) =>
+      commit(apply.release(records, { ...ticket, folder: slashed(ticket.folder) }, now)),
   }
 }
 
-function codeOf(error: unknown): string | undefined {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String(error.code)
-    : undefined
+export interface FileWorktreeRecordStoreOptions {
+  /** The file operations; a test pauses one to stand an interleaving. */
+  readonly fs?: RecordStoreFs
+  readonly now?: () => number
+  readonly sleep?: (ms: number) => Promise<void>
+  /** This process, as its lock notes name it. */
+  readonly owner?: ProcessOwner
+  readonly isOwnerGone?: (owner: ProcessOwner) => boolean
+  readonly leaseMs?: number
+  readonly timeoutMs?: number
 }
 
 /**
- * The cross-window lock: `mkdir` is atomic on every platform, so at most
- * one window holds the folder. A waiter takes over a lock older than the
- * stale bound (its holder crashed mid-mutation) and fails loudly past the
- * timeout instead of writing uncoordinated.
- */
-async function withRecordLock<T>(
-  dataFolder: string,
-  log: CoreLogger,
-  work: () => Promise<T>,
-): Promise<T> {
-  const lockDir = path.join(dataFolder, RECORDS_LOCK_DIR)
-  await mkdir(dataFolder, { recursive: true })
-  const deadline = Date.now() + WORKTREE_RECORD_LOCK_TIMEOUT_MS
-  for (;;) {
-    try {
-      await mkdir(lockDir)
-      try {
-        await writeFile(
-          path.join(lockDir, RECORDS_LOCK_OWNER),
-          JSON.stringify({ pid: process.pid, startedAt: Date.now() }),
-        )
-      } catch {
-        // The folder is ours; an owner note that cannot be written only
-        // means waiters cannot age it.
-      }
-      break
-    } catch (error: unknown) {
-      if (codeOf(error) !== 'EEXIST') {
-        throw error
-      }
-    }
-    try {
-      const raw = await readFile(path.join(lockDir, RECORDS_LOCK_OWNER), 'utf8')
-      const startedAt = (JSON.parse(raw) as { readonly startedAt?: unknown }).startedAt
-      if (typeof startedAt === 'number' && Date.now() - startedAt > WORKTREE_RECORD_LOCK_STALE_MS) {
-        await rm(lockDir, { recursive: true, force: true })
-        continue
-      }
-    } catch {
-      // Unreadable or unparsable: someone else's live lock. Wait for it.
-    }
-    if (Date.now() >= deadline) {
-      log.warn('The worktree records are busy; leaving them alone')
-      throw new Error('The worktree records are busy')
-    }
-    await delay(WORKTREE_RECORD_LOCK_POLL_MS)
-  }
-  try {
-    return await work()
-  } finally {
-    await rm(lockDir, { recursive: true, force: true })
-  }
-}
-
-/**
- * The records as a JSON file under the runtime data folder. No window
- * keeps the registry: every operation reads the file first, and reads
- * never write at all. Mutations hold the cross-window lock while they
- * validate the fresh registry and persist it, so two windows never
- * interleave a read-modify-write; operations in this window queue as well,
- * so they never interleave a read and a write either. A mutation whose
- * file changed underneath is read again and merged again; when it still
- * cannot persist, it throws — never a silent last-write over a state it
- * did not read.
+ * The records as generations under the runtime data folder. No window
+ * keeps the registry: every operation reads the head first, and reads
+ * never write. Mutations take the cross-window lock, apply the transition
+ * to the fresh head and write the next generation; one that lost its
+ * generation reads and applies again, and past the attempts it throws —
+ * never a write over a state it did not read. Operations in this window
+ * queue, so they never interleave either.
  */
 export function createFileWorktreeRecordStore(
   dataFolder: string,
   platform: NodeJS.Platform,
   log: CoreLogger,
+  options: FileWorktreeRecordStoreOptions = {},
 ): WorktreeRecordStore {
-  const file = path.join(dataFolder, RECORDS_FILE)
-  const atomic = { sleep: delay }
+  const folder = path.join(dataFolder, RECORDS_FOLDER)
+  const fs = options.fs ?? nodeRecordStoreFs
+  const now = options.now ?? Date.now
+  const apply = transitions(platform)
+  const lockEnv = {
+    fs,
+    now,
+    sleep: options.sleep ?? ((ms: number) => delay(ms)),
+    owner: options.owner ?? currentProcessOwner(),
+    isOwnerGone: options.isOwnerGone ?? ((owner: ProcessOwner) => isProcessOwnerGone(owner)),
+    leaseMs: options.leaseMs ?? WORKTREE_RECORD_LOCK_LEASE_MS,
+    timeoutMs: options.timeoutMs ?? WORKTREE_RECORD_LOCK_TIMEOUT_MS,
+  }
   let tail: Promise<void> = Promise.resolve()
   const enqueue = <T>(work: () => Promise<T>): Promise<T> => {
     const previous = tail
@@ -374,101 +317,62 @@ export function createFileWorktreeRecordStore(
     })()
     return next
   }
-  const readRegistry = async (): Promise<{
-    readonly found: boolean
-    readonly fingerprint: string | undefined
-    readonly records: readonly WorktreeRecord[]
-  }> => {
-    let bytes: Buffer
+  const read = (): Promise<readonly WorktreeRecord[]> =>
+    enqueue(async () => {
+      const head = await readRecordHead(fs, folder, log)
+      return head.records
+    })
+  const acquire = async (): Promise<StoreLease> => {
     try {
-      bytes = await readFile(file)
+      return await acquireStoreLock(path.join(folder, RECORDS_LOCK), lockEnv)
     } catch (error: unknown) {
-      // Missing or unreadable: start empty (the hold is by location
-      // anyway). Anything else of the extension's never runs git there.
-      if (codeOf(error) !== 'ENOENT') {
-        log.warn('The worktree records could not be read; starting with none')
+      if (error instanceof StoreBusyError) {
+        log.warn('The worktree records are busy; leaving them alone')
       }
-      return { found: false, fingerprint: undefined, records: [] }
-    }
-    let raw: unknown
-    try {
-      raw = JSON.parse(bytes.toString('utf8'))
-    } catch {
-      log.warn('The worktree records could not be read; starting with none')
-      return { found: true, fingerprint: bytesFingerprint(bytes), records: [] }
-    }
-    return {
-      found: true,
-      fingerprint: bytesFingerprint(bytes),
-      records: parseWorktreeRegistry(raw),
+      throw error
     }
   }
-  const mutate = <T>(apply: (records: readonly WorktreeRecord[]) => Mutation<T>): Promise<T> =>
+  const mutate = <T>(change: (records: readonly WorktreeRecord[]) => Mutation<T>): Promise<T> =>
     enqueue(async () => {
-      return await withRecordLock(dataFolder, log, async () => {
-        for (let attempt = 1; ; attempt += 1) {
-          const read = await readRegistry()
-          const applied = apply(read.records)
-          if (applied.records === read.records) {
+      await fs.mkdir(folder)
+      for (let attempt = 1; ; attempt += 1) {
+        const lease = await acquire()
+        try {
+          const head = await readRecordHead(fs, folder, log)
+          const changed = change(head.records)
+          if (changed.records === head.records) {
             // A refused transition: nothing to persist, nothing touched.
-            return applied.result
+            return changed.result
           }
-          const content = JSON.stringify(applied.records)
-          try {
-            if (read.fingerprint === undefined) {
-              // Gone, or bytes no edit matches: replace it whole.
-              await writeFileAtomically(file, content, atomic)
-              return applied.result
-            }
-            const wrote = await writeFileIfUnchanged(file, read.fingerprint, content, atomic)
-            if (wrote === 'written') {
-              return applied.result
-            }
-          } catch (error: unknown) {
-            if (attempt >= WORKTREE_RECORD_SAVE_ATTEMPTS) {
-              log.warn('The worktree records could not be kept')
-              throw error instanceof Error
-                ? error
-                : new Error('The worktree records could not be kept')
-            }
-            continue
+          const written = await writeNextGeneration(fs, folder, head, changed.records, () =>
+            lease.isHeld(),
+          )
+          if (written === 'written') {
+            await sweepGenerations(fs, folder, head.generation + 1, now())
+            return changed.result
           }
-          if (attempt >= WORKTREE_RECORD_SAVE_ATTEMPTS) {
-            // Changed under the lock on every attempt: a hand edit racing
-            // the write, not another window. Fail loudly rather than merge
-            // over bytes never read.
-            log.warn('The worktree records could not be kept')
-            throw new Error('The worktree records could not be kept')
-          }
+        } finally {
+          await lease.release()
         }
-      })
+        if (attempt >= WORKTREE_RECORD_SAVE_ATTEMPTS) {
+          log.warn('The worktree records could not be kept')
+          throw new Error('The worktree records could not be kept')
+        }
+      }
     })
   return {
-    list: () =>
-      enqueue(async () => {
-        const read = await readRegistry()
-        return read.records
-      }),
-    recordFor: (folder) =>
-      enqueue(async () => {
-        const read = await readRegistry()
-        return recordFor(read.records, slashed(folder), platform)
-      }),
-    reserve: (record) =>
-      mutate((records) => reserveTransition(records, slashedPut(record), platform)),
-    supersede: (folder, expected, record) =>
+    list: read,
+    recordFor: async (wanted) => recordFor(await read(), slashed(wanted), platform),
+    reserve: (record) => mutate((records) => apply.reserve(records, record)),
+    supersede: (wanted, expected, record) =>
+      mutate((records) => apply.supersede(records, slashed(wanted), expected, record)),
+    complete: (wanted, expected, identity) =>
+      mutate((records) => apply.complete(records, slashed(wanted), expected, identity)),
+    discard: (wanted, expected) =>
+      mutate((records) => apply.discard(records, slashed(wanted), expected)),
+    release: (ticket, at) =>
       mutate((records) =>
-        supersedeTransition(records, slashed(folder), expected, slashedPut(record), platform),
+        apply.release(records, { ...ticket, folder: slashed(ticket.folder) }, at),
       ),
-    complete: (folder, createdAt, revision) =>
-      mutate((records) =>
-        completeTransition(records, slashed(folder), { createdAt, revision }, platform),
-      ),
-    remove: (folder, createdAt, revision, previous) =>
-      mutate((records) =>
-        removeTransition(records, slashed(folder), { createdAt, revision }, previous, platform),
-      ),
-    release: (folder, now) =>
-      mutate((records) => releaseTransition(records, slashed(folder), now, platform)),
   }
 }
