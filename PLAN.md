@@ -27688,6 +27688,17 @@ and every other preset's bytes stay identical. Z.ai GLM is unchanged for
 lack of a repo capture for its switch. Evidence:
 `docs/certification/m95-h.md`.
 
+**Lane FIXDSTHINK2 (2026-10-09, linuxlt).** Fixes the three RVDSTHINK P2
+findings: `effortForPolicy` no longer maps an unlisted Thinking-on
+effort to `none` (it rides through for the codec's typed refusal; only
+the `none`/`minimal` off spellings stay off, keeping the Auto
+reviewer's bytes identical); the codec checks the declared
+thinking-off switch before the `reasoningParam: "none"` early return so
+toggle-only overrides (canDisable yes, effortLevels no) still send it;
+the configured client rethrows the typed `ChatCodecError` instead of
+the generic unavailable error. Production-path regression tests,
+red drills and gate receipts: `docs/certification/m95-h.md`.
+
 | Finding                                                                                                                                                                                                                                                                                                                                                                   | Owner                                                             |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | Record shape, resolver, parsers keeping native records, custom overrides (F12); reasoning modes per model incl. Haiku 4.5 manual thinking in the Anthropic encoder and Gemini level/budget mapping (F3); effort levels from the catalogue's `reasoning_options` (research BYO 10); image/PDF limits into the record and the media budget (F4 media part; research BYO 15) | **M95 lane N (CAPREC)**                                           |

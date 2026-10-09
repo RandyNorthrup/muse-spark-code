@@ -130,6 +130,11 @@ happened, not what was planned; superseded entries are kept.
   unlisted value `"none"`. Any other effort a model's declared list cannot
   express is refused with a typed codec error rather than reaching the wire;
   every other preset's request bytes are unchanged.
+- DeepSeek review fixes: an unlisted Thinking-on effort (e.g. `medium`) is
+  refused with the typed `unsupported_reasoning_effort` error instead of
+  silently disabling thinking; the off switch also sends for toggle-only
+  models with no effort list; and the typed refusal now reaches the caller
+  instead of the generic unavailable error.
 
 ### Security
 
