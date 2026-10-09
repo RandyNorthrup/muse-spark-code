@@ -41,7 +41,12 @@ installed language, current light/dark/increased-contrast appearance, workspace 
 trust state. Only a validated, correlated `ui/openExternal` request supplies the
 one-use loopback launch link. Older versions and raw-URL launchers fail visibly.
 The app validates native traffic against the reviewed schema snapshot generated
-from `src/shared/hostApi/mhp-v1.schema.json`; that legacy filename carries 1.3.
+from `src/shared/hostApi/mhp-v1.1.schema.json`; that legacy filename carries 1.3
+and includes both editor and panel channels. Invalid requests receive the frozen
+error code; panel faults affect their channel and preserve the owning companion
+relay. Request IDs retain a bounded completed window while pending IDs cannot
+be evicted. Malformed transport and incompatible initialization still end the
+connection.
 
 The authenticated portable browser renderer and UI bridge are implemented.
 WKWebView uses an ephemeral data store, confines navigation to the current
@@ -124,6 +129,19 @@ Run the complete native suite:
 ```sh
 bash hosts/xcode/Scripts/test.sh
 ```
+
+For a console-free core regression run (no app/UI automation or privacy prompt):
+
+```sh
+node hosts/xcode/Scripts/generate.mjs
+node hosts/xcode/Scripts/prepare-tests.mjs
+xcodebuild -project hosts/xcode/MuseSpark.xcodeproj -scheme NativeCore -configuration Debug -derivedDataPath temp/m104pf4/DerivedData -destination 'platform=macOS,arch=x86_64' test CODE_SIGN_IDENTITY=-
+node test/m104/mac/nativeDrills.mjs --core
+```
+
+The drill runs the complete core scheme after each deliberate mutation and
+restores source bytes exactly. App/UI scenarios still need the owner at the
+console before they can supply installation or interaction receipts.
 
 This runs all core XCTest cases and app-hosted UI tests against the actual
 companion server with a fake runtime. The UI test checks authenticated rendering

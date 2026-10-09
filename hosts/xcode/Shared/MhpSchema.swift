@@ -31,6 +31,28 @@ final class MhpSchema {
     guard let schema = contract["failure"] as? [String: Any] else { throw NativeFailure.invalid }
     try Self.validate(frame, schema: schema, root: schema)
   }
+  func checkPanel(_ frame: [String: Any], kind: String, headerOnly: Bool = false) throws {
+    guard let panel = contract["panel"] as? [String: Any],
+      var rules = panel[kind] as? [String: Any]
+    else { throw NativeFailure.invalid }
+    if headerOnly, let variants = rules["oneOf"] as? [[String: Any]] {
+      rules["oneOf"] = variants.map { variant in
+        var variant = variant
+        var properties = variant["properties"] as? [String: [String: Any]] ?? [:]
+        properties["payload"] = [:]
+        variant["properties"] = properties
+        return variant
+      }
+    }
+    try Self.validate(frame, schema: rules, root: rules)
+  }
+  func replyId(_ frame: [String: Any]) -> Any {
+    guard let id = frame["id"], let failure = contract["failure"] as? [String: Any],
+      let properties = failure["properties"] as? [String: [String: Any]],
+      let rules = properties["id"], (try? Self.validate(id, schema: rules, root: failure)) != nil
+    else { return NSNull() }
+    return id
+  }
   static func validate(_ value: Any, schema: [String: Any], root: [String: Any]) throws {
     if let ref = schema["$ref"] as? String {
       guard ref.hasPrefix("#/") else { throw NativeFailure.invalid }
@@ -47,6 +69,11 @@ final class MhpSchema {
     }
     if let alternatives = schema["anyOf"] as? [[String: Any]] {
       guard alternatives.contains(where: { (try? validate(value, schema: $0, root: root)) != nil })
+      else { throw NativeFailure.invalid }
+    }
+    if let alternatives = schema["oneOf"] as? [[String: Any]] {
+      guard
+        alternatives.filter({ (try? validate(value, schema: $0, root: root)) != nil }).count == 1
       else { throw NativeFailure.invalid }
     }
     if let types = schema["type"] as? [String] {
@@ -88,6 +115,9 @@ final class MhpSchema {
     }
     if let values = value as? [Any] {
       if let count = schema["minItems"] as? Int, values.count < count {
+        throw NativeFailure.invalid
+      }
+      if let count = schema["maxItems"] as? Int, values.count > count {
         throw NativeFailure.invalid
       }
       if let items = schema["items"] as? [String: Any] {

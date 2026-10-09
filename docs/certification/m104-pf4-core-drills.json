@@ -1,0 +1,65 @@
+[
+  {
+    "label": "union type array",
+    "file": "hosts/xcode/Shared/MhpSchema.swift",
+    "test": "testFrozenUnionTypesAndArrayLimitsAreEnforced",
+    "exit": 65,
+    "sha256": "875f5d5e676600231b6b1a33deccbd0b62797aa4f6e2b9f057e0ce2d739f3f4c"
+  },
+  {
+    "label": "oneOf exclusive union",
+    "file": "hosts/xcode/Shared/MhpSchema.swift",
+    "test": "testFrozenUnionTypesAndArrayLimitsAreEnforced",
+    "exit": 65,
+    "sha256": "875f5d5e676600231b6b1a33deccbd0b62797aa4f6e2b9f057e0ce2d739f3f4c"
+  },
+  {
+    "label": "array maximum",
+    "file": "hosts/xcode/Shared/MhpSchema.swift",
+    "test": "testFrozenUnionTypesAndArrayLimitsAreEnforced",
+    "exit": 65,
+    "sha256": "875f5d5e676600231b6b1a33deccbd0b62797aa4f6e2b9f057e0ce2d739f3f4c"
+  },
+  {
+    "label": "panel header validation",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testUnboundPanelFaultsDoNotCloseTheCompanionRelay",
+    "exit": 65,
+    "sha256": "a8d80c7d0e69b56001143285db7eb333b135933b42e80b7735c46c6538a5b8cb"
+  },
+  {
+    "label": "panel lifecycle validation",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testUnboundPanelFaultsDoNotCloseTheCompanionRelay",
+    "exit": 65,
+    "sha256": "a8d80c7d0e69b56001143285db7eb333b135933b42e80b7735c46c6538a5b8cb"
+  },
+  {
+    "label": "request fault isolation",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testRequestFaultsPreserveUnrelatedNativeWork",
+    "exit": 65,
+    "sha256": "a8d80c7d0e69b56001143285db7eb333b135933b42e80b7735c46c6538a5b8cb"
+  },
+  {
+    "label": "request id retirement",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testRequestIdWindowEvictsOnlyCompletedIdsAndRetainsTypedIdentity",
+    "exit": 65,
+    "sha256": "a8d80c7d0e69b56001143285db7eb333b135933b42e80b7735c46c6538a5b8cb"
+  },
+  {
+    "label": "permission error code",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testNativeFailuresAndMalformedResultsUseTheFrozenErrorCodes",
+    "exit": 65,
+    "sha256": "a8d80c7d0e69b56001143285db7eb333b135933b42e80b7735c46c6538a5b8cb"
+  },
+  {
+    "label": "native result validation",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testNativeFailuresAndMalformedResultsUseTheFrozenErrorCodes",
+    "exit": 65,
+    "sha256": "a8d80c7d0e69b56001143285db7eb333b135933b42e80b7735c46c6538a5b8cb"
+  }
+]

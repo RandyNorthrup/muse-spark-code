@@ -33,8 +33,9 @@ key to the CLI.
 
 The [Xcode native-host prototype](hosts/xcode/README.md) pairs a macOS app
 with Xcode Source Editor commands. Its authenticated container and approved
-buffer-edit path are tested with fakes; the shared runtime panel and Tab
-integration are still required before it can be offered as a supported host.
+buffer-edit path have native core/fake-runtime receipts. Its relay uses the
+shared MHP 1.3 panel contract; editor/voice/Tab integration and installed
+qualification are still required before it can be offered as a supported host.
 
 **Contents:** [What's new](#whats-new-in-0140) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·

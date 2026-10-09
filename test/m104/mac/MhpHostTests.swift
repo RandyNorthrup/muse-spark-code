@@ -2,6 +2,110 @@ import Foundation
 import XCTest
 
 final class MhpHostTests: XCTestCase {
+  func testRequestIdWindowEvictsOnlyCompletedIdsAndRetainsTypedIdentity() throws {
+    let responses = expectation(description: "completed requests")
+    responses.expectedFulfillmentCount = NativeMhp.maximumQueuedMessages + 2
+    var errors: [String] = []
+    let session = MhpSession(
+      schema: try MhpSchema(),
+      write: { data in
+        guard let frame = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          frame["method"] == nil
+        else { return }
+        if let error = frame["error"] as? [String: Any], let message = error["message"] as? String {
+          errors.append(message)
+        }
+        responses.fulfill()
+      }, launch: { _ in }, failed: { XCTFail("id window closed session") },
+      service: { _, _, _, reply in reply(.success(NSNull())) })
+    try session.start(
+      workspace: URL(fileURLWithPath: "/workspace"), locale: "en",
+      theme: ["kind": "dark", "tokens": [String: String]()], trusted: false)
+    session.receive(try bytes(initialized()))
+    for id in 0..<NativeMhp.maximumQueuedMessages + 1 {
+      session.receive(
+        try bytes([
+          "jsonrpc": "2.0", "id": id, "method": "ui/clipboard", "params": ["text": "value"],
+        ]))
+    }
+    // receive is synchronous on the same queue: every preceding callback settles
+    // before the next admission, exercising more completions than the window holds.
+    session.receive(
+      try bytes(["jsonrpc": "2.0", "id": 0, "method": "ui/clipboard", "params": ["text": "again"]]))
+    wait(for: [responses], timeout: 1)
+    XCTAssertTrue(errors.isEmpty)
+    let count = expectation(description: "numeric duplicate and distinct string id")
+    // Separate session avoids replacing the production response observer.
+    session.close()
+    var failures = 0
+    let typed = MhpSession(
+      schema: try MhpSchema(),
+      write: { data in
+        if let frame = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          frame["error"] != nil
+        {
+          failures += 1
+        }
+      }, launch: { _ in }, failed: { XCTFail("duplicate closed session") },
+      service: { _, _, _, _ in count.fulfill() })
+    count.expectedFulfillmentCount = 2
+    try typed.start(
+      workspace: URL(fileURLWithPath: "/workspace"), locale: "en",
+      theme: ["kind": "dark", "tokens": [String: String]()], trusted: false)
+    typed.receive(try bytes(initialized()))
+    for id: Any in [1, "1", 1] {
+      typed.receive(
+        try bytes([
+          "jsonrpc": "2.0", "id": id, "method": "ui/input",
+          "params": ["title": "held", "prompt": "value"],
+        ]))
+    }
+    wait(for: [count], timeout: 1)
+    XCTAssertEqual(failures, 1)
+    typed.close()
+  }
+  func testNativeFailuresAndMalformedResultsUseTheFrozenErrorCodes() throws {
+    let sent = expectation(description: "all native failures")
+    let faults: [NativeFailure] = [.denied, .changed, .invalid, .cancelled, .unavailable, .launch]
+    sent.expectedFulfillmentCount = faults.count + 1
+    var codes: [Int] = []
+    let session = MhpSession(
+      schema: try MhpSchema(),
+      write: { data in
+        if let frame = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let error = frame["error"] as? [String: Any], let code = error["code"] as? Int
+        {
+          codes.append(code)
+          sent.fulfill()
+        }
+      }, launch: { _ in }, failed: { XCTFail("native failure closed session") },
+      service: { _, params, _, reply in
+        if let text = params["text"] as? String, let failure = NativeFailure(rawValue: text) {
+          reply(.failure(failure))
+        } else {
+          reply(.success("invalid clipboard result"))
+        }
+      })
+    try session.start(
+      workspace: URL(fileURLWithPath: "/workspace"), locale: "en",
+      theme: ["kind": "dark", "tokens": [String: String]()], trusted: false)
+    session.receive(try bytes(initialized()))
+    for (id, failure) in faults.enumerated() {
+      session.receive(
+        try bytes([
+          "jsonrpc": "2.0", "id": id, "method": "ui/clipboard",
+          "params": ["text": failure.rawValue],
+        ]))
+    }
+    session.receive(
+      try bytes([
+        "jsonrpc": "2.0", "id": "invalid", "method": "ui/clipboard", "params": ["text": "value"],
+      ]))
+    wait(for: [sent], timeout: 1)
+    XCTAssertEqual(codes, [-32006, -32003, -32602, -32800, -32002, -32603, -32603])
+    try session.trust(false)
+    session.close()
+  }
   func testSnapshotVersionIsPinnedBeforeLaunching() throws {
     var contract = try MhpSchema().contract
     contract["protocol"] = "mhp/1.1.0"
@@ -28,12 +132,14 @@ final class MhpHostTests: XCTestCase {
     session.close()
     XCTAssertThrowsError(try session.trust(true))
   }
-  func testDuplicateIdsInvalidCallsAndQueueOverflowCancelNativeWork() throws {
-    for scenario in ["duplicate", "wrong-direction", "invalid-params", "overflow"] {
+  func testRequestFaultsPreserveUnrelatedNativeWork() throws {
+    for scenario in ["duplicate", "wrong-direction", "invalid-params", "overflow", "unknown"] {
       var failures = 0
       var tokens: [MhpCancellation] = []
+      var writes: [Data] = []
       let session = MhpSession(
-        schema: try MhpSchema(), write: { _ in }, launch: { _ in }, failed: { failures += 1 },
+        schema: try MhpSchema(), write: { writes.append($0) }, launch: { _ in },
+        failed: { failures += 1 },
         service: { _, _, token, _ in tokens.append(token) })
       try session.start(
         workspace: URL(fileURLWithPath: "/tmp/workspace"), locale: "en",
@@ -55,17 +161,97 @@ final class MhpHostTests: XCTestCase {
             "jsonrpc": "2.0", "id": 2, "method": "ui/input",
             "params": ["title": "prompt", "prompt": "value", "extra": true],
           ]))
-      default:
+      case "overflow":
         for id in 0..<NativeMhp.maximumQueuedMessages {
           var next = frame
           next["id"] = id
           session.receive(try bytes(next))
         }
+      default:
+        session.receive(try bytes(["jsonrpc": "2.0", "id": 2, "method": "unknown", "params": [:]]))
       }
-      XCTAssertEqual(failures, 1, scenario)
-      XCTAssertTrue(tokens.allSatisfy { !$0.isActive }, scenario)
+      XCTAssertEqual(failures, 0, scenario)
+      XCTAssertTrue(tokens.allSatisfy { $0.isActive }, scenario)
+      let reply = try XCTUnwrap(
+        JSONSerialization.jsonObject(with: XCTUnwrap(writes.last)) as? [String: Any])
+      try MhpSchema().checkFailure(reply)
+      let error = try XCTUnwrap(reply["error"] as? [String: Any])
+      XCTAssertEqual(
+        error["code"] as? Int,
+        scenario == "invalid-params" ? -32602 : scenario == "unknown" ? -32601 : -32600, scenario)
       session.close()
+      XCTAssertTrue(tokens.allSatisfy { !$0.isActive }, scenario)
     }
+  }
+  func testFrozenUnionTypesAndArrayLimitsAreEnforced() throws {
+    let schema = try MhpSchema()
+    for value: Any in [NSNull(), "value"] {
+      try schema.check(
+        ["jsonrpc": "2.0", "id": 1, "result": value], method: "ui/input", result: true)
+    }
+    for value: Any in [true, 1, [], [:]] {
+      XCTAssertThrowsError(
+        try schema.check(
+          ["jsonrpc": "2.0", "id": 1, "result": value], method: "ui/input", result: true))
+    }
+    let alternatives: [String: Any] = ["oneOf": [["type": "string"], ["type": "number"]]]
+    XCTAssertThrowsError(try MhpSchema.validate(true, schema: alternatives, root: alternatives))
+    let ambiguous: [String: Any] = ["oneOf": [["type": "number"], ["type": "integer"]]]
+    XCTAssertThrowsError(try MhpSchema.validate(1, schema: ambiguous, root: ambiguous))
+    let bounded: [String: Any] = ["type": "array", "maxItems": 1, "items": ["type": "string"]]
+    XCTAssertThrowsError(try MhpSchema.validate(["a", "b"], schema: bounded, root: bounded))
+  }
+  func testUnboundPanelFaultsDoNotCloseTheCompanionRelay() throws {
+    var writes: [Data] = []
+    let session = MhpSession(
+      schema: try MhpSchema(), write: { writes.append($0) }, launch: { _ in },
+      failed: { XCTFail("panel fault closed unrelated relay") },
+      service: { _, _, _, _ in XCTFail("panel dispatched") })
+    try session.start(
+      workspace: URL(fileURLWithPath: "/workspace"), locale: "en",
+      theme: ["kind": "dark", "tokens": [String: String]()], trusted: false)
+    session.receive(try bytes(initialized()))
+    for (frame, code) in [
+      (
+        [
+          "mhp": "1.3", "kind": "panel", "surface": "missing", "seq": 1, "direction": "toPanel",
+          "payload": ["type": "ready"],
+        ] as [String: Any], "MHP_PANEL_UNKNOWN_SURFACE"
+      ),
+      (
+        [
+          "mhp": "1.3", "kind": "panel", "surface": "missing", "seq": true, "direction": "toPanel",
+          "payload": [:],
+        ], "MHP_PANEL_INVALID_ENVELOPE"
+      ),
+      (
+        [
+          "mhp": "1.3", "kind": "surface", "surface": "missing", "sessionId": "session",
+          "surfaceKind": "chat", "event": "ready",
+        ], "MHP_PANEL_UNKNOWN_SURFACE"
+      ),
+      (
+        [
+          "mhp": "1.3", "kind": "surface", "surface": "missing", "sessionId": "session",
+          "surfaceKind": "chat", "event": "bogus",
+        ], "MHP_PANEL_INVALID_LIFECYCLE"
+      ),
+    ] {
+      session.receive(try bytes(frame))
+      let reply = try XCTUnwrap(
+        JSONSerialization.jsonObject(with: XCTUnwrap(writes.last)) as? [String: Any])
+      XCTAssertEqual(reply["kind"] as? String, "panelError")
+      XCTAssertEqual(reply["code"] as? String, code)
+    }
+    let count = writes.count
+    session.receive(
+      try bytes([
+        "mhp": "1.3", "kind": "panelError", "surface": NSNull(), "seq": NSNull(),
+        "code": "MHP_PANEL_UNKNOWN_SURFACE",
+      ]))
+    XCTAssertEqual(writes.count, count, "remote channel faults must not echo")
+    try session.trust(true)
+    session.close()
   }
   private func bytes(_ frame: [String: Any]) throws -> Data {
     var data = try JSONSerialization.data(withJSONObject: frame)
@@ -109,7 +295,8 @@ final class MhpHostTests: XCTestCase {
   }
   func testLegacyVersionAndRuntimeInitiationAreRefused() throws {
     for frame in [
-      initialized("mhp/1.1.0"), initialized("mhp/1.2.0"), ["jsonrpc": "2.0", "id": 1, "method": "initialize", "params": [:]],
+      initialized("mhp/1.1.0"), initialized("mhp/1.2.0"),
+      ["jsonrpc": "2.0", "id": 1, "method": "initialize", "params": [:]],
     ] {
       var failures = 0
       let session = MhpSession(

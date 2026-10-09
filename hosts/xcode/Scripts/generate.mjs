@@ -19,7 +19,7 @@ await build({
 })
 const { nativeTables } = await import(pathToFileURL(modulePath).href)
 const manifest = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
-const contract = await readFile(path.join(root, 'src/shared/hostApi/mhp-v1.schema.json'), 'utf8')
+const contract = await readFile(path.join(root, 'src/shared/hostApi/mhp-v1.1.schema.json'), 'utf8')
 if (JSON.parse(contract).protocol !== nativeTables.mhp.version) throw new Error('MHP_VERSION_LOCK')
 await writeFile(path.join(generated, 'mhp.json'), contract)
 await writeFile(

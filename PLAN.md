@@ -19189,6 +19189,19 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104PF4 continuation (2026-10-08, before code).** On macmini/Xcode
+26.3, qualify the existing 1.3 relay with real loopback and core XCTest runs.
+Validate every inbound channel against the frozen editor/panel snapshots;
+isolate recoverable request/channel faults, retain bounded request-id replay
+protection, and validate JSON Schema unions and array limits. Then advance
+Xcode buffer/navigation/focus/permission adapters and native voice/Tab in
+dependency order wherever the adopted contracts allow it. Preserve transport,
+process-tree and stale-generation fences. Requests for missing shared contracts
+remain in F's requests record. No further merge, live/paid call, XCUITest,
+TCC prompt, signing account, notarization, publication or support promotion.
+Each coherent group gets a hook-on commit and scoped gate/mutation receipts;
+console-level scenarios remain a named owner-at-console gap.
+
 **M104PF continuation 2 (2026-10-06, authorized before code).** Merge
 `m104/pa` at `fa60c3763` with `--no-ff`, preserving both lanes' documentation.
 Adopt its frozen MHP 1.3 in F's Xcode fixtures, generated bundle and distribution

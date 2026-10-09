@@ -1,5 +1,39 @@
 # M104PF — requests to owning lanes
 
+## PF4 current dependencies (2026-10-08)
+
+- **Lead/D:** the brief's accepted fix commit `0ed2c82b5` and branch
+  `m104/pd-fix` are absent on this rig. Supply its accepted behavior/receipt or
+  the local object for comparison; F used the frozen 1.3 error/channel contracts
+  and available PD review, without copying C# or fetching/merging another lane.
+- **A/B/E — invoked Tab:** `tab/complete` is frozen host-to-runtime, but
+  `runPanel.ts` has no handler for it at this checkout; `createRuntimeTab` is
+  exported without native invocation composition. Supply the owning handler and
+  priced once-only consent/hard-ledger/selected-model capability contribution,
+  with cancellation and settlement drain. Xcode also needs an approved opaque
+  command snapshot binding (text, UTF-16 caret, digest and transaction lifetime)
+  because its command cannot disclose a physical file URI. Do not invent a file
+  URL or route such a buffer through `fileURLToPath`/disk context. Validate Deny
+  before dispatch, stale/cancelled completion before one command transaction,
+  actual acceptance/rejection and uncertain-spend settlement.
+- **A/B — native voice:** provide the actual `RuntimeFactoryOptions.voice`
+  recorder/driver contribution for the Xcode owner, selected-model admission,
+  priced paid consent, bounded duration/audio, hard ledger and awaited
+  cancellation/settlement. `voice/capture` describes audio, while the existing
+  `createRuntimeVoice` factory requires a listener-based `DictationSetup`; freeze
+  their integration before F adapts the helper. Tests must use a fake helper;
+  real microphone/speech/TCC scenarios need the owner at the console.
+- **A/C — complete native UI:** the currently offered UI group lacks
+  `ui/showSetting`. The frozen contract promises every group method; removing UI
+  also prevents the current companion launch through `ui/openExternal`. Supply
+  the owner-bound settings surface/key route or an explicitly reviewed bootstrap
+  capability contract. Preserve companion launch, actual settings authority,
+  locale, close/rebind and no cross-view paid decisions. F does not silently
+  advertise editor/documents/voice/Tab groups with partial implementations.
+
+No request authorizes an ownership-crossing edit or a live/paid call. The older
+merge-wait entries below are historical and already satisfied by PF's base.
+
 No other lane's files are edited. Requests below are prerequisites, not
 implemented features or support receipts.
 

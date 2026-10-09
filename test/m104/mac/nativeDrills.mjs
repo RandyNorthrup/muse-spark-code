@@ -115,7 +115,7 @@ const mutations = [
     'hosts/xcode/Shared/MhpSession.swift',
     'pending.count < NativeMhp.maximumQueuedMessages',
     'pending.count <= NativeMhp.maximumQueuedMessages',
-    'testDuplicateIdsInvalidCallsAndQueueOverflowCancelNativeWork',
+    'testRequestFaultsPreserveUnrelatedNativeWork',
   ],
   [
     'fresh same-origin link',
@@ -125,11 +125,82 @@ const mutations = [
     'testSameOriginFreshLaunchReloadsAndOldClearCannotEraseNewLink',
   ],
 ]
-const record = 'docs/certification/m104-pf-native-drills.json'
+// --core runs every test in NativeCore, without starting the app/UI scheme.
+const core = process.argv.includes('--core')
+const coreMutations = [
+  [
+    'union type array',
+    'hosts/xcode/Shared/MhpSchema.swift',
+    'types.contains(where: { matches(value, type: $0) })',
+    '!types.isEmpty',
+    'testFrozenUnionTypesAndArrayLimitsAreEnforced',
+  ],
+  [
+    'oneOf exclusive union',
+    'hosts/xcode/Shared/MhpSchema.swift',
+    'alternatives.filter({ (try? validate(value, schema: $0, root: root)) != nil }).count == 1',
+    '!alternatives.isEmpty',
+    'testFrozenUnionTypesAndArrayLimitsAreEnforced',
+  ],
+  [
+    'array maximum',
+    'hosts/xcode/Shared/MhpSchema.swift',
+    'values.count > count',
+    'values.count < 0 && values.count > count',
+    'testFrozenUnionTypesAndArrayLimitsAreEnforced',
+  ],
+  [
+    'panel header validation',
+    'hosts/xcode/Shared/MhpSession.swift',
+    'try schema.checkPanel(frame, kind: "envelope", headerOnly: true)',
+    'if closed { throw NativeFailure.invalid }',
+    'testUnboundPanelFaultsDoNotCloseTheCompanionRelay',
+  ],
+  [
+    'panel lifecycle validation',
+    'hosts/xcode/Shared/MhpSession.swift',
+    'try schema.checkPanel(frame, kind: "lifecycle")',
+    'if closed { throw NativeFailure.invalid }',
+    'testUnboundPanelFaultsDoNotCloseTheCompanionRelay',
+  ],
+  [
+    'request fault isolation',
+    'hosts/xcode/Shared/MhpSession.swift',
+    'try refusal(frame, code: "invalidRequest", message: "MHP_DUPLICATE_ID")',
+    'if !closed { throw NativeFailure.invalid }',
+    'testRequestFaultsPreserveUnrelatedNativeWork',
+  ],
+  [
+    'request id retirement',
+    'hosts/xcode/Shared/MhpSession.swift',
+    'if retired.count > NativeMhp.maximumQueuedMessages { retired.removeFirst() }',
+    '// Deliberate drill: never retire completed ids.',
+    'testRequestIdWindowEvictsOnlyCompletedIdsAndRetainsTypedIdentity',
+  ],
+  [
+    'permission error code',
+    'hosts/xcode/Shared/MhpSession.swift',
+    'case .denied: failure = ("permissionDenied", "MHP_PERMISSION_DENIED")',
+    'case .denied: failure = ("unsupportedCapability", "MHP_UNSUPPORTED_CAPABILITY")',
+    'testNativeFailuresAndMalformedResultsUseTheFrozenErrorCodes',
+  ],
+  [
+    'native result validation',
+    'hosts/xcode/Shared/MhpSession.swift',
+    'do { try schema.check(frame, method: method, result: true) } catch {',
+    'do { if method.isEmpty { throw NativeFailure.invalid } } catch {',
+    'testNativeFailuresAndMalformedResultsUseTheFrozenErrorCodes',
+  ],
+]
+const candidates = core ? coreMutations : mutations
+const record = core
+  ? 'docs/certification/m104-pf4-core-drills.json'
+  : 'docs/certification/m104-pf-native-drills.json'
+const requested = core ? process.argv[3] : process.argv[2]
 const selected =
-  process.argv[2] === undefined
-    ? mutations
-    : mutations.filter(([label]) => label === process.argv[2])
+  requested === undefined
+    ? candidates
+    : candidates.filter(([label]) => requested.split(',').includes(label))
 assert.ok(selected.length > 0, 'MHP_DRILL_UNKNOWN')
 const previous = existsSync(record) ? JSON.parse(readFileSync(record, 'utf8')) : []
 const receipt = previous.filter((item) => selected.every(([label]) => label !== item.label))
@@ -157,11 +228,11 @@ for (const [label, file, before, after, test] of selected) {
         '-project',
         'hosts/xcode/MuseSpark.xcodeproj',
         '-scheme',
-        'MuseSpark',
+        core ? 'NativeCore' : 'MuseSpark',
         '-configuration',
         'Debug',
         '-derivedDataPath',
-        'temp/m104x/DerivedData',
+        core ? 'temp/m104pf4/DerivedData' : 'temp/m104x/DerivedData',
         '-destination',
         'platform=macOS',
         'test',
@@ -179,6 +250,7 @@ for (const [label, file, before, after, test] of selected) {
     assert.equal(digest(readFileSync(file)), digest(original), `MHP_DRILL_RESTORE:${label}`)
     prepare()
   }
+  writeFileSync(record, `${JSON.stringify(receipt, null, 2)}\n`)
   console.log(`${label}: failed as intended; restored byte-exact`)
 }
 writeFileSync(record, `${JSON.stringify(receipt, null, 2)}\n`)

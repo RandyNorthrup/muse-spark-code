@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Xcode's MHP 1.3 relay now validates the full frozen editor/panel snapshot,
+  isolates recoverable request and panel faults, enforces union/array limits,
+  and returns the contract's native permission/version/failure codes. Added
+  console-free native core regressions and mutation receipts; installed parity
+  remains unqualified.
+
 - Xcode's native MHP file picker returns the selected file URI, and report
   export writes only after an active Save decision. File/permission dialogs
   reject overlaps, cancellation and callbacks from a replaced dialog; failed

@@ -21,7 +21,7 @@ describe('Xcode host shared boundary', () => {
     })
   })
   it('bundles the exact reviewed MHP 1.3 snapshot and refuses the earlier range', async () => {
-    const snapshot = await readFile('src/shared/hostApi/mhp-v1.schema.json', 'utf8')
+    const snapshot = await readFile('src/shared/hostApi/mhp-v1.1.schema.json', 'utf8')
     expect(await readFile('hosts/xcode/Generated/mhp.json', 'utf8')).toBe(snapshot)
     const swift = await readFile('hosts/xcode/Generated/NativeMhp.swift', 'utf8')
     expect(MHP.version).toBe('mhp/1.3.0')
