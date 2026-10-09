@@ -33069,7 +33069,7 @@ before a repaired one loads (2026-09-30).
   | Transition              | Trigger                                                         | Effect                                                                                                                  |
   | ----------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
   | `open`                  | `confirm`                                                       | Request pending with no `auth`; emitted to listeners.                                                                   |
-  | `review`                | `makerPayloadReviewed`                                          | MakerApproval records the exact complete review.                                                                        |
+  | `review`                | `makerPayloadReviewed`                                          | MakerApproval records the exact complete review; an upload started in an older epoch is refused before dispatch.        |
   | `authenticate`          | `/presence` (`authorize`)                                       | Only with no live `auth` of this epoch: `auth` = OS prompt in flight.                                                   |
   | `authenticated`         | OS presence approved                                            | Same `auth`, same epoch, still pending and admitted: 5 s grant; otherwise `auth` dropped.                               |
   | `authentication failed` | OS presence denied/unavailable                                  | `auth` dropped; a retry may prompt. An expired grant also allows a retry.                                               |
@@ -33084,9 +33084,24 @@ before a repaired one loads (2026-09-30).
   wins, older state is revoked at that moment); an `/events` reconnect within
   one document counts as a new document, so an allow for a request reviewed
   before it fails closed (the store does not re-review a request it has
-  seen); an editor-prompt (`ask`) approval in flight when
-  a companion document loads fails closed. Receipts:
-  `docs/certification/m103.md` FIXM103W8.
+  seen). Every review producer is bound to its originating epoch, which the
+  FIXM103W8 code did not yet enforce: a review POST whose body completes
+  after a new document is refused (403, never dispatched), and an
+  editor-prompt (`ask`) answer resolving after one settles `reject_once`
+  without an OS prompt; the replacement document reviews again in both
+  cases (FIXM103W9). Receipts: `docs/certification/m103.md` FIXM103W8,
+  FIXM103W9.
+  FIXM103W9 (2026-10-09, fourth review round, RVM103W3) binds the two
+  asynchronous review producers the epoch design left open. The companion
+  stamps each review POST with the host epoch before reading its body and
+  refuses a `makerPayloadReviewed` that completes in a newer epoch; the
+  host's editor-prompt branch stamps the epoch when it asks and settles
+  `reject_once` when the answer resolves after a new document. No new state:
+  two captured epoch numbers checked against the existing counter, and the
+  transition table's `review` row above now names the stale-upload refusal.
+  The companion hoists its fixed host reference out of the per-request path
+  to hold the runtimeMaker budget. Receipts:
+  `docs/certification/m103.md` FIXM103W9.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

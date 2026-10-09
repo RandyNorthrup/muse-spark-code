@@ -66,6 +66,12 @@ happened, not what was planned; superseded entries are kept.
   review and authenticate afresh. An expired presence grant no longer blocks
   a new OS prompt for the same request.
 
+- Every maker payload-review producer is bound to the document epoch that
+  started it: a review upload whose body completes after a replacement
+  document resumes is refused, and an editor-permission answer resolving
+  after one settles reject without prompting. The new document reviews
+  again in both cases.
+
 - Hardware Stop has its own 5-second delivery deadline. A serial port that
   never opens or drains, or an HTTP Stop that never answers, now reports Stop
   unconfirmed instead of leaving the caller waiting; a late serial port still
