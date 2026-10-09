@@ -37318,7 +37318,19 @@ recovery; interrupted Resume remains the captured control.
 
 ### M120 — Preferred agents, availability routing and lane handoff (D103, D109)
 
-**Status 2026-10-09: lane 0 built.** Status evidence: `docs/certification/m120-0.md`.
+**Status 2026-10-09: building.** Status evidence: `docs/certification/m120-0.md`.
+
+**Lane S 2026-10-09: core built; production bundle qualification blocked by
+the accepted base's What's New encoder bound.**
+
+Lane S connects the lane-0 preference contracts to pool and scheduler selection,
+with live probe facts, capability checks and author exclusions. Scheduler ticks
+build borrowing snapshots from the board, preserve unmet-demand windows, record
+borrows in the journalled chain and emit recall decisions to an explicit lane-H
+consumer. Legacy D75 selection and requests remain unchanged without preferences.
+M95 currently sends OpenRouter's provider order to the service; it has no local
+configured-candidate selector to replace. Lane W owns installed host bindings;
+lane H owns stopping and capturing work. Lane S receipts: `docs/certification/m120-s.md`.
 
 - **Goal:** D103 across every balancing surface.
 - **Order:** after the Wednesday set, and before the M110/M111 resume.

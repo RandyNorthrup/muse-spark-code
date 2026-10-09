@@ -9,8 +9,8 @@ import {
   type TeamTaskConditions,
 } from '../../shared/teamPreference'
 // D109's borrow and recall decisions (M120 lane 0): pure functions over a
-// snapshot and the caller's clock. No timers here; lane S calls decideBorrow
-// and lane H calls decideRecall on each scheduler tick with `nowMs`.
+// snapshot and the caller's clock. No timers here; lane S calls both decisions
+// on each scheduler tick with `nowMs`; lane H executes the recall event.
 //
 // Windows are half-open: "at least" a wait holds at the wait itself, and
 // "within" a window holds strictly before its end. A demand that has waited
@@ -39,6 +39,8 @@ export interface BorrowAgent {
   readonly conditions?: TeamCandidateConditions
   /** Under its own caps and the team's, for one more task. */
   readonly underCaps: boolean
+  /** Lane S's live selector refusal, preserved for the roster/panel. */
+  readonly skip?: TeamSkip
   readonly running?: BorrowRunningTask
   /** When its last borrowed task ended. */
   readonly lastBorrowEndedAtMs?: number
@@ -174,8 +176,9 @@ function lenderSkip(
   taken: ReadonlySet<string>,
   nextMs: number,
 ): TeamSkip | undefined {
-  const main = timersOf(snapshot, agent.mainRole)
+  if (agent.skip !== undefined) return agent.skip
   const id = agent.candidateId
+  const main = timersOf(snapshot, agent.mainRole)
   if (agent.running !== undefined || taken.has(id)) {
     return { candidateId: id, reason: 'busy' }
   }
@@ -235,12 +238,18 @@ function rankOf(list: readonly string[], id: string): number {
  * goes first, then the agent's secondary-role order, then the borrowing
  * role's preference order. One task per borrow.
  */
-export function decideBorrow(snapshot: BorrowSnapshot): readonly BorrowDecision[] {
+export function decideBorrow(
+  snapshot: BorrowSnapshot,
+  demandTaskId?: string,
+): readonly BorrowDecision[] {
   const now = snapshot.nowMs
   const taken = new Set<string>()
-  const ordered = snapshot.queued.toSorted(
-    (left, right) => left.queuedAtMs - right.queuedAtMs || left.taskId.localeCompare(right.taskId),
-  )
+  const ordered = snapshot.queued
+    .filter((task) => demandTaskId === undefined || task.taskId === demandTaskId)
+    .toSorted(
+      (left, right) =>
+        left.queuedAtMs - right.queuedAtMs || left.taskId.localeCompare(right.taskId),
+    )
   return ordered.map((task): BorrowDecision => {
     const wait = timersOf(snapshot, task.roleId).demandWaitMs
     const base = { taskId: task.taskId, roleId: task.roleId }

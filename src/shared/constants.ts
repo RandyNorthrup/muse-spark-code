@@ -7300,6 +7300,7 @@ export type TeamReasonCode = (typeof TEAM_RUBRIC_REASON_CODES)[number]
 // the exhausted policy, and `continue on next`.
 export const TEAM_TASKS_PER_TURN_DEFAULT = 6
 export const TEAM_TASK_MINUTES_DEFAULT = 30
+export const TEAM_MINUTE_MS = 60_000
 export const TEAM_EXHAUSTED_POLICIES = ['ask', 'queue', 'self'] as const
 export type TeamExhaustedPolicy = (typeof TEAM_EXHAUSTED_POLICIES)[number]
 export const TEAM_EXHAUSTED_DEFAULT: TeamExhaustedPolicy = 'ask'

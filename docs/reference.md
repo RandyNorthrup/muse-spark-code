@@ -123,7 +123,7 @@ Paid, on by default; the first charge asks once. On the Model API backend, team 
 
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.modelApiTeamWorkers`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
+Commands: —. Settings: `museSpark.modelApiTeamWorkers`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#team-selection-m120)
 
 ### Legal scan
 

@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- M120's shared team selector uses ordered candidates, live availability and
+  capability checks with skip reasons, and excludes authors and their engines
+  through handoff and borrow chains. Scheduler ticks apply timed secondary-role
+  borrowing and emit journalled recall decisions. Installed host/panel bindings
+  and handoff execution remain pending; existing unconfigured selection and
+  requests stay unchanged.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

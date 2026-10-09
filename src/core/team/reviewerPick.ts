@@ -1,3 +1,7 @@
+import { selectTeamEntry } from './selection'
+import type { TeamSelectionSnapshot, TeamSelection } from './teamPool'
+import type { TeamSkip } from '../../shared/teamPreference'
+import { TEAM_TASKS_PER_TURN_DEFAULT } from '../../shared/constants'
 // The reviewer's pick (M96 lane I, PLAN.md D75): `merge` of a writing task
 // is refused until a `code-review` task has reviewed the branch's current
 // head. The runner chooses the first entry with headroom whose model
@@ -22,6 +26,7 @@ export interface ReviewPick {
   readonly entryId: string
   readonly modelId: string
   readonly sameModel: boolean
+  readonly skips?: readonly TeamSkip[]
 }
 
 /**
@@ -35,7 +40,46 @@ export function pickReviewer(
   authors: readonly string[],
   candidates: readonly ReviewCandidate[],
   isSameModel: (left: string, right: string) => boolean,
+  live?: { readonly snapshot: TeamSelectionSnapshot; selected?(selection: TeamSelection): void },
 ): ReviewPick | undefined {
+  const snapshot = live?.snapshot
+  if (snapshot?.preference !== undefined) {
+    const availability = snapshot.availability
+    if (availability === undefined) throw new Error('team:availabilityMissing')
+    const selection = selectTeamEntry(
+      { roleId: snapshot.preference.role, entries: [], policy: 'queue', continueOnNext: false },
+      {
+        ...snapshot,
+        conditions: {
+          ...snapshot.conditions,
+          authorEngines: [...authors, ...(snapshot.conditions?.authorEngines ?? [])],
+        },
+        availability: {
+          probe: (candidate, nowMs) => {
+            const live = availability.probe(candidate, nowMs)
+            if (!live.available) return live
+            const entry = candidates.find((item) => item.entryId === candidate.id)
+            let reason: TeamSkip['reason'] | undefined
+            if (!entry?.hasHeadroom) reason = 'busy'
+            else if (authors.some((author) => isSameModel(entry.modelId, author))) reason = 'author'
+            return reason === undefined
+              ? live
+              : { available: false, skip: { candidateId: candidate.id, reason } }
+          },
+        },
+      },
+      TEAM_TASKS_PER_TURN_DEFAULT,
+    )
+    live?.selected?.(selection)
+    return selection.kind === 'selected'
+      ? {
+          entryId: selection.entry.id,
+          modelId: selection.agent.modelId,
+          sameModel: false,
+          skips: selection.skips ?? [],
+        }
+      : undefined
+  }
   const ready = candidates.filter((candidate) => candidate.hasHeadroom)
   const other = ready.find((candidate) =>
     authors.every((author) => !isSameModel(candidate.modelId, author)),

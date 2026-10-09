@@ -884,7 +884,7 @@
     {
       "id": "M120",
       "title": "Preferred agents and handoff",
-      "summary": "Preferred agents for each role, with work going to the next one when the preferred agent is unavailable, the reason shown, and tasks that move to another agent partway through without losing work.",
+      "summary": "Preferred agents for each role, with live availability and skip reasons, secondary-role borrowing with timed recall, and tasks that move to another agent partway through without losing work.",
       "area": "agents"
     },
     {

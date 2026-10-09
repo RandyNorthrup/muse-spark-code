@@ -134,7 +134,7 @@
       "description": { "setting": "modelApiTeamWorkers" },
       "commands": [],
       "settings": ["museSpark.modelApiTeamWorkers"],
-      "docs": "https://github.com/RandyNorthrup/muse-spark-code#the-panel",
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#team-selection-m120",
       "backends": ["modelApi"],
       "paid": true,
       "surfaces": ["vscode:modelApi"],

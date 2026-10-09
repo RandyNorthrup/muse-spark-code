@@ -3796,6 +3796,8 @@ availability causes no startup price dialog. Explicitly turning a feature OFF
 and ON again confirms its price; the first paid use still asks separately. The settings are
 machine-scoped, so a repository cannot turn one on.
 
+### Team selection (M120)
+
 Team workers default on for a runnable team of distinct models. They ask in
 this paid-use popup before the first charge, with the models, task ceilings
 and daily budget. Each task identifies its provider and tariff. Meta rates
@@ -3805,6 +3807,17 @@ daily token ceilings. Billing uses each task provider's API key.
 Always is scoped to the provider, model and price tier that was approved;
 a different model asks again. Single-model activation asks no team question.
 The M96 team feature remains unavailable until its integration is complete.
+
+M120's shared selection core supports ordered candidates, live sign-in,
+health, limits, device admission and capability checks, with a reason for
+each skipped candidate. A review excludes every author and authoring engine,
+including borrowed coders and agents earlier in a handoff chain. An idle agent
+can help a secondary role after at least sixty seconds of unmet demand;
+upcoming main-role work and cooldown keep it home. Main-role demand emits a
+recall with a bounded deadline. The preference editor, installed host bindings
+and execution of handoffs remain pending in the other M120 lanes. With no
+preference list or secondary roles, the existing selection and requests stay
+unchanged.
 
 **Every paid use then asks first, in a popup**, in every permission mode,
 Bypass included. The popup names what is about to be billed, its price and the shared daily budget,

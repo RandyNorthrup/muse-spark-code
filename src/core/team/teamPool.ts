@@ -1,4 +1,13 @@
-import { Usd, type UsdAmount } from '../../shared/usd'
+export { selectTeamEntry } from './selection'
+import type {
+  TeamPreferenceList,
+  TeamAvailabilityProbe,
+  TeamTaskConditions,
+  TeamSkip,
+  TeamHandoffRecord,
+  TeamCandidate,
+} from '../../shared/teamPreference'
+import { type UsdAmount } from '../../shared/usd'
 import { UI_TEXT, TEAM_SCHED_TICK_MS } from '../../shared/constants'
 import { fill, formatNumber } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
@@ -6,6 +15,7 @@ import { type TeamAttempt, type TeamBoard, type TeamBoardTask } from '../../shar
 import { type TaskBoard } from './scheduler/board'
 import { TaskPicker, type PickContext, type SchedulerEntry } from './scheduler/pick'
 import { type SchedulerSlots, type SlotRequest } from './scheduler/slots'
+import { SchedulerBorrowing, type SchedulerBorrowPort } from './scheduler/borrowing'
 // Team pools and selection (M96 lane A, PLAN.md D75): entries, caps and
 // windows, Default's live resolution, headroom, the first entry with
 // headroom, the rate-limit and usage-limit marks per agent, switches and
@@ -309,6 +319,18 @@ export interface TeamEntryExhaustion {
  * wires it from teamMeter, teamAdmission and the marks; tests fake it.
  */
 export interface TeamSelectionSnapshot {
+  /** Absent preserves D75's selection and result bytes. */
+  readonly preference?: TeamPreferenceList
+  readonly availability?: TeamAvailabilityProbe
+  /** Captured engine identity where it differs from the reported model identity. */
+  readonly engine?: (candidate: TeamCandidate) => string
+  readonly conditions?: TeamTaskConditions
+  /** All writers, including handoffs and borrowed coding attempts. */
+  readonly authorship?: {
+    readonly startedOn: string
+    readonly record: TeamHandoffRecord
+    readonly engines: ReadonlyMap<string, string>
+  }
   readonly nowMs: number
   /** What Default resolves to right now: the picker's model or the override. */
   readonly defaultAgent: TeamAgentProfile
@@ -354,6 +376,7 @@ export type TeamSelection =
       readonly entry: TeamPoolEntry
       /** The agent that sends it: the entry's, or Default live resolved. */
       readonly agent: TeamAgentProfile
+      readonly skips?: readonly TeamSkip[]
     }
   | { readonly kind: 'notStaffed'; readonly roleId: string }
   | {
@@ -361,124 +384,8 @@ export type TeamSelection =
       readonly roleId: string
       readonly policy: TeamExhaustedPolicy
       readonly reasons: readonly TeamEntryExhaustion[]
+      readonly skips?: readonly TeamSkip[]
     }
-
-/** The amount of `firstRequest` a cap's measure counts. */
-function firstRequestAmount(
-  measure: TeamMeasure,
-  firstRequest: TeamSelectionSnapshot['firstRequest'],
-): number | UsdAmount {
-  switch (measure) {
-    case 'tokens': {
-      return firstRequest.tokens
-    }
-    case 'inputTokens': {
-      return firstRequest.inputTokens
-    }
-    case 'outputTokens': {
-      return firstRequest.outputTokens
-    }
-    case 'spendUsd': {
-      return firstRequest.spendUsd
-    }
-    case 'tasks': {
-      return 1
-    }
-  }
-}
-
-function entryAgent(entry: TeamPoolEntry, snapshot: TeamSelectionSnapshot): TeamAgentProfile {
-  return isDefaultEntry(entry.agent) ? snapshot.defaultAgent : entry.agent
-}
-
-/**
- * The first entry with headroom, in pool order. Headroom means all of
- * D75's hold: `concurrent` has room, every `day` and `lifetime` cap (and
- * any `task` cap the entry sets) has room for the task's first request, the
- * agent is not marked or unavailable, and the per-agent, global, process,
- * turn and team limits have room. A pool with no entries answers
- * "not staffed" at once, under every policy.
- */
-export function selectTeamEntry(
-  pool: TeamRolePool,
-  snapshot: TeamSelectionSnapshot,
-  tasksPerTurnDefault: number,
-): TeamSelection {
-  if (pool.entries.length === 0) {
-    return { kind: 'notStaffed', roleId: pool.roleId }
-  }
-  const reasons: TeamEntryExhaustion[] = []
-  for (const entry of pool.entries) {
-    const refusal = refuseEntry(pool, entry, snapshot, tasksPerTurnDefault)
-    if (refusal === undefined) {
-      return { kind: 'selected', entry, agent: entryAgent(entry, snapshot) }
-    }
-    reasons.push(refusal)
-  }
-  return { kind: 'exhausted', roleId: pool.roleId, policy: pool.policy, reasons }
-}
-
-/** Why an entry has no headroom, if any: the first limit that refuses. */
-function refuseEntry(
-  pool: TeamRolePool,
-  entry: TeamPoolEntry,
-  snapshot: TeamSelectionSnapshot,
-  tasksPerTurnDefault: number,
-): TeamEntryExhaustion | undefined {
-  const agent = entryAgent(entry, snapshot)
-  const mark = snapshot.marks.at(agent.key, snapshot.nowMs)
-  if (mark !== undefined) {
-    return {
-      entryId: entry.id,
-      reason: mark.kind === 'rateLimited' ? 'rateLimited' : 'usageLimit',
-    }
-  }
-  if (!snapshot.isAgentAvailable(agent)) {
-    return { entryId: entry.id, reason: 'unavailable' }
-  }
-  const agentRunning = snapshot.runningByAgent.get(agent.key) ?? 0
-  if (agentRunning >= snapshot.agentLimit(agent.key)) {
-    return { entryId: entry.id, reason: 'agent' }
-  }
-  if (snapshot.global.running >= snapshot.global.limit) {
-    return { entryId: entry.id, reason: 'global' }
-  }
-  if (agent.kind !== 'engine' && snapshot.process.running >= snapshot.process.limit) {
-    return { entryId: entry.id, reason: 'process' }
-  }
-  const turnLimit = pool.tasksPerTurn ?? tasksPerTurnDefault
-  if (snapshot.startedThisTurn >= turnLimit) {
-    return { entryId: entry.id, reason: 'turn' }
-  }
-  if ((snapshot.runningByEntry.get(entry.id) ?? 0) >= entry.concurrent) {
-    return { entryId: entry.id, reason: 'concurrent' }
-  }
-  if (snapshot.teamBudget !== undefined && agent.billing === 'key') {
-    const budget = snapshot.teamBudget
-    if (
-      Usd.from(budget.spendUsedUsd)
-        .add(Usd.from(snapshot.firstRequest.spendUsd))
-        .compare(Usd.from(budget.spendCapUsd)) > 0 ||
-      budget.tokensUsed + snapshot.firstRequest.tokens > budget.tokensCap
-    ) {
-      return { entryId: entry.id, reason: 'budget' }
-    }
-  }
-  for (const cap of entry.caps) {
-    if (!isTeamCapValid(cap)) {
-      continue
-    }
-    const used = snapshot.usedByEntryCap(entry.id, cap)
-    if (
-      Usd.from(used)
-        .add(Usd.from(firstRequestAmount(cap.measure, snapshot.firstRequest)))
-        .compare(Usd.from(cap.amount)) > 0
-    ) {
-      return { entryId: entry.id, reason: 'cap', cap, used: Number(used) }
-    }
-  }
-  return undefined
-}
 
 /**
  * Records the move from the role's last entry to the selected one: the
@@ -723,6 +630,8 @@ export function formatTeamAmount(measure: TeamMeasure, amount: number): string {
 // --- M96c scheduler region (lane S). M96 lane A owns pool/accounting selection. ---
 
 export interface SchedulerDependencies {
+  /** Absent leaves D75's board, scheduling and requests byte-identical. */
+  borrowing?: SchedulerBorrowPort
   now(): number
   context(): PickContext
   /** Resources/lease/throttle/load guard: transient waits never ask the user. */
@@ -752,12 +661,18 @@ export class TeamScheduler {
   private draining: Promise<void> | undefined
   private hasWake = false
   private isStopped = false
+  private readonly borrowing: SchedulerBorrowing | undefined
 
   constructor(
     private readonly board: TaskBoard,
     private readonly slots: SchedulerSlots,
     private readonly deps: SchedulerDependencies,
-  ) {}
+  ) {
+    this.borrowing =
+      deps.borrowing === undefined
+        ? undefined
+        : new SchedulerBorrowing(board, deps.borrowing, this.picker)
+  }
 
   private request(task: TeamBoardTask, entry: SchedulerEntry): SlotRequest {
     return {
@@ -773,6 +688,11 @@ export class TeamScheduler {
 
   private key(ref: Pick<SlotRequest, 'taskId' | 'attempt'>): string {
     return JSON.stringify([ref.taskId, ref.attempt])
+  }
+
+  private hasSlot(task: TeamBoardTask, entry: SchedulerEntry): boolean {
+    const ref = this.request(task, entry)
+    return this.slots.isReserved(ref) || this.slots.refusal(ref) === undefined
   }
 
   private canDispatch(): boolean {
@@ -802,15 +722,14 @@ export class TeamScheduler {
       this.board.refresh(this.deps.now())
       const tasks = this.board.snapshot().tasks
       const supplied = this.deps.context()
-      const context: PickContext = {
+      let context: PickContext = {
         ...supplied,
         now: this.deps.now(),
         canStart: (task, entry) =>
-          !considered.has(task.id) &&
-          supplied.canStart(task, entry) &&
-          (this.slots.isReserved(this.request(task, entry)) ||
-            this.slots.refusal(this.request(task, entry)) === undefined),
+          !considered.has(task.id) && supplied.canStart(task, entry) && this.hasSlot(task, entry),
       }
+      if (this.borrowing !== undefined)
+        context = await this.borrowing.tick(context, () => this.deps.journal(this.board.snapshot()))
       const pick = this.picker.pick(tasks, context)
       if (!pick) {
         for (const task of tasks)
@@ -841,6 +760,26 @@ export class TeamScheduler {
           current.currentAttempt !== pick.task.currentAttempt
         )
           continue
+        if (context.selection?.(current).preference !== undefined) {
+          const live = this.deps.context()
+          let checked: PickContext = {
+            ...live,
+            now: this.deps.now(),
+            canStart: (task, entry) => live.canStart(task, entry) && this.hasSlot(task, entry),
+          }
+          if (this.borrowing !== undefined)
+            checked = await this.borrowing.tick(checked, () =>
+              this.deps.journal(this.board.snapshot()),
+            )
+          const refreshed = this.picker.rank([current], checked)[0]?.entry
+          if (
+            refreshed?.id !== pick.entry.id ||
+            refreshed.agentProfileId !== pick.entry.agentProfileId ||
+            refreshed.modelId !== pick.entry.modelId ||
+            refreshed.kind !== pick.entry.kind
+          )
+            continue
+        }
         const input = this.board.dependencyInput(current.id)
         const attempt: TeamAttempt = {
           number: ref.attempt,
@@ -861,6 +800,7 @@ export class TeamScheduler {
           },
         }
         if (!this.board.begin(current.id, attempt)) continue
+        this.borrowing?.started(current, pick.entry, attempt.startedAt)
         hasAttempt = true
         await this.deps.journal(this.board.snapshot())
         // Pause or Stop while journalling must still prevent a launch.
@@ -957,6 +897,7 @@ export class TeamScheduler {
   async retired(ref: Pick<SlotRequest, 'taskId' | 'attempt'>): Promise<void> {
     const attempt = this.board.task(ref.taskId).attempts.find((item) => item.number === ref.attempt)
     if (attempt?.state !== 'retired') throw new Error('team:notRetired')
+    this.borrowing?.retired(this.board.task(ref.taskId), ref.attempt)
     this.slots.release(ref, 'retired')
     this.leases.get(this.key(ref))?.release()
     this.leases.delete(this.key(ref))

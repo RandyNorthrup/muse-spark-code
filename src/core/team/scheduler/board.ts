@@ -18,6 +18,7 @@ import {
   type TeamBoardTaskState,
 } from '../../../shared/team'
 import { fill } from '../../../shared/l10n/text'
+import { teamHandoffRecordSchema, type TeamChainEntry } from '../../../shared/teamHandoff'
 
 export interface BoardSubmission {
   id: string
@@ -356,6 +357,36 @@ export class TaskBoard {
     task.state = 'running'
     delete task.blockedReason
     return true
+  }
+
+  /** Journalled with the board, including demand resets when a main candidate frees. */
+  demand(id: string, nowMs: number, isMainFree: boolean): void {
+    const task = this.requireTask(id)
+    task.unmetSinceMs = isMainFree ? nowMs : (task.unmetSinceMs ?? nowMs)
+  }
+
+  borrowEnded(candidateId: string, endedAtMs: number): void {
+    const cooldowns = (this.board.borrowCooldowns ?? []).filter(
+      (row) => row.candidateId !== candidateId,
+    )
+    this.board.borrowCooldowns = [...cooldowns, { candidateId, endedAtMs }].slice(
+      -TEAM_SCHED_HISTORY_MAX,
+    )
+  }
+
+  recallAsked(id: string, atMs: number | undefined): void {
+    const task = this.requireTask(id)
+    if (atMs === undefined) delete task.recallAskedAtMs
+    else task.recallAskedAtMs ??= atMs
+  }
+
+  appendChain(id: string, link: TeamChainEntry): void {
+    const task = this.requireTask(id)
+    task.handoff = teamHandoffRecordSchema.parse({
+      taskId: task.id,
+      roleId: task.roleId,
+      chain: [...(task.handoff?.chain ?? []), link],
+    })
   }
 
   finishAttempt(

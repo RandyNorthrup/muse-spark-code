@@ -37,6 +37,7 @@ import { isCredentialVariable } from './credentialEnvironment'
 // data they carry is here, so both surfaces read one shape.
 
 import * as z from 'zod/mini'
+import { teamHandoffRecordSchema } from './teamHandoff'
 
 // An agent is a model the user can run, by who runs the tools (D75): the
 // extension (`engine`, on the Model API or an M95 provider), a hidden
@@ -590,6 +591,9 @@ export const teamBoardTaskSchema = z
     held: z.boolean(),
     createdAt: count,
     readyAt: z.optional(count),
+    unmetSinceMs: z.optional(count),
+    recallAskedAtMs: z.optional(count),
+    handoff: z.optional(teamHandoffRecordSchema),
     blockedReason: z.optional(text),
     branch: z.optional(path),
     currentAttempt: count,
@@ -601,6 +605,8 @@ export const teamBoardTaskSchema = z
     z.refine(
       (task) =>
         (task.state !== 'blocked' || task.blockedReason !== undefined) &&
+        (task.handoff === undefined ||
+          (task.handoff.taskId === task.id && task.handoff.roleId === task.roleId)) &&
         task.attempts.every((attempt, index) => attempt.number === index + 1) &&
         task.currentAttempt === task.attempts.length,
     ),
@@ -622,6 +628,11 @@ export const teamBoardSchema = z
     windowInstanceId: id,
     paused: z.boolean(),
     tasks: z.array(teamBoardTaskSchema).check(z.maxLength(TEAM_SCHED_HISTORY_MAX)),
+    borrowCooldowns: z.optional(
+      z
+        .array(z.object({ candidateId: id, endedAtMs: count }))
+        .check(z.maxLength(TEAM_SCHED_HISTORY_MAX)),
+    ),
   })
   .check(
     z.refine(
