@@ -73,6 +73,15 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 75,
   },
   {
+    // FIXM103W2: the companion bridge's lazy validated boundaries. The bridge
+    // awaits makerBoundarySchemas() from startup instead of importing the
+    // maker schemas from it, so maker validation and its Zod copy stay in this
+    // deferred closure and never rejoin the eager chunk (12 findings).
+    name: 'maker boundaries',
+    entries: ['src/webview/maker/boundaries.ts'],
+    budgetKiB: 50,
+  },
+  {
     name: 'code highlighting',
     entries: ['src/webview/components/HighlightedCode.tsx'],
     budgetKiB: 125,

@@ -29,7 +29,13 @@ export {
   companionPresenceSchema,
   companionLaunchSchema,
 } from '../shared/companionProtocol'
-export { makerHostMessageSchema, makerSurfaceMessageSchema } from '../shared/makerProtocol'
+
+// The companion bridge validates its maker messages against these schemas, but
+// they must not join startup: the bridge awaits this loader, so maker
+// validation (and its Zod copy) stays in a deferred chunk (PLAN.md D6, M57).
+export async function makerBoundarySchemas() {
+  return await import('./maker/boundaries')
+}
 
 const TasksApp = lazy(async () => {
   const { TasksApp } = await import('./TasksApp')

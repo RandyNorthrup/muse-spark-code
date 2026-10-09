@@ -205,6 +205,9 @@ describe('runtime maker command execution without a credential store or device',
     const assets = await companionAssets(fixture.distDirectory)
     expect(assets.get('/')?.body).not.toContain('maker-code')
     expect(assets.get('/bridge.js')?.body).toContain("fetch('/presence'")
+    // Maker schemas stay out of the startup bundle: the bridge awaits the
+    // startup bundle's lazy loader instead of importing them from it.
+    expect(assets.get('/bridge.js')?.body).toContain('makerBoundarySchemas()')
     expect(assets.get('/bridge.js')?.body).toContain("fetch('/launch-code'")
     expect(assets.get('/bridge.js')?.body).not.toContain('location.hash')
   })

@@ -12,7 +12,8 @@ window.acquireVsCodeApi = () => ({
   setState: value => {state=value;},
   postMessage: raw => {void (async () => {
     await connected;
-    const {companionPresenceSchema,makerHostMessageSchema,makerSurfaceMessageSchema}=await ready;
+    const {companionPresenceSchema,makerBoundarySchemas}=await ready;
+    const {makerHostMessageSchema,makerSurfaceMessageSchema}=await makerBoundarySchemas();
     const message=makerSurfaceMessageSchema.parse(raw);
     const headers={'Content-Type':'application/json'};
     const answering=message.type==='makerAnswer';
