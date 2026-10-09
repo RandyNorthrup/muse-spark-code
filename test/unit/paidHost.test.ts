@@ -98,7 +98,7 @@ describe('the paid-use popup (M58)', () => {
         kind: 'image',
         tokens: {},
         units: { images: 2 },
-        cost: { certainty: 'computed', usd: 0.01 },
+        cost: { certainty: 'computed', usd: '0.01' },
         outcome: 'completed',
       })
       const read = Promise.withResolvers<readonly (typeof record)[]>()
