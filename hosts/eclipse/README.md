@@ -1,6 +1,6 @@
 # Muse Spark Code (Unofficial) for Eclipse
 
-Lane G's native host for the frozen MHP 1.1 panel carrier. The plugin owns
+The native host for the frozen MHP 1.3 panel carrier. The plugin owns
 SWT containers and editor services; the shared runtime owns the conversation,
 providers, permissions, paid consent and daily ledger. Authentication stays in
 the runtime OS credential store, through `auth set` in the user's terminal.
@@ -13,18 +13,21 @@ are tracked in the lane certification; they are not inferred from the Linux
 platform tests.
 
 Install the built p2 site through Help > Install New Software. Open the Muse
-view from Window > Show View, or use its Window-menu command. The completion
+view with its Window-menu command: it activates the runtime's owned surface,
+or starts the runtime so its initial surface opens. A view opened directly
+from Window > Show View carries no runtime session and shows the start-failure
+page instead of a dead panel. The Window-menu Open command replaces that
+unbound page with the runtime's owned view. The completion
 command is bound to Alt+backslash; Tab accepts a displayed suggestion, and
 Escape rejects it. Trust starts off and is granted by the user's Window-menu
 command after the localized warning. Opening a folder imports it as an Eclipse
 project (creating `.project` if absent), and optionally opens a workbench window.
 
 The launch interface targets an installed `muse-spark-code-acp panel --stdio`.
-The frozen export declares runtime-to-host initialization: the plugin waits
-for that request and returns the selected version and supported capabilities.
-The native host collects product version, installed language, theme, folders
-and trust for the exact MHP 1.2 `hostContext` proposal in PLAN D84. Frozen
-1.1 has no field for that handoff. An absolute
+The editor initiates initialization with product version, installed language,
+theme, folders, trust and its supported editor services. The first folder is
+the exact runtime working directory. The runtime replies with its independently
+supported services; legacy 1.1/1.2 selections are refused. An absolute
 `MUSE_SPARK_RUNTIME` executable path overrides PATH discovery. There is no
 automatic installation or download. Credential variables are removed before
 launch. Release lane I supplies the installed runtime and platform Node
@@ -58,16 +61,32 @@ versions are pinned in the POMs.
 `verify` includes Checkstyle, the asset-freshness regression test and all native
 JUnit tests through Tycho's UI harness. Tests use a private authored fake runtime; they never invoke a model
 or charge an account. The update site and its ZIP are under
-`repository/target/`. Native `surfaces` is unadvertised in frozen 1.1. The
-capability-checked MHP 1.2 `surfaceHtml` port implements the Eclipse side of
-the proposed What's New renderer: bounded complete HTML, one approved local
+`repository/target/`. Native chat and Tasks surfaces are advertised. Native
+confirmation, input, selection, clipboard, external browsing, notifications,
+status and progress are window-owned. Confirmation returns the exact opaque
+choice ID; cancellation and window retirement close dialogs and refuse consent.
+Dynamic native commands are window-scoped and removed on teardown; suggested
+keybindings currently return an explicit unavailable failure.
+File open/save uses the absolute path returned by SWT's dialog. Settled
+diagnostics wait for prior workspace analysis and a build of the saved bytes;
+pending analysis stays unchecked while the runtime polls within its settle
+budget. Runtime-setting shortcuts explicitly report unavailable because
+Eclipse's preferences do not expose those keys; the runtime displays the
+failed action to the user.
+Runtime surface closure and window teardown dispose native browsers. Auxiliary
+kinds without the A/C asset/binding adapter return an explicit unavailable
+failure before creating a view.
+
+The retained `surfaceHtml` seam implements the Eclipse side of the rejected
+What's New proposal: bounded complete HTML, one approved local
 script, the native nonce CSP, per-binding click indices, fresh rendering on
-reload and rejection of stale/disposed replies. B/D and lane 0 must approve
-and connect that port before it is offered on the wire. Auxiliary pages use
-the declared companion-tabs fallback after B/C integration.
+reload and rejection of stale/disposed replies. It is unconnected and is not
+offered on the wire. A/C must supply the frozen auxiliary asset/binding contract.
 
 The source is not a supported full product until the
 shared lanes are integrated and every feature in the certification is qualified.
+See [the parity checkpoint](../../docs/certification/m104-pe.md) for current
+receipts and named gaps.
 
 Review repairs cover bounded shutdown even for an unreading runtime, forced
 cleanup of captured descendants, owner cleanup after transport loss and

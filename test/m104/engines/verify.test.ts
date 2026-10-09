@@ -1,13 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createRuntimeVerify, type RuntimeVerifyDeps } from '../../../src/runtime/features/verify'
 import { parseMhpResult } from '../../../src/shared/hostApi/protocol'
-import { MHP } from '../../../src/shared/constants'
+import { DIAGNOSTICS_SETTLE_MAX_MS, MHP } from '../../../src/shared/constants'
 import type { HostServices } from '../../../src/shared/hostApi/methods'
 import { fingerprint } from '../../../src/core/verify/fingerprint'
 
 const owners: ReturnType<typeof createRuntimeVerify>[] = []
 afterEach(async () => {
   await Promise.all(owners.splice(0).map((owner) => owner.dispose()))
+  vi.useRealTimers()
 })
 
 function setup() {
@@ -53,6 +54,35 @@ function setup() {
 }
 
 describe('portable versioned editor verification', () => {
+  it('waits for pending native analysis before consuming the versioned report', async () => {
+    const { owner, diagnostics, uri, file, signal } = setup()
+    diagnostics.mockResolvedValueOnce(null).mockResolvedValue({ uri, version: 1, diagnostics: [] })
+    const checking = owner.verify.diagnosticsAfterEdit([file], signal)
+    const result = await checking
+    expect(diagnostics).toHaveBeenCalledTimes(2)
+    expect(result).toEqual([{ file, entries: [] }])
+  })
+
+  it('bounds pending analysis and cancels polling when the owner closes', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const { owner, diagnostics, file, signal } = setup()
+    diagnostics.mockResolvedValue(null)
+    const checking = owner.verify.diagnosticsAfterEdit([file], signal)
+    await vi.waitFor(() => {
+      expect(diagnostics).toHaveBeenCalledTimes(1)
+    })
+    vi.setSystemTime(Date.now() + DIAGNOSTICS_SETTLE_MAX_MS)
+    expect(await checking).toEqual([{ file, entries: [], unchecked: 'noReport' }])
+    const beforeStoppedCalls = diagnostics.mock.calls.length
+    const stopped = owner.verify.diagnosticsAfterEdit([file], signal)
+    await vi.waitFor(() => {
+      expect(diagnostics.mock.calls.length).toBeGreaterThan(beforeStoppedCalls)
+    })
+    const closing = owner.dispose()
+    expect(await stopped).toEqual([{ file, entries: [], unchecked: 'stopped' }])
+    await closing
+  })
+
   it('reports a version-attested diagnostic using workspace paths and one-based positions', async () => {
     const { owner, diagnostics, uri, file, signal } = setup()
     diagnostics.mockResolvedValue({

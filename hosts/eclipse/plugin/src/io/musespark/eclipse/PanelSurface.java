@@ -38,7 +38,7 @@ public final class PanelSurface {
         if (!ready) throw new IllegalArgumentException("MHP_PANEL_NOT_READY");
         contract.payload(kind, "toHost", payload);
         if (reloading && payload.isJsonObject() && stateRequest().isJsonObject() && payload.getAsJsonObject().get("type").equals(stateRequest().getAsJsonObject().get("type"))) { reloading = false; return; }
-        JsonObject frame = Json.object("mhp", "1.1", "kind", "panel", "surface", id, "direction", "toHost", "seq", outgoing, "payload", payload);
+        JsonObject frame = Json.object("mhp", "1.4", "kind", "panel", "surface", id, "direction", "toHost", "seq", outgoing, "payload", payload);
         admit(frame, "toHost", outgoing); send.accept(frame); outgoing++;
     }
     public synchronized JsonElement receive(JsonObject frame) {
@@ -60,18 +60,19 @@ public final class PanelSurface {
     public synchronized void state(JsonElement value) { checkOpen(); contract.state(value); state = value.deepCopy(); }
     public synchronized void close(int browserDrops) {
         if (closed) return;
-        int count = browserDrops + purge.applyAsInt(id);
-        JsonObject frame = lifecycle("closed"); frame.addProperty("droppedMessages", count);
-        contract.panel("lifecycle", frame); send.accept(frame);
-        if (count != 0) log.accept("MHP_PANEL_DROPPED " + count);
-        closed = true; ready = false; state = null;
+        try {
+            int count = browserDrops + purge.applyAsInt(id);
+            JsonObject frame = lifecycle("closed"); frame.addProperty("droppedMessages", count);
+            contract.panel("lifecycle", frame); send.accept(frame);
+            if (count != 0) log.accept("MHP_PANEL_DROPPED " + count);
+        } finally { closed = true; ready = false; state = null; }
     }
     private void checkOpen() { if (closed) throw new IllegalStateException("MHP_PANEL_UNKNOWN_SURFACE"); }
     private JsonElement stateRequest() {
         return kind.equals("whatsNew") ? JsonNull.INSTANCE : Json.object("type", kind.equals("tasks") ? "tasksReady" : kind.equals("usage") ? "readUsage" : "ready");
     }
     private JsonObject lifecycle(String event) {
-        JsonObject frame = Json.object("mhp", "1.1", "kind", "surface", "surface", id, "sessionId", session, "surfaceKind", kind, "event", event);
+        JsonObject frame = Json.object("mhp", "1.4", "kind", "surface", "surface", id, "sessionId", session, "surfaceKind", kind, "event", event);
         if (!event.equals("closed") && !event.equals("reloaded")) contract.panel("lifecycle", frame);
         return frame;
     }

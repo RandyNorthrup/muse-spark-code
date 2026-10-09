@@ -24,9 +24,12 @@ const matches = (schema, value, root = schema) => {
   let type = typeof value
   if (value === null) type = 'null'
   else if (Array.isArray(value)) type = 'array'
+  const types = Array.isArray(schema.type) ? schema.type : [schema.type]
   if (
     schema.type &&
-    (schema.type === 'integer' ? !Number.isSafeInteger(value) : schema.type !== type)
+    types.every((declared) =>
+      declared === 'integer' ? !Number.isSafeInteger(value) : declared !== type,
+    )
   )
     return false
   if (
@@ -68,6 +71,7 @@ const matches = (schema, value, root = schema) => {
       break
     }
     case 'array': {
+      if (schema.maxItems !== undefined && value.length > schema.maxItems) return false
       if (schema.minItems !== undefined && value.length < schema.minItems) return false
       if (
         schema.uniqueItems &&

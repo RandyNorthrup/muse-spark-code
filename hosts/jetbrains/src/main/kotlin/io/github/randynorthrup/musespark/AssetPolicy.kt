@@ -16,7 +16,7 @@ class AssetPolicy(
     }.getOrDefault(false)
 
   fun csp(nonce: String): String =
-    "default-src 'none'; script-src 'nonce-$nonce'; style-src 'unsafe-inline'; " +
+    "default-src 'none'; script-src 'nonce-$nonce' 'strict-dynamic'; style-src 'unsafe-inline'; " +
       "img-src data: blob:; font-src 'none'; connect-src 'none'; media-src blob:; " +
       "object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"
 

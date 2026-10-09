@@ -63,9 +63,12 @@ class RuntimeConnection(
         }
       },
       events.copy(
+        initialized = {
+          runtime.snapshotDescendants()
+          events.initialized()
+        },
         diagnostic = { events.diagnostic(safeDiagnostic(it)) },
         failed = ::stop,
-        stopped = { stop("MHP_TRANSPORT_ENDED") },
         completion = completion,
         epoch = epoch,
       ),
@@ -81,6 +84,7 @@ class RuntimeConnection(
   fun start() {
     owner.start()
     pipe.start()
+    post(1, action = protocol::start)
     runtime.drainStderr { events.diagnostic(safeDiagnostic(it)) }
     runtime.process.onExit().thenRun { stop("MHP_TRANSPORT_ENDED") }
   }

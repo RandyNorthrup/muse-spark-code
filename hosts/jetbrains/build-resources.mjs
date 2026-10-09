@@ -24,8 +24,8 @@ export { parseWhatsNewContent } from './src/core/whatsNew/whatsNewContent';`,
   outfile: helper,
 })
 // JCEF's public HTML loader does not need a native HTTP/resource-handler lane.
-// Fold the shared entry's existing chunks into a nonce-authorized inline script.
-for (const entry of ['main', 'whatsNew']) {
+// What's New stays inline; chat/Tasks retain the portable module graph.
+for (const entry of ['whatsNew']) {
   await esbuild.build({
     entryPoints: [path.join(root, `dist/webview/${entry}.js`)],
     bundle: true,
@@ -35,7 +35,7 @@ for (const entry of ['main', 'whatsNew']) {
     outfile: path.join(output, `${entry}.inline.js`),
   })
 }
-checkNativeBundleSize(output)
+checkNativeBundleSize(output, path.join(root, 'dist/webview/portable'))
 const renderer = await import(pathToFileURL(helper).href)
 const content = renderer.parseWhatsNewContent(
   await readFile(path.join(root, 'dist/whatsNew.json'), 'utf8'),

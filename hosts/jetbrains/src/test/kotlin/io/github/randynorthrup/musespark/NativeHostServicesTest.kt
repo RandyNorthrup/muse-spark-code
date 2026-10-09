@@ -5,6 +5,8 @@ import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.openapi.util.Disposer
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.Executor
 
 class NativeHostServicesTest : BasePlatformTestCase() {
@@ -70,6 +72,9 @@ class NativeHostServicesTest : BasePlatformTestCase() {
     val file = myFixture.addFileToProject("diagnostics.xml", "<root><child></root>").virtualFile
     PsiTestUtil.addContentRoot(module, file.parent)
     myFixture.configureFromExistingVirtualFile(file)
+    // Drain fixture/VFS events before the SDK's non-cancellable highlighting check.
+    com.intellij.testFramework.PlatformTestUtil
+      .dispatchAllEventsInIdeEventQueue()
     assertTrue(myFixture.doHighlighting().any { it.severity >= com.intellij.lang.annotation.HighlightSeverity.ERROR })
     return services()
   }
@@ -97,6 +102,130 @@ class NativeHostServicesTest : BasePlatformTestCase() {
     JsonBoundary().result("diagnostics/get", json("jsonrpc" to "2.0", "id" to "get", "result" to diagnostics))
   }
 
+  private fun fileServices(choice: Path?): NativeHostServices {
+    val widgets = NativeWidgets(project, JsonBoundary()) {}
+    Disposer.register(testRootDisposable, widgets)
+    return NativeHostServices(
+      project,
+      { _, _ -> error("fixture-unused") },
+      widgets,
+      options = NativeHostOptions(chooseFile = { _, _, _ -> choice }),
+    )
+  }
+
+  fun testFileRequestsMapNativeChoicesToMhpResults() {
+    val picked = Files.createTempFile("m104-pick-", ".md")
+    val target = Files.createTempDirectory("m104-save-").resolve("fixture.md")
+    try {
+      val selecting = fileServices(picked)
+      assertEquals(
+        picked.toUri().toASCIIString(),
+        selecting.request("ui/openFile", json("title" to "fixture"), RequestCancellation()).asString,
+      )
+      val declining = fileServices(null)
+      assertTrue(
+        declining.request("ui/openFile", json("title" to "fixture"), RequestCancellation()).isJsonNull,
+      )
+      val saving = fileServices(target)
+      assertEquals(
+        jsonValue(true),
+        saving.request(
+          "ui/saveText",
+          json("title" to "fixture", "suggestedName" to "fixture.md", "text" to "saved fixture"),
+          RequestCancellation(),
+        ),
+      )
+      assertEquals("saved fixture", Files.readString(target))
+      assertEquals(
+        jsonValue(false),
+        declining.request(
+          "ui/saveText",
+          json("title" to "fixture", "suggestedName" to "fixture.md", "text" to "saved fixture"),
+          RequestCancellation(),
+        ),
+      )
+    } finally {
+      Files.deleteIfExists(picked)
+      Files.deleteIfExists(target)
+      Files.deleteIfExists(target.parent)
+    }
+  }
+
+  fun testSettledDiagnosticsAttestTheCheckedDocumentVersion() {
+    val services = brokenXml()
+    val uri = DocumentServices.uri(myFixture.file.virtualFile)
+    val version = myFixture.editor.document.modificationStamp
+    val settled =
+      services
+        .request("diagnostics/settled", json("uri" to uri, "expectedVersion" to version), RequestCancellation())
+        .asJsonObject
+    assertEquals(uri, settled["uri"].asString)
+    assertEquals(version, settled["version"].asLong)
+    assertTrue(settled.getAsJsonArray("diagnostics").any { it.asJsonObject["severity"].asString == "error" })
+    assertTrue(
+      services
+        .request("diagnostics/settled", json("uri" to uri, "expectedVersion" to (version + 1)), RequestCancellation())
+        .isJsonNull,
+    )
+  }
+
+  fun testSettledDiagnosticsStayPendingAfterAnEditUntilHighlightingCompletes() {
+    val services = brokenXml()
+    com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction(project) {
+      myFixture.editor.document.setText("<root><new></root>")
+    }
+    val uri = DocumentServices.uri(myFixture.file.virtualFile)
+    val version = myFixture.editor.document.modificationStamp
+    val params = json("uri" to uri, "expectedVersion" to version)
+    assertTrue(
+      "An edit invalidates cached highlighting",
+      services.request("diagnostics/settled", params, RequestCancellation()).isJsonNull,
+    )
+    com.intellij.psi.PsiDocumentManager
+      .getInstance(project)
+      .commitAllDocuments()
+    assertTrue(
+      "Committed PSI is still pending analysis",
+      services.request("diagnostics/settled", params, RequestCancellation()).isJsonNull,
+    )
+    myFixture.doHighlighting()
+    val report = services.request("diagnostics/settled", params, RequestCancellation()).asJsonObject
+    assertEquals(version, report["version"].asLong)
+    assertTrue(report.getAsJsonArray("diagnostics").any { it.asJsonObject["severity"].asString == "error" })
+  }
+
+  fun testRunInvokesRegisteredCommandsAndRefusesUnknown() {
+    val executed = mutableListOf<String>()
+    val widgets = NativeWidgets(project, JsonBoundary()) { executed.add(it) }
+    Disposer.register(testRootDisposable, widgets)
+    val services = NativeHostServices(project, { _, _ -> error("fixture-unused") }, widgets)
+    val cancellation = RequestCancellation()
+    services.request("commands/register", json("id" to "fixture-run", "title" to "Fixture run"), cancellation)
+    assertEquals(
+      jsonValue(null),
+      services.request("commands/run", json("id" to "fixture-run", "args" to emptyList<String>()), cancellation),
+    )
+    assertEquals(listOf("fixture-run"), executed)
+    assertEquals(
+      "MHP_CAPABILITY_UNAVAILABLE",
+      org.junit.Assert
+        .assertThrows(Exception::class.java) {
+          services.request("commands/run", json("id" to "missing", "args" to emptyList<String>()), cancellation)
+        }.message,
+    )
+  }
+
+  fun testUnhandledUiMethodsKeepTheirTypedCapabilityRefusal() {
+    val services = services()
+    assertEquals(
+      "MHP_UNSUPPORTED_CAPABILITY",
+      org.junit.Assert
+        .assertThrows(Exception::class.java) {
+          services.request("ui/unhandled-fixture", json(), RequestCancellation())
+        }.message,
+    )
+  }
+
   fun testDiagnosticsDidChangePublishesSettledErrorsAndClearsAfterCorrection() {
     val services = brokenXml()
     val sent = mutableListOf<JsonObject>()
@@ -104,22 +233,18 @@ class NativeHostServicesTest : BasePlatformTestCase() {
       MhpConnection(JsonBoundary(), services, Executor(Runnable::run), { frame, _ -> sent.add(frame) }, {
       }, ConnectionEvents({}, {}))
     Disposer.register(testRootDisposable) { peer.close() }
+    peer.initialize(
+      fixtureMetadata().apply {
+        add("protocolRange", json("minimum" to "mhp/1.4.0", "maximumExclusive" to "mhp/1.5.0"))
+        add("capabilities", jsonValue(services.capabilities))
+      },
+    )
     peer.receive(
       json(
         "jsonrpc" to "2.0",
-        "id" to "initialize",
-        "method" to "initialize",
-        "params" to
-          json(
-            "host" to json("id" to "runtime", "version" to "1"),
-            "locale" to "en",
-            "theme" to json("kind" to "dark", "tokens" to json()),
-            "folders" to emptyList<String>(),
-            "trusted" to true,
-          ).apply {
-            add("protocolRange", json("minimum" to "mhp/1.1.0", "maximumExclusive" to "mhp/1.2.0"))
-            add("capabilities", jsonValue(services.capabilities))
-          },
+        "id" to sent.last()["id"],
+        "result" to
+          json("protocolVersion" to "mhp/1.4.0", "capabilities" to services.capabilities),
       ),
     )
     installEditorEvents(project, services, peer, testRootDisposable)

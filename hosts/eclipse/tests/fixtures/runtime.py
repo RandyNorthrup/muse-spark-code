@@ -3,12 +3,11 @@
 import json
 import sys
 
-print(json.dumps({"jsonrpc": "2.0", "id": "fake-init", "method": "initialize", "params": {
-    "host": {"id": "eclipse", "version": "4.38"},
-    "protocolRange": {"minimum": "mhp/1.0.0", "maximumExclusive": "mhp/1.2.0"},
-    "capabilities": ["lifecycle", "workspace", "documents", "editor", "diagnostics", "window", "tab"],
-    "locale": "en", "theme": {"kind": "light", "tokens": {}}, "folders": [], "trusted": False
-}}), flush=True)
+initial = json.loads(sys.stdin.readline())
+assert initial["method"] == "initialize"
+assert initial["params"]["protocolRange"]["minimum"] == "mhp/1.4.0"
+print(json.dumps({"jsonrpc": "2.0", "id": initial["id"], "result": {
+    "protocolVersion": "mhp/1.4.0", "capabilities": initial["params"]["capabilities"]}}), flush=True)
 for line in sys.stdin:
     frame = json.loads(line)
     if len(sys.argv) == 3 and sys.argv[1] == "--receipts":

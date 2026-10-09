@@ -37916,6 +37916,66 @@ historical owned-suite subtotal to 205. Each fix gets regression failures and
 byte-exact red drills in `docs/certification/m104-pb.md`; no new dependency,
 guard widening, support promotion or live/paid call. The lane runs bounded
 rig checks; the lead retains aggregate quality and integration qualification.
+**FIXM104PE4 / RVF104PE3 (2026-10-07).** Adopt the same retained process
+identity model in both JVM hosts: capture pid/start instant at construction,
+every 10 ms and before shutdown; keep observed descendants after parent-first
+exit, and refuse reused pids. Port process stress receipts to Eclipse, including
+SIGKILL, `_exit`, detached children and mismatched identities. Generate Java
+and Kotlin error maps from the frozen MHP schema, with one shared alias list;
+every thrown schema error retains its numeric code and technical message.
+Check generated-file drift in the existing MHP gate and test both mappers
+against every schema entry. Replay regressions against `271d3bea2`, run full
+JVM gates and three owning-suite repeats, then sequential fresh-clone CI-style
+TypeScript gates at repository timeouts. Record PE round 4 in
+`docs/certification/m104.md`. Scoped checks replace aggregate quality; no
+merge, push, dependency, cap change, qualification promotion or live/paid call.
+The observed-ancestry discovery window in §9 remains explicit for both hosts.
+The full Gradle run exposed an existing first-frame receipt racing the OS's
+asynchronous forced exit; wait for the worker to stop within two seconds,
+retaining its no-periodic-tracker control and the termination assertion.
+
+**FIXM104PE3 / RVF104PE2 (2026-10-07).** Redesign Eclipse shutdown:
+the display owns analysis, command and native UI state; one documented lock
+owns cross-thread admission, surfaces and queued browser deliveries. Closing
+claims ownership once, dispatches native cleanup to its owner without waiting
+on the OSGi thread, isolates cleanup failures and always tears down the captured
+runtime tree in finally. Surface retirement remains final when its transport
+has closed; native view logging retains its plugin logger through deferred cleanup.
+The locked plugin registry refuses new acquisitions once stop claims it.
+Regressions inject an early cleanup failure and race
+non-UI close with settled-request mutation. Replace every restored placeholder
+before activating the owned chat view. Repair the descendant receipt to distinguish
+startup, zombies and reaping, repeat it 20 times and remove descendant killing
+for a red control. Decompose JetBrains native UI into a collaborator with a
+parameter object; Detekt must pass unchanged. Replay each fix against exact
+base `9ae7c6c34`, run the specified JVM gates/repeats and fresh-clone CI-style
+TypeScript checks at default test deadlines. Certification goes in
+`docs/certification/m104.md`; no merge/push or paid/live calls.
+
+**FIXM104PE2 / RVF104PE (2026-10-07).** Close the six P2 findings in
+the Linux/JVM hosts: preserve SWT's absolute file selection, attest diagnostics
+only after analysis of the saved version, prepare replacement JetBrains HTML
+through the native bridge/assets path, explicitly refuse unavailable runtime
+settings, replace unbound restored Eclipse views using the runtime-owned
+session, and repair the three failing native fixtures. Pending diagnostic
+reports are retried within the existing shared settle budget. Record exact-base
+regression failures, byte-exact guard drills, JVM gates and three repeated
+default-deadline owning suites, followed by fresh-clone CI-style TypeScript
+checks in `docs/certification/m104.md`. Scoped rig checks replace aggregate
+quality; no merge, dependency, cap change, support promotion or live/paid call.
+
+The fresh-clone full lint exposes three existing floating promises in
+`test/unit/judgeSameSession.test.ts`. This lane may make the fixture await
+its fake background completion instead of sleeping, while retaining the
+immediate-return assertion and synchronous invalid-timeout assertion. Run
+that owning file three times at the default deadline and prove the existing
+lint rule rejects the exact-base file; no judge production behavior changes.
+
+Plain Knip also finds the existing native module loader test outside its
+entry graph. Register that actual `node --test` entrypoint, without changing
+any ignore or rule, and record the exact-base gate failure and final pass.
+Regenerate the host API inventory using its existing writer: the pending
+poller adds a Node timer import, and the exact-base built-in counts are stale.
 
 **FIXM104PA4 / RVM104PA4 (2026-10-07).** Close the re-review's two P2
 findings in lane A's files, closing residual R3-2. State publication
@@ -38384,6 +38444,18 @@ generated host inventory remains F's integration responsibility. These gate
 deferrals apply only to the unshipped component lane; the lead must clear
 them and run aggregate quality before integration/support certification.
 Actual exits and unchanged size caps are recorded in `m104-pb.md`.
+**FIXM104PE4 scope (2026-10-07).** The rig/common brief substitutes scoped
+sequential fresh-clone TypeScript checks for aggregate quality/coverage and
+requires full JVM gates plus three repeated owning native suites. All existing
+caps, lint rules and test deadlines remain unchanged. The MHP gate also checks
+the generated Java/Kotlin error tables; controls must prove both drift guards.
+
+**FIXM104PE3 scope (2026-10-07).** The rig/common rules reserve aggregate
+`npm run quality` and coverage for the lead. This lane requires native Maven
+verify, Gradle test/Detekt, repeated owning JVM suites, and sequential
+fresh-clone TypeScript gates. The previous NativeHostServices Detekt deferral
+is removed: all three remaining findings are in scope and must be green with
+unchanged rules and thresholds.
 
 **FIXM104PA3 packaging correction (2026-10-06).** Lane A repairs the existing
 VSIX allowlist and its actual package-member/production activation tests for
@@ -45969,7 +46041,9 @@ review findings and terminal settlement-pricing failure.
 
 - **FIXM104E3 / RVM104E3 — R3-tree-discovery-window:** retained descendant
   identities fix cleanup of observed separate-session workers after parent-first
-  exit and JVM shutdown. Detached descendants outside observed ancestry can
+  exit and JVM shutdown. FIXM104PE4 applies the same observation model and
+  discovery-window limit to Eclipse, with startup/cadence/pre-stop captures and
+  pid/start-instant refusal; Eclipse has no OS process-group/job containment. Detached descendants outside observed ancestry can
   remain unseen, for example after creation/reparenting between the 10-ms
   observations. ProcessHandle cannot reconstruct an exited parent's ancestry.
   Cooperative runtime supervision and process-group/Windows-job containment

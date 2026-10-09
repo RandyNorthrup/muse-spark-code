@@ -6,6 +6,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
 import { format, resolveConfig } from 'prettier'
+import { generateMhpErrors } from './mhp-errors.mjs'
 
 const root = path.resolve(import.meta.dirname, '..')
 const { outputFiles } = await esbuild.build({
@@ -224,4 +225,5 @@ for (const { file, lockFile, bytes, locked } of exports) {
     await writeFile(file, bytes)
   }
 }
+await generateMhpErrors(process.argv.includes('--check'))
 console.log(process.argv.includes('--check') ? 'MHP schemas match.' : 'MHP schemas written.')

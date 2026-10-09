@@ -155,5 +155,12 @@ public final class Documents implements AutoCloseable {
         Buffer buffer = buffers.remove(uri(editor));
         if (buffer != null) buffer.document.removeDocumentListener(buffer.listener);
     }
+    public ITextEditor editor(String uri) {
+        for (IWorkbenchWindow window : PlatformUI.getWorkbench().getWorkbenchWindows()) for (IWorkbenchPage page : window.getPages()) for (IEditorReference reference : page.getEditorReferences()) {
+            IEditorPart part = reference.getEditor(false);
+            if (part instanceof ITextEditor text) { try { if (uri(text).equals(uri)) return text; } catch (IllegalArgumentException ex) { /* Inputs without a file URI never match. */ } }
+        }
+        return null;
+    }
     @Override public void close() { for (Buffer buffer : buffers.values()) buffer.document.removeDocumentListener(buffer.listener); buffers.clear(); }
 }

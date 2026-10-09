@@ -1,4 +1,5 @@
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { applyTextEdits } from '../../core/codeIntel/codeText'
 import type { VerifyHooks } from '../../core/backends/modelapi/verifyLoop'
@@ -13,6 +14,7 @@ import { MHP_METHODS } from '../../shared/hostApi/methods'
 import { diagnosticSchema, integerSchema, uriSchema } from '../../shared/hostApi/data'
 import {
   EDITOR_DEFAULT_TAB_SIZE,
+  DIAGNOSTICS_SETTLE_MAX_MS,
   FORMAT_TIMEOUT_MS,
   VERIFY_SHOWN_FILES_MAX,
 } from '../../shared/constants'
@@ -35,7 +37,7 @@ export interface RuntimeVerifyDeps {
     ExtensionSettings,
     'diagnosticsAfterEdits' | 'formatOnEdit' | 'checkCommands'
   >
-  /** Undefined means no fresh report, including an unsupported editor service. */
+  /** Null means analysis pending; undefined means no report or unsupported. */
   readonly settledDiagnostics: (
     uri: string,
     version: number,
@@ -87,13 +89,21 @@ export function createRuntimeVerify(deps: RuntimeVerifyDeps) {
       if (before.document.dirty) return { file, entries: [], unchecked: 'unsaved' }
       if (file.fingerprint !== undefined && fingerprint(before.text) !== file.fingerprint)
         return { file, entries: [], unchecked: 'changed' }
-      const report = await deps.settledDiagnostics(
+      const deadline = Date.now() + DIAGNOSTICS_SETTLE_MAX_MS
+      let report = await deps.settledDiagnostics(
         before.document.uri,
         before.document.version,
         signal,
       )
+      while (report === null && Date.now() < deadline) {
+        check(signal)
+        await delay(Math.min(100, deadline - Date.now()), undefined, { signal })
+        if (Date.now() >= deadline) break
+        report = await deps.settledDiagnostics(before.document.uri, before.document.version, signal)
+      }
       check(signal)
-      if (report === undefined) return { file, entries: [], unchecked: 'noReport' }
+      if (report === undefined || report === null)
+        return { file, entries: [], unchecked: 'noReport' }
       const settled = settledSchema.parse(report)
       if (!sameUri(settled.uri, before.document.uri) || settled.version !== before.document.version)
         return { file, entries: [], unchecked: 'changed' }

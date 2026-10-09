@@ -105,6 +105,7 @@ class RuntimeStressTest : HeavyPlatformTestCase() {
         runtime,
         JsonBoundary(),
         object : EditorServices {
+          override val metadata = fixtureMetadata()
           override val capabilities = listOf("lifecycle", "commands", "tab", "documents")
 
           override fun request(
@@ -232,53 +233,68 @@ class RuntimeStressTest : HeavyPlatformTestCase() {
       assertFalse(failure.stackTraceToString().contains("FIXTURE_ONLY_PRIVATE_ACCOUNT_FILE_CONTENTS"))
     }
 
-  fun testR1MetadataEdtHandoffCannotDeadlockDisposal() {
-    val fixture = Fixture("metadata", false)
-    val entered = CountDownLatch(1)
-    val releaseEdt = CountDownLatch(1)
-    try {
-      SwingUtilities.invokeLater {
-        entered.countDown()
-        releaseEdt.await(WAIT_SECONDS, TimeUnit.SECONDS)
-      }
-      assertTrue(entered.await(WAIT_SECONDS, TimeUnit.SECONDS))
-      fixture.release()
-      // The owner closes without waiting on the blocked IDE handoff.
-      fixture.owner.close()
-      fixture.owner.terminated.get(WAIT_SECONDS, TimeUnit.SECONDS)
-    } finally {
-      releaseEdt.countDown()
-      try {
-        fixture.close()
-      } finally {
-        fixture.emergencyCleanup()
-      }
-    }
-    exercise("normal") {}
-  }
+  fun testR1MetadataEdtHandoffCannotDeadlockDisposal() = metadataLifetime(true)
 
-  fun testR2MetadataDeadlineTearsDownTheWholeConnectingAttemptAndReconnects() {
-    val fixture = Fixture("metadata", false)
+  fun testR2MetadataDeadlineTearsDownTheWholeConnectingAttemptAndReconnects() = metadataLifetime(false)
+
+  private fun metadataLifetime(dispose: Boolean) {
+    val receipt = Files.createTempFile(Path.of("build"), "metadata-owner-", ".pid")
+    val releasePath = receipt.resolveSibling(receipt.fileName.toString() + ".release")
     val entered = CountDownLatch(1)
-    val releaseEdt = CountDownLatch(1)
+    val release = CountDownLatch(1)
+    val failed = CountDownLatch(1)
+    val runtime =
+      RuntimeProcess.start(
+        listOf(
+          "/usr/bin/python3",
+          "-u",
+          Path.of("test/fixtures/stress_runtime.py").toAbsolutePath().toString(),
+          "normal",
+          receipt.toAbsolutePath().toString(),
+          releasePath.toAbsolutePath().toString(),
+        ),
+        Path.of(".").toAbsolutePath(),
+        mapOf("PATH" to "/usr/bin:/bin"),
+      )
+    val owner =
+      RuntimeConnection(
+        runtime,
+        JsonBoundary(),
+        object : EditorServices {
+          override val capabilities = listOf("lifecycle")
+          override val metadata: com.google.gson.JsonObject
+            get() {
+              entered.countDown()
+              release.await(WAIT_SECONDS, TimeUnit.SECONDS)
+              return fixtureMetadata()
+            }
+
+          override fun request(
+            method: String,
+            params: com.google.gson.JsonObject,
+            cancellation: RequestCancellation,
+          ) = jsonValue(null)
+        },
+        {},
+        ConnectionEvents({}, {}, { code -> if (code == "MHP_METADATA_FAILED") failed.countDown() }),
+      )
     try {
-      SwingUtilities.invokeLater {
-        entered.countDown()
-        releaseEdt.await(WAIT_SECONDS, TimeUnit.SECONDS)
-      }
+      owner.start()
       assertTrue(entered.await(WAIT_SECONDS, TimeUnit.SECONDS))
-      fixture.release()
-      fixture.owner.terminated.get(WAIT_SECONDS, TimeUnit.SECONDS)
-      releaseEdt.countDown()
-      fixture.failed("MHP_METADATA_FAILED")
-      fixture.assertStopped()
+      waitUntil("metadata worker receipt") { Files.size(receipt) > 0 }
+      if (dispose) owner.close()
+      owner.terminated.get(WAIT_SECONDS, TimeUnit.SECONDS)
+      if (!dispose) assertEquals(0L, failed.count)
+      release.countDown()
+      assertFalse(owner.isOpen)
+      assertFalse(runtime.process.isAlive)
+      waitUntil("metadata descendant cleanup") { !running(Files.readString(receipt).toLong()) }
     } finally {
-      releaseEdt.countDown()
-      try {
-        fixture.close()
-      } finally {
-        fixture.emergencyCleanup()
-      }
+      release.countDown()
+      owner.close()
+      runtime.close()
+      Files.deleteIfExists(receipt)
+      Files.deleteIfExists(releasePath)
     }
     exercise("normal") {}
   }

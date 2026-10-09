@@ -71,11 +71,50 @@ class NativeDialogsTest : BasePlatformTestCase() {
     }
   }
 
+  fun testShowSettingExplicitlyRefusesUnavailableRuntimeSettings() {
+    val owner = Disposer.newDisposable()
+    try {
+      val widgets = NativeWidgets(project, JsonBoundary()) {}
+      Disposer.register(owner, widgets)
+      val services = NativeHostServices(project, { _, _ -> error("fixture-unused") }, widgets)
+      val before = Window.getWindows().toSet()
+      val timer =
+        Timer(POLL_MILLIS) {
+          Window.getWindows().filter { it !in before && it is JDialog && it.isShowing }.forEach { it.dispose() }
+        }.apply { start() }
+      try {
+        assertEquals(
+          "MHP_UNSUPPORTED_CAPABILITY",
+          org.junit.Assert
+            .assertThrows(Exception::class.java) {
+              JetBrainsPanelHost.onEdt {
+                services.request(
+                  "ui/showSetting",
+                  json("key" to "museSpark.showWhatsNewOnUpdate"),
+                  RequestCancellation(),
+                )
+              }
+            }.message,
+        )
+      } finally {
+        timer.stop()
+      }
+    } finally {
+      JetBrainsPanelHost.onEdt { Disposer.dispose(owner) }
+    }
+  }
+
   fun testCompanionUsesTheIdeBrowserWithTheExactRuntimeUrlAndExplicitLaunchMode() {
     val widgets = JetBrainsPanelHost.onEdt { NativeWidgets(project, JsonBoundary()) {} }
     try {
       val opened = mutableListOf<String>()
-      val services = NativeHostServices(project, { _, _ -> error("fixture-unused") }, widgets, opened::add)
+      val services =
+        NativeHostServices(
+          project,
+          { _, _ -> error("fixture-unused") },
+          widgets,
+          NativeHostOptions(openBrowser = opened::add),
+        )
       val target = "http://127.0.0.1:43123/#k=fixture-only"
       val frame =
         json(

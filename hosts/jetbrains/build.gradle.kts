@@ -68,6 +68,7 @@ val renderPages by tasks.registering(Exec::class) {
   inputs.files(
     file("build-resources.mjs"),
     file("check-bundle-size.mjs"),
+    file("src/main/resources/nativeModules.mjs"),
     repositoryRoot.resolve("src/host/html.ts"),
     repositoryRoot.resolve("src/host/whatsNew/whatsNewHtml.ts"),
   )
@@ -80,7 +81,7 @@ val sharedResources by tasks.registering(Sync::class) {
   from(repositoryRoot.resolve("src/shared/hostApi/mhp-v1.1.lock.json")) { into("mhp") }
   from(repositoryRoot.resolve("dist/webview")) {
     into("webview")
-    include("*.css")
+    include("*.css", "portable/**")
   }
   from(listOf(repositoryRoot.resolve("LICENSE"), repositoryRoot.resolve("THIRD_PARTY_NOTICES.txt"))) { into("legal") }
   from(repositoryRoot.resolve("l10n")) { into("l10n") }
@@ -96,6 +97,15 @@ val sharedResources by tasks.registering(Sync::class) {
   }
 }
 sourceSets.main { resources.srcDir(sharedResources) }
+// Compile the production Eclipse mapper beside Kotlin for executable schema parity.
+val eclipseErrorMapper by tasks.registering(Sync::class) {
+  from(repositoryRoot.resolve("hosts/eclipse/plugin/src/io/musespark/eclipse/MhpErrors.java"))
+  into(layout.buildDirectory.dir("generated/errorParity"))
+}
+sourceSets.test {
+  java.srcDir(repositoryRoot.resolve("test/m104/linux/jetbrains"))
+  java.srcDir(eclipseErrorMapper)
+}
 
 tasks.test {
   maxParallelForks = 1

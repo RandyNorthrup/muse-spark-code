@@ -20,6 +20,8 @@ public final class MuseView extends ViewPart {
     private record Configuration(String session, String kind, WindowSession owner) { }
     private static final Map<String, Configuration> CONFIGURATIONS = new HashMap<>();
     public static void configure(String id, String session, String kind, WindowSession owner) { CONFIGURATIONS.put(id, new Configuration(session, kind, owner)); }
+    // Deferred display cleanup outlives MusePlugin.stop clearing the singleton.
+    private final java.util.function.Consumer<String> log = MusePlugin.get()::log;
     private WindowSession session;
     private PanelSurface binding;
     private Browser browser;
@@ -37,18 +39,25 @@ public final class MuseView extends ViewPart {
         super.init(site, memento);
         if (memento != null) {
             restoredSession = memento.getString("session"); String storedKind = memento.getString("kind"); if (storedKind != null) kind = storedKind;
-            String state = memento.getString("state"); if (state != null) try { restoredState = Json.parse(state); } catch (RuntimeException ex) { MusePlugin.get().log("MHP_STATE_INVALID"); }
+            String state = memento.getString("state"); if (state != null) try { restoredState = Json.parse(state); } catch (RuntimeException ex) { log.accept("MHP_STATE_INVALID"); }
         }
     }
     public static int browserStyle() { return browserStyle(Platform.getOS()); }
     public static int browserStyle(String os) { return os.equals(Platform.OS_WIN32) ? SWT.EDGE : SWT.WEBKIT; }
     @Override public void createPartControl(Composite parent) {
         parent.setLayout(new FillLayout());
+        Configuration configuration = CONFIGURATIONS.remove(getViewSite().getSecondaryId());
+        if (configuration == null || configuration.owner == null) {
+            // A view without runtime configuration owns no session: publishing an invented one
+            // is rejected as unowned. Fail here; the Window-menu command opens the runtime's
+            // configured surface instead.
+            showFailure(parent);
+            return;
+        }
         try {
-            Configuration configuration = CONFIGURATIONS.remove(getViewSite().getSecondaryId());
-            session = configuration != null && configuration.owner != null ? configuration.owner : MusePlugin.get().session(getSite().getWorkbenchWindow());
-            if (configuration != null) { restoredSession = configuration.session; kind = configuration.kind; }
-            binding = new PanelSurface(session.contract, UUID.randomUUID().toString(), restoredSession == null ? UUID.randomUUID().toString() : restoredSession, kind, session.peer::send, session.peer::purge, MusePlugin.get()::log);
+            session = configuration.owner;
+            restoredSession = configuration.session; kind = configuration.kind;
+            binding = new PanelSurface(session.contract, UUID.randomUUID().toString(), restoredSession == null ? UUID.randomUUID().toString() : restoredSession, kind, session.peer::send, session.peer::purge, log);
             if (restoredState != null) binding.state(restoredState);
             session.add(this);
             browser = new Browser(parent, browserStyle());
@@ -66,7 +75,7 @@ public final class MuseView extends ViewPart {
                         binding.reload();
                         if (kind.equals("whatsNew")) {
                             event.doit = false; loaded = false;
-                            browser.getDisplay().asyncExec(() -> { try { if (!browser.isDisposed()) loadPage(); } catch (IOException ex) { MusePlugin.get().log("MHP_PAGE_FAILURE"); showFailure(parent); } });
+                            browser.getDisplay().asyncExec(() -> { try { if (!browser.isDisposed()) loadPage(); } catch (IOException ex) { log.accept("MHP_PAGE_FAILURE"); showFailure(parent); } });
                         }
                     } catch (RuntimeException ex) { event.doit = false; } }
                 }
@@ -92,9 +101,9 @@ public final class MuseView extends ViewPart {
                 @Override public void completed(ProgressEvent event) { if (!browser.isDisposed()) browser.execute("window.__museStart();"); }
             });
             session.afterInitialize(() -> {
-                try { binding.opened(); loadPage(); } catch (Exception ex) { MusePlugin.get().log("MHP_PAGE_FAILURE"); showFailure(parent); }
+                try { binding.opened(); loadPage(); } catch (Exception ex) { log.accept("MHP_PAGE_FAILURE"); showFailure(parent); }
             }, () -> showFailure(parent));
-        } catch (Exception | org.eclipse.swt.SWTError ex) { MusePlugin.get().log("MHP_VIEW_FAILURE"); throw new IllegalStateException("MHP_VIEW_FAILURE"); }
+        } catch (Exception | org.eclipse.swt.SWTError ex) { log.accept("MHP_VIEW_FAILURE"); throw new IllegalStateException("MHP_VIEW_FAILURE"); }
     }
     private void showFailure(Composite parent) {
         if (parent.isDisposed()) return;
@@ -107,6 +116,7 @@ public final class MuseView extends ViewPart {
         parent.layout();
     }
     private void loadPage() throws IOException {
+        if (session.isClosed()) return;
         Path assets = Assets.extract(MusePlugin.get().getBundle(), MusePlugin.get().getStateLocation().toFile().toPath().resolve("assets").resolve(MusePlugin.get().getBundle().getVersion().toString()));
         Path directory = MusePlugin.get().getStateLocation().toFile().toPath().resolve("pages"); Files.createDirectories(directory);
         page = directory.resolve(binding.id + ".html");
@@ -120,17 +130,22 @@ public final class MuseView extends ViewPart {
                     if (error != null) throw new IOException("MHP_RENDER_FAILURE");
                     Files.writeString(page, html, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
                     if (!browser.setUrl(page.toUri().toASCIIString())) throw new IOException("MHP_PAGE_FAILURE");
-                } catch (IOException ex) { MusePlugin.get().log("MHP_PAGE_FAILURE"); showFailure(browser.getParent()); }
+                } catch (IOException ex) { log.accept("MHP_PAGE_FAILURE"); showFailure(browser.getParent()); }
             }); });
             return;
         }
         Files.writeString(page, Assets.html(assets, Platform.getNL(), kind, binding.state(), WindowSession.tokens()), StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
         if (!browser.setUrl(page.toUri().toASCIIString())) throw new IOException("MHP_PAGE_FAILURE");
     }
+    public void presentHtml(String html) throws IOException {
+        if (page == null || browser == null || browser.isDisposed()) throw new IllegalStateException("MHP_PANEL_NOT_READY");
+        Files.writeString(page, html, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        if (!browser.setUrl(page.toUri().toASCIIString())) throw new IOException("MHP_PAGE_FAILURE");
+    }
     public void deliverPayload(JsonElement payload) {
         if (browser.isDisposed() || !browser.execute("window.__museDeliver(" + Assets.scriptSafe(payload.toString()) + ");")) throw new IllegalStateException("MHP_PANEL_NOT_READY");
     }
-    public void hidden() { if (binding != null && loaded) try { binding.hidden(); } catch (RuntimeException ex) { MusePlugin.get().log("MHP_SURFACE_FAILURE"); } }
+    public void hidden() { if (binding != null && loaded) try { binding.hidden(); } catch (RuntimeException ex) { log.accept("MHP_SURFACE_FAILURE"); } }
     @Override public void saveState(IMemento memento) {
         if (binding == null) return;
         memento.putString("session", binding.session); memento.putString("kind", binding.kind);
@@ -140,13 +155,13 @@ public final class MuseView extends ViewPart {
     @Override public void dispose() {
         renderGeneration++; if (pendingRender != null) pendingRender.cancel(false);
         if (binding != null) {
-            try { binding.close(session.dropBrowser(binding.id)); } catch (RuntimeException ex) { MusePlugin.get().log("MHP_SURFACE_FAILURE"); }
+            try { binding.close(session.dropBrowser(binding.id)); } catch (RuntimeException ex) { log.accept("MHP_SURFACE_FAILURE"); }
             session.remove(this);
         }
         if (function != null && !function.isDisposed()) function.dispose();
         if (browser != null && !browser.isDisposed()) browser.dispose();
         if (menu != null && !menu.isDisposed()) menu.dispose();
-        if (page != null) try { Files.deleteIfExists(page); } catch (IOException ex) { MusePlugin.get().log("MHP_PAGE_CLEANUP_FAILURE"); }
+        if (page != null) try { Files.deleteIfExists(page); } catch (IOException ex) { log.accept("MHP_PAGE_CLEANUP_FAILURE"); }
         super.dispose();
     }
 }

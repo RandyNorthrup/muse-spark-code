@@ -29,20 +29,10 @@ def call(method, params, identity):
         if frame.get("id") == identity:
             return frame
 
-caps = ["lifecycle", "commands", "tab"]
-if mode == "metadata":
-    caps.append("hostMetadata")
-if mode == "metadata":
-    while not release.exists():
-        time.sleep(0.01)
-initialized = call("initialize", {
-    "host": {"id": "fake-runtime", "version": "1"},
-    "protocolRange": {"minimum": "mhp/1.1.0", "maximumExclusive": "mhp/1.3.0" if mode == "metadata" else "mhp/1.2.0"},
-    "capabilities": caps, "locale": "en",
-    "theme": {"kind": "dark", "tokens": {}}, "folders": [], "trusted": True,
-}, "initialize")
-if mode == "metadata" and "error" in initialized:
-    time.sleep(120)  # A rejected handshake keeps its pipe open; the host must terminate it.
+initial = json.loads(sys.stdin.readline())
+assert initial["method"] == "initialize"
+send({"jsonrpc": "2.0", "id": initial["id"], "result": {
+    "protocolVersion": "mhp/1.4.0", "capabilities": initial["params"]["capabilities"]}})
 call("commands/register", {"id": "stress-fixture", "title": "Stress fixture"}, "command")
 call("tab/register", {"languages": ["plaintext"], "trigger": "invoke"}, "tab")
 

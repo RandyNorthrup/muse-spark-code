@@ -5350,6 +5350,11 @@ bridge implementation and editor qualification remain in M104's other lanes. The
 panel and Tab qualification; its [follow-up record](docs/certification/m104-e3.md)
 lists the compatibility matrix and remaining assembled-runtime work.
 
+The native JVM hosts share schema-generated MHP error tables. Regenerate them
+with `node scripts/mhp-errors.mjs`; `npm run check:mhp` verifies their freshness.
+The generator's drift controls run with
+`node --test test/m104/linux/mhpErrors.test.mjs`.
+
 ```bash
 git clone https://github.com/RandyNorthrup/muse-spark-code.git
 cd muse-spark-code

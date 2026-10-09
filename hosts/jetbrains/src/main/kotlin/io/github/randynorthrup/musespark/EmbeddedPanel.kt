@@ -54,6 +54,20 @@ class EmbeddedPanel(
         val request = JsonBoundary.parse(text).asJsonObject
         require(request.keySet() == setOf("operation", "value")) { "MHP_INVALID_REQUEST" }
         when (request["operation"].asString) {
+          "module" -> {
+            val requested = request["value"].asString
+            val manifest = JsonBoundary.parse(JsonBoundary.resource("/webview/portable/modules.json")).asJsonObject
+            val module =
+              manifest
+                .getAsJsonArray(
+                  "modules",
+                ).singleOrNull { it.asJsonObject["path"].asString == requested }
+            requireNotNull(module) { "MHP_MODULE_UNLISTED" }
+            require(Regex("/assets/portable/(?:chunks/)?[\\w.-]+\\.js").matches(requested)) { "MHP_MODULE_UNLISTED" }
+            val source = JsonBoundary.resource("/webview/portable/" + requested.removePrefix("/assets/portable/"))
+            require(source.toByteArray(Charsets.UTF_8).size <= boundary.maximumFrameBytes) { "MHP_PANEL_TOO_LARGE" }
+            return@addHandler JBCefJSQuery.Response(source)
+          }
           "ready" -> {
             require(request["value"].isJsonNull)
             surface.subscribe()
@@ -90,7 +104,7 @@ class EmbeddedPanel(
     }
     runCatching {
       installGuards()
-      browser.loadHTML(html(), policy.page)
+      browser.loadHTML(prepareHtml(), policy.page)
       readiness.start()
     }.onFailure {
       query.dispose()
@@ -105,11 +119,15 @@ class EmbeddedPanel(
     evaluate("window.__museReceive($payload,$sequence)")
   }
 
+  fun present(html: String) {
+    browser.loadHTML(prepareHtml(html), policy.page)
+  }
+
   fun reload() {
     surface.reload()
     subscribed.set(false)
     readiness.restart()
-    browser.loadHTML(html(), policy.page)
+    browser.loadHTML(prepareHtml(), policy.page)
   }
 
   fun updateTheme() {
@@ -122,7 +140,9 @@ class EmbeddedPanel(
     browser.cefBrowser.executeJavaScript(script, policy.page, 0)
   }
 
-  private fun html(): String {
+  private fun prepareHtml(source: String? = null): String {
+    val kind = if (surface.kind in setOf("tasks", "whatsNew")) surface.kind else "chat"
+    val html = source ?: JsonBoundary.resource("/pages/$kind.$locale.html")
     val envelope = boundary.panel.getAsJsonObject("envelope")
     val payloads =
       envelope.getAsJsonArray("oneOf").map {
@@ -157,15 +177,20 @@ class EmbeddedPanel(
     val safeConfig = config.toString().replace("<", "\\u003c")
     val safeScript =
       JsonBoundary.resource("/embedded.mjs") +
-        "\nwindow.installMuseHost($safeConfig,(request,onSuccess,onFailure)=>{$injection});"
-    val kind = if (surface.kind in setOf("tasks", "whatsNew")) surface.kind else "chat"
-    return JsonBoundary
-      .resource("/pages/$kind.$locale.html")
+        "\nwindow.installMuseHost($safeConfig,(request,onSuccess,onFailure)=>{$injection});" + moduleBridge(injection)
+    return html
       .replace(
         "__MUSE_ASSET_BASE__",
         policy.base,
       ).replace("__MUSE_NONCE__", nonce)
       .replace("__MUSE_BRIDGE__", safeScript)
+      .let { page ->
+        if (html.contains("__MUSE_BRIDGE__")) {
+          page
+        } else {
+          page.replace("</head>", "<script nonce=\"$nonce\">$safeScript</script></head>")
+        }
+      }.replace(Regex("nonce=\"[^\"]*\""), "nonce=\"$nonce\"")
       .replace("<body", "<body data-host=\"embedded\"")
       .let { inlineAssets(it, kind) }
       .let { html ->
@@ -173,19 +198,46 @@ class EmbeddedPanel(
       }
   }
 
+  private fun moduleBridge(injection: String): String {
+    val manifest = JsonBoundary.resource("/webview/portable/modules.json").replace("<", "\\u003c")
+    return if (surface.kind == "whatsNew") {
+      ""
+    } else {
+      JsonBoundary.resource("/nativeModules.mjs") +
+        "\nwindow.installMuseModules($manifest,(path,onSuccess,onFailure)=>{" +
+        "const request=JSON.stringify({operation:'module',value:path});$injection})" +
+        ".catch(()=>{document.documentElement.dataset.launch='failed'});"
+    }
+  }
+
   private fun inlineAssets(
     html: String,
     kind: String,
   ): String {
     val entry = if (kind == "whatsNew") "whatsNew" else "main"
-    val script = JsonBoundary.resource("/pages/$entry.inline.js").replace("</script", "<\\/script", ignoreCase = true)
-    val style = JsonBoundary.resource("/webview/$entry.css")
+    val script =
+      if (entry == "main") {
+        ""
+      } else {
+        JsonBoundary.resource("/pages/$entry.inline.js").replace("</script", "<\\/script", ignoreCase = true)
+      }
+    val style = JsonBoundary.resource(if (entry == "main") "/webview/portable/main.css" else "/webview/$entry.css")
     return html
       .replace(
         Regex("<meta http-equiv=\"Content-Security-Policy\"[^>]*>"),
         { "<meta http-equiv=\"Content-Security-Policy\" content=\"${policy.csp(nonce)}\">" },
       ).replace(Regex("<link[^>]*rel=\"stylesheet\"[^>]*>"), { "<style nonce=\"$nonce\">$style</style>" })
-      .replace(Regex("<script[^>]*src=\"[^\"]+\"[^>]*></script>"), { "<script nonce=\"$nonce\">$script</script>" })
+      .replace(Regex("<script[^>]*src=\"([^\"]+)\"[^>]*></script>"), { match ->
+        // The native module bridge loads chat/Tasks. What's New's entry is inline;
+        // its companion loader must not run a second copy or fetch native URLs.
+        if (entry == "whatsNew" &&
+          match.groupValues[1].endsWith("/whatsNew.js")
+        ) {
+          "<script nonce=\"$nonce\">$script</script>"
+        } else {
+          ""
+        }
+      })
   }
 
   private fun installGuards() {

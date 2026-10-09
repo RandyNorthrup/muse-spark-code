@@ -29,13 +29,10 @@ def call(method, params, identity):
             assert "result" in frame
             return
 
-call("initialize", {
-    "host": {"id": "fake-runtime", "version": "1"},
-    "protocolRange": {"minimum": "mhp/1.1.0", "maximumExclusive": "mhp/1.2.0"},
-    "capabilities": ["lifecycle", "commands", "tab"],
-    "locale": "en", "theme": {"kind": "dark", "tokens": {}},
-    "folders": [], "trusted": True,
-}, "initialize")
+initial = json.loads(sys.stdin.readline())
+assert initial["method"] == "initialize"
+send({"jsonrpc": "2.0", "id": initial["id"], "result": {
+    "protocolVersion": "mhp/1.4.0", "capabilities": initial["params"]["capabilities"]}})
 call("commands/register", {"id": "failure-fixture", "title": "Failure fixture"}, "command")
 call("tab/register", {"languages": ["plaintext"], "trigger": "invoke"}, "tab")
 while not release.exists():

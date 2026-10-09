@@ -19,6 +19,10 @@ class PanelSurface(
   private val callbacks: PanelCallbacks,
   private val budget: QueueBudget = QueueBudget(boundary),
 ) {
+  init {
+    require(kind in setOf("chat", "tasks", "whatsNew")) { "MHP_CAPABILITY_UNAVAILABLE" }
+  }
+
   private var nextToHost = 1L
   private var nextToPanel = 1L
   private var ready = false
@@ -62,7 +66,7 @@ class PanelSurface(
     }
     val frame =
       json(
-        "mhp" to "1.1",
+        "mhp" to "1.4",
         "kind" to "panel",
         "surface" to id,
         "direction" to "toHost",
@@ -149,7 +153,7 @@ class PanelSurface(
     check(!closed) { "MHP_PANEL_UNKNOWN_SURFACE" }
     val frame =
       json(
-        "mhp" to "1.1",
+        "mhp" to "1.4",
         "kind" to "surface",
         "surface" to id,
         "sessionId" to sessionId,

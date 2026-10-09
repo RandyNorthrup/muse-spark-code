@@ -7,6 +7,40 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Eclipse retains observed runtime descendant pid/start-time identities across
+  parent-first crashes and refuses reused pids during cleanup, following the
+  JetBrains process model. Both JVM hosts preserve all schema-defined MHP errors
+  through generated Java/Kotlin tables, including unavailable capabilities and
+  permission refusals; the MHP gate checks table drift.
+
+- Redesign Eclipse session shutdown around display-owned native state and
+  atomic cross-thread close admission. Cleanup failures are logged and isolated;
+  runtime-tree termination always runs. Deferred view cleanup retains its logger
+  after plugin stop, and surface retirement survives a closed transport. Window-menu opening scans all restored
+  views, replaces unbound and uncreated placeholders, and activates the owned chat.
+  Descendant-cleanup tests distinguish startup, zombies and reaping. JetBrains
+  native services use an options object and a separate UI collaborator; the
+  constructor, dispatcher and class function count pass unchanged Detekt rules.
+
+- Close the six findings in the M104PE follow-up review: Eclipse preserves
+  absolute file-dialog paths and replaces unbound restored views; diagnostics
+  on both JVM hosts wait for analysis of the edited version, with bounded
+  runtime polling; JetBrains replacement pages retain native bridges and
+  packaged assets; unavailable runtime-setting shortcuts return explicit errors
+  surfaced to the user. Native fixtures wait for readiness and own their fake
+  sessions; Knip tracks the existing native-loader test entrypoint. Linux JVM
+  and fresh-clone verification are recorded in the PE fix round 2 certification.
+
+- Close the M104PE independent review (four P2, one P3) in the Linux/JVM hosts:
+  Eclipse and JetBrains implement 1.3 `ui`, `surfaces`,
+  `commands` and `diagnostics` services (file open/save, runtime HTML
+  presentation, command run, version-attested settled diagnostics) and keep
+  typed unsupported-capability refusals instead of internal errors; JetBrains
+  construction failure restarts in companion mode; the Eclipse Window-menu
+  command activates the runtime's owned surface instead of publishing an
+  unowned session; the native fixture and both host guides negotiate and
+  document MHP 1.3. Runtime-setting shortcuts are explicitly unavailable;
+  installed-product parity still requires the certification matrix.
 - Ship the shared host protocol in the VSIX so the extension loads, and verify
   activation with the production split. Portable cleanup closes auxiliary views
   after conversation cancellation. Presentation actions retire completed IDs,

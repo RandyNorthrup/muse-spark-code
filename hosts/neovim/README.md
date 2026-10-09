@@ -44,7 +44,7 @@ factory runs. Recreate the adapter after changing the editor environment.
 From the repository root, the offline test command is:
 
 ```sh
-nvim --headless -u NONE -l hosts/neovim/test/check.lua
+nvim --headless -i NONE -u NONE -l hosts/neovim/test/check.lua
 ```
 
 The tests use editor APIs and test-only CodeCompanion/process doubles, plus

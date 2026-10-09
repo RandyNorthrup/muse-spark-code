@@ -45,7 +45,7 @@ lookups and attempts runtime cleanup even when an independent opener fails.
 From the repository root, run the offline Lua API stub and bootstrap tests:
 
 ```sh
-nvim --headless -u NONE -l hosts/qtcreator/test/check.lua
+nvim --headless -i NONE -u NONE -l hosts/qtcreator/test/check.lua
 python3 -m unittest discover -s hosts/qtcreator/test -v
 ```
 

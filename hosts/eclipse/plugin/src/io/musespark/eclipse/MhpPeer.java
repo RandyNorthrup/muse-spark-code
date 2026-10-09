@@ -36,12 +36,26 @@ public final class MhpPeer implements AutoCloseable {
     private boolean initializing;
     private volatile boolean closed;
     private volatile Set<String> capabilities = Set.of();
+    private Set<String> hostCapabilities = Set.of();
     private final CompletableFuture<JsonElement> initialization = new CompletableFuture<>();
     public MhpPeer(Contract contract, InputStream input, OutputStream output, Host host, Consumer<String> log) {
         this.contract = contract; this.input = input; this.output = output; this.host = host; this.log = log;
     }
     public void start() { reader.submit(this::readLoop); writer.submit(this::writeLoop); }
     public CompletableFuture<JsonElement> initialized() { return initialization; }
+    public synchronized CompletableFuture<JsonElement> initialize(JsonObject params) {
+        if (closed || initializing || initialized) throw new IllegalStateException("MHP_ALREADY_INITIALIZED");
+        JsonObject frame = Json.object("jsonrpc", "2.0", "id", "eclipse-init", "method", "initialize", "params", params);
+        contract.call(frame);
+        Set<String> offered = new HashSet<>();
+        params.getAsJsonArray("capabilities").forEach(capability -> offered.add(capability.getAsString()));
+        hostCapabilities = Set.copyOf(offered);
+        initializing = true;
+        pending.put("eclipse-init", new Pending("initialize", initialization));
+        try { send(frame); } catch (RuntimeException ex) { close(); throw ex; }
+        initialization.orTimeout(100, TimeUnit.SECONDS).whenComplete((value, error) -> { if (error != null) close(); });
+        return initialization;
+    }
     public CompletableFuture<JsonElement> request(String method, JsonObject params) {
         if (!initialized) throw new IllegalStateException("MHP_NOT_INITIALIZED");
         JsonObject definition = contract.method(method);
@@ -69,7 +83,7 @@ public final class MhpPeer implements AutoCloseable {
         JsonObject definition = contract.method(method);
         String direction = definition.get("direction").getAsString();
         if (direction.equals("runtimeToHost")) throw new IllegalArgumentException("MHP_INVALID_DIRECTION");
-        if (!capabilities.contains(definition.get("capability").getAsString())) throw new IllegalStateException("MHP_CAPABILITY_UNAVAILABLE");
+        if (!hostCapabilities.contains(definition.get("capability").getAsString())) throw new IllegalStateException("MHP_CAPABILITY_UNAVAILABLE");
         send(frame);
     }
     public void send(JsonObject frame) {
@@ -117,17 +131,15 @@ public final class MhpPeer implements AutoCloseable {
         if (frame.has("method")) {
             contract.call(frame);
             String method = frame.get("method").getAsString();
-            if (!initialized && !method.equals("initialize")) throw new IllegalStateException("MHP_NOT_INITIALIZED");
-            if ((initialized || initializing) && method.equals("initialize")) throw new IllegalStateException("MHP_ALREADY_INITIALIZED");
             JsonObject definition = contract.method(method);
             if (definition.get("direction").getAsString().equals("hostToRuntime")) throw new IllegalArgumentException("MHP_INVALID_DIRECTION");
+            if (!initialized) throw new IllegalStateException("MHP_NOT_INITIALIZED");
             if (method.equals("$/cancelRequest")) { String target = requestKey(frame.getAsJsonObject("params").get("id")); if (runningService.contains(target)) cancelled.add(target); return; }
-            if (!method.equals("initialize") && !capabilities.contains(definition.get("capability").getAsString())) { fail(frame.get("id"), -32002, "MHP_CAPABILITY_UNAVAILABLE"); return; }
+            if (!hostCapabilities.contains(definition.get("capability").getAsString())) { fail(frame.get("id"), -32002, "MHP_CAPABILITY_UNAVAILABLE"); return; }
             String serviceId = requestKey(frame.get("id"));
             if (!runningService.add(serviceId)) throw new IllegalArgumentException("MHP_DUPLICATE_ID");
             int reserved;
             try { reserved = reserveBrowser(frame); } catch (RuntimeException ex) { runningService.remove(serviceId); throw ex; }
-            if (method.equals("initialize")) initializing = true;
             dispatch.submit(() -> { try { dispatch(frame); } finally { runningService.remove(requestKey(frame.get("id"))); cancelled.remove(requestKey(frame.get("id"))); releaseBrowser(reserved); } }); return;
         }
         if (frame.has("error")) contract.failure(frame);
@@ -137,8 +149,13 @@ public final class MhpPeer implements AutoCloseable {
         if (request == null) throw new IllegalArgumentException("MHP_UNCORRELATED_RESULT");
         if (!frame.has("error")) contract.result(request.method, frame);
         pending.remove(id);
-        if (frame.has("error")) { request.result.completeExceptionally(new IOException(frame.getAsJsonObject("error").get("message").getAsString())); return; }
+        if (frame.has("error")) { request.result.completeExceptionally(new IOException("MHP_RUNTIME_REQUEST_FAILED")); return; }
         JsonElement result = frame.get("result");
+        if (request.method.equals("initialize")) {
+            Set<String> supported = new HashSet<>();
+            result.getAsJsonObject().getAsJsonArray("capabilities").forEach(capability -> supported.add(capability.getAsString()));
+            capabilities = Set.copyOf(supported); initialized = true; initializing = false;
+        }
         request.result.complete(result);
     }
     private void dispatch(JsonObject frame) {
@@ -148,40 +165,17 @@ public final class MhpPeer implements AutoCloseable {
             synchronized (queue) {
                 if (bytes + contract.frameCap > contract.queueBytes || messages + 1 > contract.queueMessages) { fail(id, -32603, "MHP_INTERNAL_ERROR"); return; }
             }
-            boolean initialize = frame.get("method").getAsString().equals("initialize");
-            if (initialize) {
-                JsonObject range = frame.getAsJsonObject("params").getAsJsonObject("protocolRange");
-                if (compareVersion(range.get("minimum").getAsString(), "mhp/1.1.0") > 0 || compareVersion(range.get("maximumExclusive").getAsString(), "mhp/1.1.0") <= 0 || compareVersion(range.get("maximumExclusive").getAsString(), "mhp/1.2.0") > 0) throw new IllegalArgumentException("MHP_INCOMPATIBLE_VERSION");
-            }
             JsonElement result = host.request(frame.get("method").getAsString(), frame.getAsJsonObject("params"), () -> cancelled.contains(requestKey(id)));
             JsonObject response = Json.object("jsonrpc", "2.0", "id", id, "result", result);
             contract.result(frame.get("method").getAsString(), response);
-            Set<String> negotiated = new HashSet<>();
-            if (initialize) {
-                if (!result.getAsJsonObject().get("protocolVersion").getAsString().equals("mhp/1.1.0")) throw new IllegalArgumentException("MHP_INCOMPATIBLE_VERSION");
-                JsonArray offered = frame.getAsJsonObject("params").getAsJsonArray("capabilities");
-                for (JsonElement capability : result.getAsJsonObject().getAsJsonArray("capabilities")) {
-                    if (!offered.asList().contains(capability)) throw new IllegalArgumentException("MHP_INVALID_CAPABILITIES");
-                    negotiated.add(capability.getAsString());
-                }
-            }
             send(response);
-            if (initialize) { capabilities = Set.copyOf(negotiated); initialized = true; initialization.complete(result); }
-            if (frame.get("method").getAsString().equals("shutdown")) host.shutdown();
         } catch (Exception ex) {
-            String message = ex.getMessage();
-            int code = "MHP_INCOMPATIBLE_VERSION".equals(message) ? -32001 : "MHP_CANCELLED".equals(message) ? -32800 : "MHP_UNTRUSTED_WORKSPACE".equals(message) ? -32005 : "MHP_VERSION_CONFLICT".equals(message) ? -32003 : "MHP_DIRTY_DOCUMENT".equals(message) ? -32004 : "MHP_INVALID_RANGE".equals(message) ? -32602 : -32603;
-            fail(id, code, code == -32603 ? "MHP_INTERNAL_ERROR" : message);
-            if (frame.get("method").getAsString().equals("initialize")) initialization.completeExceptionally(new IOException("MHP_INITIALIZE_FAILURE"));
+            String message = MhpErrors.technicalCode(ex);
+            fail(id, MhpErrors.numeric(message), message);
         } finally { cancelled.remove(requestKey(id)); }
     }
     private static String requestKey(JsonElement id) {
         return id.getAsJsonPrimitive().isNumber() ? "number:" + id.getAsBigDecimal().stripTrailingZeros().toPlainString() : id.toString();
-    }
-    private static int compareVersion(String left, String right) {
-        String[] a = left.substring("mhp/".length()).split("\\."); String[] b = right.substring("mhp/".length()).split("\\.");
-        for (int index = 0; index < a.length; index++) { int comparison = Integer.compare(a[index].length(), b[index].length()); if (comparison == 0) comparison = a[index].compareTo(b[index]); if (comparison != 0) return comparison; }
-        return 0;
     }
     private void fail(JsonElement id, int code, String message) {
         JsonObject frame = Json.object("jsonrpc", "2.0", "id", id, "error", Json.object("code", code, "message", message));
