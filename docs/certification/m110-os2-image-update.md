@@ -42,6 +42,138 @@ Tests: `test/unit/osImageBuildUpdateTryboot.test.mjs` (22),
 `test/unit/osImageBuildUpdateChannel.test.mjs` (20),
 `test/unit/osImageBuildUpdateEeprom.test.mjs` (14).
 
+## Round 3: FIXM110OS3 against RVM110OS2F (2 P1, 7 P2, 2 P3)
+
+Lane FIXM110OS3, worktree `/home/randy/lanes/FIXM110OS3`, branch
+`m110/os3-fix` from `49fff2200`, on the kubuntu rig. Simulators and unit
+tests only: no image build, no boot, no QEMU, no RAUC binary, no network,
+no paid call. The sections below are updated in place where round 3
+supersedes them (marked SUPERSEDED / FIXM110OS3).
+
+| Commit      | What                                                                                   |
+| ----------- | -------------------------------------------------------------------------------------- |
+| `fe453b7b0` | Pi map 1/2/3 + binary DT ints + controller check + own-temp cleanup; bounded mark-good |
+| `740bd3fbe` | Channel: negative/signed counters, non-ASCII/over-long digits, overflow, bad UTF-8     |
+| `167c3d42f` | EEPROM gate reads upstream `BOOTLOADER:` status, no invented write-protect lines       |
+| (this)      | PLAN §9 OS2-TUF row, CHANGELOG entry, this record                                      |
+
+Files after round 3:
+
+| File                                                      | Lines     | SHA-256                                                            |
+| --------------------------------------------------------- | --------- | ------------------------------------------------------------------ |
+| `pi-tryboot-backend`                                      | 450       | `81b5cbcfcf6c2d9eb7c468eda46cc22c0e90c6a4591e866b804246b007d987eb` |
+| `mark-good`                                               | 377       | `e92809e09b17d4ed95665fb9cfa9c41423b24ab9b7b43e8d95858ffd702a4c75` |
+| `channel.py`                                              | 218       | `5c64e9c19d422beb9c12d2ddc940ec7682a06367237af1a1a14197ae4a0f858a` |
+| `pi-eeprom-check`                                         | 216       | `6fc7976449031fd98a1efd93b3c9f302b5c7057e07e44f4cd196ec40b9d1cb6d` |
+| `muse-mark-good.service`                                  | 37        | `16ac595469eea64e1303b3b21505d40c1d567a2baac418721750eca3f656f896` |
+| `system-pi.conf`, `system-efi.conf`, `check-rauc-conf.py` | unchanged | as in the table above                                              |
+
+New shared test helper `test/unit/helpers/osPiTryboot.mjs`: reads the
+partition map from the backend, builds binary device-tree integers and the
+controller mount, runs the scripts under `dash` wherever it exists (the
+image's `/bin/sh`), and names the skip when a host lacks `flock` or
+`timeout` (stock macOS; F8).
+
+### Closure table: RVM110OS2I findings 1–13 and RVM110OS2F F1–F11
+
+| Finding                                      | Disposition after round 3                         | Evidence (file:line at the round-3 commits)                                                                                                                                                                 |
+| -------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| I-1 P1 dash port pattern                     | Closed (unchanged)                                | `mark-good` `probe_once`; MarkGood production-port tests now run under dash                                                                                                                                 |
+| I-2 P1 activation switches stable            | Closed (unchanged)                                | backend `set-primary`; Tryboot "arms a one-shot trial" asserts the exact 2/3 file                                                                                                                           |
+| I-3 P2 invalid RAUC config                   | Closed (unchanged)                                | `system-pi.conf`, `check-rauc-conf.py`                                                                                                                                                                      |
+| I-4 P2 FAT owns controller file              | Closed in the backend; OS1 layout still a handoff | backend `check_controller` (mountinfo source == `muse-pi-ctl` label) before every command; Tryboot "refuses every command unless the controller label is mounted"; OS2-OS1-CONTROLLER now names 1/2/3 bytes |
+| I-5 P2 current slot from mount               | Closed in simulation (F1+F2)                      | backend `dt_int`/`current_slot`; binary fixtures; hardware receipt Q-M110-OS2-DT open                                                                                                                       |
+| I-6 P2 mark-bad defaults to booted           | Closed (unchanged)                                | explicit `boot.N`/`usr.N`                                                                                                                                                                                   |
+| I-7 P2 ordinary EFI boot marks bad           | Closed (unchanged)                                | EFI no-marker test                                                                                                                                                                                          |
+| I-8 P2 no enforceable bounds                 | Closed in simulation (F3+F4)                      | `run_limited` = `timeout -k` + group sweep; deadline before/after probe; watchdog Q-M110-OS2-WD open                                                                                                        |
+| I-9 P2 concurrent writers / stray temps      | Closed                                            | flock unchanged; writer removes only its own temp (trap), reports others                                                                                                                                    |
+| I-10 P2 damaged state seeds zero             | Closed (F7+F10)                                   | `channel.py` `plain_number`, UTF-8 refusal                                                                                                                                                                  |
+| I-11 P2 parsed ≠ verified bytes              | Closed (unchanged)                                | same-buffer stdin verify                                                                                                                                                                                    |
+| I-12 P2 single signature called TUF          | Closed (F11)                                      | PLAN §9 `OS2-TUF` row added                                                                                                                                                                                 |
+| I-13 P2 early Pi 4 can never pass            | Closed in simulation (F6)                         | upstream `BOOTLOADER: up to date` passes after remediation; on-device capture Q-M110-OS2-EEPROM open                                                                                                        |
+| F1 P1 A/B mapped to 1/2                      | Fixed                                             | backend `PART_CONTROLLER=1 PART_A=2 PART_B=3`, `to_num`/`to_slot`; tests read the map and pin 1/2/3                                                                                                         |
+| F2 P1 DT ints parsed as ASCII                | Fixed                                             | backend `dt_int` (4 bytes BE via od), tryboot flag too; ASCII/3/5-byte/LE refused                                                                                                                           |
+| F3 P2 watchdog leaks / no KILL               | Fixed                                             | `mark-good` `run_limited`; tests: TERM-ignoring probe bounded <4 s, leaky backend returns <3 s, no-trial run at default 30 s limit                                                                          |
+| F4 P2 success after deadline                 | Fixed                                             | `trial_expired` before and after each probe; late-probe test                                                                                                                                                |
+| F5 P2 FailureAction reboots handled fallback | Fixed                                             | `handled` exit 3 + `SuccessExitStatus=3`; failed reboot request stays exit 1                                                                                                                                |
+| F6 P2 invented EEPROM status lines           | Fixed                                             | `eeprom_update_state`; invented lines now CANNOT_DETERMINE                                                                                                                                                  |
+| F7 P2 negative installed counter             | Fixed                                             | `plain_number` on the installed counter                                                                                                                                                                     |
+| F8 P2 tests need host flock                  | Fixed                                             | named `describe.skipIf` (flock, timeout); foreign-holder `flock` spawn only inside the guarded block                                                                                                        |
+| F9 P2 promotion before RAUC                  | Fixed                                             | Pi pass path calls only `rauc status mark-good`, then confirms `get-primary`/`get-trial`; fake rauc dispatches like RAUC 1.13                                                                               |
+| F10 P3 tracebacks on damaged text            | Fixed                                             | ASCII/length guard, `OverflowError`, `UnicodeDecodeError`                                                                                                                                                   |
+| F11 P3 OS2-TUF row missing                   | Fixed                                             | PLAN §9 row; CHANGELOG entry added                                                                                                                                                                          |
+
+Still open (not claimed): every hardware/VM receipt in "Must be certified
+outside the sandbox"; the Pi firmware trial-reboot request (`reboot
+"0 tryboot"`) stays with OS2-RUNTIME, as the review notes; an unhandled
+persistent error (exit 1) on every boot would reboot repeatedly under
+`FailureAction=reboot` — each reboot lands on the stable slot, but the
+loop itself is bounded only by the owner noticing (recorded residual).
+
+### Round-3 red drills (break, named test fails, restore byte-exact)
+
+Each drill mutated the committed file, ran the named test(s) at the
+repository default timeout, then restored and compared SHA-256 (all OK,
+equal to the file table above). Logs: `temp/drill-*.log` (gitignored).
+
+| Guard          | Break                                    | Named failure                                                   | Restored SHA-256               |
+| -------------- | ---------------------------------------- | --------------------------------------------------------------- | ------------------------------ |
+| F1 map         | `PART_A=1 PART_B=2`                      | Tryboot: geometry, partition-3, one-shot file (3 failed)        | `81b5cbcf…d987eb` OK           |
+| F2 binary DT   | partition read as ASCII text             | Tryboot: binary read + ASCII records (3 failed)                 | `81b5cbcf…d987eb` OK           |
+| I-4 controller | `check_controller` call removed          | Tryboot: controller-label test                                  | `81b5cbcf…d987eb` OK           |
+| I-9 own temp   | stray deleted again                      | Tryboot: own-temp test                                          | `81b5cbcf…d987eb` OK           |
+| F3 KILL        | `timeout` without `-k`                   | MarkGood: TERM-ignoring probe (30.5 s)                          | `e92809e0…2a4c75` OK           |
+| F3 sweep       | group kill removed                       | MarkGood: leftover descendants (30.1 s)                         | `e92809e0…2a4c75` OK           |
+| F4 deadline    | after-probe check disabled               | MarkGood: late-probe test                                       | `e92809e0…2a4c75` OK           |
+| F5 exit        | `handled` exits 1                        | MarkGood: 4 handled-exit tests                                  | `e92809e0…2a4c75` OK           |
+| F5 unit        | `SuccessExitStatus=3` removed            | MarkGood: unit test                                             | `16ac5954…56f896` OK           |
+| F9 order       | direct backend promote before RAUC       | MarkGood: RAUC-refuses test                                     | `e92809e0…2a4c75` OK           |
+| F7 counter     | `int()` on installed counter             | Channel: negative + signed counter (2 failed)                   | `5c64e9c1…f858a` OK            |
+| F10 UTF-8      | `UnicodeDecodeError` handler removed     | Channel: UTF-8 test                                             | `5c64e9c1…f858a` OK            |
+| F10 overflow   | `OverflowError` not caught               | Channel: overflow expiry test                                   | `5c64e9c1…f858a` OK            |
+| F6 tokens      | write-protect line accepted              | Eeprom: invented-lines test                                     | `6fc79764…d1cb6d` OK           |
+| F8 skip        | helper forced to report no flock/timeout | 36 tests skipped under the named reasons, 0 failed, no `ENOENT` | `5b64ad3a…26f3054` (helper) OK |
+
+### Round-3 tests fail on `49fff2200`
+
+The 49fff2200 production file was put back in place under the new tests,
+the run recorded, and the round-3 file restored (trap-guarded, SHA-256
+compared, all OK):
+
+| Old file                 | New tests                                                     | Result on `49fff2200`                                                                                                      |
+| ------------------------ | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `pi-tryboot-backend`     | Tryboot (all)                                                 | suite fails to load: the old backend has no partition map for the helper to read (F1); per-guard reds are the drills above |
+| `mark-good`              | MarkGood: no-trial at default limit, RAUC refuses, late probe | 3/3 failed (30.0 s guard leak, 60.2 s, 60.2 s; F3/F9/F4)                                                                   |
+| `muse-mark-good.service` | MarkGood: unit test                                           | 1/1 failed (no `SuccessExitStatus=3`; F5)                                                                                  |
+| `channel.py`             | Channel (all 29)                                              | 6 failed, 23 passed (F7/F10 cases)                                                                                         |
+| `pi-eeprom-check`        | Eeprom (all 19)                                               | 4 failed, 15 passed (F6 cases)                                                                                             |
+
+The old mark-good was run only on those three tests: its guard leak makes
+every `$(backend …)` call wait the full 30 s limit, and a full-suite run
+was stopped by the 10-minute background limit before it finished (the file
+was then restored from the saved copy and verified byte-exact; this
+incident left no change behind).
+
+### Round-3 verification (kubuntu rig, repository default timeout)
+
+No `--testTimeout`; per-test durations all under 3 s except the 2.5 s
+TERM-escalation and 2.5 s lock-holder tests.
+
+- `npx vitest run` Tryboot + MarkGood + Slots (`--maxWorkers=3`): 3 files,
+  **77/77 passed** (Tryboot 35, MarkGood 27, Slots 15), 18.6 s.
+- `npx vitest run` Channel + Eeprom (`--maxWorkers=2`): 2 files,
+  **48/48 passed** (Channel 29, Eeprom 19), 5.7 s.
+- Total **125/125**, none skipped on this rig (it has `dash`, `flock`,
+  `timeout`); macOS/Windows hosts without `flock`/`timeout` skip only the
+  named suites (drill F8).
+- `check-rauc-conf.py` both `RAUC_CONF_OK`; `os/check.py` 0 problems;
+  `dash -n` on all three scripts OK.
+- `npm run typecheck` 0, `eslint --max-warnings=0` and `prettier --check`
+  on changed files 0, `npm run deadcode` 0 (knip `ignoreBinaries` gains
+  `dash`, `flock`, `openssl`: `flock`/`openssl` were already unlisted at
+  `49fff2200`), `npx jscpd` 0 clones. No source under `src/` changed, so
+  bundle sizes and l10n are untouched (`npm run build` not run).
+
 ## 1. RAUC protocol, faithfully (P1-2, P2-6)
 
 The Pi custom backend implements RAUC's own calls with one-shot trial
@@ -100,11 +232,11 @@ and slot maps assume the post-handoff layout: `MUSE_PI_BOOT_DIR`
 references it (asserted). Exact layout change for the OS1 lane (controller
 first, so the firmware keeps finding `autoboot.txt` on the first FAT):
 
-| Repart file                                          | Label            | Type          | Size             | Payload change                                                                              |
-| ---------------------------------------------------- | ---------------- | ------------- | ---------------- | ------------------------------------------------------------------------------------------- |
-| `os/pi/repart/00-controller.conf` (new)              | `muse-pi-ctl`    | `xbootloader` | 16M min/max      | initial `autoboot.txt` only (today's byte-identical content: A stable, B standby, no trial) |
-| `os/pi/repart/01-boot-a.conf` (was `00-esp.conf`)    | `muse-pi-boot-a` | `esp`         | 260M (unchanged) | REMOVE `autoboot.txt` from the FAT payload                                                  |
-| `os/pi/repart/02-boot-b.conf` (was `01-boot-b.conf`) | `muse-pi-boot-b` | `esp`         | 260M (unchanged) | unchanged (ships empty)                                                                     |
+| Repart file                                          | Label            | Type          | Size             | Payload change                                                                                                                                                                    |
+| ---------------------------------------------------- | ---------------- | ------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `os/pi/repart/00-controller.conf` (new)              | `muse-pi-ctl`    | `xbootloader` | 16M min/max      | initial `autoboot.txt` only: `[all] tryboot_a_b=1 boot_partition=2` `[tryboot] boot_partition=3` (A stable, B standby, no trial; NOT today's 1/2 bytes, superseded in FIXM110OS3) |
+| `os/pi/repart/01-boot-a.conf` (was `00-esp.conf`)    | `muse-pi-boot-a` | `esp`         | 260M (unchanged) | REMOVE `autoboot.txt` from the FAT payload                                                                                                                                        |
+| `os/pi/repart/02-boot-b.conf` (was `01-boot-b.conf`) | `muse-pi-boot-b` | `esp`         | 260M (unchanged) | unchanged (ships empty)                                                                                                                                                           |
 
 `os/pi/compose.py` change: write the initial `autoboot.txt` into the
 controller staging image instead of `boot/firmware`; mount `muse-pi-ctl` at
@@ -112,6 +244,17 @@ controller staging image instead of `boot/firmware`; mount `muse-pi-ctl` at
 (RAUC mounts them under `/run/rauc` at install). Recipe must also create
 `/run/muse-update/` (tmpfiles.d) for the backend lock file (§6) and seed
 `/var/lib/muse-update/{version,metadata_version}` (§7).
+
+Partition numbering (FIXM110OS3, F1): controller 1, boot A 2, boot B 3 —
+Raspberry Pi's documented autoboot.txt A/B example. `PART_CONTROLLER`,
+`PART_A`, `PART_B` at the top of `pi-tryboot-backend` are the one source of
+truth: the parser, writer and device-tree decoder use them, the tests read
+them from that file (`test/unit/helpers/osPiTryboot.mjs`) and pin them to
+1/2/3, and mark-good speaks only slot letters through the backend. Every
+backend command first checks that `/boot/firmware` is mounted from the
+`muse-pi-ctl` label (`/proc/self/mountinfo` source resolved against
+`/dev/disk/by-partlabel/muse-pi-ctl`), refusing `PI_TRYBOOT_NOT_CONTROLLER`
+otherwise (earlier row 4).
 
 ## 4. Booted slot (P2-5)
 
@@ -124,10 +267,13 @@ Missing/unreadable partition refuses `PI_TRYBOOT_NO_CURRENT`; the old
 `MUSE_PI_CURRENT_SLOT` seam is removed so every test exercises the
 production detector through fixture device trees.
 
-Qualification gap Q-M110-OS2-DT: the partition file is read as the
-firmware's booted-partition selector (`1`=A, `2`=B, autoboot.txt numbering).
-If Pi hardware reports raw GPT numbers instead, only this mapping (and its
-test) changes; everything comparing against it already speaks slots.
+FIXM110OS3 (F2): both properties are device-tree integers — exactly four
+big-endian bytes (`00 00 00 02` = A, `00 00 00 03` = B), decoded with `od`
+as upstream rpi-eeprom-update's readDtInt does — never ASCII. Any other
+length, a little-endian or ASCII record, the controller partition or an
+unmapped number refuses `PI_TRYBOOT_NO_CURRENT`; a tryboot flag that is not
+a 4-byte 0/1 refuses `PI_TRYBOOT_MALFORMED`. Fixtures are binary. The
+on-device capture stays hardware receipt Q-M110-OS2-DT.
 
 ## 5. mark-good (P1-1, P2-7, P2-8)
 
@@ -150,15 +296,22 @@ test) changes; everything comparing against it already speaks slots.
   seconds, backward steps clamped, unreadable clock fails closed), a
   `MUSE_MARK_GOOD_MAX_ATTEMPTS` cap (default 100), and a per-call limit
   (`MUSE_MARK_GOOD_CALL_TIMEOUT_SEC`, default 30) on every child — probe,
-  backend, rauc and curl. The limit is a shell watchdog (background child +
-  sleep/kill guard), NOT timeout(1): the rig's `/usr/bin/timeout` (uutils
-  0.8.0) cannot spawn any child under the lane sandbox — `timeout 30 echo
-hi` fails with `Operation not permitted` — so timeout(1) calls would fail
-  every child here and could never be verified; the watchdog needs only
-  fork/sleep/kill and is exercised by the hung-probe test (a 30 s sleeper
-  resolved in ~1 s, trial marked bad). Unit gains `TimeoutStartSec=360` and
-  `FailureAction=reboot` (asserted). A kernel that hangs before the unit
-  runs needs the hardware watchdog: named gap Q-M110-OS2-WD, not claimed.
+  backend, rauc and curl. SUPERSEDED in FIXM110OS3 (F3): the earlier shell
+  watchdog leaked its guard `sleep` (holding command-substitution pipes for
+  the full limit) and never escalated past TERM; it was also a sandbox
+  workaround that should have been reported instead. The limit is now
+  `timeout -k $MUSE_MARK_GOOD_KILL_GRACE_SEC $limit` (coreutils, on the
+  image; verified working on this rig): TERM to the child's process group,
+  KILL after the grace, then a group sweep after the call returns so no
+  descendant outlives it. A missing timeout(1) refuses `no-timeout`. The
+  deadline is checked before each probe and after each probe returns (F4):
+  a probe passing after the deadline fails the trial. Unit gains
+  `TimeoutStartSec=360`, `FailureAction=reboot` and (F5)
+  `SuccessExitStatus=3`: handled trial failures exit 3 so a healthy stable
+  boot is not rebooted again; unhandled errors exit 1 and reboot. Pi
+  promotion happens only through `rauc status mark-good boot.N` (F9),
+  then is confirmed. A kernel that hangs before the unit runs needs the
+  hardware watchdog: named gap Q-M110-OS2-WD, not claimed.
 
 ## 6. Backend lock (P2-9)
 
@@ -166,9 +319,9 @@ One exclusive `flock` on `MUSE_PI_LOCK_FILE` (default
 `/run/muse-update/pi-tryboot.lock`) spans every read-modify-write
 (`set-primary`, `set-state`); readers take no lock. The temp file is created
 after the lock is held, so any other temp seen mid-write predates the
-transaction and is a crash leftover — the writer removes only strays, never
-a live file (the old code cleaned before locking and could delete a
-concurrent writer's temp). Tests: 40 serialized writers all succeed with
+transaction and is a crash leftover. FIXM110OS3 (earlier row 9): a writer
+now removes ONLY its own temp file (EXIT/TERM trap until the rename) and
+reports any other stray as `PI_TRYBOOT_STRAY left=` without deleting it. Tests: 40 serialized writers all succeed with
 valid end state; a writer blocks while a foreign holder sleeps on the lock
 (red without the `flock` call); a missing lock directory refuses
 `PI_TRYBOOT_NO_LOCK`.
@@ -204,14 +357,19 @@ metadata chain. Follow-up PLAN §9 row for the lead (exact text):
 The whole revision is validated as hex (`*[!0-9a-fA-F]*` refused) before any
 arithmetic: `b03111+1` can no longer evaluate to a later PCB, and `b03111x`
 no longer crashes without a machine code — both report `CANNOT_DETERMINE`.
-Early Pi 4 boards (PCB 1.0/1.1) read the real write-protect state from
-`rpi-eeprom-update` status (`MUSE_RPI_EEPROM_CMD`, read-only status mode):
-enabled → `PI4_EEPROM_WRITE_REQUIRED`, disabled → `OK`, missing/failed/
-silent tool → `CANNOT_DETERMINE` with remediation text on stderr
-(`remedy=inspect-write-protect-with-rpi-eeprom-update-make-writable-then-retry`;
-user text stays in OS2-OS3-U2-TEXT). The accepted status tokens are
-provisional until an on-device capture names the exact wording
-(Q-M110-OS2-EEPROM).
+SUPERSEDED in FIXM110OS3 (F6): the earlier "EEPROM write protect:" tokens
+were invented — upstream `rpi-eeprom-update` (raspberrypi/rpi-eeprom,
+`printVersions`) prints no write-protect state. Early Pi 4 boards now read
+the one status line upstream does print: `BOOTLOADER: up to date` → `OK`,
+`BOOTLOADER: update available` → `PI4_EEPROM_WRITE_REQUIRED`
+(`remedy=make-eeprom-writable-run-rpi-eeprom-update-a-reboot-retry`, after
+which the tool prints up to date and the check passes). Exit 0/1 accepted
+(upstream status mode); any other exit, missing tool, no or both BOOTLOADER
+lines, or other wording → `CANNOT_DETERMINE`. Residual: write protection
+itself is not observable, so a protected but up-to-date board passes. The
+upstream wording was taken from the RVM110OS2F review's source read and
+upstream's documented status output (no network in this lane); an
+on-device capture stays Q-M110-OS2-EEPROM.
 
 ## 9. P3s
 
@@ -295,7 +453,7 @@ pi-eeprom-check,channel.py,check-rauc-conf.py}` as
   (`A|B`); poll `channel.py check`, fetch over HTTPS, install via RAUC.
 - **OS2-SIGNING / OS2-OS3-U2-TEXT**: unchanged from OS2I (owner ceremony;
   user text for the EEPROM/bootloader codes and trial outcomes).
-- **OS2-TUF**: PLAN §9 row text in §7.
+- **OS2-TUF**: recorded as a PLAN §9 row in FIXM110OS3 (F11).
 
 ## Must be certified outside the sandbox
 
