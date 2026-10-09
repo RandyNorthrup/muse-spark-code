@@ -59,8 +59,8 @@ describe('README badge parsing and release comparison', () => {
     'finds every actual README badge, including GitHub CI and excluding screenshots',
     () => {
       const urls = imageUrls(readFileSync('README.md', 'utf8'))
-      expect(urls).toHaveLength(12)
-      expect(urls.filter((url) => new URL(url).hostname === 'badgen.net')).toHaveLength(6)
+      expect(urls).toHaveLength(14)
+      expect(urls.filter((url) => new URL(url).hostname === 'badgen.net')).toHaveLength(8)
       expect(urls).toContain(
         'https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg',
       )

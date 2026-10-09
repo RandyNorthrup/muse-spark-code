@@ -202,7 +202,9 @@
     "test/**/*.{ts,tsx}",
     "test/**/*.mjs",
     "scripts/**/*.mjs",
-    "action/**/*.mjs"
+    "action/**/*.mjs",
+    // The badge Worker (infra/marketplace-hook); wrangler deploys worker.js by path.
+    "infra/**/*.js"
   ],
 
   "ignore": ["vendor/**"],
