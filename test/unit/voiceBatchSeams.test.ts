@@ -5,16 +5,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
-import {
-  voiceBatchSeams,
-  type PaidExtraClaim,
-  type VoiceBatchSeamDeps,
-} from '../../src/core/voice/voiceBatchSeams'
+import { voiceBatchSeams, type PaidExtraClaim } from '../../src/core/voice/voiceBatchSeams'
 import { prepareAudioAttachment, type AudioSource } from '../../src/core/voice/transcribeBatch'
 import { createModelApiAudioContext } from '../../src/core/voice/transcribeBatchHttp'
 import type { SessionBudgetJournal } from '../../src/core/backends/modelapi/sessionBudget'
+import { cappedSession, VOICE_ACCOUNT, voiceSeamDeps } from './helpers/voiceSeams'
 
-const ACCOUNT = 'a'.repeat(64)
+const ACCOUNT = VOICE_ACCOUNT
 /** $0.18 per hour: 20 seconds bill exactly $0.001. */
 const TWENTY_SECONDS_USD = '0.001'
 
@@ -83,21 +80,7 @@ function journal(): Ledger & { readonly journal: SessionBudgetJournal } {
   }
 }
 
-function deps(overrides: Partial<VoiceBatchSeamDeps> = {}): VoiceBatchSeamDeps {
-  return {
-    sessionId: 'session-1',
-    isPaidFeatureOn: () => true,
-    allowsPaidUse: () => Promise.resolve(true),
-    notePaidUse: vi.fn(),
-    reservePaidExtra: undefined,
-    session: {
-      capUsd: () => Usd.from(0).toAmount(),
-      journal: undefined,
-      accountId: () => Promise.resolve(ACCOUNT),
-    },
-    ...overrides,
-  }
-}
+const deps = voiceSeamDeps
 
 const wav: AudioSource = {
   name: 'note.wav',
@@ -177,11 +160,7 @@ describe('Muse Voice batch consent and reserve adapters (M105 lane V seam 4)', (
     const seams = voiceBatchSeams(
       deps({
         reservePaidExtra: daily.reserve,
-        session: {
-          capUsd: () => Usd.from('1').toAmount(),
-          journal: session.journal,
-          accountId: () => Promise.resolve(ACCOUNT),
-        },
+        session: cappedSession(session.journal),
       }),
     )
     const { run } = transcribe(seams)
@@ -198,11 +177,7 @@ describe('Muse Voice batch consent and reserve adapters (M105 lane V seam 4)', (
     const seams = voiceBatchSeams(
       deps({
         reservePaidExtra: daily.reserve,
-        session: {
-          capUsd: () => Usd.from('1').toAmount(),
-          journal: undefined,
-          accountId: () => Promise.resolve(ACCOUNT),
-        },
+        session: cappedSession(undefined),
       }),
     )
     const { run, send } = transcribe(seams)
@@ -217,11 +192,7 @@ describe('Muse Voice batch consent and reserve adapters (M105 lane V seam 4)', (
     const seams = voiceBatchSeams(
       deps({
         reservePaidExtra: daily.reserve,
-        session: {
-          capUsd: () => Usd.from('1').toAmount(),
-          journal: session.journal,
-          accountId: () => Promise.resolve(ACCOUNT),
-        },
+        session: cappedSession(session.journal),
       }),
     )
     const { run, send } = transcribe(seams)

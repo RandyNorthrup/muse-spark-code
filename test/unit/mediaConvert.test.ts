@@ -230,6 +230,22 @@ describe('M105 converter discovery', () => {
   })
 })
 
+/** The encoder becomes a real Node child that lives `holdMs`, its output written first. */
+async function realEncoder(holdMs: number) {
+  const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
+  const held: { encoder?: ReturnType<typeof spawn> } = {}
+  vi.mocked(spawn).mockImplementation((_command, args, options) => {
+    writeFileSync(outputPath(args), videoFixture())
+    held.encoder = actual.spawn(
+      process.execPath,
+      ['-e', `setTimeout(() => {}, ${String(holdMs)})`],
+      options,
+    )
+    return held.encoder
+  })
+  return held
+}
+
 describe('M105 private local conversion', () => {
   it('re-verifies trust after probing and refuses replacements before encoding', async () => {
     const verify = vi
@@ -615,15 +631,9 @@ describe('M105 private local conversion', () => {
   })
 
   it('completes with a strict sampler that throws once the real child is reaped', async () => {
-    const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
-    let encoder: ReturnType<typeof spawn> | undefined
-    vi.mocked(spawn).mockImplementation((_command, args, options) => {
-      writeFileSync(outputPath(args), videoFixture())
-      encoder = actual.spawn(process.execPath, ['-e', 'setTimeout(() => {}, 120)'], options)
-      return encoder
-    })
+    const held = await realEncoder(120)
     const readRssBytes = vi.fn(() =>
-      encoder?.exitCode === null && encoder.signalCode === null
+      held.encoder?.exitCode === null && held.encoder.signalCode === null
         ? Promise.resolve(1024)
         : Promise.reject(new Error('no such process')),
     )
@@ -634,17 +644,11 @@ describe('M105 private local conversion', () => {
   })
 
   it('refuses when the strict sampler fails while the real child is live', async () => {
-    const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
-    let encoder: ReturnType<typeof spawn> | undefined
-    vi.mocked(spawn).mockImplementation((_command, args, options) => {
-      writeFileSync(outputPath(args), videoFixture())
-      encoder = actual.spawn(process.execPath, ['-e', 'setTimeout(() => {}, 3000)'], options)
-      return encoder
-    })
+    const held = await realEncoder(3000)
     const readRssBytes = vi.fn(() => Promise.reject(new Error('sampler unavailable')))
     const result = await convertToMp4(fixture.input, fake, { readRssBytes })
     expect(result).toMatchObject({ ok: false })
-    expect(encoder?.killed).toBe(true)
+    expect(held.encoder?.killed).toBe(true)
   })
 
   it('refuses relative commands/inputs, directories and invalid timeouts before launch', async () => {

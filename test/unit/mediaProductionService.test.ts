@@ -41,7 +41,7 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { watchSessionTurns } from './helpers/sessionTurns'
-import { videoFixture } from './helpers/media/fixtures'
+import { videoFixture, wavFixture } from './helpers/media/fixtures'
 import { AttachedMedia } from '../../src/core/media/attachedMedia'
 import { sniffMediaBytes } from '../../src/core/media/limits'
 
@@ -675,21 +675,7 @@ describe('attached video through the session media service (M105 lane V seam 1)'
 
 /** Two seconds of 16 kHz mono 16-bit PCM: the batch contract, so nothing converts. */
 function contractWav(): Uint8Array {
-  const data = 16_000 * 2 * 2
-  const wav = Buffer.alloc(44 + data)
-  wav.write('RIFF', 0)
-  wav.writeUInt32LE(36 + data, 4)
-  wav.write('WAVEfmt ', 8)
-  wav.writeUInt32LE(16, 16)
-  wav.writeUInt16LE(1, 20)
-  wav.writeUInt16LE(1, 22)
-  wav.writeUInt32LE(16_000, 24)
-  wav.writeUInt32LE(32_000, 28)
-  wav.writeUInt16LE(2, 32)
-  wav.writeUInt16LE(16, 34)
-  wav.write('data', 36)
-  wav.writeUInt32LE(data, 40)
-  return new Uint8Array(wav)
+  return wavFixture(2, { sampleRate: 16_000 })
 }
 
 /** An attached WAV on disk, registered as the attach port does. */
@@ -735,21 +721,42 @@ function dailyLedger() {
 
 const TRANSCRIPT = 'The Blue Llama.'
 
+/** Sends the attached part on the contributor model; the refusal or the turn's events. */
+async function refusalOf(rig: Rig, part: TurnPart): Promise<string> {
+  const h = await start(rig, CONTRIBUTOR)
+  const refusal = await turn(h, [{ type: 'text', text: 'Listen' }, part])
+  return refusal ?? JSON.stringify(h.events)
+}
+
+/** A production rig with one attached WAV, a paid-use yes and a D78 ledger double. */
+async function soundRig(
+  token: string,
+  asr: (body: string) => Response,
+  host: Readonly<Record<string, unknown>> = {},
+) {
+  const registry = new AttachedMedia()
+  const part = attachedWav(registry, token)
+  const ledger = dailyLedger()
+  const rig = await factory({
+    attachedMedia: registry,
+    asr,
+    strayHost: {
+      reservePaidExtra: ledger.reservePaidExtra,
+      allowsPaidUse: () => Promise.resolve(true),
+      ...host,
+    },
+  })
+  return { part, ledger, rig }
+}
+
 describe('attached sound through Muse Voice (M105 lane V seam 3B)', () => {
   it('transcribes an attached WAV once, under the daily ledger and the tally', async () => {
-    const registry = new AttachedMedia()
-    const part = attachedWav(registry, 'sound-1')
-    const ledger = dailyLedger()
     const notePaidUse = vi.fn()
-    const rig = await factory({
-      attachedMedia: registry,
-      asr: () => Response.json({ transcript: TRANSCRIPT, audioDurationMs: 2080 }),
-      strayHost: {
-        reservePaidExtra: ledger.reservePaidExtra,
-        notePaidUse,
-        allowsPaidUse: () => Promise.resolve(true),
-      },
-    })
+    const { part, ledger, rig } = await soundRig(
+      'sound-1',
+      () => Response.json({ transcript: TRANSCRIPT, audioDurationMs: 2080 }),
+      { notePaidUse },
+    )
     try {
       const h = await start(rig, CONTRIBUTOR)
       rig.api.script({ text: 'A llama.' })
@@ -791,22 +798,13 @@ describe('attached sound through Muse Voice (M105 lane V seam 3B)', () => {
   })
 
   it('refuses attached audio when Muse Voice is off, posting and reserving nothing', async () => {
-    const registry = new AttachedMedia()
-    const part = attachedWav(registry, 'sound-2')
-    const ledger = dailyLedger()
-    const rig = await factory({
-      attachedMedia: registry,
-      asr: () => Response.json({ transcript: TRANSCRIPT, audioDurationMs: 2080 }),
-      strayHost: {
-        isPaidFeatureOn: (feature: string) => feature !== 'voice',
-        reservePaidExtra: ledger.reservePaidExtra,
-        allowsPaidUse: () => Promise.resolve(true),
-      },
-    })
+    const { part, ledger, rig } = await soundRig(
+      'sound-2',
+      () => Response.json({ transcript: TRANSCRIPT, audioDurationMs: 2080 }),
+      { isPaidFeatureOn: (feature: string) => feature !== 'voice' },
+    )
     try {
-      const h = await start(rig, CONTRIBUTOR)
-      const refusal = await turn(h, [{ type: 'text', text: 'Listen' }, part])
-      expect(refusal ?? JSON.stringify(h.events)).toContain(
+      expect(await refusalOf(rig, part)).toContain(
         fill(UI_TEXT.media.audioUnsupported, { model: CONTRIBUTOR }),
       )
       expect(rig.api.requests.some((request) => request.path === '/asr/transcribe')).toBe(false)
@@ -818,26 +816,15 @@ describe('attached sound through Muse Voice (M105 lane V seam 3B)', () => {
   })
 
   it('shows the server refusal as sent and settles nothing billed', async () => {
-    const registry = new AttachedMedia()
-    const part = attachedWav(registry, 'sound-3')
-    const ledger = dailyLedger()
     const refusalText = "The 'audio' part must be a mono 16-bit PCM WAV at 16 or 24 kHz"
-    const rig = await factory({
-      attachedMedia: registry,
-      asr: () =>
-        Response.json(
-          { error: { message: refusalText, param: 'audio', type: 'invalid_request_error' } },
-          { status: 400 },
-        ),
-      strayHost: {
-        reservePaidExtra: ledger.reservePaidExtra,
-        allowsPaidUse: () => Promise.resolve(true),
-      },
-    })
+    const { part, ledger, rig } = await soundRig('sound-3', () =>
+      Response.json(
+        { error: { message: refusalText, param: 'audio', type: 'invalid_request_error' } },
+        { status: 400 },
+      ),
+    )
     try {
-      const h = await start(rig, CONTRIBUTOR)
-      const refusal = await turn(h, [{ type: 'text', text: 'Listen' }, part])
-      expect(refusal ?? JSON.stringify(h.events)).toContain(refusalText)
+      expect(await refusalOf(rig, part)).toContain(refusalText)
       expect(rig.api.responseBodies()).toHaveLength(0)
       // Sent but unbilled: the reservation stays as uncertain liability.
       expect(ledger.settled).toEqual([{ amount: '0.0001', unknown: true }])

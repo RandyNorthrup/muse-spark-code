@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { createProductionAudio } from '../../src/core/voice/productionAudio'
+import { voiceSeamDeps } from './helpers/voiceSeams'
 import { conversionBindings } from '../../src/host/backend/productionAudioEntry'
 import type { AudioSource } from '../../src/core/voice/transcribeBatch'
 import type { TurnPart } from '../../src/core/agent/agentBackend'
@@ -75,15 +76,7 @@ function audio(options: {
     postTranscription,
     converterPath: () => options.converterPath,
     locateConverter,
-    isPaidFeatureOn: () => true,
-    allowsPaidUse: () => Promise.resolve(true),
-    notePaidUse: vi.fn(),
-    reservePaidExtra: undefined,
-    session: {
-      capUsd: () => Usd.from(0).toAmount(),
-      journal: undefined,
-      accountId: () => Promise.resolve(undefined),
-    },
+    ...voiceSeamDeps(),
   })
   return {
     postTranscription,

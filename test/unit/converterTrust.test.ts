@@ -19,6 +19,7 @@ import { converterTrustedPath } from '../../src/runtime/converterTrust'
 import { verifyTrustedExecutable } from '../../src/runtime/trustedPath'
 import { fill } from '../../src/shared/l10n/text'
 import { UI_TEXT } from '../../src/shared/constants'
+import { wavFixture } from './helpers/media/fixtures'
 
 vi.mock('../../src/host/processTree', async (original) => ({
   ...(await original<typeof processTree>()),
@@ -179,23 +180,9 @@ describe.runIf(process.platform === 'win32')('the Windows converter verifier', (
   })
 })
 
-/** One second of 8 kHz stereo PCM: a real WAV the sniffer reads. */
-function pcmWav(): Buffer {
-  const data = 8000 * 2 * 2
-  const wav = Buffer.alloc(44 + data)
-  wav.write('RIFF', 0)
-  wav.writeUInt32LE(36 + data, 4)
-  wav.write('WAVEfmt ', 8)
-  wav.writeUInt32LE(16, 16)
-  wav.writeUInt16LE(1, 20)
-  wav.writeUInt16LE(2, 22)
-  wav.writeUInt32LE(8000, 24)
-  wav.writeUInt32LE(8000 * 4, 28)
-  wav.writeUInt16LE(4, 32)
-  wav.writeUInt16LE(16, 34)
-  wav.write('data', 36)
-  wav.writeUInt32LE(data, 40)
-  return wav
+/** One second of 8 kHz stereo PCM: a real WAV the sniffer reads, off the contract. */
+function pcmWav(): Uint8Array {
+  return wavFixture(1, { channels: 2 })
 }
 
 /** A verifier that admits every path as the canonical one `canonical` names. */

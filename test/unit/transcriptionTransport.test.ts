@@ -13,6 +13,7 @@ import {
 } from '../../src/runtime/runtimeAccountingEntry'
 import { createTranscriptionPorts } from '../../src/core/voice/transcribeBatchHttp'
 import { mediaInfoSchema } from '../../src/shared/media'
+import { FAKE_MODEL_API_BASE_URL, fakeModelApiClientSettings } from './helpers/fakeModelApi'
 
 const KEY = 'fixture-transcription-key'
 const ROUTE = '/asr/transcribe?sessionId=0f8fad5b-d9cb-469f-a165-70867728950e'
@@ -25,15 +26,14 @@ const REFUSAL = {
   },
 }
 
-function client(fetcher: typeof fetch): ModelApiClient {
+function client(
+  fetcher: typeof fetch,
+  apiKey: () => Promise<string | undefined> = () => Promise.resolve(KEY),
+): ModelApiClient {
   return new ModelApiClient({
-    baseUrl: 'https://api.meta.ai/v1',
+    ...fakeModelApiClientSettings({ info: vi.fn(), warn: vi.fn(), trace: vi.fn(), error: vi.fn() }),
     fetch: fetcher,
-    apiKey: () => Promise.resolve(KEY),
-    sleep: () => Promise.resolve(),
-    now: Date.now,
-    random: () => 0,
-    log: { info: vi.fn(), warn: vi.fn(), trace: vi.fn(), error: vi.fn() },
+    apiKey,
   })
 }
 
@@ -87,7 +87,7 @@ describe('the transcription transport (seam 2)', () => {
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual(REFUSAL)
     expect(sent).toHaveBeenCalledOnce()
-    expect(sent.mock.calls[0]?.[0]).toBe(`https://api.meta.ai/v1${ROUTE}`)
+    expect(sent.mock.calls[0]?.[0]).toBe(`${FAKE_MODEL_API_BASE_URL}${ROUTE}`)
     const init = sent.mock.calls[0]?.[1]
     expect(init).toMatchObject({ method: 'POST', redirect: 'error', duplex: 'half' })
     expect(init?.body).toBe(body.body)
@@ -117,15 +117,7 @@ describe('the transcription transport (seam 2)', () => {
   ])('refuses %s before reading the key or sending', async (route) => {
     const sent = vi.fn<typeof fetch>()
     const apiKey = vi.fn(() => Promise.resolve(KEY))
-    const transport = new ModelApiClient({
-      baseUrl: 'https://api.meta.ai/v1',
-      fetch: sent,
-      apiKey,
-      sleep: () => Promise.resolve(),
-      now: Date.now,
-      random: () => 0,
-      log: { info: vi.fn(), warn: vi.fn(), trace: vi.fn(), error: vi.fn() },
-    })
+    const transport = client(sent, apiKey)
     await expect(
       transport.requestTranscription(route, new AbortController().signal, multipart()),
     ).rejects.toThrow('Invalid transcription route')

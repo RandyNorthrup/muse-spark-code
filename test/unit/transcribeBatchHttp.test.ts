@@ -27,6 +27,7 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import { readWavFormat } from '../../src/core/media/sniff/riff'
+import { fakeConversionOptions } from './helpers/media/conversion'
 import type { Usd } from '../../src/shared/usd'
 
 const MP3_FIXTURE = 'test/fixtures/voice/tone-2s.mp3'
@@ -150,23 +151,15 @@ function rig(options?: {
           // Absolute only because the product refuses relative commands.
           converter: { kind: 'ffmpeg' as const, command: path.join(tmpdir(), 'muse-fake-ffmpeg') },
         })),
-    conversionOptions: {
-      trustedPath: { verify: (file: string) => Promise.resolve({ ok: true as const, path: file }) },
-      readRssBytes: () => Promise.resolve(0),
-      // Windows needs an owner-only directory the host creates (chmod cannot).
-      ...(process.platform === 'win32' && {
-        createPrivateDirectory: () => mkdtemp(path.join(tmpdir(), 'm105-private-fake-')),
-      }),
-      probeVersion: () =>
-        Promise.resolve('ffmpeg version 7.0-test Copyright (c) 2025 the FFmpeg developers'),
-      ...(stubWav !== undefined && {
-        run: async (_command: string, _args: readonly string[], runOptions): Promise<void> => {
-          runs += 1
-          outputs.push(runOptions.outputPath)
-          await writeFile(runOptions.outputPath, stubWav)
-        },
-      }),
-    },
+    conversionOptions: fakeConversionOptions(
+      stubWav === undefined
+        ? undefined
+        : async (_command, _args, runOptions) => {
+            runs += 1
+            outputs.push(runOptions.outputPath)
+            await writeFile(runOptions.outputPath, stubWav)
+          },
+    ),
   })
   const context = createModelApiAudioContext({
     modelId: 'muse-spark-1.3-contributor',

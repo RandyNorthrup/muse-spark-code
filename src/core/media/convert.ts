@@ -518,12 +518,41 @@ async function sniffFile(filePath: string, sizeBytes: number): Promise<SniffMedi
   }
 }
 
-/** Owner-only output, verified by bytes before returning; dispose after upload/discard. */
-export async function convertToMp4(
+type ConvertedResult<I extends MediaFileInfo> =
+  | {
+      readonly ok: true
+      readonly path: string
+      readonly info: I
+      readonly dispose: () => Promise<void>
+    }
+  | { readonly ok: false; readonly reason: string }
+
+/** What differs between the two conversions; the pipeline around it is shared. */
+interface ConversionSpec<I extends MediaFileInfo> {
+  readonly outputName: string
+  /** Converters this conversion can express (avconvert has no WAV preset). */
+  readonly canUse: (converter: MediaConverter) => boolean
+  readonly args: (
+    converter: MediaConverter,
+    source: MediaFileInfo,
+    inputPath: string,
+    output: string,
+  ) => readonly string[]
+  readonly accepts: (info: MediaFileInfo) => info is I
+}
+
+/**
+ * The one conversion pipeline: bounded options, a verified canonical
+ * converter, a memory watch, an owner-only directory and reserved output,
+ * the recheck immediately before encoding, then the output verified by its
+ * bytes and limits. Every refusal and failure removes the directory.
+ */
+async function convertWith<I extends MediaFileInfo>(
   inputPath: string,
   converter: MediaConverter,
-  options: MediaConversionOptions = {},
-): Promise<MediaConversionResult> {
+  options: MediaConversionOptions,
+  spec: ConversionSpec<I>,
+): Promise<ConvertedResult<I>> {
   const timeoutMs = options.timeoutMs ?? SHELL_MAX_TIMEOUT_MS
   const maxOutputBytes = options.limits?.maxUploadBytes ?? MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES
   const failed = () =>
@@ -534,6 +563,7 @@ export async function convertToMp4(
   if (
     !path.isAbsolute(inputPath) ||
     !path.isAbsolute(converter.command) ||
+    !spec.canUse(converter) ||
     !Number.isSafeInteger(maxOutputBytes) ||
     maxOutputBytes <= 0 ||
     maxOutputBytes > MEDIA_MAX_UPLOAD_MIB * BYTES_PER_MIB ||
@@ -561,61 +591,19 @@ export async function convertToMp4(
     if (!path.isAbsolute(privateDirectory)) throw new Error('Invalid private directory')
     directory = privateDirectory
     await chmod(directory, OWNER_DIRECTORY_MODE)
-    const output = path.join(directory, 'converted.mp4')
+    const output = path.join(directory, spec.outputName)
     const reserved = await open(output, 'wx', OWNER_FILE_MODE)
     await reserved.close()
-    const args =
-      converter.kind === 'ffmpeg'
-        ? [
-            '-nostdin',
-            '-max_alloc',
-            String(MEDIA_CONVERSION_MAX_RSS_BYTES),
-            '-hide_banner',
-            '-loglevel',
-            'error',
-            '-y',
-            '-protocol_whitelist',
-            'file',
-            '-f',
-            INPUT_FORMATS[source.info.mediaType],
-            ...(INPUT_FORMATS[source.info.mediaType] === 'mov'
-              ? ['-enable_drefs', '0', '-use_absolute_path', '0']
-              : []),
-            '-i',
-            inputPath,
-            '-map',
-            '0:v:0?',
-            '-map',
-            '0:a:0?',
-            '-c:v',
-            'libx264',
-            '-c:a',
-            'aac',
-            '-movflags',
-            '+faststart',
-            '-f',
-            'mp4',
-            output,
-          ]
-        : [
-            '--source',
-            inputPath,
-            '--preset',
-            'PresetHighestQuality',
-            '--output',
-            output,
-            '--replace',
-          ]
+    const args = spec.args(converter, source.info, inputPath, output)
     // Recheck immediately before encoding: discovery/probing does not grant trust.
     const command = await recheckedCommand(converter, known.path, options)
     if (command === undefined || isAborted(options.signal)) return failed()
-    const env = converterEnvironment()
     await encode(
       command,
       args,
       {
         cwd: directory,
-        env,
+        env: converterEnvironment(),
         timeoutMs,
         outputPath: output,
         maxOutputBytes,
@@ -630,8 +618,7 @@ export async function convertToMp4(
     if (!stat.isFile()) return failed()
     await chmod(output, OWNER_FILE_MODE)
     const result = await sniffFile(output, stat.size)
-    if (!result.ok || result.info.kind !== 'video' || result.info.mediaType !== 'video/mp4')
-      return failed()
+    if (!result.ok || !spec.accepts(result.info)) return failed()
     const admitted = checkMediaLimits(result.info, options.limits)
     if (!admitted.ok) return { ok: false, reason: admitted.reason }
     if (isAborted(options.signal)) return failed()
@@ -644,6 +631,59 @@ export async function convertToMp4(
   } finally {
     if (directory !== undefined) await rm(directory, { recursive: true, force: true })
   }
+}
+
+/** ffmpeg's bounded preamble: no stdin, an allocation cap, files only. */
+const FFMPEG_PREAMBLE = [
+  '-nostdin',
+  '-max_alloc',
+  String(MEDIA_CONVERSION_MAX_RSS_BYTES),
+  '-hide_banner',
+  '-loglevel',
+  'error',
+  '-y',
+  '-protocol_whitelist',
+  'file',
+] as const
+
+/** Owner-only output, verified by bytes before returning; dispose after upload/discard. */
+export async function convertToMp4(
+  inputPath: string,
+  converter: MediaConverter,
+  options: MediaConversionOptions = {},
+): Promise<MediaConversionResult> {
+  return await convertWith(inputPath, converter, options, {
+    outputName: 'converted.mp4',
+    canUse: () => true,
+    args: (chosen, source, input, output) =>
+      chosen.kind === 'ffmpeg'
+        ? [
+            ...FFMPEG_PREAMBLE,
+            '-f',
+            INPUT_FORMATS[source.mediaType],
+            ...(INPUT_FORMATS[source.mediaType] === 'mov'
+              ? ['-enable_drefs', '0', '-use_absolute_path', '0']
+              : []),
+            '-i',
+            input,
+            '-map',
+            '0:v:0?',
+            '-map',
+            '0:a:0?',
+            '-c:v',
+            'libx264',
+            '-c:a',
+            'aac',
+            '-movflags',
+            '+faststart',
+            '-f',
+            'mp4',
+            output,
+          ]
+        : ['--source', input, '--preset', 'PresetHighestQuality', '--output', output, '--replace'],
+    accepts: (info): info is Extract<MediaFileInfo, { kind: 'video' }> =>
+      info.kind === 'video' && info.mediaType === 'video/mp4',
+  })
 }
 
 /**
@@ -660,105 +700,25 @@ export async function convertToWav16kMono(
   converter: MediaConverter,
   options: MediaConversionOptions = {},
 ): Promise<WavConversionResult> {
-  const timeoutMs = options.timeoutMs ?? SHELL_MAX_TIMEOUT_MS
-  const maxOutputBytes = options.limits?.maxUploadBytes ?? MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES
-  const failed = () =>
-    ({
-      ok: false,
-      reason: fill(UI_TEXT.media.conversionFailed, { reason: converter.kind }),
-    }) as const
-  if (
-    !path.isAbsolute(inputPath) ||
-    !path.isAbsolute(converter.command) ||
-    converter.kind !== 'ffmpeg' ||
-    !Number.isSafeInteger(maxOutputBytes) ||
-    maxOutputBytes <= 0 ||
-    maxOutputBytes > MEDIA_MAX_UPLOAD_MIB * BYTES_PER_MIB ||
-    !Number.isSafeInteger(timeoutMs) ||
-    timeoutMs <= 0 ||
-    timeoutMs > SHELL_MAX_TIMEOUT_MS ||
-    options.signal?.aborted === true
-  )
-    return failed()
-  if (process.platform === 'win32' && options.createPrivateDirectory === undefined)
-    return { ok: false, reason: fill(UI_TEXT.media.conversionFailed, { reason: 'permissions' }) }
-  let directory: string | undefined
-  try {
-    const input = await lstat(inputPath)
-    if (!input.isFile()) return failed()
-    const source = await sniffFile(inputPath, input.size)
-    const known = await knownVersionCommand(converter, options, options.signal)
-    if (!source.ok || !known.ok) return failed()
-    const watch = await memoryWatch(options)
-    if (watch === undefined) return failed()
-    const privateDirectory =
-      options.createPrivateDirectory === undefined
-        ? await mkdtemp(path.join(tmpdir(), 'muse-media-'))
-        : await options.createPrivateDirectory()
-    if (!path.isAbsolute(privateDirectory)) throw new Error('Invalid private directory')
-    directory = privateDirectory
-    await chmod(directory, OWNER_DIRECTORY_MODE)
-    const output = path.join(directory, 'extracted.wav')
-    const reserved = await open(output, 'wx', OWNER_FILE_MODE)
-    await reserved.close()
-    // Recheck immediately before encoding: discovery/probing does not grant trust.
-    const command = await recheckedCommand(converter, known.path, options)
-    if (command === undefined || isAborted(options.signal)) return failed()
-    const env = converterEnvironment()
-    await encode(
-      command,
-      [
-        '-nostdin',
-        '-max_alloc',
-        String(MEDIA_CONVERSION_MAX_RSS_BYTES),
-        '-hide_banner',
-        '-loglevel',
-        'error',
-        '-y',
-        '-protocol_whitelist',
-        'file',
-        '-i',
-        inputPath,
-        '-vn',
-        '-ac',
-        '1',
-        '-ar',
-        String(MUSE_VOICE_SAMPLE_RATE),
-        '-c:a',
-        'pcm_s16le',
-        '-f',
-        'wav',
-        output,
-      ],
-      {
-        cwd: directory,
-        env,
-        timeoutMs,
-        outputPath: output,
-        maxOutputBytes,
-        maxRssBytes: MEDIA_CONVERSION_MAX_RSS_BYTES,
-        ...(options.signal !== undefined && { signal: options.signal }),
-      },
-      watch,
-      options.run,
-    )
-    if (isAborted(options.signal)) return failed()
-    const stat = await lstat(output)
-    if (!stat.isFile()) return failed()
-    await chmod(output, OWNER_FILE_MODE)
-    const result = await sniffFile(output, stat.size)
-    if (!result.ok || result.info.kind !== 'audio' || result.info.mediaType !== 'audio/wav')
-      return failed()
-    const admitted = checkMediaLimits(result.info, options.limits)
-    if (!admitted.ok) return { ok: false, reason: admitted.reason }
-    if (isAborted(options.signal)) return failed()
-    const ownedDirectory = directory
-    const dispose = () => rm(ownedDirectory, { recursive: true, force: true })
-    directory = undefined
-    return { ok: true, path: output, info: result.info, dispose }
-  } catch (error: unknown) {
-    return isMemoryCap(error) ? memoryCapFailed() : failed()
-  } finally {
-    if (directory !== undefined) await rm(directory, { recursive: true, force: true })
-  }
+  return await convertWith(inputPath, converter, options, {
+    outputName: 'extracted.wav',
+    canUse: (chosen) => chosen.kind === 'ffmpeg',
+    args: (_chosen, _source, input, output) => [
+      ...FFMPEG_PREAMBLE,
+      '-i',
+      input,
+      '-vn',
+      '-ac',
+      '1',
+      '-ar',
+      String(MUSE_VOICE_SAMPLE_RATE),
+      '-c:a',
+      'pcm_s16le',
+      '-f',
+      'wav',
+      output,
+    ],
+    accepts: (info): info is Extract<MediaFileInfo, { kind: 'audio' }> =>
+      info.kind === 'audio' && info.mediaType === 'audio/wav',
+  })
 }
