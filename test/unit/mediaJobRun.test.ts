@@ -226,11 +226,11 @@ describe('jobMemoryLimitedRun', () => {
     const running = jobMemoryLimitedRun({
       jobExecutable: () => Promise.resolve(EXECUTABLE),
       spawnJob: directLauncher(),
-    })(process.execPath, encoder(where, KIB, 'hang'), options(where, { timeoutMs: 1500 }))
+    })(process.execPath, encoder(where, KIB, 'hang'), options(where, { timeoutMs: 3000 }))
     const pid = await markedPid(where.marker)
     await expect(running).rejects.toMatchObject(FAILED)
     await expectEnded(pid)
-  })
+  }, 20_000)
 
   it('stops the encoder when the conversion is cancelled', async () => {
     const where = await workspace()

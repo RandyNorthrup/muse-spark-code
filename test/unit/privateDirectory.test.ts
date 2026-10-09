@@ -116,17 +116,18 @@ describe('createPrivateDirectory', () => {
     expect(await fs.readFile(path.join(elsewhere, 'kept'), 'utf8')).toBe(SENTINEL)
   })
 
-  it.each(['', '.', '..', '../escape', 'nested/name', String.raw`nested\name`])(
+  // `two words` is one valid component on every OS: only the plain-name rule refuses it.
+  it.each(['', '.', '..', '../escape', 'nested/name', String.raw`nested\name`, 'two words'])(
     'refuses the folder name %j without creating anything',
     async (name) => {
-      const parent = await root()
-      const outside = path.dirname(parent)
-      const before = await fs.readdir(outside)
+      // The parent's own holder, never the shared system temp other processes write to.
+      const outside = await root()
+      const parent = await fs.mkdtemp(path.join(outside, 'parent-'))
       await expect(
         createPrivateDirectory({ parent, acl: owned, name: () => name }),
       ).rejects.toThrow(PrivateDirectoryRefused)
       expect(await fs.readdir(parent)).toEqual([])
-      expect(await fs.readdir(outside)).toEqual(before)
+      expect(await fs.readdir(outside)).toEqual([path.basename(parent)])
     },
   )
 
@@ -265,8 +266,8 @@ describe.skipIf(process.platform !== 'win32')('createPrivateDirectory on real Wi
     await expectOwnerOnly(link)
   })
 
-  // A second fixed drive is the rig's to name (the Windows host has D: and
-  // E:); nothing assumes the system drive.
+  // Second fixed drives are the rig's to name; nothing assumes the system
+  // drive. The Windows host has NTFS E: and exFAT D:, which holds no ACLs.
   const secondDrive = process.env['MEDIA_VB_SECOND_DRIVE']
   it.skipIf(secondDrive === undefined)('secures a folder on another drive letter', async () => {
     if (secondDrive === undefined) throw new Error('MEDIA_VB_SECOND_DRIVE is required')
@@ -276,6 +277,17 @@ describe.skipIf(process.platform !== 'win32')('createPrivateDirectory on real Wi
     )
     await expectOwnerOnly(parent)
   })
+
+  const aclFreeDrive = process.env['MEDIA_VB_NO_ACL_DRIVE']
+  it.skipIf(aclFreeDrive === undefined)(
+    'refuses a drive that cannot hold an owner-only ACL (exFAT, FAT) and leaves nothing',
+    async () => {
+      if (aclFreeDrive === undefined) throw new Error('MEDIA_VB_NO_ACL_DRIVE is required')
+      const parent = await root(aclFreeDrive)
+      await expect(createPrivateDirectory({ parent })).rejects.toThrow(PrivateDirectoryRefused)
+      expect(await fs.readdir(parent)).toEqual([])
+    },
+  )
 
   it('refuses an existing folder without touching its ACL', async () => {
     const parent = await root()
