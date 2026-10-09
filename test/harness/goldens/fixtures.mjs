@@ -1,5 +1,6 @@
 // Test-only exceptional surfaces; all UI is rendered from the actual components.
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { rmSync } from 'node:fs'
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
@@ -31,10 +32,31 @@ export const fixtureScenes = new Set([
   'deferred-popover',
 ])
 
-export async function makeFixtures(auditRoot, port) {
-  const relative = `temp/m114-s-fixtures-${port}`
-  const directory = path.join(auditRoot, relative)
+// The bundles and notes do not depend on the capture's origin, so one process
+// builds them once (a capture run per scene hook used to rebuild them all);
+// each run copies them and writes only its own origin's pages.
+const prepared = new Map()
+async function prepareFixtures(auditRoot) {
+  let pending = prepared.get(auditRoot)
+  if (pending === undefined) {
+    pending = buildFixtures(auditRoot)
+    prepared.set(auditRoot, pending)
+  }
+  try {
+    return await pending
+  } catch (error) {
+    prepared.delete(auditRoot)
+    throw error
+  }
+}
+
+async function buildFixtures(auditRoot) {
+  const directory = path.join(auditRoot, `temp/m114-s-fixtures-shared-${String(process.pid)}`)
+  await rm(directory, { recursive: true, force: true })
   await mkdir(directory, { recursive: true })
+  process.once('exit', () => {
+    rmSync(directory, { recursive: true, force: true })
+  })
   await makeAdditionalFixtures(auditRoot, directory)
   await build({
     stdin: { contents: fixtureSource, resolveDir: auditRoot, loader: 'jsx' },
@@ -71,7 +93,14 @@ export async function makeFixtures(auditRoot, port) {
   const content = parseWhatsNewContent(
     await readFile(path.join(auditRoot, 'dist/whatsNew.json'), 'utf8'),
   )
-  const releases = content.releases
+  return { directory, renderWhatsNewPage, releases: content.releases }
+}
+
+export async function makeFixtures(auditRoot, port) {
+  const relative = `temp/m114-s-fixtures-${port}`
+  const directory = path.join(auditRoot, relative)
+  const { directory: source, renderWhatsNewPage, releases } = await prepareFixtures(auditRoot)
+  await cp(source, directory, { recursive: true })
   const rendered = renderWhatsNewPage({
     releases: releases.filter((entry) => entry.version !== 'Unreleased').slice(0, 1),
     from: undefined,
