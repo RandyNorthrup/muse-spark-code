@@ -91,6 +91,7 @@ import {
   FOREIGN_HOOKS_ONLY,
   HOOK_RUNTIME_ONLY,
   PLUGIN_HOOKS_ONLY,
+  MODEL_API_BOUNDARY_SOURCES,
   checkDeferredBundles,
   checkResourceBundles,
 } from './lib/deferredBundles.mjs'
@@ -1508,6 +1509,29 @@ if (
   )
 ) {
   problems.push('dist/validation.js no longer carries the mini-parser')
+}
+// INT0170: a bundle that loads dist/modelApiBoundaries.js reads its shared
+// sources from there and carries no copy of its own. PORTS017's usdSchema.ts
+// was copied into dist/modelApi.js and twelve other loaders (about 580 B each).
+const boundaryOutput = 'dist/modelApiBoundaries.js'
+const boundaryInputs = inputsOf({
+  output: boundaryOutput,
+  metafile: 'dist/meta/modelApiBoundaries.json',
+})
+for (const source of MODEL_API_BOUNDARY_SOURCES) {
+  if (!boundaryInputs.has(source)) problems.push(`${boundaryOutput} no longer carries ${source}`)
+}
+for (const { output, metafile } of SHIPPED) {
+  const details = Object.entries(JSON.parse(readFileSync(metafile, 'utf8')).outputs).find(
+    ([file]) => file.replaceAll('\\', '/') === output,
+  )?.[1]
+  if (!details?.imports.some(({ path: imported }) => imported === './modelApiBoundaries.js'))
+    continue
+  for (const source of MODEL_API_BOUNDARY_SOURCES) {
+    if (Object.hasOwn(details.inputs, source)) {
+      problems.push(`${output} loads ${boundaryOutput} and still carries its own copy of ${source}`)
+    }
+  }
 }
 
 if (

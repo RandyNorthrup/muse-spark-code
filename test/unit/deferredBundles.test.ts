@@ -752,7 +752,16 @@ describe('deferred cohort bundles', () => {
     // 0.16.0's Model API merged. int/0170's own head measured 483,463 and
     // 0.16.0 alone 500,400 (no M115 code); the combined tree is 527,373 after
     // its diet, inside D6's 525 KiB cap. The pin moves to that measurement.
-    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(527_400)
+    // INT0170 (lead decision, Kubuntu): +3,506 B over 527,377 is feature
+    // code, not an accidental dependency, measured after the shared
+    // usdSchema.ts and windowsPathSpelling.ts left this bundle: MONEY017's
+    // scheduled-run media reserve/settle +2,544 (ModelApiHost.ts +2,081,
+    // client.ts +451), PORTS017 +224 (accounts.ts, exactUsd.ts), SECWINPATH
+    // +517 (storageRefusal, ModelApiHost, browserTool, protectedPaths,
+    // workspacePath) and its MODEL_TEXT keys that activation reads +221.
+    // Re-measured and ratcheted down when m105/media-w2 moves media to the
+    // deferred dist/productionMedia.js.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(530_883)
     const schedules = new Set(inputs('schedules'))
     for (const file of [
       'src/core/backends/modelapi/schedulesEntry.ts',

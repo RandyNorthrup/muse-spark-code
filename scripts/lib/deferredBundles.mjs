@@ -1043,6 +1043,23 @@ export const sharedStructuredSchema = {
   },
 }
 
+// The sources every Node bundle built with sharedModelApiBoundaries reads from
+// dist/modelApiBoundaries.js; the split check fails a bundle that loads it and
+// still carries one of them (INT0170).
+export const MODEL_API_BOUNDARY_SOURCES = [
+  'src/core/pathIdentity.ts',
+  // INT0170: the Windows path rules and their words, once per process.
+  'src/core/windowsPathSpelling.ts',
+  'src/core/backends/modelapi/schemas.ts',
+  'src/shared/teamConversation.ts',
+  'src/shared/paidBoundary.ts',
+  'src/shared/usd.ts',
+  // INT0170: PORTS017's boundary schemas, which usd.ts re-exports.
+  'src/shared/usdSchema.ts',
+  'src/shared/legal.ts',
+  'src/core/backends/modelapi/legalScanTool.ts',
+]
+
 // Share captured Model API validators, native path identity and team admission across Node
 // consumers; browser validators retain their original inline implementation.
 /** @type {import('esbuild').Plugin} */
@@ -1052,7 +1069,7 @@ export const sharedModelApiBoundaries = {
     build.onResolve(
       {
         filter:
-          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol)(?:\.[jt]s)?$/,
+          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
@@ -1081,18 +1098,7 @@ export const sharedModelApiBoundaries = {
             ? undefined
             : { path: './vaultBoundaries.js', external: true }
         }
-        return [
-          'src/core/pathIdentity.ts',
-          // INT0170: the Windows path rules and their words, once per process.
-          'src/core/windowsPathSpelling.ts',
-          'src/core/backends/modelapi/schemas.ts',
-          'src/shared/teamConversation.ts',
-          'src/shared/paidBoundary.ts',
-          'src/shared/usd.ts',
-          'src/shared/usd.ts',
-          'src/shared/legal.ts',
-          'src/core/backends/modelapi/legalScanTool.ts',
-        ].some((file) => source === path.resolve(file))
+        return MODEL_API_BOUNDARY_SOURCES.some((file) => source === path.resolve(file))
           ? { path: './modelApiBoundaries.js', external: true }
           : undefined
       },
