@@ -32701,6 +32701,8 @@ brings its own diet. Recorded in `docs/certification/m103.md`.
 | `src/acp/questionDeferralBundle.ts` (FIXM112A)                                                                      | `isAcpQuestionBundle` trusts the checked factory signature   | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller.                                                 |
 | `src/runtime/questions/questionRegistryBundle.ts`, `src/host/conversation/conversationBundle.ts` (M112 integration) | Checked same-build function signatures                       | Loader guards validate each required export as a function; entries and callers ship from the same build. Registry and host store factories install or inherit the caller's language before use; loader and real-disk tests exercise their signatures.                                                    |
 | `src/runtime/makerBundle.ts` (M103R)                                                                                | `isRuntimeMakerBundle` trusts the checked factory signatures | The entry, loader and ACP package come from the same source and build, as the other deferred factories do. The inline reason names this register; owning command and deferred-bundle tests exercise the real factories. No `any`, non-narrowing cast, lint suppression or scanner suppression was added. |
+| `test/unit/runtimeMakerHost.test.ts` (FIXM103W10)                                                                   | `@ts-expect-error` on `host.epoch = saved`                   | The type half of RVM103W4 P3: the epoch has a getter only, so restoring an old one must not compile. The same test asserts the runtime TypeError; a setter makes the directive unused and fails `typecheck:unit` (drill D1).                                                                             |
+| `src/shared/constants.ts` (FIXM103W10)                                                                              | `/* @__PURE__ */` on six computed constants                  | Each marked call only computes a value from literals and constant tables, so a bundle that never reads it may drop it; values are unchanged where read (their suites pass). It pays for lease identity inside the 125 KiB runtimeMaker cap.                                                              |
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -33102,6 +33104,33 @@ before a repaired one loads (2026-09-30).
   The companion hoists its fixed host reference out of the per-request path
   to hold the runtimeMaker budget. Receipts:
   `docs/certification/m103.md` FIXM103W9.
+  FIXM103W10 (2026-10-09, RVM103W4 P3 and the nine inherited macOS
+  failures) makes `RuntimeMakerHost.epoch` a getter over private state, so
+  `newDocument` is its only writer and no consumer can restore an old epoch
+  for a stale answer. It also completes W's REDM103P identity obligation:
+  production `processStartTime` read Linux's /proc only and threw elsewhere,
+  so on macOS and Windows every machine send and serial claim failed before
+  an approval was asked, and every Windows Stop over an existing lease
+  folder reported a false failure because no `isOwnerDirectory` was wired.
+  `leaseIdentity` (core lease) now answers Linux (/proc starttime), macOS
+  (`/bin/ps -o stat=,lstart=` in the C locale and UTC; a zombie is absent;
+  a failed ps proves absence only by ESRCH) and Windows (the creation
+  FILETIME, `StartTime.ToFileTimeUtc()`, the process tree's checked-kill
+  identity); every other answer is unknown and holds the lease. Windows
+  `isOwnerDirectory` admits a folder only when the current user owns it and
+  only that user, SYSTEM and Administrators are allowed; it never repairs
+  one. A POSIX Stop socket is named by the lease id's first 8 characters
+  and a claim refuses an endpoint over 103 bytes before writing any file
+  (macOS's data folder alone made every endpoint at least 107 bytes). The
+  never-called `exclusive` mutex wiring is removed, and six computed
+  constants carry `/* @__PURE__ */` hints (§8) so bundles that never read
+  them drop them; together these pay for the identity code inside the
+  unchanged 125 KiB runtimeMaker cap. Still open, not claimed: preparing a
+  protected Windows lease root at creation (a profile whose inherited ACL
+  admits other accounts, as sandbox groups do, refuses fail-closed), macOS
+  identity resolves to the second (a pid reused within its start second
+  would match), and physical, installed-editor and browser reload
+  qualification. Receipts: `docs/certification/m103.md` FIXM103W10.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

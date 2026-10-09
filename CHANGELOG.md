@@ -72,6 +72,15 @@ happened, not what was planned; superseded entries are kept.
   after one settles reject without prompting. The new document reviews
   again in both cases.
 
+- Maker machine sends and serial sessions work on macOS and Windows. The
+  hardware lease identified its holder from Linux's process table only, so
+  elsewhere every send failed before asking for approval, and Windows Stop
+  reported a failure whenever a lease folder existed. macOS now reads the
+  holder's start time with `ps`, Windows with the process creation time,
+  and Windows admits a lease folder only when it is private to you (SYSTEM
+  and Administrators aside). A lease's Stop socket path now fits macOS's
+  104-byte limit.
+
 - Hardware Stop has its own 5-second delivery deadline. A serial port that
   never opens or drains, or an HTTP Stop that never answers, now reports Stop
   unconfirmed instead of leaving the caller waiting; a late serial port still
