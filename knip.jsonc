@@ -180,6 +180,11 @@
 
   "ignoreExportsUsedInFile": true,
 
+  // src/shared/usd.ts is main's exact-money module copied byte-for-byte onto
+  // the M98 phase-2 branch (RVM98P2R2 8), which uses only `Usd`; main's money
+  // ports use the rest. Drop this entry when the branch merges with main.
+  "ignoreIssues": { "src/shared/usd.ts": ["exports"] },
+
   // These add-on issue types extend Knip 6's default set; listing any ordinary
   // issue type here would replace that set and silently narrow the gate.
   // Type-only namespace imports in partial mocks must not hide unused exports.

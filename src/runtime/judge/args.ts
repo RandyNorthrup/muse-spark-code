@@ -3,8 +3,6 @@ import {
   EXEC_EXIT,
   EXEC_MAX_BUDGET_USD,
   EXEC_MAX_TIMEOUT_SECONDS,
-  EXEC_USD_DECIMALS,
-  EXEC_USD_UNITS,
   JUDGE_CLI_DEFAULT_BUDGET_USD,
   JUDGE_ENGINES,
   JUDGE_REQUEST_TIMEOUT_MS,
@@ -13,13 +11,16 @@ import {
   type JudgeEngine,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { USD_DECIMAL_RADIX, USD_LIABILITY_DECIMALS } from '../../shared/usdConstants'
 
 export interface JudgeCliOptions {
   readonly engine: Exclude<JudgeEngine, 'off'>
   readonly model: string | undefined
   readonly separate: string | undefined
+  /** Display only; admission uses `budgetNanoUsd`. */
   readonly budgetUsd: number
-  readonly budgetMicroUsd: number
+  /** The run cap in exact nano-USD (nine decimals, the liability precision). */
+  readonly budgetNanoUsd: number
   readonly timeoutMs: number
 }
 
@@ -44,22 +45,26 @@ const DEFAULT_OPTIONS: JudgeCliOptions = {
   model: undefined,
   separate: undefined,
   budgetUsd: JUDGE_CLI_DEFAULT_BUDGET_USD,
-  budgetMicroUsd: JUDGE_CLI_DEFAULT_BUDGET_USD * EXEC_USD_UNITS,
+  budgetNanoUsd: JUDGE_CLI_DEFAULT_BUDGET_USD,
   timeoutMs: JUDGE_REQUEST_TIMEOUT_MS,
 }
 
+/** Nano-USD in one USD: the judge's run cap keeps the liability precision (RVM98P2R2 8). */
+const NANO_USD_PER_USD = BigInt(USD_DECIMAL_RADIX) ** BigInt(USD_LIABILITY_DECIMALS)
+
+/** `--budget-usd` as exact nano-USD: decimal text, at most nine decimals, never through a float. */
 function budget(value: string | undefined): number | undefined {
   if (value === undefined) return JUDGE_CLI_DEFAULT_BUDGET_USD
   const [whole, fraction = ''] = value.split('.', 2)
   if (
     whole === undefined ||
     !/^[0-9]+(?:\.[0-9]+)?$/.test(value) ||
-    fraction.length > EXEC_USD_DECIMALS
+    fraction.length > USD_LIABILITY_DECIMALS
   )
     return undefined
   const units =
-    BigInt(whole) * BigInt(EXEC_USD_UNITS) + BigInt(fraction.padEnd(EXEC_USD_DECIMALS, '0'))
-  return units <= BigInt(EXEC_MAX_BUDGET_USD * EXEC_USD_UNITS) ? Number(units) : undefined
+    BigInt(whole) * NANO_USD_PER_USD + BigInt(fraction.padEnd(USD_LIABILITY_DECIMALS, '0'))
+  return units <= BigInt(EXEC_MAX_BUDGET_USD) * NANO_USD_PER_USD ? Number(units) : undefined
 }
 
 function invalid(argument: string) {
@@ -102,13 +107,13 @@ export function parseJudgeArgs(argv: readonly string[]):
     const names = tokens.filter((token) => token.kind === 'option').map((token) => token.name)
     if (positionals.length > 0 || new Set(names).size !== names.length) return invalid('judge')
     const engine = JUDGE_ENGINES.find((candidate) => candidate === (values.engine ?? 'auto'))
-    const budgetMicroUsd = budget(values['budget-usd'])
+    const budgetNanoUsd = budget(values['budget-usd'])
     const timeout = values['timeout-ms']
     const timeoutMs = timeout === undefined ? JUDGE_REQUEST_TIMEOUT_MS : Number(timeout)
     if (
       engine === undefined ||
       engine === 'off' ||
-      budgetMicroUsd === undefined ||
+      budgetNanoUsd === undefined ||
       (timeout !== undefined && !/^[0-9]+$/.test(timeout)) ||
       !Number.isSafeInteger(timeoutMs) ||
       timeoutMs <= 0 ||
@@ -125,8 +130,8 @@ export function parseJudgeArgs(argv: readonly string[]):
         engine,
         model: values.model,
         separate: values.separate,
-        budgetUsd: budgetMicroUsd / EXEC_USD_UNITS,
-        budgetMicroUsd,
+        budgetUsd: budgetNanoUsd / Number(NANO_USD_PER_USD),
+        budgetNanoUsd,
         timeoutMs,
       },
     }

@@ -167,7 +167,14 @@ export async function askPaidUse(
     return 'deny'
   }
   const { title, detail } = await paidUseQuestion(request)
-  const once: vscode.MessageItem = { title: UI_TEXT.allowOnce }
+  // A separate judge route's grant covers the route until the window closes
+  // (the lead's window-scope decision, as Tab's): its button says so.
+  const once: vscode.MessageItem = {
+    title:
+      request.feature === 'judge' && request.systemOne !== undefined
+        ? UI_TEXT.paidAllowInWindow
+        : UI_TEXT.allowOnce,
+  }
   const always: vscode.MessageItem = { title: UI_TEXT.paidAllowAlways }
   const deny: vscode.MessageItem = { title: UI_TEXT.paidDeny, isCloseAffordance: true }
   const answer = await vscode.window.showWarningMessage(

@@ -6,7 +6,7 @@
 // the POST and refunds; the window's C charge writes its paid usage row over
 // the M95 providers' pinned transport; the cascade accepts the route's served
 // dated model by the CLI's own rule. Fakes only: no live, paid or local call.
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -61,16 +61,19 @@ function titleOf(item: unknown): string {
   return typeof item === 'string' ? item : (item as vscode.MessageItem).title
 }
 
-/** Every popup answers with this button (the real paid host's modal). */
-function answerPopups(title: string): void {
+/** The first allowing button: the Meta judge's Allow once, or C's Allow in this window. */
+const ALLOW_BUTTONS = [UI_TEXT.allowOnce, UI_TEXT.paidAllowInWindow]
+
+/** Every popup answers with the first of these buttons it offers (the real paid host's modal). */
+function answerPopups(...titles: readonly string[]): void {
   vi.mocked(confirmModal).mockImplementation((_message, _options, ...items: unknown[]) =>
-    Promise.resolve(items.find((item) => titleOf(item) === title) as never),
+    Promise.resolve(items.find((item) => titles.includes(titleOf(item))) as never),
   )
 }
 
 beforeEach(() => {
   vi.mocked(confirmModal).mockReset()
-  answerPopups(UI_TEXT.allowOnce)
+  answerPopups(...ALLOW_BUTTONS)
 })
 
 const approval = capturedApproval
@@ -117,11 +120,19 @@ function systemOneWindow(
     /** The user settings' engine and separate id; `undefined`: none set. */
     readonly user?: { readonly engine: JudgeEngine; readonly separate: string } | undefined
     readonly workspaceTexts?: readonly string[]
+    /** Held stored-key lookup (every read waits until it resolves). */
+    readonly keyHold?: Promise<unknown>
+    /** Held name resolution for the route's host. */
+    readonly resolveHold?: Promise<unknown>
+    /** The transport connects and writes, then the response fails. */
+    readonly failAfterConnect?: boolean
   } = {},
 ) {
   const transport = systemOneTransport({
     noul: options.noul ?? 0.95,
     ...(options.httpHold !== undefined && { hold: options.httpHold }),
+    ...(options.resolveHold !== undefined && { resolveHold: options.resolveHold }),
+    ...(options.failAfterConnect === true && { failAfterConnect: true }),
   })
   const ledger = recordingDailyLedger(options.ledgerHold)
   const emitted: AgentEvent[] = []
@@ -155,14 +166,20 @@ function systemOneWindow(
   const log = new FakeLogOutputChannel()
   const status = vi.fn<JudgeWindowDeps['status']>()
   const meta = metaJudge()
+  // Each workspace settings text in its own folder's settings.json.
+  const workspaceFiles = (options.workspaceTexts ?? []).map((text) => {
+    const file = path.join(mkdtempSync(path.join(storage, 'workspace-')), 'settings.json')
+    writeFileSync(file, text)
+    return file
+  })
   const deps: JudgeWindowDeps = {
     engine,
     separateId: () => separateId,
     evidenceRoot: path.join(storage, JUDGE_EVIDENCE_DIRNAME),
     judgeP2BundlePath: path.join(built.folder, 'judgeP2.js'),
-    readStoredCredential: storedOpenRouterKey(),
+    readStoredCredential: storedOpenRouterKey(true, () => options.keyHold),
     separateTransport: { resolve: transport.resolve, send: transport.send },
-    readWorkspaceSettingsTexts: () => options.workspaceTexts ?? [],
+    workspaceSettingsFiles: () => workspaceFiles,
     ledger,
     dailyBudgetUsd: () => 1,
     context: () => ({
@@ -302,7 +319,7 @@ describe('a C (SystemOne) verdict only ever adds caution', () => {
 })
 
 describe('P1: C consent is bound to its route, tariff and revocation generation', () => {
-  it('an ordinary always judge grant never covers C, and Ask again asks again', async () => {
+  it('an ordinary always judge grant never covers C; C’s window grant holds until Ask again', async () => {
     const window = systemOneWindow({ rememberedJudge: true, isMetaKeyStored: true })
     expect(window.paid.consent.remembered()).toContain('judge')
     const first = window.judge.start(ACTION, 'state one')
@@ -311,7 +328,16 @@ describe('P1: C consent is bound to its route, tariff and revocation generation'
     })
     expect(first?.read()).toBe('caution')
     expect(window.popups()).toHaveLength(1)
-    // A second action in the window reuses the route's own once.
+    // The lead's window-scope decision (as Tab's): the popup says what its
+    // grant does, and offers no "once" or "always" button.
+    const offered = window
+      .popups()[0]
+      ?.slice(2)
+      .map((item) => titleOf(item))
+    expect(offered).toEqual([UI_TEXT.paidAllowInWindow, UI_TEXT.paidDeny])
+    expect(window.popups()[0]?.[1]?.detail).toContain('until this window closes')
+    // Deliberately window-scoped: a second action on the route in this
+    // window is covered by the same grant, with no second popup.
     window.judge.start({ ...ACTION, turnId: 't2' }, 'state two')
     await vi.waitFor(() => {
       expect(window.ledger.settled).toHaveLength(2)
@@ -444,16 +470,171 @@ describe('P1/P2: a trigger change while C waits cancels before the POST and refu
   })
 
   it('a separate source change during HTTP rejects the old route result', async () => {
-    const http = Promise.withResolvers<undefined>()
-    const window = systemOneWindow({ httpHold: http.promise })
+    const { window, fence, release } = await heldInFlight()
+    window.setSeparate('local:tev1:4b')
+    release()
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(fence?.read()).not.toBe('caution')
+    window.judge.dispose()
+  })
+})
+
+type SystemOneWindow = ReturnType<typeof systemOneWindow>
+
+/** A C request written to the route, its HTTP wait held until `release`. */
+async function heldInFlight() {
+  const http = Promise.withResolvers<undefined>()
+  const window = systemOneWindow({ httpHold: http.promise })
+  const fence = window.judge.start(ACTION, 'state')
+  await vi.waitFor(() => {
+    expect(window.transport.sent).toHaveLength(1)
+  })
+  return {
+    window,
+    fence,
+    release: () => {
+      http.resolve(undefined)
+    },
+  }
+}
+
+/** Changes that end a run's authorization while one of its waits is held. */
+const RUN_CHANGES: Record<string, (window: SystemOneWindow) => Promise<void>> = {
+  owner: (window) => {
+    window.setOwner('owner-2')
+    return Promise.resolve()
+  },
+  'chat model': (window) => {
+    window.setModel('muse-spark-1.2')
+    return Promise.resolve()
+  },
+  'Ask again': async (window) => {
+    await window.paid.consent.forget()
+  },
+}
+
+/** Every reservation closed (refunded or settled), then a quiet moment. */
+async function runSettled(window: SystemOneWindow): Promise<void> {
+  await vi.waitFor(() => {
+    expect(window.ledger.settled).toHaveLength(window.ledger.reserved.length)
+  })
+  await new Promise((resolve) => setTimeout(resolve, 50))
+}
+
+describe('RVM98P2R2 2: every wait up to the POST is fenced (popup, key lookup, DNS)', () => {
+  const cases = ['popup', 'key lookup', 'DNS'].flatMap((wait) =>
+    Object.keys(RUN_CHANGES).map((change) => [wait, change] as const),
+  )
+  it.each(cases)(
+    'a held %s then a %s change sends nothing, refunds and adds no caution',
+    async (wait, change) => {
+      const gate = Promise.withResolvers<undefined>()
+      if (wait === 'popup')
+        vi.mocked(confirmModal).mockImplementation(
+          async (_message, _options, ...items: unknown[]) => {
+            await gate.promise
+            return items.find((item) => ALLOW_BUTTONS.includes(titleOf(item))) as never
+          },
+        )
+      const window = systemOneWindow({
+        ...(wait === 'key lookup' && { keyHold: gate.promise }),
+        ...(wait === 'DNS' && { resolveHold: gate.promise }),
+      })
+      const fence = window.judge.start(ACTION, 'state')
+      await vi.waitFor(() => {
+        if (wait === 'popup') expect(window.popups()).toHaveLength(1)
+        else if (wait === 'key lookup') expect(window.ledger.reserved).toHaveLength(1)
+        else expect(window.transport.resolve).toHaveBeenCalled()
+      })
+      await RUN_CHANGES[change]?.(window)
+      gate.resolve(undefined)
+      await runSettled(window)
+      expect(window.transport.sent).toHaveLength(0)
+      // Reserved claims are refunded in full; a popup wait reserves nothing.
+      expect(window.ledger.settled).toEqual(window.ledger.reserved.map(() => 0))
+      expect(fence?.read()).not.toBe('caution')
+      window.judge.dispose()
+    },
+  )
+
+  it('Ask again while the request is in flight: charged, but no caution from the revoked call', async () => {
+    const { window, fence, release } = await heldInFlight()
+    await window.paid.consent.forget()
+    release()
+    await runSettled(window)
+    expect(window.ledger.settled[0]).toBeGreaterThan(0)
+    expect(fence?.read()).not.toBe('caution')
+    window.judge.dispose()
+  })
+})
+
+describe('RVM98P2R2 3: the durable claim is checked again right before dispatch', () => {
+  it('a daily Stop while the key lookup waits sends nothing and refunds', async () => {
+    const key = Promise.withResolvers<undefined>()
+    const window = systemOneWindow({ keyHold: key.promise })
+    const fence = window.judge.start(ACTION, 'state')
+    await vi.waitFor(() => {
+      expect(window.ledger.reserved).toHaveLength(1)
+    })
+    // Another window publishes the Stop marker (or the day or cap changes).
+    window.ledger.stop()
+    key.resolve(undefined)
+    await runSettled(window)
+    expect(window.transport.sent).toHaveLength(0)
+    expect(window.ledger.settled).toEqual([0])
+    expect(fence?.read()).not.toBe('caution')
+    window.judge.dispose()
+  })
+})
+
+describe('RVM98P2R2 5: a dispatched call that fails stays a visible uncertain paid use', () => {
+  it('opens its paid row at dispatch and closes it as failed, keeping the liability', async () => {
+    const window = systemOneWindow({ failAfterConnect: true })
     const fence = window.judge.start(ACTION, 'state')
     await vi.waitFor(() => {
       expect(window.transport.sent).toHaveLength(1)
     })
-    window.setSeparate('local:tev1:4b')
-    http.resolve(undefined)
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    await vi.waitFor(() => {
+      const rows = window.emitted.filter((event) => 'item' in event && event.item.tool === 'judge')
+      expect(rows.map((event) => event.type)).toEqual(['itemStarted', 'itemCompleted'])
+      expect(rows[1]).toMatchObject({ item: { status: 'failed', paid: 'judge' } })
+    })
+    // Sent: the reservation stays as liability, never refunded or settled low.
+    expect(window.ledger.reserved).toEqual([0.002688])
+    expect(window.ledger.settled).toEqual([])
+    expect(window.paid.usage.current.judgeCalls).toBe(1)
+    expect(window.paid.usage.current.judgeUnknownRequests).toBe(1)
     expect(fence?.read()).not.toBe('caution')
+    window.judge.dispose()
+  })
+})
+
+describe('RVM98P2R2 9: a C-only run projects C’s own route, never the chat model', () => {
+  it('status and Account & usage name the route, its tariff, a paid experimental source and its grant', async () => {
+    // A fresh Muse Code user with only an OpenRouter key.
+    const window = systemOneWindow({ isMetaKeyStored: false })
+    window.judge.start(ACTION, 'state')
+    await vi.waitFor(() => {
+      expect(window.ledger.settled).toHaveLength(1)
+    })
+    expect(window.status).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ modelId: 'typesafe/jev-1.13', billing: 'modelApi' }),
+    )
+    expect(window.judge.readPanelSnapshot()).toMatchObject({
+      effectiveSource: 'separate',
+      providerId: 'openrouter-jev',
+      modelId: 'typesafe/jev-1.13',
+      paidSourceSelected: true,
+      untested: true,
+      consent: 'granted',
+      showSubscriptionNote: false,
+      inputPerMillion: 0.042,
+    })
+    // Its own revocation, apart from any Meta grant (none exists here).
+    expect(window.paid.consent.remembered()).toEqual([])
+    await window.paid.consent.forget()
+    expect(window.judge.readPanelSnapshot()).toMatchObject({ consent: 'needed' })
     window.judge.dispose()
   })
 })

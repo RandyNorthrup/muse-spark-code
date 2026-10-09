@@ -23,7 +23,7 @@ import type { JudgeCascadeSide, JudgeCascadeOptions } from '../../core/judge/cas
 import type { CalibrationLimits } from '../../core/judge/calibration/schema'
 import type { JudgePlanRuntime, JudgeRuntimeDeps } from '../../core/judge/runtime'
 import type { JudgeEntryParts } from '../../core/judge/entries'
-import type { SeparateSourcePorts } from '../../core/judge/sides'
+import type { SeparateRouteFacts, SeparateSourcePorts } from '../../core/judge/sides'
 import type { Logger } from '../logger'
 import { judgeFeaturesLoader } from '../../runtime/judge/judgeBundle'
 
@@ -88,7 +88,7 @@ export interface HostPhase2BindingInputs {
 export function createHostPhase2(deps: HostPhase2BindingInputs): {
   readonly binding: (action: JudgeEntryParts) => ReturnType<typeof createPhase2Binding>
   readonly createRuntime: (runtime: JudgeRuntimeDeps) => Promise<JudgePlanRuntime>
-  readonly separateRouteReady: () => boolean
+  readonly readySeparateRoute: () => SeparateRouteFacts | undefined
 } {
   const loadJudgeP2 = judgeFeaturesLoader({
     bundlePath: deps.judgeP2BundlePath,
@@ -169,14 +169,13 @@ export function createHostPhase2(deps: HostPhase2BindingInputs): {
     // C's own availability (multi-vendor rule): the configured id names a
     // route this window can build and its key is not known to be missing.
     // Never the Meta judge's gate, price acceptance or backend.
-    separateRouteReady: () => {
+    // The route's own facts (source, model, tariff, consent identity) while
+    // it can be built, for the C-only plan and its status and usage rows.
+    readySeparateRoute: () => {
       const separateId = deps.separateId().trim()
-      return (
-        separateId !== '' &&
-        deps.separatePorts !== undefined &&
-        loadJudgeP2().separateSourceKey(separateId) !== undefined &&
-        keyReady.get(separateId) !== false
-      )
+      const isBuildable =
+        separateId !== '' && deps.separatePorts !== undefined && keyReady.get(separateId) !== false
+      return isBuildable ? loadJudgeP2().separateRouteFacts(separateId) : undefined
     },
   }
 }

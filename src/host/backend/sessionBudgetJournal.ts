@@ -22,8 +22,27 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { Usd } from '../../shared/usd'
+import {
+  USD_DECIMAL_RADIX,
+  USD_DECIMAL_ZERO,
+  USD_LIABILITY_DECIMALS,
+} from '../../shared/usdConstants'
 import { writeFileAtomically } from '../fsAtomic'
 import { storeErrorCode } from './storeErrors'
+
+/** Nano-USD in one USD: the liability precision. */
+const NANO_USD_PER_USD = USD_DECIMAL_RADIX ** USD_LIABILITY_DECIMALS
+
+/** A recorded amount as exact nano-USD: its shortest decimal text, a liability rounded up. */
+export function exactNanoUsd(usd: number): bigint {
+  return Usd.from(usd).ceiling(USD_LIABILITY_DECIMALS).units(USD_LIABILITY_DECIMALS)
+}
+
+/** The number closest to an exact nano-USD amount: order-preserving, for the number ports. */
+export function usdOfNano(nano: bigint): number {
+  return Number(nano) / NANO_USD_PER_USD
+}
 
 const JOURNAL_DIRECTORY = 'budget-journal'
 const INTENT_DIRECTORY = 'budget-intents'
@@ -212,19 +231,23 @@ function totalFor(
 ): SessionBudgetTotal & { readonly uncertainUsd?: number } {
   try {
     const seed = readSeed(scope)
-    let spentUsd = seed.spentUsd
+    // Exact nano-USD totals (RVM98P2R2 8): a float sum drifts past an exact
+    // cap (187 ceilings of $0.002688 summed to 0.502656000000002 > 0.502656).
+    let spentNano = exactNanoUsd(seed.spentUsd)
     let hasUnknownHistoricalFees = seed.hasUnknownHistoricalFees
-    let uncertainUsd = 0
+    let uncertainNano = USD_DECIMAL_ZERO
     const claimIds = readdirSync(path.join(scope.directory, CLAIMS_DIRECTORY))
     for (const claimId of claimIds) {
       const claim = readClaim(scope, seed, claimId)
-      spentUsd += claim.settledUsd ?? claim.reservedUsd
-      if (claim.settledUsd === undefined || claim.hasUnknownCost === true)
-        uncertainUsd += claim.settledUsd ?? claim.reservedUsd
+      const amount = exactNanoUsd(claim.settledUsd ?? claim.reservedUsd)
+      spentNano += amount
+      if (claim.settledUsd === undefined || claim.hasUnknownCost === true) uncertainNano += amount
       hasUnknownHistoricalFees ||=
         claim.hasUnknownCost === true ||
         (claim.isUnbounded === true && claim.settledUsd === undefined)
     }
+    const spentUsd = usdOfNano(spentNano)
+    const uncertainUsd = usdOfNano(uncertainNano)
     assertCost(spentUsd)
     return {
       spentUsd,

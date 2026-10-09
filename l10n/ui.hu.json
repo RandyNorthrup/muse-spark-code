@@ -638,6 +638,7 @@
   "announceListening": "Figyelés",
   "announceStoppedListening": "A figyelés leállt",
   "allowOnce": "Engedélyezés egyszer",
+  "paidAllowInWindow": "Engedélyezés ebben az ablakban",
   "allowSessionPrefix": "Mindig engedélyezve ebben a munkamenetben:",
   "reject": "Elutasítás",
   "modelApiStalled": "A Model API {seconds} mp-ig semmit sem küldött, ezért a válasz lezárult; az újrapróbáláshoz küldje el ismét az üzenetet",
@@ -1410,6 +1411,7 @@
   "usagePaidOnAlways": "bekapcsolva, mindig engedélyezve ezen a munkaterületen",
   "usagePaidAlwaysNote": "Mindig engedélyezve ezen a munkaterületen, kérdés nélkül: {features}.",
   "usagePaidAskAgain": "Rákérdezés minden alkalommal",
+  "usagePaidRouteNote": "Engedélyezve ebben az ablakban: a külön bíráló ({model}).",
   "usagePaidSearches": {
     "other": "{count} keresés",
     "one": "{count} keresés"
@@ -4061,7 +4063,7 @@
   "judgeAutoNoEvidence": "Azonos modell: hiányzik a félretett adatokon végzett páros értékelés bizonyítéka",
   "judgeEmbedNoLabels": "A beágyazási parancsikonnak több száz független címkére van szüksége ehhez a családhoz; még egy sincs rögzítve, ezért helyette a teljes Muse Judge fut.",
   "paidConfirmJudgeEmbedding": "A(z) {model} beágyazási kérése legfeljebb {price} összegbe kerül, a szolgáltatói kulcsára számlázva. A közös napi keret {budget}. Az előfizetése ezt nem fedezi. Az Egyszer engedélyezés erre az ablakra érvényes; ingyenes forrásról váltás vagy árváltozás új beleegyezést kér.",
-  "paidConfirmJudgeSystemOne": "Kísérleti és teszteletlen: egy SystemOne bírálói kérés a(z) {model} modellhez a(z) {recipient} címen legfeljebb {price}, amelyet a saját szolgáltatói kulcsára számlázunk. A megítélt művelet oda kerül; az eredmény csak óvatosságot ad a saját modellje ítéletéhez, soha nem válaszol Önnek és nem dönt egyedül. A közös napi keret {budget}. Az előfizetése nem fizeti ezt a kérést. Az Egyszeri engedélyezés erre az ablakra vonatkozik; az ár változásakor újra rákérdez.",
+  "paidConfirmJudgeSystemOne": "Kísérleti és teszteletlen: egy SystemOne bírálói kérés a(z) {model} modellhez a(z) {recipient} címen legfeljebb {price}, amelyet a saját szolgáltatói kulcsára számlázunk. A megítélt művelet oda kerül; az eredmény csak óvatosságot ad a saját modellje ítéletéhez, soha nem válaszol Önnek és nem dönt egyedül. A közös napi keret {budget}. Az előfizetése nem fizeti ezt a kérést. Az Engedélyezés ebben az ablakban az útvonal minden kérésére vonatkozik, amíg ez az ablak be nem zárul; a Fiók és használat Rákérdezés minden alkalommal gombja vagy az ár változása újra rákérdez.",
   "judgeSeparateNeedsKey": "A külön bírálónak szüksége van a szolgáltatója kulcsára a Modellek és szolgáltatók részben",
   "judgeSeparateNeedsCapture": "Külön bíráló: ehhez a szolgáltatói modellhez előbb rögzített strukturált vagy logprob bírálói kérés kell",
   "judgeSeparateNeedsInstall": "Külön bíráló: a helyi bírálóhoz ellenőrzött telepítés kell egy tanúsított platformon",

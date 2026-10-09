@@ -6,6 +6,8 @@ import * as z from 'zod/mini'
 import type { CreateImageBody, CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { estimateInput, requestParts } from '../../src/core/backends/modelapi/sessionBudget'
+import { systemOneNanoUsd } from '../../src/core/judge/systemone/policy'
+import { systemOneRoute } from '../../src/core/judge/systemone/side'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
 import { createPaidFeatures } from '../../src/host/paid/paidHost'
 import * as atomicFiles from '../../src/host/fsAtomic'
@@ -162,6 +164,27 @@ async function raiseAtCap() {
   )
   return daily
 }
+
+describe('D78 exact nano-USD admission (RVM98P2R2 8)', () => {
+  it('admits exactly 187 SystemOne route ceilings under a $0.502656 cap, and refuses the 188th', async () => {
+    const route = systemOneRoute('openrouter-jev:typesafe/jev-1.13')
+    if (route === undefined) throw new Error('captured route missing')
+    // The route's ceiling is exact: 187 of them are exactly the cap.
+    expect(route.worstCaseUsd).toBe(0.002688)
+    expect(systemOneNanoUsd(64_000, 0, { inputUsdPerMillion: 0.042, outputUsdPerMillion: 0 })).toBe(
+      2_688_000n,
+    )
+    const ledger = budget(0.502656).judgeLedger
+    for (let index = 0; index < 187; index += 1) {
+      // As the window's C adapter: the exact remaining amount, then the claim.
+      expect(await ledger.remainingUsd()).toBeGreaterThanOrEqual(route.worstCaseUsd)
+      const claim = await ledger.reserve(route.worstCaseUsd)
+      claim.check()
+    }
+    expect(await ledger.remainingUsd()).toBe(0)
+    await expect(ledger.reserve(route.worstCaseUsd)).rejects.toThrow()
+  })
+})
 
 describe('D78 interactive paid daily budget', () => {
   it.each([false, true])(

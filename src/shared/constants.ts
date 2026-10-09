@@ -955,6 +955,17 @@ export const JUDGE_SEPARATE_GAPS = ['key', 'capture', 'install', 'unknown', 'sco
 // The log's English sentence for gap `scope` (the status line is localized).
 export const JUDGE_SCOPE_LOG =
   'Separate judge: it is set in workspace settings; paid settings are read from user settings only'
+// The scope check reads repository-controlled files (RVM98P2R2 6): regular
+// files only, opened without blocking, at most 256 KiB each and 1 MiB in
+// all, from at most this many files. Anything else is skipped and logged.
+// Plain literals: a computed constant here rides along in dist/wire.js.
+export const WORKSPACE_SETTINGS_MAX_BYTES = 262_144
+export const WORKSPACE_SETTINGS_TOTAL_BYTES = 1_048_576
+export const WORKSPACE_SETTINGS_MAX_FILES = 32
+// The log's English sentence when a workspace settings file was not read
+// for the scope check (no path: the repository controls the names).
+export const JUDGE_SCOPE_SKIPPED_LOG =
+  'Separate judge: a workspace settings file was not checked (not a regular file, too large or unreadable)'
 // Recorded phase-2 evidence (PLAN M98 2b/2i, P2B measurement plan) lives in
 // owner storage under this directory: the host's global storage, the
 // CLI/MCP data directory beside the credential file. Never in the VSIX.
@@ -2140,6 +2151,9 @@ export const WEB_FETCH_TOKEN_MAX_CHARS = 64
 // The transport's error for an answer that did not come over TLS (a proxy's
 // own refusal of the tunnel), with the status it answered.
 export const WEB_FETCH_NOT_TLS_CODE = 'ERR_WEB_FETCH_NOT_TLS'
+// The transport's error for a request its pre-body fence withdrew once
+// connected, before any request byte was written (M98 phase 2, lane C).
+export const WEB_FETCH_NOT_SENT_CODE = 'ERR_WEB_FETCH_NOT_SENT'
 // A longer address is refused: it is sent to the host, so it bounds what a
 // URL can carry out of the conversation.
 export const WEB_FETCH_URL_MAX_CHARS = 2048

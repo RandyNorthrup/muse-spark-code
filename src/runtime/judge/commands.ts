@@ -10,15 +10,19 @@ import {
 import {
   EXEC_EXIT,
   EXEC_FORCE_WRITE_MS,
-  EXEC_USD_UNITS,
   JUDGE_MAX_BODY_BYTES,
   UI_TEXT,
 } from '../../shared/constants'
+import { Usd } from '../../shared/usd'
+import { USD_DECIMAL_RADIX, USD_LIABILITY_DECIMALS } from '../../shared/usdConstants'
 import type { FdWriter } from '../exec/fdWriter'
 import { readPromptStdin } from '../exec/keyInput'
 import { JudgeCliInputError, type JudgeCliCommand, type JudgeCliOptions } from './args'
 import { runJudgeMcp } from './mcp'
 import { isServedJudgeModel } from '../../core/judge/served'
+
+/** Nano-USD in one USD: the run cap's liability precision. */
+const NANO_USD_PER_USD = USD_DECIMAL_RADIX ** USD_LIABILITY_DECIMALS
 
 /** Z supplies current context; resolution must not start a chat backend/session. */
 export interface JudgeCliSource {
@@ -144,7 +148,8 @@ function isAligned(request: JudgeRequest, outcome: JudgeOutcome): boolean {
 
 /** Per-process cap is conservatively retained, including failed/uncertain calls. */
 function judgeCaller(options: JudgeCliOptions, deps: JudgeCliDeps) {
-  let remainingUnits = options.budgetMicroUsd
+  // Exact nano-USD (RVM98P2R2 8): the run cap and every reservation are integers.
+  let remainingUnits = options.budgetNanoUsd
   return async (raw: unknown, signal: AbortSignal): Promise<JudgeOutcome> => {
     signal.throwIfAborted()
     const request = judgeRequestSchema.parse(raw)
@@ -175,12 +180,16 @@ function judgeCaller(options: JudgeCliOptions, deps: JudgeCliDeps) {
       if (remainingUnits <= 0) return noAnswer('over-budget')
       const cost = source.worstCaseUsd(request)
       if (cost === undefined || !Number.isFinite(cost) || cost <= 0) return noAnswer('unpriced')
-      const reservedUnits = Math.ceil(cost * EXEC_USD_UNITS)
+      // The plan's number enters once, as its shortest decimal text, and a
+      // liability rounds up to the nano-USD: never `cost * units` in floats.
+      const reservedUnits = Number(
+        Usd.from(cost).ceiling(USD_LIABILITY_DECIMALS).units(USD_LIABILITY_DECIMALS),
+      )
       if (reservedUnits > remainingUnits) return noAnswer('over-budget')
       if (deps.admitPaid === undefined) return noAnswer('consent-needed')
       remainingUnits -= reservedUnits
       rawOutcome = await untilAborted(
-        deps.admitPaid(source, request, reservedUnits / EXEC_USD_UNITS, signal),
+        deps.admitPaid(source, request, reservedUnits / NANO_USD_PER_USD, signal),
         signal,
       )
     } else {

@@ -145,6 +145,7 @@ export async function referenceSources(root) {
     'src/shared/protocol.ts',
     'src/runtime/backends.ts',
     'src/extension.ts',
+    'src/host/paid/paidHost.ts',
     'src/acp/agent.ts',
     ...readdirSync(path.join(root, 'src/webview'), { recursive: true })
       .filter((name) => /\.tsx?$/.test(name))
@@ -447,8 +448,16 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     ],
     'src/extension.ts': [
       "isModelApi: () => paidBackend === 'modelApi'",
-      "feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature)",
+      // The window's paid availability: the backend and the user (global)
+      // setting value feed the one helper, spread into the paid host.
+      'paidAvailability({ backend: () => paidBackend,',
+      '.inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue !== undefined,',
+      '...paidAvailable,',
       "if (auth.current.backend === 'modelApi') {\n              return currentSettings().dictationEngine === 'system'",
+    ],
+    'src/host/paid/paidHost.ts': [
+      'const isDefaultOn = (feature: PaidFeature) => !deps.hasUserValue(feature)',
+      "feature === 'tab' || deps.backend() === 'modelApi' || !isDefaultOn(feature),",
     ],
     'src/acp/agent.ts': ["if (host.info.kind !== 'museCode')"],
   }

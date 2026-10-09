@@ -97,6 +97,11 @@ const features = {
   separateSourceKey(separateId: string) {
     return sourcesFeatures().separateSourceKey(separateId)
   },
+  // The configured route's source, model, tariff and consent identity, for
+  // the status line and Account & usage (never the chat model's).
+  separateRouteFacts(separateId: string) {
+    return sourcesFeatures().separateRouteFacts(separateId)
+  },
   createRuntime(deps: JudgeRuntimeDeps) {
     return Promise.resolve(
       createJudgeRuntime({

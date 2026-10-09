@@ -623,6 +623,7 @@
   "announceListening": "正在聆聽",
   "announceStoppedListening": "已停止聆聽",
   "allowOnce": "允許一次",
+  "paidAllowInWindow": "在此視窗中允許",
   "allowSessionPrefix": "在此工作階段中一律允許：",
   "reject": "拒絕",
   "modelApiStalled": "Model API 在 {seconds} 秒內沒有傳送任何內容，因此已結束回覆；請再次傳送訊息以重試",
@@ -1369,6 +1370,7 @@
   "usagePaidOnAlways": "開啟，在此工作區中一律允許",
   "usagePaidAlwaysNote": "在此工作區中一律允許，不再詢問：{features}。",
   "usagePaidAskAgain": "每次都重新詢問",
+  "usagePaidRouteNote": "已在此視窗中允許：單獨評判 {model}。",
   "usagePaidSearches": {
     "other": "{count} 次搜尋"
   },
@@ -3917,7 +3919,7 @@
   "judgeAutoNoEvidence": "同一模型：缺少保留資料上的配對評估證據",
   "judgeEmbedNoLabels": "嵌入捷徑需要該系列的數百個獨立標籤；尚無記錄，因此改為執行完整評審。",
   "paidConfirmJudgeEmbedding": "向 {model} 傳送一次嵌入請求最多花費 {price}，由您的供應商金鑰支付。共用每日預算為 {budget}。訂閱不會支付此請求。「允許一次」涵蓋目前視窗；從免費來源切換或價格變更時將再次詢問。",
-  "paidConfirmJudgeSystemOne": "實驗性、未測試：向 {recipient} 上的 {model} 傳送 SystemOne 評判請求最多花費 {price}，計入您自己的供應商金鑰。被評判的動作會傳送到該處；結果只會為您自己模型的評判增加謹慎，絕不會回答您，也不會單獨做出決定。共用每日預算為 {budget}。您的訂閱不支付此請求。「允許一次」適用於此視窗；價格變更時會再次詢問。",
+  "paidConfirmJudgeSystemOne": "實驗性、未測試：向 {recipient} 上的 {model} 傳送 SystemOne 評判請求最多花費 {price}，計入您自己的供應商金鑰。被評判的動作會傳送到該處；結果只會為您自己模型的評判增加謹慎，絕不會回答您，也不會單獨做出決定。共用每日預算為 {budget}。您的訂閱不支付此請求。「在此視窗中允許」在此視窗關閉前適用於此路由上的每個請求；在「帳戶與使用量」中選擇「每次都重新詢問」或價格變更時會再次詢問。",
   "judgeSeparateNeedsKey": "單獨評判需要在「模型與供應商」中提供其供應商金鑰",
   "judgeSeparateNeedsCapture": "單獨評判：此供應商模型需要先擷取結構化或 logprob 評判請求",
   "judgeSeparateNeedsInstall": "單獨評判：本機評判需要在認證平台上經過審核的安裝",

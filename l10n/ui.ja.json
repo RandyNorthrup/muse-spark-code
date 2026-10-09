@@ -623,6 +623,7 @@
   "announceListening": "聞き取り中",
   "announceStoppedListening": "聞き取りを停止しました",
   "allowOnce": "今回のみ許可",
+  "paidAllowInWindow": "このウィンドウで許可",
   "allowSessionPrefix": "このセッションでは常に許可:",
   "reject": "拒否",
   "modelApiStalled": "Model API から {seconds} 秒間何も送られてこなかったため、応答を終了しました。再試行するにはメッセージをもう一度送信してください",
@@ -1369,6 +1370,7 @@
   "usagePaidOnAlways": "オン、このワークスペースでは常に許可",
   "usagePaidAlwaysNote": "このワークスペースでは常に許可 (確認なし): {features}。",
   "usagePaidAskAgain": "毎回確認する",
+  "usagePaidRouteNote": "このウィンドウで許可済み: 別の判定 {model}。",
   "usagePaidSearches": {
     "other": "{count} 回の検索"
   },
@@ -3917,7 +3919,7 @@
   "judgeAutoNoEvidence": "同じモデル：保留データによるペア評価の証拠がありません",
   "judgeEmbedNoLabels": "埋め込みショートカットには、このファミリーの独立したラベルが数百件必要です。まだ記録がないため、代わりにフルジャッジが実行されます。",
   "paidConfirmJudgeEmbedding": "{model} への埋め込みリクエストの費用は最大 {price} で、プロバイダーキーに請求されます。共有の1日予算は {budget} です。サブスクリプションでは支払われません。「今回許可」はこのウィンドウに適用され、無料ソースからの切り替えや価格変更時には再度確認します。",
-  "paidConfirmJudgeSystemOne": "試験的・未テスト：{recipient} の {model} への SystemOne 判定リクエストの費用は最大 {price} で、ご自身のプロバイダーキーに請求されます。判定対象の操作はそこへ送信されます。結果はご自身のモデルの判定に注意を加えるだけで、あなたに回答したり単独で決定したりすることはありません。共有の1日予算は {budget} です。サブスクリプションではこのリクエストは支払われません。「今回許可」はこのウィンドウに適用され、価格が変わると再度確認します。",
+  "paidConfirmJudgeSystemOne": "試験的・未テスト：{recipient} の {model} への SystemOne 判定リクエストの費用は最大 {price} で、ご自身のプロバイダーキーに請求されます。判定対象の操作はそこへ送信されます。結果はご自身のモデルの判定に注意を加えるだけで、あなたに回答したり単独で決定したりすることはありません。共有の1日予算は {budget} です。サブスクリプションではこのリクエストは支払われません。「このウィンドウで許可」は、このウィンドウを閉じるまでこのルートのすべてのリクエストに適用されます。「アカウントと使用量」の「毎回確認する」または価格の変更で再度確認します。",
   "judgeSeparateNeedsKey": "別の判定には「モデルとプロバイダー」でそのプロバイダーのキーが必要です",
   "judgeSeparateNeedsCapture": "別の判定：このプロバイダーモデルには、まず構造化または logprob の判定リクエストのキャプチャが必要です",
   "judgeSeparateNeedsInstall": "別の判定：ローカル判定には認定プラットフォーム上の検証済みインストールが必要です",

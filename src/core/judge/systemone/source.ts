@@ -36,6 +36,8 @@ export interface SystemOneSelection {
   readonly selection: 'explicit' | 'auto'
   readonly confidential: boolean
   readonly consent: 'granted' | 'needed' | 'declined'
+  /** The route grant's revocation count ("Ask again", a price change); 0 where none exists. */
+  readonly revocation?: number
 }
 
 export interface SystemOnePost {
@@ -44,6 +46,14 @@ export interface SystemOnePost {
   readonly body: string
   readonly key: string
   readonly signal: AbortSignal
+  /**
+   * The final fence, called after every wait up to the moment the request's
+   * bytes are written (after name resolution and again once connected):
+   * false withdraws the request unsent.
+   */
+  readonly proceed: () => boolean
+  /** Called once, when the request is actually dispatched (its bytes are being written). */
+  readonly onDispatch?: (() => void) | undefined
 }
 
 export interface SystemOnePostResult {
@@ -54,6 +64,8 @@ export interface SystemOnePostResult {
 
 export interface SystemOneClaim {
   readonly reservedUsd: number
+  /** The durable claim's live admission (Stop, day change, reduced cap): throws when it no longer holds. */
+  check(): void
   settle(usd: number): Promise<void>
   refund(): Promise<void>
 }
@@ -116,6 +128,7 @@ function fingerprint(selection: SystemOneSelection | undefined): string {
     selection: selection.selection,
     confidential: selection.confidential,
     consent: selection.consent,
+    revocation: selection.revocation ?? 0,
   })
 }
 
@@ -313,25 +326,35 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
       if (reserved === undefined) return refused(abortReason(callerSignal, deadline))
       if (!reserved.reserved) return refused(ledgerReason(reserved.reason))
       const claim = reserved.claim
-      const complete = async (): Promise<JudgeOutcome> => {
-        if (isSignalAborted(signal))
-          return await release(claim, abortReason(callerSignal, deadline))
+      // Why this claim may not dispatch now: cancellation, a changed identity
+      // or authorization (owner, chat model, source, consent, revocation), or
+      // the durable claim's own live admission (Stop, day change, reduced
+      // cap). Read after every wait, through the transport's final fence.
+      const holdReason = (): NoAnswerReason | undefined => {
         const changed = bindingRefusal(deps, binding)
-        if (changed !== undefined) return await release(claim, changed)
+        let isAdmitted = true
+        try {
+          claim.check()
+        } catch {
+          isAdmitted = false
+        }
+        // Cancellation is read last: a reader above may abort synchronously.
+        if (isSignalAborted(signal)) return abortReason(callerSignal, deadline)
+        if (changed !== undefined) return changed
+        return isAdmitted ? undefined : 'over-budget'
+      }
+      const complete = async (): Promise<JudgeOutcome> => {
+        const before = holdReason()
+        if (before !== undefined) return await release(claim, before)
         let key: string | undefined
         try {
           key = await unlessAborted(deps.readKey(route.preset.keyProviderId), signal)
         } catch {
           return await release(claim, 'engine-failure')
         }
-        if (isSignalAborted(signal))
-          return await release(claim, abortReason(callerSignal, deadline))
-        const rebound = bindingRefusal(deps, binding)
-        if (rebound !== undefined) return await release(claim, rebound)
+        const afterKey = holdReason()
+        if (afterKey !== undefined) return await release(claim, afterKey)
         if (key === undefined || key.length === 0) return await release(claim, 'source-unavailable')
-        // No await between the final policy/cancellation check and dispatch.
-        if (isSignalAborted(signal))
-          return await release(claim, abortReason(callerSignal, deadline))
         let response: SystemOnePostResult
         try {
           response = await deps.post({
@@ -340,11 +363,13 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
             body,
             key,
             signal,
+            proceed: () => holdReason() === undefined,
           })
         } catch {
           return refused('engine-failure')
         }
-        if (!response.sent) return await release(claim, 'engine-failure')
+        // Withdrawn or refused before any byte was written: a known non-send.
+        if (!response.sent) return await release(claim, holdReason() ?? 'engine-failure')
         if (response.status !== HTTP_OK) return refused('engine-failure')
         try {
           const prepared = prepareSystemOne(response.body, request, route.capability.responseModels)
@@ -361,7 +386,11 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
           // One serialized transition owns settlement. Stop ends the caller's
           // wait, while known dispatched usage still finishes accounting once.
           await claim.settle(actual)
-          return { outcome: 'answered', result }
+          // A call whose authorization was revoked, or whose identity changed,
+          // while it was in flight is charged but never answers: no caution
+          // from a revoked call.
+          const late = bindingRefusal(deps, binding)
+          return late === undefined ? { outcome: 'answered', result } : refused(late)
         } catch {
           return refused('engine-failure')
         }

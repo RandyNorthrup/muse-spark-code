@@ -10,7 +10,12 @@ import { unlessAborted } from '../../core/timeouts'
 import { PAID_DAILY_BUDGET, PAID_PRICES_USD, UI_TEXT } from '../../shared/constants'
 import { fill, formatUsd } from '../../shared/l10n/text'
 import { modelApiPaidTier } from '../../shared/paid'
-import { createSessionBudgetJournal } from '../backend/sessionBudgetJournal'
+import {
+  createSessionBudgetJournal,
+  exactNanoUsd,
+  usdOfNano,
+} from '../backend/sessionBudgetJournal'
+import { USD_DECIMAL_ZERO } from '../../shared/usdConstants'
 import { storeErrorCode } from '../backend/storeErrors'
 import { writeFileAtomically } from '../fsAtomic'
 import type { UsageBudgetRead } from '../../core/usage/usageService'
@@ -237,7 +242,9 @@ export function createPaidDailyBudget(deps: {
   const judgeLedger: JudgeDailyLedger = {
     remainingUsd: async () => {
       const current = await latestDay()
-      return Math.max(0, current.capUsd - current.spentUsd)
+      // Exact nano-USD: a float subtraction shaves the last ceiling under the cap.
+      const remaining = exactNanoUsd(current.capUsd) - exactNanoUsd(current.spentUsd)
+      return remaining > USD_DECIMAL_ZERO ? usdOfNano(remaining) : 0
     },
     reserve: async (costUsd) => {
       const scope = day()

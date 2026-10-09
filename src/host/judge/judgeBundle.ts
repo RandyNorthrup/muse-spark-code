@@ -6,7 +6,7 @@ import type {
 import type { JudgePanelSnapshot } from '../../shared/judgePanel'
 import type { StartSessionOptions, AgentSession } from '../../core/agent/agentBackend'
 import type { JudgeDailyLedger } from '../../core/judge/admission'
-import type { SeparateSourcePorts } from '../../core/judge/sides'
+import type { SeparateRouteFacts, SeparateSourcePorts } from '../../core/judge/sides'
 import type { JudgeEntryParts } from '../../core/judge/entries'
 import type { JudgeAdvisory } from '../../core/judge/use'
 import type { JudgeFenceSample } from '../../core/judge/use'
@@ -25,8 +25,8 @@ export interface JudgeWindowDeps {
     | {
         readonly binding: (action: JudgeEntryParts) => JudgeRuntimeBinding | undefined
         readonly createRuntime: (deps: JudgeRuntimeDeps) => Promise<JudgePlanRuntime>
-        /** Whether the configured separate route can be built (C's own availability). */
-        readonly separateRouteReady?: (() => boolean) | undefined
+        /** The configured separate route's facts while it can be built (C's own availability). */
+        readonly readySeparateRoute?: (() => SeparateRouteFacts | undefined) | undefined
       }
     | undefined
   /**
@@ -61,11 +61,11 @@ export interface JudgeWindowDeps {
     | undefined
   readonly readSettingsText: () => string | undefined
   /**
-   * The raw text of this window's workspace settings files (each folder's
-   * `.vscode/settings.json`, the `.code-workspace` file). Read only to name a
-   * separate judge set there, which paid settings never honour.
+   * The local paths of this window's workspace settings files (each folder's
+   * `.vscode/settings.json`, the `.code-workspace` file). Read within bounds,
+   * only to name a separate judge set there, which paid settings never honour.
    */
-  readonly readWorkspaceSettingsTexts?: (() => readonly string[]) | undefined
+  readonly workspaceSettingsFiles?: (() => readonly string[]) | undefined
   readonly startSession: (options: StartSessionOptions) => Promise<AgentSession>
   readonly modelApi: (action: JudgeEntryParts) => ModelApiJudgeConnection | undefined
   /** The real D78 adapter only; absence disables metered judging before consent. */

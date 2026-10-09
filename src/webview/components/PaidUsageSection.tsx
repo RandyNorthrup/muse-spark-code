@@ -54,9 +54,25 @@ export function PaidSection({
   readonly judgeUsage?: JudgePanelSnapshot | undefined
 }) {
   const always = features.filter((feature) => paid.alwaysAllowed.includes(feature))
+  // A separate judge route's window grant is its own (never a Meta grant):
+  // it has its own Ask again, on any backend (RVM98P2R2 9).
+  const routeModel =
+    judgeUsage?.paidSourceSelected === true && judgeUsage.consent === 'granted'
+      ? judgeUsage.modelId
+      : undefined
   return (
     <>
       {judgeUsage === undefined ? null : <JudgeUsageRows snapshot={judgeUsage} />}
+      {routeModel === undefined ? null : (
+        <div className="usage-paid-always">
+          <p className={'usage-row-meta'}>
+            {fill(UI_TEXT.usagePaidRouteNote, { model: routeModel })}
+          </p>
+          <button type="button" className="button-secondary" onClick={onForgetPaidUse}>
+            {UI_TEXT.usagePaidAskAgain}
+          </button>
+        </div>
+      )}
       {features.length === 0 ? null : (
         <>
           <dl className="usage-facts">

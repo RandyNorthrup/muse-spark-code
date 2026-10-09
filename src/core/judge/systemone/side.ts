@@ -53,6 +53,8 @@ export interface SystemOneRoute {
   readonly worstCaseUsd: number
   /** The response model ids the capture allows for this request id. */
   readonly servedModels: readonly string[]
+  /** The captured per-million rates the route bills (its own tariff, never the chat model's). */
+  readonly tariff: { readonly inputUsdPerMillion: number; readonly outputUsdPerMillion: number }
   /**
    * What a consent for this route is bound to: recipient, model and tariff
    * ceiling. Another route, or a changed price, never inherits it.
@@ -77,6 +79,10 @@ export function systemOneRoute(separateId: string): SystemOneRoute | undefined {
     verified: preset.wireCapture,
     worstCaseUsd: systemOneUsd(captured.requestTokens, 0, captured),
     servedModels: captured.responseModels,
+    tariff: {
+      inputUsdPerMillion: captured.inputUsdPerMillion,
+      outputUsdPerMillion: captured.outputUsdPerMillion,
+    },
     consentKey: JSON.stringify([
       preset.origin,
       preset.path,
@@ -120,6 +126,8 @@ export interface SystemOneSideIo {
    * anything is sent.
    */
   readonly generation: () => number
+  /** The route grant's revocation count ("Ask again", a price change); absent where none exists. */
+  readonly revocation?: (() => number) | undefined
   readonly confidential: () => boolean
   readonly measureTokens: (text: string) => number
   /** An explicit `separate`/`both` engine; `auto` never selects an untested route. */
@@ -163,6 +171,8 @@ export type SystemOneSend = (
   headers: Readonly<Record<string, string>>,
   signal: AbortSignal,
   onConnected: () => void,
+  /** Read once connected, before any request byte is written: false withdraws it unsent. */
+  shouldWrite: () => boolean,
 ) => Promise<PinnedResponse>
 
 /** Name resolution for the route's host; every address is returned. */
@@ -176,7 +186,17 @@ async function defaultResolve(host: string): Promise<readonly string[]> {
 async function defaultSend(...args: Parameters<SystemOneSend>): Promise<PinnedResponse> {
   // The Model API bundle's pinned POST, loaded only when a request is made.
   const { pinnedPostRequest } = await import('../../../host/backend/modelApiEntry')
-  return await pinnedPostRequest(...args)
+  const [target, body, headers, signal, onConnected, shouldWrite] = args
+  return await pinnedPostRequest(
+    target,
+    body,
+    headers,
+    signal,
+    onConnected,
+    undefined,
+    undefined,
+    shouldWrite,
+  )
 }
 
 async function boundedJson(response: PinnedResponse): Promise<unknown> {
@@ -208,6 +228,15 @@ function isCredentialName(name: string): boolean {
   return CREDENTIAL_FIELD.test(name) || isSecretFieldName(name)
 }
 
+/**
+ * A property name that carries a credential: the exact active key anywhere in
+ * it, or text the shared redactor would change. Dropped with its value at
+ * every depth, owned maps included (no question id or counter carries one).
+ */
+function isCredentialBearingName(name: string, key: string): boolean {
+  return name.includes(key) || redactSecrets(name) !== name
+}
+
 function scrubValue(value: unknown, key: string, isOwnedMap = false): unknown {
   if (typeof value === 'string') return redactSecrets(value.split(key).join(REDACTED))
   if (Array.isArray(value)) return value.map((item) => scrubValue(item, key))
@@ -215,8 +244,11 @@ function scrubValue(value: unknown, key: string, isOwnedMap = false): unknown {
   if (!record.success) return value
   return Object.fromEntries(
     Object.entries(record.data).flatMap(([name, item]) =>
-      // Names in an owned map (question ids, usage counters) are ours.
-      !isOwnedMap && isCredentialName(name) ? [] : [[name, scrubValue(item, key)]],
+      // Names in an owned map (question ids, usage counters) are ours, but
+      // never one that carries the credential itself.
+      isCredentialBearingName(name, key) || (!isOwnedMap && isCredentialName(name))
+        ? []
+        : [[name, scrubValue(item, key)]],
     ),
   )
 }
@@ -236,7 +268,9 @@ export function scrubSystemOneBody(value: unknown, key: string): unknown {
     Object.entries(record.data).flatMap(([name, item]) => {
       if (OWNED_FIELDS.has(name))
         return [[name, scrubValue(item, key, name === 'answers' || name === 'usage')]]
-      return isCredentialName(name) ? [] : [[name, scrubValue(item, key)]]
+      return isCredentialName(name) || isCredentialBearingName(name, key)
+        ? []
+        : [[name, scrubValue(item, key)]]
     }),
   )
 }
@@ -270,6 +304,8 @@ export function pinnedSystemOnePost(
     // Only a public address: a SystemOne preset never has a private one.
     if (address === undefined || verdict.kind !== 'ok' || verdict.network !== 'public')
       return notSent
+    // Name resolution is a wait: the run must still hold before connecting.
+    if (!request.proceed()) return notSent
     const target: PinnedTarget = {
       url,
       host,
@@ -289,8 +325,13 @@ export function pinnedSystemOnePost(
         },
         request.signal,
         () => {
+          // Connected and past the final fence: the request is dispatched.
           connection.isUp = true
+          request.onDispatch?.()
         },
+        // Connecting is the last wait: the run must still hold before any
+        // request byte is written.
+        () => request.proceed(),
       )
       return {
         sent: true,
@@ -302,6 +343,22 @@ export function pinnedSystemOnePost(
       throw error
     }
   }
+}
+
+/**
+ * The route popup's answer, read against the run's identity captured before
+ * it was asked: an answer given while the identity changed (owner, chat
+ * model, source, Ask again) belongs to no run.
+ */
+async function askUnchanged(
+  identity: () => string,
+  canCharge: () => Promise<boolean>,
+): Promise<'allowed' | 'declined' | 'changed'> {
+  const before = identity()
+  const isAllowed = await canCharge()
+  const isUnchanged = identity() === before
+  if (isAllowed && isUnchanged) return 'allowed'
+  return isAllowed ? 'changed' : 'declined'
 }
 
 /** The C side: lane C's SystemOne runtime over the surface's key, ledger and transport. */
@@ -318,22 +375,31 @@ export function createSystemOneSide(
       selection: io.isExplicit() ? 'explicit' : 'auto',
       confidential: io.confidential(),
       consent: io.consent(route),
+      revocation: io.revocation?.() ?? 0,
     }),
     readKey: (providerId) => systemOneKey(io, providerId, route.recipient),
     measureTokens: io.measureTokens,
     reserve: io.reserve,
     post: io.post,
   })
+  // The run's identity apart from its consent answer: owner, chat model,
+  // engine, source and turn (the generation), the route grant's revocation
+  // count, confidentiality and the explicit opt-in.
+  const identity = () =>
+    JSON.stringify([io.generation(), io.revocation?.() ?? 0, io.confidential(), io.isExplicit()])
   const askConsent = io.askConsent
   return {
     runtime:
       askConsent === undefined
         ? runtime
         : {
-            judge: async (request, signal) =>
-              (await askConsent(route))
-                ? await runtime.judge(request, signal)
-                : { outcome: 'no-answer', reason: 'consent-declined' },
+            judge: async (request, signal) => {
+              const asked = await askUnchanged(identity, () => askConsent(route))
+              if (asked === 'declined') return { outcome: 'no-answer', reason: 'consent-declined' }
+              return asked === 'changed' || signal.aborted
+                ? { outcome: 'no-answer', reason: 'cancelled' }
+                : await runtime.judge(request, signal)
+            },
           },
     capability: route.capability,
     servedModels: route.servedModels,

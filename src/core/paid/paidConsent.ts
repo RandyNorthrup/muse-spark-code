@@ -427,6 +427,11 @@ export class PaidUseConsent {
     }
   }
 
+  /** How many times route grants were revoked here: a run captures it before it asks. */
+  public routeRevocation(): number {
+    return this.routeGeneration
+  }
+
   /** Whether a route-bound grant for exactly this route holds now. */
   public isRouteAllowed(routeKey: string): boolean {
     return this.routeOnce.get(routeKey) === this.routeGeneration

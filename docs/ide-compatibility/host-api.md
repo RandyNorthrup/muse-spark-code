@@ -474,14 +474,14 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                   | Files |
 | ------------------------ | ----- |
-| `node:buffer`            | 48    |
+| `node:buffer`            | 49    |
 | `node:child_process`     | 22    |
 | `node:crypto`            | 94    |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 8     |
 | `node:events`            | 2     |
-| `node:fs`                | 47    |
+| `node:fs`                | 48    |
 | `node:fs/promises`       | 79    |
 | `node:http`              | 17    |
 | `node:https`             | 2     |

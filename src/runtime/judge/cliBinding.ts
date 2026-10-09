@@ -91,6 +91,11 @@ export async function cliJudgeBinding(deps: {
                   reserved: true,
                   claim: {
                     reservedUsd: claim.reservedUsd,
+                    // The runtime claim's live admission (Stop, day change,
+                    // reduced cap), read again right before dispatch.
+                    check: () => {
+                      claim.check(0)
+                    },
                     settle: async (actualUsd) => {
                       await claim.settle(actualUsd)
                     },

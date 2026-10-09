@@ -1167,23 +1167,16 @@ async function activateWindow(
         throw error
       }
     },
-    // The raw workspace settings files, read only to name a separate judge
-    // set there (machine-scoped paid settings never honour it). Local files
-    // only; an unreadable file names nothing.
-    readWorkspaceSettingsTexts: () =>
+    // The local workspace settings files, which the judge bundle reads within
+    // bounds only to name a separate judge set there (machine-scoped paid
+    // settings never honour it).
+    workspaceSettingsFiles: () =>
       [
         ...(vscode.workspace.workspaceFolders ?? []).map((folder) =>
           vscode.Uri.joinPath(folder.uri, '.vscode', 'settings.json'),
         ),
         ...(vscode.workspace.workspaceFile === undefined ? [] : [vscode.workspace.workspaceFile]),
-      ].flatMap((uri) => {
-        if (uri.scheme !== 'file') return []
-        try {
-          return [readFileSync(uri.fsPath, 'utf8')]
-        } catch {
-          return []
-        }
-      }),
+      ].flatMap((uri) => (uri.scheme === 'file' ? [uri.fsPath] : [])),
     startSession: async (options) => {
       const host = await backend.ensureHost()
       return await host.startSession(options)

@@ -27,6 +27,7 @@ import {
   JUDGE_PROMPT_VERSION,
   JUDGE_RISK_FAMILY,
   JUDGE_SCOPE_LOG,
+  JUDGE_SCOPE_SKIPPED_LOG,
   JUDGE_TEMP_PREFIX,
   MODEL_API_MAX_OUTPUT_TOKENS,
 } from '../../shared/constants'
@@ -41,8 +42,8 @@ import { ModelApiSameJudge } from './modelApiSameJudge'
 import { admittedModelApiJudge } from './judgeTransport'
 import type { JudgeWindowDeps, JudgeWindowPort } from './judgeBundle'
 import type { Phase2BindingContext } from '../../core/judge/binding'
-import type { SeparateSourcePorts } from '../../core/judge/sides'
-import { isSeparateInWorkspace } from './workspaceScope'
+import type { SeparateRouteFacts, SeparateSourcePorts } from '../../core/judge/sides'
+import { isSeparateInWorkspace, readWorkspaceSettings } from './workspaceScope'
 
 function noStoredCredential(): Promise<string | undefined> {
   return Promise.resolve(undefined)
@@ -145,18 +146,26 @@ export function createWindowJudge(
   // An explicit `separate` run on a buildable route dispatches only C, which
   // bills the route's own provider and asks its own popup at its own price:
   // the Meta judge's consent is never asked for it.
+  function routeOnly(): SeparateRouteFacts | undefined {
+    return deps.engine() === 'separate' ? phase2?.readySeparateRoute?.() : undefined
+  }
   function isRouteOnly(): boolean {
-    return deps.engine() === 'separate' && phase2?.separateRouteReady?.() === true
+    return routeOnly() !== undefined
   }
   // Paid settings are read from user settings only (D15, D30): a separate
   // judge selected only in workspace settings is not honoured, and the
   // status line and the log say so instead of staying silent.
   let isScopeLogged = false
+  let isSkipLogged = false
   function scopeGap(): 'scope' | undefined {
     const separateId = deps.separateId?.().trim() ?? ''
-    const isUserSelected = isSeparateSelected() && separateId !== ''
-    const isWorkspaceOnly =
-      !isUserSelected && isSeparateInWorkspace(deps.readWorkspaceSettingsTexts?.() ?? [])
+    if (separateId !== '' && isSeparateSelected()) return undefined
+    // Bounded reads of repository-controlled files; a skipped file is logged
+    // without its path, never read in full.
+    const read = readWorkspaceSettings(deps.workspaceSettingsFiles?.() ?? [])
+    if (!isSkipLogged && read.skipped > 0) deps.log.warn(JUDGE_SCOPE_SKIPPED_LOG)
+    isSkipLogged = read.skipped > 0
+    const isWorkspaceOnly = isSeparateInWorkspace(read.texts)
     if (isWorkspaceOnly && !isScopeLogged) deps.log.warn(JUDGE_SCOPE_LOG)
     isScopeLogged = isWorkspaceOnly
     return isWorkspaceOnly ? 'scope' : undefined
@@ -248,6 +257,11 @@ export function createWindowJudge(
             reserved: true,
             claim: {
               reservedUsd: claim.reservedUsd,
+              // D78's live admission (Stop, day change, reduced cap), which
+              // lane C reads again right before dispatch.
+              check: () => {
+                claim.check()
+              },
               settle: (actualUsd) => claim.settle(actualUsd),
               refund: () => claim.settle(0),
             },
@@ -263,6 +277,7 @@ export function createWindowJudge(
           return deps.paid.consent.isRouteAllowed(route.consentKey) ? 'granted' : 'needed'
         },
         generation: () => triggerGenerationOf(action),
+        revocation: () => deps.paid.consent.routeRevocation(),
         confidential: () => deps.context(action)?.confidential ?? true,
         isExplicit: isSeparateSelected,
         // D48: the price and recipient are named before the first charge;
@@ -284,8 +299,33 @@ export function createWindowJudge(
   const sideSessions = new Set<string>()
   const uses = new Map<string, { action: JudgeEntryParts; use: JudgeUse }>()
   let panel: { action: JudgeEntryParts; status: JudgeStatus; identity: string } | undefined
+  // A C-only run's Account & usage facts come from C's own route: its source
+  // and model, its captured tariff, a paid source billed to the user's own
+  // provider key, experimental, and its own window grant (RVM98P2R2 9).
+  const routePanelFacts = (route: SeparateRouteFacts, action: JudgeEntryParts): JudgePanelFacts => {
+    const current = deps.context(action)
+    const isBound = JSON.stringify(current) === panel?.identity
+    return {
+      engine: deps.engine(),
+      effectiveSource: isBound ? 'separate' : 'none',
+      providerId: route.providerId,
+      modelId: route.model,
+      ...(!isBound && { reason: 'source-unavailable' as const }),
+      locality: 'not-local',
+      experimental: true,
+      confidential: current?.confidential ?? true,
+      billing: current?.backend === 'modelApi' ? 'modelApi' : 'subscription',
+      paidSourceSelected: true,
+      consent: deps.paid.consent.isRouteAllowed(route.consentKey) ? 'granted' : 'needed',
+      inputPerMillion: route.inputUsdPerMillion,
+      outputPerMillion: route.outputUsdPerMillion,
+      ...(deps.dailyBudgetUsd !== undefined && { dailyBudgetUsd: deps.dailyBudgetUsd() }),
+    }
+  }
   const readPanelFacts = (): JudgePanelFacts | undefined => {
     if (panel === undefined) return
+    const route = routeOnly()
+    if (route !== undefined) return routePanelFacts(route, panel.action)
     const current = deps.context(panel.action)
     const status = panel.status
     const engine = deps.engine()
@@ -582,7 +622,13 @@ export function createWindowJudge(
             // A configured id whose side cannot be built names its gap, as
             // does a separate judge set only in workspace settings.
             const gap = gapOf(action)
-            const status = gap === undefined ? resolved : { ...resolved, gap }
+            // A C-only run names C's own route and bills its provider key.
+            const route = routeOnly()
+            const own: JudgeStatus =
+              route === undefined
+                ? resolved
+                : { ...resolved, modelId: route.model, billing: 'modelApi' }
+            const status = gap === undefined ? own : { ...own, gap }
             panel = { action, status, identity }
             deps.status(action, status)
           },

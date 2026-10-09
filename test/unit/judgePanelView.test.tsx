@@ -5,7 +5,8 @@ import axe from 'axe-core'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PaidBadge } from '../../src/webview/components/PaidBadge'
-import { JudgeUsageRows } from '../../src/webview/components/PaidUsageSection'
+import { JudgeUsageRows, PaidSection } from '../../src/webview/components/PaidUsageSection'
+import { EMPTY_PAID_TALLY } from '../../src/shared/paidBoundary'
 import { UsageDialogContent } from '../../src/webview/components/UsageDialogContent'
 import { JudgeSection } from '../../src/webview/models/sections/judge/JudgeSection'
 import { ModelsPanel } from '../../src/webview/models/panel'
@@ -60,6 +61,57 @@ function applyTheme(theme: {
     document.documentElement.style.setProperty(name, value)
   }
 }
+
+/** A C-only route on Muse Code with no Meta key, as the window projects it. */
+function routeSnapshot(consent: 'granted' | 'needed'): JudgePanelSnapshot {
+  return projectJudgePanel({
+    engine: 'separate',
+    effectiveSource: 'separate',
+    providerId: 'openrouter-jev',
+    modelId: 'typesafe/jev-1.13',
+    locality: 'not-local',
+    experimental: true,
+    confidential: false,
+    billing: 'subscription',
+    paidSourceSelected: true,
+    consent,
+    inputPerMillion: 0.042,
+    outputPerMillion: 0,
+  })
+}
+
+describe('a separate judge route in Account & usage (RVM98P2R2 9)', () => {
+  it('names the route, its price and its own window grant, with its own Ask again', () => {
+    const forget = vi.fn()
+    render(
+      <PaidSection
+        paid={{ features: [], tally: EMPTY_PAID_TALLY, isKeyStored: false, alwaysAllowed: [] }}
+        features={[]}
+        onForgetPaidUse={forget}
+        judgeUsage={routeSnapshot('granted')}
+      />,
+    )
+    expect(screen.getByText(/openrouter-jev\/typesafe\/jev-1\.13/)).toBeTruthy()
+    expect(screen.queryByText(UI_TEXT.judgeSubscriptionNotice)).toBeNull()
+    expect(
+      screen.getByText(fill(UI_TEXT.usagePaidRouteNote, { model: 'typesafe/jev-1.13' })),
+    ).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.usagePaidAskAgain }))
+    expect(forget).toHaveBeenCalledOnce()
+  })
+
+  it('offers no Ask again while the route has no window grant', () => {
+    render(
+      <PaidSection
+        paid={{ features: [], tally: EMPTY_PAID_TALLY, isKeyStored: false, alwaysAllowed: [] }}
+        features={[]}
+        onForgetPaidUse={vi.fn()}
+        judgeUsage={routeSnapshot('needed')}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: UI_TEXT.usagePaidAskAgain })).toBeNull()
+  })
+})
 
 describe('judge panel view', () => {
   it('shows the subscription note and no paid question', () => {

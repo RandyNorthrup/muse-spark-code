@@ -49,6 +49,8 @@ interface HarnessOptions {
   readonly settle?: (usd: number) => Promise<void>
   readonly refund?: () => Promise<void>
   readonly onConfigurationRead?: () => void
+  /** The durable claim's live admission; throws once Stop, a new day or a lower cap applies. */
+  readonly check?: () => void
 }
 
 function harness(options: HarnessOptions = {}) {
@@ -79,6 +81,9 @@ function harness(options: HarnessOptions = {}) {
         reserved: true,
         claim: {
           reservedUsd: usd,
+          check() {
+            options.check?.()
+          },
           async settle(actual) {
             events.push('settle')
             settled.push(actual)
@@ -590,7 +595,10 @@ describe('systemone runtime', () => {
         else reservation.reject(new Error('late ledger failure'))
       } else {
         key.resolve(KEY)
-        reservation.resolve({ reserved: true, claim: { reservedUsd: 1, refund, settle } })
+        reservation.resolve({
+          reserved: true,
+          claim: { reservedUsd: 1, check: () => undefined, refund, settle },
+        })
       }
       await operation
       await nextTask()

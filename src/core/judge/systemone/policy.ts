@@ -1,6 +1,8 @@
 // Price, labels and the deterministic-gate seam for a remote SystemOne call.
 // Confidence math lives in ../math.ts. This file does not select a route.
 import { TOKENS_PER_MILLION } from '../../../shared/constants'
+import { Usd } from '../../../shared/usd'
+import { USD_DECIMAL_RADIX, USD_LIABILITY_DECIMALS } from '../../../shared/usdConstants'
 import type { SystemOneServicePreset } from '../../providers/presets'
 import type { JudgeOutcome } from '../schema'
 
@@ -10,15 +12,20 @@ export interface SystemOneRates {
   readonly outputUsdPerMillion: number
 }
 
+/** Nano-USD in one USD: the liability precision (USD_LIABILITY_DECIMALS). */
+const NANO_USD_PER_USD = USD_DECIMAL_RADIX ** USD_LIABILITY_DECIMALS
+
 /**
- * USD for a captured token count at the capability's rates.
- * Throws rather than returning a made-up finite cost.
+ * Exact nano-USD for a captured token count at the capability's rates
+ * (RVM98P2R2 8): the published decimal rates enter once, the arithmetic is
+ * exact, and a liability rounds up to the nano-USD. Throws rather than
+ * returning a made-up finite cost.
  */
-export function systemOneUsd(
+export function systemOneNanoUsd(
   inputTokens: number,
   outputTokens: number,
   rates: SystemOneRates,
-): number {
+): bigint {
   if (!Number.isSafeInteger(inputTokens) || inputTokens < 0) {
     throw new TypeError('systemone-tokens')
   }
@@ -31,11 +38,25 @@ export function systemOneUsd(
   if (!Number.isFinite(rates.outputUsdPerMillion) || rates.outputUsdPerMillion < 0) {
     throw new TypeError('systemone-rate')
   }
-  const inputCharge = (inputTokens * rates.inputUsdPerMillion) / TOKENS_PER_MILLION
-  const outputCharge = (outputTokens * rates.outputUsdPerMillion) / TOKENS_PER_MILLION
-  const total = inputCharge + outputCharge
-  if (!Number.isFinite(total)) throw new TypeError('systemone-rate')
-  return total
+  return Usd.from(rates.inputUsdPerMillion)
+    .times(inputTokens)
+    .add(Usd.from(rates.outputUsdPerMillion).times(outputTokens))
+    .divide(TOKENS_PER_MILLION)
+    .ceiling(USD_LIABILITY_DECIMALS)
+    .units(USD_LIABILITY_DECIMALS)
+}
+
+/**
+ * USD for a captured token count, as the number-based money ports take it:
+ * the closest number to the exact nano-USD amount, so it prints and parses
+ * back to that exact decimal.
+ */
+export function systemOneUsd(
+  inputTokens: number,
+  outputTokens: number,
+  rates: SystemOneRates,
+): number {
+  return Number(systemOneNanoUsd(inputTokens, outputTokens, rates)) / NANO_USD_PER_USD
 }
 
 /** The frozen route's product labels. A call cannot rewrite them. */

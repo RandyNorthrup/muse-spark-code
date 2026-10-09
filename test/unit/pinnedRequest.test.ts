@@ -15,11 +15,13 @@ import type { PinnedTarget } from '../../src/core/web/webFetch'
 import {
   pinnedHttpsRequest,
   pinnedOptions,
+  pinnedPostRequest,
   type RequestFunction,
 } from '../../src/host/web/pinnedRequest'
 import {
   WEB_FETCH_ACCEPT_ENCODING,
   WEB_FETCH_DEFAULT_PORT,
+  WEB_FETCH_NOT_SENT_CODE,
   WEB_FETCH_NOT_TLS_CODE,
   WEB_FETCH_USER_AGENT,
 } from '../../src/shared/constants'
@@ -223,5 +225,57 @@ describe('pinnedHttpsRequest (M69)', () => {
     tls.emit('secureConnect')
     expect(connected.count()).toBe(1)
     tls.destroy()
+  })
+})
+
+describe('pinnedPostRequest before-body fence (M98 phase 2, RVM98P2R2 2)', () => {
+  const body = '{"state":"judged"}'
+
+  it('withdraws a request whose fence fails once connected: nothing is written', async () => {
+    const { port, seen } = await listen(() => ({ body: 'answered' }))
+    const connected = connections()
+    let fenceReads = 0
+    let refused: unknown
+    try {
+      await pinnedPostRequest(
+        target(`https://openrouter.example:${String(port)}/api`),
+        body,
+        { 'content-type': 'application/json' },
+        new AbortController().signal,
+        connected.onConnected,
+        httpRequest,
+        IS_TLS_REQUIRED,
+        () => {
+          fenceReads += 1
+          return false
+        },
+      )
+    } catch (error: unknown) {
+      refused = error
+    }
+    expect(refused).toMatchObject({ code: WEB_FETCH_NOT_SENT_CODE })
+    expect(fenceReads).toBe(1)
+    expect(connected.count()).toBe(0)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(seen).toEqual([])
+  })
+
+  it('writes the request once connected when the fence holds', async () => {
+    const { port, seen } = await listen(() => ({ body: 'answered' }))
+    const connected = connections()
+    const response = await pinnedPostRequest(
+      target(`https://openrouter.example:${String(port)}/api`),
+      body,
+      { 'content-type': 'application/json' },
+      new AbortController().signal,
+      connected.onConnected,
+      httpRequest,
+      IS_TLS_REQUIRED,
+      () => true,
+    )
+    expect(connected.count()).toBe(1)
+    expect(await text(response.body)).toBe('answered')
+    response.close()
+    expect(seen).toMatchObject([{ url: '/api' }])
   })
 })

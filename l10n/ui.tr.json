@@ -638,6 +638,7 @@
   "announceListening": "Dinleniyor",
   "announceStoppedListening": "Dinleme durduruldu",
   "allowOnce": "Bir kez izin ver",
+  "paidAllowInWindow": "Bu pencerede izin ver",
   "allowSessionPrefix": "Bu oturumda her zaman izin ver:",
   "reject": "Reddet",
   "modelApiStalled": "Model API {seconds} sn boyunca hiçbir şey göndermedi, bu yüzden yanıt sonlandırıldı; yeniden denemek için mesajı tekrar gönderin",
@@ -1410,6 +1411,7 @@
   "usagePaidOnAlways": "açık, bu çalışma alanında her zaman izin verildi",
   "usagePaidAlwaysNote": "Bu çalışma alanında her zaman izin verildi, sormadan: {features}.",
   "usagePaidAskAgain": "Her seferinde yeniden sor",
+  "usagePaidRouteNote": "Bu pencerede izin verildi: ayrı yargıç {model}.",
   "usagePaidSearches": {
     "other": "{count} arama",
     "one": "{count} arama"
@@ -4061,7 +4063,7 @@
   "judgeAutoNoEvidence": "Aynı model: ayrılmış verilerde eşli değerlendirme kanıtı eksik",
   "judgeEmbedNoLabels": "Gömme kısayolu bu aile için yüzlerce bağımsız etiket gerektirir; henüz hiçbiri kaydedilmedi, bu yüzden tam Muse Judge çalışır.",
   "paidConfirmJudgeEmbedding": "{model} için bir gömme isteği en fazla {price} tutar ve sağlayıcı anahtarınıza faturalandırılır. Paylaşılan günlük bütçe {budget} tutarındadır. Aboneliğiniz bu isteği ödemez. Bir kez izin ver bu pencereyi kapsar; ücretsiz kaynaktan geçiş veya fiyat değişikliği yeniden onay ister.",
-  "paidConfirmJudgeSystemOne": "Deneysel ve test edilmemiş: {recipient} adresindeki {model} modeline yapılan bir SystemOne yargıç isteği en fazla {price} tutar ve kendi sağlayıcı anahtarınıza faturalanır. Değerlendirilen eylem oraya gönderilir; sonuç yalnızca kendi modelinizin değerlendirmesine temkin ekler, size asla yanıt vermez ve tek başına karar vermez. Ortak günlük bütçe {budget}. Aboneliğiniz bu isteği ödemez. Bir kez izin ver bu pencereyi kapsar; fiyat değişirse yeniden sorulur.",
+  "paidConfirmJudgeSystemOne": "Deneysel ve test edilmemiş: {recipient} adresindeki {model} modeline yapılan bir SystemOne yargıç isteği en fazla {price} tutar ve kendi sağlayıcı anahtarınıza faturalanır. Değerlendirilen eylem oraya gönderilir; sonuç yalnızca kendi modelinizin değerlendirmesine temkin ekler, size asla yanıt vermez ve tek başına karar vermez. Ortak günlük bütçe {budget}. Aboneliğiniz bu isteği ödemez. Bu pencerede izin ver, bu pencere kapanana kadar bu rotadaki her isteği kapsar; Hesap ve kullanım bölümündeki Her seferinde yeniden sor ya da fiyat değişikliği yeniden sorar.",
   "judgeSeparateNeedsKey": "Ayrı yargıcın Modeller ve Sağlayıcılar bölümünde sağlayıcı anahtarına ihtiyacı var",
   "judgeSeparateNeedsCapture": "Ayrı yargıç: bu sağlayıcı modeli için önce yakalanmış yapılandırılmış veya logprob yargıç isteği gerekir",
   "judgeSeparateNeedsInstall": "Ayrı yargıç: yerel yargıç sertifikalı bir platformda doğrulanmış kurulum gerektirir",

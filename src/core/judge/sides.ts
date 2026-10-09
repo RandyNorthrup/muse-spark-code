@@ -115,6 +115,31 @@ export function separateSourceKey(
     : { providerId: route.keyProviderId, origin: route.recipient }
 }
 
+/** What a surface shows for a configured paid route: its source, model, tariff and consent identity. */
+export interface SeparateRouteFacts {
+  /** The route's preset (the provider the user's own key pays). */
+  readonly providerId: string
+  readonly model: string
+  /** What the route's window grant is bound to (`PaidUseConsent.isRouteAllowed`). */
+  readonly consentKey: string
+  readonly inputUsdPerMillion: number
+  readonly outputUsdPerMillion: number
+}
+
+/** The facts of the route a configured id names, or undefined when it names none. */
+export function separateRouteFacts(separateId: string): SeparateRouteFacts | undefined {
+  const route = systemOneRoute(separateId.trim())
+  return route === undefined
+    ? undefined
+    : {
+        providerId: route.presetId,
+        model: route.model,
+        consentKey: route.consentKey,
+        inputUsdPerMillion: route.tariff.inputUsdPerMillion,
+        outputUsdPerMillion: route.tariff.outputUsdPerMillion,
+      }
+}
+
 /** Whether a usable key is stored for a configured route (no route: nothing to check). */
 export async function hasSeparateSourceKey(
   separateId: string,
@@ -155,6 +180,10 @@ export function buildSeparateSource(
           reserved: true,
           claim: {
             reservedUsd: reserved.claim.reservedUsd,
+            // The durable claim's own live admission, read before dispatch.
+            check: () => {
+              reserved.claim.check()
+            },
             settle: async (actualUsd) => {
               await reserved.claim.settle(actualUsd)
               call?.settled(reported, actualUsd)
@@ -169,9 +198,16 @@ export function buildSeparateSource(
         }
       },
       post: async (request) => {
-        const result = await post(request)
+        // The paid row opens when the request is dispatched, so a sent call
+        // whose response then fails still shows as an uncertain paid use.
+        const result = await post({
+          ...request,
+          onDispatch: () => {
+            request.onDispatch?.()
+            call = ports.onCall?.(route.model)
+          },
+        })
         if (!result.sent) return result
-        call = ports.onCall?.(route.model)
         const parsed = usageSchema.safeParse(result.body)
         reported = parsed.success
           ? {

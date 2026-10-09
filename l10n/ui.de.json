@@ -638,6 +638,7 @@
   "announceListening": "Hört zu",
   "announceStoppedListening": "Hört nicht mehr zu",
   "allowOnce": "Einmal zulassen",
+  "paidAllowInWindow": "In diesem Fenster zulassen",
   "allowSessionPrefix": "In dieser Sitzung immer zulassen:",
   "reject": "Ablehnen",
   "modelApiStalled": "Die Model API hat {seconds} s lang nichts gesendet, daher wurde die Antwort beendet; senden Sie die Nachricht erneut, um es noch einmal zu versuchen",
@@ -1410,6 +1411,7 @@
   "usagePaidOnAlways": "ein, in diesem Arbeitsbereich immer zugelassen",
   "usagePaidAlwaysNote": "In diesem Arbeitsbereich immer zugelassen, ohne Nachfrage: {features}.",
   "usagePaidAskAgain": "Jedes Mal wieder fragen",
+  "usagePaidRouteNote": "In diesem Fenster zugelassen: die separate Beurteilung {model}.",
   "usagePaidSearches": {
     "other": "{count} Suchen",
     "one": "{count} Suche"
@@ -4061,7 +4063,7 @@
   "judgeAutoNoEvidence": "Gleiches Modell: Nachweise aus gepaarten Auswertungen mit zurückgehaltenen Daten fehlen",
   "judgeEmbedNoLabels": "Der Embedding-Shortcut braucht Hunderte unabhängige Labels für diese Familie; bisher wurden keine aufgezeichnet, daher läuft stattdessen die vollständige Beurteilung.",
   "paidConfirmJudgeEmbedding": "Eine Embedding-Anfrage an {model} kostet höchstens {price} und wird Ihrem Anbieterschlüssel berechnet. Das gemeinsame Tagesbudget beträgt {budget}. Ihr Abonnement bezahlt diese Anfrage nicht. Einmal erlauben gilt für dieses Fenster; beim Wechsel von einer kostenlosen Quelle oder bei einer Preisänderung wird erneut gefragt.",
-  "paidConfirmJudgeSystemOne": "Experimentell und ungetestet: Eine SystemOne-Beurteilungsanfrage an {model} bei {recipient} kostet höchstens {price} und wird über Ihren eigenen Anbieterschlüssel abgerechnet. Die beurteilte Aktion wird dorthin gesendet; das Ergebnis fügt dem Urteil Ihres eigenen Modells nur Vorsicht hinzu, antwortet Ihnen nie und entscheidet nie allein. Das gemeinsame Tagesbudget beträgt {budget}. Ihr Abonnement bezahlt diese Anfrage nicht. „Einmal erlauben“ gilt für dieses Fenster; eine Preisänderung fragt erneut.",
+  "paidConfirmJudgeSystemOne": "Experimentell und ungetestet: Eine SystemOne-Beurteilungsanfrage an {model} bei {recipient} kostet höchstens {price} und wird über Ihren eigenen Anbieterschlüssel abgerechnet. Die beurteilte Aktion wird dorthin gesendet; das Ergebnis fügt dem Urteil Ihres eigenen Modells nur Vorsicht hinzu, antwortet Ihnen nie und entscheidet nie allein. Das gemeinsame Tagesbudget beträgt {budget}. Ihr Abonnement bezahlt diese Anfrage nicht. „In diesem Fenster zulassen“ gilt für jede Anfrage auf dieser Route, bis dieses Fenster geschlossen wird; „Jedes Mal wieder fragen“ unter „Konto und Nutzung“ oder eine Preisänderung fragt erneut.",
   "judgeSeparateNeedsKey": "Die separate Beurteilung braucht den Schlüssel ihres Anbieters unter „Modelle und Anbieter“",
   "judgeSeparateNeedsCapture": "Separate Beurteilung: Für dieses Anbietermodell muss zuerst eine strukturierte oder Logprob-Beurteilungsanfrage aufgezeichnet werden",
   "judgeSeparateNeedsInstall": "Separate Beurteilung: Die lokale Beurteilung braucht eine geprüfte Installation auf einer zertifizierten Plattform",

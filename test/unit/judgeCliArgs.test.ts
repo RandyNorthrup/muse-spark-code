@@ -78,7 +78,8 @@ describe('judge command reservation', () => {
       '1e2',
       '.1',
       '1.',
-      '0.0000001',
+      // Ten decimals: finer than the nano-USD liability precision.
+      '0.0000000001',
       '99999999999999999999999',
     ]) {
       expect(parseCommandLine(['judge', 'ask', '--budget-usd', value])).toMatchObject({
@@ -103,14 +104,23 @@ describe('judge command reservation', () => {
       })
     }
   })
-  it('keeps decimal caps as exact integer microUSD', () => {
+  it('keeps decimal caps as exact integer nano-USD, nine decimals (RVM98P2R2 8)', () => {
     expect(parseCommandLine(['judge', 'ask', '--budget-usd', '0.016249'])).toMatchObject({
       command: 'judge',
-      options: { budgetUsd: 0.016249, budgetMicroUsd: 16_249 },
+      options: { budgetUsd: 0.016249, budgetNanoUsd: 16_249_000 },
     })
     expect(parseCommandLine(['judge', 'ask', '--budget-usd', '0.01'])).toMatchObject({
       command: 'judge',
-      options: { budgetUsd: 0.01, budgetMicroUsd: 10_000 },
+      options: { budgetUsd: 0.01, budgetNanoUsd: 10_000_000 },
+    })
+    // One nano-USD above a route ceiling is a different cap, not a rounding.
+    expect(parseCommandLine(['judge', 'ask', '--budget-usd', '0.002688001'])).toMatchObject({
+      command: 'judge',
+      options: { budgetNanoUsd: 2_688_001 },
+    })
+    expect(parseCommandLine(['judge', 'ask', '--budget-usd', '0.0026880001'])).toMatchObject({
+      command: 'invalid',
+      exitCode: 2,
     })
   })
   it('leaves CS and H flags to their injected parsers', () => {

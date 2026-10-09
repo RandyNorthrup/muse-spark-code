@@ -33,52 +33,71 @@ function questionsOf(body: string): Record<string, unknown> {
 
 /** The pinned transport's seams: one public answer, a recorded send. */
 export function systemOneTransport(
-  options: { address?: string; answer?: unknown; noul?: number; hold?: Promise<unknown> } = {},
+  options: {
+    address?: string
+    answer?: unknown
+    noul?: number
+    /** Held after the request is written (an HTTP wait). */
+    hold?: Promise<unknown>
+    /** Held inside name resolution (a DNS wait). */
+    resolveHold?: Promise<unknown>
+    /** Connected and written, then the response fails (a reset). */
+    failAfterConnect?: boolean
+  } = {},
 ) {
   const sent: {
     readonly target: PinnedTarget
     readonly body: string
     readonly headers: Readonly<Record<string, string>>
   }[] = []
-  const resolve = vi.fn<SystemOneResolve>(() =>
-    Promise.resolve([options.address ?? SYSTEMONE_ADDRESS]),
-  )
-  const send = vi.fn<SystemOneSend>(async (target, body, headers, _signal, onConnected) => {
-    onConnected()
-    sent.push({ target, body, headers })
-    await options.hold
-    const bytes = new TextEncoder().encode(
-      JSON.stringify(
-        options.answer ?? systemOneAnswer(options.noul ?? 0.95, Object.keys(questionsOf(body))),
-      ),
-    )
-    return {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-      body: (async function* () {
-        await Promise.resolve()
-        yield bytes
-      })(),
-      close: vi.fn(),
-    }
+  const withdrawn: PinnedTarget[] = []
+  const resolve = vi.fn<SystemOneResolve>(async () => {
+    await options.resolveHold
+    return [options.address ?? SYSTEMONE_ADDRESS]
   })
-  return { resolve, send, sent }
+  const send = vi.fn<SystemOneSend>(
+    async (target, body, headers, _signal, onConnected, shouldWrite) => {
+      // As the pinned transport: nothing is written unless the fence holds once connected.
+      if (!shouldWrite()) {
+        withdrawn.push(target)
+        throw new Error('withdrawn before sending')
+      }
+      onConnected()
+      sent.push({ target, body, headers })
+      await options.hold
+      if (options.failAfterConnect === true) throw new Error('connection reset after sending')
+      const bytes = new TextEncoder().encode(
+        JSON.stringify(
+          options.answer ?? systemOneAnswer(options.noul ?? 0.95, Object.keys(questionsOf(body))),
+        ),
+      )
+      return {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: (async function* () {
+          await Promise.resolve()
+          yield bytes
+        })(),
+        close: vi.fn(),
+      }
+    },
+  )
+  return { resolve, send, sent, withdrawn }
 }
 
 /** M95's stored record for OpenRouter, bound to its origin (fixture key). */
-export function storedOpenRouterKey(hasKey = true) {
-  return vi.fn((providerId: string) =>
-    Promise.resolve(
-      hasKey && providerId === 'openrouter'
-        ? JSON.stringify({
-            v: 1,
-            auth: 'apiKey',
-            origin: 'https://openrouter.ai',
-            secret: 'fixture-not-a-key',
-          })
-        : undefined,
-    ),
-  )
+export function storedOpenRouterKey(hasKey = true, hold?: () => Promise<unknown> | undefined) {
+  return vi.fn(async (providerId: string) => {
+    await hold?.()
+    return hasKey && providerId === 'openrouter'
+      ? JSON.stringify({
+          v: 1,
+          auth: 'apiKey',
+          origin: 'https://openrouter.ai',
+          secret: 'fixture-not-a-key',
+        })
+      : undefined
+  })
 }
 
 /** The same record looked up by its SecretStorage / OS store name. */
@@ -91,22 +110,40 @@ export function storedSecretByName(hasKey = true) {
   )
 }
 
-/** A daily ledger recording every reservation and settlement. */
-export function recordingDailyLedger(hold?: Promise<unknown>) {
+/**
+ * A daily ledger recording every reservation and settlement. Its claims'
+ * live `check` throws once `stop()` was called, as D78's does after the
+ * Stop marker, a day change or a reduced cap.
+ */
+export function recordingDailyLedger(hold?: Promise<unknown>, stopAfterChecks?: number) {
   const reserved: number[] = []
   const settled: number[] = []
+  const state = { isStopped: false, checks: 0 }
   const reserve = vi.fn(async (costUsd: number) => {
     reserved.push(costUsd)
     await hold
     return {
       claimId: `claim-${String(reserved.length)}`,
       reservedUsd: costUsd,
-      check: vi.fn(),
+      check: vi.fn(() => {
+        state.checks += 1
+        if (stopAfterChecks !== undefined && state.checks > stopAfterChecks) state.isStopped = true
+        if (state.isStopped) throw new Error('daily budget stopped')
+      }),
       settle: vi.fn((actualUsd: number) => {
         settled.push(actualUsd)
         return Promise.resolve()
       }),
     }
   })
-  return { reserve, reserved, settled, remainingUsd: () => Promise.resolve(1) }
+  return {
+    reserve,
+    reserved,
+    settled,
+    remainingUsd: () => Promise.resolve(1),
+    stop: () => {
+      state.isStopped = true
+    },
+    checks: () => state.checks,
+  }
 }

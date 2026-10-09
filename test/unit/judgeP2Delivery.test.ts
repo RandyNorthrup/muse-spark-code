@@ -3,8 +3,9 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import * as z from 'zod/mini'
+import { assertCurrentProductionBuild } from './productionBuild'
 
 const judgeFiles = new Set([
   'src/runtime/judge/judgeEntry.ts',
@@ -114,8 +115,11 @@ const targets = [
   ['acp', 'dist/meta-acp/acp.json'],
 ] as const
 
+// The run's shared production build (test/unit/productionBuild.ts, a Vitest
+// global setup outside every hook's deadline), refused when missing or built
+// from sources that changed since (RVM98P2R2 10).
 beforeAll(() => {
-  execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
+  assertCurrentProductionBuild(inject('productionBuild'), process.cwd())
 })
 // Every mutation restores and checks the original hash. Verify that complete
 // restored artifact set once; rerunning it after each identical restoration

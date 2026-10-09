@@ -48,6 +48,8 @@ async function cliRun(input: {
   readonly address?: string
   readonly answer?: unknown
   readonly action?: 'ask' | 'mcp'
+  /** The daily claim's live check starts refusing after this many checks. */
+  readonly stopAfterChecks?: number
 }) {
   const factory = features()
   const action = input.action ?? 'ask'
@@ -56,7 +58,7 @@ async function cliRun(input: {
     ...(input.address !== undefined && { address: input.address }),
     ...(input.answer !== undefined && { answer: input.answer }),
   })
-  const daily = recordingDailyLedger()
+  const daily = recordingDailyLedger(undefined, input.stopAfterChecks)
   const binding = await cliJudgeBinding({
     features: factory,
     options: parsed.options,
@@ -78,6 +80,22 @@ async function cliRun(input: {
 }
 
 const SEPARATE = ['--engine', 'separate', '--separate', SYSTEMONE_ROUTE, '--budget-usd', '0.01']
+
+/**
+ * A valid captured answer with provider additions that reflect the fixture
+ * key: the run answers, and its stdout never carries the key.
+ */
+async function reflectedRun(action: 'ask' | 'mcp', additions: Record<string, unknown>) {
+  const answer = {
+    ...(systemOneAnswer(0.95, ['healthy']) as Record<string, unknown>),
+    ...additions,
+  }
+  const run = await cliRun({ args: SEPARATE, answer, action })
+  expect(run.code).toBe(0)
+  expect(run.output).toContain('typesafe/jev-1.13-20260917')
+  expect(run.output).not.toContain('fixture-not-a-key')
+  return run
+}
 
 describe('the CLI production builder reaches a configured SystemOne side', () => {
   it('sends an explicit separate run pinned over the M95 transport with the stored key', async () => {
@@ -107,6 +125,17 @@ describe('the CLI production builder reaches a configured SystemOne side', () =>
     expect(run.daily.reserved).toEqual([0.002688])
     expect(run.daily.settled).toHaveLength(1)
     expect(run.daily.settled[0]).toBeCloseTo((491 * 0.042) / 1_000_000, 12)
+  })
+
+  it('a daily Stop after reservation sends nothing and refunds (RVM98P2R2 3)', async () => {
+    // The claim's first check (at reservation) passes; Stop lands before the
+    // key read finishes, so the check right before dispatch refuses.
+    const run = await cliRun({ args: SEPARATE, stopAfterChecks: 1 })
+    expect(run.code).toBe(4)
+    expect(run.output).toContain('over-budget')
+    expect(run.daily.reserved).toEqual([0.002688])
+    expect(run.daily.settled).toEqual([0])
+    expect(run.transport.send).not.toHaveBeenCalled()
   })
 
   it('refuses a missing key before any claim, with the window gap code', async () => {
@@ -162,17 +191,27 @@ describe('the CLI production builder reaches a configured SystemOne side', () =>
     async (action) => {
       // The reviewer's echo control: a valid captured answer plus additions
       // reflecting the request's bearer credential.
-      const answer = {
-        ...(systemOneAnswer(0.95, ['healthy']) as Record<string, unknown>),
+      const run = await reflectedRun(action, {
         diagnostics: { authorization: 'Bearer fixture-not-a-key', echo: 'saw fixture-not-a-key' },
         request_echo: 'fixture-not-a-key',
         api_key: 'fixture-not-a-key',
-      }
-      const run = await cliRun({ args: SEPARATE, answer, action })
-      expect(run.code).toBe(0)
-      expect(run.output).toContain('typesafe/jev-1.13-20260917')
-      expect(run.output).not.toContain('fixture-not-a-key')
+      })
       expect(run.output).not.toContain('authorization')
+    },
+  )
+
+  it.each(['ask', 'mcp'] as const)(
+    'never lets a credential-bearing property name reach %s stdout (RVM98P2R2 4)',
+    async (action) => {
+      // The key reflected as unknown property names, at two depths; values
+      // are opaque, so only the names carry it.
+      const run = await reflectedRun(action, {
+        diagnostics: {
+          'fixture-not-a-key': 'opaque diagnostic',
+          nested: { 'seen:fixture-not-a-key': 1, kept: 'plain' },
+        },
+      })
+      expect(run.output).toContain('plain')
     },
   )
 
