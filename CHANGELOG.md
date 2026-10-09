@@ -59,6 +59,7 @@ happened, not what was planned; superseded entries are kept.
   same Linux Chrome build and fonts); the other 18 screenshots still match the
   current UI and are unchanged.
 - README and `docs/acp.md` name all four places the project ships from (VS Code Marketplace, Open VSX, npm, GitHub Releases), add an npm version badge, and install the ACP agent with `npm install -g muse-spark-code-acp` first, the release `.tgz` second.
+- The npm package's README and the Marketplace/Open VSX page list the same four channels as the README (VS Code Marketplace, Open VSX, npm, GitHub Releases); the npm page adds the release `.tgz` install.
 - README notes the project's unofficial GitHub OAuth app for M123 sign-in and that its GitHub Marketplace listing awaits GitHub's review; the privacy notice adds the app's device flow, `repo` scope, keychain or vault storage and revocation.
 - Preserve exact decimal USD across schedule authorization, consent and agent caps,
   rental cost estimates, reporting facts, account totals and voice consent. Read

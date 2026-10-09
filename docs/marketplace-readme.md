@@ -182,6 +182,14 @@ Requires VS Code engine 1.99 or newer. Muse Code signs in independently; a key
 pasted into this extension is stored in VS Code SecretStorage and never given
 to the CLI. Linux users can use the Model API if the CLI is unavailable.
 
+The project ships from four places: the
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
+[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code),
+[npm](https://www.npmjs.com/package/muse-spark-code-acp) (the ACP agent, for
+editors beyond VS Code) and
+[GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases)
+(both the `.vsix` and the agent's `.tgz`).
+
 ## Work in the panel
 
 - Open Usage & cost for journal totals, provider limits and budgets; ACP and CLI
