@@ -492,8 +492,8 @@ export class ConnectorRegistry implements ConnectorServer {
     if (!(await operation.writeAhead('dispatching'))) return operation.refuse(auditUnavailable())
     await this.refresh()
     // The final gate, the move and the owner read's start: one synchronous block.
-    if (!operation.gate(['admitted']) || !operation.move('dispatching', true))
-      return operation.final()
+    if (!operation.gate(['admitted'])) return operation.final()
+    if (!operation.move('dispatching', true)) return operation.fail(ownerFailed())
     // The slot is free once the owner read returns, whatever its delivery awaits.
     const outcome = await this.whileHeld(
       lease.release,
@@ -846,7 +846,7 @@ export class ConnectorRegistry implements ConnectorServer {
         operation.cancel(this.ledger.stateOf(plan.intentId) === 'expired' ? 'expired' : 'stale')
         return
       }
-      if (!operation.move('dispatching', true)) return
+      if (!operation.move('dispatching', true)) throw new Error('not dispatched')
       const prompt = newPrompt(plan.draft, new Date(this.deps.now()).toISOString())
       await this.deps.prompts.write(plan.root, prompt)
       operation.result = this.deps.scrub.leaves({

@@ -1780,6 +1780,36 @@ describe('M124 round 5: the gate in its effect’s own block (RVM124R4)', () => 
     expect(h.state.writeStarts).toBe(observer.seen.atFlip)
   })
 
+  it('starts no owner read and no write when the move into dispatching fails (P2-1)', async () => {
+    const h = await harness()
+    const original = Operation.prototype.move
+    const spy = vi.spyOn(Operation.prototype, 'move').mockImplementation(function (
+      this: Operation,
+      to: ConnectorCallState,
+      isWrittenAhead?: boolean,
+    ) {
+      return to !== 'dispatching' && original.call(this, to, isWrittenAhead)
+    })
+    try {
+      expect(await h.call('muse_prompt_list', { scope: 'user' })).toMatchObject({
+        status: 'refused',
+      })
+      expect(h.state.reads).toBe(0)
+      await h.call('muse_prompt_save', SAVE)
+      await approveFirst(h)
+      await flush()
+    } finally {
+      spy.mockRestore()
+    }
+    expect(h.state.writeStarts).toBe(0)
+    // Neither is left live holding its slot: both end failed.
+    expect(
+      events(h)
+        .filter((record) => TERMINAL.has(record.event))
+        .map((record) => `${record.tool ?? ''} ${record.event}`),
+    ).toEqual(['muse_prompt_list failed', 'muse_prompt_save failed'])
+  })
+
   it('answers a committed read at its deadline while its receipt is held, its slot already free (P2-2)', async () => {
     const h = await harness()
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
