@@ -128,6 +128,10 @@ happened, not what was planned; superseded entries are kept.
   - Copies that a crash or a kill left in the private media folder are now
     removed when the next window or agent process converts something. A
     window that is still running keeps its own copies.
+- Attached video and audio, fix round (RVMEDIAV4): a window whose lock on the
+  private media folder failed can no longer have its conversion's copy
+  removed by another window while it converts. Its copies are kept until
+  removed by hand.
 - On Windows, a stdio MCP server, a plugin hook's runtime or a team run is now
   created inside its kill-on-close job. Previously it was added to the job
   just after creation. A launcher ended in between (cancelled, timed out)

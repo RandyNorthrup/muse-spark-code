@@ -43556,12 +43556,12 @@ FIXM107DK4 qualification below supersedes that earlier claim.
     attached it) and one set of turn holders (`MediaClaim`), and an explicit
     state:
 
-    | State      | Entered by                                                                                                                                                                                  | Left by                                                                                                  | Evicted at the bound | Discard / owner release |
-    | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------- | ----------------------- |
-    | `attached` | `register` (the attach port binds a sniffed, hashed file)                                                                                                                                   | a claim; discard; owner release; the oldest at the bound; runtime close                                  | yes (oldest first)   | removes it              |
-    | `claimed`  | `claim` when the host accepts the turn: `sendTurn` (started or queued) or `steer`; or from `inFlight` when the running holder ends while a queued or steered holder of the same token waits | `start`; the last holder's `release` (withdrawal, Stop's queue drop, refusal, session disposal)          | never                | passes it by            |
-    | `inFlight` | `start`: `runTurn` begins, or `drainSteered` puts the steer in a request                                                                                                                    | the running holder's `release` at turn end: released when it was the last holder, else back to `claimed` | never                | passes it by            |
-    | released   | the last holder's `release`, discard or owner release of `attached`, eviction, `clear`                                                                                                      | (gone: the token no longer resolves)                                                                     | —                    | —                       |
+    | State      | Entered by                                                                                                                                                                                             | Left by                                                                                                                                                                | Evicted at the bound | Discard / owner release |
+    | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ----------------------- |
+    | `attached` | `register` (the attach port binds a sniffed, hashed file)                                                                                                                                              | a claim; discard; owner release; the oldest at the bound; runtime close                                                                                                | yes (oldest first)   | removes it              |
+    | `claimed`  | `claim` when the host accepts the turn: `sendTurn` (started or queued) or `steer`; or from `inFlight` when the last in-flight holder releases while a queued or steered holder of the same token waits | `start`; the last holder's `release` (withdrawal, Stop's queue drop, refusal, session disposal)                                                                        | never                | passes it by            |
+    | `inFlight` | `start`: `runTurn` begins, or `drainSteered` puts the steer in a request                                                                                                                               | a running holder's `release` at turn end: released when it was the last holder; `claimed` when only waiting holders remain; still `inFlight` while another holder runs | never                | passes it by            |
+    | released   | the last holder's `release`, discard or owner release of `attached`, eviction, `clear`                                                                                                                 | (gone: the token no longer resolves)                                                                                                                                   | —                    | —                       |
 
     A promoted steer carries its claim into the queued turn; a session's
     disposal drops its waiting steers instead and releases their claims
@@ -43640,6 +43640,23 @@ FIXM107DK4 qualification below supersedes that earlier claim.
     fake `/proc`. The native macOS lock and the real Linux `/proc` reading
     are proven only when the same suite (its cross-process case runs on
     every OS) passes in hosted CI or on the macOS and Linux rigs.
+
+- **M105-V-lease-fix-round (RVMEDIAV4, 2026-10-09).** One P2 and one P3,
+  with regressions and red drills (`docs/certification/m105.md`, "Fix
+  round: RVMEDIAV4"):
+  1. A failed lease acquisition no longer leaves a marker a sweeper can
+     take. `leasePrivateRoot` returns a held lease or an unleased root: the
+     failed attempt is closed and its marker removed, and the root takes a
+     fresh owner token that no lease names, so its folders are never proven
+     gone. The same holds when the lock does not show against the process's
+     own probe. A sweeper keeps every folder whose owner has no lease.
+  2. The state table above states the `inFlight` → `claimed` move exactly:
+     only when the last in-flight holder releases while waiting holders
+     remain.
+
+  Ran natively on Linux (real `/proc`); the Windows and macOS cases stay in
+  the suite. An unleased process's folders are not reclaimed after a crash
+  (fail-safe).
 
 - **M105-F-integration-gates (RVM105F corrections).** All four review findings
   are fixed with regressions and red drills (`docs/certification/m105-f.md`).
