@@ -20284,6 +20284,20 @@ against the vendors' docs (2026-10-09) but not run, because they write the
 owner's global client configuration. Record:
 [`docs/certification/m124-local.md`](docs/certification/m124-local.md).
 
+**RVM124 review fixes (2026-10-09, branch `feature/m124-fix`).** The
+review's P1 and P2 findings 2–14 are fixed with a regression test each
+(failing on `20a67df05`) and a red drill: report bodies need the content
+grant; Stop and dispatch are ordered (no write after a reported Stop);
+cancelled or disconnected calls open nothing; closing stdout disconnects;
+transport admission and backpressure; settled intents drop their payload;
+limits per grant in a locked file shared across processes and restarts;
+one whole-call deadline; the 64 KiB bound on the complete result; a
+receipt for every refusal; report subjects in M113's grammar; Stop for
+user-library operations; failed owner reads settle; retries tell the real
+state. Open: finding 15 (grant/key storage ownership, Windows DACL) and
+finding 16 (setup-doc wording). `dist/connector.js` 92,519 bytes of 100
+KiB; `dist/extension.js` unchanged.
+
 - **Goal.** Other agents can inspect the user's fleet and evidence, request
   bounded orchestration, ask for deterministic advice/reports, and manage
   schedules/prompts/shares through one connector. Every effect goes through

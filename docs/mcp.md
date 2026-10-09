@@ -33,6 +33,9 @@ them.
 | `muse_schedule_create`/`_update`                               | write | `unavailable`: M115's grant consent is not carried by the approval page yet                                                                                        |
 | `muse_share_publish`                                           | write | `unavailable`: release waits for M104's final-action share UI                                                                                                      |
 
+A report body is content: without the content grant `muse_report` answers
+its kind and format only. `muse_stop` needs a workspace only for an
+operation in that workspace; one in your user library stops without it.
 Only available tools your grant allows are listed. Calling an unavailable
 one answers `unavailable` with its reason, never an empty success.
 
@@ -50,7 +53,8 @@ one answers `unavailable` with its reason, never an empty success.
    You type `y` to confirm; the command refuses without an interactive
    terminal. The default families are reads of prompts, sharing, schedules,
    reports and operations, plus Stop. Add `--content` to let the connection
-   read prompt bodies and previews in those workspaces, `--user-library` for
+   read prompt bodies, previews and report bodies in those workspaces
+   (without it a report answers its kind and format only), `--user-library` for
    your user prompt library, and `--scope prompts:write` to let it ask to
    save prompts. Paid authority stays zero; `--scope paid:request` is
    refused. Name a connection with `--connection codex` to keep one grant per
@@ -129,15 +133,23 @@ against this server yet (PLAN M124's platform rows).
 
 ## Limits
 
-Frames and results are capped at 64 KiB; 60 calls a minute with a burst of
-10, at most 4 reads at once and 2 pending approvals per connection; an
-operation may be polled every 2 seconds; a call has 15 seconds; an approval
-lasts 120 seconds. Stop and schedule cancel never meet these limits, the
-kill switch or an audit failure.
+Frames and complete results (text and structured copy together) are capped
+at 64 KiB; 60 calls a minute with a burst of 10, at most 4 reads at once and
+2 pending approvals per connection. These limits belong to the connection's
+grant: every server process started with that connection, in any editor
+window, shares them, and a restart keeps them (a locked file in
+`connector/limits/`). An operation may be polled every 2 seconds; a call has
+15 seconds, after which it answers `unavailable` and a late result is
+dropped; an approval lasts 120 seconds. One server works on at most 16
+requests at once and answers `Server busy` beyond that, keeping room for
+Stop; a client that leaves 1 MiB of replies unread, or closes either pipe,
+is disconnected, and its pending approvals are cancelled. Stop and schedule
+cancel never meet these limits, the kill switch or an audit failure.
 
 ## What it records and returns
 
-Every call, refusal, decision and outcome leaves one line in
+Every call, refusal (unknown or unavailable tool, kill switch, limits,
+invalid or stale input), decision and outcome leaves one line in
 `connector/audit/<connection>.jsonl` in the agent's data folder: times,
 tool, workspace id, outcome and a keyed digest of the payload, never the
 text itself. The live file rotates at 10 MiB; the older segment is removed
