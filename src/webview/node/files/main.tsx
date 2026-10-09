@@ -287,6 +287,7 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
                     ) {
                       setOpened(undefined)
                       setDraft('')
+                      setPath('')
                       setReview(false)
                       setGeneration((previous) => previous + 1)
                       setNotice(UI_TEXT.nodeWorkspace.binaryReplaced)

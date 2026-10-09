@@ -389,6 +389,47 @@ describe('M110-U1 shared workspace UI', () => {
     expect(ui.queryByRole('alert')).toBeNull()
     expect(request.mock.calls.some(([method]) => method === 'node/files/upload')).toBe(true)
   })
+  it('accepts a later upload to the same path after a non-UTF-8 upload closes the buffer', async () => {
+    const { ui, request, state } = await fixture()
+    fireEvent.click(ui.getByRole('treeitem', { name: 'example.txt' }))
+    await ui.findByRole('textbox', { name: UI_TEXT.nodeLabels.editor })
+    let uploads = 0
+    const fallback = request.getMockImplementation()
+    request.mockImplementation((method, input, signal) => {
+      if (
+        method === 'node/files/upload' &&
+        typeof input === 'object' &&
+        input !== null &&
+        'data' in input
+      ) {
+        uploads += 1
+        // The first upload stores non-UTF-8 bytes, so the follow-up
+        // read cannot decode them; the second stores UTF-8 text.
+        if (uploads > 1) state.text = Buffer.from(String(input.data), 'base64').toString('utf8')
+        return Promise.resolve({ digest: hash(uploads === 1 ? 'binary' : state.text) })
+      }
+      return method === 'node/files/read' && uploads === 1
+        ? Promise.reject(new Error(UI_TEXT.nodeErrors.notText))
+        : (fallback?.(method, input, signal) ?? Promise.reject(new Error('no fallback response')))
+    })
+    fireEvent.change(ui.getByLabelText(UI_TEXT.nodeLabels.upload), {
+      target: { files: [new File([new Uint8Array([255])], 'example.txt')] },
+    })
+    await ui.findByText(UI_TEXT.nodeWorkspace.binaryReplaced)
+    expect(ui.queryByRole('textbox', { name: UI_TEXT.nodeLabels.editor })).toBeNull()
+    // The closed buffer no longer answers for the boxed path, so the
+    // box is cleared and a later upload is not refused as a conflict.
+    expect(ui.getByRole('textbox', { name: UI_TEXT.nodeWorkspace.path })).toHaveValue('')
+    // No editing of the path box: the replacement targets the upload's
+    // own name and must reach the server.
+    fireEvent.change(ui.getByLabelText(UI_TEXT.nodeLabels.upload), {
+      target: { files: [new File(['recovered\n'], 'example.txt')] },
+    })
+    await ui.findByText(UI_TEXT.nodeWorkspace.saved)
+    expect(ui.queryByRole('alert')).toBeNull()
+    expect(request.mock.calls.filter(([method]) => method === 'node/files/upload')).toHaveLength(2)
+    expect(state.text).toBe('recovered\n')
+  })
   it('refuses an upload over the open file with a cleared path box while edits are unsaved', async () => {
     const { ui, request } = await fixture()
     fireEvent.click(ui.getByRole('treeitem', { name: 'example.txt' }))
