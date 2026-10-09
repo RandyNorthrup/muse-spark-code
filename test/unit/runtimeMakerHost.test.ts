@@ -87,6 +87,22 @@ async function lifecycleService({
   vi.spyOn(service.serial, 'ports').mockResolvedValue([])
   return service
 }
+/** A pending request held by the real service, with its exact review and allow. */
+async function pendingReview(service: Awaited<ReturnType<typeof lifecycleService>>) {
+  await service.host.setHardware(true, 'bench')
+  const snapshot = { ...request(), expiresAt: Date.now() + 30_000 }
+  const engine = new MakerApproval(snapshot, () => service.host.hardwareEnabled())
+  const pending = service.host.confirm(snapshot, (raw) => engine.review(raw))
+  const { id, digest, target } = snapshot
+  const review = {
+    v: 1 as const,
+    type: 'makerPayloadReviewed' as const,
+    id,
+    digest,
+    isComplete: true,
+  }
+  return { engine, pending, review, answer: { id, digest, target, decision: 'allow_once' } }
+}
 function grantFile(host: RuntimeMakerHost): string {
   return path.join(
     host.storage.workspace.directory,
@@ -300,23 +316,7 @@ describe('runtime maker host', () => {
       const service = await lifecycleService({ platform })
       const signal = new AbortController().signal
       try {
-        await service.host.setHardware(true, 'bench')
-        const snapshot = { ...request(), expiresAt: Date.now() + 30_000 }
-        const engine = new MakerApproval(snapshot, () => service.host.hardwareEnabled())
-        const pending = service.host.confirm(snapshot, (raw) => engine.review(raw))
-        const review = {
-          v: 1 as const,
-          type: 'makerPayloadReviewed' as const,
-          id: snapshot.id,
-          digest: snapshot.digest,
-          isComplete: true,
-        }
-        const answer = {
-          id: snapshot.id,
-          digest: snapshot.digest,
-          target: snapshot.target,
-          decision: 'allow_once',
-        }
+        const { engine, pending, review, answer } = await pendingReview(service)
         expect(await service.dispatch(review, signal)).toBe(true)
         await service.dispatch({ v: 1, type: 'makerReady' }, signal)
         if (isReviewedAgain) expect(await service.dispatch(review, signal)).toBe(true)
@@ -430,23 +430,7 @@ describe('runtime maker host', () => {
         const service = await lifecycleService({ presence, platform: 'win32' })
         const signal = new AbortController().signal
         try {
-          await service.host.setHardware(true, 'bench')
-          const snapshot = { ...request(), expiresAt: Date.now() + 30_000 }
-          const engine = new MakerApproval(snapshot, () => service.host.hardwareEnabled())
-          const pending = service.host.confirm(snapshot, (raw) => engine.review(raw))
-          const review = {
-            v: 1 as const,
-            type: 'makerPayloadReviewed' as const,
-            id: snapshot.id,
-            digest: snapshot.digest,
-            isComplete: true,
-          }
-          const answer = {
-            id: snapshot.id,
-            digest: snapshot.digest,
-            target: snapshot.target,
-            decision: 'allow_once',
-          }
+          const { engine, pending, review, answer } = await pendingReview(service)
           expect(await service.dispatch(review, signal)).toBe(true)
           const native = Promise.withResolvers<'approved'>()
           if (variant === 'presence in flight') presence.check.mockReturnValueOnce(native.promise)

@@ -110,6 +110,42 @@ async function session(server: { readonly url: string; readonly launch: string }
   if (cookie === undefined) throw new Error('no cookie')
   return cookie
 }
+/** The real service behind a companion; `launched` opens a document and returns its headers. */
+async function servedCompanion() {
+  const directory = await mkdtemp(path.join(tmpdir(), 'maker-review-'))
+  cleanups.push(() => rm(directory, { recursive: true, force: true }))
+  const workspace = path.join(directory, 'repo')
+  await mkdir(workspace)
+  const service = await createRuntimeMakerService({
+    dataDirectory: path.join(directory, 'data'),
+    workspace,
+    lan: { classify: () => 'private', resolve: () => Promise.resolve(['127.0.0.1']) },
+    trusted: () => true,
+    flagged: () => true,
+    presence: { check: vi.fn().mockResolvedValue('approved') },
+    interactive: () => true,
+    secrets,
+    native: { platform: process.platform, env: {}, packageRoot: path.resolve('.') },
+  })
+  // Injected port probe: real discovery needs PowerShell (Windows) or ioreg (macOS).
+  vi.spyOn(service.serial, 'ports').mockResolvedValue([])
+  cleanups.push(() => service.close())
+  await service.host.setHardware(true, 'fake supervised printer')
+  const server = await startCompanion({
+    host: service.host,
+    dispatch: service.dispatch,
+    tools: service.tools,
+    assets: new Map([['/', { body: '<html></html>', type: 'text/html' }]]),
+  })
+  cleanups.push(() => server.close())
+  const launched = async () => {
+    await server.open()
+    const delivery = await http(server.url, '/launch-code', { Origin: server.url }, '')
+    const launch = companionLaunchSchema.parse(JSON.parse(delivery.text)).launch
+    return { Cookie: await session({ ...server, launch }), Origin: server.url }
+  }
+  return { service, server, launched }
+}
 /** Reads the replay a new /events subscriber receives, then closes the stream. */
 async function replay(url: string, headers: Record<string, string>) {
   return await new Promise<string>((resolve, reject) => {
@@ -331,36 +367,7 @@ describe('companion boundary', () => {
   ] as const)(
     'RVM103W2 P2 a %s replay starts a new document epoch; the old review never binds (reviewed again: %s)',
     async (route, isReviewedAgain) => {
-      const directory = await mkdtemp(path.join(tmpdir(), 'maker-epoch-'))
-      cleanups.push(() => rm(directory, { recursive: true, force: true }))
-      const workspace = path.join(directory, 'repo')
-      await mkdir(workspace)
-      const service = await createRuntimeMakerService({
-        dataDirectory: path.join(directory, 'data'),
-        workspace,
-        trusted: () => true,
-        flagged: () => true,
-        presence: { check: vi.fn().mockResolvedValue('approved') },
-        interactive: () => true,
-        secrets,
-        native: { platform: process.platform, env: {}, packageRoot: path.resolve('.') },
-      })
-      vi.spyOn(service.serial, 'ports').mockResolvedValue([])
-      cleanups.push(() => service.close())
-      await service.host.setHardware(true, 'supervised test')
-      const server = await startCompanion({
-        host: service.host,
-        dispatch: service.dispatch,
-        tools: service.tools,
-        assets: new Map([['/', { body: '<html></html>', type: 'text/html' }]]),
-      })
-      cleanups.push(() => server.close())
-      const launched = async () => {
-        await server.open()
-        const delivery = await http(server.url, '/launch-code', { Origin: server.url }, '')
-        const launch = companionLaunchSchema.parse(JSON.parse(delivery.text)).launch
-        return { Cookie: await session({ ...server, launch }), Origin: server.url }
-      }
+      const { service, server, launched } = await servedCompanion()
       let headers = await launched()
       const snapshot: ApprovalRequest = {
         id: randomUUID(),
@@ -414,23 +421,7 @@ describe('companion boundary', () => {
     async (variant) => {
       const machine = await fakeMachineServer()
       cleanups.push(() => machine.close())
-      const directory = await mkdtemp(path.join(tmpdir(), 'maker-review-'))
-      cleanups.push(() => rm(directory, { recursive: true, force: true }))
-      const workspace = path.join(directory, 'repo')
-      await mkdir(workspace)
-      const service = await createRuntimeMakerService({
-        dataDirectory: path.join(directory, 'data'),
-        workspace,
-        lan: { classify: () => 'private', resolve: () => Promise.resolve(['127.0.0.1']) },
-        trusted: () => true,
-        flagged: () => true,
-        presence: { check: vi.fn().mockResolvedValue('approved') },
-        interactive: () => true,
-        secrets,
-        native: { platform: process.platform, env: {}, packageRoot: path.resolve('.') },
-      })
-      cleanups.push(() => service.close())
-      await service.host.setHardware(true, 'fake supervised printer')
+      const { service, server: companionServer, launched } = await servedCompanion()
       await service.registry.register({
         id: 'printer',
         name: 'Bench printer',
@@ -440,25 +431,7 @@ describe('companion boundary', () => {
         limits: makerLimits,
         allowPlainHttp: true,
       })
-      const companionServer = await startCompanion({
-        host: service.host,
-        dispatch: service.dispatch,
-        tools: service.tools,
-        assets: new Map([['/', { body: '<html></html>', type: 'text/html' }]]),
-      })
-      cleanups.push(() => companionServer.close())
-      await companionServer.open()
-      const delivery = await http(
-        companionServer.url,
-        '/launch-code',
-        { Origin: companionServer.url },
-        '',
-      )
-      const launch = companionLaunchSchema.parse(JSON.parse(delivery.text)).launch
-      const headers = {
-        Cookie: await session({ ...companionServer, launch }),
-        Origin: companionServer.url,
-      }
+      const headers = await launched()
       const approval = Promise.withResolvers<ApprovalRequest>()
       const off = service.host.subscribe((message) => {
         if (message.type === 'makerApproval') approval.resolve(message.request)
