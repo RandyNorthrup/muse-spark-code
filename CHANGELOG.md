@@ -74,6 +74,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Visual capture waits for restored question rows to finish loading before
+  measuring the context-menu passage, preventing a timing-dependent 14 px
+  menu displacement in narrow captures. Pixel allowances are unchanged.
+
 - Schedule runtime tests cover Linux, Windows and macOS rearm ownership
   explicitly; macOS wake shutdown retains its independent after-exit helper.
 

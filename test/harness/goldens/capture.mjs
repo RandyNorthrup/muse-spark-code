@@ -47,6 +47,16 @@ async function waitForPaint(page, selector) {
   if (!(await target.isVisible())) throw new Error(`Missing painted selector: ${selector}`)
 }
 
+/** Question placeholders have their own busy marker, without data-deferred-loading. */
+export async function waitForDeferredPaint(page, scene) {
+  const loading = page.locator('[data-deferred-loading],[data-question-slot][aria-busy="true"]')
+  for (let attempt = 0; attempt < 100 && (await loading.count()) > 0; attempt += 1) {
+    await page.clock.runFor(100)
+    await delay(10)
+  }
+  if ((await loading.count()) > 0) throw new Error(`Deferred renderer did not settle: ${scene}`)
+}
+
 async function openScene(page, root, port, scene, theme, width, height, fixtures) {
   let resource = `test/harness/index.html?scenario=${width === 320 ? scene : scene.replace(/-narrow$/, '')}&theme=${theme}&bundle=${bundleFor(scene)}`
   if (fixtureScenes.has(scene)) resource = `${fixtures}/index.html?scene=${scene}`
@@ -118,16 +128,7 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   )
   if (!hasStyles) throw new Error(`Stylesheet failed to load: ${scene}/${theme}/${width}`)
   if (!fixtureScenes.has(scene)) {
-    for (
-      let attempt = 0;
-      attempt < 100 && (await page.locator('[data-deferred-loading]').count()) > 0;
-      attempt += 1
-    ) {
-      await page.clock.runFor(100)
-      await delay(10)
-    }
-    if ((await page.locator('[data-deferred-loading]').count()) > 0)
-      throw new Error(`Deferred renderer did not settle: ${scene}`)
+    await waitForDeferredPaint(page, scene)
   }
   // Two lazy renderers sit behind fallbacks the loop above cannot see: code
   // highlighting falls back to identical plain markup, and the usage dialog's

@@ -35499,6 +35499,23 @@ M110, and fake providers for every adapter.
 
 ### M114 — Design language and polish (D94)
 
+- **VISREGEN2 release refresh scope (2026-10-09):** investigate the identical-source
+  narrow One Dark Pro quote-menu displacement on release head `8f0a75ea1`.
+  Test scrollbar, font, wrapping and capture-readiness hypotheses with DOM
+  traces and at least ten repetitions. Repair the measured root cause with
+  a failing-base regression, preserve the before-paint pill measurement and
+  all pixel policies, then prove ten consecutive captures in six states and
+  both widths. Review the complete 9,792-frame matrix, use the reviewed-update
+  flow, refresh intended README media and current source records, and replay
+  visual owners plus six-theme accessibility. Three hooked local commits;
+  no merge, push or live/paid calls. Full quality remains lead-owned.
+  Root proved: a question restored from the preceding scene has a 25 px
+  `aria-busy` placeholder and a 39 px settled row. The late 14 px growth
+  leaves the replayed menu origin stale. The capture now awaits that busy
+  marker alongside ordinary deferred surfaces; product pointer semantics
+  and before-paint pill sizing remain unchanged. Owning browser regressions
+  fail with the old selector and pass with the new one.
+
 - **Integration review repairs (FIXM114I, 2026-10-07):** address RVM114W's six
   P2 findings and the font-usage P3. Route CI pixel replay exclusively through
   its required six shards; polish Open Questions focus; refresh current render
@@ -37912,6 +37929,17 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**VISREGEN2 inherited release-head build hold (2026-10-09).** At `8f0a75ea1`,
+What’s New generates 79,510 decoded bytes for 0.17.0 plus 0.16.0 against the
+unchanged 76,800-byte bound. Production and browser-only builds stop before
+bundling; visual fixtures fail at the same content writer. No cap is raised,
+release content removed, gate bypassed or golden accepted. Quote diagnosis
+uses only the real browser graph in an explicitly non-gate diagnostic,
+without preparing unrelated What’s New fixtures. Complete visual refresh,
+README media/source records and affected owner replays remain held until the
+release-content dependency is repaired within approved scope. Scoped lane
+checks run here; common.md assigns full quality and hosted CI to the lead.
 
 **CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting
 journals/cache/engine, schedule-runtime and M114 panel/conversation failures
