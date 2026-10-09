@@ -18333,7 +18333,7 @@ will account for it in our app". The register is
 what went wrong while a fleet of up to 30 agents built this project across
 three rigs, the rule that prevents it, and the owning decision. New gotchas are
 added there in the same session they are found. Plans and reviews of M96,
-M96c, M100, M107, M110, M115, M116 and M117 check it.
+M96c, M100, M107, M109, M110, M115, M116, M117 and M120 check it.
 
 Amendments (rows marked **amend**). Each lands in its milestone with a named
 test that fails without the rule:
@@ -18435,7 +18435,12 @@ test that fails without the rule:
    agent re-read its staged and committed diff after each commit. Also G59
    the lane runner refuses stash commands, and lint-staged backups are
    dropped or namespaced per worktree (tests
-   `runnerRefusesStash`, `hookBackupScopedToWorktree`).
+   `runnerRefusesStash`, `hookBackupScopedToWorktree`). Also (2026-10-08)
+   G80 a lead-session handoff ends the old session's process and every
+   background job it started, or lists each job for the new lead to adopt
+   or stop, and the handoff is complete only when each one is ended or
+   adopted (test `handoffEndsOrAdoptsBackgroundJobs`); M120's role handoff
+   binds the same rule.
 10. **M107 (governor, 2026-10-07):** G38 stopping a run kills its whole
     process tree, with a device-watcher sweep for orphans whose start time
     matches no live run (test `orphanSweepKillsStaleTree`); M100 and M110
@@ -18467,7 +18472,20 @@ test that fails without the rule:
     `gc.auto=0`), and a local origin a job pushes to sets `receive.autoGc=false`
     in its own configuration, because that maintenance detaches with `setsid`
     and escapes G38's process-tree kill (test `jobGitStartsNoMaintenance`); the
-    M96c lane runner gives lanes the same Git environment.
+    M96c lane runner gives lanes the same Git environment. Also (2026-10-08)
+    G79 every test that starts a process reaps that process's whole tree in
+    `afterEach` or `afterAll`, including after a timeout, and asserts that
+    none of it survives; idle watchdogs and supervisors wait on events, never
+    in a hot polling loop; and when a lane ends, the governor checks for
+    processes it left behind and reports them as a leak (tests
+    `laneEndReportsLeftoverProcesses`, `idleWatchdogDoesNotPoll`). M109
+    binds the same reaping rule for every process it spawns. G81 the Windows
+    resource sampler measures a protected process with a source that can see
+    it (Task Manager's data or an elevated query) and otherwise reports the
+    reading as blind, never as 0 (test `blindSamplerNeverReportsZero`). G82
+    no tight polling of a security product's status: a wait for the user's
+    action uses an event or a long interval, in the governor and in setup
+    and wizard code (test `securityStatusWaitDoesNotPoll`).
 11. **M116 (playbook, 2026-10-07):** G42 pipelined, stacked release
     integration with early draft PRs (test `releasesPipelineOnCandidate`);
     G43 a worker green labelled worker-certified unless verified from a

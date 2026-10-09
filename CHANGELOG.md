@@ -194,6 +194,14 @@ happened, not what was planned; superseded entries are kept.
   `con.d`, `aux.js` and similar names are ordinary on Windows 11. The browser
   check and the token-file ACL find Windows on any drive (`SystemRoot`, then
   `windir`) instead of assuming `C:\Windows`.
+- Four orchestration gotcha rows G79–G82 (tests reap every process tree they
+  start, even after a timeout, with a leak check when a lane ends; a lead
+  session handoff ends or hands over every background job the old session
+  started; a sampler that cannot see a protected process reports the reading
+  as blind, never 0; no tight polling of a security product's status), with
+  D100 amendments for M96c and M107 that M109 and M120 also bind. The
+  playbook placement chapter gains lessons 28–31 covering the same failures,
+  still model-agnostic.
 
 ### Pending
 
