@@ -195,7 +195,9 @@ describe('interactive paid policy apart from ACP flags', () => {
     releaseSetting.resolve(undefined)
     expect(await deciding).toBe(false)
     expect(grants.add).not.toHaveBeenCalled()
-    await expect(turningOff).rejects.toThrow('MHP_PAID_OWNER_REPLACED')
+    // Ask again is workspace-scoped: the unrelated queued settings write
+    // completes instead of failing with MHP_PAID_OWNER_REPLACED.
+    await expect(turningOff).resolves.toBeUndefined()
     await forgetting
     await paid.dispose()
   })
@@ -216,7 +218,33 @@ describe('interactive paid policy apart from ACP flags', () => {
     releaseSetting.resolve(undefined)
     expect(await deciding).toBe(false)
     expect(grants.add).not.toHaveBeenCalled()
-    await expect(turningOff).rejects.toThrow('MHP_PAID_OWNER_REPLACED')
+    // Ask again is workspace-scoped: the unrelated queued settings write
+    // completes instead of failing with MHP_PAID_OWNER_REPLACED.
+    await expect(turningOff).resolves.toBeUndefined()
+    await forgetting
+    await paid.dispose()
+  })
+
+  it('lets another workspace follow its own answer when Ask again runs elsewhere', async () => {
+    const { paid, ask, grants } = setup()
+    const held = Promise.withResolvers<'always'>()
+    ask.mockImplementation((surfaceId) =>
+      surfaceId === 'window-b' ? held.promise : Promise.resolve('deny'),
+    )
+    const deciding = paid.composition('/b', 'window-b').consent.allows({ feature: 'voice' })
+    await paid.composition('/a', 'window-a').consent.forget()
+    held.resolve('always')
+    expect(await deciding).toBe(true)
+    expect(grants.add).toHaveBeenCalledTimes(1)
+    await paid.dispose()
+  })
+
+  it('completes a turnOn queued before workspace Ask again', async () => {
+    const { paid } = setup()
+    const composition = paid.composition('/ws', 'window')
+    const turningOn = composition.gate.turnOn('voice')
+    const forgetting = composition.consent.forget()
+    await expect(turningOn).resolves.toBe(true)
     await forgetting
     await paid.dispose()
   })

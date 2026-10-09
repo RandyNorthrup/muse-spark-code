@@ -7,7 +7,7 @@ import type { PaidUseRequest } from '../../shared/paid'
 import type { ConversationCompositionPorts } from '../../host/compose/conversationDeps'
 import type { JudgeWindowDeps } from '../../host/judge/judgeBundle'
 import type { RuntimePaidGrantStore } from '../paidGrants'
-import { PaidUseConsent } from '../../core/paid/paidConsent'
+import { PaidOwnerReplacedError, PaidUseConsent } from '../../core/paid/paidConsent'
 import { failureForLog } from '../../core/backends/musecode/logText'
 
 export interface RuntimePaidUseDeps {
@@ -47,7 +47,7 @@ export class RuntimePaidUse extends AcpPaidUse {
   private check(generation: number): void {
     this.ending.signal.throwIfAborted()
     if (generation !== this.generation || !this.runtimeDeps.isCurrent())
-      throw new Error('MHP_PAID_OWNER_REPLACED')
+      throw new PaidOwnerReplacedError()
   }
 
   private async track<T>(work: Promise<T>): Promise<T> {
@@ -109,7 +109,7 @@ export class RuntimePaidUse extends AcpPaidUse {
         this.mutate(async (check) => {
           const held = this.runtimeDeps.grants.read(root)
           check()
-          if (windowGeneration !== state.generation) throw new Error('MHP_PAID_OWNER_REPLACED')
+          if (windowGeneration !== state.generation) throw new PaidOwnerReplacedError()
           await this.runtimeDeps.grants.add(
             root,
             grants.has(feature) && !held.has(feature) ? [feature] : [],
@@ -225,11 +225,11 @@ export class RuntimePaidUse extends AcpPaidUse {
       consent: {
         allows: (request) => this.allows(root, surfaceId, request, false),
         forget: () => {
-          // Ask again invalidates open answers at once, before the mutation
-          // queue is awaited: every popup captured the old generation when it
-          // opened, so its answer denies, and the queued workspace write
-          // below applies under the new generation instead of racing them.
-          this.generation += 1
+          // Ask again revokes this workspace's window consent synchronously,
+          // before the mutation queue is awaited: every popup it opened
+          // captured the old per-consent generation, so its answer denies,
+          // while other workspaces' answers stand and unrelated queued
+          // mutations complete under their own generation.
           this.revoke(root)
           return this.mutate(async (check) => {
             check()
