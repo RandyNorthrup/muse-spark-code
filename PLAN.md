@@ -41545,8 +41545,11 @@ group runs the full tier once, on the commit that becomes `main`, in an
 estimated 10–15 minutes; Windows quality alone took 38m23s in run 37211362498. The full tier runs:
 
 - the static gates on all three OSes;
-- four coverage shards per OS, merged before the unchanged 90/85/90/90
-  thresholds apply;
+- coverage shards merged per OS before the unchanged 90/85/90/90
+  thresholds apply: four on Ubuntu and macOS, five on Windows (lead
+  decision, 2026-10-09, on CITIME017's estimate: four Windows shards
+  ≈ 18.3/14.2/20.0/18.0 min against the 20-minute job limit, five
+  ≤ 15.5 min; `docs/certification/citime017.md`);
 - the a11y harness once, on Ubuntu;
 - integration on Linux and Windows;
 - the macOS helper and the universal packages.

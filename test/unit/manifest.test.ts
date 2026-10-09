@@ -672,14 +672,19 @@ describe('tiered CI (CIFLOW)', () => {
     expect(job('visual')).toContain('needs: visual-shards')
   })
 
-  it('collects all four shards per OS and gates merged coverage with unchanged thresholds', () => {
-    expect(job('unit')).toContain("shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4]') }}")
-    expect(job('unit')).toContain('--shard="$SHARD/4" --reporter=default --reporter=blob')
+  it('collects every shard per OS (five on Windows) and gates merged coverage with unchanged thresholds', () => {
+    expect(job('unit')).toContain("shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5]') }}")
+    expect(job('unit')).toContain(
+      `exclude: \${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"macos-latest","shard":5}]') }}`,
+    )
+    expect(job('unit')).toContain("SHARDS: ${{ matrix.os == 'windows-latest' && 5 || 4 }}")
+    expect(job('unit')).toContain('--shard="$SHARD/$SHARDS" --reporter=default --reporter=blob')
     expect(job('unit')).toContain('--outputFile="blob-reports/shard-$SHARD.json"')
     expect(job('coverage')).toContain('os: [ubuntu-latest, windows-latest, macos-latest]')
     expect(job('coverage')).toContain('pattern: coverage-${{ matrix.os }}-*')
     expect(job('coverage')).toContain('merge-multiple: true')
-    expect(job('coverage')).toContain('for shard in 1 2 3 4; do')
+    expect(job('coverage')).toContain("SHARDS: ${{ matrix.os == 'windows-latest' && 5 || 4 }}")
+    expect(job('coverage')).toContain('for shard in $(seq 1 "$SHARDS"); do')
     expect(job('coverage')).toContain('test -s "blob-reports/shard-$shard.json"')
     expect(job('coverage')).toContain('npx vitest run --merge-reports=blob-reports --coverage')
     const config = read('vitest.config.ts')

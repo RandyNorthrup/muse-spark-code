@@ -215,9 +215,9 @@ visual job fails the required aggregate. Visual replay adds a bounded browser jo
 
 Everything else selects the full tier: `merge_group`, manual dispatch, the
 release workflow's fallback build, and every PR while `CI_MERGE_QUEUE` is not
-`on`. Static gates run on all three OSes. Each OS runs four Vitest shards
-(Windows files stay serial within a shard), uploads blob reports, checks that
-all four arrived, then merges them and enforces the unchanged coverage
+`on`. Static gates run on all three OSes. Ubuntu and macOS run four Vitest
+shards, Windows five (its files stay serial within a shard); each uploads blob
+reports, checks that every shard arrived, then merges them and enforces the unchanged coverage
 thresholds once per OS. The 448-page a11y harness runs once on Ubuntu against
 the production webview from the static gate; its pages, themes and scenarios
 do not depend on the OS. Linux/Windows VS Code integration, the macOS helper

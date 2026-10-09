@@ -1,10 +1,11 @@
 # The shared build (CIFLOW, PLAN.md §7). `fast: true` (ci.yml, pull requests
 # once the merge queue is on) runs the Ubuntu static gates, the production
 # build and every unit/process-e2e test; the full tier (merge groups, manual
-# runs, release.yml) runs every gate on three platforms, four coverage shards
-# per OS merged before the unchanged thresholds apply, the accessibility and
-# integration runs, the macOS helper and the universal packages. The required
-# check names come from the `required` aggregate below on both tiers.
+# runs, release.yml) runs every gate on three platforms, coverage shards (four
+# on Ubuntu and macOS, five on Windows) merged per OS before the unchanged
+# thresholds apply, the accessibility and integration runs, the macOS helper
+# and the universal packages. The required check names come from the
+# `required` aggregate below on both tiers.
 # Releases can reuse these exact-tree packages after verifying the CI receipt.
 #
 # Every job has a timeout and every checkout leaves no token in the git
@@ -198,7 +199,10 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
-        shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4]') }}
+        shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5]') }}
+        # Windows splits its slower serial run five ways (≤ 15.5 min per
+        # shard on CITIME017's estimate); Ubuntu and macOS keep four.
+        exclude: ${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"macos-latest","shard":5}]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -217,11 +221,12 @@ jobs:
         env:
           FAST: ${{ inputs.fast }}
           SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ matrix.os == 'windows-latest' && 5 || 4 }}
         run: |
           if [ "$FAST" = true ]; then
             npx vitest run
           else
-            npx vitest run --coverage --shard="$SHARD/4" --reporter=default --reporter=blob --outputFile="blob-reports/shard-$SHARD.json"
+            npx vitest run --coverage --shard="$SHARD/$SHARDS" --reporter=default --reporter=blob --outputFile="blob-reports/shard-$SHARD.json"
           fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ !inputs.fast }}
@@ -256,8 +261,10 @@ jobs:
           merge-multiple: true
       - name: every shard and the original coverage thresholds are required
         shell: bash
+        env:
+          SHARDS: ${{ matrix.os == 'windows-latest' && 5 || 4 }}
         run: |
-          for shard in 1 2 3 4; do
+          for shard in $(seq 1 "$SHARDS"); do
             test -s "blob-reports/shard-$shard.json"
           done
           npx vitest run --merge-reports=blob-reports --coverage
