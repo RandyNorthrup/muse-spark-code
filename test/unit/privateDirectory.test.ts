@@ -5,55 +5,281 @@ import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { runProgram, windowsPowerShell } from '../../src/host/processTree'
-import { createPrivateDirectory, PrivateDirectoryRefused } from '../../src/runtime/privateDirectory'
-import type { TokenWindowsAcl } from '../../src/runtime/tokenFile'
+import {
+  createPrivateDirectory,
+  openPrivateRoot,
+  PrivateDirectoryRefused,
+  PrivateRootRefused,
+  type PrivateRoot,
+  type WindowsAclReader,
+} from '../../src/runtime/privateDirectory'
+import { secureOwnerOnly, type TokenWindowsAcl } from '../../src/runtime/tokenFile'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const SID = 'S-1-5-21-100-200-300-1001'
+const USERS = 'S-1-5-32-545'
+const SYSTEM = 'S-1-5-18'
+const ADMINISTRATORS = 'S-1-5-32-544'
+const FULL_CONTROL = 2_032_127
+const READ_AND_EXECUTE = 1_179_817
 const receipt = {
   ownerSid: SID,
   currentSid: SID,
   protected: true,
   rules: [{ sid: SID, inherited: false, allow: true, fullControl: true }],
 }
-const FULL_CONTROL = 2_032_127
 const OWNER_DIRECTORY_MODE = 0o700
 const SENTINEL = 'synthetic sentinel'
 
-const roots: string[] = []
+const areas: string[] = []
 afterEach(async () => {
   vi.restoreAllMocks()
-  for (const root of roots.splice(0)) await removeFolder(root)
+  for (const folder of areas.splice(0)) await removeFolder(folder)
 })
-async function root(parent = tmpdir()): Promise<string> {
+/** A scratch folder of this test's own, never the shared system temp itself. */
+async function area(parent = tmpdir()): Promise<string> {
   const made = await fs.mkdtemp(path.join(parent, 'muse-vb-dir-test-'))
-  roots.push(made)
+  areas.push(made)
   return made
 }
 const owned: TokenWindowsAcl = { secure: () => Promise.resolve(receipt) }
 
-describe('createPrivateDirectory', () => {
-  it('creates one fresh, empty folder in the resolved parent and secures it once as a folder', async () => {
-    const parent = await root()
+interface Rule {
+  sid: string
+  allow: boolean
+  rights: number
+}
+const reading = (rules: readonly Rule[], ownerSid = SID) => ({
+  ownerSid,
+  currentSid: SID,
+  rules: [{ sid: SID, allow: true, rights: FULL_CONTROL }, ...rules],
+})
+/** A Windows ACL reading per path: the parent's and the root's can differ. */
+function reader(parent: object = reading([]), root: object = reading([])) {
+  const read = vi.fn<WindowsAclReader['read']>((directory) =>
+    Promise.resolve(path.basename(directory) === 'media' ? root : parent),
+  )
+  return { read }
+}
+
+/** A root under a scratch folder, through the fake Windows reading. */
+async function fakeRoot(): Promise<PrivateRoot> {
+  return await openPrivateRoot(path.join(await area(), 'media'), { reader: reader(), acl: owned })
+}
+
+describe('openPrivateRoot', () => {
+  it('makes an absent root owner-only before any check passes it, then reads it back', async () => {
+    const parent = await area()
     const secure = vi.fn<TokenWindowsAcl['secure']>(() => Promise.resolve(receipt))
-    const directory = await createPrivateDirectory({ parent, acl: { secure } })
-    expect(path.dirname(directory)).toBe(await fs.realpath(parent))
-    expect(path.basename(directory)).toMatch(/^muse-media-[a-f0-9]{32}$/u)
+    const fake = reader()
+    const root = await openPrivateRoot(path.join(parent, 'media'), {
+      reader: fake,
+      acl: { secure },
+    })
+    expect(root.path).toBe(path.join(await fs.realpath(parent), 'media'))
+    expect(secure).toHaveBeenCalledExactlyOnceWith(root.path, true)
+    expect(fake.read.mock.calls.map(([directory]) => path.basename(directory))).toEqual([
+      path.basename(parent),
+      'media',
+    ])
+    // Opening it again checks the existing root and never secures it anew.
+    await openPrivateRoot(root.path, { reader: fake, acl: { secure } })
     expect(secure).toHaveBeenCalledTimes(1)
-    expect(secure).toHaveBeenCalledWith(directory, true)
+  })
+
+  it.each([
+    ['Users full control', { sid: USERS, allow: true, rights: FULL_CONTROL }],
+    ['Everyone write', { sid: 'S-1-1-0', allow: true, rights: 2 }],
+    ['Authenticated Users change permissions', { sid: 'S-1-5-11', allow: true, rights: 262_144 }],
+    ['generic all', { sid: USERS, allow: true, rights: 268_435_456 }],
+  ])(
+    'refuses a parent granting another principal %s, before making anything',
+    async (_label, rule) => {
+      const parent = await area()
+      const secure = vi.fn<TokenWindowsAcl['secure']>(() => Promise.resolve(receipt))
+      await expect(
+        openPrivateRoot(path.join(parent, 'media'), {
+          reader: reader(reading([rule])),
+          acl: { secure },
+        }),
+      ).rejects.toMatchObject({ code: 'EPRIVATE_ROOT' })
+      expect(await fs.readdir(parent)).toEqual([])
+      expect(secure).not.toHaveBeenCalled()
+    },
+  )
+
+  it('accepts a parent where others may only read (a sandbox group), and denials', async () => {
+    const parent = await area()
+    const root = await openPrivateRoot(path.join(parent, 'media'), {
+      reader: reader(
+        reading([
+          { sid: USERS, allow: true, rights: READ_AND_EXECUTE },
+          { sid: 'S-1-1-0', allow: false, rights: FULL_CONTROL },
+        ]),
+      ),
+      acl: owned,
+    })
+    expect(await fs.readdir(parent)).toEqual([path.basename(root.path)])
+  })
+
+  it('refuses an existing root with any grant beyond the user, SYSTEM and Administrators', async () => {
+    const parent = await area()
+    await fs.mkdir(path.join(parent, 'media'))
+    await fs.writeFile(path.join(parent, 'media', 'kept'), SENTINEL)
+    const secure = vi.fn<TokenWindowsAcl['secure']>(() => Promise.resolve(receipt))
+    await expect(
+      openPrivateRoot(path.join(parent, 'media'), {
+        reader: reader(
+          reading([]),
+          reading([{ sid: USERS, allow: true, rights: READ_AND_EXECUTE }]),
+        ),
+        acl: { secure },
+      }),
+    ).rejects.toBeInstanceOf(PrivateRootRefused)
+    // Checked, never repaired, never removed.
+    expect(secure).not.toHaveBeenCalled()
+    expect(await fs.readdir(path.join(parent, 'media'))).toEqual(['kept'])
+  })
+
+  it('accepts a root held by the user with SYSTEM and Administrators', async () => {
+    const parent = await area()
+    await fs.mkdir(path.join(parent, 'media'))
+    const trusted = reading(
+      [
+        { sid: SYSTEM, allow: true, rights: FULL_CONTROL },
+        { sid: ADMINISTRATORS, allow: true, rights: FULL_CONTROL },
+      ],
+      ADMINISTRATORS,
+    )
+    const root = await openPrivateRoot(path.join(parent, 'media'), {
+      reader: reader(trusted, trusted),
+    })
+    expect(path.basename(root.path)).toBe('media')
+  })
+
+  it.each([
+    ['a foreign owner', reading([], 'S-1-5-21-9-9-9-2002')],
+    ['a malformed reading', {}],
+  ])('refuses a root reading with %s and removes the root it made', async (_label, bad) => {
+    const parent = await area()
+    await expect(
+      openPrivateRoot(path.join(parent, 'media'), { reader: reader(reading([]), bad), acl: owned }),
+    ).rejects.toBeInstanceOf(PrivateRootRefused)
+    expect(await fs.readdir(parent)).toEqual([])
+  })
+
+  it('refuses a failed reader and a root it could not make owner-only, leaving nothing', async () => {
+    const parent = await area()
+    const failing = { read: () => Promise.reject(new Error(String.raw`synthetic C:\private`)) }
+    const refused = openPrivateRoot(path.join(parent, 'media'), { reader: failing, acl: owned })
+    await expect(refused).rejects.toBeInstanceOf(PrivateRootRefused)
+    await expect(refused).rejects.not.toThrow(/synthetic|[A-Za-z]:\\|\//u)
+    await expect(
+      openPrivateRoot(path.join(parent, 'media'), {
+        reader: reader(),
+        acl: { secure: () => Promise.resolve({ ...receipt, protected: false }) },
+      }),
+    ).rejects.toBeInstanceOf(PrivateRootRefused)
+    expect(await fs.readdir(parent)).toEqual([])
+  })
+
+  it('refuses a root that is itself a link, but follows links above it', async () => {
+    const target = await area()
+    const holder = await area()
+    await fs.symlink(target, path.join(holder, 'media'), 'junction')
+    await expect(
+      openPrivateRoot(path.join(holder, 'media'), { reader: reader(), acl: owned }),
+    ).rejects.toBeInstanceOf(PrivateRootRefused)
+    // A relocated profile folder above the root is normal.
+    const linked = path.join(holder, 'linked-profile')
+    await fs.symlink(target, linked, 'junction')
+    const root = await openPrivateRoot(path.join(linked, 'media'), {
+      reader: reader(),
+      acl: owned,
+    })
+    expect(root.path).toBe(path.join(await fs.realpath(target), 'media'))
+  })
+
+  it.each(['.', '..', 'two words'])('refuses the root name %j', async (name) => {
+    const parent = await area()
+    // Concatenated: path.join would normalize the dots away.
+    await expect(
+      openPrivateRoot(`${parent}${path.sep}${name}`, { reader: reader(), acl: owned }),
+    ).rejects.toBeInstanceOf(PrivateRootRefused)
+    expect(await fs.readdir(parent)).toEqual([])
+  })
+})
+
+describe.skipIf(process.platform === 'win32')('openPrivateRoot on real POSIX modes', () => {
+  it('makes a real 0700 root owned by this user', async () => {
+    const root = await openPrivateRoot(path.join(await area(), 'media'))
+    const info = await fs.stat(root.path)
+    expect(info.mode & 0o777).toBe(OWNER_DIRECTORY_MODE)
+    expect(info.uid).toBe(process.getuid === undefined ? undefined : process.getuid())
+  })
+
+  it('refuses an existing root with group or other bits, without repairing it', async () => {
+    const parent = await area()
+    await fs.mkdir(path.join(parent, 'media'))
+    await fs.chmod(path.join(parent, 'media'), 0o750)
+    await expect(openPrivateRoot(path.join(parent, 'media'))).rejects.toBeInstanceOf(
+      PrivateRootRefused,
+    )
+    const info = await fs.stat(path.join(parent, 'media'))
+    expect(info.mode & 0o777).toBe(0o750)
+  })
+
+  it('refuses, before making anything, a parent others can write (no sticky bit)', async () => {
+    const parent = await area()
+    await fs.chmod(parent, 0o777)
+    await expect(openPrivateRoot(path.join(parent, 'media'))).rejects.toBeInstanceOf(
+      PrivateRootRefused,
+    )
+    expect(await fs.readdir(parent)).toEqual([])
+  })
+})
+
+describe('createPrivateDirectory', () => {
+  it('creates one fresh, empty folder in its root and secures it once as a folder', async () => {
+    const root = await fakeRoot()
+    const secure = vi.fn<TokenWindowsAcl['secure']>(() => Promise.resolve(receipt))
+    const directory = await createPrivateDirectory(root, { acl: { secure } })
+    expect(path.dirname(directory)).toBe(root.path)
+    expect(path.basename(directory)).toMatch(/^muse-media-[a-f0-9]{32}$/u)
+    expect(secure).toHaveBeenCalledExactlyOnceWith(directory, true)
     expect(await fs.readdir(directory)).toEqual([])
-    const second = await createPrivateDirectory({ parent, acl: owned })
+    const second = await createPrivateDirectory(root, { acl: owned })
     expect(second).not.toBe(directory)
   })
 
+  it('refuses once its root is no longer the folder it verified, making nothing', async () => {
+    const root = await fakeRoot()
+    await fs.rename(root.path, `${root.path}-moved`)
+    await fs.mkdir(root.path, { mode: OWNER_DIRECTORY_MODE })
+    await expect(createPrivateDirectory(root, { acl: owned })).rejects.toMatchObject({
+      code: 'EPRIVATE_DIRECTORY',
+    })
+    expect(await fs.readdir(root.path)).toEqual([])
+  })
+
+  it.skipIf(process.platform === 'win32')(
+    'refuses once its POSIX root has gained group or other bits',
+    async () => {
+      const root = await openPrivateRoot(path.join(await area(), 'media'))
+      await fs.chmod(root.path, 0o755)
+      await expect(createPrivateDirectory(root)).rejects.toBeInstanceOf(PrivateDirectoryRefused)
+      expect(await fs.readdir(root.path)).toEqual([])
+    },
+  )
+
   it('refuses an existing folder and leaves it, its contents and its permissions alone', async () => {
-    const parent = await root()
-    const existing = path.join(parent, 'taken')
+    const root = await fakeRoot()
+    const existing = path.join(root.path, 'taken')
     await fs.mkdir(existing)
     await fs.writeFile(path.join(existing, 'kept'), SENTINEL)
     const before = await fs.stat(existing)
     const secure = vi.fn<TokenWindowsAcl['secure']>(() => Promise.resolve(receipt))
-    const starting = createPrivateDirectory({ parent, acl: { secure }, name: () => 'taken' })
+    const starting = createPrivateDirectory(root, { acl: { secure }, name: () => 'taken' })
     await expect(starting).rejects.toBeInstanceOf(PrivateDirectoryRefused)
     expect(secure).not.toHaveBeenCalled()
     expect(await fs.readFile(path.join(existing, 'kept'), 'utf8')).toBe(SENTINEL)
@@ -81,36 +307,36 @@ describe('createPrivateDirectory', () => {
       () => Promise.reject(new Error(String.raw`synthetic private OS output C:\x`)),
     ],
   ] as const)('refuses a %s and leaves nothing half-made', async (_label, secure) => {
-    const parent = await root()
-    const starting = createPrivateDirectory({ parent, acl: { secure } })
+    const root = await fakeRoot()
+    const starting = createPrivateDirectory(root, { acl: { secure } })
     await expect(starting).rejects.toThrow(PrivateDirectoryRefused)
     await expect(starting).rejects.toMatchObject({ code: 'EPRIVATE_DIRECTORY' })
     await expect(starting).rejects.not.toThrow(/synthetic|[A-Za-z]:\\|\//u)
-    expect(await fs.readdir(parent)).toEqual([])
+    expect(await fs.readdir(root.path)).toEqual([])
   })
 
   it('refuses a folder that something entered before it was secured, and removes it', async () => {
-    const parent = await root()
+    const root = await fakeRoot()
     const secure: TokenWindowsAcl['secure'] = async (directory) => {
       await fs.writeFile(path.join(directory, 'planted'), SENTINEL)
       return receipt
     }
-    await expect(createPrivateDirectory({ parent, acl: { secure } })).rejects.toThrow(
+    await expect(createPrivateDirectory(root, { acl: { secure } })).rejects.toThrow(
       PrivateDirectoryRefused,
     )
-    expect(await fs.readdir(parent)).toEqual([])
+    expect(await fs.readdir(root.path)).toEqual([])
   })
 
   it('never removes a folder swapped in for the one it made', async () => {
-    const parent = await root()
-    const elsewhere = await root()
+    const root = await fakeRoot()
+    const elsewhere = await area()
     await fs.writeFile(path.join(elsewhere, 'kept'), SENTINEL)
     const secure: TokenWindowsAcl['secure'] = async (directory) => {
       await fs.rmdir(directory)
       await fs.symlink(elsewhere, directory, 'junction')
       return { ...receipt, protected: false }
     }
-    await expect(createPrivateDirectory({ parent, acl: { secure } })).rejects.toThrow(
+    await expect(createPrivateDirectory(root, { acl: { secure } })).rejects.toThrow(
       PrivateDirectoryRefused,
     )
     expect(await fs.readFile(path.join(elsewhere, 'kept'), 'utf8')).toBe(SENTINEL)
@@ -120,43 +346,21 @@ describe('createPrivateDirectory', () => {
   it.each(['', '.', '..', '../escape', 'nested/name', String.raw`nested\name`, 'two words'])(
     'refuses the folder name %j without creating anything',
     async (name) => {
-      // The parent's own holder, never the shared system temp other processes write to.
-      const outside = await root()
-      const parent = await fs.mkdtemp(path.join(outside, 'parent-'))
-      await expect(
-        createPrivateDirectory({ parent, acl: owned, name: () => name }),
-      ).rejects.toThrow(PrivateDirectoryRefused)
-      expect(await fs.readdir(parent)).toEqual([])
-      expect(await fs.readdir(outside)).toEqual([path.basename(parent)])
+      const root = await fakeRoot()
+      const outside = path.dirname(root.path)
+      await expect(createPrivateDirectory(root, { acl: owned, name: () => name })).rejects.toThrow(
+        PrivateDirectoryRefused,
+      )
+      expect(await fs.readdir(root.path)).toEqual([])
+      expect(await fs.readdir(outside)).toEqual(['media'])
     },
   )
-
-  it('refuses a missing parent and a parent that is a file', async () => {
-    const parent = await root()
-    await expect(
-      createPrivateDirectory({ parent: path.join(parent, 'missing'), acl: owned }),
-    ).rejects.toThrow(PrivateDirectoryRefused)
-    await fs.writeFile(path.join(parent, 'file'), SENTINEL)
-    await expect(
-      createPrivateDirectory({ parent: path.join(parent, 'file'), acl: owned }),
-    ).rejects.toThrow(PrivateDirectoryRefused)
-    expect(await fs.readdir(parent)).toEqual(['file'])
-  })
-
-  it('works through a linked parent folder by its resolved identity', async () => {
-    const target = await root()
-    const holder = await root()
-    const link = path.join(holder, 'linked-profile')
-    await fs.symlink(target, link, 'junction')
-    const directory = await createPrivateDirectory({ parent: link, acl: owned })
-    expect(path.dirname(directory)).toBe(await fs.realpath(target))
-    expect(await fs.readdir(target)).toEqual([path.basename(directory)])
-  })
 
   it.skipIf(process.platform === 'win32')(
     'makes a real POSIX 0700 folder owned by this user',
     async () => {
-      const directory = await createPrivateDirectory({ parent: await root() })
+      const root = await openPrivateRoot(path.join(await area(), 'media'))
+      const directory = await createPrivateDirectory(root)
       const info = await fs.stat(directory)
       expect(info.mode & 0o777).toBe(OWNER_DIRECTORY_MODE)
       expect(info.uid).toBe(process.getuid === undefined ? undefined : process.getuid())
@@ -182,11 +386,15 @@ const aclReadingSchema = z.array(
   }),
 )
 
+function systemRoot(): string {
+  const root = process.env['SystemRoot']
+  if (root === undefined) throw new Error('SystemRoot is required on Windows')
+  return root
+}
+
 /** Get-Acl, independently of the routine under test, for each path at once. */
 async function readAcls(paths: readonly string[]): Promise<z.infer<typeof aclReadingSchema>> {
-  const systemRoot = process.env['SystemRoot']
-  if (systemRoot === undefined) throw new Error('SystemRoot is required on Windows')
-  const shell = windowsPowerShell(systemRoot)
+  const shell = windowsPowerShell(systemRoot())
   const payload = Buffer.from(JSON.stringify(paths), 'utf8').toString('base64')
   const script = `$ErrorActionPreference = 'Stop'
 $paths = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${payload}')) | ConvertFrom-Json
@@ -212,29 +420,54 @@ ConvertTo-Json -InputObject $out -Compress -Depth 5`
   return aclReadingSchema.parse(JSON.parse(stdout))
 }
 
-describe.skipIf(process.platform !== 'win32')('createPrivateDirectory on real Windows ACLs', () => {
+/** A real inheritable Users full-control grant, as a shared temp folder may carry. */
+async function grantUsers(folder: string): Promise<void> {
+  await runProgram(
+    path.win32.join(systemRoot(), 'System32', 'icacls.exe'),
+    [folder, '/grant', `*${USERS}:(OI)(CI)F`],
+    { SystemRoot: systemRoot() },
+  )
+}
+
+/** A private scratch area: this machine's temp folder may grant sandbox groups write. */
+async function privateArea(parent = tmpdir()): Promise<string> {
+  const folder = await area(parent)
+  await secureOwnerOnly(folder, 'directory')
+  return folder
+}
+
+describe.skipIf(process.platform !== 'win32')('the private root on real Windows ACLs', () => {
   async function expectOwnerOnly(parent: string): Promise<void> {
-    const directory = await createPrivateDirectory({ parent })
-    expect(path.dirname(directory)).toBe(await fs.realpath(parent))
+    const root = await openPrivateRoot(path.join(parent, 'media'))
+    expect(path.dirname(root.path)).toBe(await fs.realpath(parent))
+    const directory = await createPrivateDirectory(root)
     const file = path.join(directory, 'converted.wav')
     await fs.writeFile(file, SENTINEL)
     const child = path.join(directory, 'nested')
     await fs.mkdir(child)
-    const [folder, inner, nested] = await readAcls([directory, file, child])
-    if (folder === undefined || inner === undefined || nested === undefined)
+    const [rootAcl, folder, inner, nested] = await readAcls([root.path, directory, file, child])
+    if (
+      rootAcl === undefined ||
+      folder === undefined ||
+      inner === undefined ||
+      nested === undefined
+    )
       throw new Error('Get-Acl answered too few readings')
-    expect(folder.protected).toBe(true)
-    expect(folder.owner).toBe(folder.current)
-    expect(folder.rules).toEqual([
-      {
-        sid: folder.current,
-        inherited: false,
-        rights: FULL_CONTROL,
-        type: 'Allow',
-        inheritance: 'ContainerInherit, ObjectInherit',
-        propagation: 'None',
-      },
-    ])
+    // The root a new folder inherits from already holds only the owner.
+    for (const reading of [rootAcl, folder]) {
+      expect(reading.protected).toBe(true)
+      expect(reading.owner).toBe(reading.current)
+      expect(reading.rules).toEqual([
+        {
+          sid: reading.current,
+          inherited: false,
+          rights: FULL_CONTROL,
+          type: 'Allow',
+          inheritance: 'ContainerInherit, ObjectInherit',
+          propagation: 'None',
+        },
+      ])
+    }
     // What conversion writes inside inherits the owner's grant and nothing else.
     for (const [reading, inheritance] of [
       [inner, 'None'],
@@ -254,14 +487,34 @@ describe.skipIf(process.platform !== 'win32')('createPrivateDirectory on real Wi
     }
   }
 
-  it('reads back a protected owner-only DACL that its contents inherit', async () => {
-    await expectOwnerOnly(await root())
+  it('makes an owner-only root whose folders and contents inherit only the owner', async () => {
+    await expectOwnerOnly(await privateArea())
   })
 
-  it('secures a folder under a junctioned parent at its resolved location', async () => {
-    const target = await root()
-    const holder = await root()
-    const link = path.join(holder, 'junctioned-temp')
+  it('refuses a parent with an inheritable Users full-control grant before making anything', async () => {
+    const parent = await privateArea()
+    await grantUsers(parent)
+    await expect(openPrivateRoot(path.join(parent, 'media'))).rejects.toMatchObject({
+      code: 'EPRIVATE_ROOT',
+    })
+    expect(await fs.readdir(parent)).toEqual([])
+  })
+
+  it('refuses an existing root that carries a Users grant, leaving its ACL alone', async () => {
+    const parent = await privateArea()
+    const existing = path.join(parent, 'media')
+    await fs.mkdir(existing)
+    await grantUsers(existing)
+    const [before] = await readAcls([existing])
+    await expect(openPrivateRoot(existing)).rejects.toBeInstanceOf(PrivateRootRefused)
+    const [after] = await readAcls([existing])
+    expect(after).toEqual(before)
+  })
+
+  it('makes its root under a junctioned parent at the resolved location', async () => {
+    const target = await privateArea()
+    const holder = await privateArea()
+    const link = path.join(holder, 'junctioned-storage')
     await fs.symlink(target, link, 'junction')
     await expectOwnerOnly(link)
   })
@@ -269,9 +522,9 @@ describe.skipIf(process.platform !== 'win32')('createPrivateDirectory on real Wi
   // Second fixed drives are the rig's to name; nothing assumes the system
   // drive. The Windows host has NTFS E: and exFAT D:, which holds no ACLs.
   const secondDrive = process.env['MEDIA_VB_SECOND_DRIVE']
-  it.skipIf(secondDrive === undefined)('secures a folder on another drive letter', async () => {
+  it.skipIf(secondDrive === undefined)('makes its root on another drive letter', async () => {
     if (secondDrive === undefined) throw new Error('MEDIA_VB_SECOND_DRIVE is required')
-    const parent = await root(secondDrive)
+    const parent = await privateArea(secondDrive)
     expect(path.parse(await fs.realpath(parent)).root.toUpperCase()).toBe(
       path.parse(path.resolve(secondDrive)).root.toUpperCase(),
     )
@@ -280,21 +533,23 @@ describe.skipIf(process.platform !== 'win32')('createPrivateDirectory on real Wi
 
   const aclFreeDrive = process.env['MEDIA_VB_NO_ACL_DRIVE']
   it.skipIf(aclFreeDrive === undefined)(
-    'refuses a drive that cannot hold an owner-only ACL (exFAT, FAT) and leaves nothing',
+    'refuses a root on a drive that cannot hold an ACL (exFAT, FAT) and leaves nothing',
     async () => {
       if (aclFreeDrive === undefined) throw new Error('MEDIA_VB_NO_ACL_DRIVE is required')
-      const parent = await root(aclFreeDrive)
-      await expect(createPrivateDirectory({ parent })).rejects.toThrow(PrivateDirectoryRefused)
+      const parent = await area(aclFreeDrive)
+      await expect(openPrivateRoot(path.join(parent, 'media'))).rejects.toBeInstanceOf(
+        PrivateRootRefused,
+      )
       expect(await fs.readdir(parent)).toEqual([])
     },
   )
 
-  it('refuses an existing folder without touching its ACL', async () => {
-    const parent = await root()
-    const existing = path.join(parent, 'taken')
+  it('refuses an existing folder in the root without touching its ACL', async () => {
+    const root = await openPrivateRoot(path.join(await privateArea(), 'media'))
+    const existing = path.join(root.path, 'taken')
     await fs.mkdir(existing)
     const [before] = await readAcls([existing])
-    await expect(createPrivateDirectory({ parent, name: () => 'taken' })).rejects.toThrow(
+    await expect(createPrivateDirectory(root, { name: () => 'taken' })).rejects.toThrow(
       PrivateDirectoryRefused,
     )
     const [after] = await readAcls([existing])

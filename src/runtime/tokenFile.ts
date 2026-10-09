@@ -66,32 +66,63 @@ $rules = @($verified.GetAccessRules($true, $true, [System.Security.Principal.Sec
 @{ ownerSid = $verified.GetOwner([System.Security.Principal.SecurityIdentifier]).Value; currentSid = $sid.Value; protected = $verified.AreAccessRulesProtected; rules = $rules } | ConvertTo-Json -Compress -Depth 4
 `
 
+/**
+ * One fixed ACL script over one path, in the Windows root's own PowerShell
+ * (`SystemRoot`, then `windir`; never PATH and never an assumed drive). Only
+ * the path and its kind are encoded into the script as `$inputPath`; the
+ * credential-free environment carries no bearer or key. Returns the parsed
+ * JSON receipt for the caller's schema.
+ */
+export async function runWindowsAclScript(
+  body: string,
+  file: string,
+  isDirectory: boolean,
+): Promise<unknown> {
+  const systemRoot = process.env['SystemRoot'] ?? process.env['windir']
+  if (systemRoot === undefined) throw new Error('EOWNER_ONLY')
+  const executable = windowsPowerShell(
+    systemRoot,
+    withoutKeyringRoutes(withoutCredentials(process.env)),
+  )
+  const payload = Buffer.from(
+    JSON.stringify({ path: file, directory: isDirectory }),
+    'utf8',
+  ).toString('base64')
+  const script = `$inputPath = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${payload}')) | ConvertFrom-Json
+${body}`
+  const stdout = await runProgram(
+    executable.file,
+    [
+      '-NoLogo',
+      '-NoProfile',
+      '-NonInteractive',
+      '-EncodedCommand',
+      Buffer.from(script, 'utf16le').toString('base64'),
+    ],
+    executable.env,
+  )
+  const receipt: unknown = JSON.parse(stdout)
+  return receipt
+}
+
 const windowsAcl: TokenWindowsAcl = {
-  async secure(file, isDirectory) {
-    const executable = windowsPowerShell(
-      process.env['SystemRoot'] ?? String.raw`C:\Windows`,
-      withoutKeyringRoutes(withoutCredentials(process.env)),
-    )
-    const payload = Buffer.from(
-      JSON.stringify({ path: file, directory: isDirectory }),
-      'utf8',
-    ).toString('base64')
-    const script = `$inputPath = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${payload}')) | ConvertFrom-Json
-${WINDOWS_ACL_SCRIPT}`
-    const stdout = await runProgram(
-      executable.file,
-      [
-        '-NoLogo',
-        '-NoProfile',
-        '-NonInteractive',
-        '-EncodedCommand',
-        Buffer.from(script, 'utf16le').toString('base64'),
-      ],
-      executable.env,
-    )
-    const receipt: unknown = JSON.parse(stdout)
-    return receipt
-  },
+  secure: (file, isDirectory) => runWindowsAclScript(WINDOWS_ACL_SCRIPT, file, isDirectory),
+}
+
+/**
+ * macOS's mode string for one path when it carries no extended ACL (`ls
+ * -led` prints exactly one line, with no `+` and no ACL entries), else
+ * undefined. chmod does not remove macOS allow ACEs, so the mode alone
+ * proves nothing there.
+ */
+export async function darwinModeWithoutAcl(file: string): Promise<string | undefined> {
+  const output = await runProgram('/bin/ls', ['-ledn', file], {
+    ...withoutKeyringRoutes(withoutCredentials(process.env)),
+    LC_ALL: 'C',
+  })
+  const lines = output.trimEnd().split('\n')
+  const modeReceipt = /^([d-][rwx-]{9})@?[ \t]/.exec(lines[0] ?? '')
+  return lines.length === 1 ? modeReceipt?.[1] : undefined
 }
 
 /**
@@ -136,17 +167,11 @@ export async function secureOwnerOnly(
   if (uid === undefined || verified.uid !== uid || (verified.mode & MODE_MASK) !== mode)
     throw new Error('EOWNER_ONLY')
   if (process.platform === 'darwin') {
-    // chmod does not remove macOS allow ACEs. Accept only a single mode
-    // receipt with no '+' marker or ACL entries; even owner/deny ACLs refuse.
-    // The fixed system binary receives a path and a credential-free env only.
-    const output = await runProgram('/bin/ls', ['-ledn', file], {
-      ...withoutKeyringRoutes(withoutCredentials(process.env)),
-      LC_ALL: 'C',
-    })
-    const lines = output.trimEnd().split('\n')
+    // Accept only a single mode receipt with no '+' marker or ACL entries;
+    // even owner/deny ACLs refuse. The fixed system binary receives a path
+    // and a credential-free env only.
     const expected = isDirectory ? 'drwx------' : '-rw-------'
-    const modeReceipt = /^([d-][rwx-]{9})@?[ \t]/.exec(lines[0] ?? '')
-    if (lines.length !== 1 || modeReceipt?.[1] !== expected) throw new Error('EOWNER_ONLY')
+    if ((await darwinModeWithoutAcl(file)) !== expected) throw new Error('EOWNER_ONLY')
     return { platform: 'darwin', ownerOnly: true, mode, extendedAcl: false }
   }
   return { platform: process.platform, ownerOnly: true, mode }

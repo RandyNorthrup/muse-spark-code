@@ -1338,6 +1338,18 @@ export const MEDIA_SHA256_PATTERN = /^[a-f0-9]{64}$/u
 export const MEDIA_CONVERSION_JOB_FAILED_CODE = 'EMEDIA_JOB_FAILED'
 export const MEDIA_PRIVATE_DIRECTORY_PREFIX = 'muse-media-'
 export const MEDIA_PRIVATE_DIRECTORY_NAME_BYTES = 16
+// The private root those folders live in (RVMEDIAVB 1). Besides the current
+// user, only SYSTEM and BUILTIN\Administrators may hold a grant on it, and
+// nobody else may hold a write-class grant on its parent: FILE_WRITE_DATA,
+// FILE_APPEND_DATA, FILE_WRITE_EA, FILE_DELETE_CHILD, FILE_WRITE_ATTRIBUTES,
+// DELETE, WRITE_DAC, WRITE_OWNER, GENERIC_ALL and GENERIC_WRITE.
+export const MEDIA_PRIVATE_ROOT_TRUSTED_SIDS = ['S-1-5-18', 'S-1-5-32-544'] as const
+export const WINDOWS_WRITE_CLASS_RIGHTS = 0x50_0d_01_56
+// POSIX: no group/other bits on the root; an ancestor writable by group or
+// other is accepted only with the sticky bit (as /tmp).
+export const POSIX_GROUP_OTHER_BITS = 0o077
+export const POSIX_GROUP_OTHER_WRITE_BITS = 0o022
+export const POSIX_STICKY_BIT = 0o1000
 // One /bin/ps run per interval at most; a reading older than the maximum age
 // is never returned (the caller waits for a fresh one or refuses), and one
 // run is bounded in time and output.
