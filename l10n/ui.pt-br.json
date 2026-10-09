@@ -2601,7 +2601,7 @@
     "macos": "macOS: importe o certificado comparado no Acesso às Chaves, confie nele para este nó e reinicie o navegador.",
     "linux": "Linux: importe o certificado comparado usando o gerenciador de certificados do navegador e reinicie o navegador.",
     "firefox": "O Firefox usa seu próprio gerenciador de certificados. Se ele não puder confiar neste certificado que não é de AC, o pareamento ficará indisponível até a verificação da plataforma.",
-    "verified": "Comparei a impressão digital completa com o console do nó e instalei este certificado.",
+    "verified": "Comparei a impressão digital SHA-256 completa do certificado baixado com o console do nó e instalei esse certificado.",
     "download": "Baixar certificado do nó",
     "trustRequired": "Instale o certificado comparado antes de criar ou usar uma chave de acesso. Ignorar um aviso não estabelece confiança."
   }

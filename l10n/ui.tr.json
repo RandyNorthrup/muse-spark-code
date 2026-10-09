@@ -2507,7 +2507,7 @@
     "macos": "macOS: karşılaştırdığınız sertifikayı Anahtar Zinciri Erişimi ile aktarın, bu düğüm için güvenilir olarak ayarlayın ve tarayıcıyı yeniden başlatın.",
     "linux": "Linux: karşılaştırdığınız sertifikayı tarayıcınızın sertifika yöneticisiyle aktarın ve tarayıcıyı yeniden başlatın.",
     "firefox": "Firefox kendi sertifika yöneticisini kullanır. CA olmayan bu sertifikaya güvenemezse platform doğrulaması tamamlanana kadar eşleştirme kullanılamaz.",
-    "verified": "Tam parmak izini düğüm konsoluyla karşılaştırdım ve bu sertifikayı yükledim.",
+    "verified": "İndirilen sertifikanın tam SHA-256 parmak izini düğüm konsoluyla karşılaştırdım ve bu sertifikayı yükledim.",
     "download": "Düğüm sertifikasını indir",
     "trustRequired": "Geçiş anahtarı oluşturmadan veya kullanmadan önce karşılaştırdığınız sertifikayı yükleyin. Bir uyarıyı geçmek güven sağlamaz."
   }

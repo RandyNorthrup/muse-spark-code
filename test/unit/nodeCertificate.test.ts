@@ -8,7 +8,7 @@ import {
   checkNodeCertificate,
   checkNodeNames,
   issueNodeCertificate,
-} from '../../src/runtime/node/tls/certificate'
+} from '../../src/runtime/node/auth/entry'
 import {
   NODE_MAX_AUTH_BYTES,
   NODE_TLS_CERT_FILE,
@@ -121,6 +121,7 @@ describe('H02 pinned non-CA certificate', () => {
     expect(() =>
       checkNodeCertificate(pem, fixture.key, ['home.local', 'localhost'], Date.now()),
     ).toThrow()
+    return Promise.resolve()
   })
   nodeNativeTest(
     'never overwrites an existing certificate/key or accepts an executable from PATH',

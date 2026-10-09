@@ -2601,7 +2601,7 @@
     "macos": "macOS : importez le certificat comparé dans Trousseaux d’accès, accordez-lui votre confiance pour ce nœud, puis redémarrez le navigateur.",
     "linux": "Linux : importez le certificat comparé avec le gestionnaire de certificats du navigateur, puis redémarrez-le.",
     "firefox": "Firefox utilise son propre gestionnaire de certificats. S’il ne peut pas faire confiance à ce certificat non-AC, l’association reste indisponible jusqu’à la validation de la plateforme.",
-    "verified": "J’ai comparé l’empreinte complète avec la console du nœud et installé ce certificat.",
+    "verified": "J’ai comparé l’empreinte SHA-256 complète du certificat téléchargé avec la console du nœud et installé ce certificat.",
     "download": "Télécharger le certificat du nœud",
     "trustRequired": "Installez le certificat comparé avant de créer ou d’utiliser une clé d’accès. Ignorer un avertissement n’établit pas la confiance."
   }

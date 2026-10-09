@@ -125,12 +125,7 @@ describe('H08/H19 one UV proof per exact physical action', () => {
       const s = sessions.create()
       const other = sessions.create()
       const proof = sessions.issueProof(s.session.id, 'maker.action', digest)
-      const binding = {
-        sessionId: s.session.id,
-        id: proof.id,
-        action: proof.action,
-        actionDigest: digest,
-      }
+      const binding = proof
       const changed = { ...binding }
       if (field === 'action') changed.action = 'terminal.open'
       else if (field === 'sessionId') changed.sessionId = other.session.id
@@ -142,12 +137,7 @@ describe('H08/H19 one UV proof per exact physical action', () => {
   it('atomically consumes one proof, rejecting concurrent reuse', async () => {
     const s = sessions.create()
     const proof = sessions.issueProof(s.session.id, 'maker.action', digest)
-    const binding = {
-      sessionId: s.session.id,
-      id: proof.id,
-      action: proof.action,
-      actionDigest: digest,
-    }
+    const binding = proof
     const settled = await Promise.allSettled([
       sessions.consumeStepUp(binding, signal),
       sessions.consumeStepUp(binding, signal),

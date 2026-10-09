@@ -22548,9 +22548,13 @@ browser integrity:
 `sha512-1odWVqeEBTl7lJ9zMKLEsmTlnyrDO5iRcTvfMKKk1WThUnp/i8JJdffdj2icP+tty159s4PgwE3BiMoEW9NFow==`.
 The server verifies actual WebAuthn cryptography; the browser package handles
 the native credential API's binary/JSON conversion. Both remain confined to
-the A1 lazy artifacts. The manifest/lock pins are exact. Scratch installation
-is under this lane's `temp/` because the shared rules prohibit all writes
-under its hard-linked `node_modules`; no shared dependency bytes changed.
+the A1 lazy artifacts. The manifest/lock pins are exact. The initial scratch
+installation was under this lane's `temp/`. On resume, the lead authorized
+adding only the 25 missing package directories from a fresh, script-free
+install under this lane's `TMPDIR`. The post-copy snapshot confirms all
+31,226 pre-existing files/symlinks retain their bytes, inode, mode, size and
+modification time. Normal Vitest subsequently updated its existing results
+cache, recorded in certification; no package bytes changed.
 
 **M110N listener receipt (2026-10-06).** N implements the accepted-table
 transport in the lazy node bundle: explicit private/loopback bind, pinned TLS
@@ -23044,6 +23048,17 @@ binding the named N/M104/T/C/J ports. No cap, timeout, lint level, ignore or
 hook is weakened. See `docs/certification/m110-a1-passkeys-and-the-pinned-certificate.md`
 for failures deliberately observed and restored, package/audit details and
 the documentation/reference integration patch.
+
+A1's same-scope base/current audit reports the same 13 vulnerable packages,
+with no new vulnerable dependency. The unchanged audit gate still refuses
+inherited `shell-quote` GHSA-pqg4-j6r4-53mv and `source-map-js`
+GHSA-68fv-2mgg-jv7q; their repair is deferred to the lead because A1 cannot
+upgrade other owners' dependencies. The generated host API record is also
+deferred to J's integration ownership. On 2026-10-09 the lead authorized
+adding only the 25 missing dependency directories; this resolves normal SDK
+resolution without changing pre-existing shared files or the installed hooks.
+The audit and generated-record conditions remain integration handoffs,
+not green gate claims or exceptions.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct

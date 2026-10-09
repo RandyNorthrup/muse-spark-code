@@ -1,0 +1,314 @@
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import {
+  NODE_AUTH_RANDOM_BYTES,
+  NODE_SETUP_TTL_MS,
+  NODE_SIGNIN_MAX_FAILURES,
+  UI_TEXT,
+} from '../../../shared/constants'
+import type { NodeClock } from '../../../shared/node'
+import {
+  nodeAssertionSchema,
+  nodeDomainSchema,
+  nodeTokenSchema,
+  type NodeAuthPort,
+} from '../../../shared/nodeAuth'
+import { fill, formatDateTime } from '../../../shared/l10n/text'
+import { NodeListenerAdmission, NodeListenerError } from '../listenerGuard'
+import type { NodeStateStore } from '../state'
+import { NodeTransactions } from '../transactions'
+import { NodeChallenges } from './challenges'
+import { SimpleNodePasskeys, type NodePasskeyVerifier } from './passkeys'
+import { NodeMemorySessions, type NodeSessionLifecycle } from './sessions'
+
+function digest(text: string): string {
+  return createHash('sha256').update(text).digest('hex')
+}
+export interface NodeAuthOptions {
+  state: Pick<NodeStateStore, 'read' | 'update' | 'append'>
+  clock: NodeClock
+  rpId: string
+  origin: string
+  lifecycle: NodeSessionLifecycle
+  /** Console/TUI only. This channel deliberately prints setup codes, never audit/log. */
+  console: (line: string) => void
+  verifier?: NodePasskeyVerifier
+}
+
+/** One owner; every durable enrollment/counter/failure change is serialized. */
+export class NodePasskeyAuth {
+  private readonly challenges: NodeChallenges
+  private readonly transactions = new NodeTransactions()
+  private readonly admission: NodeListenerAdmission
+  private readonly verifier: NodePasskeyVerifier
+  private setupDeadline = 0
+  private epoch = 0
+  readonly sessions: NodeMemorySessions
+
+  constructor(private readonly options: NodeAuthOptions) {
+    const rpId = nodeDomainSchema.parse(options.rpId)
+    const origin = new URL(options.origin)
+    if (
+      origin.protocol !== 'https:' ||
+      origin.origin !== options.origin ||
+      origin.hostname !== rpId ||
+      !options.state.read().config.browserNames.includes(rpId)
+    )
+      throw new Error(UI_TEXT.nodeErrors.forbidden)
+    this.challenges = new NodeChallenges(options.clock, rpId, options.origin)
+    this.sessions = new NodeMemorySessions(
+      options.clock,
+      options.state.read().ownerId,
+      options.lifecycle,
+    )
+    this.admission = new NodeListenerAdmission(() => options.clock.monotonicMs())
+    this.verifier = options.verifier ?? new SimpleNodePasskeys()
+    const setup = options.state.read().setup
+    if (setup !== null && options.clock.now() >= setup.issuedAt)
+      this.setupDeadline =
+        options.clock.monotonicMs() +
+        Math.max(0, Math.min(NODE_SETUP_TTL_MS, setup.expiresAt - options.clock.now()))
+    this.showLockout()
+  }
+
+  private showLockout(): void {
+    if (this.options.state.read().passkeys.some((key) => key.disabled))
+      this.options.console(UI_TEXT.nodeAuth.lockout)
+  }
+
+  private checkEpoch(epoch: number): void {
+    if (epoch !== this.epoch) throw new Error(UI_TEXT.nodeErrors.cancelled)
+  }
+
+  private async assert(
+    challengeId: string,
+    raw: unknown,
+    purpose: 'signin' | 'stepUp',
+    sessionId?: string,
+  ) {
+    const pending = this.challenges.take(challengeId, purpose)
+    const credential = nodeAssertionSchema.parse(raw)
+    const state = this.options.state.read()
+    const key = state.passkeys.find((entry) => entry.id === credential.id && !entry.disabled)
+    if (key === undefined) throw new Error(UI_TEXT.nodeErrors.unauthenticated)
+    if (pending.challenge.purpose === 'stepUp') {
+      if (pending.challenge.sessionId !== sessionId) throw new Error(UI_TEXT.nodeErrors.forbidden)
+      this.sessions.sessionSignal(pending.challenge.sessionId).throwIfAborted()
+    }
+    const epoch = this.epoch
+    const counter = await this.verifier.assert(pending.challenge, credential, key)
+    this.checkEpoch(epoch)
+    if (pending.deadline <= this.options.clock.monotonicMs())
+      throw new Error(UI_TEXT.nodeErrors.expired)
+    if (pending.challenge.purpose === 'stepUp')
+      this.sessions.sessionSignal(pending.challenge.sessionId).throwIfAborted()
+    const verifiedTime = {
+      time: this.options.clock.now(),
+      monotonicMs: this.options.clock.monotonicMs(),
+    }
+    const current = this.options.state.read()
+    await this.options.state.update(current.generation, (value) => ({
+      ...value,
+      passkeys: value.passkeys.map((entry) => ({
+        ...entry,
+        failures: 0,
+        counter: entry.id === key.id ? counter : entry.counter,
+      })),
+    }))
+    return { challenge: pending.challenge, verifiedTime, deadline: pending.deadline }
+  }
+
+  private attempt<T>(
+    source: string,
+    isProof: boolean,
+    credentialId: string,
+    work: () => Promise<T>,
+  ): Promise<T> {
+    const release = this.admission.enter(source, true)
+    return this.transactions.enqueue(async () => {
+      let isFailed = true
+      try {
+        const result = await work()
+        isFailed = false
+        return result
+      } catch {
+        const state = this.options.state.read()
+        if (isProof && state.passkeys.some((key) => !key.disabled)) {
+          await this.options.state.update(state.generation, (value) => ({
+            ...value,
+            passkeys: value.passkeys.map((key) => {
+              const failures = Math.min(NODE_SIGNIN_MAX_FAILURES, key.failures + 1)
+              return {
+                ...key,
+                failures,
+                disabled: key.disabled || failures >= NODE_SIGNIN_MAX_FAILURES,
+              }
+            }),
+          }))
+          const isLocked = this.options.state.read().passkeys.every((key) => key.disabled)
+          if (isLocked) {
+            this.endAll()
+            this.showLockout()
+            await this.audit('lockout', credentialId, 'denied')
+          }
+        }
+        await this.audit(isProof ? 'signin' : 'enroll', credentialId, 'denied')
+        throw new NodeListenerError('unauthenticated')
+      } finally {
+        release(isFailed, isProof)
+      }
+    })
+  }
+
+  private async audit(
+    action: 'signin' | 'enroll' | 'signout' | 'lockout',
+    credentialId: string,
+    outcome: 'allowed' | 'denied',
+    sessionId: string | null = null,
+  ): Promise<void> {
+    await this.options.state.append({
+      kind: 'signin',
+      action,
+      credentialIdHash: digest(credentialId),
+      sessionId,
+      time: this.options.clock.now(),
+      outcome,
+    })
+  }
+
+  /** Bind to the transport's actual remote address, never a client-supplied source field. */
+  forSource(source: string, sessionId?: string): NodeAuthPort {
+    return {
+      begin: async (purpose, setupCode) =>
+        await this.attempt(source, false, '', () => {
+          const state = this.options.state.read()
+          if (purpose === 'enroll') {
+            const codeHash = digest(nodeTokenSchema.parse(setupCode))
+            if (
+              state.setup === null ||
+              state.passkeys.length > 0 ||
+              this.setupDeadline <= this.options.clock.monotonicMs() ||
+              !timingSafeEqual(
+                Buffer.from(codeHash, 'hex'),
+                Buffer.from(state.setup.codeHash, 'hex'),
+              )
+            )
+              throw new Error(UI_TEXT.nodeErrors.unauthenticated)
+            return Promise.resolve(this.challenges.issue('enroll', codeHash))
+          }
+          if (state.passkeys.every((key) => key.disabled))
+            throw new Error(UI_TEXT.nodeErrors.locked)
+          return Promise.resolve(this.challenges.issue('signin'))
+        }),
+      beginStepUp: (requestedSession, action, actionDigest) => {
+        if (requestedSession !== sessionId) throw new Error(UI_TEXT.nodeErrors.forbidden)
+        this.sessions.sessionSignal(requestedSession).throwIfAborted()
+        return Promise.resolve(this.challenges.stepUp(requestedSession, action, actionDigest))
+      },
+      enroll: async (challengeId, credential) =>
+        await this.attempt(source, true, credential.id, async () => {
+          const epoch = this.epoch
+          const pending = this.challenges.take(challengeId, 'enroll')
+          const state = this.options.state.read()
+          if (
+            state.setup === null ||
+            state.passkeys.length > 0 ||
+            state.setup.codeHash !== pending.setupHash ||
+            this.setupDeadline <= this.options.clock.monotonicMs()
+          )
+            throw new Error(UI_TEXT.nodeErrors.expired)
+          const key = await this.verifier.enroll(pending.challenge, credential, state.ownerId)
+          this.checkEpoch(epoch)
+          if (
+            pending.deadline <= this.options.clock.monotonicMs() ||
+            this.setupDeadline <= this.options.clock.monotonicMs()
+          )
+            throw new Error(UI_TEXT.nodeErrors.expired)
+          const current = this.options.state.read()
+          await this.options.state.update(current.generation, (value) => ({
+            ...value,
+            setup: null,
+            passkeys: [key],
+          }))
+          this.setupDeadline = 0
+          await this.audit('enroll', credential.id, 'allowed')
+          if (pending.deadline <= this.options.clock.monotonicMs())
+            throw new Error(UI_TEXT.nodeErrors.expired)
+          this.checkEpoch(epoch)
+          return this.sessions.create()
+        }),
+      signIn: async (challengeId, credential) =>
+        await this.attempt(source, true, credential.id, async () => {
+          const epoch = this.epoch
+          const verified = await this.assert(challengeId, credential, 'signin')
+          await this.audit('signin', credential.id, 'allowed')
+          if (verified.deadline <= this.options.clock.monotonicMs())
+            throw new Error(UI_TEXT.nodeErrors.expired)
+          this.checkEpoch(epoch)
+          return this.sessions.create()
+        }),
+      stepUp: async (challengeId, credential) =>
+        await this.attempt(source, true, credential.id, async () => {
+          const epoch = this.epoch
+          const { challenge, verifiedTime } = await this.assert(
+            challengeId,
+            credential,
+            'stepUp',
+            sessionId,
+          )
+          if (challenge.purpose !== 'stepUp') throw new Error(UI_TEXT.nodeErrors.forbidden)
+          this.checkEpoch(epoch)
+          this.sessions.sessionSignal(challenge.sessionId).throwIfAborted()
+          await this.options.state.append({
+            kind: 'stepUp',
+            actionDigest: challenge.actionDigest,
+            sessionId: challenge.sessionId,
+            time: this.options.clock.now(),
+            outcome: 'allowed',
+          })
+          this.checkEpoch(epoch)
+          return this.sessions.issueProof(
+            challenge.sessionId,
+            challenge.action,
+            challenge.actionDigest,
+            verifiedTime,
+          )
+        }),
+      end: async (requestedSession) => {
+        if (requestedSession !== sessionId) throw new Error(UI_TEXT.nodeErrors.forbidden)
+        this.sessions.end(requestedSession)
+        this.challenges.end(requestedSession)
+        await this.audit('signout', '', 'allowed', requestedSession)
+      },
+    }
+  }
+
+  /** Local owner console control only; intentionally absent from the network method catalog. */
+  consoleSetup(): Promise<void> {
+    this.endAll()
+    return this.transactions.enqueue(async () => {
+      const state = this.options.state.read()
+      if (state.passkeys.some((key) => !key.disabled)) throw new Error(UI_TEXT.nodeErrors.forbidden)
+      const code = randomBytes(NODE_AUTH_RANDOM_BYTES).toString('base64url')
+      const now = this.options.clock.now()
+      const deadline = this.options.clock.monotonicMs() + NODE_SETUP_TTL_MS
+      await this.options.state.update(state.generation, (value) => ({
+        ...value,
+        passkeys: [],
+        setup: { codeHash: digest(code), issuedAt: now, expiresAt: now + NODE_SETUP_TTL_MS },
+      }))
+      this.setupDeadline = deadline
+      if (deadline <= this.options.clock.monotonicMs()) throw new Error(UI_TEXT.nodeErrors.expired)
+      this.options.console(`${UI_TEXT.nodeLabels.setupCode}: ${code}`)
+      this.options.console(
+        fill(UI_TEXT.nodeMessages.setupExpires, { time: formatDateTime(now + NODE_SETUP_TTL_MS) }),
+      )
+    })
+  }
+
+  /** Synchronously invalidate before N waits for its turn/tool cleanup. */
+  endAll(): void {
+    this.epoch += 1
+    this.challenges.clear()
+    this.sessions.endAll()
+  }
+}

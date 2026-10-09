@@ -1,0 +1,242 @@
+{
+  "date": "2026-10-09",
+  "entriesAdded": 25,
+  "existingFilesAndSymlinks": 31226,
+  "changedPreExistingEntries": [],
+  "beforeFindNewerCount": 0,
+  "afterFindNewerCount": 58,
+  "newerPathsAllNewPackagesOrTheirParentDirectories": true,
+  "existingSnapshotSha256": "b2cae188afebae52f33d2581f77336617bfd27e645dc82531f0a7a99990af2be",
+  "registryIntegritiesMatchLockfile": true,
+  "packages": [
+    {
+      "path": "node_modules/@hexagon/base64",
+      "name": "@hexagon/base64",
+      "version": "1.1.28",
+      "published": "2023-09-18T22:28:26.440Z",
+      "license": "MIT",
+      "integrity": "sha512-lhqDEAvWixy3bZ+UOYbPwUbBkwBq5C1LAJ/xPC8Oi+lL54oyakv/npbA0aU2hgCsx/1NUd4IBvV03+aUBWxerw==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@levischuck/tiny-cbor",
+      "name": "@levischuck/tiny-cbor",
+      "version": "0.2.11",
+      "published": "2025-02-08T19:57:57.777Z",
+      "license": "MIT",
+      "integrity": "sha512-llBRm4dT4Z89aRsm6u2oEZ8tfwL/2l6BwpZ7JcyieouniDECM5AqNgr/y08zalEIvW3RSK4upYyybDcmjXqAow==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/asn1-android",
+      "name": "@peculiar/asn1-android",
+      "version": "2.10.0",
+      "published": "2026-09-27T11:57:23.539Z",
+      "license": "MIT",
+      "integrity": "sha512-IHKdYL5MRW76DOQCv2HSE/vUMOf2jqH4E7yhtQYe/xx+RxpPiXfkUdhex0N4/s5crsnXCGftRNzy4RJn1s6CZA==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/asn1-asym-key",
+      "name": "@peculiar/asn1-asym-key",
+      "version": "2.10.0",
+      "published": "2026-09-27T11:59:44.758Z",
+      "license": "MIT",
+      "integrity": "sha512-1R8xUTeqcUTSMLFTTCzJyFuKiq3y25EQKs9DezUetJ8qMqbJyxo3XkzykiwwT/Xzlt5/vRzS/sW4M1r+pq1FTg==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/asn1-cms",
+      "name": "@peculiar/asn1-cms",
+      "version": "2.10.0",
+      "published": "2026-09-27T11:57:40.793Z",
+      "license": "MIT",
+      "integrity": "sha512-CkX0H4NCIOMHOU3rh2xXZywinYZ/EnJlaOlJiGI0e5L4XjFqHf4iH30LMbXWChVppdA9ljbanjtzQFOhDNfTWg==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/asn1-csr",
+      "name": "@peculiar/asn1-csr",
+      "version": "2.10.0",
+      "published": "2026-09-27T11:59:31.746Z",
+      "license": "MIT",
+      "integrity": "sha512-jTPTr/9rxKM+niQLMF3jiAMb0lWHUhUHIuSOhdGCIfpB4FAQYf9SoiXOgxP8bS/68IB+bj+1OHvVnDVCQfVUZw==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/asn1-ecc",
+      "name": "@peculiar/asn1-ecc",
+      "version": "2.10.0",
+      "published": "2026-09-27T11:58:14.704Z",
+      "license": "MIT",
+      "integrity": "sha512-GFd3iOjFrWX+QWH2R2dO5QSJyyRGv9CIBKtRlGlPNCvb2RvmCbBDexe91MJgV76c69d998Xsa+CvuQ98seoiPg==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/asn1-pfx",
+      "name": "@peculiar/asn1-pfx",
+      "version": "2.10.0",
+      "published": "2026-09-27T11:58:21.823Z",
+      "license": "MIT",
+      "integrity": "sha512-1y3QK9ZH1IPleAMmRoJlPS10eGkAWnULETW8zDFNUK1ffqpG7zmDY+kYBMYQgwlcQZ2iitLm2z2EBP0xzRXpaA==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/asn1-pkcs8",
+      "name": "@peculiar/asn1-pkcs8",
+      "version": "2.10.0",
+      "published": "2026-09-27T11:58:25.565Z",
+      "license": "MIT",
+      "integrity": "sha512-Ri+BZT9bnwqlHWmhs7lvWjvJRxKev2hA2+4EbZajgeYWCbR8hyv0znF4DhsFouOhMj2nSDV/iGJ6DMQtwITnCw==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/asn1-pkcs9",
+      "name": "@peculiar/asn1-pkcs9",
+      "version": "2.10.0",
+      "published": "2026-09-27T11:58:50.809Z",
+      "license": "MIT",
+      "integrity": "sha512-XIXsbDQFezYk6fudczkuvawkRD4GNpISGCqfYhdkJlvcGF/RFknU+0DDJagOaJqBf+PdPzk4J9oMqDGcvfR9HQ==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/asn1-rsa",
+      "name": "@peculiar/asn1-rsa",
+      "version": "2.10.0",
+      "published": "2026-09-27T11:58:43.717Z",
+      "license": "MIT",
+      "integrity": "sha512-4Jvmwlh3gZAhNZ4/u7JSyLuce9hofOFZ4o3PYKAccCImGnyaT5CMym/ATgvAvqpOYFNW531oPZvJlEBhJy9VfA==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/asn1-schema",
+      "name": "@peculiar/asn1-schema",
+      "version": "2.10.0",
+      "published": "2026-09-27T11:59:59.091Z",
+      "license": "MIT",
+      "integrity": "sha512-GhokD41lV4gQrrLYm3wCkHfBOnJrnhDMgt4XeMW8gzfE1UdJqIuSwsE+ggf82XBjUXRJylcm+KIGQFa4utIVLw==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/asn1-x509",
+      "name": "@peculiar/asn1-x509",
+      "version": "2.10.0",
+      "published": "2026-09-27T11:59:58.208Z",
+      "license": "MIT",
+      "integrity": "sha512-ucNVg8+ANveTpMN3fy9lA2alryONdXc2A4cEG2hMniWbvQt+YOZoe8BI80YYNO8FBcuDY1qbDQ4uQGQVraHxGA==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/asn1-x509-attr",
+      "name": "@peculiar/asn1-x509-attr",
+      "version": "2.10.0",
+      "published": "2026-09-27T12:00:44.421Z",
+      "license": "MIT",
+      "integrity": "sha512-/85GtKOKmgvuSJNlaFfwGWNdRSZZ+hpF02NyM01XiCdzpaZONiBltDyfluFPvFx966CR+ZHNSG1jniwpy07oGg==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/asn1-x509-post-quantum",
+      "name": "@peculiar/asn1-x509-post-quantum",
+      "version": "2.10.0",
+      "published": "2026-09-27T11:59:19.393Z",
+      "license": "MIT",
+      "integrity": "sha512-cXKcZ30wKbUkRK5RK4Z3W1imewXvHAB9apEAuIqJ0OOkOQCpJrwLOuN38QlsEXqOI+3gtUv8Kf3UZohUmCbf3w==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/utils",
+      "name": "@peculiar/utils",
+      "version": "2.0.3",
+      "published": "2026-05-01T19:05:19.014Z",
+      "license": "MIT",
+      "integrity": "sha512-+oL3HPFRIZ1St2K50lWCXiioIgSoxzz7R1J3uF6neO2yl1sgmpgY6XXJH4BdpoDkMWznQTeYF6oWNDZLCdQ4eQ==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@peculiar/x509",
+      "name": "@peculiar/x509",
+      "version": "2.1.0",
+      "published": "2026-09-04T10:34:27.310Z",
+      "license": "MIT",
+      "integrity": "sha512-IYbg1R03CSQGWwl24kGyqrdVtixNSbRaDvBg1r5wyYjTP+VwPQkka1BzTgU5+vxiuwqg04OxdvdJ1xYYFIdUSA==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@simplewebauthn/browser",
+      "name": "@simplewebauthn/browser",
+      "version": "14.0.0",
+      "published": "2026-09-02T05:49:26.615Z",
+      "license": "MIT",
+      "integrity": "sha512-1odWVqeEBTl7lJ9zMKLEsmTlnyrDO5iRcTvfMKKk1WThUnp/i8JJdffdj2icP+tty159s4PgwE3BiMoEW9NFow==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/@simplewebauthn/server",
+      "name": "@simplewebauthn/server",
+      "version": "14.0.3",
+      "published": "2026-09-25T17:10:28.463Z",
+      "license": "MIT",
+      "integrity": "sha512-D39/0fiDiYmGV+nraY9s63D1Ho2AX/waMLy22/9gUadTUuvbAnstfb4bpbHYbwZuV5ZLDYN1SmzDKuiHzKAA4Q==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/asn1js",
+      "name": "asn1js",
+      "version": "3.0.10",
+      "published": "2026-04-20T15:15:24.005Z",
+      "license": "BSD-3-Clause",
+      "integrity": "sha512-S2s3aOytiKdFRdulw2qPE51MzjzVOisppcVv7jVFR+Kw0kxwvFrDcYA0h7Ndqbmj0HkMIXYWaoj7fli8kgx1eg==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/pvtsutils",
+      "name": "pvtsutils",
+      "version": "1.3.6",
+      "published": "2024-11-22T12:58:55.915Z",
+      "license": "MIT",
+      "integrity": "sha512-PLgQXQ6H2FWCaeRak8vvk1GW462lMxB5s3Jm673N82zI4vqtVUPuZdffdZbPDFRoU8kAhItWFtPCWiPpp4/EDg==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/pvutils",
+      "name": "pvutils",
+      "version": "1.2.0",
+      "published": "2026-08-05T10:41:11.088Z",
+      "license": "MIT",
+      "integrity": "sha512-BbubeCEyTuQjVMakvJQ/Sxbc93F2pwmbsxONT/ZRrwU7Ua38d8unYTwXpTVLAKJ4BDuH9IGztCjQcd/N/39Dvg==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/reflect-metadata",
+      "name": "reflect-metadata",
+      "version": "0.2.2",
+      "published": "2024-03-29T01:38:46.117Z",
+      "license": "Apache-2.0",
+      "integrity": "sha512-urBwgfrvVP/eAyXx4hluJivBKzuEbSQs9rKWCrCkbSxNv8mxPcUZKeuoF3Uy4mJl3Lwprp6yy5/39VWigZ4K6Q==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/tsyringe",
+      "name": "tsyringe",
+      "version": "4.10.0",
+      "published": "2025-04-16T02:47:14.328Z",
+      "license": "MIT",
+      "integrity": "sha512-axr3IdNuVIxnaK5XGEUFTu3YmAQ6lllgrvqfEoR16g/HGnYY/6We4oWENtAnzK6/LpJ2ur9PAb80RBt7/U4ugw==",
+      "peerDependencies": {}
+    },
+    {
+      "path": "node_modules/tsyringe/node_modules/tslib",
+      "name": "tslib",
+      "version": "1.14.1",
+      "published": "2020-10-09T23:34:42.516Z",
+      "license": "0BSD",
+      "integrity": "sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==",
+      "peerDependencies": {}
+    }
+  ],
+  "afterNormalChecksChangedPreExistingEntries": [
+    "node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json"
+  ],
+  "afterNormalChecksChangedPackageFiles": []
+}

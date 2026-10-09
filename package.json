@@ -1210,7 +1210,8 @@
     "images": "node scripts/render-images.mjs",
     "prepare": "husky",
     "security:sast": "node scripts/sast.mjs",
-    "schema:exec": "node scripts/exec-schema.mjs"
+    "schema:exec": "node scripts/exec-schema.mjs",
+    "build:node-auth": "node scripts/build-node-auth.mjs"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [
@@ -1228,6 +1229,8 @@
     "@eslint/js": "10.0.1",
     "@muse-code/sdk": "1.3.0",
     "@napi-rs/keyring": "2.1.0",
+    "@simplewebauthn/browser": "14.0.0",
+    "@simplewebauthn/server": "14.0.3",
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",

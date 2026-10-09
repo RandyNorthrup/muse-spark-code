@@ -1,0 +1,735 @@
+[
+  {
+    "hazard": "H19",
+    "guard": "requested step-up action",
+    "file": "src/webview/node/auth/client.ts",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "H03/H06 browser memory sign-in requests resident UV enrollment and fresh payload-bound UV for every action"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e",
+    "mutationSha256": "1de10f57ded88c878669eb0934d9df238d21a92a7ad3420488faa22d80a19465",
+    "restoredSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e"
+  },
+  {
+    "hazard": "H19",
+    "guard": "requested step-up digest",
+    "file": "src/webview/node/auth/client.ts",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "H03/H06 browser memory sign-in requests resident UV enrollment and fresh payload-bound UV for every action"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e",
+    "mutationSha256": "0f5c701d3ef600008a8cf9c111caa09037ed2ea5ee7dcfc8c11600e29b595416",
+    "restoredSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e"
+  },
+  {
+    "hazard": "H05",
+    "guard": "authenticator UV request",
+    "file": "src/webview/node/auth/client.ts",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "H03/H06 browser memory sign-in requests resident UV enrollment and fresh payload-bound UV for every action"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e",
+    "mutationSha256": "cf489965583d1570939e1c56d360f3d149d845144cda9a0b2b15eb86d25463fb",
+    "restoredSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e"
+  },
+  {
+    "hazard": "H05",
+    "guard": "resident enrollment request",
+    "file": "src/webview/node/auth/client.ts",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "H03/H06 browser memory sign-in requests resident UV enrollment and fresh payload-bound UV for every action"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e",
+    "mutationSha256": "68edfad2fcf57939fe76bef4701efa19c74c3ee27aebeac2c26836a8fbd21038",
+    "restoredSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e"
+  },
+  {
+    "hazard": "H03",
+    "guard": "secure context",
+    "file": "src/webview/node/auth/client.ts",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "H03/H06 browser memory sign-in refuses insecure context, IP RP names and a swapped origin before authenticator use"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e",
+    "mutationSha256": "b6fa6eeee66da8e8fca16f94ec2c5687ce1e9e7dfd6c61688dd079dbc8ffbbe6",
+    "restoredSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e"
+  },
+  {
+    "hazard": "H03",
+    "guard": "exact challenge origin and RP",
+    "file": "src/webview/node/auth/client.ts",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "H03/H06 browser memory sign-in refuses insecure context, IP RP names and a swapped origin before authenticator use"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e",
+    "mutationSha256": "d26effb4c1adf369459d537b2e40e3bbb86ba91d9e7d9b0f68109e231a4cb25c",
+    "restoredSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e"
+  },
+  {
+    "hazard": "H06",
+    "guard": "cookies omitted",
+    "file": "src/webview/node/auth/client.ts",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "H03/H06 browser memory sign-in sends privileged credentials in headers only and starts a reload signed out"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e",
+    "mutationSha256": "fe1733051e5a5970624c432be967bc278cd2044ba9d7ddc000382ffbb14ccc2e",
+    "restoredSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e"
+  },
+  {
+    "hazard": "H06",
+    "guard": "same-origin mode",
+    "file": "src/webview/node/auth/client.ts",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "H03/H06 browser memory sign-in sends privileged credentials in headers only and starts a reload signed out"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e",
+    "mutationSha256": "ac5b95e459e01b726cc7575ab81df7f9b616d888c56676358fc92c6e198c9aa4",
+    "restoredSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e"
+  },
+  {
+    "hazard": "H06",
+    "guard": "redirect refusal",
+    "file": "src/webview/node/auth/client.ts",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "H03/H06 browser memory sign-in sends privileged credentials in headers only and starts a reload signed out"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e",
+    "mutationSha256": "f80ac55a7a4927fcc2c6624bb376d79dcb65e99b5afa1b7e5a06303d3f79ac38",
+    "restoredSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e"
+  },
+  {
+    "hazard": "H06",
+    "guard": "no-store API",
+    "file": "src/webview/node/auth/client.ts",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "H03/H06 browser memory sign-in sends privileged credentials in headers only and starts a reload signed out"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e",
+    "mutationSha256": "cf90f7b60b733eab73a0bd90d3aa34f40e0ee03f09697ef9c2c6f5ca3ee09f50",
+    "restoredSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e"
+  },
+  {
+    "hazard": "H08",
+    "guard": "local bearer invalidation",
+    "file": "src/webview/node/auth/client.ts",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "H03/H06 browser memory sign-in sends privileged credentials in headers only and starts a reload signed out",
+      "H03/H06 browser memory sign-in validates replies, refuses redirects and clears a rejected session"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e",
+    "mutationSha256": "363d5eb9bae27c73da8117f30ae33b946a82ab42c9835d8f1f2cd80468c8704c",
+    "restoredSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e"
+  },
+  {
+    "hazard": "H07",
+    "guard": "socket exact origin/path/query",
+    "file": "src/webview/node/auth/client.ts",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "H03/H06 browser memory sign-in uses exactly one first-frame bearer only on the node terminal socket"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e",
+    "mutationSha256": "dae03d4e3df6679315591f5a14fd8991d8c4709718ee46775bfaab59fc7098c6",
+    "restoredSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e"
+  },
+  {
+    "hazard": "H07",
+    "guard": "socket first-frame once",
+    "file": "src/webview/node/auth/client.ts",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "H03/H06 browser memory sign-in uses exactly one first-frame bearer only on the node terminal socket"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e",
+    "mutationSha256": "2a33e308713429922cc689e38a3e459b4f02c6a757c10f05e9c5f787b676608d",
+    "restoredSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e"
+  },
+  {
+    "hazard": "H02",
+    "guard": "full console-formatted fingerprint",
+    "file": "src/webview/node/auth/Pairing.tsx",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "browser certificate pairing page shows the full pin and OS instructions and waits for comparison"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "5932cbce9d83ae4334b7e38c2883b92854d25b696769682ddd02a17cadeeccea",
+    "mutationSha256": "fbc3e3033660132c727f9bb85b05acce7b2a97e10d9069436c74cce8f7ac67d3",
+    "restoredSha256": "5932cbce9d83ae4334b7e38c2883b92854d25b696769682ddd02a17cadeeccea"
+  },
+  {
+    "hazard": "H02",
+    "guard": "comparison before enrollment",
+    "file": "src/webview/node/auth/Pairing.tsx",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "browser certificate pairing page shows the full pin and OS instructions and waits for comparison"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "5932cbce9d83ae4334b7e38c2883b92854d25b696769682ddd02a17cadeeccea",
+    "mutationSha256": "2d830cfdbf700b9c846971a3c5ed5475cae9eeb036f6ab53721c480c6334c5f6",
+    "restoredSha256": "5932cbce9d83ae4334b7e38c2883b92854d25b696769682ddd02a17cadeeccea"
+  },
+  {
+    "hazard": "H03",
+    "guard": "same-origin public certificate",
+    "file": "src/webview/node/auth/Pairing.tsx",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "browser certificate pairing page reads installed-language text at render time and rejects cross-origin certificate assets"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "5932cbce9d83ae4334b7e38c2883b92854d25b696769682ddd02a17cadeeccea",
+    "mutationSha256": "291b72ca66186db2f3f2e200e911ef3395bdc3aa036e45295d852f9865c6868d",
+    "restoredSha256": "5932cbce9d83ae4334b7e38c2883b92854d25b696769682ddd02a17cadeeccea"
+  },
+  {
+    "hazard": "H09",
+    "guard": "own bundle budgets",
+    "file": "scripts/lib/nodeAuthArtifacts.mjs",
+    "suite": "test/unit/nodeAuthBuild.test.mjs",
+    "failedTests": [
+      "A1 lazy production artifacts refuses an over-budget nodeAuth.js",
+      "A1 lazy production artifacts refuses an over-budget nodeAuthPage.js"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "d35c2966d636cc229c13e2d86b6452cb1b696af361217d1643e26e49df3807b8",
+    "mutationSha256": "c7125f6b90b99399925deabe277ed80d129e37385727ed1b709c53ebfb0619ae",
+    "restoredSha256": "d35c2966d636cc229c13e2d86b6452cb1b696af361217d1643e26e49df3807b8"
+  },
+  {
+    "hazard": "H07",
+    "guard": "server/browser separation",
+    "file": "scripts/lib/nodeAuthArtifacts.mjs",
+    "suite": "test/unit/nodeAuthBuild.test.mjs",
+    "failedTests": [
+      "A1 lazy production artifacts refuses runtime and server SDK input in the browser, including Windows paths"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "d35c2966d636cc229c13e2d86b6452cb1b696af361217d1643e26e49df3807b8",
+    "mutationSha256": "0bc139d16049659c05f3a8c0bcf8c57e226507c18d8453419f6e17406b39d37b",
+    "restoredSha256": "d35c2966d636cc229c13e2d86b6452cb1b696af361217d1643e26e49df3807b8"
+  },
+  {
+    "hazard": "H06",
+    "guard": "deferred artifacts",
+    "file": "scripts/lib/nodeAuthArtifacts.mjs",
+    "suite": "test/unit/nodeAuthBuild.test.mjs",
+    "failedTests": [
+      "A1 lazy production artifacts refuses A1 code in existing activation, ACP, node and webview bundles"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "d35c2966d636cc229c13e2d86b6452cb1b696af361217d1643e26e49df3807b8",
+    "mutationSha256": "9b94867acca140f29a738033bd10b4894eedef930d940db8a6514deaeea82d0c",
+    "restoredSha256": "d35c2966d636cc229c13e2d86b6452cb1b696af361217d1643e26e49df3807b8"
+  },
+  {
+    "hazard": "H17",
+    "guard": "permissive license allow-list",
+    "file": "scripts/lib/nodeAuthArtifacts.mjs",
+    "suite": "test/unit/nodeAuthBuild.test.mjs",
+    "failedTests": ["A1 lazy production artifacts refuses GPL-3.0 bundled notices"],
+    "exitCode": 1,
+    "beforeSha256": "d35c2966d636cc229c13e2d86b6452cb1b696af361217d1643e26e49df3807b8",
+    "mutationSha256": "15cd2e04239ccffdd0e84da80bb831ebfd34c0d6e6412a086ad2b718ea84032e",
+    "restoredSha256": "d35c2966d636cc229c13e2d86b6452cb1b696af361217d1643e26e49df3807b8"
+  },
+  {
+    "hazard": "H17",
+    "guard": "bundled license presence",
+    "file": "scripts/lib/nodeAuthArtifacts.mjs",
+    "suite": "test/unit/nodeAuthBuild.test.mjs",
+    "failedTests": [
+      "A1 lazy production artifacts refuses MIT-without-license-file bundled notices"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "d35c2966d636cc229c13e2d86b6452cb1b696af361217d1643e26e49df3807b8",
+    "mutationSha256": "059ed613ebaf1a49d0ec60e56e9d904a5d4fe089088340cc72f4328aa3f18e5d",
+    "restoredSha256": "d35c2966d636cc229c13e2d86b6452cb1b696af361217d1643e26e49df3807b8"
+  },
+  {
+    "hazard": "H05",
+    "guard": "offered registration algorithms",
+    "file": "src/runtime/node/auth/passkeys.ts",
+    "suite": "test/unit/nodePasskeyVerifier.test.ts",
+    "failedTests": [
+      "H05 real SimpleWebAuthn against captured CDP proofs refuses a registration algorithm that the browser was not offered"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a",
+    "mutationSha256": "0700fbf80a06a5773b1a008865efd8d1c7123993a882aef87ae00540fd5c1e30",
+    "restoredSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a"
+  },
+  {
+    "hazard": "H06",
+    "guard": "private bearer memory",
+    "file": "src/webview/node/auth/client.ts",
+    "suite": "test/unit/NodePairing.test.tsx",
+    "failedTests": [
+      "H03/H06 browser memory sign-in sends privileged credentials in headers only and starts a reload signed out"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e",
+    "mutationSha256": "260cf9dc07093b39731521ff57fa19114299a367d33849b5e10ab5c7445d9689",
+    "restoredSha256": "f71132bc8dff967fcbb409c1a7ad77f7067e2126d783d54d1f430ba78d4bb89e"
+  },
+  {
+    "hazard": "H05",
+    "guard": "cross-origin client data",
+    "file": "src/runtime/node/auth/passkeys.ts",
+    "suite": "test/unit/nodePasskeyVerifier.test.ts",
+    "failedTests": [
+      "H05 real SimpleWebAuthn against captured CDP proofs refuses cross-origin client data even without topOrigin"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a",
+    "mutationSha256": "bf46b51008feb977a450a1d9f54e1b92d0aaabfefad9206c13dc9b6a13959419",
+    "restoredSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a"
+  },
+  {
+    "hazard": "H05",
+    "guard": "expected challenge",
+    "file": "src/runtime/node/auth/passkeys.ts",
+    "suite": "test/unit/nodePasskeyVerifier.test.ts",
+    "failedTests": [
+      "H05 real SimpleWebAuthn against captured CDP proofs rejects the wrong challenge for enrollment and assertion"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a",
+    "mutationSha256": "fb05fbafbc8668c51e2d8bb180c8873291eabd2ee1afc06d97e148eec23440d8",
+    "restoredSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a"
+  },
+  {
+    "hazard": "H05",
+    "guard": "expected origin",
+    "file": "src/runtime/node/auth/passkeys.ts",
+    "suite": "test/unit/nodePasskeyVerifier.test.ts",
+    "failedTests": [
+      "H05 real SimpleWebAuthn against captured CDP proofs rejects the wrong origin for enrollment and assertion"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a",
+    "mutationSha256": "c435dd49d4770f3e99db55045f350a26f438ef0358d243b61961717d67241acf",
+    "restoredSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a"
+  },
+  {
+    "hazard": "H05",
+    "guard": "expected RP",
+    "file": "src/runtime/node/auth/passkeys.ts",
+    "suite": "test/unit/nodePasskeyVerifier.test.ts",
+    "failedTests": [
+      "H05 real SimpleWebAuthn against captured CDP proofs rejects the wrong rpId for enrollment and assertion"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a",
+    "mutationSha256": "8530075344653f66e6126fd40779b73245b3b0d2eefbf4d594b3d6c1c880d3e9",
+    "restoredSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a"
+  },
+  {
+    "hazard": "H05",
+    "guard": "required UV (SDK plus verified result)",
+    "file": "src/runtime/node/auth/passkeys.ts",
+    "suite": "test/unit/nodePasskeyVerifier.test.ts",
+    "failedTests": [
+      "H05 real SimpleWebAuthn against captured CDP proofs rejects genuinely signed assertions and registrations without UV"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a",
+    "mutationSha256": "14af0b334630062b29bf7ac5a2333a58baf427553a11b400dabeed35c6cffcfe",
+    "restoredSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a"
+  },
+  {
+    "hazard": "H05",
+    "guard": "required registration presence",
+    "file": "src/runtime/node/auth/passkeys.ts",
+    "suite": "test/unit/nodePasskeyVerifier.test.ts",
+    "failedTests": [
+      "H05 real SimpleWebAuthn against captured CDP proofs rejects absent presence and verification flags"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a",
+    "mutationSha256": "aa4a896d1da4c44b2023f56b757f673b166e84ef7d4da545efdc8e3159b8ddde",
+    "restoredSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a"
+  },
+  {
+    "hazard": "H05",
+    "guard": "counter passed to verifier",
+    "file": "src/runtime/node/auth/passkeys.ts",
+    "suite": "test/unit/nodePasskeyVerifier.test.ts",
+    "failedTests": [
+      "H05 real SimpleWebAuthn against captured CDP proofs rejects a captured assertion replay after its counter advanced"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a",
+    "mutationSha256": "9feb384979b28b0efad0bdc8a3f6315043018c86c4920fbda1a9f5ef328498a5",
+    "restoredSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a"
+  },
+  {
+    "hazard": "H05",
+    "guard": "signature verdict",
+    "file": "src/runtime/node/auth/passkeys.ts",
+    "suite": "test/unit/nodePasskeyVerifier.test.ts",
+    "failedTests": [
+      "H05 real SimpleWebAuthn against captured CDP proofs rejects signature forgery, raw ID mismatch and disabled authenticators"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a",
+    "mutationSha256": "9090cfb7443af75aff69c1f6ba7620024df6d8946858750cd16d323441834df9",
+    "restoredSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a"
+  },
+  {
+    "hazard": "H05",
+    "guard": "disabled passkey",
+    "file": "src/runtime/node/auth/passkeys.ts",
+    "suite": "test/unit/nodePasskeyVerifier.test.ts",
+    "failedTests": [
+      "H05 real SimpleWebAuthn against captured CDP proofs rejects signature forgery, raw ID mismatch and disabled authenticators"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a",
+    "mutationSha256": "f948dbf952040cf5ed8d00e87538af5775a92939fc42712a78e831c53f3714b3",
+    "restoredSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a"
+  },
+  {
+    "hazard": "H04",
+    "guard": "setup not printed after expiration",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H04 console enrollment does not print a setup code that expired during persistence"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "aed6f2d52fac20632052bca7d29cddd302707a10b73e77114ce34f93ff35a9a8",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H04",
+    "guard": "setup timestamp before persistence",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H04 console enrollment does not extend the setup window by a slow persistence write"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "c48f1fc4623a92c78fed6c7f820f3c9b924d8c81e7ffccede1d499ab766d10d2",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H06",
+    "guard": "caller realm auth failures",
+    "file": "src/runtime/node/auth/methods.ts",
+    "suite": "test/unit/nodeAuthMethods.test.ts",
+    "failedTests": [
+      "A1 listener bindings constructs auth failures in the caller realm and preserves delegated errors"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "bfd1ffb28d6218e39c6b3bedf7c770e4fca505f2cf3ba7f9bfbf6c77b4f3f39e",
+    "mutationSha256": "303fae542843864988e2aa91bd145623a438e8da9286443ddd67243d2f7a591f",
+    "restoredSha256": "bfd1ffb28d6218e39c6b3bedf7c770e4fca505f2cf3ba7f9bfbf6c77b4f3f39e"
+  },
+  {
+    "hazard": "H19",
+    "guard": "delegated Stop failures unchanged",
+    "file": "src/runtime/node/auth/methods.ts",
+    "suite": "test/unit/nodeAuthMethods.test.ts",
+    "failedTests": [
+      "A1 listener bindings constructs auth failures in the caller realm and preserves delegated errors",
+      "A1 listener bindings dispatches Stop without UV and dispatches exactly one payload-bound maker action"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "bfd1ffb28d6218e39c6b3bedf7c770e4fca505f2cf3ba7f9bfbf6c77b4f3f39e",
+    "mutationSha256": "2f1088227534296520283a6ecae91b0b0bda3fa48dc0bf5a5873201ddd36d662",
+    "restoredSha256": "bfd1ffb28d6218e39c6b3bedf7c770e4fca505f2cf3ba7f9bfbf6c77b4f3f39e"
+  },
+  {
+    "hazard": "H03",
+    "guard": "HTTPS origin",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H05/H08/H09/H19/H20 sign-in controls refuses bare IP, unconfigured names and HTTP origins"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "eb971ec9d2c6583391e7ec803680213d86ab25efd9bdc8fc6faae5e67203916d",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H03",
+    "guard": "canonical origin",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H05/H08/H09/H19/H20 sign-in controls refuses bare IP, unconfigured names and HTTP origins"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "4e5fc8699eca86a5f025190c22f9518d10134e29fc6c34091cc559279fbbbdef",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H03",
+    "guard": "configured RP",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H05/H08/H09/H19/H20 sign-in controls refuses bare IP, unconfigured names and HTTP origins"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "5ec3636aa8f16a919bff3d056e1378efe966363c70a83da44688ce3d4fa0bed5",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H03",
+    "guard": "RP origin binding",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H05/H08/H09/H19/H20 sign-in controls refuses a different RP even when both names are configured"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "fe476b80dab425ac8d2749278872e0b5dc20e219fdc5656f2130140dd4224a83",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H04",
+    "guard": "setup code hash equality",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H04 console enrollment refuses a wrong console code before allocating a challenge",
+      "H04 console enrollment rotates the console code and invalidates outstanding enrollments"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "0d2dc343915596da826c19e5db4f45bee5d4c38d54abb539bfa20266ba37a9f4",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H04",
+    "guard": "setup deadline",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H04 console enrollment does not extend the setup window by a slow persistence write",
+      "H04 console enrollment expires setup and challenges exactly, even with wall rollback",
+      "H04 console enrollment refuses healthy-owner recovery and a restored setup window after wall rollback"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "20ff365edde62378a8841db92eb890c528c893d201edb56ee64dca63f2a15588",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H04",
+    "guard": "atomic setup consumption",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H04 console enrollment stores only a code hash, enrolls once and refuses replay",
+      "H04 console enrollment allows exactly one completion in an enrollment race",
+      "H04 console enrollment refuses healthy-owner recovery and a restored setup window after wall rollback",
+      "H05/H08/H09/H19/H20 sign-in controls refuses another session at begin/end and does not treat an unknown credential as the owner",
+      "H05/H08/H09/H19/H20 sign-in controls persists counters, keeps sessions transient and binds step-up to its session",
+      "H05/H08/H09/H19/H20 sign-in controls refuses cross-session completion before the verifier and UV-less proofs",
+      "H05/H08/H09/H19/H20 sign-in controls refuses source and account retries before verification, then permits after backoff",
+      "H05/H08/H09/H19/H20 sign-in controls locks at 100, survives restart, and recovers only with a fresh console code",
+      "H05/H08/H09/H19/H20 sign-in controls keeps UV freshness anchored before a slow audit write",
+      "H05/H08/H09/H19/H20 sign-in controls mints no sign-in session when audit outlasts the challenge",
+      "H05/H08/H09/H19/H20 sign-in controls shows durable lockout on the console even when the audit store is unavailable",
+      "H05/H08/H09/H19/H20 sign-in controls does not resurrect an in-flight sign-in after lock"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "ac175a13754a560a46042e5f6f44dec0a1e463d583208c58096dcf957e8b8f6e",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H04",
+    "guard": "post-verification enrollment deadline",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H04 console enrollment refuses an enrollment that expires during crypto verification"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "2af278b55172a001df42f4a8a291e47bf7ff24cf64ab8addc8c84ad5428e26e4",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H04",
+    "guard": "post-audit enrollment deadline",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H04 console enrollment mints no session when enrollment audit outlasts the challenge"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "c040476993084f0a9f6c2f7cedbf8e101a3a590e22a47eddcafbc95d23c2cefb",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H05",
+    "guard": "known enabled credential",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H05/H08/H09/H19/H20 sign-in controls refuses another session at begin/end and does not treat an unknown credential as the owner"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "73d705123d7e18310637d4df235f25efd3c0066c68a6eb3a50d151a5903a590a",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H08",
+    "guard": "epoch invalidation",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H05/H08/H09/H19/H20 sign-in controls does not resurrect an in-flight sign-in after lock"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "4532b51bd677e19b1c2b683a3f83932c972e9c7c17abd96ebe70cbbee9c205e9",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H08",
+    "guard": "post-audit signin deadline",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H05/H08/H09/H19/H20 sign-in controls mints no sign-in session when audit outlasts the challenge"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "40db240339051c13470b995aa44062553c9c1c148cff3e00eef5ca6186eeca93",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H09",
+    "guard": "source/account admission",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H05/H08/H09/H19/H20 sign-in controls refuses source and account retries before verification, then permits after backoff"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "340c5566f79cc684204d7aa00b003c543fe1e45aa11e022f1982536d3c2305d7",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H09",
+    "guard": "durable account failures",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H05/H08/H09/H19/H20 sign-in controls refuses cross-session completion before the verifier and UV-less proofs",
+      "H05/H08/H09/H19/H20 sign-in controls locks at 100, survives restart, and recovers only with a fresh console code",
+      "H05/H08/H09/H19/H20 sign-in controls shows durable lockout on the console even when the audit store is unavailable"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "1f10e3b5df010f15dcff4e6f72c0989b802933e45ba1b8cfe83e63625635a133",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H20",
+    "guard": "disabled-owner recovery only",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H04 console enrollment refuses healthy-owner recovery and a restored setup window after wall rollback"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "910bb42d513756c310b8a75b49eea5f91e4dffdeed1eeebd92c5bdcd3b0751b6",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H20",
+    "guard": "lockout console visibility",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H05/H08/H09/H19/H20 sign-in controls locks at 100, survives restart, and recovers only with a fresh console code",
+      "H05/H08/H09/H19/H20 sign-in controls shows durable lockout on the console even when the audit store is unavailable"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "cafeae549ec2955a465cb599279b8f8d131761346811c88e807f9ba289f97760",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H19",
+    "guard": "session at step-up completion",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H05/H08/H09/H19/H20 sign-in controls refuses cross-session completion before the verifier and UV-less proofs"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "1f26c75e07717ded74e56c5585a7216c03b8f85e7dbc0b87811254744fea8a3c",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H19",
+    "guard": "session at step-up begin",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H05/H08/H09/H19/H20 sign-in controls refuses another session at begin/end and does not treat an unknown credential as the owner"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "78c7536707f05ad478db66988cb1005ae7f4191516efabc6e2800fa538ce7582",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  },
+  {
+    "hazard": "H19",
+    "guard": "UV timestamp before audit",
+    "file": "src/runtime/node/auth/service.ts",
+    "suite": "test/unit/nodePasskeyAuth.test.ts",
+    "failedTests": [
+      "H05/H08/H09/H19/H20 sign-in controls keeps UV freshness anchored before a slow audit write"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+    "mutationSha256": "37fa17fbfae276aa2961925505039a45743de0ee46b58bc9d98296fd461bf1cc",
+    "restoredSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b"
+  }
+]

@@ -2507,7 +2507,7 @@
     "macos": "macOS: importálja az összehasonlított tanúsítványt a Kulcskarika-elérésben, állítsa be a bizalmat ehhez a csomóponthoz, majd indítsa újra a böngészőt.",
     "linux": "Linux: importálja az összehasonlított tanúsítványt a böngésző tanúsítványkezelőjével, majd indítsa újra a böngészőt.",
     "firefox": "A Firefox saját tanúsítványkezelőt használ. Ha nem tud megbízni ebben a nem CA-tanúsítványban, a párosítás a platform ellenőrzéséig nem érhető el.",
-    "verified": "Összehasonlítottam a teljes ujjlenyomatot a csomópont konzoljával, és telepítettem ezt a tanúsítványt.",
+    "verified": "Összehasonlítottam a letöltött tanúsítvány teljes SHA-256-ujjlenyomatát a csomópont konzoljával, és telepítettem ezt a tanúsítványt.",
     "download": "Csomópont tanúsítványának letöltése",
     "trustRequired": "A hozzáférési kulcs létrehozása vagy használata előtt telepítse az összehasonlított tanúsítványt. Egy figyelmeztetés átugrása nem hoz létre bizalmat."
   }

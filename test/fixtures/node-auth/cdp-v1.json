@@ -1,0 +1,176 @@
+{
+  "capture": {
+    "date": "2026-10-06",
+    "browser": "154.0.8037.92",
+    "protocol": {
+      "protocolVersion": "1.3",
+      "product": "HeadlessChrome/154.0.8037.92",
+      "revision": "@334b65d254ccc35df4fca82706d1753227b01039",
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.8037.92 Safari/537.36",
+      "jsVersion": "15.4.80.19"
+    },
+    "options": {
+      "protocol": "ctap2",
+      "transport": "internal",
+      "hasResidentKey": true,
+      "hasUserVerification": true,
+      "isUserVerified": true,
+      "automaticPresenceSimulation": true
+    },
+    "workspace": "/home/randy/lanes/M110A1",
+    "modelAttempts": 0,
+    "origin": "http://localhost:33973",
+    "negativeDerivation": "registrationNoPresence: copy of captured none-attestation registration with only UP cleared in authData; public negative fixture, never an accepted browser capture; registrationUnrequestedAlgorithm: captured none-attestation bytes with a synthetic valid Ed25519 public COSE key inserted using pinned SDK enums, outside the offered ES256/RS256 algorithms; generated private half never retained",
+    "archiveSha256": "636aa5c79f2693632e9921b8bbb050038ba11672e02346c06c20f991aed096f9",
+    "executableSha256": "7c141b276aacc74fe51f06986345fb0dbce0e3756413746fb18541b878c17706",
+    "binaryEncoding": "authenticatorData fields are public byte arrays, decoded byte-exact to base64url by the test-only fixture loader"
+  },
+  "challenge": "c3ludGhldGljLXRlc3QtY2hhbGxlbmdlLTAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMA",
+  "registration": {
+    "id": "VBha7H_ApgQEldE7kakr9HohaiKbAQGWY_ak_OZ_3qg",
+    "rawId": "VBha7H_ApgQEldE7kakr9HohaiKbAQGWY_ak_OZ_3qg",
+    "type": "public-key",
+    "clientExtensionResults": {},
+    "response": {
+      "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiYzNsdWRHaGxkR2xqTFhSbGMzUXRZMmhoYkd4bGJtZGxMVEF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01BIiwib3JpZ2luIjoiaHR0cDovL2xvY2FsaG9zdDozMzk3MyIsImNyb3NzT3JpZ2luIjpmYWxzZX0",
+      "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVikSZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2NFAAAAAQECAwQFBgcIAQIDBAUGBwgAIFQYWux_wKYEBJXRO5GpK_R6IWoimwEBlmP2pPzmf96opQECAyYgASFYIKEQm0anm-3M3N6nbXRKx3IQL0yb52oRy8-mgfcbn0vvIlggT1pHa1TJCudq9wClMBzOzdMBQHdp1jr8p4_PJGwP2Tk",
+      "transports": ["internal"]
+    }
+  },
+  "assertions": [
+    {
+      "id": "VBha7H_ApgQEldE7kakr9HohaiKbAQGWY_ak_OZ_3qg",
+      "rawId": "VBha7H_ApgQEldE7kakr9HohaiKbAQGWY_ak_OZ_3qg",
+      "type": "public-key",
+      "clientExtensionResults": {},
+      "response": {
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiYzNsdWRHaGxkR2xqTFhSbGMzUXRZMmhoYkd4bGJtZGxMVEF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01BIiwib3JpZ2luIjoiaHR0cDovL2xvY2FsaG9zdDozMzk3MyIsImNyb3NzT3JpZ2luIjpmYWxzZX0",
+        "authenticatorData": [
+          73, 150, 13, 229, 136, 14, 140, 104, 116, 52, 23, 15, 100, 118, 96, 91, 143, 228, 174,
+          185, 162, 134, 50, 199, 153, 92, 243, 186, 131, 29, 151, 99, 5, 0, 0, 0, 2
+        ],
+        "signature": "MEUCIC3eN-X8OhKlEKTw7m4da1RM7DLDrZFp3X5NOyJnj0eVAiEAyZBdOBa_y3OhW4UBHZlfFcLAvu1pay3pfmazG7PBFT0",
+        "userHandle": "b3duZXI"
+      }
+    },
+    {
+      "id": "VBha7H_ApgQEldE7kakr9HohaiKbAQGWY_ak_OZ_3qg",
+      "rawId": "VBha7H_ApgQEldE7kakr9HohaiKbAQGWY_ak_OZ_3qg",
+      "type": "public-key",
+      "clientExtensionResults": {},
+      "response": {
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiYzNsdWRHaGxkR2xqTFhSbGMzUXRZMmhoYkd4bGJtZGxMVEF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01BIiwib3JpZ2luIjoiaHR0cDovL2xvY2FsaG9zdDozMzk3MyIsImNyb3NzT3JpZ2luIjpmYWxzZSwib3RoZXJfa2V5c19jYW5fYmVfYWRkZWRfaGVyZSI6ImRvIG5vdCBjb21wYXJlIGNsaWVudERhdGFKU09OIGFnYWluc3QgYSB0ZW1wbGF0ZS4gU2VlIGh0dHBzOi8vZ29vLmdsL3lhYlBleCJ9",
+        "authenticatorData": [
+          73, 150, 13, 229, 136, 14, 140, 104, 116, 52, 23, 15, 100, 118, 96, 91, 143, 228, 174,
+          185, 162, 134, 50, 199, 153, 92, 243, 186, 131, 29, 151, 99, 5, 0, 0, 0, 3
+        ],
+        "signature": "MEYCIQCYgAxuAk1rhqfM69QFwWr4m77oFVQnHYLmWDzjoHsI8gIhAOdIszBo1FnqetlAgxzMB6EkSiwtNX0LhnCbQIVFgp94",
+        "userHandle": "b3duZXI"
+      }
+    }
+  ],
+  "noUv": {
+    "id": "VBha7H_ApgQEldE7kakr9HohaiKbAQGWY_ak_OZ_3qg",
+    "rawId": "VBha7H_ApgQEldE7kakr9HohaiKbAQGWY_ak_OZ_3qg",
+    "type": "public-key",
+    "clientExtensionResults": {},
+    "response": {
+      "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiYzNsdWRHaGxkR2xqTFhSbGMzUXRZMmhoYkd4bGJtZGxMVEF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01BIiwib3JpZ2luIjoiaHR0cDovL2xvY2FsaG9zdDozMzk3MyIsImNyb3NzT3JpZ2luIjpmYWxzZSwib3RoZXJfa2V5c19jYW5fYmVfYWRkZWRfaGVyZSI6ImRvIG5vdCBjb21wYXJlIGNsaWVudERhdGFKU09OIGFnYWluc3QgYSB0ZW1wbGF0ZS4gU2VlIGh0dHBzOi8vZ29vLmdsL3lhYlBleCJ9",
+      "authenticatorData": [
+        73, 150, 13, 229, 136, 14, 140, 104, 116, 52, 23, 15, 100, 118, 96, 91, 143, 228, 174, 185,
+        162, 134, 50, 199, 153, 92, 243, 186, 131, 29, 151, 99, 1, 0, 0, 0, 4
+      ],
+      "signature": "MEUCIQDLwvODMOtWhDMWI87Qf1GpA_SPlCgpUBC8sLnzmBYGkQIgdB0vJ1NIHkM2L2M2OkOA8w3VQOcQyCg9-xlnJOXm53A",
+      "userHandle": "b3duZXI"
+    }
+  },
+  "registrationNoUv": {
+    "id": "BS8Imey9KhZ_i63FEir5OYHcd_OfMln_jFR9RSwRhGA",
+    "rawId": "BS8Imey9KhZ_i63FEir5OYHcd_OfMln_jFR9RSwRhGA",
+    "type": "public-key",
+    "clientExtensionResults": {},
+    "response": {
+      "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiYzNsdWRHaGxkR2xqTFhSbGMzUXRZMmhoYkd4bGJtZGxMVEF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01BIiwib3JpZ2luIjoiaHR0cDovL2xvY2FsaG9zdDozMzk3MyIsImNyb3NzT3JpZ2luIjpmYWxzZSwib3RoZXJfa2V5c19jYW5fYmVfYWRkZWRfaGVyZSI6ImRvIG5vdCBjb21wYXJlIGNsaWVudERhdGFKU09OIGFnYWluc3QgYSB0ZW1wbGF0ZS4gU2VlIGh0dHBzOi8vZ29vLmdsL3lhYlBleCJ9",
+      "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVikSZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2NBAAAAAQECAwQFBgcIAQIDBAUGBwgAIAUvCJnsvSoWf4utxRIq-TmB3HfznzJZ_4xUfUUsEYRgpQECAyYgASFYIJeUTdj7lHQCQwL6kdN-nRaKOn61aJ4H6lg1WiZlhOKPIlggZI9n-BnMW5ZLZW6Ft4Ty8I1hYaw2Bk8LqtJnweqzZhM",
+      "transports": ["internal"]
+    }
+  },
+  "registrationNoPresence": {
+    "id": "VBha7H_ApgQEldE7kakr9HohaiKbAQGWY_ak_OZ_3qg",
+    "rawId": "VBha7H_ApgQEldE7kakr9HohaiKbAQGWY_ak_OZ_3qg",
+    "type": "public-key",
+    "clientExtensionResults": {},
+    "response": {
+      "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiYzNsdWRHaGxkR2xqTFhSbGMzUXRZMmhoYkd4bGJtZGxMVEF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01BIiwib3JpZ2luIjoiaHR0cDovL2xvY2FsaG9zdDozMzk3MyIsImNyb3NzT3JpZ2luIjpmYWxzZX0",
+      "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVikSZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2NEAAAAAQECAwQFBgcIAQIDBAUGBwgAIFQYWux_wKYEBJXRO5GpK_R6IWoimwEBlmP2pPzmf96opQECAyYgASFYIKEQm0anm-3M3N6nbXRKx3IQL0yb52oRy8-mgfcbn0vvIlggT1pHa1TJCudq9wClMBzOzdMBQHdp1jr8p4_PJGwP2Tk",
+      "transports": ["internal"]
+    }
+  },
+  "registrationUnrequestedAlgorithm": {
+    "id": "VBha7H_ApgQEldE7kakr9HohaiKbAQGWY_ak_OZ_3qg",
+    "rawId": "VBha7H_ApgQEldE7kakr9HohaiKbAQGWY_ak_OZ_3qg",
+    "type": "public-key",
+    "clientExtensionResults": {},
+    "response": {
+      "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiYzNsdWRHaGxkR2xqTFhSbGMzUXRZMmhoYkd4bGJtZGxMVEF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01BIiwib3JpZ2luIjoiaHR0cDovL2xvY2FsaG9zdDozMzk3MyIsImNyb3NzT3JpZ2luIjpmYWxzZX0",
+      "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YViBSZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2NFAAAAAQECAwQFBgcIAQIDBAUGBwgAIFQYWux_wKYEBJXRO5GpK_R6IWoimwEBlmP2pPzmf96opAEBAycgBiFYIBZOhRJxU4ixQSeOj3-mriGGcE09jhkdz_DPyK21Ld4C",
+      "transports": ["internal"]
+    }
+  },
+  "sdkRegistration": {
+    "id": "XB1Keich-cnmZ9-N-UybZPTffhg7yWQFXMeZZzpkcdo",
+    "rawId": "XB1Keich-cnmZ9-N-UybZPTffhg7yWQFXMeZZzpkcdo",
+    "response": {
+      "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVikSZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2NFAAAAAQECAwQFBgcIAQIDBAUGBwgAIFwdSnonIfnJ5mffjflMm2T0334YO8lkBVzHmWc6ZHHapQECAyYgASFYIDvfgJQglWbYxUsGEYzw-hCWMXaDQXHj3WgaUAFSfDAUIlggWkcy-aU2JVzV1ujs5EwOz735hwIfyZFqfgTdYWOmw54",
+      "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiYzNsdWRHaGxkR2xqTFhSbGMzUXRZMmhoYkd4bGJtZGxMVEF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01BIiwib3JpZ2luIjoiaHR0cDovL2xvY2FsaG9zdDozNTk5MyIsImNyb3NzT3JpZ2luIjpmYWxzZX0",
+      "transports": ["internal"],
+      "publicKeyAlgorithm": -7,
+      "publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEO9-AlCCVZtjFSwYRjPD6EJYxdoNBcePdaBpQAVJ8MBRaRzL5pTYlXNXW6OzkTA7PvfmHAh_JkWp-BN1hY6bDng",
+      "authenticatorData": [
+        73, 150, 13, 229, 136, 14, 140, 104, 116, 52, 23, 15, 100, 118, 96, 91, 143, 228, 174, 185,
+        162, 134, 50, 199, 153, 92, 243, 186, 131, 29, 151, 99, 69, 0, 0, 0, 1, 1, 2, 3, 4, 5, 6, 7,
+        8, 1, 2, 3, 4, 5, 6, 7, 8, 0, 32, 92, 29, 74, 122, 39, 33, 249, 201, 230, 103, 223, 141,
+        249, 76, 155, 100, 244, 223, 126, 24, 59, 201, 100, 5, 92, 199, 153, 103, 58, 100, 113, 218,
+        165, 1, 2, 3, 38, 32, 1, 33, 88, 32, 59, 223, 128, 148, 32, 149, 102, 216, 197, 75, 6, 17,
+        140, 240, 250, 16, 150, 49, 118, 131, 65, 113, 227, 221, 104, 26, 80, 1, 82, 124, 48, 20,
+        34, 88, 32, 90, 71, 50, 249, 165, 54, 37, 92, 213, 214, 232, 236, 228, 76, 14, 207, 189,
+        249, 135, 2, 31, 201, 145, 106, 126, 4, 221, 97, 99, 166, 195, 158
+      ]
+    },
+    "type": "public-key",
+    "clientExtensionResults": {},
+    "authenticatorAttachment": "platform"
+  },
+  "sdkAssertion": {
+    "id": "XB1Keich-cnmZ9-N-UybZPTffhg7yWQFXMeZZzpkcdo",
+    "rawId": "XB1Keich-cnmZ9-N-UybZPTffhg7yWQFXMeZZzpkcdo",
+    "response": {
+      "authenticatorData": [
+        73, 150, 13, 229, 136, 14, 140, 104, 116, 52, 23, 15, 100, 118, 96, 91, 143, 228, 174, 185,
+        162, 134, 50, 199, 153, 92, 243, 186, 131, 29, 151, 99, 5, 0, 0, 0, 2
+      ],
+      "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiYzNsdWRHaGxkR2xqTFhSbGMzUXRZMmhoYkd4bGJtZGxMVEF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01BIiwib3JpZ2luIjoiaHR0cDovL2xvY2FsaG9zdDozNTk5MyIsImNyb3NzT3JpZ2luIjpmYWxzZX0",
+      "signature": "MEQCIC_poNXEq5pxS9aQO2r17dEct0S0gcSnV1o4Qzd3X78HAiBpYDZfu6J2GrSNXkDizHYyN2RATa2rinQcXdtq-Yb5_Q",
+      "userHandle": "b3duZXI"
+    },
+    "type": "public-key",
+    "clientExtensionResults": {},
+    "authenticatorAttachment": "platform"
+  },
+  "sdkCapture": {
+    "date": "2026-10-06",
+    "browser": "154.0.8037.92",
+    "sdk": "@simplewebauthn/browser 14.0.0",
+    "origin": "http://localhost:35993",
+    "modelAttempts": 0,
+    "workspace": "/home/randy/lanes/M110A1",
+    "options": {
+      "protocol": "ctap2",
+      "transport": "internal",
+      "hasResidentKey": true,
+      "hasUserVerification": true,
+      "isUserVerified": true,
+      "automaticPresenceSimulation": true
+    }
+  }
+}

@@ -30,7 +30,7 @@ export const EN = {
     firefox:
       'Firefox uses its own certificate manager. If it cannot trust this non-CA certificate, pairing is unavailable pending platform qualification.',
     verified:
-      'I compared the full fingerprint with the node console and installed this certificate.',
+      'I compared the downloaded certificate’s full SHA-256 fingerprint with the node console and installed that certificate.',
     download: 'Download node certificate',
     trustRequired:
       'Install the compared certificate before creating or using a passkey. Clicking through a warning does not establish trust.',

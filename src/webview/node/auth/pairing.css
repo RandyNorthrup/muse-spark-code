@@ -1,0 +1,42 @@
+.node-pairing {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--vscode-foreground, CanvasText);
+  background: var(--vscode-editor-background, Canvas);
+  font-family: var(--vscode-font-family, system-ui);
+}
+
+.node-pairing a {
+  color: var(--vscode-textLink-foreground, LinkText);
+}
+
+.node-pairing input,
+.node-pairing button {
+  box-sizing: border-box;
+  max-width: 100%;
+  font: inherit;
+}
+
+.node-pairing input[type='password'] {
+  display: block;
+  color: var(--vscode-input-foreground, FieldText);
+  background: var(--vscode-input-background, Field);
+  border: 1px solid var(--vscode-input-border, ButtonBorder);
+}
+
+.node-pairing button {
+  color: var(--vscode-button-foreground, ButtonText);
+  background: var(--vscode-button-background, ButtonFace);
+  border: 1px solid var(--vscode-button-border, ButtonBorder);
+}
+
+.node-pairing button:disabled {
+  color: var(--vscode-disabledForeground, GrayText);
+  background: var(--vscode-button-secondaryBackground, ButtonFace);
+}
+
+.node-pairing :focus-visible {
+  outline: 2px solid var(--vscode-focusBorder, Highlight);
+  outline-offset: 2px;
+}

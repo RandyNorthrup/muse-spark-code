@@ -2507,7 +2507,7 @@
     "macos": "macOS: Importieren Sie das verglichene Zertifikat in der Schlüsselbundverwaltung, vertrauen Sie ihm für diesen Knoten und starten Sie den Browser neu.",
     "linux": "Linux: Importieren Sie das verglichene Zertifikat mit der Zertifikatsverwaltung Ihres Browsers und starten Sie den Browser neu.",
     "firefox": "Firefox verwendet eine eigene Zertifikatsverwaltung. Kann sie diesem Nicht-CA-Zertifikat nicht vertrauen, bleibt die Kopplung bis zur Plattformprüfung unverfügbar.",
-    "verified": "Ich habe den vollständigen Fingerabdruck mit der Knotenkonsole verglichen und dieses Zertifikat installiert.",
+    "verified": "Ich habe den vollständigen SHA-256-Fingerabdruck des heruntergeladenen Zertifikats mit der Knotenkonsole verglichen und dieses Zertifikat installiert.",
     "download": "Knotenzertifikat herunterladen",
     "trustRequired": "Installieren Sie das verglichene Zertifikat, bevor Sie einen Passkey erstellen oder verwenden. Das Übergehen einer Warnung stellt kein Vertrauen her."
   }

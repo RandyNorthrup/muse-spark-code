@@ -2695,7 +2695,7 @@
     "macos": "macOS: zaimportuj porównany certyfikat w aplikacji Dostęp do pęku kluczy, zaufaj mu dla tego węzła i uruchom ponownie przeglądarkę.",
     "linux": "Linux: zaimportuj porównany certyfikat za pomocą menedżera certyfikatów przeglądarki i uruchom ją ponownie.",
     "firefox": "Firefox używa własnego menedżera certyfikatów. Jeśli nie może zaufać temu certyfikatowi niebędącemu certyfikatem CA, parowanie pozostaje niedostępne do czasu weryfikacji platformy.",
-    "verified": "Porównałem(-am) pełny odcisk z konsolą węzła i zainstalowałem(-am) ten certyfikat.",
+    "verified": "Porównałem(-am) pełny odcisk SHA-256 pobranego certyfikatu z konsolą węzła i zainstalowałem(-am) ten certyfikat.",
     "download": "Pobierz certyfikat węzła",
     "trustRequired": "Zainstaluj porównany certyfikat przed utworzeniem lub użyciem klucza dostępu. Pominięcie ostrzeżenia nie ustanawia zaufania."
   }
