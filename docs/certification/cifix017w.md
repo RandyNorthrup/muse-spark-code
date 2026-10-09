@@ -156,6 +156,16 @@ resource-policy emitted-input drill exceeds its unchanged 15-second test
 deadline while spawning the full split check. No retry with raised
 timeouts, filtered assertions or unrelated gate repair is applied.
 
+The complete exec consumer passes all 41 cases twice against the controlled
+source fixture (256,058/248,827 ms whole invocations, including its existing
+long setup). Receipts: `temp/cifix017w-package-fixture-1-1/2.json`.
+Temporary instrumentation restores global setup SHA-256
+`0022590dc797894b5b835dcbc187aa70a18b249d84b748591cc9787db5a57d52`
+and archive test SHA-256
+`16cd4ae8d4ac70b9d76ecd6115ce45eafce41b6e57396c05f34120e437c9c0ad`
+byte-exact. The owned private source snapshot is removed after both repeats.
+These are controlled-fixture results, not actual-release certification.
+
 ## Local commits
 
 | Finding                                 | Commit      |
