@@ -3921,5 +3921,6 @@
   "judgeSeparateNeedsKey": "別の判定には「モデルとプロバイダー」でそのプロバイダーのキーが必要です",
   "judgeSeparateNeedsCapture": "別の判定：このプロバイダーモデルには、まず構造化または logprob の判定リクエストのキャプチャが必要です",
   "judgeSeparateNeedsInstall": "別の判定：ローカル判定には認定プラットフォーム上の検証済みインストールが必要です",
-  "judgeSeparateUnknown": "別の判定：設定された ID は既知のソースを示していません"
+  "judgeSeparateUnknown": "別の判定：設定された ID は既知のソースを示していません",
+  "judgeSeparateUserSettingsOnly": "別の判定はワークスペース設定で指定されています。有料の設定はユーザー設定からのみ読み取られます"
 }

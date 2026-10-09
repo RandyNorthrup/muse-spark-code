@@ -26,6 +26,7 @@ import {
   JUDGE_MAX_STATE_TOKENS,
   JUDGE_PROMPT_VERSION,
   JUDGE_RISK_FAMILY,
+  JUDGE_SCOPE_LOG,
   JUDGE_TEMP_PREFIX,
   MODEL_API_MAX_OUTPUT_TOKENS,
 } from '../../shared/constants'
@@ -41,6 +42,7 @@ import { admittedModelApiJudge } from './judgeTransport'
 import type { JudgeWindowDeps, JudgeWindowPort } from './judgeBundle'
 import type { Phase2BindingContext } from '../../core/judge/binding'
 import type { SeparateSourcePorts } from '../../core/judge/sides'
+import { isSeparateInWorkspace } from './workspaceScope'
 
 function noStoredCredential(): Promise<string | undefined> {
   return Promise.resolve(undefined)
@@ -133,12 +135,41 @@ export function createWindowJudge(
         }))
   const cache = new JudgeResultCache()
   const paidGrants = new Set<string>()
+  // C's own availability (multi-vendor rule): an explicit `separate` or
+  // `both` engine, read from user settings like every paid setting. Never
+  // the Meta judge's gate, price acceptance or the window's backend.
+  function isSeparateSelected(): boolean {
+    const engine = deps.engine()
+    return engine === 'separate' || engine === 'both'
+  }
+  // An explicit `separate` run on a buildable route dispatches only C, which
+  // bills the route's own provider and asks its own popup at its own price:
+  // the Meta judge's consent is never asked for it.
+  function isRouteOnly(): boolean {
+    return deps.engine() === 'separate' && phase2?.separateRouteReady?.() === true
+  }
+  // Paid settings are read from user settings only (D15, D30): a separate
+  // judge selected only in workspace settings is not honoured, and the
+  // status line and the log say so instead of staying silent.
+  let isScopeLogged = false
+  function scopeGap(): 'scope' | undefined {
+    const separateId = deps.separateId?.().trim() ?? ''
+    const isUserSelected = isSeparateSelected() && separateId !== ''
+    const isWorkspaceOnly =
+      !isUserSelected && isSeparateInWorkspace(deps.readWorkspaceSettingsTexts?.() ?? [])
+    if (isWorkspaceOnly && !isScopeLogged) deps.log.warn(JUDGE_SCOPE_LOG)
+    isScopeLogged = isWorkspaceOnly
+    return isWorkspaceOnly ? 'scope' : undefined
+  }
+  function gapOf(action: JudgeEntryParts): JudgeStatus['gap'] {
+    return phase2?.binding(action)?.separateGap ?? scopeGap()
+  }
   function refreshPanelGap(): void {
     if (panel === undefined) return
-    const gap = phase2?.binding(panel.action)?.separateGap
-    if (gap === panel.status.separateGap) return
-    const { separateGap: _previous, ...rest } = panel.status
-    const next = gap === undefined ? rest : { ...rest, separateGap: gap }
+    const gap = gapOf(panel.action)
+    if (gap === panel.status.gap) return
+    const { gap: _previous, ...rest } = panel.status
+    const next = gap === undefined ? rest : { ...rest, gap }
     panel = { ...panel, status: next }
     deps.status(panel.action, next)
   }
@@ -149,6 +180,7 @@ export function createWindowJudge(
     action: JudgeEntryParts,
     backend: 'museCode' | 'modelApi',
   ): 'granted' | 'declined' | 'unasked' | 'not-required' {
+    if (isRouteOnly()) return 'not-required'
     const given = actionConsent.get(action)
     return given !== undefined && backend === 'modelApi' && deps.ledger !== undefined
       ? given
@@ -223,14 +255,16 @@ export function createWindowJudge(
         },
         // Consent is bound to exactly this route's recipient and tariff and
         // to the current revocation generation; an ordinary judge grant
-        // never covers it, and "Ask again" asks again.
+        // never covers it, and "Ask again" asks again. C is gated by its own
+        // availability only (multi-vendor rule): never the Meta judge's
+        // gate, price acceptance or the window's backend.
         consent: (route) => {
-          if (!deps.paid.gate.isOn('judge')) return 'declined'
+          if (!isSeparateSelected()) return 'declined'
           return deps.paid.consent.isRouteAllowed(route.consentKey) ? 'granted' : 'needed'
         },
         generation: () => triggerGenerationOf(action),
         confidential: () => deps.context(action)?.confidential ?? true,
-        isExplicit: () => deps.engine() === 'separate' || deps.engine() === 'both',
+        isExplicit: isSeparateSelected,
         // D48: the price and recipient are named before the first charge;
         // the user's own provider key pays, never the subscription.
         askConsent: (route) =>
@@ -242,7 +276,7 @@ export function createWindowJudge(
               systemOne: { worstCaseUsd: route.worstCaseUsd, recipient: route.recipient },
             },
             route.consentKey,
-            () => deps.paid.gate.isOn('judge'),
+            isSeparateSelected,
           ),
       },
     }
@@ -392,7 +426,7 @@ export function createWindowJudge(
           confidential: initial.confidential,
           readyRate: deps.readyRate?.(initial.backend),
           paidConsent:
-            initial.backend === 'museCode' || deps.ledger === undefined
+            initial.backend === 'museCode' || deps.ledger === undefined || isRouteOnly()
               ? ('not-required' as const)
               : consent,
           sourceAvailable:
@@ -528,6 +562,8 @@ export function createWindowJudge(
             selectedBinding(action)?.billing ??
             (initial.backend === 'museCode' ? 'subscription' : 'modelApi'),
           context,
+          // A C-only run asks C's own popup at C's price, never the Meta one.
+          asksOwnConsent: isRouteOnly,
           allowsPaidJudge: async (model) => {
             const isAllowed = await deps.paid.allowsJudgeUse(model)
             consent = isAllowed ? 'granted' : 'declined'
@@ -543,9 +579,10 @@ export function createWindowJudge(
           onError,
           onFence: deps.onFence,
           onStatus: (resolved) => {
-            // A configured id whose side cannot be built names its gap.
-            const gap = phase2?.binding(action)?.separateGap
-            const status = gap === undefined ? resolved : { ...resolved, separateGap: gap }
+            // A configured id whose side cannot be built names its gap, as
+            // does a separate judge set only in workspace settings.
+            const gap = gapOf(action)
+            const status = gap === undefined ? resolved : { ...resolved, gap }
             panel = { action, status, identity }
             deps.status(action, status)
           },

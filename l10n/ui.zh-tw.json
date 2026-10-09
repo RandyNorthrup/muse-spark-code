@@ -3921,5 +3921,6 @@
   "judgeSeparateNeedsKey": "單獨評判需要在「模型與供應商」中提供其供應商金鑰",
   "judgeSeparateNeedsCapture": "單獨評判：此供應商模型需要先擷取結構化或 logprob 評判請求",
   "judgeSeparateNeedsInstall": "單獨評判：本機評判需要在認證平台上經過審核的安裝",
-  "judgeSeparateUnknown": "單獨評判：設定的 id 未指向任何已知來源"
+  "judgeSeparateUnknown": "單獨評判：設定的 id 未指向任何已知來源",
+  "judgeSeparateUserSettingsOnly": "單獨評判是在工作區設定中設定的；付費設定只從使用者設定讀取"
 }

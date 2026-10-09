@@ -220,7 +220,7 @@ import type { InsightsReader } from './runtime/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
 import { voiceLoader } from './host/voice/voiceBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
-import { createPaidFeatures } from './host/paid/paidHost'
+import { createPaidFeatures, paidAvailability } from './host/paid/paidHost'
 import {
   modelsPanelLoader,
   providerCredentials,
@@ -1060,10 +1060,13 @@ async function activateWindow(
   // sign-in change, never from anywhere but the secret store.
   let isKeyStored = false
   let paidBackend: 'modelApi' | 'museCode' | undefined
-  const isDefaultPaidOn = (feature: PaidFeature) =>
-    vscode.workspace
-      .getConfiguration(SETTINGS_SECTION)
-      .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined
+  const paidAvailable = paidAvailability({
+    backend: () => paidBackend,
+    hasUserValue: (feature: PaidFeature) =>
+      vscode.workspace
+        .getConfiguration(SETTINGS_SECTION)
+        .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue !== undefined,
+  })
   let paidDaily: ReturnType<typeof createPaidDailyBudget> | undefined
   const loadDailyPaid = () => {
     if (paidDaily !== undefined) return paidDaily
@@ -1101,9 +1104,7 @@ async function activateWindow(
     workspaceState: context.workspaceState,
     isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
     isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
-    isAvailable: (feature) =>
-      feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
-    isDefaultOn: isDefaultPaidOn,
+    ...paidAvailable,
     dailyBudgetUsd: (feature) =>
       paidBackend === 'modelApi' || feature === 'legalExplanation' ? dailyPaid.capUsd() : undefined,
     isKeyStored: () => isKeyStored,
@@ -1166,6 +1167,23 @@ async function activateWindow(
         throw error
       }
     },
+    // The raw workspace settings files, read only to name a separate judge
+    // set there (machine-scoped paid settings never honour it). Local files
+    // only; an unreadable file names nothing.
+    readWorkspaceSettingsTexts: () =>
+      [
+        ...(vscode.workspace.workspaceFolders ?? []).map((folder) =>
+          vscode.Uri.joinPath(folder.uri, '.vscode', 'settings.json'),
+        ),
+        ...(vscode.workspace.workspaceFile === undefined ? [] : [vscode.workspace.workspaceFile]),
+      ].flatMap((uri) => {
+        if (uri.scheme !== 'file') return []
+        try {
+          return [readFileSync(uri.fsPath, 'utf8')]
+        } catch {
+          return []
+        }
+      }),
     startSession: async (options) => {
       const host = await backend.ensureHost()
       return await host.startSession(options)

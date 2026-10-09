@@ -3921,5 +3921,6 @@
   "judgeSeparateNeedsKey": "单独评判需要在“模型与提供商”中提供其提供商密钥",
   "judgeSeparateNeedsCapture": "单独评判：此提供商模型需要先捕获结构化或 logprob 评判请求",
   "judgeSeparateNeedsInstall": "单独评判：本地评判需要在认证平台上经过审核的安装",
-  "judgeSeparateUnknown": "单独评判：配置的 id 未指向任何已知来源"
+  "judgeSeparateUnknown": "单独评判：配置的 id 未指向任何已知来源",
+  "judgeSeparateUserSettingsOnly": "单独评判是在工作区设置中设定的；付费设置只从用户设置读取"
 }

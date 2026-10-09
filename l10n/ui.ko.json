@@ -3921,5 +3921,6 @@
   "judgeSeparateNeedsKey": "별도 판정에는 모델 및 공급자에서 해당 공급자 키가 필요합니다",
   "judgeSeparateNeedsCapture": "별도 판정: 이 공급자 모델은 먼저 구조화 또는 logprob 판정 요청 캡처가 필요합니다",
   "judgeSeparateNeedsInstall": "별도 판정: 로컬 판정에는 인증된 플랫폼에서 검증된 설치가 필요합니다",
-  "judgeSeparateUnknown": "별도 판정: 설정된 id가 알려진 소스를 가리키지 않습니다"
+  "judgeSeparateUnknown": "별도 판정: 설정된 id가 알려진 소스를 가리키지 않습니다",
+  "judgeSeparateUserSettingsOnly": "별도 판정이 작업 영역 설정에 지정되어 있습니다. 유료 설정은 사용자 설정에서만 읽습니다"
 }

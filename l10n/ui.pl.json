@@ -4353,5 +4353,6 @@
   "judgeSeparateNeedsKey": "Osobny sędzia potrzebuje klucza swojego dostawcy w sekcji Modele i dostawcy",
   "judgeSeparateNeedsCapture": "Osobny sędzia: ten model dostawcy najpierw potrzebuje przechwyconego żądania sędziego w formie strukturalnej lub z logprob",
   "judgeSeparateNeedsInstall": "Osobny sędzia: lokalny sędzia potrzebuje zweryfikowanej instalacji na certyfikowanej platformie",
-  "judgeSeparateUnknown": "Osobny sędzia: skonfigurowany identyfikator nie wskazuje żadnego znanego źródła"
+  "judgeSeparateUnknown": "Osobny sędzia: skonfigurowany identyfikator nie wskazuje żadnego znanego źródła",
+  "judgeSeparateUserSettingsOnly": "Osobny sędzia jest ustawiony w ustawieniach obszaru roboczego; płatne ustawienia są odczytywane tylko z ustawień użytkownika"
 }

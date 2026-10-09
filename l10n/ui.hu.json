@@ -4065,5 +4065,6 @@
   "judgeSeparateNeedsKey": "A külön bírálónak szüksége van a szolgáltatója kulcsára a Modellek és szolgáltatók részben",
   "judgeSeparateNeedsCapture": "Külön bíráló: ehhez a szolgáltatói modellhez előbb rögzített strukturált vagy logprob bírálói kérés kell",
   "judgeSeparateNeedsInstall": "Külön bíráló: a helyi bírálóhoz ellenőrzött telepítés kell egy tanúsított platformon",
-  "judgeSeparateUnknown": "Külön bíráló: a beállított azonosító nem nevez meg ismert forrást"
+  "judgeSeparateUnknown": "Külön bíráló: a beállított azonosító nem nevez meg ismert forrást",
+  "judgeSeparateUserSettingsOnly": "A külön bíráló a munkaterület beállításaiban van megadva; a fizetős beállításokat csak a felhasználói beállításokból olvassuk"
 }

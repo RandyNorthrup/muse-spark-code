@@ -33,7 +33,7 @@ The VS Code adapter: 43 files. Everything else reaches VS Code only through them
 
 | File                                         | VS Code APIs used |
 | -------------------------------------------- | ----------------- |
-| `src/extension.ts`                           | 176               |
+| `src/extension.ts`                           | 177               |
 | `src/host/agentImportHost.ts`                | 28                |
 | `src/host/browser/browserCheckConfirm.ts`    | 5                 |
 | `src/host/browser/runtimeCommand.ts`         | 9                 |
@@ -96,7 +96,7 @@ These never reach `vscode` through their imports, type-only ones included; the g
 - `src/host/conversation/conversationController.ts`
 - `src/host/ide/ideMcpServer.ts`
 
-## VS Code API used at run time (366)
+## VS Code API used at run time (367)
 
 Functions, variables, classes, enums and members declared in `@types/vscode`; the members of a VS Code interface the code implements (a provider, an options object); and the members of a VS Code object handed to code that takes it by shape.
 
@@ -467,6 +467,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.registerTextDocumentContentProvider`                                      | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `workspace.saveAll`                                                                  | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `workspace.textDocuments`                                                            | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `workspace.workspaceFile`                                                            | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `workspace.workspaceFolders`                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ## Node built-ins the host imports (28)
@@ -475,17 +476,17 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------------ | ----- |
 | `node:buffer`            | 48    |
 | `node:child_process`     | 22    |
-| `node:crypto`            | 93    |
+| `node:crypto`            | 94    |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
-| `node:dns/promises`      | 7     |
+| `node:dns/promises`      | 8     |
 | `node:events`            | 2     |
 | `node:fs`                | 47    |
 | `node:fs/promises`       | 79    |
 | `node:http`              | 17    |
 | `node:https`             | 2     |
 | `node:module`            | 3     |
-| `node:net`               | 17    |
+| `node:net`               | 18    |
 | `node:os`                | 20    |
 | `node:path`              | 132   |
 | `node:process`           | 4     |

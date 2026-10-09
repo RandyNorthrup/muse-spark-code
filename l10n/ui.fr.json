@@ -4209,5 +4209,6 @@
   "judgeSeparateNeedsKey": "Le juge séparé a besoin de la clé de son fournisseur dans Modèles et fournisseurs",
   "judgeSeparateNeedsCapture": "Juge séparé : ce modèle du fournisseur a d’abord besoin d’une requête de juge structurée ou logprob capturée",
   "judgeSeparateNeedsInstall": "Juge séparé : le juge local a besoin d’une installation vérifiée sur une plateforme certifiée",
-  "judgeSeparateUnknown": "Juge séparé : l’identifiant configuré ne désigne aucune source connue"
+  "judgeSeparateUnknown": "Juge séparé : l’identifiant configuré ne désigne aucune source connue",
+  "judgeSeparateUserSettingsOnly": "Le juge séparé est défini dans les paramètres de l’espace de travail ; les paramètres payants ne sont lus que dans les paramètres utilisateur"
 }

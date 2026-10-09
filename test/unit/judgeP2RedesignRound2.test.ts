@@ -15,11 +15,19 @@ import { ReviewBreaker } from '../../src/core/backends/modelapi/autoReviewer'
 import { cascadeJudge, type JudgeCascadeSide } from '../../src/core/judge/cascade'
 import type { ModelApiJudgeConnection } from '../../src/core/judge/same/modelApiSource'
 import { createWindowJudge } from '../../src/host/judge/judgeEntry'
+import { isSeparateInWorkspace } from '../../src/host/judge/workspaceScope'
 import type { JudgeWindowDeps } from '../../src/host/judge/judgeBundle'
-import { createPaidFeatures } from '../../src/host/paid/paidHost'
+import { createPaidFeatures, paidAvailability } from '../../src/host/paid/paidHost'
 import { ReviewedApprovals, type ReviewHold } from '../../src/host/review/reviewedApprovals'
 import type { MuseCodeReviewOutcome } from '../../src/host/review/museCodeReviewer'
-import { JUDGE_EVIDENCE_DIRNAME, UI_TEXT, WORKSPACE_STATE_KEYS } from '../../src/shared/constants'
+import {
+  GLOBAL_STATE_KEYS,
+  JUDGE_EVIDENCE_DIRNAME,
+  JUDGE_SCOPE_LOG,
+  UI_TEXT,
+  WORKSPACE_STATE_KEYS,
+  type JudgeEngine,
+} from '../../src/shared/constants'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { EN } from '../../src/shared/l10n/en'
 import { FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
@@ -75,7 +83,29 @@ const ACTION = {
   args: {},
 } as const
 
-/** The production window with the C route configured, over the real paid host. */
+/** A Meta Model API judge connection whose sends are recorded and refused. */
+function metaJudge() {
+  const send = vi.fn<ModelApiJudgeConnection['transport']['send']>(() =>
+    Promise.reject(new Error('no Meta judge call expected')),
+  )
+  const connection: ModelApiJudgeConnection = {
+    keyDigest: 'account',
+    source: {
+      readMainBody: () => JUDGE_MODEL_API_BODY,
+      keyPrefix: () => 'judge',
+      prefixTokens: () => undefined,
+    },
+    transport: { send },
+  }
+  return { send, connection }
+}
+
+/**
+ * The production window with the C route configured, over the real paid host
+ * and the window's real paid availability rule (`paidAvailability`, as
+ * src/extension.ts builds it): C set in user settings gives the judge's
+ * engine a user value; with no user value the engine is on by default.
+ */
 function systemOneWindow(
   options: {
     readonly noul?: number
@@ -83,6 +113,10 @@ function systemOneWindow(
     readonly httpHold?: Promise<unknown>
     readonly rememberedJudge?: boolean
     readonly isMetaKeyStored?: boolean
+    readonly backend?: 'museCode' | 'modelApi'
+    /** The user settings' engine and separate id; `undefined`: none set. */
+    readonly user?: { readonly engine: JudgeEngine; readonly separate: string } | undefined
+    readonly workspaceTexts?: readonly string[]
   } = {},
 ) {
   const transport = systemOneTransport({
@@ -92,32 +126,47 @@ function systemOneWindow(
   const ledger = recordingDailyLedger(options.ledgerHold)
   const emitted: AgentEvent[] = []
   const workspace = new Map<string, unknown>()
-  if (options.rememberedJudge === true)
+  const global = new Map<string, unknown>()
+  if (options.rememberedJudge === true) {
+    // An "always" grant is given only with the Meta judge's price accepted.
     workspace.set(WORKSPACE_STATE_KEYS.paidWorkspaceGrants, { judge: 0 })
+    global.set(GLOBAL_STATE_KEYS.paidConfirmations, ['judge'])
+  }
+  const user =
+    'user' in options ? options.user : { engine: 'separate' as const, separate: SYSTEMONE_ROUTE }
+  const backend = options.backend ?? 'museCode'
+  const engine = (): JudgeEngine => user?.engine ?? 'auto'
   const paid = createPaidFeatures({
-    globalState: memento(new Map()),
+    globalState: memento(global),
     workspaceState: memento(workspace),
-    isSettingOn: (feature) => feature === 'judge',
-    isDefaultOn: () => true,
-    isJudgeOn: () => true,
+    isSettingOn: (feature) => feature === 'judge' && engine() !== 'off',
+    isJudgeOn: () => engine() !== 'off',
+    ...paidAvailability({
+      backend: () => backend,
+      hasUserValue: (feature) => feature === 'judge' && user !== undefined,
+    }),
     isKeyStored: () => options.isMetaKeyStored ?? false,
     canRememberPaidUse: () => true,
     log: new FakeLogOutputChannel(),
   })
   let owner = 'window'
   let model = 'muse-spark-1.3'
-  let separateId = SYSTEMONE_ROUTE
+  let separateId = user?.separate ?? ''
+  const log = new FakeLogOutputChannel()
+  const status = vi.fn<JudgeWindowDeps['status']>()
+  const meta = metaJudge()
   const deps: JudgeWindowDeps = {
-    engine: () => 'separate',
+    engine,
     separateId: () => separateId,
     evidenceRoot: path.join(storage, JUDGE_EVIDENCE_DIRNAME),
     judgeP2BundlePath: path.join(built.folder, 'judgeP2.js'),
     readStoredCredential: storedOpenRouterKey(),
     separateTransport: { resolve: transport.resolve, send: transport.send },
+    readWorkspaceSettingsTexts: () => options.workspaceTexts ?? [],
     ledger,
     dailyBudgetUsd: () => 1,
     context: () => ({
-      backend: 'museCode',
+      backend,
       modelId: model,
       ownerId: owner,
       contextLimit: 100_000,
@@ -125,14 +174,14 @@ function systemOneWindow(
     }),
     readSettingsText: () => undefined,
     startSession: vi.fn(),
-    modelApi: () => undefined,
+    modelApi: () => (backend === 'modelApi' ? meta.connection : undefined),
     paid,
     emit: (_action, event) => {
       emitted.push(event)
     },
-    status: vi.fn(),
+    status,
     notice: vi.fn(),
-    log: new FakeLogOutputChannel(),
+    log,
   }
   return {
     judge: createWindowJudge(deps, EN, 'en'),
@@ -140,6 +189,9 @@ function systemOneWindow(
     ledger,
     emitted,
     paid,
+    log,
+    status,
+    metaSend: meta.send,
     popups: () =>
       vi
         .mocked(confirmModal)
@@ -296,6 +348,61 @@ describe('P1: C consent is bound to its route, tariff and revocation generation'
     expect(window.popups()).toHaveLength(1)
     expect(window.popups()[0]?.[1]?.detail).toContain('$0.002688')
     window.judge.dispose()
+  })
+})
+
+describe('C is gated by its own availability, never by the Meta judge (lead, 2026-10-08)', () => {
+  it.each(['museCode', 'modelApi'] as const)(
+    'a %s user with C in user settings and an OpenRouter key sees only C’s popup, at C’s price',
+    async (backend) => {
+      const window = systemOneWindow({ backend })
+      // The Meta judge's price is not accepted: its own paid gate is off.
+      expect(window.paid.gate.isOn('judge')).toBe(false)
+      const fence = window.judge.start({ ...ACTION, backend }, 'state')
+      await vi.waitFor(() => {
+        expect(window.ledger.settled).toHaveLength(1)
+      })
+      expect(fence?.read()).toBe('caution')
+      expect(window.transport.sent).toHaveLength(1)
+      // One popup in all, C's own at its captured price: no Meta judge modal.
+      expect(vi.mocked(confirmModal)).toHaveBeenCalledTimes(1)
+      expect(window.popups()[0]?.[1]?.detail).toContain('$0.002688')
+      expect(window.metaSend).not.toHaveBeenCalled()
+      expect(window.paid.gate.isOn('judge')).toBe(false)
+      window.judge.dispose()
+    },
+  )
+
+  it('a separate judge set only in workspace settings is named, never honoured', async () => {
+    const window = systemOneWindow({
+      user: undefined,
+      workspaceTexts: [
+        `{\n  // the repository's own choice\n  "museSpark.judge.engine": "separate",\n  "museSpark.judge.separate": "${SYSTEMONE_ROUTE}",\n}\n`,
+      ],
+    })
+    window.judge.start(ACTION, 'state')
+    await vi.waitFor(() => {
+      expect(window.status).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ gap: 'scope' }),
+      )
+    })
+    expect(window.log.warn).toHaveBeenCalledWith(JUDGE_SCOPE_LOG)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(vi.mocked(confirmModal)).not.toHaveBeenCalled()
+    expect(window.transport.send).not.toHaveBeenCalled()
+    expect(window.ledger.reserved).toHaveLength(0)
+    window.judge.dispose()
+  })
+
+  it.each([
+    ['{ "museSpark.judge.engine": "both", }', true],
+    ['{ "settings": { "museSpark.judge.separate": "x" } }', true],
+    ['{ /* "museSpark.judge.engine": "separate" */ "a": "http://b//c" }', false],
+    ['{ "museSpark.judge.engine": "auto", "museSpark.judge.separate": " " }', false],
+    ['not json', false],
+  ])('reads workspace settings as JSONC: %s selects C: %s', (text, isSelected) => {
+    expect(isSeparateInWorkspace([text])).toBe(isSelected)
   })
 })
 

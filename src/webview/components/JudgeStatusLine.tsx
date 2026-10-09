@@ -31,6 +31,7 @@ export function JudgeStatusLine({ status }: { readonly status: JudgeStatus | und
     capture: UI_TEXT.judgeSeparateNeedsCapture,
     install: UI_TEXT.judgeSeparateNeedsInstall,
     unknown: UI_TEXT.judgeSeparateUnknown,
+    scope: UI_TEXT.judgeSeparateUserSettingsOnly,
   }
   const billing = {
     subscription: UI_TEXT.judgeStatusSubscription,
@@ -43,7 +44,7 @@ export function JudgeStatusLine({ status }: { readonly status: JudgeStatus | und
       {status.autoSameReason === undefined
         ? (reasons[status.reason] ?? fill(UI_TEXT.judgeNoAnswer, { reason: status.reason }))
         : fallback[status.autoSameReason]}
-      {status.separateGap === undefined ? null : <> · {gaps[status.separateGap]}</>}
+      {status.gap === undefined ? null : <> · {gaps[status.gap]}</>}
       {status.mode === 'off' ? null : (
         <>
           {' '}

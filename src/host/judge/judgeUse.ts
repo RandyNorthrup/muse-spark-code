@@ -20,6 +20,11 @@ export interface JudgeUseHostDeps extends Pick<
   readonly context: () => Omit<JudgeModeContext, 'minReadyRate'>
   /** U's paidHost hook, then A re-binds and reserves per actual transport call. */
   readonly allowsPaidJudge: (modelId: string) => Promise<boolean>
+  /**
+   * The run's only paid side asks its own popup (a separate route at its own
+   * price): neither the Meta judge's popup nor the subscription note applies.
+   */
+  readonly asksOwnConsent?: (() => boolean) | undefined
   readonly onStatus: (status: JudgeStatus) => void
   readonly notice: (text: string) => void
 }
@@ -70,7 +75,7 @@ export function createJudgeUse(deps: JudgeUseHostDeps): JudgeUse {
     onError: deps.onError,
     onFence: deps.onFence,
     prepare: async (_action, signal) => {
-      if (deps.billing?.() === 'free') return !signal.aborted
+      if (deps.billing?.() === 'free' || deps.asksOwnConsent?.() === true) return !signal.aborted
       if (deps.backend === 'museCode') {
         if (!hasSubscriptionNote) {
           hasSubscriptionNote = true

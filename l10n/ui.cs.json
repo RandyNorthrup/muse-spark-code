@@ -4353,5 +4353,6 @@
   "judgeSeparateNeedsKey": "Samostatný soudce potřebuje klíč svého poskytovatele v části Modely a poskytovatelé",
   "judgeSeparateNeedsCapture": "Samostatný soudce: tento model poskytovatele nejprve potřebuje zachycený strukturovaný nebo logprob požadavek soudce",
   "judgeSeparateNeedsInstall": "Samostatný soudce: místní soudce potřebuje prověřenou instalaci na certifikované platformě",
-  "judgeSeparateUnknown": "Samostatný soudce: nastavené id neoznačuje žádný známý zdroj"
+  "judgeSeparateUnknown": "Samostatný soudce: nastavené id neoznačuje žádný známý zdroj",
+  "judgeSeparateUserSettingsOnly": "Samostatný soudce je nastaven v nastavení pracovního prostoru; placená nastavení se čtou pouze z uživatelského nastavení"
 }

@@ -4065,5 +4065,6 @@
   "judgeSeparateNeedsKey": "Die separate Beurteilung braucht den Schlüssel ihres Anbieters unter „Modelle und Anbieter“",
   "judgeSeparateNeedsCapture": "Separate Beurteilung: Für dieses Anbietermodell muss zuerst eine strukturierte oder Logprob-Beurteilungsanfrage aufgezeichnet werden",
   "judgeSeparateNeedsInstall": "Separate Beurteilung: Die lokale Beurteilung braucht eine geprüfte Installation auf einer zertifizierten Plattform",
-  "judgeSeparateUnknown": "Separate Beurteilung: Die konfigurierte ID bezeichnet keine bekannte Quelle"
+  "judgeSeparateUnknown": "Separate Beurteilung: Die konfigurierte ID bezeichnet keine bekannte Quelle",
+  "judgeSeparateUserSettingsOnly": "Die separate Beurteilung ist in den Arbeitsbereichseinstellungen festgelegt; kostenpflichtige Einstellungen werden nur aus den Benutzereinstellungen gelesen"
 }

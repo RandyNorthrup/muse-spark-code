@@ -4065,5 +4065,6 @@
   "judgeSeparateNeedsKey": "Ayrı yargıcın Modeller ve Sağlayıcılar bölümünde sağlayıcı anahtarına ihtiyacı var",
   "judgeSeparateNeedsCapture": "Ayrı yargıç: bu sağlayıcı modeli için önce yakalanmış yapılandırılmış veya logprob yargıç isteği gerekir",
   "judgeSeparateNeedsInstall": "Ayrı yargıç: yerel yargıç sertifikalı bir platformda doğrulanmış kurulum gerektirir",
-  "judgeSeparateUnknown": "Ayrı yargıç: yapılandırılan kimlik bilinen bir kaynağı belirtmiyor"
+  "judgeSeparateUnknown": "Ayrı yargıç: yapılandırılan kimlik bilinen bir kaynağı belirtmiyor",
+  "judgeSeparateUserSettingsOnly": "Ayrı yargıç çalışma alanı ayarlarında belirlenmiş; ücretli ayarlar yalnızca kullanıcı ayarlarından okunur"
 }

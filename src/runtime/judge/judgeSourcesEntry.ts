@@ -2,7 +2,11 @@
 import { runEmbeddingJudge } from '../../core/judge/embedding/route'
 import { embeddingAvailability } from '../../core/judge/embedding/availability'
 import { createJudgeSourceRouter } from '../../core/judge/routing'
-import { buildSeparateSource, hasSeparateSourceKey } from '../../core/judge/sides'
+import {
+  buildSeparateSource,
+  hasSeparateSourceKey,
+  separateSourceKey,
+} from '../../core/judge/sides'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 
@@ -15,6 +19,7 @@ export function createJudgeSourcesFeatures(language: {
     createJudgeSourceRouter,
     buildSeparateSource,
     hasSeparateSourceKey,
+    separateSourceKey,
     embedding: { run: runEmbeddingJudge, availability: embeddingAvailability },
   }
 }

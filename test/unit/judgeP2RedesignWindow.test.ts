@@ -100,7 +100,7 @@ describe('the production window keeps phase-1 when no phase-2 side can be built'
       // A configured id with no buildable side names its exact gap; a key
       // found missing after the first action refreshes the status itself.
       await vi.waitFor(() => {
-        expect(rig.statuses.at(-1)?.separateGap).toBe(gap)
+        expect(rig.statuses.at(-1)?.gap).toBe(gap)
       })
       if (separateId !== '' && gap !== 'key')
         expect(rig.statuses.at(-1)).toMatchObject({ autoSameReason: 'source-unavailable' })

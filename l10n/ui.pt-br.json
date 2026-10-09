@@ -4209,5 +4209,6 @@
   "judgeSeparateNeedsKey": "O juiz separado precisa da chave do provedor em Modelos e provedores",
   "judgeSeparateNeedsCapture": "Juiz separado: este modelo do provedor precisa primeiro de uma solicitação de juiz estruturada ou com logprobs capturada",
   "judgeSeparateNeedsInstall": "Juiz separado: o juiz local precisa de uma instalação verificada em uma plataforma certificada",
-  "judgeSeparateUnknown": "Juiz separado: o id configurado não indica nenhuma fonte conhecida"
+  "judgeSeparateUnknown": "Juiz separado: o id configurado não indica nenhuma fonte conhecida",
+  "judgeSeparateUserSettingsOnly": "O juiz separado está definido nas configurações do workspace; as configurações pagas são lidas apenas das configurações do usuário"
 }

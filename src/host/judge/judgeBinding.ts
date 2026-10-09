@@ -88,6 +88,7 @@ export interface HostPhase2BindingInputs {
 export function createHostPhase2(deps: HostPhase2BindingInputs): {
   readonly binding: (action: JudgeEntryParts) => ReturnType<typeof createPhase2Binding>
   readonly createRuntime: (runtime: JudgeRuntimeDeps) => Promise<JudgePlanRuntime>
+  readonly separateRouteReady: () => boolean
 } {
   const loadJudgeP2 = judgeFeaturesLoader({
     bundlePath: deps.judgeP2BundlePath,
@@ -165,5 +166,17 @@ export function createHostPhase2(deps: HostPhase2BindingInputs): {
       return createPhase2Binding(request)
     },
     createRuntime: (runtime: JudgeRuntimeDeps) => loadJudgeP2().createRuntime(runtime),
+    // C's own availability (multi-vendor rule): the configured id names a
+    // route this window can build and its key is not known to be missing.
+    // Never the Meta judge's gate, price acceptance or backend.
+    separateRouteReady: () => {
+      const separateId = deps.separateId().trim()
+      return (
+        separateId !== '' &&
+        deps.separatePorts !== undefined &&
+        loadJudgeP2().separateSourceKey(separateId) !== undefined &&
+        keyReady.get(separateId) !== false
+      )
+    },
   }
 }

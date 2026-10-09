@@ -3809,6 +3809,8 @@ export const EN = {
   judgeSeparateNeedsInstall:
     'Separate judge: the local judge needs a vetted install on a certified platform',
   judgeSeparateUnknown: 'Separate judge: the configured id names no known source',
+  judgeSeparateUserSettingsOnly:
+    'Separate judge is set in workspace settings; paid settings are read from user settings only',
   judgeSourceSame: 'Own chat model',
   judgeSourceSeparate: 'Separate judge',
   judgeSourceBoth: 'Own model and separate judge',

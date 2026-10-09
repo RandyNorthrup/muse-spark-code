@@ -92,6 +92,11 @@ const features = {
   hasSeparateSourceKey(...args: Parameters<SourcesFeatures['hasSeparateSourceKey']>) {
     return sourcesFeatures().hasSeparateSourceKey(...args)
   },
+  // The provider and origin a configured id's route bills, or undefined when
+  // the id names no route: C's own availability, apart from any Meta gate.
+  separateSourceKey(separateId: string) {
+    return sourcesFeatures().separateSourceKey(separateId)
+  },
   createRuntime(deps: JudgeRuntimeDeps) {
     return Promise.resolve(
       createJudgeRuntime({

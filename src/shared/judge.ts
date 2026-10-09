@@ -18,7 +18,9 @@ export const judgeStatusSchema = z.object({
     'explicit-separate',
     'explicit-both',
   ]),
-  separateGap: z.optional(z.enum(JUDGE_SEPARATE_GAPS)),
+  // Why the configured separate source has no side (wire name kept short:
+  // dist/wire.js sits at its cap).
+  gap: z.optional(z.enum(JUDGE_SEPARATE_GAPS)),
   autoSameReason: z.optional(
     z.enum(['source-unavailable', 'source-untested', 'profile-missing', 'evidence-missing']),
   ),
