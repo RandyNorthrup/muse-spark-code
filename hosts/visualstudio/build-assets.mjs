@@ -42,22 +42,27 @@ for (const locale of ['en', ...TABLE_LOCALES]) {
   await writeFile(path.join(assets, 'l10n', `ui.${locale}.json`), JSON.stringify(table))
   await writeFile(path.join(assets, 'l10n', `package.nls.${locale}.json`), JSON.stringify(manifest))
   const html = buildWebviewHtml({
-    scriptUri: `${origin}/webview/main.js`,
-    styleUri: `${origin}/webview/main.css`,
+    scriptUri: `${origin}/webview/portable/main.js`,
+    styleUri: `${origin}/webview/portable/main.css`,
     cspSource: origin,
     nonce: createNonce(),
     l10n: { locale, table },
   })
+    .replace('<html lang=', '<html data-theme="dark" lang=')
     .replace('<body>', '<body data-host="embedded">')
     .replace(
       "default-src 'none'",
       "default-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; connect-src 'none'",
     )
   await writeFile(path.join(assets, 'webview', `index.${locale}.html`), html)
+  await writeFile(
+    path.join(assets, 'webview', `tasks.${locale}.html`),
+    html.replace('<body data-host="embedded">', '<body data-host="embedded" data-surface="tasks">'),
+  )
 }
 await cp(
-  path.join(root, 'src/shared/hostApi/mhp-v1.schema.json'),
-  path.join(assets, 'mhp-v1.schema.json'),
+  path.join(root, 'src/shared/hostApi/mhp-v1.1.schema.json'),
+  path.join(assets, 'mhp-v1.1.schema.json'),
 )
 await cp(path.join(root, 'LICENSE'), path.join(assets, 'LICENSE'))
 await cp(path.join(root, 'THIRD_PARTY_NOTICES.txt'), path.join(assets, 'THIRD_PARTY_NOTICES.txt'))

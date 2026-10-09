@@ -25,14 +25,14 @@ const binding: MhpPanelBinding = {
 }
 const context = { binding, expectedSeq: 1, direction: 'toHost' as const, ready: true }
 const envelope = {
-  mhp: '1.2',
+  mhp: '1.4',
   kind: 'panel',
   surface: binding.surface,
   direction: 'toHost',
   seq: 1,
   payload: { type: 'ready' },
 }
-const lifecycle = { mhp: '1.2', kind: 'surface', ...binding }
+const lifecycle = { mhp: '1.4', kind: 'surface', ...binding }
 const stdio = { protocolVersion: MHP_PANEL.version }
 const snapshotSchema = z.object({
   errorCodes: z.unknown(),
@@ -41,15 +41,15 @@ const snapshotSchema = z.object({
   methods: z.record(z.string(), z.looseObject({ call: z.unknown() })),
 })
 
-describe('MHP 1.2 replacement panel contract', () => {
-  it('documents replacement of 1.1 and current 1.2 schemas behind legacy filenames', async () => {
+describe('MHP 1.4 replacement panel contract', () => {
+  it('documents replacement of 1.1 and current 1.4 schemas behind legacy filenames', async () => {
     const readme = await readFile('README.md', 'utf8')
     const guide = readme
-      .split('The replacement MHP 1.2.0 panel contract', 2)[1]
+      .split('The replacement MHP 1.4.0 contract', 2)[1]
       ?.split('Regenerate with', 1)[0]
       ?.replaceAll(/\s+/gu, ' ')
-    expect(guide).toContain('MHP 1.2 replaces 1.1')
-    expect(guide).toContain('both legacy-named snapshots carry the current 1.2 schemas')
+    expect(guide).toContain('MHP 1.4 replaces 1.1 and 1.2')
+    expect(guide).toContain('both legacy-named snapshots carry the current 1.4 schemas')
     expect(guide).not.toContain('preserve frozen v1')
     const header = z.object({ protocol: z.string() })
     for (const file of ['mhp-v1.schema.json', 'mhp-v1.1.schema.json'])
@@ -84,10 +84,10 @@ describe('MHP 1.2 replacement panel contract', () => {
 
   it.each([
     ['mhp/1.0.0', 'mhp/1.1.0', undefined],
-    ['mhp/1.1.0', 'mhp/1.2.0', undefined],
-    ['mhp/1.2.0', 'mhp/1.3.0', 'mhp/1.2.0'],
-    ['mhp/1.0.0', 'mhp/2.0.0', 'mhp/1.2.0'],
-    ['mhp/1.2.1', 'mhp/1.3.0', undefined],
+    ['mhp/1.1.0', 'mhp/1.4.0', undefined],
+    ['mhp/1.4.0', 'mhp/1.5.0', 'mhp/1.4.0'],
+    ['mhp/1.0.0', 'mhp/2.0.0', 'mhp/1.4.0'],
+    ['mhp/1.4.1', 'mhp/1.5.0', undefined],
     ['mhp/2.0.0', 'mhp/3.0.0', undefined],
     ['mhp/01.0.0', 'mhp/2.0.0', undefined],
   ])('selects only an implemented version in [%s, %s)', (minimum, maximumExclusive, selected) => {

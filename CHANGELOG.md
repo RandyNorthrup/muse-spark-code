@@ -7,7 +7,60 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Ship the shared host protocol in the VSIX so the extension loads, and verify
+  activation with the production split. Portable cleanup closes auxiliary views
+  after conversation cancellation. Presentation actions retire completed IDs,
+  compare their selected records and publish fresh state; selected text follows
+  the live confined workspace index. The README contract test follows its 1.3 marker.
+
+- Integrate portable engine and presentation factories in separately checked lazy
+  bundles, including real checkpoint recording, version-attested verification,
+  saved plans, transfer, Tasks, What's New and scrubbed report export.
+- Adopt MHP 1.3 for bounded auxiliary messages and awaited native services;
+  correlate browser actions, defer lifecycle delivery until view adoption,
+  bind companion traffic to its authenticated surface, and queue crash-report
+  recovery until chat readiness. Native adoption and qualification remain open.
+- Verified provider quotes name the complete maximum price, billed provider and
+  shared daily budget; absent or replaced quotes refuse before consent.
+- Tasks and What's New acquisitions preserve the newest requested session and
+  drain superseded opens. Authoritative closes retire Tasks ownership before
+  reopening. Browser clipboard cancellation rejects the result and suppresses
+  late acknowledgements; an already started clipboard write cannot be undone.
+
+- Portable controllers honor contributed host readiness and host selection
+  during restore and login model warm-up, preserving session ownership fences
+  and refusing late admission after release.
+- Portable settings updates publish each conversation's own effective values;
+  root changes preserve worktree overrides, and worktree changes revoke Bypass
+  against that conversation's current permission setting.
+- Runtime engine contributions can own paid policy and accounting, Model API
+  budget/edit/attempt-host services, authentication and account facts.
+  Missing contribution groups retain the existing explicit refusals.
+- The replacement guide now states that both legacy-named MHP snapshots carry
+  1.2. Companion browser certification uses shared, owned Chrome fixtures,
+  explicit readiness and separate integrity scenarios at default deadlines.
+
+- Portable panels publish live runtime-owned settings, replace backend profiles, report failed profile construction, follow editor trust grants and revocations, and retain separate worktree stores. Selected-model records gate compaction, handoff, vision, PDFs and reasoning when supplied by a provider adapter.
+- Browser session retirement revokes old launch codes and bearers, stops their event streams and closes cancelled HTTP calls.
+- Portable attachment picking uses the shared host picker and confined reads; restored handoff dialogs and text-file parts survive reload. Typed engine/presentation factories own their actions, auxiliary views and awaited cleanup.
+
+- Portable panels retire old surface bindings on new, fork and switch, and retain active turns, imported restrictions and rich history on reload. Browser launches keep an immutable session context.
+
+- MHP 1.2 replaces the unshipped 1.1 contract. Editors initiate initialization with host metadata, locale, theme and capabilities; incompatible versions are refused by name.
+
+- Standalone settings and session activity records coordinate independent writers with versioned atomic publication; older activity cannot replace the newest restore target.
+
+- Native panel requests retain bounded, method-validated late-reply correlation after cancellation or timeout so unrelated requests keep working.
+
+- Runtime panel and ACP teardown waits for suspended controller preparation and admitted work before draining storage; concurrent releases share the same completion.
+
 ### Added
+
+- **Experimental editor-carrier integration** (M104). The joined 0.17
+  payloads use MHP 1.4, with generated native schemas for exact money inputs
+  and explicit refusal of older protocol offers. Portable auth reads account
+  facts without loading the account-process SDK. Installed editor and resource
+  parity qualifications remain open.
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or

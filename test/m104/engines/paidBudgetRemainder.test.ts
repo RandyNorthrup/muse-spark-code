@@ -6,13 +6,22 @@ import { admitJudgeCall, type JudgeDailyLedger } from '../../../src/core/judge/a
 import { createPaidDailyBudget } from '../../../src/host/vscode/paid/paidDailyBudget'
 import { createRuntimePaidBudget } from '../../../src/runtime/features/paidBudget'
 import { UI_TEXT } from '../../../src/shared/constants'
+import { Usd, type UsdAmount } from '../../../src/shared/usd'
+
+// 0.17 keeps money as exact decimal strings (CAPS017).
+const usd = (value: number): UsdAmount => Usd.from(value).toAmount()
 
 const DAY = new Date(2026, 9, 6, 12).getTime()
 
 /** One shared vector table: every row must behave identically on both ledgers. */
 const vectors = [
-  { capUsd: 0.5, settledUsd: [0.4], exactUsd: 0.1, overUsd: 0.100000001 },
-  { capUsd: 0.6, settledUsd: [0.1, 0.2], exactUsd: 0.3, overUsd: 0.300000001 },
+  { capUsd: usd(0.5), settledUsd: [usd(0.4)], exactUsd: usd(0.1), overUsd: usd(0.100000001) },
+  {
+    capUsd: usd(0.6),
+    settledUsd: [usd(0.1), usd(0.2)],
+    exactUsd: usd(0.3),
+    overUsd: usd(0.300000001),
+  },
 ] as const
 
 const roots: string[] = []
@@ -23,7 +32,7 @@ afterEach(async () => {
 })
 
 async function makeLedgers(
-  capUsd: number,
+  capUsd: UsdAmount,
 ): Promise<Record<'vscode' | 'portable', JudgeDailyLedger>> {
   const vscodeRoot = await mkdtemp(path.join(tmpdir(), 'm104-pb-vscode-'))
   const portableRoot = await mkdtemp(path.join(tmpdir(), 'm104-pb-portable-'))
@@ -72,9 +81,9 @@ describe.each(['vscode', 'portable'] as const)('%s daily ledger remainder', (kin
           consent: 'granted',
         },
         billing: { kind: 'metered', ledger },
-        estimatedInputTokens: Math.round((vector.exactUsd * 1_000_000) / 1000),
+        estimatedInputTokens: Math.round((Number(vector.exactUsd) * 1_000_000) / 1000),
         maxOutputTokens: 1,
-        priceOf: () => ({ input: 1000, cachedInput: 0, output: 0 }),
+        priceOf: () => ({ input: usd(1000), cachedInput: usd(0), output: usd(0) }),
       })
       expect(admission.admitted).toBe(true)
       if (admission.admitted) await admission.claim.refundNonSend()

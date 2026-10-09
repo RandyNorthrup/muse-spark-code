@@ -84,6 +84,7 @@ import {
   sharedModelApiBoundaries,
   englishZodLocales,
   sharedRedaction,
+  sharedHostProtocol,
 } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -287,7 +288,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [...HOST_PLUGINS],
+  plugins: [...HOST_PLUGINS, sharedHostProtocol],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -331,6 +332,7 @@ const modelApiOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -497,6 +499,7 @@ const reviewOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -519,6 +522,7 @@ const reportOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -554,6 +558,7 @@ const recorderOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -573,6 +578,7 @@ const planMarkdownOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -638,6 +644,7 @@ const whatsNewOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -699,6 +706,7 @@ const agentImportOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -738,6 +746,7 @@ const bundledSkillsOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -776,6 +785,7 @@ const conversationGitOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -805,6 +815,7 @@ const checkpointStoreOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -847,6 +858,7 @@ const browserCheckOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -866,6 +878,7 @@ const browserRuntimeOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -887,6 +900,7 @@ const acpOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     deferredTeamView,
@@ -977,6 +991,27 @@ const runtimePanelOptions = {
   banner: {},
 }
 
+const runtimeBackendServicesOptions = {
+  ...runtimePanelOptions,
+  entryPoints: ['src/runtime/panel/backendEntry.ts'],
+  outfile: 'dist/runtimeBackendServices.js',
+}
+const runtimeContextOptions = {
+  ...runtimePanelOptions,
+  entryPoints: ['src/runtime/panel/contextEntry.ts'],
+  outfile: 'dist/runtimeContext.js',
+}
+const runtimeEnginesOptions = {
+  ...runtimePanelOptions,
+  entryPoints: ['src/runtime/panel/engineEntry.ts'],
+  outfile: 'dist/runtimeEngines.js',
+}
+const runtimePresentationOptions = {
+  ...runtimePanelOptions,
+  entryPoints: ['src/host/views/runtimePresentationEntry.ts'],
+  outfile: 'dist/runtimePresentation.js',
+}
+
 const runtimePanelPortsOptions = {
   ...runtimePanelOptions,
   entryPoints: [RUNTIME_PANEL_PORTS_ENTRY],
@@ -1014,6 +1049,13 @@ const validationOptions = {
   plugins: [],
   entryPoints: [VALIDATION_ENTRY],
   outfile: VALIDATION_OUTFILE,
+}
+
+const hostProtocolOptions = {
+  ...modelApiOptions,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: ['src/shared/hostApi/hostProtocolEntry.ts'],
+  outfile: 'dist/hostProtocol.js',
 }
 
 const vaultBoundariesOptions = {
@@ -1128,6 +1170,7 @@ const portableOptions = {
   entryPoints: {
     main: PORTABLE_ENTRY,
     whatsNew: 'src/webview/whatsNew/portable.ts',
+    presentation: 'src/shared/browser/presentation.ts',
     fallbacks: FALLBACKS_ENTRY,
     bridge: BRIDGE_ENTRY,
   },
@@ -1278,6 +1321,10 @@ if (isWatch) {
     esbuild.context(conversationOptions),
     esbuild.context(runtimePanelOptions),
     esbuild.context(runtimePanelPortsOptions),
+    esbuild.context(runtimeContextOptions),
+    esbuild.context(runtimeEnginesOptions),
+    esbuild.context(runtimeBackendServicesOptions),
+    esbuild.context(runtimePresentationOptions),
     esbuild.context(tabOptions),
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
@@ -1366,6 +1413,7 @@ if (isWatch) {
       outfile: 'dist/questionNotes.js',
     }),
     esbuild.context(runtimeQuestionsOptions),
+    esbuild.context(hostProtocolOptions),
     esbuild.context(browserCheckOptions),
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
@@ -1392,6 +1440,10 @@ if (isWatch) {
     conversation: esbuild.build(conversationOptions),
     runtimePanel: esbuild.build(runtimePanelOptions),
     runtimePanelPorts: esbuild.build(runtimePanelPortsOptions),
+    runtimeContext: esbuild.build(runtimeContextOptions),
+    runtimeEngines: esbuild.build(runtimeEnginesOptions),
+    runtimeBackendServices: esbuild.build(runtimeBackendServicesOptions),
+    runtimePresentation: esbuild.build(runtimePresentationOptions),
     tab: esbuild.build(tabOptions),
     prompts: esbuild.build(promptsOptions),
     sharingRuntime: esbuild.build(sharingRuntimeOptions),
@@ -1481,6 +1533,7 @@ if (isWatch) {
     estimateContracts: esbuild.build(estimateContractsOptions),
     vaultBoundaries: esbuild.build(vaultBoundariesOptions),
     modelApiBoundaries: esbuild.build(modelApiBoundariesOptions),
+    hostProtocol: esbuild.build(hostProtocolOptions),
     browserCheck: esbuild.build(browserCheckOptions),
     browserRuntime: esbuild.build(browserRuntimeOptions),
     searchWorker: esbuild.build(searchWorkerOptions),

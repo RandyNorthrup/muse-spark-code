@@ -50,7 +50,7 @@ const call = (method: string, params: unknown, id: string | number = 1) => ({
 })
 const notification = (method: string, params: unknown) => ({ jsonrpc: '2.0', method, params })
 
-describe('MHP 1.2 boundary and native export', () => {
+describe('MHP 1.4 boundary and native export', () => {
   it('round trips initialization and a versioned atomic edit with one undo label', () => {
     expect(MHP_METHODS.initialize.direction).toBe('hostToRuntime')
     expect(MHP_METHODS.shutdown.direction).toBe('hostToRuntime')
@@ -314,7 +314,7 @@ describe('MHP 1.2 boundary and native export', () => {
     await expect(
       promisify(execFile)(
         process.execPath,
-        ['scripts/mhp-schema.mjs', '--adopt-version=mhp/1.2.0'],
+        ['scripts/mhp-schema.mjs', '--adopt-version=mhp/1.4.0'],
         { cwd: process.cwd() },
       ),
     ).rejects.toThrow('MHP_VERSION_ALREADY_ADOPTED')
@@ -330,7 +330,7 @@ describe('MHP 1.2 boundary and native export', () => {
     expect(stdout).toContain('MHP schemas match.')
     const snapshot = JSON.parse(await readFile('src/shared/hostApi/mhp-v1.schema.json', 'utf8'))
     expect(snapshot).toMatchObject({
-      protocol: 'mhp/1.2.0',
+      protocol: 'mhp/1.4.0',
       methods: {
         initialize: {
           call: {
@@ -361,7 +361,7 @@ describe('MHP negotiation and feature skeleton', () => {
   it.each([
     ['mhp/1.0.0', 'mhp/2.0.0', true],
     ['mhp/0.9.0', 'mhp/1.0.1', false],
-    ['mhp/1.2.0', 'mhp/1.3.0', true],
+    ['mhp/1.4.0', 'mhp/1.5.0', true],
     ['mhp/1.0.0', 'mhp/1.0.0', false],
     ['mhp/2.0.0', 'mhp/3.0.0', false],
     ['mhp/0.0.0', 'mhp/1.0.0', false],

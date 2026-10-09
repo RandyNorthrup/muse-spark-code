@@ -99,6 +99,7 @@ import {
   ADDITIONAL_WEBVIEW_BUDGETS,
   RESOURCE_WEBVIEW_ENTRIES,
   checkResourceWebview,
+  PORTABLE_PRESENTATION_BUDGETS,
   DEFERRED_WEBVIEW_SURFACES,
   webviewStartupOutputs,
   webviewTeamOutputs,
@@ -843,6 +844,13 @@ for (const file of readdirSync('src/core/tab')) {
     problems.push(`src/core/tab/${file} is absent from the deferred Tab inventory`)
 }
 problems.push(...checkDeferredBundles(inputsOf))
+const hostProtocol = { output: 'dist/hostProtocol.js', metafile: 'dist/meta/hostProtocol.json' }
+for (const file of ['src/shared/hostApi/methods.ts', 'src/shared/hostApi/panel.ts']) {
+  if (!inputsOf(hostProtocol).has(file))
+    problems.push(`${hostProtocol.output} no longer carries ${file}`)
+  for (const bundle of [...Object.values(BUNDLES), ...DEFERRED, ...ON_FIRST_USE])
+    if (inputsOf(bundle).has(file)) problems.push(`${bundle.output} duplicates ${file}`)
+}
 
 // ACTDIET: ACP shares the journal before session initialization or report reading.
 const acpMeta = JSON.parse(readFileSync(BUNDLES.acp.metafile, 'utf8'))
@@ -1101,7 +1109,7 @@ const TEXT_BLOCKS = [
   {
     block: 'TAB_MODEL_TEXT',
     sentinels: ['tabSystem', 'tabUserTemplate'],
-    readers: ['dist/tab.js'],
+    readers: ['dist/tab.js', 'dist/runtimeBackendServices.js'],
   },
   {
     block: 'HOOK_MODEL_TEXT',
@@ -1137,14 +1145,14 @@ const TEXT_BLOCKS = [
   {
     block: 'GIT_MODEL_TEXT',
     sentinels: ['gitCommitInstructions', 'gitPullRequestInstructions'],
-    readers: [CONVERSATION_GIT.output],
+    readers: [CONVERSATION_GIT.output, 'dist/runtimeEngines.js'],
   },
   // The review turn's text (M70): the review's bundle, the Model API's
   // built-in Reviewer. The pane's one comment template has its own block.
   {
     block: 'REVIEW_MODEL_TEXT',
     sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
-    readers: [REVIEW.output, BUNDLES.modelApi.output],
+    readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/runtimeEngines.js'],
   },
   // M116 K's charter is read through the existing lazy skills bundle only.
   {
@@ -1503,6 +1511,7 @@ const BRIDGE_ENTRIES = new Set([
   'src/webview/bridges/moduleLoader.ts',
   'src/webview/bridges/companionUi.ts',
   'src/webview/whatsNew/portable.ts',
+  'src/shared/browser/presentation.ts',
   'src/webview/whatsNew/whatsNewPage.ts',
   'src/webview/bridges/native.ts',
   'src/webview/bridges/companion.ts',
@@ -1562,6 +1571,7 @@ const visitPortable = (file) => {
 for (const entry of [
   'dist/webview/portable/main.js',
   'dist/webview/portable/whatsNew.js',
+  'dist/webview/portable/presentation.js',
   'dist/webview/portable/loader.js',
 ])
   visitPortable(entry)
@@ -1569,6 +1579,7 @@ const portableDeferredSources = [
   ...deferredWebviewSources.filter(
     (source) => !VSCODE_ONLY_WEBVIEW_SOURCES.has(source) && !USAGE_PAGE_WEBVIEW_SOURCES.has(source),
   ),
+  ...PORTABLE_PRESENTATION_BUDGETS.flatMap(({ entries }) => entries),
   ...FALLBACK_COMPONENTS.map((component) => `src/webview/fallbacks/${component}.tsx`),
   'src/webview/bridges/native.ts',
   'src/webview/bridges/companion.ts',

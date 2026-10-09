@@ -6,19 +6,14 @@ using Newtonsoft.Json.Linq;
 
 namespace MuseSpark.VisualStudio.Panel
 {
-  // Lane B/D bind this seam once the UI relay and embedded bridge are frozen.
-  // It is deliberately not encoded as an invented MHP method or frame.
+  // The WebView2 adapter talks to the schema-validated MHP 1.4 relay.
   public interface IPanelChannel : IDisposable
   {
     string DocumentBootstrap { get; }
-    event EventHandler<JToken> MessageReceived;
+    event EventHandler<JToken>? MessageReceived;
     JToken ParseWebviewMessage(string json);
     JToken ParseRuntimeMessage(JToken message);
     Task PostAsync(JToken message, CancellationToken cancellation);
   }
 
-  public interface IPanelChannelFactory
-  {
-    Task<IPanelChannel> CreateAsync(MhpPeer editorServices, string surfaceId, CancellationToken cancellation);
-  }
 }

@@ -8,6 +8,10 @@ import { UI_TEXT } from '../../../src/shared/constants'
 import { FAKE_MODEL_API_KEY } from '../../unit/helpers/fakeModelApi'
 import { FakeLogOutputChannel } from '../../unit/helpers/fakes'
 import { engineFixtures } from './fixtures'
+import { Usd, type UsdAmount } from '../../../src/shared/usd'
+
+// 0.17 keeps money as exact decimal strings (CAPS017).
+const usd = (value: number): UsdAmount => Usd.from(value).toAmount()
 
 const fixtures = engineFixtures()
 function setup(scope?: OwnedSessionBudgetScope) {
@@ -114,19 +118,19 @@ describe('F41 portable voice owner', () => {
     const settled = Promise.withResolvers<undefined>()
     const settle = vi.fn(async () => {
       await settled.promise
-      return { spentUsd: 0, hasUnknownHistoricalFees: false }
+      return { spentUsd: usd(0), hasUnknownHistoricalFees: false }
     })
     const scope: OwnedSessionBudgetScope = {
       sessionId: 'voice-fixture',
       accountId: createHash('sha256').update(FAKE_MODEL_API_KEY).digest('hex'),
-      capUsd: () => 0,
+      capUsd: () => usd(0),
       isStillAllowed: () => true,
       journal: {
         reserve: () =>
           Promise.resolve({
             claimId: 'held',
-            reservedUsd: 0,
-            check: () => ({ spentUsd: 0, hasUnknownHistoricalFees: false }),
+            reservedUsd: usd(0),
+            check: () => ({ spentUsd: usd(0), hasUnknownHistoricalFees: false }),
             settle,
           }),
         read: () => Promise.reject(new Error('fixture forbids read')),

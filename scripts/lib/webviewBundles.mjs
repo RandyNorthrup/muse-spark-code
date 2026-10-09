@@ -354,9 +354,18 @@ export function checkResourceWebview(meta) {
   return problems
 }
 
-export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {
+export const PORTABLE_PRESENTATION_BUDGETS = [
+  ['Walkthrough', 'src/webview/fallbacks/Walkthrough.tsx'],
+  ['DiffPage', 'src/webview/fallbacks/DiffPage.tsx'],
+  ['ManagerPage', 'src/webview/fallbacks/ManagerPage.tsx'],
+  ['PlanPage', 'src/webview/presentation/PlanPage.tsx'],
+  ['RoleTrafficPage', 'src/webview/presentation/RoleTrafficPage.tsx'],
+].map(([name, entry]) => ({ name, entries: [entry], budgetKiB: 5 }))
+
+export function webviewDeferredBudgetGroups(meta, questionBudgetKiB, isPortable = false) {
   meta = { ...meta, outputs: normalOutputs(meta) }
-  const eager = new Set(webviewStartupOutputs(meta))
+  const main = isPortable ? 'dist/webview/portable/main.js' : 'dist/webview/main.js'
+  const eager = new Set(webviewStartupOutputs(meta, main))
   const reachable = new Set()
   const visit = (file) => {
     if (reachable.has(file)) return
@@ -365,7 +374,7 @@ export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {
     if (output === undefined) throw new Error(`Missing webview output: ${file}`)
     for (const imported of output.imports) if (!imported.external) visit(imported.path)
   }
-  visit('dist/webview/main.js')
+  visit(main)
   const separate = new Set()
   for (const root of ['dist/webview/models.js', 'dist/webview/usage.js']) {
     if (!Object.hasOwn(meta.outputs, root)) continue
@@ -388,7 +397,10 @@ export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {
     ),
   )
   const assigned = new Set()
-  const groups = ADDITIONAL_WEBVIEW_BUDGETS.map((budget) => {
+  const groups = [
+    ...ADDITIONAL_WEBVIEW_BUDGETS,
+    ...(isPortable ? PORTABLE_PRESENTATION_BUDGETS : []),
+  ].map((budget) => {
     const roots = entries(budget.entries)
     const outputs = staticOutputs(meta, roots).filter((file) => !eager.has(file))
     // Entry-specific CSS is part of the lazy closure's cost too.

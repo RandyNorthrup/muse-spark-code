@@ -1,9 +1,20 @@
+import { paidConsentChoices } from '../../shared/portablePaid'
+import { verifiedPaidQuestion } from '../../shared/portablePaid'
+import { fill } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
+import { ACP_PAID_OPTIONS } from '../../shared/constants'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { Readable, Writable } from 'node:stream'
+import type {
+  RuntimeBackendExtensions,
+  RuntimePanelBackendContext,
+  RuntimeBackendConfiguration,
+} from './backendEntry'
+import type { RuntimeFactoryOptions } from './defaultFactories'
 import type { RuntimeBackend } from '../backends'
 import type { ServeOptions } from '../cliArgs'
 import { RuntimeSettingsStore } from '../settingsStore'
@@ -15,6 +26,8 @@ import {
   RUNTIME_PANEL,
   SETTINGS_SECTION,
   RUNTIME_PANEL_PORTS_BUNDLE_FILE,
+  RUNTIME_BACKEND_SERVICES_BUNDLE_FILE,
+  RUNTIME_ENGINES_BUNDLE_FILE,
   UI_TEXT,
 } from '../../shared/constants'
 import { MHP_METHODS, type MhpParams } from '../../shared/hostApi/methods'
@@ -41,7 +54,7 @@ import type {
   RuntimeSelectedModel,
   runtimeSettings,
 } from './runtimeFeatures'
-import { panelPortsLoader } from './panelLoader'
+import { panelPortsLoader, backendLoader, engineLoader } from './panelLoader'
 import { setUiText, uiLocale } from '../../shared/l10n/text'
 import * as z from 'zod/mini'
 import { portablePage } from './portablePage'
@@ -56,6 +69,15 @@ import { parseMhpResult } from '../../shared/hostApi/protocol'
 export interface RunPanelDeps {
   readonly options: ServeOptions
   readonly factories?: RuntimeFeatureFactories
+  readonly portable?: Pick<
+    RuntimeFactoryOptions,
+    'version' | 'hasStoredKey' | 'engineOptions' | 'presentationOptions' | 'pages'
+  > &
+    Pick<RuntimePanelBackendContext, 'env' | 'homeDir' | 'platform'>
+  readonly backendConfiguration?: (
+    context: RuntimePanelBackendContext,
+  ) => RuntimeBackendConfiguration
+  readonly backendExtensions?: (context: RuntimePanelBackendContext) => RuntimeBackendExtensions
   readonly modelCapabilities?: (
     runtime: RuntimeBackend,
     modelId: string,
@@ -64,6 +86,7 @@ export interface RunPanelDeps {
     options: ServeOptions,
     settings: ExtensionSettings,
     root: string,
+    extensions?: RuntimeBackendExtensions,
   ) => Promise<RuntimeBackend>
   readonly loadLanguage?: (locale: string) => Promise<UiTable>
   readonly transport: 'stdio' | 'companion'
@@ -85,9 +108,30 @@ function unsupported(): never {
   })
 }
 
+/**
+ * Companion closes have one serialized owner. Retire every page of a
+ * replaced session here, while the registry still holds it, and hand each
+ * surface to its feature owner so release-time cleanup finds nothing
+ * orphaned to close past conversation cancellation.
+ */
+export function retireCompanionPages(
+  pages: Map<string, { binding: MhpPanelBinding; html?: string; nonce?: string }>,
+  retireContext: ((id: string) => void) | undefined,
+  closed: Set<(id: string) => void>,
+  sessionId: string,
+): void {
+  for (const [id, page] of pages)
+    if (page.binding.sessionId === sessionId) {
+      retireContext?.(id)
+      pages.delete(id)
+      for (const listener of closed) listener(page.binding.surface)
+    }
+}
+
 /** Native carriers use stdout; companion browser traffic is bound to an authenticated window. */
 export async function runPanel(deps: RunPanelDeps): Promise<number> {
   const { log, input, output } = deps
+  let profileGeneration = 0
   let runtime = deps.runtime
   let isTrusted = deps.options.trustWorkspace
   let options = deps.options
@@ -102,6 +146,10 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
   const publishedSettings = new WeakMap<RuntimeConversation, string>()
   const roots = new WeakMap<RuntimeConversation, string>()
   const sides = new WeakSet<RuntimeConversation>()
+  const surfaceClosed = new Set<(id: string) => void>()
+  const paidOwners = new Map<string, RuntimeConversation>()
+  const selectedModels = new Map<string, RuntimeSelectedModel>()
+  const workspaceSettings = new Map<string, Awaited<ReturnType<typeof runtimeSettings>>>()
   const registry = new ControllerRegistry<RuntimeConversation>(log)
   const browsers = new Map<
     string,
@@ -120,6 +168,11 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
   let selectionBytes = 0
   const documents = new Map<string, MhpParams<'documents/didChange'>['document']>()
   const documentBytes = new Map<string, number>()
+  const companionPages = new Map<
+    string,
+    { binding: MhpPanelBinding; html?: string; nonce?: string }
+  >()
+  const deferredOpen = new Set<ReturnType<typeof setImmediate>>()
   let companion: Awaited<ReturnType<typeof startCompanionServer>> | undefined
   let theme: MhpParams<'initialize'>['theme'] | undefined
   let exitCode = 0
@@ -143,7 +196,7 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
       initialize: async (params, signal) => {
         theme = params.theme
         signal.throwIfAborted()
-        isTrusted = params.trusted
+        isTrusted = params.trusted && deps.options.trustWorkspace
         const folder = params.folders[0]
         root = await realpath(folder === undefined ? deps.defaultCwd : fileURLToPath(folder.uri))
         if (root !== (await realpath(deps.defaultCwd)))
@@ -170,6 +223,9 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
         settings.onChanged((keys) => {
           applySettings(() => settingsChanged(keys))
         })
+      },
+      surfaceClosed: (binding) => {
+        for (const listener of surfaceClosed) listener(binding.surface)
       },
       initialized: () => {
         opening = (async () => {
@@ -223,7 +279,8 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
         switch (method) {
           case 'workspace/didChangeTrust':
           case 'workspace/didGrantTrust': {
-            const isNextTrusted = MHP_METHODS[method].params.parse(value).trusted
+            const isNextTrusted =
+              MHP_METHODS[method].params.parse(value).trusted && deps.options.trustWorkspace
             if (isNextTrusted === isTrusted) break
             isTrusted = isNextTrusted
             const stopping = [...registry.controllers()].map(async (held) => {
@@ -368,11 +425,155 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
         throw new Error('MHP_RUNTIME_CONFIGURATION_UNAVAILABLE')
       return
     }
+    const generation = ++profileGeneration
     await runtime.close()
     ending.signal.throwIfAborted()
-    runtime = await deps.configureRuntime(options, current, root)
+    const owner = new AbortController()
+    ending.signal.addEventListener(
+      'abort',
+      () => {
+        owner.abort()
+      },
+      { once: true },
+    )
+    const context: RuntimePanelBackendContext | undefined =
+      deps.portable === undefined
+        ? undefined
+        : {
+            host: peer,
+            dataRoot: deps.dataRoot,
+            distDir: path.dirname(deps.conversationBundle),
+            platform: deps.portable.platform,
+            env: deps.portable.env,
+            homeDir: deps.portable.homeDir,
+            settings: (workspaceRoot) => {
+              if (workspaceRoot === root) return requireSettings().current()
+              const prepared = workspaceSettings.get(workspaceRoot)
+              if (prepared !== undefined) return prepared.current()
+              for (const held of registry.controllers())
+                if (roots.get(held) === workspaceRoot)
+                  return conversationSettings.get(held)?.current() ?? unsupported()
+              return unsupported()
+            },
+            trusted: () => isTrusted,
+            documents: () => {
+              const snapshot: MhpParams<'documents/didChange'>['document'][] = []
+              documents.forEach((document) => {
+                snapshot.push(document)
+              })
+              return snapshot
+            },
+            selectedModel: (workspaceRoot) => {
+              const record = selectedModels.get(workspaceRoot)
+              if (record === undefined) return
+              for (const held of registry.controllers())
+                if (roots.get(held) === workspaceRoot && record.modelId !== held.modelId) return
+              return record
+            },
+            assertCurrent: () => {
+              owner.signal.throwIfAborted()
+              if (generation !== profileGeneration) throw new Error('MHP_RUNTIME_PROFILE_RETIRED')
+            },
+            onCheckpointAvailabilityChanged: () => {
+              for (const held of registry.controllers())
+                held.controller?.checkpointAvailabilityChanged()
+            },
+            log,
+          }
+    const configuration = context === undefined ? undefined : deps.backendConfiguration?.(context)
+    const configured =
+      configuration === undefined || context === undefined
+        ? undefined
+        : backendLoader({
+            bundlePath: path.join(context.distDir, RUNTIME_BACKEND_SERVICES_BUNDLE_FILE),
+            log,
+          })().createConfiguredPanelBackend(configuration, UI_TEXT, uiLocale())
+    const extensions =
+      context === undefined
+        ? undefined
+        : {
+            ...backendLoader({
+              bundlePath: path.join(context.distDir, RUNTIME_BACKEND_SERVICES_BUNDLE_FILE),
+              log,
+            })().createPanelBackendOptions(context, UI_TEXT, uiLocale()),
+            ...configured?.extensions,
+            ...deps.backendExtensions?.(context),
+          }
+    try {
+      runtime = await deps.configureRuntime(options, current, root, extensions)
+    } catch (error: unknown) {
+      await configured?.disposeAfterBackend()
+      throw error
+    }
+    if (configured !== undefined) {
+      const backend = runtime
+      let closing: Promise<void> | undefined
+      runtime = {
+        ...backend,
+        close: () => {
+          closing ??= (async () => {
+            try {
+              await backend.close()
+            } finally {
+              await configured.disposeAfterBackend()
+            }
+          })()
+          return closing
+        },
+      }
+    }
     ending.signal.throwIfAborted()
     await runtime.forgetUnflaggedGrants()
+    runtime.paid.attach(async (ownerId, request, canRemember) => {
+      // The standalone panel needs a verified quote and the configured hard ledger before any consent.
+      if (deps.portable !== undefined && configured?.quote === undefined) return 'deny'
+      const held = registry.held(ownerId) ?? paidOwners.get(ownerId)
+      if (held === undefined || held.isReleased || registry.held(held.sessionId) !== held)
+        return 'deny'
+      const workspaceRoot = roots.get(held)
+      const settings = conversationSettings.get(held)
+      if (workspaceRoot === undefined || settings === undefined) return 'deny'
+      const budget = settings.current().paidDailyBudgetUsd
+      const question =
+        configured?.quote === undefined
+          ? {
+              ...(await panelPortsLoader({
+                bundlePath: path.join(
+                  path.dirname(deps.conversationBundle),
+                  RUNTIME_PANEL_PORTS_BUNDLE_FILE,
+                ),
+                log,
+              })()
+                .createRuntimePanelPorts(UI_TEXT, uiLocale())
+                .paidUseQuestion(request)),
+              isCurrent: () => generation === profileGeneration,
+            }
+          : verifiedPaidQuestion(
+              request,
+              configured.quote(workspaceRoot, held.sessionId, request),
+              budget,
+            )
+      if (!question?.isCurrent()) return 'deny'
+      const signal = AbortSignal.any([owner.signal, held.signal])
+      const params = {
+        title: question.title,
+        message: `${question.detail}\n\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(budget, 2) })}`,
+        choices: paidConsentChoices(canRemember),
+      }
+      const answer =
+        deps.transport === 'companion'
+          ? await browserUi('ui/confirm', params, signal)
+          : await peer.request('ui/confirm', params, signal)
+      signal.throwIfAborted()
+      if (
+        generation !== profileGeneration ||
+        !question.isCurrent() ||
+        registry.held(held.sessionId) !== held
+      )
+        return 'deny'
+      if (answer === ACP_PAID_OPTIONS.allowOnce) return 'once'
+      return canRemember && answer === ACP_PAID_OPTIONS.allowAlways ? 'always' : 'deny'
+    })
   }
   async function settingsChanged(keys: readonly string[]): Promise<void> {
     for (const held of registry.controllers()) await publishHeldSettings(held)
@@ -407,6 +608,17 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
       browsers.delete(id)
     }
     companion?.retireContext(sessionId)
+    const owner = companion
+    retireCompanionPages(
+      companionPages,
+      owner === undefined
+        ? undefined
+        : (id) => {
+            owner.retireContext(id)
+          },
+      surfaceClosed,
+      sessionId,
+    )
     if (deps.transport === 'stdio')
       for (const binding of retired)
         await peer.request('surfaces/close', { surfaceId: binding.surface }, ending.signal)
@@ -456,6 +668,7 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
     const contextSettings =
       workspaceRoot === root ? requireSettings() : await features.runtimeSettings(contextStore, log)
     ownedSettings.add(contextSettings)
+    workspaceSettings.set(workspaceRoot, contextSettings)
     const owningRuntime = runtime
     const readiness = await owningRuntime.backend.readiness(false)
     if (readiness.state !== 'ready') throw new Error(readiness.message)
@@ -504,12 +717,49 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
           exitCode = 1
           peer.close()
         }),
-      (controller) =>
-        controller.prepare(
+      (controller) => {
+        let factories = deps.factories
+        if (factories === undefined && deps.portable !== undefined) {
+          factories = engineLoader({
+            bundlePath: path.join(
+              path.dirname(deps.conversationBundle),
+              RUNTIME_ENGINES_BUNDLE_FILE,
+            ),
+            log,
+          })().createRuntimeFactories({
+            ...deps.portable,
+            distDir: path.dirname(deps.conversationBundle),
+            dataRoot: deps.dataRoot,
+            prepareHtml: async (binding, html, nonce) => {
+              if (theme === undefined) return unsupported()
+              const assets = await portablePage(
+                path.join(path.dirname(deps.conversationBundle), 'webview', 'portable'),
+                theme,
+              )
+              return assets.decorate(
+                binding,
+                html,
+                nonce,
+                deps.transport === 'companion' ? 'companion' : 'native',
+              )
+            },
+            onSurfaceClosed: (listener) => {
+              surfaceClosed.add(listener)
+              return () => {
+                surfaceClosed.delete(listener)
+              }
+            },
+          })
+        }
+        paidOwners.set(controller.sessionId, controller)
+        return controller.prepare(
           {
             host: {
               async request(method, params, signal) {
-                signal?.throwIfAborted()
+                // Cleanup outlives conversation cancellation, but never the carrier.
+                const ownerSignal = method === 'surfaces/close' ? ending.signal : controller.signal
+                signal = signal === undefined ? ownerSignal : AbortSignal.any([signal, ownerSignal])
+                signal.throwIfAborted()
                 const capability = MHP_METHODS[method].capability
                 if (capability === 'settings' || capability === 'storage') {
                   if (method === 'settings/update' && workspaceRoot !== root) {
@@ -524,12 +774,18 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
                   return parseMhpResult(method, { jsonrpc: MHP.jsonRpcVersion, id: 1, result })
                     .result
                 }
+                if (deps.transport === 'companion' && MHP_METHODS[method].capability === 'surfaces')
+                  return parseMhpResult(method, {
+                    jsonrpc: MHP.jsonRpcVersion,
+                    id: 1,
+                    result: await companionSurface(method, params, controller.sessionId, signal),
+                  }).result
                 const ui = fallbackUiMethodSchema.safeParse(method)
                 if (deps.transport === 'companion' && ui.success)
                   return parseMhpResult(method, {
                     jsonrpc: MHP.jsonRpcVersion,
                     id: 1,
-                    result: await browserUi(ui.data, params, signal ?? ending.signal),
+                    result: await browserUi(ui.data, params, signal),
                   }).result
                 return await peer.request(method, params, signal)
               },
@@ -543,6 +799,7 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
             settings: contextSettings,
             workspaceRoot,
             isSideChat,
+            ownsPaidConsent: false,
             controllers: () => allControllers(),
             runGit: deps.runGit,
             selection: () => selection,
@@ -558,13 +815,14 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
               await retire(previousId)
               await openSurface(sessionId)
             },
-            ...(deps.factories !== undefined && { factories: deps.factories }),
+            ...(factories !== undefined && { factories }),
             ...(deps.modelCapabilities !== undefined && {
               selectedModel: async () => {
                 const modelId = controller.modelId
                 const record = await deps.modelCapabilities?.(owningRuntime, modelId)
                 if (record?.modelId !== controller.modelId)
                   throw new Error('MHP_MODEL_SELECTION_CHANGED')
+                selectedModels.set(workspaceRoot, record)
                 return record
               },
             }),
@@ -589,7 +847,8 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
           loaded,
           deps.conversationBundle,
           features.runtimeConversationDeps,
-        ),
+        )
+      },
     )
     roots.set(adopted, workspaceRoot)
     conversationSettings.set(adopted, contextSettings)
@@ -640,10 +899,18 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
     let found = browsers.get(id)
     if (found === undefined) {
       const delivery = new PanelDelivery()
-      const surfaces = new PanelSurfaces(delivery, lookup, log, () => {
-        exitCode = 1
-        peer.close()
-      })
+      const surfaces = new PanelSurfaces(
+        delivery,
+        lookup,
+        log,
+        () => {
+          exitCode = 1
+          peer.close()
+        },
+        (binding) => {
+          for (const listener of surfaceClosed) listener(binding.surface)
+        },
+      )
       found = { delivery, surfaces, ui: new PanelUiRequests(delivery) }
       browsers.set(id, found)
     }
@@ -667,6 +934,74 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
       : await owner.ui.request(method, MHP_METHODS[method].params.parse(value), signal)
   }
 
+  async function companionSurface(
+    method: string,
+    value: unknown,
+    sessionId: string,
+    signal: AbortSignal,
+  ): Promise<unknown> {
+    signal.throwIfAborted()
+    const owner = companion
+    if (owner === undefined || registry.held(sessionId) === undefined) return unsupported()
+    if (method === 'surfaces/open') {
+      const params = MHP_METHODS['surfaces/open'].params.parse(value)
+      if (params.sessionId !== sessionId || companionPages.size >= MHP_PANEL.maximumQueuedMessages)
+        return unsupported()
+      const surface = randomUUID()
+      const binding = { surface, sessionId, surfaceKind: params.kind }
+      companionPages.set(surface, { binding })
+      // Adoption finishes before the next task. HTML surfaces wait for their actual publication.
+      if (params.kind !== 'whatsNew') {
+        const task = setImmediate(() => {
+          deferredOpen.delete(task)
+          if (!signal.aborted && companionPages.has(surface))
+            void peer
+              .request('ui/openExternal', { uri: owner.launchUrl(surface) }, signal)
+              .catch(() => {
+                owner.retireContext(surface)
+                companionPages.delete(surface)
+                for (const listener of surfaceClosed) listener(surface)
+                log.warn('MHP_PANEL_OPEN_FAILED')
+              })
+        })
+        deferredOpen.add(task)
+      }
+      return { surfaceId: surface }
+    }
+    const { surfaceId } = MHP_METHODS['surfaces/close'].params.parse(
+      method === 'surfaces/presentHtml'
+        ? { surfaceId: MHP_METHODS['surfaces/presentHtml'].params.parse(value).surfaceId }
+        : value,
+    )
+    const page = companionPages.get(String(surfaceId))
+    if (page?.binding.sessionId !== sessionId) return unsupported()
+    if (method === 'surfaces/presentHtml') {
+      const params = MHP_METHODS['surfaces/presentHtml'].params.parse(value)
+      if (params.sessionId !== sessionId || page.binding.surfaceKind !== 'whatsNew')
+        return unsupported()
+      const nonce =
+        /<script nonce="([^"<>]+)" src="\/assets\/portable\/loader.js"><\/script>/u.exec(
+          params.html,
+        )?.[1]
+      if (nonce === undefined) return unsupported()
+      page.html = params.html
+      page.nonce = nonce
+      await peer.request('ui/openExternal', { uri: owner.launchUrl(String(surfaceId)) }, signal)
+      return null
+    }
+    if (method === 'surfaces/close') {
+      owner.retireContext(String(surfaceId))
+      companionPages.delete(String(surfaceId))
+      for (const listener of surfaceClosed) listener(String(surfaceId))
+      return null
+    }
+    if (method === 'surfaces/focus') {
+      await peer.request('ui/openExternal', { uri: owner.launchUrl(String(surfaceId)) }, signal)
+      return null
+    }
+    return unsupported()
+  }
+
   async function openInitialSurface(): Promise<void> {
     if (conversation === undefined) return unsupported()
     await openSurface(conversation.sessionId)
@@ -682,6 +1017,9 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
       })
       return
     }
+    companionPages.set(sessionId, {
+      binding: { surface: randomUUID(), sessionId, surfaceKind: 'chat' },
+    })
     if (companion !== undefined) {
       await peer.request('ui/openExternal', { uri: companion.launchUrl(sessionId) })
       return
@@ -703,6 +1041,19 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
         subscribe: (id, emit) => browser(id).ui.connect(emit),
       },
       handler: {
+        isBindingAllowed: (value, context) => {
+          const expected = context === undefined ? undefined : companionPages.get(context)?.binding
+          if (expected === undefined) return false
+          const lifecycle = panelLifecycleSchema.safeParse(value)
+          if (lifecycle.success)
+            return (
+              lifecycle.data.surface === expected.surface &&
+              lifecycle.data.sessionId === expected.sessionId &&
+              lifecycle.data.surfaceKind === expected.surfaceKind
+            )
+          const frame = panelEnvelopeSchema.safeParse(value)
+          return frame.success && frame.data.surface === expected.surface
+        },
         inputSchema: panelEnvelopeSchema,
         outputSchema: z.union([
           panelEnvelopeSchema.check(z.refine((frame) => frame.direction === 'toPanel')),
@@ -744,12 +1095,14 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
       signal: ending.signal,
       assets: page.assets,
       renderPage: (nonce, context) => {
-        if (context === undefined || registry.held(context) === undefined)
+        const owned = context === undefined ? undefined : companionPages.get(context)
+        if (owned === undefined || registry.held(owned.binding.sessionId) === undefined)
           throw new Error('MHP_SESSION_NOT_FOUND')
-        return page.render(
-          { surface: randomUUID(), sessionId: context, surfaceKind: 'chat' },
-          nonce,
-        )
+        return owned.html !== undefined && owned.nonce !== undefined
+          ? owned.html
+              .replaceAll(`nonce="${owned.nonce}"`, () => `nonce="${nonce}"`)
+              .replaceAll(`nonce-${owned.nonce}`, () => `nonce-${nonce}`)
+          : page.render(owned.binding, nonce)
       },
     })
     void companion.closed.then(() => {
@@ -758,7 +1111,8 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
     await peer.request('ui/openExternal', { uri: companion.launchUrl(sessionId) })
   }
 
-  let buffer = Buffer.alloc(0)
+  let capacity = Buffer.alloc(0)
+  let buffer = capacity
   let isReading = false
   const pump = () => {
     if (isReading) return
@@ -807,7 +1161,20 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
       fail()
       return
     }
-    buffer = Buffer.concat([buffer, chunk])
+    if (buffer.length === 0) buffer = capacity.subarray(0, 0)
+    let offset = buffer.byteOffset - capacity.byteOffset
+    const length = buffer.length + chunk.length
+    if (capacity.length - offset < length) {
+      // Geometric growth copies a fragmented frame logarithmically, inside the same byte cap.
+      const next = Buffer.allocUnsafe(
+        Math.min(MHP_PANEL.maximumQueuedBytes, Math.max(capacity.length * 2, length)),
+      )
+      buffer.copy(next)
+      capacity = next
+      offset = 0
+    }
+    chunk.copy(capacity, offset + buffer.length)
+    buffer = capacity.subarray(offset, offset + length)
     pump()
   }
   const fail = () => {
@@ -837,6 +1204,8 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
     input.off('data', data).off('end', end).off('error', fail).pause()
     output.off('drain', drain).off('error', fail).off('close', fail)
     process.off('SIGINT', onSignal).off('SIGTERM', onSignal)
+    for (const task of deferredOpen) clearImmediate(task)
+    deferredOpen.clear()
     for (const owner of browsers.values()) {
       owner.surfaces.close()
       owner.ui.close()

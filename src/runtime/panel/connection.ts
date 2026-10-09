@@ -35,6 +35,7 @@ export interface PanelConnectionPorts {
   notify(method: MhpNotificationMethod, params: unknown): void
   initialize(params: MhpParams<'initialize'>, signal: AbortSignal): Promise<void>
   view(binding: MhpPanelBinding): PanelView | undefined
+  surfaceClosed?(binding: MhpPanelBinding): void
   initialized?(): void
   closed(isFatal: boolean): void
 }
@@ -63,6 +64,8 @@ export class PanelConnection implements HostServices {
   private isInitializing = false
   private isClosed = false
   private nextId = 1
+  private panelBarrier: ReturnType<typeof setImmediate> | undefined
+  private readonly queuedPanels: { value: unknown; release: () => void }[] = []
 
   public readonly delivery = new PanelDelivery()
   public readonly surfaces: PanelSurfaces
@@ -78,6 +81,7 @@ export class PanelConnection implements HostServices {
       () => {
         this.close(true)
       },
+      (binding) => ports.surfaceClosed?.(binding),
     )
   }
 
@@ -106,6 +110,34 @@ export class PanelConnection implements HostServices {
       this.log.error('MHP_FATAL_BACKPRESSURE')
       this.close(true)
     }
+  }
+
+  private panel(value: unknown): void {
+    if (this.panelBarrier !== undefined) {
+      const release = this.delivery.reserve(
+        new TextEncoder().encode(JSON.stringify(value)).byteLength,
+      )
+      this.queuedPanels.push({ value, release })
+      return
+    }
+    try {
+      const header = z.object({ kind: z.enum(['panel', 'surface']) }).parse(value)
+      if (header.kind === 'panel') this.surfaces.message(value)
+      else this.surfaces.lifecycle(value)
+    } catch (error: unknown) {
+      if (error instanceof MhpPanelError) this.emit(error.frame)
+      else this.close(true)
+    }
+  }
+
+  private afterSurfaceResult(): void {
+    this.panelBarrier ??= setImmediate(() => {
+      this.panelBarrier = undefined
+      for (const job of this.queuedPanels.splice(0)) {
+        job.release()
+        if (!this.isClosed) this.panel(job.value)
+      }
+    })
   }
 
   public async request<M extends MhpRequestMethod>(
@@ -231,13 +263,7 @@ export class PanelConnection implements HostServices {
         .object({ mhp: z.literal(MHP_PANEL.wireVersion), kind: z.enum(['panel', 'surface']) })
         .safeParse(raw)
       if (panelHeader.success && this.isInitialized) {
-        try {
-          if (panelHeader.data.kind === 'panel') this.surfaces.message(raw)
-          else this.surfaces.lifecycle(raw)
-        } catch (error: unknown) {
-          if (error instanceof MhpPanelError) this.emit(error.frame)
-          else this.close()
-        }
+        this.panel(raw)
         return
       }
       const pendingMethod = pending?.method ?? retired
@@ -262,14 +288,8 @@ export class PanelConnection implements HostServices {
         this.emit(failure(null, MHP_ERROR_CODES.invalidRequest, 'MHP_NOT_INITIALIZED'))
         return
       }
-      try {
-        if (frame.kind === 'panel') this.surfaces.message(frame)
-        else if (frame.kind === 'surface') this.surfaces.lifecycle(frame)
-        else this.log.warn(frame.code)
-      } catch (error: unknown) {
-        if (error instanceof MhpPanelError) this.emit(error.frame)
-        else this.close()
-      }
+      if (frame.kind === 'panel' || frame.kind === 'surface') this.panel(frame)
+      else this.log.warn(frame.code)
       return
     }
     if ('result' in frame || 'error' in frame) {
@@ -284,7 +304,10 @@ export class PanelConnection implements HostServices {
       }
       this.pending.delete(id)
       if ('error' in frame) pending.reject(new MhpServiceError(frame))
-      else pending.resolve(frame)
+      else {
+        if (pending.method === 'surfaces/open') this.afterSurfaceResult()
+        pending.resolve(frame)
+      }
       return
     }
     const callId = 'id' in frame ? idSchema.parse(frame.id) : null
@@ -436,6 +459,9 @@ export class PanelConnection implements HostServices {
   }
 
   public close(isFatal = false): void {
+    if (this.panelBarrier !== undefined) clearImmediate(this.panelBarrier)
+    this.panelBarrier = undefined
+    for (const job of this.queuedPanels.splice(0)) job.release()
     if (this.isClosed) return
     this.isClosed = true
     this.surfaces.close()

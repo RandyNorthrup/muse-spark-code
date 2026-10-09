@@ -8,7 +8,7 @@ import type { JudgeDailyLedger } from '../../core/judge/admission'
 import { PAID_DAILY_BUDGET, UI_TEXT } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
-import { Usd, legacyUsdSchema, type UsdAmount } from '../../shared/usd'
+import { Usd, usdAmountSchema, legacyUsdSchema, type UsdAmount } from '../../shared/usd'
 
 // The same record the VS Code ledger reads: a historical number or an exact string.
 const limitRecord = z.strictObject({
@@ -103,7 +103,7 @@ export function createRuntimePaidBudget(
     track(async () => {
       const scope = day()
       guard(scope, signal)
-      if (Usd.from(costUsd).compare(Usd.from(0)) < 0)
+      if (!usdAmountSchema.safeParse(costUsd).success || Usd.from(costUsd).compare(Usd.from(0)) < 0)
         throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
       const claim = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, costUsd)
       const check = () => claim.check(guard(scope, signal))

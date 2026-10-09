@@ -70,7 +70,7 @@ async function mount(): Promise<void> {
 /**
  * The chat app's bridge over the MHP panel wire. The wire carries the shared
  * chat payloads only: the estimator's lazy channel (M117) and team-tree
- * actions are not MHP 1.3 panel payloads, so they are refused here, before
+ * actions are not MHP 1.4 panel payloads, so they are refused here, before
  * the wire codec. An estimator request is answered at once the way VS Code
  * answers when its estimator boundary is unavailable, so no run waits on a
  * reply that cannot come; anything else off the wire throws as the codec does.

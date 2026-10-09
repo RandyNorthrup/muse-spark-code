@@ -59,6 +59,10 @@ const BUDGETS = [
   // M104 B2: carrier/runtime ports on the panel command; existing ACP cap stays 850.
   { path: 'dist/runtimePanel.js', budgetKiB: 100 },
   { path: 'dist/runtimePanelPorts.js', budgetKiB: 75 },
+  { path: 'dist/runtimeContext.js', budgetKiB: 50 },
+  { path: 'dist/runtimeEngines.js', budgetKiB: 150 },
+  { path: 'dist/runtimeBackendServices.js', budgetKiB: 200 },
+  { path: 'dist/runtimePresentation.js', budgetKiB: 50 },
   // M94: provider, engine and ledger on first Tab use (PLAN.md D6).
   { path: 'dist/tab.js', budgetKiB: 75 },
   // M118: portable stores, native/panel adapters and chat renderer: 163.4 KiB + 15%, rounded to 25 KiB.
@@ -250,6 +254,7 @@ const BUDGETS = [
   // KiB. M115W: the main protocol carries the v2 surface's validated draft
   // and targets, 55.5 KiB measured, plus 15%, rounded up to 25 KiB.
   { path: 'dist/wire.js', budgetKiB: 75 },
+  { path: 'dist/hostProtocol.js', budgetKiB: 50 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // M101: pure raster worker, 58.7 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/imageResizeWorker.js', budgetKiB: 75 },
@@ -403,4 +408,19 @@ console.log(
 if (hasFailure) {
   console.error('bundle size budget exceeded or a bundle is missing; see PLAN.md section 2 (D6)')
   process.exit(1)
+}
+
+const portableGroups = webviewDeferredBudgetGroups(
+  JSON.parse(readFileSync('dist/meta/portable.json', 'utf8')),
+  QUESTION_UI_BUDGET_KIB,
+  true,
+)
+for (const group of portableGroups) {
+  if (['deferred JS', 'code highlighting', 'action dialogs', 'tasks tab'].includes(group.name))
+    continue
+  const bytes = group.outputs.reduce((sum, file) => sum + statSync(file).size, 0)
+  if (bytes > group.budgetKiB * BYTES_PER_KIB) process.exitCode = 1
+  console.log(
+    `${bytes > group.budgetKiB * BYTES_PER_KIB ? 'FAIL' : 'ok  '} portable ${group.name}: ${(bytes / BYTES_PER_KIB).toFixed(1)} / ${String(group.budgetKiB)} KiB`,
+  )
 }

@@ -113,6 +113,7 @@ beforeAll(async () => {
     'dist/media.js',
     'dist/screenRecord.js',
     'dist/uiTextMedia.js',
+    'dist/hostProtocol.js',
     'dist/webview/main.js',
     'dist/webview/main.css',
     'dist/webview/models.js',
@@ -333,6 +334,7 @@ describe('VSIX packaging', () => {
         'dist/media.js',
         'dist/screenRecord.js',
         'dist/uiTextMedia.js',
+        'dist/hostProtocol.js',
         'dist/webview/chunks/UsageDialog-test.js',
         'native/linux/x64/muse-created',
         'native/linux/arm64/muse-created',
@@ -655,9 +657,9 @@ describe('VSIX packaging', () => {
     expect(shipped).not.toContain('{version}')
     expect(shipped).not.toContain('badgen.net/vs-marketplace/v/')
   })
-  it(
-    'checks exact staged bytes and rejects a staged README or manifest version mismatch',
-    () => {
+  it.each(['valid', 'readme', 'manifest'])(
+    'checks exact staged bytes for the %s version case',
+    (scenario) => {
       const readme = path.join(fixture.stage, 'README.md')
       const manifest = path.join(fixture.stage, 'package.json')
       const originalReadme = readFileSync(readme)
@@ -674,16 +676,19 @@ describe('VSIX packaging', () => {
             stdio: 'pipe',
           },
         )
-      expect(check()).toContain('network skipped: fake-only staged fixture')
       try {
-        writeFileSync(
-          readme,
-          originalReadme.toString().replace(`Marketplace-v${version}`, 'Marketplace-v0.0.0'),
-        )
-        expect(check).toThrow('version mismatch')
-        writeFileSync(readme, originalReadme)
-        writeFileSync(manifest, JSON.stringify({ version: '0.0.0' }))
-        expect(check).toThrow('Staged manifest version mismatch')
+        if (scenario === 'valid')
+          expect(check()).toContain('network skipped: fake-only staged fixture')
+        else if (scenario === 'readme') {
+          writeFileSync(
+            readme,
+            originalReadme.toString().replace(`Marketplace-v${version}`, 'Marketplace-v0.0.0'),
+          )
+          expect(check).toThrow('version mismatch')
+        } else {
+          writeFileSync(manifest, JSON.stringify({ version: '0.0.0' }))
+          expect(check).toThrow('Staged manifest version mismatch')
+        }
       } finally {
         writeFileSync(readme, originalReadme)
         writeFileSync(manifest, originalManifest)

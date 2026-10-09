@@ -12,7 +12,11 @@ import {
   sanitizeImportedSession,
 } from '../../../src/core/export/sessionTransfer'
 import { readTransferDocument } from '../../../src/host/conversation/sessionImport'
-import { UI_TEXT, SESSION_EXPORT_MAX_BYTES } from '../../../src/shared/constants'
+import {
+  CONVERSATION_MODEL_TEXT,
+  UI_TEXT,
+  SESSION_EXPORT_MAX_BYTES,
+} from '../../../src/shared/constants'
 
 const fixtures = engineFixtures()
 
@@ -80,13 +84,17 @@ describe('portable picked session transfer', () => {
       const parsed = readTransferDocument(picked.content)
       expect(parsed.ok).toBe(true)
       if (!parsed.ok) throw new Error('export did not parse')
-      const imported = sanitizeImportedSession(parsed.doc, {
-        sessionId: 'fresh',
-        workspaceRoot: path.dirname(target),
-        approvalMode: 'promptUnmatched',
-        modelId: 'selected-model',
-        now: '2026-10-06T01:00:00.000Z',
-      })
+      const imported = sanitizeImportedSession(
+        parsed.doc,
+        {
+          sessionId: 'fresh',
+          workspaceRoot: path.dirname(target),
+          approvalMode: 'promptUnmatched',
+          modelId: 'selected-model',
+          now: '2026-10-06T01:00:00.000Z',
+        },
+        CONVERSATION_MODEL_TEXT,
+      )
       expect(imported.sessionId).toBe('fresh')
       expect(imported.modelId).toBe('selected-model')
       expect(imported.approvalMode).toBe('promptUnmatched')

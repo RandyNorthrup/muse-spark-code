@@ -146,6 +146,12 @@ export const EN = {
   openUsagePage: 'Open usage page',
   acpUsageDescription: 'Show usage and cost across models, or open the usage page.',
   // M104 PA: React fallbacks for portable panels, and the Xcode companion.
+  paidProviderUseDetail:
+    '{subject}\n\nUp to {price} for this use, billed to your {provider} key. Shared daily budget: {budget}. Your subscription does not pay for this use.',
+  presentationRolesTitle: 'Roles',
+  presentationTrafficTitle: 'Message traffic',
+  presentationRulesTitle: 'Rules',
+  presentationAgentsTitle: 'Custom agents',
   fallbackContinue: 'Continue',
   fallbackNoMatches: 'No matching items',
   fallbackNotifications: 'Notifications',

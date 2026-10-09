@@ -38,7 +38,7 @@ async function rig(
           minimum: MHP_PANEL.version,
           maximumExclusive: MHP_PANEL.maximumVersionExclusive,
         },
-        capabilities: ['lifecycle', 'ui', 'settings'],
+        capabilities: ['lifecycle', 'ui', 'settings', 'surfaces'],
         locale: 'en',
         theme: { kind: 'dark', tokens: {} },
         folders: [],
@@ -165,8 +165,8 @@ describe('native request correlation', () => {
 
 it.each([
   ['mhp/1.0.0', 'mhp/1.1.0'],
-  ['mhp/1.1.0', 'mhp/1.2.0'],
-  ['mhp/1.3.0', 'mhp/3.0.0'],
+  ['mhp/1.1.0', 'mhp/1.4.0'],
+  ['mhp/1.5.0', 'mhp/3.0.0'],
   ['mhp/2.0.0', 'mhp/3.0.0'],
 ])(
   'refuses unsupported version %s with the named negotiation error',
@@ -259,4 +259,52 @@ it('bounds cancelled adapter work until its actual completion, even with shared 
   pending.resolve({ value: false })
   await t.peer.settled()
   t.peer.close()
+})
+
+function noSubscription(): void {
+  /* The ordering fixture emits no state. */
+}
+
+describe('auxiliary surface adoption ordering', () => {
+  it('adopts the awaited open result before lifecycle and readiness from the same batch', async () => {
+    const handle = vi.fn(() => Promise.resolve())
+    const binding = { surface: 'plans', sessionId: 'session', surfaceKind: 'plans' } as const
+    let isAdopted = false
+    const t = await rig(undefined, {
+      view: (candidate) =>
+        isAdopted &&
+        candidate.surface === binding.surface &&
+        candidate.sessionId === binding.sessionId
+          ? { handle, subscribe: () => noSubscription }
+          : undefined,
+    })
+    const opening = (async () => {
+      await t.peer.request('surfaces/open', {
+        kind: 'plans',
+        sessionId: 'session',
+        placement: 'tab',
+      })
+      await Promise.resolve()
+      isAdopted = true
+    })()
+    receive(t.peer, { jsonrpc: '2.0', id: 'runtime-1', result: { surfaceId: binding.surface } })
+    receive(t.peer, { mhp: MHP_PANEL.wireVersion, kind: 'surface', ...binding, event: 'opened' })
+    receive(t.peer, { mhp: MHP_PANEL.wireVersion, kind: 'surface', ...binding, event: 'ready' })
+    receive(t.peer, {
+      mhp: MHP_PANEL.wireVersion,
+      kind: 'panel',
+      surface: binding.surface,
+      direction: 'toHost',
+      seq: 1,
+      payload: { type: 'presentationReady' },
+    })
+    await opening
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve)
+    })
+    expect(t.closed).not.toHaveBeenCalled()
+    expect(handle).toHaveBeenCalledExactlyOnceWith({ type: 'presentationReady' })
+    expect(t.frames).not.toContainEqual(expect.objectContaining({ kind: 'error' }))
+    t.peer.close()
+  })
 })

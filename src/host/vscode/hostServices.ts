@@ -2,8 +2,15 @@
 // Features with their own existing drivers are passed to composition explicitly;
 // unbound MHP methods refuse with a typed error rather than empty success.
 import * as vscode from 'vscode'
+import { randomUUID } from 'node:crypto'
 import type * as z from 'zod/mini'
-import { MHP, MHP_ERROR_CODES, SETTINGS_SECTION, VSCODE_COMMANDS } from '../../shared/constants'
+import {
+  MHP,
+  MHP_ERROR_CODES,
+  SETTINGS_SECTION,
+  UI_TEXT,
+  VSCODE_COMMANDS,
+} from '../../shared/constants'
 import { isMhpVersionSupported } from '../../shared/hostApi/capabilities'
 import {
   MHP_METHODS,
@@ -17,6 +24,7 @@ import { settingSchema } from '../settings'
 import { countSecretMatches } from '../../shared/redact'
 import { isCredentialVariable } from '../../core/credentialEnvironment'
 import { jsonValueSchema, type errorSchema } from '../../shared/hostApi/data'
+import { vscodeCodeIntelHandlers } from './codeIntel/languageServices'
 
 export class VscodeHostError extends Error {
   public constructor(public readonly error: z.infer<typeof errorSchema>) {
@@ -103,6 +111,17 @@ async function versionedDocument(
   }
   return document
 }
+function checkEditSnapshot(
+  document: vscode.TextDocument,
+  expectedVersion: number,
+  signal?: AbortSignal,
+): void {
+  checkCancelled(signal)
+  checkWorkspaceTrusted()
+  if (document.version !== expectedVersion)
+    fail(MHP_ERROR_CODES.versionConflict, 'MHP_VERSION_CONFLICT')
+  if (document.isDirty) fail(MHP_ERROR_CODES.dirtyBuffer, 'MHP_DIRTY_BUFFER')
+}
 function settingName(key: string): string {
   const name = key.slice(SETTINGS_SECTION.length + 1)
   if (settingSchema(name) === undefined) fail(MHP_ERROR_CODES.invalidParams, 'MHP_UNKNOWN_SETTING')
@@ -139,19 +158,50 @@ export function createVscodeHostServices(
   context: {
     readonly globalState: StatePort
     readonly workspaceState: StatePort
+    readonly subscriptions?: vscode.Disposable[]
   },
   options: VscodeHostOptions = {},
 ): HostServices {
   let isClosed = false
+  const ending = new AbortController()
+  const terminals = new Map<MhpResult<'terminal/create'>['terminalId'], vscode.Terminal>()
+  let terminalEvents: vscode.Disposable | undefined
+  const closeTerminals = (): void => {
+    isClosed = true
+    ending.abort()
+    terminalEvents?.dispose()
+    terminalEvents = undefined
+    for (const terminal of terminals.values()) terminal.dispose()
+    terminals.clear()
+  }
+  context.subscriptions?.push({ dispose: closeTerminals })
+  const ownedTerminal = (id: MhpParams<'terminal/show'>['terminalId']): vscode.Terminal => {
+    const terminal = terminals.get(id)
+    if (terminal === undefined) fail(MHP_ERROR_CODES.invalidParams, 'MHP_TERMINAL_UNAVAILABLE')
+    return terminal
+  }
   const handlers: HostServiceHandlers = {
+    ...vscodeCodeIntelHandlers(
+      (signal) => {
+        checkCancelled(signal)
+        checkWorkspaceTrusted()
+        if (isClosed) fail(MHP_ERROR_CODES.cancelled, 'MHP_HOST_CLOSED')
+      },
+      (code, message) => fail(MHP_ERROR_CODES[code], message),
+      ending.signal,
+    ),
     initialize: (params) => {
       if (!isMhpVersionSupported(params.protocolRange))
         fail(MHP_ERROR_CODES.incompatibleVersion, 'MHP_INCOMPATIBLE_VERSION')
       // Sparse declaration: feature drivers keep their existing explicit ports.
-      return Promise.resolve({ protocolVersion: MHP.version, capabilities: ['lifecycle'] })
+      return Promise.resolve({
+        protocolVersion: MHP.version,
+        capabilities: ['lifecycle', 'codeIntel'],
+      })
     },
     shutdown: () => {
       isClosed = true
+      closeTerminals()
       return Promise.resolve(null)
     },
     'workspace/folders': () =>
@@ -181,6 +231,7 @@ export function createVscodeHostServices(
     },
     'documents/applyEdits': async ({ uri, expectedVersion, edits }, signal) => {
       const document = await versionedDocument(uri, expectedVersion, signal)
+      checkEditSnapshot(document, expectedVersion, signal)
       const sorted = edits
         .map((edit) => ({ range: toRange(edit.range), text: edit.newText }))
         .toSorted((a, b) => a.range.start.compareTo(b.range.start))
@@ -188,21 +239,21 @@ export function createVscodeHostServices(
         if (!document.validateRange(edit.range).isEqual(edit.range))
           fail(MHP_ERROR_CODES.invalidParams, 'MHP_INVALID_RANGE')
         const previous = sorted[index - 1]
-        if (previous?.range.end.isAfter(edit.range.start))
+        if (
+          previous?.range.end.isAfter(edit.range.start) === true ||
+          previous?.range.start.isEqual(edit.range.start) === true
+        )
           fail(MHP_ERROR_CODES.invalidParams, 'MHP_OVERLAPPING_EDITS')
       }
       const editor = await vscode.window.showTextDocument(document, {
         preserveFocus: true,
         preview: true,
       })
-      checkCancelled(signal)
       // The editor can change while it is being shown: check again before edit.
-      if (document.version !== expectedVersion)
-        fail(MHP_ERROR_CODES.versionConflict, 'MHP_VERSION_CONFLICT')
-      if (!vscode.workspace.isTrusted)
-        fail(MHP_ERROR_CODES.untrustedWorkspace, 'MHP_UNTRUSTED_WORKSPACE')
+      checkEditSnapshot(document, expectedVersion, signal)
       const isApplied = await editor.edit(
         (builder) => {
+          checkEditSnapshot(document, expectedVersion, signal)
           for (const edit of sorted) builder.replace(edit.range, edit.text)
         },
         { undoStopBefore: true, undoStopAfter: true },
@@ -215,7 +266,11 @@ export function createVscodeHostServices(
       if (!(await document.save())) fail(MHP_ERROR_CODES.internalError, 'MHP_SAVE_FAILED')
       return documentInfo(document)
     },
-    'documents/saveAll': async () => ({ saved: await vscode.workspace.saveAll(false) }),
+    'documents/saveAll': async (_params, signal) => {
+      checkCancelled(signal)
+      checkWorkspaceTrusted()
+      return { saved: await vscode.workspace.saveAll(false) }
+    },
     'editor/active': () => {
       const editor = vscode.window.activeTextEditor
       if (editor === undefined) return Promise.resolve(null)
@@ -246,10 +301,15 @@ export function createVscodeHostServices(
       const at = new vscode.Position(position.line, position.character)
       if (!document.validatePosition(at).isEqual(at))
         fail(MHP_ERROR_CODES.invalidParams, 'MHP_INVALID_POSITION')
+      checkEditSnapshot(document, expectedVersion, signal)
       if (
-        !(await editor.edit((builder) => {
-          builder.insert(at, text)
-        }))
+        !(await editor.edit(
+          (builder) => {
+            checkEditSnapshot(document, expectedVersion, signal)
+            builder.insert(at, text)
+          },
+          { undoStopBefore: true, undoStopAfter: true },
+        ))
       )
         fail(MHP_ERROR_CODES.versionConflict, 'MHP_EDIT_NOT_APPLIED')
       return documentInfo(document)
@@ -262,10 +322,15 @@ export function createVscodeHostServices(
       const selected = toRange(range)
       if (!document.validateRange(selected).isEqual(selected))
         fail(MHP_ERROR_CODES.invalidParams, 'MHP_INVALID_RANGE')
+      checkEditSnapshot(document, expectedVersion, signal)
       if (
-        !(await editor.edit((builder) => {
-          builder.replace(selected, text)
-        }))
+        !(await editor.edit(
+          (builder) => {
+            checkEditSnapshot(document, expectedVersion, signal)
+            builder.replace(selected, text)
+          },
+          { undoStopBefore: true, undoStopAfter: true },
+        ))
       )
         fail(MHP_ERROR_CODES.versionConflict, 'MHP_EDIT_NOT_APPLIED')
       editor.revealRange(editor.selection)
@@ -279,6 +344,52 @@ export function createVscodeHostServices(
         title,
       )
       return null
+    },
+    'terminal/create': async (params, signal) => {
+      checkWorkspaceTrusted()
+      if (countSecretMatches(JSON.stringify(params), []) > 0)
+        fail(MHP_ERROR_CODES.permissionDenied, 'MHP_CREDENTIAL_REFUSED')
+      const cwd = vscode.Uri.parse(params.cwd)
+      if (cwd.scheme !== 'file') fail(MHP_ERROR_CODES.invalidParams, 'MHP_TERMINAL_CWD')
+      terminalEvents ??= vscode.window.onDidCloseTerminal((closed) => {
+        for (const [id, terminal] of terminals) if (terminal === closed) terminals.delete(id)
+      })
+      const removed: Record<string, null> = {}
+      for (const name of Object.keys(process.env))
+        if (isCredentialVariable(name)) removed[name] = null
+      const terminalId = randomUUID()
+      const terminal = vscode.window.createTerminal({
+        name: UI_TEXT.fallbackTerminal,
+        cwd,
+        shellPath: params.executable,
+        shellArgs: params.args,
+        env: { ...removed, ...params.env },
+        strictEnv: false,
+      })
+      terminals.set(terminalId, terminal)
+      try {
+        // Native creation is already admitted; a late cancelled reply must release its child.
+        await Promise.resolve()
+        checkCancelled(signal)
+        checkWorkspaceTrusted()
+        if (isClosed) fail(MHP_ERROR_CODES.cancelled, 'MHP_HOST_CLOSED')
+        return { terminalId }
+      } catch (error) {
+        if (terminals.delete(terminalId)) terminal.dispose()
+        throw error
+      }
+    },
+    'terminal/show': (params) => {
+      checkWorkspaceTrusted()
+      ownedTerminal(params.terminalId).show(true)
+      return Promise.resolve(null)
+    },
+    'terminal/sendText': (params) => {
+      checkWorkspaceTrusted()
+      if (countSecretMatches(params.text, []) > 0)
+        fail(MHP_ERROR_CODES.permissionDenied, 'MHP_CREDENTIAL_REFUSED')
+      ownedTerminal(params.terminalId).sendText(params.text, params.addNewLine)
+      return Promise.resolve(null)
     },
     'diagnostics/get': ({ uri }) => {
       const entries =

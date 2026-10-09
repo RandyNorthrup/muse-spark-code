@@ -108,7 +108,7 @@ describe('VS Code HostServices in-process boundary', () => {
     }
     await expect(
       r.services.request('initialize', { ...params, capabilities: [...params.capabilities] }),
-    ).resolves.toEqual({ protocolVersion: MHP.version, capabilities: ['lifecycle'] })
+    ).resolves.toEqual({ protocolVersion: MHP.version, capabilities: ['lifecycle', 'codeIntel'] })
     await expect(
       r.services.request('initialize', {
         ...params,
@@ -146,6 +146,116 @@ describe('VS Code HostServices in-process boundary', () => {
       },
     })
     expect(r.edit).toHaveBeenCalledTimes(1)
+  })
+  it('refuses current dirty buffers for every mutation while allowing a versioned save', async () => {
+    const r = rig()
+    Object.defineProperty(r.document, 'isDirty', { value: true })
+    await expect(r.services.request('documents/applyEdits', edits)).rejects.toThrow(
+      'MHP_DIRTY_BUFFER',
+    )
+    await expect(
+      r.services.request('editor/insertAtCursor', {
+        uri,
+        expectedVersion: 1,
+        position: span.start,
+        text: 'new',
+        undoLabel: 'Insert',
+      }),
+    ).rejects.toThrow('MHP_DIRTY_BUFFER')
+    await expect(
+      r.services.request('editor/replaceSelection', {
+        uri,
+        expectedVersion: 1,
+        range: span,
+        text: 'new',
+        undoLabel: 'Apply',
+      }),
+    ).rejects.toThrow('MHP_DIRTY_BUFFER')
+    expect(r.edit).not.toHaveBeenCalled()
+    expect(window.showTextDocument).not.toHaveBeenCalled()
+    await expect(
+      r.services.request('documents/save', { uri, expectedVersion: 1 }),
+    ).resolves.toMatchObject({ version: 1 })
+  })
+  it.each(['apply', 'insert', 'replace'] as const)(
+    'rechecks version, dirty state, trust and cancellation in the %s write callback',
+    async (operation) => {
+      for (const failure of ['version', 'dirty', 'trust', 'cancel'] as const) {
+        const r = rig()
+        workspace.isTrusted = true
+        const abort = new AbortController()
+        r.edit.mockImplementationOnce((callback) => {
+          switch (failure) {
+            case 'version': {
+              Object.defineProperty(r.document, 'version', { value: 2 })
+              break
+            }
+            case 'dirty': {
+              Object.defineProperty(r.document, 'isDirty', { value: true })
+              break
+            }
+            case 'trust': {
+              workspace.isTrusted = false
+              break
+            }
+            default: {
+              abort.abort()
+            }
+          }
+          callback({
+            replace: r.replaces,
+            insert: r.inserts,
+            delete: unused,
+            setEndOfLine: unused,
+          })
+          return Promise.resolve(true)
+        })
+        const requests = {
+          apply: () => r.services.request('documents/applyEdits', edits, abort.signal),
+          insert: () =>
+            r.services.request(
+              'editor/insertAtCursor',
+              {
+                uri,
+                expectedVersion: 1,
+                position: span.start,
+                text: 'new',
+                undoLabel: 'Insert',
+              },
+              abort.signal,
+            ),
+          replace: () =>
+            r.services.request(
+              'editor/replaceSelection',
+              { uri, expectedVersion: 1, range: span, text: 'new', undoLabel: 'Apply' },
+              abort.signal,
+            ),
+        }
+        const result = requests[operation]()
+        const code = {
+          version: 'MHP_VERSION_CONFLICT',
+          dirty: 'MHP_DIRTY_BUFFER',
+          trust: 'MHP_UNTRUSTED_WORKSPACE',
+          cancel: 'MHP_CANCELLED',
+        }
+        await expect(result).rejects.toThrow(code[failure])
+        expect(r.replaces).not.toHaveBeenCalled()
+        expect(r.inserts).not.toHaveBeenCalled()
+      }
+    },
+  )
+  it('rejects coincident zero-length inserts and refuses save-all before trust', async () => {
+    const r = rig()
+    const insert = { range: { start: span.start, end: span.start }, newText: 'new' }
+    await expect(
+      r.services.request('documents/applyEdits', { ...edits, edits: [insert, insert] }),
+    ).rejects.toThrow('MHP_OVERLAPPING_EDITS')
+    expect(r.edit).not.toHaveBeenCalled()
+    workspace.isTrusted = false
+    await expect(r.services.request('documents/saveAll', {})).rejects.toThrow(
+      'MHP_UNTRUSTED_WORKSPACE',
+    )
+    expect(workspace.saveAll).not.toHaveBeenCalled()
   })
   it('rechecks version and trust after showing an editor and before a mutation', async () => {
     const r = rig()

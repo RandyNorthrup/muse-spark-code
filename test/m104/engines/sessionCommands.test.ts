@@ -12,6 +12,10 @@ import { buildModelApiBundle } from '../../unit/helpers/modelApiBundle'
 import { watchSessionTurns } from '../../unit/helpers/sessionTurns'
 import { engineFixtures } from './fixtures'
 import { paidHarness, enginePaidBudget } from './paidHarness'
+import { Usd, type UsdAmount } from '../../../src/shared/usd'
+
+// 0.17 keeps money as exact decimal strings (CAPS017).
+const usd = (value: number): UsdAmount => Usd.from(value).toAmount()
 
 const fixtures = engineFixtures()
 const dist = { folder: '' }
@@ -46,7 +50,6 @@ async function setup(extra: Partial<RuntimeBackendDeps> = {}) {
     env: { PATH: process.env['PATH'], SystemRoot: process.env['SystemRoot'] },
     homeDir: root,
     secrets,
-    museCodeCredentials: [],
     fetch: api.fetch,
     sleep: () => Promise.resolve(),
     runGit: () => Promise.reject(new Error('fixture forbids Git')),
@@ -176,7 +179,7 @@ describe('F24 v2 portable Best-of-N attempt host', () => {
       const admission = runtimePaidRequestAdmission({
         budget,
         isOn: () => isOn,
-        price: () => ({ costUsd: 0.4, isCurrent: () => true, receiptCost: tariff }),
+        price: () => ({ costUsd: usd(0.4), isCurrent: () => true, receiptCost: tariff }),
       })
       const rig = await setup({
         interactivePaid: paid,

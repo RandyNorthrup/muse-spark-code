@@ -17,6 +17,10 @@ import {
   FAKE_MODEL_API_KEY,
 } from '../../unit/helpers/fakeModelApi'
 import { FakeLogOutputChannel } from '../../unit/helpers/fakes'
+import { Usd, type UsdAmount } from '../../../src/shared/usd'
+
+// 0.17 keeps money as exact decimal strings (CAPS017).
+const usd = (value: number): UsdAmount => Usd.from(value).toAmount()
 
 const roots: string[] = []
 const budgets: ReturnType<typeof createRuntimePaidBudget>[] = []
@@ -60,7 +64,7 @@ async function setup() {
     {
       directory,
       now: Date.now,
-      capUsd: () => 0.5,
+      capUsd: () => usd(0.5),
       sleep: () => Promise.resolve(),
       assertCurrent: () => undefined,
       isLocalStorage: () => true,
@@ -71,7 +75,7 @@ async function setup() {
   budgets.push(budget)
   const state = { isOn: true, isCurrent: true, isPriced: true }
   const price = vi.fn(() =>
-    state.isPriced ? { costUsd: 0.4, isCurrent: () => state.isCurrent } : undefined,
+    state.isPriced ? { costUsd: usd(0.4), isCurrent: () => state.isCurrent } : undefined,
   )
   const reserve = runtimePaidRequestAdmission({ budget, isOn: () => state.isOn, price })
   const api = fakeModelApi()
@@ -95,7 +99,7 @@ describe('priced portable request admission', () => {
     const admission = runtimePaidRequestAdmission({
       budget,
       isOn: () => true,
-      price: () => ({ costUsd: 0.4, isCurrent: () => state.isCurrent, receiptCost: receipt }),
+      price: () => ({ costUsd: usd(0.4), isCurrent: () => state.isCurrent, receiptCost: receipt }),
     })
     const client = new ModelApiClient({
       ...settings,
@@ -112,7 +116,7 @@ describe('priced portable request admission', () => {
     await expect(responseFrames(client)).resolves.toContain('response.completed')
     expect(receipt).toHaveBeenCalledOnce()
     expect(receipt).toHaveBeenCalledWith({ inputTokens: 10, outputTokens: 5, cachedTokens: 0 })
-    await expect(budget.latestDay()).resolves.toMatchObject({ spentUsd: 0.25 })
+    await expect(budget.latestDay()).resolves.toMatchObject({ spentUsd: usd(0.25) })
   })
   it('retains liability for an unpriced response receipt instead of substituting Meta rates', async () => {
     const { budget, settings, api, reserve } = await setup()
@@ -133,7 +137,7 @@ describe('priced portable request admission', () => {
       const admission = runtimePaidRequestAdmission({
         budget,
         isOn: () => true,
-        price: () => ({ costUsd: 0.4, isCurrent: () => true, receiptCost: () => costUsd }),
+        price: () => ({ costUsd: usd(0.4), isCurrent: () => true, receiptCost: () => costUsd }),
       })
       const client = new ModelApiClient({
         ...settings,
@@ -151,10 +155,10 @@ describe('priced portable request admission', () => {
     const image = await client.createImage(body, new AbortController().signal)
     expect(image.data).toHaveLength(1)
     expect(api.imageBodies()).toHaveLength(1)
-    expect(await budget.latestDay()).toMatchObject({ spentUsd: 0.4 })
+    expect(await budget.latestDay()).toMatchObject({ spentUsd: usd(0.4) })
     await expect(client.createImage(body, new AbortController().signal)).rejects.toThrow()
     expect(api.imageBodies()).toHaveLength(1)
-    expect(await budget.latestDay()).toMatchObject({ spentUsd: 0.4 })
+    expect(await budget.latestDay()).toMatchObject({ spentUsd: usd(0.4) })
   })
 
   it.each(['off', 'unpriced', 'replaced'])(
@@ -203,14 +207,14 @@ describe('priced portable request admission', () => {
     held.resolve(undefined)
     await expect(requesting).rejects.toThrow('MHP_PAID_REQUEST_UNAVAILABLE')
     expect(api.requests).toEqual([])
-    expect(await budget.latestDay()).toMatchObject({ spentUsd: 0 })
+    expect(await budget.latestDay()).toMatchObject({ spentUsd: usd(0) })
   })
 
   it.each(['openai', 'anthropic', 'gemini', 'xai', 'openrouter', 'ollama', 'custom'])(
     'accounts verified %s tariffs without a Meta fallback',
     (provider) => {
       const cost = vi.fn((model: string) => (model === `${provider}/model` ? 0.25 : undefined))
-      const usage = new PaidUsage(new FakeLogOutputChannel(), cost)
+      const usage = new PaidUsage(new FakeLogOutputChannel(), undefined, cost)
       usage.add('subagents', 1)
       expect(() => {
         usage.addSubagentUsage(`${provider}/model`, {
@@ -221,7 +225,7 @@ describe('priced portable request admission', () => {
       }).not.toThrow()
       expect(usage.current).toMatchObject({
         subagentUnknownRequests: 0,
-        subagentCostUsd: 0.25,
+        subagentCostUsd: usd(0.25),
         subagentTokens: 102,
       })
       usage.add('subagents', 1)

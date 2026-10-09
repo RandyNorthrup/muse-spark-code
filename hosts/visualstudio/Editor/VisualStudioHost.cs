@@ -16,6 +16,7 @@ using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Operations;
 using Microsoft.VisualStudio.TextManager.Interop;
 using MuseSpark.VisualStudio.Protocol;
+using MuseSpark.VisualStudio.Panel;
 using Newtonsoft.Json.Linq;
 
 namespace MuseSpark.VisualStudio.Editor
@@ -29,22 +30,28 @@ namespace MuseSpark.VisualStudio.Editor
     private readonly IVsRunningDocumentTable rdt;
     private readonly IVsTextManager textManager;
     private readonly TabCompletion completion;
+    private readonly NativeSurfaces surfaces;
+    private readonly NativeUi ui;
     private readonly IVsTaskList? errors;
     private readonly DispatcherTimer diagnosticTimer;
     private readonly Dictionary<string, JArray> lastDiagnostics = new Dictionary<string, JArray>(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<ITextBuffer, ITextDocument> tracked = new Dictionary<ITextBuffer, ITextDocument>();
+    private readonly DocumentTable<ITextBuffer, ITextDocument> tracked = new DocumentTable<ITextBuffer, ITextDocument>(document => document.FilePath);
     private readonly uint cookie;
     private readonly HashSet<IWpfTextView> views = new HashSet<IWpfTextView>();
     public MhpPeer? Peer { private get; set; }
-    public IReadOnlyCollection<string> Capabilities => errors == null ? new[] { "lifecycle", "documents", "editor", "tab", "window" } : new[] { "lifecycle", "documents", "editor", "diagnostics", "tab", "window" };
+    // 1.3 adds settled diagnostics, command execution and file/settings UI.
+    // Keep existing component drivers; partial groups use the reviewed runtime fallback.
+    public IReadOnlyCollection<string> Capabilities => new[] { "lifecycle", "documents", "editor", "tab", "window" };
 
-    public VisualStudioHost(AsyncPackage package, IComponentModel components, IVsRunningDocumentTable rdt, IVsTextManager textManager, TabCompletion completion, IVsTaskList? errors)
+    public VisualStudioHost(AsyncPackage package, IComponentModel components, IVsRunningDocumentTable rdt, IVsTextManager textManager, TabCompletion completion, IVsTaskList? errors, NativeSurfaces surfaces, NativeUi ui)
     {
       ThreadHelper.ThrowIfNotOnUIThread();
       this.package = package;
       this.rdt = rdt;
       this.textManager = textManager;
       this.completion = completion;
+      this.surfaces = surfaces;
+      this.ui = ui;
       this.errors = errors;
       diagnosticTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(500) };
       diagnosticTimer.Tick += DiagnosticTick;
@@ -60,10 +67,13 @@ namespace MuseSpark.VisualStudio.Editor
     {
       await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellation);
       cancellation.ThrowIfCancellationRequested();
+      if (method.StartsWith("surfaces/", StringComparison.Ordinal)) return await surfaces.InvokeAsync(method, parameters, cancellation);
+      if (method.StartsWith("ui/", StringComparison.Ordinal)) return await ui.InvokeAsync(method, parameters, cancellation);
+      if (method == "commands/register") return await ui.InvokeAsync(method, parameters, cancellation);
       Refresh();
       switch (method)
       {
-        case "documents/list": return new JArray(tracked.Values.Select(Document));
+        case "documents/list": return new JArray(tracked.Documents.Select(Document));
         case "documents/read":
           var read = Find(parameters.Value<string>("uri") ?? "");
           return new JObject { ["document"] = Document(read), ["text"] = read.TextBuffer.CurrentSnapshot.GetText() };
@@ -73,8 +83,8 @@ namespace MuseSpark.VisualStudio.Editor
           RequireVersion(save, parameters.Value<long>("expectedVersion"));
           save.Save(); return Document(save);
         case "documents/saveAll":
-          foreach (var document in tracked.Values.ToArray()) if (document.IsDirty) document.Save();
-          return new JObject { ["saved"] = tracked.Values.All(d => !d.IsDirty) };
+          foreach (var document in tracked.Documents.ToArray()) if (document.IsDirty) document.Save();
+          return new JObject { ["saved"] = tracked.Documents.All(d => !d.IsDirty) };
         case "editor/active": return Selection() ?? JValue.CreateNull();
         case "editor/open":
           var view = Open(parameters.Value<string>("uri") ?? "");
@@ -143,14 +153,14 @@ namespace MuseSpark.VisualStudio.Editor
       return Document(document);
     }
 
+    // Refresh has tracked every open buffer; any spelling of an open file returns that buffer, never a second one.
     private ITextDocument Find(string uri)
     {
       ThreadHelper.ThrowIfNotOnUIThread();
-      var path = FilePath(uri);
-      var document = tracked.Values.FirstOrDefault(d => string.Equals(d.FilePath, path, StringComparison.OrdinalIgnoreCase));
-      if (document != null) return document;
+      var held = tracked.Find(FilePath(uri));
+      if (held != null) return held;
       var view = Open(uri);
-      if (!documents.TryGetTextDocument(view.TextBuffer, out document)) throw new MhpException("invalidParams", "MHP_DOCUMENT_UNAVAILABLE");
+      if (!documents.TryGetTextDocument(view.TextBuffer, out var document)) throw new MhpException("invalidParams", "MHP_DOCUMENT_UNAVAILABLE");
       Track(document);
       return document;
     }
@@ -158,18 +168,16 @@ namespace MuseSpark.VisualStudio.Editor
     private IWpfTextView Open(string uri)
     {
       ThreadHelper.ThrowIfNotOnUIThread();
-      VsShellUtilities.OpenDocument(package, FilePath(uri), VSConstants.LOGVIEWID_TextView, out _, out _, out var frame);
+      var path = FilePath(uri);
+      // Open by the moniker the RDT already holds, so Visual Studio activates that window instead of a new one.
+      VsShellUtilities.OpenDocument(package, tracked.Find(path)?.FilePath ?? path, VSConstants.LOGVIEWID_TextView, out _, out _, out var frame);
       var native = VsShellUtilities.GetTextView(frame);
       var view = adapters.GetWpfTextView(native) ?? throw new MhpException("invalidParams", "MHP_DOCUMENT_UNAVAILABLE");
       TrackView(view);
       return view;
     }
 
-    private static string FilePath(string source)
-    {
-      if (!Uri.TryCreate(source, UriKind.Absolute, out var uri) || !uri.IsFile || uri.IsUnc) throw Invalid();
-      return uri.LocalPath;
-    }
+    private static string FilePath(string source) => DocumentPath.Parse(source);
 
     private void Refresh()
     {
@@ -198,8 +206,7 @@ namespace MuseSpark.VisualStudio.Editor
 
     private void Track(ITextDocument document)
     {
-      if (tracked.ContainsKey(document.TextBuffer)) return;
-      tracked.Add(document.TextBuffer, document);
+      if (!tracked.Track(document.TextBuffer, document)) return;
       document.TextBuffer.Changed += BufferChanged;
       document.FileActionOccurred += FileAction;
     }
@@ -251,7 +258,7 @@ namespace MuseSpark.VisualStudio.Editor
 
     private void BufferChanged(object sender, TextContentChangedEventArgs args)
     {
-      if (sender is ITextBuffer buffer && tracked.TryGetValue(buffer, out var document))
+      if (sender is ITextBuffer buffer && tracked.Get(buffer) is ITextDocument document)
         Notify("documents/didChange", new JObject { ["document"] = Document(document), ["text"] = args.After.GetText() });
     }
 
@@ -291,12 +298,14 @@ namespace MuseSpark.VisualStudio.Editor
       ThreadHelper.ThrowIfNotOnUIThread();
       if (readRemaining != 0 || editRemaining != 0) return VSConstants.S_OK;
       ErrorHandler.ThrowOnFailure(rdt.GetDocumentInfo(docCookie, out _, out _, out _, out var moniker, out _, out _, out var data));
-      if (data != IntPtr.Zero) Marshal.Release(data);
-      var document = tracked.Values.FirstOrDefault(d => string.Equals(d.FilePath, moniker, StringComparison.OrdinalIgnoreCase));
+      ITextBuffer? held = null;
+      try { if (data != IntPtr.Zero && Marshal.GetObjectForIUnknown(data) is IVsTextBuffer native) held = adapters.GetDataBuffer(native); }
+      finally { if (data != IntPtr.Zero) Marshal.Release(data); }
+      // Release the buffer this RDT entry holds; another spelling of its moniker must not leave it subscribed.
+      var document = tracked.Untrack(held, moniker);
       if (document != null)
       {
         document.TextBuffer.Changed -= BufferChanged; document.FileActionOccurred -= FileAction;
-        tracked.Remove(document.TextBuffer);
         Notify("documents/didClose", new JObject { ["uri"] = new Uri(document.FilePath).AbsoluteUri });
       }
       return VSConstants.S_OK;
@@ -313,7 +322,7 @@ namespace MuseSpark.VisualStudio.Editor
       Peer = null;
       diagnosticTimer.Stop(); diagnosticTimer.Tick -= DiagnosticTick;
       rdt.UnadviseRunningDocTableEvents(cookie);
-      foreach (var document in tracked.Values) { document.TextBuffer.Changed -= BufferChanged; document.FileActionOccurred -= FileAction; }
+      foreach (var document in tracked.Documents) { document.TextBuffer.Changed -= BufferChanged; document.FileActionOccurred -= FileAction; }
       foreach (var view in views.ToArray()) UntrackView(view);
       tracked.Clear();
     }

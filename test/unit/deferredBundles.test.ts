@@ -35,6 +35,7 @@ import {
   sharedStructuredSchema,
   sharedModelApiBoundaries,
   englishZodLocales,
+  sharedHostProtocol,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
 import type * as resourceGovernor from '../../src/core/resources/resourceGovernorEntry'
@@ -164,6 +165,7 @@ beforeAll(async () => {
           sharedValidation,
           deferredCohort,
           sharedWire,
+          sharedHostProtocol,
           sharedResourceAdmission,
           sharedStructuredSchema,
           deferredTeamView,
@@ -190,12 +192,17 @@ beforeAll(async () => {
         runtimeAccounts: 'src/runtime/providers/accountsEntry.ts',
         runtimePanel: 'src/runtime/panel/panelEntry.ts',
         runtimePanelPorts: 'src/runtime/panel/runtimeFeaturesEntry.ts',
+        runtimeBackendServices: 'src/runtime/panel/backendEntry.ts',
+        runtimeEngines: 'src/runtime/panel/engineEntry.ts',
+        runtimeContext: 'src/runtime/panel/contextEntry.ts',
+        runtimePresentation: 'src/host/views/runtimePresentationEntry.ts',
       },
       plugins: [
         sharedUiText,
         sharedValidation,
         deferredCohort,
         sharedWire,
+        sharedHostProtocol,
         sharedResourceAdmission,
         sharedStructuredSchema,
         deferredTeamView,
@@ -204,6 +211,12 @@ beforeAll(async () => {
         englishZodLocales,
       ],
       external: ['@napi-rs/keyring'],
+    }),
+    build({
+      ...common,
+      outdir: 'dist',
+      entryPoints: { hostProtocol: 'src/shared/hostApi/hostProtocolEntry.ts' },
+      plugins: [sharedUiText, sharedValidation, sharedWire],
     }),
     build({
       ...common,
@@ -354,7 +367,8 @@ function runLegalGate(name: string) {
   const meta = {
     outputs: {
       ...Object.fromEntries(
-        ['main', 'models', 'usage', 'whatsNew'].map((page) => [
+        // M104: the size gate also groups the portable panel's deferred pages.
+        ['main', 'models', 'usage', 'whatsNew', 'portable/main'].map((page) => [
           `dist/webview/${page}.js`,
           { imports: [] },
         ]),
@@ -904,6 +918,7 @@ describe('deferred cohort bundles', () => {
     ])
     expect(module.exports).toHaveProperty('activate', expect.any(Function))
     expect(loaded).toContain('./wire.js')
+    expect(loaded).toContain('./hostProtocol.js')
     expect(loaded).not.toContain('./sessionBoard.js')
     expect(loaded).not.toContain('./reviewer.js')
     expect(loaded).not.toContain('./providers.js')

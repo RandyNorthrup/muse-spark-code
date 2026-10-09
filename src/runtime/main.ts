@@ -80,6 +80,7 @@ import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
 import { formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
 import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
+import type { RuntimeBackendExtensions } from './panel/backendEntry'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
@@ -420,14 +421,27 @@ function signInMethod(options: ServeOptions): SignInMethod {
   }
 }
 
+/** A store that cannot be read reads no (documented in docs/acp.md). */
+async function hasStoredKey(): Promise<boolean> {
+  try {
+    const stored = await secrets.get(SECRET_KEYS.modelApiKey)
+    return stored !== undefined && stored !== ''
+  } catch {
+    return false
+  }
+}
+
 async function runtimeFor(
   options: ServeOptions,
   log: Logger,
   questions?: { remove(sessionId: string): Promise<void> },
+  // M104: the portable panel's context, engines and presentation services.
+  extensions?: RuntimeBackendExtensions,
 ) {
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
   return engine.createRuntimeBackend({
+    ...extensions,
     options,
     version: packageVersion(),
     distDir,
@@ -1376,7 +1390,15 @@ async function main(): Promise<number> {
           options: command.options,
           transport: command.transport,
           runtime,
-          configureRuntime: (options) => runtimeFor(options, log),
+          configureRuntime: (options, _settings, _root, extensions) =>
+            runtimeFor(options, log, undefined, extensions),
+          portable: {
+            version: packageVersion(),
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+            hasStoredKey,
+          },
           loadLanguage: (language) =>
             loadUiTable({
               language,
@@ -1557,15 +1579,7 @@ async function main(): Promise<number> {
         // The agent took its credential variables out of its environment at
         // start (rule 8): presence is read from what it took.
         hasEnvironmentApiKey: wasEnvironmentApiKeyPresent,
-        readStoredKeyPresence: async () => {
-          try {
-            const stored = await secrets.get(SECRET_KEYS.modelApiKey)
-            return stored !== undefined && stored !== ''
-          } catch {
-            // A store that cannot be read reads no (documented in docs/acp.md).
-            return false
-          }
-        },
+        readStoredKeyPresence: hasStoredKey,
         nowMs,
         // Reading prunes expired records but sets and consumes no marker.
         readJournal: async () => {

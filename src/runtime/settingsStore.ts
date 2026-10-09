@@ -215,6 +215,14 @@ export class RuntimeSettingsStore {
   }
 
   /** CLI choices remain effective until an explicit workspace/user setting replaces them. */
+  public async settingNames(): Promise<readonly string[]> {
+    const keys = Object.keys(SETTING_DEFAULTS).map((key) => `${SETTINGS_SECTION}.${key}`)
+    const present = await Promise.all(
+      keys.map(async (key) => ((await this.hasSetting(key)) ? key : undefined)),
+    )
+    return present.filter((key) => key !== undefined)
+  }
+
   public async hasSetting(key: string): Promise<boolean> {
     settingKeySchema.parse(key)
     if (settingSchema(key.slice(SETTINGS_SECTION.length + 1)) === undefined)

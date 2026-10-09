@@ -48,6 +48,10 @@ import { MHP } from '../../../src/shared/constants'
 import { createRuntimeWebFetch } from '../../../src/runtime/features/webFetch'
 import { createRuntimeBrowser } from '../../../src/runtime/features/browser'
 import { createRuntimeAutoReviewer } from '../../../src/runtime/features/autoReviewer'
+import { Usd, type UsdAmount } from '../../../src/shared/usd'
+
+// 0.17 keeps money as exact decimal strings (CAPS017).
+const usd = (value: number): UsdAmount => Usd.from(value).toAmount()
 
 const folders: string[] = []
 const runtimes: RuntimeBackend[] = []
@@ -64,7 +68,7 @@ function dailyBudget(data: string) {
     {
       directory: path.join(data, 'paid-daily'),
       now: Date.now,
-      capUsd: () => 0.5,
+      capUsd: () => usd(0.5),
       sleep: () => Promise.resolve(),
       assertCurrent: () => undefined,
       isLocalStorage: () => true,
@@ -165,7 +169,6 @@ async function setup() {
       env: {},
       homeDir: data,
       secrets,
-      museCodeCredentials: [],
       fetch: api.fetch,
       sleep: () => Promise.resolve(),
       runGit: () => Promise.reject(new Error('no repository metadata')),
@@ -499,7 +502,7 @@ describe('portable checkpoint backend recording', () => {
       reservePaidRequest: runtimePaidRequestAdmission({
         budget,
         isOn: (feature) => paid.isOn(feature),
-        price: () => ({ costUsd: 0.4, isCurrent: () => true }),
+        price: () => ({ costUsd: usd(0.4), isCurrent: () => true }),
       }),
     })
     const { session, watched } = await startRuntimeSession(runtime, root)
@@ -527,7 +530,7 @@ describe('portable checkpoint backend recording', () => {
     expect(api.imageBodies()).toHaveLength(1)
     expect(await readFile(path.join(root, 'art/image.png'))).toMatchObject({ 0: 0x89, 1: 0x50 })
     expect(usage.current.images).toBe(1)
-    expect(await budget.latestDay()).toMatchObject({ spentUsd: 0.4 })
+    expect(await budget.latestDay()).toMatchObject({ spentUsd: usd(0.4) })
     expect(watched.events).toContainEqual(
       expect.objectContaining({
         type: 'itemCompleted',
@@ -548,7 +551,7 @@ describe('portable checkpoint backend recording', () => {
       const admission = runtimePaidRequestAdmission({
         budget,
         isOn: (feature) => paid.isOn(feature),
-        price: () => ({ costUsd: 0.4, isCurrent: () => true, receiptCost }),
+        price: () => ({ costUsd: usd(0.4), isCurrent: () => true, receiptCost }),
       })
       const runtime = backend('modelApi', () => create(), {
         interactivePaid: paid,
@@ -573,15 +576,16 @@ describe('portable checkpoint backend recording', () => {
       if (decision === 'deny') {
         expect(receiptCost).not.toHaveBeenCalled()
         expect(api.responseBodies()).toHaveLength(2)
-        await expect(budget.latestDay()).resolves.toMatchObject({ spentUsd: 0 })
+        await expect(budget.latestDay()).resolves.toMatchObject({ spentUsd: usd(0) })
         return
       }
       await vi.waitFor(() => {
         expect(receiptCost).toHaveBeenCalledOnce()
       })
-      await expect(budget.latestDay()).resolves.toMatchObject({ spentUsd: 0.25 })
+      await expect(budget.latestDay()).resolves.toMatchObject({ spentUsd: usd(0.25) })
       await vi.waitFor(() => {
-        expect(usage.current.subagentCostUsd).toBe(0.25)
+        // 0.17 carries the backend receipt itself; it precedes the fallback cost reader.
+        expect(usage.current.subagentCostUsd).toBe(usd(0.00003375))
       })
       expect(watched.events).toContainEqual(
         expect.objectContaining({
@@ -750,8 +754,12 @@ describe('portable checkpoint backend recording', () => {
       expect(contribution.modelApi).toBeInstanceOf(ModelApiBackendManager)
       expect(contribution.paid).toBeDefined()
       policy.ask.mockResolvedValue('always')
-      expect(await contribution.paid?.consent.allows({ feature: 'webSearch' })).toBe(true)
-      expect(await contribution.paid?.consent.allows({ feature: 'webSearch' })).toBe(true)
+      expect(
+        await contribution.paid?.consent.allows({ feature: 'webSearch', priceUsd: usd(0.0025) }),
+      ).toBeTruthy()
+      expect(
+        await contribution.paid?.consent.allows({ feature: 'webSearch', priceUsd: usd(0.0025) }),
+      ).toBeTruthy()
       expect(policy.ask).toHaveBeenCalledOnce()
       expect(contribution.features.checkpoints).toBe(service.port)
       expect(await contribution.features.runManualHook?.('absent')).toMatchObject({

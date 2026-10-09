@@ -16,7 +16,7 @@ afterEach(async () => {
   for (const server of servers.splice(0)) await server.close()
 })
 const binding = {
-  mhp: '1.2',
+  mhp: '1.4',
   kind: 'surface',
   surface: 'a/b',
   sessionId: 'session',
@@ -24,18 +24,21 @@ const binding = {
   event: 'opened',
 }
 const input = {
-  mhp: '1.2',
+  mhp: '1.4',
   kind: 'panel',
   surface: 'a/b',
   direction: 'toHost',
   seq: 1,
   payload: { type: 'ready' },
 }
-async function fixture() {
+async function fixture(
+  isBindingAllowed?: (value: unknown, context: string | undefined) => boolean,
+) {
   let emit: ((message: unknown) => void) | undefined
   const post = vi.fn(() => Promise.resolve())
   const surface = vi.fn(() => Promise.resolve())
   const handler = {
+    ...(isBindingAllowed !== undefined && { isBindingAllowed }),
     inputSchema: panelEnvelopeSchema,
     outputSchema: z.union([panelEnvelopeSchema, panelErrorSchema]),
     surfaceSchema: panelLifecycleSchema,
@@ -103,7 +106,7 @@ describe('MHP companion endpoints', () => {
       ['MHP_PANEL_BACKPRESSURE', 429],
     ] as const) {
       f.post.mockRejectedValueOnce(
-        new MhpPanelError({ mhp: '1.2', kind: 'panelError', surface: 'a/b', seq: 1, code }),
+        new MhpPanelError({ mhp: '1.4', kind: 'panelError', surface: 'a/b', seq: 1, code }),
       )
       const result = await call(
         f.server,
@@ -153,4 +156,18 @@ describe('MHP companion endpoints', () => {
     response.destroy()
     outgoing.destroy()
   })
+})
+
+it('refuses a valid frame assigned to a different authenticated context before any effect', async () => {
+  const f = await fixture((value) => panelEnvelopeSchema.parse(value).surface === 'owned')
+  const result = await call(
+    f.server,
+    '/panel/message',
+    'POST',
+    JSON.stringify(input),
+    headers(f.server, f.token),
+  )
+  expect(result.status).toBe(404)
+  expect(f.post).not.toHaveBeenCalled()
+  expect(result.body).toContain('MHP_PANEL_UNKNOWN_SURFACE')
 })

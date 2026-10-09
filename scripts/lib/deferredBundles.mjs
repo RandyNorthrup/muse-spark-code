@@ -301,6 +301,30 @@ export const DEFERRED = [
     ],
   },
   {
+    output: 'dist/runtimeBackendServices.js',
+    metafile: 'dist/meta/runtimeBackendServices.json',
+    use: 'portable backend tool recording and guarded services',
+    files: ['src/runtime/panel/backendEntry.ts'],
+  },
+  {
+    output: 'dist/runtimeContext.js',
+    metafile: 'dist/meta/runtimeContext.json',
+    use: 'portable confined plan context',
+    files: ['src/runtime/panel/contextEntry.ts'],
+  },
+  {
+    output: 'dist/runtimeEngines.js',
+    metafile: 'dist/meta/runtimeEngines.json',
+    use: 'portable guarded engine factories',
+    files: ['src/runtime/panel/engineEntry.ts'],
+  },
+  {
+    output: 'dist/runtimePresentation.js',
+    metafile: 'dist/meta/runtimePresentation.json',
+    use: 'portable auxiliary presentation',
+    files: ['src/host/views/runtimePresentationEntry.ts'],
+  },
+  {
     output: 'dist/runtimePanelPorts.js',
     metafile: 'dist/meta/runtimePanelPorts.json',
     use: 'runtime panel feature composition',
@@ -1082,6 +1106,7 @@ const WIRE_FILES = [
   'src/shared/schedule.ts',
   'src/shared/media.ts',
   'src/shared/questions.ts',
+  'src/shared/presentationProtocol.ts',
 ]
 const WIRE_SOURCES = new Set(WIRE_FILES.map((file) => path.resolve(file)))
 /** @type {import('esbuild').Plugin} */
@@ -1091,7 +1116,7 @@ export const sharedWire = {
     build.onResolve(
       {
         filter:
-          /(?:^|\/)(?:protocol|agentEvents|scheduleProtocol|scheduleV2|scheduleEvents|schedule|media|questions)(?:\.ts)?$/,
+          /(?:^|\/)(?:protocol|agentEvents|scheduleProtocol|scheduleV2|scheduleEvents|schedule|media|questions|presentationProtocol)(?:\.ts)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
@@ -1122,6 +1147,24 @@ export const sharedResourceAdmission = {
       const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
       return RESOURCE_ADMISSION_SOURCES.has(source)
         ? { path: './resourceAdmission.js', external: true }
+        : undefined
+    })
+  },
+}
+
+const HOST_PROTOCOL_SOURCES = new Set(
+  ['src/shared/hostApi/methods.ts', 'src/shared/hostApi/panel.ts'].map((file) =>
+    path.resolve(file),
+  ),
+)
+/** Share the validated native service vocabulary across Node carrier bundles. */
+export const sharedHostProtocol = {
+  name: 'shared-host-protocol',
+  setup(build) {
+    build.onResolve({ filter: /\/(?:methods|panel)(?:\.ts)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+      return HOST_PROTOCOL_SOURCES.has(source)
+        ? { path: './hostProtocol.js', external: true }
         : undefined
     })
   },

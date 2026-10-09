@@ -2,6 +2,7 @@ import { judgeWindowPort, type JudgeWindowDeps } from '../../host/judge/judgeBun
 import type { JudgeEntryParts } from '../../core/judge/entries'
 import type { JudgeTokenPrices } from '../../core/judge/admission'
 import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
+import { nonnegativeUsdSchema } from '../../shared/usdSchema'
 import { UI_TEXT } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
@@ -32,7 +33,7 @@ export function createRuntimeJudge(deps: RuntimeJudgeDeps, table: UiText, locale
         const price = deps.priceOf(current.modelId)
         if (
           price === undefined ||
-          Object.values(price).some((rate) => !Number.isFinite(rate) || rate < 0)
+          Object.values(price).some((rate) => !nonnegativeUsdSchema.safeParse(rate).success)
         )
           return
       }

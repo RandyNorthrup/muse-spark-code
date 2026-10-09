@@ -10545,6 +10545,12 @@ export class ConversationController {
     }
   }
 
+  /** Auxiliary pages name a saved file; the existing fresh-session/trust/confirmation flow owns it. */
+  public async implementSavedPlan(fileName: string): Promise<void> {
+    if (this.isDisposed) throw new Error('MHP_PANEL_UNKNOWN_SURFACE')
+    await this.onePlanAction(() => this.implementPlan({ kind: 'file', fileName }))
+  }
+
   public confidentialWorkspaceChanged(): void {
     if (
       this.deps.isConfidentialWorkspace() &&

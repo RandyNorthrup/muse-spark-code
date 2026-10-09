@@ -10,6 +10,7 @@ import type { RuntimePaidGrantStore } from '../../../src/runtime/paidGrants'
 import { PAID_FEATURES, UI_TEXT, type PaidFeature } from '../../../src/shared/constants'
 import { createRuntimePaidBudget } from '../../../src/runtime/features/paidBudget'
 import { FakeLogOutputChannel } from '../../unit/helpers/fakes'
+import { Usd } from '../../../src/shared/usd'
 
 /** Callers own release order: drain dependent paid features before closing this journal. */
 export function enginePaidBudget(directory: string) {
@@ -17,7 +18,7 @@ export function enginePaidBudget(directory: string) {
     {
       directory,
       now: Date.now,
-      capUsd: () => 1,
+      capUsd: () => Usd.from(1).toAmount(),
       sleep: () => Promise.resolve(),
       assertCurrent: () => undefined,
       isLocalStorage: () => true,
@@ -29,7 +30,7 @@ export function enginePaidBudget(directory: string) {
 
 export function paidHarness(
   features: readonly PaidFeature[] = PAID_FEATURES,
-  costOf?: ConstructorParameters<typeof PaidUsage>[1],
+  costOf?: ConstructorParameters<typeof PaidUsage>[2],
   gateOverrides: Partial<PaidFeatureGateDeps> = {},
 ) {
   const state = { isOn: true, isAvailable: true, isCurrent: true, canRemember: true }
@@ -72,7 +73,7 @@ export function paidHarness(
     log,
     ...gateOverrides,
   })
-  const usage = new PaidUsage(log, costOf)
+  const usage = new PaidUsage(log, undefined, costOf)
   const paid = new RuntimePaidUse({
     gate,
     usage,

@@ -8,5 +8,5 @@
     "types": ["node", "vscode"]
   },
   "include": ["src/**/*.ts", "vitest.config.ts"],
-  "exclude": ["src/webview/**"]
+  "exclude": ["src/webview/**", "src/shared/browser/presentation.ts"]
 }

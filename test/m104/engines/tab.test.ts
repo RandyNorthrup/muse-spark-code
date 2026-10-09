@@ -17,6 +17,10 @@ import {
 import { FakeLogOutputChannel } from '../../unit/helpers/fakes'
 import { engineFixtures } from './fixtures'
 import { enginePaidBudget } from './paidHarness'
+import { Usd, type UsdAmount } from '../../../src/shared/usd'
+
+// 0.17 keeps money as exact decimal strings (CAPS017).
+const usd = (value: number): UsdAmount => Usd.from(value).toAmount()
 
 const fixtures = engineFixtures()
 const request: TabEngineRequest = {
@@ -52,7 +56,7 @@ async function setup(apiKey?: ModelApiClientDeps['apiKey']) {
   }
   const allows = vi.fn(() => Promise.resolve(true))
   const tariff = vi.fn(() => 0.25)
-  const usage = new PaidUsage(new FakeLogOutputChannel(), () => {
+  const usage = new PaidUsage(new FakeLogOutputChannel(), undefined, () => {
     throw new Error('new selection tariff must never be used')
   })
   const service = createRuntimeTab(
@@ -64,7 +68,7 @@ async function setup(apiKey?: ModelApiClientDeps['apiKey']) {
       canComplete: () => state.canComplete,
       price: () =>
         state.isPriced
-          ? { costUsd: 0.4, isCurrent: () => state.isTariffCurrent, receiptCost: tariff }
+          ? { costUsd: usd(0.4), isCurrent: () => state.isTariffCurrent, receiptCost: tariff }
           : undefined,
       assertCurrent: () => {
         if (!state.isCurrent) throw new Error('retired')
@@ -155,7 +159,7 @@ describe('F42 portable paid Tab', () => {
       expect(rig.api.responseBodies()).toHaveLength(0)
       expect(rig.usage.current.tabRequests ?? 0).toBe(0)
       if (reason !== 'deny') expect(rig.allows).not.toHaveBeenCalled()
-      await expect(rig.budget.latestDay()).resolves.toMatchObject({ spentUsd: 0 })
+      await expect(rig.budget.latestDay()).resolves.toMatchObject({ spentUsd: usd(0) })
     },
   )
   it('publishes a suggestion early, then drains and settles its original tariff after owner release', async () => {
@@ -175,9 +179,9 @@ describe('F42 portable paid Tab', () => {
     expect(rig.usage.current).toMatchObject({
       tabRequests: 1,
       tabUnknownRequests: 0,
-      tabCostUsd: 0.25,
+      tabCostUsd: usd(0.25),
     })
-    await expect(rig.budget.latestDay()).resolves.toMatchObject({ spentUsd: 0.25 })
+    await expect(rig.budget.latestDay()).resolves.toMatchObject({ spentUsd: usd(0.25) })
   })
   it('retains an uncertain claim when a sent stream has no usage', async () => {
     const rig = await setup()
@@ -192,7 +196,7 @@ describe('F42 portable paid Tab', () => {
     await expect(rig.service.complete(request)).rejects.toThrow()
     expect(rig.api.responseBodies()).toHaveLength(0)
     expect(rig.usage.current.tabRequests ?? 0).toBe(0)
-    await expect(rig.budget.latestDay()).resolves.toMatchObject({ spentUsd: 0 })
+    await expect(rig.budget.latestDay()).resolves.toMatchObject({ spentUsd: usd(0) })
   })
   it('rechecks the profile at the real client POST after an awaited key read', async () => {
     const reading = Promise.withResolvers<undefined>()
@@ -208,7 +212,7 @@ describe('F42 portable paid Tab', () => {
     key.resolve(FAKE_MODEL_API_KEY)
     await refused
     expect(rig.api.responseBodies()).toHaveLength(0)
-    await expect(rig.budget.latestDay()).resolves.toMatchObject({ spentUsd: 0 })
+    await expect(rig.budget.latestDay()).resolves.toMatchObject({ spentUsd: usd(0) })
   })
   it.each([NaN, Infinity, -1])('refuses invalid immutable receipt costs (%s)', async (cost) => {
     const rig = await setup()
@@ -233,7 +237,7 @@ describe('F42 portable paid Tab', () => {
       rig.service.complete({ ...request, isCancelled: () => state.isCancelled }),
     ).rejects.toThrow()
     expect(rig.api.responseBodies()).toHaveLength(0)
-    await expect(rig.budget.latestDay()).resolves.toMatchObject({ spentUsd: 0 })
+    await expect(rig.budget.latestDay()).resolves.toMatchObject({ spentUsd: usd(0) })
   })
   it('redacts document context before the actual parsed client request', async () => {
     const rig = await setup()

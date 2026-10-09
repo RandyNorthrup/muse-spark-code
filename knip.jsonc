@@ -54,6 +54,7 @@
     "src/runtime/resources/resourceJournalEntry.ts",
     // Vault schemas shared by real Node bundle readers (D6).
     "src/shared/vaultBoundariesEntry.ts",
+    "src/shared/hostApi/hostProtocolEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     "src/core/legal/entry.ts",
@@ -119,6 +120,7 @@
     "src/core/imageResizeWorker.ts",
     "src/webview/main.tsx",
     "src/webview/portable.tsx",
+    "src/shared/browser/presentation.ts",
     "src/webview/whatsNew/portable.ts",
     "src/webview/bridges/select.ts",
     "src/webview/bridges/moduleLoader.ts",
@@ -153,7 +155,15 @@
     "test/harness/vault/run.mjs",
     // M115 schedule scenes: test/harness/index.html imports this page module.
     "test/harness/schedules.mjs",
+    "src/runtime/panel/contextEntry.ts",
+    "src/runtime/panel/engineEntry.ts",
+    "src/runtime/panel/backendEntry.ts",
+    "src/host/views/runtimePresentationEntry.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
+    "test/m104/{runtime,engines,ui}/**/*.test.{ts,tsx,mjs}",
+    "test/m104/ui/vitest.config.mjs",
+    "test/harness/presentation.tsx",
+    "test/harness/whatsNew.ts",
     // Built by the fallback accessibility suite and loaded by its real browser.
     "test/unit/helpers/fallbackHarness.tsx",
     // Standalone browser checks invoked by path; usageHost is bundled by them.

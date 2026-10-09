@@ -11,19 +11,22 @@ namespace MuseSpark.VisualStudio.Protocol
   // Validate the committed export itself: no hand-maintained copy of wire types.
   public sealed class SchemaContract
   {
-    public const int MaximumFrameChars = 1048576;
+    // MHP 1.4's panel envelopes carry attachments; the frozen byte cap is authoritative.
+    public const int MaximumFrameChars = 16777216;
     public const int MaximumJsonDepth = 64;
     private static readonly TimeSpan PatternTimeout = TimeSpan.FromSeconds(1);
+    private static readonly Lazy<SchemaContract> Installed = new Lazy<SchemaContract>(ReadInstalled);
     public JObject Export { get; }
     public string Version => Export.Value<string>("protocol") ?? throw Invalid();
     public JObject Methods => Export["methods"] as JObject ?? throw Invalid();
 
     public SchemaContract(JObject export) { Export = export; }
 
-    public static SchemaContract Load()
+    public static SchemaContract Load() => Installed.Value;
+    private static SchemaContract ReadInstalled()
     {
       var assembly = Assembly.GetExecutingAssembly();
-      var name = assembly.GetManifestResourceNames().Single(n => n.EndsWith("mhp-v1.schema.json", StringComparison.Ordinal));
+      var name = assembly.GetManifestResourceNames().Single(n => n.EndsWith("mhp-v1.1.schema.json", StringComparison.Ordinal));
       using (var stream = assembly.GetManifestResourceStream(name) ?? throw Invalid())
       using (var reader = new StreamReader(stream))
         return new SchemaContract(ParseObject(reader.ReadToEnd()));
@@ -32,6 +35,7 @@ namespace MuseSpark.VisualStudio.Protocol
     public static JObject ParseObject(string json)
     {
       if (json.Length > MaximumFrameChars) throw Invalid();
+      if (System.Text.Encoding.UTF8.GetByteCount(json) > MaximumFrameChars) throw Invalid();
       JsonSyntax.Validate(json);
       using (var reader = new JsonTextReader(new StringReader(json)) { MaxDepth = MaximumJsonDepth, DateParseHandling = DateParseHandling.None })
       {
@@ -46,8 +50,33 @@ namespace MuseSpark.VisualStudio.Protocol
     public void ValidateCall(string method, JObject frame) => Validate(frame, Method(method)["call"] ?? throw Invalid());
     public void ValidateResult(string method, JObject frame) => Validate(frame, Method(method)["result"] ?? throw Invalid());
     public void ValidateFailure(JObject frame) => Validate(frame, Export["failure"] ?? throw Invalid());
+    public void ValidatePanel(JToken frame, string kind) => Validate(frame, Export["panel"]?[kind] ?? throw Invalid());
+    public void ValidatePayload(JToken payload, string direction, string surfaceKind)
+    {
+      var envelope = Export["panel"]?["envelope"]?["oneOf"] as JArray ?? throw Invalid();
+      var rules = envelope.Single(s => s["properties"]?["direction"]?.Value<string>("const") == direction)["properties"]?["payload"] ?? throw Invalid();
+      var groups = rules["anyOf"] as JArray ?? throw Invalid();
+      // These group positions are the frozen export's shared chat/tasks/news/presentation unions.
+      var group = surfaceKind == "tasks" ? 1 : 0;
+      if (IsPresentationSurface(surfaceKind)) group = direction == "toHost" ? 3 : 2;
+      if (surfaceKind == "whatsNew")
+      {
+        if (direction != "toHost") throw Invalid();
+        group = 2;
+      }
+      Validate(payload, groups[group]);
+    }
 
-    public static void Validate(JToken value, JToken schema) { Check(value, schema, schema); }
+    public static bool IsPresentationSurface(string kind) => kind == "plans" || kind == "manager" || kind == "roles" || kind == "traffic" || kind == "diff" || kind == "walkthrough";
+
+    public static void Validate(JToken value, JToken schema)
+    {
+      try { Check(value, schema, schema); }
+      // A keyword of an unexpected JSON type (a cast, a format or a regex timeout) refuses the value; it never escapes as a crash.
+      catch (Exception error) when (IsValidationFault(error)) { throw Invalid(); }
+    }
+
+    private static bool IsValidationFault(Exception error) => !(error is MhpException) && !(error is OutOfMemoryException) && !(error is System.Threading.ThreadAbortException);
 
     private static void Check(JToken value, JToken schema, JToken root)
     {
@@ -62,10 +91,10 @@ namespace MuseSpark.VisualStudio.Protocol
         Check(value, target, root);
       }
       if (rules["anyOf"] is JArray alternatives && !alternatives.Any(s => Matches(value, s, root))) throw Invalid();
+      if (rules["oneOf"] is JArray exclusive && exclusive.Count(s => Matches(value, s, root)) != 1) throw Invalid();
       if (rules["const"] is JToken constant && !Equal(value, constant)) throw Invalid();
       if (rules["enum"] is JArray values && !values.Any(v => Equal(value, v))) throw Invalid();
-      var type = rules.Value<string>("type");
-      if (type != null && !IsType(value, type)) throw Invalid();
+      if (rules["type"] is JToken type && !HasType(value, type)) throw Invalid();
       if (value is JObject obj) CheckObject(obj, rules, root);
       if (value is JArray array) CheckArray(array, rules, root);
       if (value.Type == JTokenType.String)
@@ -112,7 +141,23 @@ namespace MuseSpark.VisualStudio.Protocol
     {
       try { Check(value, schema, root); return true; }
       catch (MhpException) { return false; }
+      // Any other failure inside one alternative is that alternative's refusal, never the validator's exit.
+      catch (Exception error) when (IsValidationFault(error)) { return false; }
     }
+
+    // JSON Schema 2020-12 §6.1.1: `type` is one name or a non-empty array of unique names (the frozen
+    // export uses ["string","null"] for ui/input's result and ["string","number","boolean"] for an elicitation default).
+    private static bool HasType(JToken value, JToken type)
+    {
+      if (type.Type == JTokenType.String) return IsType(value, type.Value<string>() ?? throw Invalid());
+      if (!(type is JArray names) || names.Count == 0 || names.Any(name => name.Type != JTokenType.String)) throw Invalid();
+      var listed = names.Select(name => name.Value<string>() ?? "").ToList();
+      // Every member is checked before any is tested, so member order never decides a malformed schema.
+      if (listed.Distinct(StringComparer.Ordinal).Count() != listed.Count || !listed.All(TypeNames.Contains)) throw Invalid();
+      return listed.Any(name => IsType(value, name));
+    }
+
+    private static readonly System.Collections.Generic.HashSet<string> TypeNames = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal) { "object", "array", "string", "boolean", "null", "integer", "number" };
 
     private static bool Equal(JToken left, JToken right)
     {

@@ -5,11 +5,12 @@ import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
-export function buildLinuxHelper() {
+/** `root` is the package folder receiving native/linux/<arch>/muse-created (the repository by default). */
+export function buildLinuxHelper(root = '.') {
   if (process.platform !== 'linux') return
   if (!['x64', 'arm64'].includes(process.arch))
     throw new Error('Unsupported Linux helper architecture')
-  const directory = path.join('native', 'linux', process.arch)
+  const directory = path.join(root, 'native', 'linux', process.arch)
   mkdirSync(directory, { recursive: true })
   execFileSync(
     '/usr/bin/cc',

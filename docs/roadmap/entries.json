@@ -773,7 +773,8 @@
       "id": "M104",
       "title": "Every feature in every editor",
       "summary": "Every feature working in every supported editor, through that editor's own APIs or the project's own panel, with each new feature arriving in all of them together.",
-      "area": "editors"
+      "area": "editors",
+      "labels": ["experimental", "untested"]
     },
     {
       "id": "M105",

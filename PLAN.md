@@ -1050,6 +1050,12 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `.vsix`                                  | ≤ 2775 KiB                          |
 | `dist/runtimePanel.js`                   | ≤ 100 KiB                           |
 | `dist/runtimePanelPorts.js`              | ≤ 75 KiB                            |
+| `dist/runtimeContext.js`                 | ≤ 50 KiB                            |
+| `dist/runtimeEngines.js`                 | ≤ 150 KiB                           |
+| `dist/runtimeBackendServices.js`         | ≤ 200 KiB                           |
+| `dist/runtimePresentation.js`            | ≤ 50 KiB                            |
+| `dist/hostProtocol.js`                   | ≤ 50 KiB                            |
+| Portable presentation page closures      | ≤ 5 KiB each                        |
 | `dist/acp.js`                            | ≤ 850 KiB                           |
 | `dist/planMarkdown.js`                   | ≤ 150 KiB                           |
 | `dist/checkpointStore.js`                | ≤ 225 KiB                           |
@@ -1125,6 +1131,18 @@ properties, and retain all existing caps. No new artifact or dependency.
 **`dist/runtimePanel.js` budget rationale.** (M104 B2 carrier, 72.4 KiB measured; lazy command only)
 
 **`dist/runtimePanelPorts.js` budget rationale.** (M104 B2 feature ports, 53.6 KiB measured; lazy initialization only)
+
+**`dist/runtimeContext.js` budget rationale.** (M104 PA continuation 3: confined plan store and reader, first plan use)
+
+**`dist/runtimeEngines.js` budget rationale.** (M104 PA continuation 3: guarded conversation factories, first panel composition)
+
+**`dist/runtimeBackendServices.js` budget rationale.** (M104 PA continuation 3: actual interactive backend adapters, first panel profile)
+
+**`dist/runtimePresentation.js` budget rationale.** (M104 PA continuation 3: Tasks, What's New and report factory, first presentation)
+
+**`dist/hostProtocol.js` budget rationale.** (M104 PA continuation 3: shared MHP validation used by Node carriers)
+
+**Portable presentation page closures budget rationale.** (M104 PA continuation 3: Walkthrough, DiffPage, ManagerPage, PlanPage and RoleTrafficPage, each its full non-eager static implementation closure; all existing portable/startup/deferred caps unchanged)
 
 **`dist/acp.js` budget rationale.** (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)
 
@@ -30199,7 +30217,7 @@ platform receipt remains lead-owned; no gate or Meta fixture was changed.
 
 ### M102 — Usage & cost in every editor (D82)
 
-**Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
+**Status 2026-10-09: waiting.** Phase-2 integration is in progress; the portable aggregate budget and installed qualification remain open. Retained requirements and receipts follow.
 
 **M102INT3 (2026-10-06, Win11).** The rig brief authorizes the no-ff
 merge of M95 round 5 (`5ab3eb2c`), moving usage observations onto its
@@ -37859,6 +37877,25 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104INT phase-2 join (2026-10-09, kubuntu).** Resume the in-progress
+PD merge after the committed PB merge, then merge accepted PE, PF and LSP
+refs in the authorized order. Preserve 0.17 production contracts, exact money,
+localized tables, lazy surfaces and every existing cap. The first joined
+`runtimeEngines.js` measures 155.6 KiB against 150 KiB: separate captured
+account-state predicates from the account process launcher so portable auth
+can read those facts without carrying the SDK launcher. Retain the existing
+auth regression coverage. Regenerate inventories/reference/roadmap with their
+scripts, run each lane-owned/changed suite at repository deadlines and run
+aggregate quality once at the end. Certification belongs in `m104.md`.
+0.17 exact-money ports replace historical numeric fixtures; retain exact cap
+and refusal probes, including sub-nano decimal amounts. The MHP JSON exporter
+must describe accepted wire inputs before the existing normalization transforms.
+Those joined payloads change the frozen 1.3 panel digest, so explicitly adopt
+MHP 1.4 using the guarded generator and update actual native/frame fixtures;
+retain rejection of older versions. Never rewrite a lock at the same version.
+Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
+in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
+
 **Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
@@ -37879,6 +37916,40 @@ historical owned-suite subtotal to 205. Each fix gets regression failures and
 byte-exact red drills in `docs/certification/m104-pb.md`; no new dependency,
 guard widening, support promotion or live/paid call. The lane runs bounded
 rig checks; the lead retains aggregate quality and integration qualification.
+
+**FIXM104PA4 / RVM104PA4 (2026-10-07).** Close the re-review's two P2
+findings in lane A's files, closing residual R3-2. State publication
+reconciles into the mounted presentation page (fresh boundary key only
+after a crash); companion retire hands each replaced page to its feature
+owner through one serialized `retireCompanionPages` step while the session
+is still held, so no guard is widened. Failing regressions with SHA-256
+restoration go in `docs/certification/m104-pa-integration.md`. Scoped
+sequential checks run directly on macmini at repository deadlines; no
+merge, dependency, guard widening, support promotion, build, packaging or
+live/paid call. No RVM104PA4 residual remains; the companion E2E is a
+named follow-up (this rig's sandbox denies loopback binds).
+
+**FIXM104PA3 / RVM104PA3 (2026-10-06).** Repair all six review findings in
+lane A: ship the shared host protocol in the VSIX and production deferred-bundle
+fixtures; preserve disposal requests after conversation cancellation; retire
+completed presentation request IDs and admit actions against the specific
+authoritative field they change, publishing fresh state; admit selected text
+against the live confined mention index; and update the README marker's owning
+contract test. Add failing regression controls with SHA-256 restoration to
+`docs/certification/m104-pa-integration.md`. Run build and package end to end,
+then scoped sequential checks at repository deadlines on macmini. No merge,
+new dependency, gate weakening, support promotion or live/paid call.
+
+**M104PA continuation 3 integration (2026-10-06).** The authorized rig brief
+merges B `737196296` and C `739cf1771` into A. Integrate their concrete request
+records through A-owned composition, validated auxiliary vocabularies, settings,
+locale tables, discovery and individually budgeted lazy bundles. The new
+auxiliary/chooser/fresh-diagnostics contract explicitly adopts MHP 1.3, replacing
+1.2; frozen locks must never be rewritten under an unchanged version. Preserve every
+existing cap and explicit unavailable service. F owns host-API regeneration,
+native/distribution qualification and aggregate docs; no row becomes W here.
+Scoped sequential default-deadline verification and mutation controls are
+recorded in `docs/certification/m104-pa-integration.md`.
 
 **FIXM104PA2 / RVM104PA2 (2026-10-06).** Consume the engine's contributed
 `ensureHost` in the real portable controller, including refusal and selected
@@ -38293,6 +38364,15 @@ and are not transferred or accepted as complete by these launcher repairs.
 
 ## 7. Gates
 
+**M104INT portable aggregate blocker (2026-10-09).** The PD/0.17 union
+measures the complete portable JavaScript graph at 1321.0 KiB against its
+unchanged 1100 KiB cap. Portable engines were reduced from 155.6 to 131.7
+KiB against 150 by isolating account-state facts, but that does not cure the
+browser aggregate. The brief requires stopping budget repair without a lead
+size decision when it cannot fit; no cap or gate is raised. Continue the
+independently authorized joins and record final measurements/quality refusal;
+this blocker must be cleared before main integration or shipment.
+
 **FIXM104PB bounded review repair (2026-10-06, Kubuntu).** The lane brief
 overrides the aggregate quality/merge instructions: no full quality, full
 suite, merge, push or rebase. Use the repository's unchanged test deadlines,
@@ -38304,6 +38384,38 @@ generated host inventory remains F's integration responsibility. These gate
 deferrals apply only to the unshipped component lane; the lead must clear
 them and run aggregate quality before integration/support certification.
 Actual exits and unchanged size caps are recorded in `m104-pb.md`.
+
+**FIXM104PA3 packaging correction (2026-10-06).** Lane A repairs the existing
+VSIX allowlist and its actual package-member/production activation tests for
+`dist/hostProtocol.js`. Build and package run end to end locally with the
+existing named offline badge option, as required by the no-network rig brief.
+F retains the exact CI VSIX/ACP inventories and native/distribution receipts;
+the handoff now explicitly names this existing VS Code startup dependency and
+the required `extension/dist/hostProtocol.js` workflow member. Scoped default-
+deadline regressions and eight byte-exact red controls are recorded in
+`docs/certification/m104-pa-integration.md`. Aggregate quality remains lead-owned.
+
+**M104PA continuation 3 scope and ownership (2026-10-06).** The rig brief
+forbids full quality/full-suite runs; certify scoped sequential runs at default
+Vitest deadlines. F alone owns the generated host-API inventory and packaging
+scripts: regenerate/review its inventory and add the five new Node artifacts
+plus the complete portable presentation graph to the exact ACP/test-package
+inventory before release. A records their exact paths and native prerequisites
+in `docs/certification/m104-pa-integration.md`; these are handoffs, not gate waivers.
+The earlier 1.2 no-HTML ruling describes the retired proposal. This continuation
+adopts 1.3 for C's awaited same-build What's New publication while retaining
+editor-initiated initialization, authenticated assets and immutable bindings.
+No legacy 1.2 carrier is accepted, and no support row is promoted.
+
+The scoped engine suite has one owner-fixture failure: the paid image test's
+one-second `vi.waitFor` expires during real checkpoint preparation. A temporary
+fake-only probe of the same flow, waiting for its actual consent question,
+passes at the repository's five-second test deadline; B must repair its fixture
+before claiming its namespace green. C's 962-case browser matrix cannot start
+without Playwright 1.63.0's WebKit build 2359 (and installed Chrome). No tests,
+caps or timeouts are weakened. F prepares qualification tools and regenerates
+the host inventory. Missing Model API workflow orchestration and F53/F55/F56
+engines/contracts remain bounded scope stops, with prerequisites in A's record.
 
 **M104INT bounded integration (2026-10-06, macmini).** The explicit rig
 brief forbids aggregate quality and full test runs; commits use the owning

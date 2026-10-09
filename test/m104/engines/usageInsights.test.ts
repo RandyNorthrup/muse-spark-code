@@ -1,9 +1,9 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import * as traceLogs from '../../../src/host/usage/traceLogs'
+import * as traceLogs from '../../../src/runtime/usage/traceLogs'
 import { createRuntimeUsageInsights } from '../../../src/runtime/features/usageInsights'
-import type { UsageInsightsReport } from '../../../src/host/conversation/conversationController'
+import type { UsageInsightsReport } from '../../../src/runtime/usage/traceLogs'
 import { engineFixtures } from './fixtures'
 
 const fixtures = engineFixtures()

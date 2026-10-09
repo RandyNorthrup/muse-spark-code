@@ -294,6 +294,9 @@ export const REFERENCE_ACTION_FEATURES = {
   savePlan: 'plans',
   implementPlan: 'plans',
   showPlans: 'plans',
+  // M104 portable presentation pages: the walkthrough opens with the chat; roles are the team's.
+  showWalkthrough: 'chat',
+  showRoles: 'team-workers',
   renameSession: 'conversation-actions',
   readUsage: 'chat',
   dictation: 'chat',

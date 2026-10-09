@@ -16,6 +16,10 @@ import {
 } from '../../unit/helpers/fakeModelApi'
 import { engineFixtures } from './fixtures'
 import { enginePaidBudget, paidHarness } from './paidHarness'
+import { Usd, type UsdAmount } from '../../../src/shared/usd'
+
+// 0.17 keeps money as exact decimal strings (CAPS017).
+const usd = (value: number): UsdAmount => Usd.from(value).toAmount()
 
 const fixtures = engineFixtures()
 const body = judgeBody()
@@ -43,7 +47,7 @@ async function setup(backend: 'modelApi' | 'museCode' = 'modelApi', modelId = bo
     return Promise.resolve(session)
   })
   const held = { response: Promise.resolve(), settlement: Promise.resolve() }
-  const price = { input: 2, cachedInput: 0.5, output: 8 }
+  const price = { input: usd(2), cachedInput: usd(0.5), output: usd(8) }
   const events: AgentEvent[] = []
   const status = vi.fn()
   const load = vi.fn(() => ({ createWindowJudge }))
@@ -174,9 +178,10 @@ describe('F54 portable owned Judge', () => {
       expect(rig.api.responseBodies()).toHaveLength(0)
     },
   )
-  it.each([NaN, Infinity, -1])('refuses unusable price %s before a popup', async (rate) => {
+  // A corrupt catalog rate reaches the engine as an unparseable or negative amount.
+  it.each(['NaN', 'Infinity', '-1'])('refuses unusable price %s before a popup', async (rate) => {
     const rig = await setup()
-    rig.price.input = rate
+    rig.price.input = rate as UsdAmount
     expect(rig.service.judge.start(rig.action, 'state')).toBeUndefined()
     expect(rig.load).not.toHaveBeenCalled()
     expect(rig.policy.ask).not.toHaveBeenCalled()
@@ -199,7 +204,7 @@ describe('F54 portable owned Judge', () => {
     expect(rig.policy.ask).toHaveBeenCalledOnce()
     expect(rig.api.responseBodies()).toHaveLength(0)
     expect(fence?.read()).toBeUndefined()
-    await expect(rig.budget.latestDay()).resolves.toMatchObject({ spentUsd: 0 })
+    await expect(rig.budget.latestDay()).resolves.toMatchObject({ spentUsd: usd(0) })
   })
   it('drains held consent on release without creating a source for a retired action', async () => {
     const rig = await setup()
@@ -234,7 +239,7 @@ describe('F54 portable owned Judge', () => {
     await sent(rig)
     rig.state.isCurrent = false
     rig.state.isPriced = false
-    rig.price.input = 999
+    rig.price.input = usd(999)
     const closing = rig.service.dispose()
     try {
       await new Promise((resolve) => setImmediate(resolve))
@@ -252,9 +257,9 @@ describe('F54 portable owned Judge', () => {
     expect(rig.policy.usage.current).toMatchObject({
       judgeCalls: 1,
       judgeUnknownRequests: 0,
-      judgeCostUsd: 0.0000345,
+      judgeCostUsd: usd(0.0000345),
     })
-    await expect(rig.budget.latestDay()).resolves.toMatchObject({ spentUsd: 0.0000345 })
+    await expect(rig.budget.latestDay()).resolves.toMatchObject({ spentUsd: usd(0.0000345) })
     expect(rig.events.map((event) => event.type)).toEqual(['itemStarted'])
   })
   it('keeps ready caution advisory and reuses the captured response parser', async () => {

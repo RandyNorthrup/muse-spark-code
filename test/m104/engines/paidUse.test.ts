@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { paidHarness as setup } from './paidHarness'
+import { Usd } from '../../../src/shared/usd'
+
+// 0.17: money is exact decimal strings; a search request carries its frozen price.
+const ONE_USD = Usd.from(1).toAmount()
+const WEB_SEARCH = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() } as const
 
 describe('interactive paid policy apart from ACP flags', () => {
   it('snoozes Denied Tab only in its window', async () => {
     const { paid, ask } = setup()
-    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 } as const
+    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: ONE_USD } as const
     ask.mockResolvedValueOnce('deny')
     expect(await paid.allows('/ws', 'denied-window', request, false)).toBe(false)
     expect(await paid.allows('/ws', 'denied-window', request, false)).toBe(false)
@@ -16,7 +21,7 @@ describe('interactive paid policy apart from ACP flags', () => {
 
   it('revokes Tab once on OFF while retaining it across another feature’s toggle', async () => {
     const { paid, ask } = setup(undefined, undefined, { confirm: () => Promise.resolve(true) })
-    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 } as const
+    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: ONE_USD } as const
     const composition = paid.composition('/ws', 'window')
     expect(await composition.consent.allows(request)).toBe(true)
     await composition.gate.turnOff('voice')
@@ -46,7 +51,7 @@ describe('interactive paid policy apart from ACP flags', () => {
 
   it('keeps Tab Allow once for exactly its window and revokes it with Ask again', async () => {
     const { paid, ask } = setup()
-    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 } as const
+    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: ONE_USD } as const
     const first = paid.composition('/ws', 'window-one')
     expect(await first.consent.allows(request)).toBe(true)
     expect(await first.consent.allows(request)).toBe(true)
@@ -67,7 +72,7 @@ describe('interactive paid policy apart from ACP flags', () => {
     const { paid, ask } = setup()
     const held = Promise.withResolvers<'once'>()
     ask.mockReturnValue(held.promise)
-    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 } as const
+    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: ONE_USD } as const
     const first = paid.allows('/ws', 'window-one', request, false)
     const second = paid.allows('/ws', 'window-one', request, false)
     try {
@@ -119,8 +124,8 @@ describe('interactive paid policy apart from ACP flags', () => {
     const { paid, ask, granted } = setup()
     const composition = paid.composition('/ws', 'surface')
     ask.mockResolvedValue('always')
-    expect(await composition.consent.allows({ feature: 'webSearch' })).toBe(true)
-    expect(await composition.consent.allows({ feature: 'webSearch' })).toBe(true)
+    expect(await composition.consent.allows(WEB_SEARCH)).toBe(true)
+    expect(await composition.consent.allows(WEB_SEARCH)).toBe(true)
     expect(ask).toHaveBeenCalledOnce()
     await composition.gate.turnOff('webSearch')
     expect(granted.get('/ws')?.has('webSearch')).toBe(false)
@@ -129,9 +134,9 @@ describe('interactive paid policy apart from ACP flags', () => {
 
   it('asks once per actual use and counts the real paid usage', async () => {
     const { paid, ask, usage } = setup()
-    expect(await paid.allows('/ws', 's', { feature: 'webSearch' }, true)).toBe(true)
+    expect(await paid.allows('/ws', 's', WEB_SEARCH, true)).toBe(true)
     expect(ask).toHaveBeenCalledOnce()
-    expect(await paid.allows('/ws', 's', { feature: 'webSearch' }, true)).toBe(true)
+    expect(await paid.allows('/ws', 's', WEB_SEARCH, true)).toBe(true)
     expect(ask).toHaveBeenCalledTimes(2)
     paid.noteUse('webSearch', 1)
     expect(usage.current.webSearches).toBe(1)
@@ -175,7 +180,7 @@ describe('interactive paid policy apart from ACP flags', () => {
     granted.set('/ws', new Set(['webSearch']))
     state.canRemember = false
     ask.mockResolvedValue('deny')
-    expect(await paid.allows('/ws', 's', { feature: 'webSearch' }, true)).toBe(false)
+    expect(await paid.allows('/ws', 's', WEB_SEARCH, true)).toBe(false)
     expect(ask).toHaveBeenCalledOnce()
     await paid.dispose()
   })
@@ -211,7 +216,7 @@ describe('interactive paid policy apart from ACP flags', () => {
     const turningOff = composition.gate.turnOff('webSearch')
     const held = Promise.withResolvers<'once'>()
     ask.mockReturnValue(held.promise)
-    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 } as const
+    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: ONE_USD } as const
     const deciding = composition.consent.allows(request)
     const forgetting = composition.consent.forget()
     held.resolve('once')

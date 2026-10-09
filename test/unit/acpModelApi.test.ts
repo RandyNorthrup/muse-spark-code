@@ -237,7 +237,7 @@ async function promptAgain(client: acp.ClientContext, sessionId: string) {
 
 describe('the ACP agent on the Model API backend (M63)', () => {
   it('writes a file the client allowed, streams the reply, and never sends the key to the client', async () => {
-    const t = setup(allowOnce)
+    const t = setup(allowOnce, [], true)
     t.api.script({ calls: [writeCall('notes.txt', 'hello\n', 'c1')] }, { text: 'Wrote it.' })
     const { created, stopReason } = await t.run((client) => promptOnce(client, t.workspace))
     expect(created.configOptions?.map((option) => option.id)).toEqual(['model', 'effort'])

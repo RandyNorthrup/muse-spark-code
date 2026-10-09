@@ -23,20 +23,15 @@ if (process.argv.includes('--child')) {
   const send = (method, params) => {
     process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id: next++, method, params })}\n`)
   }
-  send('initialize', {
-    host: { id: 'visual-studio', version: '17.14' },
-    protocolRange: { minimum: 'mhp/1.0.0', maximumExclusive: 'mhp/2.0.0' },
-    capabilities: ['lifecycle', 'documents'],
-    locale: 'en',
-    theme: { kind: 'dark', tokens: {} },
-    folders: [],
-    trusted: false,
-  })
   const lines = createInterface({ input: process.stdin })
   lines.on('line', (line) => {
     const reply = JSON.parse(line)
-    if (reply.id === 1) send('documents/list', {})
-    else if (reply.id === 2) writeFileSync(marker, JSON.stringify(reply))
+    if (reply.method === 'initialize') {
+      process.stdout.write(
+        `${JSON.stringify({ jsonrpc: '2.0', id: reply.id, result: { protocolVersion: 'mhp/1.4.0', capabilities: ['lifecycle'] } })}\n`,
+      )
+      send('documents/list', {})
+    } else if (reply.id === 1) writeFileSync(marker, JSON.stringify(reply))
   })
   lines.on('close', () => process.exit(0))
   process.stderr.write('fixture-private-account-and-path\n')
