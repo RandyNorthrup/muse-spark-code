@@ -212,8 +212,15 @@ export class ReportStorage {
       validName(name)
       return path.join(directory, name)
     }
+    // A name another writer is unlinking (a retired lease) can still be
+    // reached with no links left, by lstat or through an open handle. It is
+    // gone, as if ENOENT, not an unsafe file: refusing it failed a release
+    // and left a live lease behind (CIFIX017R3).
+    const absent = () =>
+      Object.assign(new Error(UI_TEXT.reportUi.generationFailed), { code: 'ENOENT' })
     const regular = async (file: string) => {
       const info = await lstatIdentity(file)
+      if (info.nlink < BigInt(REPORT_STORAGE_LINK_COUNT)) throw absent()
       if (
         !info.isFile() ||
         info.isSymbolicLink() ||
@@ -251,6 +258,7 @@ export class ReportStorage {
           )
           try {
             const actual = await handleIdentity(handle)
+            if (actual.nlink < BigInt(REPORT_STORAGE_LINK_COUNT)) throw absent()
             // A bounded allocation even for a corrupt or growing file.
             const maximum = REPORT_MAX_TEXT_CHARS * REPORT_MAX_SOURCES
             if (
