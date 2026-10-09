@@ -20251,6 +20251,20 @@ all of them; the `trackedDebt` category is the complete inventory it found.
 - quoted keys;
 - a plain `interface { fooUsd: Record<string, number> }`.
 
+**Sanctioned numeric money (M121 decision, 2026-10-09).** The type-checker
+guard reads all of `src` (host, runtime, ACP and webview too), so it judges
+more than the 0.17 inventory. Three kinds of number stay numeric, each listed
+in the guard's `sanctioned` category with this paragraph as its citation:
+(1) per-unit rates — USD per million tokens, per token or per hour on a price
+card or catalog row, display and comparison only, settled through `Usd`;
+(2) vendor wire units captured as sent (xAI `cost_in_usd_ticks`), converted
+exactly at the named boundary; (3) VS Code number settings and their declared
+defaults/limits (`paidDailyBudgetUsd`, `tabDailyBudgetUsd`,
+`modelApiSessionBudgetUsd`, `PAID_DAILY_BUDGET` limits), which VS Code stores
+as JSON numbers and every reader converts with `Usd.from` on read. Everything
+else is converted to `UsdAmount`; old persisted numbers are read through a
+versioned schema whose number member pipes straight to the canonical string.
+
 ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
 
 **Status 2026-10-07: built.** Linux receipts in `docs/certification/int0180.md`; the package job stays red without genuine macOS artifacts.
