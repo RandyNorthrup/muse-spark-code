@@ -83,6 +83,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Scheduled prompts spend about half the time on their store per fire: the
+  store keeps one journal per workspace, so its validated snapshot and deltas
+  are reused between calls, and a read copies the folded state once instead
+  of every journal entry. Every read still rereads and checks the bytes.
+
 - Packaged translation tables round-trip byte-exact again: every language
   table lists its keys in English's order, including the resource history
   and Windows path strings merged for 0.17.0.

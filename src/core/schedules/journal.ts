@@ -151,7 +151,11 @@ export function createScheduleJournal<T extends Collections>(
     }
     const snapshot = snapshotCache
     if (snapshot.revision !== active.revision) throw new Error('scheduleIndexRevisionMismatch')
-    const next: Collections = structuredClone(snapshot.value)
+    // Fold over shallow collection copies, so the cached snapshot and deltas
+    // stay untouched, then clone the folded state once for the caller's parser.
+    const next: Collections = Object.fromEntries(
+      Object.entries(snapshot.value).map(([collection, values]) => [collection, { ...values }]),
+    )
     let revision = snapshot.revision
     let bytes = 0
     let ops = 0
@@ -165,14 +169,12 @@ export function createScheduleJournal<T extends Collections>(
       const deltaContent = await fs.read(`${folder}/${name}`)
       if (deltaContent === undefined) throw new Error('scheduleIndexMissing')
       const cached = cachedDeltas.get(name)
-      const validated =
+      const delta =
         cached?.content === deltaContent
           ? cached.delta
           : deltaSchema.parse(parseScheduleStoredJson(deltaContent))
       if (cached !== undefined || cachedDeltas.size < SCHEDULE_JOURNAL_MAX_OPS)
-        cachedDeltas.set(name, { content: deltaContent, delta: validated })
-      // Application and caller parsers never receive the cached envelope itself.
-      const delta = structuredClone(validated)
+        cachedDeltas.set(name, { content: deltaContent, delta })
       if (isSealed || delta.revision !== revision + 1 || name !== `${String(delta.revision)}.json`)
         throw new Error('scheduleIndexRevisionMismatch')
       for (const change of delta.changes) {
@@ -199,7 +201,8 @@ export function createScheduleJournal<T extends Collections>(
       throw new Error('scheduleJournalLimitExceeded')
     return {
       revision,
-      value: parse(next),
+      // Caller parsers never receive the cached snapshot or delta values.
+      value: parse(structuredClone(next)),
       ops,
       bytes,
       generation: active.generation,
