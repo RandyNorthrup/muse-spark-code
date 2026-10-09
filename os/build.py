@@ -20,6 +20,12 @@ OUT = ROOT.parent / "out"
 DOWNLOAD_LIMIT = 64 * 1024 * 1024
 ARCHIVE_MEMBER_LIMIT = 1024
 ARCHIVE_STREAM_LIMIT = DOWNLOAD_LIMIT * 4 + ARCHIVE_MEMBER_LIMIT * 1024
+# Upstream Node 24.18.0 linux-x64 carries 5,774 members (4,703 regular,
+# 1,068 directories, 3 symlinks; SHA-256 verified against pins.json before
+# counting, 2026-10-08). Enumerate-but-skip members get their own ceiling
+# at that count plus headroom for upstream growth; wanted members keep the
+# strict limits above.
+NODE_SKIP_LIMIT = 8192
 TARGETS = {"x86-64", "arm64", "pi4", "pi5"}
 
 
@@ -49,8 +55,24 @@ def digest(file):
         return hashlib.file_digest(source, "sha256").hexdigest()
 
 
+def check_mkosi_version(probe, pinned):
+    """Require a successful probe reporting exactly the pinned version.
+
+    The full version token must equal the pin: a substring test would
+    accept 27.10 or 127.1 for a 27.1 pin, and a failed probe must never
+    satisfy the check. Pure so the policy is unit-testable.
+    """
+    if probe.returncode != 0:
+        raise ValueError("OS1 mkosi version mismatch")
+    tokens = (probe.stdout or "").split()
+    if len(tokens) < 2 or tokens[0] != "mkosi" or tokens[1] != pinned:
+        raise ValueError("OS1 mkosi version mismatch")
+
+
 def download(url, expected, dest):
-    if dest.exists() and digest(dest) == expected:
+    # expected=None fetches without a digest pin (the Pi InRelease trust
+    # root, bound by its signature instead); the size bound still applies.
+    if dest.exists() and (expected is None or digest(dest) == expected):
         return
     partial = dest.with_suffix(".partial")
     try:
@@ -63,7 +85,7 @@ def download(url, expected, dest):
                 if total > DOWNLOAD_LIMIT:
                     raise ValueError("OS1 input exceeds download limit")
                 output.write(chunk)
-        if digest(partial) != expected:
+        if expected is not None and digest(partial) != expected:
             raise ValueError("OS1 input SHA-256 mismatch")
         partial.replace(dest)
     finally:
@@ -152,10 +174,14 @@ def extract_selected(archive, destination, prefix, names):
     bounded reader as extract().
     """
     wanted = set(names)
+    if len(wanted) > ARCHIVE_MEMBER_LIMIT:
+        raise ValueError("OS1 archive member limit")
     with open_members(archive) as source:
-        members = list(source)
-        if len(members) > ARCHIVE_MEMBER_LIMIT:
-            raise ValueError("OS1 archive member limit")
+        members = []
+        for member in source:
+            members.append(member)
+            if len(members) > NODE_SKIP_LIMIT:
+                raise ValueError("OS1 archive member limit")
         seen = {}
         for member in members:
             candidate = member.name.replace("\\", "/")
@@ -211,8 +237,7 @@ def stage(args):
         text=True,
         check=False,
     )
-    if pins["mkosi"]["version"] not in probe.stdout:
-        raise ValueError("OS1 mkosi version mismatch")
+    check_mkosi_version(probe, pins["mkosi"]["version"])
     if args.target in ("pi4", "pi5"):
         if args.pi_keyring is None or args.pi_keyring_sha256 is None:
             raise ValueError("OS1 Pi keyring is required")

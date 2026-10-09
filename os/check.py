@@ -48,7 +48,19 @@ def pi_manifest(manifest, require_https=True):
         and all(c in "0123456789abcdefABCDEF" for c in fingerprint),
         "Pi archive fingerprint",
     )
+    # packagesIndexSha256 pins the Packages index file (e.g.
+    # main/binary-arm64/Packages.gz), never the signed InRelease itself:
+    # the InRelease is the trust root and is bound by its signature.
     require(hex_lower(manifest.get("packagesIndexSha256", ""), 64), "Pi index digest")
+    index_path = manifest.get("packagesIndex", "")
+    require(
+        isinstance(index_path, str)
+        and index_path
+        and "\\" not in index_path
+        and not index_path.startswith("/")
+        and all(part not in ("", ".", "..") for part in index_path.split("/")),
+        "Pi index path",
+    )
     index_url = manifest.get("packagesIndexUrl", "")
     require(
         isinstance(index_url, str)
@@ -71,14 +83,15 @@ def pi_manifest(manifest, require_https=True):
         fingerprint,
         manifest["packagesIndexSha256"],
         index_url,
+        index_path,
     )
 
 
-def verify_pi_index(manifest, payload):
-    """Refuse package pins that disagree with the verified Packages index.
+def parse_release_hashes(payload):
+    """Parse the SHA256 section of a verified Release/InRelease payload.
 
-    payload is the clearsigned Release text after its signature and digest
-    were verified. Returns {package name: index SHA-256} for the download.
+    A real Release lists index files (main/binary-arm64/Packages.gz and
+    siblings), never .debs. Returns {index path: (digest, size)}.
     """
     entries = {}
     section = None
@@ -91,20 +104,91 @@ def verify_pi_index(manifest, payload):
         fields = line.split()
         if len(fields) != 3:
             raise ValueError("OS1 policy: Pi index entry")
-        entry_digest, _size, entry_path = fields
+        entry_digest, size_text, entry_path = fields
         require(hex_lower(entry_digest, 64), "Pi index digest")
-        entries[entry_path.replace("\\", "/")] = entry_digest
+        try:
+            size = int(size_text)
+        except ValueError:
+            raise ValueError("OS1 policy: Pi index entry")
+        require(size >= 0, "Pi index entry")
+        entries[entry_path.replace("\\", "/")] = (entry_digest, size)
     require(entries, "Pi index hashes")
+    return entries
+
+
+def parse_packages(data):
+    """Parse a Packages index into a list of stanza dicts.
+
+    Stanzas carry Package, Version, Architecture, Filename
+    (pool/.../*.deb), Size and SHA256; continuation lines (Description
+    bodies) are skipped. Refuses an empty index.
+    """
+    stanzas = []
+    for chunk in data.split("\n\n"):
+        stanza = {}
+        for line in chunk.splitlines():
+            if not line or line[0] in (" ", "\t") or ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            stanza[key.strip()] = value.strip()
+        if stanza:
+            stanzas.append(stanza)
+    require(stanzas, "Pi packages index")
+    return stanzas
+
+
+def verify_pi_packages(manifest, release_entries, packages_text):
+    """Refuse package pins that disagree with the verified Packages index.
+
+    release_entries is parse_release_hashes() over the clearsigned
+    InRelease after its signature was verified. The manifest-pinned
+    Packages index path must be listed there with the manifest-pinned
+    digest; every manifest .deb must then match exactly one stanza on
+    Package name and Version, an arm64/all architecture, the stanza
+    Filename and the stanza SHA256. Returns
+    {package name: {"sha256", "size", "filename"}} for the download.
+    """
+    index_path = manifest["packagesIndex"].replace("\\", "/")
+    require(index_path in release_entries, "Pi index package entry")
+    require(
+        release_entries[index_path][0].lower()
+        == manifest["packagesIndexSha256"].lower(),
+        "Pi index digest",
+    )
     wanted = {}
+    stanzas = parse_packages(packages_text)
     for package in manifest["packages"]:
-        name = package["url"].replace("\\", "/").rsplit("/", 1)[-1]
-        matches = [path for path in entries if path.rsplit("/", 1)[-1] == name]
+        matches = [
+            stanza
+            for stanza in stanzas
+            if stanza.get("Package") == package["package"]
+            and stanza.get("Version") == package.get("version")
+        ]
         require(len(matches) == 1, "Pi index package entry")
+        stanza = matches[0]
+        require(stanza.get("Architecture") in ("arm64", "all"), "Pi index package entry")
+        stanza_file = stanza.get("Filename", "").replace("\\", "/")
+        manifest_file = package["url"].replace("\\", "/").rsplit("/", 1)[-1]
         require(
-            entries[matches[0]].lower() == package["sha256"].lower(),
+            stanza_file
+            and stanza_file.rsplit("/", 1)[-1] == manifest_file
+            and stanza_file.endswith(".deb"),
+            "Pi package file",
+        )
+        require(
+            stanza.get("SHA256", "").lower() == package["sha256"].lower(),
             "Pi package digest",
         )
-        wanted[package["package"]] = entries[matches[0]]
+        try:
+            size = int(stanza.get("Size", ""))
+        except ValueError:
+            raise ValueError("OS1 policy: Pi index package entry")
+        require(size >= 0, "Pi index package entry")
+        wanted[package["package"]] = {
+            "sha256": stanza["SHA256"].lower(),
+            "size": size,
+            "filename": stanza_file,
+        }
     return wanted
 
 
@@ -146,10 +230,17 @@ def check(root):
         lookup(installer, "Content", "KernelCommandLine") == "systemd.volatile=overlay",
         "installer volatile overlay",
     )
+    hook = (root / "mkosi.initrd.postinst").read_text()
     require(
-        "/usr/lib/systemd/system/initrd-root-fs.target.wants"
-        in (root / "mkosi.initrd.postinst").read_text(),
+        "/usr/lib/systemd/system/initrd-root-fs.target.wants" in hook,
         "initrd vendor dependency",
+    )
+    # The enablement is the exact ln command, not a substring: without it
+    # the bind-ro unit is never installed and the installer overlay ships
+    # without the protective bind.
+    require(
+        'ln -s ../muse-overlay-usr.service "$wants/muse-overlay-usr.service"' in hook,
+        "initrd bind-ro enablement",
     )
     parts = {
         file.stem: config(file)["Partition"]
