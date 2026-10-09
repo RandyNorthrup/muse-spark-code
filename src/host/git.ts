@@ -351,6 +351,15 @@ export function isGitExitError(value: unknown): value is GitExitError {
 export interface GitProcessOptions {
   /** Checkpoint Git bypasses temp pressure and checks this storage volume instead. */
   readonly checkpointDestination?: string | undefined
+  /**
+   * D104's named exception (M123): a confirmed push or a pull request fetch
+   * keeps the user's own Git environment (credential helpers, SSH agent and
+   * token variables, as a terminal would), with `GIT_TERMINAL_PROMPT=0`.
+   * Everything else keeps the quiet environment. The process never gains
+   * anything of ours either way: no `http.extraHeader`, no credential
+   * helper of ours, no token variable.
+   */
+  readonly isUserEnvironment?: boolean | undefined
   readonly beforeRun?: BestOfNGitGuard | undefined
   readonly cwd: string
   /** The child's whole environment: nothing else is inherited. */
@@ -422,7 +431,12 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
           job === undefined
             ? deps.spawn(git, [...args], {
                 cwd: options.cwd,
-                env: resourceEnvironment(withoutCredentials(options.env), resource),
+                env: resourceEnvironment(
+                  options.isUserEnvironment === true
+                    ? { ...options.env, GIT_TERMINAL_PROMPT: '0' }
+                    : withoutCredentials(options.env),
+                  resource,
+                ),
                 stdio: ['pipe', 'pipe', 'pipe'],
                 windowsHide: true,
                 ...treeSpawnOptions(deps.platform),

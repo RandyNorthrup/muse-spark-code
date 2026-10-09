@@ -18,6 +18,18 @@ happened, not what was planned; superseded entries are kept.
   `museSpark.github.useGhLogin` (off, user settings only); nothing reads it
   yet. The device-flow sign-in waits for the project's OAuth App (Q-M123).
 
+- **Native Git behind the same conversations** (M123 lane G, PLAN.md D104).
+  Status, the commit form, commit, push and commit-message drafts now run
+  through your own `git` on the repository itself, for every editor outside
+  VS Code (and a VS Code-family host without `vscode.git`). Pushes plan
+  with the same refusals as VS Code (never a force-push), run hooks and
+  signers as you configured them, keep your own credential helpers, SSH
+  agent and token variables for the push and the pull request fetch (reads
+  stay quiet), and open the same command in the editor's terminal when a
+  push fails. Nothing is sent to GitHub yet: the pull request form,
+  creation, status and trust arrive with lane P, and the sign-in card with
+  lanes A and L.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
