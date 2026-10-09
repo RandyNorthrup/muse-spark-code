@@ -247,12 +247,13 @@ describe('judge MCP stdio', () => {
     ])
     expect(streams.output()).toContain('over-budget')
   })
-  it('rounds fractional-microUSD reservations up before checking the run cap', async () => {
-    const fake = source('paid', 0.0000006)
+  it('rounds fractional-nanoUSD reservations up before checking the run cap', async () => {
+    // The run cap is exact nano-USD (RVM98P2R2 8): 0.6 nano-USD reserves 1.
+    const fake = source('paid', 0.0000000006)
     const admitPaid = vi.fn(() => Promise.resolve(answered()))
     expect(
       await runJudgeCommand(
-        command('mcp', ['--model', 'chosen', '--budget-usd', '0.000001']),
+        command('mcp', ['--model', 'chosen', '--budget-usd', '0.000000001']),
         io(call(1) + call(2)),
         {
           resolveSource: () => Promise.resolve(fake.value),
@@ -261,7 +262,12 @@ describe('judge MCP stdio', () => {
       ),
     ).toBe(4)
     expect(admitPaid).toHaveBeenCalledOnce()
-    expect(admitPaid).toHaveBeenCalledWith(fake.value, REQUEST, 0.000001, expect.any(AbortSignal))
+    expect(admitPaid).toHaveBeenCalledWith(
+      fake.value,
+      REQUEST,
+      0.000000001,
+      expect.any(AbortSignal),
+    )
   })
   it('stops queued inference after an output pipe stalls', async () => {
     const fake = source('paid', 1)

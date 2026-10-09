@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { entropyConfidence } from '../../src/core/judge/math'
 import {
   applySystemOneGate,
+  systemOneNanoUsd,
   systemOneRouteLabels,
   systemOneUsd,
 } from '../../src/core/judge/systemone/policy'
@@ -15,7 +16,6 @@ import {
   listedPresets,
   systemOnePresetById,
 } from '../../src/core/providers/presets'
-import { TOKENS_PER_MILLION } from '../../src/shared/constants'
 import captures from './fixtures/judgeSystemOneCaptures.json'
 
 const costs = { reservedCostUsd: 0.02, settledCostUsd: 0.01 }
@@ -98,8 +98,10 @@ describe('systemone service catalogue', () => {
 
   it('prices output at zero', () => {
     const rates = { inputUsdPerMillion: 0.042, outputUsdPerMillion: 0 }
-    expect(systemOneUsd(491, 20, rates)).toBe((491 * 0.042) / TOKENS_PER_MILLION)
-    expect(systemOneUsd(100, 20, rates)).toBe((100 * rates.inputUsdPerMillion) / TOKENS_PER_MILLION)
+    // Exact decimals (RVM98P2R2 8), never a float product's artifact.
+    expect(systemOneUsd(491, 20, rates)).toBe(0.000020622)
+    expect(systemOneUsd(100, 20, rates)).toBe(0.0000042)
+    expect(systemOneNanoUsd(491, 20, rates)).toBe(20_622n)
     expect(() => systemOneUsd(-1, 0, rates)).toThrow(TypeError)
     expect(() => systemOneUsd(1.5, 0, rates)).toThrow(TypeError)
   })
