@@ -98,7 +98,7 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   for (const [name, selector, label] of [
     ['accounts-edit', '.accounts-section button', 'Edit'],
     ['accounts-thresholds', '.accounts-section button', 'Edit'],
-    ['vault-grant', '.vault-actions button', 'Create grant'],
+    ['vault-grant', '.vault-actions button', 'Create Grant'],
     ['resource-controls', '.resource-chip', undefined],
   ]) {
     if (scene !== name) continue
@@ -135,7 +135,7 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   if (scene === 'share' || scene === 'share-narrow')
     await waitForPaint(page, '.code-block-body code.hljs [class^="hljs-"]')
   if ((await page.locator('h3.usage-heading', { hasText: /^Account$/ }).count()) > 0) {
-    await waitForPaint(page, 'dl.usage-facts dt:text-is("Auth method")')
+    await waitForPaint(page, 'dl.usage-facts dt:text-is("Auth Method")')
     // Its status and usage rows also load lazily behind "Reading usage…".
     const reading = page.locator('[role="status"]', { hasText: /^Reading usage…$/ })
     for (let attempt = 0; attempt < 100 && (await reading.count()) > 0; attempt += 1) {

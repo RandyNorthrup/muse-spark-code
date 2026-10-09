@@ -112,13 +112,13 @@ describe('M117 shared estimator browser harness', () => {
         try {
           await page.goto(ORIGIN)
           await page.locator('[data-estimator-ready="true"]').waitFor()
-          const lane = page.getByRole('button', { name: /^A · Critical path/ })
+          const lane = page.getByRole('button', { name: /^A · Critical Path/ })
           await lane.focus()
           await page.keyboard.press('Enter')
           expect(await lane.getAttribute('aria-expanded')).toBe('true')
-          await page.getByRole('radio', { name: /^Current fleet/ }).focus()
+          await page.getByRole('radio', { name: /^Current Fleet/ }).focus()
           await page.keyboard.press('ArrowDown')
-          expect(await page.getByRole('radio', { name: /^Minimum setup · P50/ }).isChecked()).toBe(
+          expect(await page.getByRole('radio', { name: /^Minimum Setup · P50/ }).isChecked()).toBe(
             true,
           )
           await page.locator('summary').first().focus()
@@ -135,8 +135,8 @@ describe('M117 shared estimator browser harness', () => {
           )
           expect(axeSchema.parse(scan).violations).toEqual([])
           await page.evaluate("window.dispatchEvent(new Event('fixture-lane-finished'))")
-          await page.getByText(/Drift since the previous estimate/).waitFor()
-          expect(await page.getByRole('button', { name: 'Spin it up' }).isDisabled()).toBe(true)
+          await page.getByText(/Drift Since the Previous Estimate/).waitFor()
+          expect(await page.getByRole('button', { name: 'Spin It Up' }).isDisabled()).toBe(true)
           expect(errors).toEqual([])
         } finally {
           await page.close()

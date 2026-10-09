@@ -42,9 +42,9 @@ describe('TasksApp', () => {
     const postMessage = vi.fn()
     render(<TasksApp messages={window} postMessage={postMessage} />)
     state()
-    expect(screen.queryByRole('button', { name: 'Move into new window' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Move Into New Window' })).toBeNull()
     state({ canMoveToWindow: true })
-    fireEvent.click(screen.getByRole('button', { name: 'Move into new window' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Move Into New Window' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'moveTasksToWindow' })
   })
 

@@ -161,7 +161,7 @@ describe('UpdateTranslator', () => {
       result: { summary: 'Mapped' },
     }
     expect(translator.updates({ type: 'itemCompleted', item: subagent })).toMatchObject([
-      { title: 'Spawn agent: Map the workspace', kind: 'other' },
+      { title: 'Spawn Agent: Map the workspace', kind: 'other' },
       { rawOutput: { summary: 'Mapped' } },
     ])
   })
@@ -339,7 +339,7 @@ describe('tool names and kinds', () => {
 
 describe('approvals', () => {
   const choices: ApprovalChoice[] = [
-    { choiceId: 'a1', label: 'Allow once', decision: 'approved', scope: 'once' },
+    { choiceId: 'a1', label: 'Allow Once', decision: 'approved', scope: 'once' },
     {
       choiceId: 'a2',
       label: 'Always',
@@ -369,7 +369,7 @@ describe('approvals', () => {
 
   it('offers each choice under its own id, label and kind', () => {
     expect(permissionOptions(choices)).toEqual([
-      { optionId: 'a1', name: 'Allow once', kind: 'allow_once' },
+      { optionId: 'a1', name: 'Allow Once', kind: 'allow_once' },
       { optionId: 'a2', name: 'Always', kind: 'allow_always' },
       { optionId: 'd2', name: 'Never', kind: 'reject_always' },
       { optionId: 'd1', name: 'Reject', kind: 'reject_once' },

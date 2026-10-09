@@ -56,7 +56,7 @@
   "resourceHistoryDaily": "Önceki günler",
   "resourceHistoryDailyNotice": "Tamamlanan her gün ortalamalarını, her düzeydeki dakikaları, olay sayısını ve ajan ortamının işini kullanım geçmişi günleri boyunca saklar.",
   "resourceHistoryDay": "Gün (UTC)",
-  "resourceHistoryAverage": "ortalama",
+  "resourceHistoryAverage": "Ortalama",
   "resourceHistoryMinutes": "Kaydedilen dakikalar",
   "resourceHistoryLevelMinutes": "Düzeye göre dakikalar",
   "resourceMemoryBelowFloor": "Bellek alt sınırının altında",
@@ -1005,7 +1005,7 @@
   "modelPillTitle": "Model ve çaba",
   "permissionModeTitle": "İzin modu",
   "modesTitle": "Modlar",
-  "modesHintKeys": "⇧ + tab",
+  "modesHintKeys": "⇧ + Tab",
   "modesLabel": "İzin modları",
   "bypassNotAllowed": "İzinleri atla modunu kullanmak için “Allow Dangerously Skip Permissions” ayarını açın.",
   "bypassRevoked": "“Allow Dangerously Skip Permissions” ayarı kapatıldı; bu konuşma El ile moduna geri döndü.",
@@ -1599,8 +1599,8 @@
     "one": "{count} hazırlanmamış",
     "other": "{count} hazırlanmamış"
   },
-  "gitFileStaged": "hazırlanmış",
-  "gitFileUnstaged": "hazırlanmamış",
+  "gitFileStaged": "Hazırlanmış",
+  "gitFileUnstaged": "Hazırlanmamış",
   "gitMoreFiles": {
     "one": "ve {count} dosya daha",
     "other": "ve {count} dosya daha"
@@ -2339,8 +2339,8 @@
   "historyShowArchived": "Arşivlenenleri göster",
   "historyArchive": "Arşivle",
   "historyUnarchive": "Arşivden çıkar",
-  "historyCurrent": "geçerli",
-  "historyForkMark": "çatal",
+  "historyCurrent": "Geçerli",
+  "historyForkMark": "Çatal",
   "historyTurns": {
     "one": "{count} tur",
     "other": "{count} tur"
@@ -2965,7 +2965,7 @@
     "other": "{count} arka plan görevi"
   },
   "backgroundTasksLabel": "Arka plan görevleri",
-  "backgroundBadge": "arka plan",
+  "backgroundBadge": "Arka plan",
   "subagentRowLabel": "Aracı",
   "teamTreeLabel": "Ekip",
   "teamWorkerMerged": "birleştirildi",
@@ -2999,7 +2999,7 @@
     "unavailable": "kullanılamıyor"
   },
   "teamCapUsed": "{used} / {amount}",
-  "teamEstimated": "tahmini",
+  "teamEstimated": "Tahmini",
   "teamOpenTranscript": "Dökümü aç",
   "teamReviewDiff": "Farkı incele",
   "teamMergeAction": "Birleştir",
@@ -3808,7 +3808,7 @@
   "paidConfirmAccept": "Aç",
   "paidBadge": "Ücretli: {features}",
   "paidBadgeTitle": "Model API anahtarınıza faturalandırılır: {prices}. Bu pencerenin toplamını Hesap ve kullanım bölümünde görmek için tıklayın.",
-  "paidRowBadge": "ücretli",
+  "paidRowBadge": "Ücretli",
   "paidRowTitle": "Model API anahtarınıza faturalandırılır: {price}",
   "paidToggleLabel": "{feature} (ücretli)",
   "usagePaidHeading": "Bu penceredeki ücretli özellikler",
@@ -4158,10 +4158,10 @@
   "modelToolCallingUnavailable": "Bu model için araç çağırma doğrulanmadı.",
   "paidProviderPrice": "Milyon token başına: girdi {input}, önbellek okuma {cached}, önbellek yazma {write}, bir saatlik yazma {write1h}, çıktı {output}. İstek başına {request}; görsel başına {image}.",
   "paidProviderPriceTier": "{threshold} girdi tokenından itibaren: milyon başına girdi {input}, çıktı {output}.",
-  "modelUnpriced": "fiyatsız",
-  "modelLocal": "yerel",
-  "modelPlan": "abonelik",
-  "modelFree": "ücretsiz",
+  "modelUnpriced": "Fiyatsız",
+  "modelLocal": "Yerel",
+  "modelPlan": "Abonelik",
+  "modelFree": "Ücretsiz",
   "modelColumns": {
     "name": "Model",
     "context": "Bağlam",

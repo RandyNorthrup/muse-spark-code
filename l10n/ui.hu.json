@@ -56,7 +56,7 @@
   "resourceHistoryDaily": "Korábbi napok",
   "resourceHistoryDailyNotice": "Minden lezárt nap megőrzi az átlagait, az egyes szinteken töltött perceket, az események számát és az ügynökkörnyezet munkáját a használati előzmények napjaiig.",
   "resourceHistoryDay": "Nap (UTC)",
-  "resourceHistoryAverage": "átlag",
+  "resourceHistoryAverage": "Átlag",
   "resourceHistoryMinutes": "Rögzített percek",
   "resourceHistoryLevelMinutes": "Percek szintenként",
   "resourceMemoryBelowFloor": "A memória alsó határa alatt",
@@ -1005,7 +1005,7 @@
   "modelPillTitle": "Modell és ráfordítás",
   "permissionModeTitle": "Engedélyezési mód",
   "modesTitle": "Módok",
-  "modesHintKeys": "⇧ + tab",
+  "modesHintKeys": "⇧ + Tab",
   "modesLabel": "Engedélyezési módok",
   "bypassNotAllowed": "Az Engedélyek megkerülése mód használatához kapcsolja be az „Allow dangerously skip permissions” beállítást.",
   "bypassRevoked": "Az „Allow dangerously skip permissions” beállítást kikapcsolták; ez a beszélgetés visszakerült Kézi módba.",
@@ -1599,8 +1599,8 @@
     "one": "{count} nincs előkészítve",
     "other": "{count} nincs előkészítve"
   },
-  "gitFileStaged": "előkészítve",
-  "gitFileUnstaged": "nincs előkészítve",
+  "gitFileStaged": "Előkészítve",
+  "gitFileUnstaged": "Nincs előkészítve",
   "gitMoreFiles": {
     "one": "és még {count} fájl",
     "other": "és még {count} fájl"
@@ -2339,8 +2339,8 @@
   "historyShowArchived": "Archiváltak megjelenítése",
   "historyArchive": "Archiválás",
   "historyUnarchive": "Archiválás visszavonása",
-  "historyCurrent": "aktuális",
-  "historyForkMark": "elágazás",
+  "historyCurrent": "Aktuális",
+  "historyForkMark": "Elágazás",
   "historyTurns": {
     "one": "{count} kör",
     "other": "{count} kör"
@@ -2965,7 +2965,7 @@
     "other": "{count} háttérfeladat"
   },
   "backgroundTasksLabel": "Háttérfeladatok",
-  "backgroundBadge": "háttér",
+  "backgroundBadge": "Háttér",
   "subagentRowLabel": "Ügynök",
   "teamTreeLabel": "Csapat",
   "teamWorkerMerged": "egyesítve",
@@ -2999,7 +2999,7 @@
     "unavailable": "nem érhető el"
   },
   "teamCapUsed": "{used} / {amount}",
-  "teamEstimated": "becsült",
+  "teamEstimated": "Becsült",
   "teamOpenTranscript": "Átirat megnyitása",
   "teamReviewDiff": "Diff áttekintése",
   "teamMergeAction": "Egyesítés",
@@ -3808,7 +3808,7 @@
   "paidConfirmAccept": "Bekapcsolás",
   "paidBadge": "Fizetős: {features}",
   "paidBadgeTitle": "A Model API-kulcsára számlázva: {prices}. Kattintson, hogy a Fiók és használat párbeszédablakban lássa ennek az ablaknak az összesítőjét.",
-  "paidRowBadge": "fizetős",
+  "paidRowBadge": "Fizetős",
   "paidRowTitle": "A Model API-kulcsára számlázva: {price}",
   "paidToggleLabel": "{feature} (fizetős)",
   "usagePaidHeading": "Fizetős funkciók ebben az ablakban",
@@ -4158,10 +4158,10 @@
   "modelToolCallingUnavailable": "Az eszközhívás nincs ellenőrizve ennél a modellnél.",
   "paidProviderPrice": "Millió tokenenként: bemenet {input}, gyorsítótár-olvasás {cached}, gyorsítótár-írás {write}, egyórás írás {write1h}, kimenet {output}. Kérésenként {request}; képenként {image}.",
   "paidProviderPriceTier": "{threshold} bemeneti tokentől: bemenet {input}, kimenet {output} milliónként.",
-  "modelUnpriced": "ár nélkül",
-  "modelLocal": "helyi",
-  "modelPlan": "előfizetés",
-  "modelFree": "ingyenes",
+  "modelUnpriced": "Ár nélkül",
+  "modelLocal": "Helyi",
+  "modelPlan": "Előfizetés",
+  "modelFree": "Ingyenes",
   "modelColumns": {
     "name": "Modell",
     "context": "Kontextus",

@@ -55,6 +55,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **English titles and labels use Title Case.** Buttons, menu items, tabs,
+  headings, dialog and section titles, chips, badges, column headers, field
+  labels and command titles now capitalize every major word ("Rewind
+  Conversation to Here", "Open in Browser", "Account & Usage"). Sentences,
+  notices, tooltips that are sentences, placeholders and error messages keep
+  sentence case. Other languages keep their own convention; their labels and
+  badges that began in lower case ("aktuell", "payant") now start with a
+  capital.
 - **A sent message's menu is shorter and its pills fit their labels.**
   **Fork conversation from here** is now **Fork Conversation**, and **Fork
   conversation and rewind code** is now **Fork and Rewind**, in every

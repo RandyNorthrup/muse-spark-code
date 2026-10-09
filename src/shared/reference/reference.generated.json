@@ -2102,7 +2102,7 @@
     },
     {
       "id": "museSpark.importSkills",
-      "name": "Import Skills from Claude Code or Codex",
+      "name": "Import Skills From Claude Code or Codex",
       "nameKey": "command.importSkills.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2112,7 +2112,7 @@
     },
     {
       "id": "museSpark.importFromAgents",
-      "name": "Import from Other Agents",
+      "name": "Import From Other Agents",
       "nameKey": "command.importFromAgents.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2280,7 +2280,7 @@
     },
     {
       "id": "museSpark.removeBundledSkills",
-      "name": "Remove Bundled Skills from Muse Code",
+      "name": "Remove Bundled Skills From Muse Code",
       "nameKey": "command.removeBundledSkills.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2324,7 +2324,7 @@
       "nameKey": "command.tabTurnOff.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Turn Tab off: museSpark.modelApiTab=false.",
+      "description": "Turn Tab Off: museSpark.modelApiTab=false.",
       "text": { "ui": "referenceTabOff" },
       "canRun": false
     },
@@ -2334,7 +2334,7 @@
       "nameKey": "command.tabSnooze.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Snooze for 15 minutes; Snooze for an hour; Snooze until restart.",
+      "description": "Snooze for 15 Minutes; Snooze for an Hour; Snooze Until Restart.",
       "text": { "ui": "referenceTabSnooze" },
       "canRun": false
     },
@@ -2344,13 +2344,13 @@
       "nameKey": "command.tabMenu.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "copilotYield: Turn Tab off; Snooze for 15 minutes; Snooze for an hour; Snooze until restart; Tab languages…; Multi-line mode…; Account & usage. When Copilot causes Tab to yield, the menu also offers disabling Copilot for the current language or running both.",
+      "description": "copilotYield: Turn Tab Off; Snooze for 15 Minutes; Snooze for an Hour; Snooze Until Restart; Tab Languages…; Multi-Line Mode…; Account & Usage. When Copilot causes Tab to yield, the menu also offers disabling Copilot for the current language or running both.",
       "text": { "conditions": [{ "when": "copilotYield", "text": { "ui": "referenceTabMenu" } }] },
       "canRun": false
     },
     {
       "id": "museSpark.schedulePrompt",
-      "name": "Schedule this prompt…",
+      "name": "Schedule This Prompt…",
       "nameKey": "command.schedulePrompt.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2360,7 +2360,7 @@
     },
     {
       "id": "museSpark.showSchedules",
-      "name": "Show schedules",
+      "name": "Show Schedules",
       "nameKey": "command.showSchedules.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2370,7 +2370,7 @@
     },
     {
       "id": "museSpark.showScheduleTimeline",
-      "name": "Show schedule timeline",
+      "name": "Show Schedule Timeline",
       "nameKey": "command.showScheduleTimeline.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2411,31 +2411,31 @@
     },
     {
       "id": "museSpark.nextOpenQuestion",
-      "name": "Next open question",
+      "name": "Next Open Question",
       "nameKey": "command.nextOpenQuestion.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Next open question",
+      "description": "Next Open Question",
       "text": { "ui": "questionNextOpen" },
       "canRun": false
     },
     {
       "id": "museSpark.previousOpenQuestion",
-      "name": "Previous open question",
+      "name": "Previous Open Question",
       "nameKey": "command.previousOpenQuestion.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Previous open question",
+      "description": "Previous Open Question",
       "text": { "ui": "questionPreviousOpen" },
       "canRun": false
     },
     {
       "id": "museSpark.startWithOwnModel",
-      "name": "Start with Your Own Model",
+      "name": "Start With Your Own Model",
       "nameKey": "command.startWithOwnModel.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Start with Your Own Model",
+      "description": "Start With Your Own Model",
       "text": { "command": "museSpark.startWithOwnModel" },
       "canRun": false
     },
@@ -2491,7 +2491,7 @@
     },
     {
       "id": "museSpark.legalScan",
-      "name": "Legal scan",
+      "name": "Legal Scan",
       "nameKey": "command.legalScan.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2502,7 +2502,7 @@
     },
     {
       "id": "museSpark.connectChatGpt",
-      "name": "Continue with ChatGPT",
+      "name": "Continue With ChatGPT",
       "nameKey": "command.connectChatGpt",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2512,7 +2512,7 @@
     },
     {
       "id": "museSpark.connectCopilot",
-      "name": "Use my Copilot models",
+      "name": "Use My Copilot Models",
       "nameKey": "command.connectCopilot",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2522,7 +2522,7 @@
     },
     {
       "id": "museSpark.sharePrompt",
-      "name": "Share prompt…",
+      "name": "Share Prompt…",
       "nameKey": "command.sharePrompt.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2532,17 +2532,17 @@
     },
     {
       "id": "museSpark.promptLibrary",
-      "name": "Prompt library",
+      "name": "Prompt Library",
       "nameKey": "command.promptLibrary.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Prompt library",
+      "description": "Prompt Library",
       "text": { "ui": "promptLibrary" },
       "canRun": true
     },
     {
       "id": "museSpark.savePrompt",
-      "name": "Save prompt",
+      "name": "Save Prompt",
       "nameKey": "command.savePrompt.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2552,27 +2552,27 @@
     },
     {
       "id": "museSpark.useSavedPrompt",
-      "name": "Use saved prompt…",
+      "name": "Use Saved Prompt…",
       "nameKey": "command.useSavedPrompt.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Review variables and insert",
+      "description": "Review Variables and Insert",
       "text": { "ui": "promptRun" },
       "canRun": false
     },
     {
       "id": "museSpark.copyToMyPrompts",
-      "name": "Copy to my prompts",
+      "name": "Copy to My Prompts",
       "nameKey": "command.copyToMyPrompts.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "All workspaces",
+      "description": "All Workspaces",
       "text": { "ui": "promptScopeUser" },
       "canRun": false
     },
     {
       "id": "museSpark.shareChat",
-      "name": "Share chat…",
+      "name": "Share Chat…",
       "nameKey": "command.shareChat.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2582,7 +2582,7 @@
     },
     {
       "id": "museSpark.showReport",
-      "name": "Show report…",
+      "name": "Show Report…",
       "nameKey": "command.showReport.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2592,7 +2592,7 @@
     },
     {
       "id": "museSpark.attachScreenRecording",
-      "name": "Attach screen recording…",
+      "name": "Attach Screen Recording…",
       "nameKey": "command.attachScreenRecording.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2607,7 +2607,7 @@
     },
     {
       "id": "museSpark.attachLatestScreenRecording",
-      "name": "Attach latest screen recording",
+      "name": "Attach Latest Screen Recording",
       "nameKey": "command.attachLatestScreenRecording.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2618,7 +2618,7 @@
     },
     {
       "id": "museSpark.deleteUploadedFiles",
-      "name": "Delete uploaded files…",
+      "name": "Delete Uploaded Files…",
       "nameKey": "command.deleteUploadedFiles.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2641,7 +2641,7 @@
     },
     {
       "id": "museSpark.lockVault",
-      "name": "Lock vault now",
+      "name": "Lock Vault Now",
       "nameKey": "command.lockVault.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -4438,14 +4438,14 @@
     },
     {
       "name": "model",
-      "description": "Switch model…",
+      "description": "Switch Model…",
       "descriptions": { "museCode": { "ui": "switchModel" }, "modelApi": { "ui": "switchModel" } },
       "backends": ["museCode", "modelApi"],
       "syntax": ["/model"]
     },
     {
       "name": "permissions",
-      "description": "Permission mode",
+      "description": "Permission Mode",
       "descriptions": {
         "museCode": { "ui": "permissionModeTitle" },
         "modelApi": { "ui": "permissionModeTitle" }
@@ -4485,7 +4485,7 @@
     },
     {
       "name": "config",
-      "description": "Open settings…",
+      "description": "Open Settings…",
       "descriptions": {
         "museCode": { "ui": "openSettings" },
         "modelApi": { "ui": "openSettings" }
@@ -4581,7 +4581,7 @@
     },
     {
       "name": "clear",
-      "description": "Clear conversation",
+      "description": "Clear Conversation",
       "descriptions": {
         "museCode": { "ui": "clearConversation" },
         "modelApi": { "ui": "clearConversation" }
@@ -4591,7 +4591,7 @@
     },
     {
       "name": "logout",
-      "description": "Sign out",
+      "description": "Sign Out",
       "descriptions": { "museCode": { "ui": "signOutItem" }, "modelApi": { "ui": "signOutItem" } },
       "backends": ["museCode", "modelApi"],
       "syntax": ["/logout"]
@@ -4851,13 +4851,13 @@
     {
       "route": "prompts",
       "name": "prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]",
-      "description": "Prompt library",
+      "description": "Prompt Library",
       "text": { "ui": "promptLibrary" }
     },
     {
       "route": "prompts",
       "name": "prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]",
-      "description": "Review variables and insert",
+      "description": "Review Variables and Insert",
       "text": { "ui": "promptRun" }
     },
     {
@@ -4875,7 +4875,7 @@
     {
       "route": "acp",
       "name": "/prompt save|list|use|share",
-      "description": "Review variables and insert",
+      "description": "Review Variables and Insert",
       "text": { "ui": "promptRun" }
     },
     {

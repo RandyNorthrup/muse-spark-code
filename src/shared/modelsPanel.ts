@@ -75,7 +75,7 @@ export const presetCardSchema = z.strictObject({
   connectOAuth: z.boolean(),
   /** The key's shape as a hint beside the key field (never a key). */
   keyHint: z.string(),
-  /** The provider's key page (`Get a key`); absent where none is known. */
+  /** The provider's key page (`Get a Key`); absent where none is known. */
   keyPage: z.optional(z.string()),
   docsUrl: z.optional(z.string()),
   dataUseUrl: z.optional(z.string()),

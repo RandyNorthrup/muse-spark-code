@@ -111,7 +111,7 @@ describe('/review in the composer (M70)', () => {
   it('runs a palette preset with the command as its card', async () => {
     const postMessage = renderReady()
     fireEvent.click(screen.getByRole('button', { name: 'Commands' }))
-    fireEvent.click(await screen.findByRole('option', { name: /Security review/ }))
+    fireEvent.click(await screen.findByRole('option', { name: /Security Review/ }))
     expect(posted(postMessage, 'startReview')).toEqual([
       {
         type: 'startReview',
@@ -131,7 +131,7 @@ async function openPane() {
   deliverEdit('ed1', 't1')
   deliverEdit('ed2', 't1')
   fireEvent.click(screen.getByRole('button', { name: 'Commands' }))
-  fireEvent.click(await screen.findByRole('option', { name: /Review this conversation’s changes/ }))
+  fireEvent.click(await screen.findByRole('option', { name: /Review This Conversation’s Changes/ }))
   const [request] = posted(postMessage, 'readReviewChanges')
   if (request?.type !== 'readReviewChanges') {
     throw new Error('expected the pane to ask for the changes')

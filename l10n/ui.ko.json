@@ -1001,7 +1001,7 @@
   "modelPillTitle": "모델 및 추론 수준",
   "permissionModeTitle": "권한 모드",
   "modesTitle": "모드",
-  "modesHintKeys": "⇧ + tab",
+  "modesHintKeys": "⇧ + Tab",
   "modesLabel": "권한 모드",
   "bypassNotAllowed": "권한 우회를 사용하려면 \"Allow dangerously skip permissions\" 설정을 켜세요.",
   "bypassRevoked": "\"Allow dangerously skip permissions\" 설정이 꺼져서 이 대화가 수동 모드로 돌아갔습니다.",

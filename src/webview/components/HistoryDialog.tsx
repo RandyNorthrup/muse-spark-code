@@ -1,10 +1,10 @@
 import { webviewKey } from '../../shared/keybindings'
 // The History dialog (M6): the workspace's stored sessions grouped Today /
 // Yesterday / Previous 7 days / Older, a search box over titles and
-// branches, Archive / Unarchive per row and a "Show archived" switch.
+// branches, Archive / Unarchive per row and a "Show Archived" switch.
 // Keyboard-operable like the palette: the search box keeps focus, Up/Down
 // move, Enter resumes the active row, Esc closes. The search box keeps the
-// focus through a "Show archived" toggle too (M25): the switch used to take
+// focus through a "Show Archived" toggle too (M25): the switch used to take
 // it, and the arrows, Enter and Esc stopped working until the next click.
 
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'

@@ -284,9 +284,9 @@ describe('ProvidersSection', () => {
       },
     })
     render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
-    const zdr = screen.getByRole('radio', { name: /No data retention/ })
+    const zdr = screen.getByRole('radio', { name: /No Data Retention/ })
     expect((zdr as HTMLInputElement).checked).toBe(true)
-    fireEvent.click(screen.getByRole('radio', { name: /No training/ }))
+    fireEvent.click(screen.getByRole('radio', { name: /No Training/ }))
     expect(post).toHaveBeenCalledWith({
       type: 'providers/prefill',
       fields: { privacy: 'no-training' },

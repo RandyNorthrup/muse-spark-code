@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The Agent map's team tree (M96 lane U2): the hierarchy, the ARIA tree
+// The Agent Map's team tree (M96 lane U2): the hierarchy, the ARIA tree
 // pattern, the actions, the read-only render, the header pill and the
 // AgentMap region. Single-model mode renders no team tree: that is today's
 // map, covered by AgentMap.test.tsx.
@@ -125,7 +125,7 @@ describe('TeamTree', () => {
     expect(screen.getByText('agents/engineering/t1')).toBeDefined()
     expect(screen.getByText('Queued')).toBeDefined()
     expect(screen.getByText('Unmerged')).toBeDefined()
-    expect(screen.getByText('estimated')).toBeDefined()
+    expect(screen.getByText('Estimated')).toBeDefined()
     expect(screen.getByText(/\$1.20 of \$50.00 · Today/)).toBeDefined()
   })
 
@@ -184,15 +184,15 @@ describe('TeamTree', () => {
     setup()
     const seen = actions()
     render(<TeamTree tree={tree} actions={seen} />)
-    fireEvent.click(screen.getAllByRole('button', { name: 'Open transcript' })[0]!)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open Transcript' })[0]!)
     expect(seen.onOpenTranscript).toHaveBeenCalledWith('t1')
-    fireEvent.click(screen.getByRole('button', { name: 'Stop all team tasks' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Stop All Team Tasks' }))
     expect(seen.onStopAll).toHaveBeenCalled()
     fireEvent.click(screen.getAllByRole('button', { name: 'Reset' })[0]!)
     expect(seen.onResetEntry).toHaveBeenCalledWith('e1')
-    fireEvent.click(screen.getByRole('button', { name: 'Edit in Roles section' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit in Roles Section' }))
     expect(seen.onEditRole).toHaveBeenCalledWith('engineering')
-    fireEvent.click(screen.getAllByRole('button', { name: 'Review diff' })[0]!)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Review Diff' })[0]!)
     expect(seen.onReviewDiff).toHaveBeenCalledWith('t1')
     fireEvent.click(screen.getAllByRole('button', { name: 'Merge' })[0]!)
     expect(seen.onDecideMerge).toHaveBeenCalledWith('t2', 'merge')
@@ -268,7 +268,7 @@ describe('RVM96B tree regressions', () => {
     const task = screen.getByRole('treeitem', { name: /^Add the retry,/ })
     fireEvent.keyDown(task, { key: 'F2' })
     expect(document.activeElement).toBe(
-      screen.getAllByRole('button', { name: 'Open transcript' })[0],
+      screen.getAllByRole('button', { name: 'Open Transcript' })[0],
     )
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' })
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Stop' }))

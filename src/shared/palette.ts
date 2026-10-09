@@ -69,15 +69,15 @@ export type PaletteAction =
   | { readonly type: 'gitAction'; readonly action: 'openCommit' | 'push' | 'openPullRequest' }
   | { readonly type: 'openPullRequestInConversation' }
   | { readonly type: 'exportConversation'; readonly format: ExportFormat }
-  /** "Import session…" (M84): resume a portable JSON file on the Model API backend. */
+  /** "Import Session…" (M84): resume a portable JSON file on the Model API backend. */
   | { readonly type: 'importSession' }
-  /** "Open share file…" (M84): a portable JSON file read-only in the panel. */
+  /** "Open Share File…" (M84): a portable JSON file read-only in the panel. */
   | { readonly type: 'openShareFile' }
   /** M118-P-REACT-BRIDGE: supplied only after the host binds these actions. */
   | { readonly type: 'shareChat' }
   | { readonly type: 'promptCommand'; readonly command: 'library' | 'use' | 'share' }
   | { readonly type: 'openLog' }
-  /** "Report an issue…" (M93, PLAN.md D72): the scrubbed report's preview, never a bare link. */
+  /** "Report an Issue…" (M93, PLAN.md D72): the scrubbed report's preview, never a bare link. */
   | { readonly type: 'openReport' }
   /** Deterministic reports (M113); W routes this action to the host command. */
   | { readonly type: 'showReport' }

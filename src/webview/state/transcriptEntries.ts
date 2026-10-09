@@ -428,7 +428,7 @@ const errorEntrySchema = z.object({
   /**
    * The sanitized handoff when the host recorded this failure (M93 lane W):
    * which journal event the row means, never its text. The row offers
-   * "Report this" only while it is present.
+   * "Report This" only while it is present.
    */
   reportRef: z.optional(reportEventRefSchema),
   errorKind: z.optional(z.string()),
@@ -450,7 +450,7 @@ const noticeEntrySchema = z.object({
   /**
    * The sanitized handoff when the host recorded this failure (M93 lane W):
    * which journal event the row means, never its text. The row offers
-   * "Report this" only while it is present.
+   * "Report This" only while it is present.
    */
   reportRef: z.optional(reportEventRefSchema),
   /**

@@ -1001,7 +1001,7 @@
   "modelPillTitle": "モデルと推論レベル",
   "permissionModeTitle": "権限モード",
   "modesTitle": "モード",
-  "modesHintKeys": "⇧ + tab",
+  "modesHintKeys": "⇧ + Tab",
   "modesLabel": "権限モード",
   "bypassNotAllowed": "権限バイパスを使用するには、「Allow dangerously skip permissions」設定をオンにしてください。",
   "bypassRevoked": "「Allow dangerously skip permissions」設定がオフになったため、この会話は手動モードに戻りました。",

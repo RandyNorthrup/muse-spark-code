@@ -65,7 +65,7 @@ try {
       await page.locator('.usage-page[aria-busy="false"]').waitFor()
       assert.ok(await page.getByText(/This page cannot open editor settings/).isVisible())
       assert.ok(
-        await page.getByRole('button', { name: 'Usage settings', exact: true }).isDisabled(),
+        await page.getByRole('button', { name: 'Usage Settings', exact: true }).isDisabled(),
       )
       await page.getByRole('radio', { name: '7 days', exact: true }).check()
       await page.locator('.usage-page[aria-busy="false"]').waitFor()

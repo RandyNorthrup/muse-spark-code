@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The team through the real App (M96 lane U2): the host's `teamTree`
-// message shows the header pill and the Agent map's tree, transcript items
+// message shows the header pill and the Agent Map's tree, transcript items
 // become the cards, and the tree's and cards' buttons post the protocol
 // messages lanes T/A/W answer. This mirrors the harness scenarios
 // `team-tree` and `team-cards`, which need a browser to run.
@@ -109,7 +109,7 @@ describe('Team through the App (M96 lane U2)', () => {
         },
       },
     })
-    fireEvent.click(await screen.findByRole('button', { name: 'Queue it' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Queue It' }))
     expect(postMessage).toHaveBeenCalledWith({
       type: 'answerTeamWaiting',
       waitingId: 'wait-1',

@@ -1001,7 +1001,7 @@
   "modelPillTitle": "模型和推理强度",
   "permissionModeTitle": "权限模式",
   "modesTitle": "模式",
-  "modesHintKeys": "⇧ + tab",
+  "modesHintKeys": "⇧ + Tab",
   "modesLabel": "权限模式",
   "bypassNotAllowed": "请打开“Allow dangerously skip permissions”设置以使用“绕过权限”。",
   "bypassRevoked": "“Allow dangerously skip permissions”设置已关闭；此对话已恢复为“手动”。",

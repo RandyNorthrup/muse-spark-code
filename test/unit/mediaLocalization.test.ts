@@ -51,7 +51,7 @@ describe('M105 frozen media wording', () => {
     setUiText({ ...EN, media: { ...EN.media, sendWithoutSound: 'Sans son pour ce test' } }, 'fr')
     expect(UI_TEXT.media.sendWithoutSound).toBe('Sans son pour ce test')
     setUiText(EN, 'en')
-    expect(UI_TEXT.media.sendWithoutSound).toBe('Send without sound')
+    expect(UI_TEXT.media.sendWithoutSound).toBe('Send Without Sound')
   })
 
   it('provides all nine manifest strings in all languages without adding unused package keys', () => {

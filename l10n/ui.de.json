@@ -1005,7 +1005,7 @@
   "modelPillTitle": "Modell und Aufwand",
   "permissionModeTitle": "Berechtigungsmodus",
   "modesTitle": "Modi",
-  "modesHintKeys": "⇧ + tab",
+  "modesHintKeys": "⇧ + Tab",
   "modesLabel": "Berechtigungsmodi",
   "bypassNotAllowed": "Aktivieren Sie die Einstellung „Allow dangerously skip permissions“, um „Berechtigungen umgehen“ zu verwenden.",
   "bypassRevoked": "Die Einstellung „Allow dangerously skip permissions“ wurde deaktiviert; diese Unterhaltung ist wieder im Modus „Manuell“.",
@@ -1599,8 +1599,8 @@
     "one": "{count} nicht bereitgestellt",
     "other": "{count} nicht bereitgestellt"
   },
-  "gitFileStaged": "bereitgestellt",
-  "gitFileUnstaged": "nicht bereitgestellt",
+  "gitFileStaged": "Bereitgestellt",
+  "gitFileUnstaged": "Nicht bereitgestellt",
   "gitMoreFiles": {
     "one": "und {count} weitere Datei",
     "other": "und {count} weitere Dateien"
@@ -2339,7 +2339,7 @@
   "historyShowArchived": "Archivierte anzeigen",
   "historyArchive": "Archivieren",
   "historyUnarchive": "Archivierung aufheben",
-  "historyCurrent": "aktuell",
+  "historyCurrent": "Aktuell",
   "historyForkMark": "Abzweigung",
   "historyTurns": {
     "one": "{count} Durchgang",
@@ -2999,7 +2999,7 @@
     "unavailable": "nicht verfügbar"
   },
   "teamCapUsed": "{used} von {amount}",
-  "teamEstimated": "geschätzt",
+  "teamEstimated": "Geschätzt",
   "teamOpenTranscript": "Transkript öffnen",
   "teamReviewDiff": "Diff prüfen",
   "teamMergeAction": "Zusammenführen",
@@ -3808,7 +3808,7 @@
   "paidConfirmAccept": "Einschalten",
   "paidBadge": "Kostenpflichtig: {features}",
   "paidBadgeTitle": "Abgerechnet über Ihren Model-API-Schlüssel: {prices}. Klicken, um die Aufstellung dieses Fensters unter „Konto und Nutzung“ zu sehen.",
-  "paidRowBadge": "kostenpflichtig",
+  "paidRowBadge": "Kostenpflichtig",
   "paidRowTitle": "Abgerechnet über Ihren Model-API-Schlüssel: {price}",
   "paidToggleLabel": "{feature} (kostenpflichtig)",
   "usagePaidHeading": "Kostenpflichtige Funktionen in diesem Fenster",
@@ -4158,10 +4158,10 @@
   "modelToolCallingUnavailable": "Werkzeugaufrufe wurden für dieses Modell nicht verifiziert.",
   "paidProviderPrice": "Pro Million Tokens: Eingabe {input}, Cache-Lesen {cached}, Cache-Schreiben {write}, einstündiges Schreiben {write1h}, Ausgabe {output}. Pro Anfrage {request}; pro Bild {image}.",
   "paidProviderPriceTier": "Ab {threshold} Eingabe-Tokens: Eingabe {input}, Ausgabe {output} pro Million.",
-  "modelUnpriced": "ohne Preis",
-  "modelLocal": "lokal",
+  "modelUnpriced": "Ohne Preis",
+  "modelLocal": "Lokal",
   "modelPlan": "Abo",
-  "modelFree": "kostenlos",
+  "modelFree": "Kostenlos",
   "modelColumns": {
     "name": "Modell",
     "context": "Kontext",

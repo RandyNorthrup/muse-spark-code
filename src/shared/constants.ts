@@ -305,7 +305,7 @@ export const PAID_APPROVAL_ORDER_DIRECTORY = 'paid-approval-order'
 
 // Extension-private `globalState` keys (never machine-wide configuration).
 export const GLOBAL_STATE_KEYS = {
-  /** "Don't ask again" on the Windows sandbox setup prompt. */
+  /** "Don't Ask Again" on the Windows sandbox setup prompt. */
   sandboxPromptSuppressed: 'museSpark.sandboxPromptSuppressed',
   /** Credential-free sign-out hold, so activation cannot restore an old CLI credential. */
   cliLogoutHold: 'museSpark.cliLogoutHold',
@@ -320,7 +320,7 @@ export const GLOBAL_STATE_KEYS = {
   subagentPriceAcceptance: 'museSpark.subagentPriceAcceptance',
   /**
    * Each paid feature's grant generation (M58): every change to its price
-   * acceptance counts it up, so an "Allow always in this workspace" given
+   * acceptance counts it up, so an "Allow Always in This Workspace" given
    * before the change is void in every workspace.
    */
   paidGrantGenerations: 'museSpark.paidGrantGenerations',
@@ -565,7 +565,7 @@ export const SETTING_DEFAULTS = {
   // Claude Code's `archiveInactiveSessions`: hide sessions idle this many
   // days from the History dialog (1 / 2 / 7 / 14; 0 never). Hidden, not
   // deleted: the extension does not call session/delete (available since
-  // Muse Code 1.4.0-R4302.1), and "Show archived" brings them back.
+  // Muse Code 1.4.0-R4302.1), and "Show Archived" brings them back.
   archiveInactiveSessions: 14,
   // Claude Code's `cleanupPeriodDays` (PLAN.md D26): Model API conversations
   // idle longer than this are deleted when a window reads them; 0 keeps them.
@@ -4057,7 +4057,7 @@ export const ACP_DATA_FOLDER = {
 } as const
 export const ACP_SESSIONS_SUBFOLDER = 'acp'
 export const ACP_WORKSPACE_HASH_CHARS = 16
-// "Allow always in this workspace" for paid uses (M58), every folder's in one
+// "Allow Always in This Workspace" for paid uses (M58), every folder's in one
 // file beside the folders' own, keyed by the same hash.
 export const ACP_PAID_GRANTS_FILE = 'paid-uses.json'
 // M108 (PLAN.md D88.1): the runtime's own providers file beside the session
@@ -4348,7 +4348,7 @@ export const CHOICE_STEERING_NOTE =
   '<harness_note>When you offer the user a choice between options, ask through the request_user_input tool instead of listing the options in prose, so the panel can show a picker.</harness_note>'
 // The verify loop's guidance to Muse Code (M68) rides in a note of its own.
 export const HARNESS_NOTE_TAG = 'harness_note'
-// Collapsed tool bodies show this many lines before "Show more".
+// Collapsed tool bodies show this many lines before "Show More".
 export const OUTPUT_PREVIEW_LINES = 12
 /** Shell IN/OUT previews share a compact five-line limit (M87). */
 export const IO_PREVIEW_LINES = 5

@@ -85,7 +85,7 @@
   "apiEquivalentNote": "等效 API 价格，而非额外的订阅费用。",
   "totalTime": "请求总用时",
   "latencyP50": "中位延迟 (p50)",
-  "latencyP95": "p95 延迟",
+  "latencyP95": "P95 延迟",
   "firstToken": "首 Token 用时",
   "tokensPerSecond": "每秒 Token 数",
   "cacheHit": "缓存命中率",

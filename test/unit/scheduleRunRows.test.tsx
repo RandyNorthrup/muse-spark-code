@@ -65,8 +65,8 @@ describe('schedule settlement transcript rows', () => {
       )
       const labels = { ran: 'Sent on schedule', refused: 'Refused', missed: 'Missed' }
       expect(screen.getByText(labels[outcome])).toBeTruthy()
-      expect(container.textContent).toContain('New turn when idle')
-      expect(container.textContent).toContain('Cost: $0.25 (Unknown); Retained liability: $1.00')
+      expect(container.textContent).toContain('New Turn When Idle')
+      expect(container.textContent).toContain('Cost: $0.25 (Unknown); Retained Liability: $1.00')
       if (outcome === 'refused') {
         expect(container.textContent).toContain('Refused: shell · No matching grant')
         expect(container.textContent).toContain('Physical actions always refused')
@@ -141,9 +141,9 @@ describe('schedule settlement transcript rows', () => {
       />,
     )
     expect(container.textContent).toContain('Release review')
-    expect(container.textContent).not.toContain('This conversation')
+    expect(container.textContent).not.toContain('This Conversation')
     if (record.target.kind !== 'conversation') throw new Error('Expected conversation fixture')
     rerender(<ScheduleRunBody entry={entry} currentConversationId={record.target.sessionId} />)
-    expect(container.textContent).toContain('This conversation')
+    expect(container.textContent).toContain('This Conversation')
   })
 })
