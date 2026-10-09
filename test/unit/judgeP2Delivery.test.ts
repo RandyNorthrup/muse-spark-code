@@ -3,7 +3,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
+import { describe, expect, inject, it } from 'vitest'
 import * as z from 'zod/mini'
 import { assertCurrentProductionBuild } from './productionBuild'
 
@@ -117,19 +117,9 @@ const targets = [
 
 // The run's shared production build (test/unit/productionBuild.ts, a Vitest
 // global setup outside every hook's deadline), refused when missing or built
-// from sources that changed since (RVM98P2R2 10).
-beforeAll(() => {
-  assertCurrentProductionBuild(inject('productionBuild'), process.cwd())
-})
-// Every mutation restores and checks the original hash. Verify that complete
-// restored artifact set once; rerunning it after each identical restoration
-// repeated hundreds of full metafile parses without adding a distinct control.
-afterAll(() => {
-  for (const script of ['check-bundle-split', 'check-bundle-size', 'check-host-globals']) {
-    const green = gate(script)
-    expect(green.status, green.stderr).toBe(0)
-  }
-})
+// from sources that changed since (RVM98P2R2 10). Checked while the file is
+// collected, before the controls below mutate dist/.
+assertCurrentProductionBuild(inject('productionBuild'), process.cwd())
 
 function output(file: string, bundle: string) {
   const meta = metaSchema.parse(JSON.parse(readFileSync(file, 'utf8')))
@@ -162,19 +152,105 @@ function vsixListing(): string[] {
   return listing
 }
 
-function guard(file: string, mutate: () => void, script: string, message: string) {
+interface Control {
+  readonly status: number | null
+  readonly output: string
+  readonly restored: boolean
+}
+
+// One mutation control: mutate, run the real gate, restore byte-exact.
+function control(file: string, mutate: () => void, script: string): Control {
   const original = readFileSync(file)
   const hash = digest(file)
+  let red
   try {
     mutate()
-    const red = gate(script)
-    expect(red.status, red.stderr).toBe(1)
-    expect(`${red.stdout}${red.stderr}`).toContain(message)
+    red = gate(script)
   } finally {
     writeFileSync(file, original)
   }
-  expect(digest(file)).toBe(hash)
+  return {
+    status: red.status,
+    output: `${red.stdout}${red.stderr}`,
+    restored: digest(file) === hash,
+  }
 }
+
+function expectFired(result: Control, message: string) {
+  expect(result.status, result.output).toBe(1)
+  expect(result.output).toContain(message)
+  expect(result.restored).toBe(true)
+}
+
+function guard(file: string, mutate: () => void, script: string, message: string) {
+  expectFired(control(file, mutate, script), message)
+}
+
+function leakInto(file: string, name: string, source: string) {
+  return () => {
+    const { meta, result } = output(file, name)
+    result.inputs[source] = { bytesInOutput: 1 }
+    writeFileSync(file, JSON.stringify(meta))
+  }
+}
+
+function dropFrom(file: string, name: string, source: string) {
+  return () => {
+    const { meta, result } = output(file, name)
+    Reflect.deleteProperty(result.inputs, source)
+    writeFileSync(file, JSON.stringify(meta))
+  }
+}
+
+// The default-deadline controls run here, once, while the file is collected:
+// each spawns a real gate (check-bundle-split rereads every production
+// metafile, 2.6 s idle on kubuntu), so a loaded runner pushed a single control
+// past its 5 s test deadline (RVM98P2R3 10). Collection has no deadline; each
+// case below still asserts its own control's exit, message and restoration.
+const greenSplit = gate('check-bundle-split')
+const leakControls = targets.flatMap(([name, file]) =>
+  [...judgeFiles].map((source) => ({
+    name,
+    source,
+    result: control(file, leakInto(file, name, source), 'check-bundle-split'),
+  })),
+)
+const missingControls = [...judgeFiles].map((source) => ({
+  source,
+  result: control(
+    'dist/meta/judgeP2.json',
+    dropFrom('dist/meta/judgeP2.json', 'judgeP2', source),
+    'check-bundle-split',
+  ),
+}))
+const JUDGE_BUNDLE = 'dist/judgeP2.js'
+const judgeOversize = control(
+  JUDGE_BUNDLE,
+  () => {
+    writeFileSync(JUDGE_BUNDLE, ' '.repeat(75 * 1024 + 1))
+  },
+  'check-bundle-size',
+)
+const judgeGlobal = control(
+  JUDGE_BUNDLE,
+  () => {
+    writeFileSync(JUDGE_BUNDLE, `${readFileSync(JUDGE_BUNDLE, 'utf8')}\nnavigator\n`)
+  },
+  'check-host-globals',
+)
+const judgeMissing = (() => {
+  const hidden = `${JUDGE_BUNDLE}.missing-control`
+  const hash = digest(JUDGE_BUNDLE)
+  renameSync(JUDGE_BUNDLE, hidden)
+  let size, pack
+  try {
+    size = gate('check-bundle-size')
+    pack = gate('package-acp')
+  } finally {
+    renameSync(hidden, JUDGE_BUNDLE)
+  }
+  return { size, pack, restored: digest(JUDGE_BUNDLE) === hash, green: gate('check-bundle-size') }
+})()
 
 describe('phase-2 judge production delivery', () => {
   it('ships every merged implementation exclusively in the explicit-action factory', () => {
@@ -191,7 +267,7 @@ describe('phase-2 judge production delivery', () => {
     ).toEqual([])
     expect(judge.imports.some((entry) => entry.path === './uiText.js' && entry.external)).toBe(true)
     expect(judge.inputs).not.toHaveProperty('src/shared/l10n/en.ts')
-    expect(gate('check-bundle-split').status).toBe(0)
+    expect(greenSplit.status, greenSplit.stderr).toBe(0)
   })
 
   it(
@@ -204,39 +280,17 @@ describe('phase-2 judge production delivery', () => {
     REAL_VSIX_CASE_MS,
   )
 
-  // Each real-gate control has its own unchanged deadline on this rig.
-  it.each(
-    targets.flatMap(([name, file]) => [...judgeFiles].map((source) => ({ name, file, source }))),
-  )(
+  it.each(leakControls)(
     'fires the phase-2 leak guard in $name for $source with byte-exact restoration',
-    ({ name, file, source }) => {
-      guard(
-        file,
-        () => {
-          const { meta, result } = output(file, name)
-          result.inputs[source] = { bytesInOutput: 1 }
-          writeFileSync(file, JSON.stringify(meta))
-        },
-        'check-bundle-split',
-        `carries ${source}, which belongs to the lazy judge bundle`,
-      )
+    ({ source, result }) => {
+      expectFired(result, `carries ${source}, which belongs to the lazy judge bundle`)
     },
   )
 
-  it.each([...judgeFiles])(
-    'fires the missing implementation guard for %s with byte-exact restoration',
-    (source) => {
-      const file = 'dist/meta/judgeP2.json'
-      guard(
-        file,
-        () => {
-          const { meta, result } = output(file, 'judgeP2')
-          Reflect.deleteProperty(result.inputs, source)
-          writeFileSync(file, JSON.stringify(meta))
-        },
-        'check-bundle-split',
-        `dist/judgeP2.js no longer carries ${source}`,
-      )
+  it.each(missingControls)(
+    'fires the missing implementation guard for $source with byte-exact restoration',
+    ({ source, result }) => {
+      expectFired(result, `dist/judgeP2.js no longer carries ${source}`)
     },
   )
 
@@ -246,11 +300,7 @@ describe('phase-2 judge production delivery', () => {
       for (const [parent, file] of [...targets, ['judgeP2', 'dist/meta/judgeP2.json'] as const]) {
         guard(
           file,
-          () => {
-            const { meta, result } = output(file, parent)
-            result.inputs[source] = { bytesInOutput: 1 }
-            writeFileSync(file, JSON.stringify(meta))
-          },
+          leakInto(file, parent, source),
           'check-bundle-split',
           `carries ${source}, which belongs to dist/${name}.js`,
         )
@@ -258,11 +308,7 @@ describe('phase-2 judge production delivery', () => {
       const file = `dist/meta/${name}.json`
       guard(
         file,
-        () => {
-          const { meta, result } = output(file, name)
-          Reflect.deleteProperty(result.inputs, source)
-          writeFileSync(file, JSON.stringify(meta))
-        },
+        dropFrom(file, name, source),
         'check-bundle-split',
         `dist/${name}.js no longer carries ${source}`,
       )
@@ -343,38 +389,15 @@ describe('phase-2 judge production delivery', () => {
   )
 
   it('fires the new size and host-global guards without changing caps', () => {
-    const file = 'dist/judgeP2.js'
-    guard(
-      file,
-      () => {
-        writeFileSync(file, ' '.repeat(75 * 1024 + 1))
-      },
-      'check-bundle-size',
-      'OVER dist/judgeP2.js',
-    )
-    guard(
-      file,
-      () => {
-        writeFileSync(file, `${readFileSync(file, 'utf8')}\nnavigator\n`)
-      },
-      'check-host-globals',
-      'FAIL dist/judgeP2.js',
-    )
-    const hidden = `${file}.missing-control`
-    const originalHash = digest(file)
-    renameSync(file, hidden)
-    try {
-      const red = gate('check-bundle-size')
-      expect(red.status).toBe(1)
-      expect(red.stdout).toContain('MISS dist/judgeP2.js')
-      const pack = gate('package-acp')
-      expect(pack.status).toBe(1)
-      expect(pack.stderr).toContain('dist/judgeP2.js is missing')
-    } finally {
-      renameSync(hidden, file)
-    }
-    expect(digest(file)).toBe(originalHash)
-    expect(gate('check-bundle-size').status).toBe(0)
+    expectFired(judgeOversize, 'OVER dist/judgeP2.js')
+    expectFired(judgeGlobal, 'FAIL dist/judgeP2.js')
+    const { size, pack, restored, green } = judgeMissing
+    expect(size.status).toBe(1)
+    expect(size.stdout).toContain('MISS dist/judgeP2.js')
+    expect(pack.status).toBe(1)
+    expect(pack.stderr).toContain('dist/judgeP2.js is missing')
+    expect(restored).toBe(true)
+    expect(green.status).toBe(0)
   })
 
   it(
@@ -404,4 +427,17 @@ describe('phase-2 judge production delivery', () => {
     const root = path.resolve('src/runtime/main.ts')
     expect(readFileSync(root, 'utf8')).not.toContain('judgeEntry')
   })
+
+  // Every control above checks its own byte-exact restoration; this verifies
+  // the complete restored artifact set once, last (three real gates).
+  it(
+    'leaves every restored artifact green',
+    () => {
+      for (const script of ['check-bundle-split', 'check-bundle-size', 'check-host-globals']) {
+        const green = gate(script)
+        expect(green.status, green.stderr).toBe(0)
+      }
+    },
+    REAL_SPLIT_CASE_MS,
+  )
 })
