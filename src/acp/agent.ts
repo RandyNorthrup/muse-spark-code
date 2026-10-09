@@ -1938,18 +1938,23 @@ class AcpSession {
             this.deps.log.warn(`ACP media cleanup: ${failureForLog(error)}`)
           })
         if (submission.userMessageId !== undefined) pending.userMessageId = submission.userMessageId
-        this.noteTurnId(submission.turnId, submission.disposition)
-        if (submission.disposition !== 'started' && submission.disposition !== 'queued') {
-          throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
-        }
+        const isAccepted =
+          submission.disposition === 'started' || submission.disposition === 'queued'
+        // Decide before noting the turn: a turn that already finished settles
+        // the prompt there, which must not release the answers it delivered.
         if (
+          isAccepted &&
           this.pending === pending &&
           (pending.userMessageId === undefined
-            ? submission.disposition === 'started' || this.activeTurnId === submission.turnId
+            ? submission.disposition === 'started' ||
+              this.activeTurnId === submission.turnId ||
+              this.earlyFinishes.has(submission.turnId)
             : pending.earlyAdmissions.has(pending.userMessageId))
         ) {
           this.commitAnswers(pending)
         }
+        this.noteTurnId(submission.turnId, submission.disposition)
+        if (!isAccepted) throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
       }
     } catch (error: unknown) {
       await this.releaseAnswers(pending)

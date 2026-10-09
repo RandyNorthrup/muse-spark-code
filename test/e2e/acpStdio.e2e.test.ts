@@ -98,6 +98,9 @@ beforeAll(async () => {
     ['src/acp/questionDeferralEntry.ts', 'acpQuestions.js'],
     ['src/runtime/questions/questionRegistryEntry.ts', 'runtimeQuestions.js'],
     ['src/runtime/providers/accountsEntry.ts', 'runtimeAccounts.js'],
+    // The real package ships the schedule host; without it every session
+    // opened with "The schedule host could not start" (rel017ci).
+    ['src/runtime/schedules/schedulesBundle.ts', 'schedules.js'],
   ]) {
     if (entry === undefined || file === undefined) throw new Error('Missing lazy bundle fixture')
     await build({
@@ -385,6 +388,10 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       { stopReason: 'end_turn' },
       { stopReason: 'end_turn' },
     ])
+    // A host that cannot start names its cause in the agent's log.
+    expect(text(agent.updates), agent.stderr.join('')).not.toContain(
+      UI_TEXT.scheduleV2.runtime.hostUnavailable,
+    )
     expect(text(agent.updates)).toContain('echo: hello')
     const toolCalls = agent.updates.filter((update) => update.sessionUpdate === 'tool_call')
     expect(toolCalls).toHaveLength(2)

@@ -845,6 +845,21 @@ describe('M112 through the pinned ACP SDK client', () => {
     })
   })
 
+  it('commits a sent answer once when its turn finishes before turn/start answers', async () => {
+    const h = agentHarness()
+    await h.run(async (client) => {
+      await queueIdleAnswer(h, client)
+      // A fast backend (the e2e fake CLI) completes the turn before its start reply.
+      h.session.sendTurn.mockImplementationOnce(() => {
+        h.finish('turn-2')
+        return Promise.resolve({ turnId: 'turn-2', disposition: 'started' })
+      })
+      await h.prompt(client, 'continue')
+      expect(h.registries[0]?.commitQueued).toHaveBeenCalledOnce()
+      expect(h.registries[0]?.queued).toHaveLength(0)
+    })
+  })
+
   it('manual compaction returns a leased late answer for the next ordinary prompt', async () => {
     const h = agentHarness()
     await h.run(async (client) => {

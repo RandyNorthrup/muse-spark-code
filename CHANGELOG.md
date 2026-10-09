@@ -92,6 +92,11 @@ happened, not what was planned; superseded entries are kept.
   every recorded context read (about 4 ms each); the schedules bundle
   installs it once per language.
 
+- ACP: an answer queued with `/answer` is sent with the next prompt once,
+  even when the backend finishes that turn before it confirms the start.
+  Before, such a turn released the answer instead of marking it sent, so the
+  following prompt carried it again.
+
 - Packaged translation tables round-trip byte-exact again: every language
   table lists its keys in English's order, including the resource history
   and Windows path strings merged for 0.17.0.
