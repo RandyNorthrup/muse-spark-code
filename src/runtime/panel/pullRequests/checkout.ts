@@ -21,7 +21,9 @@
 
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { Buffer } from 'node:buffer'
-import { mkdir } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
+import { mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import {
   GIT_BATCH_KILL_GRACE_MS,
@@ -29,8 +31,11 @@ import {
   GIT_WORKTREE_TIMEOUT_MS,
   HELD_CHECKOUT_MAX_BYTES,
   HELD_CHECKOUT_MAX_ENTRIES,
+  HELD_CLEANUP_REMOVE_RETRIES,
+  HELD_CLEANUP_TIMEOUT_MS,
   HELD_EXECUTABLE_MODE,
   HELD_FILE_MODE,
+  HELD_WRITER_DRAIN_GRACE_MS,
   UI_TEXT,
   UNTRUSTED_CHECKOUT_MIN_GIT_MINOR,
   WORKTREE_RECORD_SAVE_ATTEMPTS,
@@ -48,11 +53,13 @@ import {
 import { isPlainRefName } from '../../../core/git/pushPlan'
 import { isSamePath } from '../../../core/paths'
 import { withoutCredentials } from '../../../core/credentialEnvironment'
+import { fileIdentityKey, statIdentity } from '../../../core/fs/fileIdentity'
 import { heldWorktreeFolder, type WorktreeRecord } from '../../../core/worktreeConversations'
 import {
   worktreeAddDetachedArgs,
   worktreeAddHeldArgs,
   worktreeFolder,
+  worktreeRemoveArgs,
 } from '../../../core/worktrees'
 import { confineWorkspacePath } from '../../../core/workspacePath'
 import { canonicalPath } from '../../../host/canonicalPath'
@@ -64,10 +71,13 @@ import { PullRequestServiceError, type RuntimePullRequestDeps } from './pullRequ
 import {
   holdForRoots,
   recordRevision,
+  versionOf,
   type RecordVersion,
   type ReserveResult,
+  type TrustTicket,
   type WorktreeRecordStore,
 } from './records'
+import { currentProcessOwner, isProcessOwnerGone } from './storeLock'
 
 const COMMIT_PEEL = '^{commit}'
 const OWN_FOLDER_PREFIX = 'pr-'
@@ -145,6 +155,10 @@ export interface NodePullRequestCheckoutGitOptions {
   /** Cancel or shutdown stops every git it runs, however quiet it is. */
   readonly signal: AbortSignal
   readonly log: CoreLogger
+  /** The held batch's own deadline: `GIT_WORKTREE_TIMEOUT_MS` unless a test shortens it. */
+  readonly batchDeadlineMs?: number
+  /** Creates one held file (`createFileExclusively`); a test stands a slow disk here. */
+  readonly createFile?: typeof createFileExclusively
 }
 
 /**
@@ -203,8 +217,87 @@ interface NodeGitRunner {
   readonly platform: NodeJS.Platform
   readonly signal: AbortSignal
   readonly log: CoreLogger
+  readonly batchDeadlineMs: number
+  readonly createFile: typeof createFileExclusively
   versionChecked: boolean
   text(args: readonly string[], cwd: string, env: NodeJS.ProcessEnv): Promise<string>
+}
+
+/**
+ * A held checkout's file writers (M123): one operation-local invalidation
+ * every publisher observes before each step that touches the disk, and a
+ * drain. A failure invalidates first, so no writer starts another step,
+ * then waits for the one in flight before anything is cleaned up.
+ */
+export class HeldWriters {
+  private inFlight = 0
+  private failure: Error | undefined
+  private readonly idle: (() => void)[] = []
+
+  /** Throws once the checkout failed: no publisher takes another step. */
+  public check(): void {
+    if (this.failure !== undefined) {
+      throw this.failure
+    }
+  }
+
+  public async run(work: () => Promise<void>): Promise<void> {
+    this.check()
+    this.inFlight += 1
+    try {
+      await work()
+    } finally {
+      this.inFlight -= 1
+      if (this.inFlight === 0) {
+        for (const done of this.idle.splice(0)) {
+          done()
+        }
+      }
+    }
+  }
+
+  public invalidate(error: Error): void {
+    this.failure ??= error
+  }
+
+  /** Settles once no writer is in flight; never rejects. */
+  public drained(): Promise<void> {
+    return this.inFlight === 0
+      ? Promise.resolve()
+      : new Promise<void>((resolve) => {
+          this.idle.push(resolve)
+        })
+  }
+}
+
+/**
+ * A held checkout failed while a file writer was still in flight past the
+ * drain grace. `settled` runs the cleanup once the writer stops and never
+ * rejects; until then the record stays pending, so the folder stays held
+ * and is never offered or trusted.
+ */
+export class CleanupPendingError extends Error {
+  public constructor(
+    public readonly failure: Error,
+    public readonly settled: Promise<void>,
+  ) {
+    super(failure.message, { cause: failure })
+    this.name = 'CleanupPendingError'
+  }
+}
+
+/** Whether `work` settles, either way, within `ms`. */
+function settlesWithin(work: Promise<unknown>, ms: number): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const timer = setTimeout(() => {
+      resolve(false)
+    }, ms)
+    const done = () => {
+      clearTimeout(timer)
+      resolve(true)
+    }
+    void work.then(done).catch(done)
+  })
 }
 
 /**
@@ -316,23 +409,31 @@ async function writeHeldBlobs(
   blobs: readonly HeldEntry[],
   check: () => void,
 ): Promise<void> {
+  const writers = new HeldWriters()
+  // Every step that touches the disk asks both: the owner (Cancel, trust)
+  // and this checkout's own failure (its deadline among them).
+  const mayWrite = () => {
+    writers.check()
+    check()
+  }
   const answers = new BlobAnswers(
     blobs,
-    async (entry, bytes) => {
-      const destination = await heldDestinationOf(git.platform, folder, entry.path)
-      check()
-      await createFileExclusively(destination.absolute, bytes, {
-        mode: entry.kind === 'executable' ? HELD_EXECUTABLE_MODE : HELD_FILE_MODE,
-        expectedDirectory: path.dirname(destination.checkedAbsolute),
-        assertCanWrite: check,
-        platform: git.platform,
-        warn: (_stage, _isPublished, error) => {
-          git.log.warn(
-            `A held checkout left a stage file it could not remove: ${error instanceof Error ? error.message : String(error)}`,
-          )
-        },
-      })
-    },
+    (entry, bytes) =>
+      writers.run(async () => {
+        const destination = await heldDestinationOf(git.platform, folder, entry.path)
+        mayWrite()
+        await git.createFile(destination.absolute, bytes, {
+          mode: entry.kind === 'executable' ? HELD_EXECUTABLE_MODE : HELD_FILE_MODE,
+          expectedDirectory: path.dirname(destination.checkedAbsolute),
+          assertCanWrite: mayWrite,
+          platform: git.platform,
+          warn: (_stage, _isPublished, error) => {
+            git.log.warn(
+              `A held checkout left a stage file it could not remove: ${error instanceof Error ? error.message : String(error)}`,
+            )
+          },
+        })
+      }),
     unreadable,
   )
   check()
@@ -353,13 +454,20 @@ async function writeHeldBlobs(
   // Nothing reads the error stream: discard it, so a chatty git can
   // never fill the pipe and stall the batch past its deadline.
   child.stderr.resume()
+  // A child that dies before reading its input breaks the pipe: its exit
+  // decides the checkout, never an unhandled stream error.
+  child.stdin.on('error', () => {
+    // The batch's close (a non-zero exit) refuses it.
+  })
   child.stdin.write(blobs.map((entry) => `${entry.oid}\n`).join(''))
   child.stdin.end()
   await runBatchChild(child, answers, {
-    deadlineMs: GIT_WORKTREE_TIMEOUT_MS,
+    deadlineMs: git.batchDeadlineMs,
     killGraceMs: GIT_BATCH_KILL_GRACE_MS,
+    drainGraceMs: HELD_WRITER_DRAIN_GRACE_MS,
     platform: git.platform,
     signal: git.signal,
+    writers,
   })
 }
 
@@ -368,17 +476,25 @@ export interface BatchChildOptions {
   readonly deadlineMs: number
   /** How long a killed batch is observed before the checkout settles anyway. */
   readonly killGraceMs: number
+  /** How long a failure waits for a file writer in flight before handing it the cleanup. */
+  readonly drainGraceMs: number
   readonly platform: NodeJS.Platform
   /** Cancel or shutdown settles the batch however quiet its child is. */
   readonly signal: AbortSignal
+  /** The publishers: a failure invalidates them before anything else. */
+  readonly writers: HeldWriters
 }
 
 /**
  * Every answer the batch child completes, then its exit — or its death:
- * the deadline kills the tree, destroys our pipe ends so the reader
- * cannot hang on a helper holding them, observes the exit for a bounded
- * grace, then settles anyway. Nothing keeps the checkout pending past
- * both its deadline and Cancel. Exported so the tests can stand a
+ * a failure (the deadline, Cancel, a bad answer) first invalidates the
+ * file writers, so none takes another step; then kills the tree, destroys
+ * our pipe ends so the reader cannot hang on a helper holding them, and
+ * observes the exit and the writer in flight for bounded graces. Drained,
+ * it rejects with the failure; a writer still in flight past its grace
+ * rejects as `CleanupPendingError`, whose cleanup waits for it. Nothing
+ * keeps the checkout pending past both its deadline and Cancel, and no
+ * writer outlives the cleanup. Exported so the tests can stand a
  * scripted root with a helper where git would be.
  */
 export function runBatchChild(
@@ -387,8 +503,13 @@ export function runBatchChild(
   options: BatchChildOptions,
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    const { signal } = options
+    const { signal, writers } = options
     let hasSettled = false
+    // Attached before the stream is read: the close may already have fired
+    // once the last answer is consumed.
+    const closed = new Promise<number | null>((done) => {
+      child.once('close', done)
+    })
     const settleResolve = () => {
       if (hasSettled) {
         return
@@ -398,12 +519,6 @@ export function runBatchChild(
       signal.removeEventListener('abort', onAbort)
       resolve()
     }
-    // The spawn timeout kills the root but never settles the pipes a
-    // surviving helper holds, and neither does Cancel once the root is
-    // gone. This failure stops the tree, destroys our pipe ends so the
-    // reader cannot hang on them, observes the exit for a bounded grace,
-    // then settles anyway: nothing keeps the checkout pending past both
-    // its deadline and Cancel.
     const fail = (error: Error) => {
       if (hasSettled) {
         return
@@ -411,22 +526,20 @@ export function runBatchChild(
       hasSettled = true
       clearTimeout(deadline)
       signal.removeEventListener('abort', onAbort)
+      // First: from here on no publisher starts another step.
+      writers.invalidate(error)
       killBatchTree(child, options.platform)
       child.stdout?.destroy()
       child.stderr?.destroy()
       child.stdin?.destroy()
-      const reject_ = () => {
-        reject(error)
-      }
-      if (child.exitCode !== null) {
-        reject_()
-        return
-      }
-      const grace = setTimeout(reject_, options.killGraceMs)
-      child.once('close', () => {
-        clearTimeout(grace)
-        reject_()
-      })
+      const hasExited = child.exitCode !== null || child.signalCode !== null
+      void (async () => {
+        const [, isDrained] = await Promise.all([
+          hasExited ? Promise.resolve(true) : settlesWithin(closed, options.killGraceMs),
+          settlesWithin(writers.drained(), options.drainGraceMs),
+        ])
+        reject(isDrained ? error : new CleanupPendingError(error, writers.drained()))
+      })()
     }
     const onAbort = () => {
       const reason: unknown = signal.reason
@@ -443,9 +556,6 @@ export function runBatchChild(
       return
     }
     child.on('error', fail)
-    // Attached before the stream is read: the close may already have fired
-    // once the last answer is consumed.
-    const closed = new Promise<number | null>((done) => child.on('close', done))
     void (async () => {
       try {
         await takeChunks(answers, child.stdout)
@@ -498,6 +608,8 @@ export function createNodePullRequestCheckoutGit(
     platform: options.platform,
     signal: options.signal,
     log: options.log,
+    batchDeadlineMs: options.batchDeadlineMs ?? GIT_WORKTREE_TIMEOUT_MS,
+    createFile: options.createFile ?? createFileExclusively,
     versionChecked: false,
     text: (args, cwd, env) => runText(options.gitPath, args, cwd, env, options.signal),
   }
@@ -561,8 +673,13 @@ export function createNodePullRequestCheckoutGit(
       }
       const overrides = await hookOverrides(git, cwd, check)
       check()
-      await git.text([...overrides, ...worktreeAddHeldArgs(folder, sha)], cwd, git.quietEnv)
+      // The reservation makes the folder this checkout's; one there already
+      // is someone else's, never added over and never cleaned up.
+      if (existsSync(folder)) {
+        throw new PullRequestServiceError(`${UI_TEXT.worktreeFolderExists} ${folder}`)
+      }
       try {
+        await git.text([...overrides, ...worktreeAddHeldArgs(folder, sha)], cwd, git.quietEnv)
         // In the worktree, so named hooks its own configuration defines are found and switched off.
         const worktreeOverrides = await hookOverrides(git, folder, check)
         check()
@@ -590,19 +707,67 @@ export function createNodePullRequestCheckoutGit(
           await writeHeldBlobs(git, folder, cwd, blobs, check)
         }
       } catch (error: unknown) {
-        try {
-          check()
-          // --force: without it git first runs `git status` in the
-          // worktree, through the filters this checkout never ran.
-          await git.text(['worktree', 'remove', '--force', folder], cwd, git.quietEnv)
-        } catch (error_: unknown) {
-          options.log.warn(
-            `A held checkout's worktree was left after it failed: ${error_ instanceof Error ? error_.message : String(error_)}`,
+        // Cleanup runs after Cancel too: Cancel must never leave the pull
+        // request's files behind. Only once no writer is in flight.
+        if (error instanceof CleanupPendingError) {
+          throw new CleanupPendingError(
+            error.failure,
+            removeHeldLeftoversAfter(error.settled, git, folder, cwd),
           )
         }
+        await removeHeldLeftovers(git, folder, cwd)
         throw error
       }
     },
+  }
+}
+
+/**
+ * A failed held checkout's leftovers: its worktree removed through git
+ * (no hooks, no filters, quiet; bounded by its own timeout, not the
+ * owner's signal, so Cancel still cleans up), then whatever git left of
+ * the folder, which is the runtime's own. Never throws: the caller decides
+ * from whether the folder is gone.
+ */
+async function removeHeldLeftovers(git: NodeGitRunner, folder: string, cwd: string): Promise<void> {
+  try {
+    // --force: without it git first runs `git status` in the worktree,
+    // through the filters this checkout never ran.
+    await runText(
+      git.gitPath,
+      [...untrustedCheckoutArgs(git.platform), ...worktreeRemoveArgs(folder, true)],
+      cwd,
+      git.quietEnv,
+      AbortSignal.timeout(HELD_CLEANUP_TIMEOUT_MS),
+    )
+  } catch (error: unknown) {
+    git.log.warn(`A held checkout's worktree was not removed by git: ${failureText(error)}`)
+  }
+  try {
+    await rm(folder, { recursive: true, force: true, maxRetries: HELD_CLEANUP_REMOVE_RETRIES })
+  } catch (error: unknown) {
+    git.log.warn(`A held checkout's folder was left after it failed: ${failureText(error)}`)
+  }
+}
+
+/** The same, once the writer still in flight has stopped (`drained` never rejects). */
+async function removeHeldLeftoversAfter(
+  drained: Promise<void>,
+  git: NodeGitRunner,
+  folder: string,
+  cwd: string,
+): Promise<void> {
+  await drained
+  await removeHeldLeftovers(git, folder, cwd)
+}
+
+/** The folder's native identity (`dev:ino`, links resolved); undefined when it is not one. */
+async function folderIdentityOf(folder: string): Promise<string | undefined> {
+  try {
+    const seen = await statIdentity(folder)
+    return seen.isDirectory() ? fileIdentityKey(seen) : undefined
+  } catch {
+    return undefined
   }
 }
 
@@ -796,12 +961,13 @@ export class RuntimePullRequestCheckout {
 
   /**
    * Validate → act → persist for one checkout: reserve the folder's
-   * record, run git, then complete or roll back exactly the version
+   * record, run git, then complete or discard exactly the version
    * reserved. A reserve that finds another checkout there follows what is
    * there — a checkout in flight is refused honestly, a finished one is
-   * offered again, and only a finished record whose folder is gone is
-   * taken over, at exactly the version read. Nothing here overwrites a
-   * record it did not read.
+   * offered again, and only a finished record whose folder is gone (or a
+   * pending one whose process and folder are gone) is taken over, at
+   * exactly the version read. Nothing here overwrites a record it did not
+   * read, and nothing restores an older one.
    */
   private async claimAndCheckout(
     folder: string,
@@ -815,6 +981,8 @@ export class RuntimePullRequestCheckout {
       folder,
       repositoryRoot: this.deps.repositoryRoot,
       createdAt: this.deps.now(),
+      checkoutId: randomUUID(),
+      pendingOwner: currentProcessOwner(),
       pullRequest: {
         repository: repositoryLabel(remote.repository),
         number,
@@ -830,78 +998,55 @@ export class RuntimePullRequestCheckout {
     const changed: OpenPullRequestResult = { ok: false, reason: UI_TEXT.gitOperationChanged }
     for (let attempt = 1; ; attempt += 1) {
       const record = makeRecord()
-      let reservation: ReserveResult
+      let claim: ReserveResult
       try {
-        reservation = await this.deps.records.reserve(record)
-      } catch {
-        return changed
-      }
-      if (reservation.ok) {
-        return await this.finishCheckout(
-          folder,
-          number,
-          isOwn,
-          pullRequest.headSha,
-          reservation.stored,
-          reservation.previous,
-        )
-      }
-      const current = reservation.current
-      if (current === undefined || current.isCheckoutPending === true) {
-        // Another checkout owns this folder right now (or it went away
-        // mid-claim and the next attempt re-reads it).
-        if (current !== undefined || attempt >= WORKTREE_RECORD_SAVE_ATTEMPTS) {
-          return changed
+        claim = await this.deps.records.reserve(record)
+        const current = claim.ok ? undefined : claim.current
+        if (current !== undefined) {
+          if (current.isCheckoutPending !== true && this.deps.pathExists(folder)) {
+            return await this.offerExistingCheckout(folder, number, current)
+          }
+          if (!this.mayTakeOver(folder, current)) {
+            // Another checkout owns this folder right now.
+            return changed
+          }
+          claim = await this.deps.records.supersede(folder, versionOf(current), record)
         }
-        continue
-      }
-      if (this.deps.pathExists(folder)) {
-        return await this.offerExistingCheckout(folder, number, current)
-      }
-      let takeover: ReserveResult
-      try {
-        takeover = await this.deps.records.supersede(
-          folder,
-          { createdAt: current.createdAt, revision: recordRevision(current) },
-          record,
-        )
       } catch {
         return changed
       }
-      if (takeover.ok) {
-        return await this.finishCheckout(
-          folder,
-          number,
-          isOwn,
-          pullRequest.headSha,
-          takeover.stored,
-          takeover.previous,
-        )
+      if (claim.ok) {
+        return await this.finishCheckout(folder, number, isOwn, pullRequest.headSha, claim.stored)
       }
-      const next = takeover.current
-      if (next !== undefined && next.isCheckoutPending !== true && this.deps.pathExists(folder)) {
-        return await this.offerExistingCheckout(folder, number, next)
-      }
+      // The record moved under the claim: the next attempt reads it again.
       if (attempt >= WORKTREE_RECORD_SAVE_ATTEMPTS) {
         return changed
       }
     }
   }
 
-  /** Runs git for a reserved record, then completes or rolls back that version. */
+  /**
+   * Whether a new checkout may replace `current`: its folder is gone, and
+   * it finished, or its checkout's process is gone too (a crash).
+   */
+  private mayTakeOver(folder: string, current: WorktreeRecord): boolean {
+    return (
+      !this.deps.pathExists(folder) &&
+      (current.isCheckoutPending !== true ||
+        (current.pendingOwner !== undefined && isProcessOwnerGone(current.pendingOwner)))
+    )
+  }
+
+  /** Runs git for a reserved record, then completes or discards that version. */
   private async finishCheckout(
     folder: string,
     number: number,
     isOwn: boolean,
     headSha: string,
     stored: WorktreeRecord,
-    previous: WorktreeRecord | undefined,
   ): Promise<OpenPullRequestResult> {
     const cwd = this.deps.repositoryRoot
-    const version: RecordVersion = {
-      createdAt: stored.createdAt,
-      revision: recordRevision(stored),
-    }
+    const version = versionOf(stored)
     try {
       this.checkTrust()
       const check = () => {
@@ -911,14 +1056,18 @@ export class RuntimePullRequestCheckout {
         ? this.deps.git.addOwnWorktree(cwd, folder, headSha, check)
         : this.deps.git.checkOutHeld(folder, headSha, cwd, check))
     } catch (error: unknown) {
-      try {
-        await this.deps.records.remove(folder, version.createdAt, version.revision, previous)
-      } catch {
-        this.deps.log.warn(`A failed checkout's record could not be rolled back: ${folder}`)
+      if (error instanceof CleanupPendingError) {
+        // A writer is still in flight: the record stays pending (held,
+        // never offered or trusted) until its cleanup has run.
+        this.deps.log.warn(`A failed checkout is still writing; it stays held: ${folder}`)
+        void this.discardAfter(error.settled, folder, version)
+      } else {
+        await this.discardIfGone(folder, version)
       }
       return { ok: false, reason: `${UI_TEXT.worktreeAddFailed}: ${failureText(error)}` }
     }
-    if (!(await this.settleComplete(folder, version))) {
+    const identity = await folderIdentityOf(folder)
+    if (!(await this.settleComplete(folder, version, identity))) {
       return { ok: false, reason: UI_TEXT.gitOperationChanged }
     }
     this.checkTrust()
@@ -930,14 +1079,50 @@ export class RuntimePullRequestCheckout {
   }
 
   /**
-   * pending → ready for exactly the version reserved. A complete that
-   * lost (its version moved on) re-reads first: when the reserved record
-   * is ready, the checkout finished and the report is success.
+   * A failed checkout's record goes only with its folder: while anything
+   * of the folder survives, the record stays pending, so the folder stays
+   * held, is never offered again and can never be trusted. Never restores
+   * a displaced record. Never throws.
    */
-  private async settleComplete(folder: string, version: RecordVersion): Promise<boolean> {
+  private async discardIfGone(folder: string, version: RecordVersion): Promise<void> {
+    if (this.deps.pathExists(folder)) {
+      this.deps.log.warn(`A failed checkout left its folder; it stays held: ${folder}`)
+      return
+    }
+    try {
+      await this.deps.records.discard(folder, version)
+    } catch {
+      this.deps.log.warn(`A failed checkout's record could not be discarded: ${folder}`)
+    }
+  }
+
+  /** The same, once a failed checkout's late cleanup has run. Never throws. */
+  private async discardAfter(
+    settled: Promise<void>,
+    folder: string,
+    version: RecordVersion,
+  ): Promise<void> {
+    try {
+      await settled
+    } catch {
+      // The cleanup never rejects; the folder decides either way.
+    }
+    await this.discardIfGone(folder, version)
+  }
+
+  /**
+   * pending → ready for exactly the version reserved. A complete that
+   * lost (its version moved on) re-reads first: when the reserved
+   * checkout is ready, it finished and the report is success.
+   */
+  private async settleComplete(
+    folder: string,
+    version: RecordVersion,
+    identity: string | undefined,
+  ): Promise<boolean> {
     for (let attempt = 1; ; attempt += 1) {
       try {
-        if (await this.deps.records.complete(folder, version.createdAt, version.revision)) {
+        if (await this.deps.records.complete(folder, version, identity)) {
           return true
         }
       } catch {
@@ -949,13 +1134,11 @@ export class RuntimePullRequestCheckout {
       } catch {
         current = undefined
       }
-      if (current === undefined) {
-        if (attempt >= WORKTREE_RECORD_SAVE_ATTEMPTS) {
-          return false
-        }
-        continue
-      }
-      if (current.createdAt === version.createdAt && current.isCheckoutPending !== true) {
+      if (
+        current !== undefined &&
+        current.checkoutId === version.checkoutId &&
+        current.isCheckoutPending !== true
+      ) {
         return true
       }
       if (attempt >= WORKTREE_RECORD_SAVE_ATTEMPTS) {
@@ -1013,23 +1196,63 @@ export class RuntimePullRequestCheckout {
   }
 
   /**
+   * What the held-worktree card shows for `folder`, and the ticket its
+   * confirmation hands back: one finished, untrusted checkout whose folder
+   * is still the very folder it finished in. Undefined otherwise (pending,
+   * trusted already, gone, or made again at the same path).
+   */
+  public async trustTicket(folder: string): Promise<TrustTicket | undefined> {
+    let record: WorktreeRecord | undefined
+    try {
+      record = await this.deps.records.recordFor(folder)
+    } catch {
+      return undefined
+    }
+    if (
+      record === undefined ||
+      record.isCheckoutPending === true ||
+      record.trustConfirmedAt !== undefined ||
+      record.checkoutId === undefined ||
+      record.folderIdentity === undefined ||
+      record.pullRequest === undefined ||
+      (await folderIdentityOf(record.folder)) !== record.folderIdentity
+    ) {
+      return undefined
+    }
+    return {
+      folder: record.folder,
+      checkoutId: record.checkoutId,
+      revision: recordRevision(record),
+      headSha: record.pullRequest.headSha,
+      folderIdentity: record.folderIdentity,
+      pullRequest: record.pullRequest,
+    }
+  }
+
+  /**
    * The held-worktree card's "Trust this worktree…": the confirmation
-   * itself lives in the panel (lane U); here the record is marked, so the
-   * hold by location lets that very worktree go.
+   * itself lives in the panel (lane U), which hands back the ticket it
+   * showed; here exactly that checkout is marked, once, so the hold by
+   * location lets that very worktree go. A ticket for a checkout replaced,
+   * re-made, still pending or already trusted releases nothing.
    */
   public async releaseHold(
-    folder: string,
+    ticket: TrustTicket,
   ): Promise<{ readonly ok: boolean; readonly reason?: string }> {
     try {
       this.checkTrust()
     } catch (error: unknown) {
       return { ok: false, reason: failureText(error) }
     }
-    // A release the store cannot persist, or one for a checkout still
-    // pending, reads as changed: the card tries again after it finishes.
+    // The folder must still be the one the checkout finished in.
+    if ((await folderIdentityOf(ticket.folder)) !== ticket.folderIdentity) {
+      return { ok: false, reason: UI_TEXT.gitOperationChanged }
+    }
+    // A release the store cannot persist, or one that no longer matches
+    // the record, reads as changed: the card shows the checkout again.
     let released: WorktreeRecord | undefined
     try {
-      released = await this.deps.records.release(folder, this.deps.now())
+      released = await this.deps.records.release(ticket, this.deps.now())
     } catch {
       return { ok: false, reason: UI_TEXT.gitOperationChanged }
     }

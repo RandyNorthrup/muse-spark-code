@@ -1746,21 +1746,38 @@ export const HELD_FILE_MODE = 0o666
 export const HELD_EXECUTABLE_MODE = 0o777
 // The conversations whose pull request is remembered, newest first.
 export const PULL_REQUEST_LINKS_KEPT = 200
-// A file worktree-record save whose file changed underneath is read again
-// and merged again this many times; then the mutation fails loudly, never
-// overwriting what it did not read (M123).
+// A worktree-record mutation that lost its generation to another window
+// (the fencing check) is read again and applied again this many times;
+// then it fails loudly, never writing over what it did not read (M123).
 export const WORKTREE_RECORD_SAVE_ATTEMPTS = 3
-// One file backs every window's worktree records; a mutation holds this
-// lock folder while it validates the fresh registry and persists it, so
-// two windows never interleave a read-modify-write (M123). A waiter takes
-// over a lock older than the stale bound (its holder crashed) and fails
-// loudly past the timeout instead of writing uncoordinated.
+// The worktree records' cross-process lock (M123, PLAN.md M123's lock
+// protocol): a waiter gives up loudly past the timeout; an owner's lease
+// ends this long after its lock file was written, whatever its note says;
+// a lock whose owner note is missing or torn (a crash between create and
+// write) expires this long after its file was last written.
 export const WORKTREE_RECORD_LOCK_TIMEOUT_MS = 10_000
 export const WORKTREE_RECORD_LOCK_POLL_MS = 10
-export const WORKTREE_RECORD_LOCK_STALE_MS = 30_000
+export const WORKTREE_RECORD_LOCK_LEASE_MS = 30_000
+export const WORKTREE_RECORD_LOCK_UNREADABLE_MS = 2000
+// Two samples of one process's start time (uptime arithmetic) agree within
+// this; a recorded owner with this process's id but a start time further
+// off was an earlier process that had the same id, so it is gone.
+export const PROCESS_START_TOLERANCE_MS = 1000
+// The newest record generations kept; older ones, and stage or retired-lock
+// files older than the sweep age (a crash's leftovers), are removed.
+export const WORKTREE_RECORD_GENERATIONS_KEPT = 8
+export const WORKTREE_RECORD_SWEEP_AGE_MS = 60_000
 // A killed batch child is observed this long before the checkout settles
 // anyway: a helper holding the pipes cannot keep it pending (M123).
 export const GIT_BATCH_KILL_GRACE_MS = 1000
+// A failed held checkout waits this long for a file writer already in
+// flight to stop; past it the failure returns and the writer's cleanup runs
+// when it stops, the record staying pending (held) until then (M123).
+export const HELD_WRITER_DRAIN_GRACE_MS = 5000
+// A failed held checkout's `git worktree remove`, run even after Cancel,
+// and the folder removal behind it (Windows retries a held file).
+export const HELD_CLEANUP_TIMEOUT_MS = 60_000
+export const HELD_CLEANUP_REMOVE_RETRIES = 5
 // --- Review (M70, PLAN.md D49) ---
 
 // `/review …` in the prompt. The command and its keywords are commands, like

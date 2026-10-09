@@ -69,6 +69,22 @@ const worktreeRecordSchema = z.object({
    * version wrote; those read as revision 0.
    */
   revision: z.optional(z.number()),
+  /**
+   * The runtime checkout this record names (M123): a random id made at
+   * reservation. A replacement checkout gets a new one, so a trust card
+   * confirmed for the old checkout never matches the new one.
+   */
+  checkoutId: z.optional(z.string()),
+  /**
+   * The finished worktree folder's native identity (`dev:ino`, links
+   * resolved), sampled when the checkout completed: trust binds to that
+   * very folder, never to one made again at the same path.
+   */
+  folderIdentity: z.optional(z.string()),
+  /** Who runs a pending checkout: a process that is gone leaves it to be taken over. */
+  pendingOwner: z.optional(
+    z.object({ host: z.string(), pid: z.number(), processStart: z.number() }),
+  ),
 })
 
 export type WorktreeRecord = z.infer<typeof worktreeRecordSchema>
