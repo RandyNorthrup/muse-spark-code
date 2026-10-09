@@ -20286,7 +20286,51 @@ github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
   - **Residual.** A keychain has no compare-and-swap: a 401 or a refused
     refresh reads the item and then deletes it, and a pair stored by
     another process between those two calls is lost (the user signs in
-    again). The sign-out mark closes that gap for Sign out only.
+    again). The mark did not close the publication interval (RVM123A2);
+    replaced by the sign-in generation below.
+- **Lane A review RVM123A2: the sign-in generation, on `m123/a3`
+  (2026-10-09, Kubuntu).** Record: `docs/certification/m123.md` § Lane A
+  redesign. The third round on the same code redesigned instead of
+  patching. `src/runtime/github/deviceFlowSource.ts` holds one state
+  machine. The stored pair (`GITHUB_STORED_TOKEN_VERSION` 2) names the
+  generation it was issued under; the generation is a random id beside it
+  under `museSpark.github.deviceFlow.generation` (no secret; none stored
+  is the first generation). In one process every check-and-write runs in
+  the source's queue.
+
+  | Transition | When                                                                                          | What it does (in order)                                                                                                                                              |
+  | ---------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | Read       | any call, `auth github status`                                                                | read the pair, then the generation; the pair counts only if it names that generation                                                                                 |
+  | Publish    | a sign-in or refresh completes, with the generation taken when it started                     | queued: refuse if the generation moved; store; read pair and generation back. Moved: take the write back, nothing. Another pair there: use it. Else: the stored pair |
+  | Retire     | Sign out; Refuse                                                                              | queued: write a new generation, then delete the pair. Every earlier pair is unreadable from the first write on                                                       |
+  | Refuse     | a 401 for the stored token; a refresh GitHub refuses (`bad_refresh_token`) or past its expiry | queued: Retire only while the item still holds the refused pair; otherwise use the pair another window stored                                                        |
+  | Serve      | `credential()` returns                                                                        | read the generation again; a bearer only if its pair names it (covers a shared run's result and the outage fallback's cached pair)                                   |
+  - **P1, a stale pair readable before rollback.** A pair is read only
+    under its own generation, so a late write after a Sign out is never
+    readable, before or after its rollback.
+  - **P2, a pre-logout completion deletes a post-logout sign-in.**
+    Publish refuses a moved generation before it writes.
+  - **P2, the outage fallback after logout.** Serve rechecks the
+    generation for every bearer handed out.
+  - **Invariant.** Once Sign out has returned, no call started after it
+    receives a bearer issued before it, in any window or process (the
+    store reads back its own completed writes, as the keychain does).
+  - **Residual window (cross-process only, the store has no
+    compare-and-swap).** Each is two store calls in another process, and
+    each loses a pair, never serves a stale one: (1) Publish's check and
+    its write: a Sign out plus a completed new sign-in in another process
+    between them is overwritten, then removed by the read-back (that
+    process signs in again); (2) the read-back and its take-back delete: a
+    new-generation pair stored between them is deleted; (3) Refuse's
+    compare and its new generation: a pair another process publishes
+    between them is retired (signed out on its next call); (4) two
+    processes publishing in one generation: the last write stays, and a
+    process whose read-back saw the other pair uses it. A refusal also
+    discards a sign-in another window started before it. A call that
+    overlaps a Sign out may still return the earlier bearer. Closing the
+    windows needs an atomic store or a cross-process lock; neither the
+    keychain binding nor the M109 vault port offers one.
+
 - **Goal.** F36 (M71's Git and pull request features) works in every editor
   in M104's matrix. That means the same forms, drafts, confirmations, links,
   checks and held checkout as in VS Code, with Git run natively by the
