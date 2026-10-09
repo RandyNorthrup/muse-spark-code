@@ -139,7 +139,9 @@ describe('MemoryStore: where notes live', () => {
 
   it('refuses a Windows device name, as the file tools do', async () => {
     const { store } = setup({}, { platform: 'win32', workspaceRoot: String.raw`C:\ws` })
-    await expect(store.locate('project', 'nul.md')).resolves.toMatchObject({
+    // SECWINPATH: a segment is a device only bare or followed by dots and
+    // spaces; `nul.md` is an ordinary Windows 11 name (secWinIdentity2.test.ts).
+    await expect(store.locate('project', 'nul/note.md')).resolves.toMatchObject({
       ok: false,
       reason: expect.stringContaining('names a Windows device'),
     })
