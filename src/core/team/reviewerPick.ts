@@ -61,6 +61,10 @@ export function pickReviewer(
             const entry = candidates.find((item) => item.entryId === candidate.id)
             let reason: TeamSkip['reason'] | undefined
             if (!entry?.hasHeadroom) reason = 'busy'
+            else if (
+              !isSameModel(entry.modelId, candidate.agent?.model ?? snapshot.defaultAgent.modelId)
+            )
+              reason = 'unhealthy'
             else if (authors.some((author) => isSameModel(entry.modelId, author))) reason = 'author'
             return reason === undefined
               ? live

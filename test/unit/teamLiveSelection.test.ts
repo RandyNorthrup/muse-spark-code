@@ -267,6 +267,31 @@ describe('M120 live preference selection', () => {
     })
   })
 
+  it('refuses a stale reviewer model before it can review an earlier author engine', () => {
+    const selected = vi.fn()
+    const snapshot = {
+      ...selectionSnapshot(),
+      preference: preference(),
+      availability: live().availability,
+      conditions: { authorEngines: ['stale-author-model'] },
+    }
+    expect(
+      pickReviewer(
+        [],
+        [
+          { entryId: 'preferred', modelId: 'stale-author-model', hasHeadroom: true },
+          { entryId: 'fallback', modelId: 'model-fallback', hasHeadroom: true },
+        ],
+        isSameTeamModel,
+        { snapshot, selected },
+      ),
+    ).toMatchObject({
+      entryId: 'fallback',
+      skips: [{ candidateId: 'preferred', reason: 'unhealthy' }],
+    })
+    expect(selected).toHaveBeenCalledWith(expect.objectContaining({ kind: 'selected' }))
+  })
+
   it('honours zero caps, role turn limits and a changed candidate identity', () => {
     const list = preference()
     list.pool[0]?.caps.push({ measure: 'tokens', window: 'day', amount: 0 })
