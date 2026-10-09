@@ -503,16 +503,17 @@ describe('deferred cohort bundles', () => {
       'src/core/media/uploadLedger.ts',
       'src/host/backend/sessionUploads.ts',
     ]
+    // The CLI/ACP runtime's backend (runtime/backends.ts) ships in
+    // dist/runtimeEngine.js, which ACP loads on first use.
+    const parents = ['extension', 'modelApi', 'acp', 'runtimeEngine']
     for (const source of owned) {
       expect(inputs('productionMedia')).toContain(source)
-      for (const parent of ['extension', 'modelApi', 'acp']) {
-        expect(inputs(parent)).not.toContain(source)
-      }
+      for (const parent of parents) expect(inputs(parent)).not.toContain(source)
     }
-    for (const parent of ['extension', 'modelApi', 'acp'])
-      expect(bundleText(parent)).toContain('./productionMedia.js')
+    for (const parent of ['extension', 'modelApi', 'runtimeEngine'])
+      expect(bundleText(parent)).toContain('import("./productionMedia.js")')
     // No transcription port ships until lane V binds its seams.
-    for (const bundle of ['extension', 'modelApi', 'acp', 'productionMedia'])
+    for (const bundle of [...parents, 'productionMedia'])
       expect(inputs(bundle)).not.toContain('src/core/voice/transcribeBatchHttp.ts')
   })
 
