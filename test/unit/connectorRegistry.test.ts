@@ -134,7 +134,15 @@ interface Harness {
   call(name: string, args?: unknown): Promise<Record<string, unknown>>
 }
 
-async function harness(limits: MemoryLimits = memoryLimits()): Promise<Harness> {
+/**
+ * `live`: the test's state is the authority, read at every gate (a change
+ * notice that always arrives). `snapshot`: it changes only when the
+ * registry reads it again (a change notice that never arrived).
+ */
+async function harness(
+  limits: MemoryLimits = memoryLimits(),
+  authority: 'live' | 'snapshot' = 'live',
+): Promise<Harness> {
   const state: Harness['state'] = {
     grant: grantOf(),
     killed: false,
@@ -176,6 +184,7 @@ async function harness(limits: MemoryLimits = memoryLimits()): Promise<Harness> 
   })
   const scrub = createConnectorScrub(privacy, () => [CANARY])
   const now = () => state.now
+  let snapshot = { grant: state.grant, killed: state.killed }
   // The pre-redesign registry's authority ports, so these tests also run against its source.
   const earlier = {
     grant: async () => {
@@ -191,9 +200,11 @@ async function harness(limits: MemoryLimits = memoryLimits()): Promise<Harness> 
     now,
     // Live: a revocation, the kill switch or a changed grant is the test's state, read at every gate.
     authority: {
-      current: () => ({ grant: state.grant, killed: state.killed }),
+      current: () =>
+        authority === 'live' ? { grant: state.grant, killed: state.killed } : snapshot,
       refresh: async () => {
         await gate('grant')
+        snapshot = { grant: state.grant, killed: state.killed }
       },
       watch: () => stopWatching,
     },
@@ -1026,6 +1037,47 @@ async function approvedAndHeld(h: Harness) {
   return pipe
 }
 
+/** Over real stdio: a save approved and held at its target read (after its receipts). */
+async function approvedAtTargetRead(h: Harness, save: Record<string, unknown>) {
+  const pipe = stdio(h)
+  pipe.call(1, 'muse_prompt_save', save)
+  expect(await pipe.reply(1)).toMatchObject({ status: 'awaitingApproval' })
+  h.state.holds.add('list')
+  await approveFirst(h)
+  await vi.waitFor(() => {
+    expect(h.state.held).toHaveLength(1)
+  })
+  return pipe
+}
+
+/** A prompt list held at `hold`; once held, `change` the authority and let it go: its answer. */
+async function answerAfter(h: Harness, hold: string, change: (h: Harness) => void) {
+  h.state.holds.add(hold)
+  const answer = h.call('muse_prompt_list', { scope: 'user' })
+  await vi.waitFor(() => {
+    expect(h.state.held).toHaveLength(1)
+  })
+  change(h)
+  release(h)
+  return await answer
+}
+
+const revoke = (h: Harness) => {
+  h.state.grant = grantOf({ revoked: true, generation: 2 })
+}
+
+/** The client closes stdin: serving ends promptly, whatever a call still awaits. */
+async function expectServedSoon(pipe: ReturnType<typeof stdio>): Promise<void> {
+  pipe.input.end()
+  let isServed = false
+  void pipe.served.then(() => {
+    isServed = true
+  })
+  await vi.waitFor(() => {
+    expect(isServed).toBe(true)
+  })
+}
+
 /** With an approved save held, `change` the authority, let it go: nothing is written. */
 async function expectNoWriteAfter(
   h: Harness,
@@ -1139,30 +1191,19 @@ describe('M124 one state machine, one authority (RVM124B)', () => {
   for (const [label, save, cause, change] of TARGET_REREAD_CHANGES)
     it(`starts no approved write after ${label} while the target is re-read: the final gate (P1)`, async () => {
       const h = await harness()
-      const pipe = stdio(h)
-      pipe.call(1, 'muse_prompt_save', save)
-      expect(await pipe.reply(1)).toMatchObject({ status: 'awaitingApproval' })
-      // Held after the approved and dispatching receipts: the live target read.
-      h.state.holds.add('list')
-      await approveFirst(h)
-      await vi.waitFor(() => {
-        expect(h.state.held).toHaveLength(1)
-      })
-      await expectNoWriteAfter(h, pipe, change, cause)
+      await expectNoWriteAfter(h, await approvedAtTargetRead(h, save), change, cause)
     })
 
-  it('starts no owner read after the kill switch during the admission receipt wait (round 4 P1)', async () => {
-    const h = await harness()
-    h.state.holds.add('admitted')
-    const answer = h.call('muse_prompt_list', { scope: 'user' })
-    await vi.waitFor(() => {
-      expect(h.state.held).toHaveLength(1)
+  // Admission's receipt, then the read's dispatching receipt (round 4 P1).
+  for (const hold of ['admitted', 'dispatching'])
+    it(`starts no owner read after the kill switch during the ${hold} receipt wait (round 4 P1)`, async () => {
+      const h = await harness()
+      const answer = await answerAfter(h, hold, (held) => {
+        held.state.killed = true
+      })
+      expect(answer).toMatchObject({ status: 'refused', reason: 'forbidden' })
+      expect(h.state.reads).toBe(0)
     })
-    h.state.killed = true
-    release(h)
-    expect(await answer).toMatchObject({ status: 'refused', reason: 'forbidden' })
-    expect(h.state.reads).toBe(0)
-  })
 
   it('starts no approved write after the client disconnects during the dispatch receipt wait, over stdio (P1)', async () => {
     const h = await harness()
@@ -1246,17 +1287,15 @@ describe('M124 one state machine, one authority (RVM124B)', () => {
     await pipe.served
   })
 
-  it('withholds a read result when the grant is revoked while the owner read runs (P2-2)', async () => {
-    const h = await harness()
-    h.state.holds.add('list')
-    const answer = h.call('muse_prompt_list', { scope: 'user' })
-    await vi.waitFor(() => {
-      expect(h.state.held).toHaveLength(1)
+  // `snapshot`: no change notice arrives; delivery's own re-read must see it (round 4 P1).
+  for (const mode of ['live', 'snapshot'] as const)
+    it(`withholds a read result when the grant is revoked while the owner read runs, ${mode} authority (P2-2)`, async () => {
+      const h = await harness(memoryLimits(), mode)
+      expect(await answerAfter(h, 'list', revoke)).toMatchObject({
+        status: 'refused',
+        reason: 'forbidden',
+      })
     })
-    h.state.grant = grantOf({ revoked: true, generation: 2 })
-    release(h)
-    expect(await answer).toMatchObject({ status: 'refused', reason: 'forbidden' })
-  })
 
   it('records a final result refused for its size as the call’s one terminal receipt (P2-4)', async () => {
     const h = await harness()
@@ -1558,28 +1597,14 @@ describe('M124 round 4: receipts, races and the live gate (RVM124R3)', () => {
       pipe.input.write(`${frame}\n`)
       return Promise.resolve()
     })
-    pipe.input.end()
-    let isServed = false
-    void pipe.served.then(() => {
-      isServed = true
-    })
-    await vi.waitFor(() => {
-      expect(isServed).toBe(true)
-    })
+    await expectServedSoon(pipe)
     release(h)
   })
 
-  it('starts no owner read after the kill switch during the dispatching receipt wait (P1)', async () => {
-    const h = await harness()
-    h.state.holds.add('dispatching')
-    const answer = h.call('muse_prompt_list', { scope: 'user' })
-    await vi.waitFor(() => {
-      expect(h.state.held).toHaveLength(1)
-    })
-    h.state.killed = true
-    release(h)
-    expect(await answer).toMatchObject({ status: 'refused', reason: 'forbidden' })
-    expect(h.state.reads).toBe(0)
+  it('reads the authority again before the write when no change notice arrives (P1)', async () => {
+    const h = await harness(memoryLimits(), 'snapshot')
+    const pipe = await approvedAtTargetRead(h, WORKSPACE_SAVE)
+    await expectNoWriteAfter(h, pipe, revoke, 'revoked')
   })
 
   it('keeps a result decided at its delivery gate: a cancellation meanwhile adds no second end (P2-3)', async () => {
@@ -1605,14 +1630,7 @@ describe('M124 round 4: receipts, races and the live gate (RVM124R3)', () => {
     await vi.waitFor(() => {
       expect(h.state.held).toHaveLength(1)
     })
-    pipe.input.end()
-    let isServed = false
-    void pipe.served.then(() => {
-      isServed = true
-    })
-    await vi.waitFor(() => {
-      expect(isServed).toBe(true)
-    })
+    await expectServedSoon(pipe)
     release(h)
   })
 
