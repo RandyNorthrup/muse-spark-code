@@ -35978,7 +35978,18 @@ owner binding and vault path (not in this join).
 `m100/p2-join-fix` `d1a776f40` into lane W's final `aa31aabcf` with
 `--no-ff`; both sides' fixes kept whole (two additive conflicts, plus the
 CHANGELOG line JFIX asked W to carry); receipts in
-`docs/certification/m100-phase2.md` ("Join (W + JFIX)").
+`docs/certification/m100-phase2.md` ("Join (W + JFIX)"). Committed as
+`8303ff76f`; all 46 device files pass on Kubuntu and natively on the
+Windows host, the harness also on the Win11 VM; full-repo ESLint, five
+typechecks and the static checks exit 0 on Kubuntu. One unplanned
+whole-suite run found three `test:unit` failures the device sweeps never
+run: `execStdio` (storage-lane fixture, fixed in `5b370cf8d`),
+`browserUiText` (W's `DEVICES_STORAGE_DIR = 'devices'` literal makes the
+whole `devices` English table eager) and the FIXDIET1 startup baseline
+(over by 130 bytes on the base, 3,087 after W). The last two are open for
+the lead. Remaining: lane K after 0.17 lands on main, then the four-machine
+installed-host qualification and hosted macOS CI for the Darwin-native
+cases.
 
 **M100P2BASE integration scope (2026-10-07, macmini).** Merge only
 `23c67925f` into release head `9d1ab33c3` with `--no-ff`, preserving both

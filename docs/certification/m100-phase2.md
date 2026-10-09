@@ -5743,3 +5743,167 @@ lead: changing driver behaviour needs its own regression test and review.
 `npm run quality` as one aggregate was not run here: its `test:unit` is the
 whole suite, and this record runs the device suites per machine instead. The
 aggregate run stays with W and the lead, as the final-join record says.
+
+### Join completed and verified (lane M100JOIN resume, 2026-10-08 evening)
+
+The merge above was left uncommitted when the host paused at 19:26. On
+resume (20:28) the working tree held the resolution described above: no
+conflict markers, W's record whole as a prefix of this file, the join-fix
+record byte-identical after it, and `deviceWorkerHost.test.ts` equal to the
+join-fix version plus W's selector hunk. It was committed unchanged as
+merge **`8303ff76f`** (parents `aa31aabcf`, `d1a776f40`) with the installed
+hooks (lint-staged ESLint and Prettier, gitleaks: no leaks). The tables
+above were collected before the pause on snapshot `65c4d3e9a`; everything
+below ran on the committed merge's tree. Model attempts **0**, inference
+spend **0**.
+
+#### Suites per machine (merge tree, default timeouts, `--maxWorkers=3`)
+
+All 46 device and Devices files: every `device*`/`devices*`/`Devices*`
+file plus `actionGrants`, `attemptJournal`, `commandRegistration` and
+`windowsStorageProtection`.
+
+| Machine                        | Run                                         | Result                                                                                                                                          |
+| ------------------------------ | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kubuntu (Linux, `rig-test.sh`) | the 45 non-harness files in one run         | **exit 0: 45 files, 1,648 passed, 39 skipped** (31 macOS-native, 7 Windows-native, 1 Windows-only manifest case); all 13 native Linux cases ran |
+| Kubuntu                        | `devicesPhase2Harness`                      | **exit 0, 19/19** (42.7 s)                                                                                                                      |
+| Windows host (this PC)         | the 45 non-harness files, 15 runs of three  | **all 15 exit 0: 1,643 passed, 44 skipped** (31 macOS-native, 13 Linux-native); all 7 native Windows scheduled-task cases ran                   |
+| Windows host                   | `devicesPhase2Harness`, three runs          | **exit 0 ×3, 19/19 each** (20.9 s, 37.7 s, 33.7 s; host CPU 65 to 79% busy)                                                                     |
+| Win11 VM                       | `devicesPhase2Harness`                      | **exit 0, 19/19** (57.9 s; readiness cases 1.19 to 1.41 s each). The base harness (`d1a776f40`) there: **exit 0, 16/16**, 1.76 to 2.42 s each   |
+| macOS                          | the 31 native cases in `deviceWorkerDarwin` | not rerun on this tree: hosted macOS CI. The Mac mini passed `deviceWorkerDarwin` + `deviceWorkerHost` **507/507** on `65c4d3e9a` above         |
+
+The host runs that failed before the pause (scheduled-task timeouts, macOS
+fake-port stress cases, `devicesQrLoading`) all pass here with the host
+less loaded; nothing in them changed.
+
+#### Gates on the merge tree (Kubuntu, `CI=true`)
+
+| Gate                                                          | Exit                              |
+| ------------------------------------------------------------- | --------------------------------- |
+| ESLint, full repository (`node eslint.js . --max-warnings=0`) | **0** (441 s); W had not rerun it |
+| five typechecks (`npm run typecheck`)                         | **0** (181 s)                     |
+| `format:check`                                                | **0**                             |
+| `check:host-api`, `check:l10n`, `check:reference`, `cycles`   | **0, 0, 0, 0**                    |
+
+#### The whole unit suite, run once by mistake: three real failures
+
+A setup call for the ESLint slot passed `--version` to `vitest run`, which
+vitest 5 does not treat as a version flag: it ran the entire unit and e2e
+suite on Kubuntu alongside the device run (872 files: **858 passed, 6
+failed**). It was not planned and is not a qualification run, but it found
+three failures that the per-lane device sweeps never execute. Each was then
+rerun on its own on the merge tree and on the unchanged base (the join-fix
+head `d1a776f40`, whose webview, l10n and packaging equal `a4007f56c`):
+
+1. **`browserUiText.test.mjs`, W regression.** Base passes 6/6; the merge
+   fails "loads surface English on demand": `EN.devices` no longer throws
+   before the Devices English chunk loads. Root cause: W added
+   `export const DEVICES_STORAGE_DIR = 'devices'` to `src/shared/constants.ts`,
+   a browser startup source. `browserTextKeys` (`scripts/lib/uiTextRegions.mjs`)
+   treats any string literal equal to an English key in a startup source as an
+   eager reader, so the whole `devices` table moved into the startup English.
+   Proof: with only that literal changed in a rig copy, the test passes.
+2. **`webviewBundle.test.mjs` FIXDIET1 startup baseline (733.8 KiB =
+   751,411 bytes).** Base already fails at **751,541** (+130 bytes, before W).
+   The merge measures **754,498**: **+2,400** from the eager `devices` table
+   (item 1; 752,098 with the literal changed) and **+557** from W's
+   `main.tsx` Devices mount code. `main` has the same baseline.
+3. **`test/e2e/execStdio.e2e.test.ts`, 29 cases, base too.** The storage lane
+   (`bdf5d1f19`) added `native/windows/MuseSparkDeviceStorage.cs` to
+   `scripts/package-acp.mjs` `JOB_SOURCES` but not to this test's staged
+   fixture (it writes only the two job sources), so every package guard fails
+   with `ENOENT … copyfile 'native/windows/MuseSparkDeviceStorage.cs'`. CI
+   also runs this file in the packaging job (`build.yml`). Fixed
+   here in `5b370cf8d` (test fixture only, the third file written like the
+   other two): Kubuntu **44/44**, against 29 failed without it on the merge
+   and on the base.
+
+The other three files (`usageRollup`, `usageIntegration`,
+`vsixCompression`) failed by the 5 s test timeout while Kubuntu ran at load
+18 on 10 cores; the base fails the same way at that load. They are load
+results, not join results.
+
+Items 1 and 2 are left for the lead: item 1 needs a choice between renaming
+the unreleased storage folder, keeping host-only folder names out of the
+browser-scanned constants, or teaching the collector to ignore them (AGENTS
+rule 5 puts constants in `src/shared/constants.ts`); item 2 then needs either
+a diet of about 3 KiB or a reviewed baseline. Neither cap nor baseline was
+changed.
+
+#### Leftovers: root causes
+
+**Host Devices harness readiness (2.1 to 3.1 s against the 2 s bound).**
+Measured with a read-only Playwright probe on this PC, same build, same
+page and same 320 px dark scenes, timing each step in the page:
+
+| Step (page clock, idle host)                                              | Time            |
+| ------------------------------------------------------------------------- | --------------- |
+| navigation, `main.js` and the 55 startup chunks fetched                   | 0 to 0.10 s     |
+| the three Devices chunks (DevicesApp, QR encoder, QR figure) fetched      | 0.15 to 0.21 s  |
+| module evaluation, table install, React mount, `devicesReady` posted      | 0.46 to 0.50 s  |
+| harness `playScenario`: fixed 300 ms settle before the scene's first step | +0.32 s         |
+| scene steps (fixture reply, card, any clicks) to `data-devices-ready`     | +0.05 to 0.19 s |
+| ready                                                                     | 0.86 to 1.00 s  |
+
+With the suite's own 2 s wait (Playwright then polls every 100 ms), the
+test sees ready at **1.00 to 1.23 s** after `goto` with the host 65 to 87%
+busy; under 3x renderer CPU throttling the page is ready at 1.16 to 1.54 s.
+So the page's own work is about 0.6 s plus a fixed 0.3 s harness settle, and
+the rest is CPU contention: the recorded misses came from runs on a loaded
+host (the join record above notes 58 to 91% CPU from other sessions, with
+three test files at once).
+
+The "2.1 to 3.1 s" figures overstate it. They came from runs with a
+temporary 10 s deadline, and Playwright's `waitFor` backoff
+(`retryWithProgressAndBackoff`: `[20, 50, 100, 100, 500]`, the 500 ms step
+dropped only when it exceeds a fifth of the timeout) then polls every
+500 ms, so readiness was detected up to 0.5 s late. At the real 2 s deadline
+the last poll falls at about 1.9 s after `goto`.
+
+The bound was not raised. Margin can be recovered without it: the Devices
+surface already exists when `devicesReady` arrives, so `playScenario`'s
+`whenFound(surface, …)` could probe at once for Devices scenes (the steps
+already do since RVM100W2 5), which saves 0.3 s per scene. That is a
+harness change for the lead's review, not made here.
+
+**Lane U QR Retry module cache (RVM100W2 4).** Fixed by W in `aa31aabcf`:
+a failed QR figure or encoder chunk now recovers by the guarded document
+reload instead of re-importing the cached failed module. The real-Chrome
+cases "recovers a refused encoder/figure chunk by reloading, never over a
+waiting reply, keeping the draft" pass on Kubuntu, three times on this PC
+and on the Win11 VM.
+
+**`devicesPhase2Harness` file-level failure on Windows.** It does not
+reproduce now: the base harness (`d1a776f40`) passes 16/16 on the Win11 VM,
+and the merge passes there and three times on this PC. The failure is the
+named 60 s `beforeAll` budget running out, and its cost is almost all the
+synchronous production build (`execFileSync scripts/build.mjs --production`).
+An instrumented copy of the suite (never committed) logged each hook step:
+
+| Machine, run                                        | module load | `beforeAll` (build share)   | tests  | `afterAll` |
+| --------------------------------------------------- | ----------- | --------------------------- | ------ | ---------- |
+| this PC, warm                                       | 1.1 s       | 5.6 s (build 5.2 s)         | 13.7 s | 0.2 s      |
+| Win11 VM, slot already used once                    | 1.6 s       | 8.3 s (build 7.8 s)         | 16.0 s | 0.2 s      |
+| Win11 VM, first run in a fresh slot, uninstrumented | n/a         | about 35 s (by subtraction) | 15.0 s | n/a        |
+
+A step-by-step probe agrees (VM: build 7.5 s, server 0.16 s, Chrome launch
+0.24 s, QR probe bundle 2.4 s cold; Kubuntu at load 18: build 9.9 s). The
+fresh-slot run spent 50.8 s in the file against 24.4 s for the warm one on
+the same VM and tree, so the first production build after a checkout and a
+fresh `node_modules` copy costs about four times a warm one there. That fits
+Windows on-access scanning of newly written files (Defender's service is
+running on the VM; it is off by policy on this PC) and a cold file cache.
+Kubuntu's slots hard-link `node_modules` and have no scanner, consistent
+with it never failing there. The recorded failures add load on top of the cold
+build: the join-fix sweep ran three files at once on a VM shared with other
+lanes, and this PC was then at 58 to 91% CPU with vitest itself timing out
+starting workers. Hosted Windows CI runs this file in its test job right
+after `npm ci` on a cold runner (`build.yml`: no build step before
+`npx vitest run`), so it carries the cold-build part of the same risk. The 60 s
+budget was not raised. Options for the lead: build once in a vitest global
+setup or reuse a current `dist/` instead of rebuilding inside the hook.
+
+The first readiness case after the browser starts (`devices-qr`, first in
+`SCENES`) also pays the browser's first-page start-up: 2.6 s for the case
+in the warm VM run against 1.2 to 1.3 s for the others, its 2 s wait
+included. That is one more reason `devices-qr` misses first under load.
