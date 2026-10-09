@@ -23,6 +23,7 @@ const state: {
   pending?: Promise<ResourceLaunchHost>
   window?: ResourceWindowHost | undefined
   readonly attachers: Set<(window: ResourceWindowHost) => void>
+  flush?: () => Promise<void>
   isDisposed: boolean
 } = { isDisposed: false, attachers: new Set() }
 
@@ -42,6 +43,8 @@ async function disposeHost(onError: () => void): Promise<void> {
   try {
     const host = await state.pending
     host?.dispose()
+    // The window's open resource minute is written, bounded, after sampling stops.
+    await state.flush?.()
   } catch {
     onError()
   }
@@ -49,6 +52,7 @@ async function disposeHost(onError: () => void): Promise<void> {
 
 async function createHost(configured: ResourceHostSettings): Promise<ResourceLaunchHost> {
   const bundle = await import('./resourceGovernorEntry.js')
+  state.flush = bundle.flushResourceHistory
   const host = bundle.resourceGovernorHost(configured)
   if (!state.isDisposed) {
     const window: ResourceWindowHost = {

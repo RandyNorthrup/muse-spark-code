@@ -22,10 +22,8 @@ import {
 } from '../../shared/constants'
 import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
-import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import * as z from 'zod/mini'
 import {
   UsageJournalStore,
   type UsageJournalRead as StoredJournal,
@@ -33,12 +31,9 @@ import {
 import { NodeUsageFs } from './nodeUsageFs'
 import { loadUsageTable } from '../../shared/l10n/usageTable'
 import { readUsageTableFile } from './usageTableFile'
-import {
-  USAGE_HISTORY_DAYS_DEFAULT,
-  USAGE_HISTORY_DAYS_MIN,
-  USAGE_HISTORY_DAYS_MAX,
-  CHECKPOINT_STORAGE_MODE,
-} from '../../shared/constants'
+import { readUsageHistorySettings } from './usageSettingsFile'
+import { resourceHistoryReader } from '../resources/history'
+import { CHECKPOINT_STORAGE_MODE } from '../../shared/constants'
 import {
   exportUsageCallsCsv,
   exportUsageJson,
@@ -55,21 +50,7 @@ export { runUsageCommand } from './usageCli'
 
 export { createInsightsReader } from './traceLogs'
 
-const settingsSchema = z.strictObject({
-  enabled: z.boolean(),
-  days: z.int().check(z.minimum(USAGE_HISTORY_DAYS_MIN), z.maximum(USAGE_HISTORY_DAYS_MAX)),
-})
-function readSettings(dataFolder: string): z.infer<typeof settingsSchema> {
-  try {
-    return settingsSchema.parse(
-      JSON.parse(readFileSync(path.join(dataFolder, USAGE_SETTINGS_FILE), 'utf8')),
-    )
-  } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
-      return { enabled: true, days: USAGE_HISTORY_DAYS_DEFAULT }
-    throw new Error('invalidUsageSettings', { cause: error })
-  }
-}
+const readSettings = readUsageHistorySettings
 function unsupported(): never {
   throw new Error('unsupportedUsageAction')
 }
@@ -134,6 +115,14 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
       deps.log.warn('Usage history could not be recorded')
     },
   })
+  // M107 J: the same machine journal the governors record; read-only here.
+  const resources = resourceHistoryReader(
+    deps.dataFolder,
+    () => settings().days,
+    () => {
+      deps.log.warn('Resource history retention failed; expired history is still stored')
+    },
+  )
   let retainedDay: string | undefined
   const providers = new Set<string>()
   const readJournal = async (): Promise<StoredJournal> => {
@@ -188,8 +177,12 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
           snapshots.set(adapted, journal)
           return adapted
         },
-        deleteHistory: () => store.reset(),
+        // Under the resource journal's write lock: boundary first, then the folder,
+        // so no running collector can write pre-delete data (RVM107W2G P2-2).
+        deleteHistory: () => resources.deleteHistory(() => store.reset()),
       },
+      readResources: () => resources.read(),
+      countResources: () => resources.count(),
       readBudgets: deps.live?.readBudgets ?? (() => Promise.resolve([])),
       readLiveLimits: deps.live?.readLiveLimits ?? (() => Promise.resolve([])),
       readAttempts: deps.live?.readAttempts ?? (() => readTraceAttempts({ homeDir: homedir() })),
@@ -218,7 +211,8 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
       confirmDelete:
         ports?.confirmDelete === undefined
           ? unsupported
-          : (prompt) => ports.confirmDelete?.(prompt.count) ?? Promise.resolve(false),
+          : (prompt) =>
+              ports.confirmDelete?.(prompt.count, prompt.resources) ?? Promise.resolve(false),
       setHistory: ports?.setHistory ?? setHistory,
       ...(ports !== undefined && {
         openSettings: ports.openSettings,

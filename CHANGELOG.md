@@ -29,6 +29,18 @@ happened, not what was planned; superseded entries are kept.
   JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
   chip and status adapter once their M104 bridges bind them; none does yet.
   ACP and terminals keep `/resources` and `resources status|resume`.
+- Resource history now shows real data. The VS Code window's governor and the
+  ACP agent record their minute readings, level, override and deferral events
+  and the harness's own CPU time into one local, flushed journal per machine,
+  under the usage-history setting. The usage page's **Resources** section,
+  `resources history`, `usage resources` and ACP `/usage resources` read it.
+  It keeps seven recorded days, bounds each file and every read, ignores a
+  torn final line after a crash and reports any other unreadable line as
+  unavailable rather than as empty history. **Delete history** clears it.
+- Resource history shows the current minute as "This minute so far", from any
+  window or agent on the machine, and keeps one row per completed day
+  ("Earlier days") for the usage-history days. **Delete history** says how
+  many resource entries it also deletes.
 
 ### Changed
 
@@ -38,6 +50,22 @@ happened, not what was planned; superseded entries are kept.
   original hashes before migration to exact money version 2.
 
 ### Fixed
+
+- Resource history removal can no longer be redirected outside the usage
+  folder by a swapped link on Linux or Windows; it refuses instead (macOS
+  keeps a narrow same-user race, described in SECURITY). A delete that fails
+  is reported and retried, never shown as done while anything is left, and
+  leftovers are cleaned up; a retention failure is logged. Readings collected
+  while usage history is off, or before **Delete history**, are never written
+  later: recording, daily-row upkeep and **Delete history** share one lock, each
+  write checks it still holds that lock and is after the delete as it lands, and
+  daily rows from before a delete are never shown. Putting an entry back after
+  a refused removal no longer replaces what took its name, apart from the narrow
+  cases in SECURITY. A retried event after an uncertain write is counted once. Closing a window writes its open
+  minute. The 32 MiB read limit counts the bytes actually read.
+- Narrow usage pages show resource history as labelled cards (one column at
+  320 px, two at 690 px); chart legends and trailing values are no longer cut
+  off.
 
 - The dependency-cycle gate now covers every build entry, lazy import target,
   entry-named module and knip entry, with a guard against root-list drift.

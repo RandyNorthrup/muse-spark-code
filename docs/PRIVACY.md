@@ -993,14 +993,35 @@ exact scrubbed bytes in memory; only its final confirmation permits copy,
 file save or local browser opening. No hosted destination is implemented.
 Confidential workspaces, or unavailable policy, refuse sharing.
 
-The optional retained journal is a separate M102 binding: per-minute CPU and
-memory percentages, available-memory buckets, optional GPU/disk readings,
-level, configured thresholds, aggregate counts by kind, override events,
-CPU-seconds and peak memory. No process identities, commands, paths, process
-names or environment go into its records. The shared history section and
-portable text summary validate the same aggregates; no durable resource
-journal is installed by this W join. M102 consent, retention, scoped reads and
-rollups must be applied before persistence.
+The resource journal is local only: `usage/v1/resources/<UTC day>/` in the
+machine's private agent data folder, one append-only file per recording
+process. It holds per-minute CPU and memory percentages, available-memory
+buckets, optional GPU/disk readings, level, configured thresholds, level,
+deferral, pause and override events, and per-kind CPU-seconds and peak memory
+of the harness's own registered work. No process identities, commands, paths,
+process names or environment go into its records; strict schemas refuse them
+on write and on read. Only the VS Code window's governor and the ACP agent
+record, and only while usage history is on (the editor setting or the agent's
+flag, and the shared usage-history choice). Consent is checked when each
+reading is collected: nothing gathered while history is off is kept or written
+later. Each recorder also replaces one small `live/<collector>.json` file with
+its open minute so far. Completed days become one daily row each (averages,
+minutes per level, event count, harness CPU time) in `rollups/<YYYY-MM>.json`,
+kept for the usage-history days; minute detail keeps seven recorded days.
+The usage page's **Delete history** names how many resource entries it
+removes, then, holding the journal's write lock, writes a reset boundary
+(`resource-history-reset.json`, only a timestamp) beside the usage folder and
+removes the folder. Every recorder and the daily-row upkeep work under the same
+lock and check that boundary again as each write lands, and every read drops
+anything, daily rows included, from at or before it, so nothing recorded
+before the delete is written or shown afterwards. A delete that fails is
+reported and can be retried; it is never shown as done while anything is
+left, including a leftover of an earlier attempt. Removal renames an entry to a quarantine name and deletes it only once
+that name proves to be the validated entry in the validated folder; on Linux
+and Windows the folder is held open (Linux) or the entry is (Windows), so a
+swapped link cannot redirect it. macOS keeps a narrow same-user race,
+described in [SECURITY](../SECURITY.md#resource-ownership-and-disk-cleanup-m107-candidate).
+Nothing is sent anywhere.
 Conversation-only shares contain user and assistant text. Full shares may
 contain portable tool arguments and outputs, commands, outcomes, shown
 reasoning and approval decisions. Code blocks and attachment names are

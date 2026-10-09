@@ -236,5 +236,11 @@
   "exportTooLarge": "Tento export je pro prohlížeč příliš velký. Zvolte kratší období nebo exportujte pomocí CLI.",
   "exportBound": "Exporty v prohlížeči jsou omezeny na {limit} včetně kódování JSON.",
   "editorActionsUnavailable": "Tato stránka nemůže otevřít nastavení editoru, zobrazit složku historie ani upravit ceny modelů. Použijte nastavení editoru a ovládací prvky Modely a agenti. Čtení, filtry, grafy a exporty zde zůstávají dostupné.",
-  "readOnlyActions": "Toto textové rozhraní je pouze pro čtení. Pro grafy, správu historie a stahování otevřete doprovodnou stránku."
+  "readOnlyActions": "Toto textové rozhraní je pouze pro čtení. Pro grafy, správu historie a stahování otevřete doprovodnou stránku.",
+  "deleteConfirmResources": {
+    "one": "Odstraní se také {count} záznam historie prostředků.",
+    "few": "Odstraní se také {count} záznamy historie prostředků.",
+    "many": "Odstraní se také {count} záznamu historie prostředků.",
+    "other": "Odstraní se také {count} záznamů historie prostředků."
+  }
 }

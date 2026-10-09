@@ -31637,6 +31637,115 @@ UI rules (one row of equal, bordered actions; visible focus; crisp chip), and
 README shows `media/readme/resources.png` from the new `resources-throttle`
 scenario. M104 bridge parity is assigned separately.
 
+**M107 W-history (2026-10-08, for the combined 0.17 release).** PR #140's
+review found `LazyResourcesSection` never mounted and no durable journal. This
+lane binds J to production. One flushed, append-only journal per machine at
+`usage/v1/resources/<UTC day>/<collector>.<generation>.jsonl` in the agent data
+folder (the usage page's **Delete history** clears it). The VS Code window's
+governor (via `resourceGovernorEntry`'s existing `onSample`/event streams and
+the launch host's cached tree readings, `treeUsage()`) and the ACP agent (a
+narrow `onSample` option on the runtime host) record; one-shot CLI and headless
+runs only read. Consent is the usage-history setting/flag plus the shared
+usage-history file. Bounds: 4 MiB per file (excess dropped once, reported),
+32 MiB per read, seven recorded days; expired day folders removed; out-of-range
+dates never stored or shown. A torn final line is ignored; any other unreadable
+line refuses the read. Cumulative snapshots are replaced per collector
+(`aggregateResources` sources). `UsagePageState.resources` is strict
+(absent: no journal port; null: unavailable). UsageApp mounts the lazy section;
+`resources history`, `usage resources` and ACP `/usage resources` print the
+same aggregate text (`--json`: the aggregate). Records in
+`docs/certification/m107-w-history.md`.
+
+**FIXM107W2 — RVM107W2 repair and W-history open items (2026-10-08).** One P1
+and five P2s, each with a regression that fails on `352e040dd` and a red drill:
+(P1) `NodeUsageFs.remove` never removes a checked pathname: it renames the entry
+to a fresh `.removing-*` name in the same parent, proves dev/ino of the entry
+and its parent with no linked ancestor, removes, then re-proves the parent; a
+swap at any step refuses and puts a moved entry back (Delete history and
+retention share it). (P2) Consent and Delete history's reset boundary
+(`resource-history-reset.json` beside the usage folder, written before the
+delete) are checked when a reading is collected; a collector holding off-period
+or pre-delete data is dropped, and the journal never writes a record stamped at
+or before the boundary. (P2) Append is idempotent per logical record, not per
+line: each line carries a collector-scoped id that a retry reuses, and reads
+keep one copy per (collector, id); the earlier "idempotent append" claim held
+only for minute snapshots. (P2) Window disposal flushes the open minute through
+the admission bundle, bounded by `RESOURCE_HISTORY_FLUSH_TIMEOUT_MS`. (P2) The
+32 MiB read budget is checked before each read and charged the bytes actually
+read; a file is read only up to its measured size. Open items closed: Delete
+history's prompt counts the resource entries it removes (new usage string in
+all 14 tables); every collector publishes its open minute to
+`live/<collector>.json` (atomic, at most every 15 s), shown as "This minute so
+far" on the page and in text (new UI strings in all 14 tables); completed UTC
+days roll up into `rollups/<YYYY-MM>.json` under the journal lock, kept for the
+usage-history days (D87.11 "under D82's retention and rollups"), shown as an
+"Earlier days" table and text. The ACP agent's harness-work rows remain the
+H–C1 runtime binding (D87.2; `docs/certification/m107.md` handoffs): its spawns
+do not yet pass a registered launch host, so it records none rather than an
+estimate. Production browser scenes: four themes × 320/690 px × history,
+unavailable and empty, 0 axe violations, no overflow, committed in
+`docs/certification/m107-w-history/`.
+
+**FIXM107W2G — RVM107W2G round 3, visual review F1 and the theme class
+(2026-10-08).** Three P2s and a P3, fixed at the root, each with a regression
+(13 of 15 fail on `85683ac94`; the Windows link rule and the post-delete
+write guard pass there by design) and a red drill. (P2-1)
+`NodeUsageFs.remove` succeeds only when the target and every quarantine of its
+name are gone: it sweeps same-name quarantines first and proves the delete
+absent; listings hide quarantines and sweep stale ones best effort; retention
+sweeps strictly first and reports a failure through `onRetentionError` (first,
+then hourly, retried on the next append or read; the usage service logs it).
+(P2-2) Appends, live writes and Delete history share one cross-process write
+lock (`resources/write.lock`, bounded wait, proved held before writing); the
+reset boundary is checked inside it, Delete history writes the boundary and
+removes the folder under it, and reads (journal, live, rollups) drop anything
+at or before it. A disposal append that outlives the 2 s flush wait still
+needs the lock, so it lands before the delete or refuses after it. (P2-3)
+Linux pins the parent by descriptor; Windows now holds a handle on the entry,
+which stops any ancestor rename, through the rename and the delete; put-back
+never replaces; macOS keeps a documented same-user residual (SECURITY, M107
+section). (P3) Sizes come from a production build of the final head. F1: the
+Resources section is a size container; at 720 px and below its tables become
+labelled cards (one column at 320 px, two at 690 px), legends wrap, and the
+scene harness fails on any clipped element or sideways scroller. Both
+resource-history harnesses apply and assert the captured theme body class.
+`usageService.js` is at 99.9/100 KiB and the resource history closure at
+49.4/50 KiB. Records in `docs/certification/m107-w-history.md`.
+
+**FIXM107W2H — RVM107W2H, the final W2 round (2026-10-08).** Five P2s and two
+P3s, fixed at the root; each P2 has regressions that fail on `818037ad0`
+(12 of 12) and red drills. (P2-1) The earlier build's `.removing-<uuid>`
+quarantine names are recognised (always stale, no original name), hidden
+and swept; `NodeUsageFs.remove` sweeps every quarantine of the name after
+the removal, so Delete history never reports completed while one remains.
+(P2-2) Daily rows record when they were built: reads drop rows built at or
+before the boundary, retention rebuilds them from boundary-filtered raw days
+or drops them, and a day with nothing after the boundary has no row. (P2-3)
+Retention runs under the journal write lock (the separate resources rollup
+lock is gone). (P2-4) Every append, live minute, daily-row write and
+retention removal commits through a fence that the file system runs at the
+last step, after the destination is open or staged; it refuses unless the
+lease's generation is current and the change is after the boundary. (P2-5)
+Put-back never replaces: files by `link` then unlink; POSIX directories
+claim the name with an exclusive `mkdir` (only an empty directory can be
+replaced); Windows renames a directory over a file, the stated residual.
+(P3) The disposal regression observes the 2 s flush timer firing while the
+append is blocked; the macOS redirected-delete outcome is stated as not
+guaranteed. Bundle: the unused `BROWSER_LAUNCH_FLAGS` and review JSON
+examples are marked pure (the repository's pattern), so bundles that never
+use them drop them; `usageService.js` 99.5/100 KiB, `extension.js` −0.8 KiB.
+Records in `docs/certification/m107-w-history.md`.
+
+**FIXM107W2L — the lead review of the put-back (2026-10-08).** Three fixes in
+`NodeUsageFs`: a Windows directory put-back checks the name is free
+immediately before its rename and otherwise leaves the entry quarantined (at
+`7a5ad5105` a file created at the name any time after the quarantine rename
+was replaced); a POSIX claim is removed with `rmdir` when the rename fails; a
+fence refusal is reported as the fence's own error, `usagePathChanged` only for
+a changed entry or parent. Regressions fail on `7a5ad5105` (the Windows one
+natively on the host), drills L1–L3. Records in
+`docs/certification/m107-w-history.md`.
+
 **FIXM107J review repair (2026-10-06, Kubuntu).** Repair both RVM107J P2s
 and its P3 inside J's collector, aggregate, history boundary and shared view.
 Read-time flushes retain the active minute and its per-tree CPU baselines;
@@ -42307,6 +42416,18 @@ The harness-placement dispatch and PID/tick assumptions below remain unchanged.
   tree identities, and failed appends remain explicit/retryable. Follow-up:
   W/M102 performs and certifies that complete join; no reviewed P2/P3 is
   silently left as an accepted residual.
+  **Closed by M107 W-history, FIXM107W2, FIXM107W2G and FIXM107W2H (2026-10-08)** for
+  consent at collection, the Delete history reset boundary (under one write
+  lock with every recorder since FIXM107W2G), per-record idempotent append
+  (collector-scoped ids), collector-scoped reads, final tree readings, bounded
+  disposal flush, read-budget accounting, confined removal, the usage page
+  mount, the live current minute, daily rollups for the usage-history days and
+  the ACP/CLI text routes; production scenes in four themes at 320/690 px are
+  committed. See `docs/certification/m107-w-history.md`. Not this binding: the
+  ACP agent's harness-work rows need the H–C1 runtime spawn binding (one
+  governor per process, registered launch host), recorded in
+  `docs/ide-compatibility/resources.md`; installed-editor (not harness)
+  qualification stays with the lead's native/editor run.
 - **FIXM118X / RVM118X (2026-10-06).** All four reviewed P2 adapter
   findings are fixed; no P1/P2/P3 finding is deferred. Regression failures,
   byte-exact red drills and bounded Kubuntu checks are recorded in

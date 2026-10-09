@@ -820,9 +820,13 @@ Neither command signs in or makes a model call.
 
 The shared session adapter registers `/resources`, `/resources resume` and
 `/usage resources`, delivers notices for affected work and validates deferred
-tool `_meta`. It needs the injected runtime resource port. `resources history`
-and `usage resources` return an explicit unavailable error while no retained
-journal is bound. Zed, Xcode, Neovim, Emacs, Sublime and native editor plugins
+tool `_meta`. It needs the injected runtime resource port. `/usage resources`,
+`resources history` and `usage resources` print the machine's resource journal,
+the same summary as the usage page's Resources section (`--json`: the
+validated aggregate). The agent records its own governor's minute readings and
+events there while usage history is on; one-shot commands only read. An
+unreadable journal is an explicit error, never empty history. Zed, Xcode,
+Neovim, Emacs, Sublime and native editor plugins
 have equivalent routes; see the [resource matrix](ide-compatibility/resources.md).
 These component receipts do not certify installed-editor resource behavior.
 

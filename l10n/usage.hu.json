@@ -216,5 +216,9 @@
   "exportTooLarge": "Ez az export túl nagy a böngészőhöz. Válasszon rövidebb időszakot, vagy exportáljon a CLI használatával.",
   "exportBound": "A böngészős exportok korlátja {limit}, a JSON-kódolást is beleértve.",
   "editorActionsUnavailable": "Ez az oldal nem tudja megnyitni a szerkesztő beállításait vagy az előzmények mappáját, és nem tudja módosítani a modellek árait. Használja a szerkesztő beállításait és a Modellek és ügynökök vezérlőit. Az olvasás, szűrők, diagramok és exportok itt továbbra is elérhetők.",
-  "readOnlyActions": "Ez a szöveges felület csak olvasható. Diagramokhoz, előzménykezeléshez és letöltésekhez nyissa meg a kísérőoldalt."
+  "readOnlyActions": "Ez a szöveges felület csak olvasható. Diagramokhoz, előzménykezeléshez és letöltésekhez nyissa meg a kísérőoldalt.",
+  "deleteConfirmResources": {
+    "one": "Az erőforrás-előzmények {count} bejegyzését is törli.",
+    "other": "Az erőforrás-előzmények {count} bejegyzését is törli."
+  }
 }

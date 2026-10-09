@@ -703,8 +703,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     resourceJobSource,
     log,
   )
+  // M107 J/M102: the window's governor records into the machine resource
+  // journal under the same usage-history consent as the usage journal.
+  const resourceHistory = {
+    dataFolder: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    isEnabled: () =>
+      vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
+  }
   context.subscriptions.push({
     dispose: configureResources({
+      history: resourceHistory,
       inspect: (key) => vscode.workspace.getConfiguration('museSpark').inspect(key),
       onError: () => {
         log.warn('Resource tree or sampler reading is unavailable')

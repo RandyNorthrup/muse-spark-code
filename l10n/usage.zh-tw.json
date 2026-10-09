@@ -206,5 +206,8 @@
   "exportTooLarge": "此匯出檔案過大，瀏覽器無法處理。請選擇較短的時間範圍或使用CLI匯出。",
   "exportBound": "瀏覽器匯出大小上限為{limit}，包含JSON編碼。",
   "editorActionsUnavailable": "此頁面無法開啟編輯器設定、顯示歷史資料夾或編輯模型價格。請使用編輯器設定及「模型與代理程式」控制項。此處仍可閱讀、篩選、檢視圖表和匯出。",
-  "readOnlyActions": "此文字介面為唯讀。請開啟配套頁面以檢視圖表、管理歷史和下載。"
+  "readOnlyActions": "此文字介面為唯讀。請開啟配套頁面以檢視圖表、管理歷史和下載。",
+  "deleteConfirmResources": {
+    "other": "也會刪除{count}條資源歷程記錄。"
+  }
 }

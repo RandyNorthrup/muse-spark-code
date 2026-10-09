@@ -233,7 +233,11 @@ function browserTableContract(value) {
       )
 }
 
-/** Collect every literal text reader in the shipped static and dynamic source graph. */
+/**
+ * Collect every literal text reader in the shipped static and dynamic source graph.
+ * `excluded` are roots that install their own deferred English when loaded
+ * (the independent resource entries); a graph that reaches one stops there.
+ */
 export function browserTextKeys(entries, english, eagerSources = new Set(), excluded = new Set()) {
   const seen = new Set()
   const keys = new Set()
@@ -345,7 +349,8 @@ export const compactBrowserUiText = {
         entries.filter((entry) => !resourceEntries.includes(entry.replaceAll('\\', '/'))),
         EN,
         new Set(),
-        // M107 U–C1: chat's deferred import of the chip still loads the chip's own English.
+        // M107 U–C1: chat's deferred import of the chip still loads the chip's own English,
+        // and the usage page's lazy history root installs browser-resource-english itself.
         new Set(resourceEntries.map((entry) => path.resolve(entry))),
       ).keys
       const resourceKeys = browserTextKeys(Object.values(RESOURCE_WEBVIEW_ENTRIES), EN).keys

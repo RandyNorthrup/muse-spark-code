@@ -1,6 +1,7 @@
 import * as acp from '@agentclientprotocol/sdk'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
+import { aggregateResources } from '../../src/core/usage/aggregate'
 import { AcpPaidUse } from '../../src/acp/paid'
 import { acpResourceCommand, acpResourceUpdates } from '../../src/acp/resources'
 import { RESOURCE_EXIT_MS, RESOURCE_GIB_BYTES, UI_TEXT } from '../../src/shared/constants'
@@ -110,7 +111,7 @@ describe('M107 H ACP resources', () => {
       event: { type: 'override', atMs: 0, untilMs: 1 },
       work: [],
     })
-    vi.spyOn(s.host, 'history').mockResolvedValue([record])
+    vi.spyOn(s.host, 'history').mockResolvedValue(aggregateResources([record]))
     await s.run(async (client, sessionId, session) => {
       // A local command accidentally submitted to the model completes, exposing the leak by assertion.
       session.sendTurn.mockImplementation(() => {
@@ -133,7 +134,11 @@ describe('M107 H ACP resources', () => {
         .map(({ update }) => update)
         .filter((update) => update.sessionUpdate === 'agent_message_chunk')
       expect(messages).toHaveLength(5)
-      expect(JSON.stringify(messages)).toContain(UI_TEXT.resourceHistory)
+      // Both history routes show the retained journal's event, not an unavailable notice.
+      expect(messages.slice(3).map((message) => JSON.stringify(message))).toEqual([
+        expect.stringContaining(UI_TEXT.resourceHistoryOverrides),
+        expect.stringContaining(UI_TEXT.resourceHistoryOverrides),
+      ])
       expect(s.machine.writeResumeUntil).toHaveBeenCalledTimes(1)
     })
   })
