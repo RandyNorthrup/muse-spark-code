@@ -8,10 +8,12 @@ import type { CreateResponseBody, Usage } from './schemas'
 import { estimateCostUsd } from '../../usage/insights'
 import {
   MODEL_API_BASE_URL,
+  MODEL_API_EFFORT_OFF,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
   MODEL_API_MODEL_PREFIX,
   MODEL_API_CONTEXT_WINDOW,
+  THINKING_OFF_EFFORT,
   TOKENS_PER_MILLION,
 } from '../../../shared/constants'
 import type { ModelCapabilities } from '../../providers/capabilities'
@@ -122,13 +124,22 @@ export function outputLimitFor(policy: ModelPolicy, ceiling: number): number {
   return maximum === undefined ? ceiling : Math.min(ceiling, maximum)
 }
 
-/** Do not invent Meta effort tiers for a BYO model with no reasoning evidence. */
+/**
+ * Never invent a Thinking-off request. A listed effort rides as named. The
+ * two toggle-off spellings (`none`, and Meta's `minimal` on a model that
+ * cannot express it) stay an explicit off. Any other unlisted effort rides
+ * through so the codec refuses it with the typed reason instead of silently
+ * disabling thinking (lane FIXDSTHINK2 finding 1).
+ */
 export function effortForPolicy(policy: ModelPolicy, requested: string): string {
   if (policy.identity.provider === 'meta') {
     return requested === 'none' ? 'minimal' : requested
   }
   const levels = policy.reasoning.effortLevels
-  return levels.state === 'yes' && levels.value.includes(requested) ? requested : 'none'
+  if (levels.state === 'yes' && levels.value.includes(requested)) return requested
+  return requested === THINKING_OFF_EFFORT || requested === MODEL_API_EFFORT_OFF
+    ? THINKING_OFF_EFFORT
+    : requested
 }
 
 /** Price-card operations run in the lazy provider bundle. Unpriced is never zero. */

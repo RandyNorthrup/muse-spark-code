@@ -21,6 +21,7 @@ import {
   writeProvidersFileAtomic,
 } from '../../src/core/providers/providersFile'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
+import { effortForPolicy } from '../../src/core/backends/modelapi/modelPolicy'
 import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/modelapi/schemas'
 import * as responsesCodec from '../../src/core/backends/modelapi/codecs/responses'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
@@ -69,6 +70,26 @@ async function stream(file: string, isAdapted = false) {
     })
     .join('')
   return Buffer.from(`${text}data: [DONE]\n\n`)
+}
+async function deepseekStream() {
+  const parsed = z
+    .object({ response: z.object({ events: z.array(z.object({ data: z.json() })) }) })
+    .parse(
+      JSON.parse(
+        await readFile(
+          path.join('docs/certification/m95-captures/deepseek', '04-tool-result-stream.json'),
+          'utf8',
+        ),
+      ),
+    )
+  const text = parsed.response.events
+    .map((event) => `data: ${JSON.stringify(event.data)}\n\n`)
+    .join('')
+  return Buffer.from(`${text}data: [DONE]\n\n`)
+}
+function expectDisabledSwitch(wire: Record<string, unknown>) {
+  expect(wire).toMatchObject({ model: 'deepseek-flash', thinking: { type: 'disabled' } })
+  expect(wire).not.toHaveProperty('reasoning_effort')
 }
 const response = (bytes: Uint8Array, status = 200) => ({
   status,
@@ -600,6 +621,116 @@ describe('configured provider production transport', () => {
     })
     await services.registry.list?.()
     expect(old.isCurrent()).toBe(false)
+  })
+
+  describe('DeepSeek Thinking-off production path (lane FIXDSTHINK2)', () => {
+    const DEEPSEEK_ENTRY = providerEntrySchema.parse({
+      id: 'deepseek',
+      preset: 'deepseek',
+      address: 'https://api.deepseek.com',
+      format: 'chat',
+      auth: 'apiKey',
+      models: ['deepseek-flash'],
+    })
+    const DEEPSEEK_REF = 'deepseek/deepseek-flash'
+    async function deepseekFixture(overrides?: typeof DEEPSEEK_ENTRY.modelCapabilities) {
+      const f = await fixture()
+      const entry =
+        overrides === undefined
+          ? DEEPSEEK_ENTRY
+          : providerEntrySchema.parse({ ...DEEPSEEK_ENTRY, modelCapabilities: overrides })
+      await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+      await f.secrets.store(
+        `${PROVIDER_SECRET_PREFIX}${entry.id}`,
+        formatStoredProviderSecret(
+          { v: 1, auth: 'apiKey', origin: new URL(entry.address ?? '').origin },
+          'test-owned-key',
+        ),
+      )
+      const sent: string[] = []
+      const send: NonNullable<ConfiguredProviderOptions['send']> = async (_target, bytes) => {
+        if (bytes !== undefined) sent.push(bytes)
+        return response(await deepseekStream())
+      }
+      const services = createConfiguredProviderServices(undefined, {
+        ...f,
+        resolve: () => Promise.resolve(['8.8.8.8']),
+        send,
+      })
+      return { f, services, sent }
+    }
+
+    async function streamEffort(
+      fixed: Awaited<ReturnType<typeof deepseekFixture>>,
+      effort: string,
+    ): Promise<Record<string, unknown>> {
+      const model = await fixed.services.registry.resolve(DEEPSEEK_REF)
+      const events = await consume(
+        model.client.streamResponse(
+          { ...body(), model: DEEPSEEK_REF, reasoning: { effort } },
+          new AbortController().signal,
+        ),
+      )
+      expect(events).toContainEqual(expect.objectContaining({ type: 'response.completed' }))
+      return JSON.parse(fixed.sent.at(-1) ?? '') as Record<string, unknown>
+    }
+
+    it('refuses an unlisted Thinking-on effort instead of sending a Thinking-off request', async () => {
+      // Finding 1 through the resolved configured client: the ModelApiHost
+      // step (effortForPolicy) must not convert `medium` into `none`, and the
+      // dispatched wire must never carry the disabled switch for it.
+      const { services, sent } = await deepseekFixture()
+      const model = await services.registry.resolve(DEEPSEEK_REF)
+      const effort = effortForPolicy(model.policy, 'medium')
+      expect(effort).toBe('medium')
+      let failure: unknown
+      try {
+        await consume(
+          model.client.streamResponse(
+            { ...body(), model: DEEPSEEK_REF, reasoning: { effort } },
+            new AbortController().signal,
+          ),
+        )
+      } catch (error) {
+        failure = error
+      }
+      expect(sent).toHaveLength(0)
+      expect(failure).toBeInstanceOf(Error)
+      expect((failure as Error).name).toBe('ChatCodecError')
+      expect((failure as Error).message).toContain('unsupported_reasoning_effort')
+      expect((failure as Error).message).toContain(UI_TEXT.chatCodecEffortUnsupported)
+    })
+
+    it('keeps an explicit Thinking-off request on the thinking switch', async () => {
+      const fixed = await deepseekFixture()
+      const model = await fixed.services.registry.resolve(DEEPSEEK_REF)
+      expect(effortForPolicy(model.policy, 'none')).toBe('none')
+      const wire = await streamEffort(fixed, 'none')
+      expect(fixed.sent).toHaveLength(1)
+      expectDisabledSwitch(wire)
+      const onWire = await streamEffort(fixed, 'high')
+      expect(onWire).toMatchObject({ reasoning_effort: 'high' })
+      expect(onWire).not.toHaveProperty('thinking')
+    })
+
+    it('sends the disabled switch for a toggle-only override with no effort list', async () => {
+      // Finding 2 through production schemas: canDisable yes plus an explicit
+      // effortLevels no still carries the declared off toggle.
+      const fixed = await deepseekFixture({
+        'deepseek-flash': {
+          reasoning: {
+            effortLevels: { state: 'no' },
+            canDisable: { state: 'yes', value: true },
+          },
+        },
+      })
+      const model = await fixed.services.registry.resolve(DEEPSEEK_REF)
+      expect(model.policy.reasoning.canDisable.state).toBe('yes')
+      const wire = await streamEffort(fixed, 'none')
+      expect(fixed.sent).toHaveLength(1)
+      expectDisabledSwitch(wire)
+      expect(wire).not.toHaveProperty('reasoning')
+    })
   })
 
   it('pins a loopback HTTP request with no proxy or credential and parses a real local stream', async () => {

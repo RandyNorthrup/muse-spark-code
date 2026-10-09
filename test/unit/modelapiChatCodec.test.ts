@@ -798,6 +798,26 @@ describe('chat codec request goldens', () => {
     expect(encoded.body).not.toHaveProperty('thinking')
   })
 
+  it('sends the thinking switch for a toggle-only model with no effort list', () => {
+    // Lane FIXDSTHINK2 finding 2: toggle support must not depend on an
+    // affirmative effort-level list (reasoningParam none, no effortLevels).
+    const quirks: ChatPresetQuirks = {
+      ...DEEPSEEK,
+      reasoningParam: 'none',
+      thinkingOff: 'thinking-switch',
+    }
+    const off = tinyBody({ reasoning: { effort: 'none', summary: 'auto' } })
+    const encoded = encodeChatRequest(off, 'deepseek-flash', quirks)
+    expect(encoded.body.thinking).toEqual({ type: 'disabled' })
+    expect(encoded.body).not.toHaveProperty('reasoning_effort')
+    expect(encoded.body).not.toHaveProperty('reasoning')
+    const on = tinyBody({ reasoning: { effort: 'high', summary: 'auto' } })
+    const encodedOn = encodeChatRequest(on, 'deepseek-flash', quirks)
+    expect(encodedOn.body).not.toHaveProperty('thinking')
+    expect(encodedOn.body).not.toHaveProperty('reasoning_effort')
+    expect(encodedOn.body).not.toHaveProperty('reasoning')
+  })
+
   it('keeps a fixed key order on every request', () => {
     const frame = frameOf('openrouter', '04-tool-call-stream.json')
     const rebuilt = bodyFromCapture(frame.requestBody, OPENROUTER)

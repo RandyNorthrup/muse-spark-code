@@ -631,15 +631,27 @@ class ChatCodecError extends Error {
   override readonly name = 'ChatCodecError'
 }
 
+/**
+ * The configured client rethrows these instead of its generic unavailable
+ * error, so the typed refusal and its localized reason reach the caller.
+ * Matched by name so a second copy of this module cannot mask it.
+ */
+export function isChatCodecError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'ChatCodecError'
+}
+
 function nativeReasoning(
   body: CreateResponseBody,
   quirks: ChatPresetQuirks,
 ): Pick<ChatCompletionRequest, 'reasoning' | 'reasoning_effort' | 'thinking'> {
-  if (quirks.reasoningParam === 'none') {
-    return {}
-  }
+  // The declared thinking-off switch does not depend on an effort-level
+  // list: a toggle-only model (no numeric effort control) still sends it
+  // (lane FIXDSTHINK2 finding 2).
   if (body.reasoning.effort === THINKING_OFF_EFFORT && quirks.thinkingOff === 'thinking-switch') {
     return { thinking: { type: 'disabled' } }
+  }
+  if (quirks.reasoningParam === 'none') {
+    return {}
   }
   const effort = quirks.effortMap?.[body.reasoning.effort] ?? body.reasoning.effort
   if (

@@ -710,7 +710,11 @@ export function createConfiguredProviderServices(
             if ('response' in event && event.response.usage != null) usage = event.response.usage
             yield event
           }
-        } catch {
+        } catch (error) {
+          // A typed codec refusal (an unsupported reasoning effort and its
+          // localized reason) reaches the caller; genuinely unknown errors
+          // keep the generic unavailable error (lane FIXDSTHINK2 finding 3).
+          if (chat.isChatCodecError(error)) throw error
           return fail()
         } finally {
           if (presets.planKeyPresetById(entry.preset) !== undefined)
