@@ -546,6 +546,11 @@ does not yet execute them in this build. When that lane lands, a local
   VS Code's per-workspace extension state (its number, address and title,
   by session id), and the worktrees the extension made in its global state
   (folder, repository, branch or pull request, and whether you trusted it).
+- GitHub app (arriving with M123): editors without their own GitHub sign-in
+  sign in through the project's OAuth app "Muse Spark Code (Unofficial)" by
+  GitHub's device flow, asking for the `repo` scope; the token is kept in
+  the operating system's keychain or the vault, and you can revoke it in
+  GitHub's settings (Applications, Authorized OAuth Apps).
 - The Muse Code CLI keeps its own sign-in. On Windows and Linux it is in
   the CLI's credential file (`~/.config/muse/auth.json`). On macOS the token
   is in your login Keychain (item `ai.meta.dev.credentials`, account
