@@ -10699,6 +10699,11 @@ and the two hook points.
     - **Allow once** allows Tab in this window until it closes;
     - **Allow always in this workspace** is D48's revocable grant;
     - **Deny** snoozes Tab in this window.
+    - The question names the request's own model, the one it sends. A
+      request for another model than the one last allowed (kept in
+      extension-private workspace state) asks again, Allow always included,
+      so the contributor tier's training note is in an answered question
+      (Q-M94b; RVM94KR 3, 2026-10-09).
   - **Shown and counted.** The status bar shows today's spend, and Account &
     usage gains a Tab row (requests, tokens, cached tokens, cost today and
     this window, the budget). `PaidUsage` counts each request. Hooks never
@@ -28905,8 +28910,9 @@ and is its own pull request, with its own capture and certification
 and verification on `feature/m94-tab`, merged with `main-sync`.** The plan
 is D73, Q-M94a–d and this section; the research is
 `docs/certification/m94-research.md`. Lane K is built (revived 2026-10-09
-on the 0.17.0 base as M94KR, M91 merged) and awaits review; the final live
-check remains with the lead. W also moves the small status item into the
+on the 0.17.0 base as M94KR, M91 merged); review RVM94KR's three P1 and two
+P2 findings are closed on `m94/kr2` (M94KR2) and await re-review; the final
+live check remains with the lead. W also moves the small status item into the
 activation shim, translates the multi-line picker, and wires recent-edit
 and definition snippets through the same privacy checks as the current file.
 The full gate also joins main's M87 palette-tip contract: Tab's paid row
@@ -29019,8 +29025,8 @@ the exact redacted prompt reservation before the engine receives it.
      its loader. Then the integration test against a local fake Model API, at
      the 1.99 floor and at stable.
   6. **Lane U:** the Account & usage row.
-  7. **Lane K (built 2026-10-09 as M94KR, awaiting review):** the two hook
-     points. Their fixtures come
+  7. **Lane K (built 2026-10-09 as M94KR; RVM94KR closed as M94KR2, awaiting
+     re-review):** the two hook points. Their fixtures come
      from real hook scripts run on the rigs (a POSIX shell script and a
      PowerShell one, each allowing, denying and crashing), not from a guess
      (AGENTS rule 13: the contract is Cursor's page, the fixtures are the
@@ -29114,6 +29120,15 @@ the exact redacted prompt reservation before the engine receives it.
         invalid JSON, a schema mismatch, a crash, a timeout, and an oversize
         payload (which is never run). `allow` reads.
       - Verdicts are cached and cleared on a configuration change.
+      - A `spark-hooks.json` present but not loaded in full (unreadable,
+        oversize, not text, any diagnostic, or a guard whose matcher never
+        names its event) refuses every read, and the status says why until
+        it is fixed; only a scope with no hook file reads unguarded
+        (RVM94KR 1).
+      - A request is bound to the trust, Tab settings, `files.exclude`
+        scopes, ignore files and hook configuration in force at its start,
+        rechecked after the question, at dispatch and before its answer is
+        shown; any change drops it (RVM94KR 2).
       - `afterTabFileEdit` gets D73's payload on a full accept, gets it with
         `inferred: true` on an Accept Word, and never runs on typing. Its
         queue bound holds.

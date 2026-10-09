@@ -565,6 +565,10 @@ and sends nothing. Before the first charge in a window, it asks with the
 model's rates and your budget: **Allow once** covers that window until it
 closes, **Allow always in this workspace** remembers revocable consent, and
 **Deny** snoozes Tab in that window. Closing the question denies it too.
+The question names the model the request will use, and a request for a
+different model than the one you last allowed asks again, even under
+**Allow always**. A request whose model setting changes before it is sent
+is dropped, so a model you were not asked about is never used.
 
 The hard daily budget defaults to **$1.00 across every window on this
 machine**, reserved before each request. The status shows today's spend;
@@ -621,8 +625,28 @@ cached by path and content and cleared when the configuration changes.
 Accepted full and inferred partial edits carry real line text and a 1-based
 range; typing alone fires nothing. Edit hooks observe asynchronously and
 cannot veto an accepted edit. With no configured hook, completion text and
-command arguments remain unchanged. The fake-hook receipts and current
-release blockers are in [the M94 record](docs/certification/m94.md) and
+command arguments remain unchanged.
+
+These hooks are local processes you configure, and they see your code as it
+is: a `beforeTabFileRead` hook receives the file's absolute path and its
+**full, unredacted text**, the workspace folders, the Tab model and the
+request id, for the current file and for every context file. An
+`afterTabFileEdit` hook receives the path, the accepted text and the line
+before and after it (512 characters each at most) and the range. The
+extension sends neither payload anywhere else; the command decides what it
+does with it. Hook processes get a scrubbed environment and never the Model
+API key.
+
+A `spark-hooks.json` that exists but does not load in full (invalid JSON,
+an unreadable or oversized file, or any reported problem, such as an unknown
+event name or a `beforeTabFileRead` matcher that never names `TabRead`)
+stops Tab reading any file, and the status bar says **Tab paused: hook file
+has errors** until you fix it; the Muse Spark log names the problem. Only a
+scope with no hook file reads without a guard. Each request is bound to the
+trust, Tab settings, `files.exclude`, ignore files and hook configuration in
+force when it starts: if any of them change before it is sent or before its
+answer shows, it is dropped. The fake-hook receipts and current release
+blockers are in [the M94 record](docs/certification/m94.md) and
 [the hook wiring record](docs/certification/m94-k.md).
 
 ## Backends

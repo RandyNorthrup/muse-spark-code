@@ -149,7 +149,9 @@ them, the milestone plan, and the certification checklist.
   default. The first paid request asks D48's question with the model's rates
   and daily budget ($1.00 by default). Allow once covers this window until
   it closes; Always is workspace-scoped and revocable; Deny snoozes this
-  window. No charge precedes consent. Tab uses only the stored Model API
+  window. No charge precedes consent. The question names the request's own
+  model, which is the model sent; a request for another model than the one
+  last allowed asks again (RVM94KR). Tab uses only the stored Model API
   key on either backend, with a hard cross-window local-day ledger. Its
   small status item shows at activation; `dist/tab.js` loads the provider,
   completion engine, ledger and menu on first use.

@@ -17,6 +17,13 @@ happened, not what was planned; superseded entries are kept.
   in the lazy Tab bundle, all hook callers share the production runner's
   process cap, and a bundle-load failure logs fixed words only. The final
   live check remains open; see `docs/certification/m94-k.md`.
+  - **What these hooks receive.** They are local processes you configure.
+    `beforeTabFileRead` gets the absolute path and the **full, unredacted
+    text** of the current file and of each context file, with the workspace
+    folders, the Tab model and the request id. `afterTabFileEdit` gets the
+    accepted text and the surrounding line text (512 characters each at
+    most) with a 1-based range. Neither payload is sent anywhere by the
+    extension; hook processes never get the Model API key.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
@@ -122,6 +129,24 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Tab hook review RVM94KR (M94 lane K). Each point fails closed.
+  - A `spark-hooks.json` that is present but does not load in full no longer
+    reads as "no hooks": invalid JSON, an unreadable or oversized file, an
+    unknown event name, an invalid Tab group or a guard whose matcher never
+    names `TabRead`. Tab then reads no file, and the status bar says **Tab
+    paused: hook file has errors** in all 14 languages until it is fixed.
+  - A Tab request is bound to the trust, Tab settings, `files.exclude`,
+    ignore files and hook configuration in force when it starts. It is
+    checked again after the paid question, at dispatch (after the debounce or
+    a wait for a free slot) and before its answer shows, and dropped if
+    anything moved.
+  - The paid question names the request's own model, the request sends only
+    that model, and a request for another model than the one last allowed
+    asks again, **Allow always** included.
+  - A hook whose wait for a process slot was cancelled now gives its
+    admitted resource lease back.
+  - The privacy guide said configured Cursor Tab hooks did not run; they do,
+    and the guide, README and this entry now say what they receive.
 - Schedule runtime tests cover Linux, Windows and macOS rearm ownership
   explicitly; macOS wake shutdown retains its independent after-exit helper.
 
