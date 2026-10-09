@@ -7,6 +7,38 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Changed
+
+- Production media is one service per Model API session (M105 W redesign),
+  built by one factory in its own lazy bundle, `dist/productionMedia.js`
+  (66.2 KiB, cap 100 KiB). It moved out of `dist/modelApi.js`, which drops from
+  590.2 KiB back to 523.2 KiB under its unchanged 525 KiB cap. Activation no
+  longer imports any backend module for the session store's upload binding
+  (572.3 KiB, previously 586.3 KiB).
+  - Images and PDFs go through a single admission path, whether attached,
+    read by a tool or reopened with the session. On the Muse Spark
+    contributor models each one is priced at the calibrated image bound and
+    stays inline on the wire. A PDF has no captured page rate, so it is
+    refused with the reason in a capped session and sent at its byte count in
+    an uncapped one. Models without a media capture keep the existing inline
+    path.
+  - An unknown media rate is refused only when spending is capped (a session
+    cap or a scheduled run).
+  - A priced inline image is never treated as an upload: later turns no
+    longer fail with "The upload expired".
+  - The agent's `read_file` can send a workspace video (mp4 or mov) to the
+    contributor models. It is uploaded once through the Files API, its id is
+    replayed, and it is reserved at the calibrated bound, scheduled turns
+    included.
+  - Attaching video or audio from the panel, the CLI or ACP, and soundtrack
+    or audio transcription, are **not available yet**. They need lane V's
+    bindings: attach-port tokens with a part-to-source registry, the
+    transcription POST transport, a trusted converter binding, the paid
+    consent and reserve adapters, and an ACP media port. The product
+    installs no audio port until then.
+  - The transcription adapter keeps a video's visual part beside its
+    soundtrack transcript, and disposes a converted WAV on every path.
+
 ### Fixed
 
 - Media request tariffs accept exact USD amounts only and reject numeric
@@ -19,9 +51,9 @@ happened, not what was planned; superseded entries are kept.
   settles the admitted media tariff once, and retains uncertain liabilities.
   Above-reserve bills refuse settlement; daily claim transfers secure their
   replacement before releasing held budget.
-  Production video/audio uploads remain unavailable pending verified storage
-  billing and captured codec/calibration bindings (PLAN D85.6, M105). Scheduled
-  reads now explain that limitation explicitly in every editor.
+  What production media users can do now is under Changed above. A scheduled
+  run without the production media service (no storage or key) explains the
+  limitation in every editor.
   Media read-file references through a bound adapter carry their checked source
   into the run ledger;
   stopped reads cannot publish a new proof.

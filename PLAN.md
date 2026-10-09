@@ -30400,17 +30400,18 @@ every Model API user in every editor.
 - **Performance and bundles.** No existing cap rises (D6); the new code is
   lazy.
 
-  | Artifact                     |              M105 adds (target) | Cap                                                                   |
-  | ---------------------------- | ------------------------------: | --------------------------------------------------------------------- |
-  | `dist/extension.js`          | ≤ 1 KiB (command registrations) | 600 KiB, unchanged                                                    |
-  | `dist/modelApi.js`           |    ≤ 4 KiB (encoders, the gate) | 475 KiB, unchanged                                                    |
-  | `dist/acp.js`                |                         ≤ 4 KiB | 850 KiB, unchanged                                                    |
-  | `dist/uiText.js`             |                       ≤ 0.5 KiB | 125 KiB, unchanged (media strings in a regional block)                |
-  | Chat browser startup         |                       ≤ 0.5 KiB | 900 KiB, unchanged                                                    |
-  | `dist/media.js` (new)        |                         ~35 KiB | measured + 15%, rounded up to 25 KiB                                  |
-  | `dist/screenRecord.js` (new) |                         ~15 KiB | measured + 15%, rounded up to 25 KiB                                  |
-  | Webview media chunks         |                         ~20 KiB | inside the 50 KiB optional total, or a page entry with its own budget |
-  | VSIX                         |         measured (helper modes) | 2,200 KiB, unchanged                                                  |
+  | Artifact                                         |              M105 adds (target) | Cap                                                                                     |
+  | ------------------------------------------------ | ------------------------------: | --------------------------------------------------------------------------------------- |
+  | `dist/extension.js`                              | ≤ 1 KiB (command registrations) | 600 KiB, unchanged                                                                      |
+  | `dist/modelApi.js`                               |    ≤ 4 KiB (encoders, the gate) | 475 KiB, unchanged                                                                      |
+  | `dist/acp.js`                                    |                         ≤ 4 KiB | 850 KiB, unchanged                                                                      |
+  | `dist/uiText.js`                                 |                       ≤ 0.5 KiB | 125 KiB, unchanged (media strings in a regional block)                                  |
+  | Chat browser startup                             |                       ≤ 0.5 KiB | 900 KiB, unchanged                                                                      |
+  | `dist/media.js` (new)                            |                         ~35 KiB | measured + 15%, rounded up to 25 KiB                                                    |
+  | `dist/screenRecord.js` (new)                     |                         ~15 KiB | measured + 15%, rounded up to 25 KiB                                                    |
+  | `dist/productionMedia.js` (new, M105 W redesign) |               66.2 KiB measured | 100 KiB: measured + 15%, rounded up to 25 KiB; `dist/modelApi.js` back to 523.2/525 KiB |
+  | Webview media chunks                             |                         ~20 KiB | inside the 50 KiB optional total, or a page entry with its own budget                   |
+  | VSIX                                             |         measured (helper modes) | 2,200 KiB, unchanged                                                                    |
 
 - **Size.** L overall; a is M.
 - **Certification checklist** (§6.0, plus):

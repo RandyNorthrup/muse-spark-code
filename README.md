@@ -344,10 +344,12 @@ panel enforcement waits for M96's planner (see
   `/loop` saves a recurring prompt in this conversation. By default a due
   prompt waits for you to run and confirm it; unattended runs are opt-in
   per schedule with a hard spending cap, and your key is never spent
-  without your consent. Scheduled turns currently cannot read video or audio:
-  verified upload storage, the captured media codec and production calibration bindings are
-  unavailable (PLAN D85.6, M105). The shared paid accounting refuses bills
-  above an admitted reserve and retains that reserve as uncertain liability.
+  without your consent. On the Muse Spark contributor models, a scheduled or
+  interactive `read_file` of a workspace video (mp4 or mov) uploads it once
+  through the Files API and replays its id. It is reserved at the calibrated
+  upper bound and refused under the cap when it cannot be priced. Audio is not
+  available yet. The shared paid accounting refuses bills above an admitted
+  reserve and keeps that reserve as uncertain liability.
 - **Two backends, one per conversation.** Your Muse subscription through the Muse Code
   CLI, or a Meta Model API key (pay as you go) with the extension's own
   tools. The pasted key is never handed to the CLI.
@@ -2942,11 +2944,17 @@ integration owners; editor font settings continue to decide inside editors.
   `mediaUploadExpiryDays` expiry; **Delete uploaded files…** requires the real
   account ledger. These commands do not establish provider/editor certification.
 
-  | Backend/model                                | Images and PDFs                                 | Video                                                | Standalone audio                                     |
-  | -------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
-  | Model API, current production binding        | Existing inline path                            | Off: capability/Files/consent/budget binding pending | Off: captured batch adapter and paid binding pending |
-  | Muse Code                                    | Existing image path; established document rules | Off: U16/MSP capture pending                         | Off: needs captured Model API route                  |
-  | Gemini / OpenAI-compatible and other vendors | Their future captured capability record         | Off: lane V and vendor captures pending              | Off: captured capability/codec pending               |
+  | Backend/model                                | Images and PDFs                                                                                            | Video                                                                                                            | Standalone audio                                                              |
+  | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+  | Model API, current production binding        | Inline; on contributor models priced at the calibrated bound, and a PDF (no page rate) refused when capped | `read_file` of mp4/mov on the 1.2/1.3 contributor models (Files upload, id replay); attaching: not available yet | Not available yet: no Meta model hears it, and transcription waits for lane V |
+  | Muse Code                                    | Existing image path; established document rules                                                            | Off: U16/MSP capture pending                                                                                     | Off: needs captured Model API route                                           |
+  | Gemini / OpenAI-compatible and other vendors | Their future captured capability record                                                                    | Off: lane V and vendor captures pending                                                                          | Off: captured capability/codec pending                                        |
+
+  Attaching video or audio from the panel, the CLI or ACP, and transcribing
+  sound, are not available yet. Five bindings are missing: attach-port
+  tokens with a part-to-source registry, the transcription POST transport, a
+  trusted converter binding, the paid consent and reserve adapters, and an
+  ACP media port (M105 lane V).
 
   Portable core and editor adapters have fake-based tests. Installed-editor,
   native recording and live provider receipts remain open in
