@@ -33019,6 +33019,14 @@ before a repaired one loads (2026-09-30).
   failure retains Stop. Chrome and WebKit simulator recovery are qualified;
   installed V/R/W routing remains the same named adapter qualification
   residual, with no physical claim.
+  FIXM103W4 (2026-10-08) resolves the companion/runtime part only. The
+  runtime host keeps the engine's review callback and the companion's
+  `makerPayloadReviewed` reaches MakerApproval, so a reviewed allow can
+  dispatch once there. An incomplete, mismatched or missing review still
+  refuses. Still open: the VS Code native modal and the ACP permission
+  `ask` path deliver no payload review, so MakerApproval refuses them.
+  Their stale tests (`vscodeMakerHost` ×3, `runtimeMakerAcp` ×1) fail the
+  same way at `01b38ddce`. Receipts: `docs/certification/m103.md` FIXM103W4.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting
