@@ -41,6 +41,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- On Windows, a stdio MCP server, a plugin hook's runtime or a team run is now
+  created inside its kill-on-close job. Previously it was added to the job
+  just after creation. A launcher ended in between (cancelled, timed out)
+  could leave the new process suspended outside the job; now none survives
+  (RVMEDIAVB).
+- The Windows owner-only ACL helper finds PowerShell under `SystemRoot`, then
+  `windir`, and refuses when neither is set instead of assuming `C:\Windows`.
 - An image an MCP tool returns is priced at the calibrated image bound on the
   Muse Spark contributor models, like every other image, so a capped turn no
   longer under-reserves it at its few encoded bytes. Models without a media
@@ -77,15 +84,22 @@ happened, not what was planned; superseded entries are kept.
 ### Pending
 
 - M105 lane VB (the media converter's platform bindings), for lane V to wire:
-  - On Windows the encoder runs inside a kill-on-close kernel job whose job
-    memory limit is the conversion's memory cap. It starts through the
-    compiled job launcher, with no PowerShell per conversion. Output size,
-    the deadline and cancellation end the whole job.
+  - On Windows the encoder is created inside a kill-on-close kernel job
+    whose job memory limit is the conversion's memory cap. It starts
+    through the compiled job launcher, so there is no PowerShell per encoder
+    launch. Output size, the deadline and cancellation end the whole job,
+    even when the output's folder stops answering.
   - On macOS the encoder's resident memory is read through the resource
-    governor's `/bin/ps` reader, for this process's own live child only.
-  - Each conversion gets a fresh owner-only folder: a protected DACL on
-    Windows that holds only the current user's grant, and 0700 elsewhere.
-    A drive without ACLs, such as exFAT, is refused.
+    governor's `/bin/ps` reader, for this process's own live child only. A
+    reading never outlives the child's exit or a reused process ID.
+  - Each conversion gets a fresh owner-only folder inside a private root in
+    the host's own storage, never in a shared temporary folder.
+    - On Windows the folder holds a protected DACL with only the current
+      user's grant. Creating it still runs one PowerShell to set that ACL
+      and read it back.
+    - Elsewhere the folder is 0700.
+    - A root that is not private, or a drive without ACLs such as exFAT, is
+      refused.
 
   A memory-cap stop is reported as a plain conversion failure until M109's
   job record says the cap was hit. Fakes and local processes only; no live or

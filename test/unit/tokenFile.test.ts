@@ -27,6 +27,17 @@ afterEach(async () => {
   for (const token of tokens.splice(0)) await token.remove()
   for (const folder of folders.splice(0)) await fs.rm(folder, { recursive: true, force: true })
 })
+/** This process seen as Windows, with the ACL helper's PowerShell answering an owner-only receipt. */
+function asWindowsWithAcl() {
+  const run = vi.spyOn(programs, 'runProgram').mockResolvedValue(JSON.stringify(receipt))
+  vi.stubGlobal('process', {
+    ...process,
+    platform: 'win32',
+    once: process.once.bind(process),
+    off: process.off.bind(process),
+  })
+  return run
+}
 async function folder() {
   const value = await fs.mkdtemp(path.join(process.cwd(), '.token-test-'))
   folders.push(value)
@@ -272,13 +283,7 @@ describe('shared token file', () => {
     vi.stubEnv('DBUS_SESSION_BUS_ADDRESS', 'synthetic-private-route')
     // Any drive: the Windows root comes from the environment, never assumed.
     vi.stubEnv('SystemRoot', String.raw`D:\Windows`)
-    const run = vi.spyOn(programs, 'runProgram').mockResolvedValue(JSON.stringify(receipt))
-    vi.stubGlobal('process', {
-      ...process,
-      platform: 'win32',
-      once: process.once.bind(process),
-      off: process.off.bind(process),
-    })
+    const run = asWindowsWithAcl()
     const token = await createTokenFile(await folder())
     tokens.push(token)
     expect(run).toHaveBeenCalledTimes(2)
@@ -301,13 +306,7 @@ describe('shared token file', () => {
     }
   })
   it('finds the Windows root through windir, and refuses with neither variable rather than assume a drive', async () => {
-    const run = vi.spyOn(programs, 'runProgram').mockResolvedValue(JSON.stringify(receipt))
-    vi.stubGlobal('process', {
-      ...process,
-      platform: 'win32',
-      once: process.once.bind(process),
-      off: process.off.bind(process),
-    })
+    const run = asWindowsWithAcl()
     vi.stubEnv('SystemRoot', undefined)
     vi.stubEnv('windir', String.raw`E:\Win`)
     tokens.push(await createTokenFile(await folder()))
