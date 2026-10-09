@@ -28,12 +28,17 @@
 // The file store applies each transition to the freshly read head under
 // the cross-window lock (storeLock.ts) and writes it as the next record
 // generation (recordGenerations.ts), whose exclusive creation fences out
-// a writer that lost the lock without knowing it.
+// a writer that lost the lock without knowing it. A write that published
+// but whose place in history can no longer be proven (its successor swept
+// while it was delayed) is reconciled against the head by the one record it
+// wrote: still there exactly, it is in effect; otherwise it applies again.
 
 import path from 'node:path'
+import { performance } from 'node:perf_hooks'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
   holdFor,
+  parseWorktreeRegistry,
   recordFor,
   withRecord,
   type PullRequestOrigin,
@@ -44,18 +49,13 @@ import type { CoreLogger } from '../../../core/logging'
 import {
   WORKTREE_RECORD_LOCK_LEASE_MS,
   WORKTREE_RECORD_LOCK_TIMEOUT_MS,
+  WORKTREE_RECORD_LOCK_UNREADABLE_MS,
   WORKTREE_RECORD_SAVE_ATTEMPTS,
 } from '../../../shared/constants'
+import { currentProcessOwner, isProcessOwnerGone, type ProcessOwner } from './processOwner'
 import { readRecordHead, sweepGenerations, writeNextGeneration } from './recordGenerations'
 import { nodeRecordStoreFs, type RecordStoreFs } from './recordStoreFs'
-import {
-  acquireStoreLock,
-  currentProcessOwner,
-  isProcessOwnerGone,
-  StoreBusyError,
-  type ProcessOwner,
-  type StoreLease,
-} from './storeLock'
+import { acquireStoreLock, StoreBusyError, type StoreLease, type StoreLockEnv } from './storeLock'
 
 const RECORDS_FOLDER = 'worktree-records'
 const RECORDS_LOCK = 'lock'
@@ -146,6 +146,24 @@ export function holdForRoots(
 interface Mutation<T> {
   readonly records: readonly WorktreeRecord[]
   readonly result: T
+  /**
+   * The one record a change wrote (undefined: removed), by its folder: the
+   * operation's committed identity, which a publish whose place in history
+   * can no longer be proven is reconciled against.
+   */
+  readonly touched?: { readonly folder: string; readonly record: WorktreeRecord | undefined }
+}
+
+/** The same record, field for field, as the store reads it back. */
+function isSameRecord(
+  left: WorktreeRecord | undefined,
+  right: WorktreeRecord | undefined,
+): boolean {
+  if (left === undefined || right === undefined) {
+    return left === right
+  }
+  const [readLeft, readRight] = parseWorktreeRegistry([left, right])
+  return JSON.stringify(readLeft) === JSON.stringify(readRight)
 }
 
 /** The transitions, pure: each validates against the state it is given. */
@@ -160,7 +178,11 @@ function transitions(platform: NodeJS.Platform) {
         return { records, result: { ok: false, current } }
       }
       const stored: WorktreeRecord = { ...record, folder: slashed(record.folder), revision: 1 }
-      return { records: withRecord(records, stored, platform), result: { ok: true, stored } }
+      return {
+        records: withRecord(records, stored, platform),
+        result: { ok: true, stored },
+        touched: { folder: stored.folder, record: stored },
+      }
     },
     supersede: (
       records: readonly WorktreeRecord[],
@@ -179,7 +201,11 @@ function transitions(platform: NodeJS.Platform) {
       }
       delete stored.trustConfirmedAt
       delete stored.folderIdentity
-      return { records: withRecord(records, stored, platform), result: { ok: true, stored } }
+      return {
+        records: withRecord(records, stored, platform),
+        result: { ok: true, stored },
+        touched: { folder: stored.folder, record: stored },
+      }
     },
     complete: (
       records: readonly WorktreeRecord[],
@@ -198,7 +224,11 @@ function transitions(platform: NodeJS.Platform) {
       if (folderIdentity !== undefined) {
         completed.folderIdentity = folderIdentity
       }
-      return { records: withRecord(records, completed, platform), result: true }
+      return {
+        records: withRecord(records, completed, platform),
+        result: true,
+        touched: { folder: found.folder, record: completed },
+      }
     },
     discard: (
       records: readonly WorktreeRecord[],
@@ -208,7 +238,11 @@ function transitions(platform: NodeJS.Platform) {
       const found = recordFor(records, folder, platform)
       return found === undefined || !isVersion(found, expected) || found.isCheckoutPending !== true
         ? { records, result: false }
-        : { records: records.filter((entry) => entry !== found), result: true }
+        : {
+            records: records.filter((entry) => entry !== found),
+            result: true,
+            touched: { folder: found.folder, record: undefined },
+          }
     },
     release: (
       records: readonly WorktreeRecord[],
@@ -234,7 +268,11 @@ function transitions(platform: NodeJS.Platform) {
         trustConfirmedAt: now,
         revision: recordRevision(found) + 1,
       }
-      return { records: withRecord(records, released, platform), result: released }
+      return {
+        records: withRecord(records, released, platform),
+        result: released,
+        touched: { folder: found.folder, record: released },
+      }
     },
   }
 }
@@ -264,12 +302,18 @@ export function createMemoryWorktreeRecordStore(platform: NodeJS.Platform): Work
 export interface FileWorktreeRecordStoreOptions {
   /** The file operations; a test pauses one to stand an interleaving. */
   readonly fs?: RecordStoreFs
+  /** The wall clock: the sweep's ages and the notes' readable times. */
   readonly now?: () => number
+  /** The monotonic clock every lock wait and lease is measured on. */
+  readonly monotonic?: () => number
   readonly sleep?: (ms: number) => Promise<void>
   /** This process, as its lock notes name it. */
   readonly owner?: ProcessOwner
-  readonly isOwnerGone?: (owner: ProcessOwner) => boolean
+  readonly isOwnerGone?: (owner: ProcessOwner) => Promise<boolean>
   readonly leaseMs?: number
+  /** The longest lease of another window this one waits out. */
+  readonly honoredLeaseMs?: number
+  readonly unreadableMs?: number
   readonly timeoutMs?: number
 }
 
@@ -292,14 +336,22 @@ export function createFileWorktreeRecordStore(
   const fs = options.fs ?? nodeRecordStoreFs
   const now = options.now ?? Date.now
   const apply = transitions(platform)
-  const lockEnv = {
+  const makeLockEnv = async (): Promise<StoreLockEnv> => ({
     fs,
     now,
+    monotonic: options.monotonic ?? (() => performance.now()),
     sleep: options.sleep ?? ((ms: number) => delay(ms)),
-    owner: options.owner ?? currentProcessOwner(),
+    owner: options.owner ?? (await currentProcessOwner()),
     isOwnerGone: options.isOwnerGone ?? ((owner: ProcessOwner) => isProcessOwnerGone(owner)),
     leaseMs: options.leaseMs ?? WORKTREE_RECORD_LOCK_LEASE_MS,
+    honoredLeaseMs: options.honoredLeaseMs ?? WORKTREE_RECORD_LOCK_LEASE_MS,
+    unreadableMs: options.unreadableMs ?? WORKTREE_RECORD_LOCK_UNREADABLE_MS,
     timeoutMs: options.timeoutMs ?? WORKTREE_RECORD_LOCK_TIMEOUT_MS,
+  })
+  let lockEnv: Promise<StoreLockEnv> | undefined
+  const lockEnvOf = (): Promise<StoreLockEnv> => {
+    lockEnv ??= makeLockEnv()
+    return lockEnv
   }
   let tail: Promise<void> = Promise.resolve()
   const enqueue = <T>(work: () => Promise<T>): Promise<T> => {
@@ -324,13 +376,20 @@ export function createFileWorktreeRecordStore(
     })
   const acquire = async (): Promise<StoreLease> => {
     try {
-      return await acquireStoreLock(path.join(folder, RECORDS_LOCK), lockEnv)
+      return await acquireStoreLock(path.join(folder, RECORDS_LOCK), await lockEnvOf())
     } catch (error: unknown) {
       if (error instanceof StoreBusyError) {
         log.warn('The worktree records are busy; leaving them alone')
       }
       throw error
     }
+  }
+  const isInHead = async (touched: Mutation<unknown>['touched']): Promise<boolean> => {
+    if (touched === undefined) {
+      return false
+    }
+    const head = await readRecordHead(fs, folder, log)
+    return isSameRecord(recordFor(head.records, touched.folder, platform), touched.record)
   }
   const mutate = <T>(change: (records: readonly WorktreeRecord[]) => Mutation<T>): Promise<T> =>
     enqueue(async () => {
@@ -349,6 +408,12 @@ export function createFileWorktreeRecordStore(
           )
           if (written === 'written') {
             await sweepGenerations(fs, folder, head.generation + 1, now())
+            return changed.result
+          }
+          if (written === 'unverified' && (await isInHead(changed.touched))) {
+            // Published, and its successor swept before it could be proven:
+            // the head still holds exactly what this change wrote, so it is
+            // in effect. Applying it again would refuse its own record.
             return changed.result
           }
         } finally {
