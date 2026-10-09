@@ -167,7 +167,7 @@ export function companionUpload(
       return
     }
     let reason = fill(UI_TEXT.media.attachmentUnknownType, { type: 'media' })
-    let status: number = HTTP_STATUS.badRequest
+    let status: number
     let body: unknown
     let directory: string | undefined
     const cancelled = new AbortController()
@@ -264,6 +264,7 @@ export function companionUpload(
       }
     } catch {
       // Do not echo an injected policy/provider exception: it can contain a path or key.
+      status = HTTP_STATUS.badRequest
       body = { reason }
     } finally {
       request.off('aborted', abort)

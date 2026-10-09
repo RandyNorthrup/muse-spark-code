@@ -180,6 +180,15 @@ describe('guarded companion upload', () => {
     expect(sources[0]?.name).toBe(name)
     expect(await readdir(state.root)).toEqual([])
   })
+  it('reports a handle-close failure as a refusal after removing private bytes', async () => {
+    handles.beforeClose.mockImplementationOnce(() => {
+      throw new Error('private-close-canary')
+    })
+    const response = await send()
+    expect(response.status).toBe(400)
+    expect(JSON.stringify(response.body)).not.toContain('private-close-canary')
+    expect(await readdir(state.root)).toEqual([])
+  })
   it.each(['%invalid', '%7B%22bytes%22%3A%22canary%22%7D'])(
     'refuses malformed encoded metadata %s before intake',
     async (metadata) => {
