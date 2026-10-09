@@ -13,10 +13,14 @@
 // - Linux: the lease names its owner: machine, boot, PID namespace, PID and
 //   start tick (/proc). Gone when that machine's earlier boot is over, or
 //   when in this namespace no process has that PID and start.
-// A probe that cannot prove its owner gone keeps the folder. A lease this
-// process cannot take, or a lock it cannot see on its own lease, turns its
-// sweep off; its folders then stay for every other process too (fail-safe).
+// A probe that cannot prove its owner gone keeps the folder; a folder whose
+// owner has no lease is never proven gone. A lease this process cannot take,
+// or a lock it cannot see on its own lease, turns its sweep off and drops
+// that lease (RVMEDIAV4 1): a marker left unlocked by a failed lock would
+// read as a gone owner. Its folders then carry a fresh token that no lease
+// names, so they stay for every other process (fail-safe).
 
+import { randomBytes } from 'node:crypto'
 import { constants } from 'node:fs'
 import { open, readFile, readdir, readlink, rm, writeFile, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
@@ -133,10 +137,36 @@ async function sweep(
 }
 
 /**
+ * A root this process holds no lease on: what the failed attempt made is
+ * closed and removed, and the root takes a fresh token no lease names, so
+ * no sweeper can prove its folders' owner gone (RVMEDIAV4 1).
+ */
+async function unleased(
+  root: PrivateRoot,
+  attempt: FileHandle | undefined,
+  marker: string,
+): Promise<LeasedRoot> {
+  try {
+    try {
+      await attempt?.close()
+    } finally {
+      await rm(marker, { force: true })
+    }
+  } catch {
+    // A marker left behind names no folder; a sweeper removes it.
+  }
+  return {
+    ...root,
+    owner: randomBytes(MEDIA_PRIVATE_DIRECTORY_NAME_BYTES).toString('hex'),
+    lease: undefined,
+  }
+}
+
+/**
  * Takes this process's lease on a verified root, then removes what owners
  * proven gone left behind (RVMEDIAV3 3). Never throws: without a lease, or
  * where the lock does not hold against this process's own probe, nothing
- * is removed.
+ * is removed and the root is `unleased`.
  */
 export async function leasePrivateRoot(
   root: PrivateRoot,
@@ -148,6 +178,7 @@ export async function leasePrivateRoot(
     path.join(root.path, `${MEDIA_PRIVATE_DIRECTORY_PREFIX}${owner}${MEDIA_PRIVATE_LEASE_SUFFIX}`)
   const lock = LOCKS[platform]
   let lease: FileHandle | undefined
+  let isHeld = false
   try {
     let probe: (owner: string) => Promise<Gone | undefined>
     if (lock !== undefined) {
@@ -168,21 +199,23 @@ export async function leasePrivateRoot(
     } else if (platform === 'linux') {
       const scope = await linuxScope(linux)
       const own = `${scope.join(' ')} ${String(process.pid)} ${String(await linuxStart(String(process.pid), linux))}`
-      if (!LINUX_LEASE.test(own)) return { ...root, lease }
+      if (!LINUX_LEASE.test(own)) return await unleased(root, lease, leaseOf(root.owner))
       await writeFile(leaseOf(root.owner), own, { flag: 'wx', mode: OWNER_FILE_MODE })
       probe = async (owner) =>
         (await isLinuxOwnerGone(await linux.read(leaseOf(owner)), scope, linux))
           ? NOTHING_HELD
           : undefined
     } else {
-      return { ...root, lease }
+      return await unleased(root, lease, leaseOf(root.owner))
     }
     // This process's own lease must read as held, or no probe here proves anything.
     const self = await probe(root.owner)
-    if (self === undefined) await sweep(root, leaseOf, probe)
-    else await self.close()
+    if (self === undefined) {
+      isHeld = true
+      await sweep(root, leaseOf, probe)
+    } else await self.close()
   } catch {
-    // No lease, no sweep: this process's folders are kept by every other.
+    // No sweep; without a held lease, no folder of this process's names one.
   }
-  return { ...root, lease }
+  return isHeld ? { ...root, lease } : await unleased(root, lease, leaseOf(root.owner))
 }

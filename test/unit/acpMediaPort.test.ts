@@ -286,6 +286,25 @@ describe('attached-media state machine (RVMEDIAV2, PLAN M105)', () => {
     expect(seen).toEqual(['claimed', 'inFlight', 'claimed', 'claimed', undefined])
   })
 
+  it('stays in flight while another holder runs; claimed only when the last running one ends (RVMEDIAV4 2)', () => {
+    const bytes = wavFixture()
+    const registry = new AttachedMedia()
+    const part = registry.register('t', wavRecord(bytes), counted(bytes).source)
+    const first = registry.claim([part])
+    const second = registry.claim([part])
+    const waiting = registry.claim([part])
+    first.start()
+    second.start()
+    const seen = [registry.state('t')]
+    first.release()
+    seen.push(registry.state('t'))
+    second.release()
+    seen.push(registry.state('t'))
+    waiting.release()
+    seen.push(registry.state('t'))
+    expect(seen).toEqual(['inFlight', 'inFlight', 'claimed', undefined])
+  })
+
   it('discard and owner release pass claimed and in-flight tokens by, and take attached ones', () => {
     const bytes = wavFixture()
     const registry = new AttachedMedia()
