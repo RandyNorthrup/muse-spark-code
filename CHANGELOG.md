@@ -25,6 +25,24 @@ happened, not what was planned; superseded entries are kept.
   folder), and every evidence file name is bounded with a hash of its full
   identity.
 
+- **M98 phase 2 SystemOne route fixes.** The experimental SystemOne route
+  asks in its own popup (Allow once or Deny), bound to its recipient, model
+  and price: an "always" Judge grant never covers it, and Account & usage's
+  "Ask again" asks again. It is priced by its own captured ceiling, so it
+  needs no Meta Model API key. A change of owner, chat model or
+  `museSpark.judge.separate` while a request waits cancels it and refunds
+  the claim before anything is sent. Model API "Allow once" keeps the
+  same-model judge working when the configured separate id cannot be built,
+  and a key stored before the window opened serves the first action. Each
+  sent request is a paid Judge row at the route's own rates, travels over
+  the Models & Providers transport (pinned to a checked public address,
+  through VS Code's proxy settings in the window), and any echo of the key
+  in the reply is removed before results, CLI output or MCP replies. The CLI
+  refuses a missing key before any charge with `"gap":"key"` and settles the
+  charge into the shared daily budget on top of `--budget-usd`. Served dated
+  model names (`typesafe/jev-1.13-20260917`) are accepted by one rule in
+  `both` runs too.
+
 - Judge phase-2 status now reports separate and cascade modes, explains automatic same-model fallback in every UI language, and refuses verdicts after endpoint, profile, owner or turn changes. Automatic cascade selection validates recorded independent profiles and held-out paired M75 evidence. One request-only judge runtime reaches the cascade from the window, CLI and MCP surfaces given a real binding; the experimental embedding fast path stays capability-gated with its attempt ceiling published before dispatch, paid consent asked once, and verified-local models behind explicit opt-in. The production phase-2 binding builds every surface's runtime from real C/E/J sides and recorded evidence; each missing input (unverified source, fitted profiles, adoption receipt, embedding labels) is named in the status line in all 14 languages instead of a silent phase-1 fallback. No live separate source or recorded evidence ships yet, so the production window (`src/extension.ts`), CLI and MCP (`src/runtime/main.ts`) report those gaps rather than dispatching separate, cascade or embedding runs.
 
 - **M98 phase 2 cascade settlement.** Every cascade outcome uses one

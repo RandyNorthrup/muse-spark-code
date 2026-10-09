@@ -2286,7 +2286,12 @@ empty. One separate source is buildable today, on the window
 (or `~typesafe/jev-latest`), billed to your own OpenRouter key from Models &
 Providers, chosen only by an explicit `separate`/`both` engine and never by
 `auto`, asked about first with its price (at most $0.002688 a request) and the
-shared daily budget, and only ever adding caution. Every other id names its
+shared daily budget, and only ever adding caution. That question is the
+route's own popup (Allow once or Deny): an "always" Judge grant never covers
+it, and "Ask again" in Account & usage asks again. Each request is a paid
+Judge row in Account & usage; the CLI settles it into the same shared daily
+budget on top of `--budget-usd` and refuses a missing key before any charge
+(`"gap":"key"`). Every other id names its
 gap after the reason: "Separate judge needs its provider key in Models &
 Providers", "...this provider model needs a captured structured or logprob
 judge request first" (bring-your-own models), "...the local judge needs a

@@ -218,3 +218,16 @@ validated bridge; unavailable accounting amounts remain unknown. The shared
 React rows also apply to hosts using that bridge; ACP/headless expose the
 portable assembly but have no Models panel. Installed-editor receipts remain
 required before claiming those source routes are supported.
+
+The phase-2 fix round (RVM98P2R) settles how the experimental SystemOne route
+is admitted. Its consent is a window grant bound to the route's recipient,
+model and captured price ceiling (`PaidUseConsent.allowsRoute`); no
+feature-level Judge grant covers it, and "Ask again" or a price change revokes
+it. The window fences its admission, key read and POST on the action's trigger
+generation (owner, chat model, engine, separate source, turn), so a change
+refunds before anything is sent. Every sent call settles into a paid Judge row
+at the route's rates. The request uses the M95 providers' pinned transport
+behind their endpoint policy, and the reply is scrubbed of the active key
+before any result. The CLI checks the key before any claim and settles into
+the D78 daily journal on top of its hard run budget. One served-model rule
+(`isServedJudgeModel`) serves the cascade and the CLI/MCP checks.

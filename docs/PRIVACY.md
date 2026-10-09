@@ -206,8 +206,12 @@ extension's state; ACP ChatGPT tallies currently live for the process lifetime.
   the explicit `separate` or `both` engine, the judged action's state and the
   judge's question, with secrets redacted first, go to **OpenRouter**
   (`https://openrouter.ai/api/v1/systemone`), billed to your own OpenRouter
-  key from Models & Providers. The window asks first with the price and the
-  shared daily budget; the CLI sends only under `--budget-usd`. It is never
+  key from Models & Providers. The window asks first, in the route's own
+  popup, with the price and the shared daily budget; the CLI sends only under
+  `--budget-usd` and the shared daily budget. The request travels over the
+  Models & Providers transport (in VS Code, through your proxy settings), and
+  any echo of your key in the reply is removed before it is shown, printed
+  or returned over MCP. It is never
   sent in a confidential workspace, never chosen by `auto`, and its answer
   only adds caution to your own model's judgment: it never answers you,
   writes code or decides alone. Nothing is sent without that setting.

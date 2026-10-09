@@ -42826,41 +42826,75 @@ binding policy (`createPhase2Binding`) on every surface. Explicit
 profiles (the setting's documented contract; B fits only logprob and
 stated, so a SystemOne side could never be profiled); `both` and automatic
 `both` still need both sides' profiles. Receipt: `docs/certification/m98.md`,
-"Phase 2 redesign".
+"Phase 2 redesign" and "Phase 2 fix round (M98P2R, RVM98P2R)".
 
-**Owner-facing prerequisites for the remaining sides (M98P2R).** No
-credential is created or requested by any lane.
+**Phase 2 fix round (M98P2R, RVM98P2R, 2026-10-08).** RVM98P2R's 2 P1 and
+5 P2 and the lead's five named residuals are fixed at the root, each with a
+regression that fails on `fea90d04d` and a byte-exact red drill (18 drills).
+C's consent is a window grant bound to its route's recipient, model and
+captured tariff and to the revocation generation (`allowsRoute`): no
+feature-level Judge grant covers it, "Ask again" asks again, and it is priced
+by its captured ceiling without the Meta key. Lane C fences admission, key
+read and POST on the window's per-action trigger generation (owner, chat
+model, engine, separate source, turn), so a change refunds before sending.
+Model API Allow once reaches the plan; a key not read yet builds the side and
+a discovered gap refreshes the status; provider bodies are scrubbed of the
+active key. Residuals closed: one served-model rule for the cascade and the
+CLI/MCP, CLI key preflight (`gap: key` before any claim), CLI claims in the
+D78 daily journal, the window's paid Judge row, and the M95 providers' pinned
+transport behind their endpoint policy.
 
-- **C, SystemOne (built; experimental, untested, opt-in).** Credential: the
-  owner's own **OpenRouter API key**, minted by the owner at
-  openrouter.ai → Keys, entered through Models & Providers (M95), which
-  stores it origin-bound to `https://openrouter.ai` in SecretStorage (window)
-  or the OS credential store (CLI/ACP). Direct TypeSafe (`typesafe-jev`)
-  needs a **TypeSafe key from the sales call** (owner ruling 2026-10-04) and
-  stays untested: its wire is documented, not captured. Captures before any
-  product claim: `L98P2-SYSTEMONE`, at most **3** attempts on
-  `openrouter-jev:typesafe/jev-1.13` (consent popup, ledger settle, served
-  alias), counted, external spend at most $0.009 (3 × the route's $0.002688 ceiling).
-- **E, bring-your-own models (named gap).** No credential beyond the
-  model's existing M95 provider key. Blocker: M95's canonical request
+**Lead live-capture steps for the remaining sides (M98P2R).** These are
+the lead's steps, not owner blocks; no lane creates or requests a
+credential.
+
+- **C, SystemOne (built; experimental, untested, opt-in).** Product
+  behaviour: each end user enters their own OpenRouter key in Models &
+  Providers (M95), stored origin-bound to `https://openrouter.ai` in
+  SecretStorage (window) or the OS credential store (CLI/ACP). The live
+  `L98P2-SYSTEMONE` capture is the lead's, on the OpenRouter key the lead
+  already holds: at most **3** attempts on `openrouter-jev:typesafe/jev-1.13`
+  (route popup, ledger settle, served alias), counted, external spend at most
+  $0.009 (3 × the route's $0.002688 ceiling). Direct TypeSafe
+  (`typesafe-jev`) stays untested: its wire is documented, not captured, and
+  its key follows the 2026-10-04 sales-call ruling.
+- **E, bring-your-own models (named gap `capture`).** No new credential:
+  the model's existing M95 provider key. M95's canonical request
   (`CreateResponseBody`) carries no structured-output format or logprob
-  request, and 2e forbids a plain-text stated path. Capture first:
-  `L98P2-CAPABILITY`, at most **2** attempts per named M95 model variant,
-  recording a structured (`json_schema`/strict/forced tool) or logprob judge
-  request and response; the codec field and the E side factory follow that
-  capture. Lead-owned run.
-- **J, local judge (named gap).** No credential. Needs, vetted by the lead
-  per platform: the runtime installation record (executable path, owner
-  SID or UID, executable SHA-256), the model directory and its manifest
-  digest, the platform certification id and native-host proof
+  request, and 2e forbids a plain-text stated path. The lead runs
+  `L98P2-CAPABILITY` first, at most **2** attempts per named M95 model
+  variant, recording a structured (`json_schema`/strict/forced tool) or
+  logprob judge request and response; the codec field and the E side
+  factory follow that capture.
+- **J, local judge (named gap `install`).** No credential. The lead vets,
+  per platform: the runtime installation record (executable path, owner SID
+  or UID, executable SHA-256), the model directory and its manifest digest,
+  the platform certification id and native-host proof
   (`LocalJudgeConfiguration.installation`), the packaged peer helper built
   and verified on that OS (Windows C#, Linux pidfd C, macOS libproc), and a
-  full-request token measurement for the chosen model. Captures:
-  `L98P2-LOCAL`, one exact per-OS manifest and count before execution (the
-  2j spike used its own at-most-60 free-call ledger); free, local only, no
-  pulls authorized.
+  full-request token measurement for the chosen model, then runs
+  `L98P2-LOCAL` with one exact per-OS manifest and count; free, local only,
+  no pulls authorized.
 - **Fitted profiles and receipts (all sides).** `L98P2-M75` and
   `L98P2-EMBED` below.
+
+**Measurement-lane prerequisites (RVM98P2R, 2026-10-08).** The measurement
+plan below is not executable with the production factories as built, and no
+measurement lane may start until each of these exists:
+
+1. A same-side contributor judge in the CLI factory: the CLI builds no same
+   side today (`src/runtime/judge/cliBinding.ts`), so the same-only and
+   cascade arms have nothing to dispatch outside the window.
+2. A local side factory: every `local:` id returns the `install` gap
+   (`src/core/judge/sides.ts`), so the separate-only arm's qwen3 profiles
+   cannot be measured until J's vetted records and the J factory exist.
+3. An embedding capture: no embedding model is captured, so the
+   `L98P2-EMBED` acquisitions and fallbacks have no admitted transport.
+
+**Wire headroom (2026-10-08).** `dist/wire.js` is 51,196 of its
+51,200-byte cap after this round. The next field on the shared status wire
+brings its own wire diet (bytes removed elsewhere in the same change) or a
+measured cap decision from the lead; no cap is raised without one.
 
 **Measurement plan for the missing phase-2 evidence (M98P2R, replaces the
 P2B draft, 2026-10-08).** No live or paid call is made by this plan's
