@@ -16,6 +16,9 @@ Only a typed size overflow permits a smaller plan. Any other encoder or
 schema failure stops the build, naming the candidate releases and the cause;
 fix that failure rather than trimming notes. HTTP/HTTPS link schemes are
 normalized to lowercase for the artifact; the rest of each URL is preserved.
+Generated full-notes links use the same URL rule, including in packaged
+notes. A repository URL outside HTTP/HTTPS stops selection with a named
+repository error before any plan is tried; fix the repository URL first.
 Before the release PR bumps
 `package.json`:
 

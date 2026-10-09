@@ -10105,6 +10105,15 @@ we make". His standing ruling: enhancements are on by default.
   The duplication gate found a pre-existing repeated fallback-link fixture
   in the owning content tests; share that expected value, keeping both
   complete assertions and the gate unchanged.
+  WNBUDGET round 6 (RVWNBUDGET5G, 2026-10-09): route generated
+  predecessor/fallback full-notes URLs through the same `resolveHref`
+  rule as Markdown links. Resolve and validate the repository-derived URL
+  before trying any selection plan; a refused repository fails with a
+  named repository error, even when the full plan could encode. Packaging
+  uses that same resolved full-notes URL. Regress uppercase HTTP/HTTPS
+  repository schemes and unsupported repositories, including validation
+  before encoding; certify byte-exact drills and the owned scoped gates
+  in `docs/certification/wnbudget.md`.
 - **Security.** Strict CSP (`default-src 'none'`, the stylesheet from the
   webview origin, one script by nonce, no inline style); every piece of text
   escaped on the host; links carry their address for keyboards and screen

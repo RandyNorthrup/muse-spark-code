@@ -427,6 +427,65 @@ describe('selectWhatsNewReleases (the budget-aware writer)', () => {
 `
   const parsed = () => parseChangelog(budgeted, ALLOWED, REPOSITORY)
 
+  it.each(['HTTPS', 'Http'])(
+    'resolves %s repository links before trying full or shorter plans',
+    (scheme) => {
+      const repository = `${scheme}://github.com/Example/Repo?Key=Value#Anchor`
+      const normalized = repository.replace(scheme, () => scheme.toLowerCase())
+      const releases = parseChangelog(budgeted, ALLOWED, repository)
+      for (const bound of [100_000, 3000]) {
+        const selection = selectWhatsNewReleases(releases, repository, bound)
+        expect(selection).toEqual(selectWhatsNewReleases(releases, normalized, bound))
+        expect(selection.plan[1]).toEqual({ version: '1.9.0', full: bound === 100_000 })
+        const plain = JSON.stringify({
+          schema: 1,
+          releases: selection.releases,
+          shortened: selection.shortened,
+        })
+        expect(parseWhatsNewContent(encodedText(plain)).releases).toEqual(selection.releases)
+        if (selection.shortened) {
+          expect(plain).toContain(`${normalized}/blob/main/CHANGELOG.md`)
+        }
+      }
+      const fallback = selectWhatsNewReleases(
+        parseChangelog(withFallback(''), ALLOWED, repository),
+        repository,
+      )
+      expect(fallback.plan).toEqual([
+        { version: '1.0.4', full: true },
+        { version: '1.0.3', full: true },
+        { version: '1.0.2', full: false },
+      ])
+      expect(fallback.shortened).toBe(false)
+      const plain = JSON.stringify({ schema: 1, releases: fallback.releases })
+      expect(plain).toContain(`${normalized}/blob/main/CHANGELOG.md`)
+      expect(parseWhatsNewContent(encodedText(plain)).releases).toEqual(fallback.releases)
+    },
+  )
+
+  it.each([
+    'git+https://github.com/example/repo',
+    'ftp://github.com/example/repo',
+    'https:repo',
+    'github.com/example/repo',
+    '',
+  ])('refuses repository %j before reading any candidate', (repository) => {
+    const guarded = parsed().map((release) => ({
+      ...release,
+      get sections(): ReleaseNotes['sections'] {
+        throw new Error('candidate read before repository validation')
+      },
+    }))
+    for (const releases of [guarded, guarded.slice(0, 1), []]) {
+      expect(() => selectWhatsNewReleases(releases, repository)).toThrow(
+        "What's New repository URL must use HTTP or HTTPS",
+      )
+      expect(() => selectWhatsNewReleases(releases, repository, 0)).toThrow(
+        "What's New repository URL must use HTTP or HTTPS",
+      )
+    }
+  })
+
   it.each([
     ['newest Highlights', 'Shiny.'],
     ['predecessor Highlights', 'Stable.'],

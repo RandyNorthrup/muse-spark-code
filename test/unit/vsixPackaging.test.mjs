@@ -659,6 +659,29 @@ describe('VSIX packaging', () => {
     expect(packagedChangelog(tiny, tinyParsed)).toContain('Notes')
     expect(() => packagedChangelog('No releases', [])).toThrow('No released')
   })
+  it.each(['HTTPS', 'Http', 'git+https', 'ftp'])(
+    'resolves or refuses %s repository full-notes links in direct packaging',
+    (scheme) => {
+      const repository = `${scheme}://github.com/Example/Repo`
+      const changelog = '## [1.0.3] - 2026-10-04\n\n### Fixed\n\n- Previous fix.\n'
+      const parsed = parseChangelog(
+        changelog,
+        { commands: new Set(), settings: new Set() },
+        repository,
+      )
+      const plan = [{ version: '1.0.3', full: false }]
+      if (scheme === 'git+https' || scheme === 'ftp') {
+        expect(() => packagedChangelog(changelog, parsed, plan, repository)).toThrow(
+          "What's New repository URL must use HTTP or HTTPS",
+        )
+      } else {
+        const normalized = repository.replace(scheme, () => scheme.toLowerCase())
+        expect(packagedChangelog(changelog, parsed, plan, repository)).toContain(
+          `[Full notes for 1.0.3](${normalized}/blob/main/CHANGELOG.md).`,
+        )
+      }
+    },
+  )
   it('ships the writer’s plan, so the packaged notes agree with What’s New on what is shown', () => {
     const repository = 'https://github.com/example/repo'
     const changelog = [

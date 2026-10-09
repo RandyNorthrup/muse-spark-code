@@ -7,6 +7,7 @@ import { packRuntimeArchive } from './lib/packageArchive.mjs'
 import { compactVsix } from './lib/compactVsix.mjs'
 import {
   contributedIds,
+  fullNotesHref,
   parseChangelog,
   repositoryUrl,
   selectWhatsNewReleases,
@@ -52,7 +53,7 @@ export function packagedChangelog(text, releases, plan, repository) {
     const end = releases[RECENT_RELEASES]?.range.start ?? text.length
     return `${header}${text.slice(newest.range.start, end).trimEnd()}\n\n[Complete release history](${HISTORY}).\n`
   }
-  const changelog = repository === undefined ? HISTORY : `${repository}/blob/main/CHANGELOG.md`
+  const changelog = repository === undefined ? HISTORY : fullNotesHref(repository)
   const shipped = []
   for (const entry of plan) {
     const release = releases.find((candidate) => candidate.version === entry.version)

@@ -382,3 +382,95 @@ Code commit: `3a6f67d65a76fcad9b9a07faeef7a5087894390b`. Unchanged
 staged and committed binary patches compare byte-for-byte equal; both
 production source hashes above still match. Staged and committed diffs were
 re-read. This final receipt is committed separately with the same hooks.
+
+## Round 6 plan (2026-10-09, linuxlt)
+
+1. Complete: regress uppercase repository schemes in fitting full,
+   shortened predecessor and standing fallback plans; regress unsupported
+   repositories before selection can inspect or encode any candidate.
+   Before the fix, 7 content and 4 direct-packaging regressions failed;
+   139 existing tests passed (repository timeouts, two files).
+2. Complete: resolve generated full-notes URLs with the Markdown URL rule,
+   validate once before selection, and share the result with packaging.
+3. Complete: deliberate guard mutations, byte-exact restorations, owned
+   What's New/packaging tests, one tsc, lint/format and production build.
+4. In progress: commit with installed hooks, re-read staged/committed diffs,
+   and report the head, receipts, remaining lead-owned gates.
+
+No new runtime surface, command, setting, dependency, budget or gate.
+No merge, push, rebase, paid or live calls. Aggregate quality and universal
+release qualification remain lead-owned under the rig/common rules.
+
+### Round 6 finding and repair
+
+RVWNBUDGET5G's generated predecessor/fallback links bypassed `resolveHref`.
+An uppercase repository could invalidate a later candidate after the full
+plan encoded; unsupported repositories failed inside the same search.
+`fullNotesHref` now resolves `CHANGELOG.md` through that existing rule and
+throws a named repository error when refused. Selection resolves it once,
+before its empty return or any candidate read, and every generated link
+uses that result. Direct packaging uses the same helper. HTTP/HTTPS scheme
+case is normalized; the remainder is preserved.
+
+The new tests cover full, shortened predecessor and standing fallback plans
+for `HTTPS` and `Http`, direct packaged links, unsupported schemes, missing
+`//`, bare and empty repositories. Throwing candidate getters and a zero
+budget prove repository validation precedes candidate inspection/admission.
+The initial regression run failed all eleven added cases (7 content,
+4 packaging); all 139 existing cases passed.
+
+Lint rejected a declaration before the empty return and unsafe replacement
+values in tests. Resolve into the local string parameter instead, preserving
+validation before that return, and use replacement callbacks. No ignore or
+rule change; the corrected changed-file ESLint run passes.
+
+### Round 6 red drills
+
+Full logs, JSON receipts and byte backups: `$TMPDIR/wnbudget-r6/`.
+Every drill runs its entire owning file with `--maxWorkers=3`, repository
+timeouts and no filters. Both production files are compared byte-for-byte
+after each restoration, including the final replay after lint repair.
+
+| Guard               | Mutation                                             | Observed failures                                                         |
+| ------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------- |
+| Full-notes URL rule | Build raw repository URL instead of resolving it     | 7 of 55 content tests: both uppercase schemes and all repository refusals |
+| Validation order    | Validate only when creating a shortened link         | 5 of 55 content tests: candidate getters run before repository refusal    |
+| Packaged URL rule   | Build raw repository URL instead of using the helper | 4 of 95 packaging tests: uppercase schemes and non-HTTP repositories      |
+
+Restored writer SHA-256:
+`852c2061d645a86af4f133da81b4d22f53e8f24ac7bc8e75e3fd8afb8ed3f4d8`.
+Restored packager SHA-256:
+`8a37d40d11631e351b582e50cd347279170bf46b57ea6905d1dec76c5cb74f75`.
+
+### Round 6 final gates (linuxlt)
+
+- Final replay, repository timeouts with no overrides, at most three files
+  per invocation; every invocation uses `npx vitest run <files> --maxWorkers=3`:
+  `whatsNewContent`, `whatsNewHtml`, `whatsNewPanel`: **78 passed**;
+  `vsixPackaging`, `changelogVersion`, `whatsNewBundle`: **102 passed**;
+  `whatsNew`, `whatsNewPage`, `whatsNewVersions`: **31 passed**.
+  Total: **211 passed**, nine files. All three drills preceded this replay.
+- One `npm run typecheck:unit`: pass. Changed-file ESLint
+  `--max-warnings=0`, Prettier and `git diff --check`: pass.
+- `node scripts/check-l10n.mjs`: 14 UI and 14 usage tables, 0 problems.
+  `check:reference`, `check:host-api`, `check:plan`, `check:roadmap`:
+  current, 0 host API problems, 207 milestones with 0 plan drift.
+  `npm run deadcode`: pass; `npx jscpd`: 0 clones.
+- `npm run build`: pass, including tokens, artifact writing, bundle-size
+  and split gates, host globals and notices. What's New host: 21,552 /
+  51,200 bytes; browser entry: 713 bytes, 1.3 / 25 KiB with static imports;
+  content: 25,347 / 40,960 encoded bytes, 68,401 / 76,800 decoded bytes.
+- Production encoder reproduces the built artifact byte-for-byte from the
+  chosen envelope. Real 0.17.0 and 0.16.0 stay full, flag absent. Packaged
+  notes equal the legacy slice byte-for-byte, SHA-256
+  `80884cbd6619f27d7da8dedf8b777570494ab8c186894f8037f98c978b2547fd`.
+
+Changed files: the writer and declaration, packager, content and packaging
+tests, D79, Unreleased note, releasing guide and this certification.
+No runtime/UI markup, localization key, feature-catalog behavior, milestone
+status, release, dependency, budget, gate or timeout changed; no install,
+credential read or paid/live model call.
+
+Next: lead reviews/integrates this fix and runs aggregate quality and
+universal VSIX qualification. No remaining code blocker in the scoped
+checks; those broader gates remain lead-owned under the rig/common rules.

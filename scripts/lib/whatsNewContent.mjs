@@ -94,6 +94,14 @@ function resolveHref(url, repository) {
   return WEB_LINK.test(href) ? href.replace(WEB_LINK, (scheme) => scheme.toLowerCase()) : undefined
 }
 
+/** Generated full-notes links obey the same URL rule as Markdown links. */
+export function fullNotesHref(repository) {
+  const href = resolveHref('CHANGELOG.md', repository)
+  if (href === undefined)
+    throw new Error("What's New repository URL must use HTTP or HTTPS (docs/RELEASING.md)")
+  return href
+}
+
 function inlines(nodes, repository) {
   return nodes.flatMap((node) => inline(node, repository))
 }
@@ -428,7 +436,7 @@ function contentEnvelope(releases, shortened) {
 }
 
 /** A release's Highlights with a link to its full notes in CHANGELOG on GitHub. */
-function highlightsOnly(release, repository) {
+function highlightsOnly(release, href) {
   return {
     ...release,
     sections: [
@@ -440,7 +448,7 @@ function highlightsOnly(release, repository) {
             c: [
               {
                 t: 'link',
-                href: `${repository}/blob/${BRANCH}/CHANGELOG.md`,
+                href,
                 c: [{ t: 'text', v: `Full notes for ${release.version}` }],
               },
             ],
@@ -474,6 +482,7 @@ export function selectWhatsNewReleases(
   repository,
   maxDecodeBytes = WHATS_NEW_CONTENT_DECODE_MAX_BYTES,
 ) {
+  repository = fullNotesHref(repository)
   if (allReleases.length === 0) {
     return { releases: [], shortened: false, plan: [] }
   }

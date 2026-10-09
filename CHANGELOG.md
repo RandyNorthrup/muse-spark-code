@@ -84,7 +84,9 @@ happened, not what was planned; superseded entries are kept.
   CRLF endings. CR-only files and Setext release headings fail by name.
   Only size overflow permits reducing notes: other encoding or schema
   failures stop the build with the releases and cause. HTTP/HTTPS schemes
-  are normalized to lowercase, so uppercase links cannot drop fitting notes.
+  are normalized to lowercase, including repository-derived full-notes links
+  in the page and packaged notes, so uppercase links cannot drop fitting
+  notes. An unsupported repository URL fails by name before plan selection.
 
 ### Fixed
 

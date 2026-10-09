@@ -13,6 +13,7 @@ export interface AllowedTries {
 
 export function contributedIds(manifest: unknown): AllowedTries
 export function repositoryUrl(manifest: unknown): string
+export function fullNotesHref(repository: string): string
 /** A parsed release's source range in the CHANGELOG text it was parsed from. */
 export interface ChangelogSourceRange {
   /** Start offset of the release's whole `## ` section. */
