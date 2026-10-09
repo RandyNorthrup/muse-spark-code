@@ -95,11 +95,12 @@ const BUNDLES = [
   'usageService.js',
   'usageCompanion.js',
 ]
-// The C# of the shell tool's Windows job (M27), compiled on first use, as
-// the extension ships it (PLAN.md D6): its own file and the half it shares.
-// No MuseSparkMcpLauncher.cs: ACP forwards MCP servers to Muse Code's own
-// process (src/acp/agent.ts forwardedMcp); its Model API backend runs none.
-// src/runtime/backends.ts composes only shellJobAssembly, never mcpJobExecutable.
+// The C# of the Windows job helpers, compiled on first use, as the extension
+// ships it (PLAN.md D6): the shell tool's job (M27), the half both helpers
+// share, and the governed launcher (MuseSparkMcpLauncher.cs). The runtime's
+// resource governor starts every contained process through that launcher,
+// `muse serve` included (src/runtime/resources/jobs.ts), so without it no
+// session starts on Windows (CIFIX017W2).
 const JOB_SOURCES = [
   'native/windows/MuseSparkVault.cs',
   'native/windows/MuseSparkVaultCng.cs',
@@ -107,6 +108,7 @@ const JOB_SOURCES = [
   'native/windows/MuseSparkVaultLock.cs',
   path.join('native', 'windows', 'MuseSparkJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
+  path.join('native', 'windows', 'MuseSparkMcpLauncher.cs'),
   path.join('native', 'windows', 'MuseSparkScreenRecord.cs'),
 ]
 const DARWIN_HELPER = path.join('native', 'darwin', 'muse-dictate')

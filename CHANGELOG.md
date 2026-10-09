@@ -102,6 +102,11 @@ happened, not what was planned; superseded entries are kept.
   helper the extension's launch already had, so every new session failed
   with an internal error.
 
+- Windows: the npm package of the ACP agent now ships the C# of that job
+  helper's launcher (`MuseSparkMcpLauncher.cs`). An agent installed with
+  `npm install -g` still failed every new session with an internal error
+  without it (CIFIX017W2).
+
 - Windows: `muse-spark-code-acp usage open` and sharing to the clipboard or
   browser failed with "That did not work". The program lookup added `.exe`
   to names that already had it (`rundll32.exe.exe`) and found nothing.
