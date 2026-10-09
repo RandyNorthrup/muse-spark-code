@@ -113,6 +113,24 @@ happened, not what was planned; superseded entries are kept.
 - Reporting journal, history-engine and response-cache tests retain real OS
   process-birth probes on macOS and Windows without requiring unrelated
   resource-governor installation in their storage fixtures.
+- Windows: the ACP agent (`muse-spark-code-acp`) could not start a Muse
+  Code session. Its governed `muse serve` launch was missing the Windows job
+  helper the extension's launch already had, so every new session failed
+  with an internal error.
+
+- Windows: `muse-spark-code-acp usage open` and sharing to the clipboard or
+  browser failed with "That did not work". The program lookup added `.exe`
+  to names that already had it (`rundll32.exe.exe`) and found nothing.
+
+- Linux: `muse-spark-code-acp usage open` waited 10 s and then reported
+  failure when `xdg-open` stayed open with the browser, as many handlers do.
+  The opener now counts as launched once it starts, in its own session, and
+  is never stopped. Any OS opener still running at the hand-off limit is
+  detached and counted as launched, not killed; one that exits with an
+  error still fails.
+
+- When a Windows job helper fails to compile, the log names the compiler's
+  errors and exit code again, not only "Bootstrap command failed".
 
 - Scheduled prompts spend about half the time on their store per fire: the
   store keeps one journal per workspace, so its validated snapshot and deltas

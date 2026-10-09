@@ -162,7 +162,13 @@ describe.runIf(process.platform === 'win32')(
   'Windows native vault capture: generated material only',
   () => {
     beforeAll(async () => {
-      paths.root = await mkdtemp(path.join(tmpdir(), 'muse-vault-native-'))
+      // The vault's path guard refuses any ancestor another account may modify.
+      // %TEMP% can be such a folder (a Codex Windows sandbox grants its group
+      // Modify there); the profile's LOCALAPPDATA, like the extension's own
+      // storage, is not. Hosted runners accept either.
+      paths.root = await mkdtemp(
+        path.join(process.env['LOCALAPPDATA'] ?? tmpdir(), 'muse-vault-native-'),
+      )
       const contents = await Promise.all(
         sources.map((name) => readFile(path.resolve('native/windows', name), 'utf8')),
       )
@@ -389,8 +395,10 @@ describe.runIf(process.platform === 'win32')(
       let target = previous
       if (kind !== 'file') target = path.dirname(target)
       if (kind === 'parent') target = path.dirname(target)
+      // The DACL only: Set-Acl writes the audit section too, which needs
+      // SeSecurityPrivilege (an elevated runner has it; an ordinary account not).
       const setRule = async (isRemove: boolean) => {
-        const script = `$target = '${target.replaceAll("'", "''")}'; $acl = Get-Acl -LiteralPath $target; $sid = New-Object Security.Principal.SecurityIdentifier('S-1-1-0'); $rule = New-Object Security.AccessControl.FileSystemAccessRule($sid, '${rights}', 'Allow'); $acl.${isRemove ? 'RemoveAccessRuleAll' : 'AddAccessRule'}($rule); Set-Acl -LiteralPath $target -AclObject $acl`
+        const script = `$target = '${target.replaceAll("'", "''")}'; $item = Get-Item -Force -LiteralPath $target; $acl = $item.GetAccessControl('Access'); $sid = New-Object Security.Principal.SecurityIdentifier('S-1-1-0'); $rule = New-Object Security.AccessControl.FileSystemAccessRule($sid, '${rights}', 'Allow'); $acl.${isRemove ? 'RemoveAccessRuleAll' : 'AddAccessRule'}($rule); $item.SetAccessControl($acl)`
         await new Promise<void>((resolve, reject) => {
           execFile(
             helper.powershell,
