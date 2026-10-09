@@ -881,6 +881,25 @@ leave 0.16.0's 500,400 B. The pin is corrected to the measured combined value,
 stale-pin correction, not a relaxed budget. Re-measure after the money lanes
 merge.
 
+**Re-measured after the money lanes (INT0170, 2026-10-08, Kubuntu).** With
+every lane through `afc978b72` merged, the shared `usdSchema.ts` and
+`windowsPathSpelling.ts` moved into `dist/modelApiBoundaries.js` (see
+[Bundle regressions after the lane merges](#bundle-regressions-after-the-lane-merges-int0170)),
+`dist/modelApi.js` measures **530,883 B**. That is +3,506 B over this lane's
+527,377 B. It is feature code, not an accidental dependency:
+
+| Lane (merge)              | Bytes  | Files                                                                                                                                                 |
+| ------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MONEY017 (`851c99497`)    | +2,544 | scheduled-run media reserve/settle: `ModelApiHost.ts` +2,081, `client.ts` +451, `tools.ts` +49, `retryPolicy.ts` −31, `transport.ts` −5, constants −1 |
+| PORTS017 (`632f79910`)    | +224   | `shared/accounts.ts` +134 (its exact-USD fields and the shared schema's require), `l10n/exactUsd.ts` +90                                              |
+| SECWINPATH (`afc978b72`)  | +517   | `checkpoints/storageRefusal.ts` +152, `ModelApiHost.ts` +139, `browser/browserTool.ts` +111, `protectedPaths.ts` +80, `workspacePath.ts` +35          |
+| SECWINPATH's `MODEL_TEXT` | +221   | `checkpointWindowsPathRefused`, `checkpointStorageUncertain`, `browserCheckSystemDirectoryUnavailable` (read at activation)                           |
+
+The pin moves to the measured **530,883 B** (lead decision, option (b)),
+inside D6's 537,600 B cap. It is re-measured and ratcheted **down** when the
+media redesign (`m105/media-w2`, media into the deferred
+`dist/productionMedia.js`) merges.
+
 ### VSIX (provisional cap)
 
 `npm run package` cannot finish on Windows because the Linux and macOS
@@ -2569,3 +2588,131 @@ No `--testTimeout` was used on any run. At most 3 test files per run with
 removed afterwards. No `check:reference` change (no reference surface
 touched). The store-port contract was added to PLAN §9's lane P
 prerequisites (FIXM108P-PROFILE-OWNER).
+
+## Bundle regressions after the lane merges (INT0170)
+
+Release-integration lane on `release/0.17.0` (worktree `mx-rel0170`), from
+`01ee6233b`, 2026-10-08. All builds ran on Kubuntu in a `rig-test.sh` slot
+with real `node_modules`: `node scripts/build.mjs --production`, then the
+esbuild metafiles in `dist/meta` and `dist/meta-acp`. No model calls were
+made, hooks ran on every commit and nothing was pushed. No cap was raised.
+The one pin that moved is recorded under the CAPS017 Model API pin above,
+by the lead's decision.
+
+### Bisect (first-parent merges, production bytes)
+
+| Commit                    | `extension.js` | `navigator` | `headless.js` | `modelApi.js` |
+| ------------------------- | -------------- | ----------- | ------------- | ------------- |
+| `7a4fc2ab3` base          | 585,037        | 0           | 103,142       | 531,787       |
+| `d50b709bf` vis           | 587,451        | 0           | 103,142       | 531,787       |
+| `b44a98ddb` red           | 587,451        | 0           | 103,142       | 531,787       |
+| `69723c603` devid (CAPS)  | 572,199        | 0           | 101,083       | 527,377       |
+| `851c99497` money         | 572,309        | 0           | 101,083       | 529,921       |
+| `632f79910` ports         | 572,485        | 0           | 101,843       | 530,680       |
+| `fa15b6b44` consent       | **1,026,792**  | **2**       | 101,843       | 530,680       |
+| `5b7eb4fcb` chip          | 1,030,876      | 2           | 101,843       | 530,680       |
+| `afc978b72` win-path      | 1,033,339      | 2           | **113,255**   | 532,391       |
+| `b2affa501` … `01ee6233b` | 1,033,339      | 2           | 113,255       | 532,391       |
+
+Caps: activation 614,400 B, headless 102,400 B, Model API pin 527,400 B (D6
+cap 537,600 B). The deferredBundles fixture build measured activation at
+753.7 KiB because it adds `englishZodLocales`; the shipped build is
+1,009.1 KiB. teamHarness #23 read that shipped production `extension.js`.
+
+### Root causes and module chains
+
+1. **Activation and `navigator` (`fa15b6b44`, CONSENT017).**
+   `src/core/paid/paidConsent.ts` imported classic `zod` for its durable
+   quote generation schema. The chain was `src/extension.ts` →
+   `src/host/paid/paidHost.ts` → `src/core/paid/paidConsent.ts` → `zod`,
+   which brought in 95 modules (453,762 B), all 63 locales among them.
+   `zod/v4/core/util.js`'s `allowsEval` reads `navigator` twice. The
+   existing guard (`inlines the shared mini-parser`) checked only zod/mini's
+   own files.
+2. **Headless (`afc978b72`, SECWINPATH).** `windowsPathSpelling.ts` and
+   `workspacePath.ts` read their seven refusals from `MODEL_TEXT`, and every
+   bundle that reads one key of `MODEL_TEXT` carries all of it. The chain
+   was `src/runtime/exec/runExec.ts` → `src/runtime/exec/attachArgs.ts` →
+   `src/core/workspacePath.ts` → `src/core/windowsPathSpelling.ts` →
+   `MODEL_TEXT` (+10,663 B). The same leak added 7 to 13 KB to twelve lazy
+   bundles that had never carried `MODEL_TEXT`. They stayed under their caps:
+   agentImport, checkpointStore, codeIntel, conversationGit, extensionHooks,
+   foreignHooks, hookRuntime, modelApiHooks, prompts, reporting, sessionBoard
+   and sharingRuntime. Each also carried its own copy of the module's 814 B.
+3. **Model API pin.** PORTS017 (`632f79910`) split `src/shared/usdSchema.ts`
+   out of `usd.ts`, which re-exports it from `dist/modelApiBoundaries.js`.
+   The plugin's list named only `usd.ts`, so thirteen bundles that already
+   load the shared file kept their own copy of about 580 B. The rest of the
+   growth is feature code: see the pin table above.
+
+### Fixes (commits)
+
+| Commit      | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `69b0e152b` | `paidConsent.ts` reads `zod/mini` (served by `dist/validation.js`). Split guard: a Node bundle that reads zod/mini carries no classic zod (structuredSchema.js and the ACP engine are exempt by design), and the importing sources are named.                                                                                                                                                                                                                                                        |
+| `b706a89e8` | `WINDOWS_PATH_MODEL_TEXT` block, read only by `windowsPathSpelling.ts`. `unprovenUncPathReason` takes `workspacePath.ts`'s one read. `windowsPathSpelling.ts` is shared through `dist/modelApiBoundaries.js`, like `pathIdentity.ts`. Split guards: the block lives in modelApiBoundaries.js and reporting.js only (the report engine is built without the plugin); `dist/headless.js` carries no `MODEL_TEXT`, and the sources that read it are named. deferredBundles pins the share for headless. |
+| `c1ee73965` | `usdSchema.ts` is shared through `dist/modelApiBoundaries.js`. `MODEL_API_BOUNDARY_SOURCES` is now the plugin's one list. Split guard: a bundle that loads modelApiBoundaries.js carries no copy of those sources. RVM115U5 pin → measured 530,883 B.                                                                                                                                                                                                                                                |
+| `0a38d850e` | `usdSchema.ts` and `windowsPathSpelling.ts` are also pinned in the split check itself, so dropping either from the plugin's list fails.                                                                                                                                                                                                                                                                                                                                                              |
+
+### Sizes before and after (Kubuntu production build, bytes)
+
+| Bundle                       | `01ee6233b` | After `0a38d850e` | Cap / pin                |
+| ---------------------------- | ----------- | ----------------- | ------------------------ |
+| `dist/extension.js`          | 1,033,339   | 578,192           | 614,400                  |
+| `navigator` in Node          | 2           | 0                 | 0                        |
+| `dist/headless.js`           | 113,255     | 101,342           | 102,400                  |
+| `dist/modelApi.js`           | 532,391     | 530,883           | pin 530,883 (D6 537,600) |
+| `dist/modelApiBoundaries.js` | 31,054      | 33,013            | 51,200                   |
+
+The `MODEL_TEXT` leak, before the lane merges (`5b7eb4fcb`) → `01ee6233b` →
+after: agentImport 128,950 → 140,348 → 128,985; checkpointStore 85,312 →
+97,359 → 85,740; codeIntel 42,858 → 54,252 → 42,890; conversationGit 85,874
+→ 97,331 → 85,973; extensionHooks 36,552 → 43,886 → 36,664; foreignHooks
+74,384 → 81,373 → 74,421; hookRuntime 43,976 → 50,957 → 44,007;
+modelApiHooks 29,867 → 37,160 → 29,899; prompts 165,689 → 177,089 →
+165,724; reporting 146,899 → 160,001 → 149,814; sessionBoard 46,962 →
+54,299 → 47,074; sharingRuntime 172,697 → 174,842 → 163,477.
+
+The `usdSchema.ts` share (before → after, bytes): acp.js 235,662 → 235,098;
+headless.js 101,878 → 101,342; modelApi.js 531,418 → 530,883; providers.js
+138,478 → 137,938; runtimeAccounts.js 51,213 → 50,684; runtimeEngine.js
+640,317 → 639,782; scheduleBackground.js 39,197 → 38,810; schedules.js
+158,170 → 157,745; teamRunners.js 65,394 → 64,862; usageCompanion.js 43,260
+→ 42,730; usagePanel.js 74,586 → 74,051; usageService.js 90,522 → 89,980;
+wire.js 71,888 → 71,352. modelApiBoundaries.js already carried it and is
+unchanged at 33,013. No bundle without the plugin changes, because none of
+them loads the shared file.
+
+### Red drills (Kubuntu; each break was restored, verified byte-exact against the fixed commit)
+
+| Drill                                                                 | Result                                                                                                                                                                                                                                                          |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H1: fixed split check on `fa15b6b44`'s build                          | exit 1: `dist/extension.js carries classic zod (95 modules), imported by src/core/paid/paidConsent.ts`, plus 13 `own copy of src/shared/usdSchema.ts`                                                                                                           |
+| H2: the same on `5b7eb4fcb`                                           | exit 1: the same classic zod problem, plus 13 usdSchema copies                                                                                                                                                                                                  |
+| H3: the same on `afc978b72`                                           | exit 1: `dist/headless.js carries MODEL_TEXT whole, read by src/core/windowsPathSpelling.ts, src/core/workspacePath.ts`, classic zod, 35 own copies (windowsPathSpelling.ts and usdSchema.ts)                                                                   |
+| D1: `import { z } from 'zod'` back in `paidConsent.ts`                | size exit 1 (`OVER dist/extension.js: 1008.2 KiB`), split exit 1 (classic zod, naming paidConsent.ts), host globals exit 1 (`2 reference(s) to navigator`)                                                                                                      |
+| D2: `windowsPathSpelling.ts` dropped from the share (list and filter) | size exit 1 (`OVER dist/headless.js: 100.1 KiB`), split exit 1 (58 problems: the block and an own copy in every bundle that inlined the module), deferredBundles 3 failed (the share test, RVM115U5 532,015 > 530,883, the legal scanner cap drill's green run) |
+| D3: `usdSchema.ts` dropped from the share (list and filter)           | split exit 1 (13 × `loads dist/modelApiBoundaries.js and still carries its own copy of src/shared/usdSchema.ts`), deferredBundles 1 failed (RVM115U5 531,418 > 530,883)                                                                                         |
+| Restored tree                                                         | build, size, split, host globals: exit 0                                                                                                                                                                                                                        |
+
+### Suites and gates (Part 1 head `0a38d850e`)
+
+| Gate / suite                                                                             | Exit | Receipt                                                                     |
+| ---------------------------------------------------------------------------------------- | ---- | --------------------------------------------------------------------------- |
+| `deferredBundles`, `secWinIdentity2` (Kubuntu, default timeouts)                         | 0    | 124 passed, 6 skipped (in secWinIdentity2)                                  |
+| `teamHarness`, `webviewBundle`, `webviewBundles` (Kubuntu, after the production build)   | 1    | 105 passed, 2 failed; teamHarness #23 passes                                |
+| check-tokens, `build.mjs --production`, bundle size, bundle split, host globals, notices | 0    | 92 third-party notices                                                      |
+| plain knip                                                                               | 0    | configuration hints only                                                    |
+| cycles                                                                                   | 0    | 3,072 modules, no cycle                                                     |
+| jscpd                                                                                    | 0    | 0 clones                                                                    |
+| `check:l10n`, `check:reference`, `check:plan`, `check:host-api`                          | 0    | 0 problems; reference current; 206 milestones, 0 drift; 0 host API problems |
+
+The two `webviewBundle.test.mjs` failures are browser startup, not the Node
+bundles. They are the ones this record already lists as failing at
+`7a4fc2ab3`:
+
+- `loads exact USD arithmetic and display only with lazy media pricing`:
+  `usd.ts` is in chat startup.
+- `keeps FIXDIET1 startup …`: 769,138 > 751,411 B.
+
+`rel017/startup2` owns both.

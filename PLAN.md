@@ -461,6 +461,21 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**INT0170 (2026-10-08, kubuntu).** Three lane merges broke the Node bundles
+under unchanged caps; each is fixed at the root and held by the split check.
+Activation took classic zod through `paidConsent.ts` (1,033,339 B, two
+`navigator` reads) and is 578,192 B on zod/mini. Headless took `MODEL_TEXT`
+whole through `attachArgs.ts` → `workspacePath.ts` → `windowsPathSpelling.ts`
+(113,255 B) and is 101,342 B with `WINDOWS_PATH_MODEL_TEXT` and the module
+shared through `dist/modelApiBoundaries.js`. `usdSchema.ts` is shared there
+too. The M115 Model API pin is re-measured after the money lanes at
+**530,883 B** (lead decision), inside the 525 KiB cap: +3,506 B of MONEY017,
+PORTS017 and SECWINPATH feature code, not an accidental dependency. It is
+re-measured and ratcheted **down** when the media redesign
+(`m105/media-w2`, media into the deferred `dist/productionMedia.js`) merges.
+Evidence: `docs/certification/int0170-combined.md`, Bundle regressions after
+the lane merges (INT0170).
+
 **CAPS017 (2026-10-08, Windows host + kubuntu).** The combined 0.17.0
 candidate's nine over-cap bundles fit their unchanged caps after structural
 shrinks: the wire boundary shares five schemas it already carried, the
@@ -37496,6 +37511,12 @@ this bounded lane preserves their assertions/gates. Model API is 521.8/525 KiB
 and activation 571.4/600 KiB. Production uploads remain blocked by D85.6's
 unrecorded storage decision and M105's capture/binding inventory; no fake receipt
 closes them. Detailed receipts: `docs/certification/int0170-combined.md`, MONEY017C.
+
+**INT0170 activation repair (2026-10-08, Kubuntu).** `paidConsent.ts` reads zod/mini; activation 1,033,339 → 578,192 B, `navigator` 2 → 0; the split check fails classic zod in a zod/mini Node bundle (`69b0e152b`).
+
+**INT0170 headless repair (2026-10-08, Kubuntu).** `WINDOWS_PATH_MODEL_TEXT` and the shared `windowsPathSpelling.ts`; headless 113,255 → 101,878 B and twelve lazy bundles lose `MODEL_TEXT`; the split check fails `MODEL_TEXT` in headless (`b706a89e8`).
+
+**INT0170 Model API pin (2026-10-08, Kubuntu).** `usdSchema.ts` is shared through `dist/modelApiBoundaries.js` (13 bundles, −387 to −564 B each); pin re-measured to 530,883 B, ratcheted down after `m105/media-w2`; the split check fails a copied boundary source (`c1ee73965`, `0a38d850e`).
 
 INT0180B (2026-10-07): source `9733edba2` supersedes INT0180's local reds
 below. Fresh ordinary installation, exact static job, all four coverage shards
