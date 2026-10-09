@@ -238,6 +238,61 @@ early three-file run (test name not captured) followed by three consecutive
 71/71 green runs of the same files; recorded, not chased further on the
 shared rig.
 
+## Review fix round 2: RVM110U2's two P2s
+
+Mac mini, 2026-10-09; `/Users/randy/lanes/FIXM110U3`, branch `m110/u3`,
+base `47639a728` (m110/u2). No live/model call, credential read, push,
+merge or rebase was performed. Model attempts: **0**. Two user-visible
+strings were added (`nodeErrors.notText`, `nodeWorkspace.binaryReplaced`)
+with real translations in all 14 tables (`check-l10n`: 0 problems); no
+bundle cap was touched (`npm run build` passes all existing size/split/
+global/notices checks). Every test below ran with the repository default
+timeout, at most three files per run.
+
+The round does not patch the two spots: one request runner
+(`src/webview/node/requestRunner.ts`, `useRequestRunner`) carries every
+request the node files/Git pages make, and one typed boundary
+(`guardNodeHandler`/`guardNodeMethod` in `listenerGuard.ts`) carries every
+handler in `web/files.ts` and `web/git.ts`.
+
+| #   | Finding (report §)                                                                                                                                                             | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Regression test                                                                                                                                                           | Red drill (base behaviour)                                                                                                                  | Restore               |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| 1   | Search Show more is untied to any abort and applies late pages onto cleared/replaced results; double click appends twice (`FileTree.tsx:281`)                                  | `FileTree` search submit and Show more share the runner kind `search`: submit starts with `supersede` (aborts the pending page), clearing the results or the query calls `invalidate` (aborts and retires the id), a second Show more drops while the kind is busy, every response checks `isCurrent()` and the signal before touching state, and both Show more buttons are disabled while their kind is busy. Directory pages ride `directory:<name>` kinds, keeping one pending page per directory. `main.tsx`'s `run()` becomes two thin kinds over the same runner (`file` for open/save/upload/download, `git` for the Git page): a second start of a busy kind drops and the lock clears only on settle, preserving RVM110U1 P2 #2 byte for byte | `nodeFileTree` supersede/clear/double-click tests (one shared `pendingSearch` harness); existing H08/H09 tree and workspace tests unchanged and green                     | Base `FileTree.tsx` restored: all 3 new tests fail                                                                                          | SHA-256 OK            |
+| 2a  | Upload of non-UTF-8 bytes over the open file reloads through fatal UTF-8 decode, throwing raw `TypeError` → `unavailable` with a stale buffer (`main.tsx:249`, `files.ts:238`) | `read` decodes through `decodeText`, which throws typed `notText` ("This file is not UTF-8 text.", HTTP 415, in the client error enum so the browser maps it instead of scrubbing). The upload handler catches `notText` from its reload read and closes the buffer (`opened`/`draft` cleared) with the translated `binaryReplaced` notice instead of `unavailable`. Opening a non-UTF-8 file now reports the same typed message through the existing error map                                                                                                                                                                                                                                                                                         | `nodeHandlerErrors` notText case (real `0xFF` fixture file: code, message, 415, enum entry); `nodeWorkspaceUi` binary-upload case (notice shown, editor closed, no alert) | `notText` Demoted to `unavailable`: the code/message/enum test fails. Base `main.tsx` restored: the binary-upload test fails, other 19 pass | SHA-256 OK both files |
+| 2b  | Raw `TypeError`/`Error` can escape any of the 15 handlers in `web/files.ts`/`web/git.ts`                                                                                       | Every handler is wrapped in `guardNodeMethod`: `NodeListenerError` passes through, the caller's own cancellation passes through, anything else becomes typed `unavailable` (the listener's existing mapping for internal failures, now asserted at the handler boundary). The guard test walks both handler tables with fault-injecting ports (`TypeError`/`Error` rejections) and asserts every throw is `NodeListenerError`, with the case list pinned to the table keys so an added handler without a case fails. The `nodeFilesPage` competing-edit fixture now refuses a stale digest with typed `conflict` instead of leaking its raw message; the test's no-overwrite assertion is unchanged                                                     | `nodeHandlerErrors` file/git walks (6 + 9 handlers); `nodeFilesPage` competing-edit test updated to the typed refusal                                                     | Guard replaced with a passthrough in `files.ts`: file walk + unavailable-mapping tests fail. Same in `git.ts`: git walk fails               | SHA-256 OK both files |
+
+Drill mechanics: each drill saved the fixed file under `$TMPDIR`,
+applied the break (whole-file base checkout for the two webview files,
+one-line revert for the three server breaks), ran the named suite (exit
+1 with the named failures), and copied the saved file back with
+`sha256sum -c` passing on all five restored sources. One exploratory
+drill (removing only the `isCurrent()` check) stayed green because the
+abort gate subsumes it; the recorded D1 drill uses the base file instead.
+
+Runner design (per-kind state, one implementation, two instances: the
+workspace's for `file`/`git`, the tree's for `search`/`directory:*`):
+each kind holds a generation counter plus the live `{ id, controller }`;
+`start` drops when the kind is live unless `supersede` aborts it first;
+`isCurrent()` compares against the generation, so `invalidate` (abort +
+retire, used on every clear) drops late pages even from ports that ignore
+the signal; `busy` is a state set that disables the matching controls;
+`abortAll` (Cancel, unmount) aborts without clearing locks, which release
+in each request's `finally` only for the still-current id. A realm-proof
+`name === 'AbortError'` check (not `instanceof`) keeps cancellation
+silent after the validated port throws the runtime's `AbortError`.
+
+Final verification (all guarded sources restored, Mac mini, 2026-10-09):
+`nodeHandlerErrors` 4, `nodeFileTree` 9, `nodeWorkspaceUi` 20,
+`nodeFilesPage` 29, `nodeGitPage` 23, `nodeListenerGuard` 60,
+`nodeSurface`/`nodeBrowserPort`/`nodeGitLocalBare`/`nodeWorkspaceBuild`
+passed at the repository default timeout. `typecheck:host/webview/unit`
+passed; scoped ESLint, Prettier, `check:l10n` (14 tables, 164 manifest
+strings, 0 problems), `npm run build`, `knip` (only the two pre-existing
+hints) and `jscpd` (0 clones) passed. No gate weakened, no suppression
+added, no `as` cast, no new dependency. `nodeListener.test.ts` still
+cannot execute on this rig (loopback `listen EPERM` in `beforeAll`,
+pre-existing, also blocks U2); it typechecks.
+
 Final verification (all guarded sources restored, Mac mini, 2026-10-09):
 `nodeFilesPage` 29, `nodeGitPage` 23, `nodeWorkspaceUi` 19,
 `nodeFileTree` 6, `nodeListenerGuard` 60 — all passed at the repository

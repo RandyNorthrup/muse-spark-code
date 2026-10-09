@@ -92,6 +92,7 @@ export const NODE_HTTP_STATUS = {
   conflict: 409,
   tooLarge: 413,
   rateLimited: 429,
+  notText: 415,
   unavailable: 503,
 } as const
 export const NODE_SIGNIN_MAX_FAILURES = 100

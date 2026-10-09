@@ -363,6 +363,32 @@ describe('M110-U1 shared workspace UI', () => {
       expect(state.text).toBe('uploaded bytes\nedited')
     })
   })
+  it('closes the open buffer with a clear notice after a non-UTF-8 upload over it', async () => {
+    const { ui, request } = await fixture()
+    fireEvent.click(ui.getByRole('treeitem', { name: 'example.txt' }))
+    await ui.findByRole('textbox', { name: UI_TEXT.nodeLabels.editor })
+    let isBinary = false
+    const fallback = request.getMockImplementation()
+    request.mockImplementation((method, input, signal) => {
+      if (method === 'node/files/upload') {
+        // The server stores the raw bytes; the follow-up read cannot
+        // decode them, exactly like a typed notText refusal.
+        isBinary = true
+        return Promise.resolve({ digest: hash('binary') })
+      }
+      return method === 'node/files/read' && isBinary
+        ? Promise.reject(new Error(UI_TEXT.nodeErrors.notText))
+        : (fallback?.(method, input, signal) ?? Promise.reject(new Error('no fallback response')))
+    })
+    const file = new File([new Uint8Array([255])], 'example.txt')
+    fireEvent.change(ui.getByLabelText(UI_TEXT.nodeLabels.upload), { target: { files: [file] } })
+    await ui.findByText(UI_TEXT.nodeWorkspace.binaryReplaced)
+    // The buffer is closed, not left on stale bytes: no editor, no Save,
+    // and the typed notice instead of "unavailable".
+    expect(ui.queryByRole('textbox', { name: UI_TEXT.nodeLabels.editor })).toBeNull()
+    expect(ui.queryByRole('alert')).toBeNull()
+    expect(request.mock.calls.some(([method]) => method === 'node/files/upload')).toBe(true)
+  })
   it('refuses an upload over the open file with a cleared path box while edits are unsaved', async () => {
     const { ui, request } = await fixture()
     fireEvent.click(ui.getByRole('treeitem', { name: 'example.txt' }))

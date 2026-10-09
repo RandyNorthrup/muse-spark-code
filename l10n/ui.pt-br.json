@@ -2589,6 +2589,7 @@
     "conflict": "O arquivo ou branch mudou. Atualize antes de tentar novamente.",
     "tooLarge": "A solicitação excede o limite de tamanho.",
     "rateLimited": "Muitas solicitações. Aguarde antes de tentar novamente.",
+    "notText": "Este arquivo não é texto UTF-8.",
     "noSuchWorkspace": "O espaço de trabalho não existe.",
     "notFound": "O item solicitado não foi encontrado.",
     "cancelled": "A ação foi cancelada.",
@@ -2620,6 +2621,7 @@
     "destination": "Destino SSH",
     "hostKey": "Chave do host verificada",
     "head": "Commit atual",
-    "networkConfirm": "Verifique {action} para {remote} na referência {ref} a partir de {head}."
+    "networkConfirm": "Verifique {action} para {remote} na referência {ref} a partir de {head}.",
+    "binaryReplaced": "O envio substituiu o arquivo aberto por bytes que não são texto UTF-8. O editor foi fechado."
   }
 }

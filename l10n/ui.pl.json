@@ -2683,6 +2683,7 @@
     "conflict": "Plik lub gałąź się zmieniły. Odśwież przed ponowną próbą.",
     "tooLarge": "Żądanie przekracza limit rozmiaru.",
     "rateLimited": "Za dużo żądań. Zaczekaj przed ponowną próbą.",
+    "notText": "Ten plik nie jest tekstem UTF-8.",
     "noSuchWorkspace": "Obszar roboczy nie istnieje.",
     "notFound": "Nie znaleziono żądanego elementu.",
     "cancelled": "Czynność została anulowana.",
@@ -2714,6 +2715,7 @@
     "destination": "Cel SSH",
     "hostKey": "Zweryfikowany klucz hosta",
     "head": "Bieżący commit",
-    "networkConfirm": "Potwierdź {action} do {remote} na {ref} przy commicie {head}."
+    "networkConfirm": "Potwierdź {action} do {remote} na {ref} przy commicie {head}.",
+    "binaryReplaced": "Przesłany plik zastąpił otwarty plik bajtami, które nie są tekstem UTF-8. Edytor został zamknięty."
   }
 }

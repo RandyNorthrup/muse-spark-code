@@ -2589,6 +2589,7 @@
     "conflict": "Le fichier ou la branche a changé. Actualisez avant de réessayer.",
     "tooLarge": "La requête dépasse la taille limite.",
     "rateLimited": "Trop de requêtes. Patientez avant de réessayer.",
+    "notText": "Ce fichier n’est pas du texte UTF-8.",
     "noSuchWorkspace": "L’espace de travail n’existe pas.",
     "notFound": "L’élément demandé est introuvable.",
     "cancelled": "L’action a été annulée.",
@@ -2620,6 +2621,7 @@
     "destination": "Destination SSH",
     "hostKey": "Clé d’hôte vérifiée",
     "head": "Commit actuel",
-    "networkConfirm": "Vérifiez {action} vers {remote} sur {ref} à partir de {head}."
+    "networkConfirm": "Vérifiez {action} vers {remote} sur {ref} à partir de {head}.",
+    "binaryReplaced": "Le téléversement a remplacé le fichier ouvert par des octets qui ne sont pas du texte UTF-8. L’éditeur a été fermé."
   }
 }

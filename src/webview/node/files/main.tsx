@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client'
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import * as z from 'zod/mini'
 import {
   NODE_MAX_FILE_BYTES,
@@ -14,6 +14,7 @@ import { nodeRelativePathSchema } from '../../../shared/node'
 import { validatedNodePort } from '../../bridges/nodePort'
 import { installEmbeddedTable } from '../../installTable'
 import { FileTree } from './FileTree'
+import { useRequestRunner } from '../requestRunner'
 import { GitPage } from '../git/GitPage'
 import type { NodePageAuthPort } from '../git/network'
 import './workspace.css'
@@ -71,15 +72,21 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
   const [path, setPath] = useState('')
   const [review, setReview] = useState(false)
   const [generation, setGeneration] = useState(0)
-  const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const running = useRef<AbortController | undefined>(undefined)
+  // Open, save, upload and download serialize under `file`; every Git
+  // page request under `git`. Both ride the one request runner: a second
+  // request of a busy kind drops, and the lock clears only when the
+  // unsettled request settles — even after Cancel aborts it — so a second
+  // Save or Push can never overlap the first on the server (RVM110U1 P2 #2).
+  const requests = useRequestRunner()
+  const isBusy = requests.busy.size > 0
+  const abortAllRequests = requests.abortAll
   useEffect(
     () => () => {
-      running.current?.abort()
+      abortAllRequests()
     },
-    [],
+    [abortAllRequests],
   )
   const onError = useCallback((failure: unknown) => {
     const message = failure instanceof Error ? failure.message : ''
@@ -90,35 +97,50 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
         : UI_TEXT.nodeErrors.unavailable,
     )
   }, [])
-  const run = useCallback(
-    (work: (signal: AbortSignal) => Promise<void>) => {
-      if (running.current !== undefined) return
-      const controller = new AbortController()
-      running.current = controller
-      setBusy(true)
+  const startRequests = requests.start
+  const startKind = useCallback(
+    (kind: 'file' | 'git', work: (signal: AbortSignal) => Promise<void>) => {
+      const pending = startRequests(kind, work)
+      // A dropped start runs nothing and reports nothing: like the old
+      // single-flight guard it leaves the current error and notice alone.
+      if (pending === undefined) return
       setError('')
       setNotice('')
-      void work(controller.signal)
-        .catch((error_: unknown) => {
-          if (!controller.signal.aborted) onError(error_)
-        })
-        .finally(() => {
-          // The single-flight lock stays until the aborted request
-          // settles: clearing it in the cancel handler would let a
-          // second Save or Push overlap the first on the server.
-          if (running.current !== controller) return
-          running.current = undefined
-          setBusy(false)
-        })
+      void pending.catch((error_: unknown) => {
+        // Cancellation is silent; the lock still clears on settle. The
+        // name check (not instanceof) holds across DOMException realms:
+        // the validated port throws the runtime's AbortError, not the
+        // webview's.
+        if (
+          typeof error_ === 'object' &&
+          error_ !== null &&
+          'name' in error_ &&
+          error_.name === 'AbortError'
+        )
+          return
+        onError(error_)
+      })
     },
-    [onError],
+    [startRequests, onError],
+  )
+  const runFile = useCallback(
+    (work: (signal: AbortSignal) => Promise<void>) => {
+      startKind('file', work)
+    },
+    [startKind],
+  )
+  const run = useCallback(
+    (work: (signal: AbortSignal) => Promise<void>) => {
+      startKind('git', work)
+    },
+    [startKind],
   )
   const openFile = (name: string) => {
     if (opened !== undefined && draft !== opened.text) {
       onError(new Error(UI_TEXT.nodeWorkspace.unsaved))
       return
     }
-    run(async (signal) => {
+    runFile(async (signal) => {
       const file = await port.request('node/files/read', { workspaceId, path: name }, signal)
       if (file.path !== name) throw new Error(UI_TEXT.nodeErrors.conflict)
       if (signal.aborted) return
@@ -132,7 +154,7 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
   const save = () => {
     if (opened === undefined) return
     const saved = draft
-    run(async (signal) => {
+    runFile(async (signal) => {
       const result = await port.request(
         'node/files/write',
         { workspaceId, path: opened.path, expectedDigest: opened.digest, text: saved },
@@ -171,11 +193,11 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
       </nav>
       {error !== '' && <p role="alert">{error}</p>}
       <p role="status">{notice}</p>
-      {busy && (
+      {isBusy && (
         <button
           type="button"
           onClick={() => {
-            running.current?.abort()
+            abortAllRequests()
           }}
         >
           {UI_TEXT.gitCancel}
@@ -198,7 +220,7 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
               }}
             />
           </label>
-          <button disabled={busy || path === ''} type="submit">
+          <button disabled={isBusy || path === ''} type="submit">
             {UI_TEXT.nodeLabels.editor}
           </button>
         </form>
@@ -206,7 +228,7 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
           {UI_TEXT.nodeLabels.upload}
           <input
             type="file"
-            disabled={busy}
+            disabled={isBusy}
             onChange={(event) => {
               const file = event.target.files?.[0]
               event.target.value = ''
@@ -215,7 +237,7 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
                 onError(new Error(UI_TEXT.nodeErrors.tooLarge))
                 return
               }
-              run(async (signal) => {
+              runFile(async (signal) => {
                 const target = nodeRelativePathSchema.parse(path === '' ? file.name : path)
                 // An upload over the open file with unsaved edits would
                 // orphan the draft: refuse it whether the path box names
@@ -247,11 +269,31 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
                 // buffer and digest from the server so the next Save sends
                 // the new digest instead of conflicting on the stale one.
                 if (opened?.path === target) {
-                  const fresh = await port.request(
-                    'node/files/read',
-                    { workspaceId, path: target },
-                    signal,
-                  )
+                  let fresh
+                  try {
+                    fresh = await port.request(
+                      'node/files/read',
+                      { workspaceId, path: target },
+                      signal,
+                    )
+                  } catch (error: unknown) {
+                    // The upload succeeded but the bytes are not UTF-8
+                    // text: the buffer cannot show them, so close it with
+                    // a clear notice instead of "unavailable".
+                    if (
+                      !signal.aborted &&
+                      error instanceof Error &&
+                      error.message === UI_TEXT.nodeErrors.notText
+                    ) {
+                      setOpened(undefined)
+                      setDraft('')
+                      setReview(false)
+                      setGeneration((previous) => previous + 1)
+                      setNotice(UI_TEXT.nodeWorkspace.binaryReplaced)
+                      return
+                    }
+                    throw error
+                  }
                   if (signal.aborted) return
                   setOpened(fresh)
                   setDraft(fresh.text)
@@ -272,17 +314,17 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
               }
 
               event.preventDefault()
-              if (!busy) save()
+              if (!isBusy) save()
             }}
           >
             <h2>{opened.path}</h2>
             <div className="node-actions">
-              <button type="button" disabled={busy || draft === opened.text} onClick={save}>
+              <button type="button" disabled={isBusy || draft === opened.text} onClick={save}>
                 {UI_TEXT.nodeWorkspace.save}
               </button>
               <button
                 type="button"
-                disabled={busy}
+                disabled={isBusy}
                 onClick={() => {
                   setReview((previous) => !previous)
                 }}
@@ -292,7 +334,7 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
               </button>
               <button
                 type="button"
-                disabled={busy || draft === opened.text}
+                disabled={isBusy || draft === opened.text}
                 onClick={() => {
                   setDraft(opened.text)
                   setGeneration((previous) => previous + 1)
@@ -303,9 +345,9 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
               </button>
               <button
                 type="button"
-                disabled={busy}
+                disabled={isBusy}
                 onClick={() => {
-                  run(async (signal) => {
+                  runFile(async (signal) => {
                     const result = await port.request(
                       'node/files/download',
                       { workspaceId, path: opened.path },
@@ -349,7 +391,7 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
         )}
       </div>
       {page === 'git' && (
-        <GitPage port={port} auth={auth} workspaceId={workspaceId} run={run} busy={busy} />
+        <GitPage port={port} auth={auth} workspaceId={workspaceId} run={run} busy={isBusy} />
       )}
     </main>
   )

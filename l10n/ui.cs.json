@@ -2683,6 +2683,7 @@
     "conflict": "Soubor nebo větev se změnily. Před dalším pokusem obnovte stav.",
     "tooLarge": "Požadavek překračuje limit velikosti.",
     "rateLimited": "Příliš mnoho požadavků. Před dalším pokusem počkejte.",
+    "notText": "Tento soubor není text UTF-8.",
     "noSuchWorkspace": "Pracovní prostor neexistuje.",
     "notFound": "Požadovaná položka nebyla nalezena.",
     "cancelled": "Akce byla zrušena.",
@@ -2714,6 +2715,7 @@
     "destination": "Cíl SSH",
     "hostKey": "Ověřený klíč hostitele",
     "head": "Aktuální commit",
-    "networkConfirm": "Ověřte akci {action} pro {remote} na {ref} při commitu {head}."
+    "networkConfirm": "Ověřte akci {action} pro {remote} na {ref} při commitu {head}.",
+    "binaryReplaced": "Nahrání nahradilo otevřený soubor bajty, které nejsou textem UTF-8. Editor byl zavřen."
   }
 }

@@ -2401,6 +2401,7 @@
     "conflict": "ファイルまたはブランチが変更されました。再試行の前に更新してください。",
     "tooLarge": "リクエストがサイズ制限を超えています。",
     "rateLimited": "リクエストが多すぎます。しばらく待ってから再試行してください。",
+    "notText": "このファイルは UTF-8 テキストではありません。",
     "noSuchWorkspace": "ワークスペースが存在しません。",
     "notFound": "要求された項目が見つかりません。",
     "cancelled": "操作はキャンセルされました。",
@@ -2432,6 +2433,7 @@
     "destination": "SSH 接続先",
     "hostKey": "検証済みのホスト鍵",
     "head": "現在のコミット",
-    "networkConfirm": "{head} の {ref} で {remote} への {action} を確認してください。"
+    "networkConfirm": "{head} の {ref} で {remote} への {action} を確認してください。",
+    "binaryReplaced": "アップロードにより開いていたファイルが UTF-8 テキストではないバイトに置き換えられました。エディターを閉じました。"
   }
 }

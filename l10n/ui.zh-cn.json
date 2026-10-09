@@ -2401,6 +2401,7 @@
     "conflict": "文件或分支已更改。请刷新后重试。",
     "tooLarge": "请求超出了大小限制。",
     "rateLimited": "请求过多。请稍后重试。",
+    "notText": "此文件不是 UTF-8 文本。",
     "noSuchWorkspace": "工作区不存在。",
     "notFound": "未找到请求的项目。",
     "cancelled": "操作已取消。",
@@ -2432,6 +2433,7 @@
     "destination": "SSH 目标",
     "hostKey": "已验证的主机密钥",
     "head": "当前提交",
-    "networkConfirm": "请确认在 {head} 的 {ref} 上对 {remote} 执行 {action}。"
+    "networkConfirm": "请确认在 {head} 的 {ref} 上对 {remote} 执行 {action}。",
+    "binaryReplaced": "上传已将打开的文件替换为非 UTF-8 文本字节。编辑器已关闭。"
   }
 }

@@ -7,6 +7,7 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import type { NodeMethodPort, NodeMethodResult } from '../../../shared/hostApi/nodeMethods'
+import { useRequestRunner } from '../requestRunner'
 
 type Listing = NodeMethodResult<'node/files/list'>
 interface Row {
@@ -37,27 +38,32 @@ export function FileTree({
   const [active, setActive] = useState(0)
   const [start, setStart] = useState(0)
   const tree = useRef<HTMLDivElement>(null)
-  const lifetime = useRef<AbortController | undefined>(undefined)
-  const searching = useRef<AbortController | undefined>(undefined)
-  const loading = useRef(new Set<string>())
+  // Every request below runs through the one request runner: directory
+  // pages under `directory:<name>`, submit and Show more under `search`.
+  const requests = useRequestRunner()
+  const startRequest = requests.start
+  const invalidateRequests = requests.invalidate
+  const abortAllRequests = requests.abortAll
+  const busyKinds = requests.busy
   useEffect(() => {
-    const controller = new AbortController()
-    lifetime.current = controller
-    void port
-      .request('node/files/list', { workspaceId, directory: null, cursor: null }, controller.signal)
-      .then((page) => {
-        if (controller.signal.aborted) return
+    void startRequest('directory:', async (signal, isCurrent) => {
+      try {
+        const page = await port.request(
+          'node/files/list',
+          { workspaceId, directory: null, cursor: null },
+          signal,
+        )
+        if (signal.aborted || !isCurrent()) return
         currentPages.current = { '': page }
         setPages(currentPages.current)
-      })
-      .catch((error: unknown) => {
-        if (!controller.signal.aborted) onError(error)
-      })
+      } catch (error: unknown) {
+        if (!signal.aborted && isCurrent()) onError(error)
+      }
+    })
     return () => {
-      controller.abort()
-      searching.current?.abort()
+      abortAllRequests()
     }
-  }, [port, workspaceId, onError])
+  }, [port, workspaceId, onError, startRequest, abortAllRequests])
   const rows: Row[] = []
   const append = (directory: string, level: number) => {
     const entries = pages[directory]?.entries ?? []
@@ -73,35 +79,36 @@ export function FileTree({
       rows.push({ entry, level: 1, position: index + 1, count: results.entries.length, parent: '' })
     }
   }
-  const load = async (directory: string, cursor: string | null) => {
-    const signal = lifetime.current?.signal
-    if (signal === undefined || loading.current.has(directory)) return
-    loading.current.add(directory)
-    try {
-      const page = await port.request(
-        'node/files/list',
-        { workspaceId, directory: directory === '' ? null : directory, cursor },
-        signal,
-      )
-      if (signal.aborted) return
-      const previous = currentPages.current
-      const entries =
-        cursor === null ? page.entries : [...(previous[directory]?.entries ?? []), ...page.entries]
-      if (
-        Object.entries(previous)
-          .filter(([name]) => name !== directory)
-          .reduce((sum, [, listing]) => sum + listing.entries.length, entries.length) >
-        NODE_GIT_IMPORT_MAX_FILES
-      )
-        throw new Error(UI_TEXT.nodeErrors.tooLarge)
-      currentPages.current = { ...previous, [directory]: { ...page, entries } }
-      setPages(currentPages.current)
-      setExpanded((previous) => new Set([...previous, directory]))
-    } catch (error: unknown) {
-      if (!signal.aborted) onError(error)
-    } finally {
-      loading.current.delete(directory)
-    }
+  const load = (directory: string, cursor: string | null) => {
+    // One pending page per directory: a second load of the same kind
+    // drops while the first is unsettled, so pages cannot double-append.
+    void startRequest(`directory:${directory}`, async (signal, isCurrent) => {
+      try {
+        const page = await port.request(
+          'node/files/list',
+          { workspaceId, directory: directory === '' ? null : directory, cursor },
+          signal,
+        )
+        if (signal.aborted || !isCurrent()) return
+        const previous = currentPages.current
+        const entries =
+          cursor === null
+            ? page.entries
+            : [...(previous[directory]?.entries ?? []), ...page.entries]
+        if (
+          Object.entries(previous)
+            .filter(([name]) => name !== directory)
+            .reduce((sum, [, listing]) => sum + listing.entries.length, entries.length) >
+          NODE_GIT_IMPORT_MAX_FILES
+        )
+          throw new Error(UI_TEXT.nodeErrors.tooLarge)
+        currentPages.current = { ...previous, [directory]: { ...page, entries } }
+        setPages(currentPages.current)
+        setExpanded((previousExpanded) => new Set([...previousExpanded, directory]))
+      } catch (error: unknown) {
+        if (!signal.aborted && isCurrent()) onError(error)
+      }
+    })
   }
   const activate = (row: Row) => {
     if (row.entry.kind === 'file') {
@@ -109,13 +116,16 @@ export function FileTree({
       return
     }
     if (results !== undefined) {
+      // Clearing the results retires the search id: a pending Show more
+      // page for the old results is dropped instead of resurrecting them.
+      invalidateRequests('search')
       setResults(undefined)
       setQuery('')
     }
     if (expanded.has(row.entry.path))
       setExpanded((previous) => new Set([...previous].filter((name) => name !== row.entry.path)))
     else if (pages[row.entry.path] === undefined) {
-      void load(row.entry.path, null)
+      load(row.entry.path, null)
     } else {
       setExpanded((previous) => new Set([...previous, row.entry.path]))
     }
@@ -178,31 +188,34 @@ export function FileTree({
       <form
         onSubmit={(event) => {
           event.preventDefault()
-          searching.current?.abort()
-          if (query.trim() === '') {
+          const submitted = query
+          if (submitted.trim() === '') {
+            // Clearing the query retires the search id with it.
+            invalidateRequests('search')
             setResults(undefined)
             return
           }
-          const controller = new AbortController()
-          searching.current = controller
-          const signal = AbortSignal.any([
-            controller.signal,
-            lifetime.current?.signal ?? controller.signal,
-          ])
-          void port
-            .request('node/files/search', { workspaceId, query, cursor: null }, signal)
-            .then((page) => {
-              if (signal.aborted) {
-                return
+          // A new search supersedes: it aborts a pending Show more page
+          // for the old query, whose late response is then dropped.
+          void startRequest(
+            'search',
+            async (signal, isCurrent) => {
+              try {
+                const page = await port.request(
+                  'node/files/search',
+                  { workspaceId, query: submitted, cursor: null },
+                  signal,
+                )
+                if (signal.aborted || !isCurrent()) return
+                setResults(page)
+                resultQuery.current = submitted
+                move(0)
+              } catch (error: unknown) {
+                if (!signal.aborted && isCurrent()) onError(error)
               }
-
-              setResults(page)
-              resultQuery.current = query
-              move(0)
-            })
-            .catch((error: unknown) => {
-              if (!signal.aborted) onError(error)
-            })
+            },
+            { supersede: true },
+          )
         }}
       >
         <label>
@@ -278,31 +291,34 @@ export function FileTree({
       {results !== undefined && results.nextCursor !== null ? (
         <button
           type="button"
+          disabled={busyKinds.has('search')}
           onClick={() => {
-            const signal = lifetime.current?.signal
-            if (signal !== undefined)
-              void port
-                .request(
+            const cursor = results.nextCursor
+            const shownQuery = resultQuery.current
+            // Show more shares the search kind without superseding: while
+            // its page is in flight the button is disabled and a second
+            // click drops, so the same page can never append twice.
+            void startRequest('search', async (signal, isCurrent) => {
+              try {
+                const page = await port.request(
                   'node/files/search',
-                  { workspaceId, query: resultQuery.current, cursor: results.nextCursor },
+                  { workspaceId, query: shownQuery, cursor },
                   signal,
                 )
-                .then((page) => {
-                  if (signal.aborted) {
-                    return
-                  }
-
-                  // Append like the directory tree: the page already on
-                  // screen stays; only the new entries are added.
-                  setResults((previous) =>
-                    previous === undefined
-                      ? page
-                      : { ...page, entries: [...previous.entries, ...page.entries] },
-                  )
-                })
-                .catch((error: unknown) => {
-                  if (!signal.aborted) onError(error)
-                })
+                if (signal.aborted || !isCurrent()) return
+                // Append like the directory tree: the page already on
+                // screen stays; only the new entries are added. A cleared
+                // or replaced search retires the id first, so a late page
+                // can neither resurrect nor pollute the results.
+                setResults((previous) =>
+                  previous?.nextCursor === cursor
+                    ? { ...page, entries: [...previous.entries, ...page.entries] }
+                    : previous,
+                )
+              } catch (error: unknown) {
+                if (!signal.aborted && isCurrent()) onError(error)
+              }
+            })
           }}
         >
           {UI_TEXT.shareShowMore}
@@ -312,8 +328,9 @@ export function FileTree({
         results === undefined && (
           <button
             type="button"
+            disabled={busyKinds.has(`directory:${pending[0]}`)}
             onClick={() => {
-              void load(pending[0], pending[1].nextCursor)
+              load(pending[0], pending[1].nextCursor)
             }}
           >
             {UI_TEXT.shareShowMore}

@@ -2495,6 +2495,7 @@
     "conflict": "A fájl vagy ág megváltozott. Új próbálkozás előtt frissítse az állapotot.",
     "tooLarge": "A kérés meghaladja a méretkorlátot.",
     "rateLimited": "Túl sok kérés. Várjon az újabb próbálkozás előtt.",
+    "notText": "Ez a fájl nem UTF-8 szöveg.",
     "noSuchWorkspace": "A munkaterület nem létezik.",
     "notFound": "A kért elem nem található.",
     "cancelled": "A művelet megszakadt.",
@@ -2526,6 +2527,7 @@
     "destination": "SSH-cél",
     "hostKey": "Ellenőrzött gazdagépkulcs",
     "head": "Aktuális commit",
-    "networkConfirm": "Ellenőrizze a(z) {action} műveletet a(z) {remote} célra, a(z) {ref} ágon, a(z) {head} commitnál."
+    "networkConfirm": "Ellenőrizze a(z) {action} műveletet a(z) {remote} célra, a(z) {ref} ágon, a(z) {head} commitnál.",
+    "binaryReplaced": "A feltöltés a megnyitott fájlt nem UTF-8 szöveges bájtokra cserélte. A szerkesztő bezárult."
   }
 }

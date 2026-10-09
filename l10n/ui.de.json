@@ -2495,6 +2495,7 @@
     "conflict": "Die Datei oder der Branch hat sich geändert. Aktualisieren Sie vor einem erneuten Versuch.",
     "tooLarge": "Die Anfrage überschreitet die Größenbegrenzung.",
     "rateLimited": "Zu viele Anfragen. Warten Sie vor einem erneuten Versuch.",
+    "notText": "Diese Datei ist kein UTF-8-Text.",
     "noSuchWorkspace": "Der Arbeitsbereich existiert nicht.",
     "notFound": "Das angeforderte Element wurde nicht gefunden.",
     "cancelled": "Die Aktion wurde abgebrochen.",
@@ -2526,6 +2527,7 @@
     "destination": "SSH-Ziel",
     "hostKey": "Verifizierter Hostschlüssel",
     "head": "Aktueller Commit",
-    "networkConfirm": "Bestätigen Sie {action} zu {remote} auf {ref} bei {head}."
+    "networkConfirm": "Bestätigen Sie {action} zu {remote} auf {ref} bei {head}.",
+    "binaryReplaced": "Der Upload hat die geöffnete Datei durch Bytes ersetzt, die kein UTF-8-Text sind. Der Editor wurde geschlossen."
   }
 }

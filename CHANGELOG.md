@@ -29,6 +29,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Home-node workspace requests ride one runner with a request id and
+  AbortController per kind: a new search aborts its pending Show more page,
+  clearing the results or the query retires it, late or superseded pages are
+  dropped, and Show more is disabled while its page is in flight; invalid
+  UTF-8 on read is a typed `notText` refusal (HTTP 415) and an upload of
+  non-UTF-8 bytes over the open file closes the editor with a clear notice.
 - Home-node workspace "Show more" appends search, Git change and branch pages
   instead of replacing the visible list; cancel keeps the single-flight lock
   until the aborted request settles; uploads over the open file reload its

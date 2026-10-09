@@ -276,6 +276,7 @@ export const nodeMethodErrorSchema = z.strictObject({
     'conflict',
     'tooLarge',
     'rateLimited',
+    'notText',
     'noSuchWorkspace',
     'notFound',
     'cancelled',

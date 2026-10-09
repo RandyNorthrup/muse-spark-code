@@ -5,7 +5,7 @@ import {
   type NodeMethodResult,
 } from '../../../shared/hostApi/nodeMethods'
 import { nodeActionDigest } from '../listenerMethods'
-import { NodeListenerError } from '../listenerGuard'
+import { guardNodeMethod, NodeListenerError } from '../listenerGuard'
 import { nodeNetworkBranchRef } from '../../../shared/node'
 
 type GitMethod = Extract<NodeMethodName, `node/git/${string}`>
@@ -72,32 +72,50 @@ export function createNodeGitMethods(port: NodeGitPagePort) {
     signal.throwIfAborted()
     return nodeMethods[method].result.parse(await run(method, params, signal))
   }
+  // Every handler crosses the typed boundary: no raw TypeError or Error
+  // from the port or a result parse escapes (RVM110U2 P2 #2).
   return {
-    status,
-    diff: async (input: NodeMethodParams<'node/git/diff'>, signal: AbortSignal) => {
+    status: guardNodeMethod(status),
+    diff: guardNodeMethod(async (input: NodeMethodParams<'node/git/diff'>, signal: AbortSignal) => {
       const params = nodeMethods['node/git/diff'].params.parse(input)
       return nodeMethods['node/git/diff'].result.parse(await run('node/git/diff', params, signal))
-    },
-    branches: async (input: NodeMethodParams<'node/git/branches'>, signal: AbortSignal) => {
-      const params = nodeMethods['node/git/branches'].params.parse(input)
-      return nodeMethods['node/git/branches'].result.parse(
-        await run('node/git/branches', params, signal),
-      )
-    },
-    stage: async (input: NodeMethodParams<'node/git/stage'>, signal: AbortSignal) => {
-      const params = nodeMethods['node/git/stage'].params.parse(input)
-      return nodeMethods['node/git/stage'].result.parse(await run('node/git/stage', params, signal))
-    },
-    commit: async (input: NodeMethodParams<'node/git/commit'>, signal: AbortSignal) =>
-      await local('node/git/commit', input, signal),
-    branch: async (input: NodeMethodParams<'node/git/branch'>, signal: AbortSignal) =>
-      await local('node/git/branch', input, signal),
-    fetch: async (input: NodeMethodParams<'node/git/fetch'>, signal: AbortSignal) =>
-      await network('node/git/fetch', input, signal),
-    pull: async (input: NodeMethodParams<'node/git/pull'>, signal: AbortSignal) =>
-      await network('node/git/pull', input, signal),
-    push: async (input: NodeMethodParams<'node/git/push'>, signal: AbortSignal) =>
-      await network('node/git/push', input, signal),
+    }),
+    branches: guardNodeMethod(
+      async (input: NodeMethodParams<'node/git/branches'>, signal: AbortSignal) => {
+        const params = nodeMethods['node/git/branches'].params.parse(input)
+        return nodeMethods['node/git/branches'].result.parse(
+          await run('node/git/branches', params, signal),
+        )
+      },
+    ),
+    stage: guardNodeMethod(
+      async (input: NodeMethodParams<'node/git/stage'>, signal: AbortSignal) => {
+        const params = nodeMethods['node/git/stage'].params.parse(input)
+        return nodeMethods['node/git/stage'].result.parse(
+          await run('node/git/stage', params, signal),
+        )
+      },
+    ),
+    commit: guardNodeMethod(
+      async (input: NodeMethodParams<'node/git/commit'>, signal: AbortSignal) =>
+        await local('node/git/commit', input, signal),
+    ),
+    branch: guardNodeMethod(
+      async (input: NodeMethodParams<'node/git/branch'>, signal: AbortSignal) =>
+        await local('node/git/branch', input, signal),
+    ),
+    fetch: guardNodeMethod(
+      async (input: NodeMethodParams<'node/git/fetch'>, signal: AbortSignal) =>
+        await network('node/git/fetch', input, signal),
+    ),
+    pull: guardNodeMethod(
+      async (input: NodeMethodParams<'node/git/pull'>, signal: AbortSignal) =>
+        await network('node/git/pull', input, signal),
+    ),
+    push: guardNodeMethod(
+      async (input: NodeMethodParams<'node/git/push'>, signal: AbortSignal) =>
+        await network('node/git/push', input, signal),
+    ),
   } satisfies Record<
     string,
     (input: never, signal: AbortSignal) => Promise<NodeMethodResult<GitMethod>>

@@ -2495,6 +2495,7 @@
     "conflict": "Dosya veya dal değişti. Yeniden denemeden önce yenileyin.",
     "tooLarge": "İstek boyut sınırını aşıyor.",
     "rateLimited": "Çok fazla istek. Yeniden denemeden önce bekleyin.",
+    "notText": "Bu dosya UTF-8 metni değil.",
     "noSuchWorkspace": "Çalışma alanı yok.",
     "notFound": "İstenen öğe bulunamadı.",
     "cancelled": "İşlem iptal edildi.",
@@ -2526,6 +2527,7 @@
     "destination": "SSH hedefi",
     "hostKey": "Doğrulanmış sunucu anahtarı",
     "head": "Geçerli commit",
-    "networkConfirm": "{head} commitinde {ref} üzerindeki {remote} için {action} işlemini doğrulayın."
+    "networkConfirm": "{head} commitinde {ref} üzerindeki {remote} için {action} işlemini doğrulayın.",
+    "binaryReplaced": "Yükleme, açık dosyayı UTF-8 metni olmayan baytlarla değiştirdi. Düzenleyici kapatıldı."
   }
 }

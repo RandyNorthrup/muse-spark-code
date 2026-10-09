@@ -24,6 +24,69 @@ function mount(
     onError,
   }
 }
+/** One controllable search: page turns stay pending until the test
+ * resolves them, so races against submits, clears and double clicks are
+ * exact. The second answer models a new query landing with no next page. */
+function pendingSearch() {
+  const page = Promise.withResolvers<unknown>()
+  let pageSignal: AbortSignal | undefined
+  const request = vi.fn<
+    (method: NodeMethodName, params: unknown, signal: AbortSignal) => Promise<unknown>
+  >((method, input, signal) => {
+    if (method === 'node/files/list') return Promise.resolve({ entries: [], nextCursor: null })
+    const params =
+      typeof input === 'object' && input !== null
+        ? (input as { query?: unknown; cursor?: unknown })
+        : {}
+    const isPage = typeof params.cursor === 'string'
+    if (isPage) {
+      pageSignal = signal
+    }
+    const query = params.query === 'second' ? 'second' : 'first'
+    return isPage
+      ? page.promise
+      : Promise.resolve({
+          entries: [entry(query)],
+          nextCursor: query === 'first' ? 'page-1' : null,
+        })
+  })
+  const ui = mount(request)
+  const submit = (value: string) => {
+    fireEvent.change(ui.getByRole('textbox'), { target: { value } })
+    fireEvent.click(ui.getByRole('button', { name: UI_TEXT.nodeWorkspace.search }))
+  }
+  const showMore = () => {
+    fireEvent.click(ui.getByRole('button', { name: UI_TEXT.shareShowMore }))
+  }
+  return {
+    ui,
+    request,
+    page,
+    pendingSignal: () => pageSignal,
+    submit,
+    showMore,
+    /** Submits the first query and holds its page turn in flight. */
+    firstPage: async () => {
+      submit('first')
+      await ui.findByRole('treeitem', { name: 'first' })
+      showMore()
+      // The page turn holds the search kind: its button is disabled.
+      expect(ui.getByRole('button', { name: UI_TEXT.shareShowMore })).toBeDisabled()
+    },
+  }
+}
+
+async function expectLatePageDropped(
+  tree: ReturnType<typeof mount>,
+  page: PromiseWithResolvers<unknown>,
+): Promise<void> {
+  page.resolve({ entries: [entry('stale')], nextCursor: null })
+  // Let the late response settle: on the old code it lands here.
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  expect(tree.queryByRole('treeitem', { name: 'stale' })).toBeNull()
+  expect(tree.onError).not.toHaveBeenCalled()
+}
+
 describe('M110-U1 bounded keyboard file tree', () => {
   it('H09 admits one pending page per directory when a folder is clicked repeatedly', async () => {
     const { promise, resolve } = Promise.withResolvers<unknown>()
@@ -104,6 +167,55 @@ describe('M110-U1 bounded keyboard file tree', () => {
       query: 'submitted',
       cursor: 'page-1',
     })
+  })
+  it('drops a Show more page still in flight when a new search supersedes it', async () => {
+    const search = pendingSearch()
+    const { ui, page } = search
+    await search.firstPage()
+    search.submit('second')
+    await ui.findByRole('treeitem', { name: 'second' })
+    // The new search aborts the old page turn.
+    expect(search.pendingSignal()?.aborted).toBe(true)
+    await expectLatePageDropped(ui, page)
+    // The late page lands on nothing: neither resurrected beside the new
+    // search nor appended onto it.
+    expect(ui.queryByRole('treeitem', { name: 'first' })).toBeNull()
+    expect(ui.getByRole('treeitem', { name: 'second' })).toBeInTheDocument()
+    expect(ui.queryByRole('button', { name: UI_TEXT.shareShowMore })).toBeNull()
+  })
+  it('drops a Show more page still in flight after the results are cleared', async () => {
+    const search = pendingSearch()
+    const { ui, page } = search
+    await search.firstPage()
+    // Clearing the query retires the search id with the results.
+    search.submit('  ')
+    await ui.findByText(UI_TEXT.nodeWorkspace.noFiles)
+    await expectLatePageDropped(ui, page)
+    expect(ui.queryByRole('treeitem', { name: 'first' })).toBeNull()
+    expect(ui.queryByRole('button', { name: UI_TEXT.shareShowMore })).toBeNull()
+  })
+  it('disables Show more while its page is in flight so one page never appends twice', async () => {
+    const search = pendingSearch()
+    const { ui, page, request } = search
+    await search.firstPage()
+    // A second click before the response still dispatches nothing: the
+    // kind is busy, so the start drops even past the disabled button.
+    search.showMore()
+    expect(
+      request.mock.calls.filter(
+        ([, input]) =>
+          typeof input === 'object' &&
+          input !== null &&
+          'cursor' in input &&
+          typeof input.cursor === 'string',
+      ),
+    ).toHaveLength(1)
+    page.resolve({ entries: [entry('later')], nextCursor: null })
+    await ui.findByRole('treeitem', { name: 'later' })
+    expect(ui.getAllByRole('treeitem')).toHaveLength(2)
+    expect(ui.getByRole('treeitem', { name: 'first' })).toBeInTheDocument()
+    expect(ui.queryByRole('button', { name: UI_TEXT.shareShowMore })).toBeNull()
+    expect(ui.onError).not.toHaveBeenCalled()
   })
   it('H09 refuses to retain more than the workspace entry bound across expanded directories', async () => {
     const ui = mount((_method, input) => {

@@ -2401,6 +2401,7 @@
     "conflict": "檔案或分支已變更。請重新整理後再試。",
     "tooLarge": "要求超出了大小限制。",
     "rateLimited": "要求過多。請稍後再試。",
+    "notText": "此檔案不是 UTF-8 文字。",
     "noSuchWorkspace": "工作區不存在。",
     "notFound": "找不到要求的項目。",
     "cancelled": "操作已取消。",
@@ -2432,6 +2433,7 @@
     "destination": "SSH 目標",
     "hostKey": "已驗證的主機金鑰",
     "head": "目前提交",
-    "networkConfirm": "請確認在 {head} 的 {ref} 上對 {remote} 執行 {action}。"
+    "networkConfirm": "請確認在 {head} 的 {ref} 上對 {remote} 執行 {action}。",
+    "binaryReplaced": "上傳已將開啟的檔案取代為非 UTF-8 文字位元組。編輯器已關閉。"
   }
 }

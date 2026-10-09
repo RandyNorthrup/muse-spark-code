@@ -17,6 +17,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as identity from '../../src/core/fs/fileIdentity'
 import * as filesystem from 'node:fs/promises'
 import { createNodeFileMethods, type NodeFileWorkspacePort } from '../../src/runtime/node/web/files'
+import { NodeListenerError } from '../../src/runtime/node/listenerGuard'
 import {
   NODE_HTTP_STATUS,
   NODE_MAX_FILE_BYTES,
@@ -56,7 +57,10 @@ async function fixture() {
     } catch (error: unknown) {
       if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
     }
-    if (previous !== input.expectedDigest) throw new Error('stale fixture publication')
+    // N's publisher refuses a stale digest with the typed catalog code,
+    // never a raw error (U3 guards every handler): the refusal is
+    // `conflict`, and the competing bytes stay.
+    if (previous !== input.expectedDigest) throw new NodeListenerError('conflict')
     await writeFile(file, input.data)
     return { digest: digest(input.data) }
   })
@@ -139,7 +143,7 @@ describe('M110-U1 files runtime boundary', () => {
     await writeFile(path.join(root, file.path), 'concurrent edit')
     await expect(
       methods.write({ ...file, expectedDigest: original.digest, text: 'overwrite' }, signal()),
-    ).rejects.toThrow('stale')
+    ).rejects.toThrow(UI_TEXT.nodeErrors.conflict)
     expect(await readFile(path.join(root, file.path), 'utf8')).toBe('concurrent edit')
   })
   it.each([

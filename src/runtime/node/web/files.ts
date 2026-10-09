@@ -9,7 +9,7 @@ import {
   NODE_MAX_PAGE_ITEMS,
   NODE_SINGLE_LINK,
 } from '../../../shared/constants'
-import { NodeListenerError } from '../listenerGuard'
+import { guardNodeMethod, NodeListenerError } from '../listenerGuard'
 import {
   nodeMethods,
   type NodeMethodParams,
@@ -125,6 +125,17 @@ async function boundedRead(handle: FileHandle, signal: AbortSignal): Promise<Buf
   }
 }
 
+/** Fatal UTF-8 decoding refuses rather than replacing: a non-text file
+ * is a typed `notText` refusal with its own message, never a raw
+ * TypeError that the listener would report as `unavailable`. */
+function decodeText(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch {
+    throw new NodeListenerError('notText')
+  }
+}
+
 function offsetOf(cursor: string | null): number {
   if (cursor === null) return 0
   if (!/^page-[0-9]+$/u.test(cursor)) throw new NodeListenerError('invalidRequest')
@@ -227,26 +238,32 @@ export function createNodeFileMethods(port: NodeFileWorkspacePort) {
     if (result.digest !== actual) throw new NodeListenerError('conflict')
     return result
   }
+  // Every handler crosses the typed boundary: no raw TypeError or Error
+  // from the filesystem, the port or a result parse escapes (RVM110U2 P2 #2).
   return {
-    list: listing,
-    search: listing,
-    read: async (input: NodeMethodParams<'node/files/read'>, signal: AbortSignal) => {
-      const params = nodeMethods['node/files/read'].params.parse(input)
-      const bytes = await transfer(params, signal)
-      return nodeMethods['node/files/read'].result.parse({
-        path: params.path,
-        text: new TextDecoder('utf-8', { fatal: true }).decode(bytes),
-        digest: digest(bytes),
-      })
-    },
-    download: async (input: NodeMethodParams<'node/files/download'>, signal: AbortSignal) => {
-      const bytes = await transfer(input, signal)
-      return nodeMethods['node/files/download'].result.parse({
-        data: bytes.toString('base64'),
-        digest: digest(bytes),
-      })
-    },
-    write: publish,
-    upload: publish,
+    list: guardNodeMethod(listing),
+    search: guardNodeMethod(listing),
+    read: guardNodeMethod(
+      async (input: NodeMethodParams<'node/files/read'>, signal: AbortSignal) => {
+        const params = nodeMethods['node/files/read'].params.parse(input)
+        const bytes = await transfer(params, signal)
+        return nodeMethods['node/files/read'].result.parse({
+          path: params.path,
+          text: decodeText(bytes),
+          digest: digest(bytes),
+        })
+      },
+    ),
+    download: guardNodeMethod(
+      async (input: NodeMethodParams<'node/files/download'>, signal: AbortSignal) => {
+        const bytes = await transfer(input, signal)
+        return nodeMethods['node/files/download'].result.parse({
+          data: bytes.toString('base64'),
+          digest: digest(bytes),
+        })
+      },
+    ),
+    write: guardNodeMethod(publish),
+    upload: guardNodeMethod(publish),
   }
 }

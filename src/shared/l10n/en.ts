@@ -42,6 +42,8 @@ export const EN = {
     hostKey: 'Verified host key',
     head: 'Current commit',
     networkConfirm: 'Verify {action} to {remote} on {ref} at {head}.',
+    binaryReplaced:
+      'The upload replaced the open file with bytes that are not UTF-8 text. The editor was closed.',
   },
   // M110a0: node labels and messages; consumers read UI_TEXT at runtime.
   nodeLabels: {
@@ -120,6 +122,7 @@ export const EN = {
     conflict: 'The file or branch changed. Refresh before retrying.',
     tooLarge: 'The request exceeds the size limit.',
     rateLimited: 'Too many requests. Wait before retrying.',
+    notText: 'This file is not UTF-8 text.',
     noSuchWorkspace: 'The workspace does not exist.',
     notFound: 'The requested item was not found.',
     cancelled: 'The action was cancelled.',
