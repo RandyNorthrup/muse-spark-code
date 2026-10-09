@@ -290,7 +290,7 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     path.join(BUILD_ROOT, 'dist/providerCatalog.js'),
     path.join(dir, 'dist/providerCatalog.js'),
   )
-  for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
+  for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs', 'MuseSparkDeviceStorage.cs']) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
   cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
