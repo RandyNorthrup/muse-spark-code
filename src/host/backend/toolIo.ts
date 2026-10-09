@@ -146,6 +146,8 @@ const POWERSHELL = 'powershell'
 const PATH_VARIABLE = 'PATH'
 const PS_MODULE_PATH = 'PSModulePath'
 const PROGRAM_FILES = 'ProgramFiles'
+// curl's own --fail exit for an HTTP error; a Stop answered without 2xx reports it too.
+const CURL_HTTP_ERROR_EXIT = 22
 const HOOK_ENV_NAMES = [
   'HOME',
   'PATH',
@@ -533,15 +535,23 @@ async function runHardwareStop(
       : '/usr/bin/curl'
   if (!(deps.platform === 'win32' ? path.win32 : path.posix).isAbsolute(file))
     return unstartedShell('Absolute Stop transport unavailable')
-  return await runCommand({
+  const nullDevice = deps.platform === 'win32' ? 'NUL' : '/dev/null'
+  // A redirect is never followed and exits 0 under --fail, so delivery is
+  // confirmed only by the 2xx status --write-out prints; the body is discarded
+  // so stdout carries nothing else (D83).
+  const result = await runCommand({
     file,
     args: [
       '-q',
       '--config',
-      deps.platform === 'win32' ? 'NUL' : '/dev/null',
+      nullDevice,
       '--noproxy',
       '*',
       '--fail',
+      '--output',
+      nullDevice,
+      '--write-out',
+      '%{http_code}',
       '-X',
       'POST',
       stop.address,
@@ -552,6 +562,9 @@ async function runHardwareStop(
     signal: undefined,
     tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
   })
+  return result.exitCode === 0 && !/^2\d\d$/.test(result.stdout)
+    ? { ...result, exitCode: CURL_HTTP_ERROR_EXIT }
+    : result
 }
 
 export function createToolIo(deps: ToolIoDeps): ToolIo {

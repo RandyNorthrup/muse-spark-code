@@ -2,6 +2,8 @@ import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { rename } from 'node:fs/promises'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { setTimeout as delay } from 'node:timers/promises'
 import path from 'node:path'
@@ -48,6 +50,7 @@ import {
   type ModelApiHostDeps,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { createHardwareStopRunner } from '../../src/host/backend/toolIo'
 import { estimateCostUsd, formatUsd } from '../../src/core/usage/insights'
 import { EN } from '../../src/shared/l10n/en'
 import {
@@ -822,6 +825,64 @@ describe('M103-G hardware dispatch boundary', () => {
       )
       expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
       expect(t.shellCalls).toHaveLength(0)
+    },
+  )
+
+  it.each([
+    [302, 'failed'],
+    [500, 'failed'],
+    [204, 'completed'],
+  ] as const)(
+    'RVM103W2 P2 a loopback Stop answered %i is %s through the real curl transport',
+    async (status, rowStatus) => {
+      const requests: string[] = []
+      const server = createServer((request, response) => {
+        requests.push(`${String(request.method)} ${String(request.url)}`)
+        response
+          .writeHead(status, status === 302 ? { Location: '/login' } : {})
+          .end(status === 204 ? undefined : 'fake body')
+      })
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+      const { port } = server.address() as AddressInfo
+      const address = `http://127.0.0.1:${String(port)}`
+      try {
+        const t = setup({
+          hardwareContext: () => ({
+            targets: [{ address, stop: '/printer/emergency_stop' }],
+          }),
+        })
+        t.io.runHardwareStop = createHardwareStopRunner({
+          platform: process.platform,
+          systemRoot: process.env['SystemRoot'],
+          log: () => undefined,
+        })
+        const { session, events, turnDone } = await startSession(t, 'onRequest')
+        await completeToolCalls(
+          t,
+          session,
+          turnDone,
+          [shellCall(`curl -X POST ${address}/printer/emergency_stop`)],
+          'stop',
+          { text: 'done' },
+        )
+        // Exactly one POST reached the Stop path; the redirect target was never requested.
+        expect(requests).toEqual(['POST /printer/emergency_stop'])
+        expect(events).toContainEqual(
+          expect.objectContaining({
+            type: 'itemCompleted',
+            item: expect.objectContaining({ status: rowStatus }),
+          }),
+        )
+        const notice = {
+          type: 'backendNotice',
+          level: 'error',
+          text: UI_TEXT.hardwareStopUnconfirmed,
+        }
+        if (status === 204) expect(events).not.toContainEqual(notice)
+        else expect(events).toContainEqual(notice)
+      } finally {
+        await new Promise((resolve) => server.close(resolve))
+      }
     },
   )
 

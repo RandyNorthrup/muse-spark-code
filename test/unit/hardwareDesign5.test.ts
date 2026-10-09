@@ -1,5 +1,7 @@
 import * as childProcess from 'node:child_process'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -11,7 +13,7 @@ import { approvalHardwareAction } from '../../src/core/agent/approvalHardware'
 import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { shellOutcome } from '../../src/core/backends/modelapi/tools'
-import { runCommand, createToolIo } from '../../src/host/backend/toolIo'
+import { runCommand, createToolIo, createHardwareStopRunner } from '../../src/host/backend/toolIo'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { fakeMspHost } from './helpers/fakeMsp'
@@ -38,7 +40,12 @@ function workspace(marker?: string, content = '') {
   }
   return root
 }
-function host(root: string, source?: () => HardwareContext, shouldFailStop = false) {
+function host(
+  root: string,
+  source?: () => HardwareContext,
+  shouldFailStop = false,
+  runStop: (stop: HardwareStop) => Promise<void> = () => Promise.resolve(),
+) {
   const h = fakeMspHost()
   const stops: HardwareStop[] = []
   const owner = new MuseCodeHost(
@@ -49,7 +56,7 @@ function host(root: string, source?: () => HardwareContext, shouldFailStop = fal
     (stop) => {
       stops.push(stop)
       if (shouldFailStop) throw new Error('simulated uncertain delivery')
-      return Promise.resolve()
+      return runStop(stop)
     },
   )
   h.server.handle('session/start', () => ({
@@ -252,6 +259,59 @@ describe('Design 5 guard4 regressions', () => {
     }
   })
 
+  it.each([302, 500, 204])(
+    'RVM103W2 P2 the Muse Code adapter confirms a loopback Stop answered %i only on 2xx',
+    async (status) => {
+      const requests: string[] = []
+      const server = createServer((request, response) => {
+        requests.push(`${String(request.method)} ${String(request.url)}`)
+        response
+          .writeHead(status, status === 302 ? { Location: '/login' } : {})
+          .end(status === 204 ? undefined : 'fake body')
+      })
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+      const { port } = server.address() as AddressInfo
+      const address = `http://127.0.0.1:${String(port)}`
+      const runner = createHardwareStopRunner({
+        platform: process.platform,
+        systemRoot: process.env['SystemRoot'],
+        log: () => undefined,
+      })
+      const root = workspace()
+      // The extension's and the runtime's Muse Code adapters: any nonzero exit is unconfirmed.
+      const h = host(
+        root,
+        () => ({ targets: [{ address, stop: '/printer/emergency_stop' }] }),
+        false,
+        async (stop) => {
+          const result = await runner(stop)
+          if (result.exitCode !== 0) throw new Error(UI_TEXT.hardwareRefused)
+        },
+      )
+      try {
+        const { events } = await watchedSession(h)
+        h.server.notify(
+          'approval/requested',
+          captured(`curl -X POST ${address}/printer/emergency_stop`),
+        )
+        await vi.waitFor(() => {
+          expect(h.server.requestsFor('approval/decide')[0]?.params?.['choiceId']).toBe('abort')
+        })
+        expect(requests).toEqual(['POST /printer/emergency_stop'])
+        const notice = {
+          type: 'backendNotice',
+          level: 'error',
+          text: UI_TEXT.hardwareStopUnconfirmed,
+        }
+        if (status === 204) expect(events).not.toContainEqual(notice)
+        else expect(events).toContainEqual(notice)
+      } finally {
+        await h.owner.close()
+        await new Promise((resolve) => server.close(resolve))
+      }
+    },
+  )
+
   it('P1.1 Stop classification ignores extra subject stages', () => {
     const command = 'curl -X POST https://printer.local/printer/emergency_stop'
     const frame = captured(command)
@@ -354,6 +414,10 @@ describe('Design 5 guard4 regressions', () => {
         '--noproxy',
         '*',
         '--fail',
+        '--output',
+        '/dev/null',
+        '--write-out',
+        '%{http_code}',
         '-X',
         'POST',
         'https://printer.local/printer/emergency_stop',
