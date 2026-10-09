@@ -1806,6 +1806,30 @@ describe('M124 round 5: the gate in its effect’s own block (RVM124R4)', () => 
       expect.objectContaining({ event: 'settled', tool: 'muse_prompt_list' }),
     ])
   })
+
+  it('drains at disconnect only once a committed read’s receipt is written (P2-3)', async () => {
+    const h = await harness()
+    h.state.holds.add('settled')
+    const reply = h.protocol.handle(callFrame(51, 'muse_prompt_list', { scope: 'user' }))
+    await vi.waitFor(() => {
+      expect(h.state.held).toHaveLength(1)
+    })
+    h.registry.disconnect()
+    // The call is answered at once; its receipt is still being written.
+    await reply
+    let isDrained = false
+    const draining = (async () => {
+      await h.registry.drained()
+      isDrained = true
+    })()
+    await flush()
+    expect(isDrained).toBe(false)
+    release(h)
+    await draining
+    expect(events(h).filter((record) => TERMINAL.has(record.event))).toEqual([
+      expect.objectContaining({ event: 'settled', tool: 'muse_prompt_list' }),
+    ])
+  })
 })
 
 function operationOf(tool: string, state: { cause?: ConnectorCancelCause }) {
