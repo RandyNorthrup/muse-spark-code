@@ -1356,6 +1356,19 @@ export const MEDIA_NAME_MAX_CHARS = 256
 export const MEDIA_ID_MAX_CHARS = 256
 export const MEDIA_PATH_TOKEN_MAX_CHARS = 4096
 export const MEDIA_SHA256_PATTERN = /^[a-f0-9]{64}$/u
+// M105 lane VB: the converter's private-folder, macOS RSS and Windows job
+// bindings. The folder is fresh per conversion, named from random bytes.
+// Every Windows job ending but the memory cap's rejects with this code.
+export const MEDIA_CONVERSION_JOB_FAILED_CODE = 'EMEDIA_JOB_FAILED'
+export const MEDIA_PRIVATE_DIRECTORY_PREFIX = 'muse-media-'
+export const MEDIA_PRIVATE_DIRECTORY_NAME_BYTES = 16
+// One /bin/ps run per interval at most; a reading older than the maximum age
+// is never returned (the caller waits for a fresh one or refuses), and one
+// run is bounded in time and output.
+export const MEDIA_RSS_SAMPLE_INTERVAL_MS = 250
+export const MEDIA_RSS_SAMPLE_MAX_AGE_MS = 500
+export const MEDIA_RSS_SAMPLE_RUN_TIMEOUT_MS = 1000
+export const MEDIA_RSS_SAMPLE_MAX_BYTES = 4096
 export const MEDIA_KINDS = ['image', 'document', 'text', 'video', 'audio'] as const
 export const MEDIA_AUDIO_ACTIONS = [
   'transcribe',

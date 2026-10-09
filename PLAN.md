@@ -43431,6 +43431,32 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   captured and supported; verified ffmpeg remains the alternative. Tests and
   drills: `docs/certification/m105-m1-media-core-(a).md`. No review finding is
   deferred and no gate is weakened.
+- **M105-VB-platform-bindings (lane VB, 2026-10-08; lead decisions).** The
+  converter's three platform bindings, for lane V to wire into
+  `convertToMp4`/`convertToWav16kMono`. The API is in
+  `docs/certification/m105.md` (Lane VB).
+  1. Windows: `jobMemoryLimitedRun` (`host/backend/mediaJobRun.ts`) is the
+     `memoryLimitedRun` port. M50's compiled launcher puts the encoder in a
+     kill-on-close job whose JOB_OBJECT_LIMIT_JOB_MEMORY is `maxRssBytes`
+     (M91b's `jobMemoryLimit`): no sampler and no per-launch PowerShell. The
+     kernel bounds memory, so no final RSS sample is owed (RVM105M12); the
+     final output sample still is.
+  2. macOS: `macRssSampler` (`core/media/macRss.ts`) is the `readRssBytes`
+     port. It reads the governor's `posixTable` reader (absolute `/bin/ps`,
+     numeric columns), for one PID that must be this process's live child.
+  3. A private folder per conversion: `createPrivateDirectory`
+     (`runtime/privateDirectory.ts`) over `secureOwnerOnly`, which is the
+     token file's owner-only routine made reusable. It converges with M100's
+     `secureFresh`.
+
+  Open items:
+  - M109's attested RESULT record must reach `conversionJobFailure`, the
+    named seam, before a cap stop reports `EMEDIA_MEMORY_CAP`.
+  - The runtime (ACP, exec) has no M50 launcher. Its package omits
+    `MuseSparkMcpLauncher.cs`, and `runtime/backends.ts` prepares only the
+    shell job. Lane V ships and prepares the launcher, or Windows conversion
+    in the runtime refuses.
+  - The darwin private group stays with M104's signed helper.
 
 - **M105-F-integration-gates (RVM105F corrections).** All four review findings
   are fixed with regressions and red drills (`docs/certification/m105-f.md`).

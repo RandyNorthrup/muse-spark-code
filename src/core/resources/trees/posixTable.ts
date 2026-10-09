@@ -1,5 +1,6 @@
 import * as z from 'zod/mini'
 import { resourceProcessIdentitySchema, resourceTreeUsageSchema } from '../../../shared/resources'
+import type { ResourceTreeRun } from './run'
 
 const DECIMAL = /^\d+$/
 
@@ -68,6 +69,19 @@ export function parseCpuTime(text: string): number | null {
       SECONDS_PER_MINUTE +
     Number(seconds)
   return Number.isFinite(value) && Number(seconds) < SECONDS_PER_MINUTE ? value : null
+}
+
+// The absolute system ps and its numeric columns (`trees/mac.ts`), for the
+// whole table and for one process alike.
+export const MAC_PS = '/bin/ps'
+export const MAC_PROCESS_COLUMNS = 'pid=,ppid=,pgid=,state=,time=,rss='
+
+/** One process's row: the table's ps columns and parser, for one PID (M105 RSS). */
+export async function readMacProcess(
+  pid: number,
+  run: ResourceTreeRun,
+): Promise<ReturnType<typeof parseMacProcessTable>> {
+  return parseMacProcessTable(await run(MAC_PS, ['-o', MAC_PROCESS_COLUMNS, '-p', String(pid)]))
 }
 
 /** Only numerical columns: no command, name, arguments, paths or environment. */

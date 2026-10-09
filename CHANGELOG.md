@@ -76,6 +76,21 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- M105 lane VB (the media converter's platform bindings), for lane V to wire:
+  - On Windows the encoder runs inside a kill-on-close kernel job whose job
+    memory limit is the conversion's memory cap. It starts through the
+    compiled job launcher, with no PowerShell per conversion. Output size,
+    the deadline and cancellation end the whole job.
+  - On macOS the encoder's resident memory is read through the resource
+    governor's `/bin/ps` reader, for this process's own live child only.
+  - Each conversion gets a fresh owner-only folder: a protected DACL on
+    Windows that holds only the current user's grant, and 0700 elsewhere.
+    A drive without ACLs, such as exFAT, is refused.
+
+  A memory-cap stop is reported as a plain conversion failure until M109's
+  job record says the cap was hit. Fakes and local processes only; no live or
+  paid call.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive

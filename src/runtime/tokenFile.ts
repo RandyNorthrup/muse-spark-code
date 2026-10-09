@@ -94,19 +94,29 @@ ${WINDOWS_ACL_SCRIPT}`
   },
 }
 
-async function secure(
+/**
+ * Owner-only access for one file or directory, read back before it is used:
+ * the bearer token's folder and file (M104) and conversion's private folder
+ * (M105, `privateDirectory.ts`). On Windows the DACL is protected and holds
+ * only the current user's full-control grant (container and object inherit
+ * on a directory), through the `%SystemRoot%` PowerShell, never PATH; on
+ * POSIX the mode is 0700/0600, owned by this user, and macOS shows no ACL.
+ * Any failure throws `EOWNER_ONLY`; callers keep their own refusal.
+ */
+export async function secureOwnerOnly(
   file: string,
-  isDirectory: boolean,
+  kind: 'file' | 'directory',
   acl?: TokenWindowsAcl,
 ): Promise<TokenAclReceipt> {
+  const isDirectory = kind === 'directory'
   const own = await lstat(file)
   if ((!isDirectory && own.nlink !== 1) || (isDirectory ? !own.isDirectory() : !own.isFile()))
-    throw new Error('ETOKEN_ACL')
+    throw new Error('EOWNER_ONLY')
   if (acl !== undefined || process.platform === 'win32') {
     const parsed = windowsReceiptSchema.safeParse(
       await (acl ?? windowsAcl).secure(file, isDirectory),
     )
-    if (!parsed.success) throw new Error('ETOKEN_ACL')
+    if (!parsed.success) throw new Error('EOWNER_ONLY')
     const receipt = parsed.data
     if (
       !receipt.protected ||
@@ -116,7 +126,7 @@ async function secure(
           rule.sid !== receipt.currentSid || rule.inherited || !rule.allow || !rule.fullControl,
       )
     )
-      throw new Error('ETOKEN_ACL')
+      throw new Error('EOWNER_ONLY')
     return { platform: 'win32', ownerOnly: true, windows: receipt }
   }
   const mode = isDirectory ? DIRECTORY_MODE : FILE_MODE
@@ -124,7 +134,7 @@ async function secure(
   const verified = await lstat(file)
   const uid = process.getuid === undefined ? undefined : process.getuid()
   if (uid === undefined || verified.uid !== uid || (verified.mode & MODE_MASK) !== mode)
-    throw new Error('ETOKEN_ACL')
+    throw new Error('EOWNER_ONLY')
   if (process.platform === 'darwin') {
     // chmod does not remove macOS allow ACEs. Accept only a single mode
     // receipt with no '+' marker or ACL entries; even owner/deny ACLs refuse.
@@ -136,7 +146,7 @@ async function secure(
     const lines = output.trimEnd().split('\n')
     const expected = isDirectory ? 'drwx------' : '-rw-------'
     const modeReceipt = /^([d-][rwx-]{9})@?[ \t]/.exec(lines[0] ?? '')
-    if (lines.length !== 1 || modeReceipt?.[1] !== expected) throw new Error('ETOKEN_ACL')
+    if (lines.length !== 1 || modeReceipt?.[1] !== expected) throw new Error('EOWNER_ONLY')
     return { platform: 'darwin', ownerOnly: true, mode, extendedAcl: false }
   }
   return { platform: process.platform, ownerOnly: true, mode }
@@ -178,16 +188,16 @@ export async function createTokenFile(parent: string, acl?: TokenWindowsAcl) {
   // The bearer must never exist before fatal/ordinary exit cleanup is armed.
   process.once('exit', removeSync)
   try {
-    await secure(directory, true, acl)
+    await secureOwnerOnly(directory, 'directory', acl)
     const handle = await open(file, 'wx', FILE_MODE)
     try {
-      let aclReceipt = await secure(file, false, acl)
+      let aclReceipt = await secureOwnerOnly(file, 'file', acl)
       const token = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
       await handle.writeFile(token, 'utf8')
       await handle.sync()
       if (acl === undefined && process.platform === 'darwin') {
-        await secure(directory, true)
-        aclReceipt = await secure(file, false)
+        await secureOwnerOnly(directory, 'directory')
+        aclReceipt = await secureOwnerOnly(file, 'file')
       }
       return {
         token,
