@@ -125,6 +125,12 @@ happened, not what was planned; superseded entries are kept.
   another instance cannot resurrect a revoked grant. Help says paid consent
   stays per workspace in all fourteen translated tables.
 
+- DeepSeek Thinking off now sends the documented `thinking: {type:
+  "disabled"}` switch and omits `reasoning_effort` instead of sending the
+  unlisted value `"none"`. Any other effort a model's declared list cannot
+  express is refused with a typed codec error rather than reaching the wire;
+  every other preset's request bytes are unchanged.
+
 ### Security
 
 - Refuse ambiguous Windows path spellings at file admission, including device
