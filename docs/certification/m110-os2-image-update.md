@@ -28,7 +28,7 @@ Files (all under `os/update/`, plus tests and this record):
 | File                          | Lines | SHA-256                                                            |
 | ----------------------------- | ----- | ------------------------------------------------------------------ |
 | `pi-tryboot-backend`          | 397   | `531cb310e0a9f980d2095f9910f7d280c728ac110ac175f4ddbf9723fc20a500` |
-| `mark-good`                   | 326   | `3d5ddda074f10653422839ce67f767e7bef9cb0deb78110e983e57ae3492a095` |
+| `mark-good`                   | 330   | `008e3486b9ae44116ab4511680cd065c52d9105296d1e18ee01e671fe282791b` |
 | `channel.py`                  | 203   | `36433bfbd7b455c3c336e7f3f5d5696ff17ca20271f8391f85240b9c0e8cbba6` |
 | `pi-eeprom-check`             | 200   | `f9bd424a2eeb82bbb773d0c06efdad4580b8d95eb052e80eeeeb70722599fed2` |
 | `check-rauc-conf.py` (new)    | 90    | `c335db1043d2f925ec32f53728d8ae21d119b2dbc7e9b1b4d580e2a429808e32` |
@@ -236,20 +236,43 @@ provisional until an on-device capture names the exact wording
 
 ## Red drills (each guard broken, named test failed, restored byte-exact)
 
-| Guard                         | Break                                      | Named failure                         | Restore SHA-256                      |
-| ----------------------------- | ------------------------------------------ | ------------------------------------- | ------------------------------------ |
-| Stable survives activation    | `set-primary B` rewritten to switch stably | Tryboot: arm-trial test failed        | `531cb310…c20a500` OK                |
-| One flock, live temps survive | `flock 9` call disabled                    | Tryboot: lock-hold test failed        | `531cb310…c20a500` OK                |
-| Exact slot map                | EFI `usr.0`/`usr.1` devices swapped        | Slots: exact-map test failed          | `c37cdf56…68f46` OK (file untouched) |
-| Dash port pattern             | `*[!0-9]*` back to `*[^0-9]*`              | MarkGood: production-port test failed | `3d5ddda0…3492a095` OK               |
-| EFI trial-only                | no-marker `exit 0` replaced by fail        | MarkGood: no-marker test failed       | `3d5ddda0…3492a095` OK               |
-| Per-call limit                | probe run without the watchdog             | MarkGood: hung-probe test failed      | `3d5ddda0…3492a095` OK               |
-| No silent zero-seed           | state reader restored to seed 0/0          | Channel: 3 damaged-state tests failed | `36433bfb…c40b9c0e8cbba6` OK         |
-| Same-bytes verify             | metadata path passed back to openssl       | Channel: binding test failed          | `36433bfb…c40b9c0e8cbba6` OK         |
-| Full-hex revision             | upfront hex check removed                  | Eeprom: 3 non-hex tests failed        | `f9bd424a…70722599fed2` OK           |
+| Guard                         | Break                                      | Named failure                                         | Restore SHA-256                      |
+| ----------------------------- | ------------------------------------------ | ----------------------------------------------------- | ------------------------------------ |
+| Stable survives activation    | `set-primary B` rewritten to switch stably | Tryboot: arm-trial test failed                        | `531cb310…c20a500` OK                |
+| One flock, live temps survive | `flock 9` call disabled                    | Tryboot: lock-hold test failed                        | `531cb310…c20a500` OK                |
+| Exact slot map                | EFI `usr.0`/`usr.1` devices swapped        | Slots: exact-map test failed                          | `c37cdf56…68f46` OK (file untouched) |
+| Dash port pattern             | `*[!0-9]*` back to `*[^0-9]*`              | MarkGood: production-port test failed                 | `008e3486…282791b` OK                |
+| EFI trial-only                | no-marker `exit 0` replaced by fail        | MarkGood: no-marker test failed                       | `008e3486…282791b` OK                |
+| Per-call limit                | probe run without the watchdog             | MarkGood: hung-probe test failed                      | `008e3486…282791b` OK                |
+| EFI status capture            | shipped `if !` form (`$?` always 0)        | MarkGood: no-marker test failed + manual repro exit 1 | fixed in `d1e06f9c7`                 |
+| Spaces drill re-arm           | second run without a fresh trial           | MarkGood: spaces test failed (status)                 | test-only fix, observed pre-fix      |
+| No silent zero-seed           | state reader restored to seed 0/0          | Channel: 3 damaged-state tests failed                 | `36433bfb…c40b9c0e8cbba6` OK         |
+| Same-bytes verify             | metadata path passed back to openssl       | Channel: binding test failed                          | `36433bfb…c40b9c0e8cbba6` OK         |
+| Full-hex revision             | upfront hex check removed                  | Eeprom: 3 non-hex tests failed                        | `f9bd424a…70722599fed2` OK           |
 
 (Old zero-seed drill also passes 2 malformed-content cases — those refuse at
 parse, as designed. Full SHAs are in the file table above.)
+
+## Verification status and one discarded result
+
+`python3 os/check.py` passes (`OS1 image policy: 0 problems`). At the
+repository default timeout on the kubuntu rig: Slots 15/15, Channel 20/20,
+Eeprom 14/14, Tryboot 22/22. Mark-good on the committed bytes
+(`d1e06f9c7`): 20/22 in one exploratory run plus the remaining two
+(production-port, spaces) green in individual runs — 22/22 across runs,
+all with raised `--testTimeout` (busy-rig allowance, disclosed here: the
+shared rig thrashed at load 8–21 with multi-second spawn latency, and the
+two slowest tests need ~120 s of it). Manual repros confirm the three
+headlines directly: EFI no-marker exits 0 with a failing probe,
+marker-B/ booted-B yields `status mark-good usr.1` with the marker
+cleared, and a traced production-port run shows the exact curl URL and
+promotion. An intermediate background delivery that reported MarkGood
+22/22 on pre-fix bytes is DISCARDED: the exploratory run
+deterministically exposed two real defects there — the EFI `$?`-after-`!`
+dispatch bug (ordinary EFI boots failed instead of exiting 0; P2-7 not
+actually fixed) and the spaces test's consumed trial — both fixed in
+`d1e06f9c7`. CI must still re-run the suite at the default timeout on a
+healthy machine.
 
 ## Handoffs (named, for the lead)
 
