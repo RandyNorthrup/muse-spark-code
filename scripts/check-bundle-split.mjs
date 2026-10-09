@@ -66,8 +66,10 @@
 //   in any shipped bundle but the ones declared to read it, or no longer in
 //   one of those; a block is declared that this check does not guard;
 //   FILE_REFUSAL_MODEL_TEXT, which activation carries by design, holds other
-//   keys than its pinned ones; or a key of MODEL_TEXT, which every bundle
-//   reading any key of it carries whole, is read by no source file of
+//   keys than its pinned ones; a Node bundle that reads zod/mini from
+//   dist/validation.js carries classic zod (INT0170); or a key of
+//   MODEL_TEXT, which every bundle reading any key of it carries whole, is
+//   read by no source file of
 //   dist/extension.js (it belongs in the block of the bundle that reads it).
 //
 // Exits 1 on any problem.
@@ -1389,6 +1391,23 @@ nodeMetafiles.push(
   'dist/meta-acp/acpQuestions.json',
   'dist/meta-acp/runtimeQuestions.json',
 )
+// INT0170: classic zod stays out of the Node bundles that read zod/mini from
+// dist/validation.js. CONSENT017's paidConsent.ts imported 'zod', and
+// dist/extension.js carried 444 KiB of it with its `navigator` sniff
+// (extension.ts -> host/paid/paidHost.ts -> core/paid/paidConsent.ts).
+// dist/structuredSchema.js shares zod/v4/core by design; the ACP engine
+// carries the ACP SDK's classic zod (englishZodLocales trims its locales).
+const CLASSIC_ZOD_CARRIERS = new Set([
+  'dist/meta/structuredSchema.json',
+  'dist/meta/runtimeEngine.json',
+])
+/** A zod module other than zod/mini's own; zod/mini's core comes from validation.js. */
+function isClassicZod(input) {
+  return (
+    /^node_modules\/zod\//.test(input.replaceAll('\\', '/')) &&
+    !input.replaceAll('\\', '/').startsWith('node_modules/zod/v4/mini/')
+  )
+}
 const validationReaders = new Map()
 for (const file of nodeMetafiles) {
   const meta = JSON.parse(readFileSync(file, 'utf8'))
@@ -1398,6 +1417,17 @@ for (const file of nodeMetafiles) {
     ) {
       problems.push(`${output} inlines the shared mini-parser`)
     }
+    if (CLASSIC_ZOD_CARRIERS.has(file)) continue
+    const classic = Object.keys(details.inputs).filter((input) => isClassicZod(input))
+    if (classic.length === 0) continue
+    const importers = Object.keys(details.inputs).filter(
+      (input) =>
+        input.startsWith('src/') &&
+        (meta.inputs[input]?.imports ?? []).some(({ path: imported }) => isClassicZod(imported)),
+    )
+    problems.push(
+      `${output} carries classic zod (${String(classic.length)} modules), imported by ${importers.join(', ') || 'no named source'}: Node bundles read zod/mini from dist/validation.js`,
+    )
   }
   const sourceInputs = Object.keys(meta.inputs).filter((name) => name.startsWith('src/'))
   for (const input of sourceInputs) {

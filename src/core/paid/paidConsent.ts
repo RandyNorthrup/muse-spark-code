@@ -44,7 +44,9 @@ import { Usd, minUsd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/
 import type { CreateResponseBody, CreateImageBody } from '../backends/modelapi/schemas'
 import type { SessionBudgetClaim } from '../backends/modelapi/sessionBudget'
 
-import { z } from 'zod'
+// zod/mini, which the Node bundles read from dist/validation.js: classic zod
+// carried 444 KiB and its `navigator` sniff into dist/extension.js (INT0170).
+import * as z from 'zod/mini'
 import type { CoreLogger } from '../logging'
 import { PaidAuthority, paidAuthorityKey, type PaidGrant } from './paidAuthority'
 import {
