@@ -21,7 +21,9 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createConnection } from 'node:net'
+import * as z from 'zod/mini'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as admission from '../../src/core/resources/admission'
 import * as jobLaunch from '../../src/host/backend/mcpJobLaunch'
 import type { ResourceLease } from '../../src/core/resources/launch'
@@ -33,8 +35,16 @@ import {
   processGitPath,
   type GitProcess,
 } from '../../src/host/git'
-import { NativeGitService } from '../../src/runtime/panel/git/service'
-import { fakeRuntimeGitDeps } from './helpers/github/fakes'
+import { NativeGitRefusalError, NativeGitService } from '../../src/runtime/panel/git/service'
+import { environmentValue } from '../../src/core/backends/musecode/launch'
+import { MCP_JOB_CONFIG_VARIABLE } from '../../src/shared/constants'
+import type { RuntimeGitDeps } from '../../src/core/git/runtimeGit'
+import {
+  dirtyScratchRepository,
+  fakeRuntimeGitDeps,
+  isolateGitEnvironment,
+  TEST_GIT_IDENTITY,
+} from './helpers/github/fakes'
 
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof ChildProcess>()
@@ -44,11 +54,87 @@ vi.mock('../../src/core/resources/admission', { spy: true })
 vi.mock('../../src/host/backend/mcpJobLaunch', { spy: true })
 
 const USER_ROUTE = 'GH_TOKEN'
+/** RVM123G2 R3's list: every model or provider key the earlier push environment kept. */
+const MODEL_KEYS = [
+  'META_API_KEY',
+  'OPENAI_API_KEY',
+  'OPENAI_KEY',
+  'ANTHROPIC_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
+  'AWS_BEARER_TOKEN_BEDROCK',
+  'HF_TOKEN',
+  'META_KEY',
+  'GEMINI_KEY',
+] as const
+
+// Every git here commits as the test's own identity, never the machine's (R12).
+beforeEach(() => {
+  isolateGitEnvironment()
+})
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
   vi.mocked(spawn).mockClear()
 })
+
+/**
+ * The real runner, with `subcommand`'s resource admission held open until
+ * released: the last wait before git starts.
+ */
+function admissionGate(subcommand: string): {
+  readonly run: GitProcess
+  readonly reached: Promise<undefined>
+  readonly release: () => void
+} {
+  let shouldGateNext = false
+  const admitted = Promise.withResolvers<undefined>()
+  const atGate = Promise.withResolvers<undefined>()
+  vi.spyOn(admission, 'admitResource').mockImplementation(async () => {
+    if (shouldGateNext) {
+      shouldGateNext = false
+      atGate.resolve(undefined)
+      await admitted.promise
+    }
+    return undefined
+  })
+  const real = createGitProcess({
+    platform: process.platform,
+    env: process.env,
+    fileExists: existsSync,
+    spawn,
+  })
+  return {
+    run: (args, options) => {
+      shouldGateNext = args[0] === subcommand
+      return real(args, options)
+    },
+    reached: atGate.promise,
+    release: () => {
+      admitted.resolve(undefined)
+    },
+  }
+}
+
+function scratchGit(dir: string, ...args: string[]): string {
+  return execFileSync('git', args, {
+    cwd: dir,
+    env: { ...process.env, ...TEST_GIT_IDENTITY },
+    encoding: 'utf8',
+  })
+}
+
+/** Removes a link or junction itself, never what it leads to. */
+function removeLink(link: string): void {
+  if (lstatSync(link, { throwIfNoEntry: false })?.isSymbolicLink() !== true) {
+    return
+  }
+  try {
+    unlinkSync(link)
+  } catch {
+    rmdirSync(link)
+  }
+}
 
 function realGit(): string {
   const found = resolveExecutable('git', {
@@ -64,30 +150,46 @@ function realGit(): string {
 
 /** A scratch repository with one commit and one unstaged change. */
 function dirtyRepository(): { readonly dir: string; readonly cleanup: () => void } {
-  const dir = mkdtempSync(path.join(tmpdir(), 'm123-native-spawn-'))
-  const environment = {
-    ...process.env,
-    GIT_CONFIG_NOSYSTEM: '1',
-    GIT_AUTHOR_NAME: 'Fixture',
-    GIT_AUTHOR_EMAIL: 'fixture@example.invalid',
-    GIT_COMMITTER_NAME: 'Fixture',
-    GIT_COMMITTER_EMAIL: 'fixture@example.invalid',
-  }
-  execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: dir, env: environment })
-  writeFileSync(path.join(dir, 'a.txt'), 'one\n')
-  execFileSync('git', ['add', 'a.txt'], { cwd: dir, env: environment })
-  execFileSync('git', ['commit', '-q', '-m', 'Add a'], { cwd: dir, env: environment })
-  writeFileSync(path.join(dir, 'a.txt'), 'two\n')
-  return {
-    dir,
-    cleanup: () => {
-      rmSync(dir, { recursive: true, force: true })
-    },
-  }
+  return dirtyScratchRepository('m123-native-spawn-')
 }
 
 function spawnedSubcommands(): string[] {
   return vi.mocked(spawn).mock.calls.map(([, args]) => (Array.isArray(args) ? String(args[0]) : ''))
+}
+
+/** A service on `dir` whose `subcommand` waits in its resource admission until released. */
+function gatedService(
+  dir: string,
+  subcommand: string,
+  overrides: Partial<RuntimeGitDeps> = {},
+): { readonly gate: ReturnType<typeof admissionGate>; readonly service: NativeGitService } {
+  const gate = admissionGate(subcommand)
+  const service = new NativeGitService(fakeRuntimeGitDeps(dir, overrides).deps, { run: gate.run })
+  return { gate, service }
+}
+
+/** The governed Windows route: an admitted lease and a prepared job helper. */
+function governedWindowsJob(): void {
+  const lease: ResourceLease = {
+    register: vi.fn(),
+    complete: vi.fn(),
+    background: vi.fn(),
+    kill: vi.fn(() => Promise.resolve(true)),
+    isTreeGone: vi.fn(() => Promise.resolve(true)),
+  }
+  vi.spyOn(admission, 'admitResource').mockResolvedValue(lease)
+  vi.spyOn(admission, 'resourceWindowsJob').mockResolvedValue({
+    assemblyPath: String.raw`C:\job\MuseSparkMcpJob.dll`,
+    executablePath: String.raw`C:\job\MuseSparkMcpLauncher.exe`,
+    verify: () => Promise.resolve(),
+  })
+}
+
+/** The commit was refused at its spawn: no commit ran, HEAD is still `Add a`. */
+async function expectNoCommit(committing: Promise<unknown>, dir: string): Promise<void> {
+  await expect(committing).rejects.toThrow('changed')
+  expect(spawnedSubcommands()).not.toContain('commit')
+  expect(scratchGit(dir, 'log', '-1', '--format=%s').trim()).toBe('Add a')
 }
 
 describe('the spawn boundary', () => {
@@ -95,34 +197,11 @@ describe('the spawn boundary', () => {
     const scratch = dirtyRepository()
     try {
       let isTrusted = true
-      let shouldGateNext = false
-      const admitted = Promise.withResolvers<undefined>()
-      const atGate = Promise.withResolvers<undefined>()
-      vi.spyOn(admission, 'admitResource').mockImplementation(async () => {
-        if (shouldGateNext) {
-          shouldGateNext = false
-          atGate.resolve(undefined)
-          await admitted.promise
-        }
-        return undefined
-      })
-      const real = createGitProcess({
-        platform: process.platform,
-        env: process.env,
-        fileExists: existsSync,
-        spawn,
-      })
-      const run: GitProcess = (args, options) => {
-        // Only `add` waits in admission; the flag is read synchronously by it.
-        shouldGateNext = args[0] === 'add'
-        return real(args, options)
-      }
-      const { deps } = fakeRuntimeGitDeps(scratch.dir, { isTrusted: () => isTrusted })
-      const service = new NativeGitService(deps, { run })
+      const { gate, service } = gatedService(scratch.dir, 'add', { isTrusted: () => isTrusted })
       const committing = service.commit('Never staged', true)
-      await atGate.promise
+      await gate.reached
       isTrusted = false
-      admitted.resolve(undefined)
+      gate.release()
       await expect(committing).rejects.toThrow('untrusted')
       expect(spawnedSubcommands()).not.toContain('add')
       expect(spawnedSubcommands()).not.toContain('commit')
@@ -137,51 +216,19 @@ describe('the spawn boundary', () => {
     const moved = `${original.dir}-moved`
     try {
       writeFileSync(path.join(other.dir, 'b.txt'), 'outside\n')
-      let shouldGateNext = false
-      const admitted = Promise.withResolvers<undefined>()
-      const atGate = Promise.withResolvers<undefined>()
-      vi.spyOn(admission, 'admitResource').mockImplementation(async () => {
-        if (shouldGateNext) {
-          shouldGateNext = false
-          atGate.resolve(undefined)
-          await admitted.promise
-        }
-        return undefined
-      })
-      const real = createGitProcess({
-        platform: process.platform,
-        env: process.env,
-        fileExists: existsSync,
-        spawn,
-      })
-      const run: GitProcess = (args, options) => {
-        shouldGateNext = args[0] === 'add'
-        return real(args, options)
-      }
-      const service = new NativeGitService(fakeRuntimeGitDeps(original.dir).deps, { run })
+      const { gate, service } = gatedService(original.dir, 'add')
       const committing = service.commit('Into the other', true)
-      await atGate.promise
+      await gate.reached
       // Every check before admission passed; the folder is swapped now.
       renameSync(original.dir, moved)
       symlinkSync(other.dir, original.dir, 'junction')
-      admitted.resolve(undefined)
+      gate.release()
       await expect(committing).rejects.toThrow('changed')
       expect(spawnedSubcommands()).not.toContain('add')
       // Nothing was staged in the other repository.
-      expect(
-        execFileSync('git', ['diff', '--cached', '--name-only'], {
-          cwd: other.dir,
-          encoding: 'utf8',
-        }).trim(),
-      ).toBe('')
+      expect(scratchGit(other.dir, 'diff', '--cached', '--name-only').trim()).toBe('')
     } finally {
-      if (lstatSync(original.dir, { throwIfNoEntry: false })?.isSymbolicLink() === true) {
-        try {
-          unlinkSync(original.dir)
-        } catch {
-          rmdirSync(original.dir)
-        }
-      }
+      removeLink(original.dir)
       rmSync(moved, { recursive: true, force: true })
       original.cleanup()
       other.cleanup()
@@ -194,49 +241,18 @@ describe('the spawn boundary', () => {
     const outside = mkdtempSync(path.join(tmpdir(), 'm123-native-outside-swap-'))
     const parent = path.join(data, 'pr-worktrees')
     try {
-      const sha = execFileSync('git', ['rev-parse', 'HEAD'], {
-        cwd: scratch.dir,
-        encoding: 'utf8',
-      }).trim()
-      let shouldGateNext = false
-      const admitted = Promise.withResolvers<undefined>()
-      const atGate = Promise.withResolvers<undefined>()
-      vi.spyOn(admission, 'admitResource').mockImplementation(async () => {
-        if (shouldGateNext) {
-          shouldGateNext = false
-          atGate.resolve(undefined)
-          await admitted.promise
-        }
-        return undefined
-      })
-      const real = createGitProcess({
-        platform: process.platform,
-        env: process.env,
-        fileExists: existsSync,
-        spawn,
-      })
-      const run: GitProcess = (args, options) => {
-        shouldGateNext = args[0] === 'worktree'
-        return real(args, options)
-      }
-      const { deps } = fakeRuntimeGitDeps(scratch.dir, { dataFolder: data })
-      const service = new NativeGitService(deps, { run })
+      const sha = scratchGit(scratch.dir, 'rev-parse', 'HEAD').trim()
+      const { gate, service } = gatedService(scratch.dir, 'worktree', { dataFolder: data })
       const adding = service.addWorktree('wt-swapped', sha)
-      await atGate.promise
+      await gate.reached
       // The parent was a real folder when confined; now it leads outside.
       renameSync(parent, `${parent}-old`)
       symlinkSync(outside, parent, 'junction')
-      admitted.resolve(undefined)
+      gate.release()
       await expect(adding).rejects.toThrow('changed')
       expect(existsSync(path.join(outside, 'wt-swapped'))).toBe(false)
     } finally {
-      if (lstatSync(parent, { throwIfNoEntry: false })?.isSymbolicLink() === true) {
-        try {
-          unlinkSync(parent)
-        } catch {
-          rmdirSync(parent)
-        }
-      }
+      removeLink(parent)
       rmSync(data, { recursive: true, force: true })
       rmSync(outside, { recursive: true, force: true })
       scratch.cleanup()
@@ -244,19 +260,7 @@ describe('the spawn boundary', () => {
   })
 
   it('keeps the user environment for a push in the governed Windows job too', async () => {
-    const lease: ResourceLease = {
-      register: vi.fn(),
-      complete: vi.fn(),
-      background: vi.fn(),
-      kill: vi.fn(() => Promise.resolve(true)),
-      isTreeGone: vi.fn(() => Promise.resolve(true)),
-    }
-    vi.spyOn(admission, 'admitResource').mockResolvedValue(lease)
-    vi.spyOn(admission, 'resourceWindowsJob').mockResolvedValue({
-      assemblyPath: String.raw`C:\job\MuseSparkMcpJob.dll`,
-      executablePath: String.raw`C:\job\MuseSparkMcpLauncher.exe`,
-      verify: () => Promise.resolve(),
-    })
+    governedWindowsJob()
     const launched: NodeJS.ProcessEnv[] = []
     vi.spyOn(jobLaunch, 'spawnMcpJob').mockImplementation((launch) => {
       launched.push(launch.env)
@@ -269,7 +273,12 @@ describe('the spawn boundary', () => {
       fileExists: () => true,
       spawn,
     })
-    const userEnv = { [USER_ROUTE]: 'route-value', PATH: String.raw`C:\Git\cmd` }
+    const userEnv = {
+      [USER_ROUTE]: 'route-value',
+      PATH: String.raw`C:\Git\cmd`,
+      // R3: model and provider keys under every alias never reach a push.
+      ...Object.fromEntries(MODEL_KEYS.map((name) => [name, 'model-value'])),
+    }
     await run(['push', 'origin', 'main'], {
       cwd: tmpdir(),
       env: userEnv,
@@ -280,8 +289,46 @@ describe('the spawn boundary', () => {
     expect(launched).toHaveLength(2)
     expect(Object.keys(launched[0] ?? {})).toContain(USER_ROUTE)
     expect(launched[0]?.['GIT_TERMINAL_PROMPT']).toBe('0')
+    for (const name of MODEL_KEYS) {
+      expect(Object.keys(launched[0] ?? {})).not.toContain(name)
+    }
     // Every other git keeps the quiet strip on the same route.
     expect(Object.keys(launched[1] ?? {})).not.toContain(USER_ROUTE)
+  })
+
+  it('R3: gives a push on the direct route the Git routes and no model or provider key', async () => {
+    vi.spyOn(admission, 'admitResource').mockResolvedValue(undefined)
+    const run = createGitProcess({
+      platform: process.platform,
+      env: process.env,
+      fileExists: existsSync,
+      spawn,
+    })
+    const userEnv = {
+      ...process.env,
+      [USER_ROUTE]: 'route-value',
+      ...Object.fromEntries(MODEL_KEYS.map((name) => [name, 'model-value'])),
+    }
+    const scratch = mkdtempSync(path.join(tmpdir(), 'm123-native-spawn-env-'))
+    try {
+      // Not a repository: git fails, after it started with the environment.
+      await expect(
+        run(['push', 'origin', 'main'], {
+          cwd: scratch,
+          env: userEnv,
+          timeoutMs: 10_000,
+          isUserEnvironment: true,
+        }),
+      ).rejects.toThrow()
+      const spawnOptions = vi.mocked(spawn).mock.calls.at(-1)?.[2]
+      const names = Object.keys(spawnOptions?.env ?? {})
+      expect(names).toContain(USER_ROUTE)
+      for (const name of MODEL_KEYS) {
+        expect(names).not.toContain(name)
+      }
+    } finally {
+      rmSync(scratch, { recursive: true, force: true })
+    }
   })
 
   it('runs the git the caller resolved, never a PATH search, and refuses a relative one', async () => {
@@ -323,6 +370,171 @@ describe('the spawn boundary', () => {
       scratch.cleanup()
     }
   })
+})
+
+describe('the final revalidation at the spawn (RVM123G2)', () => {
+  it('R2: refuses at the spawn a push whose destination changed during its admission', async () => {
+    const scratch = dirtyRepository()
+    const remotes = mkdtempSync(path.join(tmpdir(), 'm123-native-spawn-remotes-'))
+    try {
+      const origin = path.join(remotes, 'origin.git')
+      const unapproved = path.join(remotes, 'unapproved.git')
+      scratchGit(remotes, 'init', '-q', '--bare', origin)
+      scratchGit(remotes, 'init', '-q', '--bare', unapproved)
+      scratchGit(scratch.dir, 'remote', 'add', 'origin', origin)
+      scratchGit(scratch.dir, 'push', '-q', '-u', 'origin', 'main')
+      scratchGit(scratch.dir, 'commit', '-q', '-am', 'Two')
+      const { gate, service } = gatedService(scratch.dir, 'push')
+      const plan = await service.planPush()
+      if (!plan.ok) {
+        throw new Error('the scratch repository must be ahead')
+      }
+      const pushing = service.push(plan)
+      await gate.reached
+      // Revalidated already; the destination moves in the last wait.
+      scratchGit(scratch.dir, 'config', 'remote.origin.pushurl', unapproved)
+      gate.release()
+      await expect(pushing).rejects.toThrow('changed')
+      expect(spawnedSubcommands()).not.toContain('push')
+      expect(scratchGit(unapproved, 'for-each-ref').trim()).toBe('')
+    } finally {
+      rmSync(remotes, { recursive: true, force: true })
+      scratch.cleanup()
+    }
+  })
+
+  it('R9: refuses at the spawn a commit whose staged bytes changed during its admission', async () => {
+    const scratch = dirtyRepository()
+    try {
+      scratchGit(scratch.dir, 'add', 'a.txt')
+      const { gate, service } = gatedService(scratch.dir, 'commit')
+      const { stamp } = await service.formStatus()
+      const committing = service.commit('Staged two', false, stamp)
+      await gate.reached
+      writeFileSync(path.join(scratch.dir, 'a.txt'), 'three\n')
+      scratchGit(scratch.dir, 'add', 'a.txt')
+      gate.release()
+      await expectNoCommit(committing, scratch.dir)
+    } finally {
+      scratch.cleanup()
+    }
+  })
+
+  it('commits nothing when what `add -A` staged is not what the form showed', async () => {
+    const scratch = dirtyRepository()
+    try {
+      const { gate, service } = gatedService(scratch.dir, 'add')
+      const { stamp } = await service.formStatus()
+      const committing = service.commit('All of two', true, stamp)
+      await gate.reached
+      // The index is untouched, so the add starts; it stages other bytes.
+      writeFileSync(path.join(scratch.dir, 'a.txt'), 'unconfirmed\n')
+      gate.release()
+      await expectNoCommit(committing, scratch.dir)
+      expect(spawnedSubcommands()).toContain('add')
+    } finally {
+      scratch.cleanup()
+    }
+  })
+
+  it('R10: refuses at the spawn a root replaced by a link, even to the same directory', async () => {
+    const scratch = dirtyRepository()
+    const moved = `${scratch.dir}-moved`
+    try {
+      const { gate, service } = gatedService(scratch.dir, 'add')
+      const committing = service.commit('Through a link to itself', true)
+      await gate.reached
+      renameSync(scratch.dir, moved)
+      symlinkSync(moved, scratch.dir, 'junction')
+      gate.release()
+      await expect(committing).rejects.toThrow('changed')
+      expect(spawnedSubcommands()).not.toContain('add')
+    } finally {
+      removeLink(scratch.dir)
+      rmSync(moved, { recursive: true, force: true })
+      scratch.cleanup()
+    }
+  })
+
+  it('R1: rechecks at the Windows helper’s payload authorization: a trust lost after the helper started never gets GO', async () => {
+    governedWindowsJob()
+    let isTrusted = true
+    let wasAuthorized: boolean | undefined
+    vi.spyOn(jobLaunch, 'spawnMcpJob').mockImplementation((launch) => {
+      // The helper is running; trust goes before it reports READY.
+      isTrusted = false
+      try {
+        launch.authorize?.()
+        wasAuthorized = true
+      } catch {
+        wasAuthorized = false
+      }
+      // Without GO the helper exits failing, and git never starts.
+      return spawn(process.execPath, ['-e', 'process.exitCode = 3'], { stdio: 'pipe' })
+    })
+    const run = createGitProcess({
+      platform: 'win32',
+      env: { PATH: String.raw`C:\Program Files\Git\cmd` },
+      fileExists: () => true,
+      spawn,
+    })
+    const guard = (): void => {
+      if (!isTrusted) {
+        throw new NativeGitRefusalError('untrusted')
+      }
+    }
+    await expect(
+      run(['add', '-A'], { cwd: tmpdir(), env: {}, timeoutMs: 10_000, beforeRun: guard }),
+    ).rejects.toThrow('untrusted')
+    expect(wasAuthorized).toBe(false)
+  })
+
+  it.runIf(process.platform === 'win32')(
+    'R1: withholds GO on the real control pipe when the payload is refused',
+    async () => {
+      const configSchema = z.object({ controlPipe: z.string(), controlNonce: z.string() })
+      const answerTo = async (authorize: () => void): Promise<string> => {
+        const prepared = jobLaunch.prepareMcpJobLaunch({
+          executablePath: 'unused.exe',
+          file: 'git',
+          args: [],
+          isVerbatim: false,
+          cwd: tmpdir(),
+          env: {},
+          log: () => {
+            /* The refusal is the answer read below. */
+          },
+          authorize,
+        })
+        const encoded = environmentValue(prepared.env, 'win32', MCP_JOB_CONFIG_VARIABLE) ?? ''
+        const { controlPipe, controlNonce } = configSchema.parse(
+          JSON.parse(Buffer.from(encoded, 'base64').toString('utf8')),
+        )
+        const socket = createConnection(`\\\\.\\pipe\\${controlPipe}`)
+        let answer = ''
+        socket.setEncoding('utf8')
+        socket.on('data', (chunk: string) => {
+          answer += chunk
+        })
+        socket.write(`READY ${controlNonce}\n`)
+        await new Promise((resolve) => {
+          socket.once('close', resolve)
+        })
+        prepared.closeControl()
+        return answer
+      }
+      expect(
+        await answerTo(() => {
+          throw new NativeGitRefusalError('untrusted')
+        }),
+      ).toBe('')
+      expect(
+        await answerTo(() => {
+          /* Authorized. */
+        }),
+      ).toMatch(/^GO /)
+    },
+  )
 })
 
 describe('cappedStderr', () => {

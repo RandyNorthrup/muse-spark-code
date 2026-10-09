@@ -3,14 +3,21 @@
 // fingerprint of the unstaged and new files a commit form shows.
 //
 // `O_NOFOLLOW` protects only the last component, and Windows has none. So a
-// read is confined by identity at every step of its path: the root is the
+// read is checked by identity at every step of its path: the root is the
 // directory the service bound to; every ancestor below it is a real
 // directory (not a link or junction), with its volume and file id taken
 // before the open and again after it; the leaf is a regular file, and the
-// handle opened is that same file. A path whose ancestor was swapped for a
-// link while the read waited is refused (`changed`), so no outside byte
-// reaches a prompt or a stamp. The path's text comes from git's own status
-// and is refused unless every component is a plain name.
+// handle opened is that same file. A link inside the tree, or an ancestor
+// that is a link or another directory at either sample, is refused
+// (`changed`). The path's text comes from git's own status and is refused
+// unless every component is a plain name.
+//
+// Residual (PLAN.md D104's threat boundary, RVM123G2 R4): the open itself
+// is path-based. A same-user process that swaps an ancestor for a link
+// after the first sample and restores it before the second, while the
+// open walks the path, is not detected. Node has no handle-relative
+// (`openat`) walk; that process already holds the user's authority, and
+// the boundary leaves it out rather than claim it.
 
 import { createHash } from 'node:crypto'
 import { constants as fsConstants, type BigIntStats } from 'node:fs'

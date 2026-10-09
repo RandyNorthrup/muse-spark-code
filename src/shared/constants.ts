@@ -1733,6 +1733,23 @@ export const STDERR_SHOWN_CHARS = 1000
 // A pull request someone else wrote is checked out under the extension's
 // own storage, in this folder (M71).
 export const PULL_REQUEST_WORKTREES_DIR = 'pr-worktrees'
+// M123 lane G (RVM123G2 R7, R8): one native Git transaction per repository
+// across every editor and runtime process. The lock file sits in git's
+// common directory; its holder refreshes it, and a waiter takes it over only
+// when the holder's process is gone (same machine) or it went silent this long.
+export const GIT_TRANSACTION_LOCK_FILE = 'muse-spark-code-git.lock'
+export const GIT_TRANSACTION_LOCK_POLL_MS = 100
+export const GIT_TRANSACTION_LOCK_REFRESH_MS = 5000
+export const GIT_TRANSACTION_LOCK_STALE_MS = 30_000
+// D104's push and pull request fetch (RVM123G2 R3): the only credential
+// variables a Git child may receive, for those two operations only: the
+// GitHub routes `gh`'s credential helper reads. Never a model or provider key.
+export const GIT_PUSH_CREDENTIAL_VARIABLES = [
+  'GH_TOKEN',
+  'GITHUB_TOKEN',
+  'GH_ENTERPRISE_TOKEN',
+  'GITHUB_ENTERPRISE_TOKEN',
+] as const
 // The extension writes such a checkout itself (core/git/heldTree.ts): at
 // most this many files and folders, and this many bytes in all; a bigger
 // pull request is refused before anything is written.

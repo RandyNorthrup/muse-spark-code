@@ -25,6 +25,7 @@ import {
   GIT_FILTER_NAME_MAX_CHARS,
   GIT_METADATA_OPTIONS,
   GIT_OUTPUT_MAX_BYTES,
+  GIT_PUSH_CREDENTIAL_VARIABLES,
   GIT_STDERR_MAX_CHARS,
   GIT_TIMEOUT_MS,
   UI_TEXT,
@@ -395,10 +396,18 @@ export interface GitProcessDeps {
   readonly executable?: string | undefined
 }
 
-/** One environment for both launch routes: the user's for D104's exception, else the quiet strip. */
+/**
+ * One environment for both launch routes, an allow-list per operation
+ * (RVM123G2 R3): no credential variable at all, or for D104's exception
+ * (a confirmed push, a pull request fetch) only the Git routes
+ * GIT_PUSH_CREDENTIAL_VARIABLES names, never a model or provider key.
+ */
 function childGitEnvironment(options: GitProcessOptions): NodeJS.ProcessEnv {
   return options.isUserEnvironment === true
-    ? { ...options.env, GIT_TERMINAL_PROMPT: '0' }
+    ? {
+        ...withoutCredentials(options.env, GIT_PUSH_CREDENTIAL_VARIABLES),
+        GIT_TERMINAL_PROMPT: '0',
+      }
     : withoutCredentials(options.env)
 }
 
@@ -468,6 +477,22 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         // The same environment on both routes: the governed Windows job too
         // keeps D104's user environment for a push and a fetch (M123).
         const childEnv = resourceEnvironment(childGitEnvironment(options), resource)
+        // The Windows helper creates git only after GO: the caller's check
+        // runs again at that authorization, after the helper's own start
+        // (RVM123G2 R1), and its refusal is this command's.
+        let refusal: Error | undefined
+        const guard = options.beforeRun
+        const authorize =
+          guard === undefined
+            ? undefined
+            : () => {
+                try {
+                  guard()
+                } catch (error: unknown) {
+                  refusal = error instanceof Error ? error : new Error(String(error))
+                  throw error
+                }
+              }
         const child =
           job === undefined
             ? deps.spawn(git, [...args], {
@@ -489,6 +514,7 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
                 },
                 resource,
                 resourceAssembly: job.assemblyPath,
+                authorize,
               })
         wasSpawned = true
         if (job === undefined) observeResourceProcess(resource, child)
@@ -591,7 +617,9 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
           await Promise.race([taking, stopped])
           clearTimeout(timer)
           options.signal?.removeEventListener('abort', onAbort)
-          if (failure !== undefined) {
+          if (refusal !== undefined) {
+            reject(refusal)
+          } else if (failure !== undefined) {
             reject(failure)
           } else if (code === 0) {
             resolve(Buffer.concat(chunks))

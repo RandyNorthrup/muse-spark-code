@@ -11,6 +11,7 @@
 // knows. Nothing here logs, shows, or forwards a credential: a remote URL
 // is data for the caller to mask before it is shown.
 
+import path from 'node:path'
 import { isGitExitError, type GitProcess } from '../../host/git'
 import { GIT_TIMEOUT_MS } from '../../shared/constants'
 import { isPlainRefName, type HeadFacts, type RemoteFacts } from './pushPlan'
@@ -48,6 +49,43 @@ export function remotePushUrlArgs(name: string): readonly string[] {
   return ['config', '--get', `remote.${name}.pushurl`]
 }
 
+/**
+ * Fixed shape: every URL a push to `name` goes to, as git itself resolves
+ * it (`pushurl` or `url`, every value, `insteadOf` and `pushInsteadOf`
+ * applied). A push's confirmation shows these, so a rewrite in a
+ * repository's configuration cannot send it somewhere the user did not see
+ * (RVM123G2). The pull request's repository keeps M71's raw read below.
+ */
+export function remotePushUrlsArgs(name: string): readonly string[] {
+  return ['remote', 'get-url', '--push', '--all', name]
+}
+
+/** Fixed arguments: every configuration entry's origin, NUL-separated, values left out. */
+export function configOriginsArgs(): readonly string[] {
+  return ['config', '--list', '--show-origin', '--name-only', '-z']
+}
+
+/**
+ * The configuration files git read, from `configOriginsArgs`' output:
+ * `file:` origins only, resolved against `cwd` (git names the
+ * repository's own relative to it), each once, in git's order.
+ */
+function parseConfigOrigins(output: string, cwd: string): string[] {
+  const fields = output.split('\0')
+  const files: string[] = []
+  for (let index = 0; index + 1 < fields.length; index += 2) {
+    const origin = fields[index] ?? ''
+    if (!origin.startsWith(CONFIG_FILE_ORIGIN)) {
+      continue
+    }
+    const file = path.resolve(cwd, origin.slice(CONFIG_FILE_ORIGIN.length))
+    if (!files.includes(file)) {
+      files.push(file)
+    }
+  }
+  return files
+}
+
 /** What the caller runs git with: the confined root, the chosen environment. */
 export interface NativeGitContext {
   readonly cwd: string
@@ -75,8 +113,12 @@ export interface NativeStatusSnapshot {
    * fingerprinted by the service, which reads them confined).
    */
   readonly records: readonly string[]
+  /** The changed paths that are submodules (`S…` records): their own content stays theirs. */
+  readonly submodules: readonly string[]
 }
 
+const CONFIG_FILE_ORIGIN = 'file:'
+const SUBMODULE_MARK = 'S'
 const DETACHED_HEAD = '('
 const UNTRACKED_MARK = '?'
 const UNMODIFIED_MARK = '.'
@@ -102,15 +144,18 @@ function pathFieldOf(kind: string): number {
   return kind === '2' ? RENAMED_PATH_FIELD : ORDINARY_PATH_FIELD
 }
 
-/** A tracked change's path and marks, from the fields before its path. */
-function trackedChange(record: string, pathField: number): { file: string; marks: string } {
+/** A tracked change's path, marks and submodule field, from the fields before its path. */
+function trackedChange(
+  record: string,
+  pathField: number,
+): { file: string; marks: string; isSubmodule: boolean } {
   const fields = record.split(' ')
   const marks = fields[1] ?? ''
   const file = fields.slice(pathField).join(' ')
   if (file === '' || marks.length !== 2) {
     throw new Error(`Unexpected git status record: ${record}`)
   }
-  return { file, marks }
+  return { file, marks, isSubmodule: fields[2]?.startsWith(SUBMODULE_MARK) === true }
 }
 
 /**
@@ -132,6 +177,7 @@ export function parseStatusV2(output: string): NativeStatusSnapshot {
   const unstaged: string[] = []
   const untracked: string[] = []
   const changeRecords: string[] = []
+  const submodules: string[] = []
   const records = output.split('\0')
   for (let index = 0; index < records.length; index += 1) {
     const record = records[index] ?? ''
@@ -159,7 +205,10 @@ export function parseStatusV2(output: string): NativeStatusSnapshot {
     } else if (record.startsWith(`${UNTRACKED_MARK} `)) {
       untracked.push(record.slice(2))
     } else if (record.startsWith('1 ') || record.startsWith('2 ') || record.startsWith('u ')) {
-      const { file, marks } = trackedChange(record, pathFieldOf(record.charAt(0)))
+      const { file, marks, isSubmodule } = trackedChange(record, pathFieldOf(record.charAt(0)))
+      if (isSubmodule) {
+        submodules.push(file)
+      }
       if (record.startsWith('2 ')) {
         // The renamed-from path is the next record; it names no change
         // itself, but it belongs to this change's stamp.
@@ -187,6 +236,7 @@ export function parseStatusV2(output: string): NativeStatusSnapshot {
     unstaged,
     untracked,
     records: changeRecords,
+    submodules,
   }
 }
 
@@ -326,6 +376,32 @@ async function runText(
     ...(context.signal !== undefined && { signal: context.signal }),
   })
   return output.toString('utf8')
+}
+
+/** The status snapshot alone, in the caller's environment. */
+export async function readStatusSnapshot(
+  run: GitProcess,
+  context: NativeGitContext,
+): Promise<NativeStatusSnapshot> {
+  return parseStatusV2(await runText(run, nativeStatusArgs(), context))
+}
+
+/** Every URL a push to `name` goes to, rewrites applied (`remotePushUrlsArgs`). */
+export async function readPushUrls(
+  run: GitProcess,
+  context: NativeGitContext,
+  name: string,
+): Promise<string[]> {
+  const output = await runText(run, remotePushUrlsArgs(name), context)
+  return output.split(/\r?\n/).filter((line) => line !== '')
+}
+
+/** The configuration files git reads here (`configOriginsArgs`), resolved. */
+export async function readConfigFiles(
+  run: GitProcess,
+  context: NativeGitContext,
+): Promise<string[]> {
+  return parseConfigOrigins(await runText(run, configOriginsArgs(), context), context.cwd)
 }
 
 /** The status snapshot and the remotes, in the caller's environment. */

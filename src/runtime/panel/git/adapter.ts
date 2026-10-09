@@ -13,12 +13,14 @@
 //   the VS Code confirm modal does there.
 // - `push` plans with M71's push plan (same refusals, one shared table
 //   test), asks which remote when git cannot tell (`pickRemote`), and asks
-//   before anything goes (`confirmPush`: the remote and its masked URL,
-//   the branch and its target, the commits). The confirmed plan is planned
-//   again inside the lock and pushed in the user's own Git environment.
-//   Only git's own failure of that push names the remote and opens the
-//   same command in the editor's terminal; a refusal, a lost trust or
-//   owner, or Cancel never does.
+//   before anything goes (`confirmPush`: the remote and every URL git
+//   pushes it to, rewrites applied and masked, the branch and its target,
+//   the commits). The service revalidates the confirmed plan after every
+//   wait and pushes it in the user's own Git environment. Only git's own
+//   failure of that push names the remote and opens the same command in
+//   the editor's terminal, and only in the same repository with the plan
+//   still the one confirmed; a refusal, a lost trust or owner, or Cancel
+//   never does.
 // - Cancel, a session change and disposal abort the running operation's
 //   signal: pending git stops, and nothing new starts.
 // - The linked pull request shows from the runtime link store; its status
@@ -72,9 +74,13 @@ import {
   refusalOf,
   type NativeGitOperation,
   type NativeGitServiceOptions,
+  type NativePushPlan,
+  type NativePushPlanResult,
 } from './service'
 
 const AGENT_MESSAGE_KIND = 'agentMessage'
+/** Between the URLs of a remote with several push URLs (git pushes to each). */
+const PUSH_URL_SEPARATOR = ', '
 const COMPLETED_TERMINAL = 'completed'
 const EMPTY_STATE_JSON = '{}'
 
@@ -324,7 +330,9 @@ export class RuntimeGit implements ConversationGitPort {
   }
 
   /** The push for the current branch, asking which remote when git cannot tell (M71's pick). */
-  private async pushPlanFor(operation: NativeGitOperation): Promise<PushPlan | undefined> {
+  private async pushPlanFor(
+    operation: NativeGitOperation,
+  ): Promise<NativePushPlanResult | undefined> {
     const plan = await this.service.planPush(undefined, operation)
     this.checkCurrent()
     if (plan.ok || plan.refusal !== 'chooseRemote') {
@@ -346,7 +354,7 @@ export class RuntimeGit implements ConversationGitPort {
     if (!this.usable()) {
       return
     }
-    let plan: PushPlan | undefined
+    let plan: NativePushPlanResult | undefined
     try {
       plan = await this.pushPlanFor(operation)
     } catch (error: unknown) {
@@ -361,10 +369,14 @@ export class RuntimeGit implements ConversationGitPort {
       return
     }
     // Nothing goes before the user saw where, what and how many (D104,
-    // M71's push modal): the remote and its masked URL, the target, the commits.
+    // M71's push modal): the remote and every URL git pushes it to (its
+    // rewrites applied, masked), the target, the commits.
     const isConfirmed = await this.deps.confirmPush({
       remote: plan.remote,
-      remoteUrl: plan.remoteUrl === undefined ? undefined : maskRemoteUrl(plan.remoteUrl),
+      remoteUrl:
+        plan.pushUrls.length === 0
+          ? undefined
+          : plan.pushUrls.map((url) => maskRemoteUrl(url)).join(PUSH_URL_SEPARATOR),
       branch: plan.branch,
       target: plan.target,
       commits: plan.commits,
@@ -396,7 +408,7 @@ export class RuntimeGit implements ConversationGitPort {
    * (D104). A refusal, a lost trust or owner, Cancel or a timeout never does.
    */
   private async pushFailed(
-    plan: Extract<PushPlan, { ok: true }>,
+    plan: NativePushPlan,
     error: unknown,
     operation: NativeGitOperation,
   ): Promise<void> {
@@ -413,7 +425,15 @@ export class RuntimeGit implements ConversationGitPort {
     if (!this.isStillCurrent()) {
       return
     }
-    const root = await this.service.boundRoot()
+    // The terminal starts git itself: only in the same bound repository,
+    // verified again, with the plan still exactly the one confirmed (R5).
+    let root: string
+    try {
+      root = await this.service.confirmedPushRoot(plan, operation)
+    } catch (error_: unknown) {
+      this.noticeFailure(error_)
+      return
+    }
     if (!this.isStillCurrent()) {
       return
     }

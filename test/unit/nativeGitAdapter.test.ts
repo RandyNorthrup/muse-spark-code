@@ -19,7 +19,7 @@ import {
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { createGitProcess, GitExitError, type GitProcess } from '../../src/host/git'
 import type { GitSurface } from '../../src/host/conversation/conversationController'
@@ -31,7 +31,11 @@ import { STDERR_SHOWN_CHARS, UI_TEXT } from '../../src/shared/constants'
 import { uiLocale } from '../../src/shared/l10n/text'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import { fakeGitWindow } from './helpers/fakeGit'
-import { fakeRuntimeGitDeps } from './helpers/github/fakes'
+import {
+  dirtyScratchRepository,
+  fakeRuntimeGitDeps,
+  isolateGitEnvironment,
+} from './helpers/github/fakes'
 import { createFixtureRepositories, type FixtureRepositories } from './helpers/github/repositories'
 import type { RuntimeGitDeps, RuntimePushConfirmation } from '../../src/core/git/runtimeGit'
 
@@ -101,22 +105,8 @@ function turnReply(turnId: string, text: string): AgentEvent[] {
 }
 
 /** A dirty scratch repository: one unstaged change to show and commit. */
-function makeDirtyRepo(environment: NodeJS.ProcessEnv): {
-  readonly dir: string
-  readonly cleanup: () => void
-} {
-  const dir = mkdtempSync(path.join(tmpdir(), 'm123-native-adapter-'))
-  execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: dir, env: environment })
-  writeFileSync(path.join(dir, 'a.txt'), 'one\n')
-  execFileSync('git', ['add', 'a.txt'], { cwd: dir, env: environment })
-  execFileSync('git', ['commit', '-q', '-m', 'Add a'], { cwd: dir, env: environment })
-  writeFileSync(path.join(dir, 'a.txt'), 'two\n')
-  return {
-    dir,
-    cleanup: () => {
-      rmSync(dir, { recursive: true, force: true })
-    },
-  }
+function makeDirtyRepo(): { readonly dir: string; readonly cleanup: () => void } {
+  return dirtyScratchRepository('m123-native-adapter-')
 }
 
 describe('createRuntimeGit', () => {
@@ -138,6 +128,15 @@ describe('createRuntimeGit', () => {
     rmSync(root, { recursive: true, force: true })
   })
 
+  // Every git here commits as the test's own identity, never the machine's (R12).
+  beforeEach(() => {
+    isolateGitEnvironment()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   function adapterFor(
     repositoryRoot: string,
     fake: FakeSurface,
@@ -156,7 +155,7 @@ describe('createRuntimeGit', () => {
   }
 
   it('posts the commit form with the branch and the counts', async () => {
-    const scratch = makeDirtyRepo(repos().environment)
+    const scratch = makeDirtyRepo()
     try {
       const fake = fakeSurface()
       const { git } = adapterFor(scratch.dir, fake)
@@ -180,7 +179,7 @@ describe('createRuntimeGit', () => {
   })
 
   it('commits after the form, and shows the commit', async () => {
-    const scratch = makeDirtyRepo(repos().environment)
+    const scratch = makeDirtyRepo()
     try {
       const fake = fakeSurface()
       const { git } = adapterFor(scratch.dir, fake)
@@ -210,7 +209,7 @@ describe('createRuntimeGit', () => {
   })
 
   it('answers an empty message and a credential shape without committing', async () => {
-    const work = makeDirtyRepo(repos().environment)
+    const work = makeDirtyRepo()
     try {
       const panel = fakeSurface()
       const { git } = adapterFor(work.dir, panel)
@@ -239,7 +238,7 @@ describe('createRuntimeGit', () => {
   })
 
   it('refuses a commit when the tree moved under the form', async () => {
-    const scratch = makeDirtyRepo(repos().environment)
+    const scratch = makeDirtyRepo()
     try {
       const fake = fakeSurface()
       const { git } = adapterFor(scratch.dir, fake)
@@ -264,15 +263,22 @@ describe('createRuntimeGit', () => {
     const fake = fakeSurface()
     const { git, calls } = adapterFor(repos().own, fake)
     await git.handleAction('push')
+    // The URL shown is where git really pushes: the fixture's `insteadOf`
+    // rewrite of github.com to its local bare repository.
     expect(calls.confirmations).toEqual([
       {
         remote: 'origin',
-        remoteUrl: 'https://github.com/RandyNorthrup/muse-spark-code.git',
+        remoteUrl: execFileSync('git', ['remote', 'get-url', '--push', 'origin'], {
+          cwd: repos().own,
+          env: repos().environment,
+          encoding: 'utf8',
+        }).trim(),
         branch: 'feature',
         target: 'feature',
         commits: 1,
       },
     ])
+    expect(calls.confirmations[0]?.remoteUrl?.includes('github.com')).toBe(false)
     expect(
       fake.notices.some((notice) => notice.level === 'info' && notice.text.includes('feature')),
     ).toBe(true)
@@ -330,6 +336,64 @@ describe('createRuntimeGit', () => {
     }
   })
 
+  for (const change of ['the folder is replaced', 'a commit lands'] as const) {
+    it(`R5: opens no terminal when, as the failed push ends, ${change}`, async () => {
+      const environment = repos().environment
+      const base = mkdtempSync(path.join(tmpdir(), 'm123-native-pushfail-moved-'))
+      const direct = path.join(base, 'repo')
+      const makeDoomed = (folder: string): void => {
+        execFileSync('git', ['clone', '-q', repos().parentBare, folder], { env: environment })
+        execFileSync('git', ['checkout', '-q', '-b', 'doomed'], { cwd: folder, env: environment })
+        writeFileSync(path.join(folder, 'doomed.txt'), 'doomed\n')
+        execFileSync('git', ['add', 'doomed.txt'], { cwd: folder, env: environment })
+        execFileSync('git', ['commit', '-q', '-m', 'Doomed'], { cwd: folder, env: environment })
+        execFileSync('git', ['remote', 'set-url', 'origin', '/nonexistent/bare.git'], {
+          cwd: folder,
+          env: environment,
+        })
+      }
+      try {
+        makeDoomed(direct)
+        const real = createGitProcess({
+          platform: process.platform,
+          env: environment,
+          fileExists: existsSync,
+          spawn,
+        })
+        const run: GitProcess = async (args, options) => {
+          try {
+            return await real(args, options)
+          } catch (error: unknown) {
+            if (args[0] === 'push') {
+              if (change === 'a commit lands') {
+                writeFileSync(path.join(direct, 'doomed.txt'), 'later\n')
+                execFileSync('git', ['commit', '-q', '-am', 'Later'], {
+                  cwd: direct,
+                  env: environment,
+                })
+              } else {
+                renameSync(direct, path.join(base, 'repo-moved'))
+                makeDoomed(direct)
+              }
+            }
+            throw error
+          }
+        }
+        const fake = fakeSurface()
+        const { deps, calls } = fakeRuntimeGitDeps(direct)
+        const git = createRuntimeGit(fake.surface, deps, { run })
+        await git.handleAction('push')
+        expect(fake.said.some((message) => message.text.startsWith(UI_TEXT.gitPushFailed))).toBe(
+          true,
+        )
+        expect(calls.terminals).toEqual([])
+        expect(fake.notices).toContainEqual({ level: 'warning', text: UI_TEXT.gitOperationChanged })
+      } finally {
+        rmSync(base, { recursive: true, force: true })
+      }
+    })
+  }
+
   it('stays silent when Cancel wins the push', async () => {
     const controller = new AbortController()
     controller.abort()
@@ -374,7 +438,7 @@ describe('createRuntimeGit', () => {
   })
 
   it('prompts a commit message from the native diff', async () => {
-    const scratch = makeDirtyRepo(repos().environment)
+    const scratch = makeDirtyRepo()
     try {
       const fake = fakeSurface()
       const { git } = adapterFor(scratch.dir, fake)
@@ -627,7 +691,7 @@ describe('createRuntimeGit', () => {
 
   for (const stop of ['cancel', 'session change', 'disposal'] as const) {
     it(`#2 stops a pending commit's git on ${stop}: nothing is staged or committed`, async () => {
-      const scratch = makeDirtyRepo(repos().environment)
+      const scratch = makeDirtyRepo()
       try {
         const watched = watchedRunner()
         const fake = fakeSurface()
@@ -672,7 +736,7 @@ describe('createRuntimeGit', () => {
   })
 
   it('#6 never reads a new file through a folder swapped for a link after status', async () => {
-    const scratch = makeDirtyRepo(repos().environment)
+    const scratch = makeDirtyRepo()
     const outside = mkdtempSync(path.join(tmpdir(), 'm123-native-outside-'))
     try {
       scratchGit(scratch.dir, 'checkout', '-q', '--', 'a.txt')
@@ -787,7 +851,7 @@ describe('createRuntimeGit', () => {
   })
 
   it('#8 refuses a commit when other bytes were staged, or a file edited, after the form', async () => {
-    const scratch = makeDirtyRepo(repos().environment)
+    const scratch = makeDirtyRepo()
     try {
       // Staged under the same name, then other bytes staged: same paths, other index object.
       scratchGit(scratch.dir, 'add', 'a.txt')
@@ -819,7 +883,7 @@ describe('createRuntimeGit', () => {
   })
 
   it('#9 serializes stage-and-commit across conversations sharing a repository', async () => {
-    const scratch = makeDirtyRepo(repos().environment)
+    const scratch = makeDirtyRepo()
     try {
       // a.txt staged for A's staged-only commit; b.txt new for B's commit of everything.
       scratchGit(scratch.dir, 'add', 'a.txt')

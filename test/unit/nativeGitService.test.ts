@@ -20,7 +20,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { execFileSync, spawn } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { createGitProcess, type GitProcess, type GitProcessOptions } from '../../src/host/git'
 import {
@@ -33,19 +33,29 @@ import {
   nativeWorktreeAddArgs,
   NativeGitRefusalError,
   NativeGitService,
+  type NativePushPlan,
 } from '../../src/runtime/panel/git/service'
-import type { PushPlan } from '../../src/core/git/pushPlan'
 import { takeCredentials } from '../../src/runtime/credentialVariables'
 import {
   keepGitCredentialRoutes,
   runtimeGitUserEnvironment,
 } from '../../src/runtime/gitUserEnvironment'
-import { fakeRuntimeGitDeps } from './helpers/github/fakes'
+import { fakeRuntimeGitDeps, isolateGitEnvironment } from './helpers/github/fakes'
 import { createFixtureRepositories, type FixtureRepositories } from './helpers/github/repositories'
 import type { RuntimeGitDeps } from '../../src/core/git/runtimeGit'
 
 const QUIET_CANARY_ENV = 'M123_G_TEST_QUIET_CANARY_TOKEN'
-const PUSH_CANARY_ENV = 'M123_G_TEST_PUSH_CANARY_TOKEN'
+const MODEL_CANARY_ENV = 'META_API_KEY'
+const GIT_ROUTE_ENV = 'GH_TOKEN'
+
+// Every git here commits as the test's own identity, never the machine's (R12).
+beforeEach(() => {
+  isolateGitEnvironment()
+})
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
 
 /** Removes a link or junction itself, never what it leads to. */
 function removeLink(link: string): void {
@@ -61,7 +71,7 @@ function sortedEnvNames(keys: readonly string[]): readonly string[] {
   return keys.toSorted((left, right) => left.localeCompare(right))
 }
 
-function okPlan(): Extract<PushPlan, { ok: true }> {
+function okPlan(): NativePushPlan {
   return {
     ok: true,
     remote: 'origin',
@@ -71,6 +81,9 @@ function okPlan(): Extract<PushPlan, { ok: true }> {
     refspec: 'feature',
     setUpstream: false,
     commits: 1,
+    pushUrls: ['https://github.com/o/r.git'],
+    headOid: undefined,
+    configFiles: [],
   }
 }
 
@@ -82,10 +95,12 @@ describe('assertNativeGitArgs', () => {
       ['diff', '--no-color', '--no-ext-diff', '--no-textconv'],
       ['diff', '--no-color', '--no-ext-diff', '--no-textconv', '--cached'],
       ['add', '-A'],
-      ['rev-parse', '--show-toplevel'],
+      ['rev-parse', '--show-toplevel', '--absolute-git-dir', '--git-common-dir'],
       ['config', '--get', 'commit.gpgsign'],
       ['config', '--get', 'remote.origin.url'],
       ['config', '--get', 'remote.origin.pushurl'],
+      ['config', '--list', '--show-origin', '--name-only', '-z'],
+      ['remote', 'get-url', '--push', '--all', 'origin'],
       ['commit', '-m', 'A message with -dash and : colon'],
       ['push', 'origin', 'feature'],
       ['push', '-u', 'origin', 'feature'],
@@ -126,6 +141,12 @@ describe('assertNativeGitArgs', () => {
       ['worktree', 'add', '--no-checkout', '--detach', 'relative/path', 'abc0001'],
       ['worktree', 'add', '--no-checkout', '--detach', '/tmp/wt-1', '--all'],
       ['rev-parse', 'HEAD'],
+      ['rev-parse', '--show-toplevel'],
+      ['config', '--list', '--show-origin'],
+      ['config', '--list', '--show-origin', '--name-only', '-z', '--global'],
+      ['remote', 'get-url', '--push', '--all', '-x'],
+      ['remote', 'get-url', 'origin'],
+      ['remote', 'set-url', 'origin', 'https://evil.invalid/r.git'],
     ]
     for (const args of evil) {
       expect(() => {
@@ -178,7 +199,7 @@ describe('nativePushArgs', () => {
 })
 
 describe('nativePushEnvironment', () => {
-  it('keeps the user environment and stops at no prompt', () => {
+  it('keeps the user environment and its Git routes, and stops at no prompt', () => {
     const env = nativePushEnvironment({
       GH_TOKEN: 'kept',
       SSH_AUTH_SOCK: '/run/agent',
@@ -190,6 +211,27 @@ describe('nativePushEnvironment', () => {
     expect(env['GIT_TERMINAL_PROMPT']).toBe('0')
     expect(sortedEnvNames(Object.keys(env))).toEqual(
       sortedEnvNames(['GH_TOKEN', 'SSH_AUTH_SOCK', 'GIT_TERMINAL_PROMPT', 'PATH']),
+    )
+  })
+
+  it('R3: gives a push no credential but the Git routes: never a model or provider key', () => {
+    const env = nativePushEnvironment({
+      PATH: '/usr/bin',
+      GH_TOKEN: 'route',
+      GITHUB_TOKEN: 'route',
+      META_API_KEY: 'model',
+      OPENAI_API_KEY: 'model',
+      OPENAI_KEY: 'model',
+      ANTHROPIC_KEY: 'model',
+      ANTHROPIC_AUTH_TOKEN: 'provider',
+      AWS_BEARER_TOKEN_BEDROCK: 'provider',
+      HF_TOKEN: 'provider',
+      META_KEY: 'model',
+      GEMINI_KEY: 'model',
+      NPM_TOKEN: 'other',
+    })
+    expect(sortedEnvNames(Object.keys(env))).toEqual(
+      sortedEnvNames(['PATH', 'GH_TOKEN', 'GITHUB_TOKEN', 'GIT_TERMINAL_PROMPT']),
     )
   })
 })
@@ -234,9 +276,10 @@ describe('NativeGitService on the fixture repositories', () => {
     rmSync(dataFolder, { recursive: true, force: true })
   })
 
-  it('plans the own fixture as a plain push of one commit', async () => {
+  it('plans the own fixture as a plain push of one commit, bound to where git sends it', async () => {
     const service = new NativeGitService(depsFor(fixtures().own), { run: gitRunner() })
-    expect(await service.planPush()).toEqual({
+    const plan = await service.planPush()
+    expect(plan).toMatchObject({
       ok: true,
       remote: 'origin',
       remoteUrl: expect.stringContaining('github.com'),
@@ -245,7 +288,16 @@ describe('NativeGitService on the fixture repositories', () => {
       refspec: 'feature',
       setUpstream: false,
       commits: 1,
+      headOid: expect.stringMatching(/^[0-9a-f]{40}$/),
     })
+    if (!plan.ok) {
+      throw new Error('the own fixture must plan a push')
+    }
+    // The fixture's `insteadOf` sends github.com to a local bare repository:
+    // the plan names that, where the push really goes.
+    expect(plan.pushUrls).toHaveLength(1)
+    expect(plan.pushUrls[0]?.includes('github.com')).toBe(false)
+    expect(plan.configFiles.some((file) => file.endsWith(path.join('.git', 'config')))).toBe(true)
   })
 
   it('plans the shared push-plan refusals: behind, detached', async () => {
@@ -418,13 +470,12 @@ describe('NativeGitService on the fixture repositories', () => {
 
   it('keeps the user environment through the real runner for a push and a fetch only', async () => {
     // End to end: hooks dump the environment git actually started with, so
-    // the quiet strip (reads, commits) and the user pass-through (push,
+    // the quiet strip (reads, commits) and the user's Git routes (push,
     // fetch) are proved on the child, not on an object handed to it.
     const direct = mkdtempSync(path.join(tmpdir(), 'm123-native-env-'))
-    const previousQuiet = process.env[QUIET_CANARY_ENV]
-    const previousPush = process.env[PUSH_CANARY_ENV]
-    process.env[QUIET_CANARY_ENV] = 'quiet-canary'
-    process.env[PUSH_CANARY_ENV] = 'push-canary'
+    vi.stubEnv(QUIET_CANARY_ENV, 'quiet-canary')
+    vi.stubEnv(MODEL_CANARY_ENV, 'model-canary')
+    vi.stubEnv(GIT_ROUTE_ENV, 'route-canary')
     try {
       const environment = { ...fixtures().environment, ...process.env }
       execFileSync('git', ['clone', '-q', fixtures().parentBare, direct], { env: environment })
@@ -440,10 +491,11 @@ describe('NativeGitService on the fixture repositories', () => {
       await expect(service.commit('Dump on read', true)).rejects.toThrow(/code 1/)
       const readEnv = readDump()
       expect(readEnv.includes(`${QUIET_CANARY_ENV}=`)).toBe(false)
-      expect(readEnv.includes(`${PUSH_CANARY_ENV}=`)).toBe(false)
+      expect(readEnv.includes(`${MODEL_CANARY_ENV}=`)).toBe(false)
+      expect(readEnv.includes(`${GIT_ROUTE_ENV}=`)).toBe(false)
       expect(readEnv.includes('GIT_TERMINAL_PROMPT=0')).toBe(true)
-      // A push keeps the user's helpers, agent and token variables, still
-      // without a prompt, and gains nothing of ours.
+      // A push keeps the user's helpers, agent and Git token routes, still
+      // without a prompt, and gains nothing of ours: no other credential (R3).
       execFileSync('git', ['commit', '-q', '--no-verify', '-m', 'For push'], {
         cwd: direct,
         env: environment,
@@ -454,21 +506,12 @@ describe('NativeGitService on the fixture repositories', () => {
       }
       await expect(service.push(plan)).rejects.toThrow()
       const pushEnv = readDump()
-      expect(pushEnv.includes(`${QUIET_CANARY_ENV}=quiet-canary`)).toBe(true)
-      expect(pushEnv.includes(`${PUSH_CANARY_ENV}=push-canary`)).toBe(true)
+      expect(pushEnv.includes(`${GIT_ROUTE_ENV}=`)).toBe(true)
+      expect(pushEnv.includes(`${QUIET_CANARY_ENV}=`)).toBe(false)
+      expect(pushEnv.includes(`${MODEL_CANARY_ENV}=`)).toBe(false)
       expect(pushEnv.includes('GIT_TERMINAL_PROMPT=0')).toBe(true)
       expect(pushEnv.includes('http.extraHeader')).toBe(false)
     } finally {
-      if (previousQuiet === undefined) {
-        Reflect.deleteProperty(process.env, QUIET_CANARY_ENV)
-      } else {
-        process.env[QUIET_CANARY_ENV] = previousQuiet
-      }
-      if (previousPush === undefined) {
-        Reflect.deleteProperty(process.env, PUSH_CANARY_ENV)
-      } else {
-        process.env[PUSH_CANARY_ENV] = previousPush
-      }
       rmSync(direct, { recursive: true, force: true })
     }
   })
@@ -707,7 +750,12 @@ describe('NativeGitService on the fixture repositories', () => {
         ;(args[0] === 'push' ? pushEnvs : readEnvs).push(options.env)
         return gitRunner()(args, options)
       }
-      const captured = { ...process.env, M123_G_USER_ROUTE_TOKEN: 'route' }
+      const captured = {
+        ...process.env,
+        [GIT_ROUTE_ENV]: 'route',
+        [MODEL_CANARY_ENV]: 'model',
+        M123_G_USER_ROUTE_TOKEN: 'not-a-git-route',
+      }
       const service = new NativeGitService(depsFor(direct, { userEnvironment: () => captured }), {
         run: recording,
       })
@@ -717,9 +765,13 @@ describe('NativeGitService on the fixture repositories', () => {
       }
       await service.push(plan)
       expect(pushEnvs).toHaveLength(1)
-      expect(Object.keys(pushEnvs[0] ?? {})).toContain('M123_G_USER_ROUTE_TOKEN')
+      const pushed = Object.keys(pushEnvs[0] ?? {})
+      expect(pushed).toContain(GIT_ROUTE_ENV)
+      // R3: only the Git routes, even when the host hands over more.
+      expect(pushed).not.toContain(MODEL_CANARY_ENV)
+      expect(pushed).not.toContain('M123_G_USER_ROUTE_TOKEN')
       for (const env of readEnvs) {
-        expect(Object.keys(env)).not.toContain('M123_G_USER_ROUTE_TOKEN')
+        expect(Object.keys(env)).not.toContain(GIT_ROUTE_ENV)
       }
     } finally {
       rmSync(direct, { recursive: true, force: true })
@@ -736,6 +788,14 @@ describe('the standalone runtime’s captured Git routes', () => {
       META_API_KEY: 'model-key',
       OPENAI_API_KEY: 'model-key',
       HF_TOKEN: 'provider-key',
+      // R3: the aliases the earlier filter put back.
+      OPENAI_KEY: 'model-key',
+      ANTHROPIC_KEY: 'model-key',
+      META_KEY: 'model-key',
+      GEMINI_KEY: 'model-key',
+      ANTHROPIC_AUTH_TOKEN: 'provider-key',
+      AWS_BEARER_TOKEN_BEDROCK: 'provider-key',
+      NPM_TOKEN: 'other-key',
     }
     try {
       keepGitCredentialRoutes(takeCredentials(env))

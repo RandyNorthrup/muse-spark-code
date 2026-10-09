@@ -64,7 +64,21 @@ describe('parseStatusV2', () => {
         '1 .M N... 100644 100644 100644 abc0001 abc0002 unstaged.txt',
         '? new.txt',
       ],
+      submodules: [],
     })
+  })
+
+  it('names a submodule change by its `S` field, so its own content stays its own', () => {
+    // git-status(1), porcelain v2: `<sub>` is `S<c><m><u>` for a submodule.
+    const snapshot = parseStatusV2(
+      [
+        '# branch.head main',
+        '1 .M S.M. 160000 160000 160000 abc0001 abc0001 vendor/lib',
+        '1 .M N... 100644 100644 100644 abc0001 abc0002 plain.txt',
+      ].join(NUL),
+    )
+    expect(snapshot.unstaged).toEqual(['vendor/lib', 'plain.txt'])
+    expect(snapshot.submodules).toEqual(['vendor/lib'])
   })
 
   it('reads an unmerged record past its three stages, to the path alone', () => {

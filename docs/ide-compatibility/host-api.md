@@ -43,7 +43,7 @@ The VS Code adapter: 48 files. Everything else reaches VS Code only through them
 | `src/host/conversation/transferDialogs.ts`   | 9                 |
 | `src/host/editor/verifyEditor.ts`            | 55                |
 | `src/host/git/gitExtension.ts`               | 5                 |
-| `src/host/git/gitWindow.ts`                  | 20                |
+| `src/host/git/gitWindow.ts`                  | 22                |
 | `src/host/git/githubSession.ts`              | 4                 |
 | `src/host/media/previewPanel.ts`             | 27                |
 | `src/host/memoryFeatures.ts`                 | 17                |
@@ -101,7 +101,7 @@ These never reach `vscode` through their imports, type-only ones included; the g
 - `src/host/conversation/conversationController.ts`
 - `src/host/ide/ideMcpServer.ts`
 
-## VS Code API used at run time (376)
+## VS Code API used at run time (377)
 
 Functions, variables, classes, enums and members declared in `@types/vscode`; the members of a VS Code interface the code implements (a provider, an options object); and the members of a VS Code object handed to code that takes it by shape.
 
@@ -318,10 +318,11 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `Terminal.sendText`                                                                  | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `Terminal.show`                                                                      | `src/extension.ts`, `src/host/git/gitWindow.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `TerminalOptions.cwd`                                                                | `src/extension.ts`, `src/host/git/gitWindow.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `TerminalOptions.env`                                                                | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `TerminalOptions.env`                                                                | `src/extension.ts`, `src/host/git/gitWindow.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `TerminalOptions.name`                                                               | `src/extension.ts`, `src/host/git/gitWindow.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `TerminalOptions.shellArgs`                                                          | `src/host/git/gitWindow.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `TerminalOptions.shellPath`                                                          | `src/extension.ts`, `src/host/git/gitWindow.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `TerminalOptions.strictEnv`                                                          | `src/host/git/gitWindow.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `TextDocument.eol`                                                                   | `src/host/editor/verifyEditor.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `TextDocument.getText`                                                               | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/codeIntel/languageServices.ts`, `src/host/editor/verifyEditor.ts`, `src/host/prompts/promptEntry.ts`, `src/host/tab/tabProvider.ts`                                                                                                                                                                                                                                                                                                                                                                              |
 | `TextDocument.isDirty`                                                               | `src/extension.ts`, `src/host/codeIntel/languageServices.ts`, `src/host/editor/verifyEditor.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -491,19 +492,19 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:async_hooks`       | 2     |
 | `node:buffer`            | 62    |
 | `node:child_process`     | 28    |
-| `node:crypto`            | 170   |
+| `node:crypto`            | 171   |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |
 | `node:events`            | 3     |
-| `node:fs`                | 72    |
-| `node:fs/promises`       | 111   |
+| `node:fs`                | 73    |
+| `node:fs/promises`       | 112   |
 | `node:http`              | 15    |
 | `node:https`             | 2     |
 | `node:module`            | 2     |
 | `node:net`               | 20    |
-| `node:os`                | 34    |
-| `node:path`              | 197   |
+| `node:os`                | 35    |
+| `node:path`              | 199   |
 | `node:perf_hooks`        | 2     |
 | `node:process`           | 10    |
 | `node:readline`          | 1     |

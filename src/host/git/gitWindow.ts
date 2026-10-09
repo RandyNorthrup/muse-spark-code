@@ -10,7 +10,12 @@ import { constants as fsConstants } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { lstat, open, readlink } from 'node:fs/promises'
 import * as vscode from 'vscode'
-import { BOUNDED_FILE_READ_CHUNK_BYTES, UI_TEXT } from '../../shared/constants'
+import {
+  BOUNDED_FILE_READ_CHUNK_BYTES,
+  GIT_PUSH_CREDENTIAL_VARIABLES,
+  UI_TEXT,
+} from '../../shared/constants'
+import { withoutCredentials } from '../../core/credentialEnvironment'
 import { fill, plural } from '../../shared/l10n/text'
 import { GitHubClient, type GitHubClientDeps } from '../../core/git/github'
 import { newFileDiff } from '../../core/git/gitText'
@@ -256,15 +261,30 @@ async function repository(root: string): Promise<GitRepository> {
   return await repositoryAt(await loadGitApi(), root)
 }
 
-/** A failed native push's command in the editor's terminal: git itself, no shell to quote for. */
-function openGitInTerminal(command: readonly string[], cwd: string): Promise<void> {
-  const [shellPath, ...shellArgs] = command
-  if (shellPath !== undefined) {
-    vscode.window
-      .createTerminal({ name: UI_TEXT.gitPushAction, cwd, shellPath, shellArgs: [...shellArgs] })
-      .show()
+/**
+ * A failed native push's command in the editor's terminal: git itself, no
+ * shell to quote for, in exactly `env` (`strictEnv`): the user's
+ * environment with no credential variable but the Git routes (RVM123G2 R3).
+ */
+function gitTerminalOpener(
+  env: NodeJS.ProcessEnv,
+): (command: readonly string[], cwd: string) => Promise<void> {
+  return (command, cwd) => {
+    const [shellPath, ...shellArgs] = command
+    if (shellPath !== undefined) {
+      vscode.window
+        .createTerminal({
+          name: UI_TEXT.gitPushAction,
+          cwd,
+          shellPath,
+          shellArgs: [...shellArgs],
+          env,
+          strictEnv: true,
+        })
+        .show()
+    }
+    return Promise.resolve()
   }
-  return Promise.resolve()
 }
 
 /**
@@ -272,7 +292,8 @@ function openGitInTerminal(command: readonly string[], cwd: string): Promise<voi
  * the `vscode.git` extension: the user's git on PATH, the window's trust,
  * hold, admission and pull request links, VS Code's push modal and remote
  * pick, and the extension host's own environment for the push (the one VS
- * Code's git extension would use). Undefined with no folder or no git.
+ * Code's git extension would use), captured now with no credential
+ * variable but the Git routes. Undefined with no folder or no git.
  */
 function nativeGitDeps(deps: GitWindowDeps, window: GitWindow): RuntimeGitDeps | undefined {
   const root = deps.workspaceRoot
@@ -280,6 +301,7 @@ function nativeGitDeps(deps: GitWindowDeps, window: GitWindow): RuntimeGitDeps |
   if (root === undefined || gitPath === undefined) {
     return undefined
   }
+  const userEnvironment = withoutCredentials(process.env, GIT_PUSH_CREDENTIAL_VARIABLES)
   return {
     repositoryRoot: root,
     gitPath,
@@ -292,9 +314,9 @@ function nativeGitDeps(deps: GitWindowDeps, window: GitWindow): RuntimeGitDeps |
     isTrusted: () => window.isWorkspaceTrusted() && deps.hold.current === undefined,
     confirmPush: isPushConfirmed,
     pickRemote: window.pickRemote,
-    userEnvironment: () => process.env,
+    userEnvironment: () => userEnvironment,
     admitWorkspaceCommand: deps.admit,
-    openInTerminal: openGitInTerminal,
+    openInTerminal: gitTerminalOpener(userEnvironment),
     openFolder: newWindowActions.openFolder,
     openExternal: async (url) => {
       await vscode.env.openExternal(vscode.Uri.parse(url))

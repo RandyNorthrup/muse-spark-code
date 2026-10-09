@@ -3,7 +3,12 @@
 // runtime's pull request link store, the fake `gh` and a RuntimeGitDeps
 // with every editor call recorded.
 
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { vi } from 'vitest'
 import { PULL_REQUEST_LINKS_KEPT } from '../../../../src/shared/constants'
 import type {
   PullRequestLinkRecord,
@@ -154,8 +159,8 @@ export function fakeRuntimeGitDeps(
       calls.terminals.push({ command, cwd })
       return Promise.resolve()
     },
-    openFolder: (path) => {
-      calls.folders.push(path)
+    openFolder: (folder) => {
+      calls.folders.push(folder)
       return Promise.resolve()
     },
     openExternal: (url) => {
@@ -169,4 +174,69 @@ export function fakeRuntimeGitDeps(
     ...overrides,
   }
   return { deps, calls }
+}
+
+/** One scratch home per test process, removed when it exits. */
+const isolated: { home?: string } = {}
+
+/** The identity every native Git test commits as (RVM123G2 R12). */
+export const TEST_GIT_IDENTITY = {
+  GIT_AUTHOR_NAME: 'Fixture',
+  GIT_AUTHOR_EMAIL: 'fixture@example.invalid',
+  GIT_COMMITTER_NAME: 'Fixture',
+  GIT_COMMITTER_EMAIL: 'fixture@example.invalid',
+} as const
+
+/**
+ * Makes this process's Git, which the service reads from `process.env`,
+ * the test's own (RVM123G2 R12): its identity, an empty global
+ * configuration, no system one, and a scratch home, so nothing depends on
+ * the machine's Git. Undo with `vi.unstubAllEnvs()`.
+ */
+export function isolateGitEnvironment(): void {
+  if (isolated.home === undefined) {
+    const made = mkdtempSync(path.join(tmpdir(), 'm123-git-home-'))
+    writeFileSync(path.join(made, 'gitconfig'), '')
+    process.once('exit', () => {
+      rmSync(made, { recursive: true, force: true })
+    })
+    isolated.home = made
+  }
+  const home = isolated.home
+  const variables = {
+    ...TEST_GIT_IDENTITY,
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: path.join(home, 'gitconfig'),
+    HOME: home,
+    XDG_CONFIG_HOME: home,
+  }
+  for (const [name, value] of Object.entries(variables)) {
+    vi.stubEnv(name, value)
+  }
+}
+
+/**
+ * A scratch repository with `a.txt` committed (`Add a`) and changed since,
+ * unstaged; its git runs as the test's own identity.
+ */
+export function dirtyScratchRepository(prefix: string): {
+  readonly dir: string
+  readonly cleanup: () => void
+} {
+  const dir = mkdtempSync(path.join(tmpdir(), prefix))
+  const env = { ...process.env, ...TEST_GIT_IDENTITY, GIT_CONFIG_NOSYSTEM: '1' }
+  const git = (...args: string[]): void => {
+    execFileSync('git', args, { cwd: dir, env })
+  }
+  git('init', '-q', '-b', 'main')
+  writeFileSync(path.join(dir, 'a.txt'), 'one\n')
+  git('add', 'a.txt')
+  git('commit', '-q', '-m', 'Add a')
+  writeFileSync(path.join(dir, 'a.txt'), 'two\n')
+  return {
+    dir,
+    cleanup: () => {
+      rmSync(dir, { recursive: true, force: true })
+    },
+  }
 }
