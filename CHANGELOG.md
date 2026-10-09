@@ -62,6 +62,10 @@ happened, not what was planned; superseded entries are kept.
   itself (meta-models/muse-code-sdk#34). The extension's other Muse Code
   workarounds were re-checked against 1.4.4 and are still needed
   (`docs/certification/sdk144.md`).
+- `@agentclientprotocol/sdk` moves from 1.5.1 to 1.7.0 (SDK144). The ACP
+  agent, headless `exec` and team workers speak the same ACP v1; the SDK's
+  transport is unchanged, so the agent's 32 MiB line override and the
+  session-router seam carry over as they were.
 - The README's Resources screenshot is retaken with the rest of the set (the
   same Linux Chrome build and fonts); the other 18 screenshots still match the
   current UI and are unchanged.

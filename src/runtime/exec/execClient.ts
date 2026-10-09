@@ -37,11 +37,12 @@ export function createExecClient(input: {
   }
   const client = acp.client({ name: 'muse-headless' })
   // ACP SDK 1.5.0's constructor inserts a closed-union session router before
-  // custom parsers. Headless uses request(), never its active-session helpers.
-  // Remove only that identified constructor handler from this instance's
-  // private builder so unknown updates reach our loose boundary (PLAN.md §8).
-  // Re-verified with Muse Code SDK 1.4.2 in M106 S; this is an ACP seam,
-  // independent of the Muse Code SDK's Connection and fingerprint.
+  // custom parsers; 1.7.0 still does (SDK144). Headless uses request(), never
+  // its active-session helpers. Remove only that identified constructor
+  // handler from this instance's private builder so unknown updates reach our
+  // loose boundary (PLAN.md §8). Re-verified with Muse Code SDK 1.4.2 in
+  // M106 S; this is an ACP seam, independent of the Muse Code SDK's
+  // Connection and fingerprint.
   const original: unknown = Reflect.get(client, 'builder')
   if (typeof original !== 'object' || original === null) throw new Error(UI_TEXT.execRequestShape)
   const handlers: unknown = Reflect.get(original, 'handlers')

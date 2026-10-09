@@ -1389,11 +1389,12 @@ export const MAX_DOCUMENT_BYTES = 32_000_000
 // replayed Model API request. Meta's 50 MB inline limit is per file; this
 // separate bound keeps a long session from serializing gigabytes of PDFs.
 export const MAX_ENCODED_MEDIA_CHARS = 48_000_000
-// ACP SDK 1.5.1 refuses an NDJSON line over 32 MiB unless told otherwise, and a
-// valid prompt can carry the whole aggregate media budget above as base64
-// (three near-10 MiB images already exceed 32 MiB). The ACP transport takes
-// that budget plus room for prompt text, embedded resources and the JSON-RPC
-// envelope; the per-image and aggregate checks then answer with a message.
+// ACP SDK 1.5.1 refuses an NDJSON line over 32 MiB unless told otherwise (1.7.0
+// unchanged, SDK144), and a valid prompt can carry the whole aggregate media
+// budget above as base64 (three near-10 MiB images already exceed 32 MiB).
+// The ACP transport takes that budget plus room for prompt text, embedded
+// resources and the JSON-RPC envelope; the per-image and aggregate checks then
+// answer with a message.
 export const ACP_MESSAGE_HEADROOM_BYTES = 16 * 1024 * 1024
 export const ACP_MAX_MESSAGE_BYTES = MAX_ENCODED_MEDIA_CHARS + ACP_MESSAGE_HEADROOM_BYTES
 export const BASE64_DATA_URL_OVERHEAD_CHARS = 'data:;base64,'.length
