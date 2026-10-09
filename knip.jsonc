@@ -163,6 +163,7 @@
     "test/m104/{runtime,engines,ui}/**/*.test.{ts,tsx,mjs}",
     // The native loader/budget suite is executed directly with node --test.
     "test/m104/linux/nativeModules.test.mjs",
+    "test/m104/mac/nativeDrills.mjs",
     "test/m104/ui/vitest.config.mjs",
     "test/harness/presentation.tsx",
     "test/harness/whatsNew.ts",

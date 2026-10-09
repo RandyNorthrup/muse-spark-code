@@ -19409,6 +19409,16 @@ opposite-direction metadata or HTML-render RPC is introduced.
   the editor initiates initialize. The earlier HTML/bootstrap additions are
   dropped. D/E/F adopt the reviewed snapshots and qualify their native carriers.
 
+- **M104PF release/qualification inputs (2026-10-06):** the reviewed 1.2
+  native relay and component receipts are implemented at `545f2cc18`.
+  The planned A/B/C merge awaits the lead's explicit integrated-commit
+  instruction. Official Node pins require approved offline vendor checksum
+  material or separate network authorization; no unverified manifest is
+  created. Installed XcodeKit enablement, Xcode 26.6/27/arm64 and the other
+  editor/OS/backend/provider receipts need their rigs and owner actions/live
+  authorization. Named owner requests and required validation are in
+  `docs/certification/m104-pf-requests.md`; none of these is assumed approved.
+
 - **M104X integration dependencies:** this lane's base (`da79fd51`) lacks
   `panel --companion`, MHP runtime/UI composition and the shared Tab endpoint.
   Lane B/D must confirm the launch-line convention and whether `/post` admits
@@ -37892,7 +37902,9 @@ and refusal probes, including sub-nano decimal amounts. The MHP JSON exporter
 must describe accepted wire inputs before the existing normalization transforms.
 Those joined payloads change the frozen 1.3 panel digest, so explicitly adopt
 MHP 1.4 using the guarded generator and update actual native/frame fixtures;
-retain rejection of older versions. Never rewrite a lock at the same version.
+retain rejection of older versions. Never rewrite a lock at the same version. Register the existing standalone
+Mac drill as a Knip entry and adapt its package fixture to the real 0.17
+archive and localization preflight; verify archived required bundles byte-exact.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
@@ -37976,6 +37988,122 @@ entry graph. Register that actual `node --test` entrypoint, without changing
 any ignore or rule, and record the exact-base gate failure and final pass.
 Regenerate the host API inventory using its existing writer: the pending
 poller adds a Node timer import, and the exact-base built-in counts are stale.
+**M104PF5 review repair and continuation (2026-10-08, before code).**
+Repair RVM104PF4's two P2 findings: invalid remote panel errors must stay
+on their unbound channel without cancelling held native requests; every xed
+Process must remain owned until termination, report launch/nonzero failures,
+and be terminated/tracked during Stop. Add console-free core regressions with
+the reviewer's malformed frames and an injected fake Process factory; prove
+both repairs with failing controls and exact source restoration. Continue F's
+available native/service and exact-artifact rows in dependency order, retaining
+explicit A/B/C contract, installed-console, Xcode-version/architecture and
+provider gaps. No merge, push, real xed/UI automation, privacy prompt, live/paid
+call, signing account or support promotion. Scoped sequential gates replace
+aggregate quality under the brief; commit each completed group with hooks on.
+
+**M104PF5 navigation text checkpoint (before code).** Reuse the already
+translated `openFileFailed` key for thrown xed launches and nonzero exits,
+adding it only to Xcode's generated table subset. Do not tell the user that a
+buffer changed when file opening failed. Core tests check the packaged label
+exists; a table-removal control proves that check, and all ownership/error
+controls are refreshed against the final source bytes.
+
+**M104PF5 metadata checkpoint (before code).** Now that NativeCore compiles
+PanelModel, move the existing appearance and pending-initialization trust
+regressions from the app-hosted unit target into the console-free core target.
+Preserve their behavior and prove both controls there. Explicitly create only
+NSApplication's invisible test instance for appearance reads; never display a
+window, activate an app, show a sheet or launch the UI test runner. Rebuild the
+real private runtime/native archives and record exact extracted inventories,
+separating local artifact integrity from installed/editor/provider qualification.
+
+**M104PF4 continuation (2026-10-08, before code).** On macmini/Xcode
+26.3, qualify the existing 1.3 relay with real loopback and core XCTest runs.
+Validate every inbound channel against the frozen editor/panel snapshots;
+isolate recoverable request/channel faults, retain bounded request-id replay
+protection, and validate JSON Schema unions and array limits. Then advance
+Xcode buffer/navigation/focus/permission adapters and native voice/Tab in
+dependency order wherever the adopted contracts allow it. Preserve transport,
+process-tree and stale-generation fences. Requests for missing shared contracts
+remain in F's requests record. No further merge, live/paid call, XCUITest,
+TCC prompt, signing account, notarization, publication or support promotion.
+Each coherent group gets a hook-on commit and scoped gate/mutation receipts;
+console-level scenarios remain a named owner-at-console gap.
+
+**M104PF4 native command checkpoint (before code).** Reproduce cancellation
+before the queued loopback listener starts and repeated-start ownership. Fence
+the actual buffer write with a cancellable command transaction, preserving
+digest/UTF-16/selection checks and one write/undo. Resolve native navigation to
+a regular workspace file before xed, refusing foreign hosts, URL credentials,
+traversal/symlink escapes, directories and invalid lines. Read focus from the
+bound native window plus application activity. Core tests use controlled
+window state and missing-window permission paths; they never show a window,
+activate an application, click UI or invoke microphone/speech APIs. Compile the
+complete app/extension separately without running its UI scheme. Actual
+commands/undo/focus/permissions still need the owner at the console.
+
+**M104PF continuation 2 (2026-10-06, authorized before code).** Merge
+`m104/pa` at `fa60c3763` with `--no-ff`, preserving both lanes' documentation.
+Adopt its frozen MHP 1.3 in F's Xcode fixtures, generated bundle and distribution
+contracts. Regenerate the host-API inventory and carrier guide. Repair exact ACP
+packaging for the integrated lazy Node and portable presentation closures, with
+missing-member controls. Add the owner's STAR sentence and GitHub link to the
+Xcode listing and F-owned distribution/global documentation; request each D/E
+listing change by owned file. Qualify available native/assembled services in
+dependency order and checkpoint each finished group. A owns the known protocol
+build-split P1 and Knip registration; record them as requests rather than changing
+A's files. Keep default test deadlines, existing caps, hook-on explicit-path
+commits, and installed/live/support boundaries. No push or further merge.
+
+**M104PF parity lane F (2026-10-06, macmini).** Own Xcode/macOS, exact
+native distribution and aggregate qualification documentation. Adopt A's
+editor-initiated MHP 1.2 bootstrap through an owning stdio relay before
+editor services and per-row scenarios. Use the reviewed schema snapshot,
+host locale/theme/folders/trust, bounded correlation and generation-fenced
+callbacks; preserve process-group Stop, dirty/stale UTF-16 edit refusal,
+ephemeral browser state and same-origin confinement. Implement available
+native appearance metadata for all four reviewed theme kinds from dark/light
+and increased-contrast flags, without changing system settings. Implement
+native UI/navigation services; omit incomplete capability groups explicitly.
+Fix the primary carrier guide and verify exact packaged inventories against
+the frozen protocol. New tests live in `test/m104/mac/**`; native regressions
+and distribution tests remain owned by F. Record component/fake evidence
+separately from installed editor/backend/provider receipts for F1–F56.
+Xcode 26.3/Intel is installed; 26.6/27, Apple Silicon and other OS rigs need
+named receipts. No live/paid calls, credentials, network installs, support
+promotion, other-lane edits or unrequested merge. Scoped sequential gates
+replace forbidden aggregate quality; integrated qualification stays with the
+lead. Checkpoints and concrete cross-lane requests are in
+`docs/certification/m104-pf.md` and `m104-pf-requests.md`.
+
+**M104PF continuation 2 native file services (before code).** Implement the
+reviewed 1.3 `ui/openFile` and `ui/saveText` services as cancellable AppKit
+sheets. Return the actual selected URI or cancellation, atomically write only
+after an active user's accepted save, and propagate failure explicitly. Share
+one native-dialog admission across file and permission sheets; stale callbacks
+cannot write or answer a replacement owner. Tests use a controlled AppKit panel
+with the production service handler, and red controls cover cancellation, dialog
+ownership and success/failure. This advances attachment/transfer/report component
+paths, not installed provider qualification. The new `ui/showSetting` service
+needs the shared settings surface/authority contract; request it without inventing
+a second settings store. Complete UI capability qualification remains open.
+
+**M104PF release attachment checkpoint (2026-10-06, before code).**
+Use the existing verified native asset staging helper in F's owned release
+workflow: await native signing/recovery, download each signed artifact without
+merging its receipt directory, stage all present hosts, then include archives
+and receipts in the common checksums, attestation and GitHub asset inventory.
+Missing/incomplete hosts keep their explicit failure/absence policy. No
+publication, credential access, re-signing on recovery or support promotion
+is authorized/performed by this local implementation checkpoint.
+
+**M104PF continuation 3 (2026-10-07, authorized before code).** Merge
+`m104/pa` at `82aaaae9a` with `--no-ff`, preserving both lanes' documentation.
+Adopt A's FIXM104PA4 contracts (state-publication reconciliation, serialized
+companion-page retirement) in F's owned fixtures/snapshots. Continue F's rows
+in dependency order with checkpoints. Keep default test deadlines, existing
+caps, hook-on explicit-path commits, and installed/live/support boundaries.
+No push or further merge.
 
 **FIXM104PA4 / RVM104PA4 (2026-10-07).** Close the re-review's two P2
 findings in lane A's files, closing residual R3-2. State publication
@@ -42352,6 +42480,77 @@ from this base and are named integration handoffs in C's certification.
 S/lead retain the host-API inventory, public docs, real editor captures and
 the full integrated quality/visual/accessibility gates. No gate is weakened
 and internal-port fakes do not certify unavailable native engines.
+**M104PF5 final scoped gates (2026-10-08).** Review repairs and the
+console-free metadata/translated-open-failure checkpoint pass 65 complete
+NativeCore tests, 92 owning Vitest tests at repository deadlines, repository/
+Xcode typechecks, scoped ESLint/Prettier, strict changed-Swift lint, zero-clone
+duplication, localization, host API, frozen MHP and production build. Eleven
+native controls and one full-file generator-boundary control fail by assertion
+and restore SHA-256-exact bytes. Private extracted runtime (129 files, 69
+portable modules) and ad-hoc universal Xcode (41 files) match their staging
+inventories; signatures verify. Exact identities and limitations are in
+`docs/certification/m104-pf5-artifacts.json` and `m104-pf5.md`. Plain Knip still
+exits 1 only for A's unregistered standalone drill; its exact registration
+request remains open. Aggregate quality/coverage/accessibility and installed/
+other-rig/backend/provider gates stay with the lead under the explicit brief.
+No threshold, timeout, test skip, hook, registry cell or support claim changed.
+
+**M104PF bounded-lane qualification (2026-10-06).** The rig brief/shared
+rules prohibit aggregate quality, full tests, other-lane edits, unrequested
+merges, credentials and live/model calls. Hook-on native checkpoint
+`545f2cc18` passes the complete 56-test native scheme, four owning Vitest
+tests and eight red controls; exact ad-hoc universal release bytes are
+recorded in `docs/certification/m104-pf-native-artifact.json`. Every control
+restores SHA-256-exact bytes. Swift-format's optional strict lint reports
+only the pre-existing `UI_TEXT` naming diagnostic; AGENTS requires that
+runtime lookup name, so it is preserved. No formatter rule is weakened.
+Full quality/coverage/accessibility and cross-platform integrated gates
+remain the lead's final gate. No F1–F56 row or support status is promoted.
+Official bundled Node pins, production native manifests/harness observations,
+installed XcodeKit enablement, Xcode 26.6/27/arm64 execution, other declared
+OS versions and backend/provider receipts are explicit deferrals pending
+their named inputs/authorization, not accepted support. The complete row,
+editor-family and channel inventory is `docs/certification/m104-pf-inventory.md`;
+concrete dependencies are `m104-pf-requests.md`. A's integrated B/C commit is
+available but was unadopted at that initial checkpoint. Continuation 2's explicit
+instruction is now satisfied by merge `0b643f521` of A `fa60c3763`; the current
+1.3 receipts and inventory supersede the old merge-wait/artifact notes.
+
+**M104PF continuation 2 final scoped gates (2026-10-06).** Functional
+checkpoint `ff8a5056d` passes 63 complete native tests, 92 owning Vitest tests
+at default timeouts, repository/Xcode typechecks, scoped ESLint/Prettier,
+strict lint of the changed Swift files, zero-clone duplication, localization,
+host API, frozen MHP and production build. Exact extracted ACP (129 files,
+69 portable modules) and universal ad-hoc Xcode (41 files) receipts are refreshed
+under `docs/certification/m104-pf-*-artifact.json`. Three new distribution,
+six owned listing and six native file-service controls fire and restore exact
+source, plus the native bundled-description control and two existing controls
+redrilled at 1.3. Plain Knip still exits 1 only for the standalone native drill
+entry below; A owns its registration. A's split P1/notice/discovery/reference,
+A/C settings/auxiliary ownership, D/E per-file STAR listings, official Node pin,
+production manifests and installed/backend/provider receipts are named requests.
+Full quality remains the lead's gate under the explicit bounded-lane rule;
+no threshold, hook, support status or qualification cell changes.
+
+**M104PF discovery deferral (2026-10-06).** Plain Knip initially reported
+the actual fake CLI export hidden in a generated import string plus the
+standalone native drill. F made the fixture entry private/static and proved
+the entry guard through the complete authenticated-page test. The remaining
+`test/m104/mac/nativeDrills.mjs` executable requires A's exact `knip.jsonc`
+entry registration; this is a justified ownership/integration deferral, not
+an ignore, altered rule level or claimed aggregate green. Required test
+discovery, help reference, integrated A/B/C adoption and full row/native/
+backend/provider qualification stay with their named owners and receipts.
+
+**CIFIX14T verified local result (2026-10-05).** The five owning suites
+pass 113 tests (six existing Windows-only skips); the exact restored monitor
+file passes 30/30 loaded runs, 210 tests. Removing the wait fails 3/3 loaded
+drills; all seven drills restore SHA-256-exact source. All five compiler
+projects, final unit compile, scoped ESLint/Prettier, plain knip, duplication,
+localization, host API and production build pass. Extension 437.4 / 600 KiB,
+Model API 446.6 / 475 KiB, ACP 817.5 / 850 KiB; every budget is unchanged.
+Native Mac proof and complete receipts are in `docs/certification/cifix14-monitor.md`.
+Hosted Node 22 and native Linux/Windows certification remain with the lead.
 
 **CIFIX14T bounded-lane gate delegation (2026-10-05).** The requested Mac
 mini reproduction and red drills run directly here with hooks enabled.
@@ -43140,6 +43339,13 @@ aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
+
+| M104PF location                                                                       | Escape hatch                                        | Reason                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hosts/xcode/Shared/{MhpSchema,MhpSession}.swift`, native UI service and native tests | Swift `Any` at JSONSerialization/service boundaries | Foundation's JSONSerialization exposes heterogeneous JSON as Any. The native validator checks A's reviewed schema and narrows each member before use; correlated results are validated again before writing. No key or credential enters this boundary. |
+
+| `hosts/xcode/Shared/MhpSession.swift` (PF5) | Caught invalid remote panel-error validation | The companion binds no stdio surfaces. Drop these unbound remote faults without echo or raw logging; pending native requests stay active. |
+| `test/m104/mac/EditorServiceTests.swift` (PF5) | Swift `Any` Process stream overrides and `@unchecked Sendable` | Foundation requires those concrete Process signatures. This fake launches no child, and all mutable fake state/callbacks are driven on the main thread. |
 
 | M104 B2 location                     | Escape hatch                                       | Reason                                                                                                                                                                                                         |
 | ------------------------------------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

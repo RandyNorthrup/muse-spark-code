@@ -2,7 +2,8 @@
 set -euo pipefail
 host_dir="$(cd "$(dirname "$0")/.." && pwd)"
 repo_dir="$(cd "$host_dir/../.." && pwd)"
-team_id="$(defaults read com.apple.dt.Xcode IDEProvisioningTeamManagerLastSelectedTeamID 2>/dev/null || true)"
+# A reproducible local build never chooses an account or provisions implicitly.
+team_id=""
 if [[ $# -eq 2 && "$1" == --team ]]; then
   team_id="$2"
 elif [[ $# -ne 0 ]]; then

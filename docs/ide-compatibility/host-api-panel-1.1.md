@@ -1,25 +1,25 @@
-# MHP 1.2.0 panel carrier
+# MHP 1.4.0 panel carrier
 
 Reviewed replacement contract for Muse Spark Code (Unofficial), lead decision
-2026-10-06 (M104PA). No native plugin has shipped; 1.0/1.1 are not negotiated
+2026-10-06 (M104PA), joined with 0.17 on 2026-10-09 (M104INT). No native plugin has shipped; 1.0/1.1/1.2/1.3 are not negotiated
 or supported. Native D/E/F adoption and assembled-editor qualification remain
 required; this document does not promote editor support.
 
 ## Compatibility and negotiation
 
 Both legacy-named native build inputs, `mhp-v1.schema.json` and
-`mhp-v1.1.schema.json`, now advertise `mhp/1.2.0` and range
-`[mhp/1.2.0, mhp/1.3.0)`. Their locks pin the current shared payloads as a
+`mhp-v1.1.schema.json`, now advertise `mhp/1.4.0` and range
+`[mhp/1.4.0, mhp/1.5.0)`. Their locks pin the current shared payloads as a
 reviewed version change. The first exports editor methods; the second also
 exports panel/bridge/lifecycle schemas. The filenames retain native build
-references; their headers and validators do not retain 1.0/1.1.
+references; their headers and validators do not retain 1.0/1.1/1.2/1.3.
 
 The editor spawns the runtime and sends `initialize` with its host id/version,
 locale, theme tokens, folders, trust and supported capability groups. The
-runtime answers with `protocolVersion: "mhp/1.2.0"` and its capabilities.
+runtime answers with `protocolVersion: "mhp/1.4.0"` and its capabilities.
 `shutdown` is also host-to-runtime; cancellation is bidirectional. A range
-containing 1.2.0 selects only that version. Every incompatible range receives
-`MHP_INCOMPATIBLE_VERSION`; 1.0/1.1 and speculative future versions are refused.
+containing 1.4.0 selects only that version. Every incompatible range receives
+`MHP_INCOMPATIBLE_VERSION`; 1.0/1.1/1.2/1.3 and speculative future versions are refused.
 The earlier runtime-initiated hostMetadata/surfaceHtml proposals are dropped.
 
 `workspace/didChangeTrust` supplies both trust grant and revocation;
@@ -38,7 +38,7 @@ retire old bindings before opening replacement surfaces.
 
 ```json
 {
-  "mhp": "1.2",
+  "mhp": "1.4",
   "kind": "panel",
   "surface": "opaque-id",
   "direction": "toHost",
@@ -54,18 +54,19 @@ which process physically forwards the frame. Panel payloads reuse the existing s
 
 `panel.envelope` is strict about envelope keys and discriminates direction.
 It reuses `src/shared/protocol.ts` in both directions, `tasksProtocol.ts`
-for Tasks, and `whatsNewMessages.ts` for What's New. Payload validation
+for Tasks, `whatsNewMessages.ts` for What's New, and
+`presentationProtocol.ts` for plans, managers, roles/traffic, diff and walkthrough. Payload validation
 retains those schemas' existing treatment of additional payload keys.
 `parseMhpPanelEnvelope` additionally checks the registered surface's kind:
 Tasks accepts only its read-only vocabulary; What's New accepts only its
-existing page actions. What's New currently renders HTML and has no inbound
-payload vocabulary. Usage and maker declare distinct kinds and use the main
+existing page actions. What's New renders HTML and accepts its validated page actions; it has no
+toPanel state vocabulary. Usage and maker declare distinct kinds and use the main
 shared protocol, as do the remaining kinds. This introduces no new maker,
 usage or What's New message shapes.
 
 An opaque surface id binds to exactly one nonempty conversation session id
 and one kind: chat, tasks, whatsNew, usage, maker, models, traffic, settings,
-walkthrough or diff. Multiple surfaces may bind the same session. A session
+walkthrough, diff, plans, manager or roles. Multiple surfaces may bind the same session. A session
 switch closes the old surface binding and opens a fresh opaque surface id;
 an id is never reused during a transport's lifetime.
 
@@ -90,7 +91,7 @@ then parse the envelope and check contextual admission before dispatch.
 
 ## Surface lifecycle
 
-Lifecycle notifications have `mhp: "1.2", `kind: "surface"`, the full
+Lifecycle notifications have `mhp: "1.4", `kind: "surface"`, the full
 binding (`surface`, `sessionId`, `surfaceKind`) and an `event`. They travel
 host/editor-to-runtime, separately from the editor-service method table.
 
@@ -165,7 +166,7 @@ closes the surface and counts its pending queue drops; reconnection opens a
 fresh opaque surface id bound to the same session and requests its state
 after ready. This resets transport sequences without losing the conversation.
 Never silently skip a sequence gap or reuse a closed surface id.
-The server's launch-code, cookie, loopback, Host/Origin/Fetch-Metadata, custom
+The server's per-window launch-code/bearer, loopback, Host/Origin/Fetch-Metadata, custom
 POST-header and CSP guards remain mandatory (lane C); this carrier confers no
 authentication or authorization. SSE does not grant permissions. Its queue is
 bounded by the same rules as stdio, and disconnect/close counts lost messages.
@@ -195,3 +196,32 @@ across surfaces while retaining each surface/direction's order. Closing a
 surface purges its pending frames, reports their exact count, and never reports
 an undelivered message as delivered. These rules are implementation requirements,
 not a claim that this contract-only lane implements the queues.
+
+## MHP 1.4 native services and auxiliary actions
+
+This reviewed adoption replaces 1.2; both snapshots and locks change together.
+Native service results acknowledge actual acceptance: `ui/openFile` returns a
+chosen URI or null, `ui/saveText` returns whether export completed, and
+`surfaces/presentHtml` resolves only after the owning surface accepts its HTML.
+Picker items may carry descriptions/details. `diagnostics/settled` returns
+null or diagnostics attesting the requested URI and exact document version.
+`commands/run`, `ui/showSetting` and `diff/decide` resolve after native acceptance.
+Missing adapters return explicit unsupported failures. No advertised capability
+group may stand in for an absent service.
+
+Presentation pages send bounded authored requests and receive correlated
+`presentationResult` acknowledgements. The runtime checks current record IDs,
+state and immutable session ownership before effects and delivery. Auxiliary
+open replies are adopted before lifecycle/ready messages from the same input
+batch. A companion context admits only its assigned binding; closing/rebinding
+retires prior page actions and streams. A reload of a presentation surface
+replays `presentationReady`. Serving a bundle does not qualify installed views.
+
+Protected GitHub service replies use owner-bound leases and captured REST
+parsers; credentials remain native. Key-entry requests contain owner/workspace
+metadata and completion only. Native terminals execute trusted installed
+`auth set` with private stdin, final ownership/cancellation checks and awaited
+process-tree drain. No key belongs in MHP, webview state, arguments or settings.
+
+See [central integration](../certification/m104-pa-integration.md) and
+[macOS qualification](../certification/m104-pf.md) for exact evidence and gaps.

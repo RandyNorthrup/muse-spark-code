@@ -3,10 +3,171 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 const mutations = [
+  [
+    'scoped runtime dependency paths',
+    'scripts/package-hosts/release.mjs',
+    String.raw`z.regex(/^(?:[\w@+.-]+\/)*[\w@+.-]+$/u)`,
+    String.raw`z.regex(/^(?:[\w.-]+\/)*[\w.-]+$/u)`,
+    'accepts scoped runtime dependencies',
+  ],
+  [
+    'runtime inventory traversal',
+    'scripts/package-hosts/release.mjs',
+    "part !== '.' && part !== '..'",
+    'true',
+    'accepts scoped runtime dependencies',
+  ],
+  [
+    'release waits for native signing',
+    '.github/workflows/release.yml',
+    'needs: [verify, reuse, build, native-sign]',
+    'needs: [verify, reuse, build]',
+    'attaches verified native bytes',
+  ],
+  [
+    'release requires native signing success',
+    '.github/workflows/release.yml',
+    " && needs.native-sign.result == 'success'",
+    '',
+    'attaches verified native bytes',
+  ],
+  [
+    'receipt directories remain separate',
+    '.github/workflows/release.yml',
+    'merge-multiple: false\n          path: native-release',
+    'merge-multiple: true\n          path: native-release',
+    'attaches verified native bytes',
+  ],
+  [
+    'native assets staged before release',
+    '.github/workflows/release.yml',
+    'node scripts/package-hosts/release.mjs stage native-release release',
+    'echo omitted-native-verification',
+    'attaches verified native bytes',
+  ],
+  [
+    'native checksums cover receipt and archives',
+    '.github/workflows/release.yml',
+    '"${native[@]/#/./}" > SHA256SUMS',
+    '> SHA256SUMS',
+    'attaches verified native bytes',
+  ],
+  [
+    'native GitHub attachment inventory',
+    '.github/workflows/release.yml',
+    '"${native[@]/#/release/}" release/SHA256SUMS',
+    'release/SHA256SUMS',
+    'attaches verified native bytes',
+  ],
+  [
+    'runtime product version',
+    'scripts/package-hosts/package.mjs',
+    "if (agent.version !== product.version) throw new Error('MHP_HOST_RUNTIME_VERSION')",
+    'void agent.version',
+    'refuses mismatched runtime versions',
+  ],
+  [
+    'runtime dependency pin',
+    'scripts/package-hosts/package.mjs',
+    "keyring === undefined || agent.dependencies['@napi-rs/keyring'] !== keyring",
+    'keyring === undefined',
+    'refuses mismatched runtime versions',
+  ],
+  [
+    'runtime no-follow inventory',
+    'scripts/package-hosts/package.mjs',
+    'const info = lstatSync(file)',
+    'const info = statSync(file)',
+    'refuses nested runtime symlinks',
+  ],
+  [
+    'required runtime bundles',
+    'scripts/package-hosts/package.mjs',
+    /if \(!statSync\(inside\(source, `dist\/\$\{name\}`\)\)\.isFile\(\)\)\s*throw new Error\('MHP_HOST_RUNTIME_INCOMPLETE'\)/u,
+    'void name',
+    'refuses an incomplete runtime',
+  ],
+  [
+    'required portable assets',
+    'scripts/package-hosts/package.mjs',
+    /if \(runtimeSha256\[`\$\{portableRoot\}\$\{name\}`\] === undefined\)\s*throw new Error\('MHP_HOST_PORTABLE_INCOMPLETE'\)/u,
+    'void name',
+    'refuses an incomplete runtime',
+  ],
+  [
+    'unique portable modules',
+    'scripts/package-hosts/package.mjs',
+    'new Set(modules).size !== modules.length || ',
+    '',
+    'refuses missing, changed, duplicate and unlisted',
+  ],
+  [
+    'portable main entry',
+    'scripts/package-hosts/package.mjs',
+    '!modules.includes(`${portableRoot}main.js`)',
+    'false',
+    'refuses missing, changed, duplicate and unlisted',
+  ],
+  [
+    'portable module digest',
+    'scripts/package-hosts/package.mjs',
+    'runtimeSha256[name] !== module.sha256 ||',
+    '',
+    'refuses missing, changed, duplicate and unlisted',
+  ],
+  [
+    'portable module size',
+    'scripts/package-hosts/package.mjs',
+    'statSync(inside(source, name)).size !== module.bytes',
+    'false',
+    'refuses missing, changed, duplicate and unlisted',
+  ],
+  [
+    'unlisted portable source',
+    'scripts/package-hosts/package.mjs',
+    /if \(\s*Object\.keys\(runtimeSha256\)\.some\([\s\S]*?throw new Error\('MHP_HOST_PORTABLE_UNLISTED'\)/u,
+    '',
+    'refuses missing, changed, duplicate and unlisted',
+  ],
+  [
+    'injected runtime stays exact',
+    'scripts/package-hosts/package.mjs',
+    /if \(JSON\.stringify\(inventory\(runtime\)\) !== JSON\.stringify\(runtimeSha256\)\)\s*throw new Error\('MHP_HOST_RUNTIME_CHANGED'\)/u,
+    '',
+    'records every runtime and deferred byte',
+  ],
+  [
+    'runtime receipt inventory is required',
+    'scripts/package-hosts/release.mjs',
+    /runtimeSha256: z[\s\S]*?\.check\(z\.refine\(\(files\) => Object\.keys\(files\)\.length > 0\)\),/u,
+    'runtimeSha256: z.optional(z.record(z.string(), z.string())),',
+    'refuses old MHP receipts',
+  ],
+  [
+    'runtime receipt inventory is nonempty',
+    'scripts/package-hosts/release.mjs',
+    '.check(z.refine((files) => Object.keys(files).length > 0))',
+    '',
+    'refuses old MHP receipts',
+  ],
+  [
+    'release receipt protocol',
+    'scripts/package-hosts/release.mjs',
+    'mhp: z.literal(MHP_VERSION)',
+    'mhp: z.string()',
+    'refuses old MHP receipts',
+  ],
+  [
+    'Windows host selection',
+    'scripts/package-hosts/ci.mjs',
+    String.raw`files?.map((file) => file.replaceAll('\\', '/'))`,
+    'files',
+    'selects Xcode alone',
+  ],
   [
     'broken host path is not absent',
     'scripts/package-hosts/manifest.mjs',
@@ -25,7 +186,7 @@ const mutations = [
     'runtime entry file',
     'scripts/package-hosts/package.mjs',
     /if \(!statSync\(inside\(source, name\)\)\.isFile\(\)\) throw new Error\('MHP_HOST_RUNTIME_INCOMPLETE'\)/u,
-    '',
+    'void name',
     'refuses a runtime entry that is a directory',
   ],
   [
@@ -115,7 +276,7 @@ const mutations = [
   [
     'manifest MHP range',
     'scripts/package-hosts/manifest.mjs',
-    "mhp: z.literal('1.x')",
+    'mhp: z.literal(MHP_VERSION)',
     'mhp: z.string()',
     'rejects unknown hosts',
   ],
@@ -150,7 +311,7 @@ const mutations = [
   [
     'harness version',
     'test/hostApi/run.mjs',
-    "protocol: z.literal('mhp/1.1.0')",
+    'protocol: z.literal(MHP_VERSION)',
     'protocol: z.string()',
     'rejects zero tests',
   ],
@@ -368,31 +529,52 @@ const mutations = [
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex')
 function tests() {
   mkdirSync('temp/m104-i', { recursive: true })
-  const result = spawnSync(
-    process.execPath,
+  const reports = []
+  let status = 0
+  for (const [config, files] of [
     [
-      path.join('node_modules', 'vitest', 'vitest.mjs'),
-      'run',
-      '--config',
       'test/hostApi/vitest.config.mjs',
-      'test/hostApi/distribution.test.mjs',
-      'test/hostApi/release.test.mjs',
-      'test/hostApi/workflow.test.mjs',
-      '--maxWorkers=3',
-      '--testTimeout=120000',
-      '--reporter=json',
-      '--outputFile=temp/m104-i/drill-result.json',
+      [
+        'test/hostApi/distribution.test.mjs',
+        'test/hostApi/release.test.mjs',
+        'test/hostApi/workflow.test.mjs',
+      ],
     ],
-    { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 120_000 },
-  )
+    ['test/m104/mac/vitest.config.mjs', ['test/m104/mac/distributionProtocol.test.mjs']],
+  ]) {
+    const output = `temp/m104-i/drill-result-${reports.length}.json`
+    const result = spawnSync(
+      process.execPath,
+      [
+        path.join('node_modules', 'vitest', 'vitest.mjs'),
+        'run',
+        '--config',
+        config,
+        ...files,
+        '--maxWorkers=3',
+        '--reporter=json',
+        `--outputFile=${output}`,
+      ],
+      { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 120_000 },
+    )
+    if (result.status !== 0) status = result.status
+    reports.push(JSON.parse(readFileSync(output, 'utf8')))
+  }
   return {
-    status: result.status,
-    report: JSON.parse(readFileSync('temp/m104-i/drill-result.json', 'utf8')),
+    status,
+    report: { testResults: reports.flatMap((report) => report.testResults) },
   }
 }
+const record = 'docs/certification/m104-pf-distribution-drills.json'
+const selected =
+  process.argv[2] === undefined
+    ? mutations
+    : mutations.filter(([guard]) => guard === process.argv[2])
+assert.ok(selected.length > 0, 'UNKNOWN_DRILL')
 assert.equal(tests().status, 0, 'INITIAL_GREEN_REQUIRED')
-const receipts = []
-for (const [guard, file, from, to, named] of mutations) {
+const previous = existsSync(record) ? JSON.parse(readFileSync(record, 'utf8')) : []
+const receipts = previous.filter((item) => selected.every(([guard]) => item.guard !== guard))
+for (const [guard, file, from, to, named] of selected) {
   const original = readFileSync(file)
   const before = original.toString()
   const changed = before.replace(from, () => to)
@@ -416,8 +598,9 @@ for (const [guard, file, from, to, named] of mutations) {
     writeFileSync(file, original)
     assert.equal(hash(readFileSync(file)), hash(original), `RESTORE_MISMATCH:${guard}`)
   }
+  writeFileSync(record, `${JSON.stringify(receipts, null, 2)}\n`)
 }
 assert.equal(tests().status, 0, 'RESTORED_GREEN_REQUIRED')
 mkdirSync('temp', { recursive: true })
-writeFileSync('temp/m104i-drills.json', JSON.stringify(receipts, null, 2))
+writeFileSync(record, `${JSON.stringify(receipts, null, 2)}\n`)
 console.log(`RED_DRILLS=${receipts.length}; BYTE_EXACT_RESTORED; TARGETED_SUITE_GREEN`)

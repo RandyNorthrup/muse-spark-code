@@ -1,0 +1,9 @@
+{
+  "label": "generated file-open label boundary",
+  "file": "hosts/xcode/Scripts/generate.mjs",
+  "test": "ships each native label in every installed-language table",
+  "exit": 1,
+  "sha256": "80df79e9dcab141e1ddb3928af71cf5c040c80712c292c4c082204e6dda6638c",
+  "logSha256": "398ebc0b5502be7cca747ed9d4282d5cd15c311d28e144cc07cccc2c765014ce",
+  "restored": true
+}

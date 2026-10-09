@@ -41,6 +41,56 @@ happened, not what was planned; superseded entries are kept.
   unowned session; the native fixture and both host guides negotiate and
   document MHP 1.3. Runtime-setting shortcuts are explicitly unavailable;
   installed-product parity still requires the certification matrix.
+- Xcode file-open failures use the existing translated file-open message.
+
+- Xcode's appearance and pending-trust regressions now run in the console-free
+  native core scheme, with both controls verified without starting the app or
+  UI test runner. Installed theme/trust interaction remains unqualified.
+
+- Xcode drops malformed remote panel errors without cancelling native requests
+  on the companion relay. File navigation retains every xed process until it
+  exits, reports failed launches/opens, and tracks termination during Stop.
+  Console-free regressions use malformed frames and a fake process launcher.
+
+- Xcode command callbacks now fence cancellation at buffer commit and prevent
+  listener/client startup after cancellation or close. File navigation resolves
+  regular workspace files before xed, and focus reports the bound window's state.
+  Core tests cover these paths without UI automation or privacy prompts.
+
+- Xcode's MHP 1.3 relay now validates the full frozen editor/panel snapshot,
+  isolates recoverable request and panel faults, enforces union/array limits,
+  and returns the contract's native permission/version/failure codes. Added
+  console-free native core regressions and mutation receipts; installed parity
+  remains unqualified.
+
+- Xcode's native MHP file picker returns the selected file URI, and report
+  export writes only after an active Save decision. File/permission dialogs
+  reject overlaps, cancellation and callbacks from a replaced dialog; failed
+  writes return an explicit failure. Installed-editor qualification remains open.
+
+- Xcode's app and source editor extension ship the linked GitHub star sentence
+  in their packaged descriptions. Xcode, ACP and native distribution READMEs
+  include the same sentence; other native listing changes remain owner requests.
+
+- Xcode and native distribution adopt the integrated MHP 1.3 snapshot.
+  ACP archives include the actual portable engine/presentation factories,
+  protocol, checkpoint/session/plan dependencies and optional Judge/browser
+  bundles. Missing members refuse before native packaging dispatch.
+
+- Native distribution manifests, harness reports and release receipts require
+  the reviewed MHP 1.2 version. Packaging checks product/dependency pins, hashes
+  every injected runtime and deferred browser file, and refuses changed or
+  symlinked inputs. Installed archive/runtime qualification remains separate.
+- The release workflow verifies and stages native archives and receipts after
+  signing/recovery, then includes them in checksums, attestations and the GitHub
+  asset inventory before any native registry publication.
+- Xcode's companion app initiates the reviewed MHP 1.2 contract and validates
+  correlated native traffic instead of reading a raw launch URL. It preserves
+  bounded transport, cancellation, process-group Stop and private browser state.
+  Native package versions follow the product manifest. Installed-editor parity
+  remains experimental and requires the recorded qualification receipts.
+- The standalone carrier guide now describes the shipped authenticated browser
+  renderer and UI bridge and names the remaining native integration gaps.
 - Ship the shared host protocol in the VSIX so the extension loads, and verify
   activation with the production split. Portable cleanup closes auxiliary views
   after conversation cancellation. Presentation actions retire completed IDs,

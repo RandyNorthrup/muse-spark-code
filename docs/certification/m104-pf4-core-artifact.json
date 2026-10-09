@@ -1,0 +1,46 @@
+{
+  "base": "9b9197296",
+  "protocol": "mhp/1.3.0",
+  "machine": "macmini",
+  "os": "macOS 15.7.4 (24G517)",
+  "editor": "Xcode 26.3 (17C529)",
+  "architecture": "x86_64",
+  "scheme": "NativeCore",
+  "tests": 51,
+  "outcome": "passed",
+  "modelAttempts": 0,
+  "installedExtensionReceipt": false,
+  "consoleReceipt": "needs owner at the console",
+  "inventory": [
+    {
+      "path": "hosts/xcode/Shared/MhpSchema.swift",
+      "bytes": 7830,
+      "sha256": "875f5d5e676600231b6b1a33deccbd0b62797aa4f6e2b9f057e0ce2d739f3f4c"
+    },
+    {
+      "path": "hosts/xcode/Shared/MhpSession.swift",
+      "bytes": 10929,
+      "sha256": "a8d80c7d0e69b56001143285db7eb333b135933b42e80b7735c46c6538a5b8cb"
+    },
+    {
+      "path": "test/m104/mac/MhpHostTests.swift",
+      "bytes": 18266,
+      "sha256": "16406e5d4770cf3f2b5a2eaee3518771d9a33478c1e4d8d61e6fa73d510a94b2"
+    },
+    {
+      "path": "src/shared/hostApi/mhp-v1.1.schema.json",
+      "bytes": 977290,
+      "sha256": "6d8c3980f6c6e10fd49cab98bc5f7d6a78395fda78d00f6a1d1be28679e63bec"
+    },
+    {
+      "path": "temp/m104pf4/DerivedData/Build/Products/Debug/NativeHostTests.xctest/Contents/MacOS/NativeHostTests",
+      "bytes": 1044672,
+      "sha256": "c6fbda47be6e045aeb57730a7c1e4db46b853be71a3698a711e320e11f215dcd"
+    },
+    {
+      "path": "temp/m104pf4/DerivedData/Build/Products/Debug/NativeHostTests.xctest/Contents/Resources/mhp.json",
+      "bytes": 977290,
+      "sha256": "6d8c3980f6c6e10fd49cab98bc5f7d6a78395fda78d00f6a1d1be28679e63bec"
+    }
+  ]
+}

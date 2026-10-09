@@ -12,6 +12,7 @@ on:
       - 'l10n/**'
       - 'scripts/**'
       - 'test/hostApi/**'
+      - 'test/m104/mac/**'
       - 'test/unit/mhp*.test.ts'
       - 'package*.json'
       - '.github/workflows/hosts-native.yml'
@@ -25,6 +26,7 @@ on:
       - 'l10n/**'
       - 'scripts/**'
       - 'test/hostApi/**'
+      - 'test/m104/mac/**'
       - 'test/unit/mhp*.test.ts'
       - 'package*.json'
       - '.github/workflows/hosts-native.yml'
@@ -62,7 +64,7 @@ jobs:
         run: node scripts/package-hosts/ci.mjs
 
   contract:
-    name: MHP 1.1 shared contract and distribution guards
+    name: MHP 1.2 shared contract and distribution guards
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -74,7 +76,9 @@ jobs:
           node-version: 22
       - run: npm ci --ignore-scripts --no-audit
       - run: node scripts/mhp-schema.mjs --check
-      - run: npm run test:host-api
+      - run: npx vitest run --config test/hostApi/vitest.config.mjs test/hostApi/distribution.test.mjs test/hostApi/release.test.mjs test/hostApi/workflow.test.mjs --maxWorkers=3
+      - run: npx vitest run test/unit/mhpContract.test.ts test/unit/mhpPanelContract.test.ts --maxWorkers=3
+      - run: npx vitest run --config test/m104/mac/vitest.config.mjs test/m104/mac/distributionProtocol.test.mjs --maxWorkers=3
 
   host:
     name: ${{ matrix.host }} native build and conformance
@@ -125,7 +129,7 @@ jobs:
         env:
           HOST_ID: ${{ matrix.host }}
         run: node scripts/package-hosts/package.mjs "$HOST_ID"
-      - name: all MHP 1.1 scenarios in the real host harness
+      - name: all MHP 1.2 scenarios in the real host harness
         if: steps.folder.outputs.present == 'true'
         env:
           HOST_ID: ${{ matrix.host }}

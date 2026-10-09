@@ -39,8 +39,9 @@ built, what is planned and what each release shipped.
 
 The [Xcode native-host prototype](hosts/xcode/README.md) pairs a macOS app
 with Xcode Source Editor commands. Its authenticated container and approved
-buffer-edit path are tested with fakes; the shared runtime panel and Tab
-integration are still required before it can be offered as a supported host.
+buffer-edit path have native core/fake-runtime receipts. Its relay uses the
+shared MHP 1.3 panel contract; editor/voice/Tab integration and installed
+qualification are still required before it can be offered as a supported host.
 
 **Contents:** [What's new](#whats-new-in-0170) · [Roadmap](ROADMAP.md) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
@@ -691,9 +692,16 @@ carrier through that host's `ui/openExternal` service. Exactly one transport
 is required. Both accept the agent's existing backend, trust and paid-use
 flags; the Model API key stays in the OS credential store. The native host
 must offer lifecycle plus surfaces (stdio) or UI (companion), and answer
-correlated service requests. These commands stream the shared conversation;
-the browser renderer/bridge and full editor parity are pending. See
-[the tested features and integration handoff](docs/certification/m104-b2.md).
+correlated service requests. These commands stream the shared conversation
+through the authenticated portable browser renderer and UI bridge. Native
+MHP 1.3 adoption, auxiliary surfaces, feature adapters and assembled editor
+qualification remain incomplete. See
+[the integration evidence and remaining gaps](docs/certification/m104-int.md)
+and [macOS qualification](docs/certification/m104-pf.md).
+
+The [complete parity inventory](docs/certification/m104-pf-inventory.md) names
+all 56 feature rows, editor families, backend/provider profiles and the
+remaining installed-artifact receipts. Component tests do not promote support.
 
 Portable session changes retire previous surface IDs and open fresh bindings.
 Settings and storage are owned by the runtime; initialization selects the

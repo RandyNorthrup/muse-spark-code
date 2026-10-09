@@ -14,7 +14,7 @@ The strict manifest interface is:
 
 ```json
 {
-  "mhp": "1.x",
+  "mhp": "mhp/1.3.0",
   "build": [{ "command": "native-tool", "args": ["build-and-test"] }],
   "conformance": { "command": "native-tool", "args": ["mhp-harness"] },
   "artifacts": ["relative/path/to/archive.zip"]
@@ -28,13 +28,19 @@ Commands execute directly, without an implicit shell. On Windows, use an
 executable launcher such as `powershell.exe` for `.ps1` or `cmd.exe` for `.cmd`.
 
 The build receives `MUSE_HOST_RUNTIME` pointing at a copy of the production ACP
-staging tree and `MUSE_MHP_VERSION=mhp/1.1.0`. Native packaging must include that
+staging tree and `MUSE_MHP_VERSION=mhp/1.3.0`. Native packaging must include that
 runtime and install the exact keyring version from its manifest for each target
 platform. The distribution command does not mutate the shared dependency tree.
 Build and harness children receive a credential-stripped environment.
 Artifact paths must remain inside the host folder, including after symlink
 resolution. A receipt records the source tree, product version, MHP range and
-SHA-256 of every copied artifact.
+SHA-256 of every copied artifact and every injected runtime file, including
+all portable deferred modules. Runtime/product versions and the locked keyring
+dependency must match. Nested symlinks, special files, missing/changed/unlisted
+portable modules and native mutation of the injected runtime fail before a
+receipt is emitted. `runtimeSha256` records build inputs; an installed-host
+receipt must separately verify the runtime inside its exact archive. A package
+receipt alone is not an editor qualification receipt.
 
 The harness reads `test/hostApi/scenarios/contract.json` from stdin, runs every
 scenario against the fake Muse Code CLI and fake Model API, and writes one JSON
@@ -42,7 +48,7 @@ report to stdout; native tool logs belong on stderr:
 
 ```json
 {
-  "protocol": "mhp/1.1.0",
+  "protocol": "mhp/1.3.0",
   "host": "jetbrains",
   "results": [
     {
@@ -90,9 +96,14 @@ reaches the log. Recovery consumes previously signed bytes without re-signing.
 The native publish job also downloads the archive and receipt from the tagged
 GitHub Release and compares their bytes before dispatching the registry command.
 Missing attachments fail before registry publication. The existing release job
-still needs the lane-I asset staging helper wired into its downloads, checksum
-and upload inventory; that change is outside the assigned "new jobs after npm"
-region and is pending scope approval. The official Node pin manifest is also
-pending permission to read nodejs.org's checksum list (shared rules currently
-prohibit that network call). Neither native release readiness nor per-editor
-qualification is claimed until those integration requirements are satisfied.
+now waits for native signing/recovery, preserves each downloaded receipt's
+directory, and verifies/stages every present native host through the shared
+helper. Native archives and receipts enter the same SHA256SUMS, attestation and
+GitHub asset inventory as the VSIX/ACP packages. An incomplete present host
+fails this prerequisite; only genuinely absent folders retain named skips.
+The official Node pin manifest still needs approved offline vendor checksums
+or separate network authorization. Production manifests, installed archive
+payload verification, hosted release execution and per-editor qualification
+remain missing. No native release readiness or support is claimed.
+
+[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)

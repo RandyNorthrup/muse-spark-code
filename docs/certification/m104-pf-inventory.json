@@ -1,0 +1,829 @@
+{
+  "schema": "m104-pf-qualification/1",
+  "date": "2026-10-06",
+  "worktreeBase": "e6942cc59",
+  "adoptedNativeCheckpoint": "ff8a5056d8749784a6c6160616dd791697f9e380",
+  "source": {
+    "file": "src/shared/hostApi/mhp-v1.schema.json",
+    "protocol": "mhp/1.3.0",
+    "sha256": "a0eef8e84e54f045db5dc59a30664dd9fea9e6a9836b986cc7abb7113f15d421"
+  },
+  "counts": {
+    "featureRows": 56,
+    "editorIds": 25,
+    "registryCells": 1400,
+    "registryMissing": 1400,
+    "completeInstalledRowReceipts": 0
+  },
+  "qualification": "No statuses promoted. Component/fake receipts do not close editor/backend/provider rows. Older matrix receipts retain their original date and scope.",
+  "backends": ["muse-code", "model-api"],
+  "providerFamilies": [
+    "Meta Muse",
+    "OpenAI",
+    "Anthropic",
+    "Gemini",
+    "xAI",
+    "OpenRouter",
+    "Ollama/local",
+    "custom"
+  ],
+  "providerRequirement": "Every model-dependent scenario uses a captured selected-model capability/tariff record. Native F made zero model attempts; no provider qualification is claimed.",
+  "editors": [
+    {
+      "id": "vscode",
+      "variants": "VS Code desktop, Remote and WSL",
+      "localAvailability": {
+        "version": "1.139.1",
+        "evidence": "Installed application Info.plist only; no fresh development-extension/VSIX scenario"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "cursor",
+      "variants": "cursor",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "vscodium",
+      "variants": "vscodium",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "devin",
+      "variants": "Windsurf / Devin Desktop",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "kiro",
+      "variants": "kiro",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "positron",
+      "variants": "positron",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "theia",
+      "variants": "theia",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "code-server",
+      "variants": "code-server",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "codespaces",
+      "variants": "codespaces",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "che",
+      "variants": "che",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "firebase-studio",
+      "variants": "firebase-studio",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "antigravity",
+      "variants": "antigravity",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "jetbrains",
+      "variants": "IntelliJ IDEA, PyCharm, WebStorm, GoLand, PhpStorm, CLion, RustRover, RubyMine, DataGrip, Rider",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "android-studio",
+      "variants": "android-studio",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "visual-studio",
+      "variants": "Visual Studio 17/18",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "eclipse",
+      "variants": "eclipse",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "espressif",
+      "variants": "Espressif-IDE (Eclipse family)",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "zed",
+      "variants": "Zed ACP/native routes",
+      "localAvailability": {
+        "version": "1.22.0",
+        "evidence": "Installed application Info.plist only; no fresh ACP/native scenario"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "xcode",
+      "variants": "Xcode 26.3/26.6/27",
+      "localAvailability": {
+        "version": "26.3 (17C529)",
+        "evidence": "XCTest and release build/integrity at native checkpoint; no installed/enabled production plugin scenario"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "qtcreator",
+      "variants": "qtcreator",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "neovim",
+      "variants": "neovim",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "emacs",
+      "variants": "emacs",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "sublime",
+      "variants": "sublime",
+      "localAvailability": {
+        "version": "Build 4200",
+        "evidence": "Installed application Info.plist only; no fresh shim/ACP scenario"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "arduino",
+      "variants": "Arduino IDE",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    },
+    {
+      "id": "headless",
+      "variants": "ACP and M80 exec/CI applicability",
+      "localAvailability": {
+        "version": null,
+        "evidence": "Not freshly installed/qualified on this rig"
+      },
+      "remaining": "Declared editor versions, OS/architecture, exact installable artifact, both backends and applicable provider profiles"
+    }
+  ],
+  "features": [
+    {
+      "id": "F1",
+      "name": "streaming-chat",
+      "sharedOwner": "A",
+      "nativeComponentEvidence": "Native bootstrap and authenticated fake browser container only; MHP 1.3 exact snapshot and legacy refusal; PF5 malformed remote panel errors preserve held native input and other channels",
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F2",
+      "name": "tool-rows-and-output",
+      "sharedOwner": "A",
+      "nativeComponentEvidence": "PF5 regular-workspace navigation retains every xed Process, reports open failures and tracks Stop/reaping; fake launcher only",
+      "requiredCapabilities": ["documents", "editor"],
+      "remainingNative": "Document reads and native editor navigation",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F3",
+      "name": "approval-cards",
+      "sharedOwner": "A",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F4",
+      "name": "question-cards",
+      "sharedOwner": "A",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F5",
+      "name": "permission-modes",
+      "sharedOwner": "A",
+      "nativeComponentEvidence": "PF5 pending-initialization trust guard runs in the console-free core target",
+      "requiredCapabilities": ["workspace"],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F6",
+      "name": "auto-reviewer",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Reviewer and priced native consent binding",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F7",
+      "name": "inline-diffs",
+      "sharedOwner": "C",
+      "nativeComponentEvidence": "Exact packaged shared presentation/auxiliary closure; native surface identity contract pending",
+      "requiredCapabilities": ["diff"],
+      "remainingNative": "Shared diff rendering and navigation",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F8",
+      "name": "hunk-review",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": ["diff"],
+      "remainingNative": "Dirty buffer edit review and one undo",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F9",
+      "name": "verify-loop",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": ["diagnostics"],
+      "remainingNative": "Fresh versioned diagnostics and native formatting",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F10",
+      "name": "turn-checkpoints",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": ["documents"],
+      "remainingNative": "Checkpoint shadow/reconcile services",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F11",
+      "name": "rewind",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Guarded rewind and Redo in the actual editor",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F12",
+      "name": "history",
+      "sharedOwner": "A",
+      "nativeComponentEvidence": "Generation rebinding infrastructure only; MHP 1.3 exact snapshot and legacy refusal; PF5 channel faults preserve unrelated native correlation and lifecycle",
+      "requiredCapabilities": ["storage"],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F13",
+      "name": "fork-and-side-chat",
+      "sharedOwner": "A",
+      "nativeComponentEvidence": "Fresh same-origin launch infrastructure only; MHP 1.3 exact snapshot and legacy refusal; PF5 channel faults and retired navigation callbacks cannot tear down/answer a replacement owner",
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F14",
+      "name": "slash-palette",
+      "sharedOwner": "A",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F15",
+      "name": "mentions-and-selection",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": "Existing XcodeKit selection and UTF-16/stale edit guards; PF5 canonical regular-file navigation and retained process ownership; no physical XcodeKit document binding",
+      "requiredCapabilities": ["workspace", "editor"],
+      "remainingNative": "Shared mentions, native current URI and snapshot handoff",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F16",
+      "name": "attachments",
+      "sharedOwner": "A",
+      "nativeComponentEvidence": "Real file chooser with cancellation, overlap and invocation ownership tests",
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F17",
+      "name": "subagents-and-map",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F18",
+      "name": "workflows",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F19",
+      "name": "tasks",
+      "sharedOwner": "C",
+      "nativeComponentEvidence": "Exact packaged shared presentation/auxiliary closure; native surface identity contract pending",
+      "requiredCapabilities": ["surfaces"],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F20",
+      "name": "goals",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F21",
+      "name": "plan-files",
+      "sharedOwner": "C",
+      "nativeComponentEvidence": "Exact packaged shared presentation/auxiliary closure; native surface identity contract pending",
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F22",
+      "name": "compaction-and-handoff",
+      "sharedOwner": "A",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F23",
+      "name": "background-and-shell",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": ["terminal"],
+      "remainingNative": "Native foreground/background terminal services",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F24",
+      "name": "best-of-n",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F25",
+      "name": "scheduled-and-saved-prompts",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F26",
+      "name": "replies-and-quotes",
+      "sharedOwner": "C",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F27",
+      "name": "rules-skills-memory-agents",
+      "sharedOwner": "A",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": ["workspace", "ui"],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F28",
+      "name": "mcp-servers",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F29",
+      "name": "hooks",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F30",
+      "name": "code-intelligence",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": ["codeIntel"],
+      "remainingNative": "Pinned/consented language services and current snapshots",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F31",
+      "name": "web-fetch",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F32",
+      "name": "paid-search-and-images",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F33",
+      "name": "browser-check",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F34",
+      "name": "session-import-export-share",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": "Real open-file URI and atomic Save export, denial/failure/late replacement tests",
+      "requiredCapabilities": ["ui"],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F35",
+      "name": "worktrees",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": ["workspace"],
+      "remainingNative": "Worktree workspace rebinding and trust transition",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F36",
+      "name": "git-and-pull-requests",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": ["auth"],
+      "remainingNative": "Shared Git/PR auth and native navigation",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F37",
+      "name": "cli-install-and-login",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": ["auth"],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F38",
+      "name": "account-and-usage",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F39",
+      "name": "paid-use-consent",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": "Native opaque priced Deny and cancelled sheet tests; PF5 held native input survives malformed remote channel faults; no actual paid/dialog receipt",
+      "requiredCapabilities": ["ui"],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F40",
+      "name": "daily-paid-budget",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": "Native price/budget message display; adopted shared ledger requires assembled native qualification",
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F41",
+      "name": "voice",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": ["voice"],
+      "remainingNative": "Native recording integration, permission denial and priced voice budget",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F42",
+      "name": "tab-completions",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": "PF5 retained navigation processes, failed-open reporting and Stop/reaping via fake launcher",
+      "requiredCapabilities": ["tab", "editor"],
+      "remainingNative": "Command-only snapshot Tab integration, once-only priced consent and cross-editor daily ledger",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F43",
+      "name": "settings",
+      "sharedOwner": "A",
+      "nativeComponentEvidence": "Default-off native trust metadata and transition tests; PF5 core trust consistency; native settings authority contract remains pending",
+      "requiredCapabilities": ["settings", "ui"],
+      "remainingNative": "Runtime-owned ui/showSetting route contract; full settings/UI group qualification and installed scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F44",
+      "name": "walkthrough",
+      "sharedOwner": "C",
+      "nativeComponentEvidence": "Exact packaged shared presentation/auxiliary closure; native surface identity contract pending",
+      "requiredCapabilities": [],
+      "remainingNative": "Walkthrough surface",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F45",
+      "name": "whats-new",
+      "sharedOwner": "C",
+      "nativeComponentEvidence": "Exact packaged shared presentation/auxiliary closure; native surface identity contract pending",
+      "requiredCapabilities": ["surfaces"],
+      "remainingNative": "What’s New surface",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F46",
+      "name": "display-languages",
+      "sharedOwner": "C",
+      "nativeComponentEvidence": "Native locale and all four appearance kinds; English plus 14 translated resources; PF5 four theme kinds and translated navigation failure in console-free core; no rendering/accessibility receipt",
+      "requiredCapabilities": ["lifecycle"],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F47",
+      "name": "accessibility",
+      "sharedOwner": "C",
+      "nativeComponentEvidence": "App-hosted controls; full accessibility qualification missing; PF5 per-channel fault isolation and generation-fenced navigation Stop/reaping",
+      "requiredCapabilities": [],
+      "remainingNative": "Keyboard/focus/screen-reader and four-theme native receipts",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F48",
+      "name": "logs-and-diagnostics",
+      "sharedOwner": "C",
+      "nativeComponentEvidence": "Process-group Stop, descriptor/environment and EOF cleanup tests; PF5 unbound remote faults preserve relay; navigation launch/exit failures are explicit",
+      "requiredCapabilities": ["ui", "window"],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F49",
+      "name": "commands-and-keybindings",
+      "sharedOwner": "C",
+      "nativeComponentEvidence": "Five existing XcodeKit command implementations; owner enablement missing",
+      "requiredCapabilities": ["commands"],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F50",
+      "name": "problem-report",
+      "sharedOwner": "C",
+      "nativeComponentEvidence": "Actual atomic text export service; shared scrubbed report closure packaged",
+      "requiredCapabilities": [],
+      "remainingNative": "Scrubbed report dialog/export surface",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F51",
+      "name": "models-and-providers",
+      "sharedOwner": "A",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F52",
+      "name": "roles-and-traffic",
+      "sharedOwner": "C",
+      "nativeComponentEvidence": "Exact packaged shared presentation/auxiliary closure; native surface identity contract pending",
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F53",
+      "name": "legal-scan",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Captured legal-scan contract and engine missing",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F54",
+      "name": "judge",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F55",
+      "name": "paired-devices",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "M100 security-reviewed pairing implementation prerequisite",
+      "installedReceipt": "missing"
+    },
+    {
+      "id": "F56",
+      "name": "remote-control",
+      "sharedOwner": "B",
+      "nativeComponentEvidence": null,
+      "requiredCapabilities": [],
+      "remainingNative": "Captured remote-control broker/authorization contract missing",
+      "installedReceipt": "missing"
+    }
+  ],
+  "restrictions": {
+    "acp": "Editor ACP permissions/flags and OS credential store remain authoritative; native view receipts do not qualify ACP editor interactions.",
+    "headless": "M80 hosted action-check and L/LA/LR live receipts remain missing; exec/scanner/Action support is not promoted. Images require explicit flag, acceptEdits and hard admission/settlement budget. Hosted search, voice, subagents and schedules remain unavailable.",
+    "xcode": "XcodeKit has command-only snapshots without current file URI/background observation. Full native capability groups stay unadvertised. XcodeKit enablement needs the owner click. arm64 was compiled, not executed.",
+    "release": "No signing/notarization account, publication, official runtime download, credentials or live model calls used. Verified bundled Node pin and production manifests/harnesses remain missing."
+  },
+  "productionDistribution": [
+    {
+      "host": "jetbrains",
+      "productionManifest": "missing",
+      "required": "Real exact-runtime embedding and observed native harness; Xcode additionally awaits official Node pin inputs"
+    },
+    {
+      "host": "visualstudio",
+      "productionManifest": "missing",
+      "required": "Real exact-runtime embedding and observed native harness; Xcode additionally awaits official Node pin inputs"
+    },
+    {
+      "host": "eclipse",
+      "productionManifest": "missing",
+      "required": "Real exact-runtime embedding and observed native harness; Xcode additionally awaits official Node pin inputs"
+    },
+    {
+      "host": "zed",
+      "productionManifest": "missing",
+      "required": "Real exact-runtime embedding and observed native harness; Xcode additionally awaits official Node pin inputs"
+    },
+    {
+      "host": "xcode",
+      "productionManifest": "missing",
+      "required": "Real exact-runtime embedding and observed native harness; Xcode additionally awaits official Node pin inputs"
+    },
+    {
+      "host": "qtcreator",
+      "productionManifest": "missing",
+      "required": "Real exact-runtime embedding and observed native harness; Xcode additionally awaits official Node pin inputs"
+    },
+    {
+      "host": "neovim",
+      "productionManifest": "missing",
+      "required": "Real exact-runtime embedding and observed native harness; Xcode additionally awaits official Node pin inputs"
+    },
+    {
+      "host": "emacs",
+      "productionManifest": "missing",
+      "required": "Real exact-runtime embedding and observed native harness; Xcode additionally awaits official Node pin inputs"
+    },
+    {
+      "host": "sublime",
+      "productionManifest": "missing",
+      "required": "Real exact-runtime embedding and observed native harness; Xcode additionally awaits official Node pin inputs"
+    }
+  ],
+  "adoptedIntegration": {
+    "laneA": "fa60c3763",
+    "merge": "0b643f521",
+    "includes": ["737196296", "739cf1771"]
+  },
+  "continuation": {
+    "date": "2026-10-08",
+    "base": "64f3f527c",
+    "repairCheckpoint": "e0453bbb082c14a0f5bd2fb8afaccd576893b085",
+    "certification": "docs/certification/m104-pf5.md",
+    "scope": "Console-free component/artifact evidence only; zero installed row promotions; original source/checkpoint fields remain historical."
+  }
+}

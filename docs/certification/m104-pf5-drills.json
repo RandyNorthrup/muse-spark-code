@@ -1,0 +1,101 @@
+[
+  {
+    "label": "navigation packaged failure label",
+    "file": "hosts/xcode/Scripts/generate.mjs",
+    "test": "testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures",
+    "exit": 65,
+    "sha256": "80df79e9dcab141e1ddb3928af71cf5c040c80712c292c4c082204e6dda6638c",
+    "logSha256": "b7a7538bc3e51115e6a7e196afd6fbe86485350e0f6f4ced477a2465f4ef629f",
+    "restored": true
+  },
+  {
+    "label": "four native appearance kinds",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testNativeAppearanceIncludesBothHighContrastKinds",
+    "exit": 65,
+    "sha256": "ada66e952e620643682f6fc41a1db282831e99238f1d5d2350f5a14a2b37acc2",
+    "logSha256": "03201a032055b2dcad14bcaac05e193577ad85f8c5edb783ce923a2c3db45951",
+    "restored": true
+  },
+  {
+    "label": "pending trust metadata",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testTrustCannotDivergeWhileInitializationIsPending",
+    "exit": 65,
+    "sha256": "ada66e952e620643682f6fc41a1db282831e99238f1d5d2350f5a14a2b37acc2",
+    "logSha256": "b4420a98615a94765acc1399c908e1b8dbbf9ac95fad8d5c9469b3609db98039",
+    "restored": true
+  },
+  {
+    "label": "malformed remote panel fault isolation",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testMalformedRemotePanelErrorsPreserveHeldNativeRequests",
+    "exit": 65,
+    "sha256": "1232b0905b7bc480ef30d15cfc6a44314086854865c1875028925e6951977350",
+    "logSha256": "5dff990908765c1863ce2c698b83fae08ad247b413695afec795485e5bdc8fb0",
+    "restored": true
+  },
+  {
+    "label": "navigation process retention",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures",
+    "exit": 65,
+    "sha256": "ada66e952e620643682f6fc41a1db282831e99238f1d5d2350f5a14a2b37acc2",
+    "logSha256": "3c201d668d4ebebdb7ba04373881307064eebeb1731352f025ab3c7db2d77e89",
+    "restored": true
+  },
+  {
+    "label": "navigation process reaping",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures",
+    "exit": 65,
+    "sha256": "ada66e952e620643682f6fc41a1db282831e99238f1d5d2350f5a14a2b37acc2",
+    "logSha256": "06d8a8913b239aa8b679cb4aae99789344a7712eb62fe5f6dd8da5f9006e7272",
+    "restored": true
+  },
+  {
+    "label": "navigation exit failure",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures",
+    "exit": 65,
+    "sha256": "ada66e952e620643682f6fc41a1db282831e99238f1d5d2350f5a14a2b37acc2",
+    "logSha256": "53492d14de9b11c6ff7a503726d8e5baf3b7c95f8137181255568ea72d116539",
+    "restored": true
+  },
+  {
+    "label": "navigation launch failure",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures",
+    "exit": 65,
+    "sha256": "ada66e952e620643682f6fc41a1db282831e99238f1d5d2350f5a14a2b37acc2",
+    "logSha256": "176b9a8c115f02ec869bbb348547f36235930ca39b91b1e4db7f792c004ffc6d",
+    "restored": true
+  },
+  {
+    "label": "navigation failed launch cleanup",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures",
+    "exit": 65,
+    "sha256": "ada66e952e620643682f6fc41a1db282831e99238f1d5d2350f5a14a2b37acc2",
+    "logSha256": "770cfa4419ece0b00e0519effc1952e1292e13aef6b8ec8b6018ac2dd3919ca0",
+    "restored": true
+  },
+  {
+    "label": "navigation Stop termination",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testStopTerminatesAndTracksNavigationWithoutStaleFailures",
+    "exit": 65,
+    "sha256": "ada66e952e620643682f6fc41a1db282831e99238f1d5d2350f5a14a2b37acc2",
+    "logSha256": "091118aa1df2406dff9fc56d00c7fcccb8e46554dc547a915b225218e0855bff",
+    "restored": true
+  },
+  {
+    "label": "navigation retired callback",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testStopTerminatesAndTracksNavigationWithoutStaleFailures",
+    "exit": 65,
+    "sha256": "ada66e952e620643682f6fc41a1db282831e99238f1d5d2350f5a14a2b37acc2",
+    "logSha256": "9c65677ab1ff7654f20ef83fa384fc71b85ecb202ddf37da161deed8e053362a",
+    "restored": true
+  }
+]

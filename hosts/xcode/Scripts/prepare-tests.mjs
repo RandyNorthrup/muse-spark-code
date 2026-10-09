@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 await build({
   stdin: {
-    contents: String.raw`import { startXcodeFakeRuntime } from './test/hosts/xcode/fake-runtime.ts'; const server = await startXcodeFakeRuntime(); process.stdout.write(server.launchUrl() + '\n'); await server.closed;`,
+    contents: `import './test/hosts/xcode/fake-runtime.ts';`,
     resolveDir: root,
     sourcefile: 'xcode-test-launcher.ts',
     loader: 'ts',

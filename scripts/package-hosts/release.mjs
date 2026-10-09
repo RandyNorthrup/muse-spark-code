@@ -15,7 +15,7 @@ import {
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as z from 'zod/mini'
-import { buildEnvironment, HOSTS, hostManifest, inside } from './manifest.mjs'
+import { buildEnvironment, HOSTS, hostManifest, inside, MHP_VERSION } from './manifest.mjs'
 
 const signingKeys = {
   jetbrains: [
@@ -41,13 +41,22 @@ const publishingKeys = {
 const receiptSchema = z.strictObject({
   host: z.enum(Object.keys(HOSTS)),
   outcome: z.literal('packaged'),
-  mhp: z.literal('1.x'),
+  mhp: z.literal(MHP_VERSION),
   version: z.string(),
   tree: z.string().check(z.regex(/^[a-f0-9]{40}$/u)),
   sha256: z.record(
     z.string().check(z.regex(/^[\w.-]+$/u)),
     z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
   ),
+  runtimeSha256: z
+    .record(
+      z.string().check(
+        z.regex(/^(?:[\w@+.-]+\/)*[\w@+.-]+$/u),
+        z.refine((name) => name.split('/').every((part) => part !== '.' && part !== '..')),
+      ),
+      z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
+    )
+    .check(z.refine((files) => Object.keys(files).length > 0)),
   signing: z.optional(z.enum(['signed', 'unsigned', 'unsigned-local-only'])),
 })
 const digest = (file) => createHash('sha256').update(readFileSync(file)).digest('hex')
@@ -97,7 +106,7 @@ function commandEnvironment(env, keys, directory, receipt) {
     MUSE_HOST_ARTIFACTS: JSON.stringify(
       Object.keys(receipt.sha256).map((name) => path.join(directory, name)),
     ),
-    MUSE_MHP_VERSION: 'mhp/1.1.0',
+    MUSE_MHP_VERSION: receipt.mhp,
   }
 }
 

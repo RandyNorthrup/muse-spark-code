@@ -7,15 +7,29 @@ final class PanelModel: ObservableObject {
   @Published var workspace: URL?
   @Published var runtime = RuntimeLauncher.findRuntime()
   @Published var launch: LaunchLink?
+  @Published var launchGeneration = UUID()
   @Published var connected = false
   @Published var error: String?
   @Published var pending: BufferRequest?
   @Published var replacement = ""
   @Published var question = ""
+  @Published private(set) var trusted = false
   private let launcher = RuntimeLauncher()
+  let nativeUi = NativeUi()
   private var client: CommandClient?
   private var invocation = UUID()
   weak var webView: WKWebView?
+
+  private let navigationProcessFactory: () -> Process
+  private var navigationProcesses: [UUID: Process] = [:]
+  init(navigationProcessFactory: @escaping () -> Process = { Process() }) {
+    self.navigationProcessFactory = navigationProcessFactory
+  }
+
+  static func themeKind(dark: Bool, contrast: Bool) -> String {
+    if contrast { return dark ? "highContrastDark" : "highContrastLight" }
+    return dark ? "dark" : "light"
+  }
 
   func chooseWorkspace() {
     let picker = NSOpenPanel()
@@ -25,6 +39,7 @@ final class PanelModel: ObservableObject {
     if picker.runModal() == .OK, let url = picker.url {
       do {
         workspace = try RuntimeLauncher.workspace(url)
+        trusted = false
         start()
       } catch { self.error = UI_TEXT.xcodeWorkspaceRequired }
     }
@@ -58,11 +73,26 @@ final class PanelModel: ObservableObject {
     do {
       try launcher.start(
         executable: runtime, workspace: workspace,
+        theme: [
+          "kind": Self.themeKind(
+            dark: NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua,
+            contrast: NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast),
+          "tokens": [String: String](),
+        ],
+        trusted: trusted,
+        service: { [weak self] method, params, token, reply in
+          DispatchQueue.main.async {
+            guard let self = self, self.invocation == id, token.isActive else { return }
+            self.nativeUi.handle(
+              method, params: params, token: token, window: self.webView?.window, reply: reply)
+          }
+        },
         launched: { [weak self] result in
           DispatchQueue.main.async {
             guard let self = self, self.invocation == id else { return }
             switch result {
             case .success(let link):
+              self.launchGeneration = UUID()
               self.launch = link
               self.connected = true
             case .failure: self.error = UI_TEXT.xcodeStartFailed
@@ -73,6 +103,7 @@ final class PanelModel: ObservableObject {
           DispatchQueue.main.async {
             guard let self = self, self.invocation == id else { return }
             self.connected = false
+            self.nativeUi.close()
             self.launch = nil
             self.webView?.loadHTMLString("", baseURL: nil)
             self.error = UI_TEXT.xcodeStartFailed
@@ -82,7 +113,13 @@ final class PanelModel: ObservableObject {
   }
   func stop() {
     invocation = UUID()
+    // Process reaps the child on termination. Keep ownership until its handler
+    // runs, including after Stop; the retired generation cannot publish errors.
+    for process in navigationProcesses.values {
+      if process.isRunning { process.terminate() }
+    }
     launcher.stop()
+    nativeUi.close()
     if let request = pending {
       reply(request, approved: false, replacement: nil, error: .cancelled)
     }
@@ -150,6 +187,25 @@ final class PanelModel: ObservableObject {
       link.clear()
       NSApp.activate(ignoringOtherApps: true)
     } catch { self.error = UI_TEXT.xcodeEditRefused }
+  }
+  func setTrust(_ value: Bool) {
+    guard value != trusted, workspace != nil else { return }
+    guard connected || !launcher.isRunning else {
+      error = UI_TEXT.xcodeUnavailable
+      return
+    }
+    if value {
+      let alert = NSAlert()
+      alert.messageText = UI_TEXT.worktreeTrustConfirm
+      alert.informativeText = UI_TEXT.worktreeTrustDetail
+      alert.addButton(withTitle: UI_TEXT.worktreeTrustAction)
+      alert.addButton(withTitle: UI_TEXT.questionCancel)
+      guard alert.runModal() == .alertFirstButtonReturn else { return }
+    }
+    do {
+      if connected { try launcher.trust(value) }
+      trusted = value
+    } catch { self.error = UI_TEXT.xcodeUnavailable }
   }
   func sendSelection() {
     guard let request = pending, connected, let webView = webView else {
@@ -227,24 +283,41 @@ final class PanelModel: ObservableObject {
     if picker.runModal() == .OK, let file = picker.url { openInXcode(file, line: 1) }
   }
   func openInXcode(_ file: URL, line: Int) {
-    guard let workspace = workspace, file.isFileURL, line > 0,
-      file.resolvingSymlinksInPath().path.hasPrefix(workspace.resolvingSymlinksInPath().path + "/")
-    else {
-      error = UI_TEXT.linkOutsideWorkspace
+    guard let workspace = workspace else {
+      error = UI_TEXT.xcodeWorkspaceRequired
       return
     }
-    let process = Process()
+    let target: URL
+    do { target = try RuntimeLauncher.navigationFile(file, workspace: workspace, line: line) } catch
+    {
+      self.error = UI_TEXT.linkOutsideWorkspace
+      return
+    }
+    let process = navigationProcessFactory()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
-    process.arguments = ["xed", "--line", String(line), "--", file.path]
+    process.arguments = ["xed", "--line", String(line), "--", target.path]
     process.environment = RuntimeLauncher.environment(ProcessInfo.processInfo.environment)
     process.standardOutput = FileHandle.nullDevice
     process.standardError = FileHandle.nullDevice
+    let id = UUID()
+    let generation = invocation
+    navigationProcesses[id] = process
     process.terminationHandler = { [weak self] process in
-      if process.terminationStatus != 0 {
-        DispatchQueue.main.async { self?.error = UI_TEXT.xcodeEditRefused }
+      DispatchQueue.main.async {
+        guard let self = self, self.navigationProcesses.removeValue(forKey: id) === process else {
+          return
+        }
+        process.terminationHandler = nil
+        if self.invocation == generation, process.terminationStatus != 0 {
+          self.error = UI_TEXT.openFileFailed
+        }
       }
     }
-    do { try process.run() } catch { self.error = UI_TEXT.xcodeEditRefused }
+    do { try process.run() } catch {
+      process.terminationHandler = nil
+      navigationProcesses.removeValue(forKey: id)
+      self.error = UI_TEXT.openFileFailed
+    }
   }
 }
 private struct PanelPrompt: Encodable {

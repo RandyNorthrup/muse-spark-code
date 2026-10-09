@@ -15,22 +15,30 @@ struct PanelWebView: NSViewRepresentable {
     return view
   }
   func updateNSView(_ view: WKWebView, context: Context) {
-    if !model.connected {
-      context.coordinator.loadedOrigin = nil
-      return
-    }
-    guard let launch = model.launch, context.coordinator.loadedOrigin != launch.origin else {
-      return
-    }
-    context.coordinator.loadedOrigin = launch.origin
-    view.load(URLRequest(url: launch.url, cachePolicy: .reloadIgnoringLocalCacheData))
-    // The page removes the fragment before exchange; retain only credential-free origin natively.
-    DispatchQueue.main.async { model.launch = nil }
+    context.coordinator.load(view)
   }
   @MainActor final class Coordinator: NSObject, WKNavigationDelegate {
     let model: PanelModel
     var loadedOrigin: URL?
+    var loadedGeneration: UUID?
     init(model: PanelModel) { self.model = model }
+    func load(_ view: WKWebView) {
+      let model = model
+      if !model.connected {
+        loadedOrigin = nil
+        loadedGeneration = nil
+        return
+      }
+      guard let launch = model.launch, loadedGeneration != model.launchGeneration else {
+        return
+      }
+      let generation = model.launchGeneration
+      loadedOrigin = launch.origin
+      loadedGeneration = generation
+      view.load(URLRequest(url: launch.url, cachePolicy: .reloadIgnoringLocalCacheData))
+      // The page removes the fragment before exchange; retain only credential-free origin natively.
+      DispatchQueue.main.async { if model.launchGeneration == generation { model.launch = nil } }
+    }
     func webView(
       _ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
       decisionHandler: @escaping (WKNavigationActionPolicy) -> Void

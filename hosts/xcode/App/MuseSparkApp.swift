@@ -15,6 +15,11 @@ struct MuseSparkApp: App {
           Button(UI_TEXT.xcodeOpenPanel) { model.start() }
           Button(UI_TEXT.stopTitle) { model.stop() }.accessibilityIdentifier("stop")
           Button(UI_TEXT.xcodeOpenFile) { model.openFile() }
+          Toggle(
+            UI_TEXT.worktreeTrustAction,
+            isOn: Binding(get: { model.trusted }, set: { model.setTrust($0) })
+          )
+          .disabled(model.workspace == nil)
           Spacer()
           if let workspace = model.workspace { Text(workspace.lastPathComponent).lineLimit(1) }
         }.padding()
@@ -22,6 +27,7 @@ struct MuseSparkApp: App {
           Text(error).foregroundStyle(.red).textSelection(.enabled).padding()
             .accessibilityIdentifier("host-error")
         }
+        NativeUiStatus(ui: model.nativeUi)
         if let pending = model.pending {
           VStack(alignment: .leading) {
             Text(pending.command.title).font(.headline)
@@ -88,6 +94,23 @@ struct MuseSparkApp: App {
     MenuBarExtra(UI_TEXT.xcodeTitle, systemImage: "sparkles") {
       NativeMenu(model: model)
     }
+  }
+}
+
+private struct NativeUiStatus: View {
+  @ObservedObject var ui: NativeUi
+  var body: some View {
+    VStack(alignment: .leading) {
+      if let notice = ui.notice {
+        Text(notice).textSelection(.enabled).accessibilityAddTraits(.updatesFrequently)
+      }
+      ForEach(ui.statuses.keys.sorted(), id: \.self) { id in
+        if let text = ui.statuses[id] { Text(text).textSelection(.enabled) }
+      }
+      ForEach(ui.progress.keys.sorted(), id: \.self) { id in
+        if let text = ui.progress[id] { Text(text).accessibilityAddTraits(.updatesFrequently) }
+      }
+    }.padding()
   }
 }
 @MainActor
