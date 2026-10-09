@@ -403,11 +403,12 @@ describe.skipIf(noTimeout)(`M110-OS2 trial-boot mark-good: EFI${efiReason}`, () 
       `echo "$@" >> ${posixPath(h.raucLog)}\nexit 1`,
     )
     const result = runMarkGood(h, { MUSE_READYZ_PROBE: h.probeOk, MUSE_RAUC_CMD: refusing })
-    // The refusal is not a handled fallback: the marker stays so the next
-    // run retries the mark, and the exit is a failure (never 3).
+    // The refusal is not a handled fallback: the marker stays (counting
+    // the first refused attempt) so the next run retries the mark, and the
+    // exit is a failure (never 3).
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('rauc-refused mark=bad slot=usr.1')
-    expect(readFileSync(path.join(h.dir, 'efi-trial'), 'utf8').trim()).toBe('B')
+    expect(readFileSync(path.join(h.dir, 'efi-trial'), 'utf8').trim()).toBe('B 1')
     expect(rebooted(h)).toBe(false)
   })
 
@@ -426,7 +427,7 @@ describe.skipIf(noTimeout)(`M110-OS2 trial-boot mark-good: EFI${efiReason}`, () 
     })
     expect(refused.status).toBe(1)
     expect(refused.stderr).toContain('rauc-refused mark=bad slot=usr.1')
-    expect(readFileSync(path.join(h.dir, 'efi-trial'), 'utf8').trim()).toBe('B')
+    expect(readFileSync(path.join(h.dir, 'efi-trial'), 'utf8').trim()).toBe('B 1')
     // The next run retries the refused mark: with a working RAUC the same
     // failing trial is recorded bad, the marker is cleared, exit is handled.
     const retry = runMarkGood(h, { MUSE_READYZ_PROBE: h.probeBad })
@@ -434,6 +435,110 @@ describe.skipIf(noTimeout)(`M110-OS2 trial-boot mark-good: EFI${efiReason}`, () 
     expect(readFileSync(h.raucLog, 'utf8').match(/status mark-bad usr\.1/g)).toHaveLength(2)
     expect(() => readFileSync(path.join(h.dir, 'efi-trial'))).toThrow()
     expect(rebooted(h)).toBe(true)
+  })
+
+  it('bounds a persistently refused EFI mark-bad: N failures, then give up handled with the record', () => {
+    const h = efi()
+    writeFileSync(path.join(h.dir, 'efi-trial'), 'B\n')
+    writeFileSync(path.join(h.dir, 'cmdline'), 'root=/dev/x muse.slot=A quiet\n')
+    const refusing = fakeExecutable(
+      h.bin,
+      'rauc-refuses',
+      `echo "$@" >> ${posixPath(h.raucLog)}\nexit 1`,
+    )
+    const refusedEnv = { MUSE_READYZ_PROBE: h.probeOk, MUSE_RAUC_CMD: refusing }
+    // Default MUSE_RAUC_BAD_MAX_RETRIES is 3: attempts 1..3 fail, keep the
+    // marker with its count, and never request a reboot from the stable
+    // slot (the unit's FailureAction owns the reboot).
+    for (const marker of ['B 1', 'B 2', 'B 3']) {
+      const result = runMarkGood(h, refusedEnv)
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('rauc-refused mark=bad slot=usr.1')
+      expect(readFileSync(path.join(h.dir, 'efi-trial'), 'utf8').trim()).toBe(marker)
+      expect(() => readFileSync(path.join(h.dir, 'efi-trial.unreconciled'))).toThrow()
+      expect(rebooted(h)).toBe(false)
+    }
+    // Attempt 4 gives up: handled (never 1, so FailureAction stops
+    // rebooting), marker gone, durable record filed, distinct journal line.
+    const gaveUp = runMarkGood(h, refusedEnv)
+    expect(gaveUp.status).toBe(3)
+    expect(gaveUp.stderr).toContain('rauc-bad-gave-up slot=usr.1')
+    expect(gaveUp.stderr).toContain('TRIAL-FAILED-HANDLED rauc-bad-gave-up slot=usr.1')
+    expect(() => readFileSync(path.join(h.dir, 'efi-trial'))).toThrow()
+    expect(readFileSync(path.join(h.dir, 'efi-trial.unreconciled'), 'utf8').trim()).toBe(
+      'trial=B slot=usr.1 refused-mark-bad-attempts=4',
+    )
+    expect(rebooted(h)).toBe(false)
+    // A later ordinary boot leaves the record for the operator ...
+    const idle = runMarkGood(h, { MUSE_READYZ_PROBE: h.probeOk })
+    expect(idle.status).toBe(0)
+    expect(readFileSync(path.join(h.dir, 'efi-trial.unreconciled'), 'utf8').trim()).toBe(
+      'trial=B slot=usr.1 refused-mark-bad-attempts=4',
+    )
+    // ... while a later successful mark clears it.
+    writeFileSync(path.join(h.dir, 'efi-trial'), 'B\n')
+    writeFileSync(path.join(h.dir, 'cmdline'), 'root=/dev/x muse.slot=B quiet\n')
+    const cleared = runMarkGood(h, { MUSE_READYZ_PROBE: h.probeOk })
+    expect(cleared.status).toBe(0)
+    expect(() => readFileSync(path.join(h.dir, 'efi-trial.unreconciled'))).toThrow()
+    expect(() => readFileSync(path.join(h.dir, 'efi-trial'))).toThrow()
+    expect(rebooted(h)).toBe(false)
+  })
+
+  it('counts a probe-failed refusal toward the same bound and gives up from the stable slot', () => {
+    const h = efi()
+    writeFileSync(path.join(h.dir, 'efi-trial'), 'B\n')
+    writeFileSync(path.join(h.dir, 'cmdline'), 'root=/dev/x muse.slot=B quiet\n')
+    const refusing = fakeExecutable(
+      h.bin,
+      'rauc-refuses',
+      `echo "$@" >> ${posixPath(h.raucLog)}\nexit 1`,
+    )
+    const refusedEnv = { MUSE_RAUC_CMD: refusing }
+    // Running the failed trial: the refusal keeps the marker (count 1) and
+    // fails so FailureAction reboots off the trial.
+    const first = runMarkGood(h, { ...refusedEnv, MUSE_READYZ_PROBE: h.probeBad })
+    expect(first.status).toBe(1)
+    expect(readFileSync(path.join(h.dir, 'efi-trial'), 'utf8').trim()).toBe('B 1')
+    // After the reboot the machine runs the stable slot: two more refusals
+    // fail, the fourth attempt gives up handled with the record.
+    writeFileSync(path.join(h.dir, 'cmdline'), 'root=/dev/x muse.slot=A quiet\n')
+    for (const marker of ['B 2', 'B 3']) {
+      const result = runMarkGood(h, { ...refusedEnv, MUSE_READYZ_PROBE: h.probeOk })
+      expect(result.status).toBe(1)
+      expect(readFileSync(path.join(h.dir, 'efi-trial'), 'utf8').trim()).toBe(marker)
+      expect(rebooted(h)).toBe(false)
+    }
+    const gaveUp = runMarkGood(h, { ...refusedEnv, MUSE_READYZ_PROBE: h.probeOk })
+    expect(gaveUp.status).toBe(3)
+    expect(gaveUp.stderr).toContain('rauc-bad-gave-up slot=usr.1')
+    expect(() => readFileSync(path.join(h.dir, 'efi-trial'))).toThrow()
+    expect(readFileSync(path.join(h.dir, 'efi-trial.unreconciled'), 'utf8').trim()).toBe(
+      'trial=B slot=usr.1 refused-mark-bad-attempts=4',
+    )
+    expect(rebooted(h)).toBe(false)
+  })
+
+  it('drops the retry count when a transient EFI refusal is followed by success', () => {
+    const h = efi()
+    writeFileSync(path.join(h.dir, 'efi-trial'), 'B\n')
+    writeFileSync(path.join(h.dir, 'cmdline'), 'root=/dev/x muse.slot=A quiet\n')
+    const refusing = fakeExecutable(
+      h.bin,
+      'rauc-refuses',
+      `echo "$@" >> ${posixPath(h.raucLog)}\nexit 1`,
+    )
+    const refused = runMarkGood(h, { MUSE_READYZ_PROBE: h.probeOk, MUSE_RAUC_CMD: refusing })
+    expect(refused.status).toBe(1)
+    expect(readFileSync(path.join(h.dir, 'efi-trial'), 'utf8').trim()).toBe('B 1')
+    // With a working RAUC the retried mark succeeds: handled, marker gone,
+    // no unreconciled record, no reboot.
+    const retry = runMarkGood(h, { MUSE_READYZ_PROBE: h.probeOk })
+    expect(retry.status).toBe(3)
+    expect(retry.stderr).toContain('TRIAL-FAILED-HANDLED fell-back')
+    expect(() => readFileSync(path.join(h.dir, 'efi-trial'))).toThrow()
+    expect(() => readFileSync(path.join(h.dir, 'efi-trial.unreconciled'))).toThrow()
+    expect(rebooted(h)).toBe(false)
   })
 
   it('fails closed on a corrupt EFI marker or a missing slot stamp', () => {

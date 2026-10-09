@@ -551,3 +551,89 @@ os/check.py` 0 problems.
   shipped or committed). Pi-backend suites requiring `flock(1)` skip under
   their named reasons here; CI must re-run the full files with coreutils
   and util-linux (kubuntu/Windows).
+
+## Round 5: FIXM110OS5, lead review of FIXM110OS4 (1 P2)
+
+Lane FIXM110OS5, worktree `/Users/randy/lanes/FIXM110OS5`, branch
+`m110/os5-fix` from `51511b520`, on the macmini rig. No image build, no
+boot, no RAUC binary, no network, no paid call. Tests run under `dash`
+at the repository default timeout, at most 1 file per run; no
+`--testTimeout` was used.
+
+Lead finding (P2) on `522348b5d`: a refused EFI `mark-bad` kept the trial
+marker and exited 1, so the unit's `FailureAction=reboot` rebooted; the
+next boot ran the stable slot (`booted != trial`), took the fell-back
+branch, RAUC refused again, exit 1, reboot — an UNBOUNDED REBOOT LOOP on
+an otherwise healthy stable system whenever RAUC refuses persistently.
+
+Fix (keeps the retry, bounds it):
+
+- The EFI trial marker now carries the refused-attempt count:
+  `efi_trial_state` reads `<slot> <refused>` (`B 2`; a plain `B` from the
+  update agent means 0). Corrupt markers still fail closed (exit 2 path);
+  the count is capped at 9 digits so the increment cannot overflow.
+- `MUSE_RAUC_BAD_MAX_RETRIES` (default 3, validated like the other
+  numeric tunables) bounds refused `mark-bad` attempts per trial across
+  both EFI branches (one shared count: a probe-failed refusal and the
+  fell-back retries after the reboot accumulate together).
+- Attempts 1..3 keep the marker (rewritten atomically via tmp-file plus
+  `mv`) and exit 1 with `keeping-trial-marker for-retry slot=...`.
+- Attempt 4 gives up: the run writes the durable record
+  `$MUSE_EFI_TRIAL_FILE.unreconciled`
+  (`trial=B slot=usr.1 refused-mark-bad-attempts=4`, tmp-file plus `mv`),
+  clears the marker, logs the distinct `rauc-bad-gave-up slot=usr.1
+trial=B attempts=4` line, and exits handled (3) via
+  `TRIAL-FAILED-HANDLED rauc-bad-gave-up slot=...` — so `FailureAction`
+  never reboots a stable slot more than 3 times for one trial.
+- Any later mark RAUC accepts (good, fell-back bad, probe-failed bad)
+  clears the marker and the stale record (`efi_reconciled`); an ordinary
+  boot with no marker leaves the record alone.
+
+Files after round 5 (`channel.py`, `pi-tryboot-backend`,
+`pi-eeprom-check`, RAUC configs unchanged from round 4):
+
+| File                     | SHA-256                                                            |
+| ------------------------ | ------------------------------------------------------------------ |
+| `mark-good`              | `eae74d5ec8e06911b4b06a86d8ab84b12009214855e82718e73b81db7b37819b` |
+| `muse-mark-good.service` | (comment only; behaviour unchanged)                                |
+
+(`channel.py` still `31f63ce3…c933729` from round 4.)
+
+### Round-5 red drill (break, named test fails, restore byte-exact)
+
+| Guard           | Break                                | Named failure                               | Restored SHA-256       |
+| --------------- | ------------------------------------ | ------------------------------------------- | ---------------------- |
+| Give-up exits 3 | give-up `handled` replaced by `fail` | MarkGood: bound test failed (exit 1, not 3) | `eae74d5e…7b37819b` OK |
+
+### Round-5 verification (macmini rig, repository default timeout)
+
+- `npx vitest run test/unit/osImageBuildUpdateMarkGood.test.mjs
+--maxWorkers=3`: 1 file passed, **11 passed, 21 skipped, 0 failed** —
+  EFI 10/10 (2 updated R1 refusal tests now expecting the `B 1` marker,
+  plus 3 new bound tests) and the unit test. The 21 skips are the Pi
+  suites, which require `flock(1)` (absent on macOS) and skip under their
+  named reasons; the EFI suites ran under `dash` here.
+- `dash -n` on `mark-good` OK; `shellcheck -S warning -s sh` clean;
+  `npx prettier --check` and `npx eslint --max-warnings=0` on the changed
+  test and certification files clean.
+- Rig environment, disclosed: same private `timeout -k` replacement as
+  round 4 (copied to this lane's own `$TMPDIR/m110os5-hostbin`, never
+  shipped or committed). CI must re-run the full file with coreutils and
+  util-linux (kubuntu/Windows).
+
+### Round-5 residual: an unreconciled trial needs operator attention
+
+After the give-up the trial slot is NOT recorded bad in RAUC — RAUC was
+never told. The operator signal is twofold: the journal line
+`rauc-bad-gave-up slot=<slot> trial=<trial> attempts=<n>` (which the
+status/health surface can match; `handled` still logs
+`TRIAL-FAILED-HANDLED` beside it) and the durable record at
+`/var/lib/muse-update/efi-trial.unreconciled`
+(`trial=<trial> slot=<slot> refused-mark-bad-attempts=<n>`), which
+survives ordinary boots and is cleared only by a later mark RAUC accepts.
+There is no automated remediation: reconciling RAUC slot state after a
+persistent refusal is an operator step. Adjacent observation (not
+changed, pre-existing): a refused `mark-good` on a passing probe also
+exits 1 with the marker kept, so a persistently refusing RAUC on the good
+path loops the same way — bounding that path is follow-up scope, not
+this lane.

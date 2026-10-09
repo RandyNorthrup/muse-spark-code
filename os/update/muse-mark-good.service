@@ -14,6 +14,10 @@
 # machine already runs the stable slot (fallback) or has requested the
 # reboot into it. SuccessExitStatus=3 keeps FailureAction from rebooting a
 # healthy stable slot again; the journal still carries TRIAL-FAILED-HANDLED.
+# A refused EFI mark-bad past its retry bound (MUSE_RAUC_BAD_MAX_RETRIES,
+# default 3) also exits 3 with "rauc-bad-gave-up slot=..." in the journal
+# and the trial in efi-trial.unreconciled: RAUC was never told, so an
+# operator must reconcile it.
 #
 # The script handles both targets: with autoboot.txt present it drives the
 # Pi tryboot backend, otherwise it follows the EFI trial marker through
