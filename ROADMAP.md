@@ -15,6 +15,7 @@ Labels come from the project plan: _Preview_ means usable, with documented limit
 Merged for 0.17.0 and being prepared for release.
 
 - Agents: **Orchestrator playbook** — The orchestration rules ship as a built-in skill that governs the panel's subagent, delegate, best-of-N and review dispatches, and /playbook shows status, records and settings locally. <sub>M116</sub>
+- Security: **Safer Windows paths** — On Windows, ambiguous path spellings such as device paths, alternate streams, trailing dots and reserved names are refused or need a one-time manual approval, while workspaces on any drive keep working.
 
 ## In progress
 
@@ -46,10 +47,6 @@ Being built, built but not released, partly shipped, or waiting on a prerequisit
 
 - **Usage and cost page** — A local Usage & Cost page shows each model call's cost, tokens, time, limits and budgets by provider, model and client, with charts, tables and exports, and the history never leaves your machine. _First parts shipped in 0.15.0._ <sub>M102</sub>
 
-### Security
-
-- **Safer Windows paths** — On Windows, ambiguous path spellings such as device paths, alternate streams, trailing dots and reserved names are refused or need a one-time manual approval, while workspaces on any drive keep working. _Built; not in a release yet._
-
 ### Voice and media
 
 - **Video, audio and screen recordings** _(Not available yet)_ — Attach videos, audio files, documents and screen recordings with the cost shown before sending, although sending video and audio to a model is not available yet. _First parts are in the next release (0.17.0)._ <sub>M105</sub>
@@ -60,9 +57,9 @@ Being built, built but not released, partly shipped, or waiting on a prerequisit
 
 ### Platform
 
-- **Headless runs and a GitHub Action** — Run one agent turn without an editor through the ACP agent's exec command, or let a GitHub Action review or propose a fix for a same-repository pull request, both under a hard dollar budget. _First parts shipped in 0.12.0._ <sub>M80</sub>
+- **Headless runs and a GitHub Action** — Run one agent turn without an editor through the ACP agent's exec command, or let a GitHub Action review or propose a fix for a same-repository pull request, each under a hard dollar budget; both can be tried but are not certified or supported yet. _First parts shipped in 0.12.0._ <sub>M80</sub>
 - **Legal and licence scan** — Run /legal to scan licences, copyright headers and source provenance without a model call, export the report and apply only the header fixes you confirm, without any claim that a project is legally compliant. _First parts shipped in 0.15.0._ <sub>M97</sub>
-- **Resource limits for your machine** _(Not available yet)_ — Set CPU, memory and disk limits so background work the extension starts is slowed and then paused before the machine becomes unresponsive, while moving that work to another device is not available yet. _First parts shipped in 0.16.0._ <sub>M107</sub>
+- **Resource limits for your machine** _(Not available yet)_ — Set CPU, memory and disk limits so the extension holds back new background work while the machine is busy, first narrowing and then pausing it without stopping work already running; moving work to another device is not available yet. _First parts shipped in 0.16.0._ <sub>M107</sub>
 - **Deterministic reports** — Run /report for project, quality, milestone, release and change reports built from local facts in Markdown, HTML, JSON or text, with saved history and comparisons, and nothing sent to a model. _First parts are in the next release (0.17.0)._ <sub>M113</sub>
 - **Refreshed design** — Panel surfaces share one set of theme-aware design tokens, with consistent hover, focus and pressed states and motion that stops when reduced motion is on. _First parts are in the next release (0.17.0)._ <sub>M114</sub>
 
@@ -114,7 +111,7 @@ By release, newest first.
 
 ### 0.15.0 (2026-10-06)
 
-- Models and providers: **ChatGPT and Copilot sign-in** _(Preview)_ — Eligible ChatGPT Plus or Pro accounts sign in through the browser and compatible editors can use Copilot models, with the plan's own limits applying instead of a dollar cap. <sub>M95b</sub>
+- Models and providers: **ChatGPT and Copilot sign-in** _(Preview)_ — Eligible ChatGPT Plus or Pro accounts sign in through the browser and compatible editors can use Copilot models, with the plan's own limits instead of a dollar cap, though a successful reply from either real service has not been checked yet. <sub>M95b</sub>
 
 ### 0.14.4 (2026-10-06)
 
@@ -122,7 +119,7 @@ By release, newest first.
 
 ### 0.14.3 (2026-10-06)
 
-- Chat: **Questions that never block** — An agent's question stays in the dock and the transcript, the agent carries on with independent work if you have not answered after a set time, and your later answer reaches it exactly once. <sub>M112</sub>
+- Chat: **Questions that never block** — An agent's question stays in the dock and the transcript, the agent carries on with independent work if you have not answered after a set time, and your later answer reaches it, with a warning if a failed save means it may be sent again. <sub>M112</sub>
 
 ### 0.14.2 (2026-10-06)
 
@@ -150,13 +147,13 @@ By release, newest first.
 
 - Agents: **Review before it lands** — /review checks uncommitted changes, a branch, a commit or anything you describe, with a security preset, and a review pane lets you accept, revert or comment on each change. <sub>M70</sub>
 - Agents: **Bundled skills** — Project setup, feature delivery and quality retrofit workflows ship with the extension on the Model API backend and install into Muse Code with one click. <sub>M89</sub>
-- Usage and billing: **Awareness and budgets** — A notification tells you when a long turn ends or waits while the window is unfocused, replies can show their token and dollar estimate, and a per-conversation budget caps Model API spend. <sub>M82</sub>
+- Usage and billing: **Awareness and budgets** — A notification tells you when a long turn ends or waits while the window is unfocused, replies can show their token and dollar estimate, and a per-conversation budget caps Model API spend, though child tasks you approve separately can take it past the cap. <sub>M82</sub>
 - Security: **Safer Auto mode** — Auto on the Model API backend follows standing command rules and permission profiles, and an optional paid reviewer never overrides a deny, an ask rule or a protected write. <sub>M78</sub>
 - Security: **Auto reviewer on Muse Code** — In Auto on the Muse Code backend, a short review turn on your Muse subscription can approve an eligible request once, and anything it doubts or cannot review still asks you. <sub>M90</sub>
 
 ### 0.11.0 (2026-10-03)
 
-- Chat: **Observation packing** — An optional Model API setting, off by default, swaps large old tool outputs for a short placeholder the model can page back, so long sessions resend fewer tokens. <sub>M73</sub>
+- Chat: **Observation packing** — On the Model API backend, observation packing, on by default since 0.13.0, swaps large old tool outputs for a short placeholder the model can page back, so long sessions resend fewer tokens. <sub>M73</sub>
 - Chat: **Handoff to a new conversation** — /handoff has the model write a brief of the goal, decisions, files and open work, which you review and edit before it starts a fresh Model API conversation. <sub>M74</sub>
 - Chat: **Session export, import and share** — Export a conversation as a scrubbed portable file, open it read-only as a share file, or resume it as a new Model API conversation, with nothing uploaded. <sub>M84</sub>
 - Chat: **Restore by the model's own writes** — Turn checkpoints are on by default and restore only the model's own file-tool writes, naming any changes made by commands, hooks or other tools that a restore does not undo. <sub>M86</sub>
@@ -187,13 +184,13 @@ By release, newest first.
 - Agents: **Subagents on the Model API** — On the Model API backend the agent can start parallel child tasks, a paid extra that asks before each new task, with the children visible and steerable in the Agent map. <sub>M48</sub>
 - Agents: **See and edit memory** — Browse, open, create, edit and delete Muse Code's memory notes from the panel, and the Model API backend reads and writes the same notes. <sub>M49</sub>
 - Agents: **MCP servers on the Model API** — The Model API backend runs the local and remote MCP servers from Muse Code's settings, with approvals by permission mode and a view of each server's status. <sub>M50</sub>
-- Agents: **Hooks on the Model API** — With an opt-in setting, the Model API backend runs Muse Code's hook commands in trusted workspaces, so a hook can block or ask about a tool call. <sub>M51</sub>
+- Agents: **Hooks on the Model API** — In trusted workspaces the Model API backend runs Muse Code's hook commands, on by default since 0.13.0 with a setting to turn them off, so a hook can block or ask about a tool call. <sub>M51</sub>
 - Models and providers: **More reliable Model API conversations** — Model API conversations in which the model writes text before a tool call no longer fail, and a reply the server cuts off is sent again automatically. <sub>M42</sub>
 - Voice and media: **Image generation** — On the Model API backend the agent can create PNG images in your workspace, a paid extra that asks before every image with its price. <sub>M34</sub>
-- Voice and media: **Muse Voice dictation** — Optional paid dictation with Meta's Muse Voice Transcribe on the Model API backend, while your computer's free speech recogniser stays the default. <sub>M35</sub>
+- Voice and media: **Muse Voice dictation** _(Not available yet)_ — Optional paid dictation with Meta's Muse Voice Transcribe, while your computer's free speech recogniser stays the default; the Model API backend currently refuses it, because its billed audio length has no verified limit. <sub>M35</sub>
 - Voice and media: **Image edits on both backends** — The agent can edit or combine workspace images, and image tools and Muse Voice also work on the Muse Code backend when a Model API key is stored, billed to that key with the price confirmed first. <sub>M44</sub>
 - Platform: **Install and sign in from the panel** — Install the Muse Code CLI and sign in with your Meta account from the panel, with the install command shown and confirmed before it runs in a terminal you can watch. <sub>M55</sub>
-- Platform: **Corporate networks and proxies** — Proxy and HTTPS-inspection settings carry through to every request, Diagnostics shows the network setup, and a request that cannot reach Meta says why. <sub>M56</sub>
+- Platform: **Corporate networks and proxies** — Model API requests follow VS Code's proxy and certificate settings on every supported version, Muse Voice's connection does so only from VS Code 1.112, Diagnostics shows what your editor routes, and a request that cannot reach Meta says why. <sub>M56</sub>
 
 ### 0.8.0 (2026-09-25)
 
@@ -216,7 +213,7 @@ By release, newest first.
 - Chat: **Dependable approvals and resumes** — A resumed conversation shows its waiting approvals and questions again, an oversized message is refused with the reason, and a failed tool or stream glitch no longer breaks a Model API conversation. <sub>M23</sub>
 - Chat: **Sturdier panel** — After a crash the panel reloads with the conversation intact, and it handles input methods, right-to-left text, reduced motion and dialog focus properly. <sub>M25</sub>
 - Editors: **Safer file edits** — On the Model API backend, edits keep a file's line endings, byte-order mark and encoding and never overwrite unsaved editor changes, and revert puts lines back only where the file still matches. <sub>M24</sub>
-- Security: **Workspace confinement** — On the Model API backend, file tools refuse links that lead outside the workspace and always ask before writing sensitive config files, and git never runs in an untrusted folder. <sub>M21</sub>
+- Security: **Workspace confinement** — On the Model API backend, file tools refuse links that lead outside the workspace, writing sensitive config files asks for approval in every mode except Bypass, and git never runs in an untrusted folder. <sub>M21</sub>
 - Platform: **Reliable processes and restarts** — A stopped or timed-out shell command ends everything it started, a stuck CLI no longer hangs the panel, and after a restart or crash the next message continues the same conversation. <sub>M22</sub>
 - Platform: **Platform and dictation fixes** — Windows shortcuts no longer clash with the system, dictation explains why it is unavailable in remote windows, and the package includes third-party licence notices. <sub>M26</sub>
 - Platform: **Windows commands fully stopped** — On Windows each shell command runs in its own job object, so Stop or a timeout ends every process it started. <sub>M27</sub>

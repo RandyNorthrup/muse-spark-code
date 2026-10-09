@@ -149,7 +149,7 @@
     {
       "id": "M21",
       "title": "Workspace confinement",
-      "summary": "On the Model API backend, file tools refuse links that lead outside the workspace and always ask before writing sensitive config files, and git never runs in an untrusted folder.",
+      "summary": "On the Model API backend, file tools refuse links that lead outside the workspace, writing sensitive config files asks for approval in every mode except Bypass, and git never runs in an untrusted folder.",
       "area": "security",
       "release": "0.6.0"
     },
@@ -252,9 +252,10 @@
     {
       "id": "M35",
       "title": "Muse Voice dictation",
-      "summary": "Optional paid dictation with Meta's Muse Voice Transcribe on the Model API backend, while your computer's free speech recogniser stays the default.",
+      "summary": "Optional paid dictation with Meta's Muse Voice Transcribe, while your computer's free speech recogniser stays the default; the Model API backend currently refuses it, because its billed audio length has no verified limit.",
       "area": "voice-media",
-      "release": "0.9.0"
+      "release": "0.9.0",
+      "labels": ["not available yet"]
     },
     {
       "id": "M36",
@@ -372,7 +373,7 @@
     {
       "id": "M51",
       "title": "Hooks on the Model API",
-      "summary": "With an opt-in setting, the Model API backend runs Muse Code's hook commands in trusted workspaces, so a hook can block or ask about a tool call.",
+      "summary": "In trusted workspaces the Model API backend runs Muse Code's hook commands, on by default since 0.13.0 with a setting to turn them off, so a hook can block or ask about a tool call.",
       "area": "agents",
       "release": "0.9.0"
     },
@@ -412,7 +413,7 @@
     {
       "id": "M56",
       "title": "Corporate networks and proxies",
-      "summary": "Proxy and HTTPS-inspection settings carry through to every request, Diagnostics shows the network setup, and a request that cannot reach Meta says why.",
+      "summary": "Model API requests follow VS Code's proxy and certificate settings on every supported version, Muse Voice's connection does so only from VS Code 1.112, Diagnostics shows what your editor routes, and a request that cannot reach Meta says why.",
       "area": "platform",
       "release": "0.9.0"
     },
@@ -511,7 +512,7 @@
     {
       "id": "M73",
       "title": "Observation packing",
-      "summary": "An optional Model API setting, off by default, swaps large old tool outputs for a short placeholder the model can page back, so long sessions resend fewer tokens.",
+      "summary": "On the Model API backend, observation packing, on by default since 0.13.0, swaps large old tool outputs for a short placeholder the model can page back, so long sessions resend fewer tokens.",
       "area": "chat",
       "release": "0.11.0"
     },
@@ -558,7 +559,7 @@
     {
       "id": "M80",
       "title": "Headless runs and a GitHub Action",
-      "summary": "Run one agent turn without an editor through the ACP agent's exec command, or let a GitHub Action review or propose a fix for a same-repository pull request, both under a hard dollar budget.",
+      "summary": "Run one agent turn without an editor through the ACP agent's exec command, or let a GitHub Action review or propose a fix for a same-repository pull request, each under a hard dollar budget; both can be tried but are not certified or supported yet.",
       "area": "platform",
       "release": "0.12.0"
     },
@@ -572,7 +573,7 @@
     {
       "id": "M82",
       "title": "Awareness and budgets",
-      "summary": "A notification tells you when a long turn ends or waits while the window is unfocused, replies can show their token and dollar estimate, and a per-conversation budget caps Model API spend.",
+      "summary": "A notification tells you when a long turn ends or waits while the window is unfocused, replies can show their token and dollar estimate, and a per-conversation budget caps Model API spend, though child tasks you approve separately can take it past the cap.",
       "area": "usage-billing",
       "release": "0.12.0"
     },
@@ -685,7 +686,7 @@
     {
       "id": "M95b",
       "title": "ChatGPT and Copilot sign-in",
-      "summary": "Eligible ChatGPT Plus or Pro accounts sign in through the browser and compatible editors can use Copilot models, with the plan's own limits applying instead of a dollar cap.",
+      "summary": "Eligible ChatGPT Plus or Pro accounts sign in through the browser and compatible editors can use Copilot models, with the plan's own limits instead of a dollar cap, though a successful reply from either real service has not been checked yet.",
       "area": "models-providers",
       "release": "0.15.0",
       "labels": ["preview"]
@@ -792,7 +793,7 @@
     {
       "id": "M107",
       "title": "Resource limits for your machine",
-      "summary": "Set CPU, memory and disk limits so background work the extension starts is slowed and then paused before the machine becomes unresponsive, while moving that work to another device is not available yet.",
+      "summary": "Set CPU, memory and disk limits so the extension holds back new background work while the machine is busy, first narrowing and then pausing it without stopping work already running; moving work to another device is not available yet.",
       "area": "platform",
       "release": "0.16.0",
       "labels": ["not available yet"]
@@ -825,7 +826,7 @@
     {
       "id": "M112",
       "title": "Questions that never block",
-      "summary": "An agent's question stays in the dock and the transcript, the agent carries on with independent work if you have not answered after a set time, and your later answer reaches it exactly once.",
+      "summary": "An agent's question stays in the dock and the transcript, the agent carries on with independent work if you have not answered after a set time, and your later answer reaches it, with a warning if a failed save means it may be sent again.",
       "area": "chat",
       "release": "0.14.3"
     },
@@ -1193,7 +1194,8 @@
       "id": "SECWINPATH",
       "title": "Safer Windows paths",
       "summary": "On Windows, ambiguous path spellings such as device paths, alternate streams, trailing dots and reserved names are refused or need a one-time manual approval, while workspaces on any drive keep working.",
-      "area": "security"
+      "area": "security",
+      "release": "0.17.0"
     },
     {
       "id": "SECWINPATH2",
