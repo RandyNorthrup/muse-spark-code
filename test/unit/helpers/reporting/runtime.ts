@@ -1,4 +1,7 @@
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { vi } from 'vitest'
+import type * as ResourceLauncher from '../../../../src/core/resources/launcher'
 import { EN } from '../../../../src/shared/l10n/en'
 import { finalizeReport } from '../../../../src/core/reporting/render/canonical'
 import type { ReportOptions, ReportDocument } from '../../../../src/shared/reportSchema'
@@ -6,6 +9,18 @@ import type { ReportsCommandDeps } from '../../../../src/runtime/reporting/repor
 import { REPORT_THEME, renderFixture } from '../../reportRenderFixtures'
 
 export const REPORT_AS_OF = '2026-10-06T12:00:00+00:00'
+
+/** Keep real, bounded OS birth probes without requiring a process-governor fixture. */
+export function reportingProcessLauncher(
+  launcher: typeof ResourceLauncher,
+): typeof ResourceLauncher {
+  const probe = promisify(execFile)
+  return {
+    ...launcher,
+    execResourceFile: (profile, ...args) =>
+      profile === 'probe' ? probe(...args) : launcher.execResourceFile(profile, ...args),
+  }
+}
 
 export function reportsHarness(overrides: Partial<ReportsCommandDeps> = {}) {
   const document = renderFixture()

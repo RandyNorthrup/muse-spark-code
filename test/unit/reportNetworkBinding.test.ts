@@ -1,9 +1,14 @@
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { reportingResponseCache } from '../../src/runtime/reporting/network'
 import { REPORT_AS_OF } from './helpers/reporting/runtime'
+
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const { reportingProcessLauncher } = await import('./helpers/reporting/runtime')
+  return reportingProcessLauncher(await original())
+})
 
 const folders: string[] = []
 afterEach(async () => {
