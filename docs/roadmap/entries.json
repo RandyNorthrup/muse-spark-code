@@ -1,0 +1,1281 @@
+{
+  "about": "Curated words for ROADMAP.md: one entry per PLAN.md milestone. Ids and statuses come from PLAN.md, releases from CHANGELOG.md headings. Edit this file, then run npm run roadmap:generate. See CONTRIBUTING.md.",
+  "entries": [
+    {
+      "id": "M0",
+      "public": false,
+      "note": "project scaffold and quality gates"
+    },
+    {
+      "id": "M1",
+      "title": "Chat panel and shortcuts",
+      "summary": "A Muse chat panel in the sidebar or in an editor tab, with keyboard shortcuts and settings that take effect in open panels right away.",
+      "area": "chat",
+      "release": "0.1.0"
+    },
+    {
+      "id": "M2",
+      "title": "Sign in and chat through Muse Code",
+      "summary": "Sign in through your browser and chat with Muse Spark through the Muse Code CLI, with streamed replies, a Stop button and recovery when the CLI exits.",
+      "area": "models-providers",
+      "release": "0.1.0"
+    },
+    {
+      "id": "M3",
+      "title": "Composer and command palette",
+      "summary": "The prompt box gets a / command palette, file and image attachments, @ file mentions, a model picker, effort and thinking controls, permission modes, and messages you can queue while a reply runs.",
+      "area": "chat",
+      "release": "0.1.0"
+    },
+    {
+      "id": "M4",
+      "title": "Rich transcript",
+      "summary": "Replies show as Markdown with highlighted code you can copy or insert, tool calls show as rows with diffs and shell output, and approvals, questions and the task list appear inline in the chat.",
+      "area": "chat",
+      "release": "0.1.0"
+    },
+    {
+      "id": "M5",
+      "title": "Editor context and diagnostics",
+      "summary": "Your open file or selection goes along with your message, unsaved editors are saved before each turn, code blocks can be applied to the editor, and the agent can read the Problems panel's errors and warnings.",
+      "area": "editors",
+      "release": "0.1.0"
+    },
+    {
+      "id": "M6",
+      "title": "Conversation history",
+      "summary": "A searchable History dialog resumes and archives past conversations, offers rename and fork where the Muse Code CLI supports them, and marks hidden panels with unread replies.",
+      "area": "chat",
+      "release": "0.1.0"
+    },
+    {
+      "id": "M7",
+      "title": "Bring your own Model API key",
+      "summary": "With your own Meta Model API key, the panel talks to Meta's API directly and runs its own file and shell tools inside the workspace, under the same permission modes and approval cards.",
+      "area": "models-providers",
+      "release": "0.1.0"
+    },
+    {
+      "id": "M8",
+      "title": "Account and usage",
+      "summary": "An Account & usage dialog shows your Muse Code subscription's usage bars with reset times and this conversation's tokens, plus getting-started tips and screen-reader announcements.",
+      "area": "usage-billing",
+      "release": "0.1.0"
+    },
+    {
+      "id": "M9",
+      "title": "Voice dictation",
+      "summary": "Dictate into the prompt box with a microphone button (tap or hold, or Ctrl+D) on Windows and macOS, using the operating system's own speech recogniser at no cost.",
+      "area": "voice-media",
+      "release": "0.1.0"
+    },
+    {
+      "id": "M10",
+      "title": "Workspace rules, skills and memory",
+      "summary": "In a trusted workspace the agent follows your AGENTS.md rules and project skills on both backends, and on the Model API backend it also gets the project memory index.",
+      "area": "agents",
+      "release": "0.2.0"
+    },
+    {
+      "id": "M11",
+      "title": "Saved conversations and diagnostics",
+      "summary": "Model API conversations survive a window reload, a crash screen offers Reload instead of a blank panel, and Show Logs and Diagnostics commands help with support.",
+      "area": "platform",
+      "release": "0.2.0"
+    },
+    {
+      "id": "M12",
+      "title": "Walkthrough and editor commands",
+      "summary": "A Get started walkthrough, New Conversation, Sign Out, Open in Terminal and Create AGENTS.md commands, editor-tab conversations that come back after a reload, and settings a repository cannot override.",
+      "area": "editors",
+      "release": "0.3.0"
+    },
+    {
+      "id": "M13",
+      "title": "Fork and rewind menu",
+      "summary": "A menu on each of your messages forks the conversation from that point, rewinds the code edits made after it, or does both.",
+      "area": "chat",
+      "release": "0.3.1"
+    },
+    {
+      "id": "M14",
+      "title": "Subagents and the Agent map",
+      "summary": "Muse Code's subagents appear in the chat with an Agent map of their transcripts and tokens, alongside choices offered as pickers and a one-click compact button.",
+      "area": "agents",
+      "release": "0.4.0"
+    },
+    {
+      "id": "M15",
+      "title": "Scrolling, copy and output tabs",
+      "summary": "The chat follows new output with a jump-to-newest button, rows expand with chevrons, replies get a Copy button, and tool outputs and long diffs open in editor tabs.",
+      "area": "chat",
+      "release": "0.4.1"
+    },
+    {
+      "id": "M16",
+      "title": "File links and live thinking",
+      "summary": "Tool rows link to the changed lines, stored diffs open with Click to expand, thinking streams as it happens, and question cards get tabs and an Other answer.",
+      "area": "chat",
+      "release": "0.4.2"
+    },
+    {
+      "id": "M17",
+      "title": "Reply to and quote chat text",
+      "summary": "Reply to a specific output, or highlight any text in the chat and ask about it or comment on it, and the quoted context goes along with your message.",
+      "area": "chat",
+      "release": "0.4.3"
+    },
+    {
+      "id": "M18",
+      "title": "Agent map controls",
+      "summary": "Each subagent keeps its own transcript in the Agent map, which can interrupt, stop, resume or close an agent, send it a note, or give it a follow-up task.",
+      "area": "agents",
+      "release": "0.5.0"
+    },
+    {
+      "id": "M19",
+      "title": "Auto-growing prompt box",
+      "summary": "The prompt box grows with wrapped lines as well as new lines, up to ten rows, and then scrolls.",
+      "area": "chat",
+      "release": "0.5.2"
+    },
+    {
+      "id": "M20",
+      "title": "Rewind across subagents",
+      "summary": "Rewind code to here also undoes edits made by subagents, in reverse order of when they finished.",
+      "area": "agents",
+      "release": "0.5.5"
+    },
+    {
+      "id": "M21",
+      "title": "Workspace confinement",
+      "summary": "On the Model API backend, file tools refuse links that lead outside the workspace, writing sensitive config files asks for approval in every mode except Bypass, and git never runs in an untrusted folder.",
+      "area": "security",
+      "release": "0.6.0"
+    },
+    {
+      "id": "M22",
+      "title": "Reliable processes and restarts",
+      "summary": "A stopped or timed-out shell command ends everything it started, a stuck CLI no longer hangs the panel, and after a restart or crash the next message continues the same conversation.",
+      "area": "platform",
+      "release": "0.6.0"
+    },
+    {
+      "id": "M23",
+      "title": "Dependable approvals and resumes",
+      "summary": "A resumed conversation shows its waiting approvals and questions again, an oversized message is refused with the reason, and a failed tool or stream glitch no longer breaks a Model API conversation.",
+      "area": "chat",
+      "release": "0.6.0"
+    },
+    {
+      "id": "M24",
+      "title": "Safer file edits",
+      "summary": "On the Model API backend, edits keep a file's line endings, byte-order mark and encoding and never overwrite unsaved editor changes, and revert puts lines back only where the file still matches.",
+      "area": "editors",
+      "release": "0.6.0"
+    },
+    {
+      "id": "M25",
+      "title": "Sturdier panel",
+      "summary": "After a crash the panel reloads with the conversation intact, and it handles input methods, right-to-left text, reduced motion and dialog focus properly.",
+      "area": "chat",
+      "release": "0.6.0"
+    },
+    {
+      "id": "M26",
+      "title": "Platform and dictation fixes",
+      "summary": "Windows shortcuts no longer clash with the system, dictation explains why it is unavailable in remote windows, and the package includes third-party licence notices.",
+      "area": "platform",
+      "release": "0.6.0"
+    },
+    {
+      "id": "M26-follow-up",
+      "public": false,
+      "note": "release tooling (README badge refresh)"
+    },
+    {
+      "id": "M27",
+      "title": "Windows commands fully stopped",
+      "summary": "On Windows each shell command runs in its own job object, so Stop or a timeout ends every process it started.",
+      "area": "platform",
+      "release": "0.6.0"
+    },
+    {
+      "id": "M28",
+      "title": "macOS dictation permissions",
+      "summary": "On macOS, dictation asks for microphone and speech-recognition permission under the dictation helper's own name instead of being refused without asking.",
+      "area": "voice-media",
+      "release": "0.7.0"
+    },
+    {
+      "id": "M29",
+      "title": "Protected .muse folder",
+      "summary": "On the Model API backend, writing anything under .muse/ asks for approval in every mode except Bypass.",
+      "area": "security",
+      "release": "0.7.0"
+    },
+    {
+      "id": "M30",
+      "title": "Skills, imports and export",
+      "summary": "Turn Muse Code skills on or off, import skills from other coding agents, and export a conversation as Markdown on either backend.",
+      "area": "agents",
+      "release": "0.7.0"
+    },
+    {
+      "id": "M31",
+      "title": "View MCP servers and hooks",
+      "summary": "See which MCP servers and hooks Muse Code will load, sign in to remote MCP servers, and open the files that define them, all read-only.",
+      "area": "agents",
+      "release": "0.7.0"
+    },
+    {
+      "id": "M32",
+      "title": "Git worktrees",
+      "summary": "Start work on a new branch in a separate git worktree that opens in a new window, and remove worktrees with a second confirmation before uncommitted changes are discarded.",
+      "area": "platform",
+      "release": "0.7.0"
+    },
+    {
+      "id": "M33",
+      "title": "Web search",
+      "summary": "On the Model API backend the agent can search the web, a paid extra that asks first, with each search shown as a paid row and its sources listed under the reply.",
+      "area": "agents",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M34",
+      "title": "Image generation",
+      "summary": "On the Model API backend the agent can create PNG images in your workspace, a paid extra that asks before every image with its price.",
+      "area": "voice-media",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M35",
+      "title": "Muse Voice dictation",
+      "summary": "Optional paid dictation with Meta's Muse Voice Transcribe, while your computer's free speech recogniser stays the default; the Model API backend currently refuses it, because its billed audio length has no verified limit.",
+      "area": "voice-media",
+      "release": "0.9.0",
+      "labels": ["not available yet"]
+    },
+    {
+      "id": "M36",
+      "title": "Smarter code rewind",
+      "summary": "Rewind code to here still undoes an edit after lines were added or removed above it, and refuses instead of guessing when the edited lines changed or appear more than once.",
+      "area": "chat",
+      "release": "0.7.0"
+    },
+    {
+      "id": "M37",
+      "title": "Accessibility checks on every screen",
+      "summary": "Every screen of the panel is checked against WCAG 2.2 AA in VS Code's four default themes, and the contrast and keyboard problems those checks found are fixed.",
+      "area": "platform",
+      "release": "0.7.0"
+    },
+    {
+      "id": "M38",
+      "title": "Slash commands as you type",
+      "summary": "Typing / in the prompt shows the palette, and one more letter switches to a list of slash commands and skills that narrows as you type.",
+      "area": "chat",
+      "release": "0.7.0"
+    },
+    {
+      "id": "M39",
+      "title": "Clearer logs, smoother streaming",
+      "summary": "The extension's log records every failure and each turn's result and timing but never your prompts, files or model output, and streamed replies reach the panel more efficiently.",
+      "area": "platform",
+      "release": "0.7.0"
+    },
+    {
+      "id": "M40",
+      "title": "The panel in fourteen languages",
+      "summary": "The panel, its commands and its settings follow the editor's display language in fourteen machine-translated languages, with English as the fallback.",
+      "area": "platform",
+      "release": "0.8.0"
+    },
+    {
+      "id": "M41",
+      "public": false,
+      "note": "folded into M55"
+    },
+    {
+      "id": "M42",
+      "title": "More reliable Model API conversations",
+      "summary": "Model API conversations in which the model writes text before a tool call no longer fail, and a reply the server cuts off is sent again automatically.",
+      "area": "models-providers",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M43",
+      "title": "Readable rows for every tool",
+      "summary": "Every tool Muse Code runs gets a named, readable row in the conversation, including memory notes, goals, schedules, web search results and pictures the agent read or made.",
+      "area": "chat",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M43–M56",
+      "public": false,
+      "note": "program heading; its milestones have their own entries"
+    },
+    {
+      "id": "M44",
+      "title": "Image edits on both backends",
+      "summary": "The agent can edit or combine workspace images, and image tools and Muse Voice also work on the Muse Code backend when a Model API key is stored, billed to that key with the price confirmed first.",
+      "area": "voice-media",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M44b",
+      "public": false,
+      "note": "folded into M69"
+    },
+    {
+      "id": "M45",
+      "title": "Session goals",
+      "summary": "Set a goal with /goal that the agent keeps working toward, shown in a progress strip with Pause, Resume, Edit and Clear, on both backends.",
+      "area": "agents",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M46",
+      "title": "Your own shell, background work and answers",
+      "summary": "Run your own shell commands by starting a message with !, move a running command to the background and stop it, and answer the agent's questions in your own words.",
+      "area": "agents",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M47",
+      "title": "Workflow progress cards",
+      "summary": "Multi-agent workflows that Muse Code runs appear as live, read-only cards with each agent's state, time, tokens and result, without Cancel, Skip or Retry controls yet.",
+      "area": "agents",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M48",
+      "title": "Subagents on the Model API",
+      "summary": "On the Model API backend the agent can start parallel child tasks, a paid extra that asks before each new task, with the children visible and steerable in the Agent map.",
+      "area": "agents",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M49",
+      "title": "See and edit memory",
+      "summary": "Browse, open, create, edit and delete Muse Code's memory notes from the panel, and the Model API backend reads and writes the same notes.",
+      "area": "agents",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M50",
+      "title": "MCP servers on the Model API",
+      "summary": "The Model API backend runs the local and remote MCP servers from Muse Code's settings, with approvals by permission mode and a view of each server's status.",
+      "area": "agents",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M51",
+      "title": "Hooks on the Model API",
+      "summary": "In trusted workspaces the Model API backend runs Muse Code's hook commands, on by default since 0.13.0 with a setting to turn them off, so a hook can block or ask about a tool call.",
+      "area": "agents",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M52",
+      "title": "Scheduled prompts",
+      "summary": "Save a prompt on an interval or cron schedule with /loop on the Model API backend, where a due prompt runs only when you choose Run now and confirm its price.",
+      "area": "chat",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M53",
+      "title": "Conversation rewind and side chat",
+      "summary": "Rewind a conversation to an earlier message and branch from it, or open a Plan-mode side chat in its own panel, except with Muse Code on Windows.",
+      "area": "chat",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M53-follow-up",
+      "public": false,
+      "note": "accuracy fix inside M53 (usage reset times)"
+    },
+    {
+      "id": "M54",
+      "title": "PDFs and text files as input",
+      "summary": "Attach PDFs on the Model API backend and UTF-8 text files from the workspace on both backends, and the agent can read workspace PDFs and images.",
+      "area": "chat",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M55",
+      "title": "Install and sign in from the panel",
+      "summary": "Install the Muse Code CLI and sign in with your Meta account from the panel, with the install command shown and confirmed before it runs in a terminal you can watch.",
+      "area": "platform",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M56",
+      "title": "Corporate networks and proxies",
+      "summary": "Model API requests follow VS Code's proxy and certificate settings on every supported version, Muse Voice's connection does so only from VS Code 1.112, Diagnostics shows what your editor routes, and a request that cannot reach Meta says why.",
+      "area": "platform",
+      "release": "0.9.0"
+    },
+    {
+      "id": "M57",
+      "public": false,
+      "note": "activation bundle split (startup size)"
+    },
+    {
+      "id": "M58",
+      "title": "Ask before every paid use",
+      "summary": "Every paid use asks first in a popup with Allow once, Allow always in this workspace, or Deny, in every permission mode, and Account & usage can take back an Allow always.",
+      "area": "usage-billing",
+      "release": "0.10.0"
+    },
+    {
+      "id": "M60",
+      "public": false,
+      "note": "host API inventory gate; no user-visible change"
+    },
+    {
+      "id": "M60–M66",
+      "title": "Native plugins for more editors",
+      "summary": "Native plugins that embed the full panel in JetBrains IDEs and Visual Studio, then Eclipse, NetBeans and Jupyter, and support where each host allows it for browser-based and other editors.",
+      "area": "editors"
+    },
+    {
+      "id": "M61",
+      "public": false,
+      "note": "shared boundaries refactor for other editors; no user-visible change"
+    },
+    {
+      "id": "M62",
+      "title": "VS Code-based editors and Open VSX",
+      "summary": "The extension installs and runs in editors built on VS Code 1.99 or later, such as VSCodium, Cursor, Positron, Eclipse Theia and code-server, and is published on Open VSX.",
+      "area": "editors",
+      "release": "0.10.0",
+      "labels": ["preview"]
+    },
+    {
+      "id": "M63",
+      "title": "Muse Spark in ACP editors",
+      "summary": "A standalone agent brings chat, tool calls, approvals, modes and sessions to editors that speak the Agent Client Protocol, so far tried in Zed, Neovim, Emacs and JupyterLab.",
+      "area": "editors",
+      "release": "0.10.0",
+      "labels": ["preview"]
+    },
+    {
+      "id": "M67",
+      "title": "Code intelligence and rename",
+      "summary": "The agent finds definitions, references, symbols, hovers and call hierarchies through the editor's language services instead of searching text, and can rename a symbol everywhere it is used.",
+      "area": "agents",
+      "release": "0.10.0"
+    },
+    {
+      "id": "M67–M85",
+      "public": false,
+      "note": "program heading; its milestones have their own entries"
+    },
+    {
+      "id": "M68",
+      "title": "The agent checks its own edits",
+      "summary": "After the agent edits files, language-server errors and your own check commands reach its next request on the Model API backend, and Muse Code is asked to run the same checks.",
+      "area": "agents",
+      "release": "0.10.0"
+    },
+    {
+      "id": "M69",
+      "title": "Web fetch",
+      "summary": "The model can read one public HTTPS page it found or you named, fetched from your machine at no charge on either backend, asking first wherever your permission mode asks.",
+      "area": "agents",
+      "release": "0.10.0"
+    },
+    {
+      "id": "M70",
+      "title": "Review before it lands",
+      "summary": "/review checks uncommitted changes, a branch, a commit or anything you describe, with a security preset, and a review pane lets you accept, revert or comment on each change.",
+      "area": "agents",
+      "release": "0.12.0"
+    },
+    {
+      "id": "M71",
+      "title": "Git and pull requests",
+      "summary": "Draft commit messages and pull requests from the conversation, commit and push only after you confirm (never with force), and keep other people's pull requests in their own worktree until you trust them.",
+      "area": "agents",
+      "release": "0.14.0"
+    },
+    {
+      "id": "M72",
+      "title": "Turn checkpoints",
+      "summary": "Restore files, the conversation or both to an earlier message and redo it, with every file the restore had to leave named.",
+      "area": "chat",
+      "release": "0.10.0",
+      "labels": ["preview"]
+    },
+    {
+      "id": "M73",
+      "title": "Observation packing",
+      "summary": "On the Model API backend, observation packing, on by default since 0.13.0, swaps large old tool outputs for a short placeholder the model can page back, so long sessions resend fewer tokens.",
+      "area": "chat",
+      "release": "0.11.0"
+    },
+    {
+      "id": "M74",
+      "title": "Handoff to a new conversation",
+      "summary": "/handoff has the model write a brief of the goal, decisions, files and open work, which you review and edit before it starts a fresh Model API conversation.",
+      "area": "chat",
+      "release": "0.11.0"
+    },
+    {
+      "id": "M75",
+      "public": false,
+      "note": "paired efficiency evaluation; developer tooling, nothing in the package"
+    },
+    {
+      "id": "M76",
+      "title": "Custom agents",
+      "summary": "Define specialised agents in AGENT.md files, each with its own prompt, tool allowlist, model, effort and permission mode, which run as paid child tasks on the Model API backend.",
+      "area": "agents",
+      "release": "0.11.0"
+    },
+    {
+      "id": "M77",
+      "title": "Session board and best-of-N",
+      "summary": "A session board lists open and saved conversations with their state, branch, changed files and waiting approvals, and paid best-of-N runs one prompt in several worktrees so you can apply the best result.",
+      "area": "agents",
+      "release": "0.12.0"
+    },
+    {
+      "id": "M78",
+      "title": "Safer Auto mode",
+      "summary": "Auto on the Model API backend follows standing command rules and permission profiles, and an optional paid reviewer never overrides a deny, an ask rule or a protected write.",
+      "area": "security",
+      "release": "0.12.0"
+    },
+    {
+      "id": "M79",
+      "title": "Plans as files",
+      "summary": "Save a Plan-mode reply as a Markdown file in .agents/plans/ and implement it in a fresh conversation, or reopen saved plans later from the palette.",
+      "area": "agents",
+      "release": "0.10.0"
+    },
+    {
+      "id": "M80",
+      "title": "Headless runs and a GitHub Action",
+      "summary": "Run one agent turn without an editor through the ACP agent's exec command, or let a GitHub Action review or propose a fix for a same-repository pull request, each under a hard dollar budget; both can be tried but are not certified or supported yet.",
+      "area": "platform",
+      "release": "0.12.0"
+    },
+    {
+      "id": "M81",
+      "title": "Browser check",
+      "summary": "After a web change the model can open your local dev server in an isolated headless browser, click and type through a few steps, and read console errors and failed requests.",
+      "area": "agents",
+      "release": "0.13.0"
+    },
+    {
+      "id": "M82",
+      "title": "Awareness and budgets",
+      "summary": "A notification tells you when a long turn ends or waits while the window is unfocused, replies can show their token and dollar estimate, and a per-conversation budget caps Model API spend, though child tasks you approve separately can take it past the cap.",
+      "area": "usage-billing",
+      "release": "0.12.0"
+    },
+    {
+      "id": "M83",
+      "title": "Import from other agents",
+      "summary": "Bring commands, agents, project rules, MCP servers and hooks over from other coding agents, and review each one before it is saved.",
+      "area": "platform",
+      "release": "0.11.0"
+    },
+    {
+      "id": "M84",
+      "title": "Session export, import and share",
+      "summary": "Export a conversation as a scrubbed portable file, open it read-only as a share file, or resume it as a new Model API conversation, with nothing uploaded.",
+      "area": "chat",
+      "release": "0.11.0"
+    },
+    {
+      "id": "M85",
+      "public": false,
+      "note": "superseded; folded into M98"
+    },
+    {
+      "id": "M86",
+      "title": "Restore by the model's own writes",
+      "summary": "Turn checkpoints are on by default and restore only the model's own file-tool writes, naming any changes made by commands, hooks or other tools that a restore does not undo.",
+      "area": "chat",
+      "release": "0.11.0"
+    },
+    {
+      "id": "M87",
+      "title": "Panel polish",
+      "summary": "The chat panel gains a context ring, steps folded under one summary row, message times on hover, editable queued messages, a diff tally with Review and a collapsible tasks pane.",
+      "area": "chat",
+      "release": "0.13.0"
+    },
+    {
+      "id": "M87–M88",
+      "public": false,
+      "note": "program heading; its milestones have their own entries"
+    },
+    {
+      "id": "M88",
+      "title": "Bookmarks and timed sends",
+      "summary": "Bookmark conversations you come back to and schedule a prompt or a continue message for a time you choose.",
+      "area": "chat"
+    },
+    {
+      "id": "M89",
+      "title": "Bundled skills",
+      "summary": "Project setup, feature delivery and quality retrofit workflows ship with the extension on the Model API backend and install into Muse Code with one click.",
+      "area": "agents",
+      "release": "0.12.0"
+    },
+    {
+      "id": "M90",
+      "title": "Auto reviewer on Muse Code",
+      "summary": "In Auto on the Muse Code backend, a short review turn on your Muse subscription can approve an eligible request once, and anything it doubts or cannot review still asks you.",
+      "area": "security",
+      "release": "0.12.0"
+    },
+    {
+      "id": "M91",
+      "title": "Hooks from other agents",
+      "summary": "Import hooks written for other popular coding agents and run them at the matching points, opt in and only in trusted workspaces, with unsupported events refused and the reason shown.",
+      "area": "platform",
+      "release": "0.14.0"
+    },
+    {
+      "id": "M91b",
+      "title": "Amp and OpenCode plugins",
+      "summary": "Amp and OpenCode plugins run as bounded hooks on the Model API backend, while the ACP agent refuses plugins and macOS refuses OpenCode plugins.",
+      "area": "platform",
+      "release": "0.14.0"
+    },
+    {
+      "id": "M92",
+      "title": "Muse Gadgets support",
+      "summary": "A bundled skill guides ESP32 build, flash and bounded monitor runs on the Model API backend, Muse Gadgets tokens are redacted, and prompts holding a detected secret pause for your decision.",
+      "area": "devices",
+      "release": "0.13.0"
+    },
+    {
+      "id": "M93",
+      "title": "Report a problem",
+      "summary": "Build a scrubbed problem report locally, even after a crash and without signing in, review each item, then copy it, save it or open an issue yourself, with nothing sent by the extension.",
+      "area": "platform",
+      "release": "0.14.0"
+    },
+    {
+      "id": "M94",
+      "title": "Tab completions",
+      "summary": "Ghost-text code completions in the languages you enable, billed to your Model API key after a one-time price prompt and stopped by a separate hard daily budget.",
+      "area": "editors",
+      "release": "0.14.0"
+    },
+    {
+      "id": "M94b",
+      "title": "Next edit suggestions",
+      "summary": "Suggestions for edits away from the cursor, once the editor API they need is stable.",
+      "area": "editors"
+    },
+    {
+      "id": "M95",
+      "title": "Bring your own models",
+      "summary": "Add keys for OpenAI, Anthropic, Gemini, OpenRouter and other providers, or local model servers, with each key bound to the address it was entered for and features matched to each model's capabilities.",
+      "area": "models-providers",
+      "release": "0.15.0"
+    },
+    {
+      "id": "M95b",
+      "title": "ChatGPT and Copilot sign-in",
+      "summary": "Eligible ChatGPT Plus or Pro accounts sign in through the browser and compatible editors can use Copilot models, with the plan's own limits instead of a dollar cap, though a successful reply from either real service has not been checked yet.",
+      "area": "models-providers",
+      "release": "0.15.0",
+      "labels": ["preview"]
+    },
+    {
+      "id": "M95c",
+      "title": "More providers and integrations",
+      "summary": "More providers such as Amazon Bedrock, chosen models offered to the editor's own chat under a daily cap, providers' own paid search, and Tab completions on other providers.",
+      "area": "models-providers"
+    },
+    {
+      "id": "M96",
+      "title": "Agent roles and teams",
+      "summary": "Agent roles with charters, tools, model pools and task limits, and teams of workers in isolated workspaces whose work is reviewed before it merges.",
+      "area": "agents",
+      "release": "0.15.0"
+    },
+    {
+      "id": "M96b",
+      "title": "Teams in other editors and headless runs",
+      "summary": "The same teams, roles, pools and caps in the ACP agent for other editors and in headless runs, each asking for approval in its own way.",
+      "area": "agents"
+    },
+    {
+      "id": "M96c",
+      "title": "Team scheduler and traffic",
+      "summary": "A board of dependent tasks and a scheduler that keep every agent lane busy across worktrees and branches while avoiding collisions between them.",
+      "area": "agents"
+    },
+    {
+      "id": "M96d",
+      "title": "Machine-wide agent coordination",
+      "summary": "Several windows, editors and the ACP agent sharing one machine-wide limit on workers and heavy commands.",
+      "area": "agents"
+    },
+    {
+      "id": "M97",
+      "title": "Legal and licence scan",
+      "summary": "Run /legal to scan licences, copyright headers and source provenance without a model call, export the report and apply only the header fixes you confirm, without any claim that a project is legally compliant.",
+      "area": "platform",
+      "release": "0.15.0"
+    },
+    {
+      "id": "M98",
+      "title": "Muse Judge risk cautions",
+      "summary": "When you approve an action, the conversation's own model can add an advisory, uncalibrated caution about its risk but can never grant permission, while separate judge engines and calibration come in a later phase.",
+      "area": "security",
+      "release": "0.14.0"
+    },
+    {
+      "id": "M99",
+      "title": "What's New after updates",
+      "summary": "After an update, a What's New tab opens once while you are idle with each release's highlights and Try it buttons, and a fixes-only update shows a quiet notification instead.",
+      "area": "platform",
+      "release": "0.13.0"
+    },
+    {
+      "id": "M100",
+      "title": "Paired devices",
+      "summary": "Link your own devices on the local network so they can take independent agent lanes and checks and hand back reviewable Git branches, without moving credentials.",
+      "area": "devices"
+    },
+    {
+      "id": "M101",
+      "title": "Long-task context upgrades",
+      "summary": "Prompts stay cache-stable, the model can search and recall packed tool output exactly, and manual compaction works in ACP editors, while automatic compaction stays off until its evaluation passes.",
+      "area": "agents",
+      "release": "0.15.0"
+    },
+    {
+      "id": "M102",
+      "title": "Usage and cost page",
+      "summary": "A local Usage & Cost page shows each model call's cost, tokens, time, limits and budgets by provider, model and client, with charts, tables and exports, and the history never leaves your machine.",
+      "area": "usage-billing",
+      "release": "0.15.0"
+    },
+    {
+      "id": "M103",
+      "title": "Tools for makers",
+      "summary": "Skills, board detection, simulators and offline tools for makers, with device and machine access that never moves, heats, powers or flashes anything until you approve exactly what is sent.",
+      "area": "devices"
+    },
+    {
+      "id": "M104",
+      "title": "Every feature in every editor",
+      "summary": "Every feature working in every supported editor, through that editor's own APIs or the project's own panel, with each new feature arriving in all of them together.",
+      "area": "editors"
+    },
+    {
+      "id": "M105",
+      "title": "Video, audio and screen recordings",
+      "summary": "Attach videos, audio files, documents and screen recordings with the cost shown before sending, although sending video and audio to a model is not available yet.",
+      "area": "voice-media",
+      "release": "0.17.0",
+      "labels": ["not available yet"]
+    },
+    {
+      "id": "M106",
+      "title": "Stronger agent-loop guarantees",
+      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers, live tool-argument previews and concurrent read-only calls wherever the selected model supports them.",
+      "area": "agents",
+      "release": "0.16.0"
+    },
+    {
+      "id": "M107",
+      "title": "Resource limits for your machine",
+      "summary": "Set CPU, memory and disk limits so the extension holds back new background work while the machine is busy, first narrowing and then pausing it without stopping work already running; moving work to another device is not available yet.",
+      "area": "platform",
+      "release": "0.16.0",
+      "labels": ["not available yet"]
+    },
+    {
+      "id": "M108",
+      "title": "Several accounts per provider",
+      "summary": "Keep several labelled accounts with one provider, each with its own use thresholds, see which one is in use and pin a headless run to one, so a vendor limit blocks only the affected account.",
+      "area": "models-providers",
+      "release": "0.17.0"
+    },
+    {
+      "id": "M109",
+      "title": "Credential vault for agents",
+      "summary": "One encrypted vault for API keys, tokens, SSH keys, passwords and website logins, protected by hardware where available, from which agents get approved, logged uses of a secret but never its value.",
+      "area": "security"
+    },
+    {
+      "id": "M110",
+      "title": "Muse Node",
+      "summary": "A headless node on a home PC, container, virtual machine, rented server or Raspberry Pi that works as a worker or orchestrator, reached from a browser, phone, terminal or editor over end-to-end encrypted links.",
+      "area": "devices"
+    },
+    {
+      "id": "M111",
+      "title": "Muse Desktop",
+      "summary": "Boot a machine from a flash drive into a Muse desktop with an installer, a workbench with chat, tabbed editors and live previews, and updates that roll back on their own if they break.",
+      "area": "platform"
+    },
+    {
+      "id": "M112",
+      "title": "Questions that never block",
+      "summary": "An agent's question stays in the dock and the transcript, the agent carries on with independent work if you have not answered after a set time, and your later answer reaches it, with a warning if a failed save means it may be sent again.",
+      "area": "chat",
+      "release": "0.14.3"
+    },
+    {
+      "id": "M113",
+      "title": "Deterministic reports",
+      "summary": "Run /report for project, quality, milestone, release and change reports built from local facts in Markdown, HTML, JSON or text, with saved history and comparisons, and nothing sent to a model.",
+      "area": "platform",
+      "release": "0.17.0"
+    },
+    {
+      "id": "M114",
+      "title": "Refreshed design",
+      "summary": "Panel surfaces share one set of theme-aware design tokens, with consistent hover, focus and pressed states and motion that stops when reduced motion is on.",
+      "area": "platform",
+      "release": "0.17.0"
+    },
+    {
+      "id": "M115",
+      "title": "Scheduled prompts v2",
+      "summary": "Schedule prompts to run once, repeatedly or on a cron expression, each with its own delivery mode, and run them unattended under a hard budget cap, so far from the terminal and ACP editors.",
+      "area": "agents",
+      "release": "0.17.0"
+    },
+    {
+      "id": "M116",
+      "title": "Orchestrator playbook",
+      "summary": "The orchestration rules ship as a built-in skill that governs the panel's subagent, delegate, best-of-N and review dispatches, and /playbook shows status, records and settings locally.",
+      "area": "agents",
+      "release": "0.17.0"
+    },
+    {
+      "id": "M117",
+      "title": "Capacity estimator",
+      "summary": "Run /estimate on a goal to see when it can land with your current, minimum or optimum set of agents and machines without a model call, although real forecasts are not available yet.",
+      "area": "agents",
+      "release": "0.17.0",
+      "labels": ["not available yet"]
+    },
+    {
+      "id": "M118",
+      "title": "Prompt library and chat sharing",
+      "summary": "Save prompts to a personal or project library and reuse them across workspaces, and share prompts or conversations as Markdown, HTML or JSON after an exact preview with secrets and private paths scrubbed.",
+      "area": "chat",
+      "release": "0.14.4"
+    },
+    {
+      "id": "M119",
+      "title": "Agent outcomes and receipts",
+      "summary": "See each agent's activity and evidence-backed outcome, with redacted receipts and attempt history, and continue or retry it after you confirm.",
+      "area": "agents",
+      "release": "0.16.0"
+    },
+    {
+      "id": "M120",
+      "title": "Preferred agents and handoff",
+      "summary": "Preferred agents for each role, with work going to the next one when the preferred agent is unavailable, the reason shown, and tasks that move to another agent partway through without losing work.",
+      "area": "agents"
+    },
+    {
+      "id": "M121",
+      "title": "Exact money everywhere",
+      "summary": "Every cost, budget and usage total kept as an exact decimal dollar amount, so the figures you see match what the budget checks enforce.",
+      "area": "usage-billing"
+    },
+    {
+      "id": "M122",
+      "public": false,
+      "note": "this roadmap's generator and gate (project documentation tooling)"
+    },
+    {
+      "id": "BADGEFIX",
+      "public": false,
+      "note": "store badge accuracy"
+    },
+    {
+      "id": "CI0150A",
+      "public": false,
+      "note": "CI repair (0.15.0)"
+    },
+    {
+      "id": "CI0150B",
+      "public": false,
+      "note": "CI repair (0.15.0)"
+    },
+    {
+      "id": "CI0150C",
+      "public": false,
+      "note": "CI repair (0.15.0)"
+    },
+    {
+      "id": "CI0150L",
+      "public": false,
+      "note": "CI repair (0.15.0)"
+    },
+    {
+      "id": "CI0150M",
+      "public": false,
+      "note": "CI repair (0.15.0)"
+    },
+    {
+      "id": "CI0150W",
+      "public": false,
+      "note": "CI repair (0.15.0)"
+    },
+    {
+      "id": "CIFIX14C",
+      "public": false,
+      "note": "CI repair (0.14.0)"
+    },
+    {
+      "id": "CIFIX14M",
+      "public": false,
+      "note": "CI repair (0.14.0)"
+    },
+    {
+      "id": "CIFIX14T",
+      "public": false,
+      "note": "CI repair (0.14.0)"
+    },
+    {
+      "id": "CIFIX14W2",
+      "public": false,
+      "note": "CI repair (0.14.0)"
+    },
+    {
+      "id": "DEFAULTS",
+      "title": "Enhancements on by default",
+      "summary": "Model API extras are available out of the box, ask for consent before any charge and share one daily paid budget, and any setting you switched off stays off.",
+      "area": "usage-billing",
+      "release": "0.13.0"
+    },
+    {
+      "id": "DEFLAKE4",
+      "public": false,
+      "note": "test infrastructure"
+    },
+    {
+      "id": "DEP138",
+      "public": false,
+      "note": "development dependency updates"
+    },
+    {
+      "id": "DIET1",
+      "public": false,
+      "note": "startup size budget"
+    },
+    {
+      "id": "ENVFENCE",
+      "title": "Shell credential fence",
+      "summary": "Credential-like environment variables are kept out of the shell commands, checks, schedules, workers, hooks and Git the agent runs, and only the variables you name in a machine setting reach interactive commands.",
+      "area": "security",
+      "release": "0.14.1"
+    },
+    {
+      "id": "FIX0150R",
+      "public": false,
+      "note": "release review repairs (0.15.0)"
+    },
+    {
+      "id": "FIX0160X",
+      "public": false,
+      "note": "release CI repair (0.16.0)"
+    },
+    {
+      "id": "FIXAGENTOUT",
+      "public": false,
+      "note": "review fixes inside M119"
+    },
+    {
+      "id": "FIXCYCLES",
+      "public": false,
+      "note": "quality gate (dependency cycles)"
+    },
+    {
+      "id": "FIXCYCLES2",
+      "public": false,
+      "note": "quality gate (dependency cycles)"
+    },
+    {
+      "id": "FIXHELPREF",
+      "public": false,
+      "note": "review fixes inside HELPREF"
+    },
+    {
+      "id": "FIXHELPREF3",
+      "public": false,
+      "note": "review fixes inside HELPREF"
+    },
+    {
+      "id": "FIXHELPREF4",
+      "public": false,
+      "note": "review fixes inside HELPREF"
+    },
+    {
+      "id": "FIXM112Q",
+      "public": false,
+      "note": "review fixes inside M112"
+    },
+    {
+      "id": "FIXM112U",
+      "public": false,
+      "note": "review fixes inside M112"
+    },
+    {
+      "id": "FIXM116P4",
+      "public": false,
+      "note": "review fixes inside M116"
+    },
+    {
+      "id": "FIXM118C",
+      "public": false,
+      "note": "review fixes inside M118"
+    },
+    {
+      "id": "FIXM118INT",
+      "public": false,
+      "note": "review fixes inside M118"
+    },
+    {
+      "id": "FIXM118P",
+      "public": false,
+      "note": "review fixes inside M118"
+    },
+    {
+      "id": "FLAKEMERGE",
+      "public": false,
+      "note": "test infrastructure"
+    },
+    {
+      "id": "FLAKETH20",
+      "public": false,
+      "note": "test infrastructure"
+    },
+    {
+      "id": "HARNESSWAIT",
+      "public": false,
+      "note": "test infrastructure"
+    },
+    {
+      "id": "HELPREF",
+      "title": "Help & Reference",
+      "summary": "/help opens a searchable page covering every feature, command, setting, slash command, CLI option and keyboard action in all fourteen translated languages, and ACP editors and the terminal get the same reference.",
+      "area": "platform",
+      "release": "0.14.2"
+    },
+    {
+      "id": "INFRA015",
+      "public": false,
+      "note": "screenshot and test infrastructure"
+    },
+    {
+      "id": "INT0160UX",
+      "public": false,
+      "note": "release integration (0.16.0)"
+    },
+    {
+      "id": "INT0170",
+      "public": false,
+      "note": "release integration (0.17.0); its features are listed under M113, M114 and M116"
+    },
+    {
+      "id": "INT0170B",
+      "public": false,
+      "note": "release integration (0.17.0)"
+    },
+    {
+      "id": "INT0180",
+      "public": false,
+      "note": "release integration (0.18.0)"
+    },
+    {
+      "id": "INT0180B",
+      "public": false,
+      "note": "release integration (0.18.0)"
+    },
+    {
+      "id": "KNIPC",
+      "public": false,
+      "note": "quality gate (dead code)"
+    },
+    {
+      "id": "LEFT017",
+      "public": false,
+      "note": "release integration leftovers (0.17.0)"
+    },
+    {
+      "id": "MACSLOW",
+      "public": false,
+      "note": "CI repair (macOS)"
+    },
+    {
+      "id": "MONEY017",
+      "public": false,
+      "note": "exact-money and scheduled-media integration port after the 0.17.0 merge; goal tracked by M121"
+    },
+    {
+      "id": "PORTS017",
+      "public": false,
+      "note": "exact-money type ports; goal tracked by M121"
+    },
+    {
+      "id": "PR132M",
+      "public": false,
+      "note": "infrastructure merge verification"
+    },
+    {
+      "id": "PR132W",
+      "public": false,
+      "note": "CI repair (Windows)"
+    },
+    {
+      "id": "PROMPTMENU2",
+      "public": false,
+      "note": "groundwork for future native panel hosts; shipped hosts already use their own context menu"
+    },
+    {
+      "id": "QPIN",
+      "title": "Pinned question card",
+      "summary": "An open question or form from the agent stays as one card pinned above the chat box, and its marker in the transcript reopens and focuses it.",
+      "area": "chat",
+      "release": "0.16.0"
+    },
+    {
+      "id": "REDHELPREF",
+      "public": false,
+      "note": "internal redesign inside HELPREF"
+    },
+    {
+      "id": "REL0142",
+      "public": false,
+      "note": "release preparation (0.14.2); the feature is HELPREF"
+    },
+    {
+      "id": "REL0143F",
+      "public": false,
+      "note": "release CI repair (0.14.3)"
+    },
+    {
+      "id": "REL0143M",
+      "public": false,
+      "note": "release integration (0.14.3)"
+    },
+    {
+      "id": "REL0144",
+      "public": false,
+      "note": "release preparation (0.14.4)"
+    },
+    {
+      "id": "REL0150M",
+      "public": false,
+      "note": "release preparation (0.15.0)"
+    },
+    {
+      "id": "REL0160",
+      "public": false,
+      "note": "release preparation (0.16.0)"
+    },
+    {
+      "id": "SDK142",
+      "public": false,
+      "note": "Muse Code CLI fingerprint and documentation update"
+    },
+    {
+      "id": "SECWINPATH",
+      "title": "Safer Windows paths",
+      "summary": "On Windows, ambiguous path spellings such as device paths, alternate streams, trailing dots and reserved names are refused or need a one-time manual approval, while workspaces on any drive keep working.",
+      "area": "security",
+      "release": "0.17.0"
+    },
+    {
+      "id": "SECWINPATH2",
+      "public": false,
+      "note": "second repair round of the Windows path fix; covered by SECWINPATH"
+    },
+    {
+      "id": "SHOTS",
+      "public": false,
+      "note": "README screenshot refresh"
+    },
+    {
+      "id": "STARTDIET",
+      "public": false,
+      "note": "chat startup size budget"
+    },
+    {
+      "id": "TESTWARM",
+      "public": false,
+      "note": "test infrastructure"
+    },
+    {
+      "id": "TRAIN13B",
+      "public": false,
+      "note": "release train (0.13.0)"
+    },
+    {
+      "id": "TRAIN14A",
+      "public": false,
+      "note": "release train (0.14.0)"
+    },
+    {
+      "id": "TRAIN14B",
+      "public": false,
+      "note": "release train (0.14.0)"
+    },
+    {
+      "id": "TRAIN15A",
+      "public": false,
+      "note": "release train (0.15.0)"
+    },
+    {
+      "id": "TRAIN15B",
+      "public": false,
+      "note": "release train (0.15.0)"
+    },
+    {
+      "id": "TRAIN15D",
+      "public": false,
+      "note": "release train (0.15.0)"
+    },
+    {
+      "id": "TRAIN15E",
+      "public": false,
+      "note": "release train (0.15.0)"
+    },
+    {
+      "id": "TRAIN15F",
+      "public": false,
+      "note": "release train (0.15.0)"
+    },
+    {
+      "id": "TRAIN15G",
+      "public": false,
+      "note": "release train (0.15.0)"
+    },
+    {
+      "id": "TRAIN15H",
+      "public": false,
+      "note": "release train (0.15.0)"
+    },
+    {
+      "id": "VIS017",
+      "public": false,
+      "note": "visual review fixes inside the 0.17.0 integration"
+    },
+    {
+      "id": "VSIXDIET2",
+      "public": false,
+      "note": "package size budget"
+    }
+  ]
+}

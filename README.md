@@ -31,7 +31,10 @@ key to the CLI.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0170) ·
+The [roadmap](ROADMAP.md) shows what is in the next release, what is being
+built, what is planned and what each release shipped.
+
+**Contents:** [What's new](#whats-new-in-0170) · [Roadmap](ROADMAP.md) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·

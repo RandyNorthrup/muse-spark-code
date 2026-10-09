@@ -92,7 +92,7 @@ jobs:
           Import-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop
           Write-Host "PSScriptAnalyzer $version installed from the checked package"
       # Same static/build/audit gates as quality:gates; tests and pixel replay have required jobs.
-      - run: npx run-s format:check lint typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan deadcode cycles duplication build security:audit
+      - run: npx run-s format:check lint typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap deadcode cycles duplication build security:audit
         env:
           # check:badges lists public main through the GitHub API; the job token
           # keeps hosted runners off the shared unauthenticated rate limit.
