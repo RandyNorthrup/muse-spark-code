@@ -16,32 +16,34 @@ beforeAll(async () => {
   writeFileSync(path.join(root, 'package.json'), JSON.stringify({ version: '0.0.0-test' }))
   // Substitute only main.ts's OS opener so this process test cannot launch a
   // browser on any rig. It exercises the actual helper's refusal/redaction.
+  // Since the governed launch profiles (SPAWN017C) the opener is the
+  // launcher's handoffResourceFile; the rest of the launcher stays real.
   writeFileSync(
     path.join(root, 'dist', 'testOpener.cjs'),
-    `const native = require('node:child_process');
-    exports.runProgram = async (_file, args) => {
-      if (process.env.M102_FAKE_OPEN_RESULT === 'success') return '';
+    `exports.handoffResourceFile = async (_file, args) => {
+      if (process.env.M102_FAKE_OPEN_RESULT === 'success') return;
       throw new Error(args.at(-1));
-    };
-    exports.spawn = (_file, args, options) => {
-      if (process.env.M102_FAKE_OPEN_RESULT === 'success')
-        return native.spawn(process.execPath, ['-e', ''], options);
-      return native.spawn(args.at(-1), [], options);
     };`,
   )
+  const launcher = path.resolve('src/core/resources/launcher.ts')
   const opener: Plugin = {
     name: 'test-usage-os-opener',
     setup(pluginBuild) {
-      pluginBuild.onResolve({ filter: /\/processTree$/ }, (args) =>
+      pluginBuild.onResolve({ filter: /[\\/]resources[\\/]launcher$/ }, (args) =>
         args.importer === path.resolve('src/runtime/main.ts')
-          ? { path: './testOpener.cjs', external: true }
+          ? { path: 'main-launcher', namespace: 'test-usage-opener' }
           : undefined,
       )
-      pluginBuild.onResolve({ filter: /^node:child_process$/ }, (args) =>
-        args.importer === path.resolve('src/runtime/main.ts')
-          ? { path: './testOpener.cjs', external: true }
-          : undefined,
-      )
+      pluginBuild.onResolve({ filter: /^\.\/testOpener\.cjs$/ }, () => ({
+        path: './testOpener.cjs',
+        external: true,
+      }))
+      pluginBuild.onLoad({ filter: /^main-launcher$/, namespace: 'test-usage-opener' }, () => ({
+        loader: 'js',
+        resolveDir: path.dirname(launcher),
+        contents: `export { spawnResourceProcess, execResourceFile } from ${JSON.stringify(launcher)};
+          export { handoffResourceFile } from './testOpener.cjs';`,
+      }))
     },
   }
   // The Linux regression uses real child processes and the product runProgram.
