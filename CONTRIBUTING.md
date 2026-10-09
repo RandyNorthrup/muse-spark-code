@@ -188,6 +188,12 @@ Use this order for a candidate branch:
 - The pre-commit hook runs staged lint and format tasks serially to limit
   concurrent child processes on a developer's machine. It still runs every
   configured check.
+- `npm run prepare` (run by `npm ci`) installs the hooks through
+  `scripts/install-git-hooks.mjs`: husky, then stubs that keep a failing
+  hook's status even when nothing reads Git's output any more (on Windows a
+  broken pipe used to turn a failed hook into a pass). Run it once in every
+  new worktree; the pre-commit hook refuses to run on husky's bare stubs and
+  says so.
 - `main` is protected: changes land through a pull request with the CI
   checks green, it cannot be force-pushed or deleted, and release tags
   (`v*`) cannot be moved or deleted, except by a repository admin (both

@@ -1804,7 +1804,7 @@
     "package": "npm run build && node scripts/package-vsix.mjs",
     "package:acp": "node scripts/build.mjs --production && node scripts/exec-schema.mjs --check && node scripts/package-acp.mjs",
     "images": "node scripts/render-images.mjs",
-    "prepare": "husky",
+    "prepare": "node scripts/install-git-hooks.mjs",
     "security:sast": "node scripts/sast.mjs",
     "schema:exec": "node scripts/exec-schema.mjs",
     "test:legal-a11y": "node scripts/legal-a11y.mjs",

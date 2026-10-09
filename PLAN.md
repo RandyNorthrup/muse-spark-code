@@ -233,7 +233,7 @@ full quality and installed-editor/platform certification stay with the lead.
 
 **A8 rationale.** Needs only long-stable APIs. M62's audit: the host typechecks against every `@types/vscode` from 1.85 on, and 1.99 is the first release on Node 20.18 and Chromium 132, which the host and webview bundles target. Tested in VSCodium 1.99.3 and code-server 4.99.4 (VS Code 1.99.3), which refused the 1.125 floor (`docs/certification/m62.md`). Reversal cost: Trivial.
 
-**A9 rationale.** `pre-commit` is not installed; a Node project should not require a Python toolchain to commit. gitleaks is invoked directly from the husky hook. Reversal cost: Low.
+**A9 rationale.** `pre-commit` is not installed; a Node project should not require a Python toolchain to commit. gitleaks is invoked directly from the husky hook. Reversal cost: Low. 2026-10-08 (UIHOOK017): `prepare` runs `scripts/install-git-hooks.mjs`, which keeps husky's install and runtime but replaces its per-hook stubs. The stubs ignore SIGPIPE and turn HUP, INT and TERM into ordinary non-zero exits, because Git for Windows read a hook killed by a signal (MSYS2 exit code `signal << 8`) as a pass, and three failed lint-staged commits landed. `.husky/pre-commit` refuses to run without the stubs; `test/unit/gitHookStubs.test.mjs` holds both.
 
 **A10 rationale.** CI matrix runs the full gate set on ubuntu, windows and macos; every OS-specific path (binary discovery, process spawning, paths, line endings) has a unit test per platform branch. Meta documents the `muse` CLI for macOS and Windows; Linux users fall back to the Model API backend if the CLI is unavailable there (Q6). Reversal cost: None.
 

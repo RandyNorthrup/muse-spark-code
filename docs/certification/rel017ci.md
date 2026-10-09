@@ -95,8 +95,82 @@ Pre-commit hook: on three commits lint-staged printed ESLint errors and
 "Reverting to original state", yet the commit landed (`95467436b`,
 `5e44b5ef4`, `dfb8cc6f9`, the last also carrying the slash test's
 intermediate loop). Each was corrected by the next commit and the Kubuntu
-`eslint test/unit` run is clean of them (`7612acb6a`); the hook's exit
-status on a lint-staged failure needs a look.
+`eslint test/unit` run is clean of them (`7612acb6a`). Root cause and fix
+below (UIHOOK017).
+
+## UIHOOK017 — the pre-commit hook fails closed
+
+Lane `rel017/uihook` (worktree `mx-uihook`, from `506ae2375`), Windows 11
+host, Git 2.52.0.windows.1, husky 9.1.7, lint-staged 17.6.0.
+
+**Root cause.** All three landed commits were made from PowerShell as
+`git commit … 2>&1 | Select-String … | Select-Object -First N`, and in each
+the N matching lines ended before husky's "pre-commit script failed" line;
+the lane's other failed commits, whose output was not cut short, were
+refused. `Select-Object -First` closes the pipe once it has N lines, while
+`git commit` keeps running. Then:
+
+1. husky's runtime (`.husky/_/h`) runs `.husky/pre-commit`, gets status 1
+   and prints `husky - pre-commit script failed`; the write hits the closed
+   pipe and SIGPIPE kills the shell.
+2. An MSYS2 process killed by a signal exits with the signal number in the
+   second byte: `sh -c 'kill -PIPE $$'` gives exit code 3328 (13 << 8),
+   SIGTERM 3840.
+3. Git for Windows keeps only the low byte of a hook's exit code, so a hook
+   killed by any signal counts as a pass. In a throwaway repository a
+   pre-commit hook of `kill -PIPE $$` (or `exit 256`) lets the commit
+   through; `exit 1` stops it.
+
+The reflog shows the order: lint-staged's `reset: moving to HEAD` (its
+revert, 21:11:35) is followed by the commit `95467436b`.
+
+**Reproduced** in this worktree before the fix: a staged
+`a == 2` and an unused variable in `scripts/lib/roadmap.mjs`, committed as
+`git commit -q -m … 2>&1 | Select-String 'error|✖|failed' | Select-Object -First 3`,
+landed as `932b81647` (reverted by `643437288`; no reset in a lane). The same
+commit from Git Bash with the whole output read was refused (`husky -
+pre-commit script failed (code 1)`). A minimal copy of husky's layout in a
+temporary repository (hook prints, sleeps 2 s, exits 1) landed with
+`Select-Object -First 2`; adding `trap '' PIPE` inside `.husky/pre-commit`
+did not help (the shell that dies is husky's outer one); adding it to the
+outer shell did.
+
+**Fix.** `prepare` is now `node scripts/install-git-hooks.mjs`: husky's own
+install, then each per-hook stub in `.husky/_` (husky 9.1.7's two-line
+`. "$(dirname "$0")/h"`, matched exactly; any other shape stops the install)
+is rewritten to ignore SIGPIPE, turn HUP, INT and TERM into exits 129, 130
+and 143, export `MUSE_GIT_HOOK_STUB=fail-closed`, and then source husky's
+unchanged runtime. A write to a closed stream now fails with EPIPE and the
+hook exits with its own status. `.husky/pre-commit` gains `set -e` and
+refuses to run without that marker ("run `npm run prepare` here"), so a
+worktree still on husky's bare stubs, or any other launcher, cannot commit.
+Both checks it ran stay: `npx lint-staged --concurrent 1 --max-arg-length
+6000`, then gitleaks. On Linux and macOS a signal death already failed the
+hook; the stubs make the outcome the same on every OS.
+
+**Proof after the fix.** The same staged lint error and the same
+`Select-Object -First 3` pipeline: lint-staged failed and reverted, and after
+the commit process exited (no `index.lock`, no git/sh/node left) HEAD was
+unchanged at `643437288`.
+
+**Regression.** `test/unit/gitHookStubs.test.mjs` (unit suite, every OS)
+installs the hooks with the real installer into a throwaway repository under
+`temp/`, then: a hook that writes, waits until the test has closed its end
+of Git's stderr, writes again and exits 1 must leave no commit and a non-zero
+exit; a passing hook commits; the repository's own `.husky/pre-commit` under
+husky's bare stub is refused with the `npm run prepare` message. 3/3 on the
+host (2.7 s).
+
+| Red drill                                         | Result                                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------- |
+| Drop `trap '' PIPE` from the installed stub       | "keeps a hook failure after the output reader has gone" fails: git exit 0 |
+| Drop the `MUSE_GIT_HOOK_STUB` guard from the hook | "refuses the repository's pre-commit…" fails: the commit landed           |
+| Both restored                                     | 3/3                                                                       |
+
+Every existing worktree keeps husky's bare stubs until `npm run prepare`
+runs there; on a branch with this change its pre-commit says so and refuses.
+Upstream: Git for Windows' reading of signal deaths as success and husky's
+unguarded failure echo are worth reports (not filed from this lane).
 
 ## UIHOOK017 — accountsPanel.a11y, light dialog at 320 px
 

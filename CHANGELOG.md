@@ -105,6 +105,14 @@ happened, not what was planned; superseded entries are kept.
   secret changes) instead of for every string in every event. A long reply
   had spent most of its time there.
 
+- Contributors: a pre-commit hook that fails now stops the commit on Windows
+  even when nothing is reading Git's output any more (for example
+  `git commit … | Select-Object -First 5`). Before, husky's runtime was
+  killed by a broken pipe while reporting the failure, and Git for Windows
+  counted that as a pass. `npm run prepare` installs stubs that rule this
+  out on every OS, and the hook asks for `npm run prepare` in a worktree
+  that still has husky's own stubs.
+
 - Packaged translation tables round-trip byte-exact again: every language
   table lists its keys in English's order, including the resource history
   and Windows path strings merged for 0.17.0.
