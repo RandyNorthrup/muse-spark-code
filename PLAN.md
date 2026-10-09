@@ -20278,39 +20278,49 @@ github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
   cross-window `mkdir` lock folder, and the batch child in its own process
   group with its own deadline. RVM123P3 found three P1s and two P2s left in
   that lock and lifecycle; FIXM123P4 below replaces both.
-- **Record/checkout lock protocol (FIXM123P4, 2026-10-09).** The lock keeps
-  windows from racing each other; the fence keeps the records safe even
-  when the lock is lost. Code: `src/runtime/panel/pullRequests/`
-  (`storeLock.ts`, `recordGenerations.ts`, `records.ts`, `checkout.ts`).
-  Record: `docs/certification/m123.md`.
+- **Record/checkout lock protocol (FIXM123P4, revised FIXM123P5,
+  2026-10-09).** The lock keeps windows from racing each other; the fence
+  keeps the records safe even when the lock is lost. Code:
+  `src/runtime/panel/pullRequests/` (`storeLock.ts`, `processOwner.ts`,
+  `recordGenerations.ts`, `records.ts`, `checkout.ts`). Record:
+  `docs/certification/m123.md`.
 
-  | State   | Meaning                                                                                               | Leaves via                                                                                                                                                                         |
-  | ------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | absent  | no record; the folder is held by location anyway                                                      | `reserve` → pending                                                                                                                                                                |
-  | pending | a reserved checkout: a random `checkoutId`, its process (`pendingOwner`); held, never offered/trusted | `complete` → ready (that version, with the folder's `dev:ino`); `discard` → absent, only once its folder is gone; `supersede` → pending, only when its process and folder are gone |
-  | ready   | finished; bound to `checkoutId`, `revision`, head SHA and folder `dev:ino`                            | `release` with the card's single-use ticket for exactly that → trusted; `supersede` → pending (folder gone)                                                                        |
-  | trusted | confirmed in the card                                                                                 | `supersede` → pending (folder gone); nothing restores an older record, and a failed checkout never brings trust back                                                               |
+  | State   | Meaning                                                                                               | Leaves via                                                                                                                                                                                                                                  |
+  | ------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | absent  | no record; the folder is held by location anyway                                                      | `reserve` → pending                                                                                                                                                                                                                         |
+  | pending | a reserved checkout: a random `checkoutId`, its process (`pendingOwner`); held, never offered/trusted | `complete` → ready (that version, with the folder's `dev:ino`); `discard` → absent, once its folder is gone or was never its own; `supersede` → pending, when its folder is gone and its process is provably gone or it is over an hour old |
+  | ready   | finished; bound to `checkoutId`, `revision`, head SHA and folder `dev:ino`                            | `release` with the card's single-use ticket for exactly that → trusted; `supersede` → pending (folder gone)                                                                                                                                 |
+  | trusted | confirmed in the card                                                                                 | `supersede` → pending (folder gone); nothing restores an older record, and a failed checkout never brings trust back                                                                                                                        |
 
-  | Step               | Rule                                                                                                                                                                                                                                                                                                                 |
-  | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | Acquire            | `worktree-records/lock` created with O_EXCL; its note names the host, process id and start time, a random id, and a 30 s lease. Held for one mutation only.                                                                                                                                                          |
-  | Expired            | the lease ended (never later than the lease after the file's last write); or the owner is provably gone (this host: no such process, or this process id with another start time); or the note is missing/torn and the file is over 2 s old.                                                                          |
-  | Takeover, release  | one atomic rename moves the exact instance aside; its `dev:ino` is compared with the instance judged expired (or owned); a newer lock moved by mistake is linked back while the name is free. New locks come only from O_EXCL.                                                                                       |
-  | Fence              | each write stages and flushes, then hard-links generation N+1, which fails while N+1 exists: a writer that lost the lock without knowing it lands nothing, reads the head again and re-applies. Parent write ids expose a publish into a swept number.                                                               |
-  | Checkout lifecycle | a failure invalidates the file writers first, kills the batch tree, drains the writer in flight (5 s), then cleans up (`worktree remove --force`, then the folder) even after Cancel; the record goes only with its folder. A writer past its grace keeps the record pending until it stops and its cleanup has run. |
+  | Step               | Rule                                                                                                                                                                                                                                                                                                                                                                                                          |
+  | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | Acquire            | `worktree-records/lock` created with O_EXCL; its note names the host, process id and the system's start time for it, a random id, and the holder's lease (30 s). Held for one mutation only.                                                                                                                                                                                                                  |
+  | Time               | every wait and lease is on the monotonic clock: the holder holds for its lease from just before the create; a waiter takes over only an instance it has itself watched, unchanged, for that lease (never more than 30 s). The wall clock is only written into the note for people.                                                                                                                            |
+  | Expired early      | the owner is provably gone: on this host, no such process, or the id now names a process whose start time (Linux `/proc`, macOS `ps`, Windows `Get-Process`) differs; or the note is missing/torn and the waiter has watched it for 2 s.                                                                                                                                                                      |
+  | Takeover, release  | one atomic rename moves the exact instance aside; its `dev:ino` is compared with the instance judged expired (or owned); a newer lock moved by mistake is linked back while the name is free. New locks come only from O_EXCL.                                                                                                                                                                                |
+  | Fence              | each write stages and flushes, then hard-links generation N+1, which fails while N+1 exists: a writer that lost the lock without knowing it lands nothing, reads the head again and re-applies. Parent write ids expose a publish into a swept number; a publish whose successor was swept before it was proven is reconciled against the head by the one record it wrote.                                    |
+  | Held folder        | made under a private name and renamed into place, which fails while anything is there; git adds the worktree into it, keeping its `dev:ino`. Cleanup touches only that folder: git's own remove, then a move aside and an identity check; removed whole only if git added the worktree, else only while empty. A pre-existing or replaced folder is never removed; a taken folder drops only the reservation. |
+  | Checkout lifecycle | a failure invalidates the file writers first, kills the batch tree, drains the writer in flight (5 s), then cleans up even after Cancel; the record goes only with its folder. A writer past its grace keeps the record pending until it stops and its cleanup has run.                                                                                                                                       |
 
-  **Residual window.** One safety residual, outside the protocol: deleting
-  the `worktree-records` folder by hand while a delayed writer is
-  mid-write can let that writer's stale generation head the new history
-  (the fence assumes generation numbers are only freed by the sweep). The
-  rest is liveness: a live owner, or a reused process id, holds the lock
-  until its lease ends (at most 30 s), and a busy store fails loudly after
-  10 s; a writer stuck in a system call that never returns (a hung network
+  **Residual window.** Safety, outside the protocol: deleting the
+  `worktree-records` folder by hand while a delayed writer is mid-write can
+  let that writer's stale generation head the new history (the fence
+  assumes generation numbers are only freed by the sweep). On POSIX, the
+  rename that puts a claimed held folder in place replaces an _empty_
+  folder made in the instant between its presence check and the rename (no
+  content is lost; Windows refuses). Clock steps: lock waits and leases
+  are immune; the one wall-clock judgement left is the hour after which a
+  pending checkout without its folder is recovered, so a forward step can
+  recover a live one early — safe, since the held folder is claimed
+  exclusively and the late owner finds it taken. Liveness: a live lock
+  owner, or one whose reused id cannot be told apart (start times within
+  1 s, or unreadable), holds at most its 30 s lease; such a pending
+  checkout waits at most the hour; a busy store fails loudly after 10 s;
+  a writer stuck in a system call that never returns (a hung network
   drive) keeps its record pending, so the folder stays held; a file system
-  without hard links fails closed (the store throws, as the held writer
-  already refuses). Windows whole-tree retirement of the batch stays lane
-  G's. Cleanup runs git with no hooks or fsmonitor in the repository the
-  checkout already used, after Cancel too.
+  without hard links fails closed. Windows whole-tree retirement of the
+  batch stays lane G's. Cleanup runs git with no hooks or fsmonitor in the
+  repository the checkout already used, after Cancel too.
 
 - **Acceptance per editor (all with fakes, no live calls).** The first
   available token source wins, and the user may sign in with any later one.
