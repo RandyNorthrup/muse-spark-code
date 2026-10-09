@@ -623,3 +623,184 @@ Restored SHA-256 (HEAD blobs at `277bda2f3`):
   bytes left; no cap raised). `dist/extension.js` 563,348 bytes, SHA-256
   `34b93af4…381e371a`, unchanged.
 - Not run here: the aggregate `npm run quality` (hosted CI is the gate).
+
+## M124 round 5: the gate in its effect's own block (RVM124R4, 2026-10-09)
+
+Same branch, from `50962f773`: the code, its tests and the design and
+`docs/mcp.md` corrections in `71bd2e6c6`; the drain tests in `9b21ae1ad`;
+a failed move that now ends the call in `72a86c96b`; two findings of the
+red drills in `f23f6348d`; this record in the commit after them. Vitest on
+Kubuntu, the Mac mini and the Win11 rig through `rig-test.sh` (repository
+default timeouts, complete owning files). No model call, key, network
+request or client configuration change; **zero model attempts**.
+
+### What changed
+
+- **The final gate is synchronous and in the effect's own block (P2-1).**
+  The async `isClear` wrapper is gone. Each effect's caller awaits the
+  authority re-read as its last wait, then calls `operation.gate(...)`
+  (plain, synchronous), moves into `dispatching` and starts the effect, in
+  one synchronous block: the owner read, and the write after the
+  approval's CAS. A failed move aborts the effect and ends the call
+  `failed`; before `72a86c96b` it aborted the effect but left the
+  operation live, holding a read's slot until the deadline.
+- **Answered at once, audited in the background (P2-2).** `stopped()` also
+  races the call's own signal, so a cancellation or the deadline answers a
+  call at once, a committed read included; that read's settled receipt
+  finishes on its own under the journal's five-second timeout and still
+  records the decided result. The read lease is released when the owner
+  read returns, never held for the receipt.
+- **Shutdown owns its pending work (P2-3).** The transport disconnects the
+  registry in its own `finally`; the runtime then waits for
+  `registry.drained()` (every live operation ended, at most one call
+  deadline) and for the approval page's start-up, and closes the page. A
+  page that finishes starting after the client left opens no browser. The
+  runtime's own second `registry.disconnect()` was removed: the drill that
+  moved it after the drain stayed green, because the transport had always
+  disconnected first.
+
+### Closure, RVM124R4
+
+| Finding                                                                   | Sev | Status     | Regression test (fails on `50962f773` unless noted)                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------- | --- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1: an await between the final gate and the effect's start                 | P2  | **Closed** | `starts the owner read in the final gate’s synchronous block: a client cancellation / a revocation / the kill switch right after it` (3); `starts no owner read and no write when the move into dispatching fails`; `starts the write in the final gate’s synchronous block: the kill switch right after it` (passes there, see below) |
+| 2: a committed read held its answer and its lease for the settled receipt | P2  | **Closed** | `answers a committed read at its deadline while its receipt is held, its slot already free`                                                                                                                                                                                                                                            |
+| 3: shutdown did not wait for the approval page or pending operations      | P2  | **Closed** | `drains at disconnect only once a committed read’s receipt is written`; runtime `finishes only after the approval page’s start-up settled, closes it and opens no browser late`; runtime `finishes only after its pending operations have drained`                                                                                     |
+| RVM124 15 (inherited): storage ownership, Windows DACL                    | P2  | **Open**   | None; what remains is unchanged from round 4 (above), except that `dist/connector.js` now has 79 bytes left, so the verifier's lazy chunk is a requirement                                                                                                                                                                             |
+
+The structural tests patch `Operation.prototype.gate`: right after the
+first passed final gate, a queued microtask counts the effects started so
+far and then cancels, revokes or kills. An effect started in the gate's
+own synchronous block is already counted; one behind any await starts after
+the flip and the count disagrees. On `50962f773` the read cases count 0 at
+the flip and 1 afterwards. The write case passes there: `isClear` was
+awaited before the CAS, but a kill in that gap withdrew the intent, so the
+CAS refused it; its guard is drill F2.
+
+9 new regression cases, 8 failing on `50962f773` (Mac mini, the new tests
+overlaid: 8 failed, 69 passed), each on its own assertion: an owner read
+started after the flip, an owner read started after a failed move, a read
+slot still held at the deadline, no drain, a runtime that finished while
+the page was still starting.
+
+### Tests
+
+At `f23f6348d` (the record's commit changes no code):
+
+| File                                    | Cases | Kubuntu | Mac mini | Win11 rig | On `50962f773` (Mac mini, new tests overlaid) |
+| --------------------------------------- | ----: | ------- | -------- | --------- | --------------------------------------------- |
+| `test/unit/connectorRegistry.test.ts`   |    75 | pass    | pass     | —         | 6 fail (round 5), 69 pass                     |
+| `test/unit/connectorEntry.test.ts`      |     2 | pass    | pass     | pass      | 2 fail                                        |
+| `test/unit/connectorRuntime.test.ts`    |    14 | pass    | pass     | pass      | — (unchanged)                                 |
+| `test/unit/connectorLimitsLock.test.ts` |     8 | pass    | pass     | pass      | — (unchanged)                                 |
+| `test/e2e/connectorStdio.e2e.test.ts`   |     3 | pass    | pass     | —         | — (unchanged)                                 |
+
+The two new `snapshot authority` variants of `starts no owner read after
+the kill switch during the admitted / dispatching receipt wait` guard the
+read's authority re-read (drill RF1); `50962f773` re-read inside
+`isClear`, so they pass there.
+
+### Red drills
+
+Driver `m124r3-drills5.mjs`: one exact single-match mutation, the complete
+owning test file(s) on Kubuntu through `rig-test.sh`, the original bytes
+written back and compared with the HEAD blob and `git diff --quiet`. 51
+mutations were run at `72a86c96b`. 49 turned red. Two stayed green and were
+acted on:
+
+- **RF1**, dropping the authority re-read before the owner read's gate,
+  stayed green because no read case used the snapshot authority. The fix
+  was the two snapshot cases in `f23f6348d`.
+- **F12**, moving the runtime's `registry.disconnect()` after the drain,
+  stayed green because the transport disconnects first. The fix was to
+  remove that call in `f23f6348d`, which retired the drill.
+
+RF1 and RF2 were then run again at `f23f6348d` (red), and so were F9, F10
+and F11, whose file changed. In the final set every one of the **50
+drills** is red (exit 1), and all 50 were restored byte-exact.
+`registry.ts` and every other drilled source except `entry.ts` are
+byte-identical between `72a86c96b` and `f23f6348d`.
+
+| #   | Guard                                                     | Mutation                                   | Failing test(s) (count)                                                             |
+| --- | --------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------- |
+| F1  | The owner read starts in its gate's block (P2-1)          | `await Promise.resolve()` before the read  | the three read structural cases (3)                                                 |
+| F2  | The write starts in its gate's block (P2-1)               | `await Promise.resolve()` before the write | the write structural case (1)                                                       |
+| F3  | A failed move starts no owner read (P2-1)                 | ignore the move's answer                   | `starts no owner read and no write when the move…fails` (1)                         |
+| F4  | A failed move starts no write (P2-1)                      | ignore the move's answer                   | the same case (1)                                                                   |
+| F5  | Cancellation and the deadline answer at once (P2-2)       | drop the signal from `stopped()`'s race    | `answers a committed read at its deadline…` (1)                                     |
+| F6  | A committed result never holds the answer (P2-2)          | wait for the work when committed           | the deadline, drain and committed-shutdown cases (3)                                |
+| F7  | The read slot is freed when the owner read returns (P2-2) | release a no-op                            | `answers a committed read at its deadline…` (1)                                     |
+| F8  | The registry drains only once its operations ended (P2-3) | `Promise.all([])`                          | `drains at disconnect only once…` (1)                                               |
+| F9  | A late page opens no browser (P2-3)                       | drop `if (isClosing) return false`         | runtime `…opens no browser late` (1)                                                |
+| F10 | Shutdown waits for the page's start-up (P2-3)             | `await page?.close()`                      | runtime `…opens no browser late` (1)                                                |
+| F11 | Shutdown waits for the registry to drain (P2-3)           | drop `await registry.drained()`            | runtime `finishes only after its pending operations have drained` (1)               |
+| G1  | The write's final gate follows the target re-read (P1)    | gate moved before the target re-read       | the six target re-read cases and the snapshot write case (7)                        |
+| RF1 | Authority re-read before the owner read's gate (P1)       | drop it                                    | the two snapshot receipt-wait cases (2)                                             |
+| RF2 | Authority re-read before the write's gate (P1)            | drop it                                    | `reads the authority again before the write when no change notice arrives` (1)      |
+| RF3 | Authority re-read before delivery's gate (P1)             | drop it                                    | the snapshot withholding case and the three delivery-wait cases (4)                 |
+| G2  | The owner read's final gate (P1)                          | drop it                                    | the three read structural cases (3)                                                 |
+| G3  | Approved receipt fails closed (P2-2)                      | ignore its answer                          | `starts no write when the approved receipt cannot be written` (1)                   |
+| G4  | Dispatching receipt fails closed (P2-2)                   | ignore its answer                          | `starts no owner read when the dispatching receipt cannot be written` (1)           |
+| G5  | Settled receipt withholds the result (P2-2)               | settle whatever the receipt answers        | `never answers ok when a read’s settled receipt cannot be written` (1)              |
+| G6  | A receipted transition needs its receipt (P2-2)           | drop the guard in `move`                   | `moves to a receipted state only written ahead…` (1)                                |
+| G7  | Every wait races the call's end (P2-3)                    | `return await work`                        | the cancellation, deadline, shutdown and drain cases (11)                           |
+| G8  | A disconnect settles every call at once (P2-3)            | drop the close from the race               | `drains at disconnect only once…` (1)                                               |
+| G9  | A committed result is not cancelled (P2-3)                | drop `!this.isCommitted`                   | `keeps a result decided at its delivery gate…`, the deadline and drain cases (3)    |
+| G10 | Best-effort receipts tallied under a full backlog (P2-4)  | never tally                                | `bounds receipts being written under a flood…` (1)                                  |
+| G11 | Only an edge of the table is written ahead (finding 5)    | drop the table check                       | `journals no edge out of a call cancelled while admission waits`; the unit case (2) |
+| G12 | A changed grant or kill switch is read at once (store)    | the watch never re-reads                   | runtime `keeps the live authority current…` (1)                                     |
+| G13 | An older reading never wins (store)                       | drop the reading order                     | runtime `drops an authority reading that finishes after a newer one` (1)            |
+| R1  | The write's final gate checks the authority               | state check only                           | the write structural case (1)                                                       |
+| R3  | Kill switch in the authority                              | `return undefined`                         | every kill switch case (5)                                                          |
+| R4  | Disconnect in the authority                               | drop it                                    | `…the client disconnects during the dispatch receipt wait` (1)                      |
+| R5  | Grant, scope and policy in the authority                  | `: undefined`                              | revocation, scope, workspace, user library, policy and read-withholding cases (10)  |
+| R6  | The gate itself                                           | `return true`                              | the gate unit case (1)                                                              |
+| R7  | A lease recorded after its call ended is freed            | free only after `settled`                  | the lease, rate, deadline and scrub cases (5)                                       |
+| R9  | A refusal at delivery ends the call refused               | drop it                                    | `records a final result refused for its size…` (1)                                  |
+| R10 | Stop follows the operation's scope                        | named workspace only                       | `lets the user-library grant stop a user-library save…` (1)                         |
+| R11 | Transport receipts                                        | drop `transport(code)`                     | the transport receipt and flood cases (2)                                           |
+| R13 | A hung journal counts as failed                           | drop it                                    | `counts a hung journal as failed…` (1)                                              |
+| R14 | A started write is never cancelled                        | `isStartedWrite = false`                   | `reports stopRequested…`; the table unit case (2)                                   |
+| R15 | Terminal states have no exits                             | `settled: ['cancelled']`                   | the table unit case (1)                                                             |
+| R16 | The kill control receipt                                  | drop it                                    | runtime `parses only its own words…` (1)                                            |
+| R17 | A signal aborted before attaching cancels                 | drop it                                    | the gate unit case (1)                                                              |
+| R18 | A late hold runs at once                                  | drop it                                    | the hold unit case (1)                                                              |
+| L1  | No age: the watched lease                                 | every lock expired                         | the live-lock and both debit cases (3)                                              |
+| L2  | Takeover moves only the judged instance                   | any moved instance counts                  | the two-contender case (1)                                                          |
+| L3  | Note id as well as identity                               | identity only                              | the two-contender case (1)                                                          |
+| L4  | Owner provably gone                                       | `isGone: false`                            | the provably-gone and two-contender cases (2)                                       |
+| L5  | Torn note watched briefly                                 | never expires                              | the torn-lock, pruned-generation and own-lease cases (3)                            |
+| L6  | Fence: exclusive link                                     | `rename`                                   | the lost-holder case (1)                                                            |
+| L7  | Fence: ours must be the newest                            | `< 0`                                      | the pruned-generation case (1)                                                      |
+| L8  | A holder never publishes past its lease                   | drop `isHeld`                              | the own-lease case (1)                                                              |
+
+Restored SHA-256 (HEAD blobs at `f23f6348d`):
+
+| File                               | SHA-256                                                            |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| `src/core/connector/registry.ts`   | `80081fb19ea0d5cc1a2e7e2fc1bf9746cfd5d243deaa1e4141835e10a2b96b89` |
+| `src/runtime/connector/entry.ts`   | `eb63eeefcf7b0123c764c280923fd0615e959150783d0ae77434166fa7fe5d55` |
+| `src/core/connector/operations.ts` | `3fc3162588c05b17f9d3b5f20c114cace84846865ffe4414d29338481c7c54bf` |
+| `src/core/connector/protocol.ts`   | `754e8eb977036a2f3d0a1f0056d88dc458b851d470228a2878992c4c5681c420` |
+| `src/core/connector/audit.ts`      | `1b10653587db35e711976fd0493f3765159cb49631e81dc9cf5e2cdfda38b4ea` |
+| `src/runtime/connector/command.ts` | `8fa174b4be846820ae37a5597815334b4e3f2a1b7feadcd7c48534b0be4432c9` |
+| `src/runtime/connector/store.ts`   | `4705a47d8d590be2763ce41ac218a170d0d350413cac4a0c9ef278b8659fbca3` |
+
+### Gates and sizes
+
+- Typecheck: the host, unit, webview and integration projects exit 0; the
+  e2e project keeps its two pre-existing `acpFixture.ts` errors (esbuild's
+  `external` typing, a file this lane does not touch). ESLint
+  `--max-warnings=0` and Prettier on every changed file: clean; gitleaks in
+  the hook: no leaks. `npx knip`: exit 0 (two pre-existing hints).
+  `npm run cycles`: none. `npm run duplication`: only the two clones that
+  predate this lane; the three the new runtime test first added were
+  factored out before commit.
+- `check:host-api` (record regenerated: `node:timers/promises` +1 for the
+  drain's bound), `check:l10n`, `check:reference`, `check:plan`,
+  `check:roadmap`: pass.
+- `npm run build` on Kubuntu: exit 0; `check-bundle-size` and
+  `check-bundle-split`: exit 0. `dist/connector.js` 102,321 bytes (99.9 KiB
+  of its 100 KiB budget, 79 bytes left; no cap raised). `dist/extension.js`
+  563,348 bytes, SHA-256 `34b93af4…381e371a`, unchanged.
+- Not run here: the aggregate `npm run quality` (hosted CI is the gate).

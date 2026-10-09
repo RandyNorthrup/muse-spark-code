@@ -20352,6 +20352,25 @@ cases fail on `ddd7d8da3`; 37 red drills. RVM124 finding 15 stays open
 (what remains is in the record). `dist/connector.js` 101,671 bytes of 100
 KiB; `dist/extension.js` unchanged.
 
+**M124 round 5 (2026-10-09, same branch).** The review of round 4
+(RVM124R4: 0 P1, 3 P2). Closed: the final gate is the operation's
+synchronous `gate`, called by the effect's own caller after its last
+await, with the move into `dispatching` and the effect's start in the same
+synchronous block; a failed move aborts the effect and ends the call
+`failed` (P2-1); a committed read keeps its receipt, but a cancellation,
+the deadline or a disconnect answers the call at once while the receipt
+finishes in the background under the journal's timeout, and the read's
+slot is freed when the owner read returns (P2-2); the runtime stops the
+calls at disconnect, then finishes only after its pending operations have
+ended (at most one call deadline) and the approval page's start-up has
+settled, closing the page and opening no browser late (P2-3). 9 new
+regression cases, 8 failing on `50962f773`; 50 red drills, all restored
+byte-exact (two that first stayed green led to two snapshot-authority read
+cases and the removal of a redundant runtime disconnect). RVM124 finding 15
+stays open (unchanged list in the record). `dist/connector.js` 102,321
+bytes of 100 KiB (79 bytes left; no cap raised); `dist/extension.js`
+unchanged.
+
 - **Goal.** Other agents can inspect the user's fleet and evidence, request
   bounded orchestration, ask for deterministic advice/reports, and manage
   schedules/prompts/shares through one connector. Every effect goes through

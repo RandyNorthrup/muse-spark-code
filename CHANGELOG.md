@@ -30,7 +30,7 @@ happened, not what was planned; superseded entries are kept.
   frames and your own grant, revoke, kill and resume commands leave theirs
   too; frames, results, rates, polls and pending approvals are bounded,
   and the limits are shared by every process of a connection. The
-  connector loads from its own `connector.js` (99.3 KiB, budget 100 KiB);
+  connector loads from its own `connector.js` (99.9 KiB, budget 100 KiB);
   activation is unchanged and `acp.js` gains only the 1.3 KiB loader. The
   hosted connector for ChatGPT and claude.ai (OAuth over HTTPS) is planned,
   not built; no client has been qualified yet, and the client setup
