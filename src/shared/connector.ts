@@ -83,16 +83,41 @@ export const CONNECTOR_REASONS = [
 ] as const
 export type ConnectorReason = (typeof CONNECTOR_REASONS)[number]
 
-export const CONNECTOR_OPERATION_STATES = [
+/** What `muse_operation_get` shows: a projection of the call states below. */
+export type ConnectorOperationState =
+  'awaitingApproval' | 'running' | 'completed' | 'failed' | 'cancelled' | 'expired'
+
+/**
+ * The one state machine every call walks (design §3a): received → admitted
+ * → (awaitingApproval → approved →) dispatching → settled, or refused,
+ * cancelled or failed. Its transition table is operations.ts's.
+ */
+export const CONNECTOR_CALL_STATES = [
+  'received',
+  'admitted',
   'awaitingApproval',
-  'running',
-  'completed',
-  'failed',
+  'approved',
+  'dispatching',
+  'settled',
+  'refused',
   'cancelled',
-  'expired',
-  'unknown',
+  'failed',
 ] as const
-export type ConnectorOperationState = (typeof CONNECTOR_OPERATION_STATES)[number]
+export type ConnectorCallState = (typeof CONNECTOR_CALL_STATES)[number]
+
+/** Why the authority cancelled a call: the one place cancellation is decided. */
+export const CONNECTOR_CANCEL_CAUSES = [
+  'client',
+  'deadline',
+  'disconnect',
+  'killSwitch',
+  'revoked',
+  'stop',
+  'denied',
+  'expired',
+  'stale',
+] as const
+export type ConnectorCancelCause = (typeof CONNECTOR_CANCEL_CAUSES)[number]
 
 /** What a tool's own code says its effect is; never read from a client. */
 export type ConnectorClass = 'read' | 'write' | 'run' | 'stop'
@@ -141,7 +166,8 @@ const promptScope = z.enum(['user', 'workspace'])
 /** The inputs of the tools this build backs; every object is strict. */
 export const connectorInputSchemas = {
   muse_operation_get: z.strictObject({ operationId: connectorIdSchema }),
-  // An operation the connection owns in the user library stops without a workspace.
+  // Stop's authority follows the operation's own scope: a user-library
+  // operation stops with the user-library grant, whatever workspace is named.
   muse_stop: z.strictObject({
     ...optionalWorkspace,
     target: z.strictObject({
@@ -198,29 +224,22 @@ export type ConnectorInput<T extends ConnectorBackedTool> = z.infer<
   (typeof connectorInputSchemas)[T]
 >
 
-/** One scrubbed, schema-versioned audit line (design §6); no raw text or token. */
+/**
+ * One scrubbed, schema-versioned audit line (design §6); no raw text or
+ * token. A call's line is one transition (`from` → `event`); `transport`
+ * is a frame refused before any call existed (its JSON-RPC code only);
+ * `control` is the owner's own command.
+ */
 export const connectorAuditSchema = z.strictObject({
   schemaVersion: z.literal(CONNECTOR_SCHEMA_VERSION),
   at: z.iso.datetime({ offset: true }),
   connectionId: z.string(),
   grantGeneration: z.optional(connectorGenerationSchema),
-  event: z.enum([
-    'initialize',
-    'list',
-    'call',
-    'refused',
-    'awaitingApproval',
-    'approved',
-    'denied',
-    'expired',
-    'dispatched',
-    'completed',
-    'failed',
-    'cancelled',
-    'stopped',
-    'transport',
-    'killSwitch',
-  ]),
+  event: z.enum(['initialize', 'list', 'transport', 'control', ...CONNECTOR_CALL_STATES]),
+  from: z.optional(z.enum(CONNECTOR_CALL_STATES)),
+  cause: z.optional(z.enum(CONNECTOR_CANCEL_CAUSES)),
+  rpcCode: z.optional(z.number().check(z.int())),
+  control: z.optional(z.enum(['grant', 'revoke', 'kill', 'resume'])),
   callId: z.optional(z.string()),
   tool: z.optional(z.string()),
   toolClass: z.optional(z.enum(['read', 'write', 'run', 'stop'])),

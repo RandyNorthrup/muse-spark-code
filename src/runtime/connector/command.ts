@@ -20,12 +20,35 @@ import {
   type ConnectorScope,
 } from '../../shared/connector'
 import { fill } from '../../shared/l10n/text'
+import { ConnectorAudit } from '../../core/connector/audit'
 import { grantScopes } from '../../core/connector/policy'
 import type { ConnectorStore } from './store'
 
 const WORKSPACE_ID_HEX = 8
 const EXIT_USAGE = 2
 const EXIT_FAILED = 1
+/** The kill switch belongs to no connection: its receipts have their own journal. */
+const OWNER_JOURNAL = '_owner'
+
+/**
+ * The owner's command leaves its control receipt (design §6): grant and
+ * revoke in that connection's journal, the kill switch in the owner's. Best
+ * effort: the owner's own command is never held back by the journal.
+ */
+async function controlReceipt(
+  store: ConnectorStore,
+  io: CommandIo,
+  journal: string,
+  control: 'grant' | 'revoke' | 'kill' | 'resume',
+  grantGeneration?: number,
+): Promise<void> {
+  const audit = new ConnectorAudit(store.audit(journal, io.now), journal, io.now, (text) => text)
+  await audit.record({
+    event: 'control',
+    control,
+    ...(grantGeneration !== undefined && { grantGeneration }),
+  })
+}
 
 export type ConnectorCommand =
   | { readonly kind: 'serve'; readonly connectionId: string }
@@ -194,6 +217,7 @@ async function grant(
   })
   if (!(await io.confirm(question))) return EXIT_FAILED
   await store.saveGrant(next.data)
+  await controlReceipt(store, io, command.connectionId, 'grant', next.data.generation)
   io.print(
     fill(UI_TEXT.acpConnector.grantSaved, {
       connection: command.connectionId,
@@ -220,11 +244,13 @@ export async function runConnectorCommand(
         return 0
       }
       await store.saveGrant({ ...current, revoked: true, generation: current.generation + 1 })
+      await controlReceipt(store, io, command.connectionId, 'revoke', current.generation + 1)
       io.print(fill(UI_TEXT.acpConnector.revoked, { connection: command.connectionId }))
       return 0
     }
     case 'kill': {
       await store.setKilled(true, new Date(io.now()).toISOString())
+      await controlReceipt(store, io, OWNER_JOURNAL, 'kill')
       io.print(UI_TEXT.acpConnector.killOn)
       return 0
     }
@@ -234,6 +260,7 @@ export async function runConnectorCommand(
         return EXIT_FAILED
       }
       await store.setKilled(false, new Date(io.now()).toISOString())
+      await controlReceipt(store, io, OWNER_JOURNAL, 'resume')
       io.print(UI_TEXT.acpConnector.killOff)
       return 0
     }

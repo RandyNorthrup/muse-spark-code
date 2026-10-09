@@ -47,11 +47,29 @@ function fakeServer(overrides: Partial<ConnectorServer> = {}): ConnectorServer {
     list: () => Promise.resolve([]),
     call: () => Promise.resolve({ content: [{ type: 'text', text: '{}' }], isError: false }),
     disconnect: () => undefined,
+    transport: () => undefined,
+    ready: () => Promise.resolve(),
     ...overrides,
   }
 }
 
+/** A transport's protocol port that answers nothing (refusals still answer their frame). */
+function idleProtocol(
+  close: () => void,
+  handle: (raw: string) => Promise<unknown> = () => Promise.resolve(undefined),
+) {
+  const refusals = new ConnectorProtocol(fakeServer())
+  return {
+    handle: async (raw: string) => (await handle(raw)) as Record<string, unknown> | undefined,
+    close,
+    refuse: (code: number, id: unknown) => refusals.refuse(code, id),
+    ready: () => Promise.resolve(),
+  }
+}
+
 const frame = (message: unknown) => JSON.stringify(message)
+/** A clock that never moves: limits spent stay spent. */
+const fixedNow = () => Date.parse('2026-10-09T12:00:00.000Z')
 
 /** Whether the work settles within `ms` (a hung server never does). */
 async function isSettledWithin(work: Promise<unknown>, ms: number): Promise<boolean> {
@@ -155,7 +173,7 @@ function pipes() {
 function idleServe() {
   const { input, output } = pipes()
   const close = vi.fn()
-  const served = serveStdio({ input, output }, { handle: () => Promise.resolve(undefined), close })
+  const served = serveStdio({ input, output }, idleProtocol(close))
   return { input, output, close, served }
 }
 
@@ -209,8 +227,11 @@ describe('M124 stdio framing', () => {
     const hung: (() => void)[] = []
     const served = serveStdio(
       { input, output },
-      {
-        handle: (raw) =>
+      idleProtocol(
+        () => {
+          for (const resolve of hung.splice(0)) resolve()
+        },
+        (raw) =>
           raw.includes('muse_stop')
             ? Promise.resolve({ jsonrpc: '2.0', id: 'stop', result: {} })
             : new Promise((resolve) => {
@@ -218,10 +239,7 @@ describe('M124 stdio framing', () => {
                   resolve(undefined)
                 })
               }),
-        close: () => {
-          for (const resolve of hung.splice(0)) resolve()
-        },
-      },
+      ),
     )
     const extra = 4
     for (let id = 1; id <= CONNECTOR_LIMITS.transportTasks + extra; id += 1)
@@ -352,15 +370,16 @@ describe('M124 owner-only store and commands', () => {
   it('keeps the limits of one grant across server processes and restarts (RVM124 P2-7)', async () => {
     const data = await folder()
     // Two stores on one folder stand for two server processes: no memory is shared.
-    const first = new SharedLimits(new ConnectorStore(data).limits('default'), Date.now)
-    const second = new SharedLimits(new ConnectorStore(data).limits('default'), Date.now)
+    // A fixed clock: no token refills while twenty updates take turns at the lock.
+    const first = new SharedLimits(new ConnectorStore(data).limits('default'), fixedNow)
+    const second = new SharedLimits(new ConnectorStore(data).limits('default'), fixedNow)
     const taken = await Promise.all(
       Array.from({ length: 2 * CONNECTOR_LIMITS.burst }, (_, index) =>
         (index % 2 === 0 ? first : second).take(),
       ),
     )
     expect(taken.filter(Boolean)).toHaveLength(CONNECTOR_LIMITS.burst)
-    const restarted = new SharedLimits(new ConnectorStore(data).limits('default'), Date.now)
+    const restarted = new SharedLimits(new ConnectorStore(data).limits('default'), fixedNow)
     expect(await restarted.take()).toBe(false)
   })
 
@@ -411,5 +430,23 @@ describe('M124 owner-only store and commands', () => {
     // Re-enabling widens authority: refused without a terminal.
     expect(await runConnectorCommand(store, { kind: 'resume' }, io)).toBe(1)
     expect(await store.isKilled()).toBe(true)
+    expect(await runConnectorCommand(store, { kind: 'resume' }, interactive)).toBe(0)
+    // Every owner command that changed something left its control receipt (RVM124B P2-4).
+    const controls = async (journal: string) => {
+      const text = await readFile(path.join(data, 'connector', 'audit', `${journal}.jsonl`), 'utf8')
+      return text
+        .split('\n')
+        .filter(Boolean)
+        .map(
+          (line) =>
+            JSON.parse(line) as { event: string; control?: string; grantGeneration?: number },
+        )
+    }
+    expect(await controls('default')).toEqual([
+      expect.objectContaining({ event: 'control', control: 'grant', grantGeneration: 1 }),
+      expect.objectContaining({ event: 'control', control: 'revoke', grantGeneration: 2 }),
+    ])
+    const owner = await controls('_owner')
+    expect(owner.map((record) => record.control)).toEqual(['kill', 'resume'])
   })
 })

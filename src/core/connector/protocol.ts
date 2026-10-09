@@ -40,6 +40,19 @@ export interface ConnectorServer {
   ) => Promise<ConnectorCallResult>
   /** The client is gone: nothing is admitted again and pending intents are cancelled. */
   readonly disconnect: () => void
+  /** A frame refused before any call existed: one receipt with its JSON-RPC code only. */
+  readonly transport: (code: number) => void
+  /** Resolves when the journal can take more receipts. */
+  readonly ready: () => Promise<void>
+}
+
+const REFUSED_WORDS: Readonly<Record<number, string>> = {
+  [JSON_RPC_ERRORS.parseError]: 'Parse error',
+  [JSON_RPC_ERRORS.invalidRequest]: 'Invalid request',
+  [JSON_RPC_ERRORS.methodNotFound]: 'Method not found',
+  [JSON_RPC_ERRORS.invalidParams]: 'Invalid params',
+  [CONNECTOR_RPC_ERRORS.requestTooLarge]: 'Request too large',
+  [CONNECTOR_RPC_ERRORS.busy]: 'Server busy',
 }
 
 const initializeParamsSchema = z.object({
@@ -67,16 +80,6 @@ function result(id: unknown, value: unknown) {
 export type FrameReply = Readonly<Record<string, unknown>> | undefined
 
 export class ConnectorProtocol {
-  /** A frame larger than the bound is refused before it is parsed. */
-  public static tooLarge(): Readonly<Record<string, unknown>> {
-    return error(null, CONNECTOR_RPC_ERRORS.requestTooLarge, 'Request too large')
-  }
-
-  /** The answer to a frame the transport has no room for. */
-  public static busy(id: unknown): Readonly<Record<string, unknown>> {
-    return error(id, CONNECTOR_RPC_ERRORS.busy, 'Server busy')
-  }
-
   /** Read only when the transport is full: the frame's id, and whether it is Stop's path. */
   public static classify(raw: string): { readonly id: unknown; readonly isControl: boolean } {
     try {
@@ -98,17 +101,32 @@ export class ConnectorProtocol {
 
   public constructor(private readonly server: ConnectorServer) {}
 
+  /**
+   * A refused frame's answer, with its one receipt (the code only: nothing
+   * the client sent is recorded). The transport uses it for frames it never
+   * hands over: over the bound, invalid UTF-8, or beyond its task bound.
+   */
+  public refuse(code: number, id: unknown): Readonly<Record<string, unknown>> {
+    this.server.transport(code)
+    return error(id, code, REFUSED_WORDS[code] ?? 'Error')
+  }
+
+  /** Resolves when another frame may be read (the receipts' backlog is bounded). */
+  public ready(): Promise<void> {
+    return this.server.ready()
+  }
+
   /** One frame in; the reply to write, if any. A cancelled request gets none. */
   public async handle(raw: string): Promise<FrameReply> {
     let parsed: unknown
     try {
       parsed = JSON.parse(raw)
     } catch {
-      return error(null, JSON_RPC_ERRORS.parseError, 'Parse error')
+      return this.refuse(JSON_RPC_ERRORS.parseError, null)
     }
     // JSON-RPC batches left MCP in 2025-06-18; one message per line.
     const message = messageSchema.safeParse(parsed)
-    if (!message.success) return error(null, JSON_RPC_ERRORS.invalidRequest, 'Invalid request')
+    if (!message.success) return this.refuse(JSON_RPC_ERRORS.invalidRequest, null)
     const { id, method, params } = message.data
     const keys = mcpRequestKeys(raw)
     if (method === MCP_CANCELLED_NOTIFICATION) {
@@ -120,7 +138,7 @@ export class ConnectorProtocol {
     if (method === 'ping') return result(id, {})
     if (method === 'initialize') {
       const init = initializeParamsSchema.safeParse(params)
-      if (!init.success) return error(id, JSON_RPC_ERRORS.invalidParams, 'Invalid params')
+      if (!init.success) return this.refuse(JSON_RPC_ERRORS.invalidParams, id)
       const version = negotiateVersion(init.data.protocolVersion)
       this.protocolVersion = version
       const client = (init.data.clientInfo?.name ?? '').slice(0, CLIENT_NAME_CHARS)
@@ -132,13 +150,11 @@ export class ConnectorProtocol {
         instructions,
       })
     }
-    if (this.protocolVersion === undefined)
-      return error(id, JSON_RPC_ERRORS.invalidRequest, 'Server not initialized')
+    if (this.protocolVersion === undefined) return this.refuse(JSON_RPC_ERRORS.invalidRequest, id)
     if (method === 'tools/list') return result(id, { tools: await this.server.list() })
-    if (method !== 'tools/call')
-      return error(id, JSON_RPC_ERRORS.methodNotFound, 'Method not found')
+    if (method !== 'tools/call') return this.refuse(JSON_RPC_ERRORS.methodNotFound, id)
     const call = callParamsSchema.safeParse(params)
-    if (!call.success) return error(id, JSON_RPC_ERRORS.invalidParams, 'Invalid params')
+    if (!call.success) return this.refuse(JSON_RPC_ERRORS.invalidParams, id)
     const controller = new AbortController()
     const key = keys.request
     if (key !== undefined) this.inFlight.set(key, controller)

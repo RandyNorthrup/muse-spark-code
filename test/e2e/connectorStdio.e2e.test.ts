@@ -4,7 +4,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdtempSync, realpathSync } from 'node:fs'
-import { cp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
@@ -169,6 +169,21 @@ describe('M124 connector over real stdio', () => {
     const errors = result.lines.map((line) => JSON.parse(line) as { error?: { code: number } })
     expect(errors.some((reply) => reply.error?.code === -32_700)).toBe(true)
     expect(errors.some((reply) => reply.error?.code === -32_001)).toBe(true)
+    // Each frame refused before a call existed left one transport receipt (RVM124B P2-4).
+    const journal = await readFile(
+      path.join(dataFolder(), 'connector', 'audit', 'default.jsonl'),
+      'utf8',
+    )
+    const receipts = journal
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as { event: string; rpcCode?: number })
+    expect(
+      receipts
+        .filter((receipt) => receipt.event === 'transport')
+        .map((receipt) => receipt.rpcCode ?? 0)
+        .toSorted((left, right) => left - right),
+    ).toEqual([-32_700, -32_001])
   })
 
   it('serves granted reads scrubbed, refuses ungranted writes, and keeps Stop under the kill switch', async () => {

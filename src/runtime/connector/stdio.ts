@@ -3,9 +3,13 @@
 // stdout (diagnostics go to stderr through the runtime logger). A line over
 // the frame bound is refused before it is parsed and discarded up to its end.
 // Calls run concurrently, so a cancellation can reach a call in flight;
-// replies are written in completion order, within bounded admission.
+// replies are written in completion order, within bounded admission. Every
+// frame refused here (too large, invalid UTF-8, busy) leaves one transport
+// receipt; frames are taken one at a time while the receipts' backlog is
+// bounded, so a flood of bad frames waits for the journal instead of
+// piling up in memory.
 import type { Readable, Writable } from 'node:stream'
-import { CONNECTOR_LIMITS, JSON_RPC_ERRORS } from '../../shared/constants'
+import { CONNECTOR_LIMITS, CONNECTOR_RPC_ERRORS, JSON_RPC_ERRORS } from '../../shared/constants'
 import { ConnectorProtocol, type FrameReply } from '../../core/connector/protocol'
 
 const NEWLINE = 0x0a
@@ -16,19 +20,18 @@ export interface StdioHandles {
   readonly output: Writable
 }
 
+/** One line of input, or a frame that passed the bound (never kept). */
+type Frame = Buffer | 'tooLarge'
+
 /** Splits bytes into lines, never holding more than one bounded frame. */
 class LineFramer {
   private buffered: Buffer[] = []
   private size = 0
   private isDiscarding = false
 
-  public constructor(
-    private readonly maxFrameBytes: number,
-    private readonly onLine: (line: Buffer) => void,
-    private readonly onTooLarge: () => void,
-  ) {}
+  public constructor(private readonly maxFrameBytes: number) {}
 
-  private take(piece: Buffer): void {
+  private take(piece: Buffer, frames: Frame[]): void {
     if (this.isDiscarding) return
     this.size += piece.length
     if (this.size <= this.maxFrameBytes) {
@@ -37,17 +40,18 @@ class LineFramer {
     }
     this.isDiscarding = true
     this.buffered = []
-    this.onTooLarge()
+    frames.push('tooLarge')
   }
 
-  public push(chunk: Buffer): void {
+  public push(chunk: Buffer): Frame[] {
+    const frames: Frame[] = []
     let data = chunk
     let end = data.indexOf(NEWLINE)
     while (end !== -1) {
-      this.take(data.subarray(0, end))
+      this.take(data.subarray(0, end), frames)
       if (!this.isDiscarding) {
         const line = Buffer.concat(this.buffered)
-        this.onLine(line.at(-1) === CARRIAGE_RETURN ? line.subarray(0, -1) : line)
+        frames.push(line.at(-1) === CARRIAGE_RETURN ? line.subarray(0, -1) : line)
       }
       this.buffered = []
       this.size = 0
@@ -55,7 +59,8 @@ class LineFramer {
       data = data.subarray(end + 1)
       end = data.indexOf(NEWLINE)
     }
-    this.take(data)
+    this.take(data, frames)
+    return frames
   }
 }
 
@@ -70,7 +75,7 @@ class LineFramer {
  */
 export async function serveStdio(
   handles: StdioHandles,
-  protocol: Pick<ConnectorProtocol, 'handle' | 'close'>,
+  protocol: Pick<ConnectorProtocol, 'handle' | 'close' | 'refuse' | 'ready'>,
   maxFrameBytes: number = CONNECTOR_LIMITS.frameBytes,
 ): Promise<void> {
   const pending = new Set<Promise<void>>()
@@ -113,45 +118,51 @@ export async function serveStdio(
       /* The protocol answers its own failures; a write after close is dropped. */
     }
   }
-  const framer = new LineFramer(
-    maxFrameBytes,
-    (line) => {
-      let text: string
-      try {
-        text = new TextDecoder('utf-8', { fatal: true }).decode(line)
-      } catch {
-        write({
-          jsonrpc: '2.0',
-          id: null,
-          error: { code: JSON_RPC_ERRORS.parseError, message: 'Parse error' },
-        })
+  const accept = (frame: Frame) => {
+    if (frame === 'tooLarge') {
+      write(protocol.refuse(CONNECTOR_RPC_ERRORS.requestTooLarge, null))
+      return
+    }
+    let text: string
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(frame)
+    } catch {
+      write(protocol.refuse(JSON_RPC_ERRORS.parseError, null))
+      return
+    }
+    if (text.trim() === '') return
+    if (pending.size >= CONNECTOR_LIMITS.transportTasks) {
+      const classified = ConnectorProtocol.classify(text)
+      if (
+        !classified.isControl ||
+        pending.size >= CONNECTOR_LIMITS.transportTasks + CONNECTOR_LIMITS.controlTasks
+      ) {
+        // A notification has no id to answer; its refusal is still recorded.
+        const busy = protocol.refuse(CONNECTOR_RPC_ERRORS.busy, classified.id)
+        if (classified.id !== undefined) write(busy)
         return
       }
-      if (text.trim() === '' || state.isClosed) return
-      if (pending.size >= CONNECTOR_LIMITS.transportTasks) {
-        const frame = ConnectorProtocol.classify(text)
-        if (
-          !frame.isControl ||
-          pending.size >= CONNECTOR_LIMITS.transportTasks + CONNECTOR_LIMITS.controlTasks
-        ) {
-          if (frame.id !== undefined) write(ConnectorProtocol.busy(frame.id))
-          return
-        }
-      }
-      const task = answer(text)
-      pending.add(task)
-      void task.finally(() => {
-        pending.delete(task)
-      })
-    },
-    () => {
-      write(ConnectorProtocol.tooLarge())
-    },
-  )
+    }
+    const task = answer(text)
+    pending.add(task)
+    void task.finally(() => {
+      pending.delete(task)
+    })
+  }
+  const framer = new LineFramer(maxFrameBytes)
+  const take = async (chunk: unknown) => {
+    const frames = framer.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8'))
+    for (const frame of frames) {
+      // The receipts' backlog is bounded: the next frame waits for the journal.
+      await protocol.ready()
+      if (state.isClosed) return
+      accept(frame)
+    }
+  }
   try {
     for await (const chunk of handles.input) {
+      await take(chunk)
       if (state.isClosed) break
-      framer.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8'))
     }
   } catch (error: unknown) {
     // Closing stdout destroys stdin to end this loop; any other failure is real.

@@ -1,22 +1,29 @@
-// M124 (D106): the connector's tool registry and the one policy every call
-// passes. Reads are grant-scoped, bounded, scrubbed and audited. Writes
-// answer with an awaitingApproval operation and take effect only when our
-// approval page approves the exact, still-current intent. Stop and schedule
-// cancel never ask and never meet the call limits, the kill switch or audit
-// failure. A tool without a backing owner answers `unavailable`.
+// M124 (D106): the connector's tool registry. Every call is one Operation
+// (operations.ts) walking one state machine under one authority, the
+// registry's `stopCause`: the call's cancellation and deadline, disconnect,
+// the kill switch, and the grant with its scopes, workspace and confidential
+// policy. The authority is read again (`refresh`) after every wait that
+// precedes an effect, and one synchronous gate stands right before each
+// effect and before each delivered result. Reads are grant-scoped, bounded,
+// scrubbed and audited. Writes answer with an awaitingApproval operation and
+// take effect only when our approval page approves the exact, still-current
+// intent. Stop and schedule cancel never ask and never meet the call limits,
+// the kill switch or audit failure. A tool without a backing owner answers
+// `unavailable`.
 import { randomBytes } from 'node:crypto'
-import { once } from 'node:events'
 import {
   CONNECTOR_LIMITS,
   CONNECTOR_MODEL_TEXT,
+  CONNECTOR_RPC_ERRORS,
   CONNECTOR_SCHEMA_VERSION,
   CONNECTOR_STRUCTURED_SINCE,
 } from '../../shared/constants'
 import {
   connectorInputSchemas,
   type ConnectorBackedTool,
+  type ConnectorCallState,
+  type ConnectorCancelCause,
   type ConnectorGrant,
-  type ConnectorInput,
   type ConnectorReason,
   type ConnectorWorkspaceGrant,
 } from '../../shared/connector'
@@ -25,7 +32,7 @@ import { fill } from '../../shared/l10n/text'
 import type { SavedPrompt } from '../../shared/prompts'
 import { ApprovalLedger, type ApprovalBinding } from './approval'
 import type { ConnectorAudit } from './audit'
-import { OperationRegistry, type OperationRecord } from './operations'
+import { Operation, OperationTable, type OperationEnv, type OperationScope } from './operations'
 import { SharedLimits, admit, isRefusal, refusal, type LimitsPort, type Refusal } from './policy'
 import type { ConnectorCallResult, ConnectorServer, ConnectorToolEntry } from './protocol'
 import type { ConnectorScrub } from './redaction'
@@ -102,6 +109,17 @@ const REPORT_SUBJECTS: Readonly<Record<string, 'required' | 'optional'>> = {
   playbook: 'optional',
 }
 
+/** The deadline's abort reason, told apart from the client's cancellation. */
+const DEADLINE = 'deadline'
+/** A cancellation without a reason of its own: the fixed word the client reads. */
+const CANCEL_WORDS: Partial<Record<ConnectorCancelCause, string>> = {
+  client: 'cancelled',
+  deadline: 'deadline',
+  disconnect: 'disconnected',
+  stop: 'stopped',
+}
+const ENDS: ReadonlySet<ConnectorCallState> = new Set(['refused', 'cancelled', 'failed'])
+
 interface Envelope {
   readonly schemaVersion: number
   readonly callId: string
@@ -132,6 +150,14 @@ interface PageCursor {
   readonly expiresAt: number
 }
 
+/** What an approved write binds and dispatches, fixed when it was requested. */
+interface WritePlan {
+  readonly binding: ApprovalBinding
+  readonly draft: PromptDraftInput
+  readonly root: string | undefined
+  readonly intentId: string
+}
+
 function newId(): string {
   return randomBytes(CONNECTOR_LIMITS.idBytes).toString('hex')
 }
@@ -148,37 +174,9 @@ function forbidden(reason: string): Refusal {
   return refusal('forbidden', fill(CONNECTOR_MODEL_TEXT.forbidden, { reason }))
 }
 
-/**
- * The call's answer, or `unavailable` once its signal aborts (the deadline,
- * a cancellation or a disconnect), even while an owner port still hangs; a
- * late answer is dropped, and the work itself rechecks the signal.
- */
-async function bounded(work: Promise<Outcome>, signal: AbortSignal): Promise<Outcome> {
-  const settled = new AbortController()
-  try {
-    return await Promise.race([ownerAnswer(work), deadline(signal, settled.signal)])
-  } finally {
-    settled.abort()
-  }
-}
-
-async function ownerAnswer(work: Promise<Outcome>): Promise<Outcome> {
-  try {
-    return await work
-  } catch {
-    // An owner's failure text can name a path; the client gets fixed words.
-    return unavailable('owner failed')
-  }
-}
-
-async function deadline(signal: AbortSignal, settled: AbortSignal): Promise<Outcome> {
-  try {
-    if (!signal.aborted) await once(signal, 'abort', { signal: settled })
-  } catch {
-    /* The call answered first; this branch lost the race. */
-  }
-  return unavailable('deadline')
-}
+const rateLimited = () => refusal('rate_limited', CONNECTOR_MODEL_TEXT.rateLimited)
+const auditUnavailable = () => refusal('audit_unavailable', CONNECTOR_MODEL_TEXT.auditUnavailable)
+const ownerFailed = () => unavailable('owner failed')
 
 /** The issue's path and code only: a client's value is never echoed back. */
 function issueOf(error: { readonly issues: readonly { path: PropertyKey[]; code: string }[] }) {
@@ -187,16 +185,26 @@ function issueOf(error: { readonly issues: readonly { path: PropertyKey[]; code:
 }
 
 export class ConnectorRegistry implements ConnectorServer {
-  private readonly operations: OperationRegistry
+  private readonly operations = new OperationTable()
+  /** Every operation not yet terminal: what the authority sweeps. */
+  private readonly live = new Set<Operation>()
+  /** Approved writes' plans, by intent id, while their approval is open. */
+  private readonly plans = new Map<string, WritePlan>()
   private readonly ledger: ApprovalLedger
   private readonly limits: SharedLimits
-  /** Set by disconnect: no call is admitted and no intent opens afterwards. */
+  private readonly env: OperationEnv
+  /** Set by disconnect: the authority stops every live operation and admits nothing. */
   private isClosed = false
+  /** The authority as last read; `refresh` keeps only the newest reading. */
+  private view: { readonly grant: ConnectorGrant | undefined; readonly killed: boolean } = {
+    grant: undefined,
+    killed: false,
+  }
+  private readings = 0
+  private applied = 0
   private readonly cursors = new Map<string, PageCursor>()
   private readonly principal = newId()
   private client = ''
-  /** The work an approved intent dispatches, by intent id. */
-  private readonly dispatches = new Map<string, () => Promise<void>>()
   public readonly serverInfo: { readonly name: string; readonly version: string }
 
   public constructor(
@@ -204,72 +212,223 @@ export class ConnectorRegistry implements ConnectorServer {
     serverName: string,
   ) {
     this.serverInfo = { name: serverName, version: deps.version }
-    this.operations = new OperationRegistry(deps.now)
     this.limits = new SharedLimits(deps.limits, deps.now)
     this.ledger = new ApprovalLedger(deps.now, (intentId, outcome) => {
-      this.settled(intentId, outcome)
+      this.decided(intentId, outcome)
+    })
+    this.env = {
+      now: deps.now,
+      stopCause: (operation) => this.stopCause(operation),
+      journal: (operation, from, to) => this.journal(operation, from, to),
+      refusalOf: (cause) => this.refusalOf(cause),
+    }
+  }
+
+  /**
+   * The single authority, synchronous: why `operation` must stop now. Before
+   * admission only the call itself and the connection count; after it, the
+   * kill switch and the grant it was admitted under (generation, scopes,
+   * workspace or user library, confidential policy) count too.
+   */
+  private stopCause(operation: Operation): ConnectorCancelCause | undefined {
+    if (this.isClosed) return 'disconnect'
+    if (operation.signal?.aborted === true)
+      return operation.signal.reason === DEADLINE ? 'deadline' : 'client'
+    const { tool, grantGeneration, scope } = operation
+    if (tool === undefined || grantGeneration === undefined || scope === undefined) return undefined
+    if (this.view.killed && tool.toolClass !== 'stop' && tool.name !== 'muse_operation_get')
+      return 'killSwitch'
+    const { grant } = this.view
+    return grant?.generation === grantGeneration &&
+      !isRefusal(admit(grant, tool, scope, this.deps.confidential))
+      ? undefined
+      : 'revoked'
+  }
+
+  private refusalOf(cause: ConnectorCancelCause): Refusal {
+    switch (cause) {
+      case 'killSwitch': {
+        return refusal('forbidden', CONNECTOR_MODEL_TEXT.killSwitch)
+      }
+      case 'revoked': {
+        return forbidden(CONNECTOR_MODEL_TEXT.reasonRevoked)
+      }
+      case 'denied': {
+        return refusal(
+          'denied',
+          fill(CONNECTOR_MODEL_TEXT.forbidden, { reason: CONNECTOR_MODEL_TEXT.reasonDenied }),
+        )
+      }
+      case 'expired': {
+        return refusal(
+          'expired',
+          fill(CONNECTOR_MODEL_TEXT.forbidden, { reason: CONNECTOR_MODEL_TEXT.reasonExpired }),
+        )
+      }
+      case 'stale': {
+        return refusal(
+          'stale_target',
+          fill(CONNECTOR_MODEL_TEXT.forbidden, { reason: CONNECTOR_MODEL_TEXT.reasonStale }),
+        )
+      }
+      default: {
+        return unavailable(CANCEL_WORDS[cause] ?? cause)
+      }
+    }
+  }
+
+  /** One receipt per transition: who, what, where, and why it ended. */
+  private journal(
+    operation: Operation,
+    from: ConnectorCallState,
+    to: ConnectorCallState,
+  ): Promise<boolean> {
+    const { tool, scope, grantGeneration } = operation
+    const isEnd = ENDS.has(to)
+    return this.deps.audit.record({
+      event: to,
+      from,
+      callId: operation.id,
+      ...(tool !== undefined && { tool: tool.name, toolClass: tool.toolClass }),
+      ...(this.operations.get(operation.id) === operation && { operationId: operation.id }),
+      ...(scope?.workspaceId !== undefined && { workspaceId: scope.workspaceId }),
+      ...(grantGeneration !== undefined && { grantGeneration }),
+      ...(isEnd && operation.reason !== undefined && { reason: operation.reason }),
+      ...(isEnd && operation.cause !== undefined && { cause: operation.cause }),
+      ...(to === 'awaitingApproval' &&
+        operation.payloadDigest !== undefined && { payloadDigest: operation.payloadDigest }),
     })
   }
 
-  /** An ordinary call; every refusal it returns is audited by `call`. */
-  private async route(
+  /**
+   * Reads the authority again (the grant and the kill switch) and applies
+   * it to every live operation at once: a revoked or changed grant, the kill
+   * switch or an expired approval stops each one it covers, and a pending
+   * approval leaves the page.
+   */
+  private async refresh(): Promise<void> {
+    const reading = ++this.readings
+    const [grant, killed] = await Promise.all([this.deps.grant(), this.deps.killed()])
+    if (reading > this.applied) {
+      this.applied = reading
+      this.view = { grant, killed }
+    }
+    this.ledger.expireDue()
+    for (const operation of this.live) operation.check()
+  }
+
+  private open(tool: ConnectorToolSpec | undefined): Operation {
+    const operation = new Operation(newId(), tool, this.env)
+    this.live.add(operation)
+    void operation.ended.then(() => this.live.delete(operation))
+    return operation
+  }
+
+  /** Admission of an ordinary call; the admitted receipt is durable before any effect. */
+  private async admitCall(
+    operation: Operation,
     tool: ConnectorToolSpec,
     name: ConnectorBackedTool,
     args: unknown,
-    callId: string,
-    signal: AbortSignal,
-  ): Promise<Outcome> {
-    const isKilled = await this.deps.killed()
-    if (isKilled && name !== 'muse_operation_get') {
-      this.cancelPending()
-      return refusal('forbidden', CONNECTOR_MODEL_TEXT.killSwitch)
-    }
-    if (!(await this.limits.take()))
-      return refusal('rate_limited', CONNECTOR_MODEL_TEXT.rateLimited)
+  ): Promise<
+    | Refusal
+    | {
+        readonly input: unknown
+        readonly grant: ConnectorGrant
+        readonly workspace: ConnectorWorkspaceGrant | undefined
+      }
+  > {
+    await this.refresh()
+    if (!operation.gate(['received'])) return operation.final()
+    if (name !== 'muse_operation_get' && this.view.killed)
+      return operation.refuse(refusal('forbidden', CONNECTOR_MODEL_TEXT.killSwitch))
+    if (!(await this.limits.take())) return operation.refuse(rateLimited())
     const parsed = connectorInputSchemas[name].safeParse(args ?? {})
-    if (!parsed.success) return invalid(issueOf(parsed.error))
-    const grant = await this.deps.grant()
+    if (!parsed.success) return operation.refuse(invalid(issueOf(parsed.error)))
     const input: Readonly<Record<string, unknown>> = parsed.data
     const workspaceId = typeof input['workspaceId'] === 'string' ? input['workspaceId'] : undefined
-    const isUserLibrary =
+    // A user-library call belongs to the user library, whatever workspace it names.
+    const scope: OperationScope =
       input['scope'] === 'user' || (workspaceId === undefined && USER_LIBRARY_TOOLS.has(name))
-    const admission = admit(
-      grant,
-      tool,
-      { workspaceId, userLibrary: isUserLibrary },
-      this.deps.confidential,
-    )
-    if (isRefusal(admission)) return admission
-    if (grant === undefined) return forbidden(CONNECTOR_MODEL_TEXT.noGrant)
-    if (tool.toolClass === 'write')
-      return await this.request(name, tool, parsed.data, grant, admission.workspace, callId, signal)
-    const lease = newId()
-    if (!(await this.limits.enter('read', lease, CONNECTOR_LIMITS.requestDeadlineMs)))
-      return refusal('rate_limited', CONNECTOR_MODEL_TEXT.rateLimited)
-    // The slot frees when the call ends or its deadline passes, whichever is first.
-    const leave = () => {
-      void this.limits.leave(lease)
-    }
-    signal.addEventListener('abort', leave, { once: true })
+        ? { userLibrary: true }
+        : { workspaceId }
+    const { grant } = this.view
+    const admission = admit(grant, tool, scope, this.deps.confidential)
+    if (isRefusal(admission)) return operation.refuse(admission)
+    if (grant === undefined) return operation.refuse(forbidden(CONNECTOR_MODEL_TEXT.noGrant))
+    operation.grantGeneration = grant.generation
+    operation.scope = scope
+    if (!(await operation.writeAhead('admitted'))) return operation.refuse(auditUnavailable())
+    if (!operation.gate(['received'])) return operation.final()
+    operation.move('admitted', true)
+    return { input: parsed.data, grant, workspace: admission.workspace }
+  }
+
+  /** The call's work; an owner's failure ends it as failed, with fixed words. */
+  private async attempt(
+    operation: Operation,
+    tool: ConnectorToolSpec | undefined,
+    args: unknown,
+    signal: AbortSignal,
+  ): Promise<Outcome> {
     try {
-      // Reads fail closed when their receipt cannot be written.
-      const isAudited = await this.deps.audit.record({
-        event: 'call',
-        callId,
-        tool: tool.name,
-        toolClass: 'read',
-        grantGeneration: grant.generation,
-        ...(workspaceId !== undefined && { workspaceId }),
-      })
-      return isAudited
-        ? await this.read(name, parsed.data, grant, admission.workspace, signal)
-        : refusal('audit_unavailable', CONNECTOR_MODEL_TEXT.auditUnavailable)
-    } finally {
-      signal.removeEventListener('abort', leave)
-      leave()
+      return await this.route(operation, tool, args, signal)
+    } catch {
+      // An owner's failure text can name a path; the client gets fixed words.
+      return operation.fail(ownerFailed())
     }
   }
 
+  private async route(
+    operation: Operation,
+    tool: ConnectorToolSpec | undefined,
+    args: unknown,
+    signal: AbortSignal,
+  ): Promise<Outcome> {
+    if (!operation.isLive) return operation.final()
+    if (tool === undefined)
+      return operation.refuse(
+        refusal('unavailable', fill(CONNECTOR_MODEL_TEXT.unknownTool, { name: '' })),
+      )
+    if (tool.availability.kind === 'unavailable')
+      return operation.refuse(unavailable(CONNECTOR_MODEL_TEXT[tool.availability.reason]))
+    const name = tool.availability.tool
+    if (tool.toolClass === 'stop') return await this.stopPath(operation, tool, name, args)
+    const admitted = await this.admitCall(operation, tool, name, args)
+    if (isRefusal(admitted)) return admitted
+    if (tool.toolClass === 'write')
+      return await this.request(
+        operation,
+        tool,
+        name,
+        admitted.input,
+        admitted.grant,
+        admitted.workspace,
+        signal,
+      )
+    // A read: its lease is an effect too, gated like the rest.
+    if (!operation.gate(['admitted'])) return operation.final()
+    const entering = this.limits.enter('read', operation.id, CONNECTOR_LIMITS.requestDeadlineMs)
+    // Freed when the call ends, even when it ended before the lease was recorded.
+    operation.holdWhile(['admitted', 'dispatching'], () => {
+      void entering.then(async (isHeld) => {
+        if (isHeld) await this.limits.leave(operation.id)
+      })
+    })
+    if (!(await entering)) return operation.refuse(rateLimited())
+    if (!operation.gate(['admitted'])) return operation.final()
+    operation.move('dispatching')
+    const outcome = await this.read(
+      name,
+      admitted.input,
+      admitted.grant,
+      admitted.workspace,
+      signal,
+    )
+    return 'reason' in outcome ? operation.refuse(outcome) : outcome
+  }
+
+  /** The owner ports; each starts in the same tick as the gate that admitted it. */
   private async read(
     name: ConnectorBackedTool,
     input: unknown,
@@ -279,14 +438,27 @@ export class ConnectorRegistry implements ConnectorServer {
   ): Promise<Outcome> {
     switch (name) {
       case 'muse_operation_get': {
-        return this.operationGet(connectorInputSchemas.muse_operation_get.parse(input))
+        const { operationId } = connectorInputSchemas.muse_operation_get.parse(input)
+        const target = this.operations.get(operationId)
+        if (target === undefined) return this.notFound('operation')
+        const now = this.deps.now()
+        if (
+          target.lastPolledAt !== undefined &&
+          now - target.lastPolledAt < CONNECTOR_LIMITS.pollMinMs
+        )
+          return refusal(
+            'rate_limited',
+            fill(CONNECTOR_MODEL_TEXT.forbidden, { reason: CONNECTOR_MODEL_TEXT.reasonPoll }),
+          )
+        target.lastPolledAt = now
+        this.ledger.expireDue()
+        return { kind: 'ok', data: target.view() }
       }
       case 'muse_prompt_list': {
         const listInput = connectorInputSchemas.muse_prompt_list.parse(input)
         if (workspace === undefined && listInput.scope === 'workspace')
           return forbidden(CONNECTOR_MODEL_TEXT.reasonWorkspace)
         const prompts = await this.deps.prompts.list(workspace?.root, listInput.scope, signal)
-        signal.throwIfAborted()
         const matching = prompts.filter((prompt) =>
           isMatching(prompt, listInput.query, listInput.tags),
         )
@@ -345,7 +517,6 @@ export class ConnectorRegistry implements ConnectorServer {
         if (workspace === undefined) return forbidden(CONNECTOR_MODEL_TEXT.reasonWorkspace)
         const listInput = connectorInputSchemas.muse_schedule_list.parse(input)
         const answer = projectScheduleList(await this.deps.schedules.list(workspace.root, signal))
-        signal.throwIfAborted()
         return answer.kind === 'refused'
           ? unavailable(this.deps.scrub.text(answer.reason))
           : this.page(
@@ -382,7 +553,6 @@ export class ConnectorRegistry implements ConnectorServer {
           subjectId,
           signal,
         )
-        signal.throwIfAborted()
         return {
           kind: 'ok',
           data: { kind: report.kind, format: report.format, text },
@@ -405,7 +575,6 @@ export class ConnectorRegistry implements ConnectorServer {
       workspace === undefined ? 'user' : 'workspace',
       signal,
     )
-    signal.throwIfAborted()
     return prompts.find((prompt) => prompt.id === promptId)
   }
 
@@ -454,329 +623,225 @@ export class ConnectorRegistry implements ConnectorServer {
     return { kind: 'ok', data: wrap(slice), ...(nextCursor !== undefined && { nextCursor }) }
   }
 
-  private operationGet(input: ConnectorInput<'muse_operation_get'>): Outcome {
-    const record = this.operations.get(input.operationId)
-    if (record === undefined) return this.notFound('operation')
-    const now = this.deps.now()
-    if (record.lastPolledAt !== undefined && now - record.lastPolledAt < CONNECTOR_LIMITS.pollMinMs)
-      return refusal(
-        'rate_limited',
-        fill(CONNECTOR_MODEL_TEXT.forbidden, { reason: CONNECTOR_MODEL_TEXT.reasonPoll }),
-      )
-    record.lastPolledAt = now
-    this.ledger.expireDue()
-    return { kind: 'ok', data: this.operationView(record) }
-  }
-
-  private operationView(record: OperationRecord) {
-    return {
-      operationId: record.id,
-      tool: record.tool,
-      state: record.state,
-      ...(record.reason !== undefined && { reason: record.reason }),
-      ...(record.result !== undefined && { result: record.result }),
-      updatedAt: new Date(record.updatedAt).toISOString(),
-    }
-  }
-
-  /** A write request: inert until our page approves this exact intent. */
+  /**
+   * A write request: inert until our page approves this exact intent. The
+   * call's own operation becomes the kept operation the client polls; each
+   * effect on the way (the claim, the pending lease, the intent) is gated.
+   */
   private async request(
-    name: ConnectorBackedTool,
+    operation: Operation,
     tool: ConnectorToolSpec,
+    name: ConnectorBackedTool,
     input: unknown,
     grant: ConnectorGrant,
     workspace: ConnectorWorkspaceGrant | undefined,
-    callId: string,
     signal: AbortSignal,
   ): Promise<Outcome> {
-    if (name !== 'muse_prompt_save') return unavailable(CONNECTOR_MODEL_TEXT.reasonScheduleGrant)
+    if (name !== 'muse_prompt_save')
+      return operation.refuse(unavailable(CONNECTOR_MODEL_TEXT.reasonScheduleGrant))
     const save = connectorInputSchemas.muse_prompt_save.parse(input)
     if (workspace === undefined && save.scope === 'workspace')
-      return forbidden(CONNECTOR_MODEL_TEXT.reasonWorkspace)
+      return operation.refuse(forbidden(CONNECTOR_MODEL_TEXT.reasonWorkspace))
     const draft = { scope: save.scope, title: save.title, body: save.body, tags: save.tags ?? [] }
-    if (!isDraftWithinLimits(draft)) return invalid('prompt limits')
+    if (!isDraftWithinLimits(draft)) return operation.refuse(invalid('prompt limits'))
     const payload = { ...draft, workspaceId: save.workspaceId }
     const digest = await this.deps.audit.digest(payload)
-    if (signal.aborted || this.isClosed) return unavailable('cancelled')
-    const claim = this.operations.claim(tool.name, save.requestId, save.workspaceId, digest)
-    if (claim.kind === 'conflict') return invalid(CONNECTOR_MODEL_TEXT.reasonRequestReused)
-    if (claim.kind === 'full') return refusal('rate_limited', CONNECTOR_MODEL_TEXT.rateLimited)
-    // A retry gets the operation's real state, never an invented pending one.
-    if (claim.kind === 'same')
-      return claim.record.state === 'awaitingApproval'
-        ? { kind: 'pending', operationId: claim.record.id }
-        : { kind: 'ok', data: this.operationView(claim.record) }
-    const record = claim.record
-    let intentId: string | undefined
-    // Every failure settles the claimed operation; nothing is left awaiting approval.
-    const end = (reason: ConnectorReason | undefined, outcome: Refusal): Refusal => {
-      if (intentId !== undefined) {
-        this.ledger.cancel(intentId)
-        this.dispatches.delete(intentId)
-        this.deps.surface.changed()
-      }
-      void this.limits.leave(record.id)
-      this.operations.move(
-        record.id,
-        ['awaitingApproval'],
-        reason === undefined ? 'cancelled' : 'failed',
-        reason === undefined ? {} : { reason },
-      )
-      return outcome
+    if (!operation.gate(['admitted'])) return operation.final()
+    const claim = this.operations.claim(operation, `${tool.name}\u{0}${save.requestId}`, digest)
+    if (claim.kind === 'conflict')
+      return operation.refuse(invalid(CONNECTOR_MODEL_TEXT.reasonRequestReused))
+    if (claim.kind === 'full') return operation.refuse(rateLimited())
+    // A retry answers the kept operation's real state; this call is a status read.
+    if (claim.kind === 'same') {
+      operation.move('dispatching')
+      return claim.operation.state === 'awaitingApproval'
+        ? { kind: 'pending', operationId: claim.operation.id }
+        : { kind: 'ok', data: claim.operation.view() }
     }
-    // A cancelled, timed-out or disconnected call opens nothing (rechecked after every await).
-    const isGone = () => signal.aborted || this.isClosed
-    const gone = () => end(undefined, unavailable('cancelled'))
     const root = workspace?.root
-    try {
-      const generation = libraryGeneration(await this.deps.prompts.list(root, save.scope, signal))
-      if (isGone()) return gone()
-      if (generation !== save.expectedGeneration)
-        return end('stale_target', this.stale(save.expectedGeneration))
-      // Paid authority is zero in the local phase (Q-M124.4); this tool is free.
-      const binding: ApprovalBinding = {
-        principal: `${this.deps.connectionId}/${this.principal}`,
-        grantGeneration: grant.generation,
-        workspaceId: save.workspaceId,
-        tool: tool.name,
-        toolClass: 'write',
-        payload,
-        targetGeneration: generation,
-        priceMicrousd: 0,
-      }
-      // The intent is durable in the audit before anything can approve it.
-      const isAudited = await this.deps.audit.record({
-        event: 'awaitingApproval',
-        callId,
-        tool: tool.name,
-        toolClass: 'write',
-        grantGeneration: grant.generation,
-        operationId: record.id,
-        payloadDigest: digest,
-        ...(save.workspaceId !== undefined && { workspaceId: save.workspaceId }),
+    const generation = libraryGeneration(await this.deps.prompts.list(root, save.scope, signal))
+    if (!operation.gate(['admitted'])) return operation.final()
+    if (generation !== save.expectedGeneration)
+      return operation.refuse(this.stale(save.expectedGeneration))
+    // The intent is durable in the journal before anything can approve it.
+    if (!(await operation.writeAhead('awaitingApproval')))
+      return operation.refuse(auditUnavailable())
+    if (!operation.gate(['admitted'])) return operation.final()
+    const entering = this.limits.enter('pending', operation.id, CONNECTOR_LIMITS.approvalLeaseMs)
+    operation.holdWhile(['admitted', 'awaitingApproval'], () => {
+      void entering.then(async (isHeld) => {
+        if (isHeld) await this.limits.leave(operation.id)
       })
-      if (isGone()) return gone()
-      if (!isAudited)
-        return end(
-          'audit_unavailable',
-          refusal('audit_unavailable', CONNECTOR_MODEL_TEXT.auditUnavailable),
-        )
-      const isAdmitted = await this.limits.enter(
-        'pending',
-        record.id,
-        CONNECTOR_LIMITS.approvalLeaseMs,
-      )
-      if (isGone()) return gone()
-      intentId = isAdmitted
-        ? this.ledger.open(binding, {
-            client: this.client,
-            connectionId: this.deps.connectionId,
-            workspace: workspace?.label ?? 'user',
-            tool: tool.name,
-            toolClass: 'write',
-            generation,
-            priceMicrousd: 0,
-            fields: [
-              { label: 'title', value: draft.title },
-              { label: 'scope', value: draft.scope },
-              { label: 'tags', value: draft.tags.join(', ') },
-              { label: 'body', value: draft.body },
-            ],
-          })
-        : undefined
-      if (intentId === undefined)
-        return end('rate_limited', refusal('rate_limited', CONNECTOR_MODEL_TEXT.rateLimited))
-      record.intentId = intentId
-      this.dispatches.set(intentId, this.dispatcher(record, intentId, binding, draft, root))
-      this.deps.surface.changed()
-      const isShown = await this.deps.surface.show()
-      if (isGone()) return gone()
-      return isShown
-        ? { kind: 'pending', operationId: record.id }
-        : end(
-            'approval_unavailable',
-            refusal('approval_unavailable', CONNECTOR_MODEL_TEXT.approvalUnavailable),
-          )
-    } catch {
-      return end('unavailable', unavailable('owner failed'))
+    })
+    if (!(await entering)) return operation.refuse(rateLimited())
+    if (!operation.gate(['admitted'])) return operation.final()
+    // Paid authority is zero in the local phase (Q-M124.4); this tool is free.
+    const binding: ApprovalBinding = {
+      principal: `${this.deps.connectionId}/${this.principal}`,
+      grantGeneration: grant.generation,
+      workspaceId: save.workspaceId,
+      tool: tool.name,
+      toolClass: 'write',
+      payload,
+      targetGeneration: generation,
+      priceMicrousd: 0,
     }
+    const intentId = this.ledger.open(binding, {
+      client: this.client,
+      connectionId: this.deps.connectionId,
+      workspace: workspace?.label ?? 'user',
+      tool: tool.name,
+      toolClass: 'write',
+      generation,
+      priceMicrousd: 0,
+      fields: [
+        { label: 'title', value: draft.title },
+        { label: 'scope', value: draft.scope },
+        { label: 'tags', value: draft.tags.join(', ') },
+        { label: 'body', value: draft.body },
+      ],
+    })
+    if (intentId === undefined) return operation.refuse(rateLimited())
+    operation.intentId = intentId
+    this.plans.set(intentId, { binding, draft, root, intentId })
+    // Until the write starts, any end withdraws the intent from the page.
+    operation.holdWhile(['admitted', 'awaitingApproval', 'approved'], () => {
+      this.plans.delete(intentId)
+      this.ledger.cancel(intentId)
+      this.deps.surface.changed()
+    })
+    operation.move('awaitingApproval', true)
+    this.deps.surface.changed()
+    const isShown = await this.deps.surface.show()
+    return isShown
+      ? { kind: 'pending', operationId: operation.id }
+      : operation.refuse(refusal('approval_unavailable', CONNECTOR_MODEL_TEXT.approvalUnavailable))
+  }
+
+  /** Our page's settlement of an intent: approval dispatches, denial and expiry cancel. */
+  private decided(intentId: string, outcome: 'approved' | 'denied' | 'expired'): void {
+    const operation = this.operations.byIntent(intentId)
+    if (operation === undefined) return
+    const plan = this.plans.get(intentId)
+    if (outcome !== 'approved') operation.cancel(outcome)
+    else if (plan !== undefined && operation.move('approved')) void this.dispatch(operation, plan)
   }
 
   /**
-   * The approved intent's work. Ordered: the approval is consumed and the
-   * operation moves to running in one step (no await between), the
-   * dispatch receipt is written, and the effect starts only if Stop has
-   * not cancelled the operation meanwhile. It never rejects.
+   * The approved write. The dispatch receipt is written ahead; then the
+   * authority and the target are read again; then the final gate and the
+   * one-use approval's compare-and-swap; then the write starts in that same
+   * tick. Revocation, the kill switch, a disconnect, Stop or a policy change
+   * at any point before the gate leaves no write. It never rejects.
    */
-  private dispatcher(
-    record: OperationRecord,
-    intentId: string,
-    binding: ApprovalBinding,
-    draft: PromptDraftInput,
-    root: string | undefined,
-  ): () => Promise<void> {
-    const { tool } = record
-    return async () => {
-      try {
-        const current = await this.deps.grant()
-        const isKilled = await this.deps.killed()
-        const live = libraryGeneration(await this.deps.prompts.list(root, draft.scope))
-        // Re-read everything at dispatch; any change refuses (CAS on the binding).
-        const isCurrent =
-          current !== undefined &&
-          !current.revoked &&
-          !isKilled &&
-          current.scopes.includes('prompts:write') &&
-          this.ledger.consume(intentId, {
-            ...binding,
-            grantGeneration: current.generation,
-            targetGeneration: live,
-          })
-        if (!isCurrent || !this.operations.move(record.id, ['awaitingApproval'], 'running')) {
-          this.ledger.cancel(intentId)
-          this.operations.move(record.id, ['awaitingApproval'], 'cancelled', {
-            reason: 'stale_target',
-          })
-          return
-        }
-        const isDispatched = await this.deps.audit.record({
-          event: 'dispatched',
-          tool,
-          operationId: record.id,
-          payloadDigest: record.payloadDigest,
-        })
-        if (!isDispatched) {
-          this.operations.move(record.id, ['running'], 'failed', { reason: 'audit_unavailable' })
-          return
-        }
-        // Stop cancelled it while the receipt was written: no effect.
-        if (record.state !== 'running') return
-        record.isEffectStarted = true
-        const prompt = newPrompt(draft, new Date(this.deps.now()).toISOString())
-        await this.deps.prompts.write(root, prompt)
-        this.operations.move(record.id, ['running'], 'completed', {
-          result: this.deps.scrub.leaves({
-            promptId: prompt.id,
-            generation: promptGeneration(prompt),
-            untrusted: true,
-          }),
-        })
-        void this.deps.audit.record({ event: 'completed', tool, operationId: record.id })
-      } catch {
-        this.ledger.cancel(intentId)
-        this.operations.move(record.id, ['awaitingApproval', 'running'], 'failed', {
-          reason: 'unavailable',
-        })
-        void this.deps.audit.record({ event: 'failed', tool, operationId: record.id })
+  private async dispatch(operation: Operation, plan: WritePlan): Promise<void> {
+    try {
+      if (!(await operation.writeAhead('dispatching'))) {
+        operation.fail(auditUnavailable())
+        return
       }
+      await this.refresh()
+      const live = libraryGeneration(await this.deps.prompts.list(plan.root, plan.draft.scope))
+      // The final gate: nothing awaits between here and the write's start.
+      if (!operation.gate(['approved'])) return
+      if (
+        !this.ledger.consume(plan.intentId, {
+          ...plan.binding,
+          grantGeneration: this.view.grant?.generation ?? -1,
+          targetGeneration: live,
+        })
+      ) {
+        operation.cancel(this.ledger.stateOf(plan.intentId) === 'expired' ? 'expired' : 'stale')
+        return
+      }
+      operation.move('dispatching', true)
+      const prompt = newPrompt(plan.draft, new Date(this.deps.now()).toISOString())
+      await this.deps.prompts.write(plan.root, prompt)
+      operation.result = this.deps.scrub.leaves({
+        promptId: prompt.id,
+        generation: promptGeneration(prompt),
+        untrusted: true,
+      })
+      operation.move('settled')
+    } catch {
+      operation.fail(ownerFailed())
     }
   }
 
-  /** A settled intent: approval dispatches, denial and expiry end the operation. */
-  private settled(intentId: string, outcome: 'approved' | 'denied' | 'expired'): void {
-    const record = this.operations.byIntent(intentId)
-    const dispatch = this.dispatches.get(intentId)
-    this.dispatches.delete(intentId)
-    if (record === undefined) return
-    void this.limits.leave(record.id)
-    void this.deps.audit.record({ event: outcome, tool: record.tool, operationId: record.id })
-    if (outcome === 'approved' && dispatch !== undefined) {
-      void dispatch()
-      return
-    }
-    this.operations.move(
-      record.id,
-      ['awaitingApproval'],
-      outcome === 'denied' ? 'cancelled' : 'expired',
-      {
-        reason: outcome === 'denied' ? 'denied' : 'expired',
-      },
-    )
-  }
-
-  /** Disconnect and the kill switch: every unsettled intent is cancelled. */
-  private cancelPending(): void {
-    for (const intentId of this.ledger.cancelAll()) {
-      this.dispatches.delete(intentId)
-      const record = this.operations.byIntent(intentId)
-      if (record === undefined) continue
-      void this.limits.leave(record.id)
-      this.operations.move(record.id, ['awaitingApproval'], 'cancelled', { reason: 'denied' })
-    }
-    this.deps.surface.changed()
+  /** Stop's and schedule cancel's admission: the grant only, never limits or the journal. */
+  private admitControl(
+    operation: Operation,
+    tool: ConnectorToolSpec,
+    scope: OperationScope,
+  ): Refusal | { readonly workspace: ConnectorWorkspaceGrant | undefined } {
+    const { grant } = this.view
+    const admission = admit(grant, tool, scope, this.deps.confidential)
+    if (isRefusal(admission)) return operation.refuse(admission)
+    if (grant === undefined) return operation.refuse(forbidden(CONNECTOR_MODEL_TEXT.noGrant))
+    operation.grantGeneration = grant.generation
+    operation.scope = scope
+    // Best effort: a failed journal never holds Stop back.
+    operation.move('admitted')
+    return admission
   }
 
   /**
    * Stop's reserved path: authenticated by the grant, never queued or
-   * limited. Ownership resolves first: an operation this connection owns in
-   * the user library stops without a workspace grant.
+   * limited. Its authority follows the target operation's own scope: a
+   * user-library operation stops with the user-library grant, whatever
+   * workspace its save named.
    */
   private async stopPath(
-    name: ConnectorBackedTool,
+    operation: Operation,
     tool: ConnectorToolSpec,
+    name: ConnectorBackedTool,
     args: unknown,
-    callId: string,
   ): Promise<Outcome> {
     const parsed = connectorInputSchemas[name].safeParse(args ?? {})
-    let outcome: Outcome
-    if (!parsed.success) outcome = invalid(issueOf(parsed.error))
-    else if (name === 'muse_stop') {
+    if (!parsed.success) return operation.refuse(invalid(issueOf(parsed.error)))
+    await this.refresh()
+    if (name === 'muse_stop') {
       const stop = connectorInputSchemas.muse_stop.parse(parsed.data)
-      const record =
+      const target =
         stop.target.kind === 'operation' ? this.operations.get(stop.target.id) : undefined
-      const admission = admit(
-        await this.deps.grant(),
+      const owned = target?.scope?.workspaceId
+      if (owned !== undefined && stop.workspaceId !== undefined && stop.workspaceId !== owned)
+        return operation.refuse(this.notFound('operation'))
+      const admitted = this.admitControl(
+        operation,
         tool,
-        { workspaceId: record === undefined ? stop.workspaceId : record.workspaceId },
-        this.deps.confidential,
+        target?.scope ?? { workspaceId: stop.workspaceId },
       )
-      if (isRefusal(admission)) outcome = admission
-      else if (stop.target.kind !== 'operation')
-        outcome = unavailable(CONNECTOR_MODEL_TEXT.reasonNoRunPort)
-      else if (record?.workspaceId !== undefined && record.workspaceId !== stop.workspaceId)
-        outcome = this.notFound('operation')
-      else {
-        if (record?.intentId !== undefined && this.ledger.cancel(record.intentId)) {
-          this.dispatches.delete(record.intentId)
-          void this.limits.leave(record.id)
-          this.deps.surface.changed()
-        }
-        outcome = { kind: 'ok', data: { outcome: this.operations.stop(stop.target.id) } }
-      }
-    } else {
-      const cancel = connectorInputSchemas.muse_schedule_cancel.parse(parsed.data)
-      const admission = admit(
-        await this.deps.grant(),
-        tool,
-        { workspaceId: cancel.workspaceId },
-        this.deps.confidential,
-      )
-      const root = isRefusal(admission) ? undefined : admission.workspace?.root
-      if (isRefusal(admission)) outcome = admission
-      else if (root === undefined) outcome = forbidden(CONNECTOR_MODEL_TEXT.reasonWorkspace)
-      else {
-        const answer = projectSchedulePause(
-          await this.deps.schedules.pause(root, cancel.scheduleId),
-        )
-        outcome =
-          answer.kind === 'ok'
-            ? { kind: 'ok', data: { outcome: answer.value } }
-            : unavailable(this.deps.scrub.text(answer.reason))
-      }
+      if (isRefusal(admitted)) return admitted
+      if (stop.target.kind !== 'operation')
+        return operation.refuse(unavailable(CONNECTOR_MODEL_TEXT.reasonNoRunPort))
+      if (!operation.gate(['admitted'])) return operation.final()
+      operation.move('dispatching')
+      return { kind: 'ok', data: { outcome: target?.stop() ?? 'unknown' } }
     }
-    // Best effort: a failed journal never holds Stop back.
-    void this.deps.audit.record({
-      event: 'stopped',
-      callId,
-      tool: tool.name,
-      toolClass: 'stop',
-      ...('reason' in outcome && { reason: outcome.reason }),
-    })
-    return outcome
+    const cancel = connectorInputSchemas.muse_schedule_cancel.parse(parsed.data)
+    const admitted = this.admitControl(operation, tool, { workspaceId: cancel.workspaceId })
+    if (isRefusal(admitted)) return admitted
+    const root = admitted.workspace?.root
+    if (root === undefined) return operation.refuse(forbidden(CONNECTOR_MODEL_TEXT.reasonWorkspace))
+    if (!operation.gate(['admitted'])) return operation.final()
+    operation.move('dispatching')
+    const answer = projectSchedulePause(await this.deps.schedules.pause(root, cancel.scheduleId))
+    return answer.kind === 'ok'
+      ? { kind: 'ok', data: { outcome: answer.value } }
+      : operation.refuse(unavailable(this.deps.scrub.text(answer.reason)))
   }
 
-  /** The envelope, scrubbed leaf by leaf and then as a whole, within the result bound. */
-  private answer(callId: string, outcome: Outcome, protocolVersion: string): ConnectorCallResult {
+  /**
+   * The envelope, scrubbed leaf by leaf and then as a whole, within the
+   * result bound; a result over the bound or changed by the final scrub
+   * becomes a refusal, which the caller records as the call's end.
+   */
+  private render(
+    callId: string,
+    outcome: Outcome,
+    protocolVersion: string,
+  ): { readonly result: ConnectorCallResult; readonly refusal?: Refusal } {
     const base = {
       schemaVersion: CONNECTOR_SCHEMA_VERSION,
       callId,
@@ -822,15 +887,50 @@ export class ConnectorRegistry implements ConnectorServer {
       new TextEncoder().encode(JSON.stringify(result(envelope, text))).byteLength <=
         CONNECTOR_LIMITS.resultBytes
     )
-      return result(envelope, text)
-    const refused: Envelope = {
-      ...base,
-      status: 'refused',
-      reason: text === undefined ? 'forbidden' : 'unavailable',
-      message: text === undefined ? CONNECTOR_MODEL_TEXT.withheld : CONNECTOR_MODEL_TEXT.tooLarge,
-      limitations: [],
+      return { result: result(envelope, text) }
+    const withheld =
+      text === undefined
+        ? refusal('forbidden', CONNECTOR_MODEL_TEXT.withheld)
+        : refusal('unavailable', CONNECTOR_MODEL_TEXT.tooLarge)
+    const refused: Envelope = { ...base, status: 'refused', ...withheld, limitations: [] }
+    return { result: result(refused, JSON.stringify(refused)), refusal: withheld }
+  }
+
+  /**
+   * The reply. A kept write answers with what its operation is now. Every
+   * other call is delivered only through the gate: the authority is read
+   * again (Stop excepted: its effect is done) and a call it stopped answers
+   * its own refusal; the delivered result's end is its one terminal receipt.
+   */
+  private async deliver(
+    operation: Operation,
+    /** The call's answer, or the operation itself when it ended first. */
+    outcome: Outcome | Operation,
+    protocolVersion: string,
+  ): Promise<ConnectorCallResult> {
+    const id = operation.id
+    if (this.operations.get(id) === operation) {
+      operation.check()
+      operation.detach()
+      if (operation.state === 'awaitingApproval')
+        return this.render(id, { kind: 'pending', operationId: id }, protocolVersion).result
+      return this.render(
+        id,
+        operation.state === 'settled' || operation.isLive
+          ? { kind: 'ok', data: operation.view() }
+          : operation.final(),
+        protocolVersion,
+      ).result
     }
-    return result(refused, JSON.stringify(refused))
+    if (outcome instanceof Operation || 'reason' in outcome || !operation.isLive)
+      return this.render(id, operation.final(), protocolVersion).result
+    if (operation.tool?.toolClass !== 'stop') await this.refresh()
+    if (!operation.gate(['dispatching']))
+      return this.render(id, operation.final(), protocolVersion).result
+    const rendered = this.render(id, outcome, protocolVersion)
+    if (rendered.refusal === undefined) operation.move('settled')
+    else operation.refuse(rendered.refusal)
+    return rendered.result
   }
 
   /** The approval page's authenticated decision; the only caller of `decide`. */
@@ -893,51 +993,45 @@ export class ConnectorRegistry implements ConnectorServer {
     protocolVersion: string,
     signal: AbortSignal,
   ): Promise<ConnectorCallResult> {
-    const callId = newId()
     const tool = connectorTool(name)
-    let outcome: Outcome
-    if (tool === undefined)
-      outcome = refusal('unavailable', fill(CONNECTOR_MODEL_TEXT.unknownTool, { name: '' }))
-    else if (tool.availability.kind === 'unavailable')
-      outcome = unavailable(CONNECTOR_MODEL_TEXT[tool.availability.reason])
-    else if (this.isClosed) outcome = unavailable('disconnected')
-    // Stop's reserved path: no limiter, no kill switch, no approval, no audit gate.
-    else if (tool.toolClass === 'stop')
-      return this.answer(
-        callId,
-        await this.stopPath(tool.availability.tool, tool, args, callId),
-        protocolVersion,
-      )
-    else {
-      // One deadline bounds the whole ordinary call, admission and audit included.
-      const expiry = new AbortController()
-      const timer = setTimeout(() => {
-        expiry.abort()
-      }, CONNECTOR_LIMITS.requestDeadlineMs)
-      const bound = AbortSignal.any([signal, expiry.signal])
-      try {
-        outcome = await bounded(
-          this.route(tool, tool.availability.tool, args, callId, bound),
-          bound,
-        )
-      } finally {
-        clearTimeout(timer)
-      }
+    const operation = this.open(tool)
+    // One deadline bounds the whole call, admission and receipts included.
+    const expiry = new AbortController()
+    const timer = setTimeout(() => {
+      expiry.abort(DEADLINE)
+    }, CONNECTOR_LIMITS.requestDeadlineMs)
+    const bound = AbortSignal.any([signal, expiry.signal])
+    operation.attach(bound)
+    try {
+      // The call's answer, or its end when the authority stopped it first (a hung owner port included).
+      const first = await Promise.race([
+        this.attempt(operation, tool, args, bound),
+        operation.ended,
+      ])
+      return await this.deliver(operation, first, protocolVersion)
+    } finally {
+      clearTimeout(timer)
+      operation.detach()
     }
-    // Every refusal leaves a receipt (an unknown tool's name is the client's, so it is left out).
-    if ('reason' in outcome)
-      void this.deps.audit.record({
-        event: 'refused',
-        callId,
-        ...(tool !== undefined && { tool: tool.name, toolClass: tool.toolClass }),
-        reason: outcome.reason,
-      })
-    return this.answer(callId, outcome, protocolVersion)
   }
 
-  /** Disconnect: no call is admitted again, and every unanswered intent is cancelled. */
+  /** A frame refused before any call existed: its receipt carries the JSON-RPC code only. */
+  public transport(code: number): void {
+    void this.deps.audit.record({
+      event: 'transport',
+      rpcCode: code,
+      reason: code === CONNECTOR_RPC_ERRORS.busy ? 'rate_limited' : 'invalid_input',
+    })
+  }
+
+  /** Resolves when the journal can take more receipts (the transport waits for it). */
+  public ready(): Promise<void> {
+    return this.deps.audit.ready()
+  }
+
+  /** Disconnect: no call is admitted again, and every live operation that has not started its effect stops. */
   public disconnect(): void {
     this.isClosed = true
-    this.cancelPending()
+    for (const operation of this.live) operation.check()
   }
 }

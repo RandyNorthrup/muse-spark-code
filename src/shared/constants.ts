@@ -7915,6 +7915,23 @@ export const CONNECTOR_LIMITS = {
   controlTasks: 4,
   /** 1 MiB of replies a client has not read yet before it is disconnected. */
   outputQueueBytes: 1_048_576,
+  /** Receipts being written before the transport reads another frame. */
+  auditBacklog: 64,
+  /** A receipt not durable by then failed; the journal counts as failed until it answers. */
+  auditTimeoutMs: 5000,
+  // The limits file's lock: the M123 PR store's storeLock protocol (store.ts).
+  /** How long a holder holds, on its own monotonic clock. */
+  lockLeaseMs: 2000,
+  /** The longest lease of another process a waiter waits out. */
+  lockHonoredMs: 10_000,
+  /** How long a lock without a readable note is watched before it counts as a crash's. */
+  lockTornMs: 250,
+  lockWaitMs: 3000,
+  lockPollMs: 10,
+  /** Two readings of one process's start time agree within this. */
+  processStartToleranceMs: 1000,
+  /** Linux's clock ticks per second in /proc/<pid>/stat (USER_HZ). */
+  linuxClockTicks: 100,
 } as const
 export const CONNECTOR_COMPANION_LIMITS = {
   /** 4 KiB. */
@@ -7999,6 +8016,10 @@ export const CONNECTOR_MODEL_TEXT = {
   reasonScope: 'the connection grant does not include {scope}',
   reasonConfidential: 'the workspace is confidential',
   reasonGeneration: 'the target changed since generation {generation}',
+  reasonRevoked: 'the connection grant was revoked or changed',
+  reasonDenied: 'the owner denied it',
+  reasonExpired: 'the approval expired',
+  reasonStale: 'the target changed after the approval',
   reasonRequestReused: 'the request id was already used with different input',
   reasonNotFound: 'no such {kind} in the granted scope',
   reasonPoll: 'poll at most every 2 seconds',
