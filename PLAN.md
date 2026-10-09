@@ -19012,6 +19012,18 @@ the slow one.
 
 ## 3. Open questions (need the owner)
 
+- **Q-CIFIXM-HOSTED-ERRORS (2026-10-09, macbook):** log downloads for
+  hosted run 37897298018 return HTTP 403. The two owned M114 browser suites
+  pass three times here (159 cases per run, repository deadlines); no visual or
+  product change is justified by the available evidence. Exact panel and
+  Dracula forced-colors failure text is needed to isolate the hosted cause.
+  Original-head static checks reproduce four import cycles and one fixture
+  clone, already repaired in the supplied integration base; readable job
+  metadata cannot establish its first failing gate line. The reporting and
+  schedule fixture repairs, drills and remaining checks are recorded in
+  `docs/certification/cifixm-macos-ci.md`. The lead's next hosted replay and
+  exact error text close this evidence gap; no assertion or gate is waived.
+
 - **Q-FIX0160X-LINUX-ARTIFACTS (2026-10-07, macmini):** this worktree has
   no real x64 or arm64 `muse-created` build artifacts. Its universal Darwin
   helper builds and verifies successfully. A shared source for the two Linux
@@ -37793,6 +37805,15 @@ not a compiler failure. Log downloads return HTTP 403; readable job metadata
 and local reproductions are the evidence. Results and red drills live in
 `docs/certification/cifixm-macos-ci.md`. Combined quality, build/deferred
 bundle/cycle repairs and visual baselines remain with their assigned lanes.
+Reporting/schedule fixtures are corrected and drilled: the final CI-mode
+batches pass all 191 owning tests with unchanged deadlines. Actual native
+compilation and local permission-free checks pass. Current typechecks,
+build, cycles, duplication, lint, tokens, localization, reference, host API,
+plan and roadmap checks pass. `check:badges` receives gzip bytes at its remote
+JSON boundary and fails; retain its strict check for the lead's permitted
+network environment. Q-CIFIXM-HOSTED-ERRORS retains the unavailable hosted
+browser traces. G84 records the in-flight commit/edit hazard; its future
+M96c/M116 enforcement is not claimed here.
 
 **MERGESPAWN (2026-10-08).** `rel017/spawn4` is merged into `release/0.17.0`
 with both sides' behaviour; the reporting bundles now share resource
