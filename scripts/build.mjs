@@ -165,6 +165,8 @@ const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
 const AGENT_IMPORT_OUTFILE = 'dist/agentImport.js'
 const CONVERSATION_GIT_ENTRY = 'src/host/git/conversationGitEntry.ts'
 const CONVERSATION_GIT_OUTFILE = 'dist/conversationGit.js'
+const MODEL_API_SESSIONS_ENTRY = 'src/host/backend/fileSessionStoreEntry.ts'
+const MODEL_API_SESSIONS_OUTFILE = 'dist/modelApiSessions.js'
 const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
@@ -749,6 +751,15 @@ const conversationGitOptions = {
   target: HOST_NODE_TARGET,
 }
 
+// The Model API backend's session store (D14), required when its host is
+// first built: the store, its budget journal and the stored-session schemas.
+/** @type {import('esbuild').BuildOptions} */
+const modelApiSessionsOptions = {
+  ...conversationGitOptions,
+  entryPoints: [MODEL_API_SESSIONS_ENTRY],
+  outfile: MODEL_API_SESSIONS_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
@@ -1192,6 +1203,7 @@ if (isWatch) {
     esbuild.context(screenRecordOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
+    esbuild.context(modelApiSessionsOptions),
     esbuild.context(bundledSkillsOptions),
     esbuild.context(legalScanOptions),
     esbuild.context(codeIntelOptions),
@@ -1303,6 +1315,7 @@ if (isWatch) {
     screenRecord: esbuild.build(screenRecordOptions),
     agentImport: esbuild.build(agentImportOptions),
     conversationGit: esbuild.build(conversationGitOptions),
+    modelApiSessions: esbuild.build(modelApiSessionsOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),
     legalScan: esbuild.build(legalScanOptions),
     codeIntel: esbuild.build(codeIntelOptions),
@@ -1430,6 +1443,7 @@ if (isWatch) {
   reportSize(SCREEN_RECORD_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(CONVERSATION_GIT_OUTFILE)
+  reportSize(MODEL_API_SESSIONS_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(LEGAL_SCAN_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)

@@ -3767,6 +3767,8 @@ export const SEARCH_WORKER_FILE = 'searchWorker.js'
 // loaded when that backend first starts, not at activation.
 export const CONVERSATION_BUNDLE_FILE = 'conversation.js'
 export const MODEL_API_BUNDLE_FILE = 'modelApi.js'
+// Its session store (D14), required when that backend's host is first built.
+export const MODEL_API_SESSIONS_BUNDLE_FILE = 'modelApiSessions.js'
 // The plan reader's bundle (M79, PLAN.md D6), beside dist/extension.js:
 // the panel's Markdown parser, loaded on the first plan action.
 export const PLAN_MARKDOWN_BUNDLE_FILE = 'planMarkdown.js'
@@ -5720,6 +5722,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/prompts.js',
   'dist/uiText.js',
   'dist/modelApi.js',
+  'dist/modelApiSessions.js',
   'dist/mcpPool.js',
   'dist/modelApiCodeIntel.js',
   'dist/structuredSchema.js',

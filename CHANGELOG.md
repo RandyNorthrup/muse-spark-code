@@ -80,6 +80,9 @@ happened, not what was planned; superseded entries are kept.
   governor and the usage page both load, instead of a copy in each; both stay
   inside their size budgets. Usage records read the account id from a small
   leaf instead of every account schema.
+- The Model API backend's session store loads with that backend instead of
+  at activation (its own `dist/modelApiSessions.js`), taking 24.5 KB off the
+  activation bundle; sessions are kept and read as before (ACTBUD017).
 
 ### Fixed
 
