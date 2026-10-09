@@ -220,11 +220,11 @@ describe('team caps, intensity and machine values', () => {
     const balanced: { runningPerRole: number } = TEAM_INTENSITY_LEVELS.balanced
     expect(balanced.runningPerRole).toBe(4)
     expect(TEAM_INTENSITY_LEVELS).toMatchObject({
-      minimal: { runningPerRole: 1, effortShift: -2, tokensPerTask: 100_000, dailyUsd: 2 },
-      light: { runningPerRole: 2, effortShift: -1, tokensPerTask: 200_000, dailyUsd: 5 },
-      balanced: { effortShift: 0, tokensPerTask: 400_000, dailyUsd: 10, dailyTokens: 5_000_000 },
-      heavy: { runningPerRole: 8, effortShift: 1, tokensPerTask: 800_000, dailyUsd: 25 },
-      max: { runningPerRole: 'ceiling', effortShift: 2, tokensPerTask: 1_500_000, dailyUsd: 50 },
+      minimal: { runningPerRole: 1, effortShift: -2, tokensPerTask: 100_000, dailyUsd: '2' },
+      light: { runningPerRole: 2, effortShift: -1, tokensPerTask: 200_000, dailyUsd: '5' },
+      balanced: { effortShift: 0, tokensPerTask: 400_000, dailyUsd: '10', dailyTokens: 5_000_000 },
+      heavy: { runningPerRole: 8, effortShift: 1, tokensPerTask: 800_000, dailyUsd: '25' },
+      max: { runningPerRole: 'ceiling', effortShift: 2, tokensPerTask: 1_500_000, dailyUsd: '50' },
     })
     const level: TeamIntensityLevel = TEAM_INTENSITY_DEFAULT
     expect(level).toBe('balanced')

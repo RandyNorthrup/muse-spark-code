@@ -7182,41 +7182,41 @@ export const TEAM_ROLE_BASE_EFFORT = {
 
 // One control from Minimal to Max (D75): each level sets the running caps,
 // the effort shift from the role's base, the tokens per task and the team's
-// daily budgets. `ceiling` means the computed ceiling, never hard-coded.
+// daily budgets (dollars as exact decimal text, M121). `ceiling` means the computed ceiling, never hard-coded.
 export const TEAM_INTENSITY_LEVELS = {
   minimal: {
     runningPerRole: 1,
     effortShift: -2,
     tokensPerTask: 100_000,
-    dailyUsd: 2,
+    dailyUsd: '2',
     dailyTokens: 1_000_000,
   },
   light: {
     runningPerRole: 2,
     effortShift: -1,
     tokensPerTask: 200_000,
-    dailyUsd: 5,
+    dailyUsd: '5',
     dailyTokens: 2_500_000,
   },
   balanced: {
     runningPerRole: 4,
     effortShift: 0,
     tokensPerTask: 400_000,
-    dailyUsd: 10,
+    dailyUsd: '10',
     dailyTokens: 5_000_000,
   },
   heavy: {
     runningPerRole: 8,
     effortShift: 1,
     tokensPerTask: 800_000,
-    dailyUsd: 25,
+    dailyUsd: '25',
     dailyTokens: 12_000_000,
   },
   max: {
     runningPerRole: 'ceiling',
     effortShift: 2,
     tokensPerTask: 1_500_000,
-    dailyUsd: 50,
+    dailyUsd: '50',
     dailyTokens: 25_000_000,
   },
 } as const

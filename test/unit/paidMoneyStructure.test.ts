@@ -149,7 +149,6 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   'host/usage/usagePanelEntry.ts:uncertainUsd': { category: 'trackedDebt', reason: DEBT },
   'runtime/usage/usageServiceEntry.ts:apiEquivalentUsd': { category: 'trackedDebt', reason: DEBT },
   'runtime/usage/usageServiceEntry.ts:usd': { category: 'trackedDebt', reason: DEBT },
-  'shared/constants.ts:dailyUsd': { category: 'trackedDebt', reason: DEBT },
   'shared/scheduleV2.ts:paidCapUsd': { category: 'trackedDebt', reason: DEBT },
   'shared/usageJournal.ts:apiEquivalentUsd': { category: 'trackedDebt', reason: DEBT },
   'shared/usageJournal.ts:limitUsd': { category: 'trackedDebt', reason: DEBT },
