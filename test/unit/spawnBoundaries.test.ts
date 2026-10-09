@@ -22,7 +22,9 @@ describe('SPAWN017 new spawn sites wait for resource admission', () => {
     const source = await readFile(path.resolve('src/runtime/main.ts'), 'utf8')
     expect(source).not.toContain("from 'node:child_process'")
     expect(source).toContain("await spawnResourceProcess('interactive', file, args, { env })")
-    expect(source).toContain('await handoffResourceFile(executable, args, { env: process.env })')
+    expect(source).toContain(
+      'await handoffResourceFile(executable, args, {\n      env: process.env,',
+    )
   })
 
   it('describes unavailable recorder and vault builders honestly in Help', () => {

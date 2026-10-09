@@ -168,14 +168,15 @@ describe('explicit portable launch profiles', () => {
     const stop = vi.spyOn(admission, 'stopResourceTree')
     const timeout = vi.spyOn(AbortSignal, 'timeout')
     const spawn = vi.spyOn(childProcess, 'spawn')
-    const { child } = await spawnResourceProcess(
+    const { child, handedOff } = await spawnResourceProcess(
       'handoff',
       process.execPath,
       ['-e', 'process.exit(0)'],
       { env: process.env },
     )
-    child.stdin.end()
+    child.stdin?.end()
     await once(child, 'exit')
+    await expect(handedOff).resolves.toBeUndefined()
     expect(timeout).toHaveBeenCalledWith(RESOURCE_HANDOFF_TIMEOUT_MS)
     expect(spawn).toHaveBeenCalledWith(
       process.execPath,
@@ -191,27 +192,88 @@ describe('explicit portable launch profiles', () => {
     )
   })
 
-  it('kills only a hanging handoff root when its named deadline aborts', async () => {
+  it('detaches a handoff root still running at its named deadline and counts it launched', async () => {
     const lease = fakeResourceLease()
     vi.mocked(admission.admitResource).mockResolvedValue(lease)
     const deadline = new AbortController()
     vi.spyOn(AbortSignal, 'timeout').mockReturnValue(deadline.signal)
     const stop = vi.spyOn(admission, 'stopResourceTree')
-    const { child } = await spawnResourceProcess(
+    const { child, handedOff } = await spawnResourceProcess(
       'handoff',
       process.execPath,
       ['-e', 'setInterval(()=>{},1000)'],
       { env: process.env },
     )
     try {
-      const exited = once(child, 'exit')
       deadline.abort()
-      await exited
-      expect(child.signalCode).toBe('SIGKILL')
+      await expect(handedOff).resolves.toBeUndefined()
+      // A foreground opener (xdg-open with the browser) is never killed.
+      expect(child.exitCode).toBeNull()
+      expect(child.signalCode).toBeNull()
+      expect(() => process.kill(child.pid ?? 0, 0)).not.toThrow()
       expect(stop).not.toHaveBeenCalled()
+      expect(lease.complete).toHaveBeenCalledExactlyOnceWith(true)
     } finally {
       child.kill('SIGKILL')
     }
+  })
+
+  it('stops a handoff root only for the caller’s own cancel, and fails it', async () => {
+    vi.mocked(admission.admitResource).mockResolvedValue(fakeResourceLease())
+    const cancel = new AbortController()
+    const { child, handedOff } = await spawnResourceProcess(
+      'handoff',
+      process.execPath,
+      ['-e', 'setInterval(()=>{},1000)'],
+      { env: process.env, signal: cancel.signal },
+    )
+    try {
+      const exited = once(child, 'exit')
+      cancel.abort(new Error('owner cancelled'))
+      await expect(handedOff).rejects.toThrow('owner cancelled')
+      await exited
+      expect(child.signalCode).toBe('SIGKILL')
+    } finally {
+      child.kill('SIGKILL')
+    }
+  })
+
+  it('launches a foreground handler once it starts, in its own session with no pipes', async () => {
+    const lease = fakeResourceLease()
+    vi.mocked(admission.admitResource).mockResolvedValue(lease)
+    const spawn = vi.spyOn(childProcess, 'spawn')
+    const { child, handedOff } = await spawnResourceProcess(
+      'handoff',
+      process.execPath,
+      ['-e', 'setTimeout(()=>process.exit(7),200)'],
+      { env: process.env, handoffUntil: 'spawn' },
+    )
+    try {
+      await expect(handedOff).resolves.toBeUndefined()
+      expect(spawn).toHaveBeenCalledWith(
+        process.execPath,
+        expect.any(Array),
+        expect.objectContaining({ detached: true, stdio: 'ignore' }),
+      )
+      expect(child.stdin).toBeNull()
+      expect(lease.complete).toHaveBeenCalledExactlyOnceWith(true)
+      // Its later exit, even a failing one, decides nothing.
+      await once(child, 'exit')
+      expect(lease.complete).toHaveBeenCalledOnce()
+    } finally {
+      child.kill('SIGKILL')
+    }
+  })
+
+  it('fails a foreground handler that cannot start', async () => {
+    vi.mocked(admission.admitResource).mockResolvedValue(fakeResourceLease())
+    const { handedOff } = await spawnResourceProcess(
+      'handoff',
+      path.join(tmpdir(), 'l-SPAWN017C-missing-handler'),
+      [],
+      { env: process.env, handoffUntil: 'spawn' },
+    )
+    await expect(handedOff).rejects.toThrow()
   })
 
   it('returns at the adapter’s exit while the program it opened keeps running', async () => {

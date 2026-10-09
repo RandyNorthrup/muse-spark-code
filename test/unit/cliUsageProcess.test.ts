@@ -67,15 +67,37 @@ beforeAll(async () => {
       native.execFile(process.execPath, [handler], options, callback);
     exports.spawn = (file, args, options) => {
       fs.writeFileSync(path.join(__dirname, 'open-call.json'), JSON.stringify({
-        file, args, detached: options.detached, stdio: options.stdio,
+        file: path.basename(file).replace(/[.]exe$/, ''), args,
+        detached: options.detached, stdio: options.stdio,
         hasCredentials: Object.keys(options.env).some(name => name.toUpperCase().endsWith('_API_KEY'))
       }));
       return native.spawn(process.execPath, [handler], options);
     };`,
   )
+  // The governed handoff finds its fixed adapter on absolute PATH entries; this
+  // stand-in only has to exist, since the spawn above replaces what runs.
+  mkdirSync(path.join(root, 'bin'))
+  for (const name of ['xdg-open', 'xdg-open.exe']) writeFileSync(path.join(root, 'bin', name), '')
+  const admission = path.resolve('src/core/resources/admission.ts')
   const linuxOpener: Plugin = {
     name: 'test-linux-foreground-handler',
     setup(pluginBuild) {
+      // The real launcher and handoff run; only the hand-off's admission is a
+      // granted lease (admission and the governor have their own suites).
+      pluginBuild.onResolve({ filter: /^\.\/admission$/ }, (args) =>
+        args.importer === path.resolve('src/core/resources/process.ts')
+          ? { path: 'process-admission', namespace: 'test-linux-admission' }
+          : undefined,
+      )
+      pluginBuild.onLoad(
+        { filter: /^process-admission$/, namespace: 'test-linux-admission' },
+        () => ({
+          loader: 'js',
+          resolveDir: path.dirname(admission),
+          contents: `export * from ${JSON.stringify(admission)};
+            export const admitResource = async () => ({ register() {}, complete() {}, background() {} });`,
+        }),
+      )
       pluginBuild.onLoad({ filter: /[\\/]runtime[\\/]main\.ts$/ }, (args) => {
         const source = readFileSync(args.path, 'utf8')
         const start = source.indexOf('async function openUsageBrowser(')
@@ -89,9 +111,7 @@ beforeAll(async () => {
         }
       })
       pluginBuild.onResolve({ filter: /^node:child_process$/ }, (args) =>
-        [path.resolve('src/runtime/main.ts'), path.resolve('src/host/processTree.ts')].includes(
-          args.importer,
-        )
+        args.importer === path.resolve('src/core/resources/process.ts')
           ? { path: './testLinuxOpener.cjs', external: true }
           : undefined,
       )
@@ -153,6 +173,16 @@ beforeAll(async () => {
 afterAll(() => removeFolder(fixture.root))
 
 function run(args: string[], input?: string, openerResult = 'failure', isLinux = false) {
+  // One PATH spelling (Windows calls it Path), with the stand-in opener first.
+  const inherited = Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => name.toUpperCase() !== 'PATH'),
+  )
+  const inheritedPath = Object.entries(process.env).find(
+    ([name]) => name.toUpperCase() === 'PATH',
+  )?.[1]
+  const searchPath = [isLinux ? path.join(fixture.root, 'bin') : '', inheritedPath ?? '']
+    .filter((entry) => entry !== '')
+    .join(path.delimiter)
   return spawnSync(
     process.execPath,
     [path.join(fixture.root, 'dist', isLinux ? 'acp-linux.js' : 'acp.js'), 'usage', ...args],
@@ -161,7 +191,8 @@ function run(args: string[], input?: string, openerResult = 'failure', isLinux =
       encoding: 'utf8',
       timeout: 10_000,
       env: {
-        ...process.env,
+        ...inherited,
+        PATH: searchPath,
         LANG: 'en_US.UTF-8',
         LANGUAGE: 'en',
         LC_ALL: 'en_US.UTF-8',
