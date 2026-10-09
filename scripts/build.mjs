@@ -70,6 +70,7 @@ import * as esbuild from 'esbuild'
 import { copyCatalogToDist } from './sync-provider-catalog.mjs'
 import { sharedHighlightGrammar } from './lib/highlightGrammar.mjs'
 import { deferredTeamView } from './lib/deferredTeamView.mjs'
+import { HOST_PLUGINS } from './lib/hostPlugins.mjs'
 import {
   sharedUiText,
   sharedValidation,
@@ -268,15 +269,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [
-    sharedUiText,
-    sharedValidation,
-    deferredCohort,
-    sharedWire,
-    sharedResourceAdmission,
-    deferredTeamView,
-    sharedModelApiBoundaries,
-  ],
+  plugins: [...HOST_PLUGINS],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
