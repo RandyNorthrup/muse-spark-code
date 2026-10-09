@@ -1761,18 +1761,23 @@ export const WORKTREE_RECORD_LOCK_TIMEOUT_MS = 10_000
 export const WORKTREE_RECORD_LOCK_POLL_MS = 10
 export const WORKTREE_RECORD_LOCK_LEASE_MS = 30_000
 export const WORKTREE_RECORD_LOCK_UNREADABLE_MS = 2000
-// Two readings of one process's start time agree within this; a live
-// process id whose start time is further off belongs to another process.
+// Two readings of one process's birth in epoch milliseconds (Windows,
+// macOS) agree within this; a live process id whose birth is further off
+// belongs to another process. Linux births (ticks since boot) compare exactly.
 export const PROCESS_START_TOLERANCE_MS = 1000
-// Reading another process's start time (Windows PowerShell, macOS `ps`)
-// gives up after this; Linux's `/proc/<pid>/stat` counts in these ticks.
+// Reading another process's birth (Windows PowerShell, macOS `ps`) gives
+// up after this.
 export const PROCESS_START_QUERY_TIMEOUT_MS = 10_000
-export const LINUX_CLOCK_TICKS_PER_SECOND = 100
 // A pending checkout whose folder never appeared is someone's crash after
 // this long, even while its process id looks alive (a reused id whose
 // start time cannot be read): every step before the folder exists is
 // bounded far below it (M123).
 export const PENDING_CHECKOUT_RECOVERY_MS = 60 * 60 * 1000
+// A checkout that took over a stale reservation can find the displaced
+// one's folder still in the way, just before that one notices it lost
+// and removes it: the claim is tried this many times, this far apart (M123).
+export const CHECKOUT_FOLDER_CLAIM_ATTEMPTS = 3
+export const CHECKOUT_FOLDER_CLAIM_RETRY_MS = 250
 // The newest record generations kept; older ones, and stage or retired-lock
 // files older than the sweep age (a crash's leftovers), are removed.
 export const WORKTREE_RECORD_GENERATIONS_KEPT = 8
