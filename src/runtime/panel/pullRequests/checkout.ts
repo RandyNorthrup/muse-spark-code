@@ -34,7 +34,7 @@ import {
   UNTRUSTED_CHECKOUT_MIN_GIT_MINOR,
 } from '../../../shared/constants'
 import { fill, formatBytes } from '../../../shared/l10n/text'
-import { GitHubClient, isCommitSha, type PullRequest } from '../../../core/git/github'
+import { GitHubClient, GitHubError, isCommitSha, type PullRequest } from '../../../core/git/github'
 import { repositoryLabel } from '../../../core/git/githubRemote'
 import { BlobAnswers, pullRequestCheckoutConfirmation } from '../../../core/git/heldCheckoutCore'
 import { foldName, heldTree, type HeldEntry, unsafePathReason } from '../../../core/git/heldTree'
@@ -500,7 +500,7 @@ export interface RuntimeCheckoutDeps extends RuntimePullRequestDeps {
 
 export type OpenPullRequestResult =
   | { readonly ok: true; readonly folder: string; readonly held: boolean; readonly number: number }
-  | { readonly ok: false; readonly reason: string }
+  | { readonly ok: false; readonly reason: string; readonly needsSignIn?: true }
 
 // GitHub keeps every pull request's head at this ref of the base repository.
 function pullHeadRef(number: number): string {
@@ -556,6 +556,18 @@ export class RuntimePullRequestCheckout {
     })()
   }
 
+  /** A 401 drops the stored credential, so the user signs in again. */
+  private async rejected(credential: GitHubCredential, error: unknown): Promise<boolean> {
+    if (error instanceof GitHubError && error.kind === 'signIn') {
+      const source = this.deps.tokenSources.find(
+        (candidate) => candidate.kind === credential.source,
+      )
+      await source?.rejected(credential)
+      return true
+    }
+    return false
+  }
+
   private async checkOutWith(
     credential: GitHubCredential,
     remote: GitHubRemote,
@@ -578,7 +590,12 @@ export class RuntimePullRequestCheckout {
       pullRequest = found
       isOwn = found.author.id === user.id
     } catch (error: unknown) {
-      return { ok: false, reason: `${UI_TEXT.gitHubFailed}: ${failureText(error)}` }
+      const isSignIn = await this.rejected(credential, error)
+      return {
+        ok: false,
+        reason: `${UI_TEXT.gitHubFailed}: ${failureText(error)}`,
+        ...(isSignIn && { needsSignIn: true }),
+      }
     }
     const folder = isOwn
       ? worktreeFolder(

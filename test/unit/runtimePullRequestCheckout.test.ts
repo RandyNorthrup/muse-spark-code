@@ -269,6 +269,19 @@ describe('runtime pull request checkout (M123 lane P)', () => {
     }
   })
 
+  it('drops the credential on a 401 and asks to sign in again', async () => {
+    const setup = await checkoutSetup()
+    setup.github.answer('GET', OWN_PULLS, { status: 401, body: {} })
+    const result = await setup.checkout.open('56', OWN_REMOTES, 'origin')
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.needsSignIn).toBe(true)
+    }
+    expect(setup.source.rejectedBearers).toEqual([CANARY])
+    expect(setup.git.calls.addedOwn).toHaveLength(0)
+    expect(setup.opened).toHaveLength(0)
+  })
+
   it('removes the record when the worktree cannot be added', async () => {
     const setup = await checkoutSetup({ failures: { add: true } })
     const result = await setup.checkout.open('56', OWN_REMOTES, 'origin')
