@@ -6,7 +6,13 @@ import {
   type ResourceTicket,
 } from '../../../shared/resources'
 import { PosixResourceTreeReader, type PosixTreeSnapshot, type PosixTreeSource } from './posix'
-import { parseMacProcessTable, processSampleSchema, type ProcessSample } from './posixTable'
+import {
+  MAC_PROCESS_COLUMNS,
+  MAC_PS,
+  parseMacProcessTable,
+  processSampleSchema,
+  type ProcessSample,
+} from './posixTable'
 import { coalescedTreeRead, runTreeProgram, type ResourceTreeRun } from './run'
 import { signalVerifiedPosix, type ResourceActionResult, type ResourceSignal } from './actions'
 
@@ -61,10 +67,7 @@ class MacTreeSource implements PosixTreeSource {
   }
 
   private async readTable(): Promise<ReturnType<typeof parseMacProcessTable>> {
-    const text = await (this.deps.run ?? runTreeProgram)('/bin/ps', [
-      '-axo',
-      'pid=,ppid=,pgid=,state=,time=,rss=',
-    ])
+    const text = await (this.deps.run ?? runTreeProgram)(MAC_PS, ['-axo', MAC_PROCESS_COLUMNS])
     return parseMacProcessTable(text)
   }
 
