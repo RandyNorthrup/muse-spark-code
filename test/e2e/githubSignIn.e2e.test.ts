@@ -518,6 +518,53 @@ describe('the device-flow source across windows, cancels and outages', () => {
     })
   })
 
+  it('keeps the successful rotation when the refused refresh retires first (RVM123A3 P2)', async () => {
+    const { test, store, first } = await signedIn({ expiringTokens: true })
+    const aServed = Promise.withResolvers<undefined>()
+    const bServed = Promise.withResolvers<undefined>()
+    const releaseA = Promise.withResolvers<undefined>()
+    const releaseB = Promise.withResolvers<undefined>()
+    const a = sourceFor(test, store, {
+      ...test.deps,
+      fetch: async (...request) => {
+        const answer = await test.deps.fetch(...request)
+        aServed.resolve(undefined)
+        await releaseA.promise
+        return answer
+      },
+    }).source
+    const b = sourceFor(test, store, {
+      ...test.deps,
+      fetch: async (...request) => {
+        // A spends the refresh token first, so the server rotates for A
+        // and refuses B as a duplicate spend.
+        await aServed.promise
+        const answer = await test.deps.fetch(...request)
+        bServed.resolve(undefined)
+        await releaseB.promise
+        return answer
+      },
+    }).source
+    test.clock = first.expiresAt!
+    const fromA = a.credential('silent', signal)
+    const fromB = b.credential('silent', signal)
+    await bServed.promise
+    // B's refusal lands first and retires the generation; A's successful
+    // reply is still held back.
+    releaseB.resolve(undefined)
+    await fromB
+    releaseA.resolve(undefined)
+    const rotated = await fromA
+    expect(rotated?.bearer).not.toBe(first.bearer)
+    expect(refreshes(test.server)).toHaveLength(2)
+    expect(JSON.parse(store.values.get(GITHUB_DEVICE_FLOW_SECRET_KEY)!)).toMatchObject({
+      accessToken: rotated?.bearer,
+    })
+    expect(await a.isSignedIn()).toBe(true)
+    const retry = await b.credential('silent', signal)
+    expect(retry?.bearer).toBe(rotated?.bearer)
+  })
+
   it('ends only a joined caller’s wait when that caller cancels', async () => {
     const test = await rig()
     const { source } = sourceFor(test)
@@ -929,6 +976,81 @@ describe('the sign-in generation', () => {
     test.clock = first.expiresAt! - 30 * SECOND
     expect(await source.credential('silent', signal)).toBeUndefined()
     expect(await source.isSignedIn()).toBe(false)
+  })
+
+  it('cancels a caller waiting on the final generation read instead of serving it (RVM123A3 P2)', async () => {
+    const { test, store } = await signedIn()
+    const held = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    let generations = 0
+    let finals = 0
+    const gated = {
+      ...store,
+      get: async (key: string) => {
+        if (key === GITHUB_DEVICE_FLOW_GENERATION_KEY) {
+          generations += 1
+          if (generations > 1) {
+            // The shared run's own read goes through; each caller's final
+            // Serve read waits here.
+            finals += 1
+            if (finals === 2) held.resolve(undefined)
+            await release.promise
+          }
+        }
+        return await store.get(key)
+      },
+    }
+    const { source } = sourceFor(test, gated)
+    const leaving = new AbortController()
+    const staying = new AbortController()
+    const first = source.credential('silent', leaving.signal)
+    const second = source.credential('silent', staying.signal)
+    await held.promise
+    leaving.abort()
+    release.resolve(undefined)
+    await expect(first).rejects.toThrow()
+    const kept = await second
+    expect(kept?.bearer).toBeDefined()
+    expect(await source.isSignedIn()).toBe(true)
+  })
+
+  it('cancels the CLI login waiting on the final generation read (RVM123A3 P2)', async () => {
+    const { test, store } = await signedIn()
+    const reading = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    let generations = 0
+    const gated = {
+      ...store,
+      get: async (key: string) => {
+        if (key === GITHUB_DEVICE_FLOW_GENERATION_KEY) {
+          generations += 1
+          if (generations > 1) {
+            reading.resolve(undefined)
+            await release.promise
+          }
+        }
+        return await store.get(key)
+      },
+    }
+    const { source } = sourceFor(test, gated)
+    const controller = new AbortController()
+    const out: string[] = []
+    const login = authGitHub('login', {
+      source,
+      storeName: 'the test store',
+      signal: controller.signal,
+      print: (line) => {
+        out.push(line)
+      },
+      printError: (line) => {
+        out.push(line)
+      },
+    })
+    await reading.promise
+    controller.abort()
+    release.resolve(undefined)
+    expect(await login).toBe(1)
+    expect(out).toEqual([UI_TEXT.githubSignIn.cancelled])
   })
 })
 

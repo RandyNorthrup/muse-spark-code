@@ -25,11 +25,16 @@
 // - Sign out, and any refusal that drops the pair (a 401, a refused or
 //   expired refresh), writes a new generation and only then deletes the
 //   item: nothing issued before it is readable after it, even if a late
-//   write lands afterwards.
-// - A sign-in or refresh takes the generation when it starts and stores its
-//   pair only if that is still current, then reads both back: a sign-out
-//   that slipped in between takes the pair back, and a pair another window
-//   stored over it is used instead.
+//   write lands afterwards. Sign out also moves a sign-out count beside
+//   the generation; a refusal never does.
+// - A sign-in or refresh takes the generation and the sign-out count when
+//   it starts and stores its pair only if that generation is still
+//   current, then reads both back: a sign-out that slipped in between
+//   takes the pair back, and a pair another window stored over it is used
+//   instead. When the generation moved but no sign-out came between (a
+//   concurrent refresh spent the same token first and retired it), the
+//   successful rotation is stored under the current generation instead of
+//   dropped.
 // - In one source, every check-and-write runs in one queue; concurrent
 //   callers share one refresh and one sign-in. Each caller's signal ends
 //   only its own wait; the shared run is aborted when every caller has gone.
@@ -52,6 +57,7 @@ import {
   GITHUB_AUTHORIZED_APP_URL,
   GITHUB_DEVICE_FLOW_SECRET_KEY,
   GITHUB_DEVICE_FLOW_GENERATION_KEY,
+  GITHUB_DEVICE_FLOW_SIGN_OUT_EPOCH_KEY,
   GITHUB_STORED_TOKEN_VERSION,
   GITHUB_TOKEN_REFRESH_MARGIN_MS,
 } from '../../shared/constants'
@@ -179,6 +185,12 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
     const value = await deps.store.get(GITHUB_DEVICE_FLOW_GENERATION_KEY)
     return value === undefined || value === '' ? null : value
   }
+  /** Sign outs since the first generation; a refusal never moves it. */
+  const signOutEpoch = async (): Promise<number> => {
+    const value = await deps.store.get(GITHUB_DEVICE_FLOW_SIGN_OUT_EPOCH_KEY)
+    const epoch = value === undefined || value === '' ? NaN : Number(value)
+    return Number.isSafeInteger(epoch) && epoch >= 0 ? epoch : 0
+  }
   /** The pair in `text` if it was issued under `current`; the only way a stored pair is read. */
   const readable = (text: string | undefined, current: Generation): StoredTokens | undefined => {
     const stored = parseStored(text)
@@ -217,15 +229,36 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
     })
   /**
    * Publish: store `tokens` if `issuedUnder` is still current, then read
-   * both back. Undefined when a Sign out or refusal came first; another
-   * window's pair when it stored over this one.
+   * both back. Undefined when a Sign out came first; another window's pair
+   * when it stored over this one. When the generation moved but no Sign
+   * out came between (`issuedEpoch` still counts the sign-outs), the move
+   * was a refusal: a concurrent refresh spent the same token first, so
+   * this successful rotation is stored under the current generation
+   * instead of dropped.
    */
   const publish = (
     tokens: DeviceFlowTokens,
     issuedUnder: Generation,
+    issuedEpoch: number,
   ): Promise<StoredTokens | undefined> =>
     serialized(async () => {
-      if ((await generation()) !== issuedUnder) return
+      if ((await generation()) !== issuedUnder) {
+        if ((await signOutEpoch()) !== issuedEpoch) return
+        const current = await generation()
+        const other = readable(await read(), current)
+        if (other !== undefined) return other
+        const recovered = remember(storedOf(tokens, current))
+        const recoveredText = JSON.stringify(recovered)
+        await deps.store.store(GITHUB_DEVICE_FLOW_SECRET_KEY, recoveredText)
+        const after = await read()
+        if ((await generation()) !== current) {
+          if (after === recoveredText) {
+            await deps.store.delete(GITHUB_DEVICE_FLOW_SECRET_KEY)
+          }
+          return
+        }
+        return after === recoveredText ? recovered : readable(after, current)
+      }
       const stored = remember(storedOf(tokens, issuedUnder))
       const text = JSON.stringify(stored)
       await deps.store.store(GITHUB_DEVICE_FLOW_SECRET_KEY, text)
@@ -253,6 +286,7 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
   const usable = shared(async (signal): Promise<StoredTokens | undefined> => {
     const text = await read()
     const stored = readable(text, await generation())
+    const issuedEpoch = await signOutEpoch()
     if (stored === undefined) return
     if (isFresh(stored)) return stored
     if (
@@ -280,13 +314,14 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
       const rotated = await current()
       return rotated !== undefined && isFresh(rotated) ? rotated : undefined
     }
-    return await publish(tokens, stored.generation)
+    return await publish(tokens, stored.generation, issuedEpoch)
   })
 
   const signIn = shared(async (signal): Promise<StoredTokens | undefined> => {
     const issuedUnder = await generation()
+    const issuedEpoch = await signOutEpoch()
     const tokens = await signInWithDeviceFlow(deps.flow, GITHUB_AUTH_SCOPES, deps.present, signal)
-    return await publish(tokens, issuedUnder)
+    return await publish(tokens, issuedUnder, issuedEpoch)
   })
 
   return {
@@ -294,9 +329,14 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
     async credential(mode, signal) {
       const stored = (await usable(signal)) ?? (mode === 'ask' ? await signIn(signal) : undefined)
       // Serve: whichever path gave the pair (a shared run, a cached pair
-      // during an outage), only while its generation is still current.
+      // during an outage), only while its generation is still current, and
+      // only while this caller is still waiting. The final read races this
+      // caller's signal, and an abort before the credential is issued ends
+      // this caller's wait instead of serving it.
       if (stored === undefined) return
-      if (stored.generation !== (await generation())) return
+      signal.throwIfAborted()
+      if (stored.generation !== (await untilAborted(generation(), signal))) return
+      signal.throwIfAborted()
       return credentialOf(stored)
     },
     async rejected(credential) {
@@ -304,7 +344,18 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
       if (parseStored(text)?.accessToken === credential.bearer) await refuse(text)
     },
     async signOut() {
-      await serialized(retire)
+      // Sign out moves the generation and the sign-out count, then deletes
+      // the pair; a refusal moves the generation only. A publish that found
+      // a moved generation keeps a successful rotation through a refusal
+      // but never through this.
+      await serialized(async () => {
+        await deps.store.store(GITHUB_DEVICE_FLOW_GENERATION_KEY, randomUUID())
+        await deps.store.store(
+          GITHUB_DEVICE_FLOW_SIGN_OUT_EPOCH_KEY,
+          String((await signOutEpoch()) + 1),
+        )
+        await deps.store.delete(GITHUB_DEVICE_FLOW_SECRET_KEY)
+      })
       await deps.openExternal(GITHUB_AUTHORIZED_APP_URL)
     },
     async isSignedIn() {

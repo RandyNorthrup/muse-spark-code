@@ -1722,6 +1722,11 @@ export const GITHUB_DEVICE_FLOW_SECRET_KEY = 'museSpark.github.deviceFlow'
 // and a refusal renew; a stored pair is read only under the generation it
 // was issued in (PLAN.md M123).
 export const GITHUB_DEVICE_FLOW_GENERATION_KEY = 'museSpark.github.deviceFlow.generation'
+// Beside that, the sign-out count (a non-negative integer, no secret) that
+// only Sign out moves: a publish that found a moved generation tells a
+// refusal (the count is unchanged) from a Sign out and keeps a rotation
+// that succeeded through the refusal (PLAN.md M123).
+export const GITHUB_DEVICE_FLOW_SIGN_OUT_EPOCH_KEY = 'museSpark.github.deviceFlow.signOutEpoch'
 export const GITHUB_STORED_TOKEN_VERSION = 2
 // Revoking a token through the API needs the app's client secret, which a
 // public client has none of; Sign out opens the app's page on GitHub, where
