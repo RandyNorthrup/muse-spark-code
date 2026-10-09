@@ -20510,6 +20510,21 @@ aggregate certification record.
 
 ## 7. Gates
 
+**M104PF5 final scoped gates (2026-10-08).** Review repairs and the
+console-free metadata/translated-open-failure checkpoint pass 65 complete
+NativeCore tests, 92 owning Vitest tests at repository deadlines, repository/
+Xcode typechecks, scoped ESLint/Prettier, strict changed-Swift lint, zero-clone
+duplication, localization, host API, frozen MHP and production build. Eleven
+native controls and one full-file generator-boundary control fail by assertion
+and restore SHA-256-exact bytes. Private extracted runtime (129 files, 69
+portable modules) and ad-hoc universal Xcode (41 files) match their staging
+inventories; signatures verify. Exact identities and limitations are in
+`docs/certification/m104-pf5-artifacts.json` and `m104-pf5.md`. Plain Knip still
+exits 1 only for A's unregistered standalone drill; its exact registration
+request remains open. Aggregate quality/coverage/accessibility and installed/
+other-rig/backend/provider gates stay with the lead under the explicit brief.
+No threshold, timeout, test skip, hook, registry cell or support claim changed.
+
 **M104PF bounded-lane qualification (2026-10-06).** The rig brief/shared
 rules prohibit aggregate quality, full tests, other-lane edits, unrequested
 merges, credentials and live/model calls. Hook-on native checkpoint
