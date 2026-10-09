@@ -59,6 +59,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- A reloaded or replacement maker companion document starts a new approval
+  epoch as soon as it resumes its session or subscribes, not only when it
+  announces itself: the earlier document's payload review, presence grant
+  and any OS prompt still open are retired, and the new document can always
+  review and authenticate afresh. An expired presence grant no longer blocks
+  a new OS prompt for the same request.
+
 - Hardware Stop has its own 5-second delivery deadline. A serial port that
   never opens or drains, or an HTTP Stop that never answers, now reports Stop
   unconfirmed instead of leaving the caller waiting; a late serial port still

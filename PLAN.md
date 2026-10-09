@@ -33058,6 +33058,35 @@ before a repaired one loads (2026-09-30).
   bound. Still open: installed-editor/browser reload qualification and
   physical receipts (the lead's gates). Receipts: `docs/certification/m103.md`
   FIXM103W7.
+  FIXM103W8 (2026-10-09, third review round, RVM103W2) replaces the scattered
+  review/grant flags in `RuntimeMakerHost` with one document-epoch state
+  machine. The host keeps an epoch counter; a pending request's presence
+  state is one `auth` record stamped with the epoch that started it, and its
+  payload review lives in its MakerApproval. A state counts only in its own
+  epoch. The request itself is engine-owned: it survives a new document and
+  is replayed to it for a fresh review.
+
+  | Transition              | Trigger                                                         | Effect                                                                                                                  |
+  | ----------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+  | `open`                  | `confirm`                                                       | Request pending with no `auth`; emitted to listeners.                                                                   |
+  | `review`                | `makerPayloadReviewed`                                          | MakerApproval records the exact complete review.                                                                        |
+  | `authenticate`          | `/presence` (`authorize`)                                       | Only with no live `auth` of this epoch: `auth` = OS prompt in flight.                                                   |
+  | `authenticated`         | OS presence approved                                            | Same `auth`, same epoch, still pending and admitted: 5 s grant; otherwise `auth` dropped.                               |
+  | `authentication failed` | OS presence denied/unavailable                                  | `auth` dropped; a retry may prompt. An expired grant also allows a retry.                                               |
+  | `answer`                | `/answer`                                                       | Allow needs this epoch's live grant, exact digest/target and (engine) this epoch's review.                              |
+  | `newDocument`           | `/launch`, `/session` resume, `/events` subscribe, `makerReady` | Epoch + 1 and every pending review revoked, synchronously, before any replay; then `makerState`, then pending requests. |
+  | `close`                 | answer, expiry, Stop, disable, cancel, companion close          | Request removed; `makerApprovalClosed`.                                                                                 |
+
+  The lifecycle tests inject the serial port probe and run for win32, linux
+  and darwin with an empty environment. Bounded Stop, admission before replay
+  and launch-code recovery are unchanged. Accepted consequences: every
+  same-cookie document shares the epoch the server last saw (the newest load
+  wins, older state is revoked at that moment); an `/events` reconnect within
+  one document counts as a new document, so an allow for a request reviewed
+  before it fails closed (the store does not re-review a request it has
+  seen); an editor-prompt (`ask`) approval in flight when
+  a companion document loads fails closed. Receipts:
+  `docs/certification/m103.md` FIXM103W8.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting
