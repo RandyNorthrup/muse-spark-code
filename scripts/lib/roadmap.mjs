@@ -88,6 +88,7 @@ function readEntries(text, problems) {
 }
 
 const WORD_CHARACTER = /^[\p{L}\p{N}]$/u
+const isWord = (character) => character !== undefined && WORD_CHARACTER.test(character)
 
 /**
  * Finds the first milestone or working id PLAN.md and entries.json know
@@ -97,16 +98,15 @@ const WORD_CHARACTER = /^[\p{L}\p{N}]$/u
  * so no regular expression is compiled from them.
  */
 function knownIdFinder(ids) {
-  if (ids.size === 0) return undefined
+  if (ids.size === 0) return
   const known = [...ids].toSorted((left, right) => right.length - left.length)
-  const isWord = (character) => character !== undefined && WORD_CHARACTER.test(character)
   return (value) => {
-    const characters = Array.from(value)
+    const characters = [...value]
     const lower = characters.map((character) => character.toLowerCase())
     for (let start = 0; start < characters.length; start += 1) {
       if (isWord(characters[start - 1])) continue
       for (const id of known) {
-        const length = Array.from(id).length
+        const length = [...id].length
         if (
           lower.slice(start, start + length).join('') === id &&
           !isWord(characters[start + length])
@@ -114,7 +114,7 @@ function knownIdFinder(ids) {
           return characters.slice(start, start + length).join('')
       }
     }
-    return undefined
+    return
   }
 }
 
