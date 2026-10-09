@@ -1306,6 +1306,8 @@ export const MEDIA_SNIFF_MAX_BYTES = 1024 * 1024
 export const MEDIA_CONVERTER_PROBE_TIMEOUT_MS = 2000
 export const MEDIA_CONVERTER_PROBE_MAX_BYTES = 16 * 1024
 export const MEDIA_CONVERSION_MAX_RSS_BYTES = 512 * 1024 * 1024
+/** The `code` a kernel-limited encoder launch rejects with when its memory cap hit. */
+export const MEDIA_CONVERSION_MEMORY_CAP_CODE = 'EMEDIA_MEMORY_CAP'
 export const MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS = 25
 export const MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS = 100
 export const MEDIA_PROC_RSS_UNIT_BYTES = 1024
@@ -1332,6 +1334,8 @@ export const MEDIA_PATH_TOKEN_MAX_CHARS = 4096
 export const MEDIA_SHA256_PATTERN = /^[a-f0-9]{64}$/u
 // M105 lane VB: the converter's private-folder, macOS RSS and Windows job
 // bindings. The folder is fresh per conversion, named from random bytes.
+// Every Windows job ending but the memory cap's rejects with this code.
+export const MEDIA_CONVERSION_JOB_FAILED_CODE = 'EMEDIA_JOB_FAILED'
 export const MEDIA_PRIVATE_DIRECTORY_PREFIX = 'muse-media-'
 export const MEDIA_PRIVATE_DIRECTORY_NAME_BYTES = 16
 // One /bin/ps run per interval at most; a reading older than the maximum age
