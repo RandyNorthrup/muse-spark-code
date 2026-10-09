@@ -43536,9 +43536,44 @@ FIXM107DK4 qualification below supersedes that earlier claim.
      `dist/mediaHost.js` (18.1 KiB, budget 25 KiB) on the first attach;
      activation is 585,922 bytes against the base's 586,002.
 
-  Open: the converter still reads its input by path between the two digest
-  checks (stdin streaming is M1's change); `dist/modelApi.js` has 129 bytes
-  of headroom.
+  Open at that round: the converter still read its input by path between
+  the two digest checks; closed by the redesign below.
+
+- **M105-V-registry-redesign (RVMEDIAV2, 2026-10-09; owner rule: redesign at
+  round 3).** The attached-media registry (`src/core/media/attachedMedia.ts`)
+  is rebuilt around ownership instead of patched:
+  - Every registration has one owner (the composer or ACP session that
+    attached it) and one set of turn holders (`MediaClaim`), and an explicit
+    state:
+
+    | State      | Entered by                                                                             | Left by                                                                       | Evicted at the bound | Discard / owner release |
+    | ---------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------- | ----------------------- |
+    | `attached` | `register` (the attach port binds a sniffed, hashed file)                              | a claim; discard; owner release; the oldest at the bound; runtime close       | yes (oldest first)   | removes it              |
+    | `claimed`  | `claim` when the host accepts the turn: `sendTurn` (started or queued) or `steer`      | `start`; the last holder's `release` (withdrawal, Stop's queue drop, refusal) | never                | passes it by            |
+    | `inFlight` | `start`: `runTurn` begins, or `drainSteered` puts the steer in a request               | the last holder's `release` at turn end                                       | never                | passes it by            |
+    | released   | the last holder's `release`, discard or owner release of `attached`, eviction, `clear` | (gone: the token no longer resolves)                                          | —                    | —                       |
+
+    A promoted steer carries its claim into the queued turn. At 64 entries
+    (`MEDIA_ATTACHED_MAX_ENTRIES`) with none `attached`, `register` throws a
+    `MediaAttachRefusedError` (matched by name across bundles); the attach
+    port returns its translated `media.attachedLimit` as the refusal, so
+    VS Code's chip shows the cause and the recovery, as ACP's block path
+    already did.
+
+  - A token's source is fixed at registration. Uploads look it up by the
+    token the record resolved through (`ReplayMedia` keeps it per content
+    part), never by digest, name and size; the shared "current" map is gone.
+  - Conversion never opens the user's path: `convertToWav16kMono` takes
+    `inputBytes`, the registry's digest-verified stream, writes it into the
+    conversion's owner-only folder and encodes that copy. The registry no
+    longer hands out a path at all (`AttachedSource.path`, `AttachedMedia.path`
+    and `resolveSourcePath` removed). A private verified copy rather than
+    stdin, so the Windows job helper and the kernel-run path need no change.
+  - Every editor: the registry, host claims and conversion are shared core;
+    VS Code's attach port (`dist/media.js`) and the ACP/CLI runtime's media
+    port bind the same registry. JetBrains, Visual Studio, Eclipse, Zed,
+    Xcode and the Neovim/Emacs/Sublime family reach media through ACP and
+    get the same states, refusal and conversion.
 
 - **M105-F-integration-gates (RVM105F corrections).** All four review findings
   are fixed with regressions and red drills (`docs/certification/m105-f.md`).

@@ -98,6 +98,21 @@ happened, not what was planned; superseded entries are kept.
   see "One-use attachments" above (RVMEDIAV).
 - On Linux and macOS a converter whose final output check stalls after a
   clean exit now ends with Stop or its deadline, as on Windows (RVMEDIAV).
+- Attached video and audio, redesigned ownership (RVMEDIAV2):
+  - A converted MP3 or video soundtrack is encoded from the attachment's
+    digest-checked bytes, copied into the conversion's private folder, never
+    from your file's path; a file swapped and restored during conversion is
+    no longer what gets transcribed.
+  - Each attachment uploads only from its own file. Another session
+    attaching a byte-identical copy can no longer point your upload at its
+    (possibly deleted) file.
+  - A message waiting in the queue, or steered into a running reply, now
+    holds its attachments from the moment it is accepted: attaching many
+    more files elsewhere no longer drops them. Taking the message back, Stop
+    or the reply ending lets them go.
+  - When 64 attachments are all in use, VS Code now says so ("Too many video
+    and audio attachments are in use. Wait for a reply to finish, then
+    attach again.") instead of "The file could not be read."
 - On Windows, a stdio MCP server, a plugin hook's runtime or a team run is now
   created inside its kill-on-close job. Previously it was added to the job
   just after creation. A launcher ended in between (cancelled, timed out)
