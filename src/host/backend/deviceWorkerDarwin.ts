@@ -22,10 +22,12 @@ import {
 import {
   DeviceWorkerHostError,
   admittedProcessLimit,
+  deviceWorkerRefused,
   parseDeviceWorkerQuery,
   type DeviceWorkerCommand,
   type DeviceWorkerDriver,
   type DeviceWorkerJob,
+  type DeviceWorkerLaunch,
 } from '../devices/deviceWorkerHost'
 
 // Darwin posix_spawn(2): path/format/permission failures are definitive; memory
@@ -422,6 +424,23 @@ interface DarwinAttempt {
   state: AttemptState
   reclamation?: Promise<void>
   stopWritten?: boolean
+  /** Resolves only on the transition to `reclaimed`; the host's uncertain-launch proof. */
+  readonly reclaimed: { readonly promise: Promise<void>; resolve(): void }
+}
+// Node 20 hosts do not have Promise.withResolvers (the supported editor floor).
+function reclaimedSignal(): DarwinAttempt['reclaimed'] {
+  let signal: { resolve(): void } | undefined
+  const promise = new Promise<void>((resolve) => {
+    signal = { resolve }
+  })
+  if (signal === undefined) throw new DeviceWorkerHostError('helper')
+  const settled = signal
+  return {
+    promise,
+    resolve: () => {
+      settled.resolve()
+    },
+  }
 }
 
 export interface DeviceWorkerDarwinDeps {
@@ -504,7 +523,9 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
   }
   const transition = (attempt: DarwinAttempt, state: AttemptState): void => {
     // A late observer cannot resurrect a reclaimed attempt.
-    if (attempt.state.kind !== 'reclaimed') attempt.state = state
+    if (attempt.state.kind === 'reclaimed') return
+    attempt.state = state
+    if (state.kind === 'reclaimed') attempt.reclaimed.resolve()
   }
   const progress = (attempt: DarwinAttempt): AttemptProgress | undefined => {
     const state = attempt.state
@@ -695,10 +716,17 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
     command: DeviceWorkerCommand,
     environment: NodeJS.ProcessEnv,
     maxProcesses: number,
-  ): Promise<DeviceWorkerJob & { reclaim(): Promise<void> }> => {
+  ): Promise<
+    | Exclude<DeviceWorkerLaunch, { kind: 'launched' }>
+    | { kind: 'launched'; job: DeviceWorkerJob & { reclaim(): Promise<void> } }
+  > => {
     const label = `com.musespark.device.${randomUUID().replaceAll('-', '')}`
     const directory = path.join(root, `attempt-${label}`)
-    const attempt: DarwinAttempt = { directory, state: { kind: 'allocated' } }
+    const attempt: DarwinAttempt = {
+      directory,
+      state: { kind: 'allocated' },
+      reclaimed: reclaimedSignal(),
+    }
     const service = `${domain}/${label}`
     jobs.set(service, attempt)
     const file = (name: string) => path.join(directory, name)
@@ -752,10 +780,15 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       // All failures, including request/plist writes, use the same lifecycle.
       // No activation was issued. Reclamation itself records pending evidence.
       await pendingReclaim(service, attempt)
-      throw attemptFailure(error)
+      const failure = attemptFailure(error)
+      // Refused only once reclaimed; a pending attempt is settled by a later sweep.
+      return attempt.state.kind === 'reclaimed'
+        ? { kind: 'refused', error: failure }
+        : { kind: 'uncertain', error: failure, reclaimed: attempt.reclaimed.promise }
     }
     const running = attempt.state
-    if (running.kind !== 'running') throw new DeviceWorkerHostError('result')
+    if (running.kind !== 'running')
+      return { kind: 'uncertain', error: new DeviceWorkerHostError('result') }
     const ready = running.ready
     const query = parseDeviceWorkerQuery(ready.query)
     const retirement = (async (): Promise<unknown> => {
@@ -792,7 +825,7 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
     void retirement.catch(() => {
       /* The host attaches after readiness validation. */
     })
-    return {
+    const job = {
       query,
       retirement,
       activate: async () => {
@@ -813,6 +846,7 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
         await reclaim(service, attempt)
       },
     }
+    return { kind: 'launched', job }
   }
   const prepareWorker = async (): Promise<PreparationOutcome> => {
     try {
@@ -849,11 +883,14 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       if (probe.failure === 'capacity') throw new DeviceWorkerHostError('capacity')
       if (!probe.jobProbe || !probe.query) throw new DeviceWorkerHostError('helper')
       parseDeviceWorkerQuery(JSON.parse(await invoke(target, ['--query'], env)))
-      const job = await rawLaunch(
+      const launched = await rawLaunch(
         { executable: '/usr/bin/true', args: [], cwd: root, requiredTools: [] },
         env,
         1,
       )
+      // A pending probe stays in its record for the entry sweeps; the failure is the outcome.
+      if (launched.kind !== 'launched') throw launched.error
+      const job = launched.job
       try {
         await job.activate()
         const result = resultSchema.parse(await job.retirement)
@@ -899,14 +936,20 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
   return {
     platform: 'darwin',
     selfTest: isPrepared,
-    launch: async (command, environment, attempt) => {
-      admittedProcessLimit(attempt)
-      if (!(await isPrepared()))
-        throw preparation.kind === 'broken'
-          ? preparation.error
-          : new DeviceWorkerHostError('helper')
-      await sweep()
-      return await rawLaunch(command, environment, admittedProcessLimit(attempt))
+    launch: async (command, environment, attempt): Promise<DeviceWorkerLaunch> => {
+      let maxProcesses: number
+      // Nothing is registered for this attempt before rawLaunch: these refusals allocate nothing.
+      try {
+        maxProcesses = admittedProcessLimit(attempt)
+        if (!(await isPrepared()))
+          throw preparation.kind === 'broken'
+            ? preparation.error
+            : new DeviceWorkerHostError('helper')
+        await sweep()
+      } catch (error) {
+        return deviceWorkerRefused(attemptFailure(error))
+      }
+      return await rawLaunch(command, environment, maxProcesses)
     },
     query: async () => {
       const failures = await sweep(false)

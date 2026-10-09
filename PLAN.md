@@ -35974,6 +35974,12 @@ exits: `docs/certification/m100-phase2.md` ("Lead integration: final phase
 `npm run quality`, installed four-device qualification. Remaining for K:
 owner binding and vault path (not in this join).
 
+**Join W + JFIX (2026-10-08, Windows host).** `m100/p2-joined` merges
+`m100/p2-join-fix` `d1a776f40` into lane W's final `aa31aabcf` with
+`--no-ff`; both sides' fixes kept whole (two additive conflicts, plus the
+CHANGELOG line JFIX asked W to carry); receipts in
+`docs/certification/m100-phase2.md` ("Join (W + JFIX)").
+
 **M100P2BASE integration scope (2026-10-07, macmini).** Merge only
 `23c67925f` into release head `9d1ab33c3` with `--no-ff`, preserving both
 branches and 0.15.0. Rebuild generated inventories. Verify committed work

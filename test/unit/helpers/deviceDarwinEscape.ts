@@ -10,6 +10,7 @@ import {
   type DeviceWorkerJob,
 } from '../../../src/host/devices/deviceWorkerHost'
 import type { RunProgram } from '../../../src/host/processTree'
+import { launchedJob } from './deviceWorkerReceiver'
 
 const treeSchema = z.strictObject({
   root: z.int().check(z.gt(1)),
@@ -69,7 +70,9 @@ export async function darwinEscapeTree(
     requiredTools: [],
   }
   const job =
-    dispatch === undefined ? await driver.launch(command, {}, attempt) : await dispatch(command)
+    dispatch === undefined
+      ? await launchedJob(driver.launch(command, {}, attempt))
+      : await dispatch(command)
   const context = parseDeviceWorkerQuery(job.query).context
   const service = `gui/${String(context.session)}/${context.desktop}`
   const signal = (word: string) => run('/bin/launchctl', ['kill', word, service], {})

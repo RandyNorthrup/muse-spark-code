@@ -34,6 +34,9 @@ happened, not what was planned; superseded entries are kept.
   message, release the reservation once, and preserve the failure on reconciliation.
   Bound macOS Aqua detection to the session line and retry preparation after a
   transient capacity rejection.
+- Refuse a failed Devices worker launch only when its driver proves nothing
+  remains for the attempt; otherwise hold it as uncertain, keeping its occupancy
+  and worker slot, until the driver observes reclamation or local recovery runs.
 - Wait for the Devices document's ready handshake before host observations and
   harness scenes, replaying cached state on reload. Verify owner revocation
   with a refusal that appears only after revoke; keyboard checks validate

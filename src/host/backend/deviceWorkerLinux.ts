@@ -16,11 +16,14 @@ import {
 } from '../../shared/constants'
 import {
   admittedProcessLimit,
+  deviceWorkerRefused,
+  deviceWorkerUncertain,
   DeviceWorkerHostError,
   parseDeviceWorkerQuery,
   type DeviceWorkerAttempt,
   type DeviceWorkerDriver,
   type DeviceWorkerJob,
+  type DeviceWorkerLaunch,
 } from '../devices/deviceWorkerHost'
 import type { RunProgram } from '../processTree'
 
@@ -370,16 +373,40 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
       throw error
     }
   }
+  /** Only the live manager's view proves a unit gone: no cgroup, inactive and dead. */
+  const isUnitGone = async (unit: string): Promise<boolean> => {
+    try {
+      const observed = await state(unit)
+      return (
+        observed.ControlGroup === '' &&
+        observed.ActiveState === 'inactive' &&
+        observed.SubState === 'dead'
+      )
+    } catch {
+      return false
+    }
+  }
   const launch: DeviceWorkerDriver['launch'] = async (command, environment, attempt) => {
-    const maxProcesses = admittedProcessLimit(attempt)
-    await manager()
-    if (slots.size >= DEVICE_LIMITS.unresolvedAttempts) throw new DeviceWorkerHostError('capacity')
-    const canonical = workerEnvironment(environment, 'linux')
-    if (JSON.stringify(canonical) !== JSON.stringify(environment))
-      throw new DeviceWorkerHostError('preflight')
-    const identity = deviceAttemptIdentitySchema.parse(attempt.identity)
+    let maxProcesses: number
+    let identity: DeviceWorkerAttempt['identity']
+    // Every refusal here precedes the slot and any unit: nothing is allocated.
+    try {
+      maxProcesses = admittedProcessLimit(attempt)
+      await manager()
+      if (slots.size >= DEVICE_LIMITS.unresolvedAttempts)
+        throw new DeviceWorkerHostError('capacity')
+      const canonical = workerEnvironment(environment, 'linux')
+      if (JSON.stringify(canonical) !== JSON.stringify(environment))
+        throw new DeviceWorkerHostError('preflight')
+      identity = deviceAttemptIdentitySchema.parse(attempt.identity)
+    } catch (error) {
+      return deviceWorkerRefused(error)
+    }
     const slotId = `${identity.attemptId}-${randomUUID().replaceAll('-', '')}`
     const unit = `muse-spark-device-${String(process.pid)}-${hostStart ?? ''}-${identity.receiverIncarnationId}-${slotId}.service`
+    const inhibitor = unit.replace(/\.service$/, '-inhibit.service')
+    // The attempt's lifecycle owns this slot: only observed retirement (remove) or a proved
+    // refusal releases it, never a failed observer.
     slots.add(slotId)
     let hasSlot = true
     const releaseSlot = () => {
@@ -387,12 +414,24 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
       hasSlot = false
       slots.delete(slotId)
     }
+    // After any unit could have started, refuse only once no launcher can still submit a unit
+    // and the manager then shows each unit gone; otherwise keep the slot, uncertain.
+    const failed = async (
+      error: unknown,
+      units: readonly string[],
+      isLauncherDone: () => Promise<boolean> = () => Promise.resolve(true),
+    ): Promise<DeviceWorkerLaunch> => {
+      if (!(await isLauncherDone())) return deviceWorkerUncertain(error)
+      for (const name of units) if (!(await isUnitGone(name))) return deviceWorkerUncertain(error)
+      jobs.delete(unit)
+      releaseSlot()
+      return deviceWorkerRefused(error)
+    }
     let hold: Awaited<ReturnType<typeof inhibit>>
     try {
       hold = await inhibit(unit)
     } catch (error) {
-      releaseSlot()
-      throw error
+      return await failed(error, [inhibitor])
     }
     let isActivated = false
     let isRetired = false
@@ -429,8 +468,8 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
           '--expand-environment=no',
           '--property=ExitType=cgroup',
           '--property=KillMode=control-group',
-          `--property=BindsTo=${unit.replace(/\.service$/, '-inhibit.service')}`,
-          `--property=After=${unit.replace(/\.service$/, '-inhibit.service')}`,
+          `--property=BindsTo=${inhibitor}`,
+          `--property=After=${inhibitor}`,
           '--property=SendSIGKILL=yes',
           `--property=TimeoutStopSec=${String(DEVICE_LIMITS.frameDeadlineMs / MILLISECONDS_PER_SECOND)}s`,
           `--property=TasksMax=${String(maxProcesses)}`,
@@ -448,14 +487,24 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
         env,
       )
     } catch {
-      releaseSlot()
       await ignoreFailure(hold.release())
-      throw new DeviceWorkerHostError('helper')
+      return await failed(new DeviceWorkerHostError('helper'), [unit, inhibitor])
     }
     const output = pipe(child, requestStop)
     child.stdin.on('error', () => {
       /* Failure is retained by the owning lifecycle. */
     })
+    // Closed and exited (or never spawned): this systemd-run client cannot submit its unit.
+    const isLauncherTerminal = () =>
+      output.isClosed() &&
+      (child.exitCode !== null || child.signalCode !== null || child.pid === undefined)
+    // Stop the launcher without activation, then observe it end within the frame deadline.
+    const hasLauncherEnded = async (): Promise<boolean> => {
+      if (!isLauncherTerminal()) child.kill()
+      const deadline = Date.now() + DEVICE_LIMITS.frameDeadlineMs
+      while (!isLauncherTerminal() && Date.now() < deadline) await delay(POSIX_TREE_EXIT_POLL_MS)
+      return isLauncherTerminal()
+    }
     void hold.closed
       .then(() => {
         if (!isRetired) requestStop()
@@ -502,16 +551,16 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
           await hold.release()
           return exit
         } catch {
+          // Unproved retirement keeps the slot: the observer never releases it.
           requestStop()
           await ignoreFailure(hold.release())
-          releaseSlot()
           throw new DeviceWorkerHostError('result')
         }
       })()
       void retirement.catch(() => {
         /* Failure is retained by the owning lifecycle. */
       })
-      return {
+      const job: DeviceWorkerJob = {
         query: parseDeviceWorkerQuery({
           ...(await query()),
           context: { session: 0, station: 'systemd-user', desktop: cgroup },
@@ -536,17 +585,19 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
           return Promise.resolve()
         },
       }
+      return { kind: 'launched', job }
     } catch (error) {
       requestStop()
       await ignoreFailure(stopping)
       try {
         if (cgroup !== '' && (await isEmpty(unit, cgroup))) jobs.delete(unit)
-      } finally {
-        releaseSlot()
-        await ignoreFailure(hold.release())
+      } catch {
+        /* Emptiness stays unproven; the manager's view below decides. */
       }
-      // An activated but unobserved unit is never forgotten or treated as empty.
-      throw error instanceof DeviceWorkerHostError ? error : new DeviceWorkerHostError('helper')
+      await ignoreFailure(hold.release())
+      // An unactivated unit is refused only once its launcher has ended and the manager then
+      // shows both units gone.
+      return await failed(error, [unit, inhibitor], hasLauncherEnded)
     }
   }
   let preparing: Promise<boolean> | undefined
@@ -561,11 +612,13 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
       const clean: Record<string, string> = {}
       const cleanEntries = Object.entries(workerEnvironment(deps.environment, 'linux'))
       for (const [key, value] of cleanEntries) if (value !== undefined) clean[key] = value
-      job = await launch(
+      const launched = await launch(
         { executable: '/bin/sh', args: ['-c', 'printf probe'], cwd: '/', requiredTools: [] },
         clean,
         attempt,
       )
+      if (launched.kind !== 'launched') return false
+      job = launched.job
       parseDeviceWorkerQuery(job.query)
       await job.activate()
       z.strictObject({

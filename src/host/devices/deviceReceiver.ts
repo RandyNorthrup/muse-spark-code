@@ -45,7 +45,9 @@ export interface DeviceLocalAttempt {
   cancel(): Promise<void>
   /**
    * Resolves only after requests AND all admitted tool/descendant processes settle. `refused`
-   * says no job/unit ever existed, so nothing ran: journaled `refused`, never `retired` work.
+   * says the worker never ran and nothing remains allocated (never launched, or the driver
+   * proved its unactivated attempt reclaimed): journaled `refused`, never `retired` work. A
+   * start that fails while this is pending is journaled `uncertain` with its occupancy.
    * A capacity result proves whole-membership exit, with usage and localized recovery prose.
    */
   readonly retirement: Promise<
@@ -525,6 +527,7 @@ export class DeviceReceiver implements DeviceExecutionPort {
       this.transition({ kind: 'dispatch', pending })
       return await this.ordered(async () => {
         let hasReserved = false
+        let started: LiveAttempt | undefined
         try {
           if (deviceDispatchDigest(request) !== request.payloadDigest)
             throw new DeviceJournalError('payload-changed')
@@ -583,7 +586,14 @@ export class DeviceReceiver implements DeviceExecutionPort {
             Date.now(),
           )
           await boundary.beforeAction()
-          await this.waitForControl(pending.control.signal, () => lease.start(boundary))
+          await this.waitForControl(pending.control.signal, async () => {
+            try {
+              await lease.start(boundary)
+            } catch (error) {
+              started = live
+              throw error
+            }
+          })
           // Start owns a final policy boundary; keep this attempt attested through it.
           this.policy.finishAdmission?.(request)
           const outcome = await this.journal.advance(
@@ -603,6 +613,12 @@ export class DeviceReceiver implements DeviceExecutionPort {
             this.transition({ kind: 'failed', reason })
             if (hasReserved) this.pendingReconciliation.add(request.identity.attemptId)
           }
+          // A failed start proves nothing; occupancy stays until retirement settles it. Queued
+          // after this dispatch: an already observed retirement is journaled first and wins.
+          if (started !== undefined)
+            void this.effects([{ kind: 'record-uncertain', live: started }]).catch(() => {
+              /* The effect latches its own failure. */
+            })
           return this.frame(request.identity.pairId, { kind: 'failure', reason })
         } finally {
           this.policy.finishAdmission?.(request)

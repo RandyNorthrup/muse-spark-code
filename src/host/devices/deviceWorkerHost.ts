@@ -74,6 +74,44 @@ export interface DeviceWorkerJob {
   /** Remove only this attempt's task/unit/job after observed retirement. */
   remove(): Promise<void>
 }
+/**
+ * What one launch left behind. The driver states the case; the host never infers it, and a
+ * rejected launch is `uncertain`, never `refused`.
+ * - `refused` proves nothing remains for this attempt: no job, unit, helper or attempt storage,
+ *   and nothing can still start. Only this settles as not-run work and releases the slot.
+ * - `uncertain` means the driver retains the attempt. `reclaimed`, when the driver can observe
+ *   reclamation (its sweep), resolves only after that proof, never on a timer or failed query.
+ *   Without it the attempt stays uncertain, with its occupancy, until local recovery.
+ */
+export type DeviceWorkerLaunch =
+  | { readonly kind: 'launched'; readonly job: DeviceWorkerJob }
+  | { readonly kind: 'refused'; readonly error: DeviceWorkerHostError }
+  | {
+      readonly kind: 'uncertain'
+      readonly error: DeviceWorkerHostError
+      readonly reclaimed?: Promise<void>
+    }
+function launchError(error: unknown): DeviceWorkerHostError {
+  if (error instanceof DeviceWorkerHostError) return error
+  const failure = new DeviceWorkerHostError('helper')
+  failure.cause = error
+  return failure
+}
+/** Only for a failure with proof that nothing remains allocated for this attempt. */
+export function deviceWorkerRefused(error: unknown): DeviceWorkerLaunch {
+  return { kind: 'refused', error: launchError(error) }
+}
+/** A failure whose cleanup is unproven; `reclaimed` resolves only on observed reclamation. */
+export function deviceWorkerUncertain(
+  error: unknown,
+  reclaimed?: Promise<void>,
+): DeviceWorkerLaunch {
+  return {
+    kind: 'uncertain',
+    error: launchError(error),
+    ...(reclaimed !== undefined && { reclaimed }),
+  }
+}
 /** Only the host's validated request: never a peer-supplied unit, task or job property. */
 export type DeviceWorkerAttempt = Readonly<Pick<DeviceDispatch, 'identity' | 'caps'>>
 /** Admitted process ceiling: kernel admission or supervised termination; invalid limits refuse. */
@@ -95,12 +133,14 @@ export interface DeviceWorkerDriver {
    * Other caps travel for drivers that can enforce them; a driver given a cap it cannot enforce
    * refuses with typed `unsupported-host`, never ignoring it. CPU and memory are not caps: the
    * receiver's M107 resource governor owns them.
+   * Every failure resolves as `refused` (proved empty) or `uncertain` (retained); see
+   * `DeviceWorkerLaunch`. A rejection is read as `uncertain` with no reclamation proof.
    */
   launch(
     command: DeviceWorkerCommand,
     env: Readonly<Record<string, string>>,
     attempt: DeviceWorkerAttempt,
-  ): Promise<DeviceWorkerJob>
+  ): Promise<DeviceWorkerLaunch>
 }
 /**
  * One lazy platform selection point; the caller still owns local
@@ -320,12 +360,34 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
         retired.reject(error)
       }
     }
+    // Only the driver's explicit refusal, or its later reclamation proof, settles a failed launch.
+    const settleFailedLaunch = (failed: DeviceWorkerLaunch | undefined, error: unknown) => {
+      const refuse = () => {
+        isObserved = true
+        retired.resolve({ refused: true, usage: reservation.usage })
+      }
+      if (failed?.kind === 'refused') {
+        refuse()
+        return
+      }
+      const uncertain = new DeviceWorkerHostError('result')
+      uncertain.cause = error
+      const reclaimed = failed?.kind === 'uncertain' ? failed.reclaimed : undefined
+      // A rejected launch or an unobservable retained attempt keeps its occupancy.
+      if (reclaimed === undefined) retired.reject(uncertain)
+      else
+        void reclaimed.then(refuse).catch(() => {
+          retired.reject(uncertain)
+        })
+    }
     return {
       usage: reservation.usage,
       retirement: retired.promise,
       start: async (boundary) => {
         if (isStarted || state.isCancelled) throw new DeviceWorkerHostError('helper')
         isStarted = true
+        let isLaunchCalled = false
+        let failed: DeviceWorkerLaunch | undefined
         try {
           if (!(await this.deps.driver.selfTest())) throw new DeviceWorkerHostError('helper')
           const transport = querySchema.parse(await this.deps.driver.query())
@@ -362,7 +424,17 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
             identity: Object.freeze({ ...request.identity }),
             caps: Object.freeze({ ...request.caps }),
           })
-          job = await this.deps.driver.launch({ ...command, executable, args }, env, attempt)
+          isLaunchCalled = true
+          const launched = await this.deps.driver.launch(
+            { ...command, executable, args },
+            env,
+            attempt,
+          )
+          if (launched.kind !== 'launched') {
+            failed = launched
+            throw launched.error
+          }
+          job = launched.job
           if (isCancelled()) throw new DeviceWorkerHostError('helper')
           const query = querySchema.parse(job.query)
           if (
@@ -384,13 +456,14 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
         } catch (error) {
           if (error instanceof DeviceWorkerHostError && error.detail === 'desktop-heap')
             this.deps.pressure('desktop-heap')
-          if (job === undefined) {
-            // No job/unit ever existed, so nothing ran: settle as refused, never as retired work.
-            isObserved = true
-            retired.resolve({ refused: true, usage: reservation.usage })
-          } else {
+          if (job !== undefined) {
             observation ??= observe(job)
             await job.cancel()
+          } else if (isLaunchCalled) settleFailedLaunch(failed, error)
+          else {
+            // The driver was never asked to launch, so nothing ran: settle as not-run work.
+            isObserved = true
+            retired.resolve({ refused: true, usage: reservation.usage })
           }
           throw error
         }

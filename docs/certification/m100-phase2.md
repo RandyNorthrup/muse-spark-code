@@ -5441,3 +5441,305 @@ two configuration hints. Full `npm run lint:js` 1: five errors in this
 round's files (`prefer-await`, `no-useless-undefined`,
 `no-await-expression-member`); fixed, and the twelve changed source and test
 files re-linted 0.
+
+## Join review fixes (RVM100JOIN, 2026-10-08)
+
+Branch `m100/p2-join-fix` from the joined tree **`a4007f56c`**
+(`refs/rigs/kubuntu/m100/p2-int-lead2`), worktree
+`C:/Users/Randy/Coding/mx-m100jfix` on the lead's Windows 11 host. Review
+RVM100JOIN (Codex) found two P2s and no P1 or P3. Model attempts **0**,
+inference spend **0**. No push, merge, rebase, stash, credential read, ACL
+change, dependency change or cap change. The two driver selectors in
+`deviceWorkerHost.ts` (`deviceWorkerDriverForPlatform`,
+`selectDeviceWorkerDriver`) are untouched: lane M100W deletes one when it wires
+production callers.
+
+### Contract change: a driver states what a failed launch left behind
+
+`DeviceWorkerDriver.launch` now resolves a `DeviceWorkerLaunch`
+(`deviceWorkerHost.ts:86`). Each driver must construct one case, so a plain
+throw can never be read as a refusal:
+
+| Case        | Meaning                                                                                                                                              | Host settles retirement                                                                                  |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `launched`  | The job to activate and observe, as before.                                                                                                          | Only by observed whole-job exit (unchanged).                                                             |
+| `refused`   | Proof that nothing remains for this attempt: no job, unit, helper or attempt storage, and nothing can still start (`deviceWorkerRefused`, `:101`).   | `{ refused: true, usage }`: journaled `refused`, occupancy zero, released once.                          |
+| `uncertain` | The driver retains the attempt. Optional `reclaimed` resolves only after the driver observes reclamation, never on a timer or failed query (`:105`). | Pending until `reclaimed` resolves, then `refused` (never activated, proved gone). Without it, rejected. |
+| rejection   | A plain throw from `launch()`, even a typed `DeviceWorkerHostError`.                                                                                 | Rejected as uncertain. Never `refused`.                                                                  |
+
+The host (`settleFailedLaunch`, `:347`; branch at `:445`) settles `refused`
+directly only when the driver was never asked to launch (failed self-test,
+preflight, hook verification, boundary refusal: `isLaunchCalled`, `:410`) or
+when the driver returned `refused`. The receiver (`deviceReceiver.ts:589`,
+`:614`) journals a start that itself rejected as `uncertain`, with its admitted
+occupancy, queued after the dispatch. An already observed retirement is
+journaled first and wins. A later proved reclamation moves the record from
+`uncertain` to `refused` and releases once, through the existing `retire`
+effect. The journal already allowed `uncertain → refused`; no schema changed.
+
+- **macOS** (`deviceWorkerDarwin.ts`). Admitted-cap, preparation and
+  entry-sweep failures come before this attempt's record: `refused` (`:950`).
+  After registration the existing catch-path reclamation runs first. A record
+  that reached `reclaimed` is `refused`; otherwise `uncertain` with
+  `reclaimed: attempt.reclaimed.promise` (`:785`). That signal resolves only on
+  the lifecycle's transition to `reclaimed` (`:528`), so HM8/HM9's sweeps at
+  preparation entry, launch, capacity refusal and query are the release path.
+  No native helper, lifecycle row, cap or interval changed.
+- **Windows** (`deviceWorkerNative.ts`). The cap check, the oversize request
+  (now checked before the attempt directory exists) and allocation or capacity
+  failures are `refused` (`:164`, `:185`, `:189`). A refused helper or a failed
+  request write, before any helper call, is `refused` once its directory is
+  removed, else `uncertain` (`:200`, `:202`). After `--launch`, a failure is
+  `uncertain` with its evidence kept (`:294`), with one proved exception: the
+  task's own last result is STATUS_DLL_INIT_FAILED while it is not running (the
+  single on-demand run ended before any job or child), `--remove` succeeded and
+  the directory is removed (`:216`, `:285`). Windows has no sweep, so other
+  failures stay `uncertain` until local recovery (D80.7).
+- **Linux** (`deviceWorkerLinux.ts`). Everything before the slot and any unit
+  is `refused` (`:403`). Once any unit could have started, `failed()` (`:417`)
+  refuses only when the live manager shows both the worker and inhibitor units
+  with no control group, inactive and dead (`isUnitGone`, `:377`). Otherwise the
+  attempt is `uncertain` and keeps its driver slot against
+  `DEVICE_LIMITS.unresolvedAttempts`. Linux has no sweep, so `reclaimed` is
+  absent.
+
+### Finding map
+
+| Finding                                                              | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                          | Owning tests                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2 1, `deviceWorkerHost.ts:370`: a rejected launch read as `refused` | Typed `DeviceWorkerLaunch` above. Host `:347`, `:445`; receiver `:589`, `:614`; macOS `:528`, `:785`, `:950`; Windows `:164` to `:294`; Linux `:377` to `:583`.                                                                                                                                                                                                                                                                              | `deviceWorkerDarwin.test.ts:557` commits the reviewer's probe: the real macOS driver fails pre-ready readiness with bootout unavailable, through the real host, receiver and schema-validated journal; occupancy kept, no release, `uncertain` until the existing sweep reclaims it, then `refused` and one release. `deviceWorkerHost.test.ts:807` (rejected launch; uncertain with no reclamation observation), `:816` (uncertain until reclaimed, then refused once), `:562` (Windows heap proved and unproved); `deviceWorkerLinux.test.ts:348` (an unproved unit keeps its slot). The four existing pre-allocation refusal cases keep their single release. |
+| P2 2, `deviceWorkerHost.test.ts:138`: plain `mkdtemp` receiver root  | `protectedWorkerJournal()` (`helpers/deviceWorkerReceiver.ts:17`) builds every worker-receiver journal under `privateDeviceRoot()`; the host file ends the shared helper (`afterAll(endDeviceStorage)`, `:161`). The fixture sweep found one more journal over a plain `mkdtemp` parent: the macOS native capacity case, now also under `protectedWorkerJournal` (`deviceWorkerDarwin.test.ts:1347`). The production ACL check is unchanged. | The six cases RVM100JOIN listed (two capacity retirements, four refused starts), plus the three new receiver cases, with the real native binding on Windows.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+
+Every other journal or store fixture (`deviceExecutionFixtures`,
+`deviceIntegration`, `deviceMdns`, `deviceDiscoverySwitch`,
+`devicePairingAdapter`, `deviceStore`, `deviceRecovery`, `attemptJournal`)
+already used `privateDeviceRoot`, `useDeviceStorageRoot` or the execution
+fixture.
+
+### Base proof and red drills
+
+All runs use repository default timeouts and `--maxWorkers=3`, at most three
+files. On `a4007f56c` on this host, the three H files (`deviceWorkerHost`,
+`deviceWorkerHostNative`, `windowsStorageProtection`) exit **1: 7 failed, 78
+passed, 13 skipped**. Six are RVM100JOIN's `DeviceJournalError: storage`
+cases; the seventh is a native scheduled-task case at the 15 s default on this
+loaded host. The new tests copied over the unchanged base sources fail
+**8 of 11** host selections, plus the macOS real-driver case and the Linux slot
+case. The three that pass on base are the two host-level refusals (correct on
+base once the root is protected) and the no-reclamation variant, which passes
+only because the base host reads the new union object as a malformed job and
+rejects it.
+
+Each drill below ran in a throwaway worktree of the fix commit and restored the
+mutated file byte-exact (SHA-256 compared; `git status` clean). The first set
+ran on `ec6e1c9bf`; the three drills that touch the refactored tests ran again
+on `30413d3e9` with the same results.
+
+| Drill                                 | Deliberate break                                           | Result                                                                                                                                |
+| ------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| rejected launch read as refused again | Host settles a rejected launch through the not-run branch  | **Exit 1**, 1 failed: the rejected-launch receiver case.                                                                              |
+| plain `mkdtemp` fixture               | `realpath(mkdtemp(...))` instead of `privateDeviceRoot`    | **Exit 1**, 9 failed with `DeviceJournalError: storage`: the six listed cases, the new receiver cases and the macOS real-driver case. |
+| no uncertainty on a failed start      | Receiver no longer records `started`                       | **Exit 1**, 1 failed: the reclaimed case (journal stays `launch-intent`).                                                             |
+| macOS never signals reclamation       | Remove the `reclaimed` resolve on the lifecycle transition | **Exit 1**, 1 failed: the macOS real-driver case never releases.                                                                      |
+| Linux refuses an unproved unit        | Drop the per-unit proof in `failed()`                      | **Exit 1**, 1 failed: the Linux slot case.                                                                                            |
+
+### Verification
+
+| Run                                                                                              | Result                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Windows host: `deviceWorkerHost`, `deviceWorkerHostNative`, `windowsStorageProtection`           | **87 passed, 2 failed, 13 skipped.** `deviceWorkerHost` 43/43 and the storage binding pass; the two failures are native scheduled-task cases at the 15 s default on this loaded host (the base timed out one of them here).                                                                                                                                                                                        |
+| Win11 VM (Windows 11, idle), same three files, final tree                                        | **Exit 0: 89 passed, 13 Linux-only skipped**; all **7 Windows-native** cases pass.                                                                                                                                                                                                                                                                                                                                 |
+| Win11 VM, the reviewer's 42 device, Devices UI, journal, grants and storage files, three per run | **41 of 42 files pass: 1,604 passed, 0 failed, 60 skipped** (31 macOS-native, 13 Linux-native, and the 16 harness cases). That is RVM100JOIN's 1,608 less the 16 harness passes, plus its 6 storage failures now passing and 6 new tests. `devicesPhase2Harness.test.mjs` fails at file level there and on this host, also on the unchanged base (60 s hook timeout launching Chrome); it passes 16/16 on Kubuntu. |
+| Windows host, the same sweep                                                                     | **1,489 passed, 5 failed, 60 skipped**; 37 files pass. Load symptoms the base shares: three jsdom/worker files lost at startup, the harness, and five macOS stress cases at the 15 s default (four fail identically on base here; all pass on macmini).                                                                                                                                                            |
+| Kubuntu rig, final tree: `deviceWorkerLinux`, `deviceWorkerHostNative`, `deviceWorkerHost`       | **Exit 0: 87 passed, 7 Windows-only skipped**; all **13 native Linux** cases ran.                                                                                                                                                                                                                                                                                                                                  |
+| Kubuntu rig: `deviceReceiver`, `deviceRecovery`, `devicesPhase2Harness`; and `attemptJournal`    | **Exit 0: 102 passed**; earlier `deviceReceiver`, `deviceRecovery`, `attemptJournal`: **115 passed**.                                                                                                                                                                                                                                                                                                              |
+| Mac mini rig, final tree: `deviceWorkerDarwin`, `deviceWorkerHost`                               | **Exit 0: 507 passed, 0 skipped**; all **31 native macOS** cases ran. Earlier with `deviceReceiver`: 556 passed.                                                                                                                                                                                                                                                                                                   |
+| Five typechecks                                                                                  | **0** (`npm run typecheck`, 924 s on this host); unit typecheck **0** again after the test follow-up.                                                                                                                                                                                                                                                                                                              |
+| ESLint `--max-warnings=0`, Prettier on every changed file                                        | **0 / 0**, and the installed hooks (lint-staged ESLint and Prettier, staged gitleaks: no leaks) passed on both commits.                                                                                                                                                                                                                                                                                            |
+| Plain knip; cycles; `check:host-api`                                                             | **0**; **0**; **0** (no new Node import rows).                                                                                                                                                                                                                                                                                                                                                                     |
+| jscpd                                                                                            | **1** on `ec6e1c9bf` (7 clones in the new tests), then **0 clones** after `30413d3e9` shared the receiver assertions and journal setup. Threshold unchanged.                                                                                                                                                                                                                                                       |
+| Production build                                                                                 | Kubuntu rig on the final tree: **exit 0**, `dist/devices.js` **102.5 / 125 KiB**, every cap unchanged. On this host the build's bundle-split check exits 1 with 8 "no longer carries node_modules/..." findings in unrelated bundles; the unchanged base gives the identical 8 in the same node_modules-junction worktree, so it is the junction, not this change.                                                 |
+
+Files changed: `src/host/devices/deviceWorkerHost.ts`,
+`src/host/devices/deviceReceiver.ts`, `src/host/backend/deviceWorkerDarwin.ts`,
+`src/host/backend/deviceWorkerNative.ts`, `src/host/backend/deviceWorkerLinux.ts`,
+`test/unit/deviceWorkerHost.test.ts`, `test/unit/deviceWorkerDarwin.test.ts`,
+`test/unit/deviceWorkerLinux.test.ts`, `test/unit/deviceWorkerHostNative.test.ts`,
+`test/unit/helpers/deviceWorkerReceiver.ts`,
+`test/unit/helpers/deviceDarwinEscape.ts` and this record. Commits
+`ec6e1c9bf` (fix) and `30413d3e9` (test sharing), then this record.
+
+**W request:** production callers of `DeviceWorkerDriver.launch` receive a
+`DeviceWorkerLaunch`; only `DeviceWorkerHost` should call it. Carry an
+Unreleased CHANGELOG line that a failed device-worker launch is now refused only
+with proof and otherwise held as uncertain until its driver reclaims it.
+
+### RVM100JFIX Linux repairs (2026-10-08)
+
+Codex review RVM100JFIX of `a4007f56c..c828a76f0` found no P1 and confirmed the
+host/receiver contract and fixtures. Its two P2s, both in
+`src/host/backend/deviceWorkerLinux.ts`, are fixed in **`cc7d17b62`**. Model
+attempts **0**, inference spend **0**; no push.
+
+1. **An uncertain launch lost its slot through the retirement observer.** The
+   observer starts before launch completes. When the final query failed and
+   cleanup could not prove the worker unit gone, releasing the inhibitor
+   rejected the observer, whose catch called `releaseSlot()`; 129 unresolved
+   attempts were admitted against the 128 cap. The slot now belongs to the
+   attempt's lifecycle: only `remove()` after observed retirement, or a proved
+   refusal in `failed()` (`:419`, which also drops the unit from `jobs`, `:426`),
+   releases it. The observer's catch no longer does (`:554`). A launched job
+   whose retirement is unproved keeps its slot until local recovery, like any
+   other unresolved attempt.
+2. **Absent units were taken as reclamation while the launcher could still
+   submit its unit.** A failed launch now stops the worker's `systemd-run`
+   client without activating it, observes it closed and exited (or never
+   spawned) within the frame deadline (`isLauncherTerminal`, `:498`;
+   `hasLauncherEnded`, `:502`), and only then asks the manager whether both
+   units are gone (`:600`). Until both hold, the launch is `uncertain` and keeps
+   its slot.
+
+| Regression (`deviceWorkerLinux.test.ts`)                                                    | Proves                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `:385` a never-activated unit left unproved (before / after its retirement observer exists) | The reviewer's 129-launch probe: readiness passes, the final query cannot read `cgroup.procs`, Stop is refused. All 128 results are `uncertain` with no `reclaimed`; the 129th is refused for capacity before any start. The earlier table row keeps the pre-observer case. |
+| `:406` absent units after a failed readiness query                                          | The reviewer's stream and manager probe: the first readiness query fails, Stop is refused, the manager then shows both units gone. With the launcher still running the result is `uncertain`; once it ends, `refused`. No activation is sent in either case.                |
+
+| Base proof and drills (Windows host, `--maxWorkers=3`, default timeouts, file restored byte-exact) | Result                                                                                                                                                                                              |
+| -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Driver from `c828a76f0` under the new tests                                                        | **Exit 1, 3 failed**: the 129th launch is admitted (`uncertain`), the stuck launcher gives `refused`, and the control never stops its launcher. The pre-observer row still passes, as on that base. |
+| Observer releases the slot again                                                                   | **Exit 1, 1 failed**: the post-observer slot case.                                                                                                                                                  |
+| Absence refused without the launcher proof                                                         | **Exit 1, 2 failed**: the stuck launcher is refused, and the control never stops its launcher.                                                                                                      |
+| Restored final source                                                                              | **Exit 0**, 4 passed.                                                                                                                                                                               |
+
+Kubuntu rig, natively: `deviceWorkerLinux`, `deviceWorkerHostNative` and
+`deviceWorkerHost` **exit 0, 90 passed, 7 Windows-only skipped**, all **13
+native Linux** cases included; the final committed tree again **34/34** for
+`deviceWorkerLinux`. Production build there **exit 0**, `dist/devices.js`
+**102.5 / 125 KiB**. On the committed tree: host and unit typechecks, plain
+knip, cycles and `check:host-api` **exit 0**; ESLint `--max-warnings=0`,
+Prettier and jscpd (**0 clones**) **exit 0**; the installed hooks passed.
+
+## Join (W + JFIX), 2026-10-08
+
+Branch `m100/p2-joined` from lane W's final **`aa31aabcf`**, then
+`git merge --no-ff m100/p2-join-fix` (**`d1a776f40`**), in worktree
+`C:/Users/Randy/Coding/mx-m100w2` on the lead's Windows 11 host. Merge base
+`a4007f56c`: 10 W commits and 5 join-fix commits. The worktree's
+`node_modules` is a real directory and the installed hooks were present, so
+`npm run prepare` was not needed. Model attempts **0**, inference spend **0**;
+no push, rebase, stash, credential read, ACL change, dependency change or cap
+change.
+
+### Conflicts and resolutions
+
+| File                                 | Conflict                                                                                                                                                                                           | Resolution                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/deviceWorkerHost.test.ts` | Both added helpers after `helperRequestSchema`: W's `wrongPlatformFactory` (async selector test); JFIX's `afterAll(endDeviceStorage)`, `launchTwice`, `dispatchHeldUncertain`, `expectRefusedOnce` | Both kept verbatim, W's helper first. No test dropped or assertion changed.                                                                                                                                                                                                                                                                          |
+| `docs/certification/m100-phase2.md`  | Both appended after the final-join record                                                                                                                                                          | Both kept whole, in order: lane W (with its RVM100W and RVM100W2 rounds), then the join-fix records (RVM100JOIN, RVM100JFIX), then this section. Line references in the join-fix record are against `d1a776f40`; in the joined tree, `deviceWorkerHost.ts` after the selector (from `:145`) reads +17 and `deviceReceiver.ts` after `:148` reads +4. |
+
+Auto-merged without conflict: `src/host/devices/deviceWorkerHost.ts` (W's one
+async three-factory `selectDeviceWorkerDriver` with its driver-platform check;
+JFIX's `DeviceWorkerLaunch` union and `settleFailedLaunch`, in separate
+regions) and `src/host/devices/deviceReceiver.ts` (W: `open` asks `retain`
+only for a non-empty journal; JFIX: a start that rejects is journaled
+`uncertain` with its occupancy). These are different guards, and neither
+weakens the other: a journal holding JFIX's `uncertain` record is non-empty,
+so `retain` still restores its occupancy on reopen. The two
+`deviceWorkerLinux`/`deviceWorkerDarwin` tests carry W's selector migration
+and JFIX's driver cases side by side.
+
+**Survival check.** For every file, the joined tree's changed lines against
+one parent equal the other parent's changed lines against the base, with zero
+differences. For example, `deviceWorkerHost.ts` has 87 against W and 87 for
+JFIX; `deviceWorkerHost.test.ts` has 273/273 against W and 28/28 against JFIX;
+`deviceWorkerLinux.test.ts` has 233/233 and 54/54. Eight of JFIX's twelve
+files have identical patch-ids, including `deviceReceiver.ts` and
+`deviceWorkerDarwin.test.ts`, which W also touched.
+
+**JFIX request to W, carried here.** Only `DeviceWorkerHost` calls
+`driver.launch` (`deviceWorkerHost.ts:428`). W wires no production launch
+caller (lane K owns execution), and the deleted `deviceWorkerDriverForPlatform`
+has no remaining caller. The requested Unreleased CHANGELOG line is added under
+Fixed: a failed Devices worker launch is refused only with proof and otherwise
+held as uncertain.
+
+### Suites per machine
+
+Repository default timeouts, at most three files per run, `--maxWorkers=3`.
+All rig runs used `rig-test.sh` snapshots of one tree, **`65c4d3e9a`** (the
+resolved merge with the CHANGELOG line). The two "later" VM runs used
+snapshots that differ from it only in this record and the PLAN line.
+
+| Machine         | Files                                                                    | Result                                                                                                                                                                                                                                                                              |
+| --------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Win11 VM        | `devicesPhase2Harness`                                                   | **exit 0, 19/19**                                                                                                                                                                                                                                                                   |
+| Win11 VM        | `deviceWorkerHost`, `deviceWorkerHostNative`, `windowsStorageProtection` | **exit 0, 89 passed, 13 skipped**                                                                                                                                                                                                                                                   |
+| Kubuntu         | `deviceWorkerLinux`, `deviceWorkerHostNative`, `deviceWorkerHost`        | **exit 0, 91 passed, 7 skipped**                                                                                                                                                                                                                                                    |
+| Kubuntu         | `deviceReceiver`, `deviceRecovery`, `attemptJournal`                     | **exit 0, 115/115**                                                                                                                                                                                                                                                                 |
+| Kubuntu         | `devicesPhase2Harness`                                                   | **exit 0, 19/19**                                                                                                                                                                                                                                                                   |
+| Kubuntu         | `deviceProductionStorage`, `deviceProductionWiring`, `devicesQrLoading`  | **exit 0, 33/33**                                                                                                                                                                                                                                                                   |
+| Kubuntu         | `deviceIntegration`, `deviceStore`, `deviceWorkerDarwin`                 | **exit 0, 464 passed, 31 skipped**                                                                                                                                                                                                                                                  |
+| Mac mini        | `deviceWorkerDarwin`, `deviceWorkerHost`                                 | **exit 0, 507/507** (native macOS cases)                                                                                                                                                                                                                                            |
+| Win11 VM, later | `devicesQrLoading`, `DevicesApp`, `devicesPhase2Views`                   | **exit 0, 53/53**                                                                                                                                                                                                                                                                   |
+| Win11 VM, later | `deviceWorkerLinux`, `deviceWorkerDarwin`, `deviceQrEncoder`             | exit 1: **467 passed, 3 failed, 31 skipped**; `deviceWorkerLinux` passes in full; the three are `deviceWorkerDarwin` fake-port stress cases (two 15 s timeouts, one follow-on `unsupported-host`), run while the VM was shared with another lane; JFIX head on the VM: JOIN_VM_JFIX |
+
+The Kubuntu worker trio is JFIX's 90 plus W's driver-platform mismatch case
+(RVM100W 14). The VM trio equals JFIX's VM receipt (89/13), and the Mac mini
+equals JFIX's 507.
+
+**Windows host, natively** (the lead's PC, 58 to 91% CPU from other sessions
+throughout; 43 device and Devices UI files, the harness going to the VM). A
+one-file batch first reached vitest split into single characters (a bug in
+this lane's runner script). That ran most of the unit suite for 15 minutes
+before it was stopped, and the run is discarded; `DevicesView` was rerun
+alone. Host test runs ended at 19:10 when the coordinator reserved the
+overloaded host for git and file edits.
+
+| Run                                                                        | Result                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `deviceProductionStorage`, `deviceProductionWiring`, `commandRegistration` | **exit 0, 30/30**                                                                                                                                                                                                                                                                                                                                      |
+| `DevicesApp` (+ two files lost at pool start, below)                       | 20/20; vitest could not start the forks worker for `devicesQrLoading` and `devicesPhase2Views` ("Timeout waiting for worker to respond"), exit 1                                                                                                                                                                                                       |
+| `devicesPhase2Views` alone; `DevicesView` alone                            | **28/28**; **78/78**                                                                                                                                                                                                                                                                                                                                   |
+| `deviceReceiver`, `deviceRecovery`, `deviceIntegration`                    | **exit 0, 98/98**                                                                                                                                                                                                                                                                                                                                      |
+| nine further runs: every other `device*`/`devices*` file, three at a time  | **all exit 0: 716 passed** (62, 58, 153, 45, 83, 52, 89, 62, 112)                                                                                                                                                                                                                                                                                      |
+| `deviceWorkerHost`, `deviceWorkerHostNative`, `windowsStorageProtection`   | exit 1: **86 passed, 3 failed, 13 skipped**; the three are real scheduled-task cases (two 15 s timeouts, one `vi.waitFor`); the VM passes all                                                                                                                                                                                                          |
+| `deviceWorkerLinux`, `deviceWorkerDarwin`, `deviceQrEncoder`               | exit 1: **464 passed, 6 failed, 31 skipped**; five macOS stress cases (three 15 s timeouts, two follow-on), one Linux real-child wait (below)                                                                                                                                                                                                          |
+| the three driver files alone, joined tree (while knip and the build ran)   | `deviceWorkerDarwin` **429 passed, 4 failed, 31 skipped** (the same stress cases); `deviceWorkerLinux` **34/35** plus one unhandled rejection (below); `deviceWorkerHostNative` **1 passed, 6 failed, 13 skipped** (scheduled-task timeouts)                                                                                                           |
+| `devicesQrLoading` alone                                                   | once **4 passed, 1 failed** (a `findByRole` wait for the QR image), once no tests (forks worker start timeout, 91% CPU); on the VM with its trio, **53/53**                                                                                                                                                                                            |
+| JFIX head `d1a776f40`, same host, same files alone                         | `deviceWorkerDarwin` **429 passed, 4 failed, 31 skipped** (the same four cases); `deviceWorkerLinux` **31 passed, 3 failed** plus one unhandled error (the same real-probe case and two more timing waits); `deviceWorkerHostNative` **1 passed, 6 failed, 13 skipped** (the same six). The join's host failures reproduce on the join-fix head alone. |
+
+None of the host failures is in code the join changed. `devicesQrLoading`
+imports only webview, shared and UI-fake modules, none of which the join-fix
+touches, so for that suite the joined tree is byte-identical to W's tip. The
+driver files pass on their own platforms' rigs on the same tree. W's record
+already lists the Linux real-child wait as a host flake predating both lines.
+The JFIX record already lists the native scheduled-task and macOS stress
+timeouts on this host.
+
+**Finding, predating both lines (not fixed here).** In
+`src/host/backend/deviceWorkerLinux.ts`, the self-test's catch path calls
+`await ignoreFailure(job?.remove())` (`:633`). `remove()` throws synchronously
+while the job is unretired (`:582`), so the throw escapes the catch and
+`selfTest()` rejects with `DeviceWorkerHostError('result')` instead of
+resolving `false`. It is identical on the base `a4007f56c` (`:533`, `:580`),
+on W and on JFIX. On this host, after the "caches a real per-factory probe"
+case's 1 s wait timed out, it surfaced as an unhandled rejection. Left for the
+lead: changing driver behaviour needs its own regression test and review.
+
+### Gates (this worktree, `CI=true`, on the resolved tree)
+
+| Gate                                                 | Exit                                                                                                                                                                               |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| five typechecks                                      | **0, 0, 0, 0, 0** (host 105 s, webview 65 s, unit 285 s, e2e 109 s, integration 46 s)                                                                                              |
+| ESLint, full repository (`npm run lint:js`)          | **0** (`--max-warnings=0`, 2,581 s)                                                                                                                                                |
+| `prettier --check .`                                 | **0**                                                                                                                                                                              |
+| plain `npx knip`                                     | **0**, the same two configuration hints                                                                                                                                            |
+| `npm run cycles`                                     | **0**, 885 modules, no cycle                                                                                                                                                       |
+| `npm run duplication` (jscpd)                        | **0**, no clones                                                                                                                                                                   |
+| `check:l10n`, `check:reference`, `check:host-api`    | **0, 0, 0** (198 manifest strings, 0 problems; 62 features, Devices 18 entries; 368 VS Code APIs, 0 problems)                                                                      |
+| `check:plan`                                         | **1**: no such script in this repository or on `main` (npm "Missing script"); `teamPlanRecord.test.ts`, the test that reads `PLAN.md`: **exit 0, 2/2** with the PLAN line in place |
+| `npm run build` (size, split, host globals, notices) | **0**: `dist/devices.js` **105.4 / 125 KiB**, `extension.js` 467.0 / 600, `main.js` + static imports 736.8 / 900, Devices QR 21.6 / 25, 89 notices; no cap changed                 |
+
+`npm run quality` as one aggregate was not run here: its `test:unit` is the
+whole suite, and this record runs the device suites per machine instead. The
+aggregate run stays with W and the lead, as the final-join record says.

@@ -10,10 +10,12 @@ import { workerEnvironment } from '../../core/team/refFence'
 import { compileJob, jobFileName, type JobBuild } from './jobBuild'
 import {
   admittedProcessLimit,
+  deviceWorkerRefused,
+  deviceWorkerUncertain,
   DeviceWorkerHostError,
   parseDeviceWorkerQuery,
   type DeviceWorkerDriver,
-  type DeviceWorkerJob,
+  type DeviceWorkerLaunch,
 } from '../devices/deviceWorkerHost'
 import type { RunProgram } from '../processTree'
 
@@ -153,13 +155,17 @@ export function deviceWorkerNative(deps: DeviceWorkerNativeDeps): DeviceWorkerDr
       }
       return total
     },
-    launch: async (command, environment, attempt): Promise<DeviceWorkerJob> => {
+    launch: async (command, environment, attempt): Promise<DeviceWorkerLaunch> => {
       // Before any helper call or directory: the job's ActiveProcessLimit is this attempt's ceiling.
-      const maxProcesses = admittedProcessLimit(attempt)
+      let maxProcesses: number
+      try {
+        maxProcesses = admittedProcessLimit(attempt)
+      } catch (error) {
+        return deviceWorkerRefused(error)
+      }
       const id = randomUUID().replaceAll('-', '')
       const root = path.join(deps.storageDir, 'device-workers')
       const directory = path.join(root, id)
-      await allocate(root, directory)
       const file = (name: string) => path.join(directory, name)
       const config = {
         id,
@@ -174,11 +180,29 @@ export function deviceWorkerNative(deps: DeviceWorkerNativeDeps): DeviceWorkerDr
         pollMs: POSIX_TREE_EXIT_POLL_MS,
       }
       const encoded = JSON.stringify(config)
-      if (Buffer.byteLength(encoded) > DEVICE_LIMITS.frameBytes) {
-        await rm(directory, { recursive: true, force: true })
-        throw new DeviceWorkerHostError('preflight')
+      // Refusals before the attempt directory exists allocate nothing.
+      if (Buffer.byteLength(encoded) > DEVICE_LIMITS.frameBytes)
+        return deviceWorkerRefused(new DeviceWorkerHostError('preflight'))
+      try {
+        await allocate(root, directory)
+      } catch (error) {
+        return deviceWorkerRefused(error)
       }
-      await writeFile(file('request.json'), encoded, { flag: 'wx', mode: Number('0o600') })
+      try {
+        // A refused helper is known before any helper call, so nothing can have started.
+        if (!(await (preparing ??= isPrepared()))) throw new DeviceWorkerHostError('helper')
+        await writeFile(file('request.json'), encoded, { flag: 'wx', mode: Number('0o600') })
+      } catch (error) {
+        // No helper was called: removing the directory proves nothing remains.
+        try {
+          await rm(directory, { recursive: true, force: true })
+        } catch {
+          return deviceWorkerUncertain(error)
+        }
+        return deviceWorkerRefused(error)
+      }
+      // Set only by the task's own last result: it ran once and failed in DLL initialization.
+      const startup = { isHeap: false }
       const waitFor = async (name: string): Promise<unknown> => {
         const deadline = Date.now() + DEVICE_LIMITS.frameDeadlineMs
         while (Date.now() < deadline) {
@@ -188,8 +212,10 @@ export function deviceWorkerNative(deps: DeviceWorkerNativeDeps): DeviceWorkerDr
         }
         const status: unknown = JSON.parse(await call(['--task-state', id]))
         const state = taskStateSchema.parse(status)
-        if (state.lastExitCode >>> 0 === Number('0xc0000142'))
+        if (state.lastExitCode >>> 0 === Number('0xc0000142')) {
+          startup.isHeap = state.state !== 'running'
           throw new DeviceWorkerHostError('desktop-heap')
+        }
         throw new DeviceWorkerHostError('helper')
       }
       try {
@@ -220,21 +246,29 @@ export function deviceWorkerNative(deps: DeviceWorkerNativeDeps): DeviceWorkerDr
           /* The host attaches its consumer after readiness validation. */
         })
         return {
-          query,
-          retirement,
-          activate: () => writeFile(file('go'), '', { flag: 'wx' }),
-          cancel: async () => {
-            await writeFile(file('stop'), '')
-            await call(['--stop', id])
-          },
-          remove: async () => {
-            jobs.delete(id)
-            await call(['--remove', id])
-            await rm(directory, { recursive: true, force: true })
+          kind: 'launched',
+          job: {
+            query,
+            retirement,
+            activate: () => writeFile(file('go'), '', { flag: 'wx' }),
+            cancel: async () => {
+              await writeFile(file('stop'), '')
+              await call(['--stop', id])
+            },
+            remove: async () => {
+              jobs.delete(id)
+              await call(['--remove', id])
+              await rm(directory, { recursive: true, force: true })
+            },
           },
         }
       } catch (error) {
-        await writeFile(file('stop'), '')
+        let isRemoved = false
+        try {
+          await writeFile(file('stop'), '')
+        } catch {
+          /* A late helper start is still refused by the removed task below, or retained. */
+        }
         try {
           await call(['--stop', id])
         } catch {
@@ -242,11 +276,22 @@ export function deviceWorkerNative(deps: DeviceWorkerNativeDeps): DeviceWorkerDr
         }
         try {
           await call(['--remove', id])
+          isRemoved = true
         } catch {
           /* A failed task removal is retained for local recovery. */
         }
+        // The single on-demand run ended in DLL initialization, before any job or child, and its
+        // task cannot start again: removing the directory then proves nothing remains.
+        if (isRemoved && startup.isHeap) {
+          try {
+            await rm(directory, { recursive: true, force: true })
+            return deviceWorkerRefused(error)
+          } catch {
+            /* The directory stays as retained evidence. */
+          }
+        }
         // Preserve evidence; no timer or failed query proves an empty job.
-        throw error
+        return deviceWorkerUncertain(error)
       }
     },
   }
