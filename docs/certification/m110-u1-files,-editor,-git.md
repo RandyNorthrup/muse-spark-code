@@ -282,21 +282,16 @@ in each request's `finally` only for the still-current id. A realm-proof
 silent after the validated port throws the runtime's `AbortError`.
 
 Final verification (all guarded sources restored, Mac mini, 2026-10-09):
-`nodeHandlerErrors` 4, `nodeFileTree` 9, `nodeWorkspaceUi` 20,
+`nodeHandlerErrors` 4, `nodeFileTree` 9, `nodeWorkspaceUi` 21,
 `nodeFilesPage` 29, `nodeGitPage` 23, `nodeListenerGuard` 60,
-`nodeSurface`/`nodeBrowserPort`/`nodeGitLocalBare`/`nodeWorkspaceBuild`
-passed at the repository default timeout. `typecheck:host/webview/unit`
-passed; scoped ESLint, Prettier, `check:l10n` (14 tables, 164 manifest
-strings, 0 problems), `npm run build`, `knip` (only the two pre-existing
-hints) and `jscpd` (0 clones) passed. No gate weakened, no suppression
-added, no `as` cast, no new dependency. `nodeListener.test.ts` still
-cannot execute on this rig (loopback `listen EPERM` in `beforeAll`,
+`nodeSurface` 4, `nodeBrowserPort` 13, `nodeGitLocalBare` 2,
+`nodeWorkspaceBuild` 3 — all passed at the repository default timeout
+(counts are executed tests per file, including the `it.each` rows and the
+new binary re-upload case in `nodeWorkspaceUi`). Full `typecheck`
+(host/webview/unit/e2e/integration) passed; scoped ESLint, Prettier,
+`check:l10n` (14 tables, 164 manifest strings, 0 problems),
+`npm run build` (all size/split/global checks), `knip` (only the two
+pre-existing hints) and `jscpd` (0 clones) passed. No gate weakened, no
+suppression added, no `as` cast, no new dependency. `nodeListener.test.ts`
+still cannot execute on this rig (loopback `listen EPERM` in `beforeAll`,
 pre-existing, also blocks U2); it typechecks.
-
-Final verification (all guarded sources restored, Mac mini, 2026-10-09):
-`nodeFilesPage` 29, `nodeGitPage` 23, `nodeWorkspaceUi` 19,
-`nodeFileTree` 6, `nodeListenerGuard` 60 — all passed at the repository
-default timeout. `typecheck:host/unit/webview` passed; scoped ESLint,
-Prettier, `check:l10n` (0 problems), `npm run build` (all size/split/global
-checks), `knip` and `jscpd` (0 clones) passed. No gate weakened, no
-suppression added, no `as` cast, no new dependency.
