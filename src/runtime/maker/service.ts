@@ -308,7 +308,7 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
       return await state()
     }
     if (message.type === 'makerReady') {
-      host.reopen()
+      host.newDocument()
       return await state()
     }
     // MakerApproval itself checks admission, id, digest and completeness.

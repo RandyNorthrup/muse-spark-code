@@ -76,6 +76,8 @@ export class RuntimeMakerHost implements MakerHost {
   }
   private enabled = false
   private enableGeneration = 0
+  /** Document epoch (PLAN M103 FIXM103W8): reviews and `auth` are valid only in the epoch that made them. */
+  private epoch = 0
   private readonly listeners = new Set<(message: MakerHostMessage) => void>()
   private readonly pending = new Map<
     string,
@@ -83,7 +85,8 @@ export class RuntimeMakerHost implements MakerHost {
       request: ApprovalRequest
       resolve: (answer: unknown) => void
       review: (raw: unknown) => boolean
-      grant?: { value: string; expires: number }
+      /** Without `value` the OS prompt is in flight; with it, the presence grant. */
+      auth?: { epoch: number; expires: number; value?: string }
     }
   >()
   private machines: readonly MakerMachineSummary[] = []
@@ -174,6 +177,8 @@ export class RuntimeMakerHost implements MakerHost {
     this.enabled = true
   }
   subscribe(listener: (message: MakerHostMessage) => void): () => void {
+    // Replay is a new document: revoke first, then admission, then requests to review afresh.
+    this.newDocument()
     this.listeners.add(listener)
     // Admission first: a fresh document rejects a request it sees before it is admitted.
     listener(makerHostMessageSchema.parse(this.state()))
@@ -258,7 +263,7 @@ export class RuntimeMakerHost implements MakerHost {
       summary,
     })
   }
-  /** Only a pending, exact answer can prompt; the key is minted after OS authentication. */
+  /** Transition `authenticate`: only a pending, exact answer with no live auth in this epoch prompts. */
   async authorize(raw: unknown): Promise<string | undefined> {
     const parsed = makerApprovalAnswerSchema.safeParse(raw)
     if (!parsed.success || parsed.data.decision !== 'allow_once') return undefined
@@ -266,7 +271,7 @@ export class RuntimeMakerHost implements MakerHost {
     const held = this.pending.get(answer.id)
     if (
       held === undefined ||
-      held.grant !== undefined ||
+      (held.auth?.epoch === this.epoch && performance.now() < held.auth.expires) ||
       answer.digest !== held.request.digest ||
       !isSameMakerTarget(answer.target, held.request.target) ||
       Date.now() >= held.request.expiresAt
@@ -295,27 +300,42 @@ export class RuntimeMakerHost implements MakerHost {
       actuate: UI_TEXT.makerPresenceActuate,
       stop: UI_TEXT.makerPresenceActuate,
     }
-    await this.checkPresence({
-      id: answer.id,
-      digest: answer.digest,
-      machine,
-      summary: summaries[held.request.action],
-    })
-    if (
-      this.pending.get(answer.id) !== held ||
-      this.pending.get(answer.id)?.grant !== undefined ||
-      !this.isTrusted() ||
-      !this.hardwareEnabled() ||
-      !this.isInteractive() ||
-      Date.now() >= held.request.expiresAt
-    )
-      return undefined
-    const value = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
-    held.grant = { value, expires: performance.now() + MAKER_PRESENCE_GRANT_MS }
-    return value
+    const auth: NonNullable<typeof held.auth> = { epoch: this.epoch, expires: Infinity }
+    held.auth = auth
+    let isApproved = false
+    try {
+      await this.checkPresence({
+        id: answer.id,
+        digest: answer.digest,
+        machine,
+        summary: summaries[held.request.action],
+      })
+      isApproved = true
+    } finally {
+      // Transition `authenticated` only if nothing replaced this auth or started a new epoch.
+      if (
+        isApproved &&
+        held.auth === auth &&
+        auth.epoch === this.epoch &&
+        this.pending.get(answer.id) === held &&
+        this.isTrusted() &&
+        this.hardwareEnabled() &&
+        this.isInteractive() &&
+        Date.now() < held.request.expiresAt
+      ) {
+        auth.value = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
+        auth.expires = performance.now() + MAKER_PRESENCE_GRANT_MS
+      } else if (held.auth === auth) delete held.auth
+    }
+    return auth.value
   }
-  /** A document's makerReady revokes every earlier review; MakerApproval.review clears on any other frame. */
-  reopen(): void {
+  /**
+   * Transition `newDocument` (launch, /session resume, /events replay, makerReady): a new epoch
+   * atomically retires every earlier grant and in-flight OS authentication, and MakerApproval
+   * clears its review on any frame but a matching review.
+   */
+  newDocument(): void {
+    this.epoch += 1
     for (const { review } of this.pending.values()) review({ v: 1, type: 'makerReady' })
   }
   /** The surface's payload review reaches only the pending request's own MakerApproval check. */
@@ -329,12 +349,13 @@ export class RuntimeMakerHost implements MakerHost {
     const held = this.pending.get(correlation.data.id)
     if (held === undefined) return false
     let isAllowed = parsed.success
+    // Transition `answer`: allow needs this epoch's live grant; the engine still needs this epoch's review.
     if (parsed.success && parsed.data.decision === 'allow_once') {
-      const minted = held.grant
+      const minted = held.auth?.epoch === this.epoch ? held.auth : undefined
       const given = Buffer.from(grant ?? '')
       const expected = Buffer.from(minted?.value ?? '')
       isAllowed =
-        minted !== undefined &&
+        minted?.value !== undefined &&
         performance.now() < minted.expires &&
         given.length === expected.length &&
         timingSafeEqual(given, expected) &&

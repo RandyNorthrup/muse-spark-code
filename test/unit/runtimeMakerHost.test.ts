@@ -49,8 +49,8 @@ async function fixture(overrides: Partial<Parameters<typeof RuntimeMakerHost.cre
   }
   return { host: await RuntimeMakerHost.create(deps), deps, workspace, auditEnable }
 }
-async function confirming() {
-  const { host } = await fixture()
+async function confirming(overrides: Partial<Parameters<typeof RuntimeMakerHost.create>[0]> = {}) {
+  const { host } = await fixture(overrides)
   await host.setHardware(true, 'bench')
   const snapshot = request()
   const engine = new MakerApproval(snapshot, () => host.hardwareEnabled())
@@ -70,6 +70,22 @@ async function confirming() {
     decision: 'allow_once',
   }
   return { host, snapshot, engine, pending, didReview, answer }
+}
+/**
+ * RVM103W2 P2 (Windows): lifecycle tests inject the port probe. Real discovery needs
+ * SystemRoot and PowerShell on Windows (and ioreg on macOS), which an empty test env lacks.
+ */
+async function lifecycleService({
+  platform = process.platform,
+  ...overrides
+}: Partial<Parameters<typeof RuntimeMakerHost.create>[0]> & { platform?: NodeJS.Platform } = {}) {
+  const { deps } = await fixture(overrides)
+  const service = await createRuntimeMakerService({
+    ...deps,
+    native: { platform, env: {}, packageRoot: path.resolve('.') },
+  })
+  vi.spyOn(service.serial, 'ports').mockResolvedValue([])
+  return service
 }
 function grantFile(host: RuntimeMakerHost): string {
   return path.join(
@@ -271,14 +287,17 @@ describe('runtime maker host', () => {
     expect(host.review(review)).toBe(false)
     expect(didReview).toHaveBeenCalledOnce()
   })
-  it.each([false, true])(
-    'RVM103W P2 a later document makerReady revokes the earlier review (reviewed again: %s)',
-    async (isReviewedAgain) => {
-      const { deps } = await fixture()
-      const service = await createRuntimeMakerService({
-        ...deps,
-        native: { platform: process.platform, env: {}, packageRoot: path.resolve('.') },
-      })
+  it.each([
+    ['win32', false],
+    ['win32', true],
+    ['linux', false],
+    ['linux', true],
+    ['darwin', false],
+    ['darwin', true],
+  ] as const)(
+    'RVM103W P2 a later document makerReady revokes the earlier review (%s, reviewed again: %s)',
+    async (platform, isReviewedAgain) => {
+      const service = await lifecycleService({ platform })
       const signal = new AbortController().signal
       try {
         await service.host.setHardware(true, 'bench')
@@ -309,6 +328,145 @@ describe('runtime maker host', () => {
       }
     },
   )
+  describe('document epoch transitions (PLAN M103 FIXM103W8)', () => {
+    it('open: a confirmed request is replayed to a new document and allows only with a grant', async () => {
+      const { host, snapshot, pending, answer } = await confirming()
+      const messages: unknown[] = []
+      const off = host.subscribe((message) => {
+        messages.push(message)
+      })
+      try {
+        expect(messages.at(-1)).toEqual({ v: 1, type: 'makerApproval', request: snapshot })
+        expect(host.answer(answer)).toBe(false)
+      } finally {
+        off()
+        host.cancelApprovals()
+        await pending
+      }
+    })
+    it('review: counts only in the epoch that made it; the new document reviews again', async () => {
+      const { host, engine, pending, didReview, answer } = await confirming()
+      expect(didReview()).toBe(true)
+      host.newDocument()
+      expect(didReview()).toBe(true)
+      expect(host.answer(answer, await host.authorize(answer))).toBe(true)
+      expect(engine.answer(await pending)).toBeDefined()
+    })
+    it('authenticate: a second Send once while the OS prompt is open does not prompt again', async () => {
+      const presence = { check: vi.fn().mockResolvedValue('approved') }
+      const { host, pending, answer } = await confirming({ presence })
+      const native = Promise.withResolvers<'approved'>()
+      presence.check.mockReturnValue(native.promise)
+      const first = host.authorize(answer)
+      expect(await host.authorize(answer)).toBeUndefined()
+      native.resolve('approved')
+      expect(await first).toBeDefined()
+      expect(presence.check).toHaveBeenCalledTimes(2)
+      host.cancelApprovals()
+      await pending
+    })
+    it('authenticated: an expired grant lets the same document authenticate again', async () => {
+      const { host, engine, pending, didReview, answer } = await confirming()
+      expect(didReview()).toBe(true)
+      const old = await host.authorize(answer)
+      expect(await host.authorize(answer)).toBeUndefined()
+      const clock = vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 6000)
+      try {
+        const fresh = await host.authorize(answer)
+        expect(fresh).toBeDefined()
+        expect(host.answer(answer, old)).toBe(false)
+        expect(host.answer(answer, fresh)).toBe(true)
+      } finally {
+        clock.mockRestore()
+      }
+      expect(engine.answer(await pending)).toBeDefined()
+    })
+    it('authentication failed: a denied OS prompt leaves the request open for a retry', async () => {
+      const presence = { check: vi.fn().mockResolvedValue('approved') }
+      const { host, pending, answer } = await confirming({ presence })
+      presence.check.mockResolvedValueOnce('denied')
+      await expect(host.authorize(answer)).rejects.toThrow()
+      const grant = await host.authorize(answer)
+      expect(grant).toBeDefined()
+      expect(host.answer(answer, grant)).toBe(true)
+      await pending
+    })
+    it('answer: a grant minted in an earlier epoch is refused', async () => {
+      const { host, pending, didReview, answer } = await confirming()
+      expect(didReview()).toBe(true)
+      const old = await host.authorize(answer)
+      host.newDocument()
+      expect(host.answer(answer, old)).toBe(false)
+      host.cancelApprovals()
+      await pending
+    })
+    it('newDocument: OS authentication started before it mints nothing; the new document can', async () => {
+      const presence = { check: vi.fn().mockResolvedValue('approved') }
+      const { host, engine, pending, didReview, answer } = await confirming({ presence })
+      const native = Promise.withResolvers<'approved'>()
+      presence.check.mockReturnValueOnce(native.promise)
+      const inFlight = host.authorize(answer)
+      host.newDocument()
+      native.resolve('approved')
+      expect(await inFlight).toBeUndefined()
+      expect(didReview()).toBe(true)
+      const fresh = await host.authorize(answer)
+      expect(fresh).toBeDefined()
+      expect(host.answer(answer, fresh)).toBe(true)
+      expect(engine.answer(await pending)).toBeDefined()
+    })
+    it('close: a cancelled request accepts no review, authentication or answer', async () => {
+      const { host, pending, didReview, answer } = await confirming()
+      host.cancelApprovals()
+      expect(await pending).toBeUndefined()
+      expect(didReview()).toBe(false)
+      expect(await host.authorize(answer)).toBeUndefined()
+      expect(host.answer(answer, 'a'.repeat(64))).toBe(false)
+    })
+    it.each(['grant before ready', 'presence in flight'] as const)(
+      'RVM103W2 P2 a reloaded document gets its own grant; the old one is retired (%s)',
+      async (variant) => {
+        const presence = { check: vi.fn().mockResolvedValue('approved') }
+        const service = await lifecycleService({ presence, platform: 'win32' })
+        const signal = new AbortController().signal
+        try {
+          await service.host.setHardware(true, 'bench')
+          const snapshot = { ...request(), expiresAt: Date.now() + 30_000 }
+          const engine = new MakerApproval(snapshot, () => service.host.hardwareEnabled())
+          const pending = service.host.confirm(snapshot, (raw) => engine.review(raw))
+          const review = {
+            v: 1 as const,
+            type: 'makerPayloadReviewed' as const,
+            id: snapshot.id,
+            digest: snapshot.digest,
+            isComplete: true,
+          }
+          const answer = {
+            id: snapshot.id,
+            digest: snapshot.digest,
+            target: snapshot.target,
+            decision: 'allow_once',
+          }
+          expect(await service.dispatch(review, signal)).toBe(true)
+          const native = Promise.withResolvers<'approved'>()
+          if (variant === 'presence in flight') presence.check.mockReturnValueOnce(native.promise)
+          const old = service.host.authorize(answer)
+          if (variant === 'grant before ready') await old
+          await service.dispatch({ v: 1, type: 'makerReady' }, signal)
+          native.resolve('approved')
+          const oldGrant = await old
+          expect(await service.dispatch(review, signal)).toBe(true)
+          const fresh = await service.host.authorize(answer)
+          expect(fresh).toBeDefined()
+          if (oldGrant !== undefined) expect(service.host.answer(answer, oldGrant)).toBe(false)
+          expect(service.host.answer(answer, fresh)).toBe(true)
+          expect(engine.answer(await pending)).toBeDefined()
+        } finally {
+          await service.close()
+        }
+      },
+    )
+  })
   it('a fresh document is admitted before the pending request it replays', async () => {
     const { host } = await fixture()
     await host.setHardware(true, 'bench')

@@ -139,6 +139,7 @@ export async function startCompanion(deps: CompanionDeps) {
         return
       }
       launch = ''
+      deps.host?.newDocument()
       // HTTP loopback cannot use Secure/__Host-. Name and value bind this host-only cookie to this instance and port.
       response.setHeader(
         'Set-Cookie',
@@ -192,8 +193,12 @@ export async function startCompanion(deps: CompanionDeps) {
     }
     // A reloaded document holds the session cookie; the launch code is already spent.
     if (request.url === '/session' && request.method === 'POST') {
-      if (incomingOrigin === origin) bootstrap(response)
-      else response.writeHead(HTTP_STATUS.forbidden).end()
+      if (incomingOrigin !== origin) {
+        response.writeHead(HTTP_STATUS.forbidden).end()
+        return
+      }
+      deps.host?.newDocument()
+      bootstrap(response)
       return
     }
     if (request.url === '/events' && request.method === 'GET') {

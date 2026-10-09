@@ -17,6 +17,7 @@ import { RUNTIME_MAKER_LAUNCH_CODE_MS } from '../../src/shared/constants'
 import { companionLaunchSchema } from '../../src/shared/companionProtocol'
 import { createRuntimeMakerService } from '../../src/runtime/maker/service'
 import type { ApprovalRequest } from '../../src/shared/makerProtocol'
+import { MakerApproval } from '../../src/core/maker/ports'
 import { fakeMachineServer, makerLimits } from './helpers/fakeMakerMachine'
 
 vi.mock('node:crypto', async (importOriginal) => {
@@ -108,6 +109,23 @@ async function session(server: { readonly url: string; readonly launch: string }
   const cookie = reply.headers['set-cookie']?.[0]?.split(';', 1)[0]
   if (cookie === undefined) throw new Error('no cookie')
   return cookie
+}
+/** Reads the replay a new /events subscriber receives, then closes the stream. */
+async function replay(url: string, headers: Record<string, string>) {
+  return await new Promise<string>((resolve, reject) => {
+    const outgoing = request(`${url}/events`, { headers }, (response) => {
+      let text = ''
+      response.setEncoding('utf8')
+      response.on('data', (chunk: string) => {
+        text += chunk
+        if (!text.includes('"makerApproval"')) return
+        outgoing.destroy()
+        resolve(text)
+      })
+    })
+    outgoing.on('error', reject)
+    outgoing.end()
+  })
 }
 describe('companion boundary', () => {
   it('delivers a launch code only once over same-origin loopback, never in the opened URL', async () => {
@@ -303,6 +321,94 @@ describe('companion boundary', () => {
       await pending
     }
   })
+  it.each([
+    ['launch', false],
+    ['session', false],
+    ['events', false],
+    ['launch', true],
+    ['session', true],
+    ['events', true],
+  ] as const)(
+    'RVM103W2 P2 a %s replay starts a new document epoch; the old review never binds (reviewed again: %s)',
+    async (route, isReviewedAgain) => {
+      const directory = await mkdtemp(path.join(tmpdir(), 'maker-epoch-'))
+      cleanups.push(() => rm(directory, { recursive: true, force: true }))
+      const workspace = path.join(directory, 'repo')
+      await mkdir(workspace)
+      const service = await createRuntimeMakerService({
+        dataDirectory: path.join(directory, 'data'),
+        workspace,
+        trusted: () => true,
+        flagged: () => true,
+        presence: { check: vi.fn().mockResolvedValue('approved') },
+        interactive: () => true,
+        secrets,
+        native: { platform: process.platform, env: {}, packageRoot: path.resolve('.') },
+      })
+      vi.spyOn(service.serial, 'ports').mockResolvedValue([])
+      cleanups.push(() => service.close())
+      await service.host.setHardware(true, 'supervised test')
+      const server = await startCompanion({
+        host: service.host,
+        dispatch: service.dispatch,
+        tools: service.tools,
+        assets: new Map([['/', { body: '<html></html>', type: 'text/html' }]]),
+      })
+      cleanups.push(() => server.close())
+      const launched = async () => {
+        await server.open()
+        const delivery = await http(server.url, '/launch-code', { Origin: server.url }, '')
+        const launch = companionLaunchSchema.parse(JSON.parse(delivery.text)).launch
+        return { Cookie: await session({ ...server, launch }), Origin: server.url }
+      }
+      let headers = await launched()
+      const snapshot: ApprovalRequest = {
+        id: randomUUID(),
+        digest: crypto.createHash('sha256').update('payload').digest('hex'),
+        expiresAt: Date.now() + 30_000,
+        kind: 'command',
+        target: { kind: 'workspace', workspace: path.resolve('.') },
+        action: 'program',
+        payload: 'payload',
+      }
+      const engine = new MakerApproval(snapshot, () => service.host.hardwareEnabled())
+      const pending = service.host.confirm(snapshot, (raw) => engine.review(raw))
+      const review = JSON.stringify({
+        v: 1,
+        type: 'makerPayloadReviewed',
+        id: snapshot.id,
+        digest: snapshot.digest,
+        isComplete: true,
+      })
+      const reviewed = () => http(server.url, '/message', headers, review)
+      expect(await reviewed()).toMatchObject({ text: 'true' })
+      // The replacement document resumes; its makerReady is delayed and never arrives here.
+      if (route === 'launch') headers = await launched()
+      else if (route === 'session')
+        expect(await status(server.url, '/session', headers, '')).toBe(200)
+      else {
+        const frames = await replay(server.url, { Cookie: headers.Cookie })
+        expect(frames.indexOf('"makerState"')).toBeLessThan(frames.indexOf('"makerApproval"'))
+      }
+      if (isReviewedAgain) expect(await reviewed()).toMatchObject({ text: 'true' })
+      const answer = JSON.stringify({
+        v: 1,
+        type: 'makerAnswer',
+        answer: {
+          id: snapshot.id,
+          digest: snapshot.digest,
+          target: snapshot.target,
+          decision: 'allow_once',
+        },
+      })
+      const presence = await http(server.url, '/presence', headers, answer)
+      const grant = z.object({ grant: z.string() }).parse(JSON.parse(presence.text)).grant
+      expect(
+        await status(server.url, '/answer', { ...headers, 'X-Maker-Approval': grant }, answer),
+      ).toBe(204)
+      expect(engine.answer(await pending) !== undefined).toBe(isReviewedAgain)
+    },
+  )
   it.each(['reviewed', 'incomplete', 'other digest', 'other target', 'unreviewed'] as const)(
     'companion approval through the real service dispatches only after an exact review: %s',
     async (variant) => {
