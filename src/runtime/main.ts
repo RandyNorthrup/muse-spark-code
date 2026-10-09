@@ -642,7 +642,12 @@ async function openUsageBrowser(input: string): Promise<void> {
   // The fixed OS opener receives only a checked loopback URL and no credential
   // environment; argument arrays never pass through a shell (D82, rule 8).
   try {
-    await handoffResourceFile(executable, args, { env: process.env })
+    // A valid xdg-open handler may stay in the foreground with the browser: it
+    // is launched once started, and its lifetime never holds the CLI or the page.
+    await handoffResourceFile(executable, args, {
+      env: process.env,
+      ...(process.platform === 'linux' && { until: 'spawn' as const }),
+    })
   } catch (error: unknown) {
     if (isResourcePaused(error)) throw error
     // Opener output goes to the null device; only fixed words are reported.

@@ -135,6 +135,34 @@ describe('bootstrap tier', () => {
     )
   })
 
+  it('names exit metadata on failure and reports output only to callers that ask', async () => {
+    vi.mocked(admission.admitBootstrap).mockImplementation(() =>
+      Promise.resolve(fakeResourceLease()),
+    )
+    const script =
+      "process.stdout.write('stdout-diagnostic');process.stderr.write('stderr-diagnostic');process.exitCode=3"
+    const failure = async (isOutputReported: boolean) => {
+      try {
+        await runBootstrap(
+          process.execPath,
+          ['-e', script],
+          { SystemRoot: process.env['SystemRoot'] },
+          { isOutputReported },
+        )
+      } catch (error: unknown) {
+        return error instanceof Error ? error.message : String(error)
+      }
+      throw new Error('bootstrap fixture succeeded')
+    }
+    const quiet = await failure(false)
+    expect(quiet).toContain('code=3, killed=false, signal=null')
+    expect(quiet).not.toContain('diagnostic')
+    const reported = await failure(true)
+    expect(reported).toContain('code=3, killed=false, signal=null')
+    expect(reported).toContain('stdout-diagnostic')
+    expect(reported).toContain('stderr-diagnostic')
+  })
+
   it('bounds combined compiler output and waits for exit', async () => {
     const lease = fakeResourceLease()
     vi.mocked(admission.admitBootstrap).mockResolvedValue(lease)

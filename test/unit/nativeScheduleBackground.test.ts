@@ -1316,7 +1316,17 @@ describe('native background lifecycle', () => {
     if (process.platform === 'win32') {
       const directory = await mkdtemp(path.join(os.tmpdir(), 'm115-helper-shadow-'))
       try {
-        await copyFile(process.execPath, path.join(directory, 'powershell.exe'))
+        // A small real program as the shadow (it would print the host name, not
+        // the JSON): a fresh copy of the ~80 MB node.exe is what a scanning
+        // hosted runner held past the test deadline.
+        await copyFile(
+          path.join(
+            process.env['SystemRoot'] ?? String.raw`C:\Windows`,
+            'System32',
+            'hostname.exe',
+          ),
+          path.join(directory, 'powershell.exe'),
+        )
         const run = backgroundProcessRunner({
           SystemRoot: process.env['SystemRoot'],
           PATH: directory,

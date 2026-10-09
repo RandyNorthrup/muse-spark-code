@@ -7,6 +7,7 @@ import os from 'node:os'
 import { VaultAuditLog, type VaultAuditAnchorPort } from '../../../src/core/vault/broker/audit'
 import { audit } from '../helpers/vault/fixtures'
 import { UnixVaultPrivateFiles, readVaultFile } from '../../../src/core/vault/broker/files'
+import { UI_TEXT } from '../../../src/shared/constants'
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof filesystem>()
@@ -65,7 +66,25 @@ async function setup(maxBytes = 8 * 1024 * 1024) {
     anchor: () => anchor,
   }
 }
-describe('authenticated vault audit', () => {
+// The Unix broker's audit log keeps owner-only POSIX files (modes, symlink and
+// hard-link refusals). Windows has no POSIX-mode fallback: its default files
+// port refuses at construction, pinned below, and the Windows vault keeps its
+// material through the native helper's owner DACLs instead.
+const hasUnixFiles = process.platform !== 'win32'
+describe.runIf(!hasUnixFiles)('authenticated vault audit on Windows', () => {
+  it('refuses the POSIX-mode files port instead of writing an unprotected log', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'm109-b-audit-'))
+    directories.push(directory)
+    const anchors: VaultAuditAnchorPort = {
+      transaction: (run) => run(),
+      read: () => Promise.reject(new Error('unreachable')),
+      write: () => Promise.reject(new Error('unreachable')),
+    }
+    expect(() => new VaultAuditLog(directory, anchors)).toThrow(UI_TEXT.vault.noAccess)
+    expect(() => new UnixVaultPrivateFiles()).toThrow(UI_TEXT.vault.noAccess)
+  })
+})
+describe.skipIf(!hasUnixFiles)('authenticated vault audit', () => {
   it.each(['close', 'overflow'])(
     'RVM109B5 P1 file %s failure wipes buffers before rejecting their transfer',
     async (failure) => {

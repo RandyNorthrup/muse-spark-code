@@ -28,7 +28,15 @@ export type ResourceProcessOptions = Omit<
    * when the kernel enforced it; other platforms and profiles set no cap.
    */
   readonly jobMemoryBytes?: number | undefined
+  /** Hand-off only: when the adapter counts as launched (see ResourceHandoffUntil). */
+  readonly handoffUntil?: ResourceHandoffUntil | undefined
 }
+/**
+ * 'exit': the adapter's exit 0, or still running at the named deadline (then
+ * detached, never killed). 'spawn': a foreground handler that may stay with
+ * what it opened (xdg-open), launched once it has started, in its own session.
+ */
+export type ResourceHandoffUntil = 'exit' | 'spawn'
 export interface ResourceInteractiveProcess {
   child: ChildProcess
   stop: () => Promise<void>
@@ -36,7 +44,10 @@ export interface ResourceInteractiveProcess {
 }
 /** Hand-off output goes to the null device: nothing is buffered, and nothing the OS starts holds our pipes. */
 export interface ResourceHandoffProcess extends ResourceInteractiveProcess {
-  child: ChildProcess & { stdin: NonNullable<ChildProcess['stdin']> }
+  /** stdin is a pipe for 'exit' hand-offs and absent for 'spawn' ones. */
+  child: ChildProcess
+  /** Resolves once the adapter counts as launched; rejects when it failed or was cancelled. */
+  handedOff: Promise<void>
 }
 /** How a governed tree ended, as far as its platform can prove (SPAWN017C). */
 export interface ResourceTreeOutcome {

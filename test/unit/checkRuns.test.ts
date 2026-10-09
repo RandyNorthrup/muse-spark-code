@@ -7,9 +7,12 @@ import type { CheckRunRecord } from '../../src/core/reporting/sources/types'
 import { reportOptions } from './helpers/reporting/snapshot'
 import { removeFolder } from './helpers/temporaryFolders'
 
+// Report storage's own-process identity probe is a bounded OS command; on
+// Windows and macOS it spawns (Linux reads /proc). Its governed admission is
+// proved by spawnGovernance; here it runs directly.
 vi.mock('../../src/core/resources/launcher', async (original) => {
-  const { reportingProcessLauncher } = await import('./helpers/reporting/runtime')
-  return reportingProcessLauncher(await original())
+  const { withFixtureCommand } = await import('./helpers/resources/fixtureLaunch')
+  return withFixtureCommand(await original())
 })
 
 const TEMP = path.resolve(import.meta.dirname, '../../temp')

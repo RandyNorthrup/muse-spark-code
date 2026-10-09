@@ -13,11 +13,15 @@ import { REPORT_THEME } from './reportRenderFixtures'
 import { referenceModel as nodeReference } from '../../src/runtime/reference.node.generated'
 import { referenceModel } from '../../src/shared/reference/reference.generated'
 
-const roots: string[] = []
+// Report storage's own-process identity probe and Git metadata are bounded OS
+// commands; on Windows and macOS the probe spawns (Linux reads /proc). Their
+// governed admission is proved by spawnGovernance; here they run directly.
 vi.mock('../../src/core/resources/launcher', async (original) => {
-  const { reportingProcessLauncher } = await import('./helpers/reporting/runtime')
-  return reportingProcessLauncher(await original())
+  const { withFixtureCommand } = await import('./helpers/resources/fixtureLaunch')
+  return withFixtureCommand(await original())
 })
+
+const roots: string[] = []
 afterEach(async () => {
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
 })

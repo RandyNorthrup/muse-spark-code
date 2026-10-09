@@ -5,7 +5,6 @@ import {
   type SpawnOptions,
 } from 'node:child_process'
 import { PassThrough } from 'node:stream'
-import { promisify } from 'node:util'
 
 /**
  * OS helper tests (native schedules, trusted paths) keep a direct bounded
@@ -18,7 +17,15 @@ export function fixtureResourceCommand(
   args: readonly string[],
   options: ExecFileOptionsWithStringEncoding,
 ): Promise<{ stdout: string; stderr: string }> {
-  return promisify(execFile)(file, [...args], options)
+  // The callback form, not promisify: a suite that spies on execFile keeps its
+  // calls (a spy's promisify.custom would reach the unspied original).
+  return new Promise((resolve, reject) => {
+    execFile(file, [...args], options, (error, stdout, stderr) => {
+      if (error === null) resolve({ stdout, stderr })
+      else
+        reject(Object.assign(new Error(error.message, { cause: error }), error, { stdout, stderr }))
+    })
+  })
 }
 
 /** Slot protocol tests retain their native/fake peer; launch containment has its own suite. */
