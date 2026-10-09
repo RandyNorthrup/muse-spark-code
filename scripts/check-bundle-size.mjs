@@ -171,6 +171,11 @@ const BUDGETS = [
   // git and pull request features moved out of activation: 127.4 KiB
   // measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/conversationGit.js', budgetKiB: 150 },
+  // ACTBUD017: the Model API backend's session store (its budget journal,
+  // atomic writes and stored-session schemas) moved out of activation,
+  // required when that backend's host is first built: 37.1 KiB measured;
+  // plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/modelApiSessions.js', budgetKiB: 50 },
   // M89: the bundled skills installer for Muse Code (the copy, the links and
   // zod's parser for the vendor record and the mark), loaded on first use:
   // 22.6 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.

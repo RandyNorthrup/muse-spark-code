@@ -27,6 +27,7 @@ import {
   FIND_FILES_GLOB,
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
+  MODEL_API_SESSIONS_BUNDLE_FILE,
   MODEL_API_STATUS_READ_TIMEOUT_MS,
   REVIEW_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
@@ -169,7 +170,7 @@ import { chooseAuthorizedHost } from './host/backend/selectedHost'
 import { SandboxSetup } from './host/backend/sandboxSetup'
 import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
-import { createFileSessionStore } from './host/backend/fileSessionStore'
+import { lazyFileSessionStore } from './host/backend/fileSessionStoreBundle'
 import type { QuestionStore } from './shared/questions'
 import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
 import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
@@ -2604,20 +2605,29 @@ async function activateWindow(
       containment: pluginJobs.containment,
     },
     // Sessions survive the window (PLAN.md D14) in the workspace storage
-    // directory; no folder open, no storage, no persistence.
+    // directory; no folder open, no storage, no persistence. The store is
+    // dist/modelApiSessions.js, required when the host is first built.
     store:
       context.storageUri === undefined
         ? undefined
-        : createFileSessionStore({
-            directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
-            questions: questionsStore,
+        : lazyFileSessionStore({
+            bundlePath: vscode.Uri.joinPath(
+              context.extensionUri,
+              'dist',
+              MODEL_API_SESSIONS_BUNDLE_FILE,
+            ).fsPath,
             log,
-            retentionDays: () => currentSettings().cleanupPeriodDays,
-            now: () => Date.now(),
-            sleep: (ms) =>
-              new Promise((resolve) => {
-                setTimeout(resolve, ms)
-              }),
+            store: {
+              directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
+              questions: questionsStore,
+              log,
+              retentionDays: () => currentSettings().cleanupPeriodDays,
+              now: () => Date.now(),
+              sleep: (ms) =>
+                new Promise((resolve) => {
+                  setTimeout(resolve, ms)
+                }),
+            },
           }),
     scheduleStore:
       context.storageUri === undefined

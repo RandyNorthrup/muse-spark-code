@@ -489,6 +489,10 @@ const CONVERSATION_GIT = {
   output: 'dist/conversationGit.js',
   metafile: 'dist/meta/conversationGit.json',
 }
+const MODEL_API_SESSIONS = {
+  output: 'dist/modelApiSessions.js',
+  metafile: 'dist/meta/modelApiSessions.json',
+}
 const BUNDLED_SKILLS = {
   output: 'dist/bundledSkills.js',
   metafile: 'dist/meta/bundledSkills.json',
@@ -754,6 +758,24 @@ for (const file of GIT_ONLY) {
   }
   if (!conversationGit.has(file)) {
     problems.push(`${CONVERSATION_GIT.output} no longer carries ${file}`)
+  }
+}
+
+// ACTBUD017: the Model API backend's session store loads when its host is
+// first built; activation keeps the checked loader and the store's types.
+const MODEL_API_SESSIONS_ONLY = [
+  'src/host/backend/fileSessionStore.ts',
+  'src/host/backend/fileSessionStoreEntry.ts',
+]
+const modelApiSessions = inputsOf(MODEL_API_SESSIONS)
+for (const file of MODEL_API_SESSIONS_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which loads only with the Model API host`)
+    }
+  }
+  if (!modelApiSessions.has(file)) {
+    problems.push(`${MODEL_API_SESSIONS.output} no longer carries ${file}`)
   }
 }
 
