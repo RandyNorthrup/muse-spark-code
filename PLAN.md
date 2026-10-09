@@ -37311,7 +37311,7 @@ recovery; interrupted Resume remains the captured control.
 
 ### M120 — Preferred agents, availability routing and lane handoff (D103, D109)
 
-**Status 2026-10-08: planned.**
+**Status 2026-10-09: lane 0 built.** Status evidence: `docs/certification/m120-0.md`.
 
 - **Goal:** D103 across every balancing surface.
 - **Order:** after the Wednesday set, and before the M110/M111 resume.
