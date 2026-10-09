@@ -78,10 +78,17 @@ function modelPriceNote(model: ProviderModelRow): ModelRow['priceNote'] {
 }
 
 function newDraft(preset?: PresetInfo): PanelDraft {
+  // A local preset starts on its usual port (its own probe data), so the
+  // configure step's **Local port** field is filled from the start.
+  const loopbackProbe = preset?.kind === 'local' ? preset.localProbes[0] : undefined
   return {
     step: preset === undefined ? 'pick-provider' : 'configure',
     presetId: preset?.id,
-    address: preset?.origin,
+    address:
+      loopbackProbe === undefined
+        ? preset?.origin
+        : `http://${loopbackProbe.host}:${String(loopbackProbe.port)}`,
+    ...(loopbackProbe !== undefined && { loopbackPort: loopbackProbe.port }),
     auth: preset?.auth ?? 'apiKey',
     keyPresent: false,
     keyShapeOk: false,
@@ -440,6 +447,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (preset === undefined) {
           throw new Error(UI_TEXT.actionFailed)
         }
+        // Leaving the pick step retires the last scan's rows.
+        state.localScan = undefined
         if (preset.auth === 'subscription') {
           const connect = preset.id === 'chatgpt' ? deps.connectChatGpt : deps.connectCopilot
           if (connect === undefined) throw new Error(UI_TEXT.actionFailed)
@@ -480,7 +489,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         const { privateConfirmed: _claimed, ...fields } = message.fields
         Object.assign(draft, fields)
         if (draft.loopbackPort !== undefined) {
-          draft.address = `http://127.0.0.1:${String(draft.loopbackPort)}`
+          // The loopback host comes from the preset's own probe data.
+          const probeHost =
+            providers.preset(draft.presetId ?? '')?.localProbes[0]?.host ?? '127.0.0.1'
+          draft.address = `http://${probeHost}:${String(draft.loopbackPort)}`
         }
         if (draft.azureResource !== undefined) {
           draft.address = `https://${draft.azureResource}.openai.azure.com/openai/v1`
@@ -673,21 +685,26 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         break
       }
       case 'providers/scanLocal': {
+        // Every local preset is probed through its own loopback targets;
+        // the pick step offers each server that answered, or says none did.
+        const found: { presetId: string; label: string; port: number }[] = []
+        const checked: { presetId: string; label: string; port: number }[] = []
         for (const id of providers.presetIds()) {
           const preset = providers.preset(id)
           if (preset?.kind !== 'local') {
             continue
           }
+          const usual = preset.localProbes[0]
+          if (usual !== undefined) {
+            checked.push({ presetId: id, label: preset.name, port: usual.port })
+          }
           const probes = await providers.probe(preset)
           const probe = probes.find((candidate) => candidate.answered)
           if (probe !== undefined) {
-            state.drafts.wizard = {
-              ...newDraft(preset),
-              address: `http://${probe.host}:${String(probe.port)}`,
-            }
-            break
+            found.push({ presetId: id, label: preset.name, port: probe.port })
           }
         }
+        state.localScan = { found, checked }
         break
       }
       case 'models/scan': {

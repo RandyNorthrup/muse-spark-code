@@ -194,6 +194,47 @@ describe('ProvidersSection', () => {
     })
   })
 
+  it('offers each answering server and fills its port on choice', () => {
+    const post = vi.fn()
+    const state = makeState({
+      localScan: {
+        found: [
+          { presetId: 'ollama', label: 'Ollama', port: 11_434 },
+          { presetId: 'lmstudio', label: 'LM Studio', port: 1234 },
+        ],
+        checked: [
+          { presetId: 'ollama', label: 'Ollama', port: 11_434 },
+          { presetId: 'lmstudio', label: 'LM Studio', port: 1234 },
+        ],
+      },
+    })
+    render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Ollama on port 11434' }))
+    expect(post).toHaveBeenNthCalledWith(1, { type: 'providers/select', presetId: 'ollama' })
+    expect(post).toHaveBeenNthCalledWith(2, {
+      type: 'providers/prefill',
+      fields: { loopbackPort: 11_434 },
+    })
+  })
+
+  it('says nothing is running and names each usual port', () => {
+    const post = vi.fn()
+    const state = makeState({
+      localScan: {
+        found: [],
+        checked: [
+          { presetId: 'ollama', label: 'Ollama', port: 11_434 },
+          { presetId: 'lmstudio', label: 'LM Studio', port: 1234 },
+        ],
+      },
+    })
+    render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+    expect(screen.getByText('Nothing is running on this computer yet.')).toBeDefined()
+    expect(screen.getByText('Ollama on port 11434')).toBeDefined()
+    expect(screen.getByText('LM Studio on port 1234')).toBeDefined()
+    expect(post).not.toHaveBeenCalled()
+  })
+
   it('enters the key outside the webview and connects OAuth', () => {
     const post = vi.fn()
     const state = makeState({

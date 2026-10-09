@@ -199,7 +199,9 @@ function ProviderRow({
     return (
       <li className="models-provider">
         <h3>{provider.label}</h3>
-        <p>{provider.id === 'chatgpt' ? UI_TEXT.acpChatGpt.notice : UI_TEXT.planUi.aiContent}</p>
+        <p>
+          {provider.id === 'chatgpt' ? UI_TEXT.acpChatGpt.notice : UI_TEXT.planUi.copilotNotice}
+        </p>
         <p>{provider.models.join(', ')}</p>
         <button
           type="button"
@@ -412,17 +414,20 @@ export function ProvidersSection(props: SectionProps) {
           >
             {UI_TEXT.acpChatGpt.actions.add}
           </button>
-          {panelState.copilotAvailable === true && (
-            <button
-              type="button"
-              onClick={() => {
-                post({ type: 'providers/connectSubscription', providerId: 'copilot' })
-              }}
-            >
-              {UI_TEXT.planUi.copilotConnect}
-            </button>
-          )}
           <p>{UI_TEXT.acpChatGpt.notice}</p>
+          {panelState.copilotAvailable === true && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  post({ type: 'providers/connectSubscription', providerId: 'copilot' })
+                }}
+              >
+                {UI_TEXT.planUi.copilotConnect}
+              </button>
+              <p>{UI_TEXT.planUi.copilotNotice}</p>
+            </>
+          )}
         </div>
       )}
       {panelState.notice !== undefined && (

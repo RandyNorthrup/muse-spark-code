@@ -287,6 +287,26 @@ export const panelDraftSchema = z.strictObject({
 })
 export type PanelDraft = z.infer<typeof panelDraftSchema>
 
+/**
+ * What **Scan this computer** found: every local preset that answered, and
+ * every local preset that was checked with its usual port. Both lists carry
+ * the preset's own label and port, so the panel never hard-codes either.
+ */
+export const localScanHitSchema = z.strictObject({
+  presetId: z.string(),
+  label: z.string(),
+  port: z.number(),
+})
+export type LocalScanHit = z.infer<typeof localScanHitSchema>
+
+export const localScanResultSchema = z.strictObject({
+  /** One row per local preset that answered (chosen rows open its wizard). */
+  found: z.array(localScanHitSchema),
+  /** One row per local preset that was checked, with its usual port. */
+  checked: z.array(localScanHitSchema),
+})
+export type LocalScanResult = z.infer<typeof localScanResultSchema>
+
 /** A removal waiting behind Undo before its secret is deleted. */
 export const pendingRemovalSchema = z.strictObject({
   providerId: z.string(),
@@ -333,6 +353,8 @@ export const modelsPanelStateSchema = z.strictObject({
     wizard: z.optional(panelDraftSchema),
     edits: z.record(z.string(), panelDraftSchema),
   }),
+  /** The last **Scan this computer** run; absent before the first scan. */
+  localScan: z.optional(localScanResultSchema),
   pendingRemovals: z.array(pendingRemovalSchema),
   importPreview: z.optional(importPreviewSchema),
   /** A transient host confirmation (an export done, a save applied). */

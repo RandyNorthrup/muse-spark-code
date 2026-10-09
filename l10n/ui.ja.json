@@ -2620,6 +2620,8 @@
     "aggregator": "アグリゲーター"
   },
   "scanComputer": "このコンピューターをスキャン",
+  "localScanChoice": "{label}（ポート{port}）",
+  "localScanEmpty": "このコンピューターではまだ何も実行されていません。",
   "providersScanning": "スキャン中…",
   "providerUntested": "未テスト",
   "keyBoundState": "保存済み、{origin} に紐付け",
@@ -2777,6 +2779,7 @@
       "groq": "Groqハードウェアでの高速推論、OpenAI互換",
       "deepseek": "思考が既定で有効なDeepSeekチャットモデル",
       "mistral": "プロンプトキャッシュを備えたMistralチャットモデル",
+      "mistralPlan": "従量課金ではなく、Mistralサブスクリプションのクレジットを使用します。",
       "together": "モデルごとに料金が設定されたTogetherのオープンモデル",
       "fireworks": "Fireworksでのオープンモデルの高速推論",
       "huggingface": "多くのプロバイダーに対応するHugging Faceルーター",
@@ -2824,7 +2827,8 @@
       "since": "前回のスキャンからの変更: {changes}。"
     },
     "labels": {
-      "custom": "カスタムサーバー"
+      "custom": "カスタムサーバー",
+      "mistralPlan": "Mistralプラン"
     }
   },
   "anthropicCodecError": "Anthropic はこのリクエストを処理できませんでした。",
@@ -3903,6 +3907,7 @@
     "copilotQuota": "Copilotの利用枠を使い切りました。利用状況を管理するか別のモデルを選んでください。",
     "copilotRateLimit": "Copilotのリクエスト頻度が制限されています。後で再試行してください。",
     "copilotConsent": "続けるにはCopilotの同意画面でアクセスを許可してください。",
+    "copilotNotice": "VS Codeに付与されたCopilotモデル。CopilotプランまたはAIクレジットで請求されます。",
     "expired": "ChatGPTが付与した有効期間ではこのリクエストを完了できません。再度サインインしてください。",
     "retry": "ChatGPTを一時的に利用できません。再試行してください。"
   },

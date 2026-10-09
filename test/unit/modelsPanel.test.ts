@@ -239,7 +239,7 @@ describe('Models host contract', () => {
 // The fixture catalogue above has two presets; the shipped one is the
 // contract. A card the shared schema refuses once emptied the whole dropdown
 // (0.16.0: Mistral's plan key carried a category the panel did not know).
-function realCatalogue(store = memoryProvidersStore()) {
+function realCatalogue(store = memoryProvidersStore(), loopbackFetch?: typeof fetch) {
   const seam = createModelsPanelSeam({
     configFile: path.join(tmpdir(), 'models-panel-unused', 'providers.json'),
     subscriptionModels: () => Promise.resolve([]),
@@ -249,9 +249,18 @@ function realCatalogue(store = memoryProvidersStore()) {
       store,
       catalog: seam.catalog,
       fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
+      ...(loopbackFetch !== undefined && { loopbackFetch }),
     },
   })
   return { ids: seam.catalog.ids(), providers, store }
+}
+
+/** A loopback fetch that answers 200 only on the given ports. */
+function answeringFetch(ports: readonly number[]): typeof fetch {
+  return (url: unknown) =>
+    ports.map(String).includes(new URL(String(url)).port)
+      ? Promise.resolve(new Response('{}', { status: 200 }))
+      : Promise.reject(new Error('connection refused'))
 }
 describe('Models panel over the shipped preset catalogue', () => {
   it('lists every preset under its filter chip and opens each one', async () => {
@@ -341,6 +350,86 @@ describe('Models panel over the shipped preset catalogue', () => {
     expect(JSON.stringify(panel.webview.postMessage.mock.calls)).not.toContain(
       'bare-synthetic-secret',
     )
+  })
+  it('offers every answering local server and fills the chosen port', async () => {
+    const { providers } = realCatalogue(memoryProvidersStore(), answeringFetch([11_434, 1234]))
+    const { panel, warnings } = setup({ providers })
+    await send(panel, { type: 'providers/scanLocal' }, () => {
+      expect(latestState(panel).localScan?.found).toHaveLength(2)
+    })
+    // Both answers are offered, in catalogue order, from preset data.
+    expect(latestState(panel).localScan?.found).toEqual([
+      { presetId: 'ollama', label: 'Ollama', port: 11_434 },
+      { presetId: 'lmstudio', label: 'LM Studio', port: 1234 },
+    ])
+    // The scan finishes the scan, not the job: no wizard, no failure notice.
+    expect(latestState(panel).drafts.wizard).toBeUndefined()
+    expect(latestState(panel).notice).toBeUndefined()
+    expect(warnings).toEqual([])
+    // Choosing one opens its wizard with the answering port filled.
+    await send(panel, { type: 'providers/select', presetId: 'lmstudio' }, () => {
+      expect(latestState(panel).drafts.wizard?.presetId).toBe('lmstudio')
+    })
+    await send(panel, { type: 'providers/prefill', fields: { loopbackPort: 1234 } }, () => {
+      expect(latestState(panel).drafts.wizard).toMatchObject({
+        loopbackPort: 1234,
+        address: 'http://127.0.0.1:1234',
+      })
+    })
+    // A local wizard starts on its usual port even before choosing.
+    await send(panel, { type: 'providers/select', presetId: 'ollama' }, () => {
+      expect(latestState(panel).drafts.wizard).toMatchObject({
+        loopbackPort: 11_434,
+        address: 'http://127.0.0.1:11434',
+      })
+    })
+  })
+  it('says nothing is running when no local server answers', async () => {
+    const { providers } = realCatalogue(memoryProvidersStore(), answeringFetch([]))
+    const { panel, warnings } = setup({ providers })
+    await send(panel, { type: 'providers/scanLocal' }, () => {
+      expect(latestState(panel).localScan).toBeDefined()
+    })
+    expect(latestState(panel).localScan?.found).toEqual([])
+    // Each local app with its usual port, from preset data, never hard-coded.
+    expect(latestState(panel).localScan?.checked).toEqual([
+      { presetId: 'ollama', label: 'Ollama', port: 11_434 },
+      { presetId: 'lmstudio', label: 'LM Studio', port: 1234 },
+      { presetId: 'vllm', label: 'vLLM', port: 8000 },
+      { presetId: 'llamacpp', label: 'llama.cpp', port: 8080 },
+    ])
+    expect(latestState(panel).drafts.wizard).toBeUndefined()
+    expect(latestState(panel).notice).toBeUndefined()
+    expect(warnings).toEqual([])
+  })
+  it('gives the Mistral plan key its own label and sentence', async () => {
+    const { providers } = realCatalogue()
+    const { panel } = setup({ providers })
+    await send(panel, { type: 'modelsPanel/ready' }, () => {
+      expect(latestState(panel).presets.length).toBeGreaterThan(0)
+    })
+    const cards = latestState(panel).presets
+    const mistral = cards.find((card) => card.id === 'mistral')
+    const plan = cards.find((card) => card.id === 'mistral-plan')
+    expect(mistral).toBeDefined()
+    expect(plan).toBeDefined()
+    expect(plan?.label).not.toBe(mistral?.label)
+    expect(plan?.description).not.toBe(mistral?.description)
+    expect(plan?.description).toContain('subscription')
+  })
+  it('gives Copilot its own sentence, not ChatGPT’s', async () => {
+    const { providers } = realCatalogue()
+    const { panel } = setup({ providers })
+    await send(panel, { type: 'modelsPanel/ready' }, () => {
+      expect(latestState(panel).presets.length).toBeGreaterThan(0)
+    })
+    const cards = latestState(panel).presets
+    const chatgpt = cards.find((card) => card.id === 'chatgpt')
+    const copilot = cards.find((card) => card.id === 'copilot')
+    expect(chatgpt).toBeDefined()
+    expect(copilot).toBeDefined()
+    expect(copilot?.description).not.toBe(chatgpt?.description)
+    expect(copilot?.description).toContain('Copilot plan')
   })
   it('leaves out only a preset the card contract refuses, naming no value', async () => {
     const { providers } = realCatalogue()

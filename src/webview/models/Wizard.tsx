@@ -120,6 +120,10 @@ function PickStep({ panelState, post, onClose }: Omit<WizardProps, 'draft' | 'on
     { value: 'subscription', label: filters.subscription },
     { value: 'aggregator', label: filters.aggregator },
   ]
+  // The last **Scan this computer** run: each server that answered opens
+  // its own wizard with the answering port filled; an empty run says so
+  // and names each local app with its usual port.
+  const scan = panelState.localScan
   return (
     <div className="models-wizard-step">
       <h3>{UI_TEXT.wizardPickProvider}</h3>
@@ -150,6 +154,38 @@ function PickStep({ panelState, post, onClose }: Omit<WizardProps, 'draft' | 'on
           </button>
         }
       />
+      {scan !== undefined &&
+        (scan.found.length > 0 ? (
+          <ul className="models-scan-found">
+            {scan.found.map((hit) => (
+              <li key={hit.presetId}>
+                <button
+                  type="button"
+                  className="models-button"
+                  onClick={() => {
+                    post({ type: 'providers/select', presetId: hit.presetId })
+                    post({ type: 'providers/prefill', fields: { loopbackPort: hit.port } })
+                  }}
+                >
+                  {fill(UI_TEXT.localScanChoice, { label: hit.label, port: String(hit.port) })}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <>
+            <p className="models-hint" role="status">
+              {UI_TEXT.localScanEmpty}
+            </p>
+            <ul className="models-scan-checked">
+              {scan.checked.map((hit) => (
+                <li key={hit.presetId}>
+                  {fill(UI_TEXT.localScanChoice, { label: hit.label, port: String(hit.port) })}
+                </li>
+              ))}
+            </ul>
+          </>
+        ))}
       <div className="models-row-actions">
         <button type="button" className="models-button" onClick={cancelWizard(post, onClose)}>
           {UI_TEXT.wizardCancel}

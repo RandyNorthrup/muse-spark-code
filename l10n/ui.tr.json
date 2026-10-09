@@ -2716,6 +2716,8 @@
     "aggregator": "Toplayıcı"
   },
   "scanComputer": "Bu bilgisayarı tara",
+  "localScanChoice": "{label}, {port} bağlantı noktasında",
+  "localScanEmpty": "Bu bilgisayarda henüz çalışan bir şey yok.",
   "providersScanning": "Taranıyor…",
   "providerUntested": "Test edilmedi",
   "keyBoundState": "kayıtlı, {origin} adresine bağlı",
@@ -2877,6 +2879,7 @@
       "groq": "Groq donanımında hızlı çıkarım, OpenAI uyumlu",
       "deepseek": "Düşünmenin varsayılan olarak açık olduğu DeepSeek sohbet modelleri",
       "mistral": "İstem önbelleğine sahip Mistral sohbet modelleri",
+      "mistralPlan": "Kullandıkça öde faturalandırması yerine Mistral aboneliğinizin kredilerini kullanır.",
       "together": "Together üzerinde model başına fiyatlanan açık modeller",
       "fireworks": "Fireworks üzerinde açık modellerle hızlı çıkarım",
       "huggingface": "Birçok sağlayıcı için Hugging Face yönlendiricisi",
@@ -2928,7 +2931,8 @@
       "since": "Son taramadan bu yana {changes}."
     },
     "labels": {
-      "custom": "Özel sunucu"
+      "custom": "Özel sunucu",
+      "mistralPlan": "Mistral planı"
     }
   },
   "anthropicCodecError": "Anthropic bu isteği işleyemedi.",
@@ -4047,6 +4051,7 @@
     "copilotQuota": "Copilot kotanız tükendi. Kullanımı yönetin veya başka bir model seçin.",
     "copilotRateLimit": "Copilot istek sıklığını sınırlıyor. Daha sonra tekrar deneyin.",
     "copilotConsent": "Devam etmek için Copilot onay penceresinde erişime izin verin.",
+    "copilotNotice": "VS Code’a tahsis edilen Copilot modelleri, Copilot planınıza veya yapay zekâ kredilerinize faturalandırılır.",
     "expired": "ChatGPT bu istek için çok kısa bir geçerlilik süresi verdi. Yeniden oturum açın.",
     "retry": "ChatGPT geçici olarak kullanılamıyor. Tekrar deneyin."
   },

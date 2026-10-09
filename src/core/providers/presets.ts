@@ -514,9 +514,11 @@ export interface PlanKeyPreset extends ProviderPreset {
 export const PLAN_KEY_PRESETS: readonly PlanKeyPreset[] = [
   {
     id: 'mistral-plan',
-    label: MISTRAL_PRESET.label,
+    get label() {
+      return UI_TEXT.providerText.labels.mistralPlan
+    },
     get description() {
-      return MISTRAL_PRESET.description
+      return UI_TEXT.providerText.descriptions.mistralPlan
     },
     category: MISTRAL_PRESET.category,
     format: MISTRAL_PRESET.format,

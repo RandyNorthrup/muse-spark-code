@@ -2908,6 +2908,8 @@
     "aggregator": "Agregator"
   },
   "scanComputer": "Skanuj ten komputer",
+  "localScanChoice": "{label} na porcie {port}",
+  "localScanEmpty": "Na tym komputerze nic jeszcze nie działa.",
   "providersScanning": "Skanowanie…",
   "providerUntested": "Nieprzetestowany",
   "keyBoundState": "przechowywany, powiązany z {origin}",
@@ -3077,6 +3079,7 @@
       "groq": "Szybkie wnioskowanie na sprzęcie Groq, zgodne z OpenAI",
       "deepseek": "Modele czatu DeepSeek z domyślnie włączonym myśleniem",
       "mistral": "Modele czatu Mistral z buforowaniem instrukcji",
+      "mistralPlan": "Wykorzystuje środki z Twojej subskrypcji Mistral, a nie rozliczenia pay-as-you-go.",
       "together": "Otwarte modele w Together, wyceniane osobno",
       "fireworks": "Szybkie wnioskowanie otwartych modeli w Fireworks",
       "huggingface": "Router Hugging Face dla wielu dostawców",
@@ -3136,7 +3139,8 @@
       "since": "{changes} od ostatniego wyszukiwania."
     },
     "labels": {
-      "custom": "Serwer niestandardowy"
+      "custom": "Serwer niestandardowy",
+      "mistralPlan": "Plan Mistral"
     }
   },
   "anthropicCodecError": "Anthropic nie mógł przetworzyć tego żądania.",
@@ -4335,6 +4339,7 @@
     "copilotQuota": "Limit Copilot został wyczerpany. Zarządzaj użyciem lub wybierz inny model.",
     "copilotRateLimit": "Copilot ogranicza częstotliwość żądań. Spróbuj później.",
     "copilotConsent": "Zezwól na dostęp w oknie zgody Copilot, aby kontynuować.",
+    "copilotNotice": "Modele Copilot przyznane programowi VS Code, rozliczane w ramach planu Copilot lub kredytów AI.",
     "expired": "ChatGPT przyznał zbyt krótki czas ważności dla tego żądania. Zaloguj się ponownie.",
     "retry": "ChatGPT jest tymczasowo niedostępny. Spróbuj ponownie."
   },

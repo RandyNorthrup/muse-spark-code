@@ -2620,6 +2620,8 @@
     "aggregator": "聚合器"
   },
   "scanComputer": "扫描本机",
+  "localScanChoice": "{label}（端口{port}）",
+  "localScanEmpty": "此电脑上尚未运行任何程序。",
   "providersScanning": "正在扫描…",
   "providerUntested": "未测试",
   "keyBoundState": "已保存，仅绑定到 {origin}",
@@ -2777,6 +2779,7 @@
       "groq": "在 Groq 硬件上快速推理，兼容 OpenAI",
       "deepseek": "默认启用思考的 DeepSeek 聊天模型",
       "mistral": "支持提示缓存的 Mistral 聊天模型",
+      "mistralPlan": "使用您的 Mistral 订阅额度，而非按量付费。",
       "together": "Together 上按模型定价的开放模型",
       "fireworks": "Fireworks 上的快速开放模型推理",
       "huggingface": "面向多个提供商的 Hugging Face 路由器",
@@ -2824,7 +2827,8 @@
       "since": "自上次扫描以来的变化：{changes}。"
     },
     "labels": {
-      "custom": "自定义服务器"
+      "custom": "自定义服务器",
+      "mistralPlan": "Mistral 订阅"
     }
   },
   "anthropicCodecError": "Anthropic 无法处理此请求。",
@@ -3903,6 +3907,7 @@
     "copilotQuota": "Copilot 配额已用尽。请管理用量或选择其他模型。",
     "copilotRateLimit": "Copilot 请求频率受限。请稍后重试。",
     "copilotConsent": "请在 Copilot 授权对话框中允许访问以继续。",
+    "copilotNotice": "授予 VS Code 的 Copilot 模型，按您的 Copilot 计划或 AI 点数计费。",
     "expired": "ChatGPT 授予的有效期不足以完成此请求。请重新登录。",
     "retry": "ChatGPT 暂时不可用。请重试。"
   },

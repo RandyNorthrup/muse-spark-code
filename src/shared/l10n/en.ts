@@ -452,6 +452,8 @@ export const EN = {
     copilotQuota: 'Your Copilot quota is exhausted. Manage usage or choose another model.',
     copilotRateLimit: 'Copilot is rate limited. Try again later.',
     copilotConsent: 'Allow access to Copilot in its consent dialog to continue.',
+    // What Copilot uses and who bills it: VS Code's granted models, the Copilot plan.
+    copilotNotice: 'Copilot models granted to VS Code, billed to your Copilot plan or AI credits.',
     expired: 'ChatGPT granted too little time to finish this request. Sign in again.',
     retry: 'ChatGPT is temporarily unavailable. Try again.',
     // M95b: plan billing, allowance recovery and Copilot's required content note.
@@ -4078,6 +4080,10 @@ export const EN = {
     aggregator: 'Aggregator',
   },
   scanComputer: 'Scan this computer',
+  // {label}: the local app's name from its preset; {port}: the port that answered.
+  localScanChoice: '{label} on port {port}',
+  // Shown when no local server answered, above each app with its usual port.
+  localScanEmpty: 'Nothing is running on this computer yet.',
   providersScanning: 'Scanning…',
   providerUntested: 'Not tested',
   // A stored credential names only the origin it was entered for, never the key.
@@ -4300,6 +4306,7 @@ export const EN = {
       groq: 'Fast inference on Groq hardware, OpenAI-compatible',
       deepseek: 'DeepSeek chat models with thinking on by default',
       mistral: 'Mistral chat models with prompt caching',
+      mistralPlan: 'Uses your Mistral subscription’s credits, not pay-as-you-go billing.',
       together: 'Open models on Together, priced per model',
       fireworks: 'Fast open-model inference on Fireworks',
       huggingface: 'The Hugging Face router across many providers',
@@ -4353,6 +4360,7 @@ export const EN = {
     },
     labels: {
       custom: 'Custom server',
+      mistralPlan: 'Mistral plan',
     },
   },
   // M95: locally authored Anthropic errors; protocol identifiers remain technical.

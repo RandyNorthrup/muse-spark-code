@@ -2812,6 +2812,8 @@
     "aggregator": "Agregador"
   },
   "scanComputer": "Verificar este computador",
+  "localScanChoice": "{label} na porta {port}",
+  "localScanEmpty": "Nada ainda está em execução neste computador.",
   "providersScanning": "Verificando…",
   "providerUntested": "Não testado",
   "keyBoundState": "armazenada, vinculada a {origin}",
@@ -2977,6 +2979,7 @@
       "groq": "Inferência rápida em hardware Groq, compatível com OpenAI",
       "deepseek": "Modelos de chat DeepSeek com raciocínio ativado por padrão",
       "mistral": "Modelos de chat Mistral com cache de instruções",
+      "mistralPlan": "Usa os créditos da sua assinatura Mistral, não a cobrança por uso.",
       "together": "Modelos abertos no Together, com preços por modelo",
       "fireworks": "Inferência rápida de modelos abertos no Fireworks",
       "huggingface": "O roteador Hugging Face para muitos provedores",
@@ -3032,7 +3035,8 @@
       "since": "{changes} desde a última busca."
     },
     "labels": {
-      "custom": "Servidor personalizado"
+      "custom": "Servidor personalizado",
+      "mistralPlan": "Plano Mistral"
     }
   },
   "anthropicCodecError": "A Anthropic não conseguiu processar esta solicitação.",
@@ -4191,6 +4195,7 @@
     "copilotQuota": "Sua cota do Copilot acabou. Gerencie o uso ou escolha outro modelo.",
     "copilotRateLimit": "O Copilot está limitando a frequência de solicitações. Tente mais tarde.",
     "copilotConsent": "Permita o acesso na caixa de consentimento do Copilot para continuar.",
+    "copilotNotice": "Modelos do Copilot concedidos ao VS Code, cobrados do seu plano Copilot ou créditos de IA.",
     "expired": "O ChatGPT concedeu validade curta demais para esta solicitação. Entre novamente.",
     "retry": "O ChatGPT está temporariamente indisponível. Tente novamente."
   },

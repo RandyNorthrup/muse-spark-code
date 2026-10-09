@@ -2908,6 +2908,8 @@
     "aggregator": "Agregátor"
   },
   "scanComputer": "Prohledat tento počítač",
+  "localScanChoice": "{label} na portu {port}",
+  "localScanEmpty": "V tomto počítači zatím nic neběží.",
   "providersScanning": "Prohledávání…",
   "providerUntested": "Nevyzkoušeno",
   "keyBoundState": "uloženo, vázáno na {origin}",
@@ -3077,6 +3079,7 @@
       "groq": "Rychlá inference na hardwaru Groq, kompatibilní s OpenAI",
       "deepseek": "Chatové modely DeepSeek s výchozím zapnutým uvažováním",
       "mistral": "Chatové modely Mistral s mezipamětí instrukcí",
+      "mistralPlan": "Využívá kredity vašeho předplatného Mistral, nikoli účtování pay-as-you-go.",
       "together": "Otevřené modely na Together s cenou podle modelu",
       "fireworks": "Rychlá inference otevřených modelů na Fireworks",
       "huggingface": "Směrovač Hugging Face pro mnoho poskytovatelů",
@@ -3136,7 +3139,8 @@
       "since": "{changes} od posledního hledání."
     },
     "labels": {
-      "custom": "Vlastní server"
+      "custom": "Vlastní server",
+      "mistralPlan": "Tarif Mistral"
     }
   },
   "anthropicCodecError": "Anthropic nemohl zpracovat tento požadavek.",
@@ -4335,6 +4339,7 @@
     "copilotQuota": "Kvóta Copilot je vyčerpána. Spravujte využití nebo vyberte jiný model.",
     "copilotRateLimit": "Copilot omezuje počet požadavků. Zkuste to později.",
     "copilotConsent": "Pro pokračování povolte přístup v dialogu souhlasu Copilot.",
+    "copilotNotice": "Modely Copilot zpřístupněné aplikaci VS Code, účtované vašemu tarifu Copilot nebo AI kreditům.",
     "expired": "ChatGPT poskytl příliš krátkou platnost pro tento požadavek. Přihlaste se znovu.",
     "retry": "ChatGPT je dočasně nedostupný. Zkuste to znovu."
   },

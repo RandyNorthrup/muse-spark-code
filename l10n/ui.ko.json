@@ -2620,6 +2620,8 @@
     "aggregator": "애그리게이터"
   },
   "scanComputer": "이 컴퓨터 검사",
+  "localScanChoice": "{label} (포트 {port})",
+  "localScanEmpty": "이 컴퓨터에서 실행 중인 항목이 아직 없습니다.",
   "providersScanning": "검사 중…",
   "providerUntested": "테스트 안 됨",
   "keyBoundState": "저장됨, {origin}에 바인딩됨",
@@ -2777,6 +2779,7 @@
       "groq": "Groq 하드웨어의 빠른 추론, OpenAI 호환",
       "deepseek": "사고 기능이 기본으로 켜진 DeepSeek 채팅 모델",
       "mistral": "프롬프트 캐시를 지원하는 Mistral 채팅 모델",
+      "mistralPlan": "종량제 결제가 아닌 Mistral 구독 크레딧을 사용합니다.",
       "together": "모델별로 가격이 책정된 Together의 개방형 모델",
       "fireworks": "Fireworks의 빠른 개방형 모델 추론",
       "huggingface": "다양한 공급자를 지원하는 Hugging Face 라우터",
@@ -2824,7 +2827,8 @@
       "since": "지난 스캔 이후 변경 사항: {changes}."
     },
     "labels": {
-      "custom": "사용자 지정 서버"
+      "custom": "사용자 지정 서버",
+      "mistralPlan": "Mistral 플랜"
     }
   },
   "anthropicCodecError": "Anthropic이 이 요청을 처리하지 못했습니다.",
@@ -3903,6 +3907,7 @@
     "copilotQuota": "Copilot 할당량을 모두 사용했습니다. 사용량을 관리하거나 다른 모델을 선택하세요.",
     "copilotRateLimit": "Copilot 요청 빈도가 제한되었습니다. 나중에 다시 시도하세요.",
     "copilotConsent": "계속하려면 Copilot 동의 대화 상자에서 접근을 허용하세요.",
+    "copilotNotice": "VS Code에 부여된 Copilot 모델이며 Copilot 플랜 또는 AI 크레딧으로 청구됩니다.",
     "expired": "ChatGPT가 부여한 유효 시간이 이 요청에 너무 짧습니다. 다시 로그인하세요.",
     "retry": "ChatGPT를 일시적으로 사용할 수 없습니다. 다시 시도하세요."
   },

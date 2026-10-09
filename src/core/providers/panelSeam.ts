@@ -134,7 +134,7 @@ export function createModelsPanelSeam(options: {
     catalog.set(id, {
       id,
       name: id === 'chatgpt' ? 'ChatGPT' : 'Copilot',
-      description: id === 'chatgpt' ? UI_TEXT.acpChatGpt.notice : UI_TEXT.planUi.aiContent,
+      description: id === 'chatgpt' ? UI_TEXT.acpChatGpt.notice : UI_TEXT.planUi.copilotNotice,
       kind: 'subscription',
       origin: address,
       format,
