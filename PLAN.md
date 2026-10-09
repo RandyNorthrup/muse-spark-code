@@ -10063,6 +10063,13 @@ we make". His standing ruling: enhancements are on by default.
   with its notes omitted. Older upgrades still have those Highlights and
   the full-changelog link; older details live at that link. The size gate
   rejects both missing content and content one byte over the budget.
+  WNBUDGET (post-0.17.0, no cap raise): the writer is budget-aware
+  (`selectWhatsNewReleases`) — the newest release always ships in full and
+  alone over the decoded bound refuses naming the release, its size and the
+  bound; older window releases follow newest first while the decoded total
+  fits, else as Highlights only with a link to their full notes, else left
+  out (`shortened`, and the page says "Earlier notes: see the full
+  changelog"); the packaged changelog ships the same plan.
 - **Security.** Strict CSP (`default-src 'none'`, the stylesheet from the
   webview origin, one script by nonce, no inline style); every piece of text
   escaped on the host; links carry their address for keyboards and screen

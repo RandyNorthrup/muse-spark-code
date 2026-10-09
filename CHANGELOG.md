@@ -71,6 +71,13 @@ happened, not what was planned; superseded entries are kept.
 - The Model API backend's session store loads with that backend instead of
   at activation (its own `dist/modelApiSessions.js`), taking 24.5 KB off the
   activation bundle; sessions are kept and read as before (ACTBUD017).
+- What's New fits its content budget by itself: the newest release always
+  ships in full, while an older release ships in full only while the decoded
+  total fits — otherwise as its Highlights with a link to its full notes, or
+  not at all. A shortened page says "Earlier notes: see the full changelog",
+  and the packaged changelog shows the same releases. A newest release that
+  alone exceeds the budget still fails the build naming the release, so its
+  notes are trimmed instead.
 
 ### Fixed
 
