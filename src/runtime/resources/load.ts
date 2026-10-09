@@ -13,6 +13,7 @@ import type { ResourceEntryOptions } from './entry'
 import type { ResourceWorkContext, RuntimeResources } from './port'
 import { configureResources } from '../../core/resources/admission'
 import { runtimeResourceJobs } from './jobs'
+import { unlessAborted } from '../../core/timeouts'
 
 interface ResourceModule {
   createResources: typeof createResources
@@ -74,7 +75,8 @@ export function lazyRuntimeResources(
   let isRecordingHistory = options.isRecordingHistory
   // H–C1: the session whose turn admits a spawn hears about it; never in a payload.
   const sessions = new AsyncLocalStorage<ResourceWorkContext>()
-  const load = async () => {
+  const load = async (signal?: AbortSignal) => {
+    signal?.throwIfAborted()
     if (state.isDisposed) throw new Error(UI_TEXT.resourceUnavailable)
     pending ??= (async () => {
       await Promise.resolve()
@@ -107,7 +109,11 @@ export function lazyRuntimeResources(
         throw error
       }
     })()
-    return await pending
+    // Initialization belongs to the process; cancellation belongs to this caller.
+    const host = signal === undefined ? await pending : await unlessAborted(pending, signal)
+    signal?.throwIfAborted()
+    if (host === undefined) throw new Error(UI_TEXT.resourceUnavailable)
+    return host
   }
   const subscribe = (bind: (host: RuntimeResources) => () => void) => {
     if (state.isDisposed) throw new Error(UI_TEXT.resourceUnavailable)
@@ -218,7 +224,7 @@ export function lazyRuntimeResources(
     },
     async admit(request, context, signal) {
       signal?.throwIfAborted()
-      const host = await load()
+      const host = await load(signal)
       return await host.admit(request, context, signal)
     },
     subscribe: (sessionId, listener) => subscribe((host) => host.subscribe(sessionId, listener)),

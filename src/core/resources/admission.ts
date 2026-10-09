@@ -2,6 +2,7 @@ import type { ResourceClass, ResourceKind } from '../../shared/resources'
 import type { ResourceLease, ResourceWindowsJob } from './launch'
 import type { ResourceLaunchHost } from './launchHost'
 import type * as Governor from './resourceGovernorEntry'
+import { unlessAborted } from '../timeouts'
 
 type ResourceHostSettings = Governor.ResourceHostSettings
 
@@ -45,7 +46,7 @@ export function configureResources(settings: ResourceHostSettings): () => void {
 
 /** Compiling containment itself cannot allocate a helper-backed temporary root. */
 export async function admitBootstrap(signal?: AbortSignal): Promise<ResourceLease> {
-  const host = await load()
+  const host = await load(signal)
   if (host === undefined) throw new Error('Resource admission unavailable')
   return await host.admit('other', signal, 'background', true, undefined, true)
 }
@@ -86,17 +87,24 @@ async function createHost(configured: ResourceHostSettings): Promise<ResourceLau
   return host
 }
 
-async function load(): Promise<ResourceLaunchHost | undefined> {
+async function load(signal?: AbortSignal): Promise<ResourceLaunchHost | undefined> {
+  signal?.throwIfAborted()
   if (state.isDisposed) throw new Error('Resource admission disposed')
   if (state.options === undefined) return undefined
   const pending = (state.pending ??= createHost(state.options))
-  try {
-    return await pending
-  } catch (error: unknown) {
-    // A failed load refuses this launch; the next one tries again.
-    if (state.pending === pending) delete state.pending
-    throw error
-  }
+  const ready = (async () => {
+    try {
+      return await pending
+    } catch (error: unknown) {
+      // A failed load refuses this launch; the next one tries again.
+      if (state.pending === pending) delete state.pending
+      throw error
+    }
+  })()
+  // Each caller can stop waiting without cancelling or evicting shared initialization.
+  const host = signal === undefined ? await ready : await unlessAborted(ready, signal)
+  signal?.throwIfAborted()
+  return host
 }
 
 /**
@@ -127,7 +135,7 @@ export async function admitResource(
   checkpointDestination?: string,
   isTempFree?: boolean,
 ): Promise<ResourceLease | undefined> {
-  const host = await load()
+  const host = await load(signal)
   return await host?.admit(kind, signal, workClass, isDiskHeavy, checkpointDestination, isTempFree)
 }
 
@@ -158,7 +166,7 @@ export async function assertResourceWrite(file: string): Promise<void> {
 
 /** Runtime/team lanes bind this between operations; cancel never queues. */
 export async function resourceSafePoint(kind: ResourceKind, signal?: AbortSignal): Promise<void> {
-  const host = await load()
+  const host = await load(signal)
   await host?.safePoint(kind, signal)
 }
 

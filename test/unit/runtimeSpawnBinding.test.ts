@@ -9,6 +9,7 @@ import * as acp from '@agentclientprotocol/sdk'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { acpResourceCommand } from '../../src/acp/resources'
 import {
+  admitBootstrap,
   admitResource,
   resourceSafePoint,
   resourceWindowsJob,
@@ -224,6 +225,101 @@ function usage(folder: string) {
 }
 
 describe('H–C1: the runtime spawn binding', () => {
+  it.each([
+    {
+      name: 'spawn',
+      admit: (_facade: ProcessResources, signal: AbortSignal) =>
+        spawnAdmission('other', 'foreground', signal),
+    },
+    {
+      name: 'bootstrap',
+      admit: (_facade: ProcessResources, signal: AbortSignal) => admitBootstrap(signal),
+    },
+    {
+      name: 'safe point',
+      admit: (_facade: ProcessResources, signal: AbortSignal) => resourceSafePoint('check', signal),
+    },
+    {
+      name: 'facade',
+      admit: (facade: ProcessResources, signal: AbortSignal) =>
+        facade.admit({ kind: 'other', class: 'foreground', priority: 0 }, undefined, signal),
+    },
+  ])('cancels $name within one tick while shared initialization continues', async ({ admit }) => {
+    const store = new FakeResourceMachine()
+    const held = Promise.withResolvers<ResourceSettings>()
+    const started = Promise.withResolvers<undefined>()
+    store.readSettings.mockImplementationOnce(() => {
+      started.resolve(undefined)
+      return held.promise
+    })
+    const loadBundle = vi.fn(() => governorEntry)
+    const facade = processFacade(await folders.create(), { machine: store, loadBundle })
+    const stop = new AbortController()
+    const cancelled = refusalOf(admit(facade, stop.signal))
+    const later = [spawnAdmission('other', 'foreground')]
+    try {
+      await started.promise
+      stop.abort()
+      const result = await Promise.race([
+        cancelled,
+        new Promise<string>((resolve) => {
+          setImmediate(() => {
+            resolve('still waiting for initial settings')
+          })
+        }),
+      ])
+      expect(result).toMatchObject({ name: 'AbortError' })
+      // A caller arriving after cancellation still joins the same initialization.
+      later.push(spawnAdmission('other', 'foreground'))
+      expect(store.readSettings).toHaveBeenCalledTimes(1)
+      expect(loadBundle).toHaveBeenCalledTimes(1)
+      held.resolve(store.settings)
+      for (const pending of later) {
+        const lease = await admitted(pending)
+        lease?.complete(true)
+      }
+      expect(machine.samplers).toBe(1)
+      expect(loadBundle).toHaveBeenCalledTimes(1)
+    } finally {
+      // A failing assertion must also release the shared initialization.
+      held.resolve(store.settings)
+      await Promise.allSettled([cancelled, ...later])
+    }
+  })
+
+  it('preserves a bootstrap deadline while initial settings are held', async () => {
+    const store = new FakeResourceMachine()
+    const held = Promise.withResolvers<ResourceSettings>()
+    store.readSettings.mockReturnValueOnce(held.promise)
+    processFacade(await folders.create(), { machine: store })
+    const signal = AbortSignal.timeout(100)
+    const deadline = refusalOf(admitBootstrap(signal))
+    try {
+      await new Promise<void>((resolve) => {
+        signal.addEventListener(
+          'abort',
+          () => {
+            resolve()
+          },
+          { once: true },
+        )
+      })
+      const result = await Promise.race([
+        deadline,
+        new Promise<string>((resolve) => {
+          setImmediate(() => {
+            resolve('still waiting past the bootstrap deadline')
+          })
+        }),
+      ])
+      expect(result).toBe(signal.reason)
+      expect(result).toMatchObject({ name: 'TimeoutError' })
+    } finally {
+      held.resolve(store.settings)
+      await deadline
+    }
+  })
+
   it('admits one background launch per kind at throttle and the next once the first retires', async () => {
     const facade = processFacade(await folders.create())
     machine.reading = THROTTLE

@@ -31908,6 +31908,19 @@ quality/coverage and non-Linux native receipts remain the lead's release gate.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**M107 H–C1 review repair (2026-10-09, M107HC2).** RVM107HC1 reopens
+acceptance for two P2 regressions: each admission caller must race its own
+cancellation or deadline against shared first-use initialization without
+cancelling that initialization for other callers; attested settlements must
+follow both the agent's recording flag and the shared usage-history choice,
+checked at settlement, with buffered rows discarded when consent is off.
+Add the held-settings and off → settle → on → sample reproductions, prove
+each guard with byte-exact red drills, and run the owning resource/runtime
+files at repository timeouts plus scoped delivery checks. No paid/live calls,
+dependency, merge, push or rebase; full quality remains the lead's gate.
+First-use cancellation is repaired and drilled; shared history consent remains
+the next finding in this repair round.
+
 **M107 H–C1 — the runtime spawn binding (2026-10-09, after 0.17.0; D87.2).**
 Its prerequisites, SPAWN017C's governed launches and W2's resource history,
 shipped in 0.17.0. Each runtime process (the ACP agent, a headless run, a

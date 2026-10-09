@@ -86,6 +86,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Cancelling a runtime launch or reaching its deadline now ends the wait even
+  while the resource governor's first settings read is still pending; other
+  callers keep the same initialization.
+
 - Schedule runtime tests cover Linux, Windows and macOS rearm ownership
   explicitly; macOS wake shutdown retains its independent after-exit helper.
 
