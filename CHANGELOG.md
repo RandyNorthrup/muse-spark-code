@@ -61,13 +61,43 @@ happened, not what was planned; superseded entries are kept.
     its memory read through `ps` for that encoder alone. Each conversion
     works in a fresh owner-only folder inside a private root in the host's
     own storage, never a shared temporary folder.
-  - **Bundles.** Transcription loads with `dist/productionAudio.js` (68.1 KiB,
+  - **Bundles.** Transcription loads with `dist/productionAudio.js` (72.8 KiB,
     cap 75 KiB) on the first turn with attached sound, and the runtime's media
-    port with `dist/runtimeMedia.js` (52.5 KiB, cap 75 KiB). `dist/modelApi.js`
-    stays at 524.6 KiB under its 525 KiB cap; no cap rose.
+    port with `dist/runtimeMedia.js` (49.8 KiB, cap 75 KiB). The window's
+    attached-media registry, the attach port's open hook and the contributor
+    question load with `dist/mediaHost.js` (18.1 KiB, cap 25 KiB) on the first
+    attach, so activation is 572.2 KiB, below its size before attached media.
+    `dist/modelApi.js` stays at 524.9 KiB under its 525 KiB cap; no cap rose.
+  - **One-use attachments.** An attached video or audio file belongs to the
+    turn that sends it and is let go when that turn ends; a discarded chip, a
+    new conversation and a closed ACP session let go of theirs, and the agent
+    lets go of all of them when it exits. A later turn that needs the file
+    again asks you to attach it again.
 
 ### Fixed
 
+- Muse Voice transcription of an attached file (RVMEDIAV):
+  - It sends only the bytes that were attached. They are read through the
+    attachment's digest check (and checked again around a conversion), and a
+    file replaced since it was attached refuses before anything is sent;
+    previously the replacement could be sent under the original's smaller
+    reservation.
+  - The last paid check (Muse Voice on, the daily and session budgets, the
+    selected model) now runs immediately before the request goes out, after
+    the key and endpoint checks. Turning Muse Voice off, or a budget closing,
+    while the key was read no longer lets the request through; turning it off
+    during the price question stops the preparation.
+  - A request that never left the machine (no key stored, another account's
+    key, the endpoint check) refunds its reservation and adds nothing to the
+    usage tally; previously it was kept as an unknown charge.
+  - Changing the model while the price question is open no longer pays for a
+    transcription the turn then discards.
+- A file attached again after its earlier copy was discarded and deleted now
+  uploads from the new copy, not the deleted one (RVMEDIAV).
+- Embedded ACP media no longer stays in memory for the agent's lifetime;
+  see "One-use attachments" above (RVMEDIAV).
+- On Linux and macOS a converter whose final output check stalls after a
+  clean exit now ends with Stop or its deadline, as on Windows (RVMEDIAV).
 - On Windows, a stdio MCP server, a plugin hook's runtime or a team run is now
   created inside its kill-on-close job. Previously it was added to the job
   just after creation. A launcher ended in between (cancelled, timed out)

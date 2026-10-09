@@ -30410,6 +30410,7 @@ every Model API user in every editor.
   | `dist/media.js` (new)                            |                         ~35 KiB | measured + 15%, rounded up to 25 KiB                                                    |
   | `dist/screenRecord.js` (new)                     |                         ~15 KiB | measured + 15%, rounded up to 25 KiB                                                    |
   | `dist/productionMedia.js` (new, M105 W redesign) |               66.2 KiB measured | 100 KiB: measured + 15%, rounded up to 25 KiB; `dist/modelApi.js` back to 523.2/525 KiB |
+  | `dist/mediaHost.js` (new, RVMEDIAV 8)            |               18.1 KiB measured | 25 KiB: measured + 15%, rounded up to 25 KiB; activation 585,922 bytes, base 586,002    |
   | Webview media chunks                             |                         ~20 KiB | inside the 50 KiB optional total, or a page entry with its own budget                   |
   | VSIX                                             |         measured (helper modes) | 2,200 KiB, unchanged                                                                    |
 
@@ -43510,6 +43511,34 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   - Attach-chip UI for the sound choices (Use 1.2, Send without sound) is
     still not wired: the router's default applies, and declining
     transcription sends a video without its sound.
+
+- **M105-V-fix-round (RVMEDIAV, 2026-10-09; lead's brief).** All eight review
+  findings fixed at the root with regressions and red drills
+  (`docs/certification/m105.md`, "Fix round: RVMEDIAV"):
+  1. Transcription reads an attachment only through the registry's
+     digest-verified stream (`AttachedMedia.read`); the converter's input is
+     verified before and after encoding; the bytes sent must measure within
+     the reservation's duration bound.
+  2. The transcription POST's final paid admission runs inside the transport
+     immediately before the fetch (`requestTranscription`'s `dispatch`),
+     after the key, account and endpoint checks; a Muse Voice setting change
+     abandons preparation.
+  3. `BatchAdmission` separates permission (`check`) from the observed
+     dispatch; a local non-send refunds and counts no usage.
+  4. The host's model-revision guard is passed into `prepareAudioMessage`.
+  5. The registry uploads from the token a record last resolved through.
+  6. The POSIX converter's final output check is bounded like Windows'.
+  7. Registrations are owned (composer, ACP session port), claimed by the
+     turn that carries them and released at its end, at discard, at owner
+     release and at runtime close; 64 at most per process
+     (`MEDIA_ATTACHED_MAX_ENTRIES`), the oldest unclaimed making room.
+  8. The registry, the attach open hook and contributor consent load with
+     `dist/mediaHost.js` (18.1 KiB, budget 25 KiB) on the first attach;
+     activation is 585,922 bytes against the base's 586,002.
+
+  Open: the converter still reads its input by path between the two digest
+  checks (stdin streaming is M1's change); `dist/modelApi.js` has 129 bytes
+  of headroom.
 
 - **M105-F-integration-gates (RVM105F corrections).** All four review findings
   are fixed with regressions and red drills (`docs/certification/m105-f.md`).
