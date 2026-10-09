@@ -20265,6 +20265,22 @@ as JSON numbers and every reader converts with `Usd.from` on read. Everything
 else is converted to `UsdAmount`; old persisted numbers are read through a
 versioned schema whose number member pipes straight to the canonical string.
 
+**Status 2026-10-09 (M121A): built.** Every `trackedDebt` field is now
+`UsdAmount` and the category is gone: the usage journal and usage page,
+`usage.ts`, the models panel (including its spread copies), `accountUsage`
+internals, the usage aggregate, team and team view costs and budgets,
+schedule v2 caps and liabilities, the codec-normalized provider cost, and
+team preview totals. The journal moved to version 2 (canonical decimal
+text); version 1 numbers read through a versioned reader that converts
+exactly, and the team ledger keeps its versioned v1 read the same way. The
+0.17 runtime guard is replaced by the type-checker guard with a regression
+probe for each RVPORTS017D case; the remaining numeric money is the
+sanctioned list above. Receipts: `docs/certification/m121.md`. Two findings
+for the lead, both reproduced on the 0.17.0 base and out of this lane's
+scope: `npm run build` stops at What's New (the 0.17.0 notes exceed the
+75 KiB content budget), and `usageIntegration.test.ts`'s panel-auth case
+expects 401 but the server answers 502.
+
 ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
 
 **Status 2026-10-07: built.** Linux receipts in `docs/certification/int0180.md`; the package job stays red without genuine macOS artifacts.

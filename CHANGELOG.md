@@ -64,6 +64,13 @@ happened, not what was planned; superseded entries are kept.
   rental cost estimates, reporting facts, account totals and voice consent. Read
   historical numeric records at validated boundaries; saved reports verify their
   original hashes before migration to exact money version 2.
+- Usage, team and schedule money is exact too (M121): journal and usage
+  page totals, provider rows, key usage, team costs, budgets and preview
+  totals, and schedule caps and liabilities are kept as exact decimal
+  dollars and shown through the exact formatters. The usage journal moves
+  to version 2; version 1 records with numeric dollars still read and
+  convert exactly, and a record that cannot convert is refused with an
+  explanation instead of being rounded or zeroed.
 - The resource history journal is one shared bundle that the window's
   governor and the usage page both load, instead of a copy in each; both stay
   inside their size budgets. Usage records read the account id from a small
