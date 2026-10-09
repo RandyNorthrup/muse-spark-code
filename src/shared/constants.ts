@@ -5147,7 +5147,11 @@ export const REPORT_HISTORY_MAX_PER_KIND = 50
 export const REPORT_WRITER_LOCK_WAIT_MS = 2000
 export const REPORT_WRITER_LOCK_BACKOFF_MS = 25
 export const REPORT_WRITER_LOCK_BACKOFF_MAX_MS = 100
-export const REPORT_WRITER_LOCK_PROBE_MS = 2000
+// Bounded process-identity probe (own start time, a lock owner's liveness).
+// Windows spawns PowerShell for it: in hosted CI run 37897298018 a cold
+// PowerShell start on windows-latest was killed inside the former 2 s, so a
+// report save failed. 5 s covers that start and stays a hard bound.
+export const REPORT_WRITER_LOCK_PROBE_MS = 5000
 // Linux /proc/<pid>/stat fields after the closing command-name parenthesis start at 3.
 export const REPORT_PROCESS_START_FIELD_INDEX = 19
 export const REPORT_LOCAL_BUDGET_MS = 2000
