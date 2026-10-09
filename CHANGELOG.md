@@ -37,6 +37,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Darwin process accounting accepts the OS's unknown/exiting `?Es` state,
+  so an unrelated exiting process cannot make every supervised Stop lose its
+  tree proof. Native birth, group, ancestry and per-member signal checks remain.
+
 - Trusted POSIX runtime paths accept group-writable ancestors only when system
   lookups prove the group is the user's private primary group. Shared or unknown
   membership still refuses; private leaves remain 0700. The proof enumerates

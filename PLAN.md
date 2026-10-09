@@ -19787,6 +19787,16 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**FIXM104L8 macOS lifecycle repair (2026-10-08, in progress).** Reproduce
+the supervisor/watchdog/trusted-path failures on the unsandboxed MacBook;
+repair recursion, Stop preflight and native process lifecycle causes without
+widening trust or changing `verifyTrustedPath`'s exported API. Keep default
+test deadlines and every platform guard. Track and reap complete fixture
+trees even on failure, repeat the three owning suites plus related runtime
+suites with two workers, and record byte-exact red drills and residuals in
+`docs/certification/m104-l.md`. No merge, push, paid/live model call or
+aggregate quality run; the lead retains integrated platform qualification.
+
 **FIXM104L6 private-group amendment (2026-10-06).** Retain the completed
 RVM104L5 Stop-discovery repair and its regressions. For POSIX ancestors only,
 adopt Debian OpenSSH's user-private-group refinement: group write is safe

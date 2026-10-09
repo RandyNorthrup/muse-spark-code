@@ -85,6 +85,27 @@ describe('numeric process accounting tables', () => {
     expect(parseMacProcessTable('9007199254740992 1 710 S 0:00.00 0')).toBeNull()
   })
 
+  it('keeps a Darwin ?Es row from poisoning every unrelated supervised tree', async () => {
+    // Unsandboxed MacBook ps capture, 2026-10-08: an exiting unrelated process.
+    const captured = '13032 13030 13032 ?Es 0:00.00 0\n'
+    expect(parseMacProcessTable(captured)).toEqual([
+      { pid: 13_032, parent: 13_030, pgid: 13_032, exited: false, cpuSeconds: 0, residentBytes: 0 },
+    ])
+    const sendSignal = vi.fn()
+    const reader = new MacResourceTreeReader({
+      run: () => Promise.resolve(`710 1 710 S 0:02.00 4\n${captured}`),
+      inspect: (pid) => Promise.resolve({ pid, startTime: '1000', pgid: pid, exited: false }),
+      sendSignal,
+    })
+    const registry = new ResourceTreeRegistry(reader)
+    await registry.register(ticket)
+    expect(await registry.kill(ticket)).toEqual({
+      status: 'done',
+      members: [{ identity: ticket.root, result: 'done' }],
+    })
+    expect(sendSignal).toHaveBeenCalledExactlyOnceWith(710, 'SIGKILL')
+  })
+
   it('retains the Windows orphan parser and excludes invalid or unsafe process ids', () => {
     expect(parseProcessTable('710 1 134040000000000000 Worker.exe\n')).toEqual([
       {
