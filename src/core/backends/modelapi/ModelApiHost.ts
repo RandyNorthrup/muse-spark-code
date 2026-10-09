@@ -2842,7 +2842,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     // One production media service per session (M105 W): the session tells
     // it, per request, whether spending is capped, so an unknown rate
     // refuses only under a cap (D85.6).
-    this.media = deps.createMediaReplay?.(sessionId, { isCapped: () => this.isMediaCapped() })
+    this.media = deps.createMediaReplay?.(sessionId, {
+      isCapped: () => this.isMediaCapped(),
+      isClosed: () => this.isDisposed,
+    })
     if (agent !== undefined) {
       this.effort = agent.effort
     }
@@ -13254,13 +13257,18 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (steer === undefined) {
       return undefined
     }
+    this.dropSteer(turn, steer)
+    return steer.parts
+  }
+
+  /** A steer leaves its turn unsent (withdrawn, or its session disposed): what it holds goes. */
+  private dropSteer(turn: ActiveTurn, steer: ActiveTurn['steered'][number]): void {
     if (steer.scheduleRun !== undefined) {
       const effect = this.owner.withdraw(steer.scheduleRun)
       if (effect !== undefined) this.owner.modeApplied(effect, true)
     }
     turn.acceptedTextAttachmentBytes -= textAttachmentBytes(steer.parts)
     steer.media?.release()
-    return steer.parts
   }
 
   /** A busy goal command was not in the request already in flight. */
@@ -16284,6 +16292,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     void this.scheduleRuntime?.then((runtime) => {
       runtime.dispose()
     })
+    // Steering still waiting goes with the session, its media released,
+    // never promoted into a turn that would upload it (RVMEDIAV3 2).
+    const { active } = this
+    if (active !== undefined)
+      for (const steer of active.steered.splice(0)) this.dropSteer(active, steer)
     void this.cancel()
     // Let this close's Interrupt enter before aborting its owned queue and
     // processes. The handlers are tracked, so host close waits for cleanup.

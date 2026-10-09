@@ -12,24 +12,37 @@ import {
   openPrivateRoot,
   type PrivateRoot,
 } from '../../runtime/privateDirectory'
+import type { LeasedRoot } from '../../runtime/privateRootLease'
 import { jobMemoryLimitedRun } from './mediaJobRun'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
 
-/** Each host's private media root, opened (and verified) once per process. */
-const privateRoots = new Map<string, Promise<PrivateRoot>>()
+/** Each host's private media root, opened (and verified) and leased once per process. */
+const privateRoots = new Map<string, Promise<LeasedRoot>>()
 
-/** The host's root, opened once; a refused root is refused again, never retried quietly. */
-export function privateRootFor(directory: string): () => Promise<PrivateRoot> {
+/**
+ * The host's root, opened once; a refused root is refused again, never
+ * retried quietly. Opening it takes this process's lease and reclaims the
+ * folders owners proven gone left behind (RVMEDIAV3 3); the lease is held
+ * here for the process's life. The lease code is the media bundle's, which
+ * this host already loaded (dist/productionMedia.js).
+ */
+export function privateRootFor(directory: string): () => Promise<LeasedRoot> {
   return async () => {
     let root = privateRoots.get(directory)
     if (root === undefined) {
-      root = openPrivateRoot(directory)
+      root = openLeased(directory)
       privateRoots.set(directory, root)
     }
     return await root
   }
+}
+
+async function openLeased(directory: string): Promise<LeasedRoot> {
+  const opened = await openPrivateRoot(directory)
+  const media = await import('./productionMediaEntry.js')
+  return await media.leasePrivateRoot(opened)
 }
 
 /**

@@ -52,6 +52,12 @@ export class PrivateRootRefused extends Error {
 export interface PrivateRoot {
   readonly path: string
   readonly identity: FileIdentity
+  /**
+   * This opening's owner token: every folder made in the root carries it,
+   * and `privateRootLease.ts`'s lease of the same name says whether its owner
+   * still lives (RVMEDIAV3 3).
+   */
+  readonly owner: string
 }
 
 /** Reads one path's owner and grants (tests); production uses `%SystemRoot%`'s PowerShell. */
@@ -189,7 +195,11 @@ export async function openPrivateRoot(
     if (!info.isDirectory() || info.isSymbolicLink()) throw new Error('EPRIVATE_ROOT')
     if (isWindows) await verifyWindows(root, reader, true)
     else await verifyPosixRoot(root, info)
-    return { path: root, identity: identityOf(info) }
+    return {
+      path: root,
+      identity: identityOf(info),
+      owner: randomBytes(MEDIA_PRIVATE_DIRECTORY_NAME_BYTES).toString('hex'),
+    }
   } catch {
     if (made !== undefined) await removeMadeRoot(made)
     throw new PrivateRootRefused()
@@ -231,8 +241,10 @@ async function currentRoot(root: PrivateRoot): Promise<BigIntStats> {
 
 /**
  * A fresh folder that only this user can open, for one conversion, inside a
- * verified root; the caller owns its removal. The root's identity is checked
- * again first. The folder never claims an existing one (an exclusive mkdir),
+ * verified root; the caller owns its removal. Its name carries the root's
+ * owner token (`muse-media-<owner>-<random>`), so a folder a crash left
+ * behind is reclaimed once its owner is gone (RVMEDIAV3 3). The root's
+ * identity is checked again first. The folder never claims an existing one (an exclusive mkdir),
  * inherits the root's private DACL, is secured owner-only and read back, and
  * is empty when returned. Any failure removes what this call made and throws
  * `PrivateDirectoryRefused`.
@@ -246,7 +258,7 @@ export async function createPrivateDirectory(
     const rootInfo = await currentRoot(root)
     const leaf =
       options.name?.() ??
-      `${MEDIA_PRIVATE_DIRECTORY_PREFIX}${randomBytes(MEDIA_PRIVATE_DIRECTORY_NAME_BYTES).toString('hex')}`
+      `${MEDIA_PRIVATE_DIRECTORY_PREFIX}${root.owner}-${randomBytes(MEDIA_PRIVATE_DIRECTORY_NAME_BYTES).toString('hex')}`
     if (leaf === '.' || leaf === '..' || !FOLDER_NAME.test(leaf))
       throw new Error('EPRIVATE_DIRECTORY')
     const directory = path.join(root.path, leaf)

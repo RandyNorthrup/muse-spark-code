@@ -187,7 +187,7 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
             currentAccountId: hostDeps.getAccountId,
             directory: mediaDirectory,
             log: hostDeps.log,
-            isCapped: session.isCapped,
+            ...session,
             source: productionMedia.attachedOrWorkspaceSource(
               attached,
               productionMedia.workspaceMediaSource({
@@ -197,15 +197,6 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
               }),
             ),
             ...(attached !== undefined && { attachment: (part) => attached.resolve(part) }),
-            authorize: (_media, model, gate, signal) => {
-              signal.throwIfAborted()
-              if (!gate.ok) throw new Error(gate.reason)
-              // A scheduled upload follows its approved read; the read's own
-              // approval is the authorization. Interactive contributor
-              // consent binds at the attach port (D85.7), before any upload.
-              if (model.provider !== 'meta') throw new Error('Media upload provider mismatch')
-              return Promise.resolve()
-            },
           }),
       }),
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,

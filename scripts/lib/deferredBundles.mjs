@@ -160,6 +160,8 @@ export const DEFERRED = [
       'src/core/media/responsesMediaCodec.ts',
       'src/core/media/uploadLedger.ts',
       'src/core/media/uploadLedgerStorage.ts',
+      // RVMEDIAV3 3: the conversion root's lease and crash reclaim.
+      'src/runtime/privateRootLease.ts',
     ],
   },
   {

@@ -24,7 +24,11 @@ import type { PrivateRoot } from '../../src/runtime/privateDirectory'
 vi.mock('../../src/runtime/privateDirectory', async (original) => ({
   ...(await original<typeof privateDirectory>()),
   openPrivateRoot: vi.fn((directory: string) =>
-    Promise.resolve({ path: directory, identity: { dev: 1n, ino: 1n } } as unknown as PrivateRoot),
+    Promise.resolve({
+      path: directory,
+      identity: { dev: 1n, ino: 1n },
+      owner: 'a'.repeat(32),
+    } as unknown as PrivateRoot),
   ),
   createPrivateDirectory: vi.fn((root: PrivateRoot) =>
     Promise.resolve(path.join(root.path, 'muse-media-fixture')),

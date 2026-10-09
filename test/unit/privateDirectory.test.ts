@@ -245,7 +245,11 @@ describe('createPrivateDirectory', () => {
     const secure = vi.fn<TokenWindowsAcl['secure']>(() => Promise.resolve(receipt))
     const directory = await createPrivateDirectory(root, { acl: { secure } })
     expect(path.dirname(directory)).toBe(root.path)
-    expect(path.basename(directory)).toMatch(/^muse-media-[a-f0-9]{32}$/u)
+    // It carries its root's owner token, which crash reclaim reads (RVMEDIAV3 3).
+    expect(root.owner).toMatch(/^[a-f0-9]{32}$/u)
+    expect(path.basename(directory)).toMatch(
+      new RegExp(`^muse-media-${root.owner}-[a-f0-9]{32}$`, 'u'),
+    )
     expect(secure).toHaveBeenCalledExactlyOnceWith(directory, true)
     expect(await fs.readdir(directory)).toEqual([])
     const second = await createPrivateDirectory(root, { acl: owned })

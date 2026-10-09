@@ -275,8 +275,8 @@ function productionReplay() {
     directory: ledgerDir,
     log,
     isCapped: () => true,
+    isClosed: () => false,
     source: () => Promise.resolve(undefined),
-    authorize: () => Promise.resolve(),
   })
   return { replay, files, ledgerDir }
 }

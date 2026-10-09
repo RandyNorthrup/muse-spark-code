@@ -56,6 +56,8 @@ export interface ReplayMediaDeps {
    * scheduled run). Only then does an unknown rate refuse. Absent means
    * capped, the fail-safe reading. */
   readonly isCapped?: () => boolean
+  /** Whether the session is disposed: then nothing is read or uploaded (RVMEDIAV3 2). */
+  readonly isClosed?: () => boolean
   /** Each open repeats confinement and approval checks. No source path is stored.
    * `token` is the attach token the record resolved through, when it did. */
   readonly source: (
@@ -154,6 +156,7 @@ function inlineVisualIdentity(part: InputContentPart): StoredMediaPart | undefin
 /** What the session tells its one media service, read per request. */
 export interface MediaReplaySession {
   readonly isCapped: () => boolean
+  readonly isClosed: () => boolean
 }
 
 /** Structural host seam: W can bind a lazy adapter without inheriting this implementation. */
@@ -529,8 +532,13 @@ export class ReplayMedia {
   ): Promise<void> {
     if (this.managed(input).length === 0) return
     const model = this.model(modelId)
-    for (const part of this.managed(input)) {
+    // A disposed session reads and uploads nothing, whatever still runs (RVMEDIAV3 2).
+    const assertOpen = () => {
       signal.throwIfAborted()
+      if (this.deps.isClosed?.() === true) throw new Error(UI_TEXT.turnStoppedByRestart)
+    }
+    for (const part of this.managed(input)) {
+      assertOpen()
       const media = this.parts.get(part)
       if (media === undefined) continue
       const previousFile = this.fileFor(media, model)
@@ -544,7 +552,8 @@ export class ReplayMedia {
       signal.throwIfAborted()
       if (route === 'inline' && !this.restored.has(part)) continue
       const approved = await this.deps.source(media, signal, this.tokens.get(part))
-      signal.throwIfAborted()
+      // The last wait before a read or an upload: nothing awaits between here and either.
+      assertOpen()
       if (approved === undefined && route === 'inline') continue
       if (approved === undefined && previousFile === undefined)
         throw new Error(fill(UI_TEXT.media.uploadExpired, { name: media.name }))

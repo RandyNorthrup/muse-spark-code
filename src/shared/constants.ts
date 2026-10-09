@@ -1365,6 +1365,16 @@ export const MEDIA_SHA256_PATTERN = /^[a-f0-9]{64}$/u
 export const MEDIA_CONVERSION_JOB_FAILED_CODE = 'EMEDIA_JOB_FAILED'
 export const MEDIA_PRIVATE_DIRECTORY_PREFIX = 'muse-media-'
 export const MEDIA_PRIVATE_DIRECTORY_NAME_BYTES = 16
+// RVMEDIAV3 3: each process's lease in the root, `muse-media-<owner>.lease`,
+// held for its life. Windows: libuv's UV_FS_O_EXLOCK (uv/win.h), an open
+// with no sharing that the kernel closes at exit. macOS: O_EXLOCK (an flock
+// the kernel drops at exit, <sys/fcntl.h> 0x20) with O_NONBLOCK (0x4), so a
+// probe never waits. Node exports neither; libuv passes both to the open.
+export const MEDIA_PRIVATE_LEASE_SUFFIX = '.lease'
+export const MEDIA_PRIVATE_LEASE_LOCK = { win32: 0x10_00_00_00, darwin: 0x20 | 0x4 } as const
+// Linux leases name their owner instead: /proc/<pid>/stat's field 22, the
+// start tick, is the 20th after the command's closing parenthesis.
+export const MEDIA_PROC_START_FIELD = 19
 // The private root those folders live in (RVMEDIAVB 1). Besides the current
 // user, only SYSTEM and BUILTIN\Administrators may hold a grant on it, and
 // nobody else may hold a write-class grant on its parent: FILE_WRITE_DATA,

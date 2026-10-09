@@ -540,6 +540,7 @@ function attachedVideo(
   registry: AttachedMedia,
   token: string,
   bytes = videoFixture({ soundtrack: false }),
+  owner?: string,
 ) {
   const info = sniffMediaBytes(bytes)
   if (info === undefined) throw new Error('fixture must sniff')
@@ -554,8 +555,26 @@ function attachedVideo(
         yield await chunk
       },
     },
+    owner,
   )
   return { part, reads }
+}
+
+/** A first reply held open, and a video steered into it while it waits. */
+async function steerDuringHeldReply(rig: Rig, video: TurnPart, after?: { readonly text: string }) {
+  const h = await start(rig, CONTRIBUTOR)
+  const { held, requested } = holdFirstReply(rig, after)
+  const first = await h.session.sendTurn([{ type: 'text', text: 'Hold on.' }])
+  await requested.promise
+  const steer = await h.session.steer(first.turnId, [{ type: 'text', text: 'Also' }, video])
+  return { h, held, steer }
+}
+
+/** A Model API session's own settle: it waits for every turn the session still tracks. */
+function hasSettled(
+  session: AgentSession,
+): session is AgentSession & { readonly settled: () => Promise<void> } {
+  return 'settled' in session && typeof session.settled === 'function'
 }
 
 /** A first reply held open once its request arrives, so later input queues or steers. */
@@ -642,14 +661,7 @@ describe('attached video through the session media service (M105 lane V seam 1)'
     const steeredVideo = attachedVideo(registry, 'steered').part
     const rig = await factory({ attachedMedia: registry })
     try {
-      const h = await start(rig, CONTRIBUTOR)
-      const { held, requested } = holdFirstReply(rig)
-      const first = await h.session.sendTurn([{ type: 'text', text: 'Hold on.' }])
-      await requested.promise
-      const steer = await h.session.steer(first.turnId, [
-        { type: 'text', text: 'Also' },
-        steeredVideo,
-      ])
+      const { h, held, steer } = await steerDuringHeldReply(rig, steeredVideo)
       const queued = await h.session.sendTurn([{ type: 'text', text: 'Watch' }, queuedVideo])
       expect([registry.state('steered'), registry.state('queued')]).toEqual(['claimed', 'claimed'])
       for (const submission of [steer, queued]) {
@@ -664,6 +676,36 @@ describe('attached video through the session media service (M105 lane V seam 1)'
       const done = h.turnDone()
       held.resolve(undefined)
       await done
+    } finally {
+      await rig.host.close()
+    }
+  })
+
+  it('drops a waiting steer when its session is disposed: released, never read or uploaded (RVMEDIAV3 2)', async () => {
+    const registry = new AttachedMedia()
+    const { part, reads } = attachedVideo(
+      registry,
+      'steered',
+      videoFixture({ soundtrack: false }),
+      'composer',
+    )
+    const rig = await factory({ attachedMedia: registry })
+    try {
+      const { h, held, steer } = await steerDuringHeldReply(rig, part, { text: 'Never requested.' })
+      expect([steer.disposition, registry.state('steered')]).toEqual(['steered', 'claimed'])
+      h.session.dispose()
+      // The window's owner lets its chip go as the session closes.
+      registry.releaseOwner('composer')
+      const atDisposal = registry.state('steered')
+      held.resolve(undefined)
+      if (!hasSettled(h.session)) throw new Error('a Model API session settles')
+      await h.session.settled()
+      expect({
+        atDisposal,
+        reads: reads.count,
+        uploads: rig.files.uploads.length,
+        requests: rig.api.responseBodies().length,
+      }).toEqual({ atDisposal: undefined, reads: 0, uploads: 0, requests: 1 })
     } finally {
       await rig.host.close()
     }

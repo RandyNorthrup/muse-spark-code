@@ -2,6 +2,7 @@
 // provider calls or user content in diagnostics. Callers own confinement/consent.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { Buffer } from 'node:buffer'
+import { createHash } from 'node:crypto'
 import { watch, type FSWatcher } from 'node:fs'
 import fs, { chmod, lstat, mkdtemp, open, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -9,6 +10,7 @@ import path from 'node:path'
 import {
   HOOK_FORBIDDEN_ENV_NAMES,
   BYTES_PER_MIB,
+  MEDIA_ATTACHED_READ_CHUNK_BYTES,
   MEDIA_AVCONVERT_VERSION_PATTERN,
   MEDIA_CONVERTER_INSTALL_PATHS,
   MEDIA_CONVERTER_SHIM_PATTERNS,
@@ -292,8 +294,9 @@ interface ConversionRunOptions extends LimitedRunOptions {
 
 export interface MediaConversionOptions extends ConverterVerification {
   /**
-   * The attachment's digest-verified stream (RVMEDIAV2): written into the
-   * conversion's owner-only folder and encoded from there, so the converter
+   * The attachment's digest-verified stream (RVMEDIAV2): written whole into
+   * the conversion's owner-only folder, read back against the stream's
+   * length and digest (RVMEDIAV3 1) and encoded from there, so the converter
    * never opens the user's path. `inputPath` is then only the file's name.
    */
   readonly inputBytes?: (signal: AbortSignal | undefined) => AsyncIterable<Uint8Array>
@@ -577,20 +580,39 @@ type ConvertedResult<I extends MediaFileInfo> =
 const SNAPSHOT_EXTENSION = /\.[a-z0-9]{1,8}$/iu
 
 /**
- * Writes a verified stream to an owner-only file no one else can change. A
- * stream that throws (its bytes are not the ones attached) refuses with its
- * own reason; the caller's folder cleanup removes the partial file.
+ * Writes a verified stream to an owner-only file no one else can change,
+ * then reads the copy back, so the encoder reads exactly the verified bytes
+ * (RVMEDIAV3 1). A write may land fewer bytes than asked (a full disk, a
+ * quota: `bytesWritten`, write(2)); the rest is written from where it
+ * stopped. A write that lands nothing or fails, and a copy whose length or
+ * digest differs from the stream's, refuse with `failed`. A stream that
+ * throws (its bytes are not the ones attached) refuses with its own reason.
+ * The caller's folder cleanup removes a partial file.
  */
 async function writeSnapshot(
   file: string,
   read: NonNullable<MediaConversionOptions['inputBytes']>,
   signal: AbortSignal | undefined,
+  failed: string,
 ): Promise<{ readonly ok: true } | { readonly ok: false; readonly reason: string }> {
   const handle = await open(file, 'wx', OWNER_FILE_MODE)
+  const streamed = createHash('sha256')
+  let size = 0
+  let isWriting = false
   try {
-    for await (const chunk of read(signal)) await handle.write(chunk)
-    return { ok: true }
+    for await (const chunk of read(signal)) {
+      isWriting = true
+      streamed.update(chunk)
+      for (let done = 0; done < chunk.byteLength;) {
+        const { bytesWritten } = await handle.write(chunk, done, chunk.byteLength - done, size)
+        if (bytesWritten <= 0) return { ok: false, reason: failed }
+        done += bytesWritten
+        size += bytesWritten
+      }
+      isWriting = false
+    }
   } catch (error: unknown) {
+    if (isWriting) return { ok: false, reason: failed }
     return {
       ok: false,
       reason: error instanceof Error ? error.message : UI_TEXT.attachmentUnreadable,
@@ -598,6 +620,23 @@ async function writeSnapshot(
   } finally {
     await handle.close()
   }
+  const copy = createHash('sha256')
+  const buffer = new Uint8Array(MEDIA_ATTACHED_READ_CHUNK_BYTES)
+  const reader = await open(file, 'r')
+  let copied = 0
+  try {
+    for (;;) {
+      const { bytesRead } = await reader.read(buffer, 0, buffer.byteLength, copied)
+      if (bytesRead === 0) break
+      copy.update(buffer.subarray(0, bytesRead))
+      copied += bytesRead
+    }
+  } finally {
+    await reader.close()
+  }
+  return copied === size && copy.digest('hex') === streamed.digest('hex')
+    ? { ok: true }
+    : { ok: false, reason: failed }
 }
 
 /** What differs between the two conversions; the pipeline around it is shared. */
@@ -660,7 +699,12 @@ async function convertWith<I extends MediaFileInfo>(
     let encoded = inputPath
     if (options.inputBytes !== undefined) {
       encoded = path.join(directory, `input${SNAPSHOT_EXTENSION.exec(inputPath)?.[0] ?? ''}`)
-      const written = await writeSnapshot(encoded, options.inputBytes, options.signal)
+      const written = await writeSnapshot(
+        encoded,
+        options.inputBytes,
+        options.signal,
+        fill(UI_TEXT.media.conversionFailed, { reason: 'private copy' }),
+      )
       if (!written.ok) return written
     }
     const input = await lstat(encoded)

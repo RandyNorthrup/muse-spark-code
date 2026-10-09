@@ -327,8 +327,8 @@ describe('session store ownership over the real ledger', () => {
       directory: uploadLedgerDir,
       log,
       isCapped: () => true,
+      isClosed: () => false,
       source: () => Promise.resolve(undefined),
-      authorize: () => Promise.resolve(),
     })
     return { store, replay, files }
   }
@@ -410,8 +410,8 @@ describe('per-account upload ledgers', () => {
         directory: root,
         log,
         isCapped: () => true,
+        isClosed: () => false,
         source: () => Promise.resolve(undefined),
-        authorize: () => Promise.resolve(),
       })
     const bytes = new Uint8Array(4096)
     for (let index = 0; index < bytes.length; index++) bytes[index] = index % 251

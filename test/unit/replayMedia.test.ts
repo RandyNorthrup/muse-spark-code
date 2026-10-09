@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
-import { MEDIA_FILE_ID_MIN_BYTES } from '../../src/shared/constants'
+import { MEDIA_FILE_ID_MIN_BYTES, UI_TEXT } from '../../src/shared/constants'
 import { ReplayMedia, storedMediaPartSchema } from '../../src/core/media/replayMedia'
 import { MediaBudget } from '../../src/core/backends/modelapi/mediaBudget'
 import type { StoredReplayItem } from '../../src/core/backends/modelapi/sessionStore'
@@ -38,6 +38,31 @@ describe('media replay and metadata persistence', () => {
       'test-upload:',
     )
     expect(rig.encodeUploaded).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads and uploads nothing for a closed session, even one closed while its source opened (RVMEDIAV3 2)', async () => {
+    const state = { isClosed: true }
+    const rig = replayRig(videoMedia(), { isClosed: () => state.isClosed })
+    await expect(rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())).rejects.toThrow(
+      UI_TEXT.turnStoppedByRestart,
+    )
+    expect([rig.source.mock.calls.length, rig.ensure.mock.calls.length]).toEqual([0, 0])
+    // Disposed while the source was being resolved: still no upload.
+    state.isClosed = false
+    const resolve = rig.source.getMockImplementation()
+    rig.source.mockImplementationOnce(() => {
+      state.isClosed = true
+      if (resolve === undefined) throw new Error('the rig resolves a source')
+      return resolve()
+    })
+    await expect(rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())).rejects.toThrow(
+      UI_TEXT.turnStoppedByRestart,
+    )
+    expect(rig.ensure).not.toHaveBeenCalled()
+    // An open session uploads as before.
+    state.isClosed = false
+    await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
+    expect(rig.ensure).toHaveBeenCalledOnce()
   })
 
   it('refuses cumulative fresh media across pending messages before fitting can omit any attachment', () => {

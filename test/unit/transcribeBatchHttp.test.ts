@@ -19,7 +19,6 @@ import {
 import {
   audioRouteOptions,
   prepareAudioAttachment,
-  type AudioPreparationDeps,
   type AudioSource,
 } from '../../src/core/voice/transcribeBatch'
 import { convertToWav16kMono, locateMediaConverter } from '../../src/core/media/convert'
@@ -30,7 +29,7 @@ import {
 } from '../../src/shared/constants'
 import { readWavFormat } from '../../src/core/media/sniff/riff'
 import { fill } from '../../src/shared/l10n/text'
-import { fakeConversionOptions } from './helpers/media/conversion'
+import { audioPreparationDeps, fakeConversionOptions } from './helpers/media/conversion'
 import type { Usd } from '../../src/shared/usd'
 
 const MP3_FIXTURE = 'test/fixtures/voice/tone-2s.mp3'
@@ -177,19 +176,7 @@ function rig(options?: {
           },
     ),
   })
-  const context = createModelApiAudioContext({
-    modelId: 'muse-spark-1.3-contributor',
-    soundtrackModelId: 'muse-spark-1.2-contributor',
-    canExtractWav: true,
-    isVoiceOn: true,
-  })
-  const deps: AudioPreparationDeps = {
-    context,
-    assertCurrent: () => undefined,
-    converter: ports.conversion,
-    batch: ports.batch,
-    gate: { isOn: () => true },
-    consent: { allows: () => Promise.resolve(true) },
+  const deps = audioPreparationDeps(ports, {
     reserve: (cost) => {
       reserved.push(cost)
       return Promise.resolve({
@@ -205,7 +192,7 @@ function rig(options?: {
         voiceSeconds += seconds
       },
     },
-  }
+  })
   const prepare = (source: AudioSource, signal = new AbortController().signal) =>
     prepareAudioAttachment(source, 'transcribe', deps, signal)
   return {

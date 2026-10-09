@@ -4,7 +4,7 @@
 // locally settled observations), the captured Responses codec and the
 // captured model capabilities. The host supplies only what it owns: the
 // HTTP client, the account digest, the storage directory, the session's cap
-// and the source/authorize seams. Inline images and PDFs are identified from
+// and closing, and the source seam. Inline images and PDFs are identified from
 // their own bytes (replayMedia.ts); attached video and audio resolve through
 // the host's attached-media registry (lane V), whose sources reverify.
 //
@@ -132,10 +132,11 @@ export interface ProductionMediaDeps {
   readonly source: ReplayMediaDeps['source']
   /** The host's attached-media registry resolving `media` parts (lane V). */
   readonly attachment?: ReplayMediaDeps['attachment']
-  readonly authorize: ReplayMediaDeps['authorize']
   readonly compactionTail?: ReplayMediaDeps['compactionTail']
   /** The session's cap, read per request (D85.6: unknown refuses only when capped). */
   readonly isCapped: () => boolean
+  /** Whether the session is disposed: then nothing is read or uploaded (RVMEDIAV3 2). */
+  readonly isClosed: () => boolean
   readonly now?: () => number
   readonly lock?: MediaStoreLock
 }
@@ -146,6 +147,18 @@ export interface ProductionMediaDeps {
  * The ledger's own account check still guards a replaced directory. */
 export function productionMediaDirectory(directory: string, accountId: string): string {
   return accountLedgerDirectory(directory, accountId)
+}
+
+/**
+ * The uploads' authorization (the header's D85.6/D85.7 rule): the gate's
+ * own refusal, and Meta's Files API only. It lives in this lazy bundle
+ * rather than the Model API bundle's host wiring (RVMEDIAV3 sizes).
+ */
+const authorizeMetaUpload: ReplayMediaDeps['authorize'] = (_media, model, gate, signal) => {
+  signal.throwIfAborted()
+  if (!gate.ok) throw new Error(gate.reason)
+  if (model.provider !== 'meta') throw new Error('Media upload provider mismatch')
+  return Promise.resolve()
 }
 
 /** The session replay over the real upload storage and calibration. */
@@ -193,8 +206,9 @@ export function createProductionMediaReplay(deps: ProductionMediaDeps): ReplayMe
       }),
     source: deps.source,
     ...(deps.attachment !== undefined && { attachment: deps.attachment }),
-    authorize: deps.authorize,
+    authorize: authorizeMetaUpload,
     isCapped: deps.isCapped,
+    isClosed: deps.isClosed,
   })
 }
 
