@@ -66,6 +66,9 @@ beforeAll(async () => {
     platform: 'browser',
     write: false,
     jsx: 'automatic',
+    // Every fixture page parses this script: unminified (2.4 MB) it took
+    // ~650 ms a page here, most of each fixture case.
+    minify: true,
     define: { 'process.env.NODE_ENV': '"production"' },
   })
   runtime.fixture = fixture.outputFiles[0].text

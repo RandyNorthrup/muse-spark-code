@@ -52,6 +52,8 @@ beforeAll(async () => {
     write: false,
     platform: 'browser',
     jsx: 'automatic',
+    // Every page parses this script: unminified it took ~340 ms a page here.
+    minify: true,
     define: { 'process.env.NODE_ENV': '"production"' },
   })
   runtime.js = js.outputFiles[0].text
@@ -205,8 +207,10 @@ async function force(page, selector, states) {
 
 describe('M114 P2 panel contract', () => {
   it('loads the real lazy menu independently of the secret modal focus owner', async () => {
-    const panel = await open('dark')
-    const secret = await open('dark', 320, false, 'reduce', 'secret')
+    const [panel, secret] = await Promise.all([
+      open('dark'),
+      open('dark', 320, false, 'reduce', 'secret'),
+    ])
     try {
       expect(await panel.locator('.gooey-menu-pill').count()).toBe(1)
       expect(await panel.locator('#actual .modal').count()).toBe(0)

@@ -1,5 +1,5 @@
 // Test-only exceptional surfaces; all UI is rendered from the actual components.
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
@@ -31,10 +31,35 @@ export const fixtureScenes = new Set([
   'deferred-popover',
 ])
 
-export async function makeFixtures(auditRoot, port) {
-  const relative = `temp/m114-s-fixtures-${port}`
-  const directory = path.join(auditRoot, relative)
-  await mkdir(directory, { recursive: true })
+// The bundles and notes do not depend on the capture's origin, so one process
+// builds them once (a capture run per scene hook used to rebuild them all),
+// keeps the files in memory, and each run writes them with its own origin's pages.
+const prepared = new Map()
+async function prepareFixtures(auditRoot) {
+  let pending = prepared.get(auditRoot)
+  if (pending === undefined) {
+    pending = buildFixtures(auditRoot)
+    prepared.set(auditRoot, pending)
+  }
+  try {
+    return await pending
+  } catch (error) {
+    prepared.delete(auditRoot)
+    throw error
+  }
+}
+
+async function buildFixtures(auditRoot) {
+  await mkdir(path.join(auditRoot, 'temp'), { recursive: true })
+  const directory = await mkdtemp(path.join(auditRoot, 'temp/m114-s-fixtures-shared-'))
+  try {
+    return await buildFixturesIn(auditRoot, directory)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}
+
+async function buildFixturesIn(auditRoot, directory) {
   await makeAdditionalFixtures(auditRoot, directory)
   await build({
     stdin: { contents: fixtureSource, resolveDir: auditRoot, loader: 'jsx' },
@@ -71,7 +96,25 @@ export async function makeFixtures(auditRoot, port) {
   const content = parseWhatsNewContent(
     await readFile(path.join(auditRoot, 'dist/whatsNew.json'), 'utf8'),
   )
-  const releases = content.releases
+  const files = new Map()
+  const entries = await readdir(directory, { recursive: true, withFileTypes: true })
+  for (const entry of entries)
+    if (entry.isFile()) {
+      const file = path.join(entry.parentPath, entry.name)
+      files.set(path.relative(directory, file), await readFile(file))
+    }
+  return { files, renderWhatsNewPage, releases: content.releases }
+}
+
+export async function makeFixtures(auditRoot, port) {
+  const relative = `temp/m114-s-fixtures-${port}`
+  const directory = path.join(auditRoot, relative)
+  const { files, renderWhatsNewPage, releases } = await prepareFixtures(auditRoot)
+  for (const [name, bytes] of files) {
+    const file = path.join(directory, name)
+    await mkdir(path.dirname(file), { recursive: true })
+    await writeFile(file, bytes)
+  }
   const rendered = renderWhatsNewPage({
     releases: releases.filter((entry) => entry.version !== 'Unreleased').slice(0, 1),
     from: undefined,
