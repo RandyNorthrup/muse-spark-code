@@ -530,7 +530,15 @@ The shipped lint configuration and 6144 MiB flag remain release-base values.
   no paid judge request is made before that answer. While
   `museSpark.confidentialWorkspace` is on, only same-model calls that the
   chat model itself may make can run; the local judge (2j) follows its
-  design spike.
+  design spike. Amended 2026-10-08 (D104, M123): GitHub in every editor.
+  API calls go only to `api.github.com`, through M71's client. The token
+  comes from one of three sources:
+  - the editor's own GitHub sign-in, by lease (the token stays in the
+    editor);
+  - the runtime's device-flow sign-in with the project's OAuth App
+    (`github.com/login/device/code` and `github.com/login/oauth/access_token`;
+    the token is kept in the M109 vault or the OS keychain);
+  - opt-in, the user's own `gh` login.
 - Contributor-tier models are opt-in behind a dialog quoting Meta's training
   wording; off by default; blocked when the workspace setting
   `museSpark.confidentialWorkspace` is true.
@@ -18978,7 +18986,206 @@ the slow one.
   Claude, with the saved diff). Its gotchas go into
   `docs/orchestration-gotchas.md`.
 
+### D104 — Git and pull requests in every editor (M123, 2026-10-08)
+
+The lead, 2026-10-08, under D84 (every registry row W in every editor, or a
+named, approved exception). M71's Git and pull request features (registry
+row F36) exist only in VS Code, because every piece they stand on is VS
+Code's:
+
+- the GitHub token: `vscode.authentication.getSession('github')`
+  (`src/host/git/githubSession.ts`);
+- commit and push: the Git extension API (`gitExtension.ts`);
+- the drafts' form wiring in the VS Code webview and controller;
+- the pull request links: workspace state (`pullRequestLinks.ts`);
+- the pull request checkout and the held/trust card
+  (`pullRequestCheckout.ts`, `heldCheckout.ts`).
+
+Nothing runs in `src/runtime` or `src/acp`, and `exec` strips `GH_TOKEN` and
+`GITHUB_TOKEN` (`EXEC_CHILD_ENV_DROP`). M104's registry names F36 with
+`auth/github`, `auth/githubLease` and `github/request` (the lease design on
+`m104/pd-fix`, with an unwired runtime client,
+`src/runtime/panel/nativeGitHub.ts`). The research matrix
+(`docs/research/editor-parity-2026-10-05.md`) marks F36 missing in every
+editor outside the VS Code family, and no M104 lane owns it. This decision
+owns it.
+
+1. **Git runs natively in the shared runtime.**
+   - Status, diff, commit, push (after the confirmation) and worktree
+     checkout run with the user's own `git` (`resolveExecutable`), through
+     the existing bounded Git runner (`createGitProcess`) under M107's spawn
+     admission (`admitResource`, whole-tree stop; D87, SPAWN017's
+     inventory): explicit argument arrays, output caps and deadlines.
+   - VS Code keeps the Git extension path (its credential helpers, sign-in
+     prompts and SCM view). A VS Code-family host without the `vscode.git`
+     extension (Arduino IDE 2, some forks) takes the native path in-process.
+   - M71's rules carry over unchanged:
+     - never force;
+     - push and pull request creation always ask, and show what goes out;
+     - the push plan's refusals (a detached HEAD, a branch behind its
+       upstream, names starting with `+` or `-` or holding `:` or
+       whitespace);
+     - a commit never pushes on its own;
+     - the consent names hooks, signers and credential helpers;
+     - project trust is checked after every await and before each Git
+       entry. Outside VS Code, project trust is the editor's trust (MHP
+       `workspace/trust`, or the runtime's own record where the editor has
+       none) and no hold.
+   - **The confirmed push and the pull request fetch use the user's Git
+     environment.** Every other Git call keeps `quietGitEnvironment` (no
+     credentials, no prompt). These two are the harness's own processes, not
+     model tools, so they keep the user's credential helpers, SSH agent and
+     token variables, as a terminal would, with `GIT_TERMINAL_PROMPT=0`.
+     They never gain anything of ours: no `http.extraHeader`, no credential
+     helper of ours, no token variable. Model-run processes keep D89.5's
+     fence. A push that needs typed credentials fails with the remote named,
+     and offers **Open in terminal**: the same command in the editor's
+     terminal (MHP `terminal/create`, F23), for the user to finish.
+
+2. **GitHub stays on M71's REST client; the token comes from layered
+   sources.** `src/core/git/github.ts` (`api.github.com`, API version
+   2022-11-28, schema-checked against captures) stays the only GitHub
+   client. A `GitHubTokenSource` port gives it a credential per call. The
+   first available source wins, in this order, and the panel says which one
+   is in use:
+   - **(a) The editor's own GitHub sign-in, by lease.** The token never
+     leaves the editor.
+     - The runtime asks `auth/githubLease` (`ask` or `silent`) and gets an
+       opaque lease id bound to its owner.
+     - Each call goes out as `github/request`: `api.github.com` only, `/user`
+       and `/repos/…` only, GET and POST, within the envelope cap. The editor
+       adds the token.
+     - Where: VS Code (`getSession('github', ['repo'])`); VS Code forks that
+       ship the GitHub provider; JetBrains (the bundled GitHub plugin's
+       account, as an optional plugin dependency); Visual Studio, where
+       lane L finds a supported API for its GitHub account.
+     - Leases expire (`GITHUB_LEASE_TTL_MS`). They also end with the window,
+       a change of owner, shutdown and sign-out.
+   - **(b) The runtime's own sign-in: GitHub's OAuth device flow** with the
+     project's OAuth App. Its client id is public and lives in
+     `src/shared/constants.ts`. The device flow needs no client secret
+     (GitHub's docs, 2026-10-08), and no secret exists in the repository or
+     the product.
+     - The panel shows the user code with Copy, and opens
+       `https://github.com/login/device` through `ui/openExternal`. No other
+       verification address from GitHub's reply is accepted.
+     - The runtime polls at GitHub's `interval`, adds the five seconds that
+       `slow_down` asks for, and stops at `expires_in` (900 s by default) or
+       at Cancel.
+     - Storage: the token goes only into the M109 vault, as an `oauth` item
+       bound to `https://api.github.com` and hidden from agents. While the
+       vault's broker is unavailable, it goes into the OS keychain through
+       `keyStore.ts`. It is never in settings, in files we write, in logs or
+       in MHP.
+     - If the OAuth App has expiring user tokens on (eight-hour access,
+       six-month refresh; GitHub's docs say a device-flow token refreshes
+       without a secret), the refresh token is stored the same way, and the
+       token is refreshed before it expires.
+   - **(c) Opt-in: the user's existing `gh` login.** This is behind
+     `museSpark.github.useGhLogin`: default off, user or machine scope only,
+     so a repository's settings cannot turn it on.
+     - The runtime runs `gh auth token --hostname github.com`: a governed
+       spawn, explicit arguments, capped output.
+     - It keeps the token in memory for that one request, and registers it
+       with the redactor.
+     - D93 used `gh api`, which keeps the token out of our process. Reading
+       it into our process widens that precedent, so this source is opt-in.
+   - **Scopes.**
+     - `repo` only: M71's scope, needed for pull requests on private
+       repositories.
+     - `read:org` is added only if a lane proves that a call needs it, and
+       it is asked for incrementally.
+     - `workflow`, `admin:*`, `delete_repo` and `gist` are never asked for.
+     - The client's method table bounds what any token is used for,
+       whatever scopes a lease or a `gh` token carries. Before a write, a
+       missing `repo` scope (from `X-OAuth-Scopes`) is named, rather than
+       surfacing GitHub's 404.
+   - **Sign-out and revocation.**
+     - Sign out deletes the stored item.
+     - GitHub's token-revocation endpoint authenticates the app itself,
+       which a public client cannot do (lane A confirms this against
+       GitHub's docs, dated). So Sign out also opens GitHub's authorized
+       applications page, where the user revokes the grant.
+     - A 401 drops the stored token and asks the user to sign in again.
+   - **Rejected.**
+     - A shipped client secret: it would be public.
+     - A GitHub App: it must be installed on each account or organization
+       before it can act there, which adds a setup step for every user.
+       Revisit if fine-grained permissions become necessary.
+     - Reading another application's token store (VS Code's or JetBrains'
+       files): D74 forbids it.
+     - A pasted personal access token: it is long-lived and often
+       over-scoped, and the device flow serves the same users.
+
+3. **Drafts, links and pull request checkout go through the shared panel.**
+   - **The Git port gets a runtime implementation.** The controller already
+     declares its Git port (`ConversationGitPort`, since M71's host-API
+     repair). The runtime implementation sits beside the VS Code adapter.
+     `GitPanel.tsx`, the commit and pull request forms, Write with Muse and
+     the held/trust card render through the three bridges (M104 lane D) in
+     every editor. The draft is still the user's own turn (D49), so there is
+     no paid-use popup.
+   - **Links and records.** Pull request links (session id to number,
+     address and title; newest 200) and worktree conversation records live
+     in the runtime's per-user store, keyed by the canonical repository
+     root. VS Code keeps its workspace and global state. Session export and
+     import carry the link.
+   - **Someone else's pull request** is materialized exactly as M71 does it
+     (RV71c):
+     - `worktree add --no-checkout --detach`, then `read-tree`;
+     - the files come from one `cat-file --batch`, through the exclusive
+       writer;
+     - the listing is refused whole on any bad name.
+
+     It goes under the runtime data folder's `pr-worktrees/`, and opens
+     with `workspace/openFolder` (F35).
+
+   - **The hold is by location, in every host.** Every host checks both
+     roots: VS Code's global storage and the runtime's. So a worktree made in
+     one editor is held when another editor opens it.
+   - **Held means the same everywhere:** Plan mode, no `!` commands, and
+     the project configuration untrusted, until the card confirms trust. The
+     card says that the editor's other extensions follow the editor's own
+     trust.
+
+4. **The network rule (D4) is amended** to name these sources.
+5. **One milestone, every editor.** M123 implements this decision. F36's
+   cells move to W, editor by editor, only on M123's receipts. M104's F36
+   fallback keeps its id, `gh-credential-store`, because renaming it would
+   be a breaking MHP change. It now means sources (b) and (c).
+6. **GitHub.com only**, as in M71. GitHub Enterprise Server needs a later
+   decision.
+7. **Owner item:** registering the OAuth App under the owner's GitHub
+   account (Q-M123). Everything builds and certifies against a fake
+   device-flow server without it.
+
 ## 3. Open questions (need the owner)
+
+- **Q-M123 — The GitHub OAuth App (2026-10-08, owner item).** D104's
+  device-flow sign-in (source b) needs an OAuth App registered under the
+  owner's GitHub account, and only he can create it. It is Chrome-assisted:
+  the lead opens `github.com/settings/applications/new` and fills the form,
+  and the owner checks it and clicks Register.
+  1. **The form.**
+     - The name says "Unofficial" (A3), and implies no endorsement by Meta
+       or GitHub.
+     - The homepage is the repository, and so is the callback address. The
+       form requires a callback address, but the device flow never uses it.
+     - **Enable Device Flow** is ticked.
+     - No client secret is generated. If GitHub creates one anyway, it is
+       never copied or stored.
+  2. **Expiring user tokens.** **Default:** on, where the settings page
+     offers it (eight-hour tokens, refreshed without a secret).
+  3. **The client id** is public. It goes into `src/shared/constants.ts` in
+     a normal commit.
+  4. **The owning account.** **Default:** his personal account. The app can
+     be transferred to an organization later.
+
+  **Default until then:** every lane builds and certifies against the fake
+  server with a fake client id. Source (b) ships only after the app exists.
+  Until then the panel offers sources (a) and (c), and says why (b) is
+  missing. That gap goes at the top of every report, as an item blocked on
+  the owner.
 
 - **Q-FIX0160X-LINUX-ARTIFACTS (2026-10-07, macmini):** this worktree has
   no real x64 or arm64 `muse-created` build artifacts. Its universal Darwin
@@ -19955,6 +20162,152 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### M123 — Git and pull requests in every editor (D104)
+
+**Status 2026-10-08: planned.**
+
+- **Goal.** F36 (M71's Git and pull request features) works in every editor
+  in M104's matrix. That means the same forms, drafts, confirmations, links,
+  checks and held checkout as in VS Code, with Git run natively by the
+  runtime and the GitHub token taken from D104's layered sources.
+- **Depends on.**
+  - M71 (released in 0.14.0) and D104.
+  - M104a's MHP contract, the runtime `panel` mode and the bridges (M104
+    lanes 0, B and D). The F36 methods and `nativeGitHub.ts` come from
+    `m104/pd-fix` once it merges, or lane L takes ownership of a copy, as
+    M104 did with M98's token file.
+  - M109's vault (an `oauth` item). While its broker is unavailable, the OS
+    keychain through `keyStore.ts`.
+  - M107's spawn admission (SPAWN017).
+  - The owner's Q-M123, for the OAuth App. Nothing blocks on it before
+    certification, because everything builds against the fake device-flow
+    server.
+- **Order.** Lane 0 first (one day). Then G, A, P and L run in parallel
+  against lane 0's fakes. U follows once G's and P's ports answer. Q
+  qualifies each editor as its route lands. D runs throughout. M123 starts
+  after M104a's contract freeze, and does not block the 0.17.0 release.
+- **Lanes and file ownership.** One integration branch, `feature/m123`,
+  under M87's region rules. Engine roles follow D103:
+  - Muse codes on the POSIX rigs.
+  - Claude codes Windows-native work and the Visual Studio C#.
+  - Codex reviews each lane class in one pass, never the engine that wrote
+    it.
+  - The lead integrates.
+
+| Lane                       | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Files it owns                                                                                                                       | Its regions in shared files                                                                                                                                                                   | Starts                  | Rig                                    | Hours | Codex review / acceptance focus                                                                                                                                                                                                                         |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | -------------------------------------- | ----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Contracts, fakes (lead)  | The `GitHubTokenSource` port and its order; the runtime side of the controller's existing `ConversationGitPort` (unchanged); constants: `GITHUB_OAUTH_CLIENT_ID` (a fake until Q-M123), the device-flow deadlines, `GITHUB_LEASE_TTL_MS` (at most 15 minutes), the scope list; `museSpark.github.useGhLogin` (user or machine scope); an optional `expiresAt` on `auth/githubLease`'s result (an additive MHP minor version, with the schema snapshot); fakes: a device-flow server with every error code, a GitHub REST server replaying M71's captures, a fake `gh`, and fixture repositories (a bare origin, a fork with its parent, a failing hook, a configured signer) | `src/core/git/tokenSource.ts`, `test/e2e/fakeGitHub.ts`, `test/fixtures/github/**`                                                  | `src/shared/constants.ts` (the GitHub block); `src/shared/hostApi/methods.ts` (the F36 rows); `package.json` and `package.nls*.json` (one setting)                                            | after M104a's freeze    | Kubuntu                                |     6 | The schemas round-trip and reject bad input; the snapshot is bumped once; the fakes replay every captured shape; no secret field anywhere                                                                                                               |
+| G Native Git (Muse)        | The runtime Git adapter: status; a bounded, binary-safe diff; commit (message, the all-files choice, hooks and signers named); push (M71's push plan, the confirmation, the remote pick, `-u` on a first push, never `--force*`); the user-environment rule for the push and the PR fetch; Open in terminal; trust, owner and lifetime rechecks after every await; the in-process native route for VS Code-family hosts without `vscode.git`                                                                                                                                                                                                                                 | `src/runtime/panel/git/**`, `src/core/git/{status,diff,commit}.ts` (new)                                                            | `src/host/git.ts`: `createGitProcess` and `quietGitEnvironment` move unchanged to `src/core/git/process.ts` if the host-API gate refuses the import, coordinated with the M71 owner           | after 0                 | Kubuntu; Win11 VM (Claude) for Windows |    14 | Never force; the same push-plan refusals as VS Code (one shared table test); no argument built from unchecked user text; the process tree stopped on Cancel; only the push and the fetch get the user's environment, and neither gets a token of ours   |
+| A GitHub sign-in (Claude)  | Source (b): the device-flow client (request, poll at `interval`, `slow_down`, expiry, Cancel, the verification-address check), storage as a vault `oauth` item with the keychain fallback, and refresh when expiring tokens are on; source (c): `gh auth token` behind the setting, in memory only; the scope check; Sign out with the revoke page; 401 handling; redactor registration for each token; the CLI's `auth github login`, `logout` and `status`                                                                                                                                                                                                                 | `src/core/git/deviceFlow.ts`, `src/runtime/github/**`                                                                               | `src/runtime/authCommands.ts` (the `github` subcommands); `src/runtime/vault/**` (the item kind's registration, with the M109 owner)                                                          | after 0                 | Win11 VM; Mac mini (the keychains)     |    14 | The token appears in no log, frame, file, argument or environment (grep drills for each source); polling is never faster than `interval`; only GitHub's address is opened; the setting is refused from workspace scope; agents never see the vault item |
+| L Editor leases            | `auth/githubLease` and `github/request` implemented in: VS Code (`getSession('github', ['repo'])`); JetBrains (Muse, Kotlin: the bundled GitHub plugin's account manager as an optional dependency, and no lease when it is absent); Visual Studio (Claude, C#: a research spike first; a supported API for VS's GitHub account, or source (b) recorded with the reason); `nativeGitHub.ts` wired into the source order; the lease time limit, owner binding and revocation at shutdown                                                                                                                                                                                      | `src/host/vscode/github/**`, `hosts/jetbrains/**/github/**`, `hosts/visualstudio/**/GitHub/**`, `src/runtime/panel/nativeGitHub.ts` | the M104 plugins' MHP dispatch tables (one row each, with lanes E and F)                                                                                                                      | after 0                 | Kubuntu (JetBrains); Win11 VM (VS)     |    16 | No token crosses MHP (frame grep); a lease is refused after expiry, after an owner change, and for another origin, path or method; VS Code's behaviour is unchanged (golden frames)                                                                     |
+| P Pull requests (Muse)     | Creating, linking and reading pull requests in the runtime through the REST client and the token source; fork pull requests opened on the parent; credential-shaped strings masked; the link and worktree-record store in runtime storage (newest 200); the user's own pull request beside the repository as `pr-<n>`; the held checkout (RV71c's path) under the runtime data folder; the hold by location checking both roots; `workspace/openFolder`; release from the trust card                                                                                                                                                                                         | `src/runtime/panel/pullRequests/**`, `src/core/git/{pullRequestLinksStore,heldCheckoutCore}.ts` (new)                               | `src/host/git/heldCheckout.ts` and `pullRequestCheckout.ts` (their logic moves to core; the VS Code wrappers stay); `src/core/worktreeConversations.ts` (both roots), each with the M71 owner | after 0                 | Mac mini (case and NFC); Win11 VM      |    16 | RV71c's refusals are identical in every host (one shared table); a worktree made in one editor is held in another; no Git runs after the first foreign byte; the store stays bounded                                                                    |
+| U Panel and strings (Muse) | `GitPanel.tsx`, the forms and the held card in all three bridges; the sign-in card (the code, Copy, Open, Cancel, the source in use, the account, Sign out); the 15 translation tables; the help reference and the feature catalogue; harness scenes and axe; the README screenshots                                                                                                                                                                                                                                                                                                                                                                                         | `src/webview/components/GitHubSignIn.tsx` (new)                                                                                     | `src/webview/components/GitPanel.tsx`, `l10n/*` (new keys, all 15 tables)                                                                                                                     | after G's and P's ports | Kubuntu                                |    10 | Keyboard and screen reader; equal buttons that never stack in a narrow panel; the same pixels in VS Code before and after                                                                                                                               |
+| Q Qualification (lead)     | The F36 conformance scenarios on every adapter (M104g); a receipt per editor and version; the matrix moved to W only on that evidence; any exception recorded with its reason and equivalent                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `docs/certification/m123-<host>.md`                                                                                                 | `test/hostApi/**` (the Git scenarios, with M104 lane I)                                                                                                                                       | as each route lands     | every rig                              |    12 | Every row W, or a named exception approved by the lead (none expected)                                                                                                                                                                                  |
+| D Docs (lead)              | README (Git and pull requests in every editor); `docs/ide-compatibility/matrix.md` regenerated; SECURITY and `docs/PRIVACY.md` (the three sources, what is stored where, how to revoke); CONTRIBUTING (the fakes); AGENTS.md rule 14's row; CHANGELOG; PLAN (D104, M123, §8 and §9 rows); `docs/certification/m123.md`                                                                                                                                                                                                                                                                                                                                                       | `docs/certification/m123.md`                                                                                                        | README, SECURITY, `docs/PRIVACY.md`, CONTRIBUTING, AGENTS.md, CHANGELOG, PLAN (D104 and M123 only)                                                                                            | throughout              | host                                   |     4 | Documented behaviour only after real runs; every token path described matches the code                                                                                                                                                                  |
+
+- **Acceptance per editor (all with fakes, no live calls).** The first
+  available token source wins, and the user may sign in with any later one.
+
+  | Editor                                         | Token sources, in order                                      | Git                                          | Panel                           | Exception |
+  | ---------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------- | ------------------------------- | --------- |
+  | VS Code                                        | (a) VS Code's GitHub session; (b); (c)                       | the Git extension                            | webview                         | none      |
+  | VS Code forks                                  | (a) where the fork ships GitHub sign-in; (b); (c)            | the Git extension where present, else native | webview                         | none      |
+  | Arduino IDE 2                                  | (b); (c)                                                     | native (no `vscode.git`)                     | webview                         | none      |
+  | JetBrains (with Android Studio)                | (a) the bundled GitHub plugin's account; (b); (c)            | native                                       | embedded (JCEF)                 | none      |
+  | Visual Studio                                  | (a) if lane L finds a supported API; (b); (c)                | native                                       | embedded (WebView2)             | none      |
+  | Eclipse (with Espressif IDE)                   | (b); (c)                                                     | native                                       | embedded (SWT browser)          | none      |
+  | Zed, Xcode, Qt Creator, Neovim, Emacs, Sublime | (b); (c)                                                     | native                                       | companion                       | none      |
+  | CLI                                            | (b), through `auth github login`, which prints the code; (c) | native                                       | companion (`panel --companion`) | none      |
+  1. **The full path, in every editor above.** Sign in with each available
+     source. Draft a commit message, commit, and push after the
+     confirmation; each push-plan case is refused. Draft and open a pull
+     request, as a draft and ready, including from a fork to its parent; an
+     open pull request for the branch is linked instead of a second one.
+     See its status and checks. Open someone else's pull request held,
+     confirm trust, and see the hold lifted.
+  2. **VS Code unchanged.** M71's suites pass, the harness screenshots are
+     pixel-identical, and its token stays VS Code's.
+  3. **The device flow, against the fake.** `authorization_pending`;
+     `slow_down` (plus five seconds, never faster); `expired_token`;
+     `access_denied`; `incorrect_device_code`; `device_flow_disabled`;
+     `unsupported_grant_type`; a lost network. Cancel stops polling. A
+     verification address other than GitHub's is refused.
+  4. **The sources.** The order is honoured. `gh` is off by default, and
+     refused from workspace scope. Leases expire. A 401 asks the user to
+     sign in again. A missing `repo` scope is named.
+  5. **Rule 8 drills.** Token canaries from each source are absent from MHP
+     frames, companion responses, logs, the transcript, the vault audit,
+     child arguments and environments (the push's included), problem
+     reports and screenshots, checked by a grep test.
+  6. **Held checkout.** RV71c's refusal table passes in every host, and a
+     worktree made in one editor is held when another opens it.
+
+- **Tests.**
+  - Unit: the source order; the device-flow client (every code and timer,
+    on a fake clock); the `gh` source (missing, signed out, scope missing,
+    several accounts); the lease time limit and owner binding; the native
+    Git adapter against the fixture repositories (a detached HEAD, behind
+    upstream, a failing hook, a configured signer); the link store's bound;
+    the scope header.
+  - Integration: `test/e2e` drives `panel --stdio` with the fake host and
+    the fake GitHub, and `--companion` with Playwright. The plugin
+    harnesses test the lease: IntelliJ's `BasePlatformTestCase`, and the VS
+    experimental instance.
+  - Live: none without the lead. After Q-M123, there is one optional check:
+    one device-flow sign-in by the owner and one draft pull request on a
+    throwaway repository. It makes no model calls (the drafts are typed by
+    hand), and it is counted and recorded.
+- **Gates.**
+  - The existing gates, with `check:editor-matrix` moving F36. The MHP
+    schema snapshot takes the minor bump for `expiresAt`.
+  - New guards with red drills, in `docs/certification/m123.md`: lease
+    expiry, the verification-address check, the workspace-scope refusal,
+    the push-environment rule and the token grep.
+  - D6: the runtime panel entry is measured, plus 15%. The VS Code
+    activation and Git bundle caps stay unchanged.
+- **Security.**
+  - **The token is never logged, returned or forwarded.** It is registered
+    with the redactor for each request. MHP carries lease ids only, and the
+    UI shows the source and the account's login, never the token.
+  - **Leases** are UUIDs bound to their owner. They expire, and end at
+    window close, a change of owner, shutdown and sign-out. Requests are
+    limited to the origin, path and method allowlist.
+  - **Scopes are minimal:** `repo`; `read:org` only on a proven need;
+    nothing else.
+  - **Storage:** a vault `oauth` item, origin-bound and hidden from agents,
+    or the OS keychain. Never a file, a setting or a log.
+  - **Revocation:** Sign out deletes the item and opens GitHub's revoke
+    page. A 401 drops the token. A refresh rotates both tokens.
+  - **Device-flow phishing:** only our panel shows a code; only GitHub's
+    address is opened; a code from the model or a tool is never accepted.
+  - **The `gh` source** is opt-in, from user or machine scope. Its token is
+    held in memory for one request, and `gh` is resolved as `git` is (an
+    absolute path, no shell).
+  - **Agents never get the token.** `EXEC_CHILD_ENV_DROP` is unchanged, and
+    the push gains no variable of ours.
+  - **§9 residuals:** a same-user process can read the vault or keychain
+    item, as it can VS Code's session (D89's residual). The `gh` source
+    reads a token that `gh` already stores.
+- **Size.** M overall:
+  - 6–8k lines of TypeScript including tests (0 0.8k, G 1.8k, A 1.8k,
+    P 1.8k, U 1.2k);
+  - 0.6k of Kotlin;
+  - 0.6k of C#, if Visual Studio has an API;
+  - 1k of conformance scenarios.
+    With five lanes in parallel, the critical path is lane 0, then P, U
+    and Q.
+- **Certification checklist** (§6.0, plus):
+  - [ ] Q-M123 is answered and the client id is in the constants, or the
+        fake id is recorded as the only blocker, at the top of the report.
+  - [ ] Lane 0's contract is frozen, with the schema snapshot.
+  - [ ] A receipt per editor in `docs/certification/m123-<host>.md`; the
+        matrix is generated; F36 is W in every row.
+  - [ ] VS Code is unchanged (M71's suites and screenshots).
+  - [ ] Rule 8 grep tests pass for each token source.
+  - [ ] Every new guard has its red drill.
+  - [ ] No live call without the lead; the optional live check is counted.
+  - [ ] Codex reviews each lane class in one pass before push.
 
 ### M122 — Public roadmap (2026-10-08)
 
@@ -22174,6 +22527,9 @@ owner commands; accepted control shapes remain uncaptured.
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M71 — Git and pull requests (D49)
+
+**Every editor (2026-10-08):** D104 and M123 bring these features to every
+editor. This section stays the record for VS Code.
 
 **FIX78W browser budget repair (2026-10-04, bounded rig proof complete;
 lead gates open).** Compare production metafiles for `main-sync` and this
@@ -37588,6 +37944,11 @@ lane A's first step.
   later) works in every editor in §1.3, through the editor's own APIs or
   our own implementation. Every future feature lands in all of them in the
   PR that adds it.
+- **F36 is owned by M123 (D104).** No M104 lane builds
+  `git-and-pull-requests`. M123 implements its methods (`auth/github`,
+  `auth/githubLease`, `github/request`) and its `gh-credential-store`
+  fallback (D104's sources b and c). F36's matrix cells move to W editor by
+  editor, only on M123's receipts.
 - **Depends on.**
   - D84.
   - The M60 gate and the M61 steps.
