@@ -32,7 +32,12 @@ const directories: string[] = [],
   brokers: VaultBroker[] = []
 const releases: (() => Promise<void>)[] = []
 const native = { helper: '' }
+// The Unix peer helper is C built with the system compiler for the Unix-socket
+// channel. Windows has neither; its peers are judged by the named-pipe seam
+// below, which needs no helper.
+const hasUnixPeer = process.platform !== 'win32'
 beforeAll(async () => {
+  if (!hasUnixPeer) return
   const directory = await mkdtemp(path.join(os.tmpdir(), 'm109-b-peer-'))
   directories.push(directory)
   native.helper = path.join(directory, 'peer')
@@ -195,7 +200,7 @@ async function closedOrReply(socket: Socket): Promise<'closed' | 'reply'> {
     socket.removeListener('data', reply)
   }
 }
-describe('native authenticated broker channel', () => {
+describe.skipIf(!hasUnixPeer)('native authenticated broker channel', () => {
   it.each(['fragment', 'remote', 'throwingDestroy', 'parsed'])(
     'RVM109B5 P1 channel erases owned input on %s',
     async (action) => {
