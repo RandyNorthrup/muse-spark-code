@@ -99,6 +99,8 @@ function fixture(isInstant = false) {
   const calls: { file: string; args: readonly string[]; env: NodeJS.ProcessEnv }[] = []
   let worker: ChildProcessWithoutNullStreams | undefined
   let inhibitor: ChildProcessWithoutNullStreams | undefined
+  // The first real worker child's own exit event, awaited instead of polled.
+  const firstWorkerExit = Promise.withResolvers<number | null>()
   const start = vi.fn((file: string, args: readonly string[], env: NodeJS.ProcessEnv) => {
     calls.push({ file, args, env })
     const isInhibitor = args.includes('/usr/bin/systemd-inhibit')
@@ -126,6 +128,7 @@ function fixture(isInstant = false) {
       env: {},
     })
     children.add(collect(child))
+    if (!isInhibitor) child.once('exit', firstWorkerExit.resolve)
     if (isInhibitor) inhibitor = child
     else worker = child
     return child
@@ -204,6 +207,7 @@ function fixture(isInstant = false) {
     run,
     read,
     worker: () => worker,
+    firstWorkerExit: firstWorkerExit.promise,
     inhibitor: () => inhibitor,
   }
 }
@@ -213,9 +217,9 @@ async function probing() {
   f.state.tasksMax = 1
   f.state.kernelLimit = 1
   const check = f.driver.selfTest()
-  await vi.waitFor(() => {
-    expect(f.worker()?.exitCode).toBe(0)
-  })
+  // The real probe child's exit event, inside the case's own deadline: a
+  // loaded machine may take longer than a 1 s poll to start it (RVM100J2 2).
+  expect(await f.firstWorkerExit).toBe(0)
   return { f, check }
 }
 async function retire(f: ReturnType<typeof fixture>, job: DeviceWorkerJob) {
