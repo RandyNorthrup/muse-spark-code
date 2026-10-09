@@ -18,7 +18,7 @@ import { Writable } from 'node:stream'
 import * as acp from '@agentclientprotocol/sdk'
 import { EXPECTED_SCHEMA_FINGERPRINT } from '@muse-code/sdk'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFailed, vi } from 'vitest'
 import { z } from 'zod'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { createRuntimeBackend } from '../../src/runtime/backends'
@@ -364,27 +364,42 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
   it('binds saved prompts and sharing help over real ACP stdio without a model send (M118)', async () => {
     mkdirSync(path.join(workspace, 'empty'), { recursive: true })
     const agent = startAgent(signedIn, [], { XDG_DATA_HOME: dataHome, LOCALAPPDATA: dataHome })
+    let stage = 'initialize'
+    // Hosted timeout stacks identify only this case. Fixed stage words show
+    // whether macOS waits for a request or stdio close, without dumping frames.
+    onTestFailed(() => {
+      process.stderr.write(`M118 ACP last awaited stage: ${stage}\n`)
+    })
     await agent.run(async (client) => {
-      const sessionId = await newSession(client)
+      await initialize(client)
+      stage = 'session/new (first workspace)'
+      const { sessionId } = await client.request('session/new', { cwd: workspace, mcpServers: [] })
       const ask = (id: string, prompt: string) =>
         client.request('session/prompt', {
           sessionId: id,
           prompt: [{ type: 'text', text: prompt }],
         })
+      stage = 'save user prompt'
       await ask(sessionId, '/prompt save --title Shared --scope user --   Exact\r\nbody  ')
       const id = /\(([^()]*)\)$/.exec(text(agent.updates))?.[1]
       expect(id).toBeDefined()
+      stage = 'session/new (second workspace)'
       const { sessionId: fresh } = await client.request('session/new', {
         cwd: path.join(workspace, 'empty'),
         mcpServers: [],
       })
+      stage = 'list user prompts'
       await ask(fresh, '/prompt list')
+      stage = 'use user prompt'
       await ask(fresh, `/prompt use ${id ?? ''}`)
+      stage = 'sharing help'
       await ask(fresh, '/help')
       expect(text(agent.updates)).toContain('  Exact\r\nbody  ')
       expect(text(agent.updates)).toContain('/share chat')
       expect(text(agent.updates)).not.toContain('echo:')
+      stage = 'stdio disconnect'
     })
+    stage = 'completed'
   })
 
   it('streams a reply, runs an allowed tool call and skips a denied one, on Muse Code', async () => {

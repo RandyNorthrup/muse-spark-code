@@ -120,6 +120,14 @@ Linux rig. These setup/measurement corrections are verified here, but the
 macOS-only 3 px outline and equal-image failures cannot be declared closed
 without macOS replay. No speculative product CSS change is made.
 
+Pressed-feedback drill: append a forced-colour active rule with a one-pixel
+outline at the hover offset. The complete review exits 1: **66 failed,
+23 passed**, including the actual control two-pixel assertions in all six
+themes. Restore `styles.css` byte-exact with `cmp` and SHA-256 before/after
+`e546b30b35aae47762bc1260746ac2883463f0f5d2e988f257096f248807275e`.
+Log: `pressed-red.log`. The restored complete conversation and lazy-owner
+batch passes **92/92**, 127.85 seconds (`conversation-final.log`).
+
 ### 4. Lazy import rejection: caught, not unhandled
 
 The downloaded logs identify `resourceChatLoad.test.tsx` and
@@ -141,3 +149,30 @@ original handled-error logs. Restore `DeferredSurface.tsx` byte-exact with
 `5e437aea8c23d69b3d1c56315ed7fdca3b31223a020eb833d4fc928e3bd6a306`.
 Log: `lazy-red.log`. The boundary was already the product's correct rejection
 owner; no product fix is warranted by the downloaded evidence.
+
+### 5. M118 ACP timeout: request-stage diagnosis
+
+Both hosted macOS logs identify only the test's thirty-second deadline, not
+the pending request. The complete ACP suite passes on Linux before changes.
+Installed SDK inspection rules out an awaited disconnect: `connectWith`
+uses `runUntil`, whose `finally` calls synchronous `close()` after the
+operation resolves. Prompt storage's exclusive write lock refuses rather
+than waits; the schedule watcher uses a timer rather than a filesystem
+watch. None of these inspections proves the macOS hang's cause.
+
+Add failure-only fixed stage words around initialize, each session/new,
+save/list/use/help and connection completion. Retain the SDK stream, every
+request, assertion and deadline. No frames, stderr payloads, paths or
+credentials are printed. This diagnostic runs in both source-built and
+installed-package cases; it is not represented as a timeout repair.
+
+Red drill: throw immediately after selecting `session/new (second workspace)`.
+The complete ACP suite exits 1 (**12 passed, one failed**) and prints exactly
+`M118 ACP last awaited stage: session/new (second workspace)`. Restore
+`acpStdio.e2e.test.ts` byte-exact with `cmp` and SHA-256 before/after
+`361162afe8b1d48d155ffd605fbbe1aefa0d967ea5167ce12a941196e00c9d9c`.
+Log: `acp-stage-red.log`. A macOS replay remains required to identify the
+actual pending operation; no speculative backend or governor change is made.
+
+Restored Linux receipt: complete ACP stdio file, **13/13 passed**, 22.34
+seconds (`acp-stage-green.log`), with the unchanged thirty-second case deadline.

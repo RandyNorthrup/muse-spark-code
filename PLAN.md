@@ -37980,6 +37980,18 @@ lane A's first step.
 
 ## 7. Gates
 
+**CIFIX017L2 scoped rig qualification (2026-10-09, Kubuntu).** The lane's
+explicit rig/common brief prohibits aggregate `npm run quality` and full-suite
+runs; the lead owns those gates. Run the complete owning files, at most three
+per invocation, at repository deadlines, plus five type projects, changed-file
+lint/format, plain knip, duplication, localization, host API and the production
+build. Preserve every assertion and cap. The approved `macmini` SSH route
+refuses host-key verification; no trust setting is changed. Linux receipts
+alone cannot close the macOS-only outline/image failure or M118 ACP timeout.
+Record the missing platform receipts and failure-stage diagnostics in
+`docs/certification/cifix017.md`; this is a qualification deferral, not a
+release-green claim.
+
 **CIFIX017W inherited production-build blocker (2026-10-09, win11).** The
 release head's two full What's New releases serialize to 79,510 bytes,
 above the unchanged 76,800-byte decoded-content bound. LF normalization
