@@ -37,6 +37,7 @@ const BUNDLES = [
   'estimator.js',
   'headless.js',
   'sharingRuntime.js',
+  'connector.js',
   'acpQuestions.js',
   'acpPlaybook.js',
   'runtimeQuestions.js',
