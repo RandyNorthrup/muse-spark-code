@@ -270,6 +270,8 @@ describe('shared token file', () => {
   it('uses the bounded Windows launcher with encoded paths and no bearer in arguments or environment', async () => {
     vi.stubEnv('M104_C_TEST_API_KEY', 'synthetic-private-value')
     vi.stubEnv('DBUS_SESSION_BUS_ADDRESS', 'synthetic-private-route')
+    // Any drive: the Windows root comes from the environment, never assumed.
+    vi.stubEnv('SystemRoot', String.raw`D:\Windows`)
     const run = vi.spyOn(programs, 'runProgram').mockResolvedValue(JSON.stringify(receipt))
     vi.stubGlobal('process', {
       ...process,
@@ -282,6 +284,7 @@ describe('shared token file', () => {
     expect(run).toHaveBeenCalledTimes(2)
     expect(JSON.stringify(run.mock.calls).includes(token.token)).toBe(false)
     for (const [executable, args, env] of run.mock.calls) {
+      expect(executable.startsWith(String.raw`D:\Windows`)).toBe(true)
       expect(executable).toMatch(/powershell\.exe$/)
       expect(args.slice(0, -1)).toEqual([
         '-NoLogo',
@@ -296,6 +299,25 @@ describe('shared token file', () => {
       expect(Object.keys(env).some((name) => name.toUpperCase().endsWith('_API_KEY'))).toBe(false)
       expect(env['DBUS_SESSION_BUS_ADDRESS']).toBeUndefined()
     }
+  })
+  it('finds the Windows root through windir, and refuses with neither variable rather than assume a drive', async () => {
+    const run = vi.spyOn(programs, 'runProgram').mockResolvedValue(JSON.stringify(receipt))
+    vi.stubGlobal('process', {
+      ...process,
+      platform: 'win32',
+      once: process.once.bind(process),
+      off: process.off.bind(process),
+    })
+    vi.stubEnv('SystemRoot', undefined)
+    vi.stubEnv('windir', String.raw`E:\Win`)
+    tokens.push(await createTokenFile(await folder()))
+    expect(run.mock.calls.every(([executable]) => executable.startsWith(String.raw`E:\Win`))).toBe(
+      true,
+    )
+    run.mockClear()
+    vi.stubEnv('windir', undefined)
+    await expect(createTokenFile(await folder())).rejects.toThrow('ETOKEN_ACL')
+    expect(run).not.toHaveBeenCalled()
   })
   it.each([
     { failure: 'malformed JSON', output: () => Promise.resolve('malformed-json') },
