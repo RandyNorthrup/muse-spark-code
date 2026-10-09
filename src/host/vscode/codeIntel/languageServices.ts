@@ -5,9 +5,13 @@
 // src/core/codeIntel works with. A document is loaded without being shown;
 // a result that is no file on disk (a virtual document) has no path.
 
+import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
+import { isSamePath } from '../../../core/paths'
 import { VSCODE_COMMANDS } from '../../../shared/constants'
+import { canonicalPath } from '../../canonicalPath'
+import { stripExtendedLengthPrefix } from '../../editor/editReview'
 import type {
   CallDirection,
   CallHierarchyAnswer,
@@ -24,23 +28,74 @@ import type { MhpParams, MhpResult } from '../../../shared/hostApi/methods'
 
 const FILE_SCHEME = 'file'
 const FENCE = '```'
+/** Several items share the position and none is declared at it in this file: never guessed. */
+const CALL_HIERARCHY_AMBIGUOUS = 'MHP_CALL_HIERARCHY_AMBIGUOUS'
 
 function pathOf(uri: vscode.Uri): string | undefined {
   return uri.scheme === FILE_SCHEME ? uri.fsPath : undefined
 }
 
-function isSamePath(first: string | undefined, second: string | undefined): boolean {
-  if (first === undefined || second === undefined) return false
-  const left = first.replaceAll('\\', '/')
-  const right = second.replaceAll('\\', '/')
-  return process.platform === 'win32' ? left.toLowerCase() === right.toLowerCase() : left === right
+/**
+ * The file a path names, as the file system resolves it: a Windows
+ * extended-length prefix is dropped and `.`/`..` collapse (src/core/paths.ts's
+ * normalisation), then 8.3 aliases, junctions and links resolve
+ * (canonicalPath). A path the system refuses to resolve keeps its spelling.
+ */
+async function fileIdentity(filePath: string): Promise<string> {
+  const plain =
+    process.platform === 'win32'
+      ? path.win32.normalize(stripExtendedLengthPrefix(path.win32.normalize(filePath)))
+      : filePath
+  try {
+    return await canonicalPath(plain)
+  } catch {
+    return plain
+  }
 }
 
-function isSameResource(first: string, second: string): boolean {
-  return (
-    first === second ||
-    isSamePath(pathOf(vscode.Uri.parse(first)), pathOf(vscode.Uri.parse(second)))
-  )
+/** Compares resources by resolved file identity, each URI resolved once per answer. */
+function resourceComparer(): (first: vscode.Uri, second: vscode.Uri) => Promise<boolean> {
+  const identities = new Map<string, Promise<string | undefined>>()
+  const identity = (uri: vscode.Uri): Promise<string | undefined> => {
+    const key = uri.toString()
+    const known = identities.get(key)
+    if (known !== undefined) return known
+    const filePath = pathOf(uri)
+    const resolved = filePath === undefined ? Promise.resolve(undefined) : fileIdentity(filePath)
+    identities.set(key, resolved)
+    return resolved
+  }
+  return async (first, second) => {
+    if (first.toString() === second.toString()) return true
+    const [left, right] = await Promise.all([identity(first), identity(second)])
+    return left !== undefined && right !== undefined && isSamePath(left, right, process.platform)
+  }
+}
+
+/**
+ * The call-hierarchy item the position names. One item is the provider's
+ * answer; among several (overloads, merged declarations) it is the one
+ * declared at the position in this file, else the answer is ambiguous.
+ */
+async function declaredItem(
+  items: readonly vscode.CallHierarchyItem[],
+  uri: vscode.Uri,
+  at: CodePosition,
+  ambiguous: () => never,
+): Promise<vscode.CallHierarchyItem | undefined> {
+  if (items.length <= 1) return items[0]
+  const sameResource = resourceComparer()
+  for (const candidate of items)
+    if (
+      isWithin(fromRange(candidate.selectionRange), at) &&
+      (await sameResource(candidate.uri, uri))
+    )
+      return candidate
+  return ambiguous()
+}
+
+function refuseAmbiguous(): never {
+  throw new Error(CALL_HIERARCHY_AMBIGUOUS)
 }
 
 function mhpLocation(
@@ -157,13 +212,8 @@ async function callHierarchy(
       toPosition(at),
     )) ?? []
   // Several items (overloads, merged declarations): the one declared at the
-  // position is asked, else the first; the answer counts the others.
-  const item =
-    items.find(
-      (candidate) =>
-        isSamePath(pathOf(candidate.uri), pathOf(uri)) &&
-        isWithin(fromRange(candidate.selectionRange), at),
-    ) ?? items[0]
+  // position is asked; the answer counts the others.
+  const item = await declaredItem(items, uri, at, refuseAmbiguous)
   if (item === undefined) {
     return undefined
   }
@@ -407,16 +457,24 @@ export function vscodeCodeIntelHandlers(
         snapshot.position,
       )
       snapshot.check()
-      const excluded = (declarations ?? []).map((value) => mhpLocation(value))
-      return (answer ?? [])
-        .map((value) => mhpLocation(value))
-        .filter((item) =>
-          excluded.every(
-            (declaration) =>
-              !isSameResource(declaration.uri, item.uri) ||
-              JSON.stringify(declaration.range) !== JSON.stringify(item.range),
-          ),
-        )
+      const sameResource = resourceComparer()
+      const excluded = (declarations ?? []).map((value) => ({
+        uri: 'targetUri' in value ? value.targetUri : value.uri,
+        range: JSON.stringify(mhpLocation(value).range),
+      }))
+      const found = answer ?? []
+      const kept: MhpResult<'codeIntel/references'> = []
+      for (const value of found) {
+        const location = mhpLocation(value)
+        const range = JSON.stringify(location.range)
+        let isDeclaration = false
+        for (const declaration of excluded)
+          if (declaration.range === range && (await sameResource(declaration.uri, value.uri)))
+            isDeclaration = true
+        if (!isDeclaration) kept.push(location)
+      }
+      snapshot.check()
+      return kept
     },
     'codeIntel/hover': async (params: At, signal?: AbortSignal) => {
       const snapshot = await at(params, signal)
@@ -545,12 +603,10 @@ export function vscodeCodeIntelHandlers(
           snapshot.position,
         )) ?? []
       snapshot.check()
-      const item =
-        items.find(
-          (value) =>
-            isSameResource(value.uri.toString(), snapshot.document.uri.toString()) &&
-            isWithin(fromRange(value.selectionRange), params.position),
-        ) ?? items[0]
+      const item = await declaredItem(items, snapshot.document.uri, params.position, () =>
+        refuse('invalidParams', CALL_HIERARCHY_AMBIGUOUS),
+      )
+      snapshot.check()
       if (item === undefined) return null
       let calls: NonNullable<MhpResult<'codeIntel/callHierarchy'>>['calls']
       if (params.direction === 'incoming') {

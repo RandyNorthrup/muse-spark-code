@@ -253,6 +253,25 @@ describe('native frozen code-intelligence services', () => {
     },
   )
 
+  it('asks the overload declared in this document and refuses when none is', async () => {
+    const r = rig()
+    const elsewhere = symbol(Uri.file('/elsewhere/one.ts'))
+    const dotted = Uri.file('/fixture/./source.ts')
+    commands.executeCommand
+      .mockResolvedValueOnce([elsewhere, symbol(dotted)])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([elsewhere, symbol(Uri.file('/elsewhere/two.ts'))])
+    const call = { ...r.at, direction: 'incoming' } as const
+    await expect(r.host.request('codeIntel/callHierarchy', call)).resolves.toMatchObject({
+      item: { location: { uri: dotted.toString() } },
+      otherItems: 1,
+    })
+    await expect(r.host.request('codeIntel/callHierarchy', call)).rejects.toMatchObject({
+      error: { code: MHP_ERROR_CODES.invalidParams, message: 'MHP_CALL_HIERARCHY_AMBIGUOUS' },
+    })
+    expect(commands.executeCommand).toHaveBeenCalledTimes(3)
+  })
+
   it('returns an unwritten formatting plan with native options', async () => {
     const r = rig()
     commands.executeCommand.mockResolvedValue([{ range: span, newText: 'next' }])
