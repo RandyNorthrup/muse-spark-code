@@ -809,7 +809,8 @@
       "id": "M109",
       "title": "Credential vault for agents",
       "summary": "One encrypted vault for API keys, tokens, SSH keys, passwords and website logins, protected by hardware where available, from which agents get approved, logged uses of a secret but never its value.",
-      "area": "security"
+      "area": "security",
+      "release": "0.17.0"
     },
     {
       "id": "M110",
