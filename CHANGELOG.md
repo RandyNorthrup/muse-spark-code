@@ -39,6 +39,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The dependency-cycle gate now covers every build entry, lazy import target,
+  entry-named module and knip entry, with a guard against root-list drift.
+  Remove the worker admission/environment/ref-fence cycle by sharing the
+  unchanged credential-free environment policy from the worker environment
+  module. The guard now shares integration-test discovery with the build,
+  so changes to its directory or filter also change the required cycle roots.
+
 - Settle quote-menu capture origins after final layout and isolate source-reconstruction fixtures from temporary-directory placement.
 - Capture settled share-view highlighting, usage-dialog account facts and status rows, and the palette's focus scroll so visual replays no longer race lazy renderers.
 
