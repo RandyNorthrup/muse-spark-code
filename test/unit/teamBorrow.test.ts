@@ -251,7 +251,7 @@ describe('decideBorrow: who may lend', () => {
       unmetSinceMs: T0,
       mainCandidateFree: false,
       preference: [],
-      conditions,
+      ...(conditions !== undefined && { conditions }),
     })
     // Its own review is never main-role work for it: no due-soon, no recall.
     const byCandidate = review({ authorCandidates: authors })
@@ -305,6 +305,25 @@ describe('decideBorrow: who may lend', () => {
       },
     ]
     expect(decideBorrow(snapshot(late, { queued }))[0]).toMatchObject({
+      reason: 'noLender',
+      skips: [{ candidateId: 'rev-a', reason: 'mainWorkDue', untilMs: late }],
+    })
+  })
+
+  it('lookahead 0: queued main-role work still keeps the agent home', () => {
+    // A zero lookahead covers only work that is not queued yet: the idle
+    // reviewer has a queued review, so it is never lent to coding.
+    const roles = {
+      'code-review': { timers: teamBorrowTimersSchema.parse({ lookaheadMs: 0 }) },
+    }
+    const queued = [
+      codingTask(),
+      {
+        ...codingTask({ taskId: 'review-9', roleId: 'code-review', mainCandidateFree: true }),
+        queuedAtMs: late,
+      },
+    ]
+    expect(decideBorrow(snapshot(late, { queued, roles }))[0]).toMatchObject({
       reason: 'noLender',
       skips: [{ candidateId: 'rev-a', reason: 'mainWorkDue', untilMs: late }],
     })
@@ -466,6 +485,9 @@ describe('decideRecall', () => {
         ...extra,
       },
     })
+  const freshDemand = (now: number): BorrowQueuedTask[] => [
+    reviewWork({ queuedAtMs: now, unmetSinceMs: now }),
+  ]
 
   it('keeps the borrow with no main-role work', () => {
     expect(
@@ -485,18 +507,133 @@ describe('decideRecall', () => {
   it('finish grace: a task due in 4:59 finishes, one due in 5:00 is recalled', () => {
     const roles = { engineering: { medianDurationMs: 40 * MINUTE } }
     const finish = T0 + 40 * MINUTE
+    // The main-role demand just arrived, so the 5-minute grace window opens
+    // at now: a finish inside it keeps `finish`, one on its edge recalls.
+    const inside = finish - 5 * MINUTE + 1
     expect(
-      decideRecall(
-        snapshot(finish - 5 * MINUTE + 1, { agents: [lent()], queued: [reviewWork()], roles }),
-      ),
+      decideRecall(snapshot(inside, { agents: [lent()], queued: freshDemand(inside), roles })),
     ).toStrictEqual([
       { kind: 'finish', candidateId: 'rev-a', taskId: 'code-1', expectedFinishMs: finish },
     ])
+    const edge = finish - 5 * MINUTE
     expect(
-      decideRecall(
-        snapshot(finish - 5 * MINUTE, { agents: [lent()], queued: [reviewWork()], roles }),
-      )[0]?.kind,
+      decideRecall(snapshot(edge, { agents: [lent()], queued: freshDemand(edge), roles }))[0]?.kind,
     ).toBe('recall')
+  })
+
+  it('finish grace expires: unmet work at minute 9 recalls by minute 14', () => {
+    // Coding starts at minute 0 (median 10 min, box 60 min); an unmet review
+    // arrives at minute 9. The 5-minute grace opens at minute 9, not at the
+    // expected finish: the task finishes at minute 9 but is recalled from
+    // minute 14 on, at the next safe point bounded by the recall wait.
+    const roles = { engineering: { medianDurationMs: 10 * MINUTE } }
+    const demand = T0 + 9 * MINUTE
+    const queued = [reviewWork({ queuedAtMs: demand, unmetSinceMs: demand })]
+    expect(decideRecall(snapshot(demand, { agents: [lent()], queued, roles }))).toStrictEqual([
+      {
+        kind: 'finish',
+        candidateId: 'rev-a',
+        taskId: 'code-1',
+        expectedFinishMs: T0 + 10 * MINUTE,
+      },
+    ])
+    for (const at of [14 * MINUTE, 15 * MINUTE, 30 * MINUTE, 59 * MINUTE]) {
+      expect(decideRecall(snapshot(T0 + at, { agents: [lent()], queued, roles }))).toStrictEqual([
+        {
+          kind: 'recall',
+          candidateId: 'rev-a',
+          taskId: 'code-1',
+          deadlineMs: T0 + at + 2 * MINUTE,
+        },
+      ])
+    }
+  })
+
+  it('finish grace: zero grace recalls at once and an overdue task gets no grace', () => {
+    const demand = T0 + 9 * MINUTE
+    const queued = [reviewWork({ queuedAtMs: demand, unmetSinceMs: demand })]
+    // Zero grace: the window already ends when the demand appears.
+    const noGrace = {
+      'code-review': { timers: teamBorrowTimersSchema.parse({ finishGraceMs: 0 }) },
+    }
+    expect(
+      decideRecall(snapshot(demand, { agents: [lent()], queued, roles: noGrace })),
+    ).toStrictEqual([
+      {
+        kind: 'recall',
+        candidateId: 'rev-a',
+        taskId: 'code-1',
+        deadlineMs: demand + 2 * MINUTE,
+      },
+    ])
+    // Past its expected finish (5-minute box, now at minute 9) with fresh
+    // demand: no grace, even though the window just opened.
+    const overdue = reviewer('rev-a', {
+      running: {
+        taskId: 'code-1',
+        roleId: 'engineering',
+        startedAtMs: T0,
+        timeBoxMs: 5 * MINUTE,
+        borrowed: true,
+      },
+    })
+    expect(decideRecall(snapshot(demand, { agents: [overdue], queued }))).toStrictEqual([
+      {
+        kind: 'recall',
+        candidateId: 'rev-a',
+        taskId: 'code-1',
+        deadlineMs: demand + 2 * MINUTE,
+      },
+    ])
+  })
+
+  it('recall pairing: the flexible reviewer covers windows so both are recalled', () => {
+    // a-flex runs Windows and macOS, b-mac macOS only; both borrowed tasks
+    // finish together. The older review needs macOS, the next needs
+    // Windows: pairing b-mac with macOS and a-flex with Windows recalls both.
+    const now = T0 + 31 * MINUTE
+    const borrowed = (
+      id: string,
+      conditions: { platforms: ('windows' | 'macos')[] },
+    ): BorrowAgent =>
+      reviewer(id, {
+        conditions,
+        running: {
+          taskId: `code-${id}`,
+          roleId: 'engineering',
+          startedAtMs: T0,
+          timeBoxMs: HOUR,
+          borrowed: true,
+        },
+      })
+    const macTask: BorrowQueuedTask = {
+      taskId: 'review-old',
+      roleId: 'code-review',
+      queuedAtMs: T0 + 30 * MINUTE,
+      unmetSinceMs: T0 + 30 * MINUTE,
+      mainCandidateFree: false,
+      preference: [],
+      conditions: { platform: 'macos' },
+    }
+    const winTask: BorrowQueuedTask = {
+      ...macTask,
+      taskId: 'review-new',
+      queuedAtMs: T0 + 30 * MINUTE + 1,
+      conditions: { platform: 'windows' },
+    }
+    const agents = [
+      borrowed('a-flex', { platforms: ['windows', 'macos'] }),
+      borrowed('b-mac', { platforms: ['macos'] }),
+    ]
+    expect(
+      decideRecall(snapshot(now, { agents, queued: [macTask, winTask] })).map((item) => [
+        item.candidateId,
+        item.kind,
+      ]),
+    ).toStrictEqual([
+      ['a-flex', 'recall'],
+      ['b-mac', 'recall'],
+    ])
   })
 
   it('recall wait: still waiting at 1:59, stop and capture at 2:00', () => {

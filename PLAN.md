@@ -19156,11 +19156,12 @@ name and the timers are below. This extends D103; it does not replace it.
     conditions (D103: platform, tools; review ≠ author), and is under its
     own caps and the team's;
   - the agent has no running task and no main-role work **due soon**: none
-    of its main role's tasks is queued, and no running task that will
-    produce main-role work for it (a coding lane that will need a review, a
-    review that will need a fix) is expected to finish within the
-    **lookahead** (10 min by default). The expected finish comes from the
-    running task's time box and the role's recorded median duration;
+    of its main role's tasks is queued (at any lookahead, 0 included), and
+    no running task that will produce main-role work for it (a coding lane
+    that will need a review, a review that will need a fix) is expected to
+    finish within the **lookahead** (10 min by default). The expected finish
+    comes from the running task's time box and the role's recorded median
+    duration;
   - the agent has not come back from a borrow within the **cooldown**
     (3 min by default).
 - **Who is borrowed first.** The agent whose main role is idlest: the
@@ -19168,10 +19169,16 @@ name and the timers are below. This extends D103; it does not replace it.
   secondary-role order, then the borrowing role's preference list order.
 - **One task at a time.** A borrowed agent takes one task. When it ends,
   the agent returns to its main role before it can be borrowed again.
-- **The main role takes it back.** When main-role work arrives for a
-  borrowed agent, and no other main candidate can take it:
-  - a borrowed task expected to finish within the **finish grace** (5 min
-    by default) finishes first;
+- **The main role takes it back.** Unmet main-role tasks pair with borrowed
+  agents that meet their conditions by maximum bipartite matching; agents
+  already asked go first, then the earliest to finish, only as a
+  deterministic tie-break among maximum matchings. When main-role work
+  arrives for a borrowed agent, and no other main candidate can take it:
+  - a borrowed task finishes first only while `now` and its expected finish
+    are both inside the **finish grace** (5 min by default) counted from
+    when unmet main-role work first appeared for that agent (the earliest
+    `unmetSinceMs` it can take); a task already past its expected finish
+    gets no grace;
   - otherwise the agent is recalled at the task's next safe point, waiting
     at most the **recall wait** (2 min by default). The D103 handoff
     captures the work: commits, uncommitted diff, new files, a progress

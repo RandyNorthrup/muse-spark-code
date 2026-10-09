@@ -198,6 +198,16 @@ function lenderSkip(
   if (isTaskAuthor(id, agent.engine, task.conditions)) {
     return { candidateId: id, reason: 'author' }
   }
+  // Queued main-role work always keeps the agent home, whatever the
+  // lookahead (0 included): the lookahead only covers work that is not
+  // queued yet (a producing task's expected finish).
+  if (
+    snapshot.queued.some(
+      (queued) => queued.roleId === agent.mainRole && canTake(agent, queued.conditions),
+    )
+  ) {
+    return { candidateId: id, reason: 'mainWorkDue', untilMs: snapshot.nowMs }
+  }
   return nextMs < main.lookaheadMs
     ? { candidateId: id, reason: 'mainWorkDue', untilMs: snapshot.nowMs + nextMs }
     : undefined
@@ -290,8 +300,12 @@ export function decideBorrow(snapshot: BorrowSnapshot): readonly BorrowDecision[
  * For each borrowed agent: keep the borrow, let the task finish within the
  * finish grace, recall it at the next safe point by the recall wait, or stop
  * and capture after it. The main role takes an agent back only for queued
- * work it can take that no main candidate can; one queued task recalls one
- * agent, those already asked first, then the earliest to finish.
+ * work it can take that no main candidate can. Unmet tasks pair with
+ * borrowed agents by maximum bipartite matching; agents already asked go
+ * first, then the earliest to finish, only as a deterministic tie-break
+ * among maximum matchings. The finish grace counts from when unmet
+ * main-role work first appeared for that agent: the task finishes only
+ * while now and its expected finish are both inside that window.
  */
 export function decideRecall(snapshot: BorrowSnapshot): readonly RecallDecision[] {
   const now = snapshot.nowMs
@@ -307,31 +321,79 @@ export function decideRecall(snapshot: BorrowSnapshot): readonly RecallDecision[
         left.finishMs - right.finishMs ||
         left.agent.candidateId.localeCompare(right.agent.candidateId),
     )
-  const claimed = new Set<string>()
   const queued = snapshot.queued.toSorted(
     (left, right) => left.queuedAtMs - right.queuedAtMs || left.taskId.localeCompare(right.taskId),
   )
-  return borrowed.map(({ agent, running, finishMs }): RecallDecision => {
-    const base = { candidateId: agent.candidateId, taskId: running.taskId }
-    const work = queued.filter(
-      (task) => task.roleId === agent.mainRole && canTake(agent, task.conditions),
+  // Unmet main-role work: queued with no main candidate free, oldest first.
+  const unmet = queued.filter((task) => !task.mainCandidateFree)
+  const canPair = (agentIdx: number, taskIdx: number): boolean => {
+    const entry = borrowed[agentIdx]
+    const task = unmet[taskIdx]
+    return (
+      task?.roleId === entry?.agent.mainRole &&
+      entry !== undefined &&
+      task !== undefined &&
+      canTake(entry.agent, task.conditions)
     )
-    const unmet = work.find((task) => !task.mainCandidateFree && !claimed.has(task.taskId))
-    if (unmet === undefined) {
+  }
+  // Kuhn's augmenting paths: agents go in priority order and each scans
+  // tasks oldest-first, so that order only breaks ties among maximum
+  // matchings. Tiny at this size.
+  const matchOfTask: number[] = unmet.map(() => -1)
+  const matchOfAgent: number[] = borrowed.map(() => -1)
+  // True when the agent takes a task, recording the pairing on success.
+  const canMatch = (agentIdx: number, seen: boolean[]): boolean => {
+    for (let taskIdx = 0; taskIdx < unmet.length; taskIdx += 1) {
+      if (seen[taskIdx] === true || !canPair(agentIdx, taskIdx)) {
+        continue
+      }
+      seen[taskIdx] = true
+      const other = matchOfTask[taskIdx]
+      if (other === undefined || other === -1 || canMatch(other, seen)) {
+        matchOfTask[taskIdx] = agentIdx
+        matchOfAgent[agentIdx] = taskIdx
+        return true
+      }
+    }
+    return false
+  }
+  for (let agentIdx = 0; agentIdx < borrowed.length; agentIdx += 1) {
+    canMatch(
+      agentIdx,
+      unmet.map(() => false),
+    )
+  }
+  return borrowed.map((entry, agentIdx): RecallDecision => {
+    const { agent, running, finishMs } = entry
+    const base = { candidateId: agent.candidateId, taskId: running.taskId }
+    if (matchOfAgent[agentIdx] === -1) {
+      const work = queued.filter(
+        (task) => task.roleId === agent.mainRole && canTake(agent, task.conditions),
+      )
       return {
         kind: 'keep',
         ...base,
         reason: work.some((task) => task.mainCandidateFree) ? 'mainCandidateFree' : 'noMainWork',
       }
     }
-    claimed.add(unmet.taskId)
     const timers = timersOf(snapshot, agent.mainRole)
     if (running.recallAskedAtMs !== undefined) {
       return now - running.recallAskedAtMs >= timers.recallWaitMs
         ? { kind: 'stop', ...base }
         : { kind: 'recall', ...base, deadlineMs: running.recallAskedAtMs + timers.recallWaitMs }
     }
-    return finishMs - now < timers.finishGraceMs
+    // When unmet main-role work first appeared for this agent: the earliest
+    // unmetSinceMs it can take, recorded on the queue. The task finishes
+    // only while now is inside that window and its expected finish is inside
+    // it too; a task already past its expected finish gets no grace.
+    let demandSince = Infinity
+    for (const task of unmet) {
+      if (task.roleId === agent.mainRole && canTake(agent, task.conditions)) {
+        demandSince = Math.min(demandSince, task.unmetSinceMs)
+      }
+    }
+    const windowEnd = demandSince + timers.finishGraceMs
+    return finishMs > now && now < windowEnd && finishMs < windowEnd
       ? { kind: 'finish', ...base, expectedFinishMs: finishMs }
       : { kind: 'recall', ...base, deadlineMs: now + timers.recallWaitMs }
   })
