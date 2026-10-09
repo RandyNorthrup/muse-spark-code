@@ -7,9 +7,12 @@ import { gzipSync } from 'node:zlib'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   failureReason,
+  pollVisible,
   publishRegistry,
+  reportVisibility,
   retryNetwork,
   verifyPublished,
+  visibilityDelay,
 } from '../../scripts/publish-registry.mjs'
 import { releaseSummary } from '../../scripts/release-summary.mjs'
 import { findBuild, findRecovery, verifyBuild } from '../../scripts/release-reuse.mjs'
@@ -87,7 +90,11 @@ describe('registry recovery', () => {
       })
       .mockReturnValue('ok')
     const sleep = vi.fn().mockResolvedValue()
-    await publishRegistry('marketplace', fixture.artifact, manifest, { run, sleep })
+    // A fresh publish polls visibility once the publish succeeds.
+    const fetch = vi.fn().mockResolvedValue(new globalThis.Response(bytes))
+    await expect(
+      publishRegistry('marketplace', fixture.artifact, manifest, { run, sleep, fetch }),
+    ).resolves.toBe('visible')
     expect(run).toHaveBeenCalledTimes(3)
     expect(run).toHaveBeenLastCalledWith('./node_modules/.bin/vsce', [
       'publish',
@@ -97,8 +104,12 @@ describe('registry recovery', () => {
     expect(sleep.mock.calls).toEqual([[20_000], [60_000]])
   })
   it('keeps npm provenance, script suppression and the ./ tarball prefix', async () => {
-    const run = vi.fn()
-    await publishRegistry('npm', fixture.artifact, manifest, { run })
+    // The same run fake serves the visibility poll's `npm view` integrity read.
+    const integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`
+    const run = vi.fn().mockReturnValue(`${integrity}\n`)
+    await expect(publishRegistry('npm', fixture.artifact, manifest, { run })).resolves.toBe(
+      'visible',
+    )
     expect(run).toHaveBeenCalledWith('npm', [
       'publish',
       `./${fixture.artifact}`,
@@ -213,7 +224,14 @@ describe('registry recovery', () => {
     ).rejects.toHaveProperty('name', 'ZodError')
   })
   it('creates an absent namespace and retries transient Open VSX publishing', async () => {
-    const fetch = vi.fn().mockResolvedValue(new globalThis.Response(null, { status: 404 }))
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(new globalThis.Response(null, { status: 404 }))
+      // The fresh publish then polls visibility: metadata, then matching bytes.
+      .mockResolvedValueOnce(
+        globalThis.Response.json({ files: { download: 'https://open-vsx.org/file.vsix' } }),
+      )
+      .mockResolvedValueOnce(new globalThis.Response(bytes))
     const run = vi
       .fn()
       .mockReturnValueOnce('created')
@@ -222,7 +240,9 @@ describe('registry recovery', () => {
       })
       .mockReturnValue('published')
     const sleep = vi.fn().mockResolvedValue()
-    await publishRegistry('openvsx', fixture.artifact, manifest, { run, fetch, sleep })
+    await expect(
+      publishRegistry('openvsx', fixture.artifact, manifest, { run, fetch, sleep }),
+    ).resolves.toBe('visible')
     expect(run.mock.calls[0][0]).toBe(process.execPath)
     expect(run.mock.calls[0][1][0]).toMatch(/[/\\]ovsx[/\\]bin[/\\]ovsx$/)
     expect(run.mock.calls[0][1].slice(1)).toEqual([
@@ -243,6 +263,107 @@ describe('registry recovery', () => {
     ).rejects.toThrow('HTTP 403')
     expect(run).not.toHaveBeenCalled()
   })
+})
+
+function visibilityClock() {
+  let now = 0
+  const sleeps = []
+  return {
+    now: () => now,
+    sleep: (ms) => {
+      sleeps.push(ms)
+      now += ms
+      return Promise.resolve()
+    },
+    sleeps,
+  }
+}
+describe('registry visibility poll', () => {
+  it('backs off 30 s, 60 s, then caps at 120 s', () => {
+    expect([0, 1, 2, 3, 10].map((attempt) => visibilityDelay(attempt))).toEqual([
+      30_000, 60_000, 120_000, 120_000, 120_000,
+    ])
+  })
+  it('resolves visible at once without sleeping', async () => {
+    const verify = vi.fn().mockResolvedValue()
+    const sleep = vi.fn()
+    await expect(pollVisible(verify, { sleep, now: () => 0 })).resolves.toBe(true)
+    expect(verify).toHaveBeenCalledTimes(1)
+    expect(sleep).not.toHaveBeenCalled()
+  })
+  it('polls a lagging registry with backoff until the bytes match', async () => {
+    const missing = new Error('HTTP 404 while checking published artifact')
+    const verify = vi
+      .fn()
+      .mockRejectedValueOnce(missing)
+      .mockRejectedValueOnce(missing)
+      .mockResolvedValue()
+    const timer = visibilityClock()
+    await expect(pollVisible(verify, timer)).resolves.toBe(true)
+    expect(verify).toHaveBeenCalledTimes(3)
+    expect(timer.sleeps).toEqual([30_000, 60_000])
+  })
+  it('fails a live integrity mismatch at once instead of polling', async () => {
+    const verify = vi
+      .fn()
+      .mockRejectedValue(new Error('npm published integrity differs from the release tarball'))
+    const sleep = vi.fn()
+    await expect(pollVisible(verify, { sleep, now: () => 0 })).rejects.toThrow('differs')
+    expect(verify).toHaveBeenCalledTimes(1)
+    expect(sleep).not.toHaveBeenCalled()
+  })
+  it('returns pending on timeout while the publish itself stands', async () => {
+    const timer = visibilityClock()
+    const run = vi.fn((command, args) => {
+      if (args[0] === 'publish') return 'published'
+      throw Object.assign(new Error('Command failed'), { stderr: 'npm error 404 Not Found' })
+    })
+    const outcome = await publishRegistry('npm', fixture.artifact, manifest, {
+      run,
+      sleep: timer.sleep,
+      now: timer.now,
+      timeoutMs: 1000,
+    })
+    expect(outcome).toBe('pending')
+    expect(run).toHaveBeenCalledWith('npm', [
+      'view',
+      'muse-spark-code-acp@0.10.1',
+      'dist.integrity',
+    ])
+  })
+  it('warns loudly without failing on pending, and confirms visible', async () => {
+    const summaryFile = path.join(fixture.directory, 'visibility-summary.md')
+    const log = vi.spyOn(console, 'log').mockImplementation(vi.fn())
+    try {
+      reportVisibility('npm', 'pending', { GITHUB_STEP_SUMMARY: summaryFile })
+      expect(log).toHaveBeenCalledWith(
+        expect.stringContaining('::warning::npm: published, not yet visible'),
+      )
+      expect(readFileSync(summaryFile, 'utf8')).toContain('**published, not yet visible**')
+      log.mockClear()
+      reportVisibility('npm', 'visible', {})
+      expect(log).toHaveBeenCalledWith('npm: published and visible')
+    } finally {
+      log.mockRestore()
+    }
+  })
+})
+
+function releaseJobBlock(workflow, id) {
+  const start = workflow.indexOf(`\n  ${id}:\n`)
+  expect(start, `job ${id}`).toBeGreaterThan(-1)
+  const rest = workflow.slice(start + 1)
+  const next = rest.search(/\n {2}[a-z][\w-]*:\n/)
+  return next === -1 ? rest : rest.slice(0, next)
+}
+describe('release visibility budgets', () => {
+  it.each(['publish', 'openvsx', 'npm'])(
+    'gives the %s job room for the 30-minute visibility poll',
+    (id) => {
+      const workflow = readFileSync('.github/workflows/release.yml', 'utf8')
+      expect(releaseJobBlock(workflow, id)).toContain('timeout-minutes: 40')
+    },
+  )
 })
 
 /** A CLI failure as execFileSync throws it, with output in its stderr. */

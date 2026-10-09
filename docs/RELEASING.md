@@ -154,6 +154,12 @@ An already-published version is successful only when it matches this run:
 - npm: compare `npm view muse-spark-code-acp@X.Y.Z dist.integrity` to the
   tarball's locally computed SHA-512 SRI.
 
+After a fresh publish the job polls the same endpoints until the exact
+version is visible with matching integrity (up to 30 minutes, backing off;
+npm took 19 minutes for 0.16.0), then reports `published and visible`. A
+poll timeout reports `published, not yet visible` as a warning in the job
+summary without failing the release; re-check the registry before announcing.
+
 Unavailable metadata or mismatched bytes fail closed. Do not remove a version
 or overwrite an asset to make that check pass.
 
