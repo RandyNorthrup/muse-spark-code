@@ -32702,7 +32702,7 @@ brings its own diet. Recorded in `docs/certification/m103.md`.
 | `src/runtime/questions/questionRegistryBundle.ts`, `src/host/conversation/conversationBundle.ts` (M112 integration) | Checked same-build function signatures                       | Loader guards validate each required export as a function; entries and callers ship from the same build. Registry and host store factories install or inherit the caller's language before use; loader and real-disk tests exercise their signatures.                                                    |
 | `src/runtime/makerBundle.ts` (M103R)                                                                                | `isRuntimeMakerBundle` trusts the checked factory signatures | The entry, loader and ACP package come from the same source and build, as the other deferred factories do. The inline reason names this register; owning command and deferred-bundle tests exercise the real factories. No `any`, non-narrowing cast, lint suppression or scanner suppression was added. |
 | `test/unit/runtimeMakerHost.test.ts` (FIXM103W10)                                                                   | `@ts-expect-error` on `host.epoch = saved`                   | The type half of RVM103W4 P3: the epoch has a getter only, so restoring an old one must not compile. The same test asserts the runtime TypeError; a setter makes the directive unused and fails `typecheck:unit` (drill D1).                                                                             |
-| `src/shared/constants.ts` (FIXM103W10)                                                                              | `/* @__PURE__ */` on six computed constants                  | Each marked call only computes a value from literals and constant tables, so a bundle that never reads it may drop it; values are unchanged where read (their suites pass). It pays for lease identity inside the 125 KiB runtimeMaker cap.                                                              |
+| `src/shared/constants.ts` (FIXM103W10, FIXM103W11)                                                                  | `/* @__PURE__ */` on eight computed constants                | Each marked call only computes a value from literals and constant tables, so a bundle that never reads it may drop it; values are unchanged where read (their suites pass). It pays for lease identity and Stop honesty inside the 125 KiB runtimeMaker cap.                                             |
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -33131,6 +33131,27 @@ before a repaired one loads (2026-09-30).
   identity resolves to the second (a pid reused within its start second
   would match), and physical, installed-editor and browser reload
   qualification. Receipts: `docs/certification/m103.md` FIXM103W10.
+  FIXM103W11 (2026-10-09, RVM103W5: 1 P1, 1 P2). P1: the shorter POSIX
+  socket name dropped the earlier spelling, so Stop silently skipped a live
+  owner that a previous or overlapping build had published under the
+  whole-id socket (Linux included) and `stop-machine --all` reported a
+  software stop. Readers now accept both spellings, each confined to the
+  lease folder, and a claim sees such an owner as live. Stop never counts a
+  skipped owner as stopped: an unreadable Stop index entry, or a record it
+  does not recognise (wrong file name, other resource, unconfined endpoint)
+  that neither duplicates a reached owner nor has a provably gone holder,
+  is an unconfirmed session Stop never connects to. Stop-all also fails
+  when a live owner did not confirm, which it used to ignore. Both give the
+  existing "Stop failed — use the machine's physical emergency stop now"
+  result. Accepted consequence: a corrupt Stop index entry keeps Stop
+  unconfirmed until trusted offline repair, as a corrupt claim slot already
+  stays busy. P2: the maker runtime reads Windows variable names
+  case-insensitively (`environmentValue`) wherever it looks one up in a
+  copied environment: SystemRoot for the lease identity, the serial helper,
+  the process tree and the browser opener, and ProgramFiles for
+  PowerShell's module path. Two more computed constants carry
+  `/* @__PURE__ */` (§8), so runtimeMaker stays inside its unchanged cap.
+  Receipts: `docs/certification/m103.md` FIXM103W11.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

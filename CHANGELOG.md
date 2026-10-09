@@ -81,6 +81,12 @@ happened, not what was planned; superseded entries are kept.
   and Administrators aside). A lease's Stop socket path now fits macOS's
   104-byte limit.
 
+- Hardware Stop still reaches a device session started by an earlier build
+  of the agent, and no longer reports success when a session it cannot
+  reach or recognise may still hold a device: it tells you to use the
+  machine's physical emergency stop instead. On Windows, maker sends and
+  Stop also work when the environment spells `SystemRoot` in another case.
+
 - Hardware Stop has its own 5-second delivery deadline. A serial port that
   never opens or drains, or an HTTP Stop that never answers, now reports Stop
   unconfirmed instead of leaving the caller waiting; a late serial port still
