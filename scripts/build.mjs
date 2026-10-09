@@ -288,7 +288,13 @@ const conversationOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const sharingRuntimeOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedModelApiBoundaries,
+  ],
   entryPoints: [SHARING_RUNTIME_ENTRY],
   outfile: SHARING_RUNTIME_OUTFILE,
   platform: 'node',
@@ -329,7 +335,10 @@ const referenceOptions = {
 
 const reportingOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedRedaction],
+  // Report Git/gh reads launch through the window's one admission
+  // configuration (dist/resourceAdmission.js); an inline copy would be
+  // unconfigured and carry the whole governor.
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission, sharedRedaction],
   entryPoints: ['src/runtime/reporting/reportsEntry.ts'],
   outfile: 'dist/reporting.js',
 }

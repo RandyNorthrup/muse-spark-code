@@ -1,3 +1,4 @@
+import type * as ResourceAdmission from '../../src/core/resources/admission'
 import { EventEmitter } from 'node:events'
 import { PassThrough, Writable } from 'node:stream'
 import { randomBytes } from 'node:crypto'
@@ -8,6 +9,11 @@ import { macVaultTransport } from '../../src/runtime/vault/slots/macVaultTranspo
 
 const mocks = vi.hoisted(() => ({ spawn: vi.fn() }))
 vi.mock('node:child_process', () => ({ spawn: mocks.spawn }))
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const actual = await original<typeof ResourceAdmission>()
+  const fixture = await import('./helpers/resourceProcess')
+  return { ...actual, spawnResourceProcess: fixture.fixtureResourceProcess }
+})
 
 function response(metadata: unknown, key: Uint8Array = new Uint8Array()): Buffer {
   const json = Buffer.from(JSON.stringify(metadata))
@@ -16,6 +22,10 @@ function response(metadata: unknown, key: Uint8Array = new Uint8Array()): Buffer
   bytes.set(json, 4)
   bytes.set(key, 4 + json.length)
   return bytes
+}
+
+function beginProbe() {
+  return invokeMacVault(macVaultTransport('/test/muse-vault'), { v: 1, operation: 'probe' })
 }
 
 function wasKilled(): boolean {
@@ -52,10 +62,12 @@ describe('private Mac helper process', () => {
     const header = Buffer.from(JSON.stringify({ v: 1, operation: 'probe' }))
     const key = randomBytes(32)
     const pending = transport.exchange(header, key)
+    await Promise.resolve()
     expect(mocks.spawn).toHaveBeenCalledWith('/test/muse-vault', [], {
       env: {},
       stdio: 'pipe',
       shell: false,
+      windowsHide: true,
     })
     expect(child.input[0]?.readUInt32BE()).toBe(header.length)
     expect(child.input[1]).toEqual(header)
@@ -74,10 +86,8 @@ describe('private Mac helper process', () => {
   })
 
   it('validates a complete helper response and never exposes stderr', async () => {
-    const pending = invokeMacVault(macVaultTransport('/test/muse-vault'), {
-      v: 1,
-      operation: 'probe',
-    })
+    const pending = beginProbe()
+    await Promise.resolve()
     const stderr = Buffer.from('private account/path')
     child.stderr.write(stderr)
     child.stdout.write(response({ v: 1, status: 'ok', secureEnclave: true, certified: false }))
@@ -106,6 +116,7 @@ describe('private Mac helper process', () => {
         },
         randomBytes(32),
       )
+      await Promise.resolve()
       const failed = expect(pending).rejects.toMatchObject({ name, code, recoveryAction })
       const output = response({ v: 1, status: 'error', code })
       child.stdout.write(output.subarray(0, 2))
@@ -119,10 +130,8 @@ describe('private Mac helper process', () => {
   )
 
   it('erases the reconstructed native failure frame before rejecting', async () => {
-    const pending = invokeMacVault(macVaultTransport('/test/muse-vault'), {
-      v: 1,
-      operation: 'probe',
-    })
+    const pending = beginProbe()
+    await Promise.resolve()
     const failed = expect(pending).rejects.toMatchObject({ code: 'cancelled' })
     child.stdout.write(response({ v: 1, status: 'error', code: 'cancelled' }))
     const allocated: Buffer[] = []
@@ -139,10 +148,8 @@ describe('private Mac helper process', () => {
   })
 
   it('does not trust a native error frame after an unexpected exit code', async () => {
-    const pending = invokeMacVault(macVaultTransport('/test/muse-vault'), {
-      v: 1,
-      operation: 'probe',
-    })
+    const pending = beginProbe()
+    await Promise.resolve()
     const failed = expect(pending).rejects.toMatchObject({ name: 'Error', message: 'No access' })
     child.stdout.write(response({ v: 1, status: 'error', code: 'cancelled' }))
     child.emit('close', 2)
@@ -157,10 +164,8 @@ describe('private Mac helper process', () => {
     response({ v: 1, status: 'ok', secureEnclave: true, certified: true }),
     Buffer.from([0, 0, 0, 1, 123]),
   ])('scrubs invalid error frames on exit 1 without trusting diagnostics %s', async (frame) => {
-    const pending = invokeMacVault(macVaultTransport('/test/muse-vault'), {
-      v: 1,
-      operation: 'probe',
-    })
+    const pending = beginProbe()
+    await Promise.resolve()
     const failed = expect(pending).rejects.toMatchObject({ name: 'Error', message: 'No access' })
     const output = Buffer.from(frame)
     child.stdout.write(output)
@@ -181,6 +186,7 @@ describe('private Mac helper process', () => {
         Buffer.alloc(0),
         Buffer.alloc(0),
       )
+      await Promise.resolve()
       const failed = expect(pending).rejects.toThrow('No access')
       const partial = randomBytes(32)
       child.stdout.write(partial)
@@ -223,6 +229,7 @@ describe('private Mac helper process', () => {
       Buffer.alloc(0),
       Buffer.alloc(0),
     )
+    await Promise.resolve()
     const failed = expect(pending).rejects.toThrow('No access')
     await vi.advanceTimersByTimeAsync(VAULT_APPROVAL_TTL_MS)
     expect(child.kill).toHaveBeenCalledWith('SIGKILL')
@@ -235,6 +242,7 @@ describe('private Mac helper process', () => {
     const controller = new AbortController()
     const transport = macVaultTransport('/test/muse-vault', controller.signal)
     const pending = transport.exchange(Buffer.alloc(0), Buffer.alloc(0))
+    await Promise.resolve()
     const failed = expect(pending).rejects.toThrow()
     controller.abort()
     expect(child.kill).toHaveBeenCalledWith('SIGKILL')

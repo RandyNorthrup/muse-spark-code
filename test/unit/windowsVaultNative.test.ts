@@ -1,3 +1,4 @@
+import type * as ResourceAdmission from '../../src/core/resources/admission'
 import { execFile, spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import {
@@ -13,7 +14,7 @@ import {
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { windowsVaultExecutable } from '../../src/host/vault/slots/windowsVaultBuild'
 import { compileJob } from '../../src/host/backend/jobBuild'
 import {
@@ -35,6 +36,17 @@ import type { RunProgram } from '../../src/host/processTree'
 import { slotContext } from './helpers/vault/fixtures'
 
 const paths = { root: '', helper: '', guards: '', trap: '' }
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const actual = await original<typeof ResourceAdmission>()
+  const fixture = await import('./helpers/resourceProcess')
+  const { fakeResourceLease } = await import('./helpers/resources/fakes')
+  // Native vault fixtures own their temporary compiler trees; pause is covered by spawnBootstrap.
+  return {
+    ...actual,
+    spawnResourceProcess: fixture.fixtureResourceProcess,
+    admitBootstrap: () => Promise.resolve(fakeResourceLease()),
+  }
+})
 const owned = new Set<WindowsVaultSlot>()
 const capture: {
   transport?: WindowsVaultTransport

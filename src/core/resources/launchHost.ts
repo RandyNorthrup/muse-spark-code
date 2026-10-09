@@ -6,6 +6,9 @@ import {
   RESOURCE_TREE_SPAWN_WINDOW_MS,
   RESOURCE_TREE_SAMPLE_MS,
   RESOURCE_TEMP_KEEP_MS,
+  RESOURCE_DISPOSE_POLL_MS,
+  RESOURCE_SETTLED_ROWS_MAX,
+  TREE_EXIT_WAIT_MS,
 } from '../../shared/constants'
 import type {
   ResourceClass,
@@ -20,7 +23,12 @@ import type { ResourceGovernor } from './governor'
 import type { ResourceDiskSampler } from './disk'
 import type { CreatedRegistry, CreatedCleanup } from './createdRegistry'
 import type { ResourceEvents } from './events'
-import { ResourceQueue, type ResourcePermit } from './queue'
+import {
+  ResourceQueue,
+  type ResourcePermit,
+  type ResourceAdmission,
+  type ResourceLaunchRequest,
+} from './queue'
 import { ResourceTreeRegistry } from './trees/registry'
 import type {
   ResourceAdmissionPort,
@@ -29,7 +37,21 @@ import type {
   ResourceTreeBinding,
   ResourceTempRoots,
   ResourceTempRoot,
+  ResourceLaunchProfile,
+  ResourceSettlement,
 } from './launch'
+
+/**
+ * Launchers without a profile (MCP, shell, team) and the portable contained and
+ * probe profiles own a whole tree the registry binds; handoff, interactive and
+ * bootstrap stop only what they own themselves.
+ */
+const TREE_BOUND: ReadonlySet<ResourceLaunchProfile | undefined> = new Set([
+  undefined,
+  'contained',
+  'probe',
+])
+const isTreeBound = (profile: ResourceLaunchProfile | undefined) => TREE_BOUND.has(profile)
 
 interface Work {
   kind: ResourceKind
@@ -45,6 +67,7 @@ interface Work {
   temp: ResourceTempRoot | undefined
   failed: boolean
   checkpoint: boolean
+  tempFree: boolean
   members: Set<string>
   births: number[]
   limited: boolean
@@ -59,6 +82,10 @@ export interface ResourceTreeUsageRow {
 // Retired trees' final readings wait here for the next history read.
 const RETIRED_USAGE_MAX = 256
 export interface ResourceLaunchHostOptions {
+  readonly admission?: (
+    request: ResourceLaunchRequest,
+    signal?: AbortSignal,
+  ) => Promise<ResourceAdmission>
   readonly governor: ResourceGovernor
   readonly events: ResourceEvents
   readonly clock: ResourceClock
@@ -69,6 +96,11 @@ export interface ResourceLaunchHostOptions {
   readonly tempRoots?: ResourceTempRoots | undefined
   readonly created?: Pick<CreatedRegistry, 'finish' | 'clean'> | undefined
   readonly onCleanup?: ((result: CreatedCleanup) => void) | undefined
+  /**
+   * A history recorder drains `settled()` (M107-J-C1-T-accounting). Without one,
+   * no attested row is kept: nothing would ever read it.
+   */
+  readonly isSettledRead?: boolean | undefined
 }
 
 /** C1: admission reservations plus OS-proved registry entries, shared by the window. */
@@ -84,6 +116,8 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   private readonly safePointCancels = new Set<() => void>()
   private readonly admissionCancels = new Set<() => void>()
   private readonly cleanupTimers = new Set<() => void>()
+  private settledRows: { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[] = []
+  private settledDropped = 0
   private readonly unsubscribe: () => void
   private readonly unsubscribeSample: () => void
   // U–C1: one checked snapshot, replaced only when its content changes.
@@ -155,7 +189,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   }
 
   private finishTemp(work: Work): void {
-    if (work.checkpoint) return
+    if (work.checkpoint || work.tempFree) return
     this.retired.add(work.owner)
     const finish =
       work.temp === undefined
@@ -222,6 +256,10 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
 
   private async sampleTree(work: Work): Promise<void> {
     if (work.process === undefined || !this.work.has(work)) return
+    if (work.process.attested === true || !isTreeBound(work.process.profile)) {
+      work.known = true
+      return
+    }
     try {
       work.binding ??= (await this.options.bindTree(work.process)) ?? undefined
       if (!this.work.has(work)) return
@@ -330,6 +368,58 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     }
   }
 
+  /** Shutdown kills owned work: releasing the permit alone would leave the tree running. */
+  private async stopOnDispose(work: Work): Promise<void> {
+    const launched = work.process
+    if (launched === undefined) {
+      this.retire(work)
+      return
+    }
+    if (launched.stop === undefined) {
+      await this.sampleTree(work)
+      if (work.ticket !== undefined) await work.registry?.kill(work.ticket)
+    } else await launched.stop()
+    // An attested stop returns after its settlement retired the work (emptied
+    // record) or took the uncertain path; still here means never observed.
+    if (launched.attested === true) {
+      if (this.work.has(work)) {
+        work.known = false
+        this.options.onError()
+      }
+      return
+    }
+    // Other profiles have no registry binding: their own stop ended what they own.
+    if (!isTreeBound(launched.profile)) {
+      this.retire(work)
+      return
+    }
+    // A dispatched stop is not an exit: ownership (and the temp root) stays
+    // until the tree is observed gone, within the named stop deadline.
+    if (await this.awaitGone(work, launched)) {
+      this.retire(work)
+      return
+    }
+    // Never observed: kept as uncertain, its temp root left for recovery, and said so.
+    work.known = false
+    this.options.onError()
+  }
+
+  private async awaitGone(work: Work, launched: ResourceProcessLaunch): Promise<boolean> {
+    const deadline = this.options.clock.now() + TREE_EXIT_WAIT_MS
+    for (;;) {
+      try {
+        work.binding ??= (await this.options.bindTree(launched)) ?? undefined
+        if ((await work.binding?.gone()) === true) return true
+      } catch {
+        // An unreadable tree is unknown, never gone.
+      }
+      if (this.options.clock.now() >= deadline) return false
+      await new Promise<void>((resolve) => {
+        this.options.clock.setTimeout(resolve, RESOURCE_DISPOSE_POLL_MS)
+      })
+    }
+  }
+
   /**
    * The governor's checked status, cached: the same object until a reading,
    * event, queue or settings change alters its content (React's external-store
@@ -389,31 +479,35 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     workClass?: ResourceClass | 'checkpoint',
     isDiskHeavy = kind === 'check' || kind === 'browserCheck',
     checkpointDestination?: string,
+    // Bootstrap compilation and bounded harness commands own no per-tree temp root.
+    isTempFree = false,
   ): Promise<ResourceLease> {
     if (this.disposed) throw new Error('Resource launch host disposed')
     this.applySettings()
-    this.options.governor.start()
+    if (this.options.admission === undefined) this.options.governor.start()
     const isCheckpoint = workClass === 'checkpoint'
     if (isCheckpoint) {
       if (checkpointDestination === undefined) throw new Error('Checkpoint destination unavailable')
       await this.waitAdmission(this.assertWrite(checkpointDestination), signal)
-    } else if (this.options.disks !== undefined)
+    } else if (this.options.disks !== undefined && this.options.admission === undefined)
       await this.waitAdmission(this.options.governor.refresh(), signal)
     const selectedClass = isCheckpoint
       ? 'foreground'
       : (workClass ?? this.context.getStore() ?? 'foreground')
+    const request = {
+      kind,
+      class: selectedClass,
+      priority: 0,
+      diskHeavy: isDiskHeavy,
+      checkpoint: isCheckpoint,
+    }
     let permit: ResourcePermit
     try {
-      permit = await this.queue.request(
-        {
-          kind,
-          class: selectedClass,
-          priority: 0,
-          diskHeavy: isDiskHeavy,
-          checkpoint: isCheckpoint,
-        },
-        signal,
-      ).ready
+      const admission =
+        this.options.admission === undefined
+          ? this.queue.request(request, signal)
+          : await this.options.admission(request, signal)
+      permit = await admission.ready
     } finally {
       // Granted or withdrawn, the waiting count shown by the chip changed.
       this.changed()
@@ -432,6 +526,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       temp: undefined,
       failed: false,
       checkpoint: isCheckpoint,
+      tempFree: isTempFree,
       members: new Set(),
       births: [],
       limited: false,
@@ -440,7 +535,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     this.work.add(work)
     let creating: Promise<ResourceTempRoot> | undefined
     try {
-      if (!isCheckpoint) creating = this.options.tempRoots?.create(work.owner)
+      if (!isCheckpoint && !isTempFree) creating = this.options.tempRoots?.create(work.owner)
       if (creating !== undefined) work.temp = await this.waitAdmission(creating, signal)
     } catch (error: unknown) {
       if (creating !== undefined && (signal?.aborted === true || this.isClosed())) {
@@ -473,6 +568,32 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
         if (!this.work.has(work) || work.ticket === undefined) return false
         const result = await work.registry?.kill(work.ticket)
         return result?.status === 'done'
+      },
+      settle: (settlement: ResourceSettlement) => {
+        // History's work source: the attested job's own final accounting, kept only
+        // for a bound reader, and bounded between its reads.
+        if (this.options.isSettledRead !== true) return
+        if (this.settledRows.length >= RESOURCE_SETTLED_ROWS_MAX) {
+          this.settledRows.shift()
+          this.settledDropped++
+        }
+        this.settledRows.push({
+          ticket: {
+            id: randomUUID(),
+            root: settlement.root,
+            scope: { type: 'job', name: settlement.scope },
+            kind: work.kind,
+            class: work.class,
+            sessionId: null,
+          },
+          usage: settlement.usage,
+        })
+      },
+      uncertain: () => {
+        // Exit never observed: release admission, keep the temp root, report it.
+        work.failed = true
+        this.retire(work, false)
+        this.options.onError()
       },
       register: (process) => {
         if (!this.work.has(work)) return
@@ -560,6 +681,23 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     })
   }
 
+  /**
+   * Settled attested trees since the last read, at most RESOURCE_SETTLED_ROWS_MAX
+   * (oldest dropped and counted), kept only with `isSettledRead`. M107's history
+   * recorder reads it as part of its ResourceRecordWorkSource; no production
+   * host binds that reader yet, so production keeps no rows.
+   */
+  settled(): {
+    readonly rows: readonly { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[]
+    readonly dropped: number
+  } {
+    const rows = this.settledRows
+    const dropped = this.settledDropped
+    this.settledRows = []
+    this.settledDropped = 0
+    return { rows, dropped }
+  }
+
   tickets(): readonly ResourceTicket[] {
     return [...this.work].flatMap((work) => work.registry?.tickets() ?? [])
   }
@@ -588,6 +726,6 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     for (const cancel of this.cleanupTimers) cancel()
     this.queue.dispose()
     this.options.governor.dispose()
-    for (const work of this.work) this.retire(work, false)
+    for (const work of this.work) void this.stopOnDispose(work).catch(this.options.onError)
   }
 }

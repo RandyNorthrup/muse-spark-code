@@ -26,6 +26,8 @@ export type ReferenceText =
 const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
+  referenceScreenRecording: 'nativeRecorder=absent',
+  referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
   resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold',
@@ -232,7 +234,7 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   showSchedules: { description: { tip: 'schedule' }, canRun: true },
   showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: true },
   vault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
-  lockVault: { description: { ui: 'referenceVaultLock' }, canRun: false },
+  lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
 }
 
 function feature(

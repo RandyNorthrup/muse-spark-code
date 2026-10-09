@@ -16,6 +16,115 @@ unrelated bundle caps remain the shrinking lane's responsibility.
 - [ ] Regenerate and review the full baseline after the settled quote-origin repair; pass the complete fresh-clone pixel gate.
 - [x] Record image reviews, findings, gate exits and hooks-on commits in LEFT017.
 
+**SPAWN017C redesign (2026-10-08, win11).** Replace implicit portable launch
+lifetime with explicit contained, probe, handoff, interactive and bootstrap
+profiles. Contained work owns its tree and temp root through shutdown; a
+probe (bounded and read-only) owns its tree but no temp root; handoff owns
+only its OS adapter (ten-second named deadline, output to the null device,
+root-only stop); interactive work inherits the terminal and remains in its
+session. Pause refuses bootstrap/background admission immediately with the
+governor's status words, without compiler fallback or a second vault
+attempt. The caller deadline includes runtime sampling without cancelling
+the shared sample. A checked-in, mechanically checked inventory covers all
+source process sites, records each probe with its reason, and proves
+test-only reachability. Qualify regressions against fb0b12aa3, four red
+drills and scoped gates at repository timeouts; record receipts in
+int0170-combined.md and the threat model. Aggregate quality and unrelated
+bundle caps remain with the lead; no hook, threshold, dependency, push,
+credential or live-model changes.
+
+**SPAWN017C Windows job attestation (2026-10-08, lead decision).** Portable
+contained and probe launches on Windows start no reader process: the helper
+holds the only handle to an unnamed kill-on-close job without breakaway,
+the kernel enforces ActiveProcessLimit, the helper counts the spawn rate
+from the job's own accounting, ends and drains the job to zero active
+processes before it exits, and reports one final record (CPU, peak job
+memory, process total) on the kept control pipe; a missing record is
+uncertain usage, never a refusal. PowerShell stays only for helper
+compilation and self-test, the extension's own MCP, shell, team and browser
+launchers, and runProgram probes. Measured on the win11 VM pinned to four
+CPUs: scheduleEvents.local real-Git 12.4 s before, 8.1 to 8.6 s after, at the
+unchanged 15 s deadline. RVSPAWN017C's four P2s are fixed in the same round
+(dispose ownership until observed exit, scanner aliases/wrappers/workers,
+alias-resolved test-only proof, caller deadline over shared preparation).
+
+**RVSPAWN4W fixes (2026-10-08, amends the paragraph above).** Only a record
+saying the helper drained the job (`emptied: true`) proves whole-tree
+retirement and known usage; a missing record, an undrained job or a killed
+helper takes the lease's uncertain path (admission released, temp root kept
+for recovery, failure reported), never complete(true). Dispose awaits that
+settlement; a dispatched kill is not completion. The job's completion port
+reports cap refusals and enforced memory limits in the record (`capRefusals`,
+`limits`), which governed commands raise as typed errors even after exit 0;
+`jobMemoryBytes` hands a portable launch's memory cap to the Windows job
+(the media converter maps `jobMemory` to its memory-cap error). The prepared
+helper is hashed around its self-test and re-hashed before every launch; a
+changed one is refused, removed and recompiled. Attested usage rows are kept
+only for a bound history reader (none in production yet,
+M107-J-C1-T-accounting), at most RESOURCE_SETTLED_ROWS_MAX between reads.
+RESULT lines are bounded before parsing and keep native 32-bit ranges. The
+inventory scanner and test-only proof cover wrappers, aliased/default/dynamic
+Workers, bound/called launches, re-exports, dynamic-import namespaces and
+load-time class, decorator, IIFE and callback evaluation; the stale Windows
+launch fixtures pass the bootstrap runner seam. Bundle cohorts: the pause,
+cap and memory errors live in `launch.ts`, helper integrity in
+`src/host/backend/`, and `runBootstrap` (a facade client, not policy) in
+`src/core/bootstrapCommand.ts`, so no `src/core/resources/` policy module
+rides in `extension.js`, `acp.js` or the runtime bundles any more (the
+cohort check was red since `e50ef9f49` and `867d9d7cf`).
+
+**SPAWN017C gitRefs root cause (2026-10-08, win11; merged from
+rel017/spawn3).** Every bounded command was admitted as ordinary work with a
+helper-backed temp root: six native created-file round trips, needing a
+packaged helper (absent from a source checkout on POSIX) and six cold
+PowerShell starts on Windows. Lead decision: the narrowing is the explicit
+`probe` profile only, chosen per call site (Git ref and report reads, gh
+reads, birth probes, media version checks); a bounded command that might
+write keeps `contained` with its temp root. The runtime prepares its
+Windows job helpers once, as the extension does; a failure is retried. The
+Git source keeps its fixed reason and attaches the actual refusal as
+`cause`. Receipts are in int0170-combined.md.
+
+**SPAWN017B cold-probe finding (2026-10-08).** The third complete-file idle
+replay fails before lock admission because PowerShell's Get-Process discovery
+consumes the unchanged birth-probe bound. Read the same OS birth identity
+through Diagnostics.Process without module discovery; retain absence handling,
+all identity/lease assertions and every deadline. Restart the thirty idle and
+thirty loaded complete-file sequence and record this excluded failed attempt.
+
+**SPAWN017B follow-up (2026-10-08, win11).** Govern helper compilation in
+one bootstrap tier: heavy admission, PROCESS_TABLE_TIMEOUT_MS deadline,
+bounded output, whole-tree cancellation and observed exit before publication.
+The job builder cannot join a job made by its own not-yet-built helper.
+Bind runtime process admission to the existing runtime resource host and
+dispose it at shutdown; govern the login terminal and browser opener too.
+Verify the deliberately unavailable recorder/vault feeder against installed
+commands and Help. Repair the report-history Windows restoration race at its
+cause, retain every assertion and deadline, and run thirty idle and loaded
+replays. Baseline regressions, red drills, fresh-clone scoped gates and the
+completed spawn inventory belong in int0170-combined.md. Full quality remains
+with the lead under the shared lane rules; no cap or hook changes are allowed.
+Direct recording remains unavailable while M105 W's production recorder
+driver handoff is unbound (also M105-R1-integration in section 7). The M109 W
+certification leaves the broker-backed service absent, so its panel commands
+and exec feeder remain unavailable. Help must state those candidate limits;
+this follow-up installs neither builder.
+
+**SPAWN017 release repair (2026-10-08, win11).** Close the combined
+0.17.0 candidate's spawn governance gaps under M107/D87. Account-scoped MSP
+hosts retain their command owner while sharing the ordinary MSP native
+launch, bounded shutdown and observed whole-tree retirement. Supply the
+vault MCP route with a production builder using the ordinary governed MCP
+spawn boundary; retain authorization, canonical command checks and output
+scrubbing, and refuse unbound broker services. Audit every spawn-bearing
+source file changed since `4da4ef666`, repairing newly introduced payload
+paths. Prove regressions on `7a4fc2ab3`, deliberate red drills and restored
+default-timeout runs. Qualify a fresh clone with npm ci, five typechecks,
+changed-file lint/format/duplication, plain knip, localization, host API and
+the production build without changing caps. Aggregate quality belongs to
+the lead; normal-hook local commits only. Receipts and the spawn inventory:
+`docs/certification/int0170-combined.md`, Spawn governance (SPAWN017).
+
 **FIX0160W2 hosted Windows repair (2026-10-07, win11).** Reproduce the three
 remaining suites with an actual 8.3 TEMP/TMP alias and fresh PowerShell
 processes. Resolve compiler storage and returned helper paths to native long
@@ -12142,6 +12251,14 @@ one governor for everything the harness starts.
       - Every governed child runs with `TMPDIR`, `TEMP` and `TMP` pointed
         at a temp root the harness owns for that tree. Browsers launched
         for tests get their own profile and cache folders in that root.
+        **Narrowed by SPAWN017C (2026-10-08, lead decision):** only an
+        explicit launch profile is exempt, never bounded commands as a
+        class. A `probe` (bounded and read-only: Git ref reads, version
+        checks, status queries) keeps admission, its deadline, its output
+        cap, containment and tree retirement but owns no temp root; each
+        call site chooses it, and spawn-inventory.json records it with its
+        reason. `bootstrap` compilation also owns none. A bounded command
+        that might write files stays `contained`, temp root included.
       - When the tree exits, its root is removed. A failed run's root is
         kept for `RESOURCE_TEMP_KEEP_MS` (24 hours) for debugging and is
         then removed.
@@ -37631,6 +37748,14 @@ lane A's first step.
 
 ## 7. Gates
 
+**MERGESPAWN (2026-10-08).** `rel017/spawn4` is merged into `release/0.17.0`
+with both sides' behaviour; the reporting bundles now share resource
+admission and `dist/validation.js` exports `tuple`. Open for the lead, caps
+and assertions unchanged: `dist/resourceGovernor.js` is 132.2 KiB against
+125 KiB (spawn4's launch machinery on top of U–C1 and W2), activation grows
+17,680 B, and eight test files that pass at `506ae2375` fail as at
+`d1a71a348`. Receipts: `docs/certification/int0170-combined.md`, MERGESPAWN.
+
 **LEFT017 bounded deferrals (2026-10-08).** Keep every visual assertion and
 budget. The combined tree has 270 webview source files and 184 render inputs,
 but the current audit records 112 sources and 73 render inputs: 111 render
@@ -37702,6 +37827,40 @@ closes them. Detailed receipts: `docs/certification/int0170-combined.md`, MONEY0
 **INT0170 headless repair (2026-10-08, Kubuntu).** `WINDOWS_PATH_MODEL_TEXT` and the shared `windowsPathSpelling.ts`; headless 113,255 → 101,878 B and twelve lazy bundles lose `MODEL_TEXT`; the split check fails `MODEL_TEXT` in headless (`b706a89e8`).
 
 **INT0170 Model API pin (2026-10-08, Kubuntu).** `usdSchema.ts` is shared through `dist/modelApiBoundaries.js` (13 bundles, −387 to −564 B each); pin re-measured to 530,883 B, ratcheted down after `m105/media-w2`; the split check fails a copied boundary source (`c1ee73965`, `0a38d850e`).
+
+**SPAWN017C Windows residual (2026-10-08).** Bounded commands no longer
+build temp roots, and the runtime prepares its job helpers once. With those
+fixes the real-Git schedule regression passes on Kubuntu and the Mac mini.
+On win11 it passes at about 10.5 s of its 15 s budget with ten CPUs, but
+times out with four, the hosted-runner size. Each governed Windows launch
+still starts a launcher and up to six cold PowerShell tree queries (root,
+membership, members, usage, retirement). This is the T reader's
+per-query design. Removing that cost needs a persistent reader or
+launcher-attested retirement. That is a redesign for the lead, not a
+third patch. No assertion or deadline is changed.
+
+**SPAWN017B scoped delivery and stop (2026-10-08).** Shared common.md forbids
+aggregate quality on this lane; the lead owns it. Retain all caps and run
+fresh-clone scoped gates. Runtime global admission and bootstrap compilation
+are implemented, but the real-Git schedule regression still refuses at native
+created-file publication. Binding admission and then moving the runtime
+registry to machine storage did not restore it. The shared two-failed-fixes
+rule stops further repair of this path; no assertion or deadline is changed.
+This is a release blocker, not a governance exemption. Exact qualification
+and the remaining native publication work are in int0170-combined.md.
+Fresh-clone full jscpd also exits 1 on four inherited clones. The same four
+clones reproduce on b6e717f74 and their six files are unchanged by this lane.
+The lead owns their joined-tree repair; the zero-clone threshold and all
+ignores remain unchanged. All five typechecks, changed-file lint/format,
+plain knip, localization, reference and host API pass. Existing candidate
+bundle caps remain enforced and failing; the resource bundle fits its cap.
+
+**SPAWN017 (2026-10-08):** the lane brief delegates aggregate quality to
+the lead and requires fresh-clone scoped delivery gates. Existing combined
+candidate caps remain release blockers; no threshold is changed. Native
+compiler bootstrap and the runtime's unbound global admission are unresolved
+under the owner's no-exceptions spawn decision, not accepted exceptions.
+The spawn inventory and exact receipts are in `docs/certification/int0170-combined.md`.
 
 INT0180B (2026-10-07): source `9733edba2` supersedes INT0180's local reds
 below. Fresh ordinary installation, exact static job, all four coverage shards
@@ -42069,6 +42228,11 @@ threshold, ignore or rule is changed.
 | Location                                              | Escape hatch         | Reason                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`) | `'NaN' as UsdAmount` | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained. |
+
+| SPAWN017B location          | Escape hatch                               | Reason                                                                                                                                                                   | Removal                                                                            |
+| --------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| core/resources/bootstrap.ts | detect-child-process nosemgrep on spawn    | The shared compiler boundary holds heavy admission, strips credentials, caps output and deadline, and observes exit; it cannot use its not-yet-built containment helper. | Keep the bootstrap-tier boundary guarded by native tree and admission regressions. |
+| core/resources/bootstrap.ts | detect-child-process nosemgrep on taskkill | Fixed trusted OS terminator, owned numeric PID, empty credential environment and bounded output/deadline; termination must remain usable at pause.                       | Retain the native whole-tree drill; compiled payloads use jobs.                    |
 
 | 0.15.0 hosted-CI location                                                                                                                                                                      | Escape hatch                                                                                                                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                           | Removal                                                                                                                                                   |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |

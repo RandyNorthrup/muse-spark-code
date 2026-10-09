@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { userInfo } from 'node:os'
 import { createInterface } from 'node:readline/promises'
-import { spawn } from 'node:child_process'
+import { handoffResourceFile } from '../../core/resources/admission'
+import { isResourcePaused } from '../../core/resources/launch'
 import * as z from 'zod/mini'
 import { PromptStore } from '../../core/prompts/promptStore'
 import { usePrompt } from '../../core/prompts/promptLibrary'
@@ -65,24 +66,18 @@ async function localProgram(
   signal: AbortSignal,
   text?: string,
 ): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Fixed platform clipboard/browser binaries and fixed switches; a confined file is one argument, scrubbed text is stdin, no shell or credential environment (M118, PLAN §8).
-    const child = spawn(file, [...args], {
+  // Fixed platform clipboard/browser binaries and switches; a confined file is one
+  // argument, scrubbed text is stdin, no shell or credential environment (M118).
+  try {
+    await handoffResourceFile(file, args, {
       env: withoutCredentials(process.env),
       signal,
-      stdio: ['pipe', 'ignore', 'ignore'],
+      ...(text !== undefined && { input: text }),
     })
-    const failed = () => {
-      reject(new Error(UI_TEXT.shareCancelled))
-    }
-    child.on('error', failed)
-    child.on('exit', (code) => {
-      if (code === 0) resolve()
-      else failed()
-    })
-    child.stdin.on('error', failed)
-    child.stdin.end(text ?? '')
-  })
+  } catch (error: unknown) {
+    if (isResourcePaused(error)) throw error
+    throw new Error(UI_TEXT.shareCancelled, { cause: error })
+  }
 }
 
 function commandsFor(ports: RuntimeSharingPorts): SharingCommands {
@@ -270,6 +265,10 @@ export async function runRuntimeSharing(
     process.stdout.write(`${JSON.stringify(result)}\n`)
     return result.exitCode
   } catch (error: unknown) {
+    if (isResourcePaused(error)) {
+      process.stderr.write(`${error.message}\n`)
+      return EXEC_EXIT.denied
+    }
     const known = [
       UI_TEXT.shareConfidential,
       UI_TEXT.shareCancelled,

@@ -1,7 +1,6 @@
 import * as z from 'zod/mini'
 import { createHash } from 'node:crypto'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
+import { execResourceFile } from '../../resources/admission'
 import { stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
@@ -33,7 +32,7 @@ const refSchema = z.strictObject({
   revision: z.string().check(z.minLength(1), z.maxLength(SCHEDULE_EVENT_FIELD_MAX_CHARS)),
 })
 type Ref = z.infer<typeof refSchema>
-const exec = promisify(execFile)
+const exec = execResourceFile
 
 /** No checkout, hooks, helper, credential or network is needed to read refs. */
 export function localGitRefs(
@@ -59,6 +58,7 @@ export function localGitRefs(
       }
       try {
         const common = await exec(
+          'probe',
           'git',
           [
             '--no-optional-locks',
@@ -79,7 +79,7 @@ export function localGitRefs(
           'refs/heads',
           'refs/tags',
         ]
-        const result = await exec('git', refArgs, options)
+        const result = await exec('probe', 'git', refArgs, options)
         const refs: Ref[] = []
         const revisions: { readonly file: string; readonly revision: bigint }[] = []
         for (const line of result.stdout.split('\n')) {
@@ -107,7 +107,7 @@ export function localGitRefs(
         }
         // A concurrent ref write/pack must not combine an old object with a
         // new revision. Refuse the unstable read; the next poll retries it.
-        const verified = await exec('git', refArgs, options)
+        const verified = await exec('probe', 'git', refArgs, options)
         if (verified.stdout !== result.stdout) throw new Error('gitRefsChanged')
         for (const revision of revisions) {
           const metadata = await stat(revision.file, { bigint: true })
@@ -116,8 +116,9 @@ export function localGitRefs(
         const current = capability()
         if (!current.available) throw new Error(current.reason)
         return refs
-      } catch {
-        throw new Error(unavailableSource('gitRefs').reason)
+      } catch (error: unknown) {
+        // The fixed reason is what callers show; the cause keeps the actual refusal.
+        throw new Error(unavailableSource('gitRefs').reason, { cause: error })
       }
     },
   }

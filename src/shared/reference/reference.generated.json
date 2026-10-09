@@ -1898,8 +1898,12 @@
     {
       "id": "vault",
       "name": { "command": "museSpark.vault" },
-      "summary": { "ui": "referenceVaultPanel" },
-      "description": { "ui": "referenceVaultPanel" },
+      "summary": {
+        "conditions": [{ "when": "vaultBroker=absent", "text": { "ui": "referenceVaultPanel" } }]
+      },
+      "description": {
+        "conditions": [{ "when": "vaultBroker=absent", "text": { "ui": "referenceVaultPanel" } }]
+      },
       "commands": ["museSpark.vault", "museSpark.lockVault"],
       "settings": [
         "museSpark.vault.enabled",
@@ -2592,8 +2596,12 @@
       "nameKey": "command.attachScreenRecording.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Record the screen, preview the clip, then attach or discard it. Needs a local window; remote windows refuse. The clip attaches as video and follows the media limits. Requires native recorder support and verified video upload support.",
-      "text": { "ui": "referenceScreenRecording" },
+      "description": "nativeRecorder=absent: Direct screen recording is unavailable in this build. Choose an existing recording file.",
+      "text": {
+        "conditions": [
+          { "when": "nativeRecorder=absent", "text": { "ui": "referenceScreenRecording" } }
+        ]
+      },
       "enablement": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible",
       "canRun": false
     },
@@ -2625,8 +2633,10 @@
       "nameKey": "command.vault.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Open the per-user credential vault. Values never print; the broker holds them.",
-      "text": { "ui": "referenceVaultPanel" },
+      "description": "vaultBroker=absent: The credential vault is unavailable in this build because the broker is not installed.",
+      "text": {
+        "conditions": [{ "when": "vaultBroker=absent", "text": { "ui": "referenceVaultPanel" } }]
+      },
       "canRun": false
     },
     {
@@ -2635,8 +2645,10 @@
       "nameKey": "command.lockVault.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Lock the per-user credential vault now, ending every use in every window.",
-      "text": { "ui": "referenceVaultLock" },
+      "description": "vaultBroker=absent: The credential vault is unavailable in this build because the broker is not installed.",
+      "text": {
+        "conditions": [{ "when": "vaultBroker=absent", "text": { "ui": "referenceVaultPanel" } }]
+      },
       "canRun": false
     },
     {

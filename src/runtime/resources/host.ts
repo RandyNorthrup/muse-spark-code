@@ -152,10 +152,11 @@ export async function createRuntimeResourceHost(
       const status = await (action === 'resume' ? host.resume() : host.status())
       return json ? JSON.stringify(status) : resourceStatusText(status)
     },
-    async status() {
+    async status(signal) {
       ensureOpen()
       await sync()
-      await governor.refresh()
+      signal?.throwIfAborted()
+      await governor.refresh(signal)
       ensureOpen()
       return snapshot()
     },

@@ -1,3 +1,4 @@
+import * as ResourceAdmission from '../../src/core/resources/admission'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { createHash } from 'node:crypto'
@@ -37,6 +38,27 @@ import { CheckRunJournal } from '../../src/core/reporting/checkRuns'
 import { reportDocument, reportOptions } from './helpers/reporting/snapshot'
 import { removeFolder } from './helpers/temporaryFolders'
 
+// Filesystem races use a direct, bounded identity probe; native admission is
+// proved by spawnRuntimeAdmission and the real-Git schedule suite.
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  return {
+    ...(await original<typeof ResourceAdmission>()),
+    execResourceFile: vi.fn(
+      (
+        _profile,
+        ...args: Parameters<typeof ResourceAdmission.execResourceFile> extends [
+          unknown,
+          ...infer Rest,
+        ]
+          ? Rest
+          : never
+      ) => promisify(execFile)(...args),
+    ),
+  }
+})
+
 vi.mock('node:fs/promises', async () => {
   const actual = await vi.importActual<typeof fsPromises>('node:fs/promises')
   return { ...actual }
@@ -55,6 +77,18 @@ beforeAll(async () => {
         });`,
       resolveDir: path.resolve(import.meta.dirname, '../..'),
     },
+    plugins: [
+      {
+        name: 'fixture-identity-probe',
+        setup(builder) {
+          builder.onLoad({ filter: /resources[\\/]admission\.ts$/ }, () => ({
+            loader: 'js',
+            contents:
+              "import { execFile } from 'node:child_process'; import { promisify } from 'node:util'; export const execResourceFile=(_profile,...args)=>promisify(execFile)(...args);",
+          }))
+        },
+      },
+    ],
     bundle: true,
     platform: 'node',
     format: 'esm',
@@ -157,6 +191,13 @@ describe('report history', () => {
         files.write('retried.json', '{}'),
       )
       expect(probe).toHaveBeenCalledTimes(2)
+      if (process.platform === 'win32') {
+        const commands = vi
+          .mocked(ResourceAdmission.execResourceFile)
+          .mock.calls.flatMap((call) => call[2])
+          .join(' ')
+        expect(commands).toContain('[Diagnostics.Process]::GetProcessById')
+      }
     } finally {
       probe.mockRestore()
     }

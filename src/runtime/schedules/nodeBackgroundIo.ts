@@ -1,11 +1,11 @@
 import { nonnegativeUsdSchema } from '../../shared/usdSchema'
-import { execFile, spawn, type ChildProcess, type SpawnOptions } from 'node:child_process'
+import { type ChildProcess, type SpawnOptions } from 'node:child_process'
+import { spawnResourceProcess, execResourceFile } from '../../core/resources/admission'
 import { createHash, randomUUID } from 'node:crypto'
 import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { homedir } from 'node:os'
-import { promisify } from 'node:util'
 import * as z from 'zod/mini'
 import { withoutCredentials } from '../../core/credentialEnvironment'
 import { storeErrorCode } from '../../host/backend/storeErrors'
@@ -117,15 +117,21 @@ export async function beginScheduleWake(
       file: string,
       args: readonly string[],
       options: SpawnOptions,
-    ) => Pick<ChildProcess, 'once' | 'unref'>
+    ) => Pick<ChildProcess, 'once' | 'unref'> | Promise<Pick<ChildProcess, 'once' | 'unref'>>
   },
 ): Promise<() => Promise<void>> {
   const io = deps ?? {
     identity: startIdentity,
     trustedPath: trustedBackgroundPath,
     write: (file: string, text: string) => nodeBackgroundFiles().write(file, text),
-    launch: (file: string, args: readonly string[], options: SpawnOptions) =>
-      spawn(file, [...args], options),
+    launch: async (file: string, args: readonly string[], options: SpawnOptions) => {
+      const { stdio: _stdio, detached: _detached, shell: _shell, ...processOptions } = options
+      const { child } = await spawnResourceProcess('contained', file, args, processOptions)
+      child.stdin.end()
+      child.stdout.destroy()
+      child.stderr.destroy()
+      return child
+    },
   }
   const launcher = await io.trustedPath(executable, process.platform, process.getuid?.() ?? 0)
   const script = await io.trustedPath(agentFile, process.platform, process.getuid?.() ?? 0)
@@ -135,16 +141,21 @@ export async function beginScheduleWake(
   await io.write(file, JSON.stringify({ pid: process.pid, startIdentity: identity }))
   return async () => {
     // Start its bounded wait after settlement, so long turns use no retry budget.
-    const child = io.launch(launcher, [script, 'schedule', 'background-maintain', '--json'], {
+    const launching = io.launch(launcher, [script, 'schedule', 'background-maintain', '--json'], {
       detached: true,
       stdio: 'ignore',
       windowsHide: true,
       env: withoutCredentials(process.env),
     })
-    await new Promise<void>((resolve, reject) => {
-      child.once('spawn', resolve)
-      child.once('error', reject)
-    })
+    const child =
+      launching instanceof Promise
+        ? await launching
+        : await new Promise<typeof launching>((resolve, reject) => {
+            launching.once('spawn', () => {
+              resolve(launching)
+            })
+            launching.once('error', reject)
+          })
     child.unref()
   }
 }
@@ -291,7 +302,8 @@ export function backgroundProcessRunner(
 ): (file: string, args: readonly string[]) => Promise<BackgroundProcessResult> {
   return async (file, args) => {
     try {
-      const result = await promisify(execFile)(systemProgram(file, env), [...args], {
+      const result = await execResourceFile('contained', systemProgram(file, env), [...args], {
+        encoding: 'utf8',
         env: withoutCredentials(env),
         windowsHide: true,
         timeout: SCHEDULE_POLL_INTERVAL_MS,

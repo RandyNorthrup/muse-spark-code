@@ -1,5 +1,5 @@
-import { execFile, type ExecFileOptionsWithStringEncoding } from 'node:child_process'
-import { promisify } from 'node:util'
+import { type ExecFileOptionsWithStringEncoding } from 'node:child_process'
+import { execResourceFile } from '../../resources/admission'
 import * as z from 'zod/mini'
 import {
   GITHUB_API_BASE_URL,
@@ -285,7 +285,8 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
   }
 }
 
-const exec = promisify(execFile)
+const exec = (file: string, args: readonly string[], options: ExecFileOptionsWithStringEncoding) =>
+  execResourceFile('probe', file, args, options)
 const commandResultSchema = z.object({ stdout: z.string(), stderr: z.string() })
 export interface ReportGhOptions {
   readonly environment: NodeJS.ProcessEnv

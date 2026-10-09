@@ -1,3 +1,4 @@
+import type * as ResourceAdmission from '../../src/core/resources/admission'
 import { Buffer } from 'node:buffer'
 import { spawn } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
@@ -35,6 +36,22 @@ import { videoFixture } from './helpers/media/fixtures'
 vi.mock('node:child_process', async (original) => {
   const actual = await original<typeof ChildProcess>()
   return { ...actual, spawn: vi.fn(actual.spawn) }
+})
+
+// Conversion policy owns its byte/RSS/deadline guards; the native launch
+// boundary has separate containment and admission regressions in spawnGovernance.
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const actual = await original<typeof ResourceAdmission>()
+  const { fixtureResourceProcess } = await import('./helpers/resourceProcess')
+  return {
+    ...actual,
+    spawnResourceProcess: (
+      profile: 'contained',
+      file: string,
+      args: readonly string[],
+      options: ChildProcess.SpawnOptions,
+    ) => fixtureResourceProcess(profile, file, args, options, ['pipe', 'pipe', 'pipe']),
+  }
 })
 
 const fake: MediaConverter = { kind: 'ffmpeg', command: process.execPath }
@@ -214,7 +231,7 @@ describe('M105 converter discovery', () => {
     for (const mode of ['deadline', 'overflow', 'known'] as const) {
       let child: ReturnType<typeof spawn> | undefined
       vi.mocked(spawn).mockImplementation((_command, _args, options) => {
-        expect(options).toMatchObject({ stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true })
+        expect(options).toMatchObject({ stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
         const scripts = {
           known: `process.stdout.write(${JSON.stringify(FFMPEG_BANNER)})`,
           overflow: `process.stdout.write('x'.repeat(${String(MEDIA_CONVERTER_PROBE_MAX_BYTES + 1)})); setTimeout(() => {}, 300)`,
@@ -718,7 +735,7 @@ describe('M105 private local conversion', () => {
       const controller = new AbortController()
       let child: ReturnType<typeof spawn> | undefined
       vi.mocked(spawn).mockImplementation((_command, args, options) => {
-        expect(options).toMatchObject({ stdio: 'ignore', windowsHide: true })
+        expect(options).toMatchObject({ stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
         writeFileSync(outputPath(args), videoFixture())
         child = actual.spawn(
           process.execPath,

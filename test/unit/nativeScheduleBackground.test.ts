@@ -1,3 +1,4 @@
+import type * as ResourceAdmission from '../../src/core/resources/admission'
 import {
   copyFile,
   mkdtemp,
@@ -67,6 +68,14 @@ function nativeFixtureVerifier(uid: number, stopAt?: string): TrustedPathVerifie
     },
   }
 }
+
+// These native helpers prove credential fencing and path selection; shared
+// admission and native containment are proved independently in spawnGovernance.
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const actual = await original<typeof ResourceAdmission>()
+  const { fixtureResourceProcess } = await import('./helpers/resourceProcess')
+  return { ...actual, spawnResourceProcess: fixtureResourceProcess }
+})
 
 function result(exitCode = 0, stdout = '', stderr = ''): BackgroundProcessResult {
   return { exitCode, stdout, stderr }

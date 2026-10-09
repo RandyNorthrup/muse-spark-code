@@ -1,5 +1,4 @@
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
+import { execResourceFile } from '../resources/admission'
 import * as z from 'zod/mini'
 import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
@@ -77,7 +76,7 @@ const lockOwnerSchema = z.strictObject({
   startedAt: z.string().check(z.minLength(1), z.maxLength(REPORT_MAX_ID_CHARS)),
   token: z.uuid(),
 })
-const execFileAsync = promisify(execFile)
+const execFileAsync = execResourceFile
 const processBirth: { own?: Promise<string | undefined> } = {}
 
 /** OS birth identity, so a reused PID never keeps an abandoned writer lock alive. */
@@ -113,10 +112,11 @@ async function processStart(pid: number, probeBudgetMs: number): Promise<string 
     file = path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH)
     args = [
       ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-      `$owner = Get-Process -Id ${String(pid)} -ErrorAction SilentlyContinue; if ($null -ne $owner) { $owner.StartTime.ToFileTimeUtc() }`,
+      // Module discovery can consume the probe deadline on a cold/loaded rig.
+      `try { [Diagnostics.Process]::GetProcessById(${String(pid)}).StartTime.ToFileTimeUtc() } catch [ArgumentException] { }`,
     ]
   }
-  const { stdout } = await execFileAsync(file, args, {
+  const { stdout } = await execFileAsync('probe', file, args, {
     env,
     windowsHide: true,
     timeout: Math.min(REPORT_WRITER_LOCK_PROBE_MS, probeBudgetMs),
@@ -442,9 +442,27 @@ export class ReportStorage {
           await delay(REPORT_WRITER_LOCK_BACKOFF_MS)
         }
       }
+      const releaseOwned = async () => {
+        const names = [...(await tombstones()), 'writer.lock']
+        for (const name of names) {
+          try {
+            if (sameFile(identity, await regular(fileFor(name)))) {
+              await release()
+              return
+            }
+          } catch (error: unknown) {
+            if (!hasCode(error, 'ENOENT')) throw error
+          }
+        }
+      }
+      let isHandleOpen = true
       try {
         await handle.writeFile(JSON.stringify(owner), 'utf8')
         await handle.sync()
+        // Windows cannot replace an open destination with MoveFileEx. Publish
+        // the complete lease, then close before another recoverer restores it.
+        await handle.close()
+        isHandleOpen = false
         await confined()
         if (!sameFile(identity, await regular(lock))) throw new Error(UI_TEXT.reportUi.saveFailed)
         const pending = await tombstones()
@@ -458,14 +476,8 @@ export class ReportStorage {
       } finally {
         // A restore can displace a tentative creator. Its unlinked inode owns
         // no lease to release and cannot authorize deleting the restored one.
-        let isLinked: boolean
-        try {
-          const held = await handleIdentity(handle)
-          isLinked = Number(held.nlink) !== 0
-        } finally {
-          await handle.close()
-        }
-        if (isLinked) await release()
+        if (isHandleOpen) await handle.close()
+        await releaseOwned()
       }
     }
   }

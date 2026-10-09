@@ -210,12 +210,12 @@ export interface ExitingProcess {
 export interface LoginDeps {
   readonly resolveLaunch: () => LaunchResolution
   readonly environment: () => NodeJS.ProcessEnv
-  /** `child_process.spawn` with the terminal handed over (`stdio: 'inherit'`). */
+  /** Governed launch with terminal streams forwarded after admission. */
   readonly spawnInTerminal: (
     command: string,
     args: readonly string[],
     env: NodeJS.ProcessEnv,
-  ) => ExitingProcess
+  ) => ExitingProcess | Promise<ExitingProcess>
   readonly printError: (line: string) => void
 }
 
@@ -235,13 +235,16 @@ export function login(deps: LoginDeps): Promise<number> {
     [...prefix, ...MUSE_LOGIN_ARGS],
     deps.environment(),
   )
-  return new Promise((resolve) => {
-    child.once('error', (error) => {
-      deps.printError(describe(error))
-      resolve(EXIT_FAILED)
+  const waitForExit = (process: ExitingProcess): Promise<number> =>
+    new Promise((resolve) => {
+      process.once('error', (error) => {
+        deps.printError(describe(error))
+        resolve(EXIT_FAILED)
+      })
+      process.once('exit', (code) => {
+        resolve(code ?? EXIT_FAILED)
+      })
     })
-    child.once('exit', (code) => {
-      resolve(code ?? EXIT_FAILED)
-    })
-  })
+  const waitForLaunch = async (pending: Promise<ExitingProcess>) => await waitForExit(await pending)
+  return child instanceof Promise ? waitForLaunch(child) : waitForExit(child)
 }

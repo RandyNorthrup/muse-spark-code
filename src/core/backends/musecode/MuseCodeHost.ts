@@ -2742,7 +2742,10 @@ export class MuseCodeHost implements AgentHost {
 
 /** Account-only handshake: the SDK's public spawner hides the submission transport. */
 export function spawnAccountMspConnection(
-  options: Pick<SpawnMspConnectionOptions, 'command' | 'args' | 'cwd' | 'env' | 'onStderr'>,
+  options: Pick<
+    SpawnMspConnectionOptions,
+    'command' | 'args' | 'cwd' | 'env' | 'onStderr' | 'shutdownTimeoutMs'
+  >,
   accountHome: MuseCodeAccountHome,
   /** The resource governor's registration of the spawned tree (M107). */
   onSpawn?: (child: ChildProcess) => void,
@@ -2753,9 +2756,15 @@ export function spawnAccountMspConnection(
     ...(options.cwd !== undefined && { cwd: options.cwd }),
     ...(options.env !== undefined && { env: options.env }),
     detached: hasProcessGroup,
+    windowsHide: true,
   })
   onSpawn?.(child)
-  const transport = new ChildStdioTransport(child, options.onStderr, undefined, hasProcessGroup)
+  const transport = new ChildStdioTransport(
+    child,
+    options.onStderr,
+    options.shutdownTimeoutMs,
+    hasProcessGroup,
+  )
   const commandOwner = new MuseCodeCommandOwner(accountHome)
   const connection = commandOwner.connect(transport)
   const close = async () => {

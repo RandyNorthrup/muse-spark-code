@@ -6,7 +6,7 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { statfs } from 'node:fs/promises'
 import { TreeTempRoots } from '../../host/resources/tempRoots'
-import type { ResourceTempRoots } from './launch'
+import type { ResourceTempRoots, ResourceWindowsJob } from './launch'
 import { ResourceDiskSampler, type ResourceDiskTarget } from './disk'
 import { CreatedRegistry, type CreatedCleanup, type CreatedPathProof } from './createdRegistry'
 import {
@@ -26,7 +26,10 @@ import type { ResourceProcessLaunch, ResourceTreeBinding } from './launch'
 import { createMachineResourceSampler } from './sampler/system'
 import { LinuxResourceTreeReader } from './trees/linux'
 import { WindowsResourceTreeReader } from './trees/windows'
-export { createResources } from '../../runtime/resources/entry'
+import type { ResourceAdmission, ResourceLaunchRequest } from './queue'
+export { createResources, runtimeResourceJobs } from '../../runtime/resources/entry'
+export { spawnResourceProcess } from './process'
+export { execResourceFile, handoffResourceFile } from './commands'
 // U–C1: the window's status item and pause notices load with the governor, never at activation.
 export {
   createResourceStatus,
@@ -45,6 +48,11 @@ import {
 } from '../../shared/constants'
 
 export interface ResourceHostSettings {
+  /** Runtime shares its existing machine governor's queue with process launches. */
+  readonly admission?: (
+    request: ResourceLaunchRequest,
+    signal?: AbortSignal,
+  ) => Promise<ResourceAdmission>
   /** W/H supply T's remaining native identity ports; absence is explicitly unknown. */
   readonly bindNativeTree?:
     ((launch: ResourceProcessLaunch) => Promise<ResourceTreeBinding | null>) | undefined
@@ -63,11 +71,7 @@ export interface ResourceHostSettings {
   readonly history?: ResourceHistoryBinding | undefined
   readonly inspect: ResourceSettingsReader
   readonly onError: () => void
-  readonly windowsJob?:
-    | (() => Promise<
-        { readonly assemblyPath: string; readonly executablePath: string } | undefined
-      >)
-    | undefined
+  readonly windowsJob?: (() => Promise<ResourceWindowsJob | undefined>) | undefined
 }
 const state: { host?: ResourceLaunchHost; recorder?: ResourceHistoryRecorder } = {}
 
@@ -99,7 +103,6 @@ export async function flushResourceHistory(): Promise<void> {
 export function resourceGovernorHost(options: ResourceHostSettings): ResourceLaunchHost {
   if (options.localization !== undefined)
     setUiText(options.localization.table, options.localization.locale)
-  if (state.host !== undefined) return state.host
   const settings = () => readResourceSettings(options.inspect)
   const clock: ResourceClock = {
     now: () => Date.now(),
@@ -264,6 +267,7 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
     return (await options.bindNativeTree?.(launch)) ?? null
   }
   state.host = new ResourceLaunchHost({
+    ...(options.admission !== undefined && { admission: options.admission }),
     governor,
     events,
     clock,

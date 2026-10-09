@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process'
+import { execResourceFile } from '../../core/resources/admission'
 import { constants as fsConstants, existsSync } from 'node:fs'
 import { open, opendir, realpath } from 'node:fs/promises'
 import {
@@ -200,33 +200,33 @@ export function reportGitIo(
       if (program === undefined || !existsSync(p.join(root, '.git')))
         throw new LocalSourceError('missing')
       signal.throwIfAborted()
-      return await new Promise((resolve, reject) => {
-        execFile(
-          program,
-          ['--no-pager', ...args],
-          {
-            cwd: root,
-            env: {
-              ...childEnvironment,
-              GIT_OPTIONAL_LOCKS: '0',
-              GIT_TERMINAL_PROMPT: '0',
-            },
-            encoding: 'utf8',
-            windowsHide: true,
-            timeout: REPORT_SOURCE_TIMEOUT_MS,
-            maxBuffer: GIT_OUTPUT_MAX_BYTES,
-            signal,
+      try {
+        const { stdout } = await execResourceFile('probe', program, ['--no-pager', ...args], {
+          cwd: root,
+          env: {
+            ...childEnvironment,
+            GIT_OPTIONAL_LOCKS: '0',
+            GIT_TERMINAL_PROMPT: '0',
           },
-          (error, stdout) => {
-            const code = error === null ? 0 : error.code
-            if (typeof code !== 'number') {
-              reject(new LocalSourceError('failed'))
-              return
-            }
-            resolve({ stdout, code })
-          },
+          encoding: 'utf8',
+          windowsHide: true,
+          timeout: REPORT_SOURCE_TIMEOUT_MS,
+          maxBuffer: GIT_OUTPUT_MAX_BYTES,
+          signal,
+        })
+        return { stdout, code: 0 }
+      } catch (error: unknown) {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          typeof error.code === 'number' &&
+          'stdout' in error &&
+          typeof error.stdout === 'string'
         )
-      })
+          return { stdout: error.stdout, code: error.code }
+        throw new LocalSourceError('failed')
+      }
     },
   }
 }

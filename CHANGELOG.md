@@ -189,6 +189,53 @@ happened, not what was planned; superseded entries are kept.
   another instance cannot resurrect a revoked grant. Help says paid consent
   stays per workspace in all fourteen translated tables.
 
+- Every governed launch names its lifetime: contained work, read-only probes,
+  OS hand-offs (browser openers, clipboard programs, now including `share`
+  and `prompts share`), terminal `login` and helper builds. CLI shutdown stops
+  the work it started; a hand-off waits up to ten seconds for the OS adapter
+  and never stops the browser it opened; `login` runs in your terminal, so
+  Ctrl+C reaches it. At resource pause, helper builds and background launches
+  are refused at once with `Resources: Paused` instead of waiting out a
+  deadline, and the first Windows shell command no longer falls back to "job
+  objects unavailable". Admission deadlines now include machine sampling. A
+  source guard fails on any process launch missing from the checked-in
+  inventory.
+- Windows governed commands no longer start PowerShell for each launch. The
+  helper's job object proves the whole tree gone, enforces the process cap
+  itself and reports the final CPU and memory use; on a four-CPU machine the
+  real-Git schedule test dropped from about 12.4 s to about 8.3 s. CLI
+  shutdown now waits for a stopped tree to exit before it cleans up its
+  temporary folder, and keeps (and reports) a tree that never exits.
+- On Windows a governed command counts as finished only when its helper
+  reports that it emptied the whole job. A helper that was killed, or could
+  not empty the job in time, is reported, and the command's temporary folder
+  is kept for recovery. A child refused by the process cap, or a job stopped
+  at its memory cap, now fails the command with that reason even when the
+  command exits 0. The prepared helper is checked byte for byte before every
+  launch; a changed one is refused and rebuilt. Shutdown now waits for the
+  helper's report before it cleans up.
+- Read-only probes (Git ref and history reads, gh reads, birth probes, media
+  version checks) keep resource admission and tree containment without a
+  per-command temporary folder. That folder needed a packaged native helper,
+  so source checkouts on Linux and macOS refused every Git read; on Windows
+  it cost six PowerShell starts per command. Commands that may write files
+  (schedule OS commands, converters) keep their temporary folder. The
+  runtime now prepares its Windows job helpers once instead of on every
+  launch.
+
+- Containment-helper compilation uses heavy bootstrap admission, bounded
+  output and whole-tree deadline/cancellation. Runtime commands bind global
+  admission; login and browser processes use governed launch. Windows report
+  leases close before restoration, preserving concurrent journal entries.
+  Native birth probes avoid PowerShell module discovery within their existing bound.
+  Help identifies the unavailable recorder and vault broker.
+
+- Account-scoped Muse Code hosts now share governed native job launch and
+  whole-tree retirement. Vault MCP stdio has a guarded production builder
+  using the same governed MCP process boundary. New media, vault helper,
+  reporting and schedule read processes use resource admission and tree
+  containment; absent native launch services refuse before spawning.
+
 ### Security
 
 - Refuse ambiguous Windows path spellings at file admission, including device

@@ -54,6 +54,8 @@ export {
   string,
   transform,
   trim,
+  // Native job event rows (mcpJobLaunch) and launcher exit arguments (resources/process).
+  tuple,
   union,
   undefined,
   unknown,

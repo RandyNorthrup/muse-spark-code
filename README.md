@@ -4252,7 +4252,7 @@ remain planned; this reference does not claim those hosts implement the page.
 | Muse Spark: Start with Your Own Model               | —                                                                                                | Open the setup wizard at "Pick a provider"; keys stay in the host draft until Save, failures restore prior provider/default/secret state, and setup confirmation requires the composer's model receipt. Cancel writes nothing |
 | Muse Spark: Models & Agents                         | —                                                                                                | Open the Models & Agents panel: providers with key state, model scans with diffs, removal with Undo, import and export                                                                                                        |
 | Muse Spark: Add Model Provider…                     | —                                                                                                | The quick-pick fast path without the panel: pick a provider, enter or connect the key, test it, pick models and confirm                                                                                                       |
-| Muse Spark: Attach screen recording…                | —                                                                                                | Record the screen (10 s to 10 min) and attach the clip to the conversation in view                                                                                                                                            |
+| Muse Spark: Attach screen recording…                | —                                                                                                | Direct recording is unavailable in this build; choose an existing recording file instead                                                                                                                                      |
 | Muse Spark: Attach latest screen recording          | —                                                                                                | Attach the newest recording the OS already saved to the conversation in view                                                                                                                                                  |
 | Muse Spark: Delete uploaded files…                  | —                                                                                                | Delete this conversation's uploaded media before its expiry                                                                                                                                                                   |
 
@@ -4920,7 +4920,13 @@ results and what is still open.
 
 M107's integration candidate adds one portable governor per harness process.
 It is on by default and loads on the first governed launch. It delays new
-background work when the machine is busy; running work continues. The governor
+background work when the machine is busy; running work continues. At pause, new
+background launches and containment-helper builds are refused at once with
+`Resources: Paused`, the words `muse-spark-code-acp resources status` prints.
+Every launch names its lifetime: `login` runs in your terminal; browser and
+clipboard hand-offs wait up to ten seconds for the OS adapter, discard its
+output and never stop the browser it opened; CLI shutdown stops the work it
+started. As policy, the governor
 never kills or suspends a process, never imposes a hard memory limit, and never
 controls your own terminals, editor or other applications. Model requests,
 Tab, approvals, paid consent and Stop do not wait for it. It does not change
@@ -5772,3 +5778,5 @@ one-time notice naming each registry and explaining that only package names
 and versions leave over HTTPS. Disable `museSpark.legalRegistryLookups` for
 local-only scans; missing dependency licences remain unknown. Private registry
 configuration is never contacted. CLI lookup still requires `--registry`.
+
+Containment-helper compilation uses heavy bootstrap admission, a bounded deadline and output, and whole-tree cancellation before its result is used. CLI and ACP process launches share runtime resource admission, including login and browser openers. The credential vault remains unavailable until its broker is installed.

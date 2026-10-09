@@ -14,9 +14,12 @@ import { readTextIfPresent } from '../cliFeatures'
 import type { Logger } from '../logger'
 import { isExistingDirectory, isExistingFile, mcpServerSpawner } from './mcpProcess'
 import { admitResource } from '../../core/resources/admission'
+import { governedMcpVaultRoutes, type McpVaultBroker } from './mcpVault'
 
 export interface ModelApiMcpDeps {
   readonly vault?: McpVaultPoolPort
+  /** Installed broker binding; absent broker services continue to refuse secrets. */
+  readonly vaultBroker?: McpVaultBroker
   /** Awaited before a workspace-capable local stdio process can start. */
   readonly beforeWorkspaceProcessStart: () => Promise<void>
   readonly workspaceRoot: string
@@ -41,18 +44,29 @@ export function modelApiMcpPoolDeps(deps: ModelApiMcpDeps): McpPoolDeps {
       throw new Error(UI_TEXT.questionCancelled)
     }
   }
-  const vault = deps.vault
-  const spawn = mcpServerSpawner({
+  const spawnDeps = {
     platform: deps.platform,
     systemRoot: environmentValue(deps.env(), deps.platform, 'SystemRoot'),
     jobExecutablePath: deps.jobExecutablePath,
     env: deps.env,
     isExistingFile,
     isExistingDirectory,
-    log: (message) => {
+    log: (message: string) => {
       deps.log.warn(message)
     },
-  })
+  }
+  const vault =
+    deps.vaultBroker === undefined
+      ? deps.vault
+      : governedMcpVaultRoutes(
+          {
+            ...spawnDeps,
+            beforeStart,
+            assembly: () => deps.shellJobAssembly?.() ?? Promise.resolve(undefined),
+          },
+          deps.vaultBroker,
+        )
+  const spawn = mcpServerSpawner(spawnDeps)
   return {
     ...(vault !== undefined && {
       vault: {

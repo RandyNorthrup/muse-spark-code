@@ -5,9 +5,12 @@ import { UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import type { ResourceEntryOptions, createResources } from './entry'
 import type { RuntimeResources } from './port'
+import { configureResources } from '../../core/resources/admission'
+import type { runtimeResourceJobs } from './entry'
 
 interface ResourceModule {
   createResources: typeof createResources
+  runtimeResourceJobs: typeof runtimeResourceJobs
 }
 function isResourceModule(value: unknown): value is ResourceModule {
   // Same-build entry/loader contract, validated like the existing lazy bundle ports.
@@ -75,6 +78,72 @@ export function lazyRuntimeResources(
       bound.delete(bind)
     }
   }
+  // As the extension builds its helpers once per activation, the runtime prepares
+  // (compiles and self-tests) both Windows job helpers once; a failure is retried.
+  let jobs: ReturnType<typeof runtimeResourceJobs> | undefined
+  const windowsJob = async () => {
+    jobs ??= module().runtimeResourceJobs(options.machineDir, path.dirname(options.distDir))
+    const current = jobs
+    try {
+      const ready = await current
+      if (ready === undefined) {
+        if (jobs === current) jobs = undefined
+        return
+      }
+      // Each launch verifies the sealed helper; a changed one re-prepares next time.
+      return {
+        ...ready,
+        verify: async () => {
+          try {
+            await ready.verify()
+          } catch (error: unknown) {
+            if (jobs === current) jobs = undefined
+            throw error
+          }
+        },
+      }
+    } catch (error: unknown) {
+      if (jobs === current) jobs = undefined
+      throw error
+    }
+  }
+  const disposeAdmission = configureResources({
+    registryFile: path.join(options.machineDir, 'resource-created.json'),
+    inspect: () => ({}),
+    onError: () => {
+      options.log.warn(UI_TEXT.resourceUnavailable)
+    },
+    // The caller's deadline is armed before loading and sampling, so a slow
+    // bundle, settings read or sampler cannot outlast it (SPAWN017C item 3).
+    admission: async (request, signal) => {
+      let abort: (() => void) | undefined
+      try {
+        return await Promise.race([
+          new Promise<never>((_resolve, reject) => {
+            abort = () => {
+              reject(
+                signal?.reason instanceof Error
+                  ? signal.reason
+                  : new DOMException('Resource admission cancelled', 'AbortError'),
+              )
+            }
+            signal?.addEventListener('abort', abort, { once: true })
+            if (signal?.aborted === true) abort()
+          }),
+          (async () => {
+            signal?.throwIfAborted()
+            const host = await load()
+            await host.status(signal)
+            signal?.throwIfAborted()
+            return await host.admit(request, undefined, signal)
+          })(),
+        ])
+      } finally {
+        if (abort !== undefined) signal?.removeEventListener('abort', abort)
+      }
+    },
+    windowsJob,
+  })
   return {
     async command(action, isJson) {
       const host = await load()
@@ -103,6 +172,7 @@ export function lazyRuntimeResources(
       loaded?.workChanged()
     },
     dispose() {
+      disposeAdmission()
       state.isDisposed = true
       for (const unsubscribe of bound.values()) unsubscribe()
       bound.clear()

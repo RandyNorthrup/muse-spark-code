@@ -1,3 +1,4 @@
+import type * as ResourceAdmission from '../../src/core/resources/admission'
 import { EventEmitter } from 'node:events'
 import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -11,6 +12,11 @@ import type { RunProgram } from '../../src/host/processTree'
 
 const processStub = vi.hoisted(() => ({ spawn: vi.fn(), execFile: vi.fn() }))
 vi.mock('node:child_process', () => processStub)
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const actual = await original<typeof ResourceAdmission>()
+  const fixture = await import('./helpers/resourceProcess')
+  return { ...actual, spawnResourceProcess: fixture.fixtureResourceProcess }
+})
 const folders: string[] = []
 beforeEach(() => {
   processStub.execFile.mockImplementation(
@@ -82,6 +88,7 @@ describe('Windows helper private transport', () => {
       }),
     )
     const pending = windowsVaultTransport(helper).exchange(wrapHeader, key)
+    await Promise.resolve()
     expect(processStub.spawn).toHaveBeenCalledWith(helper.powershell, expect.any(Array), {
       cwd: path.dirname(helper.powershell),
       env: {},
@@ -132,6 +139,7 @@ describe('Windows helper private transport', () => {
       header,
       new Uint8Array(),
     )
+    await Promise.resolve()
     instance.emit('close', 23)
     await expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
     expect(instance.stdin.read()).toEqual(prelude)
@@ -141,6 +149,7 @@ describe('Windows helper private transport', () => {
   it('refuses unrecognized readiness without sending input', async () => {
     const instance = child()
     const pending = windowsVaultTransport(helper).exchange(header, new Uint8Array())
+    await Promise.resolve()
     instance.stdout.emit('data', Buffer.from([2]))
     instance.emit('close', 0)
     await expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
@@ -149,6 +158,7 @@ describe('Windows helper private transport', () => {
   it('sanitizes synchronous stdin failure after verified readiness', async () => {
     const instance = child()
     const pending = windowsVaultTransport(helper).exchange(header, new Uint8Array())
+    await Promise.resolve()
     vi.spyOn(instance.stdin, 'write').mockImplementation(() => {
       throw new Error('private write failure')
     })
@@ -183,6 +193,7 @@ describe('Windows helper private transport', () => {
         header,
         new Uint8Array(),
       )
+      await Promise.resolve()
       const rejection = expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
       instance.stdout.emit('data', Buffer.from([1]))
       const chunk = Buffer.from('private value')
@@ -246,6 +257,7 @@ describe('Windows helper private transport', () => {
       header,
       new Uint8Array(),
     )
+    await Promise.resolve()
     instance.emit('close', 0)
     await expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
     expect(instance.kill).toHaveBeenCalledWith('SIGKILL')
@@ -254,6 +266,7 @@ describe('Windows helper private transport', () => {
   it('bounds stdout and erases the oversized chunk', async () => {
     const instance = child()
     const pending = windowsVaultTransport(helper).exchange(header, new Uint8Array())
+    await Promise.resolve()
     const rejected = expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
     instance.stdout.emit('data', Buffer.from([1]))
     const oversized = Buffer.alloc(VAULT_LIMITS.text + 32 + 4 + 1, 42)
@@ -271,6 +284,7 @@ describe('Windows helper private transport', () => {
       Buffer.from('{"v":1,"operation":"screenLock"}'),
       new Uint8Array(),
     )
+    await Promise.resolve()
     const rejected = expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
     await vi.advanceTimersByTimeAsync(VAULT_APPROVAL_TTL_MS + 1)
     expect(instance.kill).not.toHaveBeenCalled()
@@ -285,6 +299,7 @@ describe('Windows helper private transport', () => {
       header,
       new Uint8Array(),
     )
+    await Promise.resolve()
     instance.stdout.emit('data', Buffer.from([1]))
     instance.emit('close', 0)
     await pending

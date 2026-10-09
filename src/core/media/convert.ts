@@ -1,6 +1,7 @@
 // Optional machine-local conversion. No installation, shell, credentials,
 // provider calls or user content in diagnostics. Callers own confinement/consent.
-import { spawn, type ChildProcess } from 'node:child_process'
+import { type ChildProcess } from 'node:child_process'
+import { spawnResourceProcess } from '../resources/admission'
 import { Buffer } from 'node:buffer'
 import { watch, type FSWatcher } from 'node:fs'
 import fs, { chmod, lstat, mkdtemp, open, rm } from 'node:fs/promises'
@@ -117,27 +118,34 @@ function observeConverter(
   }
 }
 
-function probeVersion(
+async function probeVersion(
   command: string,
   args: readonly string[],
   options: VersionProbeOptions,
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
+  const { child, stop: stopTree } = await spawnResourceProcess('probe', command, args, {
+    env: options.env,
+    ...(options.signal !== undefined && { signal: options.signal }),
+  })
+  child.stderr.resume()
+  child.stdin.end()
+  if (isAborted(options.signal)) {
+    await stopTree()
+    throw new Error('Stopped')
+  }
+  return await new Promise<string>((resolve, reject) => {
     if (isAborted(options.signal)) {
       reject(new Error('Stopped'))
       return
     }
-    const child = spawn(command, args, {
-      env: options.env,
-      stdio: ['ignore', 'pipe', 'ignore'],
-      windowsHide: true,
-    })
     let output = ''
     let bytes = 0
     let hasFailed = false
     const stop = () => {
       hasFailed = true
-      child.kill('SIGKILL')
+      void stopTree().catch(() => {
+        reject(new Error('Version probe tree stop failed'))
+      })
     }
     child.stdout.on('data', (chunk: Buffer) => {
       bytes += chunk.length
@@ -246,28 +254,41 @@ export type MediaConversionResult =
     }
   | { readonly ok: false; readonly reason: string }
 
-function runConverter(
+async function runConverter(
   command: string,
   args: readonly string[],
   options: ConversionRunOptions,
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
+  const {
+    child,
+    stop: stopTree,
+    pid: payloadPid,
+  } = await spawnResourceProcess('contained', command, args, {
+    cwd: options.cwd,
+    env: options.env,
+    ...(options.signal !== undefined && { signal: options.signal }),
+  })
+  child.stdin.end()
+  child.stdout.resume()
+  child.stderr.resume()
+  if (options.signal?.aborted === true) {
+    await stopTree()
+    throw new Error('Stopped')
+  }
+  await new Promise<void>((resolve, reject) => {
     if (options.signal?.aborted === true) {
       reject(new Error('Stopped'))
       return
     }
-    const child = spawn(command, args, {
-      cwd: options.cwd,
-      env: options.env,
-      stdio: 'ignore',
-      windowsHide: true,
-    })
     let hasFailed = false
     let hasClosed = false
     let resourceCheck: Promise<void> | undefined
     const stop = () => {
       hasFailed = true
-      if (!hasClosed) child.kill('SIGKILL')
+      if (!hasClosed)
+        void stopTree().catch(() => {
+          reject(new Error('Converter tree stop failed'))
+        })
     }
     const sampleResources = async () => {
       try {
@@ -276,11 +297,12 @@ function runConverter(
           stop()
           return
         }
-        if (child.pid === undefined) {
+        const pid = await payloadPid()
+        if (pid === undefined) {
           stop()
           return
         }
-        const rss = await options.readRssBytes(child.pid)
+        const rss = await options.readRssBytes(pid)
         if (!Number.isSafeInteger(rss) || rss < 0 || rss > options.maxRssBytes) stop()
       } catch {
         stop()

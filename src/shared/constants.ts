@@ -3895,6 +3895,8 @@ export const SHELL_JOB_NAME_PREFIX = String.raw`Local\MuseSparkShell-`
 export const TREE_EXIT_WAIT_MS = 10_000
 export const ORPHAN_SWEEP_ROUNDS = 5
 export const PROCESS_TABLE_TIMEOUT_MS = 20_000
+/** OS hand-off adapters (opener, clipboard) must return promptly; only their root is owned. Windows PowerShell's cold start for Set-Clipboard sets the bound. */
+export const RESOURCE_HANDOFF_TIMEOUT_MS = 10_000
 export const OUTPUT_REF_PREFIX = 'tool_patch-'
 // The stored output the transcript can page (`item/readOutput` parity).
 export const MODEL_API_OUTPUT_MEDIA_TYPE = 'application/json'
@@ -7731,6 +7733,19 @@ export const RESOURCE_TRANSPORT_MAX_RESULTS = 100
 export const RESOURCE_TREE_PROCESS_CAP = 128
 export const RESOURCE_TREE_SPAWN_CAP = 64
 export const RESOURCE_TREE_SPAWN_WINDOW_MS = 15_000
+// SPAWN017C: an attested Windows job samples its own birth count in process,
+// drains to empty before it reports, and sends one bounded final record.
+export const RESOURCE_JOB_SAMPLE_MS = 250
+export const RESOURCE_JOB_EMPTY_MS = 5000
+export const RESOURCE_JOB_RECORD_MAX_CHARS = 1024
+export const RESOURCE_JOB_RECORD_WAIT_MS = 2000
+export const RESOURCE_JOB_INT32_MIN = -2_147_483_648
+export const RESOURCE_JOB_INT32_MAX = 2_147_483_647
+export const RESOURCE_JOB_UINT32_MAX = 4_294_967_295
+/** Disposal re-reads a stopped tree this often until TREE_EXIT_WAIT_MS proves or abandons it. */
+export const RESOURCE_DISPOSE_POLL_MS = 250
+/** Settled attested rows kept between history reads; older ones are dropped and counted. */
+export const RESOURCE_SETTLED_ROWS_MAX = 512
 
 // M108 X: machine-local testing options. These never change vendor/paid gates.
 // D88 amendment b: developer options expire after seven days.

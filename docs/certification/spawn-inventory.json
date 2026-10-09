@@ -1,0 +1,521 @@
+[
+  {
+    "site": "src/core/backends/modelapi/mcp/pool.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Delegates ordinary stdio to admitted host builder and credentialed stdio to the authorized vault port."
+  },
+  {
+    "site": "src/core/backends/modelapi/pluginHost.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Plugin probe and worker take admission; their process-tree adapter owns timeout/cancellation and retirement."
+  },
+  {
+    "site": "src/core/backends/modelapi/pluginHost.ts#call:spawn:2",
+    "profile": "contained",
+    "reason": "Plugin probe and worker take admission; their process-tree adapter owns timeout/cancellation and retirement."
+  },
+  {
+    "site": "src/core/backends/modelapi/pluginHost.ts#call:spawn:3",
+    "profile": "contained",
+    "reason": "Plugin probe and worker take admission; their process-tree adapter owns timeout/cancellation and retirement."
+  },
+  {
+    "site": "src/core/backends/modelapi/pluginHost.ts#import:1",
+    "profile": "contained",
+    "reason": "Plugin probe and worker take admission; their process-tree adapter owns timeout/cancellation and retirement."
+  },
+  {
+    "site": "src/core/backends/musecode/MuseCodeHost.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Process type import and injected contained shell port; account/ordinary MSP use their admitted native transport."
+  },
+  {
+    "site": "src/core/backends/musecode/MuseCodeHost.ts#import:1",
+    "profile": "contained",
+    "reason": "Process type import and injected contained shell port; account/ordinary MSP use their admitted native transport."
+  },
+  {
+    "site": "src/core/bootstrapCommand.ts#call:spawnResourceProcess:1",
+    "profile": "bootstrap",
+    "reason": "Compiler selects bootstrap with heavy admission, combined output bound, deadline and OS whole-tree stop."
+  },
+  {
+    "site": "src/core/browser/browserRun.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Injected browser process port is supplied by browserProcess admission and containment."
+  },
+  {
+    "site": "src/core/eval/workspace.ts#call:execFile:1",
+    "profile": "test-only",
+    "reason": "M75 paired-evaluation verifier: reachable only from the eval runner, which only tests and live drills call (proved by the guard).",
+    "testOnly": "runEvalVerifier"
+  },
+  {
+    "site": "src/core/eval/workspace.ts#import:1",
+    "profile": "test-only",
+    "reason": "M75 paired-evaluation verifier: reachable only from the eval runner, which only tests and live drills call (proved by the guard)."
+  },
+  {
+    "site": "src/core/media/convert.ts#call:spawnResourceProcess:1",
+    "profile": "probe",
+    "reason": "Media tool version probe (`-version`): bounded, reads stdout only, writes nothing; contained tree, no temp root."
+  },
+  {
+    "site": "src/core/media/convert.ts#call:spawnResourceProcess:2",
+    "profile": "contained",
+    "reason": "Media probes/encoders use the portable contained launch; this import is a process type."
+  },
+  {
+    "site": "src/core/media/convert.ts#import:1",
+    "profile": "contained",
+    "reason": "Media probes/encoders use the portable contained launch; this import is a process type."
+  },
+  {
+    "site": "src/core/media/record/macos.ts#call:spawn:1",
+    "profile": "honestly-unavailable",
+    "reason": "Installed recorder driver is unbound; Help/preview refuse honestly before these injected builders."
+  },
+  {
+    "site": "src/core/media/record/macos.ts#call:spawn:2",
+    "profile": "honestly-unavailable",
+    "reason": "Installed recorder driver is unbound; Help/preview refuse honestly before these injected builders."
+  },
+  {
+    "site": "src/core/orchestration/playbook/modules.ts#import:1",
+    "profile": "contained",
+    "reason": "Type-only process port; Git hooks use the admitted contained runner."
+  },
+  {
+    "site": "src/core/orchestration/playbook/outcomes.ts#import:1",
+    "profile": "contained",
+    "reason": "Type-only process port; outcome commands use the admitted contained runner."
+  },
+  {
+    "site": "src/core/reporting/history.ts#call:execResourceFile:1",
+    "profile": "probe",
+    "reason": "Report-writer birth identity probe (ps / Diagnostics.Process start time): read-only, bounded; contained tree, no temp root."
+  },
+  {
+    "site": "src/core/reporting/sources/github.ts#call:execResourceFile:1",
+    "profile": "probe",
+    "reason": "gh reads for reports (GET only), credential-stripped, bounded; contained tree, no temp root."
+  },
+  {
+    "site": "src/core/reporting/sources/github.ts#import:1",
+    "profile": "contained",
+    "reason": "GitHub reads select the bounded credential-stripped contained command adapter."
+  },
+  {
+    "site": "src/core/resources/admission.ts#call:execResourceFile:1",
+    "profile": "contained",
+    "reason": "Lazy facade forwards this branch’s profile to the single governed launcher."
+  },
+  {
+    "site": "src/core/resources/admission.ts#call:handoffResourceFile:1",
+    "profile": "handoff",
+    "reason": "Lazy facade forwards this branch’s profile to the single governed launcher."
+  },
+  {
+    "site": "src/core/resources/admission.ts#call:spawnResourceProcess:1",
+    "profile": "interactive",
+    "reason": "Lazy facade forwards this branch’s profile to the single governed launcher."
+  },
+  {
+    "site": "src/core/resources/admission.ts#call:spawnResourceProcess:2",
+    "profile": "contained",
+    "reason": "Lazy facade forwards contained and bootstrap launches to the single governed launcher; hand-offs use handoffResourceFile only."
+  },
+  {
+    "site": "src/core/resources/commands.ts#call:spawnResourceProcess:1",
+    "profile": "handoff",
+    "reason": "handoffResourceFile: fixed OS adapter, waits for its own exit within RESOURCE_HANDOFF_TIMEOUT_MS; never waits for or stops what it opened."
+  },
+  {
+    "site": "src/core/resources/commands.ts#call:spawnResourceProcess:2",
+    "profile": "contained",
+    "reason": "execResourceFile forwards the caller-named contained or probe profile; one deadline covers admission and run; combined output cap."
+  },
+  {
+    "site": "src/core/resources/commands.ts#import:1",
+    "profile": "contained",
+    "reason": "Type-only import of execFile options for the contained command adapter."
+  },
+  {
+    "site": "src/core/resources/launch.ts#import:1",
+    "profile": "contained",
+    "reason": "Type-only process interfaces; profile and terminal/session options are owned by the portable launcher."
+  },
+  {
+    "site": "src/core/resources/process.ts#call:execFile:1",
+    "profile": "bootstrap",
+    "reason": "Bootstrap emergency stop: fixed SystemRoot taskkill /T /F of the owned root; cannot queue behind the pause it may need to outlast."
+  },
+  {
+    "site": "src/core/resources/process.ts#call:spawn:1",
+    "profile": "interactive",
+    "reason": "Interactive branch: inherited stdio, no new session or group, exit observed, root stopped at shutdown."
+  },
+  {
+    "site": "src/core/resources/process.ts#call:spawn:2",
+    "profile": "handoff",
+    "reason": "Handoff branch: background admission (pause refuses), named deadline, output to the null device, root-only stop."
+  },
+  {
+    "site": "src/core/resources/process.ts#call:spawn:3",
+    "profile": "contained",
+    "reason": "Contained and bootstrap branch off Windows: pipes, own POSIX group, whole-tree stop on cancel, timeout, exit and dispose (Windows contained and probe work uses the attested job launcher)."
+  },
+  {
+    "site": "src/core/resources/process.ts#import:1",
+    "profile": "contained",
+    "reason": "The single governed launcher; each branch is listed separately."
+  },
+  {
+    "site": "src/core/resources/sampler/system.ts#call:execFile:1",
+    "profile": "bootstrap",
+    "reason": "Fixed absolute OS sampler probes have empty credential environment, RESOURCE_SAMPLE_MS timeout and bounded output; admission would recurse."
+  },
+  {
+    "site": "src/core/resources/sampler/system.ts#import:1",
+    "profile": "bootstrap",
+    "reason": "Fixed absolute OS sampler probes have empty credential environment, RESOURCE_SAMPLE_MS timeout and bounded output; admission would recurse."
+  },
+  {
+    "site": "src/core/resources/trees/linuxLaunch.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Contained Linux launcher gates already admitted work into a dedicated scope/group before payload dispatch."
+  },
+  {
+    "site": "src/core/resources/trees/linuxLaunch.ts#call:spawn:2",
+    "profile": "contained",
+    "reason": "Contained Linux launcher gates already admitted work into a dedicated scope/group before payload dispatch."
+  },
+  {
+    "site": "src/core/resources/trees/linuxLaunch.ts#import:1",
+    "profile": "contained",
+    "reason": "Contained Linux launcher gates already admitted work into a dedicated scope/group before payload dispatch."
+  },
+  {
+    "site": "src/core/resources/trees/run.ts#call:execFile:1",
+    "profile": "bootstrap",
+    "reason": "Fixed absolute OS identity/tree probes have credential-free environment, PROCESS_TABLE_TIMEOUT_MS and Node default output cap; admission would recurse."
+  },
+  {
+    "site": "src/core/resources/trees/run.ts#import:1",
+    "profile": "bootstrap",
+    "reason": "Fixed absolute OS identity/tree probes have credential-free environment, PROCESS_TABLE_TIMEOUT_MS and Node default output cap; admission would recurse."
+  },
+  {
+    "site": "src/core/schedules/events/git.ts#call:execResourceFile:1",
+    "profile": "probe",
+    "reason": "Scheduled Git common-dir read (rev-parse), trust-checked, --no-optional-locks; read-only, contained tree, no temp root."
+  },
+  {
+    "site": "src/core/schedules/events/git.ts#call:execResourceFile:2",
+    "profile": "probe",
+    "reason": "Scheduled Git ref listing (for-each-ref), --no-optional-locks; read-only, contained tree, no temp root."
+  },
+  {
+    "site": "src/core/schedules/events/git.ts#call:execResourceFile:3",
+    "profile": "probe",
+    "reason": "Scheduled Git ref re-read that verifies a stable listing; read-only, contained tree, no temp root."
+  },
+  {
+    "site": "src/core/team/workers/engineWorker.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Injected worker port is the admitted team engine-worker launcher."
+  },
+  {
+    "site": "src/core/team/workers/workerFence.ts#call:execFile:1",
+    "profile": "test-only",
+    "reason": "macOS lsof path probe inside WORKER_NATIVE_IO, which only tests use (proved by the guard).",
+    "testOnly": "openWorkerFile"
+  },
+  {
+    "site": "src/core/team/workers/workerFence.ts#import:1",
+    "profile": "test-only",
+    "reason": "macOS lsof path probe inside WORKER_NATIVE_IO, which only tests use (proved by the guard)."
+  },
+  {
+    "site": "src/core/vault/broker/peer.ts#call:spawnResourceProcess:1",
+    "profile": "contained",
+    "reason": "Fixed Unix peer helper selects contained launch with the inherited socket descriptor and empty environment."
+  },
+  {
+    "site": "src/core/voice/dictation.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Injected helper spawn is supplied by admittedVoiceProcess with admission and contained job/group lifetime."
+  },
+  {
+    "site": "src/host/backend/jobBuild.ts#call:runBootstrap:1",
+    "profile": "bootstrap",
+    "reason": "Containment helper compiler selects shared bounded bootstrap admission; it cannot use its unbuilt helper."
+  },
+  {
+    "site": "src/host/backend/mcpJobLaunch.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Admitted Windows MCP launcher assigns the payload to its native job before dispatch and observes tree retirement."
+  },
+  {
+    "site": "src/host/backend/mcpJobLaunch.ts#call:spawn:2",
+    "profile": "contained",
+    "reason": "Attested job launcher for portable contained and probe work on Windows: unnamed kill-on-close job with no breakaway, OS process cap, in-process spawn-rate stop and drain, final record on the control pipe; no per-launch reader process."
+  },
+  {
+    "site": "src/host/backend/mcpJobLaunch.ts#import:1",
+    "profile": "contained",
+    "reason": "Admitted Windows MCP launcher assigns the payload to its native job before dispatch and observes tree retirement."
+  },
+  {
+    "site": "src/host/backend/mcpProcess.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Admitted MCP transport uses job containment on Windows and a dedicated group on POSIX."
+  },
+  {
+    "site": "src/host/backend/mcpProcess.ts#import:1",
+    "profile": "contained",
+    "reason": "Admitted MCP transport uses job containment on Windows and a dedicated group on POSIX."
+  },
+  {
+    "site": "src/host/backend/mcpServers.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Delegates to the admitted MCP builder; no raw unowned process."
+  },
+  {
+    "site": "src/host/backend/mcpVault.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Authorized broker stdio builder uses the admitted MCP boundary, scrub and bounded contained shutdown."
+  },
+  {
+    "site": "src/host/backend/museCodeBackendManager.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Backend lifecycle delegates to resource-governed MSP transport and observed shutdown."
+  },
+  {
+    "site": "src/host/backend/toolIo.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Shell/tool entry admits resources and registers the native job or POSIX process group."
+  },
+  {
+    "site": "src/host/backend/toolIo.ts#import:1",
+    "profile": "contained",
+    "reason": "Shell/tool entry admits resources and registers the native job or POSIX process group."
+  },
+  {
+    "site": "src/host/browser/browserProcess.ts#call:execFile:1",
+    "profile": "contained",
+    "reason": "Pinned browser has resource admission, registered job/group lifetime and bounded OS emergency termination."
+  },
+  {
+    "site": "src/host/browser/browserProcess.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Pinned browser has resource admission, registered job/group lifetime and bounded OS emergency termination."
+  },
+  {
+    "site": "src/host/browser/browserProcess.ts#import:1",
+    "profile": "contained",
+    "reason": "Pinned browser has resource admission, registered job/group lifetime and bounded OS emergency termination."
+  },
+  {
+    "site": "src/host/git.ts#call:execFile:1",
+    "profile": "contained",
+    "reason": "Git commands use resource admission and registered job/group containment; injected execFile is the same guarded port."
+  },
+  {
+    "site": "src/host/git.ts#call:execFile:2",
+    "profile": "contained",
+    "reason": "Git commands use resource admission and registered job/group containment; injected execFile is the same guarded port."
+  },
+  {
+    "site": "src/host/git.ts#call:execFile:3",
+    "profile": "contained",
+    "reason": "Git commands use resource admission and registered job/group containment; injected execFile is the same guarded port."
+  },
+  {
+    "site": "src/host/git.ts#call:execFile:4",
+    "profile": "contained",
+    "reason": "Git commands use resource admission and registered job/group containment; injected execFile is the same guarded port."
+  },
+  {
+    "site": "src/host/git.ts#call:execFile:5",
+    "profile": "contained",
+    "reason": "Git commands use resource admission and registered job/group containment; injected execFile is the same guarded port."
+  },
+  {
+    "site": "src/host/git.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Git commands use resource admission and registered job/group containment; injected execFile is the same guarded port."
+  },
+  {
+    "site": "src/host/git.ts#import:1",
+    "profile": "contained",
+    "reason": "Git commands use resource admission and registered job/group containment; injected execFile is the same guarded port."
+  },
+  {
+    "site": "src/host/git/untrustedGit.ts#call:execFile:1",
+    "profile": "contained",
+    "reason": "Injected execFile is the host guarded Git command port; this module imports process types only."
+  },
+  {
+    "site": "src/host/git/untrustedGit.ts#call:execFile:2",
+    "profile": "contained",
+    "reason": "Injected execFile is the host guarded Git command port; this module imports process types only."
+  },
+  {
+    "site": "src/host/git/untrustedGit.ts#import:1",
+    "profile": "contained",
+    "reason": "Injected execFile is the host guarded Git command port; this module imports process types only."
+  },
+  {
+    "site": "src/host/processTree.ts#call:execFile:1",
+    "profile": "bootstrap",
+    "reason": "runProgram: fixed bounded runner for containment-helper self-tests, OS identity probes and emergency termination; it cannot be admitted through the helpers it verifies."
+  },
+  {
+    "site": "src/host/processTree.ts#call:spawnSync:1",
+    "profile": "contained",
+    "reason": "Bounded credential-free native probes and emergency termination; the embedded POSIX supervisor owns and stops its payload group."
+  },
+  {
+    "site": "src/host/processTree.ts#embedded:call:execFileSync:1",
+    "profile": "contained",
+    "reason": "Bounded credential-free native probes and emergency termination; the embedded POSIX supervisor owns and stops its payload group."
+  },
+  {
+    "site": "src/host/processTree.ts#embedded:call:execFileSync:2",
+    "profile": "contained",
+    "reason": "Bounded credential-free native probes and emergency termination; the embedded POSIX supervisor owns and stops its payload group."
+  },
+  {
+    "site": "src/host/processTree.ts#embedded:call:spawn:1",
+    "profile": "contained",
+    "reason": "Bounded credential-free native probes and emergency termination; the embedded POSIX supervisor owns and stops its payload group."
+  },
+  {
+    "site": "src/host/processTree.ts#embedded:import:1",
+    "profile": "contained",
+    "reason": "Bounded credential-free native probes and emergency termination; the embedded POSIX supervisor owns and stops its payload group."
+  },
+  {
+    "site": "src/host/processTree.ts#import:1",
+    "profile": "contained",
+    "reason": "Bounded credential-free native probes and emergency termination; the embedded POSIX supervisor owns and stops its payload group."
+  },
+  {
+    "site": "src/host/resources/resourceAdmission.ts#import:1",
+    "profile": "contained",
+    "reason": "Type-only import; observes registration and whole-tree retirement for contained launchers."
+  },
+  {
+    "site": "src/host/resources/resourceJobHolder.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Fixed native job holder is containment infrastructure for already admitted work, never a payload bypass."
+  },
+  {
+    "site": "src/host/resources/resourceJobHolder.ts#import:1",
+    "profile": "contained",
+    "reason": "Fixed native job holder is containment infrastructure for already admitted work, never a payload bypass."
+  },
+  {
+    "site": "src/host/team/acpProcess.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Team launcher owns admission and native job/group transport lifetime."
+  },
+  {
+    "site": "src/host/team/processLifetime.ts#call:spawn:1",
+    "profile": "test-only",
+    "reason": "Native team lifetime driver: reachable only from startNativeTeamLifetime, which only tests call (proved by the guard).",
+    "testOnly": "createNativeTeamProcessDriver"
+  },
+  {
+    "site": "src/host/team/processLifetime.ts#call:spawn:2",
+    "profile": "test-only",
+    "reason": "Native team lifetime driver: reachable only from startNativeTeamLifetime, which only tests call (proved by the guard).",
+    "testOnly": "windowsTeamDriver"
+  },
+  {
+    "site": "src/host/team/processLifetime.ts#import:1",
+    "profile": "test-only",
+    "reason": "Native team lifetime driver: reachable only from startNativeTeamLifetime, which only tests call (proved by the guard)."
+  },
+  {
+    "site": "src/host/vault/slots/windowsVaultBuild.ts#call:runBootstrap:1",
+    "profile": "bootstrap",
+    "reason": "Vault guard/compiler select shared bootstrap admission; pause refuses without a second storage attempt."
+  },
+  {
+    "site": "src/host/vault/vaultExecSpawn.ts#import:1",
+    "profile": "honestly-unavailable",
+    "reason": "Process type only; unbound installed broker/feeder route refuses closed before launch."
+  },
+  {
+    "site": "src/host/voice/voiceProcesses.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Voice helper takes resource admission, job/group launch and registered retirement."
+  },
+  {
+    "site": "src/host/voice/voiceProcesses.ts#import:1",
+    "profile": "contained",
+    "reason": "Voice helper takes resource admission, job/group launch and registered retirement."
+  },
+  {
+    "site": "src/host/voice/voiceProcesses.ts#import:2",
+    "profile": "contained",
+    "reason": "Voice helper takes resource admission, job/group launch and registered retirement."
+  },
+  {
+    "site": "src/host/web/pageConverter.ts#worker:1",
+    "profile": "contained",
+    "reason": "Worker thread, not a process: the fixed bundled page converter (dist/pageWorker.js), never eval program text; resourceLimits heap cap and WEB_FETCH_CONVERT_TIMEOUT_MS, terminated by its owner. Listed because its options are not a literal."
+  },
+  {
+    "site": "src/runtime/main.ts#call:handoffResourceFile:1",
+    "profile": "handoff",
+    "reason": "Usage companion opener (xdg-open, open, rundll32) receives a checked loopback URL; bounded adapter wait, root-only stop; pause is reported as such."
+  },
+  {
+    "site": "src/runtime/main.ts#call:spawnResourceProcess:1",
+    "profile": "interactive",
+    "reason": "`muse login` runs in the user’s terminal session, group and TTY; Ctrl+C reaches it; stopped if the CLI shuts down."
+  },
+  {
+    "site": "src/runtime/reporting/sources.ts#call:execResourceFile:1",
+    "profile": "probe",
+    "reason": "Report Git reads (--no-pager log/show/diff), credential-free; read-only, contained tree, no temp root."
+  },
+  {
+    "site": "src/runtime/resources/entry.ts#call:runBootstrap:1",
+    "profile": "bootstrap",
+    "reason": "Native containment self-tests/builds select bounded bootstrap compilation."
+  },
+  {
+    "site": "src/runtime/schedules/nodeBackgroundIo.ts#call:execResourceFile:1",
+    "profile": "contained",
+    "reason": "Native schedule OS commands (launchctl, systemctl, schtasks) change scheduler state, so they stay contained with a temp root."
+  },
+  {
+    "site": "src/runtime/schedules/nodeBackgroundIo.ts#call:spawnResourceProcess:1",
+    "profile": "contained",
+    "reason": "Native schedule commands and maintenance children select contained admission and owned tree lifetime."
+  },
+  {
+    "site": "src/runtime/schedules/nodeBackgroundIo.ts#import:1",
+    "profile": "contained",
+    "reason": "Native schedule commands and maintenance children select contained admission and owned tree lifetime."
+  },
+  {
+    "site": "src/runtime/sharing/sharingEntry.ts#call:handoffResourceFile:1",
+    "profile": "handoff",
+    "reason": "Share copy (xclip, pbcopy, Set-Clipboard) and browser (xdg-open, open, explorer) adapters; scrubbed stdin, credential-free environment; pause is refused with the governor’s words."
+  },
+  {
+    "site": "src/runtime/vault/slots/macVaultTransport.ts#call:spawnResourceProcess:1",
+    "profile": "contained",
+    "reason": "Private vault slot transport selects contained launch with an empty credential environment."
+  },
+  {
+    "site": "src/runtime/vault/slots/windowsVaultTransport.ts#call:spawnResourceProcess:1",
+    "profile": "contained",
+    "reason": "Private vault guard selects contained native job launch after readiness/digest checks."
+  }
+]

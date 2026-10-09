@@ -49,6 +49,8 @@ beforeAll(async () => {
     storageDir: shell.folder,
     systemRoot: process.env['SystemRoot']!,
     readJobSource,
+    // This file tests launch containment; bootstrap admission has its own suite.
+    run: runProgram,
     log: () => undefined,
   })()
   if (shell.assembly === undefined) throw new Error('Native shell helper unavailable')
@@ -100,9 +102,11 @@ describe('C1 native Windows launch boundary', { timeout: REAL_WINDOWS_JOB_TIMEOU
         background: vi.fn(),
       }
       const admission = vi.spyOn(resourceAdmission, 'admitResource').mockResolvedValue(lease)
-      const helper = vi
-        .spyOn(resourceAdmission, 'resourceWindowsJob')
-        .mockResolvedValue({ assemblyPath: assembly, executablePath: job.path })
+      const helper = vi.spyOn(resourceAdmission, 'resourceWindowsJob').mockResolvedValue({
+        assemblyPath: assembly,
+        executablePath: job.path,
+        verify: () => Promise.resolve(),
+      })
       const marker = path.join(folder, 'pid')
       const script = path.join(folder, 'short.cjs')
       await writeFile(
@@ -222,9 +226,11 @@ describe('C1 native Windows launch boundary', { timeout: REAL_WINDOWS_JOB_TIMEOU
       const refuseKill =
         surface === 'unknown' ? vi.spyOn(reader, 'signal').mockResolvedValue('refused') : undefined
       if (job.path === undefined) throw new Error('Native SDK launcher unavailable')
-      const helper = vi
-        .spyOn(resourceAdmission, 'resourceWindowsJob')
-        .mockResolvedValue({ assemblyPath: assembly, executablePath: job.path })
+      const helper = vi.spyOn(resourceAdmission, 'resourceWindowsJob').mockResolvedValue({
+        assemblyPath: assembly,
+        executablePath: job.path,
+        verify: () => Promise.resolve(),
+      })
       const { spawnMspConnection: originalSpawn } =
         await vi.importActual<typeof sdk>('@muse-code/sdk')
       const stalledSDK =

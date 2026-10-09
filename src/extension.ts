@@ -173,7 +173,7 @@ import { createFileSessionStore } from './host/backend/fileSessionStore'
 import type { QuestionStore } from './shared/questions'
 import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
 import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
-import { mcpJobExecutable } from './host/backend/mcpJobExecutable'
+import { mcpJobExecutable, sealedMcpJobExecutable } from './host/backend/mcpJobExecutable'
 import { createCheckpointedMemory } from './host/backend/checkpointedMemory'
 import { systemPath } from './host/backend/memoryIo'
 import {
@@ -555,12 +555,12 @@ const automaticBestOfNGit = processGitRunner({ isAutomatic: true })
  * the shell tool's job assembly (M27) or the direct MCP stdio launcher (M50).
  * Undefined off Windows.
  */
-function windowsJobHelper(
-  build: (deps: ShellJobDeps) => () => Promise<string | undefined>,
+function windowsJobHelper<T>(
+  build: (deps: ShellJobDeps) => () => Promise<T | undefined>,
   storageDir: string,
   readJobSource: (helper: JobHelper) => Promise<string>,
   log: Logger,
-): (() => Promise<string | undefined>) | undefined {
+): (() => Promise<T | undefined>) | undefined {
   const systemRoot = process.env['SystemRoot']
   return systemRoot !== undefined && process.platform === 'win32'
     ? build({
@@ -698,7 +698,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     log,
   )
   const resourceMcpJob = windowsJobHelper(
-    mcpJobExecutable,
+    sealedMcpJobExecutable,
     context.globalStorageUri.fsPath,
     resourceJobSource,
     log,
@@ -723,10 +723,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       },
       windowsJob: async () => {
         const assemblyPath = await resourceAssembly?.()
-        const executablePath = await resourceMcpJob?.()
-        return assemblyPath === undefined || executablePath === undefined
+        const helper = await resourceMcpJob?.()
+        return assemblyPath === undefined || helper === undefined
           ? undefined
-          : { assemblyPath, executablePath }
+          : { assemblyPath, executablePath: helper.path, verify: helper.verify }
       },
     }),
   })

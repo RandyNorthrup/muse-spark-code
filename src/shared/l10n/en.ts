@@ -433,7 +433,7 @@ export const EN = {
     'Work with the per-user credential vault from a terminal: status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.',
   referenceVaultHelp: 'Show the per-user credential vault command usage.',
   referenceVaultPanel:
-    'Open the per-user credential vault. Values never print; the broker holds them.',
+    'The credential vault is unavailable in this build because the broker is not installed.',
   referenceVaultLock: 'Lock the per-user credential vault now, ending every use in every window.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
@@ -491,7 +491,7 @@ export const EN = {
   referenceAttachments:
     'Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.',
   referenceScreenRecording:
-    'Record the screen, preview the clip, then attach or discard it. Needs a local window; remote windows refuse. The clip attaches as video and follows the media limits. Requires native recorder support and verified video upload support.',
+    'Direct screen recording is unavailable in this build. Choose an existing recording file.',
   referenceLatestRecording:
     'Attach the most recent screen recording again without recording a new one. Requires a readable recording and verified video upload support.',
   referenceUploadedFiles:
