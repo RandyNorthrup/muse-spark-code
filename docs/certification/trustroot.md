@@ -1,7 +1,7 @@
 # TRUSTROOT — Windows trusted paths against a trusted root (2026-10-09)
 
 Lane: Windows-native fix lane, branch `rel017/ciwin`, Windows 11 host.
-Decision: PLAN.md D104. Owner rule: 2026-10-08, "Windows paths: any drive".
+Decision: PLAN.md D105. Owner rule: 2026-10-08, "Windows paths: any drive".
 
 ## Change
 

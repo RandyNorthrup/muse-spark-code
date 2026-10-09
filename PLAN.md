@@ -19085,7 +19085,7 @@ the slow one.
   Claude, with the saved diff). Its gotchas go into
   `docs/orchestration-gotchas.md`.
 
-### D104 — Windows trusted paths: a trusted root, links above it by identity (TRUSTROOT, 2026-10-09)
+### D105 — Windows trusted paths: a trusted root, links above it by identity (TRUSTROOT, 2026-10-09)
 
 **Owner rule (2026-10-08, "Windows paths: any drive").** Profile folders may
 be junctions or symlinks, or redirected to another drive; never assume `C:`.
