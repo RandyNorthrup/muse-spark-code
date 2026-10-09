@@ -18,17 +18,28 @@ happened, not what was planned; superseded entries are kept.
   `museSpark.github.useGhLogin` (off, user settings only); nothing reads it
   yet. The device-flow sign-in waits for the project's OAuth App (Q-M123).
 
-- **Native Git behind the same conversations** (M123 lane G, PLAN.md D104).
-  Status, the commit form, commit, push and commit-message drafts now run
-  through your own `git` on the repository itself, for every editor outside
-  VS Code (and a VS Code-family host without `vscode.git`). Pushes plan
-  with the same refusals as VS Code (never a force-push), run hooks and
-  signers as you configured them, keep your own credential helpers, SSH
-  agent and token variables for the push and the pull request fetch (reads
-  stay quiet), and open the same command in the editor's terminal when a
-  push fails. Nothing is sent to GitHub yet: the pull request form,
-  creation, status and trust arrive with lane P, and the sign-in card with
-  lanes A and L.
+- **Native Git in editors built on VS Code without its Git extension**
+  (M123 lane G, PLAN.md D104). In a host that does not ship `vscode.git`
+  (Arduino IDE 2, some forks), the commit form, commit, push and
+  commit-message drafts now run through your own `git` on `PATH`, in the
+  conversation as before; VS Code and hosts with the Git extension are
+  unchanged. A push always asks first, naming the remote and its URL
+  (credentials masked), the branch, its target and the commit count; with
+  several remotes and no upstream you pick one. Pushes plan with the same
+  refusals as VS Code (never a force-push), run hooks and signers as you
+  configured them, and keep your own credential helpers, SSH agent and
+  token variables (reads stay quiet). A push git itself rejects opens the
+  same command in a terminal; a refusal, Cancel or a lost trust never does.
+  Cancel, switching or closing the conversation stops pending Git. A commit
+  is refused when the staged or working-tree bytes changed after the form
+  opened, and two conversations on one repository commit one at a time.
+  The native service binds to the folder it was given and refuses a link
+  or replacement put in its place; new files for a draft are read only
+  through real folders inside it. Pull requests are not available on this
+  route yet (lane P), nor is a GitHub sign-in (lanes A and L). Other
+  editors (JetBrains, Visual Studio, Eclipse, Zed and the rest) get this
+  adapter when the shared panel route lands (M104, lane U); nothing there
+  is wired yet.
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or

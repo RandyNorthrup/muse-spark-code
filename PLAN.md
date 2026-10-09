@@ -20250,6 +20250,17 @@ github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
 
 Lane G landed 2026-10-09 without the planned `src/core/git/process.ts` move: the host-API gate passes on the `src/host/git.ts` import (no `vscode` in its closure), so the lane kept the import and added `isUserEnvironment` to `GitProcessOptions` for the push and the fetch instead. No escape hatches; the record is `docs/certification/m123.md`.
 
+Lane G repair (RVM123G, 6 P1 + 10 P2, 2026-10-09, branch `m123/g2`, Windows host). All sixteen findings fixed in one pass; each has a test that fails on `b9baa882d` and a red drill (`docs/certification/m123.md`).
+
+- **`RuntimeGitDeps` grew** (lane 0's file, additive): `confirmPush` (M71's push modal: remote, masked URL, branch, target, commits), `pickRemote`, `userEnvironment` (D104's push/fetch exception) and the optional `admitWorkspaceCommand` (M72's admission). `ConversationGitPort` is unchanged.
+- **The service binds the root at construction** (canonical path plus volume and file id) and refuses a link, junction or replacement folder at that path, at every operation and again at the spawn. The runner's `beforeRun` (after admission and the Windows job's preparation) rechecks the arguments, the operation's signal and owner, trust and the root's identity. Every method takes the caller's operation (signal and owner check); Cancel, a session change and disposal abort it. Mutations are serialized per physical repository across conversations in a process, each revalidating inside the lock (the commit stamp; the push re-planned and compared with what was confirmed). Two runtime processes on one repository still rely on git's own index lock between commands: a residual until the runtime has one owner per repository (M104's panel route).
+- **Commit stamps** carry the status records (modes and index object names) and a SHA-256 of the unstaged and new files' bytes, read confined by identity (`confinedFiles.ts`: every ancestor a real folder before and after the open, the handle the file just seen). Draft prompts read new files the same way.
+- **Redact before truncate:** the adapter redacts git's whole text before its cut; `createGitProcess` drops a partial last word of stderr once its cap cut it.
+- **The terminal fallback** opens only for git's own failure of the confirmed push while the conversation still owns a trusted operation, with the resolved `gitPath` in the bound root.
+- **Credentials:** the governed Windows job keeps `isUserEnvironment`; the standalone runtime keeps the Git routes it takes out at start (no `*_API_KEY`, no provider key) for the push and the fetch only (`src/runtime/gitUserEnvironment.ts`). `createGitProcess` takes an absolute `executable` (the resolved `gitPath`).
+- **Status:** porcelain-v2 `u` records are parsed past their ten fields. **Worktrees:** `pr-worktrees/` must be a real folder directly under the resolved data folder, checked before and at the spawn.
+- **Wired:** the in-process route for a VS Code-family host without `vscode.git` (`conversationGitEntry.ts` picks `createRuntimeGit` when the extension is absent; `gitWindow.ts` supplies VS Code's push modal, remote pick, terminal, trust, hold and admission). Pull requests on that route wait for lane P. **Not wired:** every other editor (the runtime panel route is M104/lane U); the standalone runtime's `runtimeGitUserEnvironment` is that route's `userEnvironment`.
+
 - **Acceptance per editor (all with fakes, no live calls).** The first
   available token source wins, and the user may sign in with any later one.
 
