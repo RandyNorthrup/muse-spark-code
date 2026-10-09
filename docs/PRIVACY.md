@@ -549,10 +549,12 @@ scrubbed environment, never the Model API key.
 
 A hook file that is present but cannot be loaded in full stops Tab reading
 any file until it is fixed, and the status bar says so; the log names the
-problem. A request whose trust, Tab settings, `files.exclude`, ignore files
-or hook configuration change before it is sent, or before its answer shows,
-is dropped, and the model a request sends is the one its consent question
-named.
+problem. From the moment a hook file or setting change is noticed until it
+has been reloaded, Tab reads nothing. A request whose trust, Tab settings,
+`files.exclude`, ignore files, hook configuration or consent change before
+it is sent, or before its answer shows, is dropped; the last check runs
+immediately before the request goes out. The model a request sends is the
+one its consent question named, at the price it named.
 
 ## Credentials
 

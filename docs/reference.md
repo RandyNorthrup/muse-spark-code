@@ -1366,7 +1366,7 @@ Commands: —. Settings: `museSpark.paidDailyBudgetUsd`. [Documentation](https:/
 
 ### Tab Menu
 
-Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.
+Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic. Consent covers the model and price shown; changing either asks again. Allow once stays in this window. Allow always from an earlier version asks once more.
 
 ```json
 {

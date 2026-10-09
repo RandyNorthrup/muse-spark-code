@@ -565,10 +565,13 @@ and sends nothing. Before the first charge in a window, it asks with the
 model's rates and your budget: **Allow once** covers that window until it
 closes, **Allow always in this workspace** remembers revocable consent, and
 **Deny** snoozes Tab in that window. Closing the question denies it too.
-The question names the model the request will use, and a request for a
-different model than the one you last allowed asks again, even under
-**Allow always**. A request whose model setting changes before it is sent
-is dropped, so a model you were not asked about is never used.
+The question names the model the request will use, and your answer covers
+that model at its price only: a request for another model asks again, even
+under **Allow always**, and **Allow once** never reaches another window. An
+**Allow always** kept by an earlier version asks once more, then is kept for
+that model. A request whose model, consent or hook configuration changes
+before it goes out sends nothing; the last check runs immediately before
+the request is sent.
 
 The hard daily budget defaults to **$1.00 across every window on this
 machine**, reserved before each request. The status shows today's spend;

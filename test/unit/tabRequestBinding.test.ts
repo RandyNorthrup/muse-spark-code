@@ -7,10 +7,12 @@ import { Usd } from '../../src/shared/usd'
 // spends money or starts a process.
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { InlineCompletionTriggerKind, Position, Uri } from 'vscode'
 import type * as vscode from 'vscode'
 import { PaidUseConsent, type PaidUseAnswer } from '../../src/core/paid/paidConsent'
-import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import { ModelApiClient, type ModelApiClientDeps } from '../../src/core/backends/modelapi/client'
+import type { TransportDeps } from '../../src/core/backends/modelapi/transport'
 import { ModelApiPacing } from '../../src/core/backends/modelapi/pacing'
 import { createTabEngine } from '../../src/core/tab/tabEngine'
 import type { ShellResult } from '../../src/core/shellResult'
@@ -93,8 +95,12 @@ function popup(): {
 } {
   const asked: string[] = []
   const open: PromiseWithResolvers<PaidUseAnswer>[] = []
+  const arrivals: { count: number; resolve: () => void }[] = []
   const ask = (request: PaidUseRequest): Promise<PaidUseAnswer> => {
     asked.push(request.feature === 'tab' ? request.modelId : request.feature)
+    for (const arrival of arrivals) {
+      if (asked.length >= arrival.count) arrival.resolve()
+    }
     const question = Promise.withResolvers<PaidUseAnswer>()
     open.push(question)
     return question.promise
@@ -108,24 +114,32 @@ function popup(): {
         if (question === undefined) throw new Error('no question is open')
         question.resolve(answer)
       },
-      opened: async (count) => {
-        await vi.waitFor(() => {
-          expect(asked.length).toBeGreaterThanOrEqual(count)
-        })
-      },
+      opened: (count) =>
+        asked.length >= count
+          ? Promise.resolve()
+          : new Promise<void>((resolve) => {
+              arrivals.push({ count, resolve })
+            }),
     },
   }
 }
 
 /** One window's paid gate and Tab consent, wired as src/extension.ts wires them. */
-function tabWindow(stores: WorkspaceStores) {
+function tabWindow(
+  stores: WorkspaceStores,
+  options: {
+    readonly canRemember?: boolean
+    readonly priceOf?: (model: string) => string | undefined
+    readonly writeAlways?: () => Promise<void>
+  } = {},
+) {
   const log = new FakeLogOutputChannel()
   const { popup: questions, ask } = popup()
   const paid = new PaidUseConsent({
     isOn: () => true,
     windowOnceFeatures: new Set<PaidFeature>(['tab']),
     windowOnceGeneration: () => 1,
-    canRemember: () => true,
+    canRemember: () => options.canRemember ?? true,
     readGrants: () => stores.grants,
     writeGrants: (grants) => {
       stores.grants = new Set(grants)
@@ -135,7 +149,7 @@ function tabWindow(stores: WorkspaceStores) {
     log,
   })
   const consent: TabUseConsent = createTabConsent({
-    priceOf: tabPriceFingerprint,
+    priceOf: options.priceOf ?? tabPriceFingerprint,
     ask: async (model) =>
       await paid.askScope({ feature: 'tab', modelId: model, budgetUsd: Usd.from(1).toAmount() }),
     isOn: () => true,
@@ -143,9 +157,9 @@ function tabWindow(stores: WorkspaceStores) {
     windowOnceToken: () => paid.windowOnceToken('tab'),
     revocations: () => paid.revocations,
     readAlways: () => stores.state.get(TAB_CONSENT_STATE_KEY),
-    writeAlways: (record) => {
+    writeAlways: async (record) => {
+      await options.writeAlways?.()
       stores.state.set(TAB_CONSENT_STATE_KEY, record)
-      return Promise.resolve()
     },
     log,
   })
@@ -178,6 +192,8 @@ async function tabHarness(options: {
   readonly consent: TabUseConsent
   readonly hooks?: string
   readonly guard?: (stdin: string) => string
+  readonly atAdmission?: () => void
+  readonly beforeClient?: () => void
 }) {
   const state: { model: string; observer: Promise<unknown> | undefined } = {
     model: STANDARD,
@@ -213,16 +229,30 @@ async function tabHarness(options: {
   })
   await runner.reload()
   const credentials = hold()
+  const credentialReads = { count: 0 }
   const pacing = hold()
+  const endpoint = hold()
+  const reservation = hold()
+  const admission = hold()
+  const hookLoad = hold()
+  const token = new FakeCancellationToken()
   const api = fakeModelApi()
+  const wireRequests: string[] = []
   api.script({ text: `${TAB_REPLY_OPEN_TAG}foo()${TAB_REPLY_CLOSE_TAG}` })
   const log = new FakeLogOutputChannel()
   const settings = fakeModelApiClientSettings(log)
   const realPacing = new ModelApiPacing({ now: () => 0, wait: () => Promise.resolve() })
-  const client = new ModelApiClient({
+  // ModelApiClient forwards its deps to RequestTransport. This test-only
+  // projection holds that existing transport port; Meta exposes no endpoint setting.
+  const clientDeps: ModelApiClientDeps & Pick<TransportDeps, 'verifyEndpoint'> = {
     ...settings,
-    fetch: api.fetch,
+    verifyEndpoint: () => pass(endpoint),
+    fetch: async (url, init) => {
+      if (typeof init?.body === 'string') wireRequests.push(init.body)
+      return await api.fetch(url, init)
+    },
     apiKey: async () => {
+      credentialReads.count += 1
       await pass(credentials)
       return FAKE_MODEL_API_KEY
     },
@@ -236,11 +266,27 @@ async function tabHarness(options: {
         realPacing.observe(...args)
       },
     },
-  })
+  }
+  const client = new ModelApiClient(clientDeps)
   const sent: string[] = []
   const engine = createTabEngine({
-    stream: (body, signal, budget, admit) =>
-      client.streamResponse(body, signal, undefined, budget, admit),
+    stream: (body, signal, budget, admit) => {
+      options.beforeClient?.()
+      return client.streamResponse(
+        body,
+        signal,
+        undefined,
+        budget,
+        Object.assign(
+          (keyDigest: string | undefined) => {
+            admit(keyDigest)
+            options.atAdmission?.()
+          },
+          admit,
+          { prepare: () => pass(admission) },
+        ),
+      )
+    },
     onSent: (model) => {
       sent.push(model)
     },
@@ -273,7 +319,10 @@ async function tabHarness(options: {
     onDidChangeTextDocument: () => ({ dispose: () => undefined }),
     engine,
     spend: {
-      reserve: () => Promise.resolve(RESERVATION),
+      reserve: async () => {
+        await pass(reservation)
+        return RESERVATION
+      },
       settle: (_reservation, usage) => {
         settled.push(usage)
       },
@@ -281,7 +330,13 @@ async function tabHarness(options: {
       todayRequests: () => 0,
     },
     consent: options.consent,
-    hookDispatch: { isHooksEnabled: () => true, load: () => Promise.resolve(runner) },
+    hookDispatch: {
+      isHooksEnabled: () => true,
+      load: async () => {
+        await pass(hookLoad)
+        return runner
+      },
+    },
     onOutcome: (outcome) => {
       outcomes.push(outcome)
     },
@@ -293,8 +348,15 @@ async function tabHarness(options: {
     files,
     runner,
     credentials,
+    credentialReads,
     pacing,
+    endpoint,
+    reservation,
+    admission,
+    hookLoad,
+    token,
     posts,
+    wireRequests,
     sent,
     settled,
     outcomes,
@@ -309,7 +371,7 @@ async function tabHarness(options: {
         new FakeTextDocument(Uri.file(FILE), 'typescript', text),
         new Position(0, text.length),
         { triggerKind, selectedCompletionInfo: undefined },
-        new FakeCancellationToken(),
+        token,
       )
       if (!Array.isArray(result)) throw new Error('the provider returned no items array')
       return result
@@ -325,10 +387,23 @@ async function expectNothingSent(
   await expect(request).resolves.toEqual([])
   expect(tab.posts()).toEqual([])
   expect(tab.sent).toEqual([])
-  await vi.waitFor(() => {
-    expect(tab.settled).toEqual([NOTHING_SENT])
-  })
+  expect(tab.settled).toEqual([NOTHING_SENT])
   tab.handle.dispose()
+}
+
+/** Start a request at a held admission point, then advance the fake clock once. */
+async function startHeld(
+  tab: Awaited<ReturnType<typeof tabHarness>>,
+  window: ReturnType<typeof tabWindow>,
+  held: Hold,
+) {
+  held.isHeld = true
+  const request = tab.serve()
+  await window.popup.opened(1)
+  window.popup.answer('once')
+  await held.reached.promise
+  await vi.advanceTimersByTimeAsync(1)
+  return { request }
 }
 
 /** A window whose guard allows Standard only, after one Standard request was allowed and served. */
@@ -347,6 +422,23 @@ async function servedStandard() {
 }
 
 describe('RVM94KR2 1: a question answers only its own key', () => {
+  it('coalesces no questions with different prices even for the same model', async () => {
+    let price = tabPriceFingerprint(STANDARD)
+    const window = tabWindow(workspaceStores(), { priceOf: () => price })
+    const tab = await tabHarness({ consent: window.consent })
+    const first = tab.serve()
+    await window.popup.opened(1)
+    price = `${String(price)}:new-tariff`
+    const second = tab.serve()
+    await window.popup.opened(2)
+    window.popup.answer('once')
+    await expect(first).resolves.toEqual([])
+    expect(tab.posts()).toEqual([])
+    window.popup.answer('deny')
+    await expect(second).resolves.toEqual([])
+    expect(window.popup.asked).toEqual([STANDARD, STANDARD])
+    tab.handle.dispose()
+  })
   it('never hands a Standard answer to a Contributor request', async () => {
     const window = tabWindow(workspaceStores())
     const tab = await tabHarness({ consent: window.consent, hooks: HOOKS })
@@ -385,6 +477,68 @@ describe('RVM94KR2 1: a question answers only its own key', () => {
 })
 
 describe('RVM94KR2 2: Once and window answers are never persisted', () => {
+  it('does not revive revoked Always when a stale popup is answered Always', async () => {
+    const stores = workspaceStores()
+    const window = tabWindow(stores)
+    const tab = await tabHarness({ consent: window.consent })
+    const first = tab.serve()
+    await window.popup.opened(1)
+    window.popup.answer('always')
+    await first
+    tab.state.model = CONTRIBUTOR
+    const stale = tab.serve()
+    await window.popup.opened(2)
+    await window.paid.forget()
+    window.popup.answer('always')
+    await expect(stale).resolves.toEqual([])
+    tab.state.model = STANDARD
+    const fresh = tab.serve()
+    await window.popup.opened(3)
+    window.popup.answer('deny')
+    await expect(fresh).resolves.toEqual([])
+    expect(tab.posts()).toHaveLength(1)
+    tab.handle.dispose()
+  })
+  it('revokes request-only consent while credentials wait', async () => {
+    const window = tabWindow(workspaceStores(), { canRemember: false })
+    const tab = await tabHarness({ consent: window.consent })
+    tab.credentials.isHeld = true
+    const request = tab.serve()
+    await window.popup.opened(1)
+    window.popup.answer('always')
+    await tab.credentials.reached.promise
+    await window.paid.forget()
+    tab.credentials.release.resolve(undefined)
+    await expectNothingSent(tab, request)
+  })
+
+  it('refuses an Always answer revoked while its keyed record is being written', async () => {
+    const writing = hold()
+    writing.isHeld = true
+    const stores = workspaceStores()
+    const window = tabWindow(stores, { writeAlways: () => pass(writing) })
+    const tab = await tabHarness({ consent: window.consent })
+    const request = tab.serve()
+    await window.popup.opened(1)
+    window.popup.answer('always')
+    await writing.reached.promise
+    await window.paid.forget()
+    // Another key's answer restores the feature-wide grant while this write waits.
+    const other = window.paid.askScope({
+      feature: 'tab',
+      modelId: CONTRIBUTOR,
+      budgetUsd: Usd.from(1).toAmount(),
+    })
+    await window.popup.opened(2)
+    window.popup.answer('always')
+    await other
+    writing.release.resolve(undefined)
+    await expect(request).resolves.toEqual([])
+    expect(tab.posts()).toEqual([])
+    expect(stores.state.get(TAB_CONSENT_STATE_KEY)).toBeUndefined()
+    tab.handle.dispose()
+  })
+
   it('asks a new window about a model this window allowed only once', async () => {
     const stores = workspaceStores()
     const first = tabWindow(stores)
@@ -471,6 +625,23 @@ describe('RVM94KR2 P2: a legacy feature-wide Always asks once, then is recorded'
 })
 
 describe('RVM94KR2 3: the policy epoch moves when a change is detected', () => {
+  it('keeps the starting model bound while the lazy hook runner loads', async () => {
+    vi.useFakeTimers()
+    const window = tabWindow(workspaceStores())
+    const tab = await tabHarness({ consent: window.consent, hooks: HOOKS })
+    tab.hookLoad.isHeld = true
+    const request = tab.serve()
+    await tab.hookLoad.reached.promise
+    tab.state.model = CONTRIBUTOR
+    tab.hookLoad.release.resolve(undefined)
+    await vi.advanceTimersByTimeAsync(1)
+    if (window.popup.asked.length > 0) window.popup.answer('deny')
+    await expect(request).resolves.toEqual([])
+    expect(window.popup.asked).toEqual([])
+    expect(tab.guardModels).toEqual([])
+    expect(tab.posts()).toEqual([])
+    tab.handle.dispose()
+  })
   it('refuses a request whose hook file broke while its ConfigChange observer runs', async () => {
     const window = tabWindow(workspaceStores())
     const tab = await tabHarness({ consent: window.consent, hooks: HOOKS })
@@ -501,6 +672,34 @@ describe('RVM94KR2 3: the policy epoch moves when a change is detected', () => {
 })
 
 describe('RVM94KR2 4: the last check runs at the HTTP send', () => {
+  it('revalidates client admission before reading credentials', async () => {
+    const window = tabWindow(workspaceStores())
+    const tab = await tabHarness({
+      consent: window.consent,
+      beforeClient: () => {
+        tab.state.model = CONTRIBUTOR
+      },
+    })
+    const request = tab.serve()
+    await window.popup.opened(1)
+    window.popup.answer('once')
+    await expectNothingSent(tab, request)
+    expect(tab.credentialReads.count).toBe(0)
+  })
+  it('checks again after synchronous admission immediately before dispatch', async () => {
+    const window = tabWindow(workspaceStores())
+    const tab = await tabHarness({
+      consent: window.consent,
+      atAdmission: () => {
+        tab.state.model = CONTRIBUTOR
+      },
+    })
+    const request = tab.serve()
+    await window.popup.opened(1)
+    window.popup.answer('once')
+    await expectNothingSent(tab, request)
+  })
+
   it('POSTs nothing when the hook policy moves while the key read waits', async () => {
     const window = tabWindow(workspaceStores())
     const tab = await tabHarness({ consent: window.consent, hooks: HOOKS })
@@ -575,9 +774,55 @@ const CHANGES: readonly (readonly [string, Change])[] = [
       await window.paid.forget()
     },
   ],
+  [
+    'cancellation',
+    (tab) => {
+      tab.token.cancel()
+      return Promise.resolve()
+    },
+  ],
 ]
 
 describe('RVM94KR2: every await point revalidates, and the send checks last', () => {
+  it('preserves the byte-exact automatic fast request from the review base', async () => {
+    vi.useFakeTimers()
+    const window = tabWindow(workspaceStores())
+    const tab = await tabHarness({ consent: window.consent, hooks: HOOKS })
+    const request = tab.serve(InlineCompletionTriggerKind.Automatic)
+    await window.popup.opened(1)
+    window.popup.answer('once')
+    await vi.advanceTimersByTimeAsync(TAB_DEBOUNCE_MS + 1)
+    await expect(request).resolves.toHaveLength(1)
+    expect(tab.wireRequests).toEqual([
+      readFileSync('test/fixtures/tabRequest/fast.golden.txt', 'utf8').trimEnd(),
+    ])
+    tab.handle.dispose()
+  })
+  it.each(CHANGES)(
+    'POSTs nothing when %s changes while waiting for a free slot',
+    async (_name, change) => {
+      vi.useFakeTimers()
+      const window = tabWindow(workspaceStores())
+      const tab = await tabHarness({ consent: window.consent, hooks: HOOKS })
+      tab.credentials.isHeld = true
+      const first = tab.serve()
+      const second = tab.serve()
+      await window.popup.opened(1)
+      window.popup.answer('once')
+      await vi.advanceTimersByTimeAsync(1)
+      expect(tab.credentialReads.count).toBe(2)
+      const third = tab.serve()
+      await vi.advanceTimersByTimeAsync(1)
+      expect(tab.credentialReads.count).toBe(2)
+      await change(tab, window)
+      tab.credentials.release.resolve(undefined)
+      await expect(Promise.all([first, second, third])).resolves.toEqual([[], [], []])
+      expect(tab.posts()).toEqual([])
+      expect(tab.sent).toEqual([])
+      expect(tab.settled).toEqual([NOTHING_SENT, NOTHING_SENT, NOTHING_SENT])
+      tab.handle.dispose()
+    },
+  )
   it('serves through the whole real path when nothing moves', async () => {
     const window = tabWindow(workspaceStores())
     const tab = await tabHarness({ consent: window.consent, hooks: HOOKS })
@@ -587,16 +832,22 @@ describe('RVM94KR2: every await point revalidates, and the send checks last', ()
     await expect(request).resolves.toHaveLength(1)
     expect(tab.posts()).toHaveLength(1)
     expect(tab.sent).toEqual([STANDARD])
+    // Captured from the bea292208 builder: the complete serialized HTTP body.
+    expect(tab.wireRequests).toEqual([
+      readFileSync('test/fixtures/tabRequest/multiline.golden.txt', 'utf8').trimEnd(),
+    ])
     tab.handle.dispose()
   })
 
   it.each(CHANGES)(
     'POSTs nothing when %s changes while the question is open',
     async (_name, change) => {
+      vi.useFakeTimers()
       const window = tabWindow(workspaceStores())
       const tab = await tabHarness({ consent: window.consent, hooks: HOOKS })
       const request = tab.serve()
       await window.popup.opened(1)
+      await vi.advanceTimersByTimeAsync(1)
       await change(tab, window)
       window.popup.answer('once')
       await expect(request).resolves.toEqual([])
@@ -626,20 +877,59 @@ describe('RVM94KR2: every await point revalidates, and the send checks last', ()
 
   it.each(
     CHANGES.flatMap(([name, change]) => [
+      ['reservation', name, change] as const,
       ['credentials', name, change] as const,
+      ['endpoint', name, change] as const,
       ['pacing', name, change] as const,
+      ['admission', name, change] as const,
     ]),
   )('POSTs nothing when %s waits and %s changes', async (point, _name, change) => {
+    vi.useFakeTimers()
     const window = tabWindow(workspaceStores())
     const tab = await tabHarness({ consent: window.consent, hooks: HOOKS })
-    const held = point === 'credentials' ? tab.credentials : tab.pacing
-    held.isHeld = true
-    const request = tab.serve()
-    await window.popup.opened(1)
-    window.popup.answer('once')
-    await held.reached.promise
+    const held = tab[point]
+    const { request } = await startHeld(tab, window, held)
     await change(tab, window)
     held.release.resolve(undefined)
     await expectNothingSent(tab, request)
   })
+
+  it.each(['reservation', 'credentials', 'endpoint', 'pacing', 'admission'] as const)(
+    'POSTs nothing when the bound price changes during %s',
+    async (point) => {
+      vi.useFakeTimers()
+      let price = tabPriceFingerprint(STANDARD)
+      const window = tabWindow(workspaceStores(), { priceOf: () => price })
+      const tab = await tabHarness({ consent: window.consent })
+      const held = tab[point]
+      const { request } = await startHeld(tab, window, held)
+      price = `${String(price)}:new-tariff`
+      held.release.resolve(undefined)
+      await expectNothingSent(tab, request)
+    },
+  )
+
+  it.each(['credentials', 'endpoint', 'pacing'] as const)(
+    'stops immediately after %s rather than entering the next admission wait',
+    async (point) => {
+      vi.useFakeTimers()
+      const window = tabWindow(workspaceStores())
+      const tab = await tabHarness({ consent: window.consent })
+      const held = tab[point]
+      const next = { credentials: tab.endpoint, endpoint: tab.pacing, pacing: tab.admission }[point]
+      next.isHeld = true
+      const { request } = await startHeld(tab, window, held)
+      tab.token.cancel()
+      held.release.resolve(undefined)
+      await vi.advanceTimersByTimeAsync(1)
+      // Release the next wait even on failure so this probe leaves no held work.
+      let didReachNext = false
+      void next.reached.promise.then(() => {
+        didReachNext = true
+      })
+      next.release.resolve(undefined)
+      await expectNothingSent(tab, request)
+      expect(didReachNext).toBe(false)
+    },
+  )
 })

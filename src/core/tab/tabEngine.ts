@@ -192,23 +192,22 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
     // The final gate (RVM94KR2 4): read synchronously at the HTTP send. A
     // refusal there sends nothing, so the request settles at zero.
     const gate = { isRefused: false, isSent: false }
-    const admit: ResponseAttemptGuard = Object.assign(
-      (): void => {
-        gate.isRefused = request.isCancelled()
-        if (gate.isRefused) {
-          throw new Error('The Tab request was refused before sending')
+    const check = (): void => {
+      gate.isRefused = request.isCancelled()
+      if (gate.isRefused) {
+        throw new Error('The Tab request was refused before sending')
+      }
+    }
+    const admit: ResponseAttemptGuard = Object.assign(check, {
+      check,
+      onRequestStarted: (): void => {
+        if (gate.isSent) {
+          return
         }
+        gate.isSent = true
+        deps.onSent(request.model)
       },
-      {
-        onRequestStarted: (): void => {
-          if (gate.isSent) {
-            return
-          }
-          gate.isSent = true
-          deps.onSent(request.model)
-        },
-      },
-    )
+    })
     /** Reads the stream to its end; resolves its usage, rejects without one. */
     const drain = async (): Promise<TabEngineUsage> => {
       // A backstop only (D73): the editor never aborts a sent request.

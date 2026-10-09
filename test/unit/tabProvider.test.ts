@@ -722,8 +722,9 @@ describe('createTabProvider', () => {
     expect(result).toEqual([])
     expect(early.complete).not.toHaveBeenCalled()
     expect(early.outcomes).toEqual([{ kind: 'quiet', reason: 'cancelled-before-send' }])
-    // Nothing was sent, so nothing was billed: the reservation is released.
-    expect(early.settle).toHaveBeenCalledWith(RESERVATION, NOTHING_SENT)
+    // Cancellation after consent stops before ledger admission: nothing is reserved or billed.
+    expect(early.reserve).not.toHaveBeenCalled()
+    expect(early.settle).not.toHaveBeenCalled()
 
     const token = new FakeCancellationToken()
     const late = providerHarness({

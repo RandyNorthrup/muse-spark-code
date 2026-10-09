@@ -961,6 +961,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'tab',
       { command: COMMAND_IDS.tabMenu },
+      // D73: the reference describes model/price-bound consent and legacy Always migration.
       { ui: 'referenceTab' },
       ['tabTurnOn', 'tabTurnOff', 'tabSnooze', 'tabMenu', 'tabLanguages'],
       [

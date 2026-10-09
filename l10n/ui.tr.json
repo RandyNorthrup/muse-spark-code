@@ -402,7 +402,7 @@
   "referenceBudget": "Etkileşimli ücretli ek özellikler için ortak günlük bütçe: museSpark.paidDailyBudgetUsd. Tab’ın kendi ayrı bütçesi vardır.",
   "referenceCache": "Ayarlar (modelApiPromptCacheRetention).",
   "referenceMcp": "MCP sunucuları: Muse Code kendi sunucularını çalıştırır; Model API ile bu pencere yapılandırılmış sunucuları çalıştırır. ACP Model API editör MCP sunucularına sahip değildir.",
-  "referenceTab": "Tab her iki sohbet arka ucuyla kayıtlı Model API anahtarını kullanır. Varsayılan tetikleyici Invoke; yazarken öneriler için Automatic gerekir.",
+  "referenceTab": "Tab her iki sohbet arka ucuyla kayıtlı Model API anahtarını kullanır. Varsayılan tetikleyici Invoke; yazarken öneriler için Automatic gerekir. Onay, gösterilen model ve fiyat için geçerlidir; bunlardan biri değişirse yeniden sorulur. Bir kez izin ver yalnızca bu pencerede geçerlidir. Önceki bir sürümdeki Her zaman izin ver için bir kez daha onay istenir.",
   "referenceNativeSearch": "Muse Code web araması ve yerel cron aboneliği kullanır. Yerel cron için MSP denetimi yoktur; uzantının araması ve zamanlamaları ayrı ücretli Model API özellikleridir.",
   "referenceCustomAgents": "Ajanları proje veya kişisel AGENT.md dosyalarında tanımlayın. Bir ajan seçin ya da explore veya second-opinion isteyin; araç izin listeleri yetenekleri sınırlar. Model API alt görevleri ücretli alt ajan onayı gerektirir.",
   "referenceCodeOutput": "Kopyala kodu kopyalar; Ekle imleçte yazar; Uygula editör seçimini değiştirir. Tam araç çıktısını açın; kırpılmış çıktı sayfalanabilir. Görüşme metnini seçerek giriş alanında alıntılayın, hakkında soru sorun, yorum ekleyin veya kopyalayın.",

@@ -402,7 +402,7 @@
   "referenceBudget": "Orçamento diário compartilhado para extras interativos pagos: museSpark.paidDailyBudgetUsd. Tab tem seu próprio orçamento separado.",
   "referenceCache": "Configurações (modelApiPromptCacheRetention).",
   "referenceMcp": "Servidores MCP: Muse Code executa seus próprios servidores; com Model API esta janela executa os configurados. ACP Model API não tem servidores MCP do editor.",
-  "referenceTab": "Tab usa a chave Model API salva com ambos os mecanismos de chat. O gatilho padrão é Invoke; sugestões ao digitar exigem Automatic.",
+  "referenceTab": "Tab usa a chave Model API salva com ambos os mecanismos de chat. O gatilho padrão é Invoke; sugestões ao digitar exigem Automatic. O consentimento cobre o modelo e o preço exibidos; se um deles mudar, a pergunta será feita novamente. Permitir uma vez vale apenas nesta janela. Permitir sempre de uma versão anterior exige mais uma confirmação.",
   "referenceNativeSearch": "A busca web e o cron nativo do Muse Code usam a assinatura. O cron nativo não tem controles MSP; busca e agendamentos da extensão são recursos Model API pagos separados.",
   "referenceCustomAgents": "Defina agentes em arquivos AGENT.md pessoais ou do projeto. Selecione um agente ou peça explore ou second-opinion; listas de ferramentas limitam suas capacidades. Tarefas filhas Model API exigem consentimento para subagentes pagos.",
   "referenceCodeOutput": "Copiar copia o código; Inserir escreve no cursor; Aplicar substitui a seleção do editor. Abra a saída completa; saídas cortadas podem ser paginadas. Selecionar texto da conversa para citá-lo no campo de entrada, perguntar sobre ele, comentar ou copiar.",

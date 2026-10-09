@@ -587,11 +587,14 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     return undefined
   }
 
+  const keyOf = (currentSettings: unknown, currentHookKey: string): string =>
+    JSON.stringify([deps.isTrusted(), currentSettings, ignore.currentGeneration, currentHookKey])
+
   /** Binds a request to the policy in force; the hook part was settled by the caller. */
-  function bindRequestPolicy(hookKey: string): TabRequestPolicy {
-    const settings = deps.settings()
-    const keyOf = (currentSettings: unknown, currentHookKey: string): string =>
-      JSON.stringify([deps.isTrusted(), currentSettings, ignore.currentGeneration, currentHookKey])
+  function bindRequestPolicy(
+    hookKey: string,
+    settings: ReturnType<TabProviderDeps['settings']>,
+  ): TabRequestPolicy {
     const bound = keyOf(settings, hookKey)
     // At most the current file and TAB_CONTEXT_FILES context files.
     const scopes: { readonly uri: TabUri; readonly table: string }[] = []
@@ -754,6 +757,9 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     // The request binds to the policy in force now, the hook configuration
     // settled first (RVM94KR 2–3). A hook file that did not load whole
     // refuses every read until it is fixed (RVM94KR 1).
+    const settings = deps.settings()
+    // Read through a call: the token's readonly getter can change across awaits.
+    const isCancelled = (): boolean => token.isCancellationRequested || isDisposed()
     const hookPolicy = await deps.hooks?.bindPolicy()
     if (isDisposed()) {
       return []
@@ -766,8 +772,8 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     if (hookPolicy?.isReloading === true) {
       return quiet('policy-changed')
     }
-    const policy = bindRequestPolicy(hookPolicy?.key ?? '')
-    const { settings } = policy
+    const policy = bindRequestPolicy(hookPolicy?.key ?? '', settings)
+    if (!policy.isCurrent()) return quiet('policy-changed')
     // Everything the request reads, asks and sends names this one model.
     const model = settings.tabModel
     request += 1
@@ -796,6 +802,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     } catch {
       targetRelative = undefined
     }
+    if (!policy.isCurrent()) return quiet('policy-changed')
     // Nothing of the text is read before its path passed (RVM94HU 17).
     if (
       targetRelative === undefined ||
@@ -804,6 +811,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     ) {
       return quiet('ineligible-file')
     }
+    if (!policy.isCurrent()) return quiet('policy-changed')
     const startedAt = Date.now()
     const ignoreGeneration = ignore.currentGeneration
     const text = document.getText()
@@ -832,6 +840,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     // `consent-denied`. The grant is bound to its key and read again at
     // every later check, the send's included (RVM94KR2 1–2).
     const grant = await deps.consent.requestUse(model)
+    if (isCancelled()) return quiet('cancelled-before-send')
     if (grant === undefined) {
       return quiet('consent-denied')
     }
@@ -862,11 +871,13 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
             document,
             position.line,
             line,
-            () => token.isCancellationRequested || isDisposed(),
+            () => isCancelled() || !policy.isCurrent() || !grant.isCurrent(),
             hookContext,
             policy,
           )
         : ''
+    if (isCancelled()) return quiet('cancelled-before-send')
+    if (!policy.isCurrent() || !grant.isCurrent()) return quiet('policy-changed')
     const redactedPath = redactSecrets(relativePath)
     // The worst case is priced on everything sent: the instructions and the
     // one user message (D73, M82's one token per UTF-8 byte; RVM94HU 16).

@@ -402,7 +402,7 @@
   "referenceBudget": "대화형 유료 기능의 공유 일일 예산: museSpark.paidDailyBudgetUsd. Tab은 자체 별도 예산을 사용합니다.",
   "referenceCache": "설정 (modelApiPromptCacheRetention).",
   "referenceMcp": "MCP 서버는 Muse Code가 자체 실행하며 Model API에서는 이 창이 설정된 서버를 실행합니다. ACP Model API에는 편집기 MCP 서버가 없습니다.",
-  "referenceTab": "Tab은 두 채팅 백엔드에서 저장된 Model API 키를 사용합니다. 기본 트리거는 Invoke이며 입력 중 자동 제안에는 Automatic이 필요합니다.",
+  "referenceTab": "Tab은 두 채팅 백엔드에서 저장된 Model API 키를 사용합니다. 기본 트리거는 Invoke이며 입력 중 자동 제안에는 Automatic이 필요합니다. 동의는 표시된 모델과 가격에만 적용되며, 둘 중 하나가 바뀌면 다시 묻습니다. 한 번 허용은 이 창에서만 유효합니다. 이전 버전의 항상 허용은 한 번 더 확인합니다.",
   "referenceNativeSearch": "Muse Code 웹 검색과 네이티브 cron은 구독을 사용합니다. 네이티브 cron에는 MSP 제어가 없습니다. 확장 검색과 일정은 별도의 유료 Model API 기능입니다.",
   "referenceCustomAgents": "프로젝트 또는 개인 AGENT.md 파일에서 에이전트를 정의하세요. 에이전트를 선택하거나 explore 또는 second-opinion을 요청하세요. 도구 허용 목록이 기능을 제한합니다. Model API 하위 작업은 유료 하위 에이전트 동의가 필요합니다.",
   "referenceCodeOutput": "복사는 코드를 복사하고 삽입은 커서에 쓰며 적용은 편집기 선택 영역을 바꿉니다. 도구 출력을 열어 전체 결과를 읽으세요. 잘린 출력은 페이지로 볼 수 있습니다. 대화 내용을 선택하면 입력창에 인용하거나 질문, 댓글 추가, 복사를 할 수 있습니다.",

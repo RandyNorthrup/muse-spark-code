@@ -402,7 +402,7 @@
   "referenceBudget": "交互式付费附加功能的共享每日预算：museSpark.paidDailyBudgetUsd。Tab 有独立预算。",
   "referenceCache": "设置 (modelApiPromptCacheRetention).",
   "referenceMcp": "MCP 服务器：Muse Code 运行自己的服务器；Model API 由此窗口运行已配置的服务器。ACP Model API 没有编辑器 MCP 服务器。",
-  "referenceTab": "Tab 在两种聊天后端上都使用已存储的 Model API 密钥。默认触发方式是 Invoke；输入时自动建议需要 Automatic。",
+  "referenceTab": "Tab 在两种聊天后端上都使用已存储的 Model API 密钥。默认触发方式是 Invoke；输入时自动建议需要 Automatic。 授权仅适用于所显示的模型和价格；任一项更改后都会重新询问。允许一次仅在此窗口中有效。旧版本中的始终允许需要再确认一次。",
   "referenceNativeSearch": "Muse Code 网页搜索和原生 cron 使用订阅。原生 cron 没有 MSP 控制；扩展的搜索和计划是单独的付费 Model API 功能。",
   "referenceCustomAgents": "在项目或个人 AGENT.md 文件中定义自定义代理。选择代理或请求 explore、second-opinion；工具允许列表限制其能力。Model API 子任务需要付费子代理同意。",
   "referenceCodeOutput": "复制会复制代码；插入在编辑器光标处写入；应用替换编辑器选区。打开工具输出可阅读完整结果；截断的输出可分页读取。 选择对话文本，可在输入框中引用、提问、添加评论或复制。",

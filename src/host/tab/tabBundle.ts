@@ -240,7 +240,9 @@ export function createTabConsent(deps: TabConsentDeps): TabUseConsent {
     token?: string,
   ): TabConsentGrant => {
     const keyText = JSON.stringify([model, price])
-    const isKeyCurrent = (): boolean => deps.isOn() && deps.priceOf(model) === price
+    const revocations = deps.revocations()
+    const isKeyCurrent = (): boolean =>
+      deps.isOn() && deps.priceOf(model) === price && deps.revocations() === revocations
     const isScopeCurrent = (): boolean => {
       switch (scope) {
         case 'always': {
@@ -270,12 +272,12 @@ export function createTabConsent(deps: TabConsentDeps): TabUseConsent {
   }
 
   const ask = async (model: string, price: string): Promise<TabConsentGrant | undefined> => {
+    const revocations = deps.revocations()
     // A record left behind a revoked or lapsed grant goes before the
     // question, so an answer for another key never revives it.
     if (deps.readAlways() !== undefined && !deps.isRemembered()) {
       await deps.writeAlways(undefined)
     }
-    const revocations = deps.revocations()
     const scope = await deps.ask(model)
     if (scope === undefined || !deps.isOn() || deps.priceOf(model) !== price) {
       return undefined
@@ -283,6 +285,7 @@ export function createTabConsent(deps: TabConsentDeps): TabUseConsent {
     if (deps.revocations() !== revocations) {
       // Revoked while the question was open: this request sends nothing, and
       // the window is not snoozed (the user did not deny).
+      await deps.writeAlways(undefined)
       return { scope: 'once', isCurrent: () => false }
     }
     if (scope === 'window') {
@@ -296,12 +299,18 @@ export function createTabConsent(deps: TabConsentDeps): TabUseConsent {
     if (scope === 'always') {
       try {
         await deps.writeAlways({ scope: 'always', model, price })
+        if (deps.revocations() !== revocations) {
+          await deps.writeAlways(undefined)
+          return { scope: 'once', isCurrent: () => false }
+        }
         return grantFor('always', model, price)
       } catch {
         deps.log.warn('Tab: "always" could not be kept, so this request is allowed once')
       }
     }
-    return grantFor('once', model, price)
+    return deps.revocations() === revocations
+      ? grantFor('once', model, price)
+      : { scope: 'once', isCurrent: () => false }
   }
 
   return {
