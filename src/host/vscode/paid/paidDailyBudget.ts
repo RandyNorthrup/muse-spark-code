@@ -12,7 +12,10 @@ import { fill, formatUsd } from '../../../shared/l10n/text'
 import { modelApiPaidTier } from '../../../shared/paid'
 import { createSessionBudgetJournal } from '../../backend/sessionBudgetJournal'
 import { storeErrorCode } from '../../backend/storeErrors'
+import { nanoUsdToUsd, usdToNanoUsd } from '../../../shared/usd'
 import { writeFileAtomically } from '../../fsAtomic'
+
+const ZERO_NANO_USD = 0n
 
 const limitSchema = z.object({
   limitUsd: z
@@ -204,9 +207,14 @@ export function createPaidDailyBudget(deps: {
     return { day: scope, capUsd: readLimit(scope), spentUsd: total.spentUsd }
   }
   const judgeLedger: JudgeDailyLedger = {
+    // Exact nano-USD integers, like the portable ledger and the shared
+    // journal: a $0.40 settlement against a $0.50 cap leaves exactly $0.10,
+    // never the float remainder 0.09999999999999998.
     remainingUsd: async () => {
       const current = await latestDay()
-      return Math.max(0, current.capUsd - current.spentUsd)
+      let remaining = usdToNanoUsd(current.capUsd, 'down') - usdToNanoUsd(current.spentUsd)
+      if (remaining < ZERO_NANO_USD) remaining = ZERO_NANO_USD
+      return nanoUsdToUsd(remaining)
     },
     reserve: async (costUsd) => {
       const scope = day()
