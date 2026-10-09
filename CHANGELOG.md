@@ -74,6 +74,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Windows recorder destinations accept native 8.3 temporary-folder spelling
+  while still refusing traversal and existing destinations (CIFIX017W).
+
+- Companion uploads close their inspection handle and remove private bytes
+  before acknowledging the request, avoiding Windows cleanup races.
+  A failed inspection close returns a refusal with private diagnostics withheld.
+
+- Windows resource-history tests wait for durable disposal output before
+  checking or corrupting journal files.
+
+- Windows native probes avoid unnecessary PowerShell module startup;
+  packaging tests share one production build while retaining private outputs.
+
 - Schedule runtime tests cover Linux, Windows and macOS rearm ownership
   explicitly; macOS wake shutdown retains its independent after-exit helper.
 

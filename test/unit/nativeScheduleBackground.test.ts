@@ -1318,9 +1318,7 @@ describe('native background lifecycle', () => {
       '-NoProfile',
       '-NonInteractive',
       '-EncodedCommand',
-      Buffer.from("ConvertTo-Json -Compress -InputObject 'system-helper'", 'utf16le').toString(
-        'base64',
-      ),
+      Buffer.from(`[Console]::WriteLine('"system-helper"')`, 'utf16le').toString('base64'),
     ]
     if (process.platform === 'win32') {
       const directory = await mkdtemp(path.join(os.tmpdir(), 'm115-helper-shadow-'))

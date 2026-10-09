@@ -58,6 +58,10 @@ async function ownerOnly(directory: string): Promise<void> {
     '*S-1-5-32-544:(OI)(CI)F',
   ])
 }
+async function removeTemporaryDirectory(directory: string): Promise<void> {
+  expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
+  await rm(directory, { recursive: true, force: true })
+}
 const verdicts: boolean[] = []
 const taskVectors = [
   {
@@ -85,13 +89,22 @@ const taskVerdicts: boolean[] = []
 beforeAll(async () => {
   if (process.platform !== 'win32') return
   // One native invocation for the complete shared table, within the default deadline.
-  const table = Buffer.from(JSON.stringify(vectors.windows)).toString('base64')
   const policy = WINDOWS_TRUSTED_ACL_SCRIPT.replace(
     '[Security.Principal.WindowsIdentity]::GetCurrent()',
     "[pscustomobject]@{ User = [pscustomobject]@{ Value = 'S-1-5-21-1-2-3-1000' } }",
   )
-  const taskTable = Buffer.from(JSON.stringify(taskVectors)).toString('base64')
-  const script = `$ErrorActionPreference = 'Stop'; ${policy}; $vectors = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${table}')) | ConvertFrom-Json; $results = @(); foreach ($vector in $vectors) { $acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm($vector.sddl); $results += (-not $vector.reparsePoint -and (Test-TrustedAcl $acl $vector.isRoot $vector.isDirectory)) }; $tasks = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${taskTable}')) | ConvertFrom-Json; foreach ($task in $tasks) { $acl = [Security.AccessControl.FileSecurity]::new(); $acl.SetSecurityDescriptorSddlForm(('O:' + $task.owner + 'D:P(A;;FA;;;' + $task.writer + ')')); $results += (Test-TrustedAcl $acl $false $false $true) }; ConvertTo-Json -Compress -InputObject $results`
+  // The descriptors still use native ACL APIs and the exact shared predicate.
+  // Emit the fixture table directly: JSON cmdlets cold-load Utility even
+  // though this probe needs only the CLR and PowerShell's built-in language.
+  const aclRows = vectors.windows.map(
+    (vector) =>
+      `$acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm('${vector.sddl.replaceAll("'", "''")}'); $results += (-not $${String(vector.reparsePoint)} -and (Test-TrustedAcl $acl $${String(vector.isRoot)} $${String(vector.isDirectory)}))`,
+  )
+  const taskRows = taskVectors.map(
+    (task) =>
+      `$acl = [Security.AccessControl.FileSecurity]::new(); $acl.SetSecurityDescriptorSddlForm('O:${task.owner}D:P(A;;FA;;;${task.writer})'); $results += (Test-TrustedAcl $acl $false $false $true)`,
+  )
+  const script = `$ErrorActionPreference = 'Stop'; ${policy}; $results = @(); ${[...aclRows, ...taskRows].join('; ')}; $json = @(); foreach ($answer in $results) { $json += $answer.ToString().ToLowerInvariant() }; [Console]::WriteLine('[' + [string]::Join(',', [string[]]$json) + ']')`
   const result = await run('powershell.exe', [
     '-NoProfile',
     '-NonInteractive',
@@ -205,8 +218,7 @@ describe('shared Windows trusted-path vectors', () => {
         await windowsTrustedPathVerifier(run, io).verify(leaf, { leafKind: 'file' }),
       ).toMatchObject({ refused: true, component: leaf })
     } finally {
-      expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
-      await rm(directory, { recursive: true, force: true })
+      await removeTemporaryDirectory(directory)
     }
   })
 
@@ -278,8 +290,7 @@ describe('shared Windows trusted-path vectors', () => {
         ok: true,
       })
     } finally {
-      expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
-      await rm(directory, { recursive: true, force: true })
+      await removeTemporaryDirectory(directory)
     }
   })
 })
