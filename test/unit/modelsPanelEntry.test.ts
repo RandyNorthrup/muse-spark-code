@@ -5,7 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
 import { window } from 'vscode'
-import { window as fakeWindow } from './mocks/vscode'
+import { window as fakeWindow, workspace } from './mocks/vscode'
 import { confirmModal, pickMany, pickOne } from './helpers/vscodeViews'
 import {
   createModelsPanelFeatures,
@@ -91,6 +91,7 @@ beforeEach(() => {
     window.showInputBox,
     window.showWarningMessage,
     window.showInformationMessage,
+    workspace.getConfiguration,
   ]) {
     vi.mocked(mock).mockReset()
   }
@@ -147,17 +148,39 @@ describe('createModelsPanelFeatures', () => {
       id: 'accept',
       label: 'Accept: m1',
     }
-    const acceptBudgetRow: vscode.QuickPickItem & { readonly id: string } = {
-      id: 'accept',
-      label: 'Accept: 5.00',
-    }
+    // The spending limit IS the conversation spending limit setting: the
+    // configuration starts unlimited, the quick pick is answered 2, and
+    // the answer reaches the setting (no longer dropped).
+    const settings = new Map<string, unknown>()
+    const updates: { section: string; value: unknown }[] = []
+    // Only what the wizard's spending-limit configuration reads and writes
+    // of VS Code's configuration; the mock has no configuration class.
+    vi.mocked(workspace.getConfiguration).mockReturnValue({
+      get: (key: string) =>
+        key === 'modelApiSessionBudgetUsd' ? (settings.get(key) ?? 0) : undefined,
+      inspect: (key: string) =>
+        key === 'modelApiSessionBudgetUsd'
+          ? { workspaceValue: undefined, workspaceFolderValue: undefined }
+          : undefined,
+      update: (key: string, value: unknown) => {
+        settings.set(key, value)
+        updates.push({ section: key, value })
+        return Promise.resolve()
+      },
+    } as unknown as vscode.WorkspaceConfiguration)
     vi.mocked(pickOne).mockResolvedValueOnce(openRouterRow).mockResolvedValueOnce(pasteRow)
     vi.mocked(pickMany).mockResolvedValueOnce(modelRows)
-    vi.mocked(pickOne).mockResolvedValueOnce(acceptModelRow).mockResolvedValueOnce(acceptBudgetRow)
-    vi.mocked(window.showInputBox).mockResolvedValueOnce('sk-or-pasted')
+    vi.mocked(pickOne).mockResolvedValueOnce(acceptModelRow)
+    vi.mocked(window.showInputBox).mockResolvedValueOnce('sk-or-pasted').mockResolvedValueOnce('2')
     vi.mocked(confirmModal).mockResolvedValueOnce('Save')
     const outcome = await features.runQuickPick()
-    expect(outcome).toEqual({ providerId: 'openrouter', modelRef: 'openrouter/m1' })
+    expect(outcome).toEqual({
+      providerId: 'openrouter',
+      modelRef: 'openrouter/m1',
+      sessionBudgetUsd: '2',
+    })
+    expect(updates).toEqual([{ section: 'modelApiSessionBudgetUsd', value: '2' }])
+    expect(settings.get('modelApiSessionBudgetUsd')).toBe('2')
     expect(composed).toEqual(['openrouter/m1'])
     expect(await built.seam.store.defaultModel()).toBe('openrouter/m1')
     expect(await readProviderCredential(secrets, 'openrouter')).toEqual({

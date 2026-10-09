@@ -4217,6 +4217,21 @@ export const EN = {
   suggestReasonRecommended: 'The provider’s recommended model.',
   // {cost}: the median of the user's own recent sessions.
   suggestReasonBudgetMedian: 'From your recent sessions (median {cost}).',
+  // The wizard's spending limit IS the conversation spending limit
+  // setting: 0 means no limit, anything else caps every conversation.
+  wizardSessionBudget: 'Spending limit per conversation (USD, 0 = no limit)',
+  // {amount}: the effective limit now; {scope}: where it is set.
+  wizardSessionBudgetNow:
+    'This is your setting for every conversation; it is {amount} now ({scope}).',
+  // Where the spending limit is effective from, as the wizard names it.
+  sessionBudgetScopeWorkspace: 'workspace',
+  sessionBudgetScopeGlobal: 'this computer',
+  wizardSessionBudgetInvalid:
+    'Enter a non-negative amount in dollars, for example 2 (0 means no limit).',
+  // {detail}: why the setting write failed, in the settings' own words.
+  sessionBudgetWriteFailed: 'The spending limit was not saved: {detail}',
+  // {amount}: what the setting still reads after the write resolved.
+  sessionBudgetStillEffective: 'the setting still reads {amount}',
   // {detail}: why the address is refused, in technical words.
   providerAddressInvalid: 'This address cannot be used: {detail}',
   // {address}: a private-network address, saved only after confirmation.

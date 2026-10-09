@@ -57,6 +57,19 @@ happened, not what was planned; superseded entries are kept.
   availability: an unavailable sign-in shows disabled with its reason in the
   picker (Copilot stays hidden in confidential workspaces, per the README),
   and choosing one is refused with that reason before any connector runs.
+- Models & Agents: the provider wizard's spending limit is now the real
+  conversation spending limit (`museSpark.modelApiSessionBudgetUsd`).
+  Previously the wizard accepted a "Session budget" and reported setup
+  success while the enforced cap stayed unchanged, so a typed USD 2 left the
+  conversation unlimited. The suggestions step now labels the field
+  "Spending limit per conversation (USD, 0 = no limit)", shows "This is your
+  setting for every conversation; it is $X now", prefills the current
+  effective value, and the typed number counts on Continue and on Save. An
+  unchanged value writes nothing; a changed one is written at the scope it
+  is effective from (an existing workspace value stays a workspace value).
+  A failed write keeps the typed value, shows its specific error, and
+  reports no setup success. The quick pick does the same through the same
+  shared function instead of dropping the value.
 
 ### Documentation
 

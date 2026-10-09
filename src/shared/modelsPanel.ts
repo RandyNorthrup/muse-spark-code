@@ -363,6 +363,19 @@ export const modelsPanelStateSchema = z.strictObject({
   }),
   scans: z.record(z.string(), scanStateSchema),
   suggestions: z.array(suggestionSchema),
+  /**
+   * The conversation spending limit the wizard edits: the effective
+   * `museSpark.modelApiSessionBudgetUsd` value enforcement reads today
+   * (the suggestions step prefills its field with this; a changed number
+   * is written back at the scope it is effective from), and the one line
+   * naming that value and scope, worded by the host like any other error.
+   * The line is formatted host-side so the lazy webview bundle does not
+   * carry the template and scope words for it.
+   */
+  sessionBudget: z.strictObject({
+    effectiveUsd: legacyUsdSchema,
+    nowLine: z.string(),
+  }),
   /** The last choices made (a stated assumption with no history). */
   lastChoices: z.strictObject({
     defaultModelRef: z.optional(z.string()),

@@ -23,7 +23,7 @@ import {
   type ProviderTest,
 } from '../../shared/modelsPanel'
 import { buildWebviewHtml, createNonce } from '../html'
-import { fill } from '../../shared/l10n/text'
+import { fill, formatUsd } from '../../shared/l10n/text'
 import { modelLimitsSchema } from '../../shared/providerRouting'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
@@ -37,6 +37,8 @@ import type {
 import type { ProvidersHost } from '../providers/providersHost'
 import type { WizardSaveOutcome } from '../providers/wizardSave'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
+import { Usd } from '../../shared/usd'
+import { applyWizardSessionBudget, type SessionBudgetConfig } from './sessionBudget'
 
 export interface ModelsPanelDeps {
   readonly connectChatGpt?: (() => Promise<void>) | undefined
@@ -47,6 +49,12 @@ export interface ModelsPanelDeps {
   readonly l10n: UiTable
   readonly log: Logger
   readonly providers: ProvidersHost
+  /**
+   * The conversation spending limit setting: read for the suggestions
+   * step's prefill and written when the wizard's number changed. Backed by
+   * VS Code's configuration in production, by memory in tests.
+   */
+  readonly sessionBudget: SessionBudgetConfig
   readonly isRemote?: boolean
   readonly writeExportFile: (text: string) => Promise<void>
   readonly readImportFile: () => Promise<string | undefined>
@@ -139,6 +147,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     facets: { providers: [], families: [] },
     scans: {},
     suggestions: [],
+    sessionBudget: { effectiveUsd: Usd.from(0).toAmount(), nowLine: '' },
     lastChoices: {},
     drafts: { edits: {} },
     pendingRemovals: [],
@@ -292,6 +301,23 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     state.copilotAvailable = deps.connectCopilot !== undefined && deps.isConfidential?.() !== true
     state.remoteWindow = deps.isRemote === true
     state.confidentialWorkspace = deps.isConfidential?.() === true
+    // The spending limit the suggestions step shows and prefills: what
+    // enforcement reads today, with the one line naming its value and the
+    // scope a change would be written at. The line is worded here, like
+    // any error, so the lazy webview bundle does not carry its template.
+    {
+      const budget = deps.sessionBudget.read()
+      state.sessionBudget = {
+        effectiveUsd: budget.effectiveUsd,
+        nowLine: fill(UI_TEXT.wizardSessionBudgetNow, {
+          amount: formatUsd(budget.effectiveUsd),
+          scope:
+            budget.scope === 'workspace'
+              ? UI_TEXT.sessionBudgetScopeWorkspace
+              : UI_TEXT.sessionBudgetScopeGlobal,
+        }),
+      }
+    }
     const providerStates = await providers.providerStates()
     state.providers = providerStates.flatMap(({ entry, hasKey, origin }) => {
       const preset = state.presets.find((candidate) => candidate.id === entry.preset)
@@ -746,6 +772,16 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (verdict.kind === 'refused') {
           throw new Error(UI_TEXT.actionFailed)
         }
+        // The wizard's number IS the conversation spending limit: a change
+        // reaches the setting enforcement reads, before the provider is
+        // saved. A failed write keeps the draft (and its typed value) with
+        // the specific error, and setup success is not reported; nothing
+        // is written, so saving again retries cleanly.
+        const budget = await applyWizardSessionBudget(draft.sessionBudgetUsd, deps.sessionBudget)
+        if (budget.status === 'failed') {
+          draft.errors = [...draft.errors, budget.error]
+          break
+        }
         const outcome = await providers.saveDraft({
           provider: { ...entry, privateNetwork: verdict.kind === 'private' },
           credential: draftSecret(entry, message.providerId),
@@ -900,13 +936,17 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       case 'suggestions/change': {
         const draft = draftOf()
         const suggestion = state.suggestions.find((candidate) => candidate.kind === message.kind)
-        if (suggestion?.kind === 'defaultModel') {
+        if (message.kind === 'sessionBudget') {
+          // The suggestions step's spending-limit field commits its typed
+          // number directly: no suggestion card has to be accepted first.
+          if (message.type === 'suggestions/change' && message.usd !== undefined) {
+            draft.sessionBudgetUsd = message.usd
+          } else if (suggestion?.kind === 'sessionBudget') {
+            draft.sessionBudgetUsd = suggestion.usd
+          }
+        } else if (suggestion?.kind === 'defaultModel') {
           draft.defaultModel =
             message.type === 'suggestions/change' ? message.modelRef : suggestion.modelRef
-        }
-        if (suggestion?.kind === 'sessionBudget') {
-          draft.sessionBudgetUsd =
-            message.type === 'suggestions/change' ? message.usd : suggestion.usd
         }
         if (suggestion !== undefined) {
           suggestion.accepted = true

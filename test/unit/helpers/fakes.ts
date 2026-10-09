@@ -6,7 +6,15 @@ import type * as vscode from 'vscode'
 import { vi } from 'vitest'
 import type { VerifyHooks } from '../../../src/core/backends/modelapi/verifyLoop'
 import type { SecretStore } from '../../../src/host/auth/credentialStore'
+import type { Logger } from '../../../src/host/logger'
+import type {
+  SessionBudgetConfig,
+  SessionBudgetConfigSource,
+  SessionBudgetScope,
+} from '../../../src/host/models/sessionBudget'
+import { createSessionBudgetConfig } from '../../../src/host/models/sessionBudget'
 import type { ProviderEntry, ProvidersStore } from '../../../src/host/providers/providerPorts'
+import { Usd, legacyUsdSchema, type UsdAmount } from '../../../src/shared/usd'
 import type { SettingsSource } from '../../../src/host/settings'
 import { EN } from '../../../src/shared/l10n/en'
 import { BASE_LOCALE } from '../../../src/shared/l10n/text'
@@ -288,6 +296,52 @@ export function fakeSurface(id: string, isSideChat = false): FakeSurface {
 /** A `CredentialStore` warning sink for tests that expect none: one fails the test. */
 export function unexpectedWarning(message: string): never {
   throw new Error(`unexpected warning: ${message}`)
+}
+
+/**
+ * The conversation spending limit setting backed by memory: the effective
+ * value and the scope it is effective from, with every write recorded. The
+ * shared wizard function reads and writes through this, exactly as through
+ * VS Code's configuration in production.
+ */
+export function memorySessionBudgetConfig(
+  parts: {
+    readonly effective?: string
+    readonly scope?: SessionBudgetScope
+    readonly failWrite?: boolean
+  } = {},
+): SessionBudgetConfig & {
+  readonly writes: readonly { readonly value: UsdAmount; readonly scope: SessionBudgetScope }[]
+} {
+  let current = Usd.from(parts.effective ?? 0).toAmount()
+  const scope = parts.scope ?? 'global'
+  const writes: { value: UsdAmount; scope: SessionBudgetScope }[] = []
+  const log: Logger = {
+    trace: () => undefined,
+    info: () => undefined,
+    warn: () => undefined,
+    error: () => undefined,
+  }
+  const source: SessionBudgetConfigSource = {
+    get: (section) => (section === 'modelApiSessionBudgetUsd' ? current : undefined),
+    inspect: (section) =>
+      section === 'modelApiSessionBudgetUsd' && scope === 'workspace'
+        ? { workspaceValue: current }
+        : undefined,
+    update: (section, value, nextScope) => {
+      if (parts.failWrite === true) {
+        return Promise.reject(new Error('settings are read-only in this test'))
+      }
+      const parsed = legacyUsdSchema.safeParse(value)
+      if (section !== 'modelApiSessionBudgetUsd' || !parsed.success) {
+        return Promise.reject(new Error('rejected by the setting schema in this test'))
+      }
+      current = parsed.data
+      writes.push({ value: parsed.data, scope: nextScope })
+      return Promise.resolve()
+    },
+  }
+  return { ...createSessionBudgetConfig(source, log), writes }
 }
 
 export function memorySecrets(): SecretStore & { readonly values: Map<string, string> } {

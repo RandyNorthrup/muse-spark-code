@@ -6,11 +6,12 @@ import { usdInputSchema, type UsdAmount } from '../../shared/usd'
 // draft lives in this runner's memory, and only the final confirm saves.
 
 import { UI_TEXT } from '../../shared/constants'
-import { fill, plural } from '../../shared/l10n/text'
+import { fill, formatUsd, plural } from '../../shared/l10n/text'
 import type { PickItem } from '../commands/pickItem'
 import type { PresetInfo, ProviderEntry, ProviderModelRow } from '../providers/providerPorts'
 import type { ProvidersHost } from '../providers/providersHost'
 import type { WizardDraft } from '../providers/wizardSave'
+import { applyWizardSessionBudget, type SessionBudgetConfig } from './sessionBudget'
 
 export interface ProviderQuickPickUi {
   /** One choice from a list; undefined when dismissed. */
@@ -42,11 +43,20 @@ export interface ProviderQuickPickDeps {
   readonly providers: ProvidersHost
   readonly isRemote: boolean
   readonly ui: ProviderQuickPickUi
+  /**
+   * The conversation spending limit setting: the budget answer below is
+   * prefilled with its effective value and, when changed, written back at
+   * its scope through the shared wizard function. Backed by VS Code's
+   * configuration in production, by memory in tests.
+   */
+  readonly sessionBudget: SessionBudgetConfig
 }
 
 export interface ProviderQuickPickOutcome {
   readonly providerId: string
   readonly modelRef: string
+  /** The wizard's budget answer, as saved to the spending-limit setting. */
+  readonly sessionBudgetUsd: UsdAmount | undefined
 }
 
 function providerItem(preset: PresetInfo): PickItem {
@@ -308,38 +318,36 @@ export async function runAddProviderQuickPick(
       defaultModel = changed
     }
   }
-  const budgetSuggestion = providers.suggestSessionBudget(ticked)
+  // The spending limit IS the conversation spending limit setting: the
+  // field is prefilled with its effective value, and the typed number
+  // counts. Dismissing writes nothing, as at every earlier step.
+  const budgetState = deps.sessionBudget.read()
+  const budgetScope =
+    budgetState.scope === 'workspace'
+      ? UI_TEXT.sessionBudgetScopeWorkspace
+      : UI_TEXT.sessionBudgetScopeGlobal
   let sessionBudgetUsd: UsdAmount | undefined
-  if (budgetSuggestion !== undefined) {
-    const choice = await ui.pickOne(
-      [
-        {
-          id: 'accept',
-          label: `${UI_TEXT.suggestionAccept}: ${budgetSuggestion.value}`,
-          description: budgetSuggestion.reason,
-        },
-        { id: 'change', label: UI_TEXT.suggestionChange },
-      ],
-      UI_TEXT.suggestSessionBudget,
-      budgetSuggestion.reason,
-    )
-    if (choice === undefined) {
+  for (;;) {
+    const entered = await ui.inputText({
+      title: UI_TEXT.wizardSessionBudget,
+      placeholder: fill(UI_TEXT.wizardSessionBudgetNow, {
+        amount: formatUsd(budgetState.effectiveUsd),
+        scope: budgetScope,
+      }),
+      value: budgetState.effectiveUsd,
+      validate: (candidate) =>
+        parseBudgetUsd(candidate) === undefined ? UI_TEXT.wizardSessionBudgetInvalid : undefined,
+    })
+    if (entered === undefined) {
       return undefined
     }
-    if (choice === 'accept') {
-      sessionBudgetUsd = parseBudgetUsd(budgetSuggestion.value)
-    } else {
-      const changed = await ui.inputText({
-        title: UI_TEXT.suggestSessionBudget,
-        placeholder: budgetSuggestion.value,
-        value: budgetSuggestion.value,
-      })
-      if (changed === undefined) {
-        return undefined
-      }
-      // Advisory metadata for M82's seam: garbage never blocks the save.
-      sessionBudgetUsd = parseBudgetUsd(changed)
+    const parsed = parseBudgetUsd(entered)
+    if (parsed === undefined) {
+      ui.showError(UI_TEXT.wizardSessionBudgetInvalid)
+      continue
     }
+    sessionBudgetUsd = parsed
+    break
   }
   const modelRef = `${providerId}/${defaultModel}`
   let origin: string
@@ -353,6 +361,15 @@ export async function runAddProviderQuickPick(
     [fill(UI_TEXT.keyStoredNote, { origin }), `${preset.name} · ${modelRef}`].join('\n'),
   )
   if (!isConfirmed) {
+    return undefined
+  }
+  // The wizard's number IS the conversation spending limit: a change
+  // reaches the setting enforcement reads, before the provider is saved. A
+  // failed write shows its specific error and reports no setup success, so
+  // nothing is written and running the flow again retries cleanly.
+  const budget = await applyWizardSessionBudget(sessionBudgetUsd, deps.sessionBudget)
+  if (budget.status === 'failed') {
+    ui.showError(budget.error)
     return undefined
   }
   const outcome = await providers.saveDraft({
@@ -370,5 +387,9 @@ export async function runAddProviderQuickPick(
   if (outcome.composerSet) {
     ui.showNotice(fill(UI_TEXT.setupComplete, { provider: preset.name, model: outcome.modelRef }))
   }
-  return { providerId: outcome.providerId, modelRef: outcome.modelRef }
+  return {
+    providerId: outcome.providerId,
+    modelRef: outcome.modelRef,
+    sessionBudgetUsd: outcome.sessionBudgetUsd,
+  }
 }

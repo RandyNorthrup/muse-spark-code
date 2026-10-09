@@ -6,9 +6,9 @@
 // provider in `providers.json`, no secret in SecretStorage.
 
 import { useState } from 'react'
-import { usdInputSchema, isPositiveUsd } from '../../shared/usd'
+import { usdInputSchema } from '../../shared/usd'
 import { UI_TEXT } from '../../shared/constants'
-import { fill, formatUsd, plural } from '../../shared/l10n/text'
+import { fill, plural } from '../../shared/l10n/text'
 import type {
   ModelsCustomFormat,
   ModelsPanelState,
@@ -674,46 +674,47 @@ function PrivacyStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'on
 }
 
 function SuggestionsStep({ panelState, draft, post, onClose, onNavigateModels }: WizardProps) {
-  const [budgetOverride, setBudgetOverride] = useState('')
+  // The spending limit IS the conversation spending limit setting: the
+  // field starts with its effective value, and the typed number counts on
+  // Continue and on Save. There is no separate Change button to press.
+  // An unparseable number disables Continue (nothing is saved until the
+  // field holds a non-negative dollar amount); the wording of the failure
+  // stays host-side with the write, so this lazy bundle carries no error
+  // string for the field.
+  const [budgetText, setBudgetText] = useState<string>(
+    draft.sessionBudgetUsd ?? panelState.sessionBudget.effectiveUsd,
+  )
   const ticked = draft.models
+  const budgetParsed = usdInputSchema.safeParse(budgetText.trim().replace(',', '.'))
+  const commitAndNext = (): void => {
+    if (!budgetParsed.success) {
+      return
+    }
+    post({ type: 'suggestions/change', kind: 'sessionBudget', usd: budgetParsed.data })
+    post({ type: 'providers/wizard', event: 'next' })
+  }
   return (
     <div className="models-wizard-step">
       {panelState.suggestions.length === 0 && (
         <p className="models-hint">{UI_TEXT.suggestUnavailable}</p>
       )}
-      {panelState.suggestions.map((suggestion) =>
-        suggestion.kind === 'defaultModel' ? (
-          <SuggestionCard
-            key={suggestion.kind}
-            title={UI_TEXT.suggestDefaultModel}
-            reason={suggestion.reason}
-            value={suggestion.modelRef}
-            accepted={suggestion.accepted}
-            onAccept={() => {
-              post({ type: 'suggestions/accept', kind: 'defaultModel' })
-            }}
-            onChange={() => {
-              onNavigateModels()
-            }}
-          />
-        ) : (
-          <SuggestionCard
-            key={suggestion.kind}
-            title={UI_TEXT.suggestSessionBudget}
-            reason={suggestion.reason}
-            value={formatUsd(suggestion.usd, 2)}
-            accepted={suggestion.accepted}
-            onAccept={() => {
-              post({ type: 'suggestions/accept', kind: 'sessionBudget' })
-            }}
-            onChange={() => {
-              const usd = usdInputSchema.safeParse(budgetOverride.trim())
-              if (usd.success && isPositiveUsd(usd.data)) {
-                post({ type: 'suggestions/change', kind: 'sessionBudget', usd: usd.data })
-              }
-            }}
-          />
-        ),
+      {panelState.suggestions.map(
+        (suggestion) =>
+          suggestion.kind === 'defaultModel' && (
+            <SuggestionCard
+              key={suggestion.kind}
+              title={UI_TEXT.suggestDefaultModel}
+              reason={suggestion.reason}
+              value={suggestion.modelRef}
+              accepted={suggestion.accepted}
+              onAccept={() => {
+                post({ type: 'suggestions/accept', kind: 'defaultModel' })
+              }}
+              onChange={() => {
+                onNavigateModels()
+              }}
+            />
+          ),
       )}
       {ticked.length > 0 && (
         <label className="models-field" htmlFor="models-default-override">
@@ -740,23 +741,46 @@ function SuggestionsStep({ panelState, draft, post, onClose, onNavigateModels }:
         </label>
       )}
       <label className="models-field" htmlFor="models-budget-override">
-        <span>{UI_TEXT.suggestSessionBudget}</span>
+        <span>{UI_TEXT.wizardSessionBudget}</span>
         <input
           id="models-budget-override"
           type="number"
           min={0}
-          value={budgetOverride}
+          value={budgetText}
           onChange={(event) => {
-            setBudgetOverride(event.target.value)
+            setBudgetText(event.target.value)
           }}
         />
       </label>
+      <p className="models-hint">{panelState.sessionBudget.nowLine}</p>
       {panelState.lastChoices.defaultModelRef !== undefined && (
         <p className="models-hint">
           {fill(UI_TEXT.lastDefaultHint, { model: panelState.lastChoices.defaultModelRef })}
         </p>
       )}
-      <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
+      <InlineError messages={[...draft.errors, ...draft.blockers]} />
+      <div className="models-row-actions">
+        <button
+          type="button"
+          className="models-button"
+          onClick={() => {
+            post({ type: 'providers/wizard', event: 'back' })
+          }}
+        >
+          {UI_TEXT.wizardBack}
+        </button>
+        <button
+          type="button"
+          className="models-button-primary"
+          disabled={draft.blockers.length > 0 || !budgetParsed.success}
+          onClick={commitAndNext}
+        >
+          {UI_TEXT.wizardContinue}
+        </button>
+        <button type="button" className="models-button" onClick={cancelWizard(post, onClose)}>
+          {UI_TEXT.wizardCancel}
+        </button>
+      </div>
     </div>
   )
 }

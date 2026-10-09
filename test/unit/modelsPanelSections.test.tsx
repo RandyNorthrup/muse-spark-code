@@ -9,7 +9,7 @@ import { Usd } from '../../src/shared/usd'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
-import { fill } from '../../src/shared/l10n/text'
+import { fill, formatUsd } from '../../src/shared/l10n/text'
 import type {
   ImportPreview,
   ModelsPanelState,
@@ -467,29 +467,35 @@ describe('ProvidersSection', () => {
     })
   })
 
-  it('accepts the suggested default and overrides the budget', () => {
+  it('accepts the suggested default and commits the typed spending limit on Continue', () => {
     const post = vi.fn()
     const state = makeState({
       drafts: {
         edits: {},
-        wizard: makeDraft({ step: 'suggestions', presetId: 'ollama', auth: 'none' }),
+        wizard: makeDraft({
+          step: 'suggestions',
+          presetId: 'ollama',
+          auth: 'none',
+          blockers: [],
+        }),
       },
       suggestions: [makeSuggestion('defaultModel'), makeSuggestion('sessionBudget')],
     })
     render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
-    const acceptButtons = screen.getAllByRole('button', { name: UI_TEXT.suggestionAccept })
-    fireEvent.click(acceptButtons[0] ?? fail('default accept missing'))
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.suggestionAccept }))
     expect(post).toHaveBeenCalledWith({ type: 'suggestions/accept', kind: 'defaultModel' })
-    fireEvent.change(screen.getByLabelText(UI_TEXT.suggestSessionBudget), {
+    // The spending limit is a field now, not a second suggestion card: the
+    // typed number is committed on Continue, with no Change press.
+    fireEvent.change(screen.getByLabelText(UI_TEXT.wizardSessionBudget), {
       target: { value: '5' },
     })
-    const changeButtons = screen.getAllByRole('button', { name: UI_TEXT.suggestionChange })
-    fireEvent.click(changeButtons[1] ?? fail('budget change missing'))
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardContinue }))
     expect(post).toHaveBeenCalledWith({
       type: 'suggestions/change',
       kind: 'sessionBudget',
       usd: Usd.from(5).toAmount(),
     })
+    expect(post).toHaveBeenCalledWith({ type: 'providers/wizard', event: 'next' })
   })
 
   it('keeps Save disabled until the form is valid, with each blocker inline', () => {
@@ -613,6 +619,105 @@ describe('Wizard', () => {
       expect(screen.getByText(marker)).toBeDefined()
       unmount()
     }
+  })
+
+  it('shows the spending limit as the conversation setting, prefilled with what it is now', () => {
+    const post = vi.fn()
+    render(
+      <Wizard
+        panelState={makeState({
+          suggestions: [makeSuggestion('defaultModel')],
+          sessionBudget: {
+            effectiveUsd: Usd.from(5).toAmount(),
+            nowLine: fill(UI_TEXT.wizardSessionBudgetNow, {
+              amount: formatUsd('5'),
+              scope: UI_TEXT.sessionBudgetScopeWorkspace,
+            }),
+          },
+        })}
+        draft={makeDraft({ step: 'suggestions', presetId: 'openrouter', blockers: [] })}
+        post={post}
+        onNavigateModels={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(UI_TEXT.wizardSessionBudget)).toBeDefined()
+    expect(screen.getByLabelText<HTMLInputElement>(UI_TEXT.wizardSessionBudget).value).toBe('5')
+    // One line names the setting for every conversation, its current
+    // value, and which scope it is effective from.
+    expect(
+      screen.getByText(
+        fill(UI_TEXT.wizardSessionBudgetNow, {
+          amount: formatUsd('5'),
+          scope: UI_TEXT.sessionBudgetScopeWorkspace,
+        }),
+      ),
+    ).toBeDefined()
+  })
+
+  it('commits the typed spending limit on Continue, with no separate Change press', () => {
+    const post = vi.fn()
+    render(
+      <Wizard
+        panelState={makeState({
+          suggestions: [makeSuggestion('defaultModel')],
+          sessionBudget: {
+            effectiveUsd: Usd.from(5).toAmount(),
+            nowLine: fill(UI_TEXT.wizardSessionBudgetNow, {
+              amount: formatUsd('5'),
+              scope: UI_TEXT.sessionBudgetScopeGlobal,
+            }),
+          },
+        })}
+        draft={makeDraft({ step: 'suggestions', presetId: 'openrouter', blockers: [] })}
+        post={post}
+        onNavigateModels={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText(UI_TEXT.wizardSessionBudget), {
+      target: { value: '2' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardContinue }))
+    expect(post).toHaveBeenNthCalledWith(1, {
+      type: 'suggestions/change',
+      kind: 'sessionBudget',
+      usd: '2',
+    })
+    expect(post).toHaveBeenNthCalledWith(2, { type: 'providers/wizard', event: 'next' })
+  })
+
+  it('disables Continue while the spending limit is not a non-negative amount', () => {
+    const post = vi.fn()
+    render(
+      <Wizard
+        panelState={makeState({
+          suggestions: [makeSuggestion('defaultModel')],
+          sessionBudget: {
+            effectiveUsd: Usd.from(5).toAmount(),
+            nowLine: fill(UI_TEXT.wizardSessionBudgetNow, {
+              amount: formatUsd('5'),
+              scope: UI_TEXT.sessionBudgetScopeGlobal,
+            }),
+          },
+        })}
+        draft={makeDraft({ step: 'suggestions', presetId: 'openrouter', blockers: [] })}
+        post={post}
+        onNavigateModels={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    // Nothing is saved until the field holds a non-negative dollar amount:
+    // an unparseable number disables Continue instead of posting it, and
+    // the wording of the failure stays host-side with the write.
+    fireEvent.change(screen.getByLabelText(UI_TEXT.wizardSessionBudget), {
+      target: { value: '-3' },
+    })
+    expect(
+      screen.getByRole('button', { name: UI_TEXT.wizardContinue }).getAttribute('disabled'),
+    ).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardContinue }))
+    expect(post).not.toHaveBeenCalled()
   })
 })
 

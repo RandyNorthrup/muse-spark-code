@@ -10,7 +10,7 @@ import { parseHostToPanelMessage, type ModelsPanelState } from '../../src/shared
 import { EN } from '../../src/shared/l10n/en'
 import { UI_TEXT } from '../../src/shared/constants'
 import { TEST_ENTRY, testProvidersHost, testRow } from './helpers/m95kFixtures'
-import { FakeWebviewPanel, memoryProvidersStore } from './helpers/fakes'
+import { FakeWebviewPanel, memoryProvidersStore, memorySessionBudgetConfig } from './helpers/fakes'
 
 function setup(overrides: Partial<ModelsPanelDeps> = {}): {
   panel: FakeWebviewPanel
@@ -44,6 +44,7 @@ function setup(overrides: Partial<ModelsPanelDeps> = {}): {
     readImportFile: () => Promise.resolve(undefined),
     confirmImport: () => Promise.resolve(true),
     onWizardSaved: saved,
+    sessionBudget: memorySessionBudgetConfig(),
     ...overrides,
   })
   const panel = fakeWindow.createWebviewPanel.mock.results[0]?.value

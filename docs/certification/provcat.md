@@ -294,3 +294,155 @@ file restored byte-exact (SHA-256 compared against the pre-drill record).
 | Copilot description back to the AI-content note                      | test 4 fails |
 | Pick step hides the found choices (`found.length > 99`)              | test 5 fails |
 | Empty sentence replaced with the scan button label                   | test 6 fails |
+
+# PROVWIZ2 round 3 — the wizard's spending limit is the real one (RVSETTINGSIA F1, P1)
+
+Recorded 2026-10-09 in the PROVWIZ2 lane, branch `fix/provider-wizard2`,
+same worktree and branch as rounds 1 and 2. The read-only review
+RVSETTINGSIA reported F1: the provider wizard and its quick-pick fallback
+accept a "Session budget" and report setup success, but the value never
+reaches the cap spending enforcement reads
+(`museSpark.modelApiSessionBudgetUsd`): a user who typed USD 2 stayed
+unlimited. No hidden per-wizard cap, no silent overwrite — the fix below
+wires both save paths through one shared function to the setting itself.
+Seven UI strings were added in all 14 language tables with real
+translations (`npm run check:l10n` 0 problems).
+
+BUDGET NOTE (lead): the two bundle budgets this round touches now read
+`dist/modelsPanel.js` 100.8 KiB of 125 and `dist/webview surface English`
+25,597 bytes of 25,600 — three bytes of headroom. The panel bundle first
+blew past 125 KiB (147.2) because the shared function read through the
+full settings reader; it now parses only its own key with the setting's
+own schema (the canonical reader stays in `host/settings.ts`, and the
+round-3 tests still assert admission through the real `readSettings`).
+The surface-English closure then read 25,645 bytes: the template and
+scope words moved host-side (`state.sessionBudget.nowLine`, worded like
+any error) and the field's inline error became a disabled Continue, so
+the lazy webview bundle carries only the field label. The remaining
+`wizardSessionBudgetInvalid` key stays in every table for the quick
+pick's host-side error. The next lane that adds any lazy-surface string
+will trip the 25 KiB cap; re-measuring it is the owner's call per D6,
+not this lane's.
+
+## 1. One shared function applies the wizard's number to the setting
+
+`src/host/models/sessionBudget.ts` (new, VS Code-free): `createSessionBudgetConfig`
+adapts a narrow get/inspect/update surface (VS Code's configuration in
+production, memory in tests), and `applyWizardSessionBudget` is the single
+function both save paths call. `undefined` (untouched) and a number equal
+to the effective value write nothing; anything else is validated with the
+setting's own schema (`legacyUsdSchema`: non-negative exact-decimal USD)
+and written at the scope the value is effective from today — an existing
+workspace value is written at workspace scope, a global one at global
+scope, never moved. A rejected write, or a write after which the setting
+still reads the old value (a more specific scope still wins), returns the
+specific reason. Enforcement is not duplicated: the admission path keeps
+reading `sessionBudgetUsd()` per request, which is
+`currentSettings().modelApiSessionBudgetUsd`.
+
+## 2. The panel writes on Save, before the provider, and keeps the draft on failure
+
+`src/host/models/modelsPanel.ts` (`providers/save`) applies the draft's
+number before `saveDraft`: a failed write keeps the draft (and its typed
+value) with the specific error and never reaches `onWizardSaved`, so no
+setup success is reported and nothing is written, which keeps a retry
+clean (a re-`add` of a saved provider id rejects as a duplicate).
+`refresh()` publishes `state.sessionBudget` (effective value plus scope),
+backed by the new `ModelsPanelDeps.sessionBudget`; the new required field
+in `modelsPanelStateSchema` carries it to the webview.
+
+## 3. The suggestions step is the setting's field, committed on Continue
+
+`src/webview/models/Wizard.tsx`: the budget suggestion card and its
+separate Change press are gone. The field is labelled "Spending limit per
+conversation (USD, 0 = no limit)", prefilled with the effective value,
+with the host-worded line "This is your setting for every conversation;
+it is $X now (scope)" (`state.sessionBudget.nowLine`, formatted host-side
+like any error so the lazy webview bundle carries no template for it).
+The typed number is committed with `suggestions/change` on Continue (then
+`next`) and therefore counts on Save too; an unparseable number disables
+Continue — nothing is saved until the field holds a non-negative dollar
+amount, and the wording of the failure stays host-side with the write.
+The host's `suggestions/change` handler commits an explicit `usd`
+directly instead of requiring a suggestion entry to exist (none is built
+for the budget).
+
+## 4. The quick pick prefills the same value and no longer drops it
+
+`src/host/models/modelsQuickPick.ts` asks one budget input prefilled with
+the effective value (scope named in its hint), re-asks after an invalid
+answer instead of saving advisory garbage, and applies the typed number
+through the same shared function before `saveDraft`: a failed write shows
+its specific error and reports no setup success. `ProviderQuickPickOutcome`
+carries the answered `sessionBudgetUsd`, and `modelsPanelEntry.ts`
+forwards it to `onWizardSaved` instead of the previous explicit
+`undefined`. The entry builds the one VS Code-backed configuration both
+paths share.
+
+## Tests
+
+`test/unit/wizardSessionBudget.test.ts` (13 tests: the shared function,
+the panel path end to end, the quick-pick path with a scripted UI):
+
+1. Untouched writes nothing.
+2. A number equal to the effective value writes nothing.
+3. A changed number writes at the global scope it is effective from.
+4. An existing workspace value is written at the workspace scope.
+5. A negative amount is refused with the setting-schema error, unwritten.
+6. A failed write returns the specific error.
+7. Panel: the changed budget is written, `onWizardSaved` carries it, the
+   published state shows the new effective value, and the next admission
+   sees the new cap — the cap is re-read through the real `readSettings`
+   reader, unlimited (`!isPositiveUsd`) before the write and a
+   `SessionBudgetExceededError` from the real `reserveRequest` admission
+   arithmetic on a request that no longer fits after it.
+8. Panel: unchanged writes nothing, setup still succeeds.
+9. Panel: a failed write keeps the draft and its typed value, shows the
+   specific error in `draft.errors`, never calls `onWizardSaved`, and the
+   provider store stays empty.
+10. Quick pick: the typed budget is written through the shared function;
+    the field's title, prefill and scope hint are asserted on the input
+    call; the success banner names the saved provider and model.
+11. Quick pick: an unchanged number writes nothing.
+12. Quick pick: a failed write shows the specific error, shows no
+    setup-success banner, returns `undefined`, and saves no provider.
+13. Quick pick: an invalid answer is refused with the specific error and
+    asked again, never saved silently.
+
+`test/unit/modelsPanelSections.test.tsx`: the suggestions step shows the
+label, the prefill and the host-worded $X/scope line; Continue posts
+`suggestions/change` then `next`; an unparseable number disables
+Continue and posts nothing. The round-2 budget-card test now covers the
+field instead.
+`test/unit/modelsPanelEntry.test.ts`: the VS Code quick pick answers 2
+and the value reaches the stubbed configuration (this also found a real
+mock gap — the `vscode` mock had no `ConfigurationTarget`, so the
+production scope routing threw there; `test/unit/mocks/vscode.ts` now
+mirrors the real enum values).
+
+Mac mini rig, Node 22, repository-default timeouts throughout:
+`wizardSessionBudget` (13) + `modelsPanelSections` (29) +
+`modelsQuickPick` (8) = 50 pass; `modelsPanel` (24) +
+`modelsPanelEntry` (6) + `modelsPanelBundle` (5) = 35 pass;
+`modelsPanelReducer` + `modelsPanelSchemas` + `providerWizardSave` = 27
+pass; `manifest` + `providersL10n` + `planKeyPresets` = 56 pass. Host,
+unit and webview `tsc --noEmit` exit 0; prettier, changed-file ESLint,
+`npm run deadcode` (only three pre-existing untouched findings),
+`check:l10n` (0 problems) and `check:reference` pass; `npm run build`
+fits every bundle budget.
+
+## PROVWIZ2 round 3 red drills
+
+Each break was applied to the working tree, run on the Mac mini, and the
+file restored byte-exact (SHA-256 compared against the pre-drill record
+for all four implementation files after every drill). The first pass ran
+before the bundle-budget rework below; all five were re-run against the
+final code with the same failures and byte-exact restores.
+
+| Break                                                                       | Result                                                             |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Shared function: `=== 0` inverted to `!== 0` (changed counts as unchanged)  | 11 failures in `wizardSessionBudget`                               |
+| Panel save passes `undefined` instead of the draft's number                 | 2 panel-path failures                                              |
+| Quick pick passes `undefined` instead of the typed number                   | 4 failures (`wizardSessionBudget` quick-pick ×3, entry quick pick) |
+| Webview Continue posts `next` without the `suggestions/change` commit       | 2 failures in `modelsPanelSections`                                |
+| Host `suggestions/change` requires a suggestion entry that no longer exists | 3 panel-path failures                                              |
