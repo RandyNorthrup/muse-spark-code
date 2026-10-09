@@ -248,3 +248,170 @@ The lead can remove `temp/l10n-builds-TGLDZv` (the initial failed setup
 snapshot, including a read-only dependency junction) and
 `temp/recorder short ancestor` (the 8.3 reproduction parent). Logs and
 scripts under gitignored `temp/` remain as receipts.
+
+## Round 2, Windows
+
+Lane CIFIX017W2, 2026-10-09: branch `rel017/cifixw2` from `a0b3f55c9`
+(the 0.17.0 release head on PR #145), on the lead's Windows 11 host, with
+vitest on the win11 VM and kubuntu. Digests: CI run 37980345168 (static
+gates job 113988954528, unit shards 1 and 2, jobs 113988955084 and 113988955088) and Hosts run 37980344591 (agent package on windows-latest,
+job 113990120245). No live or paid calls, pushes, merges, rebases or
+timeout, cap, threshold or tolerance changes. Hooks: `.husky/_` with the
+repository's fail-closed stubs (`npm run prepare`); every commit ran them.
+
+### 1. `cycles` exits 255 on Windows
+
+Cause: the `cycles` script was 8,070 characters. npm runs a script as
+`cmd.exe /d /s /c "<script>"`, and `node_modules/.bin/dpdm.cmd` re-expands
+every argument into one line of its own after `%COMSPEC%`, the program and
+its own folder, past cmd.exe's 8,191 characters. On the host the old script
+run as npm runs it exits 255 in 36 ms with "The syntax of the command is
+incorrect.", before dpdm starts. Through that shim in a 51-character `.bin`
+folder an 8,035-character script runs and 8,036 fails.
+
+Fix: the 222 roots and the dpdm options (`--no-warning --no-tree
+--exit-code circular:1 -T`) move to `scripts/cycles.json`;
+`scripts/cycles.mjs` starts dpdm's CLI with node, no shell, and exits with
+dpdm's status. The patterns reach dpdm unexpanded, as they did quoted.
+`npm run cycles`: 3,129 modules, no cycle, exit 0 on the host (57 s, then
+51 s) and kubuntu (31–34 s); Ubuntu's old command analysed 3,128 (the
+runner itself is the new one). A planted two-file cycle exits 1 on the host
+with both runner versions. The first runner resolved dpdm through
+`createRequire().resolve`, which plain knip does not read: deadcode reported
+dpdm unused (exit 1) until `import.meta.resolve` replaced it (exit 0).
+
+Test: `manifest.test.ts` fails any npm script whose line, as npm hands it to
+cmd.exe or as a `.bin` shim expands it with MAX_PATH-long paths, passes 8,191
+characters (budget 7,088 for a script). `cyclesRoots.test.ts` reads the roots
+and options from the list.
+
+### 2. `windowsTrustedPath` timeouts (shard 2)
+
+Cause: the production verifier starts one Windows PowerShell per component;
+its script used `Get-Item`, `Get-Acl` and `ConvertTo-Json`, each of which
+loads its module on first use, after PowerShell looks the command up among
+the installed modules. On the hosted runner one probe of `C:\` passed 15 s,
+while the same file's CLR-only policy table took well under a second.
+Measured on win11 (one probe of `C:\`, no persisted module analysis cache,
+under the concurrent shard run):
+
+| Module path       | Cmdlet probe (ms)        | CLR probe (ms)  |
+| ----------------- | ------------------------ | --------------- |
+| Default           | 16,463 / 1,421 / 1,421   | 345 / 327 / 330 |
+| 300 extra modules | 18,723 / 13,183 / 29,024 | 847 / 328 / 369 |
+
+Fix: `[IO.File]::GetAttributes` for the item's own attributes (a reparse
+point is still refused before its descriptor is read) and
+`[IO.Directory]`/`[IO.File]::GetAccessControl` for the descriptor, as
+Get-Acl reads it (owner, group, access); the boolean goes out through
+Console. `Test-TrustedAcl` and the TRUSTROOT rules (PLAN D105) are
+unchanged. A new case verifies a folder and a file with module
+auto-loading off.
+
+Second cause, masked by the timeouts: hosted `%TEMP%` is 8.3
+(`C:\Users\RUNNER~1\...`), and the verifier probes and answers with resolved
+paths. Two real-folder cases compared the answer with the path as given and
+detected the refused component by its given spelling. With TEMP/TMP set to
+their 8.3 spelling on win11 (`C:\Users\Randy\gates\TMP-RT~4`) three cases
+fail; the cases now expect `realpath` results and pass 25/25 there.
+
+### 3. Shard 1 cancelled at 20 minutes
+
+No hang. The job reported files until the 20-minute limit cancelled it:
+229 of its 255 files after 1,144 s of tests (19.1 min); the 26 left take
+about 4 s of tests. The vitest hash split was recomputed exactly
+(`temp/cifixw2/shards.mjs`). On win11 the same 255 files run to the end in
+2,287.87 s (the VM is slower, mostly in git); five files fail there on VM
+conditions only (recordingReader 20 s hook, runtimeChatGptPackage 60 s hook,
+visualStability painted selector, vault/sshImport ssh-keygen, one
+modelApiHost reviewer case), none hung, and all but visualStability passed
+on the hosted shard.
+
+What grew: `windowsVaultNative` took 153,389 ms. Seven "refuses an untrusted
+… ACL" cases timed out at 15,000 ms, and two later cases failed (5,446 and
+2,200 ms). Each of the seven first adds an Everyone rule through a
+PowerShell that used `Get-Item` and `New-Object` (item 2's cause); a
+timed-out case kept changing the rule in the background while later cases
+verified the same helper. The previous run's vault setup ended in 30 s.
+Fix: `FileInfo`/`DirectoryInfo`, `SecurityIdentifier` and
+`FileSystemAccessRule` through `::new`, DACL only, with module auto-loading
+off and errors stopping the script. win11: 34/34 (44.0 s, then 41.6 s).
+
+What remains: the shard is too large for one job. From the hosted per-file
+times of runs 37950960680 and 37980345168 (vault at its fixed time) five
+Windows shards project to 17.8/17.4/14.1/16.4/14.7 min of tests; the other
+shards spent 1.2–2.2 min on set-up and upload, so shard 1 sits at the
+limit. Six project to 16.0/14.2/11.6/16.2/9.8/12.6. Commit `222c428ec`
+moves Windows to six shards (Ubuntu and macOS keep four; coverage requires
+all six). It revisits the lead's five-shard decision (CITIME017) and stands
+alone so it can be dropped.
+
+`visualStability.test.mjs` also failed in this shard: a `beforeAll` ran out
+the 30 s hook deadline (30,859 ms; the cancel cut off its details). On macOS
+the same file's first `beforeAll`, the production webview build, ran out
+its 10 s. That cross-platform case belongs to CIFIX017L2; not changed here.
+
+### 4. Agent package on Windows: `RequestError: Internal error`
+
+Cause: the runtime's resource governor starts every contained process on
+Windows, `muse serve` included, through the sealed job launcher compiled
+from `native/windows/MuseSparkMcpLauncher.cs`
+(`src/runtime/resources/jobs.ts`). `scripts/package-acp.mjs` still left that
+file out under a pre-governor comment; the unit job's fixture copies every
+`JOB_SOURCE_FILES` entry, so the suite passed there. Reproduced on win11:
+the fixture without the launcher fails exactly the four hosted cases with
+`RequestError: Internal error`.
+
+Fix: ship the launcher's C#; the two suites that package a test-owned tree
+lay it out, and the CI package check requires it. The packaging suite
+requires every `JOB_SOURCE_FILES` source in the package. Not verified here:
+the installed tarball on Windows (packing needs the Darwin and Linux
+helpers CI builds); the hosted agent-package job is that check.
+
+### Red drills (each file restored byte-exact, SHA-256 compared)
+
+| #   | Break                                                 | Rig     | Result                                                            | Restored SHA-256 (prefix) |
+| --- | ----------------------------------------------------- | ------- | ----------------------------------------------------------------- | ------------------------- |
+| D1  | `cycles` back to the 8,070-character script           | kubuntu | manifest exit 1: `[ 'cycles: 8070' ]` vs `[]`                     | `09434210483ede78`        |
+| D2  | `src/extension.ts` dropped from `scripts/cycles.json` | kubuntu | cyclesRoots exit 1, 3 cases name `src/extension.ts`               | `623f9aa961dc02ea`        |
+| D3  | launcher dropped from `JOB_SOURCES`                   | kubuntu | resourceAcpPackaging exit 1, the new case                         | `058f9082ce96af7c`        |
+| D4  | verifier back to the cmdlet script                    | win11   | windowsTrustedPath `-t CLR` exit 1: refused instead of ok         | `a95c50925661bd80`        |
+| D5  | vault ACL fixture back to `Get-Item`/`New-Object`     | win11   | 7 cases fail, "test ACL change failed"                            | `445af609aa9101d0`        |
+| D6a | 8.3 TEMP with given-path expectations                 | win11   | 3 cases fail (given vs resolved path, unrefused component)        | `d331627464a1ae2d`        |
+| D6b | 8.3 TEMP with resolved-path expectations              | win11   | 25/25 pass (control)                                              | `d331627464a1ae2d`        |
+| D7  | e2e fixture without the launcher                      | win11   | acpStdio: the 4 hosted cases fail, `RequestError: Internal error` | `5e36cca22d84f2cd`        |
+| D8  | coverage job back to `SHARDS` 5 for Windows           | kubuntu | manifest exit 1, the shard case                                   | `44636fca9ccface0`        |
+| —   | planted two-file cycle under `scripts/lib`            | host    | `npm run cycles` exit 1, cycle named; files deleted               | —                         |
+
+### Receipts
+
+win11 (snapshots): baseline shard 1/5 at `a0b3f55c9` `fe708b8f` (255 files,
+2,287.87 s); native suites `c58949c2` (vault 34/34, trusted path 25/25);
+probe timings `326462cf`; D4 `c4946c8e`; D5 `60f03023`; D6a `7c3b277d`;
+D6b `f5edb20c`; D7 `fcc9982e`; final `6a986dbc` (acpStdio 13/13, manifest
+40/40, cyclesRoots 5/5, resourceAcpPackaging 11/11) and `c14cfd39` (vault
+34/34, trusted path 25/25; execStdio's built-exec cases pass, and its
+package-guard cold hook exceeds its unchanged 60 s on the VM, as round 1
+recorded). kubuntu: `278bb366` (cyclesRoots, manifest, resourceAcpPackaging
+56/56), `5f50f0ba` (runtimeChatGptPackage 2/2; execStdio stops at the
+existing "Required Linux created-path helper is missing" refusal, as Ubuntu
+shard 2 of the same run did, before any copy), `b2e36d0b` (manifest 40/40
+with six shards). Logs: `temp/cifixw2/`.
+
+Static: all five typechecks exit 0 on kubuntu (the host's unit typecheck
+reports only `museCodeSdk142.test.ts`, because the shared `node_modules`
+holds `@muse-code/sdk` 1.3.0 against the lock's 1.4.4). deadcode (two
+existing hints), jscpd, check:l10n, check:host-api, check:reference,
+check:roadmap, check:plan, cycles and the production build exit 0 on
+kubuntu or the host; actionlint, changed-file ESLint and Prettier exit 0.
+
+| Finding                                        | Commit      |
+| ---------------------------------------------- | ----------- |
+| `cycles` roots off the command line, line gate | `30a3dd3f5` |
+| dpdm resolved where knip sees it               | `032d8a98b` |
+| npm package ships the launcher's C#            | `b332d0648` |
+| package fixtures and CI require it             | `f35be762b` |
+| trusted-path probe through the CLR             | `203660e7d` |
+| resolved-path expectations (8.3 TEMP)          | `309b1ec26` |
+| vault ACL fixture through the CLR              | `a158e77c5` |
+| six Windows unit shards (lead decision)        | `222c428ec` |
