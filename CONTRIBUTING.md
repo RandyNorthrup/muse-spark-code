@@ -247,18 +247,19 @@ PRs keep the full tier. Settings and evidence:
 [`ROADMAP.md`](ROADMAP.md) is generated; never edit it by hand. Its inputs:
 
 - **`PLAN.md`** gives every milestone id and its current status line, read
-  by the same parser as `npm run check:plan`. §10's records decide whether
-  the newest changelog version is still being prepared, and so listed as
-  the next release: it has an `X.Y.Z preparation (…)` record and no
-  `X.Y.Z released (…)` record.
+  by the same parser as `npm run check:plan`. §10's records decide which
+  changelog versions are still being prepared, and so listed as the next
+  release: each version with an `X.Y.Z preparation (…)` record and no
+  `X.Y.Z released (…)` record, in its own section, oldest first.
 - **`CHANGELOG.md`** gives the releases: every dated `## [X.Y.Z] - date`
   heading.
 - **`docs/roadmap/entries.json`** gives the words: one entry per PLAN
   milestone, each with:
   - `id`, spelled exactly as PLAN.md's heading;
   - `title`, a few user-facing words;
-  - `summary`, one plain sentence ending with a period, with no milestone or
-    decision ids (the generator adds the `M…` tag itself);
+  - `summary`, one plain sentence ending with a period, with no milestone,
+    decision or working ids in any case (`M19`, `m19`, `SECWINPATH`; the
+    generator adds the `M…` tag itself);
   - `area`: one of `chat`, `agents`, `editors`, `models-providers`,
     `usage-billing`, `security`, `voice-media`, `devices` or `platform`;
   - `release` (optional), the changelog version that first shipped the
@@ -276,7 +277,12 @@ user-facing limit, update the entry in the same change and run
 `npm run roadmap:generate`. `npm run check:roadmap` (part of `quality:gates`
 and CI's static gates) fails when `ROADMAP.md` is stale, when a PLAN
 milestone has no entry, when an entry names a milestone PLAN.md does not have,
-and on malformed entries. It also prints a note for each planned milestone
+and on malformed entries. `ROADMAP.md` carries a fingerprint of every fact it
+is built from (each milestone's id, heading, status and status date, each §10
+record, each changelog heading and every entry, internal notes included), so
+the check also fails after such a change when the listing would read the
+same. The rules live in `scripts/lib/roadmap.mjs`, tested by
+`test/unit/genRoadmap.test.mjs`. It also prints a note for each planned milestone
 whose entry names a release, a sign that its PLAN status line is behind.
 Write for users: no lane, machine, agent or review-round names, no
 credentials, and nothing PLAN or the certification does not support. When

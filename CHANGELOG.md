@@ -34,8 +34,12 @@ happened, not what was planned; superseded entries are kept.
   from PLAN.md's milestone statuses, the changelog's release headings and
   curated one-sentence entries in `docs/roadmap/entries.json`.
   `npm run check:roadmap`, now in `quality:gates` and CI's static gates,
-  fails when the file is stale, a milestone has no entry or an entry names a
-  milestone the plan does not have.
+  fails when the file is stale (including any change to the plan facts,
+  release headings or entries it is built from, through a source
+  fingerprint), a milestone has no entry, an entry names a milestone the plan
+  does not have, or public text names a milestone or working id in any case.
+  Every version with only a preparation record is listed under its own
+  _In the next release_ section, never as shipped.
 
 ### Changed
 

@@ -195,7 +195,9 @@ them, the milestone plan, and the certification checklist.
     `npm run roadmap:generate` in the same change. Release preparation adds
     PLAN.md §10's `X.Y.Z preparation (…)` record; publication adds
     `X.Y.Z released (…)`; regenerate after each. `npm run check:roadmap`
-    fails on a stale file, a milestone without an entry or an entry for a
+    fails on a stale file (any change to the milestone headings, statuses,
+    §10 records, changelog headings or entries it is built from changes its
+    source fingerprint), a milestone without an entry or an entry for a
     milestone PLAN.md does not have (PLAN.md M122; CONTRIBUTING.md has the
     entry format).
 

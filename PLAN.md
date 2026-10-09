@@ -19802,9 +19802,10 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   dated release headings, §10's preparation and release records, and the
   curated user-facing words in `docs/roadmap/entries.json` (one entry per
   milestone; internal work is `"public": false` with a note).
-- **Sections.** _In the next release_ lists the newest changelog version
-  while §10 has only a preparation record for it; _Shipped_ groups every
-  other changelog version, newest first. A built, merged, certified,
+- **Sections.** Each version with only preparation records in §10 gets its
+  own _In the next release (X.Y.Z)_ section, oldest first (RVROADMAP F10:
+  an older preparation is never listed as shipped when a newer one starts);
+  _Shipped_ groups every other changelog version, newest first. A built, merged, certified,
   complete or released milestone with a named release is listed under it;
   one without a release is _In progress_ ("not in a release yet"). Building
   and waiting milestones are _In progress_; planned ones are _Planned_
@@ -19815,9 +19816,16 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 - **Gate.** `npm run check:roadmap` (in `quality:gates` and the CI static
   gates) fails when `ROADMAP.md` differs from the generated text, when a
   milestone has no entry, when an entry names a milestone this plan does
-  not have, and on malformed entries: unknown keys, a public entry without
-  one-sentence summary, area or valid release, ids in the public words, or
-  a released milestone without its release.
+  not have, and on malformed entries: a missing or non-string id, unknown
+  keys, a public entry without one-sentence summary, area or valid release,
+  milestone, decision or working ids in the public words (any case), or a
+  released milestone without its release. A preparation record without a
+  dated changelog heading also fails. `ROADMAP.md` carries a source
+  fingerprint (milestone ids, headings, statuses and status dates, §10
+  record versions, dates and kinds, changelog headings, every entry), so any
+  change to those facts fails the check until regenerated, even when the
+  listing reads the same. Rules: `scripts/lib/roadmap.mjs`; fixture tests:
+  `test/unit/genRoadmap.test.mjs`.
 - **Release step.** Preparing a release adds its `X.Y.Z preparation (…)`
   record here in §10; publishing it adds `X.Y.Z released (…)`. Regenerate
   after each (`npm run roadmap:generate`) so the release moves from _In the
@@ -45455,6 +45463,12 @@ playbook and design polish). Integration receipts: INT0170, INT0170B and
 LEFT017 (`docs/certification/int0170-combined.md`). This is preparation, not
 publication; the public roadmap (M122) lists 0.17.0 as the next release until
 a `0.17.0 released (…)` record follows here.
+
+**0.16.0 released (2026-10-07, tag `v0.16.0` on main's release merge `4da4ef666`, PR #140, release run 37736641658).**
+The Release run succeeded and the GitHub release was published at
+2026-10-08 06:17 UTC (2026-10-07 in Pacific time). Recorded on 2026-10-08 by
+M122's review fixes: §10 held only the 0.16.0 preparation record, and the
+roadmap now treats every version with only preparation records as unreleased.
 
 **0.15.0 merged release preparation (REL0150M, 2026-10-07, linuxlt).**
 Merge `rel-0145` with `--no-ff` (`50a4947a`), then the authorized PR #132
