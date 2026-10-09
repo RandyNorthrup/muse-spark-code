@@ -18,15 +18,19 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import * as vscode from 'vscode'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { createGitProcess, GitExitError, type GitProcess } from '../../src/host/git'
 import type { GitSurface } from '../../src/host/conversation/conversationController'
+import { createConversationGit } from '../../src/host/git/conversationGitEntry'
 import { readNativeStatus } from '../../src/core/git/status'
-import { createRuntimeGit } from '../../src/runtime/panel/git/adapter'
+import { createRuntimeGit, RuntimeGit } from '../../src/runtime/panel/git/adapter'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { STDERR_SHOWN_CHARS, UI_TEXT } from '../../src/shared/constants'
+import { uiLocale } from '../../src/shared/l10n/text'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import { fakeGitWindow } from './helpers/fakeGit'
 import { fakeRuntimeGitDeps } from './helpers/github/fakes'
 import { createFixtureRepositories, type FixtureRepositories } from './helpers/github/repositories'
 import type { RuntimeGitDeps, RuntimePushConfirmation } from '../../src/core/git/runtimeGit'
@@ -853,5 +857,42 @@ describe('createRuntimeGit', () => {
     } finally {
       scratch.cleanup()
     }
+  })
+
+  it('#16 takes the native route in a VS Code-family host without vscode.git', () => {
+    const window = fakeGitWindow().window
+    const native = fakeRuntimeGitDeps(repos().own).deps
+    const fake = fakeSurface()
+    vi.mocked(vscode.extensions.getExtension).mockReturnValue(undefined)
+    const routed = createConversationGit(
+      { ...window, nativeGit: () => native },
+      fake.surface,
+      UI_TEXT,
+      uiLocale(),
+    )
+    expect(routed).toBeInstanceOf(RuntimeGit)
+    routed.dispose()
+    // With the git extension installed, VS Code's own adapter stays.
+    const installed: vscode.Extension<unknown> = {
+      id: 'vscode.git',
+      extensionUri: vscode.Uri.file('/git'),
+      extensionPath: '/git',
+      isActive: false,
+      packageJSON: {},
+      // ExtensionKind.Workspace
+      extensionKind: 2,
+      exports: undefined,
+      activate: () => Promise.resolve(undefined),
+    }
+    vi.mocked(vscode.extensions.getExtension).mockReturnValue(installed)
+    const kept = createConversationGit(
+      { ...window, nativeGit: () => native },
+      fake.surface,
+      UI_TEXT,
+      uiLocale(),
+    )
+    expect(kept).not.toBeInstanceOf(RuntimeGit)
+    kept.dispose()
+    vi.mocked(vscode.extensions.getExtension).mockReset()
   })
 })

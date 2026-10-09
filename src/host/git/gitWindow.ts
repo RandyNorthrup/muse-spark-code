@@ -14,7 +14,8 @@ import { BOUNDED_FILE_READ_CHUNK_BYTES, UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 import { GitHubClient, type GitHubClientDeps } from '../../core/git/github'
 import { newFileDiff } from '../../core/git/gitText'
-import type { GitProcess } from '../git'
+import type { RuntimeGitDeps } from '../../core/git/runtimeGit'
+import { processGitPath, type GitProcess } from '../git'
 import type { Logger } from '../logger'
 import { loggedPopups } from '../popups'
 import { newWindowActions } from '../worktreeFeatures'
@@ -60,6 +61,10 @@ export interface GitWindowDeps {
   readonly restartBackends: (reason: string) => Promise<void>
   /** Tells every conversation in the window that the hold is gone. */
   readonly holdReleased: () => void
+  /** `muse-spark-code/<version>`, as the REST client sends it (M123's native route). */
+  readonly userAgent: string
+  /** Aborts with the window: the native route's git stops with it (M123). */
+  readonly signal: AbortSignal
   readonly log: Logger
 }
 
@@ -95,6 +100,7 @@ export function createGitFeatures(deps: GitFeaturesDeps): GitWindowFeatures {
   const { workspaceState, fetch, userAgent, gitProcess, env, ...windowDeps } = deps
   return createGitWindow({
     ...windowDeps,
+    userAgent,
     links: new PullRequestLinks(workspaceState),
     github: new GitHubClient({ fetch, userAgent, log: deps.log }),
     githubToken: githubTokenReader(deps.log),
@@ -250,6 +256,56 @@ async function repository(root: string): Promise<GitRepository> {
   return await repositoryAt(await loadGitApi(), root)
 }
 
+/** A failed native push's command in the editor's terminal: git itself, no shell to quote for. */
+function openGitInTerminal(command: readonly string[], cwd: string): Promise<void> {
+  const [shellPath, ...shellArgs] = command
+  if (shellPath !== undefined) {
+    vscode.window
+      .createTerminal({ name: UI_TEXT.gitPushAction, cwd, shellPath, shellArgs: [...shellArgs] })
+      .show()
+  }
+  return Promise.resolve()
+}
+
+/**
+ * M123's native route over this window (PLAN.md D104), for a host without
+ * the `vscode.git` extension: the user's git on PATH, the window's trust,
+ * hold, admission and pull request links, VS Code's push modal and remote
+ * pick, and the extension host's own environment for the push (the one VS
+ * Code's git extension would use). Undefined with no folder or no git.
+ */
+function nativeGitDeps(deps: GitWindowDeps, window: GitWindow): RuntimeGitDeps | undefined {
+  const root = deps.workspaceRoot
+  const gitPath = processGitPath()
+  if (root === undefined || gitPath === undefined) {
+    return undefined
+  }
+  return {
+    repositoryRoot: root,
+    gitPath,
+    // D104's sources arrive with lanes A and L; nothing here reads a token.
+    tokenSources: [],
+    links: {
+      get: (_root, sessionId) => Promise.resolve(deps.links.get(sessionId)),
+      set: (_root, sessionId, link) => deps.links.set(sessionId, link),
+    },
+    isTrusted: () => window.isWorkspaceTrusted() && deps.hold.current === undefined,
+    confirmPush: isPushConfirmed,
+    pickRemote: window.pickRemote,
+    userEnvironment: () => process.env,
+    admitWorkspaceCommand: deps.admit,
+    openInTerminal: openGitInTerminal,
+    openFolder: newWindowActions.openFolder,
+    openExternal: async (url) => {
+      await vscode.env.openExternal(vscode.Uri.parse(url))
+    },
+    dataFolder: deps.storageRoot,
+    userAgent: deps.userAgent,
+    signal: deps.signal,
+    log: deps.log,
+  }
+}
+
 export function createGitWindow(deps: GitWindowDeps): GitWindowFeatures {
   let isCheckingOut = false
   const popups = loggedPopups(deps.log)
@@ -288,6 +344,7 @@ export function createGitWindow(deps: GitWindowDeps): GitWindowFeatures {
       }),
     now: () => Date.now(),
     log: deps.log,
+    nativeGit: () => nativeGitDeps(deps, window),
   }
   const checkoutDeps = (): PullRequestCheckoutDeps => ({
     workspaceRoot: deps.workspaceRoot,
