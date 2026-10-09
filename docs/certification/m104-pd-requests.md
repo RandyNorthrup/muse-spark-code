@@ -121,3 +121,22 @@ A: also register the new executed
 `test/m104/windows/callHierarchyPaths.test.ts` in the same central namespace and
 Knip entry graph. It adds Windows separator/casing and POSIX case-preservation
 regressions without modifying shared mocks or central configuration.
+
+## Continuation checkpoint 9 (RVM104PD fixes)
+
+B (with A for `CODE_INTEL_MODEL_TEXT`): the VS Code call hierarchy no longer
+guesses the first of several provider items. When none is declared at the
+position in the asked document it refuses with `MHP_CALL_HIERARCHY_AMBIGUOUS`
+(`invalidParams` over MHP; a plain error in process). `codeIntelTools.ts`
+reports that as a failed call with the identifier. Map it to a
+`CodeIntelRefusal` whose English model text says several functions share the
+position and none is declared there, and names the next step (ask at one
+declaration's own position), with a localized visible reason in all 14 tables.
+No string is invented in this lane.
+
+F: record checkpoint 9 in the aggregate documentation and CHANGELOG
+(validator type arrays, per-channel panel faults, resolved path identity,
+bounded request-id window). The installed Windows run still needs the Win11
+VM's VS Code 1.139.1 at `C:/Program Files`; it was not rerun for this
+checkpoint. No new TS execution entry was added; the three new C# fixtures
+are compiled by the existing `test/m104/windows/*.cs` glob.

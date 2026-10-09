@@ -14,7 +14,11 @@ distribution inputs are not present in this standalone prototype. The plugin
 does not collect or store API keys.
 
 The in-process relay uses the export's panel envelopes, immutable surface bindings,
-direction checks and independent sequence numbers. WebView2 loads the portable
+direction checks and independent sequence numbers. A frame that breaks one
+channel's protocol closes only that channel with its frozen `panelError` code,
+logged by identifier; the session keeps reading. Documents are matched by the
+file the system resolves (file index or final path), so `\\?\`, 8.3, junction
+and other-drive spellings of an open file reuse its buffer. WebView2 loads the portable
 React entry with the host's initial theme kind and mapped CSS tokens. Its inbox
 is bounded by both message count and UTF-8 bytes; responses already in flight
 remain valid during reload. Chat and Tasks have native containers; the surfaces capability remains
