@@ -40,6 +40,8 @@ export default defineConfig({
     include: ['test/unit/**/*.test.{ts,tsx,mjs}', 'test/e2e/**/*.test.ts'],
     environment: 'node',
     setupFiles: ['test/unit/setup.ts'],
+    // Once-per-run artefacts shared by suites (inject()), built before workers start.
+    globalSetup: ['test/unit/globalSetup.mjs'],
     // Windows MCP process suites start PowerShell job helpers. On the small
     // hosted runner, concurrent files delayed launches past real MCP deadlines.
     fileParallelism: process.platform !== 'win32',
