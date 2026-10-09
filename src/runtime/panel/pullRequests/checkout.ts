@@ -22,9 +22,13 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
+import type { BigIntStats } from 'node:fs'
 import { mkdir, rename, rm, rmdir } from 'node:fs/promises'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import {
+  CHECKOUT_FOLDER_CLAIM_ATTEMPTS,
+  CHECKOUT_FOLDER_CLAIM_RETRY_MS,
   GIT_BATCH_KILL_GRACE_MS,
   GIT_OUTPUT_MAX_BYTES,
   GIT_WORKTREE_TIMEOUT_MS,
@@ -148,12 +152,26 @@ export interface PullRequestCheckoutGit {
   /** The user's own pull request, detached, hooks switched off for the new worktree. */
   addOwnWorktree(cwd: string, folder: string, sha: string, check: () => void): Promise<void>
   /**
+   * Removes the user's own worktree this checkout has just added (it lost
+   * its reservation meanwhile). Never throws.
+   */
+  removeOwnWorktree(cwd: string, folder: string): Promise<void>
+  /**
    * Someone else's pull request (RV71c): listed and refused whole on any
    * bad name, added with nothing checked out, indexed from the commit, its
    * files written from one `cat-file --batch`. A failure part way leaves no
-   * worktree.
+   * worktree. `confirm` throws once this checkout no longer holds the
+   * folder's reservation: asked before the folder is claimed and again
+   * right after, so a displaced checkout makes nothing, or removes its own
+   * claim, and never materializes beside the record's owner.
    */
-  checkOutHeld(folder: string, sha: string, cwd: string, check: () => void): Promise<void>
+  checkOutHeld(
+    folder: string,
+    sha: string,
+    cwd: string,
+    check: () => void,
+    confirm?: () => Promise<void>,
+  ): Promise<void>
 }
 
 export interface NodePullRequestCheckoutGitOptions {
@@ -655,7 +673,26 @@ export function createNodePullRequestCheckoutGit(
         options.signal,
       )
     },
-    checkOutHeld: async (folder, sha, cwd, check) => {
+    removeOwnWorktree: async (cwd, folder) => {
+      try {
+        // Not the owner's signal: a checkout that lost its reservation
+        // removes what it just added even after Cancel.
+        await runText(
+          options.gitPath,
+          [
+            '-c',
+            `core.hooksPath=${nullDeviceFor(options.platform)}`,
+            ...worktreeRemoveArgs(folder, true),
+          ],
+          cwd,
+          options.quietEnv,
+          AbortSignal.timeout(HELD_CLEANUP_TIMEOUT_MS),
+        )
+      } catch (error: unknown) {
+        options.log.warn(`A displaced checkout's worktree was not removed: ${failureText(error)}`)
+      }
+    },
+    checkOutHeld: async (folder, sha, cwd, check, confirm) => {
       if (!isCommitSha(sha)) {
         throw new PullRequestServiceError(UI_TEXT.openPullRequestFetchFailed)
       }
@@ -684,6 +721,8 @@ export function createNodePullRequestCheckoutGit(
       }
       const overrides = await hookOverrides(git, cwd, check)
       check()
+      // Still this checkout's reservation: a displaced one makes nothing.
+      await confirm?.()
       // The folder is made by this checkout alone, and its identity is the
       // proof every cleanup checks: one there already is someone else's,
       // never added over and never cleaned up.
@@ -691,6 +730,9 @@ export function createNodePullRequestCheckoutGit(
       let hasAdded = false
       try {
         check()
+        // Displaced between the check above and the claim: its own claim
+        // goes (the cleanup below), and the record's owner claims next.
+        await confirm?.()
         await git.text([...overrides, ...worktreeAddHeldArgs(folder, sha)], cwd, git.quietEnv)
         hasAdded = true
         // In the worktree, so named hooks its own configuration defines are found and switched off.
@@ -737,6 +779,14 @@ export function createNodePullRequestCheckoutGit(
   }
 }
 
+/** Another checkout took this one's reservation over: it made nothing that stays. */
+class ReservationLostError extends PullRequestServiceError {
+  public constructor(folder: string) {
+    super(`${UI_TEXT.gitOperationChanged} ${folder}`)
+    this.name = 'ReservationLostError'
+  }
+}
+
 /** The held folder was there already, or appeared: this checkout made nothing. */
 export class HeldFolderTakenError extends PullRequestServiceError {
   public constructor(folder: string) {
@@ -759,9 +809,9 @@ async function isPresent(target: string): Promise<boolean> {
  * private random name beside it (so its identity can only be this
  * checkout's), renamed into place, which fails while anything is at the
  * name. Git adds the worktree into that empty folder, keeping its identity.
- * Returns the identity every cleanup checks first.
+ * Returns the stamp every cleanup checks first.
  */
-async function claimHeldFolder(folder: string): Promise<FileIdentity> {
+async function claimHeldFolder(folder: string): Promise<FolderStamp> {
   const parent = path.dirname(folder)
   await mkdir(parent, { recursive: true })
   const staging = path.join(
@@ -769,9 +819,9 @@ async function claimHeldFolder(folder: string): Promise<FileIdentity> {
     `.${path.basename(folder)}.${randomUUID()}${HELD_FOLDER_STAGING_SUFFIX}`,
   )
   await mkdir(staging)
-  let created: FileIdentity
+  let created: FolderStamp
   try {
-    created = identityOf(await lstatIdentity(staging))
+    created = folderStampOf(await lstatIdentity(staging))
     if (await isPresent(folder)) {
       throw new HeldFolderTakenError(folder)
     }
@@ -796,16 +846,31 @@ interface HeldLeftovers {
   readonly folder: string
   readonly cwd: string
   /** The folder this checkout made: nothing else is ever removed. */
-  readonly created: FileIdentity
+  readonly created: FolderStamp
   /** Git added the worktree, so what is inside is git's and this checkout's. */
   readonly hasAdded: boolean
 }
 
+/**
+ * One folder, told apart from any made later at the same path: its native
+ * id and its birth time (Linux reuses a freed inode number at once).
+ */
+interface FolderStamp {
+  readonly identity: FileIdentity
+  readonly bornNs: bigint
+}
+
+function folderStampOf(stats: BigIntStats): FolderStamp {
+  return { identity: identityOf(stats), bornNs: stats.birthtimeNs }
+}
+
 /** The folder at `target` is the very one this checkout made (not a link to it). */
-async function isOwnFolder(target: string, created: FileIdentity): Promise<boolean> {
+async function isOwnFolder(target: string, created: FolderStamp): Promise<boolean> {
   try {
     const seen = await lstatIdentity(target)
-    return seen.isDirectory() && sameFile(seen, created)
+    return (
+      seen.isDirectory() && sameFile(seen, created.identity) && seen.birthtimeNs === created.bornNs
+    )
   } catch {
     return false
   }
@@ -887,11 +952,16 @@ async function removeHeldLeftoversAfter(
   await removeHeldLeftovers(leftovers)
 }
 
-/** The folder's native identity (`dev:ino`, links resolved); undefined when it is not one. */
+/**
+ * The folder's identity (`dev:ino:birth`, links resolved): the birth time
+ * tells a folder made again at the same path apart even where the system
+ * reuses its inode number (Linux). Undefined when it is not a folder.
+ */
 async function folderIdentityOf(folder: string): Promise<string | undefined> {
   try {
     const seen = await statIdentity(folder)
-    return seen.isDirectory() ? fileIdentityKey(seen) : undefined
+    const key = seen.isDirectory() ? fileIdentityKey(seen) : undefined
+    return key === undefined ? undefined : `${key}:${seen.birthtimeNs.toString()}`
   } catch {
     return undefined
   }
@@ -1181,28 +1251,42 @@ export class RuntimePullRequestCheckout {
   ): Promise<OpenPullRequestResult> {
     const cwd = this.deps.repositoryRoot
     const version = versionOf(stored)
-    try {
-      this.checkTrust()
-      const check = () => {
+    const confirm = async () => {
+      const holds = await this.holdsReservation(folder, version)
+      if (holds === false) {
+        throw new ReservationLostError(folder)
+      }
+      if (holds === undefined) {
+        throw new PullRequestServiceError(UI_TEXT.gitOperationChanged)
+      }
+    }
+    for (let attempt = 1; ; attempt += 1) {
+      try {
         this.checkTrust()
+        const check = () => {
+          this.checkTrust()
+        }
+        await (isOwn
+          ? this.addOwnWorktree(cwd, folder, headSha, check, confirm)
+          : this.deps.git.checkOutHeld(folder, headSha, cwd, check, confirm))
+        break
+      } catch (error: unknown) {
+        if (error instanceof ReservationLostError) {
+          // Another checkout took this reservation over before this one's
+          // folder existed: that one owns the record and the folder, and
+          // nothing this one made stays (its claim or worktree is gone).
+          this.deps.log.warn(`A checkout lost its reservation to another: ${folder}`)
+          return { ok: false, reason: UI_TEXT.gitOperationChanged }
+        }
+        if (
+          attempt < CHECKOUT_FOLDER_CLAIM_ATTEMPTS &&
+          (await this.isFolderFreed(folder, version, isOwn, error))
+        ) {
+          continue
+        }
+        await this.settleFailure(folder, version, error)
+        return { ok: false, reason: `${UI_TEXT.worktreeAddFailed}: ${failureText(error)}` }
       }
-      await (isOwn
-        ? this.deps.git.addOwnWorktree(cwd, folder, headSha, check)
-        : this.deps.git.checkOutHeld(folder, headSha, cwd, check))
-    } catch (error: unknown) {
-      if (error instanceof CleanupPendingError) {
-        // A writer is still in flight: the record stays pending (held,
-        // never offered or trusted) until its cleanup has run.
-        this.deps.log.warn(`A failed checkout is still writing; it stays held: ${folder}`)
-        void this.discardAfter(error.settled, folder, version)
-      } else if (error instanceof HeldFolderTakenError) {
-        // Nothing of this checkout's was ever made there: its reservation
-        // goes, and the folder (someone else's) stays held by location.
-        await this.discardReservation(folder, version)
-      } else {
-        await this.discardIfGone(folder, version)
-      }
-      return { ok: false, reason: `${UI_TEXT.worktreeAddFailed}: ${failureText(error)}` }
     }
     const identity = await folderIdentityOf(folder)
     if (!(await this.settleComplete(folder, version, identity))) {
@@ -1214,6 +1298,95 @@ export class RuntimePullRequestCheckout {
     )
     await this.deps.openFolder(folder)
     return { ok: true, folder, held: !isOwn, number }
+  }
+
+  /**
+   * The user's own pull request, added only while this checkout holds its
+   * reservation; added and then found displaced, its own new worktree goes.
+   */
+  private async addOwnWorktree(
+    cwd: string,
+    folder: string,
+    headSha: string,
+    check: () => void,
+    confirm: () => Promise<void>,
+  ): Promise<void> {
+    await confirm()
+    await this.deps.git.addOwnWorktree(cwd, folder, headSha, check)
+    try {
+      await confirm()
+    } catch (error: unknown) {
+      await this.deps.git.removeOwnWorktree(cwd, folder)
+      throw error
+    }
+  }
+
+  /**
+   * Whether this checkout still holds `version`'s reservation: true, false
+   * (another checkout took it over), or undefined (the records could not
+   * be read).
+   */
+  private async holdsReservation(
+    folder: string,
+    version: RecordVersion,
+  ): Promise<boolean | undefined> {
+    let current: WorktreeRecord | undefined
+    try {
+      current = await this.deps.records.recordFor(folder)
+    } catch {
+      return undefined
+    }
+    return (
+      current !== undefined &&
+      current.checkoutId === version.checkoutId &&
+      recordRevision(current) === version.revision &&
+      current.isCheckoutPending === true
+    )
+  }
+
+  /**
+   * A checkout whose folder was in the way while it still holds its
+   * reservation: the folder may be a displaced checkout's, removed as soon
+   * as that one notices it lost. True when it has gone, so the claim is
+   * tried again.
+   */
+  private async isFolderFreed(
+    folder: string,
+    version: RecordVersion,
+    isOwn: boolean,
+    error: unknown,
+  ): Promise<boolean> {
+    const isInTheWay =
+      error instanceof HeldFolderTakenError || (isOwn && this.deps.pathExists(folder))
+    if (
+      !isInTheWay ||
+      this.deps.signal.aborted ||
+      (await this.holdsReservation(folder, version)) !== true
+    ) {
+      return false
+    }
+    await delay(CHECKOUT_FOLDER_CLAIM_RETRY_MS)
+    return !this.deps.pathExists(folder)
+  }
+
+  /** A failed checkout's record, settled as its failure allows. Never throws. */
+  private async settleFailure(
+    folder: string,
+    version: RecordVersion,
+    error: unknown,
+  ): Promise<void> {
+    if (error instanceof CleanupPendingError) {
+      // A writer is still in flight: the record stays pending (held, never
+      // offered or trusted) until its cleanup has run.
+      this.deps.log.warn(`A failed checkout is still writing; it stays held: ${folder}`)
+      void this.discardAfter(error.settled, folder, version)
+    } else if (error instanceof HeldFolderTakenError) {
+      // Nothing of this checkout's was ever made there: its reservation
+      // goes, and the folder (someone else's) stays held by location.
+      await this.discardReservation(folder, version)
+    } else {
+      await this.discardIfGone(folder, version)
+    }
   }
 
   /**
