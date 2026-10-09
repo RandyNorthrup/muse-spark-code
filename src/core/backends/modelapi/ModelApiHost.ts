@@ -420,6 +420,7 @@ import type {
 import type { MediaRequestAccounting } from '../../media/mediaCost'
 import type { MediaReplayPort, MediaReplaySession } from '../../media/replayMedia'
 import type { AttachedMediaPort } from '../../media/attachedMedia'
+import type { ReservePaidExtra } from '../../voice/voiceBatchSeams'
 import type { UploadedMediaRef } from '../../../shared/media'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
 import {
@@ -783,6 +784,13 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
    * their records and approved sources. Absent: a `media` part refuses.
    */
   readonly attachedMedia?: AttachedMediaPort | undefined
+  /**
+   * D78's shared daily ledger, reserving an exact amount for a paid extra
+   * billed outside a Responses request: Muse Voice's batch transcription
+   * (lane V seam 4). VS Code and the runtime bind their own daily ledgers;
+   * absent, such an extra refuses.
+   */
+  readonly reservePaidExtra?: ReservePaidExtra | undefined
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
   readonly scheduleStore?: ScheduleStore | undefined
   /** SHA-256 digest of the current SecretStorage key, never its plaintext. */

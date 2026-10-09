@@ -459,6 +459,19 @@ function modelApiManager(
       const budget = await dailyBudget()
       return await budget.reserve(PAID_PRICES_USD.imageGeneration, signal)
     },
+    // D78's exact reservation for Muse Voice's batch transcription (lane V
+    // seam 4): the runtime's own daily ledger, a hard cap in every editor.
+    reservePaidExtra: async (costUsd, signal) => {
+      const budget = await dailyBudget()
+      const claim = await budget.reserve(costUsd, signal)
+      return {
+        reservedUsd: claim.reservedUsd,
+        check: () => {
+          claim.check(claim.reservedUsd)
+        },
+        settle: (amountUsd, hasUnknownCost) => claim.settle(amountUsd, hasUnknownCost),
+      }
+    },
     ...(deps.exec === undefined && {
       getProviderAccountId: async () => {
         const subscriptions = await subscriptionClient()

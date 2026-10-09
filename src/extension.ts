@@ -2700,6 +2700,20 @@ async function activateWindow(
         throw error
       }
     },
+    // D78's exact reservation for Muse Voice's batch transcription (lane V
+    // seam 4): the same shared daily ledger, its Raise/Stop and its owner.
+    reservePaidExtra: async (costUsd, signal) => {
+      signal.throwIfAborted()
+      const claim = await dailyPaid.reserveExact(costUsd)
+      return {
+        reservedUsd: claim.reservedUsd,
+        check: () => {
+          signal.throwIfAborted()
+          claim.check()
+        },
+        settle: (amountUsd, hasUnknownCost) => claim.settle(amountUsd, hasUnknownCost),
+      }
+    },
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
     // Muse Code's MCP servers, run by this window for the Model API backend
     // (M50, PLAN.md D42): started in a trusted workspace only, stopped with

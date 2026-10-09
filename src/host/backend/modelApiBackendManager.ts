@@ -105,6 +105,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly uploadLedgerDir?: string | undefined
   /** The window's attached-media registry (M105 lane V): the attach port writes it. */
   readonly attachedMedia?: ModelApiHostDeps['attachedMedia']
+  /** D78's exact daily reservation for a paid extra outside a request (lane V seam 4). */
+  readonly reservePaidExtra?: ModelApiHostDeps['reservePaidExtra']
   /** The git facts for the prompt's environment section (D15). */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   /** The same facts for a best-of-N worktree (M77): an attempt's own branch. */
@@ -361,6 +363,9 @@ export class ModelApiBackendManager {
           uploadLedgerDir: this.deps.uploadLedgerDir,
         }),
         ...(this.deps.attachedMedia !== undefined && { attachedMedia: this.deps.attachedMedia }),
+        ...(this.deps.reservePaidExtra !== undefined && {
+          reservePaidExtra: this.deps.reservePaidExtra,
+        }),
         getAccountId: async () => {
           if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()
           const key = await this.deps.getApiKey()
