@@ -7,7 +7,11 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { EN } from '../../src/shared/l10n/en'
 import type { DeviceWebviewMessage, DeviceWebviewRequest } from '../../src/shared/devicesPanel'
-import { DevicesApp } from '../../src/webview/models/sections/agents/DevicesApp'
+import {
+  DevicesApp,
+  DevicesSurface,
+  type DevicesWebviewApi,
+} from '../../src/webview/models/sections/agents/DevicesApp'
 import {
   expectRejectedDeviceInvitation,
   uiUncertainMessage,
@@ -357,17 +361,65 @@ describe('M100 U explicit webview bridge', () => {
   })
   it('keeps the Devices import lazy and confines its mount to the explicit surface', () => {
     const entry = readFileSync(path.resolve('src/webview/main.tsx'), 'utf8')
-    expect(entry).toMatch(/const DevicesApp = lazy\(async \(\) =>/)
+    expect(entry).toMatch(/const DevicesSurface = lazy\(async \(\) =>/)
     expect(entry).not.toMatch(/^import .*DevicesApp.*from/gm)
     expect(entry).toContain("await import('./models/sections/agents/DevicesApp')")
     expect(entry).toMatch(/catch \{\s+return \{ default: DevicesUnavailable \}/)
     expect(entry).toContain('{UI_TEXT.surfaceLoadFailed}')
     expect(entry).toContain('{UI_TEXT.surfaceLoadRetry}')
     expect(entry).not.toMatch(/UI_TEXT\.devices\./)
+    // The document's state, draft and QR chunks are in the lazy chunk, never startup.
+    expect(entry).not.toMatch(/zod|savedDevicesState|devicesDraft|qrGeneratorEncoder|QrFigure/)
     expect(entry).toMatch(
       /if \(document\.body\.dataset\['surface'\] === 'devices'\) \{\s+mountDevices\(rootElement\)/,
     )
     const chat = entry.slice(entry.indexOf('function mountChat('))
     expect(chat).not.toMatch(/DevicesApp|deviceRequest|mountDevices/)
+  })
+})
+
+// The Devices document moved out of the webview entry into the lazy chunk
+// (M100 join, startup bytes): the same draft, QR and single-callback contract.
+function surfaceApi(state: unknown) {
+  const postMessage = vi.fn<(message: DeviceWebviewMessage) => void>()
+  const setState = vi.fn<(state: { readonly devicesDraft: string }) => unknown>()
+  const api: DevicesWebviewApi = { postMessage, getState: () => state, setState }
+  return { api, postMessage, setState }
+}
+function encoder() {
+  return { size: 1, modules: [[true]] }
+}
+function Figure({ text }: { readonly text: string }) {
+  return <p>figure:{text}</p>
+}
+describe('M100 Devices surface in the lazy chunk', () => {
+  it('restores the saved draft, saves edits, and hands over the loaded QR chunks once', async () => {
+    const { api, postMessage, setState } = surfaceApi({ devicesDraft: 'saved peer text' })
+    const loadQr = vi.fn(() => Promise.resolve({ encoder, figure: Figure }))
+    render(<DevicesSurface api={api} messages={window} loadQr={loadQr} />)
+    expect(screen.getByLabelText(EN.devices.scan)).toHaveValue('saved peer text')
+    await waitFor(() => {
+      expect(seen.props.at(-1)?.renderQr).toBeDefined()
+    })
+    render(<>{seen.props.at(-1)?.renderQr?.('public')}</>)
+    expect(screen.getByText('figure:public')).toBeVisible()
+    fireEvent.change(screen.getByLabelText(EN.devices.scan), { target: { value: 'edited' } })
+    expect(setState).toHaveBeenLastCalledWith({ devicesDraft: 'edited' })
+    expect(loadQr).toHaveBeenCalledOnce()
+    // One callback for the document's lifetime: adding the QR never re-announces readiness.
+    expect(
+      postMessage.mock.calls.filter(([message]) => message.type === 'devicesReady'),
+    ).toHaveLength(1)
+  })
+
+  it('drops an invalid saved state and reports a failed QR chunk at the QR spot', async () => {
+    const { api } = surfaceApi({ devicesDraft: 'x'.repeat(1_000_000) })
+    render(<DevicesSurface api={api} loadQr={() => Promise.reject(new Error('chunk refused'))} />)
+    expect(screen.getByLabelText(EN.devices.scan)).toHaveValue('')
+    await waitFor(() => {
+      expect(seen.props.at(-1)?.renderQr).toBeDefined()
+    })
+    render(<>{seen.props.at(-1)?.renderQr?.('public')}</>)
+    expect(screen.getByText(EN.devices.qrReload)).toBeVisible()
   })
 })

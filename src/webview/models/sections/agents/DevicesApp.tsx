@@ -6,12 +6,14 @@ import {
   Suspense,
   type ReactNode,
   type ComponentType,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react'
-import { UI_TEXT } from '../../../../shared/constants'
+import * as z from 'zod/mini'
+import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
 import {
   parseDeviceHostMessage,
   parseDeviceReplyCorrelation,
@@ -95,6 +97,99 @@ export function DevicesApp(props: DevicesAppProps) {
     <DevicesErrorBoundary>
       <DevicesDocument {...props} />
     </DevicesErrorBoundary>
+  )
+}
+
+// What the Devices document keeps in its webview state across a reload: the
+// unsent peer-invitation draft (public text, never a key).
+const savedDevicesState = z.object({
+  devicesDraft: z.string().check(z.maxLength(DEVICE_LIMITS.invitationTextChars)),
+})
+
+/** The part of VS Code's webview API (`acquireVsCodeApi()`) the Devices surface uses. */
+export interface DevicesWebviewApi {
+  postMessage(message: DeviceWebviewMessage): void
+  getState(): unknown
+  setState(state: { readonly devicesDraft: string }): unknown
+}
+
+interface QrChunks {
+  readonly encoder: QrEncoder
+  readonly figure: ComponentType<QrProps>
+}
+type QrChunkLoader = () => Promise<QrChunks>
+const loadQrChunks: QrChunkLoader = async () => {
+  const [{ qrGeneratorEncoder }, { default: figure }] = await Promise.all([
+    import('../devices/qr/qrGeneratorEncoder'),
+    import('../devices/qr/QrFigure'),
+  ])
+  return { encoder: qrGeneratorEncoder, figure }
+}
+
+interface DevicesSurfaceProps {
+  readonly api: DevicesWebviewApi
+  readonly messages?: MessageSource
+  readonly loadQr?: QrChunkLoader
+}
+
+/**
+ * The Devices document as the webview entry mounts it. It lives in this lazy
+ * chunk, not in main.tsx, so no surface's startup carries it. The approved
+ * encoder and the QR figure load as soon as this chunk runs and the figure is
+ * handed over loaded, so a QR draws in the same render as its invitation.
+ * Without them the text invitation still works; a chunk that fails to load
+ * says so at the QR, and its Retry reloads the document (the browser keeps a
+ * failed module fetch until then).
+ */
+export function DevicesSurface({
+  api,
+  messages = window,
+  loadQr = loadQrChunks,
+}: DevicesSurfaceProps) {
+  const [qr, setQr] = useState<'loading' | 'failed' | QrChunks>('loading')
+  // One callback for the document's lifetime: the Devices bridge, and every
+  // request waiting on it, belongs to this callback, so a render that only
+  // adds the QR chunks (or their load failure) never cancels an action.
+  const postMessage = useMemo(
+    () => (message: DeviceWebviewMessage) => {
+      api.postMessage(message)
+    },
+    [api],
+  )
+  // The unsent peer-invitation draft is kept in this document's webview
+  // state, so a reload (the QR chunk's recovery) never loses it.
+  const draft = useMemo<DeviceDraftStore>(() => {
+    const saved = savedDevicesState.safeParse(api.getState())
+    return {
+      initial: saved.success ? saved.data.devicesDraft : '',
+      save: (text) => {
+        api.setState({ devicesDraft: text })
+      },
+    }
+  }, [api])
+  useEffect(() => {
+    let isMounted = true
+    void loadQr()
+      .then((chunks) => {
+        if (isMounted) setQr(chunks)
+      })
+      .catch(() => {
+        if (isMounted) setQr('failed')
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [loadQr])
+  return (
+    <DevicesApp
+      messages={messages}
+      draft={draft}
+      {...(qr === 'failed' ? { isQrUnavailable: true } : {})}
+      {...(qr !== 'loading' && qr !== 'failed'
+        ? { qrEncoder: qr.encoder, qrFigure: qr.figure }
+        : {})}
+      postMessage={postMessage}
+    />
   )
 }
 
