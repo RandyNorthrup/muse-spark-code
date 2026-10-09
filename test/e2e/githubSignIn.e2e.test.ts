@@ -28,7 +28,7 @@ import {
   GH_AUTH_TOKEN_ARGS,
   GITHUB_AUTHORIZED_APP_URL,
   GITHUB_DEVICE_FLOW_SECRET_KEY,
-  GITHUB_DEVICE_FLOW_SIGN_OUT_KEY,
+  GITHUB_DEVICE_FLOW_GENERATION_KEY,
   GITHUB_DEVICE_POLL_INTERVAL_S,
   GITHUB_DEVICE_SLOW_DOWN_STEP_S,
   GITHUB_DEVICE_VERIFICATION_URL,
@@ -362,7 +362,8 @@ describe('the device-flow source', () => {
     expect(two?.bearer).toBe(one?.bearer)
     expect(test.server.deviceRequests.filter((r) => r.path === CODE_PATH)).toHaveLength(1)
     expect(JSON.parse(store.values.get(GITHUB_DEVICE_FLOW_SECRET_KEY)!)).toMatchObject({
-      v: 1,
+      v: 2,
+      generation: null,
       accessToken: one?.bearer,
     })
     const again = await source.credential('silent', signal)
@@ -407,9 +408,9 @@ describe('the device-flow source', () => {
     const { source, store, opened } = await signedIn()
     await source.signOut()
     expect(store.values.has(GITHUB_DEVICE_FLOW_SECRET_KEY)).toBe(false)
-    // Only Sign out's mark is left, and it holds no secret.
+    // Only the new generation is left, and it holds no secret.
     expect(store.values.size).toBe(1)
-    expect(store.values.has(GITHUB_DEVICE_FLOW_SIGN_OUT_KEY)).toBe(true)
+    expect(store.values.has(GITHUB_DEVICE_FLOW_GENERATION_KEY)).toBe(true)
     expect(opened).toEqual([GITHUB_AUTHORIZED_APP_URL])
     expect(new URL(GITHUB_AUTHORIZED_APP_URL).origin).toBe('https://github.com')
     expect(await source.isSignedIn()).toBe(false)
@@ -663,6 +664,271 @@ describe('the device-flow source across windows, cancels and outages', () => {
     const { source } = sourceFor(test, store)
     expect(await source.credential('ask', signal)).toBeUndefined()
     expect(shared.values.has(GITHUB_DEVICE_FLOW_SECRET_KEY)).toBe(false)
+  })
+})
+
+/** A stored pair issued under `generation`. */
+const pairIn = (generation: string | null, accessToken: string) =>
+  JSON.stringify({
+    v: 2,
+    generation,
+    accessToken,
+    refreshToken: null,
+    expiresAt: null,
+    refreshExpiresAt: null,
+  })
+
+/** Each write and delete, in order, by item. */
+const itemName = (key: string) => (key === GITHUB_DEVICE_FLOW_SECRET_KEY ? 'pair' : 'generation')
+function recorded(base = memorySecrets()) {
+  const ops: string[] = []
+  return {
+    ...base,
+    ops,
+    store: async (key: string, value: string) => {
+      ops.push(`store ${itemName(key)}`)
+      await base.store(key, value)
+    },
+    delete: async (key: string) => {
+      ops.push(`delete ${itemName(key)}`)
+      await base.delete(key)
+    },
+  }
+}
+
+// RVM123A2 and the redesign (PLAN.md M123, the sign-in generation): one test
+// per transition, and the reviewer's probes for a sign-in and a refresh.
+describe('the sign-in generation', () => {
+  const signal = new AbortController().signal
+  const kinds = ['sign-in', 'refresh'] as const
+  /** Window A's sign-in or refresh with its token reply held; B shares the store. */
+  async function heldCompletion(kind: (typeof kinds)[number]) {
+    const served = Promise.withResolvers<undefined>()
+    const released = Promise.withResolvers<undefined>()
+    let isHeld = false
+    const hold = (test: Rig): DeviceFlowDeps => ({
+      ...test.deps,
+      fetch: async (input, init) => {
+        const answer = await test.deps.fetch(input, init)
+        if (!isHeld && typeof input === 'string' && input.endsWith(TOKEN_PATH)) {
+          isHeld = true
+          served.resolve(undefined)
+          await released.promise
+        }
+        return answer
+      },
+    })
+    let parts
+    if (kind === 'sign-in') {
+      const test = await rig({ expiringTokens: true })
+      test.onSleep = () => {
+        test.server.approve()
+      }
+      const store = memorySecrets()
+      parts = {
+        test,
+        store,
+        work: sourceFor(test, store, hold(test)).source.credential('ask', signal),
+      }
+    } else {
+      const { test, store, first } = await signedIn({ expiringTokens: true })
+      test.clock = first.expiresAt!
+      parts = {
+        test,
+        store,
+        work: sourceFor(test, store, hold(test)).source.credential('silent', signal),
+      }
+    }
+    await served.promise
+    return {
+      ...parts,
+      other: sourceFor(parts.test, parts.store).source,
+      release: () => {
+        released.resolve(undefined)
+      },
+    }
+  }
+
+  it('reads a pair only under the generation it was issued in', async () => {
+    const test = await rig()
+    const { source, store } = sourceFor(test)
+    store.values.set(GITHUB_DEVICE_FLOW_SECRET_KEY, pairIn(null, 'gho_firstGeneration0001'))
+    const first = await source.credential('silent', signal)
+    expect(first?.bearer).toBe('gho_firstGeneration0001')
+    store.values.set(GITHUB_DEVICE_FLOW_GENERATION_KEY, 'second')
+    expect(await source.credential('silent', signal)).toBeUndefined()
+    expect(await source.isSignedIn()).toBe(false)
+    store.values.set(GITHUB_DEVICE_FLOW_SECRET_KEY, pairIn('second', 'gho_secondGeneration0002'))
+    const second = await source.credential('silent', signal)
+    expect(second?.bearer).toBe('gho_secondGeneration0002')
+  })
+
+  it('retires the generation before deleting, on a 401 and on Sign out', async () => {
+    const test = await rig()
+    test.onSleep = () => {
+      test.server.approve()
+    }
+    const store = recorded()
+    const { source } = sourceFor(test, store)
+    const first = await source.credential('ask', signal)
+    store.ops.length = 0
+    await source.rejected(first!)
+    expect(store.ops).toEqual(['store generation', 'delete pair'])
+    const second = await source.credential('ask', signal)
+    expect(second?.bearer).not.toBe(first?.bearer)
+    store.ops.length = 0
+    await source.signOut()
+    expect(store.ops).toEqual(['store generation', 'delete pair'])
+  })
+
+  it('publishes after its own Sign out only once that Sign out has waited its turn', async () => {
+    const test = await rig()
+    test.onSleep = () => {
+      test.server.approve()
+    }
+    const store = recorded()
+    const late: { source?: DeviceFlowSource; signingOut?: Promise<void> } = {}
+    const { source } = sourceFor(test, {
+      ...store,
+      store: async (key: string, value: string) => {
+        if (key === GITHUB_DEVICE_FLOW_SECRET_KEY && late.signingOut === undefined) {
+          // This window's own Sign out arrives between the check and the write.
+          late.signingOut = late.source!.signOut()
+          await new Promise((resolve) => setImmediate(resolve))
+        }
+        await store.store(key, value)
+      },
+    })
+    late.source = source
+    await source.credential('ask', signal)
+    await late.signingOut
+    expect(store.ops).toEqual(['store pair', 'store generation', 'delete pair'])
+    expect(await source.credential('silent', signal)).toBeUndefined()
+  })
+
+  it('uses the pair another window stored over its own in the same generation', async () => {
+    const test = await rig()
+    test.onSleep = () => {
+      test.server.approve()
+    }
+    const shared = memorySecrets()
+    const { source } = sourceFor(test, {
+      ...shared,
+      store: async (key: string, value: string) => {
+        await shared.store(key, value)
+        if (key === GITHUB_DEVICE_FLOW_SECRET_KEY) {
+          await shared.store(key, pairIn(null, 'gho_otherWindowPair0001'))
+        }
+      },
+    })
+    const adopted = await source.credential('ask', signal)
+    expect(adopted?.bearer).toBe('gho_otherWindowPair0001')
+  })
+
+  it.each(kinds)(
+    'never serves a %s that completes after another window signed out',
+    async (kind) => {
+      const { store, work, other, release } = await heldCompletion(kind)
+      await other.signOut()
+      release()
+      expect(await work).toBeUndefined()
+      expect(await other.credential('silent', signal)).toBeUndefined()
+      expect(store.values.has(GITHUB_DEVICE_FLOW_SECRET_KEY)).toBe(false)
+    },
+  )
+
+  it.each(kinds)(
+    'serves nobody a stale %s written past a sign-out while its read-back is pending',
+    async (kind) => {
+      let test: Rig
+      let shared: ReturnType<typeof memorySecrets>
+      if (kind === 'sign-in') {
+        test = await rig({ expiringTokens: true })
+        test.onSleep = () => {
+          test.server.approve()
+        }
+        shared = memorySecrets()
+      } else {
+        const parts = await signedIn({ expiringTokens: true })
+        test = parts.test
+        shared = parts.store
+        test.clock = parts.first.expiresAt!
+      }
+      const other = sourceFor(test, shared).source
+      const readingBack = Promise.withResolvers<undefined>()
+      const readBack = Promise.withResolvers<undefined>()
+      let isWritten = false
+      const { source } = sourceFor(test, {
+        ...shared,
+        get: async (key: string) => {
+          if (isWritten && key === GITHUB_DEVICE_FLOW_GENERATION_KEY) {
+            readingBack.resolve(undefined)
+            await readBack.promise
+          }
+          return await shared.get(key)
+        },
+        store: async (key: string, value: string) => {
+          if (key === GITHUB_DEVICE_FLOW_SECRET_KEY && !isWritten) {
+            // The other window's whole Sign out lands between this one's
+            // check and its write: the stale pair is in the store.
+            await other.signOut()
+            await shared.store(key, value)
+            isWritten = true
+            return
+          }
+          await shared.store(key, value)
+        },
+      })
+      const work = source.credential(kind === 'sign-in' ? 'ask' : 'silent', signal)
+      await readingBack.promise
+      expect(shared.values.has(GITHUB_DEVICE_FLOW_SECRET_KEY)).toBe(true)
+      expect(await other.credential('silent', signal)).toBeUndefined()
+      expect(await other.isSignedIn()).toBe(false)
+      readBack.resolve(undefined)
+      expect(await work).toBeUndefined()
+      expect(shared.values.has(GITHUB_DEVICE_FLOW_SECRET_KEY)).toBe(false)
+    },
+  )
+
+  it.each(kinds)(
+    'keeps the sign-in made after a sign-out when a pre-logout %s completes',
+    async (kind) => {
+      const { test, store, work, other, release } = await heldCompletion(kind)
+      await other.signOut()
+      test.onSleep = () => {
+        test.server.approve()
+      }
+      const fresh = await other.credential('ask', signal)
+      expect(fresh).toBeDefined()
+      release()
+      expect(await work).toBeUndefined()
+      const kept = await other.credential('silent', signal)
+      expect(kept?.bearer).toBe(fresh?.bearer)
+      expect(JSON.parse(store.values.get(GITHUB_DEVICE_FLOW_SECRET_KEY)!)).toMatchObject({
+        accessToken: fresh?.bearer,
+      })
+    },
+  )
+
+  it.each([
+    [
+      'a 503 with a JSON body',
+      () => Response.json({ message: 'Service Unavailable' }, { status: 503 }),
+    ],
+    ['a malformed reply', () => Response.json({ unexpected: true })],
+  ])('serves no cached token after a sign-out when the refresh meets %s', async (_name, outage) => {
+    const { test, store, first } = await signedIn({ expiringTokens: true })
+    const other = sourceFor(test, store).source
+    const { source } = sourceFor(test, store, {
+      ...test.deps,
+      fetch: async () => {
+        await other.signOut()
+        return outage()
+      },
+    })
+    test.clock = first.expiresAt! - 30 * SECOND
+    expect(await source.credential('silent', signal)).toBeUndefined()
+    expect(await source.isSignedIn()).toBe(false)
   })
 })
 
