@@ -46,6 +46,11 @@ happened, not what was planned; superseded entries are kept.
   module. The guard now shares integration-test discovery with the build,
   so changes to its directory or filter also change the required cycle roots.
 
+- Start the team browser tests' card and tree deadline once the harness reports
+  the scene played, keeping bundle start-up, the ready handshake and the
+  steps' settle time outside that wait, and list still-open requests when a
+  team test's wait fails.
+
 - Settle quote-menu capture origins after final layout and isolate source-reconstruction fixtures from temporary-directory placement.
 - Capture settled share-view highlighting, usage-dialog account facts and status rows, and the palette's focus scroll so visual replays no longer race lazy renderers.
 

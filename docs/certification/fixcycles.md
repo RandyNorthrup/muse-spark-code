@@ -168,7 +168,7 @@ The final formatted guard was also red-drilled in the fresh clone.
 G65 was already taken. All local branch plans and gotchas registers were
 checked for G66/G67: G66 is claimed on `rt-teamflake`, while G67 was free.
 G67 now records root-list drift and its source-reading guard. (At the
-0.17.0 integration HEAD already held G66–G70, so this row is G71.)
+0.17.0 integration G66–G76 were taken, so this row is G77.)
 
 ## Fresh-clone checks
 

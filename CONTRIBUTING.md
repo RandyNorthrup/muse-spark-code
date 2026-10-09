@@ -135,11 +135,30 @@ Use this order for a candidate branch:
   `hc-dark`, `hc-light`, `one-dark-pro` or `dracula`; `--lang=pseudo` for clipping) and checked with
   `node scripts/a11y.mjs <names>` in the four themes. Scenes wait with
   `whenFound`, never fixed delays; nest waits when one control reveals the
-  next. Keep `later` only for intentional host-event timing or readiness
-  polling, with a `// kept-timing: <reason>` comment immediately before it.
+  next. Keep `later` (and the fake host's `hostLater`) only for intentional
+  host-event timing or readiness polling, with a `// kept-timing: <reason>`
+  comment immediately before it.
   The source guard in `test/unit/harnessWaits.test.ts` checks every timer,
   including DOM work through helpers. Axe waits for outstanding control
-  waits before scanning. The M87 scenarios:
+  waits before scanning. A scene a test waits on must schedule all of its
+  work through the counted helpers (`later`, `whenFound`,
+  `whenEvent(target, type, fn)`, `track(promise)`; the fake host uses
+  `hostLater` / `hostTrack`) and call `scenarioDone()` from its final
+  continuation, the last thing it waits for. Only that call sets
+  `<html data-scenario-played="<name>">`, once nothing counted is outstanding.
+  Counted scene work after `scenarioDone()` fails the scene; any counted failure
+  removes the mark for good and records it in `<html data-scenario-failed>`. A
+  scene that others reuse keeps its steps in a fixture and calls
+  `scenarioDone()` only in its own entry. Such scenes are listed in
+  `PLAYED_SCENARIOS` (`scripts/lib/harnessServer.mjs`). For each, a browser
+  test verifies the ordering (marked once, at its own end), a quiet window
+  with no logged move after the mark, no page or console error, and no mark
+  when its final step fails. Work started outside the helpers (raw timers,
+  detached promises) is not detected; keeping it out of scenes is a
+  code-review rule for scene authors, not something the harness proves. A
+  browser test starts the deadline for what the scene renders
+  at that mark, not at page load (`test/unit/teamHarness.test.mjs`). The M87
+  scenarios:
   `context-meter`, `context-meter-warning`, `context-meter-full`,
   `palette-tips`, `slash-tips`, `stop-running`, `tool-io`,
   `tool-io-expanded`, `status-heartbeat`, `status-heartbeat-narrow`,

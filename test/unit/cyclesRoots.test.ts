@@ -90,7 +90,7 @@ const missing = (entries: readonly string[]): string[] =>
     .filter((entry) => !roots.has(normalize(entry)))
     .toSorted((left, right) => left.localeCompare(right, 'en'))
 
-describe('dependency-cycle root coverage (FIXCYCLES, G71)', () => {
+describe('dependency-cycle root coverage (FIXCYCLES, G77)', () => {
   it('retains dpdm circular failures and covers every build entry, including pages and workers', () => {
     expect(command[0]).toBe('dpdm --no-warning --no-tree --exit-code circular:1')
     const entries = buildEntries()

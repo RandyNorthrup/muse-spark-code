@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
-import { serveRepo, TRAFFIC_SCENARIOS } from '../../scripts/lib/harnessServer.mjs'
+import { PLAYED_SCENARIOS, serveRepo, TRAFFIC_SCENARIOS } from '../../scripts/lib/harnessServer.mjs'
 import { testSettings } from './helpers/fakes'
 import { buildWebviewHtml } from '../../src/host/html'
 import { EN } from '../../src/shared/l10n/en'
@@ -29,11 +29,35 @@ const REAL_HARNESS_PREPARE_TIMEOUT_MS = 60_000
 // a loaded hosted Windows shard with coverage needs longer than the unit
 // default. PLAN.md §8 (2026-10-07).
 const REAL_HARNESS_CASE_TIMEOUT_MS = 20_000
-// Navigation plus readiness must fail with evidence before the case deadline.
+// Navigation with the scene's playback, then the scene's target, must each
+// fail with evidence before the case deadline.
 const REAL_HARNESS_WAIT_TIMEOUT_MS = 8000
 const HARNESS_DIAGNOSTIC_LIMIT = 8192
 const HARNESS_BODY_DIAGNOSTIC_LIMIT = 4096
 const HARNESS_ERROR_DIAGNOSTIC_LIMIT = 1024
+// After its mark a finished scene does nothing more. These scenes' longest
+// scripted pause is the 300 ms settle before a find, so a scene still acting
+// after its mark acts well inside this window; the window is the assertion.
+const SCENE_QUIET_WINDOW_MS = 1500
+// The completion checks test order, not speed: navigation and the scene get
+// the case deadline less the quiet window and room for diagnostics.
+const SCENE_DONE_TIMEOUT_MS = 15_000
+// What each scene's final continuation has done by the time it calls
+// scenarioDone(): an action it logged, or a control it waited for.
+const SCENE_ENDS = {
+  'team-tree': {
+    action: (entry) => entry.kind === 'click' && entry.target.includes('agents-pill'),
+  },
+  'team-tree-320': {
+    action: (entry) => entry.kind === 'click' && entry.target.includes('agents-pill'),
+  },
+  'team-cards': { action: (entry) => entry.kind === 'message' && entry.itemId === 'tr1' },
+  question: {
+    action: (entry) => entry.kind === 'message' && entry.eventType === 'questionRequested',
+  },
+  'legal-preview': { selector: '.legal-paths' },
+  jump: { selector: '.jump-latest' },
+}
 const rig = {
   browser: undefined,
   server: undefined,
@@ -96,6 +120,28 @@ afterAll(async () => {
   if (rig.inventory !== undefined) rmSync(rig.inventory, { recursive: true, force: true })
 })
 
+// Waits, within what is left of `doneBy`, for the scene to call scenarioDone();
+// a failure the page records ends the wait at once.
+async function sceneDone(page, scenario, doneBy) {
+  try {
+    await page
+      .locator(`html[data-scenario-played="${scenario}"], html[data-scenario-failed]`)
+      .waitFor({ state: 'attached', timeout: Math.max(1, doneBy - Date.now()) })
+  } catch (error) {
+    throw new Error(`${scenario} never called scenarioDone()`, { cause: error })
+  }
+  const failed = await page.locator('html').getAttribute('data-scenario-failed')
+  if (failed !== null) throw new Error(`${scenario} failed: ${failed}`)
+}
+
+// Only scenes that end with scenarioDone() can be waited on.
+async function scenePlayed(page, scenario, doneBy) {
+  if (!PLAYED_SCENARIOS.includes(scenario)) {
+    throw new Error(`${scenario} is not in PLAYED_SCENARIOS`)
+  }
+  await sceneDone(page, scenario, doneBy)
+}
+
 async function harness(scenario, theme, lang, run, prepare) {
   const page = await rig.browser.newPage({
     viewport: { width: scenario === 'team-tree-320' ? 320 : 690, height: 760 },
@@ -106,20 +152,31 @@ async function harness(scenario, theme, lang, run, prepare) {
       -HARNESS_DIAGNOSTIC_LIMIT,
     )
   }
+  // Requests still open when a wait fails: a held lazy chunk shows here.
+  const open = new Set()
   page.on('console', (message) => record(`console ${message.type()}: ${message.text()}`))
   page.on('pageerror', (error) => record(`pageerror: ${error.message}`))
-  page.on('requestfailed', (request) =>
-    record(`requestfailed: ${request.url()} ${request.failure()?.errorText ?? ''}`),
-  )
+  page.on('request', (request) => open.add(request))
+  page.on('requestfinished', (request) => open.delete(request))
+  page.on('requestfailed', (request) => {
+    open.delete(request)
+    record(`requestfailed: ${request.url()} ${request.failure()?.errorText ?? ''}`)
+  })
   page.on('response', (response) => {
     if (response.status() >= 400) record(`HTTP ${response.status()}: ${response.url()}`)
   })
   try {
     if (prepare !== undefined) await prepare(page)
+    // Navigation and the scene's playback share one bounded wait. The target's
+    // own deadline starts once the harness says every step was played, so the
+    // cold bundle, its ready handshake and the steps' settle time do not spend
+    // the merge card's or the tree's budget.
+    const playedBy = Date.now() + REAL_HARNESS_WAIT_TIMEOUT_MS
     await page.goto(
       `${rig.origin}/test/harness/index.html?scenario=${scenario}&theme=${theme}${lang === undefined ? '' : `&lang=${lang}`}`,
       { timeout: REAL_HARNESS_WAIT_TIMEOUT_MS },
     )
+    await scenePlayed(page, scenario, playedBy)
     await page
       .locator(scenario === 'team-cards' ? '.activity-team-merge' : '.team-tree')
       .waitFor({ timeout: REAL_HARNESS_WAIT_TIMEOUT_MS })
@@ -131,6 +188,7 @@ async function harness(scenario, theme, lang, run, prepare) {
     } catch (error_) {
       body = `root unavailable: ${error_.message}`
     }
+    record(`open requests: ${[...open].map((request) => request.url()).join(' ') || 'none'}`)
     record(`root: ${body.slice(0, HARNESS_BODY_DIAGNOSTIC_LIMIT)}`)
     throw new Error(
       `Harness ${scenario}/${theme}/${lang ?? 'en'} failed: ${String(error).slice(0, HARNESS_ERROR_DIAGNOSTIC_LIMIT)}${diagnostics}`,
@@ -226,6 +284,43 @@ describe('RVM96B browser regressions', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }
             await page.clock.runFor(4000)
           } catch (error) {
             errors.push(error.message)
+          }
+          await route.continue()
+        })
+      },
+    )
+  })
+
+  it('reports the team scene played before its lazy cards load, so their deadline starts there', async () => {
+    const meta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+    const [chunk] =
+      Object.entries(meta.outputs).find(
+        ([, output]) => output.entryPoint === 'src/webview/components/TeamUi.tsx',
+      ) ?? []
+    expect(chunk).toBeDefined()
+    const held = []
+    await harness(
+      'team-cards',
+      'light',
+      undefined,
+      async (page) => {
+        expect(held).toEqual([{ played: 'team-cards', cards: 0 }])
+        expect(await page.locator('.activity-team-merge').count()).toBe(1)
+      },
+      async (page) => {
+        await page.route(`**/${chunk}`, async (route) => {
+          // Hold the real team UI chunk until the harness reports the scene
+          // played: the signal follows the steps, not what they render.
+          try {
+            await page
+              .locator('html[data-scenario-played]')
+              .waitFor({ state: 'attached', timeout: REAL_HARNESS_WAIT_TIMEOUT_MS })
+            held.push({
+              played: await page.locator('html').getAttribute('data-scenario-played'),
+              cards: await page.locator('.activity-team-merge').count(),
+            })
+          } catch (error) {
+            held.push(error.message)
           }
           await route.continue()
         })
@@ -407,5 +502,181 @@ describe('RVM96B browser regressions', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }
     } finally {
       await page.close()
     }
+  })
+})
+
+const byName = (left, right) => left.localeCompare(right)
+
+// Runs in the page before its scripts: logs every host message, synthetic
+// event and scripted click the harness makes, and each change of the mark
+// with whether the scene's end control is on screen at that moment.
+function instrumentScene({ endSelector, failFinalStep }) {
+  const log = []
+  const at = () => globalThis.performance.now()
+  const logged = (original, entry) =>
+    new Proxy(original, {
+      apply(target, receiver, args) {
+        const record = entry(receiver, args)
+        if (record !== undefined) log.push({ at: at(), ...record })
+        return Reflect.apply(target, receiver, args)
+      },
+    })
+  const element = globalThis.HTMLElement.prototype
+  const target = globalThis.EventTarget.prototype
+  // Installed by definition: this script instruments the page it runs in.
+  for (const [owner, name, value] of [
+    ...(failFinalStep ? [[globalThis, 'harnessFailFinalStep', true]] : []),
+    [globalThis, 'sceneLog', log],
+    [
+      globalThis,
+      'postMessage',
+      logged(globalThis.postMessage, (_receiver, [message]) => ({
+        kind: 'message',
+        type: message?.type,
+        eventType: message?.event?.type,
+        itemId: message?.event?.item?.itemId,
+      })),
+    ],
+    [
+      element,
+      'click',
+      logged(element.click, (receiver) => ({ kind: 'click', target: String(receiver.className) })),
+    ],
+    [
+      target,
+      'dispatchEvent',
+      logged(target.dispatchEvent, (_receiver, [event]) =>
+        event.isTrusted ? undefined : { kind: 'dispatch', type: event.type },
+      ),
+    ],
+  ]) {
+    Object.defineProperty(owner, name, { value, configurable: true, writable: true })
+  }
+  new globalThis.MutationObserver(() => {
+    const { scenarioPlayed, scenarioFailed } = globalThis.document.documentElement.dataset
+    log.push({
+      at: at(),
+      kind: 'mark',
+      played: scenarioPlayed ?? null,
+      failed: scenarioFailed ?? null,
+      endShown:
+        endSelector === null ? null : globalThis.document.querySelector(endSelector) !== null,
+    })
+  }).observe(globalThis.document, {
+    attributes: true,
+    subtree: true,
+    attributeFilter: ['data-scenario-played', 'data-scenario-failed'],
+  })
+}
+
+// Opens a scene with the log above, waits for its end (or, with
+// failFinalStep, for its recorded failure), then keeps watching for the quiet
+// window. Returns the log and every page error and console error the page
+// raised meanwhile. `harnessVariant` serves an edited harness to this page.
+async function sceneLog(scenario, { failFinalStep = false, harnessVariant } = {}) {
+  const page = await rig.browser.newPage({
+    viewport: { width: scenario === 'team-tree-320' ? 320 : 690, height: 760 },
+  })
+  const errors = []
+  page.on('pageerror', (error) => {
+    errors.push(`pageerror: ${error.message}`)
+  })
+  page.on('console', (message) => {
+    // The browser's own favicon request has no file to serve; it is not the scene's.
+    if (message.type() === 'error' && !message.location().url.endsWith('/favicon.ico')) {
+      errors.push(`console.error: ${message.text()}`)
+    }
+  })
+  try {
+    await page.addInitScript(instrumentScene, {
+      endSelector: SCENE_ENDS[scenario]?.selector ?? null,
+      failFinalStep,
+    })
+    if (harnessVariant !== undefined) {
+      const body = harnessVariant(readFileSync('test/harness/index.html', 'utf8'))
+      await page.route('**/test/harness/index.html*', (route) =>
+        route.fulfill({ contentType: 'text/html', body }),
+      )
+    }
+    const doneBy = Date.now() + SCENE_DONE_TIMEOUT_MS
+    await page.goto(`${rig.origin}/test/harness/index.html?scenario=${scenario}&theme=light`, {
+      timeout: SCENE_DONE_TIMEOUT_MS,
+    })
+    if (failFinalStep) {
+      await page
+        .locator('html[data-scenario-failed]')
+        .waitFor({ state: 'attached', timeout: Math.max(1, doneBy - Date.now()) })
+    } else {
+      await sceneDone(page, scenario, doneBy)
+    }
+    await page.waitForTimeout(SCENE_QUIET_WINDOW_MS)
+    return { log: await page.evaluate(() => globalThis.sceneLog), errors }
+  } finally {
+    await page.close()
+  }
+}
+
+// What the coverage can see of a finished scene: one mark, at its end, no
+// logged move in the quiet window after it, and no page or console error.
+// Work started outside the counted helpers is not logged; only its errors are.
+function expectSceneFinished(scenario, { log, errors }) {
+  const marks = log.filter((entry) => entry.kind === 'mark')
+  expect(marks).toEqual([expect.objectContaining({ played: scenario, failed: null })])
+  const markedAt = log.indexOf(marks[0])
+  const end = SCENE_ENDS[scenario]
+  if (end.selector === undefined) {
+    expect(log.slice(0, markedAt).some((entry) => end.action(entry))).toBe(true)
+  } else {
+    expect(marks[0].endShown).toBe(true)
+  }
+  expect(log.slice(markedAt + 1)).toEqual([])
+  expect(errors, errors.join('; ')).toEqual([])
+}
+
+describe('harness scenes end when they say so', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }, () => {
+  it('names an end for every scene a test may wait on', () => {
+    expect(Object.keys(SCENE_ENDS).toSorted(byName)).toEqual(PLAYED_SCENARIOS.toSorted(byName))
+  })
+
+  it.each(PLAYED_SCENARIOS)(
+    '%s is marked played only at its end, then makes no move and raises no error',
+    async (scenario) => {
+      expectSceneFinished(scenario, await sceneLog(scenario))
+    },
+  )
+
+  it.each(PLAYED_SCENARIOS)(
+    '%s never carries the mark when its final step fails',
+    async (scenario) => {
+      const { log, errors } = await sceneLog(scenario, { failFinalStep: true })
+      const marks = log.filter((entry) => entry.kind === 'mark')
+      expect(marks.some((entry) => entry.played !== null)).toBe(false)
+      expect(marks.at(-1)).toMatchObject({ failed: 'Error: injected final-step failure' })
+      expect(errors).toEqual(['pageerror: injected final-step failure'])
+    },
+  )
+
+  it('fails a scene that never calls scenarioDone()', async () => {
+    // `banner` plays its steps and stops without saying it is done.
+    await expect(sceneLog('banner')).rejects.toThrow('banner never called scenarioDone()')
+  })
+
+  it('fails a listed scene whose raw timer throws after its mark', async () => {
+    // RVTEAMFLAKE3's probe: a timer outside the counted helpers is not logged
+    // and cannot fail the scene itself, but its page error fails the check.
+    const ending = '            control.click()\n            scenarioDone()\n'
+    const result = await sceneLog('team-tree', {
+      harnessVariant: (html) => {
+        if (html.split(ending).length !== 2) throw new Error('team-tree changed its ending')
+        return html.replace(
+          ending,
+          "            control.click()\n            setTimeout(() => {\n              throw new Error('review raw scene failure')\n            }, 600)\n            scenarioDone()\n",
+        )
+      },
+    })
+    expect(result.errors).toEqual(['pageerror: review raw scene failure'])
+    expect(() => {
+      expectSceneFinished('team-tree', result)
+    }).toThrow('review raw scene failure')
   })
 })

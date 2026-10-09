@@ -31,6 +31,17 @@ export const TRAFFIC_SCENARIOS = [
   'team-traffic-recovery',
   'runners',
 ]
+// Scenes that end by calling scenarioDone(), so <html data-scenario-played>
+// says they are finished. Tests wait for that mark only on these scenes, and
+// teamHarness.test.mjs checks each of them in a real browser.
+export const PLAYED_SCENARIOS = [
+  'team-tree',
+  'team-tree-320',
+  'team-cards',
+  'question',
+  'legal-preview',
+  'jump',
+]
 export const SCENARIOS = [
   ...[
     'empty',
