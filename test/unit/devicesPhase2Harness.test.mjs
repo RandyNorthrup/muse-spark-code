@@ -1,10 +1,9 @@
 // Public synthetic facts only; production QR code rendered in the real harness.
-import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
 import { parseDeviceHostMessage } from '../../src/shared/devicesPanel'
@@ -99,11 +98,12 @@ it.each(['devices-owners', 'devices-prompts-narrow'])(
 )
 
 const rig = { browser: undefined, server: undefined, origin: '', qrScript: '' }
-// Production build and browser startup are shared once; neither is a test operation.
+// Server and browser startup are shared once; neither is a test operation.
 const HARNESS_PREPARE_TIMEOUT_MS = 60_000
 const READY_TIMEOUT_MS = 2000
 beforeAll(async () => {
-  execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
+  // The run's one production build (test/unit/productionBuild.ts) is already in dist/.
+  if (!inject('productionBuild')) throw new Error('No shared production build in this run')
   const serving = await serveRepo(process.cwd())
   rig.server = serving.server
   rig.origin = `http://127.0.0.1:${serving.port}`

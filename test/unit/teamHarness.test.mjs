@@ -4,7 +4,7 @@ import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { serveRepo, TRAFFIC_SCENARIOS } from '../../scripts/lib/harnessServer.mjs'
@@ -12,7 +12,7 @@ import { testSettings } from './helpers/fakes'
 import { buildWebviewHtml } from '../../src/host/html'
 import { EN } from '../../src/shared/l10n/en'
 
-// Preparation builds production chunks and inventories the complete real VSIX.
+// Preparation inventories the complete real VSIX over the run's shared production build.
 const REAL_HARNESS_PREPARE_TIMEOUT_MS = 60_000
 // Each case opens a fresh page and loads the full production webview bundle;
 // a loaded hosted Windows shard with coverage needs longer than the unit
@@ -25,7 +25,8 @@ const HARNESS_BODY_DIAGNOSTIC_LIMIT = 4096
 const HARNESS_ERROR_DIAGNOSTIC_LIMIT = 1024
 const rig = { browser: undefined, server: undefined, origin: '', packagedFiles: [] }
 beforeAll(async () => {
-  execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
+  // The run's one production build (test/unit/productionBuild.ts) is already in dist/.
+  if (!inject('productionBuild')) throw new Error('No shared production build in this run')
   execFileSync(process.execPath, ['scripts/pseudo-l10n.mjs'], { stdio: 'pipe' })
   rig.packagedFiles = execFileSync(
     process.execPath,
