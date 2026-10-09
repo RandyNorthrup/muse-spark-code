@@ -18703,6 +18703,117 @@ numbers. Research: `docs/certification/m97-research.md`.
   a CC0 dataset does not relicense the licenses it describes. No new package or
   tool installation is approved by this design record (D3/D9 apply at delivery).
 
+### D103 — Preferred agents per role, live availability, and lane handoff (M120, 2026-10-08)
+
+The owner, 2026-10-08: "we need to make sure in all of our load balancing
+settings we can set preference so some agents are preferred over other when
+available for certain roles and can be swapped into and out of lanes
+accordingly". This follows from running the fleet. One engine codes faster
+than another; one can't run on Windows (muse-code-sdk#96); one is stopped by a
+safety classifier on some reviews; one is slow but thorough. A fixed
+assignment wastes the fast one, and a fixed "no mid-task move" strands work on
+the slow one.
+
+- **One preference model everywhere work is balanced.** Every place the
+  product picks who or what runs a piece of work uses the same shape. That
+  covers D75 role pools (team workers), M100/M110 device and node routing,
+  the judge engine (`museSpark.judge.engine`), M95 provider order
+  (`providerOrder`, `allowFallbacks`), and M116 orchestrator dispatch.
+  - **A preference list** is an ordered list of **candidates** for a role or
+    a lane kind. A candidate is an agent or engine, a model, or a device or
+    node, together with its caps (D75: count, task tokens, day tokens) and
+    its **conditions**.
+  - **Conditions** are capability facts, never vendor names
+    (multi-vendor rule): the platform it can run on (Windows-native work
+    needs a Windows-capable candidate), the tools and features it supports,
+    and role constraints. The built-in constraint is that a **review** role
+    never uses the candidate, or the engine, that authored the work. That is
+    the owner's "never review with the authoring engine" rule.
+- **Preferred when available.** Selection takes the first candidate in order
+  that is **available now**, checked live when the task starts:
+  - it is signed in and healthy (its last probe succeeded);
+  - it is under its caps;
+  - it is not rate-limited or cooling down;
+  - its device or node is online and admitted by the M107 governor;
+  - it meets the task's conditions.
+    The panel and the roster show which candidate was chosen, and why each
+    earlier one was skipped, in plain words ("Muse: unavailable on Windows
+    (sandbox issue)").
+- **Swap in and out of lanes (supersedes D75's "no mid-task move").** A
+  running task can move to another candidate at a **safe point**. Triggers:
+  - **Return to preferred** (on by default): a more preferred candidate has
+    become available, and the task is long enough for the move to pay off.
+  - **Stall**: no progress (no tool call, file change or commit) for the
+    role's stall time.
+  - **Time box**: the task has passed its time box.
+  - **Cap**: the current candidate reached its cap (D75's "next in line",
+    now also applied mid-task).
+  - **Refusal**: the current candidate stopped the task. Examples are a
+    safety-classifier stop, a crash or a sign-out. The owner's ruling says
+    which engine takes a classifier-stopped review.
+  - **The user**: "Move to…" on the task, in every editor.
+- **The handoff.** The old candidate is stopped, with its whole process tree.
+  Its work is then captured:
+  - the commits on the task branch;
+  - the uncommitted diff, binary-safe;
+  - the new files;
+  - a short progress note taken from its transcript.
+    Nothing is stashed, and no hook is skipped. The new candidate gets the
+    original brief, the captured work, and an instruction to review that
+    work critically before continuing. The task's report records the chain
+    of candidates, with the trigger and time of each move. Meters and spend
+    stay with the candidate that used them.
+- **Specialized coding roles (owner, 2026-10-08).** "for the coding roles we
+  need to be able to setup front end coders and backend coders because some
+  agents are better at certain tasks".
+  - **D75's single `engineering` role becomes a family:**
+    - `frontend`: UI, webviews, CSS, accessibility, visual receipts;
+    - `backend`: host, core, runtime, protocols, storage, money;
+    - `engineering`: kept as the general or full-stack role, and the
+      fallback for both.
+      Each role has its own charter, tools, caps and preference list, so the
+      user can put one agent first for front-end work and another for
+      back-end work.
+  - **Routing a task to the right specialist.** Each coding role's charter
+    carries **area hints**: path globs (`src/webview/**`, `**/*.css`,
+    `src/host/**`) and plain-word kinds ("UI layout", "protocol"). The
+    orchestrator picks the role whose hints match the task's planned files
+    and description.
+    - A task that spans both is split into one lane per area when the parts
+      are separable, joined by the lead.
+    - When it can't be split, it goes to the role covering most of it, and
+      a review is added from the other specialist. That reviewer must still
+      differ from the author.
+    - The roster shows why a role was chosen ("12 of 14 planned files under
+      `src/webview`").
+  - **Users add more specializations** the same way as other roles: an
+    `AGENT.md` with its area hints, for example `native` (Swift, C#, C),
+    `tests`, `docs`, `data` or `infra`. A project copy may only narrow a
+    built-in role (D75 role keys).
+  - **Which agent is better at what is learned, not guessed.** The panel
+    keeps per-role, per-candidate outcomes:
+    - first-review acceptance;
+    - findings by severity;
+    - rounds to acceptance;
+    - time;
+    - redesigns.
+      It **suggests** a reorder when one candidate is clearly better for a
+      role ("Muse: 4 of 5 front-end tasks accepted on first review; Codex: 1
+      of 4"). It never reorders on its own unless the user turns on
+      auto-order for that role.
+- **Defaults keep today's behaviour.** With no team and no custom
+  preference (the single-model user), nothing is swapped and nothing
+  changes. Swaps apply only between configured candidates.
+- **Every editor.** The preference editor (drag to order; per candidate:
+  caps and conditions; per role: stall time, time box, return-to-preferred)
+  and "Move to…" exist in VS Code, JetBrains, Visual Studio, Eclipse and the
+  companion (all editors are equal).
+- **Fleet first.** The lead's own rig orchestration already follows these
+  rules. `scratchpad/rig-lanes/roles.json` holds the preference lists, and
+  the handoff is the one used on 2026-10-08 (Codex → Muse and Codex →
+  Claude, with the saved diff). Its gotchas go into
+  `docs/orchestration-gotchas.md`.
+
 ## 3. Open questions (need the owner)
 
 - **Q-FIX0160X-LINUX-ARTIFACTS (2026-10-07, macmini):** this worktree has
@@ -19774,6 +19885,16 @@ members, and its initializer exemption missed numeric pipes, transforms,
 defaults, imported aliases, quoted keys and records. The runtime walk sees
 all of them; the `trackedDebt` category is the complete inventory it found.
 
+**Additions from RVPORTS017D (2026-10-08).** The 0.17 money guard (`test/unit/paidMoneyStructure.test.ts`) is a runtime zod walk plus a text fallback. It can't see everything. M121 replaces it with a TypeScript type-checker guard (the compiler API over `src`), which flags any money-named property or schema output whose type is `number`, through aliases, literals, enums, maps and sets, records, transforms and module-local schemas. Its regressions must cover the reviewer's probes:
+
+- a sometimes-numeric transform;
+- `z.literal(2)` and a numeric `z.enum`;
+- `z.map` and `z.set` with numeric members;
+- private schemas behind exported parsers;
+- Mini `_default`;
+- quoted keys;
+- a plain `interface { fooUsd: Record<string, number> }`.
+
 ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
 
 **Status 2026-10-07: built.** Linux receipts in `docs/certification/int0180.md`; the package job stays red without genuine macOS artifacts.
@@ -20047,7 +20168,7 @@ size and external blocker; it does not claim hosted/platform/live certification.
 
 ### SECWINPATH2 — Windows identity and ordinary-workspace repair (2026-10-08, win11)
 
-Implement the lead's second-review decisions on `cb27043ae`: accept the CLI's
+**Status 2026-10-08: built.** Implement the lead's second-review decisions on `cb27043ae`: accept the CLI's
 local drive verbatim prefix before applying segment rules; resolve existing
 long names and missing leaves before protected-write classification, refusing
 unresolved short-name aliases and drive-relative spellings. Storage and holds
@@ -20074,7 +20195,7 @@ results and hosted-admin-share qualification status are recorded in
 
 ### SECWINPATH — Windows path alias security repair (2026-10-08, win11)
 
-Implement the owner's AUDITWINPATH decisions on base `67099ce1b`: one shared
+**Status 2026-10-08: built.** Implement the owner's AUDITWINPATH decisions on base `67099ce1b`: one shared
 Windows spelling refusal at workspace, worker/ACP, held-tree and checkpoint
 admission; flagged Muse Code write subjects require a manual once-only answer.
 Storage exclusion and held-worktree/separation boundaries compare native
@@ -20099,7 +20220,7 @@ the shared lane rules (§7). Receipts: `docs/certification/sec-win-path-aliases.
 
 ### FIXCYCLES2 — Share the build's integration-test roots (2026-10-08, Kubuntu)
 
-**Status: complete locally.** Shared discovery replaces the guard's copied
+**Status 2026-10-08: built.** Complete locally. Shared discovery replaces the guard's copied
 integration glob. The replacement-list test passes in three complete runs at
 default deadlines; restoring the old glob fails it and restores byte-exact.
 Scoped gates and all five typechecks, duplication, localization, host API and
@@ -20118,7 +20239,7 @@ for the lead; no merge, rebase, push or paid/live call.
 
 ### FIXCYCLES — Complete dependency-cycle gate coverage (2026-10-08, Kubuntu)
 
-**Status: complete locally.** All prescribed fresh-clone gates pass; the
+**Status 2026-10-08: built.** Complete locally. All prescribed fresh-clone gates pass; the
 expanded cycle gate analyzes 2,182 modules without a cycle. Eleven complete
 owning/guard suites pass three times (395 tests per round) at repository
 deadlines. Both red drills fail and restore byte-exact. G77 records the
@@ -20140,6 +20261,8 @@ qualification for the lead; this lane commits locally with hooks, without
 merge, rebase, push or live/paid model calls.
 
 ### FLAKEMERGE — Start the team harness target wait at the played scene (2026-10-08)
+
+**Status 2026-10-08: built.**
 
 - [x] Explain the hosted Windows pseudo-locale merge-card timeout from CI
       durations and phase measurements under CPU starvation.
@@ -36622,6 +36745,42 @@ recovery; interrupted Resume remains the captured control.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
+### M120 — Preferred agents, availability routing and lane handoff (D103)
+
+**Status 2026-10-08: planned.**
+
+- **Goal:** D103 across every balancing surface.
+- **Order:** after the Wednesday set, and before the M110/M111 resume.
+  M110's node orchestrator uses it.
+- **Lanes:**
+  - 0, contracts: the preference list schema, candidate conditions, the
+    availability probe interface, the handoff record, coding-role area
+    hints and the outcome stats record;
+  - R, roles: the `frontend`, `backend` and `engineering` charters and
+    area hints, task-to-role routing, split-or-cross-review for mixed
+    tasks, and user-defined specializations;
+  - S, selection: the live availability, skip reasons and conditions,
+    including review ≠ author;
+  - H, handoff: safe points, stopping the tree, capturing work, the resume
+    brief and the chain record;
+  - P, panel: the preference editor and "Move to…" in every editor;
+  - W, wiring into D75 pools, M100/M110 routing, the judge engine, M95
+    provider order and M116 dispatch.
+- **Acceptance:**
+  - the preferred candidate is used when available, and the next one when
+    it isn't, with the reason shown;
+  - return-to-preferred, stall, time box, cap, refusal and the user each
+    move a task, with no work lost (a drill kills a candidate mid-edit and
+    the next one finishes from the captured diff);
+  - a review never lands on the authoring engine;
+  - a front-end task goes to the `frontend` preference list and a back-end
+    task to `backend`, with the reason shown;
+  - a mixed task is split, or cross-reviewed by the other specialist;
+  - reorder suggestions come from recorded outcomes, and nothing reorders
+    by itself unless the user opts in;
+  - a single-model user sees no change (golden requests byte-identical);
+  - the same thing works in every editor.
+
 ### REL0143M — Integrate the webview diet into 0.14.3 (2026-10-06)
 
 **Status 2026-10-06: built.** Status evidence: `docs/certification/rel0143.md`.
@@ -43802,6 +43961,11 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   operations per binding (and the clears) so concurrent revokes produce
   strictly increasing epochs and a delayed writer can never move the epoch
   backwards or republish an older value.
+
+- **M108 lane P prerequisites from the 0.17 consent review (RVCONSENT017D, 2026-10-08).** `AccountPaidUseConsent` ships unwired in 0.17. Before any production caller binds it:
+  1. Capture the durable epoch per individual question and answer, including forced `requiresAsking` questions. A feature-keyed map can hand a revoked answer the epoch of a different popup. Never fall back to the current epoch for an answer whose capture was lost. Add the held-answer plus forced-question regression.
+  2. Fence the clear paths against the owning revocation. An older revoke's `revokeQuoteGrants()` must not purge grants approved under a newer epoch: either the clear port carries an epoch cutoff, or the store owns advance plus clear as one transaction. Add the held-clear regression (post-advance interleaving).
+  3. Window-once authority must be invalidated on durable revocation. Inner `decide()` must not cache an answer the outer epoch fence refused. Add the held-Once regression.
 
 - **FIXM108P-EVENT-TRANSACTION (P-M95-PER-REQUEST / U / H / J / W).**
   `AccountPoolDeps.commit(event, adopt)` is a required synchronous owner
