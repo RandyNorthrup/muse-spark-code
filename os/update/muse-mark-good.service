@@ -1,22 +1,28 @@
 # Trial-boot mark-good unit (OS2, M110). Runs once per boot after the node
 # service, and marks the trial slot good only when /readyz passes inside
-# the bounded timeout owned by /usr/lib/muse-update/mark-good
-# (MUSE_MARK_GOOD_TIMEOUT_SEC, default 300). On failure it marks the slot
-# bad and reboots into the stable slot. Enabled on the image by
-# OS2-OS1-RECIPE; it is not started anywhere else.
+# the bounded trial owned by /usr/lib/muse-update/mark-good
+# (MUSE_MARK_GOOD_TIMEOUT_SEC, default 300, on the monotonic clock, with a
+# per-call timeout and an attempt cap). On failure it marks the slot bad and
+# reboots into the stable slot; on an ordinary or first boot it marks
+# nothing. Enabled on the image by OS2-OS1-RECIPE; it is not started anywhere
+# else. TimeoutStartSec bounds the script itself and FailureAction reboots a
+# machine whose mark-good hung; a kernel that hangs before this unit runs
+# needs the hardware watchdog (gap Q-M110-OS2-WD, not claimed here).
 #
 # The script handles both targets: with autoboot.txt present it drives the
-# Pi tryboot backend, otherwise it mirrors the EFI backend decision through
-# `rauc status mark-good/mark-bad`. No per-target unit is needed.
+# Pi tryboot backend, otherwise it follows the EFI trial marker through
+# `rauc status mark-good/mark-bad <slot>`. No per-target unit is needed.
 
 [Unit]
 Description=Muse Node trial-boot mark-good (OS2)
 After=muse-node.service network-online.target
 Wants=network-online.target
+FailureAction=reboot
 
 [Service]
 Type=oneshot
 ExecStart=/usr/lib/muse-update/mark-good
+TimeoutStartSec=360
 NoNewPrivileges=yes
 PrivateTmp=yes
 
