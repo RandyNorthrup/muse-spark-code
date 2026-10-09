@@ -148,9 +148,11 @@ export function createSubscriptionClient(
   // Production media (D85.2): the Files transport rides to Meta untouched;
   // a subscription client without it keeps the established refusal.
   const filesTransport = meta.requestFile?.bind(meta)
+  const transcription = meta.requestTranscription?.bind(meta)
   const client: ProviderClient = {
     hasPaidDailyBudget: meta.hasPaidDailyBudget,
     ...(filesTransport !== undefined && { requestFile: filesTransport }),
+    ...(transcription !== undefined && { requestTranscription: transcription }),
     isPlanModel,
     modelContextLimit: (model) => {
       const ref = parseModelRef(model)

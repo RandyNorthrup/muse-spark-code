@@ -255,6 +255,9 @@ export function withRuntimeAccounting(
     ...(client.requestFile !== undefined && {
       requestFile: client.requestFile.bind(client),
     }),
+    ...(client.requestTranscription !== undefined && {
+      requestTranscription: client.requestTranscription.bind(client),
+    }),
     hasPaidDailyBudget: client.hasPaidDailyBudget,
     ...(client.provider !== undefined && { provider: client.provider }),
     ...(client.modelContextLimit !== undefined && {
