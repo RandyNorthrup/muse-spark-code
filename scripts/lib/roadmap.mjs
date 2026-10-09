@@ -87,18 +87,35 @@ function readEntries(text, problems) {
   return parsed.entries
 }
 
+const WORD_CHARACTER = /^[\p{L}\p{N}]$/u
+
 /**
- * One case-insensitive pattern for every milestone and working id PLAN.md
- * and entries.json know (M19, m19, SECWINPATH, M26-follow-up), matched as a
- * whole word, as milestone selection matches ids.
+ * Finds the first milestone or working id PLAN.md and entries.json know
+ * (M19, m19, SECWINPATH, M26-follow-up) in a text, case-insensitively and as
+ * a whole word, as milestone selection matches ids; the longest id wins at a
+ * position. A plain scan, not a pattern built from the ids: ids are data,
+ * so no regular expression is compiled from them.
  */
-function knownIdPattern(ids) {
-  if (ids.size === 0) return null
-  const alternatives = [...ids]
-    .toSorted((left, right) => right.length - left.length)
-    .map((id) => id.replaceAll(/[$()*+.?[\\\]^{|}]/g, String.raw`\$&`))
-  const word = String.raw`[\p{L}\p{N}]`
-  return new RegExp(`(?<!${word})(?:${alternatives.join('|')})(?!${word})`, 'iu')
+function knownIdFinder(ids) {
+  if (ids.size === 0) return undefined
+  const known = [...ids].toSorted((left, right) => right.length - left.length)
+  const isWord = (character) => character !== undefined && WORD_CHARACTER.test(character)
+  return (value) => {
+    const characters = Array.from(value)
+    const lower = characters.map((character) => character.toLowerCase())
+    for (let start = 0; start < characters.length; start += 1) {
+      if (isWord(characters[start - 1])) continue
+      for (const id of known) {
+        const length = Array.from(id).length
+        if (
+          lower.slice(start, start + length).join('') === id &&
+          !isWord(characters[start + length])
+        )
+          return characters.slice(start, start + length).join('')
+      }
+    }
+    return undefined
+  }
 }
 
 /**
@@ -252,9 +269,9 @@ function render(placed, pending, releases, sources) {
 }
 
 class EntryChecker {
-  constructor(versions, idPattern, problems) {
+  constructor(versions, findId, problems) {
     this.versions = versions
-    this.idPattern = idPattern
+    this.findId = findId
     this.problems = problems
   }
 
@@ -265,7 +282,7 @@ class EntryChecker {
     }
     // Milestone, decision and working ids appear only as the generated tag.
     if (!isRendered) return true
-    const known = this.idPattern?.exec(value)?.[0]
+    const known = this.findId?.(value)
     if (known !== undefined)
       this.problems.push(`${id}: "${key}" names the milestone or working id ${known}`)
     else if (/\b[MD]\d+/.test(value))
@@ -330,7 +347,7 @@ function placeEntries(facts, entries, versions, pending, plan, problems, notes) 
   const ids = new Set(facts.milestones.map(({ id }) => id.toLowerCase()))
   for (const entry of entries)
     if (isEntryObject(entry) && hasValidId(entry)) ids.add(entry.id.toLowerCase())
-  const checker = new EntryChecker(versions, knownIdPattern(ids), problems)
+  const checker = new EntryChecker(versions, knownIdFinder(ids), problems)
   const seen = new Set()
   const placed = []
   for (const [index, entry] of entries.entries()) {
