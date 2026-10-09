@@ -43,7 +43,7 @@ import {
   networkFailureMessage,
 } from '../../networkFailure'
 import { redactSecrets } from '../../redact'
-import { scrubSecrets, type SecretScrubPort } from '../../../shared/redact'
+import { scrubSecrets, secretRedactor, type SecretScrubPort } from '../../../shared/redact'
 export { redactSecrets } from '../../redact'
 import { errorBodySchema, type StreamEvent } from './schemas'
 import type { UnattendedRun } from '../../schedules/unattended'
@@ -997,7 +997,7 @@ export class RequestTransport {
         return {
           response,
           redact: credentials.redact,
-          redactContent: (text) => redactSecrets(text, secrets, false),
+          redactContent: secretRedactor(secrets, false),
         }
       }
       const failure = await describeFailure(response, this.deps.parseError, credentials.redact)

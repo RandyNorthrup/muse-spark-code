@@ -97,6 +97,11 @@ happened, not what was planned; superseded entries are kept.
   Before, such a turn released the answer instead of marking it sent, so the
   following prompt carried it again.
 
+- Model API replies stream with less work per event: the stream's key
+  redaction builds its matcher once per reply (and again only when a stored
+  secret changes) instead of for every string in every event. A long reply
+  had spent most of its time there.
+
 - Packaged translation tables round-trip byte-exact again: every language
   table lists its keys in English's order, including the resource history
   and Windows path strings merged for 0.17.0.

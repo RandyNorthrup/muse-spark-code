@@ -599,6 +599,26 @@ export function redactSecrets(
   return redactWith(text, literals, undefined, shouldIncludePatterns)
 }
 
+/**
+ * `redactSecrets` with fixed literals, for one stream's many strings: the
+ * literals' encoded forms and the matcher are built once, and again only
+ * when a registered secret changes, instead of on every call.
+ */
+export function secretRedactor(
+  literals: readonly string[],
+  shouldIncludePatterns = true,
+): (text: string) => string {
+  const fixed = secretForms(literals)
+  let built: { registered: string[]; matcher: ReturnType<typeof literalMatcher> } | undefined
+  return (text) => {
+    const registered = currentForms()
+    if (built?.registered !== registered)
+      built = { registered, matcher: literalMatcher([...registered, ...fixed]) }
+    const redacted = built.matcher(text)
+    return shouldIncludePatterns ? redactPatterns(redacted) : redacted
+  }
+}
+
 /** Counts only changed, nonoverlapping matches in the same order as redaction. */
 export function countSecretMatches(text: string, literals: readonly string[]): number {
   let count = 0
