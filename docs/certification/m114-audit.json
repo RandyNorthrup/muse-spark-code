@@ -10523,7 +10523,7 @@
   "sources": [
     {
       "file": "src/webview/App.tsx",
-      "sha256": "85196f0223e567c6224f0f7d257acb7dc39d59eafc468b9a5a49c730c7f08560"
+      "sha256": "ddad3af00bae9d84f4620fb83e61b69a9c8e8311381e47c26a51d550296c6926"
     },
     {
       "file": "src/webview/TasksApp.tsx",
@@ -10671,7 +10671,7 @@
     },
     {
       "file": "src/webview/components/GooeyMenuContent.tsx",
-      "sha256": "9423319330d95c00f99355b276e43f852edaa8aed09020ee2c4497157eb6723b"
+      "sha256": "6740220818d71f6c14cfe63aa0c0a20f0da9c07f849793ef0449b55eff505281"
     },
     {
       "file": "src/webview/components/HandoffDialog.tsx",
@@ -10871,7 +10871,7 @@
     },
     {
       "file": "src/webview/components/Transcript.tsx",
-      "sha256": "86ca43b930fce3c8899305d765dcbaaa656d956394eaefed56b70af064f7b07f"
+      "sha256": "56e228c5679f24b5005c12e30e6c9e874f839ea51cd3978cf3f5ab836614bb93"
     },
     {
       "file": "src/webview/components/UsageDialog.tsx",
@@ -11007,7 +11007,7 @@
     },
     {
       "file": "src/webview/gooeyLayout.ts",
-      "sha256": "5973d9e66894d7bada7e42e8808a5cd2ef4e13c77d08537b50951590824dae16"
+      "sha256": "e6312868bec8448864dde78c41b4fb1f5c4b83466201cd7a8c60912a0e49b92c"
     },
     {
       "file": "src/webview/heartbeatBeam.ts",
@@ -11455,7 +11455,7 @@
     },
     {
       "file": "src/webview/styles.css",
-      "sha256": "051a6f0ee6adf060c766f2c20ddd7ad61fb746a29d4aa182c3fd9541446db0af"
+      "sha256": "e546b30b35aae47762bc1260746ac2883463f0f5d2e988f257096f248807275e"
     },
     {
       "file": "src/webview/surfaceRetry.ts",
