@@ -931,9 +931,12 @@ describe('RVM107W2H P2-5: put-back never replaces an entry that took the name', 
     const folder = await temporary()
     const day = await storedDay(folder)
     const fs = new NodeUsageFs(folder)
+    // The fence's own refusal is reported (RVM107W2L), not usagePathChanged.
     await expect(
-      fs.remove(`${RESOURCE_JOURNAL_ROOT}/2026-01-01`, () => Promise.reject(new Error('fenced'))),
-    ).rejects.toThrow('usagePathChanged')
+      fs.remove(`${RESOURCE_JOURNAL_ROOT}/2026-01-01`, () =>
+        Promise.reject(new Error('resourceHistoryLockLost')),
+      ),
+    ).rejects.toThrow('resourceHistoryLockLost')
     expect(await readFile(path.join(day, 'w.0.jsonl'), 'utf8')).toBe('secret-history\n')
     expect(await quarantined(resourcesRoot(folder))).toEqual([])
   })
@@ -992,7 +995,8 @@ describe('RVM107W2H P2-5: put-back never replaces an entry that took the name', 
     ).rejects.toThrow('usagePathChanged')
     const current = await actual.lstat(day, { bigint: true })
     if (process.platform === 'win32') {
-      // The documented Windows residual: the file that took the name is replaced.
+      // The documented Windows residual: a file created between the free-name
+      // check and the rename (here, inside the rename call) is replaced.
       expect(current.isDirectory()).toBe(true)
     } else {
       // The claim refused: the replacement stands and ours stays quarantined.
@@ -1001,3 +1005,51 @@ describe('RVM107W2H P2-5: put-back never replaces an entry that took the name', 
     }
   })
 })
+
+// RVM107W2L (lead review of the round-4 put-back).
+describe('RVM107W2L: a directory put-back never replaces, and leaves no claim behind', () => {
+  it('keeps a file that takes the name any time after the quarantine rename', async () => {
+    const folder = await temporary()
+    const day = await storedDay(folder)
+    // The fence runs after the quarantine rename: the name is free, and taken here.
+    const fence = async (): Promise<void> => {
+      await actual.writeFile(day, 'theirs')
+      throw new Error('resourceHistoryLockLost')
+    }
+    const outcome = await removalOutcome(folder, fence)
+    // The file that took the name stands; ours stays quarantined; the fence's own refusal.
+    expect(await readFile(day, 'utf8')).toBe('theirs')
+    const [ours] = await quarantined(resourcesRoot(folder))
+    const kept = path.join(resourcesRoot(folder), ours ?? '', 'w.0.jsonl')
+    expect(await readFile(kept, 'utf8')).toBe('secret-history\n')
+    expect(outcome).toBe('resourceHistoryLockLost')
+  })
+
+  it('gives back its empty claim when the directory rename fails (POSIX)', async () => {
+    const folder = await temporary()
+    const day = await storedDay(folder)
+    // The put-back's rename (from the quarantine name) fails; the quarantine one does not.
+    vi.mocked(fsPromises.rename).mockImplementation(async (from, to) => {
+      if (path.basename(String(from)).startsWith(TRASH))
+        throw Object.assign(new Error('EIO: i/o error'), { code: 'EIO' })
+      await actual.rename(from, to)
+    })
+    const outcome = await removalOutcome(folder, () =>
+      Promise.reject(new Error('resourceHistoryLockLost')),
+    )
+    // No empty claim at the name; ours stays quarantined; the fence's own refusal.
+    expect(await isPresent(day)).toBe(false)
+    expect(await quarantined(resourcesRoot(folder))).toHaveLength(1)
+    expect(outcome).toBe('resourceHistoryLockLost')
+  })
+})
+
+/** Removes the stored day under `fence`: the refusal's message, or 'removed'. */
+async function removalOutcome(folder: string, fence: () => Promise<void>): Promise<string> {
+  try {
+    await new NodeUsageFs(folder).remove(`${RESOURCE_JOURNAL_ROOT}/2026-01-01`, fence)
+    return 'removed'
+  } catch (error) {
+    return error instanceof Error ? error.message : 'failed'
+  }
+}

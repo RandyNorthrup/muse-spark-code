@@ -1,7 +1,7 @@
 // The same private data folder is injected by VSIX, ACP, native runtimes and CLI.
 import { randomUUID } from 'node:crypto'
 import { constants, type BigIntStats, type Dirent } from 'node:fs'
-import { link, lstat, mkdir, open, readdir, readFile, rename, rm } from 'node:fs/promises'
+import { link, lstat, mkdir, open, readdir, readFile, rename, rm, rmdir } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
@@ -55,17 +55,33 @@ async function erase(file: string): Promise<void> {
  * Moves `from` back to the name `to` without replacing an entry that took it
  * (RVM107W2H P2-5): a file by `link` (no-replace everywhere), then unlink. A
  * directory on POSIX claims the name with an exclusive `mkdir` first, so the
- * rename can replace only an empty directory. Windows never renames over a
- * directory but does over a file: the residual in SECURITY.
+ * rename can replace only an empty directory, and a failed rename gives the
+ * claim back (`rmdir`, empty only). Windows never renames over a directory but
+ * does over a file, and cannot claim a name: the name is checked free right
+ * before the rename (the residual window in SECURITY). A taken name throws.
  */
 async function restore(from: string, to: string, isDirectory: boolean): Promise<void> {
-  if (isDirectory) {
-    if (process.platform !== 'win32') await mkdir(to)
+  if (!isDirectory) {
+    await link(from, to)
+    await rm(from)
+    return
+  }
+  if (process.platform === 'win32') {
+    if (!(await isAbsent(to))) throw new Error('usageNameTaken')
     await rename(from, to)
     return
   }
-  await link(from, to)
-  await rm(from)
+  await mkdir(to)
+  try {
+    await rename(from, to)
+  } catch (error) {
+    try {
+      await rmdir(to)
+    } catch {
+      // No longer our empty claim: left as it is.
+    }
+    throw error
+  }
 }
 /**
  * On Windows, runs `action` holding a handle on `file`, proved to be
@@ -373,16 +389,24 @@ export class NodeUsageFs implements UsageFs {
             await proveParent()
             return
           }
-          let isSame: boolean
+          let refusal: Error | undefined
           try {
             const moved = await lstatIdentity(trash)
             await proveParent()
-            await commit?.()
-            isSame = !moved.isSymbolicLink() && fileIdentityKey(moved) === targetIdentity
+            if (moved.isSymbolicLink() || fileIdentityKey(moved) !== targetIdentity)
+              refusal = new Error('usagePathChanged')
           } catch {
-            isSame = false
+            refusal = new Error('usagePathChanged')
           }
-          if (!isSame) {
+          // The fence refuses with its own error (RVM107W2L): only an identity
+          // or parent change is reported as usagePathChanged.
+          if (refusal === undefined)
+            try {
+              await commit?.()
+            } catch (error) {
+              refusal = error instanceof Error ? error : new Error(String(error), { cause: error })
+            }
+          if (refusal !== undefined) {
             // Put back what this rename moved into the validated parent, never
             // over a replacement, then refuse.
             try {
@@ -391,7 +415,7 @@ export class NodeUsageFs implements UsageFs {
             } catch {
               // Left under its quarantine name; the refusal below still stands.
             }
-            throw new Error('usagePathChanged')
+            throw refusal
           }
           await erase(trash)
         })

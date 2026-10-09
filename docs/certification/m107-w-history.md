@@ -436,8 +436,10 @@ existing name everywhere.
   directory refuses the rename).
 - **Put-back, Windows directories:** Windows cannot claim a name for a
   directory, and its rename replaces a file: a file created at the
-  directory's name in the instant before the put-back is replaced (the test's
-  Windows branch shows it).
+  directory's name before the put-back is replaced (the test's Windows branch
+  shows it). RVM107W2L corrects the window: at `7a5ad5105` it was the whole
+  span from the quarantine rename to the put-back; FIXM107W2L narrows it to
+  between a free-name check and the rename.
 - **Fence:** the check and the final call are two steps. A holder paused
   between them lands only in the tree it opened or staged in. If Delete
   history removed that tree meanwhile, the write goes with it: an open append
@@ -553,3 +555,54 @@ about 900 here and 0.5–0.8 KiB in every other bundle that imports
 `constants.ts`. `dist/browserCheck.js`, which uses the flags, keeps them
 (52.4 KiB). The resource history closure is unchanged at 49.4/50 KiB. No cap
 changed.
+
+## FIXM107W2L: the lead review of the put-back
+
+2026-10-08, on `m107/w-history` after `7a5ad5105`. The lead's review of
+`818037ad0..7a5ad5105` accepted the fence, the boundary rows and retention
+under the lock, and asked for three fixes in `nodeUsageFs.ts`. No model calls
+(**0 attempts**), no credential, dependency, push, rebase or merge; no shared
+file beyond `nodeUsageFs.ts`, its test and these records.
+
+| Finding                                                                                                                                                                              | Fix (final head)                                                                                                                                                                                     | Regression (`resourceHistoryReview`, RVM107W2L)                                                                        | On `7a5ad5105`                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| P2 a Windows directory put-back renamed with no check, so a file created at the name any time after the quarantine rename (lstat, parent proof, the fence's lease read) was replaced | `src/runtime/usage/nodeUsageFs.ts:70` on win32 the name must be free immediately before the rename; a taken name skips the put-back and leaves the entry quarantined                                 | a file the fence writes at the name after the quarantine rename keeps its content; ours stays quarantined              | fails natively on this Windows host: the name is our directory (`EISDIR` reading the file) |
+| P3 a POSIX claim was left at the name when the rename failed                                                                                                                         | `nodeUsageFs.ts:74`–`:79` the claim is removed with `rmdir` (empty only, never recursive) before the error is rethrown                                                                               | the put-back's rename fails (`EIO`): nothing is left at the name; ours stays quarantined                               | fails on Kubuntu: the empty claim is at the name                                           |
+| P3 a fence refusal was reported as `usagePathChanged`                                                                                                                                | `nodeUsageFs.ts:392`–`:418` the fence runs after the identity proof, outside its `try`; its own error is rethrown after the put-back; `usagePathChanged` is kept for an entry or parent that changed | a removal refused by its fence reports `resourceHistoryLockLost` (and is put back); the two tests above check the same | fails on both: `usagePathChanged`                                                          |
+
+Callers: nothing in `src` branches on either message. Retention reports any
+failure through `onRetentionError`; Delete history and lock-claim removals
+pass no fence. The earlier `remove()`-with-a-refusing-fence test now expects
+the fence's own error. The Windows residual test (the file is created inside
+the rename call itself, after the check) still shows the remaining window.
+
+The residual, reworded in SECURITY and above: on Windows, a file created at a
+directory's name **between the free-name check and the rename** is replaced.
+At `7a5ad5105` the window was the whole span from the quarantine rename to the
+put-back.
+
+### Red drills (W2L)
+
+| Drill | Guard (mutation)                                              | Owning test (failed while mutated)                                              |
+| ----- | ------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| L1    | Windows free-name check before a directory put-back (removed) | a file that takes the name after the quarantine rename (Windows host: `EISDIR`) |
+| L2    | POSIX claim given back on a failed rename (`rmdir` removed)   | the empty claim is gone (Kubuntu)                                               |
+| L3    | the fence's own error rethrown (`usagePathChanged` instead)   | a removal refused by its fence (Kubuntu)                                        |
+
+**3 of 3 failed while mutated; all restored identical.**
+
+### Runs and gates (W2L)
+
+Repository default timeouts, at most three files per run. Windows host,
+natively: review **36/36**. Kubuntu slot 2: review + disposal + journal
+**49/49**. Mac mini: the same **49/49**.
+
+Host, on the final source: `npm run typecheck` (five projects) **0**; ESLint
+`--max-warnings=0` on the changed source and test **0**; stylelint **0**; knip
+**0**; jscpd **0**; `cycles` **0**; `check:l10n` **0**; `check:reference`
+**0**; `check:host-api` **0** (`rmdir` comes from the recorded
+`node:fs/promises`); `npm run build` **0**. Prettier `--check` first exited
+**1** on this certification only (the section was appended unformatted);
+formatted and rechecked on every changed text file: **0**.
+`dist/usageService.js` is 102,054 of 102,400 bytes (99.7/100 KiB, 346 free;
+101,795 at `7a5ad5105`). No cap changed.

@@ -651,10 +651,15 @@ name: a file by `link` (no-replace on every platform) and then unlink; a
 directory on POSIX after claiming the name with an exclusive `mkdir`, so the
 rename can replace only an empty directory (a same-user racer that swaps its
 own empty directory in for the claim in that instant loses that empty
-directory, never content). Windows never renames over a directory but does
-over a file, and cannot claim the name for a directory: a file created at a
-directory's name in the instant before its put-back is replaced (the
-residual). Anything not put back stays under its quarantine name.
+directory, never content); if that rename fails, the claim is removed again
+with `rmdir`, which never recurses. Windows never renames over a directory but
+does over a file, and cannot claim the name for a directory, so the put-back
+checks that the name is free immediately before the rename and leaves the
+entry quarantined if it is not: a file created at the name between that check
+and the rename is replaced (the residual). Anything not put back stays under
+its quarantine name. A refusal by the commit fence is reported as the fence's
+own error (`resourceHistoryLockLost`); `usagePathChanged` means the entry or
+its parent changed.
 
 Appends, live minutes, daily rows, retention and **Delete history** run under
 one write lease, and every append, live minute, daily-row write and retention

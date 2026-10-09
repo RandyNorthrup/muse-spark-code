@@ -40535,6 +40535,16 @@ examples are marked pure (the repository's pattern), so bundles that never
 use them drop them; `usageService.js` 99.5/100 KiB, `extension.js` −0.8 KiB.
 Records in `docs/certification/m107-w-history.md`.
 
+**FIXM107W2L — the lead review of the put-back (2026-10-08).** Three fixes in
+`NodeUsageFs`: a Windows directory put-back checks the name is free
+immediately before its rename and otherwise leaves the entry quarantined (at
+`7a5ad5105` a file created at the name any time after the quarantine rename
+was replaced); a POSIX claim is removed with `rmdir` when the rename fails; a
+fence refusal is reported as the fence's own error, `usagePathChanged` only for
+a changed entry or parent. Regressions fail on `7a5ad5105` (the Windows one
+natively on the host), drills L1–L3. Records in
+`docs/certification/m107-w-history.md`.
+
 **FIXM107J review repair (2026-10-06, Kubuntu).** Repair both RVM107J P2s
 and its P3 inside J's collector, aggregate, history boundary and shared view.
 Read-time flushes retain the active minute and its per-tree CPU baselines;
