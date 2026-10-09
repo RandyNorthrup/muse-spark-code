@@ -113,6 +113,16 @@ describe('M108 accounts accessibility and lazy budget', () => {
               const height = await page.locator('#root').evaluate((element) => element.scrollHeight)
               await page.setViewportSize({ width, height: Math.max(760, height) })
             }
+            // Audit the settled frame. The dialog fades in (panel-open, opacity
+            // 0 to 1 over --ms-motion-base) and counts as visible at opacity 0;
+            // axe weighs opacity, so a slow runner read the light link at
+            // 4.06:1 mid-fade against 5.93:1 settled (UIHOOK017).
+            await page.evaluate(async () => {
+              const finite = globalThis.document
+                .getAnimations()
+                .filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity)
+              await Promise.allSettled(finite.map(async (animation) => await animation.finished))
+            })
             await page.addScriptTag({ path: path.join(root, 'node_modules/axe-core/axe.min.js') })
             const result = await page.evaluate(
               async () =>

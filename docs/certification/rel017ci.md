@@ -68,7 +68,7 @@ timing.
 | resourceHistoryDisposal                                                                     | —        | c          | Load-sensitive 3 s wait (lead's note).                                                                                                             | Kubuntu pass (4.9 s run); not changed.                                                                                     |
 | visualStability                                                                             | lin, mac | c          | Capture hook over 10 s on hosted runners.                                                                                                          | Not changed.                                                                                                               |
 | nativeScheduleBackground (timeout), scheduleFs, judgeWindow, vault/execFence, reportHistory | win      | c          | Hosted Windows timing (PowerShell cold start, 15/30 s deadlines), Windows rename locking; judgeWindow and execFence pass on Win11.                 | Not changed; hosted Windows to confirm.                                                                                    |
-| accountsPanel.a11y (light, 320 px link)                                                     | win      | open (c?)  | axe color-contrast on one `a`, Windows only.                                                                                                       | Needs a Windows Chrome capture.                                                                                            |
+| accountsPanel.a11y (light, 320 px link)                                                     | win      | c          | Axe audited the dialog mid-fade (opacity < 0.86): link 4.06:1 at 0.80, 5.93:1 settled.                                                             | UIHOOK017 below: settled-frame audit, link on `--ms-info`.                                                                 |
 | outputSchema, m114Panel, scheduleRuntime                                                    | mac      | c          | Timing on the hosted macOS runner.                                                                                                                 | Not changed.                                                                                                               |
 
 Windows shard 1 was cancelled in run 37866831774, so its files had no
@@ -97,6 +97,44 @@ Pre-commit hook: on three commits lint-staged printed ESLint errors and
 intermediate loop). Each was corrected by the next commit and the Kubuntu
 `eslint test/unit` run is clean of them (`7612acb6a`); the hook's exit
 status on a lint-staged failure needs a look.
+
+## UIHOOK017 — accountsPanel.a11y, light dialog at 320 px
+
+The hosted failure (run 37866831774, `tests (windows-latest, shard 2)`):
+`light dialog at 320px`, axe `color-contrast` on one `a`, the source-policy
+link in the confirmation dialog. The same case passed in run 37883970931 and
+34/34 on this Windows host.
+
+**Cause.** No token is below AA once the dialog has settled. Settled link
+contrast (axe, 320 px, dialog surface):
+
+| Theme    | Link      | Surface   | Ratio  |
+| -------- | --------- | --------- | ------ |
+| light    | `#005fb8` | `#f8f8f8` | 5.93:1 |
+| dark     | `#4daafc` | `#202020` | 6.57:1 |
+| hc-light | `#0f4a85` | `#ffffff` | 8.98:1 |
+| hc-dark  | `#21a6ff` | `#0c141f` | 7.01:1 |
+
+The modal fades in (`panel-open`, opacity 0 to 1 over `--ms-motion-base`,
+180 ms), and Playwright's `waitFor` counts it visible at opacity 0. Axe
+weighs opacity, and the document timeline moves only between frames, so a
+slow runner can audit an early frame. With the fade frozen at each point
+(light, 320 px): opacity 0.88 gives the link 4.68:1, 0.80 gives 4.06:1 (fail),
+0.69 gives 3.23:1. Light has the least margin of the four themes, which is
+why only that case failed.
+
+**Fix.** The test waits for every finite animation in the document to
+finish before running axe, so it audits the frame users read; nothing is
+excluded from axe and no rule or threshold changed. The accounts link now
+takes its colour from the design token role `--ms-info` (the role every
+other webview link uses) instead of the raw `--vscode-textLink-foreground`;
+`--ms-info` resolves to that same host colour, so the values above are
+unchanged.
+
+**Proof.** Red drill: the wait replaced with the fade frozen at 40%
+(72 ms, opacity 0.80) fails exactly the hosted case, `light dialog at
+320px`, `color-contrast` on `a` (1 failed, 33 passed). Restored: 34/34
+(32.5 s) on this Windows host.
 
 ## Needs the hosted run
 
