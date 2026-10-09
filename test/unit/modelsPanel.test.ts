@@ -68,6 +68,25 @@ async function chooseOpenRouter(panel: FakeWebviewPanel): Promise<void> {
     expect(latestState(panel).drafts.wizard?.presetId).toBe('openrouter')
   })
 }
+async function testTickAndSave(
+  panel: FakeWebviewPanel,
+  providerId: string,
+  saved: ReturnType<typeof vi.fn>,
+) {
+  await send(panel, { type: 'providers/test', acceptCost: false }, () => {
+    expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
+  })
+  await send(
+    panel,
+    { type: 'models/tick', scope: { scope: 'wizard' }, ref: `${providerId}/m1`, ticked: true },
+    () => {
+      expect(latestState(panel).drafts.wizard?.models).toEqual(['m1'])
+    },
+  )
+  await send(panel, { type: 'providers/save', useNow: true }, () => {
+    expect(saved).toHaveBeenCalledOnce()
+  })
+}
 beforeEach(() => {
   fakeWindow.createWebviewPanel.mockReset()
   fakeWindow.createWebviewPanel.mockImplementation(
@@ -174,19 +193,7 @@ describe('Models host contract', () => {
       expect(latestState(panel).drafts.wizard?.keyPresent).toBe(true)
     })
     expect(await providers.providers()).toEqual([])
-    await send(panel, { type: 'providers/test', acceptCost: false }, () => {
-      expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
-    })
-    await send(
-      panel,
-      { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'openrouter/m1', ticked: true },
-      () => {
-        expect(latestState(panel).drafts.wizard?.models).toEqual(['m1'])
-      },
-    )
-    await send(panel, { type: 'providers/save', useNow: true }, () => {
-      expect(saved).toHaveBeenCalledOnce()
-    })
+    await testTickAndSave(panel, 'openrouter', saved)
     expect(await providers.providers()).toHaveLength(1)
     expect(JSON.stringify(panel.webview.postMessage.mock.calls)).not.toContain(
       'bare-synthetic-secret',
@@ -315,19 +322,7 @@ describe('Models panel over the shipped preset catalogue', () => {
     await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
       expect(latestState(panel).drafts.wizard).toMatchObject({ keyPresent: true, keyShapeOk: true })
     })
-    await send(panel, { type: 'providers/test', acceptCost: false }, () => {
-      expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
-    })
-    await send(
-      panel,
-      { type: 'models/tick', scope: { scope: 'wizard' }, ref: `${row.id}/m1`, ticked: true },
-      () => {
-        expect(latestState(panel).drafts.wizard?.models).toEqual(['m1'])
-      },
-    )
-    await send(panel, { type: 'providers/save', useNow: true }, () => {
-      expect(saved).toHaveBeenCalledOnce()
-    })
+    await testTickAndSave(panel, row.id, saved)
     expect(await providers.providers()).toMatchObject([
       {
         id: row.id,

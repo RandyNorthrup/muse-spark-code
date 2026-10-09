@@ -432,9 +432,13 @@ describe('Wizard', () => {
 })
 
 describe('ModelsSection', () => {
-  it('F7: failed scans clear scanning/cancel and offer a retry in Models', () => {
+  it.each([
+    { name: 'Models', Section: ModelsSection },
+    { name: 'Providers', Section: ProvidersSection },
+  ])('F7: $name clears failed scanning/cancel and offers retry', ({ Section }) => {
     const post = vi.fn()
     const state = makeState({
+      providers: [makeProvider({ id: 'openrouter' })],
       scans: {
         openrouter: {
           providerId: 'openrouter',
@@ -443,7 +447,7 @@ describe('ModelsSection', () => {
         },
       },
     })
-    const { rerender } = render(<ModelsSection {...props(state, post)} />)
+    render(<Section {...props(state, post)} />)
     expect(
       screen.getByText(fill(UI_TEXT.scanFailed, { detail: UI_TEXT.providerProbeUnparseable })),
     ).toBeDefined()
@@ -451,16 +455,6 @@ describe('ModelsSection', () => {
     expect(screen.queryByRole('button', { name: UI_TEXT.wizardCancel })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.refreshModels }))
     expect(post).toHaveBeenCalledWith({ type: 'models/scan', providerId: 'openrouter' })
-    rerender(
-      <ProvidersSection
-        {...props({ ...state, providers: [makeProvider({ id: 'openrouter' })] }, post)}
-      />,
-    )
-    expect(
-      screen.getByText(fill(UI_TEXT.scanFailed, { detail: UI_TEXT.providerProbeUnparseable })),
-    ).toBeDefined()
-    expect(screen.queryByText(UI_TEXT.providersScanning)).toBeNull()
-    expect(screen.queryByRole('button', { name: UI_TEXT.wizardCancel })).toBeNull()
   })
   it('shows badged rows, ticks as a delta, and pins', () => {
     const post = vi.fn()

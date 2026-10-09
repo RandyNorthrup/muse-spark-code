@@ -23,7 +23,7 @@ import { window, FakeUri } from './mocks/vscode'
 const roots: string[] = []
 afterEach(async () => {
   vi.restoreAllMocks()
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+  for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
 })
 beforeEach(() => {
   window.createWebviewPanel.mockReset()
@@ -198,12 +198,42 @@ async function fixture(preset: string, capture: string, isConfigured = true) {
   }
 }
 
+async function scanSavedProvider(f: Awaited<ReturnType<typeof fixture>>) {
+  const id = f.entry.id
+  await message(f.panel, { type: 'models/scan', providerId: id }, () => {
+    expect(latestState(f.panel).scans[id]?.status).toBe('done')
+  })
+}
+
 describe('PROVWIRE production provider wiring', () => {
+  it('F3: HF latency and upstream ordering do not masquerade as repricing', async () => {
+    const f = await fixture('huggingface', '01-models-list.json')
+    const previous = await f.services.scanRows(f.entry, 'synthetic-test-key')
+    const body = z
+      .object({ data: z.array(z.record(z.string(), z.json())) })
+      .parse(await capturedBody('huggingface', '01-models-list.json'))
+    const model = body.data[0]
+    if (model === undefined) throw new Error('Missing captured HF model')
+    const upstreams = z.array(z.record(z.string(), z.json())).parse(model['providers'])
+    const upstream = upstreams[0]
+    if (upstream === undefined) throw new Error('Missing captured HF upstream')
+    upstream['first_token_latency_ms'] = z.number().parse(upstream['first_token_latency_ms']) + 1
+    model['providers'] = upstreams.toReversed()
+    f.replaceBody(body)
+    const metadataOnly = await f.services.scanRows(f.entry, 'synthetic-test-key')
+    expect(metadataOnly[0]?.priceFingerprint).toBe(previous[0]?.priceFingerprint)
+    upstream['pricing'] = {
+      ...z.record(z.string(), z.json()).parse(upstream['pricing']),
+      input: 0.47,
+    }
+    const repriced = await f.services.scanRows(f.entry, 'synthetic-test-key')
+    expect(repriced[0]?.inputPerMillion).toBe(metadataOnly[0]?.inputPerMillion)
+    expect(repriced[0]?.priceFingerprint).not.toBe(metadataOnly[0]?.priceFingerprint)
+    f.controller.dispose()
+  })
   it('F7: a real scan failure publishes failed, keeps cached rows and retries cleanly', async () => {
     const f = await fixture('openrouter', '01-models-list.json')
-    await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
-      expect(latestState(f.panel).scans['openrouter']?.status).toBe('done')
-    })
+    await scanSavedProvider(f)
     f.replaceBody(null)
     await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
       expect(latestState(f.panel).scans['openrouter']).toMatchObject({
@@ -213,17 +243,13 @@ describe('PROVWIRE production provider wiring', () => {
     })
     expect(latestState(f.panel).models).toHaveLength(4)
     f.replaceBody(await capturedBody('openrouter', '01-models-list.json'))
-    await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
-      expect(latestState(f.panel).scans['openrouter']?.status).toBe('done')
-    })
+    await scanSavedProvider(f)
     expect(latestState(f.panel).scans['openrouter']?.detail).toBeUndefined()
     f.controller.dispose()
   })
   it('F7: cancelling a real in-flight scan still settles done with its previous cache', async () => {
     const f = await fixture('openrouter', '01-models-list.json')
-    await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
-      expect(latestState(f.panel).scans['openrouter']?.status).toBe('done')
-    })
+    await scanSavedProvider(f)
     f.holdScan()
     const before = f.calls.length
     await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
@@ -398,9 +424,7 @@ describe('PROVWIRE production provider wiring', () => {
     if (free === undefined) throw new Error('Missing captured free model')
     free['pricing'] = { prompt: '0', completion: '0', input_cache_read: '-1' }
     f.replaceBody(body)
-    await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
-      expect(latestState(f.panel).scans['openrouter']?.status).toBe('done')
-    })
+    await scanSavedProvider(f)
     expect(latestState(f.panel).models.find((row) => row.modelId === free['id'])).toMatchObject({
       priceNote: 'unpriced',
       freeOrLocal: false,
@@ -431,9 +455,7 @@ describe('PROVWIRE production provider wiring', () => {
   )
   it('F3: captured OpenRouter prices and free flags survive scans, filters and repricing', async () => {
     const f = await fixture('openrouter', '01-models-list.json')
-    await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
-      expect(latestState(f.panel).scans['openrouter']?.status).toBe('done')
-    })
+    await scanSavedProvider(f)
     const sonnet = latestState(f.panel).models.find(
       (row) => row.modelId === 'anthropic/claude-sonnet-5.5',
     )

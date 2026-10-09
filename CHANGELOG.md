@@ -32,7 +32,8 @@ happened, not what was planned; superseded entries are kept.
   matching the shared setup flow and saved privacy routing.
 - Models & Agents shows captured provider prices and recognizes free cloud
   models. Free and price filters include the right rows, and a refreshed
-  cache price counts as a price change.
+  cache price counts as a price change. Routing metadata updates do not count
+  as price changes.
 - Models & Agents can scan Gemini and Ollama after ordinary setup, and
   Anthropic's scans and key tests send its required version header. Presets
   supply the wire format when it is absent from saved configuration.

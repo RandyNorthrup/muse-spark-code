@@ -850,8 +850,29 @@ export function createConfiguredProviderServices(
         let priceFingerprint = 'unpriced'
         if (isPlan) priceFingerprint = 'plan'
         else if (isLocal) priceFingerprint = 'local'
-        else if (card !== undefined)
-          priceFingerprint = JSON.stringify({ card, upstreams: native['providers'] })
+        else if (card !== undefined) {
+          const upstreams = z
+            .array(
+              z.object({
+                provider: z.string(),
+                pricing: z.optional(
+                  z.object({
+                    input: z.number().check(z.nonnegative()),
+                    output: z.number().check(z.nonnegative()),
+                  }),
+                ),
+              }),
+            )
+            .safeParse(native['providers'])
+          priceFingerprint = JSON.stringify({
+            card,
+            upstreams: upstreams.success
+              ? upstreams.data.toSorted((left, right) =>
+                  left.provider.localeCompare(right.provider),
+                )
+              : undefined,
+          })
+        }
         return {
           id,
           label: modelRef.sanitizeModelLabel(

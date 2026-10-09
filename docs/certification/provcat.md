@@ -144,6 +144,14 @@ No further production rewrite was needed. Two overlapping drill launches were
 discarded: the production file was restored to the known-good SHA-256 and the
 drills repeated sequentially. Only the independent receipts below count.
 
+Final review added one failing-first HF stability case: latency and upstream
+order changes altered the raw upstream fingerprint even with identical
+prices. The fingerprint now keeps sorted provider identities and validated
+input/output pricing only. A captured upstream rate changing below the table's
+highest rate still changes the fingerprint. The latency/order case fails with
+the old raw fingerprint and passes with the projection. This synthetic metadata
+and price mutation is a sensitivity test, never a claim of new live prices.
+
 ### F4 — A credential check rather than a public-list check
 
 Cause: the configured service always scanned models while the CLI honoured
@@ -221,22 +229,65 @@ a nonexistent provider `scan` field was removed; both views read the shared
 `providerModelScans`: **48 tests pass** at repository deadlines. These replay
 tests make **0 model attempts**.
 
+### Final qualification
+
+All final commands run directly on **macmini**, at repository deadlines,
+with no `--testTimeout`, no test-name filter and at most three files/workers
+per Vitest invocation. The complete provider/models regression set is
+**44 files, 739 tests, all passed** (15 sequential batches). `providerWiring`
+has 19 capture-backed cases; the two parameterized webview failure/retry cases
+cover both sections. `npm run typecheck` passes all five projects.
+Changed-file ESLint and prettier pass, `check:l10n` reports **0 problems**,
+`check:reference` is current, `check:host-api` reports **0 problems**,
+plain `npm run deadcode` exits 0, and `npx jscpd` reports **0 clones**.
+
+`npm run build` exits 0, including existing size/split/global/notices gates:
+extension **509.5/600 KiB**, Model API **488.7/525 KiB**, providers
+**134.0/150 KiB**, configured providers **27.1/50 KiB**, Models panel
+**92.2/125 KiB**. Every other existing budget also passes; no cap changed.
+All local commits use `.husky/_`, lint-staged and gitleaks as installed;
+the staged and committed code was reread after each hook. The hook's one
+test-callback rewrite adds braces without changing the rejection behavior.
+
+Changed files: `src/core/providers/{configured,presets,priceCard}.ts`,
+`src/runtime/providersCommands.ts`, `src/host/models/modelsPanel.ts`,
+`src/webview/models/ModelsSection.tsx`, `src/shared/featureCatalog.ts`,
+`src/shared/reference/reference.generated.{json,ts}`, `docs/reference.md`,
+`test/unit/{providerWiring,modelsPanel}.test.ts`,
+`test/unit/modelsPanelSections.test.tsx`, `PLAN.md`, `CHANGELOG.md`, and this
+record. Panel production changes stay in three small separate F5/F6/F7
+commits to minimize conflicts with PROVWIZ2; `fail()` logging is untouched.
+
+The strict duplication gate first reported five cloned test blocks: three new
+blocks and two pre-existing wizard test sequences from PROVCAT. Sharing the
+scan/save setup and parameterizing the two scan surfaces preserves every
+assertion and brings the unchanged gate to **0 clones**. The F7 surface cases
+also fail when the shared failed-status renderer is deliberately removed.
+
+Aggregate `npm run quality`, hosted CI and installed-editor/live qualification
+belong to the lead under the lane brief/common rules; no gate, timeout or
+ignore was weakened. No merge, rebase, push, dependency installation, live
+provider request or model attempt was made. Credentials in all tests are
+synthetic in-memory fixtures, entered through the native-password-box port.
+
 ### Red drills (byte-exact restoration)
 
 Every drill runs a whole owning test file at repository deadlines, records
 exit 1, restores the original bytes in `finally`, and compares SHA-256.
 
-| Finding | Deliberate break                                         | Red result                                                    | Restored SHA-256                                                   |
-| ------- | -------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------ |
-| F2      | Remove the preset fallback in scan dispatch              | 3 tests fail: Gemini/Ollama refusal, Anthropic header missing | `158d0578ca5bfc5de0bb2205a81f3b23b81940dca4227fd5782c39a517860d11` |
-| F3      | Drop the captured price card                             | 5 rate/filter tests fail                                      | `6cd4ff8be66dac1f7d04838637f1bbe4f5e4845a777f471b46366b4235d3815d` |
-| F3      | Force free flags off                                     | Free/filter test fails                                        | `6cd4ff8be66dac1f7d04838637f1bbe4f5e4845a777f471b46366b4235d3815d` |
-| F3      | Replace the price fingerprint with unpriced              | Cache-write repricing test fails                              | `6cd4ff8be66dac1f7d04838637f1bbe4f5e4845a777f471b46366b4235d3815d` |
-| F3      | Accept negative optional decimal rates                   | Invalid rate becomes free; test fails                         | `b819faafadb2ebc95468920c0b4eb3ba9c8cc653333560a669c1c6542c0b4c2b` |
-| F4      | Skip the shared provider-key check                       | 4 panel/CLI/HF tests fail                                     | `4cdc0eff6a5de9ba9239be94481cb6163e6240be05ae96dcec3c535d45b5fd25` |
-| F4      | Also list after a separate identity origin               | HF key-test count/path test fails                             | `4cdc0eff6a5de9ba9239be94481cb6163e6240be05ae96dcec3c535d45b5fd25` |
-| F4      | Refuse the captured identity path instead of other paths | HF key test fails                                             | `3fd26e9d63f0bf6e1ee6d588213fda8df41df2bc107effd616bfb74c285058a5` |
-| F5      | Restore no-training as the panel default                 | Fresh wizard default test fails                               | `dd2bcf0a0b5d3331ac08d3f92b1c6bbb5f50f3163dac9e18e3a72daeddf3bc3c` |
-| F6      | Recreate an existing edit draft                          | Both replacement-key save/cancel tests fail                   | `579c1d1ff2ea7669953872bb76166998e85fab89cf0a9536ef548cae7a7de7da` |
-| F7      | Publish scanning again on rejection                      | Failed-settlement and retry test fails                        | `360f72ccf896fdce574091c648681c7212794eb6e3ee6566cafc72851ea3eb14` |
-| F7      | Hide failed scans in Models                              | Failure/retry surface test fails                              | `716a7a279c823a5f5ae1fb0868fb56e639df030d57414a380b0144a7ebfab77e` |
+| Finding | Deliberate break                                                | Red result                                                    | Restored SHA-256                                                   |
+| ------- | --------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------ |
+| F2      | Remove the preset fallback in scan dispatch                     | 3 tests fail: Gemini/Ollama refusal, Anthropic header missing | `158d0578ca5bfc5de0bb2205a81f3b23b81940dca4227fd5782c39a517860d11` |
+| F3      | Drop the captured price card                                    | 6 rate/filter/stability tests fail                            | `c447df2e615e9e8f25b74f3f9c9f52be44bf220e66e2a1babc5797f667408cd9` |
+| F3      | Force free flags off                                            | Free/filter test fails                                        | `6cd4ff8be66dac1f7d04838637f1bbe4f5e4845a777f471b46366b4235d3815d` |
+| F3      | Replace the price fingerprint with unpriced                     | Cache-write repricing test fails                              | `6cd4ff8be66dac1f7d04838637f1bbe4f5e4845a777f471b46366b4235d3815d` |
+| F3      | Accept negative optional decimal rates                          | Invalid rate becomes free; test fails                         | `b819faafadb2ebc95468920c0b4eb3ba9c8cc653333560a669c1c6542c0b4c2b` |
+| F4      | Skip the shared provider-key check                              | 4 panel/CLI/HF tests fail                                     | `4cdc0eff6a5de9ba9239be94481cb6163e6240be05ae96dcec3c535d45b5fd25` |
+| F4      | Also list after a separate identity origin                      | HF key-test count/path test fails                             | `4cdc0eff6a5de9ba9239be94481cb6163e6240be05ae96dcec3c535d45b5fd25` |
+| F4      | Refuse the captured identity path instead of other paths        | HF key test fails                                             | `3fd26e9d63f0bf6e1ee6d588213fda8df41df2bc107effd616bfb74c285058a5` |
+| F5      | Restore no-training as the panel default                        | Fresh wizard default test fails                               | `dd2bcf0a0b5d3331ac08d3f92b1c6bbb5f50f3163dac9e18e3a72daeddf3bc3c` |
+| F6      | Recreate an existing edit draft                                 | Both replacement-key save/cancel tests fail                   | `579c1d1ff2ea7669953872bb76166998e85fab89cf0a9536ef548cae7a7de7da` |
+| F7      | Publish scanning again on rejection                             | Failed-settlement and retry test fails                        | `360f72ccf896fdce574091c648681c7212794eb6e3ee6566cafc72851ea3eb14` |
+| F7      | Hide failed scans in Models                                     | Failure/retry surface test fails                              | `716a7a279c823a5f5ae1fb0868fb56e639df030d57414a380b0144a7ebfab77e` |
+| F3      | Restore raw unsorted upstream metadata in the price fingerprint | HF latency/order stability test fails                         | `c447df2e615e9e8f25b74f3f9c9f52be44bf220e66e2a1babc5797f667408cd9` |
+| F7      | Remove the shared failed-status renderer                        | Both Models and Providers failure/retry tests fail            | `1b53d4964d4838ac2eae529478d3ae25abe34cde38442fbc9c7cb360013117ec` |
