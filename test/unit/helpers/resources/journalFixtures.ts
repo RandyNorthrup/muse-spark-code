@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { vi } from 'vitest'
 import { configureResources } from '../../../../src/core/resources/admission'
+import type { ResourceHostSettings } from '../../../../src/core/resources/resourceGovernorEntry'
 import { RESOURCE_JOURNAL_ROOT, ResourceJournal } from '../../../../src/core/usage/resourceJournal'
 import { NodeUsageFs } from '../../../../src/runtime/usage/nodeUsageFs'
 import { createUsageAccess } from '../../../../src/runtime/usage/usageServiceEntry'
@@ -80,9 +81,9 @@ export function windowJournal(folder: string, resetAtMs?: () => number): Resourc
   })
 }
 
-/** The VS Code window host's governor, recording history into `folder`; returns dispose. */
-export function configureWindowHistory(folder: string): () => void {
-  return configureResources({
+/** The window host's settings, recording history into `folder` with plain temp roots. */
+export function windowHistorySettings(folder: string): ResourceHostSettings {
+  return {
     inspect: () => undefined,
     onError: vi.fn(),
     history: { dataFolder: folder, isEnabled: () => true },
@@ -96,7 +97,12 @@ export function configureWindowHistory(folder: string): () => void {
           finish: () => Promise.resolve(),
         }),
     },
-  })
+  }
+}
+
+/** The VS Code window host's governor, recording history into `folder`; returns dispose. */
+export function configureWindowHistory(folder: string): () => void {
+  return configureResources(windowHistorySettings(folder))
 }
 
 function access(folder: string) {

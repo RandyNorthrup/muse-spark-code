@@ -53,7 +53,7 @@ it('M107 copies both resource bundles and all three exec schemas into the ACP pa
     source.replaceAll('\\', '/'),
     target.replaceAll('\\', '/'),
   ])
-  for (const file of ['resourceGovernor.js', 'resourceAdmission.js'])
+  for (const file of ['resourceGovernor.js', 'resourceProcess.js', 'resourceAdmission.js'])
     expect(normalized).toContainEqual([`dist/${file}`, `dist/acp-package/dist/${file}`])
   for (const file of [
     'exec-result-v1.schema.json',
@@ -82,7 +82,7 @@ it('refuses a failed staged Help language before npm pack', async () => {
   expect(execFileSync.mock.calls.some(([file]) => file === 'npm')).toBe(false)
 })
 
-it.each(['resourceGovernor.js', 'resourceAdmission.js'])(
+it.each(['resourceGovernor.js', 'resourceProcess.js', 'resourceAdmission.js'])(
   'M107 refuses absent %s before any staging or child process',
   async (file) => {
     existsSync.mockImplementation((source) => source.replaceAll('\\', '/') !== `dist/${file}`)

@@ -484,7 +484,7 @@
     "reason": "Report Git reads (--no-pager log/show/diff), credential-free; read-only, contained tree, no temp root."
   },
   {
-    "site": "src/runtime/resources/entry.ts#call:runBootstrap:1",
+    "site": "src/runtime/resources/jobs.ts#call:runBootstrap:1",
     "profile": "bootstrap",
     "reason": "Native containment self-tests/builds select bounded bootstrap compilation."
   },

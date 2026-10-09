@@ -10,7 +10,7 @@ import {
 } from '../../src/core/resources/admission'
 import { runtimeResources } from './helpers/resources/runtime'
 import { runBootstrap } from '../../src/core/bootstrapCommand'
-import { runtimeResourceJobs } from '../../src/runtime/resources/entry'
+import { runtimeResourceJobs } from '../../src/runtime/resources/jobs'
 import { TreeTempRoots } from '../../src/host/resources/tempRoots'
 import { localGitRefs } from '../../src/core/schedules/events/git'
 import { removeFolder } from './helpers/temporaryFolders'

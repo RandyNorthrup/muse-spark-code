@@ -1,5 +1,6 @@
+import type * as ResourceAdmission from '../../../src/core/resources/admission'
 import { afterEach, afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, type SpawnOptions } from 'node:child_process'
 import { mkdtemp, rm, stat, chmod, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
@@ -26,6 +27,31 @@ import { vaultPrivateReadSchema } from '../../../src/shared/vaultProtocol'
 import { type VaultBroker } from '../../../src/core/vault/broker/broker'
 import { use } from '../helpers/vault/fixtures'
 import { VAULT_LIMITS, UI_TEXT } from '../../../src/shared/constants'
+
+// The channel's protocol runs over the real native peer helper. Since spawn4 the
+// verifier starts that helper through the governed contained launch, whose
+// admission and containment spawnBoundaries proves; these protocol tests keep
+// the slot fixture's direct launch, with the socket handed over as fd 3.
+vi.mock('../../../src/core/resources/admission', async (original) => {
+  const actual = await original<typeof ResourceAdmission>()
+  const { fixtureResourceProcess } = await import('../helpers/resourceProcess')
+  return {
+    ...actual,
+    spawnResourceProcess: (
+      profile: 'contained',
+      file: string,
+      args: readonly string[],
+      options: SpawnOptions,
+      extraDescriptors: readonly number[] = [],
+    ) =>
+      fixtureResourceProcess(profile, file, args, options, [
+        'pipe',
+        'pipe',
+        'pipe',
+        ...extraDescriptors,
+      ]),
+  }
+})
 
 const directories: string[] = [],
   servers: VaultChannelServer[] = [],

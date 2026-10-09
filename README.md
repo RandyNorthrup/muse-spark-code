@@ -5033,7 +5033,9 @@ component receipts from installed-editor acceptance.
 ## Development
 
 Resource admission is shared through `dist/resourceAdmission.js`; sampler,
-queue, tree accounting and disk policy stay in lazy `dist/resourceGovernor.js`.
+queue, tree accounting and disk policy stay in lazy `dist/resourceGovernor.js`,
+and the governed process launcher (profiles, the attested Windows job, Windows
+helper preparation) loads beside it as `dist/resourceProcess.js`.
 The controls and history have their own closure budgets, including history CSS,
 without raising the 900 KiB startup or original 50 KiB deferred caps. The split
 and packaging gates cover both VSIX and ACP delivery. See

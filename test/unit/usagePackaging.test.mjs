@@ -56,6 +56,7 @@ function fixture() {
     'structuredSchema',
     'resourceAdmission',
     'resourceGovernor',
+    'resourceProcess',
     'resourceJournal',
     'runtimeEngine',
     'schedules',

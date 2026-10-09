@@ -586,8 +586,9 @@ missing descriptions, invalid relationships and stale generated references.
 ## Resource delivery checks
 
 M107 keeps policy in `dist/resourceGovernor.js`, shared process admission in
-`dist/resourceAdmission.js`, and controls/history in independent browser
-entries. Reuse the injected ports when their owning milestone is absent;
+`dist/resourceAdmission.js`, the governed launcher in `dist/resourceProcess.js`
+(the split gate fails a governor that carries it again), and controls/history
+in independent browser entries. Reuse the injected ports when their owning milestone is absent;
 record its binding rather than supplying a fake production implementation.
 The browser entries share the caller's React and installed-language runtime.
 

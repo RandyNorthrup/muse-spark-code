@@ -14,7 +14,7 @@ beforeEach(() => {
 })
 afterEach(() => vi.restoreAllMocks())
 
-it.each(['dist/resourceGovernor.js', 'dist/resourceAdmission.js'])(
+it.each(['dist/resourceGovernor.js', 'dist/resourceProcess.js', 'dist/resourceAdmission.js'])(
   'M107 checks forbidden host globals and missing %s',
   async (file) => {
     readFileSync.mockImplementation((entry) => (entry === file ? 'typeof navigator' : ''))

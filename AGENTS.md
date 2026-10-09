@@ -300,6 +300,7 @@ src/core/**           backend-agnostic logic; must not import `vscode`
 src/core/resources/** portable machine sampler, governor, queue, registered-tree
                       accounting/actions, disk and created-root policy;
                       dist/resourceGovernor.js loads on first governed use,
+                      dist/resourceProcess.js is the governed launcher,
                       dist/resourceAdmission.js is the shared process shim
 src/webview/resources/** shared chip/popover via injected source and lazy loader;
                       dist/webview/resourceSurface.js shares React/text chunks

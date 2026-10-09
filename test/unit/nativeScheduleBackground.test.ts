@@ -71,10 +71,16 @@ function nativeFixtureVerifier(uid: number, stopAt?: string): TrustedPathVerifie
 
 // These native helpers prove credential fencing and path selection; shared
 // admission and native containment are proved independently in spawnGovernance.
+// The OS helper runner (backgroundProcessRunner) uses the bounded command path.
 vi.mock('../../src/core/resources/admission', async (original) => {
   const actual = await original<typeof ResourceAdmission>()
-  const { fixtureResourceProcess } = await import('./helpers/resourceProcess')
-  return { ...actual, spawnResourceProcess: fixtureResourceProcess }
+  const { fixtureResourceProcess, fixtureResourceCommand } =
+    await import('./helpers/resourceProcess')
+  return {
+    ...actual,
+    spawnResourceProcess: fixtureResourceProcess,
+    execResourceFile: fixtureResourceCommand,
+  }
 })
 
 function result(exitCode = 0, stdout = '', stderr = ''): BackgroundProcessResult {

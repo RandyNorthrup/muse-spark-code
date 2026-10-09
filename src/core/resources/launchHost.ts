@@ -97,8 +97,8 @@ export interface ResourceLaunchHostOptions {
   readonly created?: Pick<CreatedRegistry, 'finish' | 'clean'> | undefined
   readonly onCleanup?: ((result: CreatedCleanup) => void) | undefined
   /**
-   * A history recorder drains `settled()` (M107-J-C1-T-accounting). Without one,
-   * no attested row is kept: nothing would ever read it.
+   * A history recorder drains `settled()` (M107-J-C1-T-accounting; the window's,
+   * POSTSPAWN). Without one, no attested row is kept: nothing would ever read it.
    */
   readonly isSettledRead?: boolean | undefined
 }
@@ -683,9 +683,9 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
 
   /**
    * Settled attested trees since the last read, at most RESOURCE_SETTLED_ROWS_MAX
-   * (oldest dropped and counted), kept only with `isSettledRead`. M107's history
-   * recorder reads it as part of its ResourceRecordWorkSource; no production
-   * host binds that reader yet, so production keeps no rows.
+   * (oldest dropped and counted), kept only with `isSettledRead`. The window's
+   * history recorder reads it with `treeUsage()` as its ResourceRecordWorkSource
+   * (POSTSPAWN); a window without history keeps no rows.
    */
   settled(): {
     readonly rows: readonly { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[]

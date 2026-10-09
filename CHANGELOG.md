@@ -214,6 +214,14 @@ happened, not what was planned; superseded entries are kept.
   command exits 0. The prepared helper is checked byte for byte before every
   launch; a changed one is refused and rebuilt. Shutdown now waits for the
   helper's report before it cleans up.
+- Resource history now includes Windows contained and probe commands: the
+  helper's final CPU and memory use is recorded once in this window's
+  history (at most 512 waiting results between reads). The governed process
+  launcher and the start of vault-backed MCP servers now load on first use
+  in bundles of their own (`dist/resourceProcess.js`, new 50 KiB budget;
+  `dist/mcpVault.js`, new 25 KiB budget), so the resource governor is back
+  within its unchanged 125 KiB budget and activation no longer carries the
+  vault MCP start.
 - Read-only probes (Git ref and history reads, gh reads, birth probes, media
   version checks) keep resource admission and tree containment without a
   per-command temporary folder. That folder needed a packaged native helper,

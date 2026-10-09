@@ -334,6 +334,39 @@ export const DEFERRED = [
   },
 ]
 
+// POSTSPAWN: the governed launcher's own modules, required by the admission
+// facade on the first governed launch; no other shipped bundle carries them.
+export const RESOURCE_PROCESS_ONLY = [
+  'src/core/resources/resourceProcessEntry.ts',
+  'src/core/resources/process.ts',
+  'src/core/resources/commands.ts',
+  'src/runtime/resources/jobs.ts',
+]
+// POSTSPAWN: launch and helper-preparation code the window's activation also
+// uses for its own helpers and MCP servers; the governor carries none of it,
+// so its 125 KiB cap measures policy alone.
+export const RESOURCE_LAUNCH_SHARED = [
+  'src/host/backend/mcpJobLaunch.ts',
+  'src/host/processTree.ts',
+  'src/host/backend/jobBuild.ts',
+  'src/host/backend/shellJob.ts',
+  'src/host/backend/mcpJobExecutable.ts',
+  'src/host/backend/helperIntegrity.ts',
+  'src/host/backend/jobSource.ts',
+  'src/core/bootstrapCommand.ts',
+]
+const RESOURCE_GOVERNOR_BUNDLE = {
+  output: 'dist/resourceGovernor.js',
+  metafile: 'dist/meta/resourceGovernor.json',
+}
+export const RESOURCE_PROCESS_BUNDLE = {
+  output: 'dist/resourceProcess.js',
+  metafile: 'dist/meta/resourceProcess.json',
+  use: 'the first governed process launch',
+  parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp, RESOURCE_GOVERNOR_BUNDLE],
+  files: RESOURCE_PROCESS_ONLY,
+}
+
 // Split out of activation on 2026-10-03 (D6): each loads on its first use.
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
@@ -356,6 +389,20 @@ export const ON_FIRST_USE = [
       'src/runtime/resources/settings.ts',
       // U–C1: the window's status item and pause notice, never at activation.
       'src/host/resources/resourceStatus.ts',
+    ],
+  },
+  RESOURCE_PROCESS_BUNDLE,
+  // POSTSPAWN: the vault MCP launch (scrubber, leases, governed start); the
+  // route checks (mcpSecrets.ts) stay with the pool, whose fetchFor is synchronous.
+  {
+    output: 'dist/mcpVault.js',
+    metafile: 'dist/meta/mcpVault.json',
+    use: 'the first vault-backed MCP server',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/host/backend/mcpVaultEntry.ts',
+      'src/host/backend/mcpVault.ts',
+      'src/core/vault/scrub.ts',
     ],
   },
   {
@@ -707,6 +754,15 @@ export function checkDeferredBundles(inputsOf) {
       if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
     }
   }
+  // POSTSPAWN: the governor never carries the launcher's machinery again.
+  for (const file of RESOURCE_LAUNCH_SHARED) {
+    if (inputsOf(RESOURCE_GOVERNOR_BUNDLE).has(file))
+      problems.push(
+        `${RESOURCE_GOVERNOR_BUNDLE.output} carries ${file}, which loads only with the governed launcher (${RESOURCE_PROCESS_BUNDLE.output})`,
+      )
+    if (!inputsOf(RESOURCE_PROCESS_BUNDLE).has(file))
+      problems.push(`${RESOURCE_PROCESS_BUNDLE.output} no longer carries ${file}`)
+  }
   // CAPS017: account services take the engine's backend factory through their
   // port; the backend closure stays in dist/runtimeEngine.js.
   const runtimeAccounts = ON_FIRST_USE.find((bundle) => bundle.output === 'dist/runtimeAccounts.js')
@@ -866,6 +922,7 @@ export function checkResourceBundles(inputsOf, bundles) {
           problems.push(`${output} duplicates resource admission`)
       } else if (
         output !== 'dist/resourceGovernor.js' &&
+        !(output === RESOURCE_PROCESS_BUNDLE.output && RESOURCE_PROCESS_ONLY.includes(file)) &&
         !['src/core/resources/launch.ts', 'src/core/resources/trees/processTable.ts'].includes(file)
       ) {
         problems.push(`${output} carries resource policy ${file} outside the lazy governor`)
@@ -907,6 +964,8 @@ export const sharedValidation = {
 /** @type {import('esbuild').Plugin} */
 const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/resources/resourceGovernorEntry.ts'), 'dist/resourceGovernor.js'],
+  [path.resolve('src/core/resources/resourceProcessEntry.ts'), 'dist/resourceProcess.js'],
+  [path.resolve('src/host/backend/mcpVaultEntry.ts'), 'dist/mcpVault.js'],
   [path.resolve('src/runtime/runtimeEngineEntry.ts'), 'dist/runtimeEngine.js'],
   [path.resolve('src/host/backend/providerPolicyEntry.ts'), 'dist/providerPolicy.js'],
   [path.resolve('src/runtime/runtimeAccountingEntry.ts'), 'dist/runtimeAccounting.js'],
@@ -959,7 +1018,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

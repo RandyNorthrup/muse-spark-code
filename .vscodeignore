@@ -2,7 +2,9 @@
 !dist/extension.js
 !dist/resourceAdmission.js
 !dist/resourceGovernor.js
+!dist/resourceProcess.js
 !dist/resourceJournal.js
+!dist/mcpVault.js
 !dist/questionNotes.js
 !dist/conversation.js
 !dist/tab.js

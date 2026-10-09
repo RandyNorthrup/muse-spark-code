@@ -1,5 +1,25 @@
-import { spawn, type SpawnOptions } from 'node:child_process'
+import {
+  execFile,
+  spawn,
+  type ExecFileOptionsWithStringEncoding,
+  type SpawnOptions,
+} from 'node:child_process'
 import { PassThrough } from 'node:stream'
+import { promisify } from 'node:util'
+
+/**
+ * OS helper tests (native schedules, trusted paths) keep a direct bounded
+ * execFile; execResourceFile's admission and containment have their own
+ * suites (spawnGovernance, spawnRuntimeAdmission, spawnProfiles).
+ */
+export function fixtureResourceCommand(
+  _profile: 'contained' | 'probe',
+  file: string,
+  args: readonly string[],
+  options: ExecFileOptionsWithStringEncoding,
+): Promise<{ stdout: string; stderr: string }> {
+  return promisify(execFile)(file, [...args], options)
+}
 
 /** Slot protocol tests retain their native/fake peer; launch containment has its own suite. */
 export function fixtureResourceProcess(

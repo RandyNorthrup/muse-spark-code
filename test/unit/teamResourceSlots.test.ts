@@ -77,34 +77,35 @@ describe('C2 governor capacity in the team scheduler', () => {
   })
 })
 
+// SPAWN017C (accepted): at pause the governor refuses new background work at
+// once with a typed ResourcePausedError instead of queueing it until resume.
+// Cancellation of work that is genuinely waiting (throttle, one per kind)
+// still ends with AbortError, which the team scheduler's callers rely on.
+const paused = { name: 'ResourcePausedError', code: 'paused' }
+
 describe('C2 adds the governor to existing team and heavy-check slots', () => {
   it.each(['worker', 'check'] as const)(
-    'rechecks pause after a %s waits for a local slot and releases both unstarted reservations',
+    'rechecks pause after a %s waits for a local slot, refuses it typed and releases both unstarted reservations',
     async (kind) => {
       const h = teamResources()
       const local = Promise.withResolvers<ReturnType<typeof h.localSlot>>()
       h.scheduler.acquire.mockImplementationOnce(() => local.promise)
       const waiting =
         kind === 'check' ? requestCheckSlot(h.slots, 0) : h.slots.request({ kind, priority: 0 })
-      let runnable: GovernedTeamSlot | undefined
-      const ready = (async () => {
-        const slot = await waiting.ready
-        runnable = slot
-        return slot
-      })()
+      const refused = expect(waiting.ready).rejects.toMatchObject(paused)
       await vi.waitFor(() => {
         expect(h.scheduler.acquire).toHaveBeenCalledTimes(1)
       })
       await h.read({ memoryAvailableBytes: 0 })
       local.resolve(h.localSlot(kind))
-      await vi.waitFor(() => {
-        expect(runnable).toBeUndefined()
-        expect(h.queue.counts()).toEqual([{ kind, class: 'background', count: 1 }])
-      })
+      await refused
+      expect(h.queue.counts()).toEqual([])
       expect(h.release).toHaveBeenCalledTimes(1)
       expect(h.capacity.occupied(kind)).toBe(0)
       h.governor.resumeNow()
-      const resumed = await ready
+      const resumed = await (
+        kind === 'check' ? requestCheckSlot(h.slots, 0) : h.slots.request({ kind, priority: 0 })
+      ).ready
       expect(resumed.permit.kind).toBe(kind)
       resumed.release()
       expect(h.release).toHaveBeenCalledTimes(2)
@@ -154,7 +155,9 @@ describe('C2 adds the governor to existing team and heavy-check slots', () => {
     await vi.waitFor(() => {
       expect(h.scheduler.acquire).toHaveBeenCalledTimes(1)
     })
-    await h.read({ memoryAvailableBytes: 0 })
+    // Throttle with another check tree running: the recheck requeues and waits.
+    await h.throttle()
+    h.running.backgroundCount.mockReturnValue(1)
     local.resolve(h.localSlot('check'))
     await vi.waitFor(() => {
       expect(h.queue.counts()).toEqual([{ kind: 'check', class: 'background', count: 1 }])
@@ -165,7 +168,7 @@ describe('C2 adds the governor to existing team and heavy-check slots', () => {
     expect(h.queue.counts()).toEqual([])
     expect(h.capacity.occupied('check')).toBe(0)
     expect(h.release).toHaveBeenCalledTimes(1)
-    h.governor.resumeNow()
+    h.running.backgroundCount.mockReturnValue(0)
     const following = await requestCheckSlot(h.slots, 0).ready
     following.release()
     h.queue.dispose()
@@ -223,18 +226,11 @@ describe('C2 adds the governor to existing team and heavy-check slots', () => {
     const admittedLow = await low
     expect(order).toEqual(['urgent', 'same', 'low'])
     await h.read({ memoryAvailableBytes: 0 })
-    const paused = requestCheckSlot(h.slots, 0)
-    let isResumed = false
-    const ready = (async () => {
-      const slot = await paused.ready
-      isResumed = true
-      return slot
-    })()
+    await expect(requestCheckSlot(h.slots, 0).ready).rejects.toMatchObject(paused)
     check.release()
-    await Promise.resolve()
-    expect(isResumed).toBe(false)
+    expect(h.queue.counts()).toEqual([])
     h.governor.resumeNow()
-    const afterRecovery = await ready
+    const afterRecovery = await requestCheckSlot(h.slots, 0).ready
     expect(afterRecovery.permit.kind).toBe('check')
     expect(afterRecovery.permit.class).toBe('background')
     afterRecovery.release()
@@ -274,13 +270,17 @@ describe('C2 adds the governor to existing team and heavy-check slots', () => {
 
   it('rechecks child preflight after governor waiting and releases a rejected reservation', async () => {
     const h = teamResources()
-    await h.read({ memoryAvailableBytes: 0 })
+    // Throttle with a worker tree running: the request waits in the governor's queue.
+    await h.throttle()
+    h.running.backgroundCount.mockReturnValue(1)
     const waiting = h.slots.request({ kind: 'worker', priority: 0 })
+    expect(h.queue.counts()).toEqual([{ kind: 'worker', class: 'background', count: 1 }])
     const rejected = expect(waiting.ready).rejects.toThrow('Child capacity changed')
     h.scheduler.preflight.mockImplementationOnce(() => {
       throw new Error('Child capacity changed')
     })
-    h.governor.resumeNow()
+    h.running.backgroundCount.mockReturnValue(0)
+    h.queue.wake()
     await rejected
     expect(h.scheduler.acquire).not.toHaveBeenCalled()
     h.governor.updateSettings(resourceSettingsSchema.parse({ enabled: false }))
@@ -304,10 +304,24 @@ describe('C2 adds the governor to existing team and heavy-check slots', () => {
     slot.release()
   })
 
-  it('cancels queued background work immediately at pause without acquiring a slot', async () => {
+  it('refuses background work at pause at once, typed, without acquiring a slot', async () => {
     const h = teamResources()
     await h.read({ memoryAvailableBytes: 0 })
+    const refused = requestCheckSlot(h.slots, 0)
+    await expect(refused.ready).rejects.toMatchObject(paused)
+    expect(h.queue.counts()).toEqual([])
+    // A late cancel finds nothing to withdraw.
+    refused.cancel()
+    expect(h.scheduler.acquire).not.toHaveBeenCalled()
+    expect(h.queue.counts()).toEqual([])
+  })
+
+  it('cancels queued background work with AbortError without acquiring a slot', async () => {
+    const h = teamResources()
+    await h.throttle()
+    h.running.backgroundCount.mockReturnValue(1)
     const waiting = requestCheckSlot(h.slots, 0)
+    expect(h.queue.counts()).toEqual([{ kind: 'check', class: 'background', count: 1 }])
     const rejected = expect(waiting.ready).rejects.toMatchObject({ name: 'AbortError' })
     waiting.cancel()
     expect(h.queue.counts()).toEqual([])

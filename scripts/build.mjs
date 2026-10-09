@@ -121,6 +121,12 @@ const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const RESOURCE_ENTRY = 'src/core/resources/resourceGovernorEntry.ts'
 const RESOURCE_OUTFILE = 'dist/resourceGovernor.js'
+// POSTSPAWN: the governed launcher, beside (never inside) the governor.
+const RESOURCE_PROCESS_ENTRY = 'src/core/resources/resourceProcessEntry.ts'
+const RESOURCE_PROCESS_OUTFILE = 'dist/resourceProcess.js'
+// POSTSPAWN: the vault MCP launch (scrubber, leases), on the first vault-backed server.
+const MCP_VAULT_ENTRY = 'src/host/backend/mcpVaultEntry.ts'
+const MCP_VAULT_OUTFILE = 'dist/mcpVault.js'
 const RESOURCE_ADMISSION_ENTRY = 'src/core/resources/admission.ts'
 const RESOURCE_ADMISSION_OUTFILE = 'dist/resourceAdmission.js'
 const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
@@ -373,6 +379,11 @@ const resourceGovernorOptions = {
   entryPoints: [RESOURCE_ENTRY],
   outfile: RESOURCE_OUTFILE,
 }
+const resourceProcessOptions = {
+  ...modelApiOptions,
+  entryPoints: [RESOURCE_PROCESS_ENTRY],
+  outfile: RESOURCE_PROCESS_OUTFILE,
+}
 // INT0170: M107 W2's resource journal, shared by the governor and the usage service.
 const resourceJournalOptions = {
   ...modelApiOptions,
@@ -589,6 +600,13 @@ const webFetchOptions = {
   ...planMarkdownOptions,
   entryPoints: [WEB_FETCH_ENTRY],
   outfile: WEB_FETCH_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const mcpVaultOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [MCP_VAULT_ENTRY],
+  outfile: MCP_VAULT_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1154,6 +1172,7 @@ if (isWatch) {
     esbuild.context(sharingRuntimeOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
+    esbuild.context(resourceProcessOptions),
     esbuild.context(resourceJournalOptions),
     esbuild.context(resourceAdmissionOptions),
     esbuild.context(providersOptions),
@@ -1206,6 +1225,7 @@ if (isWatch) {
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
+    esbuild.context(mcpVaultOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
     esbuild.context(usageServiceOptions),
@@ -1261,6 +1281,7 @@ if (isWatch) {
     sharingRuntime: esbuild.build(sharingRuntimeOptions),
     modelApi: esbuild.build(modelApiOptions),
     resourceGovernor: esbuild.build(resourceGovernorOptions),
+    resourceProcess: esbuild.build(resourceProcessOptions),
     resourceJournal: esbuild.build(resourceJournalOptions),
     resourceAdmission: esbuild.build(resourceAdmissionOptions),
     providers: esbuild.build(providersOptions),
@@ -1317,6 +1338,7 @@ if (isWatch) {
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
+    mcpVault: esbuild.build(mcpVaultOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     modelsPanel: esbuild.build(modelsPanelOptions),
     usageService: esbuild.build(usageServiceOptions),

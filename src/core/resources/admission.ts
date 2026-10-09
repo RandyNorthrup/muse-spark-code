@@ -39,7 +39,8 @@ const state: {
 } = { isDisposed: false, attachers: new Set() }
 
 /**
- * Portable process launch lives in the existing first-use governor bundle.
+ * Portable process launch lives in its own first-use bundle
+ * (dist/resourceProcess.js, POSTSPAWN), beside the governor's.
  * Hand-offs go through handoffResourceFile, the one hand-off entry point.
  */
 export async function spawnResourceProcess(
@@ -62,7 +63,7 @@ export async function spawnResourceProcess(
   options: ResourceProcessOptions,
   extraDescriptors: readonly number[] = [],
 ): Promise<ResourceInteractiveProcess | ResourcePipedProcess> {
-  const bundle = await import('./resourceGovernorEntry.js')
+  const bundle = await import('./resourceProcessEntry.js')
   return profile === 'interactive'
     ? await bundle.spawnResourceProcess(profile, file, args, options)
     : await bundle.spawnResourceProcess(profile, file, args, options, extraDescriptors)
@@ -72,7 +73,7 @@ export async function spawnResourceProcess(
 export async function handoffResourceFile(
   ...args: Parameters<typeof ResourceHandoffRunner>
 ): Promise<void> {
-  const bundle = await import('./resourceGovernorEntry.js')
+  const bundle = await import('./resourceProcessEntry.js')
   await bundle.handoffResourceFile(...args)
 }
 
@@ -80,7 +81,7 @@ export async function handoffResourceFile(
 export async function execResourceFile(
   ...args: Parameters<typeof ResourceCommandRunner>
 ): Promise<Awaited<ReturnType<typeof ResourceCommandRunner>>> {
-  const bundle = await import('./resourceGovernorEntry.js')
+  const bundle = await import('./resourceProcessEntry.js')
   return await bundle.execResourceFile(...args)
 }
 

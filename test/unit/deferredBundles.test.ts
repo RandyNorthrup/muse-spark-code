@@ -21,6 +21,8 @@ import {
   regionalUiText,
 } from '../../scripts/lib/uiTextRegions.mjs'
 import {
+  RESOURCE_LAUNCH_SHARED,
+  RESOURCE_PROCESS_ONLY,
   checkDeferredBundles,
   checkResourceBundles,
   deferredCohort,
@@ -94,6 +96,8 @@ beforeAll(async () => {
   const builds = await Promise.all([
     ...Object.entries({
       resourceGovernor: 'src/core/resources/resourceGovernorEntry.ts',
+      resourceProcess: 'src/core/resources/resourceProcessEntry.ts',
+      mcpVault: 'src/host/backend/mcpVaultEntry.ts',
       resourceJournal: 'src/runtime/resources/resourceJournalEntry.ts',
       resourceAdmission: 'src/core/resources/admission.ts',
       mcpPool: 'src/core/backends/modelapi/mcpPoolEntry.ts',
@@ -453,6 +457,46 @@ describe('deferred cohort bundles', () => {
       'dist/modelApi.js carries src/core/resources/governor.ts, which loads only on the first governed spawn',
     )
     expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
+  it('POSTSPAWN loads the governed launcher in its own bundle, never inside the governor', () => {
+    for (const file of [...RESOURCE_PROCESS_ONLY, ...RESOURCE_LAUNCH_SHARED]) {
+      expect(inputs('resourceProcess')).toContain(file)
+      expect(inputs('resourceGovernor')).not.toContain(file)
+    }
+    for (const name of ['extension', 'modelApi', 'acp'])
+      for (const file of RESOURCE_PROCESS_ONLY) expect(inputs(name)).not.toContain(file)
+    expect(bundleText('resourceAdmission')).toContain('./resourceProcess.js')
+    const governor = {
+      output: 'dist/resourceGovernor.js',
+      metafile: 'dist/meta/resourceGovernor.json',
+    }
+    for (const file of ['src/core/resources/process.ts', 'src/host/backend/mcpJobLaunch.ts']) {
+      const copied = new Map(bundleInputs(governor))
+      copied.set(file, 1)
+      expect(
+        checkDeferredBundles((bundle) =>
+          bundle.output === governor.output ? copied : bundleInputs(bundle),
+        ),
+      ).toContainEqual(expect.stringContaining(`dist/resourceGovernor.js carries ${file}`))
+    }
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
+  it('POSTSPAWN loads the vault MCP launch with the first vault-backed server, not at activation', () => {
+    for (const file of ['src/host/backend/mcpVault.ts', 'src/core/vault/scrub.ts']) {
+      expect(inputs('mcpVault')).toContain(file)
+      expect(inputs('extension')).not.toContain(file)
+    }
+    expect(bundleText('extension')).toContain('./mcpVault.js')
+    const activation = { output: 'dist/extension.js', metafile: 'dist/meta/extension.json' }
+    const copied = new Map(bundleInputs(activation))
+    copied.set('src/core/vault/scrub.ts', 1)
+    expect(
+      checkDeferredBundles((bundle) =>
+        bundle.output === activation.output ? copied : bundleInputs(bundle),
+      ),
+    ).toContain(
+      'dist/extension.js carries src/core/vault/scrub.ts, which loads only on the first vault-backed MCP server',
+    )
   })
   it('INT0170 loads the resource journal once for the governor and the usage service', () => {
     const journal = [
@@ -1346,6 +1390,23 @@ it('loads both governor factories with shared validation without probing at cons
   const status = await runtime.status()
   expect(status.settings.enabled).toBe(false)
   runtime.dispose()
+})
+
+it('POSTSPAWN loads the launcher bundle beside the governor with the runtime helper preparation', () => {
+  const callable = z.custom<(...args: never[]) => unknown>((value) => typeof value === 'function')
+  const launcher = z
+    .object({
+      spawnResourceProcess: callable,
+      execResourceFile: callable,
+      handoffResourceFile: callable,
+      runtimeResourceJobs: callable,
+    })
+    .safeParse(loadSupportBundle('resourceProcess'))
+  expect(launcher.success).toBe(true)
+  expect(
+    z.object({ runtimeResourceJobs: callable }).safeParse(loadSupportBundle('resourceGovernor'))
+      .success,
+  ).toBe(false)
 })
 
 it('refuses a raster codec leaked into the lazy Model API parent', () => {

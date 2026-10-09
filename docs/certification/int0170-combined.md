@@ -3206,7 +3206,7 @@ must equal the JSON, cell for cell.
 | `src/runtime/main.ts#call:handoffResourceFile:1`                               | handoff              | Usage companion opener (xdg-open, open, rundll32) receives a checked loopback URL; bounded adapter wait, root-only stop; pause is reported as such.                                                                                            |
 | `src/runtime/main.ts#call:spawnResourceProcess:1`                              | interactive          | `muse login` runs in the user’s terminal session, group and TTY; Ctrl+C reaches it; stopped if the CLI shuts down.                                                                                                                             |
 | `src/runtime/reporting/sources.ts#call:execResourceFile:1`                     | probe                | Report Git reads (--no-pager log/show/diff), credential-free; read-only, contained tree, no temp root.                                                                                                                                         |
-| `src/runtime/resources/entry.ts#call:runBootstrap:1`                           | bootstrap            | Native containment self-tests/builds select bounded bootstrap compilation.                                                                                                                                                                     |
+| `src/runtime/resources/jobs.ts#call:runBootstrap:1`                            | bootstrap            | Native containment self-tests/builds select bounded bootstrap compilation.                                                                                                                                                                     |
 | `src/runtime/schedules/nodeBackgroundIo.ts#call:execResourceFile:1`            | contained            | Native schedule OS commands (launchctl, systemctl, schtasks) change scheduler state, so they stay contained with a temp root.                                                                                                                  |
 | `src/runtime/schedules/nodeBackgroundIo.ts#call:spawnResourceProcess:1`        | contained            | Native schedule commands and maintenance children select contained admission and owned tree lifetime.                                                                                                                                          |
 | `src/runtime/schedules/nodeBackgroundIo.ts#import:1`                           | contained            | Native schedule commands and maintenance children select contained admission and owned tree lifetime.                                                                                                                                          |
@@ -4085,3 +4085,163 @@ lead decision (recorder work source `[...host.settled().rows,
 | Kubuntu         | 39 schedule, media, history, report, vault and team files                                                                                                                                                                                                                                                                                                                                                                                                 | 31 passed; the eight inherited files above fail (37 tests)                                                                       |
 | Kubuntu (built) | deferredBundles, bundleSize, vsixPackaging, resourceAcpPackaging, usagePackaging, teamStartup, teamRuntimePackage, reportingPanel, fontsPack, uiTextRegions, runtimeChatGptPackage, modelsActivationBudget, resourceHostGlobals                                                                                                                                                                                                                           | 10 passed; deferredBundles 1 (governor cap), modelsActivationBudget 1 (inherited), runtimeChatGptPackage hook timeout at load 15 |
 | Kubuntu (built) | runtimeChatGptPackage alone                                                                                                                                                                                                                                                                                                                                                                                                                               | 2 passed (59.8 s of its 60 s hook deadline at load 11)                                                                           |
+
+## Post-merge repairs of the spawn lane (POSTSPAWN)
+
+Worktree `mx-rel0170`, branch `release/0.17.0` from `5303ce87b`, 2026-10-08,
+lane POSTSPAWN017: the lead's four decisions on MERGESPAWN's "Open for the
+lead". No cap, deadline or timeout changed; two new bundles get new budgets
+(measured +15 %, rounded up to 25 KiB, as for `resourceJournal.js`); no
+dependency, credential or live-model change.
+
+### 1. Governor over its cap: the launcher gets its own bundle
+
+**Root cause.** `resourceGovernorEntry.ts` re-exported spawn4's launcher
+(`process.ts`, `commands.ts` and, through the attested job, `mcpJobLaunch.ts`)
+and the runtime's Windows helper preparation (`runtimeResourceJobs`, which
+pulls `shellJob.ts`, `mcpJobExecutable.ts`, `jobBuild.ts`, `processTree.ts`,
+`helperIntegrity.ts`, `jobSource.ts` and `bootstrapCommand.ts`), so all of it
+was built into `dist/resourceGovernor.js`.
+
+**Fix.** `src/core/resources/resourceProcessEntry.ts` is built as
+`dist/resourceProcess.js`. The admission facade requires it for
+`spawnResourceProcess`, `execResourceFile` and `handoffResourceFile`; the
+runtime's loader (`src/runtime/resources/load.ts`) requires it, through a
+second lazy loader (`isProcessModule`, §8 row extended), for
+`runtimeResourceJobs`, which moved from `runtime/resources/entry.ts` to
+`runtime/resources/jobs.ts`. The governor entry keeps policy and
+`createResources` only. The bundle is registered wherever
+`resourceJournal.js` is: the build, the size gate (new 50 KiB budget, 35.6 KiB
+measured), host globals, the VSIX allow-list, both ACP package lists and the
+deferred cohort's dynamic-import map. The split gate now holds it:
+`RESOURCE_PROCESS_ONLY` (the entry, `process.ts`, `commands.ts`, `jobs.ts`)
+may not appear in activation, the Model API backend, the ACP agent or the
+governor; `RESOURCE_LAUNCH_SHARED` (the eight modules above, which activation
+also uses for its own helpers) may not appear in the governor and must stay in
+the launcher; `checkResourceBundles` admits the launcher's resource modules
+only in `dist/resourceProcess.js`. The inventory's `runBootstrap` site moved
+with the function (`src/runtime/resources/jobs.ts#call:runBootstrap:1`,
+`spawn-inventory.json` and the table above; 103 sites, unchanged).
+
+**Regressions.** `deferredBundles` "POSTSPAWN loads the governed launcher in
+its own bundle, never inside the governor" (inputs of both bundles, the
+facade's `./resourceProcess.js`, and the gate firing for a governor copy that
+carries `process.ts` or `mcpJobLaunch.ts`) and "POSTSPAWN loads the launcher
+bundle beside the governor with the runtime helper preparation". The
+inherited "fires the legal scanner cap …" case passes again (the size gate is
+green).
+
+### 2. The eight inherited test files
+
+At `5303ce87b` on kubuntu the seven unbuilt files fail 36 tests plus
+`windowsTrustedPath`'s suite setup (slot `pspawnt8`); `deferredBundles` is
+item 1. Each was decided against the accepted spawn design and its consumers:
+
+| File (failures at `5303ce87b`)                                              | Product or test                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Change                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vault/channel` (22)                                                        | Test fixture. `UnixVaultPeerVerifier` (no production constructor yet) starts the native peer helper through the governed contained launch since spawn4; the protocol tests never configure resources, so every open failed with "Resource admission unavailable" and later cases timed out behind it.                                                                                                                                                                                                                                             | The facade's `spawnResourceProcess` is the slot fixture, as in the Mac and Windows vault transports and the media converter, with the socket handed over as fd 3. `spawnBoundaries` still proves the verifier's contained profile.                                                                                                                                                                                              |
+| `nativeScheduleBackground` (2), `windowsTrustedPath` (suite setup)          | Test fixture. `backgroundProcessRunner` runs OS helpers through `execResourceFile` since spawn4; production configures admission first (the runtime's `run()` before any command, the window at activation). These files never do, and the existing mock replaced only `spawnResourceProcess`, the finding-8 class.                                                                                                                                                                                                                               | The facade's `execResourceFile` is `fixtureResourceCommand` (a bounded `execFile`), as `reportHistory` already does; the credential fence (`withoutCredentials`) still runs in the code under test.                                                                                                                                                                                                                             |
+| `windowsVaultTransport` (3)                                                 | The test encodes the old contract: the vault guard and compiler moved from `execFile` to `runBootstrap` (the accepted bootstrap profile, SPAWN017C).                                                                                                                                                                                                                                                                                                                                                                                              | The three compiler cases drive the bootstrap launch (a fake spawn under the facade fixture): two launches (the cache parent, then the temp fallback), an empty environment, profile `bootstrap`, and a failed source pipe stops the launch without its diagnostic in the error chain.                                                                                                                                           |
+| `teamResourceSlots` (6), `teamProcessResources` (1), `runtimeResources` (2) | The tests encode the pre-SPAWN017C pause contract. Accepted (spawn4's `queue.test` and CHANGELOG): at pause the queue refuses new background work at once with a typed `ResourcePausedError`. Consumers checked: `GovernedTeamSlots` has no production constructor yet, and no team, runtime or schedule consumer branches on an admission `AbortError` (the only such checks are relocation's transport report and the estimator page). Cancelling work that really waits, and queue disposal, still reject with `AbortError` (queue unchanged). | Pause cases assert the typed refusal (`name`, `code`), both reservations released, nothing queued, and admission after resume. Cancellation cases now wait at throttle behind a running tree, the one state in which background work queues, and still assert `AbortError`; new case "cancels queued background work with AbortError without acquiring a slot". The runtime disposal case cancels a waiting foreground request. |
+
+### 3. Activation: the vault MCP start off the activation path
+
+**Root cause.** `mcpServers.ts` imported `governedMcpVaultRoutes` statically,
+so activation carried `mcpVault.ts`, the vault scrubber and the use digest.
+
+**Fix.** `mcpVault.ts` exports `governedMcpVaultStart` (workspace and resource
+admission, leases, scrubber, governed start), built from
+`src/host/backend/mcpVaultEntry.ts` as `dist/mcpVault.js` (new 25 KiB budget,
+13.4 KiB measured) and loaded by `mcpServers.ts` on the first vault-backed
+server start; a failed load is retried on the next start. The route checks
+(`mcpVaultRoutes`, `mcpSecrets.ts`, 1,304 B) stay at activation: the pool's
+`fetchFor` is synchronous and refuses at once. The window's MCP spawner and
+command resolution are passed in, so `mcpProcess.ts` and its sweep queue are
+not copied. Inventory unchanged (`mcpVault.ts`'s one spawn site).
+
+**Regression.** `deferredBundles` "POSTSPAWN loads the vault MCP launch with
+the first vault-backed server, not at activation" (inputs, the
+`./mcpVault.js` require, the gate firing for an activation copy of
+`scrub.ts`); `spawnGovernance` and `vault/mcpVaultPool` drive the vault route
+through `modelApiMcpPoolDeps`.
+
+**Left of spawn4's activation growth: +9,894 B** (`modelsActivationBudget`
+26,271 B over its pre-K baseline; 16,377 B at `506ae2375`, ACTBUD017's):
+`shared/resources.ts` 3,714 and `mcpJobLaunch.ts` +2,009 (the attested job's
+record schema, in the module activation uses for MCP launches),
+`mcpSecrets.ts` 1,304, `bootstrapCommand.ts` 835, `helperIntegrity.ts` 754 and
+smaller deltas. Moving `spawnAttestedJob` out of `mcpJobLaunch.ts` would save
+about 5.7 KB more but moves two inventory sites and `spawnProfiles`' module
+spy; not done here.
+
+### 4. Attested Windows launches in resource history
+
+**Fix.** `resourceGovernorEntry.ts` binds `isSettledRead` whenever the window
+records history, and the recorder's work source is
+`[...host.settled().rows, ...host.treeUsage()]`. Each read drains the settled
+rows, so an attested tree is recorded once; between reads at most
+`RESOURCE_SETTLED_ROWS_MAX` (512) are kept, oldest dropped and counted
+(`launchHost.ts` unchanged apart from its comments).
+
+**Regressions.** `resourceHistorySettled.test.ts` (its own file: the window
+host is process-wide): an attested settlement appears in history exactly once
+(2 CPU seconds, 4,096 B peak), the read drained it, and later readings neither
+repeat nor keep it; 519 settlements between reads keep the newest 512 and
+count 7 dropped. The machine reading is scripted (a failed OS probe records no
+minute), and the test retries a reading the recorder skipped while still
+writing the previous one (default `vi.waitFor`); the first draft did not, and
+failed 2 of 3 runs on the Windows host, then 4 of 4 passed.
+
+### Bundle sizes (kubuntu production builds, bytes)
+
+| Bundle                                                         | `506ae2375` | `5303ce87b` (merge) | This change | Cap           |
+| -------------------------------------------------------------- | ----------- | ------------------- | ----------- | ------------- |
+| `dist/resourceGovernor.js`                                     | 106,550     | 135,358 (over)      | 108,686     | 125 KiB       |
+| `dist/resourceProcess.js`                                      | —           | —                   | 36,417      | 50 KiB (new)  |
+| `dist/mcpVault.js`                                             | —           | —                   | 13,737      | 25 KiB (new)  |
+| `dist/extension.js`                                            | 577,228     | 594,908             | 587,122     | 600 KiB       |
+| `dist/resourceAdmission.js`                                    | —           | —                   | 3,260       | 25 KiB        |
+| Activation growth over pre-K (`modelsActivationBudget`, 3 KiB) | 16,377      | 34,057              | 26,271      | inherited red |
+
+### Red drills (kubuntu rig slots; one exact replacement set each, the named files at the repository's config and timeouts, original bytes restored and SHA-256-compared; the slot was clean afterwards)
+
+| Drill                                                    | Red                                                                                                           |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| D1a the governor re-exports the launcher                 | `deferredBundles`: "POSTSPAWN loads the governed launcher …", the deferred-boundary gate and seven more cases |
+| D1b split gate without the shared-launch check           | `deferredBundles`: "POSTSPAWN loads the governed launcher …" (the `mcpJobLaunch.ts` copy passes the gate)     |
+| D3 vault MCP start imported at activation                | `deferredBundles`: "POSTSPAWN loads the vault MCP launch …", the deferred-boundary gate and seven more cases  |
+| D4a history reads tree samples only                      | `resourceHistorySettled`: "records an attested launch in history exactly once …"                              |
+| D4b no settled reader bound                              | `resourceHistorySettled`: both cases                                                                          |
+| D4c a read does not drain the settled rows               | `resourceHistorySettled`: both cases                                                                          |
+| D2a pause queues background work again                   | `teamResourceSlots` (4), `teamProcessResources` (1), `runtimeResources` (1)                                   |
+| D2b cancelling queued work rejects with the paused error | `teamResourceSlots`: both AbortError cases                                                                    |
+| D2c the vault compiler receives an environment           | `windowsVaultTransport`: "runs the real compiler port with a private environment …"                           |
+| D2d the schedule OS helper keeps credential variables    | `nativeScheduleBackground`: "fences credential variables from actual OS helper children …"                    |
+| D2e the peer helper without the socket descriptor        | `vault/channel`: 22 cases                                                                                     |
+
+The D4 drills were run again against the final test (slot `pspawnD`): all
+red, restored. Without the item 2 changes the files fail as listed at
+`5303ce87b` above.
+
+### Verification
+
+Final tree, kubuntu slot `pspawnF`: deferredBundles, modelsActivationBudget,
+usagePackaging, the seven repaired files, resourceHistorySettled,
+spawnInventory, spawnGovernance, vsixPackaging, resourceAcpPackaging,
+resourceHostGlobals, bundleSize and spawnRuntimeAdmission after a full
+`npm run build`: 17 of 18 files pass (478 tests, 4 skipped); only
+`modelsActivationBudget` fails (inherited, 26,271 B). Static gates on the
+Windows host: `knip` exit 0; `cycles` exits 1 with the same four cycles as
+`5303ce87b` (checked there on kubuntu), each now through the launcher's entry
+instead of the governor's; `duplication` reports one clone,
+`modelApiLoopGuarantees.test.ts` (inherited). This lane's first draft added a
+second (the window temp-root fake, now `windowHistorySettings` in
+`journalFixtures.ts`).
+
+| Machine                    | Check                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Result                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Kubuntu                    | `npm run typecheck` (five projects), `npm run build` (tokens, production build, size, split, host globals, notices)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | exit 0, exit 0 (final tree, slot `pspawnF`)                                                                                                                                                                                                                                                                                                      |
+| Kubuntu (built, `pspawnA`) | 304 files: every resource, spawn, schedule, media, history, vault and team suite (297), plus deferredBundles, modelsActivationBudget, bundleSize, vsixPackaging, usagePackaging, uiTextRegions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 299 passed, 2 skipped, 3 failed: `modelsActivationBudget` (inherited, 26,271 B), `vault/peer` (identical at `506ae2375` and `5303ce87b` in this rig's slots: `sudo -u nobody` cannot reach the slot's private temp folder), `usagePackaging` (its bundle list lacked `resourceProcess`; fixed, then 3 passed with noticesInput and the exec e2e) |
+| Windows 11 host            | 39 files in batches of three: attestedJob, mcpJobExecutable, spawnProfiles, resourceWindowsLaunch, resourceLaunchHost, spawnRuntimeAdmission (compiles the real helpers through `jobs.ts`), spawnGovernance, spawnInventory, spawnBootstrap, resourceCreatedNative, shellJob, mediaConvert, scheduleEvents.local, windowsTrustedPath, windowsVaultTransport, nativeScheduleBackground, resourceHistorySettled, resourceHistoryWiring, resourceHistoryDisposal, resourceWindow, reportHistory, mcpVaultPool, spawnBoundaries, modelApiMcpServers, mcpCheckpointBoundary, teamResourceSlots, teamProcessResources, runtimeResources, queue, governor, resourceAdapters, resourceCreatedRegistry, resourceMuseLifecycle, resourceDiskAdmission, resourceDisk, resourceRelocationRoute, execResources, macVaultTransport, vault/mcpSecrets | all pass but one case: `windowsTrustedPath` "checks every intermediate directory and rejects a native junction" refuses the fixture's leaf file on this host's temp folder before the faked parent (same PowerShell command and arguments as the pre-spawn4 `execFile`); it passes on win11                                                      |
+| win11 rig                  | windowsTrustedPath, windowsVaultTransport, nativeScheduleBackground                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | 89 passed                                                                                                                                                                                                                                                                                                                                        |
+| Windows 11 host            | ESLint (`--max-warnings=0`) and Prettier on every changed file; `check:reference`, `check:host-api`, `check:l10n`, `check:plan`, `check:roadmap`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | all exit 0                                                                                                                                                                                                                                                                                                                                       |
