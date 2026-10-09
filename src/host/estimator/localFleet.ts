@@ -24,6 +24,13 @@ export interface LocalHost {
   readonly ramGiB: number
 }
 
+type MachineOs = 'macos' | 'linux' | 'windows'
+const MACHINE_OS: ReadonlyMap<string, MachineOs> = new Map<string, MachineOs>([
+  ['darwin', 'macos'],
+  ['linux', 'linux'],
+  ['win32', 'windows'],
+])
+
 function refuse(detail: string): never {
   throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
 }
@@ -34,9 +41,9 @@ export function fleetFromHost(
   lanes: readonly EstimateLane[],
   asOf: string,
 ): FleetSnapshot {
-  const machineOs = host.platform === 'darwin' ? 'macos' : host.platform
-  if (machineOs !== 'macos' && machineOs !== 'linux' && machineOs !== 'windows')
-    refuse('unsupported-platform')
+  // Node names Windows `win32` and macOS `darwin`; the fleet names them by OS.
+  const machineOs = MACHINE_OS.get(host.platform)
+  if (machineOs === undefined) refuse('unsupported-platform')
   if (host.arch !== 'x64' && host.arch !== 'arm64') refuse('unsupported-platform')
   if (!(host.cores > 0) || !(host.ramGiB > 0)) refuse('unsupported-platform')
   // Code-unit order, independent of the host's language and ICU version.
