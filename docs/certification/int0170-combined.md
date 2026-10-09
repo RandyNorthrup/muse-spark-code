@@ -1022,7 +1022,13 @@ resourceCreatedNative 11, resourceCreatedRegistry 41, resourceRecords 18,
 resourceStops 6, mcpJobExecutable 4, queue 18, governor 57, mediaConvert 38,
 scheduleEvents core 8, local 12, network 11, signals 12, among others), and
 the inherited failures above are unchanged file for file; deferredBundles
-drops from 3 to 2 (the cohort case passes).
+drops from 3 to 2 (the cohort case passes). Five files had more failures
+in that loaded run than at `a729dba8a` (reportHistory, scheduleStore,
+checkpointHost, modelApiHost, m114ConversationReview: 5 s timeouts, a report
+deadline, layout reads); run side by side at `a729dba8a` and on this change
+(slots spawn5head5 and spawn5wip5), they match file for file: 854 passed and
+8 failed in both (modelApiHost 2/669 and m114ConversationReview 6/89, both
+inherited), the other three pass.
 
 Not fixed here, same root-cause class as finding 8 but other lanes'
 assertions: windowsVaultTransport's three compiler cases assert the
