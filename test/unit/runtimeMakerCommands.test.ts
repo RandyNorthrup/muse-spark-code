@@ -9,6 +9,7 @@ import * as processTree from '../../src/host/processTree'
 import { runMakerCommand, openMakerBrowser } from '../../src/runtime/maker/commands'
 import { MachineHttp } from '../../src/core/maker/machines/http'
 import type { MakerLanPolicy } from '../../src/core/maker/registry'
+import type { MakerHost } from '../../src/core/maker/ports'
 import { fakeMachineServer, moonrakerFrame, makerLimits } from './helpers/fakeMakerMachine'
 import { fill } from '../../src/shared/l10n/text'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -393,6 +394,23 @@ describe('runtime maker command execution without a credential store or device',
         limits: makerLimits,
         allowPlainHttp: true,
       })
+      // The shared surface completes its payload review before answering, as
+      // production does: the engine's own MakerApproval.review callback gets the
+      // exact makerPayloadReviewed message, and an answer without it is refused.
+      const host: MakerHost = fixture.service.host
+      const confirm = host.confirm.bind(host)
+      const reviewing = vi.spyOn(host, 'confirm').mockImplementation((request, didReview) => {
+        expect(
+          didReview({
+            v: 1,
+            type: 'makerPayloadReviewed',
+            id: request.id,
+            digest: request.digest,
+            isComplete: true,
+          }),
+        ).toBe(true)
+        return confirm(request, didReview)
+      })
       const notices: unknown[] = []
       const off = fixture.service.host.subscribe((message) => {
         if (message.type === 'makerNotice') notices.push(message.notice)
@@ -425,6 +443,7 @@ describe('runtime maker command execution without a credential store or device',
           },
           { timeout: 120_000 },
         )
+        expect(reviewing).toHaveBeenCalledOnce()
         if (hasStopFailure) server.reply({ status: 500, body: 'private fake failure' })
         controller.abort()
         await vi.waitFor(() => {
@@ -443,6 +462,7 @@ describe('runtime maker command execution without a credential store or device',
         await outcome
       } finally {
         off()
+        reviewing.mockRestore()
         server.releaseSend()
         await fixture.service.close()
         await server.close()
