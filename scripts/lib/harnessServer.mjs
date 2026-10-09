@@ -322,7 +322,7 @@ const CONTENT_TYPES = {
 
 /** Serves `repoRoot` on an unused loopback port: `{ server, port }`. */
 export async function serveRepo(repoRoot) {
-  await buildTrafficHarness()
+  await buildTrafficHarness(repoRoot)
   const fixture = await build({
     // Capture fixtures belong to the running gate, like buildTrafficHarness;
     // a historical production revision may predate this test-only source.
