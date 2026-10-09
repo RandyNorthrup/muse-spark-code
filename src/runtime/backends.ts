@@ -56,6 +56,8 @@ import { pageConverter } from '../host/web/pageConverter'
 import { createWebFetcher } from '../host/web/webFetcher'
 import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import {
+  ACCOUNT_DEFAULT_ID,
+  ACCOUNT_PAID_STORE,
   FILE_REFUSAL_MODEL_TEXT,
   MENTION_INDEX_LIMIT,
   MODEL_API_BUNDLE_FILE,
@@ -75,8 +77,10 @@ import {
   agentDataFolder,
   type DataFolderInput,
   paidGrantsFile,
+  workspaceKey,
   workspaceSessionsFolder,
 } from './dataFolder'
+import { runtimeDailyBudgetUsd } from './dailyBudgetSetting'
 import {
   museCodeEnvironment,
   withoutCredentials,
@@ -113,6 +117,11 @@ export interface RuntimeBackendDeps {
   /** Waits between retries and rename attempts; injectable so tests do not sleep. */
   readonly sleep: (ms: number) => Promise<void>
   readonly log: Logger
+  /**
+   * M108: the Meta account the Model API key reads through (the fixed
+   * account of a keyed headless run); the default account otherwise.
+   */
+  readonly billingAccount?: string
 }
 
 export interface RuntimeBackend {
@@ -550,6 +559,14 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     }),
     log: deps.log,
     ...(deps.exec !== undefined && { headless: deps.exec.headlessPaid }),
+    // M108 lane P (D88.7): the account the key bills. A use billed to another
+    // account than Meta's default asks for that account, kept in the agent's
+    // data folder per workspace, naming the runtime's shared daily budget.
+    billing: () => ({ provider: 'meta', account: deps.billingAccount ?? ACCOUNT_DEFAULT_ID }),
+    accountFolder: (workspaceRoot) =>
+      path.join(agentDataFolder(deps), ACCOUNT_PAID_STORE.folder, workspaceKey(workspaceRoot)),
+    dailyBudgetUsd: () => Usd.from(runtimeDailyBudgetUsd(agentDataFolder(deps))).toAmount(),
+    sleep: deps.sleep,
   })
   const museEnvironment = museCode.childEnvironment()
   const homes: MuseHomes = {

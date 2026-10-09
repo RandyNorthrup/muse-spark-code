@@ -7,7 +7,7 @@ import { accountIdSchema } from '../../../shared/accounts'
 import { ACCOUNT_DEFAULT_ID, UI_TEXT } from '../../../shared/constants'
 import { subscriptionUsageSchema, type SubscriptionUsage } from '../../../shared/usage'
 import type { AccountLimitsReader, AccountLimitsSnapshot } from '../../accounts/thresholds'
-import type { PaidAccountBinding } from '../../paid/paidConsent'
+import type { PaidAccountBinding } from '../../paid/accountPaidConsent'
 import { accountPolicyFor, type AccountPolicy } from '../../providers/accountPolicy'
 import { buildChildEnvironment, type ChildEnvironmentInput, type MuseLaunch } from './launch'
 

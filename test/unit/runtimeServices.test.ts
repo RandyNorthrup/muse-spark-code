@@ -177,6 +177,8 @@ describe('createRuntimeAccountServices', () => {
     )
     expect(createBackend).toHaveBeenCalledOnce()
     expect(createBackend.mock.results[0]?.value).toBe(configured.runtime)
+    // M108 lane P: the run's paid uses bill the requested account.
+    expect(createBackend.mock.calls[0]?.[0].billingAccount).toBe('work')
     const seen: unknown[] = []
     const stop = configured.accounts.subscribe('run-a', (state) => {
       seen.push(state)

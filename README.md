@@ -913,7 +913,14 @@ Second Muse Code accounts and cross-account native replay/cache evidence
 wait for the Q-M108 captures. The usage-page mount awaits M102's journal;
 it must keep outstanding reservations and uncertain charges across resets.
 The shared paid gate, daily budget and conversation cap never reset on a
-swap, and a different account needs its own first-charge consent.
+swap, and a different account needs its own first-charge consent. In VS Code
+and in ACP editors, a paid use billed to the default account keeps this
+workspace's consent, unchanged; another account's first paid use asks for
+that account, naming its price and the shared daily budget
+(`museSpark.paidDailyBudgetUsd`, or the agent's own), and its **Allow always**
+lapses with **Ask again** or the feature's price. Only headless `exec
+--account` bills another account today, and it keeps its explicit paid flags
+and hard budget.
 
 Placement defaults to one account per provider per device. Another account
 needs another paired device, or the machine-scoped, default-off
