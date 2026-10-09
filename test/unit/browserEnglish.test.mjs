@@ -18,7 +18,8 @@ beforeAll(async () => {
 export { UI_TEXT, setUiText } from '${path.resolve('src/shared/l10n/text.ts').replaceAll('\\', '/')}';
 export { loadDeferredEnglish } from '${path.resolve('src/shared/l10n/deferredEnglish.ts').replaceAll('\\', '/')}';
 export { installEmbeddedTable } from '${path.resolve('src/webview/installTable.ts').replaceAll('\\', '/')}';
-export { installVaultEnglish } from '${path.resolve('src/shared/l10n/vaultEnglish.ts').replaceAll('\\', '/')}';`,
+export { installVaultEnglish } from '${path.resolve('src/shared/l10n/vaultEnglish.ts').replaceAll('\\', '/')}';
+export const loadResourceEnglish = () => import('browser-resource-english');`,
   )
   const result = await build({
     entryPoints: {
@@ -77,6 +78,17 @@ it('keeps account, developer and help values out of startup and loads them exact
   // The vault group's English loads with the vault surface alone (CAPS017).
   expect(() => built.bundle.EN.vault).toThrow('English surface is not loaded: vault')
   built.bundle.installVaultEnglish()
+  // M107 U-C1: English read only by the resource chip and pages loads with
+  // those surfaces (their modules import it), never with the other deferred groups.
+  const resourceOnly = Object.keys(built.bundle.EN).filter((key) => {
+    try {
+      return built.bundle.EN[key] === undefined
+    } catch (error) {
+      return String(error).includes('English surface is not loaded')
+    }
+  })
+  expect(resourceOnly.length).toBeGreaterThan(0)
+  await built.bundle.loadResourceEnglish()
   for (const [key, value] of Object.entries(built.bundle.EN)) expect(value).toEqual(EN[key])
   built.bundle.setUiText(built.bundle.EN, 'en')
   for (const [key, value] of Object.entries(built.bundle.EN))
@@ -85,6 +97,7 @@ it('keeps account, developer and help values out of startup and loads them exact
 it('validates deferred slots, keys and plurals before installing a translated table', async () => {
   await built.bundle.loadDeferredEnglish()
   built.bundle.installVaultEnglish()
+  await built.bundle.loadResourceEnglish()
   const german = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
   for (const mutate of [
     (table) => {
