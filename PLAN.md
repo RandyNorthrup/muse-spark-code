@@ -20264,6 +20264,29 @@ github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
     examples; the fetch to re-read them was refused (2026-10-09), and no
     live sign-in is allowed without the lead. The parser keeps unknown
     fields.
+- **Lane A review RVM123A fixed on `m123/a2` (2026-10-09, Kubuntu).**
+  Record: `docs/certification/m123.md` § Lane A fixes. One P1 and four
+  P2, each with a test red on the reviewed source:
+  - **Sign out vs. a late sign-in or refresh (P1).** Sign out writes a
+    random mark (`museSpark.github.deviceFlow.signedOut`, no secret)
+    before it deletes the item; a sign-in or refresh reads the mark when
+    it starts and again after storing, and takes its pair back when the
+    mark changed. Holds across windows and processes sharing the store.
+  - **Concurrent refreshes (P2).** One refresh per source for all its
+    callers; a refused refresh deletes the item only while it still holds
+    the spent pair, so another window's rotated pair survives.
+  - **Joined callers' Cancel (P2).** The shared sign-in and refresh own
+    their signal; each caller's Cancel ends its own wait, and the run is
+    aborted when the last caller leaves.
+  - **HTTP failures with JSON (P2).** 5xx and 429 are `network` whatever
+    the body; only `bad_refresh_token` drops the pair; any other refresh
+    failure keeps it and serves the access token while it is valid.
+  - **Oversleep (P2).** The signal and the code's deadline are checked
+    after every wait, just before the poll is sent.
+  - **Residual.** A keychain has no compare-and-swap: a 401 or a refused
+    refresh reads the item and then deletes it, and a pair stored by
+    another process between those two calls is lost (the user signs in
+    again). The sign-out mark closes that gap for Sign out only.
 - **Goal.** F36 (M71's Git and pull request features) works in every editor
   in M104's matrix. That means the same forms, drafts, confirmations, links,
   checks and held checkout as in VS Code, with Git run natively by the
