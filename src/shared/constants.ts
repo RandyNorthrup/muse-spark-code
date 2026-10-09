@@ -1389,11 +1389,12 @@ export const MAX_DOCUMENT_BYTES = 32_000_000
 // replayed Model API request. Meta's 50 MB inline limit is per file; this
 // separate bound keeps a long session from serializing gigabytes of PDFs.
 export const MAX_ENCODED_MEDIA_CHARS = 48_000_000
-// ACP SDK 1.5.1 refuses an NDJSON line over 32 MiB unless told otherwise, and a
-// valid prompt can carry the whole aggregate media budget above as base64
-// (three near-10 MiB images already exceed 32 MiB). The ACP transport takes
-// that budget plus room for prompt text, embedded resources and the JSON-RPC
-// envelope; the per-image and aggregate checks then answer with a message.
+// ACP SDK 1.5.1 refuses an NDJSON line over 32 MiB unless told otherwise (1.7.0
+// unchanged, SDK144), and a valid prompt can carry the whole aggregate media
+// budget above as base64 (three near-10 MiB images already exceed 32 MiB).
+// The ACP transport takes that budget plus room for prompt text, embedded
+// resources and the JSON-RPC envelope; the per-image and aggregate checks then
+// answer with a message.
 export const ACP_MESSAGE_HEADROOM_BYTES = 16 * 1024 * 1024
 export const ACP_MAX_MESSAGE_BYTES = MAX_ENCODED_MEDIA_CHARS + ACP_MESSAGE_HEADROOM_BYTES
 export const BASE64_DATA_URL_OVERHEAD_CHARS = 'data:;base64,'.length
@@ -4589,12 +4590,13 @@ export const MSP_ATTACHMENT_FRAME_BUDGET_BYTES =
   MSP_FRAME_LIMIT_BYTES - MSP_ATTACHMENT_FRAME_HEADROOM_BYTES
 // `session/list` refuses a larger page (msp.d.ts SessionListParams.limit).
 export const MSP_SESSION_LIST_MAX_LIMIT = 200
-// The captured 1.4.2 build now matches the SDK's own pin (M106 S).
-// Keep its identity here; older fingerprints are no longer additive
-// successors of this SDK and must retain the mismatch warning. Future
-// successors need a served capture before they enter this map.
+// The captured 1.4.4 build matches the SDK's own pin (SDK144, served
+// 2026-10-09 by 1.4.4-R5419.1). Keep its identity here; older fingerprints
+// (1.4.2-R4684.1 included) are no longer additive successors of this SDK
+// and must retain the mismatch warning. Future successors need a served
+// capture before they enter this map.
 export const MSP_KNOWN_SCHEMA_FINGERPRINTS: Readonly<Record<string, string>> = {
-  'sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2': '1.4.2-R4684.1',
+  'sha256:7c94f153c41659cb3f1bd3c3e04438be254644cb2a97d65d48edc7449b74858a': '1.4.4-R5419.1',
 }
 // Muse Code's documented exit codes (SDK `classifyExit`) after which a
 // restart cannot help; what each code means is `UI_TEXT.museExitMeanings`.
