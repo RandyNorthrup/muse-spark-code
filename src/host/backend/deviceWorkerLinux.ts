@@ -630,7 +630,13 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
       return true
     } catch {
       await ignoreFailure(job?.cancel())
-      await ignoreFailure(job?.remove())
+      // remove() refuses synchronously while retirement is unproved: the slot
+      // stays held, and a failed probe still answers false, never a rejection.
+      try {
+        await job?.remove()
+      } catch {
+        /* The unproved probe job keeps its slot. */
+      }
       return false
     }
   }

@@ -581,6 +581,21 @@ describe('M100/H Linux platform port (fake manager/cgroup/inhibitor)', () => {
     expect(await f.driver.selfTest()).toBe(true)
     expect(f.start).toHaveBeenCalledTimes(2)
   })
+  it('answers false, never a rejection, when a probe fails with its job unretired', async () => {
+    const f = fixture()
+    f.state.tasksMax = 1
+    f.state.kernelLimit = 1
+    const check = f.driver.selfTest()
+    await vi.waitFor(() => {
+      expect(f.worker()?.exitCode).toBe(0)
+    })
+    // The cgroup never shows empty and the inhibitor is lost: retirement stays
+    // unproved, so the probe's cleanup cannot remove its job.
+    f.inhibitor()?.kill()
+    await expect(check).resolves.toBe(false)
+    expect(await f.driver.selfTest()).toBe(false)
+    expect(f.start).toHaveBeenCalledTimes(2)
+  })
   it('selects Linux lazily in the host factory; unsupported platforms refuse', async () => {
     const native = { ...fixture().driver, platform: 'win32' as const }
     const load = vi.fn(() => Promise.resolve(deviceWorkerLinux({ environment: {} })))
