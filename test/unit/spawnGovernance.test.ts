@@ -193,18 +193,24 @@ describe('SPAWN017 production governance', () => {
         failure += bytes.toString('utf8')
       })
       try {
-        let name: string
-        try {
-          name = await proveMembers(h, script.marker)
-        } catch {
+        // SPAWN017C: the portable launch is an attested, unnamed job; no reader binds it.
+        expect(h.launch()).toMatchObject({ attested: true, profile: 'contained' })
+        expect(h.launch()?.job).toBeUndefined()
+        const pids = await vi.waitFor(
+          async () => z.array(z.number()).parse(JSON.parse(await readFile(script.marker, 'utf8'))),
+          { timeout: 5000 },
+        )
+        const identities = await Promise.all(pids.map((pid) => h.reader.identity(pid)))
+        if (identities.includes(null))
           throw new Error(`Fixture launch exit ${String(payload.child.exitCode)}: ${failure}`)
-        }
         expect(admission.admitResource).toHaveBeenCalledWith('other', undefined, undefined)
-        const pids = z.array(z.number()).parse(JSON.parse(await readFile(script.marker, 'utf8')))
         expect(await payload.pid()).toBe(pids[0])
         await payload.stop()
-        expect(await h.reader.jobGone(name)).toBe(true)
-        expect(h.lease.complete).toHaveBeenCalledWith(false)
+        // The helper ended and drained the whole job: root and descendant are gone.
+        for (const pid of pids) expect(await h.reader.identity(pid)).toBeNull()
+        await vi.waitFor(() => {
+          expect(h.lease.complete).toHaveBeenCalledWith(true)
+        })
       } finally {
         await payload.stop()
       }

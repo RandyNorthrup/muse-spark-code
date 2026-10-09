@@ -7650,6 +7650,14 @@ export const RESOURCE_TRANSPORT_MAX_RESULTS = 100
 export const RESOURCE_TREE_PROCESS_CAP = 128
 export const RESOURCE_TREE_SPAWN_CAP = 64
 export const RESOURCE_TREE_SPAWN_WINDOW_MS = 15_000
+// SPAWN017C: an attested Windows job samples its own birth count in process,
+// drains to empty before it reports, and sends one bounded final record.
+export const RESOURCE_JOB_SAMPLE_MS = 250
+export const RESOURCE_JOB_EMPTY_MS = 5000
+export const RESOURCE_JOB_RECORD_MAX_CHARS = 1024
+export const RESOURCE_JOB_RECORD_WAIT_MS = 2000
+/** Disposal re-reads a stopped tree this often until TREE_EXIT_WAIT_MS proves or abandons it. */
+export const RESOURCE_DISPOSE_POLL_MS = 250
 
 // M108 X: machine-local testing options. These never change vendor/paid gates.
 // D88 amendment b: developer options expire after seven days.

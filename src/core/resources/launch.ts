@@ -4,6 +4,7 @@ import type {
   ResourceProcessIdentity,
   ResourceTicket,
   ResourceTreeReader,
+  ResourceTreeUsage,
 } from '../../shared/resources'
 import type { ResourceTreeActionReader } from './trees/actions'
 import type { ChildProcess, SpawnOptionsWithoutStdio } from 'node:child_process'
@@ -50,6 +51,18 @@ export interface ResourceProcessLaunch {
   readonly group?: boolean | undefined
   /** An SDK wrapper's PID must also be proved a direct child of the harness. */
   readonly parentPid?: number | undefined
+  /**
+   * SPAWN017C (Windows): the launcher's job attests its own tree. Its observed
+   * exit proves the tree gone, its job enforces the caps, and its final record
+   * settles the usage; no registry reader binds it.
+   */
+  readonly attested?: boolean | undefined
+}
+/** One attested tree's final usage; usage null when the record never arrived. */
+export interface ResourceSettlement {
+  readonly root: ResourceProcessIdentity
+  readonly scope: string
+  readonly usage: ResourceTreeUsage | null
 }
 export interface ResourceTempRoot {
   readonly root: string
@@ -72,6 +85,8 @@ export interface ResourceLease {
   register(process: ResourceProcessLaunch): void
   /** true requires failed spawn, logical completion, or proved whole-tree retirement. */
   complete(isTreeGone: boolean): void
+  /** An attested launch's final usage, before complete; history reads it. */
+  settle?: ((settlement: ResourceSettlement) => void) | undefined
   background(): void
 }
 export interface ResourceAdmissionPort {

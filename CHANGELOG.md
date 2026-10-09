@@ -20,6 +20,12 @@ happened, not what was planned; superseded entries are kept.
   objects unavailable". Admission deadlines now include machine sampling. A
   source guard fails on any process launch missing from the checked-in
   inventory.
+- Windows governed commands no longer start PowerShell for each launch. The
+  helper's job object proves the whole tree gone, enforces the process cap
+  itself and reports the final CPU and memory use; on a four-CPU machine the
+  real-Git schedule test dropped from about 12.4 s to about 8.3 s. CLI
+  shutdown now waits for a stopped tree to exit before it cleans up its
+  temporary folder, and keeps (and reports) a tree that never exits.
 - Read-only probes (Git ref and history reads, gh reads, birth probes, media
   version checks) keep resource admission and tree containment without a
   per-command temporary folder. That folder needed a packaged native helper,

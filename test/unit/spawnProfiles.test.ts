@@ -99,6 +99,47 @@ describe('explicit portable launch profiles', () => {
     },
   )
 
+  it('ends this caller at its deadline while shared Windows helper preparation continues', async () => {
+    const lease = fakeResourceLease()
+    vi.mocked(admission.admitResource).mockResolvedValue(lease)
+    const shared = Promise.withResolvers<undefined>()
+    vi.mocked(admission.resourceWindowsJob).mockReturnValue(shared.promise)
+    const spawn = vi.spyOn(childProcess, 'spawn')
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform')
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+    try {
+      const launch = spawnResourceProcess('probe', process.execPath, ['-e', ''], {
+        env: {},
+        signal: AbortSignal.timeout(30),
+      })
+      const outcome = (async () => {
+        try {
+          await launch
+          return 'launched'
+        } catch (error: unknown) {
+          return error instanceof Error ? error.name : 'unknown'
+        }
+      })()
+      // The caller settles at its 30 ms deadline while preparation is still pending.
+      const early = await Promise.race([
+        outcome,
+        new Promise<string>((resolve) => {
+          setTimeout(() => {
+            resolve('still waiting')
+          }, 1000)
+        }),
+      ])
+      expect(early).toBe('TimeoutError')
+      // Preparation finishes late (unavailable); nothing else follows for this caller.
+      shared.resolve(undefined)
+      expect(await outcome).toBe('TimeoutError')
+      expect(spawn).not.toHaveBeenCalled()
+      expect(lease.complete).toHaveBeenCalledWith(true)
+    } finally {
+      if (platform !== undefined) Object.defineProperty(process, 'platform', platform)
+    }
+  })
+
   it('skips the temp root only for a named probe, never for contained work', async () => {
     vi.mocked(admission.admitResource).mockRejectedValue(new Error('admission fixture stop'))
     const spawn = vi.spyOn(childProcess, 'spawn')

@@ -6,6 +6,8 @@ import {
   RESOURCE_TREE_SPAWN_WINDOW_MS,
   RESOURCE_TREE_SAMPLE_MS,
   RESOURCE_TEMP_KEEP_MS,
+  RESOURCE_DISPOSE_POLL_MS,
+  TREE_EXIT_WAIT_MS,
 } from '../../shared/constants'
 import type {
   ResourceClass,
@@ -13,6 +15,7 @@ import type {
   ResourceKind,
   ResourceSettings,
   ResourceTicket,
+  ResourceTreeUsage,
 } from '../../shared/resources'
 import type { ResourceGovernor } from './governor'
 import type { ResourceDiskSampler } from './disk'
@@ -33,6 +36,7 @@ import type {
   ResourceTempRoots,
   ResourceTempRoot,
   ResourceLaunchProfile,
+  ResourceSettlement,
 } from './launch'
 
 /**
@@ -96,6 +100,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   private readonly safePointCancels = new Set<() => void>()
   private readonly admissionCancels = new Set<() => void>()
   private readonly cleanupTimers = new Set<() => void>()
+  private settledRows: { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[] = []
   private readonly unsubscribe: () => void
   private readonly unsubscribeSample: () => void
 
@@ -189,7 +194,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
 
   private async sampleTree(work: Work): Promise<void> {
     if (work.process === undefined || !this.work.has(work)) return
-    if (!isTreeBound(work.process.profile)) {
+    if (work.process.attested === true || !isTreeBound(work.process.profile)) {
       work.known = true
       return
     }
@@ -308,13 +313,38 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     }
     if (launched.stop === undefined) {
       await this.sampleTree(work)
-      const result = work.ticket === undefined ? undefined : await work.registry?.kill(work.ticket)
-      if (result?.status !== 'done' && (await work.binding?.gone()) !== true)
-        throw new Error('Resource shutdown tree stop refused')
+      if (work.ticket !== undefined) await work.registry?.kill(work.ticket)
     } else await launched.stop()
     // Other profiles have no registry binding: their own stop ended what they own.
-    const isRootOnly = !isTreeBound(launched.profile)
-    this.retire(work, isRootOnly || (await work.binding?.gone()) === true)
+    if (launched.attested === true || !isTreeBound(launched.profile)) {
+      this.retire(work)
+      return
+    }
+    // A dispatched stop is not an exit: ownership (and the temp root) stays
+    // until the tree is observed gone, within the named stop deadline.
+    if (await this.awaitGone(work, launched)) {
+      this.retire(work)
+      return
+    }
+    // Never observed: kept as uncertain, its temp root left for recovery, and said so.
+    work.known = false
+    this.options.onError()
+  }
+
+  private async awaitGone(work: Work, launched: ResourceProcessLaunch): Promise<boolean> {
+    const deadline = this.options.clock.now() + TREE_EXIT_WAIT_MS
+    for (;;) {
+      try {
+        work.binding ??= (await this.options.bindTree(launched)) ?? undefined
+        if ((await work.binding?.gone()) === true) return true
+      } catch {
+        // An unreadable tree is unknown, never gone.
+      }
+      if (this.options.clock.now() >= deadline) return false
+      await new Promise<void>((resolve) => {
+        this.options.clock.setTimeout(resolve, RESOURCE_DISPOSE_POLL_MS)
+      })
+    }
   }
 
   refreshTrees(): Promise<void> {
@@ -416,6 +446,20 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
         const result = await work.registry?.kill(work.ticket)
         return result?.status === 'done'
       },
+      settle: (settlement: ResourceSettlement) => {
+        // History's work source: the attested job's own final accounting.
+        this.settledRows.push({
+          ticket: {
+            id: randomUUID(),
+            root: settlement.root,
+            scope: { type: 'job', name: settlement.scope },
+            kind: work.kind,
+            class: work.class,
+            sessionId: null,
+          },
+          usage: settlement.usage,
+        })
+      },
       register: (process) => {
         if (!this.work.has(work)) return
         work.process = process
@@ -499,6 +543,13 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       signal?.addEventListener('abort', cancel, { once: true })
       this.options.events.publish({ type: 'paused', atMs: this.options.clock.now(), kind })
     })
+  }
+
+  /** Settled attested trees since the last read (ResourceRecordWorkSource rows). */
+  settled(): readonly { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[] {
+    const rows = this.settledRows
+    this.settledRows = []
+    return rows
   }
 
   tickets(): readonly ResourceTicket[] {

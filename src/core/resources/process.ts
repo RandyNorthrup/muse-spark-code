@@ -1,5 +1,7 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
+import { once } from 'node:events'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { admitBootstrap, admitResource, resourceWindowsJob, stopResourceTree } from './admission'
 import {
   resourceEnvironment,
@@ -10,13 +12,89 @@ import {
   type ResourceInteractiveProcess,
   type ResourceLease,
 } from './launch'
+import type { AttestedJobControl, JobRecord } from '../../host/backend/mcpJobLaunch'
+import type { ResourceProcessIdentity } from '../../shared/resources'
 import { withoutCredentials } from '../credentialEnvironment'
 import {
   CLI_OUTPUT_MAX_BYTES,
+  MILLISECONDS_PER_SECOND,
   PROCESS_TABLE_TIMEOUT_MS,
   RESOURCE_HANDOFF_TIMEOUT_MS,
+  RESOURCE_JOB_EMPTY_MS,
+  RESOURCE_JOB_SAMPLE_MS,
+  RESOURCE_TREE_PROCESS_CAP,
+  RESOURCE_TREE_SPAWN_CAP,
+  RESOURCE_TREE_SPAWN_WINDOW_MS,
+  TREE_EXIT_WAIT_MS,
   WINDOWS_TASKKILL_RELATIVE_PATH,
 } from '../../shared/constants'
+
+/** Ends only this caller's wait at its deadline or cancellation; shared work keeps running. */
+async function untilAborted<T>(pending: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (signal === undefined) return await pending
+  signal.throwIfAborted()
+  let abort: (() => void) | undefined
+  try {
+    return await Promise.race([
+      pending,
+      new Promise<never>((_resolve, reject) => {
+        abort = () => {
+          reject(
+            signal.reason instanceof Error
+              ? signal.reason
+              : new DOMException('Resource admission cancelled', 'AbortError'),
+          )
+        }
+        signal.addEventListener('abort', abort, { once: true })
+      }),
+    ])
+  } finally {
+    if (abort !== undefined) signal.removeEventListener('abort', abort)
+  }
+}
+
+/** The job's caps, enforced by the job object and the helper, never by a reader process. */
+const ATTESTED_JOB = {
+  activeProcessLimit: RESOURCE_TREE_PROCESS_CAP,
+  spawnLimit: RESOURCE_TREE_SPAWN_CAP,
+  spawnWindowMs: RESOURCE_TREE_SPAWN_WINDOW_MS,
+  sampleMs: RESOURCE_JOB_SAMPLE_MS,
+  emptyTimeoutMs: RESOURCE_JOB_EMPTY_MS,
+}
+
+/**
+ * After the helper's observed exit the tree is gone: the helper ended and
+ * drained the job, or the kernel ended it when the helper's only handle closed.
+ * A missing record leaves usage uncertain; it never refuses the completion.
+ */
+async function settleAttested(
+  resource: ResourceLease,
+  control: AttestedJobControl,
+  code: number | null,
+): Promise<void> {
+  let answers: [ResourceProcessIdentity | undefined, JobRecord | undefined]
+  try {
+    answers = await Promise.all([control.root, control.record])
+  } catch {
+    // An unreadable answer is the same as a missing one: usage uncertain, never refused.
+    answers = [undefined, undefined]
+  }
+  const [root, record] = answers
+  if (root !== undefined)
+    resource.settle?.({
+      root,
+      scope: `attested-${String(root.pid)}-${root.startTime}`,
+      usage:
+        record === undefined
+          ? null
+          : {
+              cpuSeconds: record.cpuMs / MILLISECONDS_PER_SECOND,
+              residentBytes: record.peakJobMemoryBytes,
+            },
+    })
+  if (code !== 0 || record?.ending === 'spawnRate') resource.failed?.()
+  resource.complete(true)
+}
 
 /** Emergency bootstrap termination cannot depend on the helper being compiled. */
 async function stopBootstrap(root: ChildProcess): Promise<void> {
@@ -174,38 +252,55 @@ async function spawnPiped(
   signal: AbortSignal | undefined,
   spawned: { value: boolean },
 ): Promise<ResourcePipedProcess> {
-  let jobName: string | undefined
-  let assemblyPath: string | undefined
   let child: ChildProcess
   let stop: () => Promise<void>
+  let payloadPid: (() => Promise<number | undefined>) | undefined
   if (isTreeOwned(profile) && process.platform === 'win32') {
-    const job = await resourceWindowsJob()
-    if (job === undefined || extraDescriptors.length > 0)
+    const job = await untilAborted(resourceWindowsJob(), signal)
+    if (job === undefined || extraDescriptors.length > 0) {
+      signal?.throwIfAborted()
       throw new Error('Native governed process launch unavailable')
-    const { spawnMcpJob } = await import('../../host/backend/mcpJobLaunch.js')
-    assemblyPath = job.assemblyPath
+    }
+    const { spawnAttestedJob } = await import('../../host/backend/mcpJobLaunch.js')
     signal?.throwIfAborted()
-    stop = () => stopResourceTree(resource)
-    child = spawnMcpJob({
+    const { child: launcher, control } = spawnAttestedJob({
       executablePath: job.executablePath,
-      resourceAssembly: job.assemblyPath,
       file,
       args,
       cwd: options.cwd?.toString() ?? process.cwd(),
       env: options.env ?? {},
       isVerbatim: false,
-      resource: {
-        ...resource,
-        register: (launch) => {
-          jobName = launch.job?.name
-          resource.register({ ...launch, profile, stop })
-        },
-      },
+      resource,
+      attestation: ATTESTED_JOB,
       log: () => {
         /* Callers report fixed failure words. */
       },
     })
     spawned.value = true
+    child = launcher
+    // STOP asks the helper to end and drain the job; if it cannot answer, ending
+    // the helper closes the job's only handle and the kernel ends the tree.
+    stop = async () => {
+      if (launcher.exitCode !== null || launcher.signalCode !== null) return
+      const exited = (async () => {
+        await once(launcher, 'exit')
+        return true
+      })()
+      control.stop()
+      if (!(await Promise.race([exited, delay(TREE_EXIT_WAIT_MS, false)]))) launcher.kill()
+    }
+    resource.register({ pid: launcher.pid, profile, attested: true, stop })
+    launcher.once('exit', (code) => {
+      void settleAttested(resource, control, code)
+    })
+    launcher.once('error', () => {
+      resource.failed?.()
+      if (launcher.pid === undefined) resource.complete(true)
+    })
+    payloadPid = async () => {
+      const root = await control.root
+      return root?.pid
+    }
   } else {
     const isGroup = process.platform !== 'win32'
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted payload or bootstrap compiler: argument array, no shell, pipes, its own POSIX group, owned whole-tree stop (PLAN SPAWN017C, section 8).
@@ -263,13 +358,8 @@ async function spawnPiped(
     await stop()
     throw new Error('Governed process pipes unavailable')
   }
-  const pid = async () => {
-    if (!isTreeOwned(profile) || process.platform !== 'win32') return child.pid
-    const systemRoot = process.env['SystemRoot']
-    if (jobName === undefined || assemblyPath === undefined || systemRoot === undefined) return
-    const { resourceJobRootPid } = await import('./resourceGovernorEntry.js')
-    return await resourceJobRootPid(assemblyPath, systemRoot, jobName)
-  }
+  // The helper reported the payload root's PID before resuming it.
+  const pid = payloadPid ?? (() => Promise.resolve(child.pid))
   return { child: Object.assign(child, { stdin, stdout, stderr }), stop, pid }
 }
 

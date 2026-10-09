@@ -16,6 +16,21 @@ const operations = new Set([
   'runBootstrap',
 ])
 const isChildModule = (text) => text === 'child_process' || text === 'node:child_process'
+const PROCESS_WRAPPERS = new Set([
+  'execa',
+  'cross-spawn',
+  'shelljs',
+  'zx',
+  'tinyexec',
+  'nano-spawn',
+  'node-pty',
+  '@lydell/node-pty',
+  'child-process-promise',
+  'spawn-async',
+  'execa-sync',
+])
+const isWrapperModule = (text) => PROCESS_WRAPPERS.has(text)
+const LAUNCH_TEXT = /(?:require|import).*child_process/u
 
 /** The top-level declaration (function, variable or class) a node sits in, if any. */
 function topLevelOwner(node) {
@@ -55,16 +70,38 @@ function calledName(expression, aliases, source) {
  */
 const CANDIDATE =
   /child_process|spawn|execFile|execSync|fork|ResourceFile|runBootstrap|(?<![.\w])exec\b/u
-function sourceTree(root) {
-  const texts = new Map(
-    fs
-      .readdirSync(path.join(root, 'src'), { recursive: true })
-      .filter((file) => /\.(?:[cm]?[jt]s|tsx)$/.test(file))
-      .map((file) => {
-        const absolute = path.join(root, 'src', file)
-        return [absolute, fs.readFileSync(absolute, 'utf8')]
-      }),
-  )
+const sourceFiles = (root) =>
+  fs
+    .readdirSync(path.join(root, 'src'), { recursive: true })
+    .filter((file) => /\.(?:[cm]?[jt]s|tsx)$/.test(file))
+    .map((file) => path.join(root, 'src', file))
+const testFiles = (root) =>
+  fs
+    .readdirSync(path.join(root, 'test'), { recursive: true })
+    .filter((file) => /\.[cm]?[jt]sx?$/.test(file))
+    .map((file) => path.join(root, 'test', file))
+
+/**
+ * Both corpora, read in parallel. A first read of thousands of files is slow on
+ * a fresh Windows checkout; a test reads them here, in its hook, once.
+ */
+export async function readCorpus(root) {
+  const read = async (files) =>
+    new Map(
+      await Promise.all(
+        files.map(
+          async (file) => /** @type {const} */ ([file, await fs.promises.readFile(file, 'utf8')]),
+        ),
+      ),
+    )
+  const [sources, tests] = await Promise.all([read(sourceFiles(root)), read(testFiles(root))])
+  return { sources, tests: tests.values().toArray() }
+}
+
+function sourceTree(root, corpus) {
+  const texts =
+    corpus?.sources ??
+    new Map(sourceFiles(root).map((file) => [file, fs.readFileSync(file, 'utf8')]))
   const parsed = new Map()
   const parse = (file) => {
     let source = parsed.get(file)
@@ -84,20 +121,17 @@ function sourceTree(root) {
   const containing = (word) =>
     [...texts].filter(([, text]) => word.test(text)).map(([file]) => parse(file))
   // Test texts are read once per scan, not once per proof.
-  let testTexts
+  let testTexts = corpus?.tests
   const tests = () => {
-    testTexts ??= fs
-      .readdirSync(path.join(root, 'test'), { recursive: true })
-      .filter((file) => /\.[cm]?[jt]sx?$/.test(file))
-      .map((file) => fs.readFileSync(path.join(root, 'test', file), 'utf8'))
+    testTexts ??= testFiles(root).map((file) => fs.readFileSync(file, 'utf8'))
     return testTexts
   }
   return { containing, tests }
 }
 
 /** Every source process site, including embedded supervisor programs and aliased imports. */
-export function scanSpawnSites(root) {
-  const tree = sourceTree(root)
+export function scanSpawnSites(root, corpus) {
+  const tree = sourceTree(root, corpus)
   const sites = []
   for (const source of tree.containing(CANDIDATE)) {
     const relative = path.relative(root, source.fileName).replaceAll('\\', '/')
@@ -139,6 +173,30 @@ export function scanSpawnSites(root) {
           namespaces.add(bindings.name.text)
         if (node.importClause?.name !== undefined) namespaces.add(node.importClause.name.text)
       }
+      if (
+        ts.isImportDeclaration(node) &&
+        ts.isStringLiteral(node.moduleSpecifier) &&
+        isWrapperModule(node.moduleSpecifier.text)
+      )
+        add('wrapper', node)
+      // `const { spawn: launch } = …`: any binding of a launch name is that launch.
+      if (ts.isVariableDeclaration(node) && ts.isObjectBindingPattern(node.name))
+        for (const element of node.name.elements) {
+          const property = element.propertyName ?? element.name
+          if (!ts.isIdentifier(property) || !ts.isIdentifier(element.name)) continue
+          const operation = aliases.get(property.text) ?? property.text
+          if (operations.has(operation)) aliases.set(element.name.text, operation)
+        }
+      // `const launch = cp.spawn`
+      if (
+        ts.isVariableDeclaration(node) &&
+        ts.isIdentifier(node.name) &&
+        node.initializer !== undefined &&
+        ts.isPropertyAccessExpression(node.initializer) &&
+        operations.has(node.initializer.name.text) &&
+        node.initializer.name.text !== 'exec'
+      )
+        aliases.set(node.name.text, node.initializer.name.text)
       if (
         ts.isVariableDeclaration(node) &&
         ts.isIdentifier(node.name) &&
@@ -188,6 +246,12 @@ export function scanSpawnSites(root) {
           node.arguments.some((arg) => ts.isStringLiteral(arg) && isChildModule(arg.text))
         )
           add('import', node, isEmbedded)
+        if (
+          (expression.kind === ts.SyntaxKind.ImportKeyword ||
+            (ts.isIdentifier(expression) && expression.text === 'require')) &&
+          node.arguments.some((arg) => ts.isStringLiteral(arg) && isWrapperModule(arg.text))
+        )
+          add('wrapper', node, isEmbedded)
         const name = calledName(expression, aliases, source)
         if (name !== undefined && operations.has(name)) {
           // `x.exec(` is RegExp.exec unless x is a child_process binding.
@@ -199,10 +263,33 @@ export function scanSpawnSites(root) {
         }
       }
       if (
+        ts.isNewExpression(node) &&
+        (ts.isIdentifier(node.expression)
+          ? node.expression.text === 'Worker'
+          : ts.isPropertyAccessExpression(node.expression) &&
+            node.expression.name.text === 'Worker') &&
+        node.arguments?.some(
+          (arg) =>
+            ts.isObjectLiteralExpression(arg) &&
+            arg.properties.some(
+              (property) =>
+                property.name !== undefined &&
+                ts.isIdentifier(property.name) &&
+                property.name.text === 'eval',
+            ),
+        ) === true
+      )
+        add('worker', node, isEmbedded)
+      // Interpolated program text is undecidable: it is a site to list (or remove).
+      if (
         !isEmbedded &&
-        ts.isStringLiteralLike(node) &&
-        /(?:require|import).*child_process/.test(node.text)
-      ) {
+        ts.isTemplateExpression(node) &&
+        LAUNCH_TEXT.test(
+          [node.head.text, ...node.templateSpans.map((span) => span.literal.text)].join(''),
+        )
+      )
+        add('embedded:dynamic', node)
+      if (!isEmbedded && ts.isStringLiteralLike(node) && LAUNCH_TEXT.test(node.text)) {
         const nested = ts.createSourceFile(
           'supervisor.js',
           node.text,
@@ -219,6 +306,54 @@ export function scanSpawnSites(root) {
   return { sites, program: tree }
 }
 
+/** A call written in a top-level initializer, outside any function, runs when the module loads. */
+function runsAtLoad(node) {
+  const parent = node.parent
+  const isCallee =
+    (ts.isCallExpression(parent) || ts.isNewExpression(parent)) && parent.expression === node
+  if (!isCallee) return false
+  for (let current = parent; !ts.isSourceFile(current); current = current.parent)
+    if (ts.isFunctionLike(current) || ts.isClassLike(current)) return false
+  return true
+}
+
+const indexes = new WeakMap()
+/**
+ * Every use of every name in one file, once: its top-level owner, or the
+ * local alias an import or destructuring gives it. Declaration names and plain
+ * import bindings are not uses (the uses of a plain import are its name).
+ */
+function referenceIndex(source) {
+  let index = indexes.get(source)
+  if (index !== undefined) return index
+  index = new Map()
+  const record = (name, use) => {
+    const list = index.get(name)
+    if (list === undefined) index.set(name, [use])
+    else list.push(use)
+  }
+  const visit = (node) => {
+    if (ts.isIdentifier(node) || ts.isStringLiteralLike(node)) {
+      const parent = node.parent
+      const isDeclaration =
+        (ts.isFunctionDeclaration(parent) ||
+          ts.isVariableDeclaration(parent) ||
+          ts.isClassDeclaration(parent)) &&
+        parent.name === node
+      if (ts.isImportSpecifier(parent)) {
+        if (parent.propertyName === node) record(node.text, { alias: parent.name.text })
+      } else if (ts.isBindingElement(parent) && parent.propertyName === node) {
+        if (ts.isIdentifier(parent.name)) record(node.text, { alias: parent.name.text })
+      } else if (!isDeclaration && !ts.isImportClause(parent))
+        record(node.text, { owner: runsAtLoad(node) ? undefined : topLevelOwner(node) })
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  indexes.set(source, index)
+  return index
+}
+
 /**
  * A test-only claim is proved, not asserted: every production use of the
  * owning top-level symbol must sit inside another symbol that is itself only
@@ -231,36 +366,24 @@ export function proveTestOnly(program, symbol, root) {
   const references = []
   const chain = new Set([symbol])
   const pending = [symbol]
+  const follow = (name) => {
+    if (chain.has(name)) return
+    chain.add(name)
+    pending.push(name)
+  }
   while (pending.length > 0) {
     const name = pending.pop()
     // Only a file whose text contains the name can use it.
     const word = new RegExp(name.replaceAll('$', String.raw`\$`), 'u')
-    for (const source of program.containing(word)) {
-      const relative = relativeTo(source.fileName)
-      const visit = (node) => {
-        const isName = ts.isIdentifier(node) && node.text === name
-        const isString = ts.isStringLiteralLike(node) && node.text === name
-        if (
-          (isName || isString) &&
-          !ts.isImportSpecifier(node.parent) &&
-          !ts.isImportClause(node.parent) &&
-          !(
-            (ts.isFunctionDeclaration(node.parent) ||
-              ts.isVariableDeclaration(node.parent) ||
-              ts.isClassDeclaration(node.parent)) &&
-            node.parent.name === node
-          )
-        ) {
-          const owner = topLevelOwner(node)
-          if (owner === undefined) references.push(`${relative}:${name}`)
-          else if (!chain.has(owner)) {
-            chain.add(owner)
-            pending.push(owner)
-          }
-        }
-        ts.forEachChild(node, visit)
+    const sources = program.containing(word)
+    for (const source of sources) {
+      const uses = referenceIndex(source).get(name) ?? []
+      for (const use of uses) {
+        // `import { name as alias }` and `{ name: alias } = …`: the alias is the symbol.
+        if (use.alias !== undefined) follow(use.alias)
+        else if (use.owner === undefined) references.push(`${relativeTo(source.fileName)}:${name}`)
+        else follow(use.owner)
       }
-      visit(source)
     }
   }
   const tests = program.tests()

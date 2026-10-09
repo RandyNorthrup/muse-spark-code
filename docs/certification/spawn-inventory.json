@@ -163,7 +163,7 @@
   {
     "site": "src/core/resources/process.ts#call:spawn:3",
     "profile": "contained",
-    "reason": "Contained and bootstrap branch: pipes, own POSIX group (Windows contained work joins a job), whole-tree stop on cancel, timeout, exit and dispose."
+    "reason": "Contained and bootstrap branch off Windows: pipes, own POSIX group, whole-tree stop on cancel, timeout, exit and dispose (Windows contained and probe work uses the attested job launcher)."
   },
   {
     "site": "src/core/resources/process.ts#import:1",
@@ -255,6 +255,11 @@
     "site": "src/host/backend/mcpJobLaunch.ts#call:spawn:1",
     "profile": "contained",
     "reason": "Admitted Windows MCP launcher assigns the payload to its native job before dispatch and observes tree retirement."
+  },
+  {
+    "site": "src/host/backend/mcpJobLaunch.ts#call:spawn:2",
+    "profile": "contained",
+    "reason": "Attested job launcher for portable contained and probe work on Windows: unnamed kill-on-close job with no breakaway, OS process cap, in-process spawn-rate stop and drain, final record on the control pipe; no per-launch reader process."
   },
   {
     "site": "src/host/backend/mcpJobLaunch.ts#import:1",

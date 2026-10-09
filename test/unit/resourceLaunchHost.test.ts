@@ -3,17 +3,20 @@ import { ResourceLaunchHost } from '../../src/core/resources/launchHost'
 import { ResourceGovernor } from '../../src/core/resources/governor'
 import { ResourceEvents } from '../../src/core/resources/events'
 import type { ResourceTreeBinding } from '../../src/core/resources/launch'
+import type { ResourceLaunchHostOptions } from '../../src/core/resources/launchHost'
 import {
   RESOURCE_TREE_PROCESS_CAP,
   RESOURCE_TREE_SPAWN_CAP,
   RESOURCE_TREE_SPAWN_WINDOW_MS,
   RESOURCE_FOREGROUND_WAIT_MS,
   RESOURCE_GIB_BYTES,
+  RESOURCE_DISPOSE_POLL_MS,
+  TREE_EXIT_WAIT_MS,
 } from '../../src/shared/constants'
 import { resourceSettingsSchema, type ResourceSample } from '../../src/shared/resources'
 import { FakeResourceClock, ScriptedResourceSampler } from './helpers/resources/fakes'
 
-function setup() {
+function setup(extra: Partial<ResourceLaunchHostOptions> = {}) {
   const clock = new FakeResourceClock()
   const steps: ResourceSample[] = []
   const errors = vi.fn()
@@ -49,6 +52,7 @@ function setup() {
     settings: () => settings,
     bindTree,
     onError: errors,
+    ...extra,
   })
   const read = async (changes: Partial<ResourceSample>) => {
     steps.push({
@@ -82,6 +86,20 @@ function setup() {
     setUnknown: () => {
       isUnknown = true
     },
+    errors,
+  }
+}
+
+const settle = async () => {
+  for (let index = 0; index < 5; index++)
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve)
+    })
+}
+function created() {
+  return {
+    finish: vi.fn(() => Promise.resolve()),
+    clean: vi.fn(() => Promise.resolve({ removed: 0, freedBytes: null })),
   }
 }
 
@@ -94,6 +112,39 @@ describe('C1 process admission and registration', () => {
     h.host.dispose()
     await Promise.resolve()
     expect(stop).toHaveBeenCalledOnce()
+  })
+  it('finishes the temp root only after a stopped tree is observed gone, even late', async () => {
+    const registry = created()
+    const h = setup({ created: registry })
+    const lease = await h.host.admit('toolShell')
+    lease.register({ pid: 700, profile: 'contained', group: true, stop: () => Promise.resolve() })
+    await settle()
+    h.host.dispose()
+    await settle()
+    // The stop was dispatched, but the tree is still there: nothing is finished yet.
+    expect(registry.finish).not.toHaveBeenCalled()
+    h.clock.advance(RESOURCE_DISPOSE_POLL_MS)
+    await settle()
+    expect(registry.finish).not.toHaveBeenCalled()
+    h.setGone()
+    h.clock.advance(RESOURCE_DISPOSE_POLL_MS)
+    await settle()
+    expect(registry.finish).toHaveBeenCalledOnce()
+    expect(h.errors).not.toHaveBeenCalled()
+  })
+  it('keeps a stopped tree that never goes as uncertain, reported, with its temp root', async () => {
+    const registry = created()
+    const h = setup({ created: registry })
+    const lease = await h.host.admit('toolShell')
+    lease.register({ pid: 700, profile: 'contained', group: true, stop: () => Promise.resolve() })
+    await settle()
+    h.host.dispose()
+    for (let elapsed = 0; elapsed <= TREE_EXIT_WAIT_MS; elapsed += RESOURCE_DISPOSE_POLL_MS) {
+      h.clock.advance(RESOURCE_DISPOSE_POLL_MS)
+      await settle()
+    }
+    expect(registry.finish).not.toHaveBeenCalled()
+    expect(h.errors).toHaveBeenCalled()
   })
   it('keeps an SDK root exit unknown while exact identity registration is still pending', async () => {
     const h = setup()

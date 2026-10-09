@@ -24,7 +24,12 @@ profile (`src/core/resources/process.ts`), and no call site chooses
 
 - `contained` (payloads, tools, helpers): pipes, its own POSIX process group
   (session) or a Windows job. Cancel, deadline, root exit and host disposal
-  stop the whole tree; disposal kills, it never only releases the lease.
+  stop the whole tree; disposal kills, and keeps ownership (and the temp root)
+  until the tree is observed gone. On Windows the job attests itself: the
+  helper holds the only handle to an unnamed kill-on-close job without
+  breakaway, the kernel enforces the process cap, the helper ends and drains
+  the job before it exits, and one final record carries the usage. A killed
+  helper closes that handle and the kernel ends the tree.
 - `probe` (bounded, read-only commands: Git ref and report reads, gh reads,
   birth and version probes): contained like the above but with no temp root,
   because it writes nothing. Each call site names it and the inventory records

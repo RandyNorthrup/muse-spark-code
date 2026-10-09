@@ -1,18 +1,20 @@
 import fs from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   inventoryTable,
   proveTestOnly,
+  readCorpus,
   scanSpawnSites,
 } from '../../scripts/lib/spawn-inventory.mjs'
 
 const root = path.resolve('.')
 const captured = {}
 const order = (left, right) => left.localeCompare(right)
-// Scan the source tree once, at the repository's own hook timeout.
-beforeAll(() => {
-  Object.assign(captured, scanSpawnSites(root))
+// Scan the source tree and read the test corpus once, at the repository's own hook timeout.
+beforeAll(async () => {
+  Object.assign(captured, scanSpawnSites(root, await readCorpus(root)))
 })
 
 describe('complete production process inventory', () => {
@@ -104,5 +106,82 @@ describe('complete production process inventory', () => {
           .map((cell) => cell.trim()),
       )
     expect(rows).toEqual(expected)
+  })
+})
+
+// RVSPAWN017C's probes: each construct is a site the guard must see.
+describe('inventory guard probes', () => {
+  const roots = []
+  afterAll(() => {
+    for (const folder of roots) fs.rmSync(folder, { recursive: true, force: true })
+  })
+  const fixture = (files) => {
+    const folder = fs.mkdtempSync(path.join(tmpdir(), 'l-SPAWN017C-guard-'))
+    roots.push(folder)
+    for (const [name, text] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(folder, name)), { recursive: true })
+      fs.writeFileSync(path.join(folder, name), text)
+    }
+    return folder
+  }
+
+  it('sees destructured and property launch aliases, process wrappers and worker programs', () => {
+    // The probe's program text interpolates a value: \`${code}\` inside its template.
+    const interpolation = ['$', '{code}'].join('')
+    const folder = fixture({
+      'src/probe.ts': [
+        "import * as cp from 'node:child_process'",
+        "import { spawn } from 'node:child_process'",
+        "import { execa } from 'execa'",
+        "import { Worker } from 'node:worker_threads'",
+        'export function reviewExtraLaunch() {',
+        '  const { spawn: launch } = { spawn }',
+        "  return launch(process.execPath, ['-e', 'process.exit(0)'])",
+        '}',
+        'export function viaProperty() {',
+        '  const run = cp.execFile',
+        "  return run(process.execPath, ['-v'])",
+        '}',
+        "export const wrapped = () => execa('node', ['-v'])",
+        'export function worker(code: string) {',
+        '  return new Worker(',
+        `    \`require("node:child_process").spawn(${interpolation})\`,`,
+        '    { eval: true },',
+        '  )',
+        '}',
+        '',
+      ].join('\n'),
+      'test/placeholder.test.ts': '',
+    })
+    const sites = scanSpawnSites(folder).sites.map((site) => site.site)
+    expect(sites).toEqual(
+      expect.arrayContaining([
+        'src/probe.ts#call:spawn:1',
+        'src/probe.ts#call:execFile:1',
+        'src/probe.ts#wrapper:1',
+        'src/probe.ts#worker:1',
+        'src/probe.ts#embedded:dynamic:1',
+      ]),
+    )
+  })
+
+  it('follows an aliased import of a test-only symbol to its production caller', () => {
+    const folder = fixture({
+      'src/driver.ts': [
+        "import { spawn } from 'node:child_process'",
+        "export function createNativeTeamProcessDriver() { return spawn('x', []) }",
+        '',
+      ].join('\n'),
+      'src/caller.ts': [
+        "import { createNativeTeamProcessDriver as createDriver } from './driver'",
+        'export const driver = createDriver()',
+        '',
+      ].join('\n'),
+      'test/driver.test.ts': 'createNativeTeamProcessDriver()\n',
+    })
+    const { program } = scanSpawnSites(folder)
+    expect(proveTestOnly(program, 'createNativeTeamProcessDriver', folder).references).toEqual([
+      'src/caller.ts:createDriver',
+    ])
   })
 })

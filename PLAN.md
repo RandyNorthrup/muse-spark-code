@@ -17,6 +17,21 @@ int0170-combined.md and the threat model. Aggregate quality and unrelated
 bundle caps remain with the lead; no hook, threshold, dependency, push,
 credential or live-model changes.
 
+**SPAWN017C Windows job attestation (2026-10-08, lead decision).** Portable
+contained and probe launches on Windows start no reader process: the helper
+holds the only handle to an unnamed kill-on-close job without breakaway,
+the kernel enforces ActiveProcessLimit, the helper counts the spawn rate
+from the job's own accounting, ends and drains the job to zero active
+processes before it exits, and reports one final record (CPU, peak job
+memory, process total) on the kept control pipe; a missing record is
+uncertain usage, never a refusal. PowerShell stays only for helper
+compilation and self-test, the extension's own MCP, shell, team and browser
+launchers, and runProgram probes. Measured on the win11 VM pinned to four
+CPUs: scheduleEvents.local real-Git 12.4 s before, 8.1 to 8.6 s after, at the
+unchanged 15 s deadline. RVSPAWN017C's four P2s are fixed in the same round
+(dispose ownership until observed exit, scanner aliases/wrappers/workers,
+alias-resolved test-only proof, caller deadline over shared preparation).
+
 **SPAWN017C gitRefs root cause (2026-10-08, win11; merged from
 rel017/spawn3).** Every bounded command was admitted as ordinary work with a
 helper-backed temp root: six native created-file round trips, needing a
