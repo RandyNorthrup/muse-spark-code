@@ -4436,6 +4436,7 @@
   "anthropicCodecToolArgumentsInvalid": "Les arguments des outils Anthropic doivent être un objet JSON.",
   "anthropicCodecEffortUnsupported": "Anthropic ne prend pas en charge ce niveau de raisonnement.",
   "chatCodecEffortUnsupported": "Le modèle sélectionné ne prend pas en charge ce niveau de raisonnement.",
+  "chatCodecThinkingOffUnsupported": "Le modèle sélectionné ne permet pas de désactiver le raisonnement.",
   "anthropicCodecEmptyTurn": "Anthropic nécessite au moins un message.",
   "anthropicCodecLimitExceeded": "La réponse d’Anthropic a dépassé une limite de décodage.",
   "modelsEmpty": "Aucun fournisseur de modèles pour l’instant. Ajoutez-en un pour utiliser vos propres modèles.",

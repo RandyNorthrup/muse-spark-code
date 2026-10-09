@@ -4320,6 +4320,7 @@
   "anthropicCodecToolArgumentsInvalid": "Anthropic araç bağımsız değişkenleri bir JSON nesnesi olmalıdır.",
   "anthropicCodecEffortUnsupported": "Anthropic bu akıl yürütme düzeyini desteklemiyor.",
   "chatCodecEffortUnsupported": "Seçili model bu akıl yürütme düzeyini desteklemiyor.",
+  "chatCodecThinkingOffUnsupported": "Seçili modelde düşünme kapatılamaz.",
   "anthropicCodecEmptyTurn": "Anthropic en az bir ileti gerektirir.",
   "anthropicCodecLimitExceeded": "Anthropic yanıtı bir kod çözme sınırını aştı.",
   "modelsEmpty": "Henüz model sağlayıcı yok. Kendi modellerinizi kullanmak için ekleyin.",

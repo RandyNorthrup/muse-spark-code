@@ -8,7 +8,6 @@ import type { CreateResponseBody, Usage } from './schemas'
 import { estimateCostUsd } from '../../usage/insights'
 import {
   MODEL_API_BASE_URL,
-  MODEL_API_EFFORT_OFF,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
   MODEL_API_MODEL_PREFIX,
@@ -19,7 +18,7 @@ import {
 import type { ModelCapabilities } from '../../providers/capabilities'
 import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
 
-import { effortLevelsFor } from '../../../shared/effort'
+import { effortLevelsFor, resolveReasoning } from '../../../shared/effort'
 import { modelApiPaidTier } from '../../../shared/paid'
 
 /** The configured provider and exact model that produced opaque reasoning. */
@@ -45,6 +44,8 @@ export interface ModelPolicyEvidence {
   readonly maxOutputTokens?: number | undefined
   readonly effortLevels?: readonly string[] | undefined
   readonly canDisableReasoning?: boolean | undefined
+  /** The preset's documented Thinking-off switch (lane DSTHINK3). */
+  readonly thinkingOff?: 'thinking-switch' | undefined
   readonly webSearch?: boolean | undefined
   readonly pricing?: ModelPricing | undefined
 }
@@ -55,6 +56,7 @@ export interface ModelPolicy {
   readonly reasoning: {
     readonly effortLevels: Known<readonly string[]>
     readonly canDisable: Known<true>
+    readonly thinkingOff?: 'thinking-switch' | undefined
   }
   readonly output: { readonly maxTokens?: number | undefined }
   readonly hosted: { readonly webSearch: Known<true> }
@@ -109,6 +111,7 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
     reasoning: {
       effortLevels: levels === undefined ? { state: 'unknown' } : { state: 'yes', value: levels },
       canDisable: knownFlag(isMeta || evidence.canDisableReasoning),
+      ...(!isMeta && evidence.thinkingOff !== undefined && { thinkingOff: evidence.thinkingOff }),
     },
     output: {
       maxTokens: isMeta ? MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS : evidence.maxOutputTokens,
@@ -125,21 +128,27 @@ export function outputLimitFor(policy: ModelPolicy, ceiling: number): number {
 }
 
 /**
- * Never invent a Thinking-off request. A listed effort rides as named. The
- * two toggle-off spellings (`none`, and Meta's `minimal` on a model that
- * cannot express it) stay an explicit off. Any other unlisted effort rides
- * through so the codec refuses it with the typed reason instead of silently
- * disabling thinking (lane FIXDSTHINK2 finding 1).
+ * The selected model's request effort, from the one resolver (lane
+ * DSTHINK3). Off sends `none`; without a declared switch so does anything
+ * unlisted, exactly as before. With one, a default or refused setting rides
+ * unchanged to the model's codec, which resolves it again from the same
+ * record: nothing is sent, or the typed refusal is raised before dispatch.
  */
 export function effortForPolicy(policy: ModelPolicy, requested: string): string {
   if (policy.identity.provider === 'meta') {
     return requested === 'none' ? 'minimal' : requested
   }
-  const levels = policy.reasoning.effortLevels
-  if (levels.state === 'yes' && levels.value.includes(requested)) return requested
-  return requested === THINKING_OFF_EFFORT || requested === MODEL_API_EFFORT_OFF
-    ? THINKING_OFF_EFFORT
-    : requested
+  const { effortLevels, canDisable, thinkingOff } = policy.reasoning
+  const decision = resolveReasoning(
+    {
+      effortLevels: effortLevels.state === 'yes' ? effortLevels.value : undefined,
+      canDisable: canDisable.state === 'yes',
+      thinkingOff,
+    },
+    requested,
+  )
+  if (decision.kind === 'effort') return decision.effort
+  return thinkingOff === undefined || decision.kind === 'off' ? THINKING_OFF_EFFORT : requested
 }
 
 /** Price-card operations run in the lazy provider bundle. Unpriced is never zero. */

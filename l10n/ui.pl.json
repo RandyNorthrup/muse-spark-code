@@ -4552,6 +4552,7 @@
   "anthropicCodecToolArgumentsInvalid": "Argumenty narzędzi Anthropic muszą być obiektem JSON.",
   "anthropicCodecEffortUnsupported": "Anthropic nie obsługuje tego poziomu rozumowania.",
   "chatCodecEffortUnsupported": "Wybrany model nie obsługuje tego poziomu rozumowania.",
+  "chatCodecThinkingOffUnsupported": "W wybranym modelu nie można wyłączyć rozumowania.",
   "anthropicCodecEmptyTurn": "Anthropic wymaga co najmniej jednej wiadomości.",
   "anthropicCodecLimitExceeded": "Odpowiedź Anthropic przekroczyła limit dekodowania.",
   "modelsEmpty": "Nie ma jeszcze dostawców modeli. Dodaj jednego, aby używać własnych modeli.",

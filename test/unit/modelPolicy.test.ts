@@ -48,37 +48,59 @@ describe('resolved model policy', () => {
     expect(modelPolicyFor(ref, { webSearch: true }).hosted.webSearch.state).toBe('unknown')
     expect(policy.output.maxTokens).toBeUndefined()
     expect(policy.pricing.kind).toBe('unpriced')
-    // Lane FIXDSTHINK2: an unlisted Thinking-on effort rides through for the
-    // codec's typed refusal instead of becoming a Thinking-off request.
-    expect(effortForPolicy(policy, 'high')).toBe('high')
-    expect(effortForPolicy(policy, 'none')).toBe('none')
+    expect(effortForPolicy(policy, 'high')).toBe('none')
   })
 
   it('uses the selected model output ceiling and native effort tiers', () => {
     const policy = modelPolicyFor(ref, { maxOutputTokens: 100, effortLevels: ['low', 'high'] })
     expect(outputLimitFor(policy, MODEL_API_MAX_OUTPUT_TOKENS)).toBe(100)
     expect(effortForPolicy(policy, 'high')).toBe('high')
-    // Lane FIXDSTHINK2: unlisted on-efforts are refused downstream, never off.
-    expect(effortForPolicy(policy, 'xhigh')).toBe('xhigh')
-    expect(effortForPolicy(policy, 'none')).toBe('none')
-    expect(effortForPolicy(policy, 'minimal')).toBe('none')
+    expect(effortForPolicy(policy, 'xhigh')).toBe('none')
     expect(modelPolicyFor(ref, { capabilities: { toolCalling: false } }).tools.calling.state).toBe(
       'no',
     )
   })
 
-  it('keeps a listed minimal effort and maps the off spellings on a DeepSeek-like policy', () => {
+  it('resolves a declared Thinking-off switch from the record, never by name', () => {
+    // Lane DSTHINK3: only the preset's declared switch changes the mapping.
     const deepseek = modelPolicyFor('deepseek/deepseek-flash', {
       effortLevels: ['low', 'high', 'max'],
+      canDisableReasoning: true,
+      thinkingOff: 'thinking-switch',
     })
     expect(effortForPolicy(deepseek, 'high')).toBe('high')
-    expect(effortForPolicy(deepseek, 'medium')).toBe('medium')
+    expect(effortForPolicy(deepseek, 'medium')).toBe('high')
+    expect(effortForPolicy(deepseek, 'minimal')).toBe('low')
     expect(effortForPolicy(deepseek, 'none')).toBe('none')
-    expect(effortForPolicy(deepseek, 'minimal')).toBe('none')
+    // Refused and default settings ride unchanged to the codec's resolver.
+    expect(
+      effortForPolicy(
+        { ...deepseek, reasoning: { ...deepseek.reasoning, canDisable: { state: 'no' } } },
+        'none',
+      ),
+    ).toBe('none')
+    expect(
+      effortForPolicy(
+        modelPolicyFor('deepseek/deepseek-flash', {
+          effortLevels: [],
+          thinkingOff: 'thinking-switch',
+        }),
+        'high',
+      ),
+    ).toBe('high')
+    // Same name, no declared switch: the base mapping.
+    const named = modelPolicyFor('deepseek/deepseek-flash', {
+      effortLevels: ['low', 'high', 'max'],
+    })
+    expect(effortForPolicy(named, 'medium')).toBe('none')
+    expect(named.reasoning).not.toHaveProperty('thinkingOff')
     const openai = modelPolicyFor('openai/gpt-5-nano', {
       effortLevels: ['minimal', 'low', 'medium', 'high'],
     })
     expect(effortForPolicy(openai, 'minimal')).toBe('minimal')
+    expect(
+      modelPolicyFor('muse-spark-1.3', { thinkingOff: 'thinking-switch' }).reasoning,
+    ).not.toHaveProperty('thinkingOff')
   })
 
   it('retains the exact Meta output cap and effort mapping', () => {

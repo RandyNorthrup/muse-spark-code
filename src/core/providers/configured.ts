@@ -439,6 +439,7 @@ export function createConfiguredProviderServices(
             maxOutputTokens:
               entry.modelLimits?.[nativeModel]?.outputTokens ?? record.output.maxTokens,
             canDisableReasoning: record.reasoning.canDisable.state === 'yes',
+            thinkingOff: preset.quirks.thinkingOff,
           },
           pricing,
           displayLabel: typeof native?.['name'] === 'string' ? native['name'] : nativeModel,
@@ -474,11 +475,15 @@ export function createConfiguredProviderServices(
           ? 'max_completion_tokens'
           : 'max_tokens',
       reasoningParam,
-      // DeepSeek's declared thinking-off switch (presets.ts); the model's
-      // own declared effort levels gate any other effort at the codec.
-      ...(preset.quirks.thinkingOff !== undefined && { thinkingOff: preset.quirks.thinkingOff }),
-      ...(record.reasoning.effortLevels.state === 'yes' && {
-        effortLevels: record.reasoning.effortLevels.value,
+      // A preset's declared Thinking-off switch (presets.ts) hands the codec
+      // the record facts the shared resolver maps every effort with.
+      ...(preset.quirks.thinkingOff !== undefined && {
+        thinkingOff: preset.quirks.thinkingOff,
+        effortLevels:
+          record.reasoning.effortLevels.state === 'yes'
+            ? record.reasoning.effortLevels.value
+            : undefined,
+        canDisable: record.reasoning.canDisable.state === 'yes',
       }),
       sendCacheKey: record.cache.acceptsKey,
       includeUsage: true,

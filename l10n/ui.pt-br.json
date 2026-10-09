@@ -4436,6 +4436,7 @@
   "anthropicCodecToolArgumentsInvalid": "Os argumentos das ferramentas da Anthropic devem ser um objeto JSON.",
   "anthropicCodecEffortUnsupported": "A Anthropic não aceita este nível de raciocínio.",
   "chatCodecEffortUnsupported": "O modelo selecionado não aceita este nível de raciocínio.",
+  "chatCodecThinkingOffUnsupported": "O modelo selecionado não permite desativar o raciocínio.",
   "anthropicCodecEmptyTurn": "A Anthropic exige pelo menos uma mensagem.",
   "anthropicCodecLimitExceeded": "A resposta da Anthropic excedeu um limite de decodificação.",
   "modelsEmpty": "Ainda não há provedores de modelos. Adicione um para usar seus próprios modelos.",

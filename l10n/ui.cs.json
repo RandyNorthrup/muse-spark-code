@@ -4552,6 +4552,7 @@
   "anthropicCodecToolArgumentsInvalid": "Argumenty nástroje Anthropic musí být objekt JSON.",
   "anthropicCodecEffortUnsupported": "Anthropic tuto úroveň uvažování nepodporuje.",
   "chatCodecEffortUnsupported": "Vybraný model tuto úroveň uvažování nepodporuje.",
+  "chatCodecThinkingOffUnsupported": "U vybraného modelu nelze uvažování vypnout.",
   "anthropicCodecEmptyTurn": "Anthropic vyžaduje alespoň jednu zprávu.",
   "anthropicCodecLimitExceeded": "Odpověď Anthropic překročila limit dekódování.",
   "modelsEmpty": "Zatím žádní poskytovatelé modelů. Přidejte jednoho, abyste mohli používat vlastní modely.",

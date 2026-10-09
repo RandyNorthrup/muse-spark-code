@@ -29,6 +29,7 @@ import {
   THINKING_OFF_EFFORT,
   UI_TEXT,
 } from '../../../../shared/constants'
+import { resolveReasoning } from '../../../../shared/effort'
 import { cleanWireText, isBlankWireText, nativeCallId, type CallIdFormat } from './shared'
 export { parseNativeModelsList as parseChatModelsList } from '../../../providers/modelMetadata'
 import type {
@@ -78,19 +79,16 @@ export interface ChatPresetQuirks {
    */
   readonly effortMap?: Readonly<Record<string, string>> | undefined
   /**
-   * How effort `none` (Thinking off) reaches the wire: the preset's
-   * declared thinking-off switch sends `thinking: {type: "disabled"}`
-   * and omits the effort parameter. Absent keeps the preset's existing
-   * bytes. Lane P fills this from `presets.ts`.
+   * The preset's documented Thinking-off switch: `thinking: {type:
+   * "disabled"}` with no effort parameter. When set, the shared resolver
+   * (`resolveReasoning`) maps every effort with the two record facts below.
+   * Absent keeps the preset's existing bytes.
    */
   readonly thinkingOff?: 'thinking-switch' | undefined
-  /**
-   * The selected model's declared effort levels, from its capability
-   * record (lane P fills this). A non-`none` effort the list cannot
-   * express is refused rather than sent unlisted. Absent (a direct
-   * caller with no record) sends the effort as it came.
-   */
+  /** The selected model's declared effort levels (capability record). */
   readonly effortLevels?: readonly string[] | undefined
+  /** The selected model's record affirms Thinking can be disabled. */
+  readonly canDisable?: boolean | undefined
   /** Send `prompt_cache_key` (Mistral, Fireworks in the captures). */
   readonly sendCacheKey: boolean
   /** Send `stream_options: {include_usage: true}` (every capture). */
@@ -644,23 +642,31 @@ function nativeReasoning(
   body: CreateResponseBody,
   quirks: ChatPresetQuirks,
 ): Pick<ChatCompletionRequest, 'reasoning' | 'reasoning_effort' | 'thinking'> {
-  // The declared thinking-off switch does not depend on an effort-level
-  // list: a toggle-only model (no numeric effort control) still sends it
-  // (lane FIXDSTHINK2 finding 2).
-  if (body.reasoning.effort === THINKING_OFF_EFFORT && quirks.thinkingOff === 'thinking-switch') {
-    return { thinking: { type: 'disabled' } }
+  let requested = body.reasoning.effort
+  if (quirks.thinkingOff !== undefined) {
+    const decision = resolveReasoning(
+      {
+        effortLevels: quirks.effortLevels,
+        canDisable: quirks.canDisable === true,
+        thinkingOff: quirks.thinkingOff,
+      },
+      requested,
+    )
+    if (decision.kind === 'off') return { thinking: { type: 'disabled' } }
+    if (decision.kind === 'default') return {}
+    if (decision.kind === 'refuse') {
+      const reason =
+        requested === THINKING_OFF_EFFORT
+          ? UI_TEXT.chatCodecThinkingOffUnsupported
+          : UI_TEXT.chatCodecEffortUnsupported
+      throw new ChatCodecError(`${reason} (${decision.code})`)
+    }
+    requested = decision.effort
   }
   if (quirks.reasoningParam === 'none') {
     return {}
   }
-  const effort = quirks.effortMap?.[body.reasoning.effort] ?? body.reasoning.effort
-  if (
-    body.reasoning.effort !== THINKING_OFF_EFFORT &&
-    quirks.effortLevels !== undefined &&
-    !quirks.effortLevels.includes(effort)
-  ) {
-    throw new ChatCodecError(`${UI_TEXT.chatCodecEffortUnsupported} (unsupported_reasoning_effort)`)
-  }
+  const effort = quirks.effortMap?.[requested] ?? requested
   return quirks.reasoningParam === 'effort-object'
     ? { reasoning: { effort } }
     : { reasoning_effort: effort }

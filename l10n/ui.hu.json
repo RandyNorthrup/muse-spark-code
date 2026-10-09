@@ -4320,6 +4320,7 @@
   "anthropicCodecToolArgumentsInvalid": "Az Anthropic eszközargumentumainak JSON-objektumnak kell lenniük.",
   "anthropicCodecEffortUnsupported": "Az Anthropic nem támogatja ezt a gondolkodási szintet.",
   "chatCodecEffortUnsupported": "A kiválasztott modell nem támogatja ezt a gondolkodási szintet.",
+  "chatCodecThinkingOffUnsupported": "A kiválasztott modellnél a gondolkodás nem kapcsolható ki.",
   "anthropicCodecEmptyTurn": "Az Anthropic legalább egy üzenetet igényel.",
   "anthropicCodecLimitExceeded": "Az Anthropic válasza túllépte a dekódolási korlátot.",
   "modelsEmpty": "Még nincsenek modellszolgáltatók. Adjon hozzá egyet saját modellek használatához.",

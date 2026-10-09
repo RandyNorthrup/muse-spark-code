@@ -4320,6 +4320,7 @@
   "anthropicCodecToolArgumentsInvalid": "Werkzeugargumente für Anthropic müssen ein JSON-Objekt sein.",
   "anthropicCodecEffortUnsupported": "Diese Denkintensität wird von Anthropic nicht unterstützt.",
   "chatCodecEffortUnsupported": "Diese Denkintensität wird vom ausgewählten Modell nicht unterstützt.",
+  "chatCodecThinkingOffUnsupported": "Beim ausgewählten Modell lässt sich das Denken nicht ausschalten.",
   "anthropicCodecEmptyTurn": "Anthropic benötigt mindestens eine Nachricht.",
   "anthropicCodecLimitExceeded": "Die Antwort von Anthropic hat ein Dekodierungslimit überschritten.",
   "modelsEmpty": "Noch keine Modellanbieter. Fügen Sie einen hinzu, um Ihre eigenen Modelle zu verwenden.",

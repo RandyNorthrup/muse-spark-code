@@ -19,6 +19,7 @@ import { formatStoredProviderSecret } from '../../src/runtime/keyStore'
 import {
   providerEntrySchema,
   writeProvidersFileAtomic,
+  type ProviderEntry,
 } from '../../src/core/providers/providersFile'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { effortForPolicy } from '../../src/core/backends/modelapi/modelPolicy'
@@ -99,6 +100,79 @@ const response = (bytes: Uint8Array, status = 200) => ({
   })(),
   close: vi.fn(),
 })
+async function anthropicStream() {
+  const parsed = z
+    .object({
+      response: z.object({ events: z.array(z.object({ event: z.string(), data: z.json() })) }),
+    })
+    .parse(
+      JSON.parse(
+        await readFile(
+          path.join('docs/certification/m95-captures/anthropic', '04-tool-result-stream.json'),
+          'utf8',
+        ),
+      ),
+    )
+  return Buffer.from(
+    parsed.response.events
+      .map((event) => `event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`)
+      .join(''),
+  )
+}
+
+async function providerFixture(entry: ProviderEntry, payload: () => Promise<Buffer>) {
+  const f = await fixture()
+  await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+  await f.secrets.store(
+    `${PROVIDER_SECRET_PREFIX}${entry.id}`,
+    formatStoredProviderSecret(
+      { v: 1, auth: 'apiKey', origin: new URL(entry.address ?? '').origin },
+      'test-owned-key',
+    ),
+  )
+  const sent: Record<string, unknown>[] = []
+  const send: NonNullable<ConfiguredProviderOptions['send']> = async (_target, bytes) => {
+    if (bytes !== undefined) sent.push(JSON.parse(bytes) as Record<string, unknown>)
+    return response(await payload())
+  }
+  const services = createConfiguredProviderServices(undefined, {
+    ...f,
+    resolve: () => Promise.resolve(['8.8.8.8']),
+    send,
+  })
+  return { services, sent }
+}
+/** One real ModelApiHost turn at `effort` over the configured client. */
+async function hostTurn(
+  services: ReturnType<typeof createConfiguredProviderServices>,
+  ref: string,
+  effort: string,
+) {
+  const host = new ModelApiHost({
+    ...fakeModelApiHostDeps({
+      client: services.client,
+      io: memoryToolIo({}, '/workspace'),
+      log: new FakeLogOutputChannel(),
+      workspaceRoot: '/workspace',
+    }),
+    models: services.client.models,
+  })
+  try {
+    const session = await host.startSession({
+      modelId: ref,
+      approvalMode: 'allowAll',
+      workspaceRoot: '/workspace',
+    })
+    await session.setReasoningEffort(effort)
+    const watch = watchSessionTurns(session)
+    const done = watch.turnDone()
+    await session.sendTurn([{ type: 'text', text: 'Hi.' }])
+    await done
+    return watch.events
+  } finally {
+    await host.close()
+  }
+}
 async function fixture() {
   const root = await mkdtemp(path.join(tmpdir(), 'm95-configured-'))
   roots.push(root)
@@ -623,7 +697,7 @@ describe('configured provider production transport', () => {
     expect(old.isCurrent()).toBe(false)
   })
 
-  describe('DeepSeek Thinking-off production path (lane FIXDSTHINK2)', () => {
+  describe('reasoning resolver production path (lane DSTHINK3)', () => {
     const DEEPSEEK_ENTRY = providerEntrySchema.parse({
       id: 'deepseek',
       preset: 'deepseek',
@@ -633,103 +707,125 @@ describe('configured provider production transport', () => {
       models: ['deepseek-flash'],
     })
     const DEEPSEEK_REF = 'deepseek/deepseek-flash'
-    async function deepseekFixture(overrides?: typeof DEEPSEEK_ENTRY.modelCapabilities) {
-      const f = await fixture()
-      const entry =
+    const HAIKU_ENTRY = providerEntrySchema.parse({
+      id: 'anthropic',
+      preset: 'anthropic',
+      address: 'https://api.anthropic.com',
+      format: 'anthropic',
+      auth: 'apiKey',
+      models: ['claude-haiku-4-5'],
+      // RVDSTHINK2 finding 1: a valid output ceiling below Haiku's 1,024-token
+      // minimum thinking budget.
+      modelLimits: { 'claude-haiku-4-5': { contextTokens: 200_000, outputTokens: 512 } },
+    })
+    const HAIKU_REF = 'anthropic/claude-haiku-4-5'
+    const THINKING_LOCKED = {
+      'deepseek-flash': {
+        reasoning: {
+          effortLevels: { state: 'no' },
+          canDisable: { state: 'no' },
+          forced: { state: 'yes', value: true },
+        },
+      },
+    } as const
+    const TOGGLE_ONLY = {
+      'deepseek-flash': {
+        reasoning: {
+          effortLevels: { state: 'no' },
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    } as const
+
+    const deepseekFixture = (overrides?: unknown) =>
+      providerFixture(
         overrides === undefined
           ? DEEPSEEK_ENTRY
-          : providerEntrySchema.parse({ ...DEEPSEEK_ENTRY, modelCapabilities: overrides })
-      await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
-      await f.secrets.store(
-        `${PROVIDER_SECRET_PREFIX}${entry.id}`,
-        formatStoredProviderSecret(
-          { v: 1, auth: 'apiKey', origin: new URL(entry.address ?? '').origin },
-          'test-owned-key',
-        ),
+          : providerEntrySchema.parse({ ...DEEPSEEK_ENTRY, modelCapabilities: overrides }),
+        deepseekStream,
       )
-      const sent: string[] = []
-      const send: NonNullable<ConfiguredProviderOptions['send']> = async (_target, bytes) => {
-        if (bytes !== undefined) sent.push(bytes)
-        return response(await deepseekStream())
-      }
-      const services = createConfiguredProviderServices(undefined, {
-        ...f,
-        resolve: () => Promise.resolve(['8.8.8.8']),
-        send,
-      })
-      return { f, services, sent }
-    }
 
-    async function streamEffort(
-      fixed: Awaited<ReturnType<typeof deepseekFixture>>,
-      effort: string,
-    ): Promise<Record<string, unknown>> {
-      const model = await fixed.services.registry.resolve(DEEPSEEK_REF)
-      const events = await consume(
-        model.client.streamResponse(
-          { ...body(), model: DEEPSEEK_REF, reasoning: { effort } },
-          new AbortController().signal,
-        ),
-      )
-      expect(events).toContainEqual(expect.objectContaining({ type: 'response.completed' }))
-      return JSON.parse(fixed.sent.at(-1) ?? '') as Record<string, unknown>
-    }
+    const completed = expect.objectContaining({ type: 'turnCompleted', terminal: 'completed' })
 
-    it('refuses an unlisted Thinking-on effort instead of sending a Thinking-off request', async () => {
-      // Finding 1 through the resolved configured client: the ModelApiHost
-      // step (effortForPolicy) must not convert `medium` into `none`, and the
-      // dispatched wire must never carry the disabled switch for it.
+    it('maps an unlisted Thinking-on effort to the nearest listed level, never to off', async () => {
+      // RVDSTHINK finding 1: catalogue DeepSeek `[low, high, max]` at `medium`.
       const { services, sent } = await deepseekFixture()
+      expect(await hostTurn(services, DEEPSEEK_REF, 'medium')).toContainEqual(completed)
+      expect(sent).toHaveLength(1)
+      expect(sent[0]).toMatchObject({ model: 'deepseek-flash', reasoning_effort: 'high' })
+      expect(sent[0]).not.toHaveProperty('thinking')
+    })
+
+    it('sends Thinking off as the switch and a listed level as named', async () => {
+      const { services, sent } = await deepseekFixture()
+      expect(await hostTurn(services, DEEPSEEK_REF, 'none')).toContainEqual(completed)
+      expectDisabledSwitch(sent[0] ?? {})
+      expect(await hostTurn(services, DEEPSEEK_REF, 'max')).toContainEqual(completed)
+      expect(sent[1]).toMatchObject({ reasoning_effort: 'max' })
+      expect(sent[1]).not.toHaveProperty('thinking')
+    })
+
+    it('sends the switch for a toggle-only override and nothing for Thinking on', async () => {
+      // RVDSTHINK finding 2: canDisable yes with effortLevels no.
+      const { services, sent } = await deepseekFixture(TOGGLE_ONLY)
+      expect(await hostTurn(services, DEEPSEEK_REF, 'none')).toContainEqual(completed)
+      expectDisabledSwitch(sent[0] ?? {})
+      expect(sent[0]).not.toHaveProperty('reasoning')
+      expect(await hostTurn(services, DEEPSEEK_REF, 'high')).toContainEqual(completed)
+      for (const field of ['thinking', 'reasoning_effort', 'reasoning'])
+        expect(sent[1]).not.toHaveProperty(field)
+    })
+
+    it('refuses Thinking off on a model that forbids disabling, with no dispatch', async () => {
+      // RVDSTHINK2 finding 2, through the host and the resolved client.
+      const { services, sent } = await deepseekFixture(THINKING_LOCKED)
       const model = await services.registry.resolve(DEEPSEEK_REF)
-      const effort = effortForPolicy(model.policy, 'medium')
-      expect(effort).toBe('medium')
-      let failure: unknown
-      try {
-        await consume(
-          model.client.streamResponse(
-            { ...body(), model: DEEPSEEK_REF, reasoning: { effort } },
-            new AbortController().signal,
-          ),
-        )
-      } catch (error) {
-        failure = error
+      expect(model.policy.reasoning.canDisable.state).toBe('no')
+      const events = await hostTurn(services, DEEPSEEK_REF, 'none')
+      expect(sent).toHaveLength(0)
+      expect(JSON.stringify(events)).toContain(
+        `${UI_TEXT.chatCodecThinkingOffUnsupported} (unsupported_reasoning_effort)`,
+      )
+      expect(events).not.toContainEqual(completed)
+      expect(await hostTurn(services, DEEPSEEK_REF, 'high')).toContainEqual(completed)
+      expect(sent[0]).not.toHaveProperty('thinking')
+    })
+
+    it('keeps the typed refusal and its translated reason through the configured client', async () => {
+      // RVDSTHINK finding 3: no generic unavailable error, no dispatch.
+      const { services, sent } = await deepseekFixture(THINKING_LOCKED)
+      const model = await services.registry.resolve(DEEPSEEK_REF)
+      for (const [effort, reason] of [
+        ['none', UI_TEXT.chatCodecThinkingOffUnsupported],
+        ['ultra', UI_TEXT.chatCodecEffortUnsupported],
+      ] as const) {
+        let failure: unknown
+        try {
+          await consume(
+            model.client.streamResponse(
+              { ...body(), model: DEEPSEEK_REF, reasoning: { effort } },
+              new AbortController().signal,
+            ),
+          )
+        } catch (error) {
+          failure = error
+        }
+        expect(failure).toBeInstanceOf(Error)
+        expect((failure as Error).name).toBe('ChatCodecError')
+        expect((failure as Error).message).toBe(`${reason} (unsupported_reasoning_effort)`)
       }
       expect(sent).toHaveLength(0)
-      expect(failure).toBeInstanceOf(Error)
-      expect((failure as Error).name).toBe('ChatCodecError')
-      expect((failure as Error).message).toContain('unsupported_reasoning_effort')
-      expect((failure as Error).message).toContain(UI_TEXT.chatCodecEffortUnsupported)
     })
 
-    it('keeps an explicit Thinking-off request on the thinking switch', async () => {
-      const fixed = await deepseekFixture()
-      const model = await fixed.services.registry.resolve(DEEPSEEK_REF)
-      expect(effortForPolicy(model.policy, 'none')).toBe('none')
-      const wire = await streamEffort(fixed, 'none')
-      expect(fixed.sent).toHaveLength(1)
-      expectDisabledSwitch(wire)
-      const onWire = await streamEffort(fixed, 'high')
-      expect(onWire).toMatchObject({ reasoning_effort: 'high' })
-      expect(onWire).not.toHaveProperty('thinking')
-    })
-
-    it('sends the disabled switch for a toggle-only override with no effort list', async () => {
-      // Finding 2 through production schemas: canDisable yes plus an explicit
-      // effortLevels no still carries the declared off toggle.
-      const fixed = await deepseekFixture({
-        'deepseek-flash': {
-          reasoning: {
-            effortLevels: { state: 'no' },
-            canDisable: { state: 'yes', value: true },
-          },
-        },
-      })
-      const model = await fixed.services.registry.resolve(DEEPSEEK_REF)
-      expect(model.policy.reasoning.canDisable.state).toBe('yes')
-      const wire = await streamEffort(fixed, 'none')
-      expect(fixed.sent).toHaveLength(1)
-      expectDisabledSwitch(wire)
-      expect(wire).not.toHaveProperty('reasoning')
+    it('keeps a short Haiku reply at the default effort working as before', async () => {
+      // RVDSTHINK2 finding 1: no thinking budget is added above the 512 cap.
+      const { services, sent } = await providerFixture(HAIKU_ENTRY, anthropicStream)
+      const model = await services.registry.resolve(HAIKU_REF)
+      expect(effortForPolicy(model.policy, 'high')).toBe('none')
+      expect(await hostTurn(services, HAIKU_REF, 'high')).toContainEqual(completed)
+      expect(sent).toHaveLength(1)
+      expect(sent[0]).toMatchObject({ model: 'claude-haiku-4-5', max_tokens: 512 })
+      expect(sent[0]).not.toHaveProperty('thinking')
     })
   })
 

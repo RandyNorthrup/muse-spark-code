@@ -219,6 +219,7 @@ const DEEPSEEK_DECLARED: ChatPresetQuirks = {
   ...DEEPSEEK,
   thinkingOff: 'thinking-switch',
   effortLevels: ['low', 'high', 'max'],
+  canDisable: true,
 }
 
 // --- canonical bodies rebuilt from a capture's own request ---
@@ -771,23 +772,42 @@ describe('chat codec request goldens', () => {
     expect(encoded.body).not.toHaveProperty('thinking')
   })
 
-  it('refuses an effort the declared list cannot express instead of sending it', () => {
-    const expected = `${UI_TEXT.chatCodecEffortUnsupported} (unsupported_reasoning_effort)`
-    const flat = tinyBody({ reasoning: { effort: 'medium', summary: 'auto' } })
-    expect(() => encodeChatRequest(flat, 'deepseek-flash', DEEPSEEK_DECLARED)).toThrow(expected)
+  it('maps an unlisted Thinking-on effort to the nearest listed level, never to off', () => {
+    // Lane DSTHINK3: the shared resolver; a tie takes the higher level.
+    for (const [requested, sent] of [
+      ['medium', 'high'],
+      ['minimal', 'low'],
+      ['xhigh', 'max'],
+    ] as const) {
+      const encoded = encodeChatRequest(
+        tinyBody({ reasoning: { effort: requested, summary: 'auto' } }),
+        'deepseek-flash',
+        DEEPSEEK_DECLARED,
+      )
+      expect(encoded.body.reasoning_effort).toBe(sent)
+      expect(encoded.body).not.toHaveProperty('thinking')
+    }
+  })
+
+  it('refuses an unknown effort and Thinking off where the model forbids it', () => {
+    const unknown = tinyBody({ reasoning: { effort: 'ultra', summary: 'auto' } })
+    expect(() => encodeChatRequest(unknown, 'deepseek-flash', DEEPSEEK_DECLARED)).toThrow(
+      `${UI_TEXT.chatCodecEffortUnsupported} (unsupported_reasoning_effort)`,
+    )
+    const off = tinyBody({ reasoning: { effort: 'none', summary: 'auto' } })
+    const locked: ChatPresetQuirks = { ...DEEPSEEK_DECLARED, canDisable: false }
+    expect(() => encodeChatRequest(off, 'deepseek-flash', locked)).toThrow(
+      `${UI_TEXT.chatCodecThinkingOffUnsupported} (unsupported_reasoning_effort)`,
+    )
     try {
-      encodeChatRequest(flat, 'deepseek-flash', DEEPSEEK_DECLARED)
+      encodeChatRequest(off, 'deepseek-flash', locked)
       expect.unreachable()
     } catch (error) {
       expect(error).toBeInstanceOf(Error)
       expect((error as Error).name).toBe('ChatCodecError')
     }
-    const declared: ChatPresetQuirks = {
-      ...OPENROUTER,
-      effortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
-    }
-    const nested = tinyBody({ reasoning: { effort: 'ultra', summary: 'auto' } })
-    expect(() => encodeChatRequest(nested, 'm', declared)).toThrow(expected)
+    // A preset without the switch keeps the base behaviour for any effort.
+    expect(encodeChatRequest(unknown, 'm', OPENROUTER).body.reasoning).toEqual({ effort: 'ultra' })
   })
 
   it('keeps presets without the switch byte-identical with Thinking off', () => {
@@ -805,6 +825,7 @@ describe('chat codec request goldens', () => {
       ...DEEPSEEK,
       reasoningParam: 'none',
       thinkingOff: 'thinking-switch',
+      canDisable: true,
     }
     const off = tinyBody({ reasoning: { effort: 'none', summary: 'auto' } })
     const encoded = encodeChatRequest(off, 'deepseek-flash', quirks)

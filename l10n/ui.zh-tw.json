@@ -4204,6 +4204,7 @@
   "anthropicCodecToolArgumentsInvalid": "Anthropic 工具參數必須是 JSON 物件。",
   "anthropicCodecEffortUnsupported": "Anthropic 不支援此推理等級。",
   "chatCodecEffortUnsupported": "所選模型不支援此推理等級。",
+  "chatCodecThinkingOffUnsupported": "所選模型無法關閉思考。",
   "anthropicCodecEmptyTurn": "Anthropic 至少需要一則訊息。",
   "anthropicCodecLimitExceeded": "Anthropic 回應超出了一個解碼限制。",
   "modelsEmpty": "尚無模型供應商。新增一個以使用自己的模型。",
