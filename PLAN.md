@@ -20270,6 +20270,29 @@ github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
 | Q Qualification (lead)     | The F36 conformance scenarios on every adapter (M104g); a receipt per editor and version; the matrix moved to W only on that evidence; any exception recorded with its reason and equivalent                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `docs/certification/m123-<host>.md`                                                                                                 | `test/hostApi/**` (the Git scenarios, with M104 lane I)                                                                                                                                       | as each route lands     | every rig                              |    12 | Every row W, or a named exception approved by the lead (none expected)                                                                                                                                                                                                                    |
 | D Docs (lead)              | README (Git and pull requests in every editor); `docs/ide-compatibility/matrix.md` regenerated; SECURITY and `docs/PRIVACY.md` (the three sources, what is stored where, how to revoke); CONTRIBUTING (the fakes); AGENTS.md rule 14's row; CHANGELOG; PLAN (D104, M123, §8 and §9 rows); `docs/certification/m123.md`                                                                                                                                                                                                                                                                                                                                                       | `docs/certification/m123.md`                                                                                                        | README, SECURITY, `docs/PRIVACY.md`, CONTRIBUTING, AGENTS.md, CHANGELOG, PLAN (D104 and M123 only)                                                                                            | throughout              | host                                   |     4 | Documented behaviour only after real runs; every token path described matches the code                                                                                                                                                                                                    |
 
+- **Record/checkout concurrency (FIXM123P3 redesign, 2026-10-09).** The
+  third review round (RVM123P2: one P1, two P2s) showed patches could not
+  close the races, so the record store and the checkout lifecycle were
+  redesigned as one serialized owner per repository: every record carries
+  a per-folder `revision`, every mutation is validate → act → persist
+  against the fresh state, and a stale writer detects it lost and
+  re-reads instead of overwriting.
+  | State                                                                   | Meaning                                         | Leaves via                                                                           |
+  | ----------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------ |
+  | absent                                                                  | no record for the folder                        | `reserve` → pending                                                                  |
+  | pending                                                                 | checkout reserved; the folder may not exist yet | `complete` → ready (the reserved version); `remove` → absent or the displaced record |
+  | ready                                                                   | checkout finished                               | `release` → trusted; `supersede` → pending (exactly the version read, folder gone)   |
+  | trusted                                                                 | ready, trust confirmed in the card              | re-checkout supersedes it; nothing restores it                                       |
+  | File mutations hold a cross-window lock folder while they validate the  |
+  | fresh registry and persist it; a mutation that still cannot persist     |
+  | throws instead of writing over a state it did not read. Checkout        |
+  | `reserve` never replaces: a second open of a folder in flight is        |
+  | refused honestly, a finished one is offered again, and only a finished  |
+  | record whose folder is gone is taken over at exactly the version read.  |
+  | The batch child runs in its own process group (POSIX) with its own      |
+  | deadline: the deadline kills the tree, destroys the pipes, observes the |
+  | exit for a bounded grace, then settles anyway. Record:                  |
+  | `docs/certification/m123.md`.                                           |
 - **Acceptance per editor (all with fakes, no live calls).** The first
   available token source wins, and the user may sign in with any later one.
 
