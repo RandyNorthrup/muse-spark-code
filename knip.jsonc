@@ -139,6 +139,8 @@
     // by path for the panel scenes and axe (`node test/harness/vault/run.mjs`).
     "test/harness/vault/main.tsx",
     "test/harness/vault/run.mjs",
+    // M115 schedule scenes: test/harness/index.html imports this page module.
+    "test/harness/schedules.mjs",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     // Standalone browser checks invoked by path; usageHost is bundled by them.
     "test/harness/usage-check.mjs",

@@ -11,7 +11,7 @@ import { chromium } from 'playwright-core'
 import { buildTrafficHarness } from '../../test/harness/buildTraffic.mjs'
 import { build } from 'esbuild'
 import { buildScheduleHarness } from '../../test/harness/build-schedules.mjs'
-import { SCHEDULE_SCENES } from '../../test/harness/schedules.mjs'
+import { SCHEDULE_SCENES } from '../../test/harness/scheduleScenes.mjs'
 
 export const LOOPBACK = '127.0.0.1'
 export const HARNESS_PATH = 'test/harness/index.html'
