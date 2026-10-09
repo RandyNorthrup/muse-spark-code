@@ -233,7 +233,11 @@ function browserTableContract(value) {
       )
 }
 
-/** Collect every literal text reader in the shipped static and dynamic source graph. */
+/**
+ * Collect every literal text reader in the shipped static and dynamic source graph.
+ * `excluded` are roots that install their own deferred English when loaded
+ * (the independent resource entries); a graph that reaches one stops there.
+ */
 export function browserTextKeys(entries, english, eagerSources = new Set(), excluded = new Set()) {
   const seen = new Set()
   const keys = new Set()
@@ -345,7 +349,8 @@ export const compactBrowserUiText = {
         entries.filter((entry) => !resourceEntries.includes(entry.replaceAll('\\', '/'))),
         EN,
         new Set(),
-        // M107 U–C1: chat's deferred import of the chip still loads the chip's own English.
+        // M107 U–C1: chat's deferred import of the chip still loads the chip's own English,
+        // and the usage page's lazy history root installs browser-resource-english itself.
         new Set(resourceEntries.map((entry) => path.resolve(entry))),
       ).keys
       const resourceKeys = browserTextKeys(Object.values(RESOURCE_WEBVIEW_ENTRIES), EN).keys
@@ -363,12 +368,28 @@ export const compactBrowserUiText = {
       )
       // M108: account and developer English load with their optional surfaces.
       const accountKeys = deferredKeys.filter((key) => /^(?:accounts|developer)$/.test(key))
+      // STARTUP017: the schedule surfaces' English loads beside them; chat
+      // startup paints restored settlement rows from scheduleSettlement alone.
+      const scheduleKeys = deferredKeys.filter((key) => key === 'scheduleV2')
+      // Each panel module that reads it installs it before its body runs, however
+      // chat loads that module (a deferred surface, a row body or a direct import).
+      const scheduleReaders = new Set(
+        scheduleKeys.length === 0
+          ? []
+          : files.filter(
+              (file) =>
+                /[/\\]src[/\\]webview[/\\]/.test(file) &&
+                !eagerSources.has(file) &&
+                readFileSync(file, 'utf8').includes('UI_TEXT.scheduleV2'),
+            ),
+      )
       // M109: the vault group's English travels with the vault surface, whose
       // vaultEnglish.ts installs it before any vault render; never twice here.
       const surfaceKeys = deferredKeys.filter(
         (key) =>
           !helpKeys.includes(key) &&
           !accountKeys.includes(key) &&
+          !scheduleKeys.includes(key) &&
           key !== 'vault' &&
           nonResourceKeys.has(key),
       )
@@ -394,6 +415,8 @@ export const compactBrowserUiText = {
         surfaceKeys,
         helpKeys,
         accountKeys,
+        scheduleKeys,
+        scheduleReaders,
         resourceKeys,
         contract,
         level: L10N_BROWSER_COMPRESSION_LEVEL,
@@ -425,6 +448,7 @@ export const compactBrowserUiText = {
       'browser-resource-english',
       'browser-reference-english',
       'browser-account-english',
+      'browser-schedule-english',
     ]) {
       build.onResolve({ filter: /.*/, namespace }, (args) => {
         if (args.path === path.resolve(TABLE).replaceAll('\\', '/'))
@@ -438,7 +462,7 @@ export const compactBrowserUiText = {
     }))
     build.onLoad({ filter: /[/\\]l10n[/\\]deferredEnglish\.ts$/ }, () => ({
       contents:
-        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english')]) }",
+        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english')]) }",
       loader: 'js',
     }))
     build.onLoad({ filter: /[/\\]installTable\.ts$/ }, (args) => ({
@@ -468,6 +492,30 @@ ${inlineBrowserTable(Object.fromEntries(data.surfaceKeys.toSorted((left, right) 
 installSurfaceEnglish(EN);`,
       loader: 'js',
     }))
+    build.onResolve({ filter: /^browser-schedule-english$/ }, () => ({
+      path: 'browser-schedule-english',
+      namespace: 'browser-schedule-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-schedule-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(Object.fromEntries(data.scheduleKeys.map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
+    // STARTUP017: registered before the lazy() rewrite below, so a reader
+    // that also declares a lazy() surface fails loudly rather than losing one.
+    build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx?$/ }, (args) => {
+      if (!data.scheduleReaders.has(path.resolve(args.path))) return
+      const source = readFileSync(args.path, 'utf8')
+      if (/\blazy\(|ReferencePage/.test(source))
+        throw new Error(`Unsupported lazy surface in a schedule English reader: ${args.path}`)
+      return {
+        contents: "await import('browser-schedule-english');\n" + source,
+        loader: args.path.endsWith('.tsx') ? 'tsx' : 'ts',
+        resolveDir: path.dirname(args.path),
+        watchFiles: [args.path],
+      }
+    })
     build.onResolve({ filter: /^browser-resource-english$/ }, () => ({
       path: 'browser-resource-english',
       namespace: 'browser-resource-english',
@@ -505,7 +553,9 @@ installSurfaceEnglish(EN);`,
       loader: 'js',
     }))
     build.onLoad({ filter: /[/\\]paletteRegistry\.ts$/ }, (args) => ({
-      contents: "await import('browser-surface-english');\n" + readFileSync(args.path, 'utf8'),
+      contents:
+        "await Promise.all([import('browser-surface-english'), import('browser-schedule-english')]);\n" +
+        readFileSync(args.path, 'utf8'),
       loader: 'ts',
       resolveDir: path.dirname(args.path),
       watchFiles: [args.path],

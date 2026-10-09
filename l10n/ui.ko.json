@@ -52,6 +52,13 @@
   "resourceHistoryNewer": "최근 기록",
   "resourceHistoryPage": "{pages}페이지 중 {page}페이지",
   "resourceHistoryDetailNotice": "세부 정보는 최근 기록으로 제한됩니다. 합계에는 보관된 모든 저널 기록이 포함됩니다.",
+  "resourceHistoryCurrentMinute": "이번 분의 현재까지",
+  "resourceHistoryDaily": "이전 날짜",
+  "resourceHistoryDailyNotice": "완료된 각 날짜는 평균, 수준별 시간(분), 이벤트 수, 에이전트 실행 환경의 작업을 사용 기록 보관 일수 동안 유지합니다.",
+  "resourceHistoryDay": "날짜 (UTC)",
+  "resourceHistoryAverage": "평균",
+  "resourceHistoryMinutes": "기록된 시간(분)",
+  "resourceHistoryLevelMinutes": "수준별 시간(분)",
   "resourceMemoryBelowFloor": "최소 가용 메모리 미만",
   "resourceMemoryLow": "여유가 적음",
   "resourceMemoryAmple": "여유가 충분함",
@@ -549,6 +556,16 @@
     "fallbackReviewer": "플레이북: {actor}가 기록된 대체 검토자로 {module}를 검토함 ({reason}).",
     "residualOpen": "결정이 필요: {lane}에 미해결 잔여 항목이 있음: {missing}."
   },
+  "scheduleSettlement": {
+    "sent": "일정에 따라 전송됨",
+    "outcomes": {
+      "ran": "실행됨",
+      "refused": "거부됨",
+      "missed": "놓침",
+      "skipped": "건너뜀",
+      "failed": "실패"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -582,7 +599,6 @@
       "conditions": "조건(필드=값, 줄당 하나)",
       "endDate": "종료 날짜 및 시간 (UTC)",
       "afterRuns": "N회 실행 후 종료",
-      "sent": "일정에 따라 전송됨",
       "cost": "비용",
       "grantHelp": "줄당 하나의 항목을 입력하세요. 경로는 이 작업 공간 내로 제한되며, 보호된 경로 및 사람이 필요한 도구는 항상 거부됩니다.",
       "auditKinds": {
@@ -703,13 +719,6 @@
       "open": "백그라운드에서 열기",
       "skip": "실행 건너뛰기",
       "runOnce": "한 번만 따라잡기"
-    },
-    "outcomes": {
-      "ran": "실행됨",
-      "refused": "거부됨",
-      "missed": "놓침",
-      "skipped": "건너뜀",
-      "failed": "실패"
     },
     "events": {
       "pullRequestOpened": "풀 리퀘스트 열림",
@@ -2089,6 +2098,7 @@
   "loadingOutput": "로드하는 중…",
   "surfaceLoadFailed": "이 패널을 불러올 수 없습니다.",
   "surfaceLoadRetry": "다시 시도",
+  "moneyLoadFailed": "가격을 불러올 수 없습니다.",
   "toolFailed": "실패",
   "toolRejected": "거부됨",
   "toolStopped": "중지됨",

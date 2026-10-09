@@ -27,12 +27,30 @@ import {
   formatDateTime,
   formatFullDateTime,
   formatTime,
-  formatTokenWindow,
   isSameLocalDay,
   plural,
 } from '../../shared/l10n/text'
-import { formatUsd } from '../../core/usage/insights'
 import { isFinishedStep, type StepEntry, stepSummary, stepSummaryText } from '../stepSummary'
+import { useReplyUsageText } from '../moneyHooks'
+import type { UsdAmount } from '../../shared/usdSchema'
+
+/**
+ * A reply's usage line with its exact cost (STARTUP017): the line appears
+ * once the lazy money chunk arrives, never with a guessed cost. The tokens
+ * are known at startup; the exact dollars are not.
+ */
+function ReplyUsage({
+  inputTokens,
+  outputTokens,
+  costUsd,
+}: {
+  readonly inputTokens: number
+  readonly outputTokens: number
+  readonly costUsd: UsdAmount
+}) {
+  const text = useReplyUsageText(inputTokens, outputTokens, costUsd)
+  return text === undefined ? null : <div className="response-usage">{text}</div>
+}
 import { hasFileAttachment, STEERED_DISPOSITION } from '../state/transcriptEntries'
 import {
   forkCutBefore,
@@ -788,13 +806,11 @@ const AssistantRow = memo(function AssistantRow({
           />
         )}
         {showReplyUsage && entry.usage !== undefined && entry.costUsd !== undefined ? (
-          <div className="response-usage">
-            {fill(UI_TEXT.replyUsage, {
-              input: formatTokenWindow(entry.usage.inputTokens),
-              output: formatTokenWindow(entry.usage.outputTokens),
-              cost: formatUsd(entry.costUsd),
-            })}
-          </div>
+          <ReplyUsage
+            inputTokens={entry.usage.inputTokens}
+            outputTokens={entry.usage.outputTokens}
+            costUsd={entry.costUsd}
+          />
         ) : null}
         {onSavePlan === undefined || entry.isStreaming ? null : (
           <PlanActions

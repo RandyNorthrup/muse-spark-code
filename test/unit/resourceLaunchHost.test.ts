@@ -314,3 +314,26 @@ describe('D100 G13 offending-job containment', () => {
     },
   )
 })
+
+describe('J history work source', () => {
+  it('reuses the tree sampler reading and hands over a retired tree final reading once', async () => {
+    const h = setup()
+    expect(h.host.treeUsage()).toEqual([])
+    const lease = await h.host.admit('check')
+    lease.register({ pid: 700, group: true })
+    await h.host.refreshTrees()
+    const queries = vi.mocked(h.binding.reader.usage).mock.calls.length
+    const row = {
+      ticket: expect.objectContaining({ kind: 'check', root: h.binding.root }),
+      usage: { cpuSeconds: 1, residentBytes: 100 },
+    }
+    expect(h.host.treeUsage()).toEqual([row])
+    // History reads the cached verified reading; it starts no OS query of its own.
+    expect(vi.mocked(h.binding.reader.usage).mock.calls).toHaveLength(queries)
+    lease.complete(true)
+    expect(h.host.tickets()).toEqual([])
+    expect(h.host.treeUsage()).toEqual([row])
+    expect(h.host.treeUsage()).toEqual([])
+    h.host.dispose()
+  })
+})

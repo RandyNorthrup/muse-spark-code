@@ -6,11 +6,9 @@ import { createResources } from '../../src/runtime/resources/entry'
 import { createRuntimeResourceHost } from '../../src/runtime/resources/host'
 import { lazyRuntimeResources } from '../../src/runtime/resources/load'
 import { resourceMachineStore } from '../../src/runtime/resources/settings'
-import {
-  resourceHistoryText,
-  resourceNoticeText,
-  resourceStatusText,
-} from '../../src/runtime/resources/text'
+import { resourceNoticeText, resourceStatusText } from '../../src/runtime/resources/text'
+import { resourceHistoryText } from '../../src/core/usage/resourceText'
+import { aggregateResources } from '../../src/core/usage/aggregate'
 import type {
   ResourceMachineStore,
   RuntimeResources,
@@ -374,7 +372,7 @@ describe('M107 H runtime host', () => {
       event: { type: 'override', atMs: 0, untilMs: 1 },
       work: [],
     })
-    const history = { read: vi.fn(() => Promise.resolve([record])) }
+    const history = { read: vi.fn(() => Promise.resolve(aggregateResources([record]))) }
     const journal = await createRuntimeResourceHost({
       clock,
       sampler,
@@ -384,12 +382,23 @@ describe('M107 H runtime host', () => {
       history,
     })
     hosts.push(journal)
-    expect(await journal.command('history', true)).toBe(JSON.stringify([record]))
+    expect(await journal.command('history', true)).toBe(
+      JSON.stringify({
+        minutes: [],
+        events: [record.event],
+        counts: [{ type: 'override', kind: null, count: 1 }],
+        work: [],
+      }),
+    )
     // The fake journal lies after validation, without a production cast or bypass.
-    Reflect.set(record, 'pid', 10)
-    Reflect.set(record, 'command', 'canary')
-    Reflect.set(record, 'path', '/canary')
-    Reflect.set(record, 'env', { CANARY: 'private' })
+    const lying = aggregateResources([record])
+    history.read.mockResolvedValue(lying)
+    for (const event of lying.events) {
+      Reflect.set(event, 'pid', 10)
+      Reflect.set(event, 'command', 'canary')
+      Reflect.set(event, 'path', '/canary')
+      Reflect.set(event, 'env', { CANARY: 'private' })
+    }
     await expect(journal.history()).rejects.toThrow()
   })
 
@@ -590,7 +599,11 @@ describe('machine files and lazy runtime facade', () => {
       ),
     ).toContain(`CPU use is ${UI_TEXT.resourceUnknown}`)
     expect(text).not.toMatch(/:\s*0%/)
-    expect(resourceHistoryText([])).toBe(UI_TEXT.resourceHistory)
+    expect(resourceHistoryText(aggregateResources([]))).toBe(
+      [UI_TEXT.resourceTitle, UI_TEXT.resourceHistoryObserved, UI_TEXT.resourceHistoryEmpty].join(
+        '\n',
+      ),
+    )
   })
 
   it('names the actual critical threshold, including a CPU limit higher than the emergency limit', async () => {
@@ -665,7 +678,7 @@ describe('machine files and lazy runtime facade', () => {
       },
       work: [{ kind: 'check', cpuSeconds: 10, peakMemoryBytes: 1000 }],
     })
-    const text = resourceHistoryText([record])
+    const text = resourceHistoryText(aggregateResources([record]))
     for (const label of [
       UI_TEXT.resourceCpu,
       UI_TEXT.resourceMemory,

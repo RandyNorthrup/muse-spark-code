@@ -99,7 +99,30 @@ export const PLUGIN_HOOKS_ONLY = [
   'pluginChild.ts',
   'pluginFormats.ts',
 ]
+// INT0170: M107 W2's machine resource journal is shared through its own bundle;
+// the governor (recorder) and usage service (reader) load it instead of copies.
+const RESOURCE_JOURNAL_SOURCE = 'src/runtime/resources/history.ts'
+const RESOURCE_JOURNAL_BUNDLE = {
+  output: 'dist/resourceJournal.js',
+  metafile: 'dist/meta/resourceJournal.json',
+  use: 'the shared resource journal (dist/resourceJournal.js)',
+  parents: [
+    BUNDLES.activation,
+    BUNDLES.modelApi,
+    BUNDLES.acp,
+    { output: 'dist/resourceGovernor.js', metafile: 'dist/meta/resourceGovernor.json' },
+    { output: 'dist/usageService.js', metafile: 'dist/meta/usageService.json' },
+  ],
+  files: [
+    'src/runtime/resources/resourceJournalEntry.ts',
+    RESOURCE_JOURNAL_SOURCE,
+    'src/core/usage/resourceJournal.ts',
+    'src/core/usage/resourceRecords.ts',
+    'src/runtime/usage/resourceResetFile.ts',
+  ],
+}
 export const DEFERRED = [
+  RESOURCE_JOURNAL_BUNDLE,
   {
     output: 'dist/mcpPool.js',
     metafile: 'dist/meta/mcpPool.json',
@@ -1069,10 +1092,16 @@ export const sharedModelApiBoundaries = {
     build.onResolve(
       {
         filter:
-          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol)(?:\.[jt]s)?$/,
+          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+        // INT0170: the resource journal, once for the window governor and the usage service.
+        if (source === path.resolve(RESOURCE_JOURNAL_SOURCE))
+          return path.resolve(build.initialOptions.outfile ?? '') ===
+            path.resolve(RESOURCE_JOURNAL_BUNDLE.output)
+            ? undefined
+            : { path: './resourceJournal.js', external: true }
         if (
           ['src/shared/estimate.ts', 'src/shared/estimatorProtocol.ts'].some(
             (file) => source === path.resolve(file),

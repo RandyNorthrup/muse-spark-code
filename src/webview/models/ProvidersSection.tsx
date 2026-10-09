@@ -6,15 +6,22 @@
 import { useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
+import { useFormatUsd } from '../money'
+
+/** A usage amount with the lazy money chunk's exact display. */
+function UsageAmount({ usd }: { readonly usd: number }) {
+  const formatted = useFormatUsd(usd, 2)
+  return formatted === undefined ? null : <>{formatted}</>
+}
 import type {
   ModelsPanelState,
   PanelDraft,
+  PanelToHostMessage,
   PrefillFields,
   ProviderState,
   ProviderTest,
 } from '../../shared/modelsPanel'
-import { formatTestCost } from './components/CostNotice'
+import { useTestCostDisclosure } from './components/CostNotice'
 import { InlineError } from './components/InlineError'
 import { KeyState } from './components/KeyState'
 import { ScanStatus } from './components/ScanStatus'
@@ -32,6 +39,8 @@ function TestLine({
   // Declining the paid check only puts it away; the next Test asks again.
   const [costDismissed, setCostDismissed] = useState(false)
   const test: ProviderTest = provider.test
+  // The exact cost arrives with the lazy money chunk; Accept waits for it.
+  const cost = useTestCostDisclosure(test.status === 'needs-cost' ? test.costUsd : undefined)
   if (test.status === 'testing') {
     return (
       <p className="models-hint" role="status">
@@ -54,10 +63,11 @@ function TestLine({
   if (!costDismissed && test.status === 'needs-cost' && test.costUsd !== undefined) {
     return (
       <div className="models-cost-notice">
-        <p>{fill(UI_TEXT.providerTestPaid, { cost: formatTestCost(test.costUsd) })}</p>
+        {cost.line}
         <button
           type="button"
           className="models-button-primary"
+          disabled={!cost.isDisclosed}
           onClick={() => {
             onTest(true)
           }}
@@ -111,7 +121,9 @@ function KeyUsage({ provider }: { readonly provider: ProviderState }) {
         {rows.map(([label, usd]) => (
           <div key={label} className="models-usage-row">
             <dt>{label}</dt>
-            <dd>{formatUsd(usd, 2)}</dd>
+            <dd>
+              <UsageAmount usd={usd} />
+            </dd>
           </div>
         ))}
       </dl>
@@ -395,11 +407,20 @@ function ImportPane({
 }
 
 export function ProvidersSection(props: SectionProps) {
-  const { panelState, post, wizardOpen, importOpen, dispatch } = props
+  const { panelState, post, wizardOpen, wizardLife, importOpen, dispatch } = props
   // The pick step is local: before the host's draft arrives (right after
   // `providers/select`, or while the wizard just opened) the panel shows
   // the pick step from this draft, which carries nothing to save.
   const wizard: PanelDraft = panelState.drafts.wizard ?? PICK_DRAFT
+  // Picking a provider or saving ends this draft: the wizard stays open on
+  // a new generation, and work still pending for the old draft (a budget
+  // change waiting for the money chunk) is dropped.
+  const wizardPost = (message: PanelToHostMessage): void => {
+    if (message.type === 'providers/select' || message.type === 'providers/save') {
+      dispatch({ type: 'open-wizard' })
+    }
+    post(message)
+  }
   return (
     <section aria-label={UI_TEXT.providersSectionTitle}>
       <h2>{UI_TEXT.providersSectionTitle}</h2>
@@ -456,7 +477,8 @@ export function ProvidersSection(props: SectionProps) {
         <Wizard
           panelState={panelState}
           draft={wizard}
-          post={post}
+          life={wizardLife}
+          post={wizardPost}
           onNavigateModels={() => {
             props.navigate('models')
           }}

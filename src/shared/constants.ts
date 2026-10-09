@@ -1,4 +1,4 @@
-import { usdAmountSchema } from './usd'
+import { usdAmountSchema } from './usdSchema'
 // Every tunable and user-visible literal lives here. The no-magic-numbers lint
 // rule is disabled for this file only; everywhere else a bare literal is an
 // error. Keep entries grouped and named for what they mean, not what they are.
@@ -59,6 +59,38 @@ export const RESOURCE_HISTORY_MAX_EVENTS = 1000
 export const RESOURCE_HISTORY_MAX_EVENT_TOTALS = 65
 export const RESOURCE_HISTORY_MAX_WORK_KINDS = 12
 export const RESOURCE_HISTORY_PAGE_SIZE = 60
+// M107 J/M102: the machine's resource journal, under the usage folder so the
+// usage page's Delete history also clears it. One append-only file per
+// recording process and UTC day; a whole journal read is bounded too.
+export const RESOURCE_JOURNAL_FOLDER = 'resources'
+export const RESOURCE_JOURNAL_VERSION = 1
+export const RESOURCE_JOURNAL_FILE_MAX_BYTES = 4 * 1024 * 1024
+export const RESOURCE_JOURNAL_READ_MAX_BYTES = 32 * 1024 * 1024
+// Day folders older than detail + this margin are removed; readers stop at
+// detail days, so a clock a day apart never reads a folder being removed.
+export const RESOURCE_JOURNAL_REMOVE_MARGIN_DAYS = 2
+// A record stamped further ahead than this (a wrong clock) is out of range.
+export const RESOURCE_JOURNAL_FUTURE_SKEW_MS = 5 * RESOURCE_HISTORY_MINUTE_MS
+// D87.11 under D82's rollups: completed UTC days become one daily row in
+// `rollups/<YYYY-MM>.json`, kept for the usage-history days (at most 1825).
+// A day is rolled up once it ended this long ago, so its last minute is in.
+export const RESOURCE_JOURNAL_ROLLUP_DELAY_MS = 60 * RESOURCE_HISTORY_MINUTE_MS
+// Retention and rollup run at most this often per process.
+export const RESOURCE_JOURNAL_RETAIN_MS = 60 * RESOURCE_HISTORY_MINUTE_MS
+export const RESOURCE_HISTORY_MAX_DAYS = 1825
+// The open minute so far is published to `live/<collector>.json` at most this
+// often, so every surface (including other processes) shows the current minute.
+export const RESOURCE_JOURNAL_LIVE_MS = 15_000
+// Delete history's reset boundary, beside (not inside) the usage folder.
+export const RESOURCE_JOURNAL_RESET_FILE = 'resource-history-reset.json'
+// The journal write lock (RVM107W2G P2-2): appends and live writes hold it for
+// milliseconds, Delete history for its folder removal. A contender retries for
+// at most ATTEMPTS × WAIT (10 s); a lock older than STALE is reclaimed.
+export const RESOURCE_JOURNAL_WRITE_LOCK_STALE_MS = 30_000
+export const RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS = 50
+export const RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS = 200
+// A closing window or agent waits at most this long for its open minute's write.
+export const RESOURCE_HISTORY_FLUSH_TIMEOUT_MS = 2000
 export const RESOURCE_CPU_DEFAULT_PERCENT = 85
 export const RESOURCE_CPU_MIN_PERCENT = 30
 export const RESOURCE_MEMORY_DEFAULT_PERCENT = 90
@@ -1766,7 +1798,7 @@ export const PLAYBOOK_SAFETY_RULE = 'neverAround'
 export const PLAYBOOK_RESOLUTIONS = ['impossible', 'caught', 'remains'] as const
 // The block as the review prompt shows it to the model (English, as all
 // model text is), and what it holds when the review found nothing.
-export const REVIEW_FINDINGS_EXAMPLE = JSON.stringify({
+export const REVIEW_FINDINGS_EXAMPLE = /* @__PURE__ */ JSON.stringify({
   findings: [
     {
       file: 'src/example.ts',
@@ -1777,7 +1809,7 @@ export const REVIEW_FINDINGS_EXAMPLE = JSON.stringify({
     },
   ],
 })
-export const REVIEW_FINDINGS_EMPTY = JSON.stringify({ findings: [] })
+export const REVIEW_FINDINGS_EMPTY = /* @__PURE__ */ JSON.stringify({ findings: [] })
 // The review pane reads at most this many edits' patches, and stops adding
 // files once this many diff lines are listed.
 export const REVIEW_PANE_MAX_EDITS = 200
@@ -4361,6 +4393,11 @@ export const USAGE_HISTORY_DAYS_DEFAULT = 365
 export const USAGE_HISTORY_DAYS_MIN = 30
 export const USAGE_HISTORY_DAYS_MAX = 1825
 export const USAGE_RECORD_MAX_BYTES = 4096
+// Usage-folder removal (RVM107W2G): a quarantined `.removing-*` entry older than
+// this is swept by any list, sweep or remove; younger ones may be in flight in
+// another process. A delete retries transient EBUSY/EPERM this many times.
+export const USAGE_TRASH_SWEEP_MS = 60_000
+export const USAGE_REMOVE_RETRIES = 3
 export const USAGE_LINE_FEED_BYTE = 0x0a
 export const USAGE_LABEL_MAX_CHARS = 256
 export const USAGE_ID_MAX_CHARS = 128
@@ -5749,6 +5786,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/uiTextSurfaces.js',
   'dist/wire.js',
   'dist/resourceGovernor.js',
+  'dist/resourceJournal.js',
   'dist/resourceAdmission.js',
   'dist/webview/resourceSurface.js',
   'dist/webview/resourceHistory.js',

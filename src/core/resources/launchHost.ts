@@ -14,6 +14,7 @@ import type {
   ResourceSettings,
   ResourceStatus,
   ResourceTicket,
+  ResourceTreeUsage,
 } from '../../shared/resources'
 import type { ResourceGovernor } from './governor'
 import type { ResourceDiskSampler } from './disk'
@@ -47,7 +48,16 @@ interface Work {
   members: Set<string>
   births: number[]
   limited: boolean
+  /** The last verified tree reading, reused by J's history (no extra OS query). */
+  usage: ResourceTreeUsage | undefined
 }
+/** J's work source row: a registered tree and its last verified reading. */
+export interface ResourceTreeUsageRow {
+  readonly ticket: ResourceTicket
+  readonly usage: ResourceTreeUsage | null
+}
+// Retired trees' final readings wait here for the next history read.
+const RETIRED_USAGE_MAX = 256
 export interface ResourceLaunchHostOptions {
   readonly governor: ResourceGovernor
   readonly events: ResourceEvents
@@ -80,6 +90,8 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   private readonly statusListeners = new Set<() => void>()
   private snapshot: { readonly status: ResourceStatus; readonly key: string } | undefined
   private isSnapshotStale = true
+  private readonly retiredUsage: ResourceTreeUsageRow[] = []
+  private isUsageObserved = false
 
   constructor(private readonly options: ResourceLaunchHostOptions) {
     this.queue = new ResourceQueue({
@@ -181,6 +193,11 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
 
   private retire(work: Work, isTreeGone = true): void {
     if (!this.work.delete(work)) return
+    if (this.isUsageObserved && work.ticket !== undefined && work.usage !== undefined) {
+      // The final verified reading, so history keeps the tree's last CPU time.
+      this.retiredUsage.push({ ticket: work.ticket, usage: work.usage })
+      if (this.retiredUsage.length > RETIRED_USAGE_MAX) this.retiredUsage.shift()
+    }
     if (work.ticket !== undefined) work.registry?.unregister(work.ticket)
     work.permit.release()
     this.changed()
@@ -263,10 +280,12 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       }
       const usage = await work.registry?.usage(work.ticket)
       work.known = usage !== undefined && usage !== null
+      if (work.known) work.usage = usage ?? undefined
     } catch {
       work.known = false
       if (work.ticket !== undefined) work.registry?.unregister(work.ticket)
       work.ticket = undefined
+      work.usage = undefined
       this.options.onError()
     }
   }
@@ -416,6 +435,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       members: new Set(),
       births: [],
       limited: false,
+      usage: undefined,
     }
     this.work.add(work)
     let creating: Promise<ResourceTempRoot> | undefined
@@ -473,6 +493,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
         if (!this.work.has(work)) return
         if (work.ticket !== undefined) work.registry?.unregister(work.ticket)
         work.ticket = undefined
+        work.usage = undefined
         work.kind = 'backgroundTask'
         work.class = 'background'
         work.known = false
@@ -541,6 +562,19 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
 
   tickets(): readonly ResourceTicket[] {
     return [...this.work].flatMap((work) => work.registry?.tickets() ?? [])
+  }
+
+  /**
+   * J's history work source: each registered tree's last verified reading from
+   * the tree sampler, then retired trees' final readings once. No OS query.
+   */
+  treeUsage(): readonly ResourceTreeUsageRow[] {
+    this.isUsageObserved = true
+    const retired = this.retiredUsage.splice(0)
+    const live = [...this.work].flatMap((work) =>
+      work.ticket === undefined ? [] : [{ ticket: work.ticket, usage: work.usage ?? null }],
+    )
+    return [...retired, ...live]
   }
 
   dispose(): void {

@@ -29,6 +29,29 @@ happened, not what was planned; superseded entries are kept.
   JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
   chip and status adapter once their M104 bridges bind them; none does yet.
   ACP and terminals keep `/resources` and `resources status|resume`.
+- Resource history now shows real data. The VS Code window's governor and the
+  ACP agent record their minute readings, level, override and deferral events
+  and the harness's own CPU time into one local, flushed journal per machine,
+  under the usage-history setting. The usage page's **Resources** section,
+  `resources history`, `usage resources` and ACP `/usage resources` read it.
+  It keeps seven recorded days, bounds each file and every read, ignores a
+  torn final line after a crash and reports any other unreadable line as
+  unavailable rather than as empty history. **Delete history** clears it.
+- Resource history shows the current minute as "This minute so far", from any
+  window or agent on the machine, and keeps one row per completed day
+  ("Earlier days") for the usage-history days. **Delete history** says how
+  many resource entries it also deletes.
+- **A public roadmap** (M122). [`ROADMAP.md`](ROADMAP.md) lists what is in
+  the next release, in progress, planned and shipped by release, generated
+  from PLAN.md's milestone statuses, the changelog's release headings and
+  curated one-sentence entries in `docs/roadmap/entries.json`.
+  `npm run check:roadmap`, now in `quality:gates` and CI's static gates,
+  fails when the file is stale (including any change to the plan facts,
+  release headings or entries it is built from, through a source
+  fingerprint), a milestone has no entry, an entry names a milestone the plan
+  does not have, or public text names a milestone or working id in any case.
+  Every version with only a preparation record is listed under its own
+  _In the next release_ section, never as shipped.
 
 ### Changed
 
@@ -36,8 +59,49 @@ happened, not what was planned; superseded entries are kept.
   rental cost estimates, reporting facts, account totals and voice consent. Read
   historical numeric records at validated boundaries; saved reports verify their
   original hashes before migration to exact money version 2.
+- Chat startup no longer carries exact money arithmetic: `Usd`, paid tariffs
+  and usage estimates load with a lazy money chunk after first paint
+  (STARTUP017). Feature names, badges and tooltips paint at once; exact
+  prices fill in exactly, never guessed. A failed money load says "Prices
+  could not load." with Try again, which rebuilds the panel so every price
+  comes back; a paid check's Accept and the suggested session budget's
+  Accept wait until their amount is shown, and stay unavailable if it cannot
+  load. A budget change still waiting when the wizard is cancelled or its
+  draft replaced is dropped. The `/schedule` prompt mapping loads on first
+  submit: a failed load puts the command back in an empty composer with the
+  warning, and a command whose schedule surface, session or conversation
+  ended first opens and stashes nothing. Restored schedule rows paint from a
+  small `scheduleSettlement` group, and the rest of the schedule English
+  loads with the schedule surfaces. Schedule cap checks compare exact amounts
+  without the arithmetic module, so it stays out of first paint. The startup
+  regression baseline is re-pinned at the measured 0.17.0 first paint
+  (760,059 B) plus 0.16.0's 1.4 KB margin (PLAN §8).
+- The resource history journal is one shared bundle that the window's
+  governor and the usage page both load, instead of a copy in each; both stay
+  inside their size budgets. Usage records read the account id from a small
+  leaf instead of every account schema.
 
 ### Fixed
+
+- Packaged translation tables round-trip byte-exact again: every language
+  table lists its keys in English's order, including the resource history
+  and Windows path strings merged for 0.17.0.
+
+- Resource history removal can no longer be redirected outside the usage
+  folder by a swapped link on Linux or Windows; it refuses instead (macOS
+  keeps a narrow same-user race, described in SECURITY). A delete that fails
+  is reported and retried, never shown as done while anything is left, and
+  leftovers are cleaned up; a retention failure is logged. Readings collected
+  while usage history is off, or before **Delete history**, are never written
+  later: recording, daily-row upkeep and **Delete history** share one lock, each
+  write checks it still holds that lock and is after the delete as it lands, and
+  daily rows from before a delete are never shown. Putting an entry back after
+  a refused removal no longer replaces what took its name, apart from the narrow
+  cases in SECURITY. A retried event after an uncertain write is counted once. Closing a window writes its open
+  minute. The 32 MiB read limit counts the bytes actually read.
+- Narrow usage pages show resource history as labelled cards (one column at
+  320 px, two at 690 px); chart legends and trailing values are no longer cut
+  off.
 
 - The dependency-cycle gate now covers every build entry, lazy import target,
   entry-named module and knip entry, with a guard against root-list drift.
@@ -141,6 +205,14 @@ happened, not what was planned; superseded entries are kept.
   `con.d`, `aux.js` and similar names are ordinary on Windows 11. The browser
   check and the token-file ACL find Windows on any drive (`SystemRoot`, then
   `windir`) instead of assuming `C:\Windows`.
+- Four orchestration gotcha rows G79–G82 (tests reap every process tree they
+  start, even after a timeout, with a leak check when a lane ends; a lead
+  session handoff ends or hands over every background job the old session
+  started; a sampler that cannot see a protected process reports the reading
+  as blind, never 0; no tight polling of a security product's status), with
+  D100 amendments for M96c and M107 that M109 and M120 also bind. The
+  playbook placement chapter gains lessons 28–31 covering the same failures,
+  still model-agnostic.
 
 ### Pending
 

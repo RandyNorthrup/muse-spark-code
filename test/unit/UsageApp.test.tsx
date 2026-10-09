@@ -411,7 +411,7 @@ describe('UsageApp', () => {
     ).toBeInTheDocument()
   })
 
-  it('sorts breakdowns with aria-sort, keeps unknown last, and deep-links model detail to prices', () => {
+  it('sorts breakdowns with aria-sort, keeps unknown last, and deep-links model detail to prices', async () => {
     const state = usageStateFor('nine-providers', NOW)
     state.breakdown[0]!.totals = {
       ...state.breakdown[0]!.totals,
@@ -458,7 +458,8 @@ describe('UsageApp', () => {
     expect(
       screen.getByText('Shown with a newer price card; stored history is unchanged.'),
     ).toBeInTheDocument()
-    expect(screen.getByText('$0.002000')).toBeInTheDocument()
+    // STARTUP017: exact prices fill in once the money chunk loads.
+    expect(await screen.findByText('$0.002000')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Set price' }))
     expect(host.post).toHaveBeenLastCalledWith({
       type: 'usage/openModels',

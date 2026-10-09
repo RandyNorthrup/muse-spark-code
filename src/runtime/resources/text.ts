@@ -12,15 +12,12 @@ import {
   formatDateTime,
   formatNumber,
   formatPercent,
-  formatUnit,
 } from '../../shared/l10n/text'
 import {
   resourceMemoryFloorBytes,
-  resourceRecordSchema,
   resourceStatusSchema,
   type ResourceEvent,
   type ResourceLevel,
-  type ResourceRecord,
   type ResourceStatus,
 } from '../../shared/resources'
 
@@ -158,30 +155,4 @@ export function resourceNoticeText(event: ResourceEvent, status: ResourceStatus)
           )
   }
   return [fill(UI_TEXT.resourcePauseNotice, { metric, reading, threshold }), ...details].join('\n')
-}
-
-export function resourceHistoryText(records: readonly ResourceRecord[]): string {
-  return [
-    UI_TEXT.resourceHistory,
-    ...records.map((raw) => {
-      const record = resourceRecordSchema.parse(raw)
-      const detail =
-        record.minute === null
-          ? JSON.stringify(record.event)
-          : [
-              resourceLevelText(record.minute.level),
-              `${UI_TEXT.resourceCpu}: ${percentage(record.minute.cpuPercent)} (${formatPercent(record.minute.thresholds.cpuMaxPercent)})`,
-              `${UI_TEXT.resourceMemory}: ${percentage(record.minute.memoryUsedPercent)} (${formatPercent(record.minute.thresholds.memoryMaxPercent)})`,
-              // Journal buckets are technical detail, kept as the shared contract spells them.
-              `${UI_TEXT.resourceAvailableMemory}: ${record.minute.availableMemory === 'unknown' ? UI_TEXT.resourceUnknown : record.minute.availableMemory} (${formatBytes(record.minute.thresholds.memoryMinFreeGiB * RESOURCE_GIB_BYTES)})`,
-              `${UI_TEXT.resourceGpu}: ${percentage(record.minute.gpuPercent)}`,
-              `${UI_TEXT.resourceDisk}: ${percentage(record.minute.diskBusyPercent)}`,
-            ].join(' · ')
-      const work = record.work.map(
-        (row) =>
-          `${row.kind}: ${UI_TEXT.resourceCpuTime}: ${formatUnit(row.cpuSeconds, 'second')}, ${UI_TEXT.resourcePeakMemory}: ${formatBytes(row.peakMemoryBytes)}`,
-      )
-      return [`${formatDateTime(record.atMs)}: ${detail}`, ...work].join('\n')
-    }),
-  ].join('\n')
 }

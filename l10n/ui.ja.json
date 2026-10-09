@@ -52,6 +52,13 @@
   "resourceHistoryNewer": "新しい履歴",
   "resourceHistoryPage": "{pages} ページ中 {page} ページ",
   "resourceHistoryDetailNotice": "詳細は最近の履歴に限られます。合計には保存されているすべてのジャーナル記録が含まれます。",
+  "resourceHistoryCurrentMinute": "この分の途中経過",
+  "resourceHistoryDaily": "以前の日",
+  "resourceHistoryDailyNotice": "完了した各日は、平均値、レベルごとの分数、イベント数、エージェント実行環境の処理を使用履歴の日数のあいだ保持します。",
+  "resourceHistoryDay": "日 (UTC)",
+  "resourceHistoryAverage": "平均",
+  "resourceHistoryMinutes": "記録された分数",
+  "resourceHistoryLevelMinutes": "レベル別の分数",
   "resourceMemoryBelowFloor": "最小空きメモリ未満",
   "resourceMemoryLow": "余裕が少ない",
   "resourceMemoryAmple": "十分な余裕",
@@ -549,6 +556,16 @@
     "fallbackReviewer": "手引き: {actor} が記録済みの代替レビュー担当として {module} を確認します ({reason})。",
     "residualOpen": "判断が必要です: {lane} に未解決の残存事項があります: {missing}。"
   },
+  "scheduleSettlement": {
+    "sent": "スケジュールにより送信",
+    "outcomes": {
+      "ran": "実行済み",
+      "refused": "拒否",
+      "missed": "実行漏れ",
+      "skipped": "スキップ済み",
+      "failed": "失敗"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -582,7 +599,6 @@
       "conditions": "条件（フィールド=値、1 行に 1 件）",
       "endDate": "終了日時 (UTC)",
       "afterRuns": "N 回の実行後に終了",
-      "sent": "スケジュールにより送信",
       "cost": "費用",
       "grantHelp": "1 行に 1 件入力してください。パスはこのワークスペース内に限定され、保護されたパスや人の操作が必要なツールは常に拒否されます。",
       "auditKinds": {
@@ -703,13 +719,6 @@
       "open": "バックグラウンドで開く",
       "skip": "実行をスキップ",
       "runOnce": "1回だけ追いつく"
-    },
-    "outcomes": {
-      "ran": "実行済み",
-      "refused": "拒否",
-      "missed": "実行漏れ",
-      "skipped": "スキップ済み",
-      "failed": "失敗"
     },
     "events": {
       "pullRequestOpened": "プルリクエストが開かれた",
@@ -2089,6 +2098,7 @@
   "loadingOutput": "読み込み中…",
   "surfaceLoadFailed": "このパネルを読み込めませんでした。",
   "surfaceLoadRetry": "再試行",
+  "moneyLoadFailed": "価格を読み込めませんでした。",
   "toolFailed": "失敗",
   "toolRejected": "拒否",
   "toolStopped": "停止しました",

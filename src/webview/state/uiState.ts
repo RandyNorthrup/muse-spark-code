@@ -62,7 +62,7 @@ import type {
   SignInMethod,
   SkillOption,
 } from '../../shared/protocol'
-import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
+import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paidBoundary'
 import { isLegalPrompt } from '../../shared/legalCommand'
 import type { LegalScanResult } from '../../shared/legal'
 import type { LegalFixPreviewMessage, LegalFixResultMessage } from '../../shared/legalFix'

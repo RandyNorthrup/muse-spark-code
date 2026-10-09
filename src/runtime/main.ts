@@ -438,7 +438,12 @@ async function runtimeFor(
   })
 }
 
-function resourcesFor(log: Logger, overrides?: Partial<ResourceSettings>) {
+/** `isRecordingHistory` (usage-history consent) is for the long-lived ACP agent only. */
+function resourcesFor(
+  log: Logger,
+  overrides?: Partial<ResourceSettings>,
+  isRecordingHistory?: () => boolean,
+) {
   return lazyRuntimeResources({
     distDir,
     machineDir: agentDataFolder({
@@ -452,6 +457,7 @@ function resourcesFor(log: Logger, overrides?: Partial<ResourceSettings>) {
       log.warn(UI_TEXT.resourceUnavailable)
     },
     ...(overrides !== undefined && { overrides }),
+    ...(isRecordingHistory !== undefined && { isRecordingHistory }),
   })
 }
 
@@ -704,10 +710,11 @@ async function serve(
     const runtime = await runtimeFor(options, log, {
       remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
     })
-    const resources = resourcesFor(log)
+    const isUsageHistoryOn = options.usageHistory ?? true
+    const resources = resourcesFor(log, undefined, () => isUsageHistoryOn)
     const loadSchedules = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
     let loadedSchedules: Awaited<ReturnType<typeof loadSchedules>> | undefined
-    const usage = usageFor(log, recording, runtime, options.usageHistory ?? true)
+    const usage = usageFor(log, recording, runtime, isUsageHistoryOn)
     const journal = await reportJournal(log)
     await journal.startup()
     // A proxy the Model API backend's requests will not use is said at once (Q66).
@@ -1163,7 +1170,13 @@ async function main(): Promise<number> {
         writeLine(process.stdout, await resources.command(command.action, command.json))
         return 0
       } catch {
-        writeLine(process.stderr, UI_TEXT.resourceUnavailable)
+        // An unreadable journal is named as such; it is never printed as empty history.
+        writeLine(
+          process.stderr,
+          command.action === 'history'
+            ? UI_TEXT.resourceHistoryInvalid
+            : UI_TEXT.resourceUnavailable,
+        )
         return EXIT_FAILED
       } finally {
         resources.dispose()

@@ -1,10 +1,6 @@
 import type { ResourceAdmission, ResourceLaunchRequest } from '../../core/resources/queue'
-import type {
-  ResourceEvent,
-  ResourceRecord,
-  ResourceSettings,
-  ResourceStatus,
-} from '../../shared/resources'
+import type { ResourceHistory } from '../../shared/resourceHistory'
+import type { ResourceEvent, ResourceSettings, ResourceStatus } from '../../shared/resources'
 
 /** Local correlation only; never included in resource events, status or history. */
 export interface ResourceWorkContext {
@@ -23,14 +19,14 @@ export interface ResourceMachineStore {
   readResumeUntil(): Promise<number | null>
   writeResumeUntil(untilMs: number): Promise<void>
 }
-/** J supplies the same retained journal to every runtime surface. */
+/** J/M102: the machine's retained journal, aggregated as the usage page shows it. */
 export interface ResourceHistoryPort {
-  read(): Promise<readonly ResourceRecord[]>
+  read(): Promise<ResourceHistory>
 }
 export interface RuntimeResources {
   command(action: ResourceCommandAction, isJson: boolean): Promise<string>
   status(): Promise<ResourceStatus>
-  history(): Promise<readonly ResourceRecord[]>
+  history(): Promise<ResourceHistory>
   resume(): Promise<ResourceStatus>
   admit(
     request: ResourceLaunchRequest,

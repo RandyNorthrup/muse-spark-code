@@ -36,7 +36,7 @@ export { UI_TEXT, setUiText, uiLocale } from '${text}';
 export { installEmbeddedTable } from '${installer}';
 export { installVaultEnglish } from '${vault}';
 export async function loadPalette() { return await import('../../src/shared/paletteRegistry') }
-export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english')]) }
+export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english')]) }
 export async function loadResources() { await import('browser-resource-english') }
 export async function loadAccounts() { await import('../../src/webview/models/sections/accounts/accountsEntry') }
 export async function loadDeveloper() { await import('../../src/webview/developer/DeveloperOptionsPage') }

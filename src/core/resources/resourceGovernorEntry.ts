@@ -9,7 +9,11 @@ import { TreeTempRoots } from '../../host/resources/tempRoots'
 import type { ResourceTempRoots } from './launch'
 import { ResourceDiskSampler, type ResourceDiskTarget } from './disk'
 import { CreatedRegistry, type CreatedCleanup, type CreatedPathProof } from './createdRegistry'
-import { BOUNDED_FILE_READ_CHUNK_BYTES, RESOURCE_SAMPLE_MS } from '../../shared/constants'
+import {
+  BOUNDED_FILE_READ_CHUNK_BYTES,
+  RESOURCE_HISTORY_FLUSH_TIMEOUT_MS,
+  RESOURCE_SAMPLE_MS,
+} from '../../shared/constants'
 import {
   readResourceSettings,
   type ResourceClock,
@@ -28,6 +32,11 @@ export {
   createResourceStatus,
   createVsCodeResourceStatusItem,
 } from '../../host/resources/resourceStatus'
+import {
+  resourceHistoryRecorder,
+  type ResourceHistoryBinding,
+  type ResourceHistoryRecorder,
+} from '../../runtime/resources/history'
 import { runTreeProgram } from './trees/run'
 import { powerShellQuoted } from '../shellQuote'
 import {
@@ -50,6 +59,8 @@ export interface ResourceHostSettings {
   readonly registryFile?: string | undefined
   readonly onCleanup?: ((result: CreatedCleanup) => void) | undefined
   readonly localization?: { readonly table: UiText; readonly locale: string } | undefined
+  /** M107 J/M102: record this window's samples into the machine journal, with usage consent. */
+  readonly history?: ResourceHistoryBinding | undefined
   readonly inspect: ResourceSettingsReader
   readonly onError: () => void
   readonly windowsJob?:
@@ -58,7 +69,31 @@ export interface ResourceHostSettings {
       >)
     | undefined
 }
-const state: { host?: ResourceLaunchHost } = {}
+const state: { host?: ResourceLaunchHost; recorder?: ResourceHistoryRecorder } = {}
+
+/**
+ * Window disposal (RVM107W2 P2): the open minute and any pending snapshot are
+ * written, waiting at most RESOURCE_HISTORY_FLUSH_TIMEOUT_MS so shutdown never hangs.
+ */
+export async function flushResourceHistory(): Promise<void> {
+  const recorder = state.recorder
+  if (recorder === undefined) return
+  let cancel: (() => void) | undefined
+  try {
+    await Promise.race([
+      recorder.flush(),
+      new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, RESOURCE_HISTORY_FLUSH_TIMEOUT_MS)
+        timer.unref()
+        cancel = () => {
+          clearTimeout(timer)
+        }
+      }),
+    ])
+  } finally {
+    cancel?.()
+  }
+}
 
 /** Loaded by the first governed launch; a CommonJS module is shared by all bundles. */
 export function resourceGovernorHost(options: ResourceHostSettings): ResourceLaunchHost {
@@ -240,5 +275,20 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
     onCleanup: options.onCleanup,
     onError: options.onError,
   })
+  if (options.history !== undefined) {
+    // The governor's own sample and event streams; recording never gates admission.
+    const host = state.host
+    const recorder = (state.recorder = resourceHistoryRecorder(
+      options.history,
+      { read: () => Promise.resolve(host.treeUsage()) },
+      options.onError,
+    ))
+    governor.onSample(() => {
+      recorder.sample(governor.status([]))
+    })
+    events.subscribe((event) => {
+      recorder.event(event)
+    })
+  }
   return state.host
 }

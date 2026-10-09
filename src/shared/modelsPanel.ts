@@ -1,4 +1,4 @@
-import { legacyUsdSchema } from './usd'
+import { legacyUsdSchema } from './usdSchema'
 // The Models & Agents panel's wire contract (M95, PLAN.md D74): the
 // host-owned state slices lane K serves and the messages the panel and the
 // host exchange. Both sides validate with these schemas, as protocol.ts

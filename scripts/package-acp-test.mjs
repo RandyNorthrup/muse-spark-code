@@ -42,6 +42,7 @@ for (const file of [
     'validation.js',
     'wire.js',
     'resourceGovernor.js',
+    'resourceJournal.js',
     'resourceAdmission.js',
     'runtime.bundles.json.br',
     'reporting.js',

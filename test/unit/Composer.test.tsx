@@ -1583,14 +1583,17 @@ describe('Composer: the paid badge (M33, PLAN.md D30)', () => {
 })
 
 describe('Composer: the microphone on Muse Voice (M35, PLAN.md D30)', () => {
-  it('names the paid engine and its price, and marks the button', () => {
+  it('names the paid engine and its price, and marks the button', async () => {
     renderComposer({ dictation: { status: 'idle', reason: undefined, engine: 'museVoice' } })
     const button = screen.getByRole('button', { name: 'Record voice with Muse Voice (paid)' })
-    expect(button).toHaveAttribute(
-      'title',
+    // The exact price arrives with the lazy money chunk (STARTUP017): the
+    // button marks itself at once, the tooltip fills in exactly, never guessed.
+    expect(button).toHaveClass('mic-paid')
+    expect(button).not.toHaveAttribute('title')
+    const titled = await screen.findByTitle(
       'Muse Voice, paid: $0.18 per hour of audio, billed to your Model API key. Tap or hold to record (Ctrl+D)',
     )
-    expect(button).toHaveClass('mic-paid')
+    expect(titled).toBe(button)
   })
 
   it('keeps the free engine’s name and look', () => {

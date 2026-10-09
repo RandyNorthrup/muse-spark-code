@@ -6,10 +6,10 @@
 // provider in `providers.json`, no secret in SecretStorage.
 
 import { useState } from 'react'
-import { usdInputSchema, isPositiveUsd } from '../../shared/usd'
+import { usdInputSchema } from '../../shared/usdSchema'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
+import { loadMoneyDisplay, useMoneyDisplay } from '../money'
 import type {
   ModelsCustomFormat,
   ModelsPanelState,
@@ -19,6 +19,7 @@ import type {
   PresetCard,
   TickScope,
 } from '../../shared/modelsPanel'
+import type { WizardLife } from './reducer'
 import { CostNotice } from './components/CostNotice'
 import { InlineError } from './components/InlineError'
 import { SearchableSelect, type SelectChip } from './components/SearchableSelect'
@@ -27,6 +28,8 @@ import { SuggestionCard } from './components/SuggestionCard'
 export interface WizardProps {
   readonly panelState: ModelsPanelState
   readonly draft: PanelDraft
+  /** The draft's generation: pending work posts only while it is current. */
+  readonly life: WizardLife
   readonly post: (message: PanelToHostMessage) => void
   readonly onNavigateModels: () => void
   readonly onClose: () => void
@@ -535,8 +538,19 @@ function PrivacyStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'on
   )
 }
 
-function SuggestionsStep({ panelState, draft, post, onClose, onNavigateModels }: WizardProps) {
+function SuggestionsStep({
+  panelState,
+  draft,
+  life,
+  post,
+  onClose,
+  onNavigateModels,
+}: WizardProps) {
   const [budgetOverride, setBudgetOverride] = useState('')
+  // The suggested budget's exact display arrives with the lazy money chunk;
+  // its Accept waits for it, and a failed load is said with Retry above the
+  // section (the panel's notice).
+  const money = useMoneyDisplay()
   const ticked = draft.models
   return (
     <div className="models-wizard-step">
@@ -563,16 +577,33 @@ function SuggestionsStep({ panelState, draft, post, onClose, onNavigateModels }:
             key={suggestion.kind}
             title={UI_TEXT.suggestSessionBudget}
             reason={suggestion.reason}
-            value={formatUsd(suggestion.usd, 2)}
+            value={money?.formatMoney(suggestion.usd, 2) ?? ''}
+            isValueShown={money !== undefined}
             accepted={suggestion.accepted}
             onAccept={() => {
               post({ type: 'suggestions/accept', kind: 'sessionBudget' })
             }}
             onChange={() => {
-              const usd = usdInputSchema.safeParse(budgetOverride.trim())
-              if (usd.success && isPositiveUsd(usd.data)) {
-                post({ type: 'suggestions/change', kind: 'sessionBudget', usd: usd.data })
+              // An override posts only when it parses and is positive. The
+              // positivity check waits for the money chunk, and posts only
+              // to the draft it was made for: a wizard cancelled or replaced
+              // meanwhile drops it. A failed load keeps the typed amount and
+              // is said with Retry (the panel's notice), never dropped silently.
+              const parsed = usdInputSchema.safeParse(budgetOverride.trim())
+              if (!parsed.success) {
+                return
               }
+              const amount = parsed.data
+              const { generation } = life
+              void loadMoneyDisplay()
+                .then((display) => {
+                  if (life.isCurrent(generation) && display.isPositiveUsd(amount)) {
+                    post({ type: 'suggestions/change', kind: 'sessionBudget', usd: amount })
+                  }
+                })
+                .catch(() => {
+                  // The failed state is on show with Retry (the panel's notice).
+                })
             }}
           />
         ),

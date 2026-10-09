@@ -39,6 +39,9 @@ const BUDGETS = [
   // M107: 89.5 / 1.8 KiB measured; +15%, rounded up to 25 KiB.
   { path: 'dist/resourceGovernor.js', budgetKiB: 125 },
   { path: 'dist/resourceAdmission.js', budgetKiB: 25 },
+  // INT0170: M107 W2's journal, shared by the governor and the usage service;
+  // 41.1 KiB measured, +15%, rounded up to 25 KiB.
+  { path: 'dist/resourceJournal.js', budgetKiB: 50 },
   // Resource controls/history closures (including their deferred parser and CSS) have 50 KiB caps below.
   { path: 'dist/webview/resourceSurface.js', budgetKiB: 25 },
   { path: 'dist/webview/resourceHistory.js', budgetKiB: 25 },

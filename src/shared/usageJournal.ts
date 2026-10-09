@@ -198,6 +198,6 @@ export const usageJournalEntrySchema = z.discriminatedUnion('type', [
 export type UsageJournalEntry = z.infer<typeof usageJournalEntrySchema>
 // M102 extends its record schemas with these fields once its journal lands.
 // Absence denotes a pre-M108 record; the reader resolves it to `default`.
-import { accountIdSchema } from './accounts'
+import { accountIdSchema } from './accountId'
 
 export const usageAccountFields = { account: z.optional(accountIdSchema) }

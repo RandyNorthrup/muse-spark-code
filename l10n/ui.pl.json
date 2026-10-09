@@ -52,6 +52,13 @@
   "resourceHistoryNewer": "Nowsze",
   "resourceHistoryPage": "Strona {page} z {pages}",
   "resourceHistoryDetailNotice": "Szczegóły ograniczono do ostatniej historii. Sumy obejmują wszystkie zachowane wpisy dziennika.",
+  "resourceHistoryCurrentMinute": "Ta minuta do tej pory",
+  "resourceHistoryDaily": "Wcześniejsze dni",
+  "resourceHistoryDailyNotice": "Każdy zakończony dzień zachowuje średnie, minuty na każdym poziomie, liczbę zdarzeń i pracę środowiska agenta przez dni historii użycia.",
+  "resourceHistoryDay": "Dzień (UTC)",
+  "resourceHistoryAverage": "średnia",
+  "resourceHistoryMinutes": "Zarejestrowane minuty",
+  "resourceHistoryLevelMinutes": "Minuty według poziomu",
   "resourceMemoryBelowFloor": "Poniżej minimum pamięci",
   "resourceMemoryLow": "Mały zapas",
   "resourceMemoryAmple": "Duży zapas",
@@ -552,6 +559,16 @@
     "fallbackReviewer": "Przewodnik: {actor} sprawdza {module} jako zapisany recenzent zastępczy ({reason}).",
     "residualOpen": "Potrzebna Twoja decyzja: {lane} ma otwarte punkty szczątkowe: {missing}."
   },
+  "scheduleSettlement": {
+    "sent": "Wysłano zgodnie z harmonogramem",
+    "outcomes": {
+      "ran": "Wykonano",
+      "refused": "Odmówiono",
+      "missed": "Przegapiono",
+      "skipped": "Pominięto",
+      "failed": "Niepowodzenie"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -585,7 +602,6 @@
       "conditions": "Warunki (pole=wartość, jeden na wiersz)",
       "endDate": "Data i godzina zakończenia (UTC)",
       "afterRuns": "Zakończ po N uruchomieniach",
-      "sent": "Wysłano zgodnie z harmonogramem",
       "cost": "Koszt",
       "grantHelp": "Jeden wpis na wiersz. Ścieżki pozostają w tym obszarze roboczym; chronione ścieżki i narzędzia wymagające człowieka są zawsze odrzucane.",
       "auditKinds": {
@@ -706,13 +722,6 @@
       "open": "Otwórz w tle",
       "skip": "Pomiń uruchomienie",
       "runOnce": "Nadrób jeden raz"
-    },
-    "outcomes": {
-      "ran": "Wykonano",
-      "refused": "Odmówiono",
-      "missed": "Przegapiono",
-      "skipped": "Pominięto",
-      "failed": "Niepowodzenie"
     },
     "events": {
       "pullRequestOpened": "Otwarto prośbę o scalenie",
@@ -2194,6 +2203,7 @@
   "loadingOutput": "Ładowanie…",
   "surfaceLoadFailed": "Nie udało się wczytać tego panelu.",
   "surfaceLoadRetry": "Spróbuj ponownie",
+  "moneyLoadFailed": "Nie udało się wczytać cen.",
   "toolFailed": "Niepowodzenie",
   "toolRejected": "Odrzucono",
   "toolStopped": "Zatrzymano",

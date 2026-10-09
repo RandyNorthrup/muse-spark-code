@@ -52,6 +52,13 @@
   "resourceHistoryNewer": "Più recenti",
   "resourceHistoryPage": "Pagina {page} di {pages}",
   "resourceHistoryDetailNotice": "I dettagli sono limitati alla cronologia recente. I totali includono tutte le voci conservate del registro.",
+  "resourceHistoryCurrentMinute": "Questo minuto finora",
+  "resourceHistoryDaily": "Giorni precedenti",
+  "resourceHistoryDailyNotice": "Ogni giorno completato conserva le medie, i minuti a ogni livello, il numero di eventi e il lavoro dell’ambiente agente per i giorni della cronologia di utilizzo.",
+  "resourceHistoryDay": "Giorno (UTC)",
+  "resourceHistoryAverage": "media",
+  "resourceHistoryMinutes": "Minuti registrati",
+  "resourceHistoryLevelMinutes": "Minuti per livello",
   "resourceMemoryBelowFloor": "Sotto il minimo di memoria",
   "resourceMemoryLow": "Margine ridotto",
   "resourceMemoryAmple": "Margine ampio",
@@ -551,6 +558,16 @@
     "fallbackReviewer": "Guida: {actor} esamina {module} come revisore supplente registrato ({reason}).",
     "residualOpen": "Serve il tuo intervento: {lane} ha punti residui aperti: {missing}."
   },
+  "scheduleSettlement": {
+    "sent": "Inviato secondo la pianificazione",
+    "outcomes": {
+      "ran": "Eseguito",
+      "refused": "Rifiutato",
+      "missed": "Perso",
+      "skipped": "Saltato",
+      "failed": "Fallito"
+    }
+  },
   "scheduleV2": {
     "editor": {
       "tips": {
@@ -584,7 +601,6 @@
       "conditions": "Condizioni (campo=valore, una per riga)",
       "endDate": "Data e ora di fine (UTC)",
       "afterRuns": "Termina dopo N esecuzioni",
-      "sent": "Inviato secondo la pianificazione",
       "cost": "Costo",
       "grantHelp": "Una voce per riga. I percorsi restano in questa area di lavoro; i percorsi protetti e gli strumenti che richiedono una persona vengono sempre rifiutati.",
       "auditKinds": {
@@ -705,13 +721,6 @@
       "open": "Apri in background",
       "skip": "Salta l’esecuzione",
       "runOnce": "Recupera una volta"
-    },
-    "outcomes": {
-      "ran": "Eseguito",
-      "refused": "Rifiutato",
-      "missed": "Perso",
-      "skipped": "Saltato",
-      "failed": "Fallito"
     },
     "events": {
       "pullRequestOpened": "Richiesta di unione aperta",
@@ -2159,6 +2168,7 @@
   "loadingOutput": "Caricamento…",
   "surfaceLoadFailed": "Impossibile caricare questo pannello.",
   "surfaceLoadRetry": "Riprova",
+  "moneyLoadFailed": "Impossibile caricare i prezzi.",
   "toolFailed": "Non riuscito",
   "toolRejected": "Rifiutato",
   "toolStopped": "Arrestato",

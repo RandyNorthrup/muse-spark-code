@@ -155,6 +155,7 @@
     "src/webview/models/sections/vault/VaultSection.tsx",
     "src/webview/models/sections/vault/VaultSurface.tsx",
     "src/webview/models/sections/vault/vaultPresentation.tsx",
+    "src/webview/money.tsx",
     "src/webview/playbook/DeferredPlaybook.tsx",
     "src/webview/playbook/PlaybookMap.tsx",
     "src/webview/playbook/PlaybookPanel.tsx",

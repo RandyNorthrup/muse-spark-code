@@ -216,5 +216,9 @@
   "exportTooLarge": "Dieser Export ist für den Browser zu groß. Wählen Sie einen kürzeren Zeitraum oder exportieren Sie über die CLI.",
   "exportBound": "Browserexporte sind einschließlich JSON-Kodierung auf {limit} begrenzt.",
   "editorActionsUnavailable": "Diese Seite kann keine Editoreinstellungen oder den Verlaufsordner öffnen und keine Modellpreise bearbeiten. Verwenden Sie die Editoreinstellungen und die Bedienelemente für Modelle und Agenten. Lesen, Filter, Diagramme und Exporte bleiben hier verfügbar.",
-  "readOnlyActions": "Diese Textansicht ist schreibgeschützt. Öffnen Sie die Begleitseite für Diagramme, Verlaufsverwaltung und Downloads."
+  "readOnlyActions": "Diese Textansicht ist schreibgeschützt. Öffnen Sie die Begleitseite für Diagramme, Verlaufsverwaltung und Downloads.",
+  "deleteConfirmResources": {
+    "one": "Außerdem wird {count} Eintrag des Ressourcenverlaufs gelöscht.",
+    "other": "Außerdem werden {count} Einträge des Ressourcenverlaufs gelöscht."
+  }
 }

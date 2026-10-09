@@ -9,6 +9,7 @@ import {
 
 import { usdAmountSchema, type UsdAmount } from './usdSchema'
 export {
+  compareUsdAmounts,
   usdAmountSchema,
   nonnegativeUsdSchema,
   usdInputSchema,

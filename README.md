@@ -31,7 +31,10 @@ key to the CLI.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0170) ·
+The [roadmap](ROADMAP.md) shows what is in the next release, what is being
+built, what is planned and what each release shipped.
+
+**Contents:** [What's new](#whats-new-in-0170) · [Roadmap](ROADMAP.md) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
@@ -4958,9 +4961,20 @@ The CLI accepts `muse-spark-code-acp resources status --json` and
 `muse-spark-code-acp resources resume --json`. Status describes that command
 process, rather than another running session's queue. Resume writes the
 machine's bounded marker, read by loaded runtime hosts on their next refresh.
-`resources history` and `usage resources` report unavailable until the durable
-journal is supplied. ACP's shared command adapter provides `/resources`,
-`/resources resume` and `/usage resources` through its injected runtime port.
+`resources history` and `usage resources` print the machine's resource
+history, the same summary the usage page's **Resources** section shows
+(`--json` gives the validated aggregate). The VS Code window's governor and
+the ACP agent record minute readings, level and override events and the
+harness's own CPU time into a local journal under the usage folder, with the
+usage-history setting as consent, checked when each reading is collected. It
+keeps seven recorded days of detail (at most 10,080 minute readings and 1,000
+events), shows the open minute as "This minute so far", and keeps one row per
+completed day ("Earlier days") for the usage-history days. The usage page's
+**Delete history** names how many resource entries it also deletes, and no
+running window or agent writes anything from before the delete. One-shot commands and headless runs only read it. An unreadable
+journal is reported as such, never shown as empty history. ACP's shared
+command adapter provides `/resources`, `/resources resume` and
+`/usage resources` through its injected runtime port.
 See the [ACP guide](docs/acp.md#resource-status-and-resume) and
 [CI guide](docs/ci.md#resource-governor-in-headless-runs).
 
@@ -4997,7 +5011,9 @@ Other editors: ACP clients get `/resources`, `/resources resume` and
 `muse-spark-code-acp resources`. JetBrains, Visual Studio and Eclipse (MHP's
 native status widget and embedded chip) and the companion page can reuse the
 same shared chip, status adapter and controls once their host bridges bind
-them (M104); none does yet. The usage-history section, actuator lifecycle, runtime spawn
+them (M104); none does yet. The usage page (VS Code, the companion page and
+native hosts' embedded page) mounts the usage-history section lazily from the
+usage service's validated state. The actuator lifecycle, runtime spawn
 binding, M96/M96c slots and M100 paired-device dispatch remain explicit
 integration handoffs. Once those routes join, relocation will move only eligible queued
 tasks/checks, or a running check after explicit **Move to** and proven

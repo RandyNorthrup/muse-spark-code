@@ -94,6 +94,7 @@ beforeAll(async () => {
   const builds = await Promise.all([
     ...Object.entries({
       resourceGovernor: 'src/core/resources/resourceGovernorEntry.ts',
+      resourceJournal: 'src/runtime/resources/resourceJournalEntry.ts',
       resourceAdmission: 'src/core/resources/admission.ts',
       mcpPool: 'src/core/backends/modelapi/mcpPoolEntry.ts',
       modelApiCodeIntel: 'src/core/backends/modelapi/codeIntelEntry.ts',
@@ -452,6 +453,34 @@ describe('deferred cohort bundles', () => {
       'dist/modelApi.js carries src/core/resources/governor.ts, which loads only on the first governed spawn',
     )
     expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
+  it('INT0170 loads the resource journal once for the governor and the usage service', () => {
+    const journal = [
+      'src/runtime/resources/history.ts',
+      'src/core/usage/resourceJournal.ts',
+      'src/core/usage/resourceRecords.ts',
+    ]
+    for (const name of ['resourceGovernor', 'usageService']) {
+      for (const file of journal) expect(inputs(name)).not.toContain(file)
+      expect(bundleText(name)).toContain('./resourceJournal.js')
+    }
+    for (const file of journal) expect(inputs('resourceJournal')).toContain(file)
+    // Usage records name an account; the usage bundles carry no M108 pool schemas.
+    for (const name of ['usageService', 'usagePanel'])
+      expect(inputs(name)).not.toContain('src/shared/accounts.ts')
+    const governor = {
+      output: 'dist/resourceGovernor.js',
+      metafile: 'dist/meta/resourceGovernor.json',
+    }
+    const copied = new Map(bundleInputs(governor))
+    copied.set('src/core/usage/resourceJournal.ts', 1)
+    expect(
+      checkDeferredBundles((bundle) =>
+        bundle.output === governor.output ? copied : bundleInputs(bundle),
+      ),
+    ).toContain(
+      'dist/resourceGovernor.js carries src/core/usage/resourceJournal.ts, which loads only on the shared resource journal (dist/resourceJournal.js)',
+    )
   })
   it('M107 keeps every policy module and admission state out of other shipped cohorts, including Windows paths', () => {
     const bundles = Array.from(fixtures.keys(), (metafile) => ({
