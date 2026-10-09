@@ -176,3 +176,73 @@ actual pending operation; no speculative backend or governor change is made.
 
 Restored Linux receipt: complete ACP stdio file, **13/13 passed**, 22.34
 seconds (`acp-stage-green.log`), with the unchanged thirty-second case deadline.
+
+### Final Linux qualification
+
+Executable revision: `cf9f4967599f0bdf80c8e106b1a185843cba3f07`.
+All runs below use `npx vitest run <complete files> --maxWorkers=3` directly
+on Kubuntu, without a timeout override or test-name filter. The concluding
+commit changes this certification record only.
+
+| Complete files                                           | Passed | Duration | Local receipt            |
+| -------------------------------------------------------- | -----: | -------: | ------------------------ |
+| visualReadiness, visualStability, resourceHistoryReview  |     40 |  33.80 s | `setup-final.log`        |
+| m114ConversationReview, resourceChatLoad, AppPaletteLazy |     92 | 127.85 s | `conversation-final.log` |
+| acpStdio.e2e                                             |     13 |  22.34 s | `acp-stage-green.log`    |
+| runtimeChatGptPackage, webviewBundle, execStdio.e2e      |    103 | 134.20 s | `package-consumers.log`  |
+| visualCapture (existing persistent-browser capture path) |     11 |  56.73 s | `capture-default.log`    |
+
+**259 distinct tests in eleven complete files passed.** This includes every
+changed test file and the consumers of the shared package/capture helper.
+The earlier combined native fixture run also passed 57/57 (143.02 s).
+
+All twelve scoped gate commands exit 0 (`gate-results.tsv`): five-project
+`npm run typecheck`; changed-file `eslint --max-warnings=0` and Prettier;
+`npm run deadcode` (plain knip); `npx jscpd` (zero clones);
+`npm run check:l10n` (14 UI tables, zero problems); host API (zero problems);
+reference, tokens, plan, roadmap and `npm run build`. The build includes the
+unchanged bundle-size, split, host-global and notice gates. Roadmap remains
+current; no milestone heading, status, limit or release record changed.
+
+Measured build: extension **550.1/600 KiB**, Model API **515.8/525 KiB**,
+checkpoint store **87.3/225 KiB**; browser startup plus static imports
+**742.2/900 KiB**, original deferred JS **31.9/50 KiB**. These are the existing
+checked-in size gate's caps, not cap changes. Product source, CSS/tokens,
+dependencies, baselines and CHANGELOG have no diff from the starting revision.
+No product behavior change needs a changelog entry.
+
+| Deliberate break                               | Observed failure                                 | Restoration                 |
+| ---------------------------------------------- | ------------------------------------------------ | --------------------------- |
+| Remove inherited shared native helper copy     | Exec suite setup rejects missing Linux helper    | SHA-256 identical           |
+| Omit admission disposal flush                  | One-minute journal assertion fails               | `cmp` and SHA-256 identical |
+| Close shared browser before worker connections | Readiness setup reports ECONNREFUSED             | `cmp` and SHA-256 identical |
+| Make forced-colour active outline match hover  | 66 pressed-feedback assertions fail              | `cmp` and SHA-256 identical |
+| Disable DeferredSurface's failed state         | Two retry tests fail; one actual unhandled error | `cmp` and SHA-256 identical |
+| Throw at the second ACP session/new stage      | M118 fails and names exactly that stage          | `cmp` and SHA-256 identical |
+
+Every completed piece was committed with the installed `.husky/_` hook;
+ESLint/Prettier and gitleaks passed. Staged and committed diffs were re-read
+after each commit. Owned failed-run fixture directories were removed; ignored
+worktree temp output is about 2.3 MiB. No package was published or branch pushed.
+
+### Required macOS completion
+
+There is **no macOS receipt** in this round: the named route fails SSH host-key
+verification and the named Windows-host rig wrapper is unavailable here.
+The route/lead-run request remains unanswered. Before closing the macOS
+findings, run these complete batches on an approved macOS checkout:
+
+```sh
+npx vitest run test/e2e/execStdio.e2e.test.ts test/e2e/acpStdio.e2e.test.ts --maxWorkers=3
+npx vitest run test/unit/visualReadiness.test.mjs test/unit/visualStability.test.mjs test/unit/resourceHistoryReview.test.ts --maxWorkers=3
+npx vitest run test/unit/m114ConversationReview.test.mjs test/unit/resourceChatLoad.test.tsx test/unit/AppPaletteLazy.test.tsx --maxWorkers=3
+npx vitest run test/unit/runtimeChatGptPackage.test.ts test/unit/webviewBundle.test.mjs test/unit/visualCapture.test.mjs --maxWorkers=3
+```
+
+Also run the complete ACP stdio suite with `MUSE_ACP_PACKAGE_DIR` set to the
+approved installed candidate, as `hosts.yml` does. If M118 still times out,
+the new fixed-stage line identifies the pending request for the next drill.
+The macOS-only 3 px/equal-image failures and M118 pending operation remain
+open, rather than being inferred closed from Linux timings. Aggregate
+quality and the hosted cross-platform replay remain lead-owned under the
+explicit rig brief and PLAN §7's qualification record.
