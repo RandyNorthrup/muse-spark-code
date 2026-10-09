@@ -125,6 +125,8 @@ describe('judge hook shared CLI admission and lifecycle', () => {
       expect(resolveSource).toHaveBeenCalledWith(
         expect.objectContaining({ model: 'chosen', engine: kind, separate: 'configured-source' }),
         expect.any(AbortSignal),
+        // The run's own request: the source plans exactly what it judges.
+        expect.objectContaining({ questions: expect.any(Object) }),
       )
     }
   })

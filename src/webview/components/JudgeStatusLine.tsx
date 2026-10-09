@@ -27,10 +27,10 @@ export function JudgeStatusLine({ status }: { readonly status: JudgeStatus | und
   }
   // Why a configured separate source has no side in this build.
   const gaps = {
-    'needs-key': UI_TEXT.judgeSeparateNeedsKey,
-    'needs-capability-capture': UI_TEXT.judgeSeparateNeedsCapture,
-    'needs-local-install': UI_TEXT.judgeSeparateNeedsInstall,
-    'unknown-source': UI_TEXT.judgeSeparateUnknown,
+    key: UI_TEXT.judgeSeparateNeedsKey,
+    capture: UI_TEXT.judgeSeparateNeedsCapture,
+    install: UI_TEXT.judgeSeparateNeedsInstall,
+    unknown: UI_TEXT.judgeSeparateUnknown,
   }
   const billing = {
     subscription: UI_TEXT.judgeStatusSubscription,

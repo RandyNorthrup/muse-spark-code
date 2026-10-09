@@ -117,9 +117,9 @@ describe('the CLI production builder reaches a configured SystemOne side', () =>
   })
 
   it.each([
-    ['fixture-source', 'unknown-source'],
-    ['acme-provider:some-model', 'needs-capability-capture'],
-    ['local:tev1:4b', 'needs-local-install'],
+    ['fixture-source', 'unknown'],
+    ['acme-provider:some-model', 'capture'],
+    ['local:tev1:4b', 'install'],
   ])('names the exact gap for %s and sends nothing', async (separateId, gap) => {
     const run = await cliRun({
       args: ['--engine', 'separate', '--separate', separateId, '--budget-usd', '0.01'],

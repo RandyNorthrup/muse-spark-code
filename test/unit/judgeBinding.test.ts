@@ -383,7 +383,7 @@ describe('one binding policy', () => {
     ['recorded receipt', {}],
     ['missing receipt', { store: emptyPhase2EvidenceStore() }],
     ['unbilled', { billing: undefined }],
-    ['a named gap', { separateGap: 'unknown-source' as const }],
+    ['a named gap', { separateGap: 'unknown' as const }],
   ] as const)('the judgeP2 entry builds exactly the host binding with %s', (_label, overrides) => {
     const request = clientlessRequest(overrides)
     const entry = createJudgeFeatures({ uiText: EN, uiLocale: 'en' }).createPhase2Binding(request)

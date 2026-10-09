@@ -33,6 +33,13 @@ function productionWindow(separateId: string) {
   const deps: JudgeWindowDeps = {
     ...bindingWindowBase(),
     engine: () => 'auto',
+    context: () => ({
+      backend: 'museCode',
+      modelId: 'muse-spark-1.3',
+      ownerId: 'window',
+      contextLimit: 100_000,
+      confidential: false,
+    }),
     // The three plain production inputs extension.ts passes.
     separateId: () => separateId,
     evidenceRoot: path.join(storage, JUDGE_EVIDENCE_DIRNAME),
@@ -54,10 +61,10 @@ function productionWindow(separateId: string) {
 describe('the production window keeps phase-1 when no phase-2 side can be built', () => {
   it.each([
     ['', undefined],
-    ['fixture-source', 'unknown-source'],
-    ['openrouter-jev:typesafe/jev-1.13', 'needs-key'],
-    ['acme-provider:some-model', 'needs-capability-capture'],
-    ['local:tev1:4b', 'needs-local-install'],
+    ['fixture-source', 'unknown'],
+    ['openrouter-jev:typesafe/jev-1.13', 'key'],
+    ['acme-provider:some-model', 'capture'],
+    ['local:tev1:4b', 'install'],
   ])(
     'separate id %j: the same-model judge sends once and its caution reaches the fence',
     async (separateId, gap) => {

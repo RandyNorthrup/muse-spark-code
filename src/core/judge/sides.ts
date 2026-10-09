@@ -40,12 +40,12 @@ export function judgeSideTechnique(input: {
 /**
  * Why a configured separate id has no side in this build, in the status
  * line's own words (`judgeSeparateGap*`):
- * - `needs-key`: a SystemOne route whose provider key is not in M95's store;
- * - `needs-capability-capture`: a bring-your-own provider model, waiting on
+ * - `key`: a SystemOne route whose provider key is not in M95's store;
+ * - `capture`: a bring-your-own provider model, waiting on
  *   L98P2-CAPABILITY's bounded capture of a structured or logprob request;
- * - `needs-local-install`: the local judge, waiting on vetted install
+ * - `install`: the local judge, waiting on vetted install
  *   records and a certified platform;
- * - `unknown-source`: an id that names no source kind.
+ * - `unknown`: an id that names no source kind.
  */
 export type SeparateSourceGap = (typeof JUDGE_SEPARATE_GAPS)[number]
 
@@ -78,7 +78,7 @@ export function buildSeparateSource(
   const id = separateId.trim()
   const route = systemOneRoute(id)
   if (route !== undefined) {
-    if (!ports.hasStoredKey(route.keyProviderId)) return { kind: 'gap', gap: 'needs-key' }
+    if (!ports.hasStoredKey(route.keyProviderId)) return { kind: 'gap', gap: 'key' }
     const built = createSystemOneSide(route, {
       ...ports.systemOne,
       // The service bills its own prompt on top of the body (the recorded
@@ -99,6 +99,6 @@ export function buildSeparateSource(
       model: route.model,
     }
   }
-  if (id.startsWith(JUDGE_LOCAL_SEPARATE_PREFIX)) return { kind: 'gap', gap: 'needs-local-install' }
-  return { kind: 'gap', gap: id.includes(':') ? 'needs-capability-capture' : 'unknown-source' }
+  if (id.startsWith(JUDGE_LOCAL_SEPARATE_PREFIX)) return { kind: 'gap', gap: 'install' }
+  return { kind: 'gap', gap: id.includes(':') ? 'capture' : 'unknown' }
 }

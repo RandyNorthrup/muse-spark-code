@@ -407,6 +407,8 @@ describe('judge hook native advisory formats', () => {
     expect(deps.resolveSource).toHaveBeenCalledWith(
       expect.objectContaining({ model: 'chosen' }),
       expect.any(AbortSignal),
+      // The run's own request: the source plans exactly what it judges.
+      expect.objectContaining({ questions: expect.any(Object) }),
     )
     expect(result.output() + result.error()).not.toMatch(
       /private-transcript|whole state|payload-model|synthetic-private/,

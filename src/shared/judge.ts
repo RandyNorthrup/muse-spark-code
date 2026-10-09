@@ -6,12 +6,7 @@ import { JUDGE_PANEL_REASONS } from './judgePanelSchema'
  * Why a configured separate source has no side in this build (M98 phase 2
  * redesign); the status line names it in plain words. Window-only.
  */
-export const JUDGE_SEPARATE_GAPS = [
-  'needs-key',
-  'needs-capability-capture',
-  'needs-local-install',
-  'unknown-source',
-] as const
+export const JUDGE_SEPARATE_GAPS = ['key', 'capture', 'install', 'unknown'] as const
 
 export const judgeStatusSchema = z.object({
   mode: z.enum(['same', 'separate', 'both', 'off']),
