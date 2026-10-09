@@ -76,20 +76,20 @@ Windows result there.
 
 ## Run 37883970931 (release head `45554edd8`) — further classes
 
-| Job / file                                                                              | Class       | Root cause                                                                                                                                                                                                                                                                                                                                                                                                               | Fix / state                                                                                                                        |
-| --------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| static gates ubuntu + windows: `lint:js` heap again                                     | b           | The release head still ran one `eslint .`; W2/STARTUP017 grew it further.                                                                                                                                                                                                                                                                                                                                                | `14cc887cd` then `dfb8cc6f9`: three processes. Kubuntu peaks 4,374,192 (main) / 5,375,528 (unit) / 2,055,336 KiB (other tests).    |
-| static gates (macos): cancelled at 25 min inside `lint:js`                              | b + c       | Same heap pressure (GC thrash) on the slowest runner.                                                                                                                                                                                                                                                                                                                                                                    | Same split; hosted macOS must show the gate inside 25 min.                                                                         |
-| semgrep                                                                                 | b           | M122 roadmap RegExp built from ids.                                                                                                                                                                                                                                                                                                                                                                                      | Release `808a73ee3` (lead); this branch's `912ce65ec` superseded in the merge `634b24c86`.                                         |
-| tests windows shards 1, 3, 4: cancelled at the 20 min job limit                         | c (+ b)     | Windows runs files sequentially (`fileParallelism: false` on win32) and `--shard` splits by file count, not time. Shard 1 was already cancelled in run 37866831774: modelApiHost.test.ts 242 s and scheduleJournal's single 10,000-fire case 164 s (91–176 s on every OS) sit together. Shard 3 now runs execStdio to the end (157 s, was a 24 s early failure) and every file was ~30 % slower than in run 37866831774. | **Open, not changed** (no limit raised): needs duration-aware shard assignment or a cheaper 10,000-fire journal case; lead's call. |
-| quality ×3, package (.vsix), dictation helper (macos), merged coverage                  | derived     | The `required` aggregator jobs test upstream results (`CHECKS`, `VISUAL`, `UNIT`, `HELPER` …); coverage is skipped when a shard fails.                                                                                                                                                                                                                                                                                   | Follow the upstream fixes.                                                                                                         |
-| compile dictation helper (macos)                                                        | b           | Swift `guard let` warnings are only warnings; the failure is `macVaultCapture.py` (test_probe "True is not false", KeyError `code`).                                                                                                                                                                                                                                                                                     | `6c2483693`.                                                                                                                       |
-| e2e/execStdio (ubuntu, macos)                                                           | b           | Past the l10n check for the first time, the guard parsed the packed (format 1) table archive as the old keyed matrix (ZodError on `keys`).                                                                                                                                                                                                                                                                               | `45b668ed3` (reads German with `readArchivedUiTable`). Kubuntu 44/44.                                                              |
-| e2e/execTestLauncher (ubuntu)                                                           | b           | Fixture lacked the new shared dist/resourceJournal.js.                                                                                                                                                                                                                                                                                                                                                                   | `59e7b5be2`. Kubuntu 6/6.                                                                                                          |
-| visual shards: renderer inventory                                                       | b           | money.tsx listed without an audit row.                                                                                                                                                                                                                                                                                                                                                                                   | `44f8ef306`, `3b1a70d2b`.                                                                                                          |
-| e2e/acpStdio (2, ubuntu)                                                                | open (c?)   | Hosted only: "The schedule host could not start for this workspace", then the earlier question's answer echoes into the next prompt.                                                                                                                                                                                                                                                                                     | Passes on Kubuntu at this branch's head (13/13); needs this branch's hosted run.                                                   |
-| conversationController handoff refusals (ubuntu, macos)                                 | open (c/b?) | Over its named 20 s; 10.9 s alone on Kubuntu; Windows file time 40 → 54 s between the two runs.                                                                                                                                                                                                                                                                                                                          | Not changed (no deadline raised); profile the three scripted handoffs.                                                             |
-| webviewBundle (2), uiTextRegions, resourceHistoryReview, museCodeBackendManager (macos) | c           | Hook/test deadlines (5–10 s) on loaded hosted runners while building; one usage observer race.                                                                                                                                                                                                                                                                                                                           | Not changed.                                                                                                                       |
+| Job / file                                                                              | Class   | Root cause                                                                                                                                                                                                              | Fix / state                                                                                                                                                                                     |
+| --------------------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| static gates ubuntu + windows: `lint:js` heap again                                     | b       | The release head still ran one `eslint .`; W2/STARTUP017 grew it further.                                                                                                                                               | `14cc887cd` then `dfb8cc6f9`: three processes. Kubuntu peaks 4,374,192 (main) / 5,375,528 (unit) / 2,055,336 KiB (other tests).                                                                 |
+| static gates (macos): cancelled at 25 min inside `lint:js`                              | b + c   | Same heap pressure (GC thrash) on the slowest runner.                                                                                                                                                                   | Same split; hosted macOS must show the gate inside 25 min.                                                                                                                                      |
+| semgrep                                                                                 | b       | M122 roadmap RegExp built from ids.                                                                                                                                                                                     | Release `808a73ee3` (lead); this branch's `912ce65ec` superseded in the merge `634b24c86`.                                                                                                      |
+| tests windows shards 1, 3, 4                                                            | c (+ b) | Windows runs files sequentially (`fileParallelism: false` on win32) and `--shard` splits by file count, not time. Shard 1 held modelApiHost.test.ts (242 s) and scheduleJournal's 10,000-fire case (164 s).             | CITIME017 below: three product hotspots fixed (`f727b060d`, `82ebc8b6b`, `8bbe763dd`); estimate still 18.3 / 14.2 / 20.0 / 18.0 min with four shards. **Open: shard count is the lead's call.** |
+| quality ×3, package (.vsix), dictation helper (macos), merged coverage                  | derived | The `required` aggregator jobs test upstream results (`CHECKS`, `VISUAL`, `UNIT`, `HELPER` …); coverage is skipped when a shard fails.                                                                                  | Follow the upstream fixes.                                                                                                                                                                      |
+| compile dictation helper (macos)                                                        | b       | Swift `guard let` warnings are only warnings; the failure is `macVaultCapture.py` (test_probe "True is not false", KeyError `code`).                                                                                    | `6c2483693`.                                                                                                                                                                                    |
+| e2e/execStdio (ubuntu, macos)                                                           | b       | Past the l10n check for the first time, the guard parsed the packed (format 1) table archive as the old keyed matrix (ZodError on `keys`).                                                                              | `45b668ed3` (reads German with `readArchivedUiTable`). Kubuntu 44/44.                                                                                                                           |
+| e2e/execTestLauncher (ubuntu)                                                           | b       | Fixture lacked the new shared dist/resourceJournal.js.                                                                                                                                                                  | `59e7b5be2`. Kubuntu 6/6.                                                                                                                                                                       |
+| visual shards: renderer inventory                                                       | b       | money.tsx listed without an audit row.                                                                                                                                                                                  | `44f8ef306`, `3b1a70d2b`.                                                                                                                                                                       |
+| e2e/acpStdio (2, ubuntu)                                                                | b       | A race, not the host: a turn finishing before its turn/start reply released the delivered answer instead of committing it; the fixture also lacked dist/schedules.js (host refused on every OS). Reproduced on Kubuntu. | `993789c4c` (CITIME017 below).                                                                                                                                                                  |
+| conversationController handoff refusals (ubuntu, macos)                                 | b       | Each streamed string rebuilt the key's secret matcher (9 of 11 s).                                                                                                                                                      | `8bbe763dd`: 10.9 → 1.3 s; back on the default deadline (CITIME017 below).                                                                                                                      |
+| webviewBundle (2), uiTextRegions, resourceHistoryReview, museCodeBackendManager (macos) | c       | Hook/test deadlines (5–10 s) on loaded hosted runners while building; one usage observer race.                                                                                                                          | Not changed.                                                                                                                                                                                    |
 
 Pre-commit hook: on three commits lint-staged printed ESLint errors and
 "Reverting to original state", yet the commit landed (`95467436b`,
@@ -107,3 +107,116 @@ nativeScheduleBackground timeout, execStdio and runtimeChatGptPackage (VM
 too slow to build them), shard wall times against the 20 min limit. Ubuntu:
 acpStdio, conversationController. All: check:visual shards end to end and
 the split lint's wall time inside the static-gate deadline.
+
+## CITIME017 — Windows shard time, acpStdio, the handoff case (2026-10-08)
+
+Lane `rel017/citime` from `506ae2375`, on Kubuntu directly (10 cores, shared
+with other lanes; loads 4–12 during the runs). No limit, deadline or cap was
+raised; one named deadline was removed. No model calls. Hosted evidence:
+`gh run view` logs of runs 37883970931 and 37866831774 (Windows jobs for
+both, Ubuntu jobs for the newer one).
+
+### 1. Windows shards over 20 minutes
+
+Profiles: `node --cpu-prof` on the vitest fork (`--pool=forks --execArgv`).
+
+| Hotspot                                      | Root cause                                                                                                                                                                                | Fix                                                                                                                                            |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| scheduleJournal 10,000 fires                 | `journal.read` spent its time in `structuredClone` of every cached delta and zod revalidation; the store built a new journal per call, so the validated-bytes caches never hit (product). | `f727b060d`: one journal per workspace in the store; a read folds over shallow copies and clones once. Bytes are still reread and compared.    |
+| (same case)                                  | The property (journal and audit bounded, fences linear) is flat after the first compaction; 10,000 fires proved nothing 1,000 do not.                                                     | Same commit: 1,000 fires (10× the 100-record audit cap, ~150 compactions), production constants unchanged; named limit 240 s → 60 s.           |
+| modelApiHost: `installLanguage` 18 of 52 s   | Every recorded context read loaded schedulesEntry and reinstalled the caller's whole table (2,905 descriptors, seven Intl formatters, ~3.8 ms), in production `dist/schedules.js` too.    | `82ebc8b6b`: the entry skips a repeat install of the same table and locale.                                                                    |
+| modelApiHost / handoff case: `redactSecrets` | The stream redacted every string of every SSE event with `redactSecrets(text, secrets)`, deriving the key's encoded forms and a new Aho-Corasick matcher per call.                        | `8bbe763dd`: `secretRedactor` builds them once per response, again only when a registered secret changes; output identical to `redactSecrets`. |
+
+Measured on Kubuntu (plain / under `--coverage`):
+
+| File or case                       | Before            | After          |
+| ---------------------------------- | ----------------- | -------------- |
+| scheduleJournal, 10,000-fire case  | 124 s / 219 s     | 68 s / 142 s   |
+| scheduleJournal, the case at 1,000 | —                 | 6.8 s / 12.8 s |
+| scheduleJournal.test.ts (file)     | case 124 s + ~6 s | 7.9 s / 29 s   |
+| modelApiHost.test.ts               | 49–52 s / 66.5 s  | 31 s / 45.4 s  |
+| conversationController.test.ts     | — / 59.0 s        | 27 s / 39.5 s  |
+| handoff refusal case               | 10.9 s            | 1.3 s / 1.7 s  |
+
+Estimated Windows shards (`--shard=n/4` assigns by SHA-1 of the path, so the
+current 1,264 files were assigned with vitest 5.0.3's own algorithm). Each
+file's latest hosted Windows time; 138 files never reached on Windows (shard 1
+was cancelled in both runs) use their hosted Ubuntu time × 1.49 (the
+Windows/Ubuntu ratio over 1,114 files timed on both); +0.71 s per file of
+import/setup overhead (shard 2's 847 s duration minus its file times). The
+changed files are scaled by their Kubuntu coverage ratio (journal 0.13,
+modelApiHost 0.68, conversationController 0.67); other files that stream
+Model API replies also gain from `8bbe763dd` but are not credited. The job's
+own checkout and `npm ci` add about a minute.
+
+| Shards    | Shard 1  | Shard 2  | Shard 3  | Shard 4  | Shard 5  |
+| --------- | -------- | -------- | -------- | -------- | -------- |
+| 4, before | 21.9 min | 14.2 min | 20.3 min | 18.0 min | —        |
+| 4, after  | 18.3 min | 14.2 min | 20.0 min | 18.0 min | —        |
+| 5, after  | 15.5 min | 13.8 min | 13.4 min | 13.3 min | 14.5 min |
+
+About 70 minutes of serial Windows work cannot fit four 20-minute jobs at any
+balance, and shard 3 does not hold modelApiHost, so splitting that file
+(the brief's fallback) would not clear it: shard 3 is execStdio (157 s),
+checkpointStoreWindows (84 s), teamLanding, scheduleFs and m114Panel. Vitest
+5.0.3 has no duration-based sharding; a custom `sequence.sequencer` would
+need a committed duration table that goes stale. **Lead's decision, not
+changed here:** five Windows shards (`build.yml` `unit` matrix and the
+`coverage` job's `for shard in 1 2 3 4` check), or further per-file work. One
+found and left: execStdio's E6 (18.5 s of its 43 s on Kubuntu) waits out the
+real Model API retry backoff (`MODEL_API_RETRY_BASE_MS` 1 s) because its fake
+`fetch` throws; shortening it needs a test-only retry setting in exec.
+
+### 2. acpStdio on hosted Ubuntu
+
+Not hosted-only: the two cases failed together on Kubuntu in two of three
+runs of just that pair (`-t` both), identical to the hosted messages.
+
+- **Answer echoed again (product, `993789c4c`).** When the backend finishes a
+  turn before its `turn/start` reply is handled, `noteTurnId` settles the
+  prompt (`this.pending = undefined`, lease released) before the commit
+  check, so the delivered answer stayed queued and the next prompt, or the
+  next agent on the same data folder, sent it again. The commit decision now
+  runs first and counts an early finish of that turn as delivery. New case in
+  acpQuestionDeferral fails before ("called 0 times") and passes after; the
+  e2e pair then passed 5/5.
+- **"The schedule host could not start" (fixture).** The laid-out package
+  never had `dist/schedules.js`, so the host refused on every OS; the loader
+  logged `The schedules …/dist/schedules.js could not be loaded: Cannot find
+module`, and the text check ignored the notice. Hosted differences named in
+  the brief were tried and are not the cause: a world-writable sticky TMPDIR
+  and no `XDG_RUNTIME_DIR`/`DBUS_SESSION_BUS_ADDRESS` both pass. The fixture
+  now builds the bundle as the package ships it; the host starts (also with
+  no session bus) and registers no user units. The Muse Code case now
+  requires no host-unavailable notice and prints the agent's log, which names
+  the cause, if one appears.
+
+### 3. conversationController handoff refusals
+
+The over-limit brief streams thousands of strings, each through a rebuilt
+secret matcher (profile: 9 of 11 s in `redactWith`). Fixed by `8bbe763dd`
+(table above). The case's named 20 s deadline and its PLAN.md §8 row are
+removed; at the default 5 s it passes in 1.3 s (1.7 s under coverage).
+
+### Drills (each restored, SHA-256 compared)
+
+| Guard                                                | Break                                        | Result                               |
+| ---------------------------------------------------- | -------------------------------------------- | ------------------------------------ |
+| journal: clones once per read                        | `journal.ts` from `506ae2375`                | "expected 41 to be 2"                |
+| journal: store reuses its validated journal          | `store.ts` from `506ae2375`                  | "expected 14 to be less than 5"      |
+| journal: callers never get cached values             | `parse(next)` without the clone              | values became `{ b: 2 }`, `{ d: 2 }` |
+| recordingReader: language installed once             | `schedulesEntry.ts` from `506ae2375`         | formatter identity differs           |
+| acpQuestionDeferral: commit when the turn ends first | test written before the fix                  | `commitQueued` called 0 times        |
+| acpStdio: no host-unavailable notice                 | fixture without the schedules bundle         | fails, prints "could not be loaded"  |
+| redact: forms derived once                           | rebuild the matcher per call                 | "expected 6 to be 1"                 |
+| redact: secret registered mid-stream                 | never rebuild after the first call           | the late secret left unredacted      |
+| handoff case at the default deadline                 | transport back to per-string `redactSecrets` | "Test timed out in 5000ms"           |
+
+### Tests run (Kubuntu, repository default timeouts)
+
+scheduleJournal, scheduleStore, scheduler, scheduleMigrate, scheduleOutbox,
+scheduleFs, scheduleRestartRecovery (151 passed); recordingReader 69;
+modelApiHost 669; acpQuestionDeferral + acpAgent 222; e2e/acpStdio 13;
+redact + accountSecrets 204; conversationController 680; modelApiClient,
+modelApiProviders, modelApiHostedSearch 143; metaRequestGoldens,
+unattendedBackends.
