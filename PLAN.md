@@ -22517,6 +22517,34 @@ before a repaired one loads (2026-09-30).
   (including umask 002 home ancestry) and Windows, and reviews W's host-API
   refresh. RVM104L5-F1 remains fixed, with no review residual.
 
+- **FIXM104L7 private-group proof and Stop preflight (2026-10-08).**
+  The glibc `getent initgroups` output never carries a primary gid on its
+  own, and macOS sizes a NULL `getgrouplist` buffer at zero, so neither can
+  prove exclusive membership: both paths are deleted. Admission now needs
+  gid equality with `getpwuid(geteuid()).pw_gid`, a matching group name, an
+  empty/self-only member list, and no other passwd row holding G as its
+  primary gid; any lookup failure, empty enumeration or parse error refuses
+  with the named check. Directory services that do not enumerate
+  (sssd/LDAP with enumeration off) can hide an account sharing G; the rule
+  then relies on the UPG convention, and same-user attacks stay out of scope
+  as recorded above. On macOS the admit branch is unreachable (no
+  UPG-shaped group exists past the staff name check); its logic is proven by
+  the Linux row-shape vectors and its refusal by the signed helper against
+  the real libc. Stop preflights every owner file before signalling:
+  unreadable/empty/truncated/schema-invalid records are skipped and reported
+  (`ESTOP_RECORD_UNUSABLE`), foreign trust roots are skipped and reported
+  (`ESTOP_RECORD_FOREIGN`), and only duplicate well-formed
+  ownerId:generation pairs stay fatal. The skip lines are English
+  model-facing tokens on the existing diagnostic channel, displayed like the
+  neighbouring `ESTOP_ROOT_REFUSED` lines under AGENTS.md's technical
+  "Label: detail" exception, so no new localized string is added. Safe for
+  this unmerged lane: live-supervision suites (control sockets, process
+  table, passwd names) are gated to fail fast with a named block inside a
+  denying sandbox and are certified by the lead outside it; real-Linux UPG
+  admission, the live mixed-root Stop regression and the idle-watchdog CPU
+  bound are named lead reruns on kubuntu/unsandboxed macOS. No guard is
+  widened and no dependency is added.
+
 - **RVM104L5-F1 — fixed by FIXM104L5 (2026-10-06).** Independent Stop
   no longer chooses only the first root acceptable in its own environment.
   Full-path-verified platform candidates and verified stable-home path locators
