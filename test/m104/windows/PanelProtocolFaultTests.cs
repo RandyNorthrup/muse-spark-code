@@ -101,6 +101,95 @@ namespace MuseSpark.VisualStudio.Test
         Assert.ThrowsException<MhpException>(() => SchemaContract.Validate("x", schema), schema.ToString(Formatting.None));
     }
 
+    // RVF104PD finding 3: a malformed type array refuses its alternative whatever the member order.
+    [TestMethod]
+    public void UnknownTypeNamesRefuseTheirAlternativeInAnyOrder()
+    {
+      foreach (var names in new[] { new JArray("string", "bogus"), new JArray("bogus", "string") })
+      {
+        Assert.ThrowsException<MhpException>(() => SchemaContract.Validate("x", new JObject { ["type"] = names }), names.ToString(Formatting.None));
+        // Under oneOf only the well-formed alternative may match.
+        SchemaContract.Validate("x", new JObject { ["oneOf"] = new JArray(new JObject { ["type"] = names.DeepClone() }, new JObject { ["type"] = "string" }) });
+      }
+    }
+
+    private sealed class HeldWriter : StringWriter
+    {
+      public Microsoft.VisualStudio.Threading.AsyncManualResetEvent Release { get; } = new Microsoft.VisualStudio.Threading.AsyncManualResetEvent();
+      public bool Holding { get; set; }
+      public override async Task WriteLineAsync(string value)
+      {
+        if (Holding) await Release.WaitAsync().ConfigureAwait(false);
+        WriteLine(value);
+      }
+    }
+
+    // RVF104PD finding 1: the channel is failed before its error frame waits for the writer.
+    [TestMethod]
+    [Timeout(10000)]
+    public async Task AFaultStopsDeliveryBeforeItsErrorIsWritten()
+    {
+      using (var output = new HeldWriter())
+      using (var peer = new MhpPeer(Contract, new Host("lifecycle"), output))
+      {
+        await ReadyAsync(peer, output, "lifecycle");
+        using (var channel = await ReadyChannelAsync(peer, "chat"))
+        {
+          var delivered = 0; channel.MessageReceived += (sender, payload) => delivered++;
+          await SendAsync(peer, Envelope("chat", 1, Notice()));
+          output.Holding = true;
+          // Overlapping receive tasks, as RunAsync starts them: neither is awaited before the next begins.
+          var duplicate = SendAsync(peer, Envelope("chat", 1, Notice()));
+          var next = SendAsync(peer, Envelope("chat", 2, Notice()));
+          Assert.IsFalse(duplicate.IsCompleted, "the error write must still be held");
+          Assert.AreEqual("MHP_PANEL_OUT_OF_ORDER", channel.FaultCode);
+          Assert.AreEqual(1, delivered);
+          Assert.AreEqual(1L, channel.LastReceivedSequence);
+          var refused = await Assert.ThrowsExceptionAsync<MhpException>(() => channel.PostAsync(new JObject { ["type"] = "ready" }, CancellationToken.None));
+          Assert.AreEqual("MHP_SURFACE_CLOSED", refused.Message);
+          output.Release.Set();
+          await Task.WhenAll(duplicate, next);
+          var sent = Frames(output);
+          Assert.IsTrue(sent.Any(f => f.Value<string>("code") == "MHP_PANEL_OUT_OF_ORDER" && f.Value<long>("seq") == 1));
+          Assert.IsTrue(sent.Any(f => f.Value<string>("code") == "MHP_PANEL_UNKNOWN_SURFACE" && f.Value<long>("seq") == 2));
+          Assert.AreEqual(1, sent.Count(f => f.Value<string>("event") == "closed"));
+          Assert.AreEqual(1, delivered);
+        }
+      }
+    }
+
+    // RVF104PD finding 2: a sequence Json.NET cannot hold as Int64 (or a fraction) is never cast.
+    [DataTestMethod]
+    [DataRow("9223372036854775808")]
+    [DataRow("-99999999999999999999")]
+    [DataRow("1.5")]
+    public async Task UnrepresentableSequencesCloseTheChannelAndKeepTheLoopHealthy(string sequence)
+    {
+      using (var output = new StringWriter())
+      using (var peer = new MhpPeer(Contract, new Host("lifecycle"), output))
+      {
+        var log = new List<string>(); peer.Log = log.Add;
+        await ReadyAsync(peer, output, "lifecycle");
+        using (var channel = await ReadyChannelAsync(peer, "chat"))
+        {
+          var delivered = 0; channel.MessageReceived += (sender, payload) => delivered++;
+          var before = Frames(output).Count;
+          var malformed = "{\"mhp\":\"1.3\",\"kind\":\"panel\",\"surface\":\"chat\",\"direction\":\"toPanel\",\"seq\":" + sequence + ",\"payload\":" + Notice().ToString(Formatting.None) + "}";
+          // RunAsync rethrows any faulted receive task when its input ends: completing is the health check.
+          await peer.RunAsync(new StringReader(malformed + "\n" + Envelope("chat", 1, Notice()).ToString(Formatting.None) + "\n"));
+          Assert.AreEqual("MHP_PANEL_INVALID_ENVELOPE", channel.FaultCode);
+          Assert.AreEqual(0, delivered);
+          CollectionAssert.DoesNotContain(log, "MHP_PANEL_DELIVERY_FAILED");
+          var sent = Frames(output).Skip(before).ToList();
+          Assert.AreEqual(3, sent.Count);
+          Assert.AreEqual("MHP_PANEL_INVALID_ENVELOPE", sent[0].Value<string>("code"));
+          Assert.AreEqual(JTokenType.Null, sent[0]["seq"]?.Type);
+          Assert.AreEqual("closed", sent[1].Value<string>("event"));
+          Assert.AreEqual("MHP_PANEL_UNKNOWN_SURFACE", sent[2].Value<string>("code"));
+        }
+      }
+    }
+
     [TestMethod]
     public async Task HostAnswersUiInputWithAStringOrNull()
     {

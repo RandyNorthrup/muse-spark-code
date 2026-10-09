@@ -151,9 +151,13 @@ namespace MuseSpark.VisualStudio.Protocol
     {
       if (type.Type == JTokenType.String) return IsType(value, type.Value<string>() ?? throw Invalid());
       if (!(type is JArray names) || names.Count == 0 || names.Any(name => name.Type != JTokenType.String)) throw Invalid();
-      if (names.Select(name => name.Value<string>()).Distinct(StringComparer.Ordinal).Count() != names.Count) throw Invalid();
-      return names.Any(name => IsType(value, name.Value<string>() ?? throw Invalid()));
+      var listed = names.Select(name => name.Value<string>() ?? "").ToList();
+      // Every member is checked before any is tested, so member order never decides a malformed schema.
+      if (listed.Distinct(StringComparer.Ordinal).Count() != listed.Count || !listed.All(TypeNames.Contains)) throw Invalid();
+      return listed.Any(name => IsType(value, name));
     }
+
+    private static readonly System.Collections.Generic.HashSet<string> TypeNames = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal) { "object", "array", "string", "boolean", "null", "integer", "number" };
 
     private static bool Equal(JToken left, JToken right)
     {

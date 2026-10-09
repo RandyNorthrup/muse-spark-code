@@ -16,11 +16,14 @@ namespace MuseSpark.VisualStudio.Panel
     private readonly JObject binding;
     private readonly string themeScript;
     private readonly SemaphoreSlim sending = new SemaphoreSlim(1);
+    private readonly object closing = new object();
     private long outgoing;
     private long incoming;
     private bool ready;
     private bool hasBeenReady;
-    private bool disposed;
+    // Read by the receive loop and by browser posts; set once, under `closing`.
+    private volatile bool disposed;
+    private bool closeOwed;
     public string SurfaceId => binding.Value<string>("surface") ?? throw Invalid();
     public string SurfaceKind => binding.Value<string>("surfaceKind") ?? throw Invalid();
     private string ReadyType => SurfaceKind == "tasks" ? "tasksReady" : SchemaContract.IsPresentationSurface(SurfaceKind) ? "presentationReady" : SurfaceKind == "usage" ? "readUsage" : "ready";
@@ -28,6 +31,7 @@ namespace MuseSpark.VisualStudio.Panel
     // Raised once when a protocol error closed this channel, with the frozen panelError code.
     public event EventHandler<string>? Faulted;
     public string? FaultCode { get; private set; }
+    internal long LastReceivedSequence => Interlocked.Read(ref incoming);
 
     public const string Bootstrap = @"(() => {
       const listeners = new Set();
@@ -149,18 +153,33 @@ namespace MuseSpark.VisualStudio.Panel
       MessageReceived?.Invoke(this, payload);
     }
 
-    public async Task FaultAsync(string code)
+    // Synchronous, before any write: overlapping receives find no endpoint, browser posts find a closed channel.
+    public bool Fail(string code)
     {
-      // Stop delivery at once; later frames for this surface are answered as unknown.
       peer.DetachPanel(this);
+      lock (closing)
+      {
+        if (disposed) return false;
+        disposed = true;
+        FaultCode = code;
+        closeOwed = true;
+      }
+      return true;
+    }
+
+    public async Task CloseFaultedAsync()
+    {
+      string? code = null;
       await sending.WaitAsync().ConfigureAwait(false);
-      var closing = !disposed;
       try
       {
-        if (!closing) return;
-        disposed = true;
+        lock (closing)
+        {
+          if (closeOwed) code = FaultCode;
+          closeOwed = false;
+        }
+        if (code == null) return;
         ready = false;
-        FaultCode = code;
         var frame = LifecycleFrame("closed"); frame["droppedMessages"] = 0;
         await peer.PostPanelAsync(frame).ConfigureAwait(false);
       }
@@ -168,7 +187,7 @@ namespace MuseSpark.VisualStudio.Panel
       {
         sending.Release();
         // Outside the send lock: a subscriber may dispose the view, and with it this channel.
-        if (closing) Faulted?.Invoke(this, code);
+        if (code != null) Faulted?.Invoke(this, code);
       }
     }
 
@@ -184,15 +203,22 @@ namespace MuseSpark.VisualStudio.Panel
       await sending.WaitAsync().ConfigureAwait(false);
       try
       {
-        if (disposed) return;
-        disposed = true;
+        lock (closing)
+        {
+          if (disposed) return;
+          disposed = true;
+        }
         peer.DetachPanel(this);
         var frame = LifecycleFrame("closed"); frame["droppedMessages"] = 0;
         await peer.PostPanelAsync(frame).ConfigureAwait(false);
       }
       finally { sending.Release(); }
     }
-    public void Dispose() { disposed = true; peer.DetachPanel(this); }
+    public void Dispose()
+    {
+      lock (closing) { disposed = true; }
+      peer.DetachPanel(this);
+    }
     private static MhpException Invalid() => new MhpException("invalidParams", "MHP_PANEL_INVALID_PAYLOAD");
     private static MhpException Refused(string code) => new MhpException("invalidRequest", code);
   }

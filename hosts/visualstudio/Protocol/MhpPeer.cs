@@ -22,8 +22,11 @@ namespace MuseSpark.VisualStudio.Protocol
     string SurfaceId { get; }
     // Throws MhpException named by a frozen panelError code when the frame breaks this channel's protocol.
     void Receive(JObject frame);
-    // Close after a protocol error; idempotent. The channel's sequence is no longer shared with the runtime.
-    Task FaultAsync(string code);
+    // Synchronously detaches and marks the channel failed: no later frame or post is delivered.
+    // False when it was already closed. The channel's sequence is no longer shared with the runtime.
+    bool Fail(string code);
+    // After Fail: sends the closing lifecycle frame and reports the fault, once.
+    Task CloseFaultedAsync();
   }
 
   // Bidirectional NDJSON, correlated ids, sparse capabilities and cancellation.
@@ -36,6 +39,7 @@ namespace MuseSpark.VisualStudio.Protocol
     private const string PanelInvalidPayload = "MHP_PANEL_INVALID_PAYLOAD";
     private const string PanelUnknownSurface = "MHP_PANEL_UNKNOWN_SURFACE";
     private const string PanelInvalidLifecycle = "MHP_PANEL_INVALID_LIFECYCLE";
+    private const long MaximumPanelSequence = 9007199254740991;
     private static readonly string[] PanelEnvelopeFields = { "mhp", "kind", "surface", "direction", "seq", "payload" };
     private readonly SchemaContract contract;
     private readonly IHostServices services;
@@ -203,13 +207,13 @@ namespace MuseSpark.VisualStudio.Protocol
     {
       try { RequireReady("lifecycle"); }
       catch (MhpException error) { Report(error.Message); return; }
-      var surface = frame["surface"] is JValue { Type: JTokenType.String } name && name.Value<string>() is string id && id.Length != 0 ? id : null;
+      var surface = Text(frame["surface"]) is string id && id.Length != 0 ? id : null;
       IPanelEndpoint? endpoint = null;
       if (surface != null) lock (stateLock) { panels.TryGetValue(surface, out endpoint); }
       string code;
       try
       {
-        switch (frame["kind"] is JValue { Type: JTokenType.String } kind ? kind.Value<string>() : null)
+        switch (Text(frame["kind"]))
         {
           case "panel":
             if (!Valid(frame, "envelope")) { code = HasPanelHeader(frame) ? PanelInvalidPayload : PanelInvalidEnvelope; break; }
@@ -219,11 +223,10 @@ namespace MuseSpark.VisualStudio.Protocol
           case "panelError":
             if (!Valid(frame, "error")) { code = PanelInvalidEnvelope; break; }
             // The runtime refused one of this channel's frames: the sequences no longer agree. Never echo it back.
-            code = frame.Value<string>("code") ?? PanelInvalidEnvelope;
+            code = Text(frame["code"]) ?? PanelInvalidEnvelope;
             Report(code);
-            if (endpoint == null) return;
-            try { await endpoint.FaultAsync(code).ConfigureAwait(false); }
-            catch (Exception failure) when (failure is MhpException || failure is IOException || failure is ObjectDisposedException) { Report("MHP_PANEL_CLOSE_UNSENT"); }
+            if (endpoint == null || !endpoint.Fail(code)) return;
+            await CloseFaultedAsync(endpoint).ConfigureAwait(false);
             return;
           case "surface":
             // Lifecycle frames travel editor-to-runtime only; one arriving here cannot be applied to a binding.
@@ -251,32 +254,50 @@ namespace MuseSpark.VisualStudio.Protocol
     }
 
     // The header the runtime admits before the payload (shared/hostApi/panel.ts): its failure is an envelope error.
+    // Reads only through non-throwing checks: the frame has already failed validation.
     private static bool HasPanelHeader(JObject frame) =>
       frame.Count == PanelEnvelopeFields.Length && PanelEnvelopeFields.All(field => frame.Property(field, StringComparison.Ordinal) != null)
-      && frame.Value<string>("mhp") == "1.3" && frame["surface"]?.Type == JTokenType.String
-      && (frame.Value<string>("direction") == "toHost" || frame.Value<string>("direction") == "toPanel")
-      && frame["seq"]?.Type == JTokenType.Integer && frame.Value<long>("seq") >= 0;
+      && Text(frame["mhp"]) == "1.3" && Text(frame["surface"]) is string surface && surface.Length != 0
+      && (Text(frame["direction"]) == "toHost" || Text(frame["direction"]) == "toPanel")
+      && Sequence(frame["seq"]) != null;
+
+    private static string? Text(JToken? token) => token is JValue { Type: JTokenType.String, Value: string text } ? text : null;
+
+    // The frozen panel sequence: an integer from 0 to 2^53 - 1. Json.NET keeps larger integers as BigInteger and
+    // fractions as double; neither is converted, so an out-of-range sequence is simply absent (null).
+    private static long? Sequence(JToken? token) =>
+      token is JValue { Type: JTokenType.Integer, Value: long value } && value >= 0 && value <= MaximumPanelSequence ? value : (long?)null;
 
     private async Task FaultPanelAsync(string? surface, JToken? seq, string code, IPanelEndpoint? endpoint)
     {
       Report(code);
+      // Before the first await: overlapping receive tasks and browser posts already see the failed channel.
+      var closing = endpoint?.Fail(code) == true;
       try
       {
+        var sequence = Sequence(seq);
         var error = new JObject
         {
           ["mhp"] = "1.3",
           ["kind"] = "panelError",
           ["surface"] = surface,
-          ["seq"] = seq is JValue { Type: JTokenType.Integer } number && number.Value<long>() >= 0 ? number : JValue.CreateNull(),
+          ["seq"] = sequence == null ? JValue.CreateNull() : new JValue(sequence.Value),
           ["code"] = code
         };
-        if (!Valid(error, "error")) error["seq"] = JValue.CreateNull();
         await PostPanelAsync(error).ConfigureAwait(false);
       }
-      catch (Exception failure) when (failure is MhpException || failure is IOException || failure is ObjectDisposedException) { Report("MHP_PANEL_ERROR_UNSENT"); }
-      if (endpoint == null) return;
-      try { await endpoint.FaultAsync(code).ConfigureAwait(false); }
-      catch (Exception failure) when (failure is MhpException || failure is IOException || failure is ObjectDisposedException) { Report("MHP_PANEL_CLOSE_UNSENT"); }
+      catch (Exception failure) when (!(failure is OutOfMemoryException)) { Report("MHP_PANEL_ERROR_UNSENT"); }
+      finally
+      {
+        // The channel closes even when its error frame could not be built or written.
+        if (closing && endpoint != null) await CloseFaultedAsync(endpoint).ConfigureAwait(false);
+      }
+    }
+
+    private async Task CloseFaultedAsync(IPanelEndpoint endpoint)
+    {
+      try { await endpoint.CloseFaultedAsync().ConfigureAwait(false); }
+      catch (Exception failure) when (!(failure is OutOfMemoryException)) { Report("MHP_PANEL_CLOSE_UNSENT"); }
     }
 
     private void Report(string identifier)
