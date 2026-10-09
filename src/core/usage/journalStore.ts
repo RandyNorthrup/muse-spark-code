@@ -17,7 +17,8 @@ import {
   USAGE_HISTOGRAM_EDGES_MS,
   USAGE_WINDOW_DAY_MS,
 } from '../../shared/constants'
-import { canonicalUsd, legacyUsdSchema } from '../../shared/usdSchema'
+import { legacyUsdSchema } from '../../shared/usdSchema'
+import { parseJsonWithExactNumbers } from '../../shared/exactJson'
 import {
   usageJournalEntrySchema,
   costSchemaWith,
@@ -208,34 +209,12 @@ const USAGE_LEGACY_MONEY_KEYS: ReadonlySet<string> = new Set([
  * parses to has the same decimal value as the digits written: 0.17 wrote
  * JSON.stringify's shortest spelling, which always does; digits beyond a
  * double (an edited or foreign file) do not, and `isExact` is false so the
- * reader refuses the record instead of rounding it. Where the runtime gives
- * no source text (Node 20), the written spelling is the number's own.
+ * reader refuses the record instead of rounding it. The written digits come
+ * from `parseJsonWithExactNumbers`, never the reviver's source text, so the
+ * refusal holds on Node 20 as well as newer runtimes (M121 P2-1).
  */
 function parseUsageJson(text: string): { readonly value: unknown; readonly isExact: boolean } {
-  let isExact = true
-  const value: unknown = JSON.parse(
-    text,
-    (key: string, parsed: unknown, context?: { readonly source?: string }) => {
-      if (
-        typeof parsed === 'number' &&
-        context?.source !== undefined &&
-        USAGE_LEGACY_MONEY_KEYS.has(key) &&
-        !isSameDecimal(context.source, parsed)
-      )
-        isExact = false
-      return parsed
-    },
-  )
-  return { value, isExact }
-}
-
-function isSameDecimal(source: string, parsed: number): boolean {
-  try {
-    return canonicalUsd(source) === canonicalUsd(parsed)
-  } catch {
-    // Not a non-negative decimal: the schema refuses the record anyway.
-    return true
-  }
+  return parseJsonWithExactNumbers(text, USAGE_LEGACY_MONEY_KEYS)
 }
 
 const versionSchema = z.object({ v: z.int().check(z.gte(1)) })

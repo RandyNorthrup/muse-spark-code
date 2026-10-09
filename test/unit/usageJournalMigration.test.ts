@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { USAGE_JOURNAL_ROOT, UsageJournalStore } from '../../src/core/usage/journalStore'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
+import { withholdReviverSource } from './helpers/withholdReviverSource'
 
 // M121: the usage journal moves from version 1 (JSON-number dollars) to
 // version 2 (exact decimal text). The fixture is a real journal written by
@@ -91,6 +92,26 @@ describe('usage journal version 1 to version 2 (M121)', () => {
     ])
     expect(new Set(journal.limits.map((limit) => String(limit.v)))).toEqual(new Set(['2']))
     expect(journal.records.filter((record) => record.day === '2026-10-04')).toHaveLength(8)
+  })
+
+  it('refuses the reviewer literal with the reviver source withheld (Node 20)', async () => {
+    // The refusal must not depend on the reviver (M121 P2-1).
+    const restore = withholdReviverSource()
+    try {
+      const { root, store } = await rig()
+      const raw = await readFile(path.join(root, RAW_DAY), 'utf8')
+      const line = raw.split('\n').find((text) => text.includes('"id":"r20"'))!
+      const edited = line
+        .replace('"id":"r20"', '"id":"r99"')
+        .replace('"usd":0.123456789', '"usd":0.123456789012345678901')
+      await writeFile(path.join(root, RAW_DAY), `${edited}\n`, { flag: 'a' })
+      const journal = await store.read()
+      expect(journal.inexactRecords).toBe(1)
+      expect(journal.invalidLines).toBe(0)
+      expect(journal.records.map((record) => record.id)).not.toContain('r99')
+    } finally {
+      restore()
+    }
   })
 
   it('refuses a version 1 dollar a number cannot carry, counts it and never rewrites it', async () => {
