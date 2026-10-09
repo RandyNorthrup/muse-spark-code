@@ -113,6 +113,21 @@ happened, not what was planned; superseded entries are kept.
   - When 64 attachments are all in use, VS Code now says so ("Too many video
     and audio attachments are in use. Wait for a reply to finish, then
     attach again.") instead of "The file could not be read."
+- Attached video and audio, fix round (RVMEDIAV3):
+  - The private copy a conversion encodes is now the whole verified file.
+    A write that lands only part of a chunk (a nearly full disk, a quota)
+    continues from where it stopped, and the copy is read back and compared
+    with the verified bytes before anything encodes it. Before, a short
+    write could cut the copy, and a shorter recording was transcribed with
+    no error. Now a copy that cannot be made whole stops with "Conversion
+    failed: private copy".
+  - Closing a conversation while a message steered into its reply is still
+    waiting no longer uploads that message's video. The steer goes with the
+    conversation and its attachment is let go at once. A closed
+    conversation's media service reads and uploads nothing.
+  - Copies that a crash or a kill left in the private media folder are now
+    removed when the next window or agent process converts something. A
+    window that is still running keeps its own copies.
 - On Windows, a stdio MCP server, a plugin hook's runtime or a team run is now
   created inside its kill-on-close job. Previously it was added to the job
   just after creation. A launcher ended in between (cancelled, timed out)

@@ -37456,6 +37456,16 @@ and live certification remain with the lead. No gate, timeout, hook, cap or
 paid-call fence is weakened. Final scoped gate results are recorded in
 `docs/certification/m106-r.md`.
 
+**RVMEDIAV3 gate scope (Windows host, 2026-10-09).** The lane brief runs
+vitest on this Windows host only, at the repository's default timeout and at
+most three files per run. The aggregate `npm run quality` and the full unit
+run are not run. Instead these run directly: typecheck (all five projects),
+ESLint `--max-warnings=0` and Prettier on the changed files, `check:l10n`,
+`check:host-api`, `check:reference`, plain knip and the unchanged-cap
+production build. Hooks stay on. The lead owns native macOS and Linux runs of
+the new lease suite and full quality on the integrated tree. Results are in
+`docs/certification/m105.md`, "Fix round: RVMEDIAV3".
+
 **FIXM105E3 gate scope (Kubuntu, 2026-10-07).** The rig brief/common rules
 forbid aggregate quality and full unit commands; run owning files in batches of
 at most three, followed by the five typecheck projects, lint, changed-file
@@ -43546,14 +43556,16 @@ FIXM107DK4 qualification below supersedes that earlier claim.
     attached it) and one set of turn holders (`MediaClaim`), and an explicit
     state:
 
-    | State      | Entered by                                                                             | Left by                                                                       | Evicted at the bound | Discard / owner release |
-    | ---------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------- | ----------------------- |
-    | `attached` | `register` (the attach port binds a sniffed, hashed file)                              | a claim; discard; owner release; the oldest at the bound; runtime close       | yes (oldest first)   | removes it              |
-    | `claimed`  | `claim` when the host accepts the turn: `sendTurn` (started or queued) or `steer`      | `start`; the last holder's `release` (withdrawal, Stop's queue drop, refusal) | never                | passes it by            |
-    | `inFlight` | `start`: `runTurn` begins, or `drainSteered` puts the steer in a request               | the last holder's `release` at turn end                                       | never                | passes it by            |
-    | released   | the last holder's `release`, discard or owner release of `attached`, eviction, `clear` | (gone: the token no longer resolves)                                          | —                    | —                       |
+    | State      | Entered by                                                                                                                                                                                  | Left by                                                                                                  | Evicted at the bound | Discard / owner release |
+    | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------- | ----------------------- |
+    | `attached` | `register` (the attach port binds a sniffed, hashed file)                                                                                                                                   | a claim; discard; owner release; the oldest at the bound; runtime close                                  | yes (oldest first)   | removes it              |
+    | `claimed`  | `claim` when the host accepts the turn: `sendTurn` (started or queued) or `steer`; or from `inFlight` when the running holder ends while a queued or steered holder of the same token waits | `start`; the last holder's `release` (withdrawal, Stop's queue drop, refusal, session disposal)          | never                | passes it by            |
+    | `inFlight` | `start`: `runTurn` begins, or `drainSteered` puts the steer in a request                                                                                                                    | the running holder's `release` at turn end: released when it was the last holder, else back to `claimed` | never                | passes it by            |
+    | released   | the last holder's `release`, discard or owner release of `attached`, eviction, `clear`                                                                                                      | (gone: the token no longer resolves)                                                                     | —                    | —                       |
 
-    A promoted steer carries its claim into the queued turn. At 64 entries
+    A promoted steer carries its claim into the queued turn; a session's
+    disposal drops its waiting steers instead and releases their claims
+    (RVMEDIAV3 2). At 64 entries
     (`MEDIA_ATTACHED_MAX_ENTRIES`) with none `attached`, `register` throws a
     `MediaAttachRefusedError` (matched by name across bundles); the attach
     port returns its translated `media.attachedLimit` as the refusal, so
@@ -43574,6 +43586,60 @@ FIXM107DK4 qualification below supersedes that earlier claim.
     port bind the same registry. JetBrains, Visual Studio, Eclipse, Zed,
     Xcode and the Neovim/Emacs/Sublime family reach media through ACP and
     get the same states, refusal and conversion.
+
+- **M105-V-registry-fix-round (RVMEDIAV3, 2026-10-09; inside the redesign).**
+  Three P2 and one P3 fixed in the registry design above, with regressions
+  and red drills (`docs/certification/m105.md`, "Fix round: RVMEDIAV3"):
+  1. The private copy is the verified bytes, whole. Each chunk is written
+     until every byte landed (a short `write` continues from where it
+     stopped; one that lands nothing refuses), then the copy is read back
+     and its length and SHA-256 must equal the verified stream's before
+     anything sniffs or encodes it. A mismatch refuses with the translated
+     `media.conversionFailed` ("private copy").
+  2. Disposing a Model API session drops every steer still waiting and
+     releases its claim (Stop's path had already dropped the queue), so
+     nothing is promoted into a turn after disposal. The session's media
+     service also refuses, before any read or upload, once its session is
+     disposed (`MediaReplaySession.isClosed`).
+  3. Crash-left conversion folders are reclaimed when the next process
+     opens the private root (`privateRootFor`, the first conversion of each
+     process), never one a live window still uses. Each opening carries an
+     owner token; every folder it makes is `muse-media-<owner>-<random>`;
+     and the process holds the lease `muse-media-<owner>.lease` for its
+     life (`runtime/privateRootLease.ts`):
+     - Windows: the lease is open with no sharing (libuv's
+       `UV_FS_O_EXLOCK`); another open succeeds only after the kernel
+       closed it at the owner's exit.
+     - macOS: the same flag is `O_EXLOCK`, an flock the kernel drops at
+       exit, probed with `O_NONBLOCK`.
+     - Linux: the lease names its owner (machine id, boot id, PID
+       namespace, PID and `/proc` start tick). The owner is gone when it
+       ran in an earlier boot of this machine, or when no process in this
+       namespace has that PID and start. Another machine's or namespace's
+       lease is kept.
+
+     Fail-safe: a probe that cannot prove its owner gone keeps the folder.
+     A lease the process cannot take, or a lock its own probe does not
+     see, turns that process's sweep off; its folders then stay for every
+     other process. The owner-only root and its ACL are unchanged. The
+     lease code rides `dist/productionMedia.js`, which the host loads
+     before `dist/productionAudio.js`.
+
+  4. The table above gains the reachable `inFlight` → `claimed` move.
+
+  The Meta-only upload authorization moved from the Model API bundle into
+  `createProductionMediaReplay` (`dist/productionMedia.js`), so
+  `dist/modelApi.js` stays under its 525 KiB cap without raising it.
+
+  Open items:
+  - Folders a process made before this round carry no owner token. They
+    are never judged, so they are never removed (this code never shipped).
+  - A process that never converts again does not open the root, so it does
+    not sweep. The next process that converts reclaims the folders.
+  - This round ran on Windows only. There the Linux rules ran against a
+    fake `/proc`. The native macOS lock and the real Linux `/proc` reading
+    are proven only when the same suite (its cross-process case runs on
+    every OS) passes in hosted CI or on the macOS and Linux rigs.
 
 - **M105-F-integration-gates (RVM105F corrections).** All four review findings
   are fixed with regressions and red drills (`docs/certification/m105-f.md`).
