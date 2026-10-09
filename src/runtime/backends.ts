@@ -170,7 +170,23 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
       )
     }
   }
+  // A governed `muse serve` on Windows joins the shell job type (M27), as the
+  // extension's manager does; without it every Muse Code session was refused
+  // ("Windows Muse Code native job launcher unavailable").
+  const systemRoot = environmentValue(deps.env, deps.platform, 'SystemRoot')
+  const windowsJobAssembly =
+    systemRoot !== undefined && deps.platform === 'win32'
+      ? shellJobAssembly({
+          storageDir: agentDataFolder(deps),
+          systemRoot,
+          readJobSource: jobSourceReader(path.dirname(deps.distDir)),
+          log: (message) => {
+            log.warn(message)
+          },
+        })
+      : undefined
   return new Manager({
+    ...(windowsJobAssembly !== undefined && { shellJobAssembly: windowsJobAssembly }),
     // This records the actual scope boundary; it does not certify a VS Code fence.
     beforeWorkspaceHostStart: () => independentEditorStartupPolicy(log),
     log,
