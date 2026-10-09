@@ -19121,12 +19121,13 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
-**Q-VISREGEN2 release-content hold (2026-10-09).** The retained two-release
-What’s New tree is 79,510 bytes against its unchanged 76,800-byte decoded
-bound. A budget-preserving content/codec repair or an owner release-content
-choice is needed before the complete visual refresh can run. The lane’s
-readiness fix is proved; no bound or release note is changed. See §7 and
-`docs/certification/visregen017.md` for the exact receipts.
+**Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
+change and Highlight while tightening only that release's wording below
+72,000 decoded bytes. Keep 0.16.0 and older notes byte-exact and all content
+bounds unchanged. The editorial rewrite measures 68,401 decoded bytes
+(25,347 encoded bytes), down from 79,510. Complete the visual, README and
+source-record refresh on the resulting head; receipts in
+`docs/certification/visregen017.md`.
 
 - **Q-CIFIXM-HOSTED-ERRORS (2026-10-09, macbook):** log downloads for
   hosted run 37897298018 return HTTP 403. The two owned M114 browser suites
@@ -35528,8 +35529,10 @@ M110, and fake providers for every adapter.
   states. A further 720-frame six-theme repetition has zero counted pixel
   differences under the existing policy. Evidence and gate holds are in
   `docs/certification/visregen017.md` and its stability JSON; G92 records
-  the missed-loading-marker pitfall. The complete refresh remains held by
-  §7’s release-content bound, with original media and manifest byte-exact.
+  the missed-loading-marker pitfall. The lead authorizes an editorial-only 0.17.0 notes repair below 72,000
+  decoded bytes. That repair measures 68,401; complete current-head visual
+  review, reviewed baseline update, README recapture and owner/a11y replays
+  now proceed. Prior fix and proof commits remain intact.
 
 - **Integration review repairs (FIXM114I, 2026-10-07):** address RVM114W's six
   P2 findings and the font-usage P3. Route CI pixel replay exclusively through
@@ -37945,16 +37948,15 @@ lane A's first step.
 
 ## 7. Gates
 
-**VISREGEN2 inherited release-head build hold (2026-10-09).** At `8f0a75ea1`,
-What’s New generates 79,510 decoded bytes for 0.17.0 plus 0.16.0 against the
-unchanged 76,800-byte bound. Production and browser-only builds stop before
-bundling; visual fixtures fail at the same content writer. No cap is raised,
-release content removed, gate bypassed or golden accepted. Quote diagnosis
-uses only the real browser graph in an explicitly non-gate diagnostic,
-without preparing unrelated What’s New fixtures. Complete visual refresh,
-README media/source records and affected owner replays remain held until the
-release-content dependency is repaired within approved scope. Scoped lane
-checks run here; common.md assigns full quality and hosted CI to the lead.
+**VISREGEN2 release-content repair and remaining gates (2026-10-09).**
+The original two-release tree measured 79,510 decoded bytes against the
+unchanged 76,800-byte bound. The lead authorized tightening only 0.17.0
+wording, preserving every change, Highlight and section heading, with a
+72,000-byte target. The result is 68,401 decoded / 25,347 encoded bytes;
+0.16.0 and older notes remain byte-exact. The standard writer passes. Full
+visual review, reviewed goldens, README/source records, owning suites and
+six-theme accessibility remain required. No gate, timeout or cap changes;
+common.md assigns aggregate quality and hosted CI to the lead.
 
 **CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting
 journals/cache/engine, schedule-runtime and M114 panel/conversation failures
