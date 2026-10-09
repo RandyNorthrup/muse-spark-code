@@ -20,6 +20,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- A failed model scan stops showing Scanning and offers Refresh with a clear
+  reason. Previous model rows remain available; cancelled scans keep their
+  existing behavior.
 - Change key in Models & Agents keeps the replacement when Edit opens.
   Test uses that draft key; Save keeps it, and Cancel leaves the stored key.
 - OpenRouter's key test checks its key endpoint before saying the key works.

@@ -432,6 +432,36 @@ describe('Wizard', () => {
 })
 
 describe('ModelsSection', () => {
+  it('F7: failed scans clear scanning/cancel and offer a retry in Models', () => {
+    const post = vi.fn()
+    const state = makeState({
+      scans: {
+        openrouter: {
+          providerId: 'openrouter',
+          status: 'failed',
+          detail: UI_TEXT.providerProbeUnparseable,
+        },
+      },
+    })
+    const { rerender } = render(<ModelsSection {...props(state, post)} />)
+    expect(
+      screen.getByText(fill(UI_TEXT.scanFailed, { detail: UI_TEXT.providerProbeUnparseable })),
+    ).toBeDefined()
+    expect(screen.queryByText(UI_TEXT.providersScanning)).toBeNull()
+    expect(screen.queryByRole('button', { name: UI_TEXT.wizardCancel })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.refreshModels }))
+    expect(post).toHaveBeenCalledWith({ type: 'models/scan', providerId: 'openrouter' })
+    rerender(
+      <ProvidersSection
+        {...props({ ...state, providers: [makeProvider({ id: 'openrouter' })] }, post)}
+      />,
+    )
+    expect(
+      screen.getByText(fill(UI_TEXT.scanFailed, { detail: UI_TEXT.providerProbeUnparseable })),
+    ).toBeDefined()
+    expect(screen.queryByText(UI_TEXT.providersScanning)).toBeNull()
+    expect(screen.queryByRole('button', { name: UI_TEXT.wizardCancel })).toBeNull()
+  })
   it('shows badged rows, ticks as a delta, and pins', () => {
     const post = vi.fn()
     const state = makeState({

@@ -198,6 +198,29 @@ Failing first: both tests send the original credential (2 failed).
 `providerWiring`, `modelsPanel`, `providerCredentialRecords` then pass at the
 repository deadlines. Replay makes **0 model attempts**.
 
+### F7 — Failed scans settle and can be retried
+
+Cause: the panel published scanning before awaiting the real scanner, then
+let rejection reach generic `fail()` without settling that row. The scan
+handler now publishes failed with the existing localized “The model list
+could not be read.” before rethrowing. Exception text never joins that state.
+F10's logging remains unchanged. Models includes failed scans in its existing
+ScanStatus surface, as Providers already does, with Refresh and no Cancel.
+
+The real-facade regression first scans the captured OpenRouter list, then
+returns invalid JSON metadata through fake pinned send. It observes failed
+and the plain reason, keeps four cached rows, and replays the capture again
+to prove retry returns done and clears the failure. An actual in-flight scan
+is cancelled through the bridge's immediate cancellation path: the previous
+cache is kept, status is done and no failure is logged. The webview regression
+checks the failed reason, absent Scanning/Cancel, and the Refresh message in
+Models and Providers. Failing first: host status remains scanning and Models
+has no failed reason/retry (2 tests failed). A follow-up fixture assertion on
+a nonexistent provider `scan` field was removed; both views read the shared
+`state.scans` contract. `providerWiring`, `modelsPanelSections`,
+`providerModelScans`: **48 tests pass** at repository deadlines. These replay
+tests make **0 model attempts**.
+
 ### Red drills (byte-exact restoration)
 
 Every drill runs a whole owning test file at repository deadlines, records
@@ -215,3 +238,5 @@ exit 1, restores the original bytes in `finally`, and compares SHA-256.
 | F4      | Refuse the captured identity path instead of other paths | HF key test fails                                             | `3fd26e9d63f0bf6e1ee6d588213fda8df41df2bc107effd616bfb74c285058a5` |
 | F5      | Restore no-training as the panel default                 | Fresh wizard default test fails                               | `dd2bcf0a0b5d3331ac08d3f92b1c6bbb5f50f3163dac9e18e3a72daeddf3bc3c` |
 | F6      | Recreate an existing edit draft                          | Both replacement-key save/cancel tests fail                   | `579c1d1ff2ea7669953872bb76166998e85fab89cf0a9536ef548cae7a7de7da` |
+| F7      | Publish scanning again on rejection                      | Failed-settlement and retry test fails                        | `360f72ccf896fdce574091c648681c7212794eb6e3ee6566cafc72851ea3eb14` |
+| F7      | Hide failed scans in Models                              | Failure/retry surface test fails                              | `716a7a279c823a5f5ae1fb0868fb56e639df030d57414a380b0144a7ebfab77e` |

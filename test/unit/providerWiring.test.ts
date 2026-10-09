@@ -14,7 +14,7 @@ import { probeProvider } from '../../src/runtime/providersCommands'
 import { resolveProvider } from '../../src/runtime/exec/providerExec'
 import { createModelsPanel } from '../../src/host/models/modelsPanel'
 import { parseHostToPanelMessage } from '../../src/shared/modelsPanel'
-import { PROVIDER_SECRET_PREFIX } from '../../src/shared/constants'
+import { PROVIDER_SECRET_PREFIX, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { FakeWebviewPanel } from './helpers/fakes'
 import { testProvidersHost } from './helpers/m95kFixtures'
@@ -109,14 +109,27 @@ async function fixture(preset: string, capture: string, isConfigured = true) {
   if (preset === 'openrouter') keyBody = await capturedBody(preset, '02-key-usage.json')
   else if (preset === 'huggingface') keyBody = await capturedBody(preset, '02-whoami-key-test.json')
   let keyStatus = 200
+  let isScanHeld = false
   const calls: { path: string; headers: Readonly<Record<string, string>> }[] = []
   const services = createConfiguredProviderServices(undefined, {
     configFile,
     catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
     secrets: { get: (key) => host.secrets.get(key) },
     resolve: () => Promise.resolve(['8.8.8.8']),
-    send: (target, _body, headers) => {
+    send: (target, _body, headers, signal) => {
       calls.push({ path: target.url.pathname, headers })
+      if (isScanHeld)
+        return new Promise((_, reject) => {
+          signal.addEventListener(
+            'abort',
+            () => {
+              reject(new Error('Synthetic scan cancelled'))
+            },
+            {
+              once: true,
+            },
+          )
+        })
       return Promise.resolve(
         ['/api/v1/key', '/api/whoami-v2'].includes(target.url.pathname)
           ? pinnedResponse(keyBody, keyStatus)
@@ -179,10 +192,51 @@ async function fixture(preset: string, capture: string, isConfigured = true) {
     rejectKey: () => {
       keyStatus = 401
     },
+    holdScan: () => {
+      isScanHeld = true
+    },
   }
 }
 
 describe('PROVWIRE production provider wiring', () => {
+  it('F7: a real scan failure publishes failed, keeps cached rows and retries cleanly', async () => {
+    const f = await fixture('openrouter', '01-models-list.json')
+    await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
+      expect(latestState(f.panel).scans['openrouter']?.status).toBe('done')
+    })
+    f.replaceBody(null)
+    await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
+      expect(latestState(f.panel).scans['openrouter']).toMatchObject({
+        status: 'failed',
+        detail: UI_TEXT.providerProbeUnparseable,
+      })
+    })
+    expect(latestState(f.panel).models).toHaveLength(4)
+    f.replaceBody(await capturedBody('openrouter', '01-models-list.json'))
+    await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
+      expect(latestState(f.panel).scans['openrouter']?.status).toBe('done')
+    })
+    expect(latestState(f.panel).scans['openrouter']?.detail).toBeUndefined()
+    f.controller.dispose()
+  })
+  it('F7: cancelling a real in-flight scan still settles done with its previous cache', async () => {
+    const f = await fixture('openrouter', '01-models-list.json')
+    await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
+      expect(latestState(f.panel).scans['openrouter']?.status).toBe('done')
+    })
+    f.holdScan()
+    const before = f.calls.length
+    await message(f.panel, { type: 'models/scan', providerId: 'openrouter' }, () => {
+      expect(latestState(f.panel).scans['openrouter']?.status).toBe('scanning')
+      expect(f.calls.length).toBeGreaterThan(before)
+    })
+    await message(f.panel, { type: 'models/cancelScan', providerId: 'openrouter' }, () => {
+      expect(latestState(f.panel).scans['openrouter']?.status).toBe('done')
+    })
+    expect(latestState(f.panel).models).toHaveLength(4)
+    expect(f.warnings).toEqual([])
+    f.controller.dispose()
+  })
   it.each(['save', 'cancel'])('F6: Change key survives Edit and Test until %s', async (finish) => {
     const f = await fixture('openrouter', '01-models-list.json')
     const entry = {

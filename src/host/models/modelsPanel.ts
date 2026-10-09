@@ -33,6 +33,7 @@ import type {
 } from '../providers/providerPorts'
 import type { ProvidersHost } from '../providers/providersHost'
 import type { WizardSaveOutcome } from '../providers/wizardSave'
+import type { ScanOutcome } from '../providers/modelScans'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
 
 export interface ModelsPanelDeps {
@@ -364,10 +365,21 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const scan = async (entry: ProviderEntry, draft?: PanelDraft, id?: string): Promise<void> => {
     state.scans[entry.id] = { providerId: entry.id, status: 'scanning' }
     publish()
-    const outcome =
-      draft === undefined
-        ? await providers.scan(entry, { refresh: true })
-        : await providers.scanDraft(entry, draftSecret(entry, id))
+    let outcome: ScanOutcome
+    try {
+      outcome =
+        draft === undefined
+          ? await providers.scan(entry, { refresh: true })
+          : await providers.scanDraft(entry, draftSecret(entry, id))
+    } catch (error: unknown) {
+      state.scans[entry.id] = {
+        providerId: entry.id,
+        status: 'failed',
+        detail: UI_TEXT.providerProbeUnparseable,
+      }
+      publish()
+      throw error
+    }
     rows.set(entry.id, outcome.rows)
     const added = outcome.diff?.added ?? []
     for (const model of added) {
