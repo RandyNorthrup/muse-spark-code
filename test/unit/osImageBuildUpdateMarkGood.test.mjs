@@ -8,6 +8,30 @@ import { afterEach, describe, expect, it } from 'vitest'
 const updateDir = fileURLToPath(new URL('../../os/update/', import.meta.url))
 const markGood = path.join(updateDir, 'mark-good')
 const backend = path.join(updateDir, 'pi-tryboot-backend')
+
+// The scripts are POSIX sh. CI runs unit tests on Windows with Git Bash, so
+// resolve a shell the way the runner does and hand it forward-slash paths;
+// a missing shell fails loudly, never skips.
+function posixPath(p) {
+  return process.platform === 'win32' ? p.split(path.sep).join(path.posix.sep) : p
+}
+let shell = 'sh'
+if (process.platform === 'win32') {
+  const candidates = [
+    'sh',
+    path.join(process.env.ProgramFiles ?? 'C:/Program Files', 'Git/bin/sh.exe'),
+  ]
+  const found = candidates.find((candidate) => {
+    try {
+      const probe = spawnSync(candidate, ['-c', 'echo os2-shell-ok'], { encoding: 'utf8' })
+      return probe.status === 0 && probe.stdout.includes('os2-shell-ok')
+    } catch {
+      return false
+    }
+  })
+  if (found === undefined) throw new Error('M110-OS2 needs a POSIX shell (Git for Windows)')
+  shell = found
+}
 const temporary = []
 function directory() {
   const dir = mkdtempSync(path.join(process.env.TMPDIR ?? os.tmpdir(), 'm110-os2-markgood-'))
@@ -35,16 +59,16 @@ function harness() {
   mkdirSync(bin, { recursive: true })
   const raucLog = path.join(dir, 'rauc.log')
   const rebootFlag = path.join(dir, 'rebooted')
-  const rauc = fakeExecutable(bin, 'rauc', `echo "$@" >> ${raucLog}\nexit 0`)
-  const reboot = fakeExecutable(bin, 'reboot', `touch ${rebootFlag}\nexit 0`)
+  const rauc = fakeExecutable(bin, 'rauc', `echo "$@" >> ${posixPath(raucLog)}\nexit 0`)
+  const reboot = fakeExecutable(bin, 'reboot', `touch ${posixPath(rebootFlag)}\nexit 0`)
   const probeOk = fakeExecutable(bin, 'probe-ok', 'exit 0')
   const probeBad = fakeExecutable(bin, 'probe-bad', 'exit 1')
   const env = {
     ...process.env,
-    MUSE_PI_BOOT_DIR: bootDir,
-    MUSE_TRYBOOT_BACKEND: backend,
-    MUSE_RAUC_CMD: rauc,
-    MUSE_REBOOT_CMD: reboot,
+    MUSE_PI_BOOT_DIR: posixPath(bootDir),
+    MUSE_TRYBOOT_BACKEND: posixPath(backend),
+    MUSE_RAUC_CMD: posixPath(rauc),
+    MUSE_REBOOT_CMD: posixPath(reboot),
     MUSE_MARK_GOOD_INTERVAL_SEC: '0',
     MUSE_MARK_GOOD_TIMEOUT_SEC: '0',
     MUSE_PI_CURRENT_SLOT: 'A',
@@ -53,14 +77,17 @@ function harness() {
 }
 
 function runMarkGood(h, extraEnv = {}) {
-  return spawnSync('sh', [markGood], {
+  const env = { ...h.env, ...extraEnv }
+  if (env.MUSE_READYZ_PROBE !== undefined) env.MUSE_READYZ_PROBE = posixPath(env.MUSE_READYZ_PROBE)
+  if (env.MUSE_PI_BOOT_DIR !== undefined) env.MUSE_PI_BOOT_DIR = posixPath(env.MUSE_PI_BOOT_DIR)
+  return spawnSync(shell, [posixPath(markGood)], {
     encoding: 'utf8',
-    env: { ...h.env, ...extraEnv },
+    env,
   })
 }
 
 function backendRun(h, args, extraEnv = {}) {
-  return spawnSync('sh', [backend, ...args], {
+  return spawnSync(shell, [posixPath(backend), ...args], {
     encoding: 'utf8',
     env: { ...h.env, ...extraEnv },
   })

@@ -6,6 +6,30 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 
 const check = fileURLToPath(new URL('../../os/update/pi-eeprom-check', import.meta.url))
+
+// The check is POSIX sh. CI runs unit tests on Windows with Git Bash, so
+// resolve a shell the way the runner does and hand it forward-slash paths;
+// a missing shell fails loudly, never skips.
+function posixPath(p) {
+  return process.platform === 'win32' ? p.split(path.sep).join(path.posix.sep) : p
+}
+let shell = 'sh'
+if (process.platform === 'win32') {
+  const candidates = [
+    'sh',
+    path.join(process.env.ProgramFiles ?? 'C:/Program Files', 'Git/bin/sh.exe'),
+  ]
+  const found = candidates.find((candidate) => {
+    try {
+      const probe = spawnSync(candidate, ['-c', 'echo os2-shell-ok'], { encoding: 'utf8' })
+      return probe.status === 0 && probe.stdout.includes('os2-shell-ok')
+    } catch {
+      return false
+    }
+  })
+  if (found === undefined) throw new Error('M110-OS2 needs a POSIX shell (Git for Windows)')
+  shell = found
+}
 const temporary = []
 function directory() {
   const dir = mkdtempSync(path.join(process.env.TMPDIR ?? os.tmpdir(), 'm110-os2-eeprom-'))
@@ -28,12 +52,12 @@ const cpuinfo = (model, revision) =>
 const vc = (firstLine) => `#!/bin/sh\necho "${firstLine}"\necho "version abc (release)"\n`
 
 function run(revisionFile, vcCmd) {
-  return spawnSync('sh', [check], {
+  return spawnSync(shell, [posixPath(check)], {
     encoding: 'utf8',
     env: {
       ...process.env,
-      MUSE_PI_REVISION_FILE: revisionFile,
-      MUSE_VCGENCMD: vcCmd,
+      MUSE_PI_REVISION_FILE: posixPath(revisionFile),
+      MUSE_VCGENCMD: posixPath(vcCmd),
     },
   })
 }

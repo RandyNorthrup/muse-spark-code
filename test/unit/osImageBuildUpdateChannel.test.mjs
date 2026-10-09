@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import os from 'node:os'
 import path from 'node:path'
@@ -62,7 +62,7 @@ function sign(key, file) {
 
 function state(dir, version, meta) {
   const stateDir = path.join(dir, 'state')
-  sh('mkdir', ['-p', stateDir])
+  mkdirSync(stateDir, { recursive: true })
   writeFileSync(path.join(stateDir, 'version'), `${version}\n`)
   writeFileSync(path.join(stateDir, 'metadata_version'), `${meta}\n`)
   return stateDir

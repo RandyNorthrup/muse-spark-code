@@ -6,6 +6,30 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 
 const backend = fileURLToPath(new URL('../../os/update/pi-tryboot-backend', import.meta.url))
+
+// The backend is POSIX sh. CI runs unit tests on Windows with Git Bash, so
+// resolve a shell the way the runner does and hand it forward-slash paths;
+// a missing shell fails loudly, never skips.
+function posixPath(p) {
+  return process.platform === 'win32' ? p.split(path.sep).join(path.posix.sep) : p
+}
+let shell = 'sh'
+if (process.platform === 'win32') {
+  const candidates = [
+    'sh',
+    path.join(process.env.ProgramFiles ?? 'C:/Program Files', 'Git/bin/sh.exe'),
+  ]
+  const found = candidates.find((candidate) => {
+    try {
+      const probe = spawnSync(candidate, ['-c', 'echo os2-shell-ok'], { encoding: 'utf8' })
+      return probe.status === 0 && probe.stdout.includes('os2-shell-ok')
+    } catch {
+      return false
+    }
+  })
+  if (found === undefined) throw new Error('M110-OS2 needs a POSIX shell (Git for Windows)')
+  shell = found
+}
 const temporary = []
 function directory() {
   const dir = mkdtempSync(path.join(process.env.TMPDIR ?? os.tmpdir(), 'm110-os2-tryboot-'))
@@ -19,11 +43,11 @@ afterEach(() => {
 const OS1_INITIAL = '[all]\ntryboot_a_b=1\nboot_partition=1\n[tryboot]\nboot_partition=2\n'
 
 function run(dir, args, extraEnv = {}) {
-  return spawnSync('sh', [backend, ...args], {
+  return spawnSync(shell, [posixPath(backend), ...args], {
     encoding: 'utf8',
     env: {
       ...process.env,
-      MUSE_PI_BOOT_DIR: dir,
+      MUSE_PI_BOOT_DIR: posixPath(dir),
       MUSE_PI_CURRENT_SLOT: 'A',
       ...extraEnv,
     },
