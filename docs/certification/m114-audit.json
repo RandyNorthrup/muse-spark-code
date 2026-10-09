@@ -11203,7 +11203,7 @@
     },
     {
       "file": "src/webview/models/sections/accounts/accounts.css",
-      "sha256": "a8d731e592734bea4954ca6d9f7a5a5199203585ed14e7d6082b220520aa3971"
+      "sha256": "ac3967716315d0b6fee79ef3df8cc5097763e1ff12a833272bf368a62acbfb87"
     },
     {
       "file": "src/webview/models/sections/accounts/accountsEntry.ts",

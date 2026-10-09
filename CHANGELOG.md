@@ -131,6 +131,9 @@ happened, not what was planned; superseded entries are kept.
 
 - When a Windows job helper fails to compile, the log names the compiler's
   errors and exit code again, not only "Bootstrap command failed".
+- Visual regression reconstructs the recorded schedule surface inside the
+  served historical revision, so clean CI can load its lazy schedule entry.
+  The current-source audit also records the accounts accessibility stylesheet.
 
 - Scheduled prompts spend about half the time on their store per fire: the
   store keeps one journal per workspace, so its validated snapshot and deltas
