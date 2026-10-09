@@ -462,6 +462,9 @@ describe('RVM114P1 review regressions', () => {
         try {
           for (const selector of selectors) {
             const targets = page.locator(`${selector}:visible`)
+            // Folded tool rows render from a lazy chunk once the steps open
+            // (2ae80ffb9); wait for the first, never count a half-loaded scene.
+            await targets.first().waitFor({ state: 'visible' })
             expect(await targets.count(), selector).toBeGreaterThan(0)
             const visibleTargets = await targets.all()
             for (const target of visibleTargets) {
