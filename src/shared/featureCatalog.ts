@@ -290,6 +290,8 @@ export function featureCatalog(): readonly Feature[] {
         'connectChatGpt',
         'connectCopilot',
       ],
+      // Saved custom-provider limits use the same fields as the wizard;
+      // earlier steps remain navigable while final Save validates them.
       ['suggestedProvider'],
       'backends',
       ['museCode', 'modelApi'],

@@ -20,6 +20,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Editing or changing the key of a saved custom provider keeps its model
+  limits, exposes them for editing, and saves them back. Back from incomplete
+  custom limits keeps the typed values and allows returning to Models;
+  final Save still validates every limit.
+
 - The provider wizard stores the conversation spending limit as the number
   its native setting requires, refusing amounts that would lose decimal
   precision or overflow at that boundary.

@@ -19,7 +19,7 @@ import { KeyState } from './components/KeyState'
 import { ScanStatus } from './components/ScanStatus'
 import { UndoBar } from './components/UndoBar'
 import type { SectionProps } from './sections'
-import { Wizard } from './Wizard'
+import { ModelLimitsFields, Wizard } from './Wizard'
 
 function TestLine({
   provider,
@@ -145,6 +145,18 @@ function EditForm({
           }}
         />
       </label>
+      {draft.presetId === 'custom' &&
+        draft.models.map((modelId) => (
+          <div key={modelId}>
+            <p>{modelId}</p>
+            <ModelLimitsFields
+              id={`${editId}/${modelId}`}
+              modelId={modelId}
+              draft={draft}
+              onPrefill={onPrefill}
+            />
+          </div>
+        ))}
       <InlineError messages={[...draft.errors, ...draft.blockers]} />
       <div className="models-row-actions">
         <button

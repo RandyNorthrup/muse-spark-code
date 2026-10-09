@@ -2923,6 +2923,8 @@
   "sessionBudgetScopeGlobal": "este computador",
   "wizardSessionBudgetInvalid": "Digite um valor em dólares não negativo, por exemplo 2 (0 significa sem limite).",
   "sessionBudgetWriteFailed": "O limite de gastos não foi salvo: {detail}",
+  "sessionBudgetPartialSave": "Provedor salvo; o limite de gastos não foi alterado: {detail}",
+  "sessionBudgetConflict": "O limite de gastos mudou para {amount}. Salve novamente para confirmar seu limite de {requested}.",
   "sessionBudgetStillEffective": "a configuração ainda indica {amount}",
   "providerAddressInvalid": "Este endereço não pode ser usado: {detail}",
   "providerPrivateNetwork": "{address} está em uma rede privada. Use somente se confiar nela.",

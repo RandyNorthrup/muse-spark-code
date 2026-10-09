@@ -3023,6 +3023,8 @@
   "sessionBudgetScopeGlobal": "ten komputer",
   "wizardSessionBudgetInvalid": "Wpisz nieujemną kwotę w dolarach, na przykład 2 (0 oznacza brak limitu).",
   "sessionBudgetWriteFailed": "Limit wydatków nie został zapisany: {detail}",
+  "sessionBudgetPartialSave": "Dostawca zapisany; limit wydatków nie został zmieniony: {detail}",
+  "sessionBudgetConflict": "Limit wydatków zmienił się na {amount}. Zapisz ponownie, aby potwierdzić swój limit {requested}.",
   "sessionBudgetStillEffective": "ustawienie nadal wynosi {amount}",
   "providerAddressInvalid": "Tego adresu nie można użyć: {detail}",
   "providerPrivateNetwork": "{address} jest w sieci prywatnej. Używaj go tylko, jeśli mu ufasz.",

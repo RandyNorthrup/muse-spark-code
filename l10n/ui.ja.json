@@ -2723,6 +2723,8 @@
   "sessionBudgetScopeGlobal": "このコンピューター",
   "wizardSessionBudgetInvalid": "0 以上のドル金額を入力してください (例: 2。0 は上限なしを意味します)。",
   "sessionBudgetWriteFailed": "利用上限は保存されませんでした: {detail}",
+  "sessionBudgetPartialSave": "プロバイダーを保存しました。支出上限は変更されていません：{detail}",
+  "sessionBudgetConflict": "支出上限が{amount}に変更されました。上限を{requested}にすることを確認するには、もう一度保存してください。",
   "sessionBudgetStillEffective": "設定はまだ {amount} となっています",
   "providerAddressInvalid": "このアドレスは使えません: {detail}",
   "providerPrivateNetwork": "{address} はプライベートネットワーク上にあります。信頼できる場合のみ使ってください。",

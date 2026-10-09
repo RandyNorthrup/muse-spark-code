@@ -177,6 +177,32 @@ describe('ProvidersSection', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'open-wizard' })
   })
 
+  it("shows and edits a saved custom provider's model limits", () => {
+    const post = vi.fn()
+    const draft = makeDraft({
+      presetId: 'custom',
+      models: ['m1'],
+      blockers: [],
+      modelLimits: { m1: { contextTokens: 128_000, outputTokens: 4000 } },
+    })
+    const state = makeState({
+      providers: [makeProvider({ id: 'custom', presetId: 'custom', models: ['m1'] })],
+      drafts: { edits: { custom: draft } },
+    })
+    render(<ProvidersSection {...props(state, post)} />)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerEdit }))
+    expect(screen.getByLabelText(UI_TEXT.customLimitsContext)).toHaveProperty('value', '128000')
+    expect(screen.getByLabelText(UI_TEXT.customLimitsOutput)).toHaveProperty('value', '4000')
+    fireEvent.change(screen.getByLabelText(UI_TEXT.customLimitsOutput), {
+      target: { value: '8000' },
+    })
+    expect(post).toHaveBeenCalledWith({
+      type: 'providers/prefill',
+      providerId: 'custom',
+      fields: { modelLimits: { m1: { contextTokens: 128_000, outputTokens: 8000 } } },
+    })
+  })
+
   it('lists a provider with its key state and removes with Undo', () => {
     const post = vi.fn()
     const state = makeState({

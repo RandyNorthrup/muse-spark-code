@@ -2823,6 +2823,8 @@
   "sessionBudgetScopeGlobal": "dieser Computer",
   "wizardSessionBudgetInvalid": "Geben Sie einen nicht negativen Dollarbetrag ein, zum Beispiel 2 (0 bedeutet kein Limit).",
   "sessionBudgetWriteFailed": "Das Ausgabenlimit wurde nicht gespeichert: {detail}",
+  "sessionBudgetPartialSave": "Anbieter gespeichert; das Ausgabenlimit wurde nicht geändert: {detail}",
+  "sessionBudgetConflict": "Das Ausgabenlimit wurde auf {amount} geändert. Speichern Sie erneut, um Ihr Limit von {requested} zu bestätigen.",
   "sessionBudgetStillEffective": "die Einstellung liest noch {amount}",
   "providerAddressInvalid": "Diese Adresse kann nicht verwendet werden: {detail}",
   "providerPrivateNetwork": "{address} liegt in einem privaten Netzwerk. Verwenden Sie sie nur, wenn Sie ihr vertrauen.",

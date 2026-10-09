@@ -2923,6 +2923,8 @@
   "sessionBudgetScopeGlobal": "questo computer",
   "wizardSessionBudgetInvalid": "Inserisci un importo in dollari non negativo, ad esempio 2 (0 significa nessun limite).",
   "sessionBudgetWriteFailed": "Il limite di spesa non è stato salvato: {detail}",
+  "sessionBudgetPartialSave": "Provider salvato; il limite di spesa non è stato modificato: {detail}",
+  "sessionBudgetConflict": "Il limite di spesa è cambiato in {amount}. Salva di nuovo per confermare il tuo limite di {requested}.",
   "sessionBudgetStillEffective": "l’impostazione indica ancora {amount}",
   "providerAddressInvalid": "Questo indirizzo non può essere usato: {detail}",
   "providerPrivateNetwork": "{address} è su una rete privata. Usalo solo se ti fidi.",

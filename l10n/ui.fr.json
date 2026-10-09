@@ -2923,6 +2923,8 @@
   "sessionBudgetScopeGlobal": "cet ordinateur",
   "wizardSessionBudgetInvalid": "Saisissez un montant en dollars positif ou nul, par exemple 2 (0 signifie aucune limite).",
   "sessionBudgetWriteFailed": "La limite de dépenses n’a pas été enregistrée : {detail}",
+  "sessionBudgetPartialSave": "Fournisseur enregistré ; le plafond de dépenses n’a pas été modifié : {detail}",
+  "sessionBudgetConflict": "Le plafond de dépenses est passé à {amount}. Enregistrez à nouveau pour confirmer votre plafond de {requested}.",
   "sessionBudgetStillEffective": "le réglage indique toujours {amount}",
   "providerAddressInvalid": "Cette adresse ne peut pas être utilisée : {detail}",
   "providerPrivateNetwork": "{address} est sur un réseau privé. Ne l’utilisez que si vous lui faites confiance.",

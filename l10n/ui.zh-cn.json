@@ -2723,6 +2723,8 @@
   "sessionBudgetScopeGlobal": "本机",
   "wizardSessionBudgetInvalid": "请输入非负美元金额，例如 2（0 表示无上限）。",
   "sessionBudgetWriteFailed": "支出上限未保存：{detail}",
+  "sessionBudgetPartialSave": "提供商已保存；支出上限未更改：{detail}",
+  "sessionBudgetConflict": "支出上限已变为{amount}。请再次保存，以确认您输入的上限{requested}。",
   "sessionBudgetStillEffective": "该设置仍为 {amount}",
   "providerAddressInvalid": "此地址无法使用：{detail}",
   "providerPrivateNetwork": "{address} 位于专用网络中。仅在信任时使用。",

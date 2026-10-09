@@ -16,6 +16,7 @@ import type {
   PanelDraft,
   PanelToHostMessage,
   PresetCard,
+  PrefillFields,
   TickScope,
 } from '../../shared/modelsPanel'
 import { CostNotice } from './components/CostNotice'
@@ -481,6 +482,67 @@ function TestStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'onNav
   )
 }
 
+export function ModelLimitsFields({
+  draft,
+  id,
+  modelId,
+  reportedContext,
+  onPrefill,
+}: {
+  readonly draft: PanelDraft
+  readonly id: string
+  readonly modelId: string
+  readonly reportedContext?: number | undefined
+  readonly onPrefill: (fields: PrefillFields) => void
+}) {
+  // A custom server saves every chosen model's limits: the scan fills what
+  // it reported, and each ticked row asks the rest as plain numbers. An
+  // emptied field drops that number, never sends it.
+  const setLimit = (kind: 'contextTokens' | 'outputTokens', raw: number): void => {
+    const valued = Number.isNaN(raw) ? undefined : Math.floor(raw)
+    const current = draft.modelLimits?.[modelId]
+    const contextTokens = kind === 'contextTokens' ? valued : current?.contextTokens
+    const outputTokens = kind === 'outputTokens' ? valued : current?.outputTokens
+    onPrefill({
+      modelLimits: {
+        ...draft.modelLimits,
+        [modelId]: {
+          ...(contextTokens !== undefined && { contextTokens }),
+          ...(outputTokens !== undefined && { outputTokens }),
+        },
+      },
+    })
+  }
+  return (
+    <div className="models-limits">
+      <label className="models-field" htmlFor={`models-limits-context-${id}`}>
+        <span>{UI_TEXT.customLimitsContext}</span>
+        <input
+          id={`models-limits-context-${id}`}
+          type="number"
+          min={1}
+          value={draft.modelLimits?.[modelId]?.contextTokens ?? reportedContext ?? ''}
+          onChange={(event) => {
+            setLimit('contextTokens', event.target.valueAsNumber)
+          }}
+        />
+      </label>
+      <label className="models-field" htmlFor={`models-limits-output-${id}`}>
+        <span>{UI_TEXT.customLimitsOutput}</span>
+        <input
+          id={`models-limits-output-${id}`}
+          type="number"
+          min={1}
+          value={draft.modelLimits?.[modelId]?.outputTokens ?? ''}
+          onChange={(event) => {
+            setLimit('outputTokens', event.target.valueAsNumber)
+          }}
+        />
+      </label>
+    </div>
+  )
+}
+
 function WizardModelsStep({
   panelState,
   draft,
@@ -499,27 +561,6 @@ function WizardModelsStep({
       scope,
       ref,
       ticked: !draft.models.includes(modelId),
-    })
-  }
-  // A custom server saves every chosen model's limits: the scan fills what
-  // it reported, and each ticked row asks the rest as plain numbers. An
-  // emptied field drops that number, never sends it.
-  const setLimit = (modelId: string, kind: 'contextTokens' | 'outputTokens', raw: number): void => {
-    const valued = Number.isNaN(raw) ? undefined : Math.floor(raw)
-    const current = draft.modelLimits?.[modelId]
-    const contextTokens = kind === 'contextTokens' ? valued : current?.contextTokens
-    const outputTokens = kind === 'outputTokens' ? valued : current?.outputTokens
-    post({
-      type: 'providers/prefill',
-      fields: {
-        modelLimits: {
-          ...draft.modelLimits,
-          [modelId]: {
-            ...(contextTokens !== undefined && { contextTokens }),
-            ...(outputTokens !== undefined && { outputTokens }),
-          },
-        },
-      },
     })
   }
   return (
@@ -541,34 +582,15 @@ function WizardModelsStep({
               <span>{row.label ?? row.modelId}</span>
             </label>
             {isCustom && draft.models.includes(row.modelId) && (
-              <div className="models-limits">
-                <label className="models-field" htmlFor={`models-limits-context-${row.ref}`}>
-                  <span>{UI_TEXT.customLimitsContext}</span>
-                  <input
-                    id={`models-limits-context-${row.ref}`}
-                    type="number"
-                    min={1}
-                    value={
-                      draft.modelLimits?.[row.modelId]?.contextTokens ?? row.contextTokens ?? ''
-                    }
-                    onChange={(event) => {
-                      setLimit(row.modelId, 'contextTokens', event.target.valueAsNumber)
-                    }}
-                  />
-                </label>
-                <label className="models-field" htmlFor={`models-limits-output-${row.ref}`}>
-                  <span>{UI_TEXT.customLimitsOutput}</span>
-                  <input
-                    id={`models-limits-output-${row.ref}`}
-                    type="number"
-                    min={1}
-                    value={draft.modelLimits?.[row.modelId]?.outputTokens ?? ''}
-                    onChange={(event) => {
-                      setLimit(row.modelId, 'outputTokens', event.target.valueAsNumber)
-                    }}
-                  />
-                </label>
-              </div>
+              <ModelLimitsFields
+                id={row.ref}
+                modelId={row.modelId}
+                draft={draft}
+                reportedContext={row.contextTokens}
+                onPrefill={(fields) => {
+                  post({ type: 'providers/prefill', fields })
+                }}
+              />
             )}
           </li>
         ))}

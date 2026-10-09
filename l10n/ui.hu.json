@@ -2823,6 +2823,8 @@
   "sessionBudgetScopeGlobal": "ez a számítógép",
   "wizardSessionBudgetInvalid": "Adjon meg egy nemnegatív dollárösszeget, például 2 (a 0 azt jelenti: nincs korlát).",
   "sessionBudgetWriteFailed": "A költési korlát mentése nem sikerült: {detail}",
+  "sessionBudgetPartialSave": "A szolgáltató mentve; a költési korlát nem változott: {detail}",
+  "sessionBudgetConflict": "A költési korlát {amount} összegre változott. Mentsen újra a(z) {requested} összegű korlát megerősítéséhez.",
   "sessionBudgetStillEffective": "a beállítás továbbra is {amount}",
   "providerAddressInvalid": "Ez a cím nem használható: {detail}",
   "providerPrivateNetwork": "A(z) {address} privát hálózaton van. Csak akkor használja, ha megbízik benne.",

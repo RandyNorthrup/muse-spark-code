@@ -3023,6 +3023,8 @@
   "sessionBudgetScopeGlobal": "этот компьютер",
   "wizardSessionBudgetInvalid": "Введите неотрицательную сумму в долларах, например 2 (0 означает без лимита).",
   "sessionBudgetWriteFailed": "Лимит расходов не сохранён: {detail}",
+  "sessionBudgetPartialSave": "Провайдер сохранён; лимит расходов не изменён: {detail}",
+  "sessionBudgetConflict": "Лимит расходов изменился на {amount}. Сохраните ещё раз, чтобы подтвердить свой лимит {requested}.",
   "sessionBudgetStillEffective": "настройка по-прежнему равна {amount}",
   "providerAddressInvalid": "Этот адрес нельзя использовать: {detail}",
   "providerPrivateNetwork": "{address} в частной сети. Используйте его, только если доверяете ему.",

@@ -2823,6 +2823,8 @@
   "sessionBudgetScopeGlobal": "bu bilgisayar",
   "wizardSessionBudgetInvalid": "Negatif olmayan bir dolar tutarı girin, örneğin 2 (0 sınır yok demektir).",
   "sessionBudgetWriteFailed": "Harcama sınırı kaydedilemedi: {detail}",
+  "sessionBudgetPartialSave": "Sağlayıcı kaydedildi; harcama limiti değiştirilmedi: {detail}",
+  "sessionBudgetConflict": "Harcama limiti {amount} olarak değişti. {requested} tutarındaki limitinizi onaylamak için yeniden kaydedin.",
   "sessionBudgetStillEffective": "ayar hâlâ {amount}",
   "providerAddressInvalid": "Bu adres kullanılamaz: {detail}",
   "providerPrivateNetwork": "{address} özel bir ağda. Yalnızca güveniyorsanız kullanın.",

@@ -13,6 +13,7 @@ import {
   parsePanelToHostMessage,
   parseHostToPanelMessage,
   presetCardSchema,
+  customFormatSchema,
   providerStateSchema,
   wizardStepSchema,
   type ModelsPanelState,
@@ -230,11 +231,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       privateNetwork: draft.privateConfirmed,
     }
   }
-  /** Save stays disabled with its reason until each ticked custom model has valid limits. */
-  const syncCustomBlockers = (draft: PanelDraft): void => {
+  /** Limits block Models and later steps; earlier steps must allow returning to their fields. */
+  const syncCustomBlockers = (draft: PanelDraft, isSaving = false): void => {
     const rest = draft.blockers.filter((blocker) => blocker !== UI_TEXT.customLimitsMissing)
     const hasIncompleteLimits =
       draft.presetId === 'custom' &&
+      (isSaving || !['pick-provider', 'configure', 'credential', 'test'].includes(draft.step)) &&
       draft.models.some((model) => !modelLimitsSchema.safeParse(draft.modelLimits?.[model]).success)
     draft.blockers = hasIncompleteLimits ? [...rest, UI_TEXT.customLimitsMissing] : rest
   }
@@ -243,7 +245,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       syncCustomBlockers(state.drafts.wizard)
     }
     for (const draft of Object.values(state.drafts.edits)) {
-      syncCustomBlockers(draft)
+      syncCustomBlockers(draft, true)
     }
   }
   /** Why a subscription sign-in cannot start, or undefined when it can. */
@@ -606,10 +608,13 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }
       case 'providers/edit': {
         const entry = await entryOf(message.providerId)
+        const format = customFormatSchema.safeParse(entry.format)
         const draft = {
           ...newDraft(providers.preset(entry.preset)),
           address: entry.address,
           models: [...entry.models],
+          ...(entry.modelLimits !== undefined && { modelLimits: entry.modelLimits }),
+          ...(format.success && { customFormat: format.data }),
         }
         let secret: string | undefined
         try {
@@ -655,10 +660,13 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         const id = message.providerId
         if (id !== undefined && state.drafts.edits[id] === undefined) {
           const entry = await entryOf(id)
+          const format = customFormatSchema.safeParse(entry.format)
           state.drafts.edits[id] = {
             ...newDraft(providers.preset(entry.preset)),
             address: entry.address,
             models: [...entry.models],
+            ...(entry.modelLimits !== undefined && { modelLimits: entry.modelLimits }),
+            ...(format.success && { customFormat: format.data }),
           }
         }
         const draft = draftOf(id)
@@ -761,6 +769,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }
       case 'providers/save': {
         const draft = draftOf(message.providerId)
+        syncCustomBlockers(draft, true)
+        if (draft.blockers.length > 0) {
+          throw new Error(UI_TEXT.actionFailed)
+        }
         const entry = {
           ...(message.providerId !== undefined && (await entryOf(message.providerId))),
           ...draftEntry(draft, message.providerId),

@@ -2923,6 +2923,8 @@
   "sessionBudgetScopeGlobal": "este equipo",
   "wizardSessionBudgetInvalid": "Escribe una cantidad en dólares no negativa, por ejemplo 2 (0 significa sin límite).",
   "sessionBudgetWriteFailed": "El límite de gasto no se guardó: {detail}",
+  "sessionBudgetPartialSave": "Proveedor guardado; el límite de gasto no se cambió: {detail}",
+  "sessionBudgetConflict": "El límite de gasto cambió a {amount}. Guarda de nuevo para confirmar tu límite de {requested}.",
   "sessionBudgetStillEffective": "el ajuste todavía indica {amount}",
   "providerAddressInvalid": "Esta dirección no se puede usar: {detail}",
   "providerPrivateNetwork": "{address} está en una red privada. Úsela solo si confía en ella.",

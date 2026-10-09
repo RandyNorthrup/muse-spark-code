@@ -3023,6 +3023,8 @@
   "sessionBudgetScopeGlobal": "tento počítač",
   "wizardSessionBudgetInvalid": "Zadejte nezápornou částku v dolarech, například 2 (0 znamená bez limitu).",
   "sessionBudgetWriteFailed": "Limit útraty nebyl uložen: {detail}",
+  "sessionBudgetPartialSave": "Poskytovatel uložen; limit útraty se nezměnil: {detail}",
+  "sessionBudgetConflict": "Limit útraty se změnil na {amount}. Uložte znovu a potvrďte svůj limit {requested}.",
   "sessionBudgetStillEffective": "nastavení stále uvádí {amount}",
   "providerAddressInvalid": "Tuto adresu nelze použít: {detail}",
   "providerPrivateNetwork": "{address} je v privátní síti. Použijte ji, jen pokud jí důvěřujete.",

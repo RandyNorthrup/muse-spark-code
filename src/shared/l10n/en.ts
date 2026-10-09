@@ -4230,6 +4230,11 @@ export const EN = {
     'Enter a non-negative amount in dollars, for example 2 (0 means no limit).',
   // {detail}: why the setting write failed, in the settings' own words.
   sessionBudgetWriteFailed: 'The spending limit was not saved: {detail}',
+  // {detail}: why the limit could not change after provider persistence succeeded.
+  sessionBudgetPartialSave: 'Provider saved; the spending limit was not changed: {detail}',
+  // {amount}: the concurrent current limit; {requested}: the user's retained edit.
+  sessionBudgetConflict:
+    'The spending limit changed to {amount}. Save again to confirm your limit of {requested}.',
   // {amount}: what the setting still reads after the write resolved.
   sessionBudgetStillEffective: 'the setting still reads {amount}',
   // {detail}: why the address is refused, in technical words.

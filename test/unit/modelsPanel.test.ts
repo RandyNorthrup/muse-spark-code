@@ -310,7 +310,11 @@ describe('Models panel over the shipped preset catalogue', () => {
       id: 'custom',
       key: 'bare-synthetic-secret',
       address: 'https://llm.example',
-      fields: { address: 'https://llm.example', customFormat: 'chat' as const },
+      fields: {
+        address: 'https://llm.example',
+        customFormat: 'chat' as const,
+        modelLimits: { m1: { contextTokens: 128_000, outputTokens: 4000 } },
+      },
     },
   ])('adds $id through the wizard without the key crossing the bridge', async (row) => {
     const { providers } = realCatalogue()
@@ -472,6 +476,159 @@ async function productionSeam(resolve?: (host: string) => Promise<readonly strin
 }
 
 describe('PROVWIZ2 round 2 regressions', () => {
+  it.each(['providers/edit', 'providers/enterKey'] as const)(
+    'seeds saved custom limits on %s and saves edits through the production store',
+    async (type) => {
+      const { folder, seam } = await productionSeam()
+      try {
+        const { providers } = testProvidersHost({
+          deps: {
+            store: seam.store,
+            catalog: seam.catalog,
+            fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
+          },
+        })
+        await providers.saveDraft({
+          provider: {
+            id: 'custom',
+            preset: 'custom',
+            auth: 'apiKey',
+            address: 'https://llm.example',
+            format: 'chat',
+            models: ['m1'],
+            modelLimits: { m1: { contextTokens: 128_000, outputTokens: 4000 } },
+          },
+          credential: 'synthetic-key',
+          credentialAuth: 'apiKey',
+          defaultModel: 'custom/m1',
+          useNow: false,
+        })
+        const { panel, warnings } = setup({ providers })
+        vi.mocked(window.showInputBox).mockResolvedValue('synthetic-replacement')
+        await send(
+          panel,
+          { type, providerId: 'custom', ...(type === 'providers/enterKey' && { mode: 'change' }) },
+          () => {
+            expect(latestState(panel).drafts.edits['custom']).toBeDefined()
+          },
+        )
+        expect(latestState(panel).drafts.edits['custom']).toMatchObject({
+          customFormat: 'chat',
+          modelLimits: { m1: { contextTokens: 128_000, outputTokens: 4000 } },
+          blockers: [],
+        })
+        await send(
+          panel,
+          {
+            type: 'providers/prefill',
+            providerId: 'custom',
+            fields: {
+              address: 'https://llm.example/v2',
+              modelLimits: { m1: { contextTokens: 256_000, outputTokens: 8000 } },
+            },
+          },
+          () => {
+            expect(latestState(panel).drafts.edits['custom']?.address).toBe(
+              'https://llm.example/v2',
+            )
+          },
+        )
+        await send(
+          panel,
+          { type: 'providers/enterKey', mode: 'change', providerId: 'custom' },
+          () => {
+            expect(latestState(panel).drafts.edits['custom']?.keyPresent).toBe(true)
+          },
+        )
+        await send(
+          panel,
+          { type: 'providers/test', acceptCost: false, providerId: 'custom' },
+          () => {
+            expect(latestState(panel).drafts.edits['custom']?.test?.status).toBe('ok')
+          },
+        )
+        await send(panel, { type: 'providers/save', useNow: false, providerId: 'custom' }, () => {
+          expect(latestState(panel).drafts.edits['custom']).toBeUndefined()
+        })
+        const stored = await seam.store.list()
+        expect(stored).toHaveLength(1)
+        expect(stored[0]).toMatchObject({
+          address: 'https://llm.example/v2',
+          format: 'chat',
+          modelLimits: { m1: { contextTokens: 256_000, outputTokens: 8000 } },
+        })
+        expect(warnings).toEqual([])
+      } finally {
+        await rm(folder, { recursive: true, force: true })
+      }
+    },
+  )
+
+  it('returns through Test with incomplete custom limits kept and revalidates Models and Save', async () => {
+    const { folder, seam } = await productionSeam()
+    try {
+      const { providers } = testProvidersHost({
+        deps: { store: seam.store, catalog: seam.catalog },
+      })
+      const { panel } = setup({ providers })
+      const saveDraft = vi.spyOn(providers, 'saveDraft')
+      vi.mocked(window.showInputBox).mockResolvedValue('synthetic-key')
+      await send(panel, { type: 'providers/select', presetId: 'custom' }, () => {
+        expect(latestState(panel).drafts.wizard?.presetId).toBe('custom')
+      })
+      await send(
+        panel,
+        {
+          type: 'providers/prefill',
+          fields: {
+            address: 'https://llm.example',
+            modelLimits: { m1: { contextTokens: 128_000 } },
+          },
+        },
+        () => {
+          expect(latestState(panel).drafts.wizard?.address).toBe('https://llm.example')
+        },
+      )
+      await send(
+        panel,
+        { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'custom/m1', ticked: true },
+        () => {
+          expect(latestState(panel).drafts.wizard?.models).toEqual(['m1'])
+        },
+      )
+      await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
+        expect(latestState(panel).drafts.wizard?.keyPresent).toBe(true)
+      })
+      await send(panel, { type: 'providers/test', acceptCost: false }, () => {
+        expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
+      })
+      for (const step of ['credential', 'test', 'models']) {
+        await send(panel, { type: 'providers/wizard', event: 'next' }, () => {
+          expect(latestState(panel).drafts.wizard?.step).toBe(step)
+        })
+      }
+      expect(latestState(panel).drafts.wizard?.blockers).toEqual([UI_TEXT.customLimitsMissing])
+      await send(panel, { type: 'providers/wizard', event: 'back' }, () => {
+        expect(latestState(panel).drafts.wizard?.step).toBe('test')
+      })
+      expect(latestState(panel).drafts.wizard?.blockers).toEqual([])
+      expect(latestState(panel).drafts.wizard?.modelLimits).toEqual({
+        m1: { contextTokens: 128_000 },
+      })
+      await send(panel, { type: 'providers/wizard', event: 'next' }, () => {
+        expect(latestState(panel).drafts.wizard?.step).toBe('models')
+      })
+      expect(latestState(panel).drafts.wizard?.blockers).toEqual([UI_TEXT.customLimitsMissing])
+      await send(panel, { type: 'providers/save', useNow: false }, () => {
+        expect(latestState(panel).notice).toBe(UI_TEXT.actionFailed)
+      })
+      expect(saveDraft).not.toHaveBeenCalled()
+      expect(await seam.store.list()).toEqual([])
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
+  })
+
   it('saves a custom server with per-model limits through the production store', async () => {
     const { folder, configFile, seam } = await productionSeam()
     try {
@@ -506,6 +663,11 @@ describe('PROVWIZ2 round 2 regressions', () => {
       await send(panel, { type: 'providers/test', acceptCost: false }, () => {
         expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
       })
+      for (const step of ['credential', 'test', 'models']) {
+        await send(panel, { type: 'providers/wizard', event: 'next' }, () => {
+          expect(latestState(panel).drafts.wizard?.step).toBe(step)
+        })
+      }
       // The scan fills the reported context window; the longest reply is
       // still missing, so the blocker stands.
       expect(latestState(panel).drafts.wizard?.modelLimits).toEqual({

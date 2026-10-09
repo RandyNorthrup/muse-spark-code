@@ -474,3 +474,37 @@ Deliberate source breaks, each restored byte-exact with SHA-256:
 
 No native Settings UI is claimed; these tests observe the real production
 writer/adapter update and exact-decimal admission reader with fake VS Code.
+
+## P2-3 and P2-4: saved custom limits and reversible navigation
+
+The Edit and Change key paths seed `modelLimits` and the saved wire format.
+Edit renders the same `ModelLimitsFields` controls as Models; fields post the
+existing validated prefill message. Two regressions seed a saved custom
+provider via the real save transaction on a temporary production file, edit
+its endpoint and limits, re-test, save, and re-read the production store.
+The rendered edit regression checks both prefills and the targeted update.
+
+Custom-limit blockers apply on Models and subsequent steps, and always on
+saved-provider edits and final Save. Earlier wizard steps allow returning to
+Models; no limit is erased on Back. The navigation regression drives the
+actual host, retains an incomplete limit through Test and back to Models,
+and verifies final Save never calls provider persistence while incomplete.
+The old memory-store custom fixture now supplies valid limits too: final
+validation deliberately caught its previously incomplete success fixture.
+
+Before the repair the two saved-draft tests, the edit-fields test and the
+navigation test failed their expected behavior assertions. The completed
+`modelsPanel` and `modelsPanelSections` suites pass 57 tests after restoring
+all drills, at repository deadlines. Changed-file ESLint passes.
+
+| Deliberate break                                   | Failures | Original and restored SHA-256                                      |
+| -------------------------------------------------- | -------- | ------------------------------------------------------------------ |
+| Drop stored limits when Edit seeds its draft       | 1/27     | `bca84884456ba623ef2ce7dcf49d5b45451349650b6c2a8b53379ed20ee90c31` |
+| Drop stored limits when Change key seeds its draft | 1/27     | `bca84884456ba623ef2ce7dcf49d5b45451349650b6c2a8b53379ed20ee90c31` |
+| Hide the custom limit fields in Edit               | 1/30     | `6c5fefb041af57d2eaf1b8c0d06b174ca73b62229aade352fcd5465bc7fe804b` |
+| Apply custom-limit blockers on earlier steps again | 1/27     | `bca84884456ba623ef2ce7dcf49d5b45451349650b6c2a8b53379ed20ee90c31` |
+| Remove final Save's blocker guard                  | 1/27     | `bca84884456ba623ef2ce7dcf49d5b45451349650b6c2a8b53379ed20ee90c31` |
+
+The shared webview changes remain behind the existing host bridge; persisted
+custom limits are read by ACP through the same production provider schema.
+Native-editor rendering and installation are not claimed by these tests.
