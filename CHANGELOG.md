@@ -20,6 +20,8 @@ happened, not what was planned; superseded entries are kept.
 - JetBrains and Eclipse provide native file dialogs, commands, HTML surfaces and
   settled diagnostics for the edited document version. Unavailable settings actions
   report explicit errors. Their panels retain native bridges after page replacement.
+  Qualification remains blocked by native schema validation, panel readiness,
+  theme-role and settled-diagnostic checks found in the joined Linux matrix.
 - Xcode's native prototype provides permission and file dialogs, approved buffer
   edits, report export, window focus and retained file-navigation processes.
   Its companion relay validates the shared snapshot and reports native failures.

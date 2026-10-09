@@ -13,12 +13,7 @@ import * as vscode from 'vscode'
 import type { TabEngine, TabEngineRequest, TabStream } from '../../../core/tab/tabEngine'
 import type { TabReportedUsage, TabSpendGate } from '../../../core/tab/tabSpend'
 import type { TabHookBridge, TabFilesExclude } from '../../../core/tab/tabEligibility'
-export type {
-  TabSpendFacts,
-  TabReportedUsage,
-  TabReservation,
-  TabSpendGate,
-} from '../../../core/tab/tabSpend'
+export type { TabReportedUsage, TabReservation, TabSpendGate } from '../../../core/tab/tabSpend'
 export type {
   TabAcceptedEdit,
   TabHookBridge,

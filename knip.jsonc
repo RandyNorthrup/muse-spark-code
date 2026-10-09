@@ -165,7 +165,11 @@
     // Shipped deferred entry: path/receipt imports map to these native-runtime exports.
     "src/runtime/lsp/processAuthority.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
-    "test/m104/{runtime,engines,ui}/**/*.test.{ts,tsx,mjs}",
+    "test/m104/{runtime,engines,ui,windows}/**/*.test.{ts,tsx,mjs}",
+    // Windows receipt uses this configuration and builds the bootstrap entry by path.
+    "test/m104/windows/vitest.config.mjs",
+    "test/m104/windows/vscodeEntry.ts",
+    "test/m104/windows/bootstrapFixture.mjs",
     // The native loader/budget suite is executed directly with node --test.
     "test/m104/linux/nativeModules.test.mjs",
     "test/m104/mac/nativeDrills.mjs",

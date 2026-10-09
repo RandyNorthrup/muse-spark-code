@@ -1,0 +1,400 @@
+{
+  "sourceRevision": "37844758baf8626e50095676e809364198fbd698",
+  "kind": "private browser harness, not installed-native-editor or reviewed visual baseline",
+  "source": "test/unit/fallbackAccessibility.test.ts",
+  "coverage": "English native fallback screenshots: four themes and fourteen kinds, 320px viewport. Full axe matrix separately covers three bridges and fifteen languages.",
+  "images": [
+    {
+      "name": "dark-confirm.png",
+      "sha256": "666bf214d5d7c647d3fa1dc54d9267cd2cbd2ed95fe648f35e4f1aaaba9532ac",
+      "width": 320,
+      "height": 760,
+      "bytes": 14397
+    },
+    {
+      "name": "dark-diff.png",
+      "sha256": "d73aaafc3a1719802dee2b814f71f8c9bd65ee706a0d585c060e1dbf977b68b9",
+      "width": 320,
+      "height": 760,
+      "bytes": 17872
+    },
+    {
+      "name": "dark-hooks.png",
+      "sha256": "0ccfa8dc21d629d4449033007b037aeb027072c43e732a06c9ca9d65f71bdeb7",
+      "width": 320,
+      "height": 760,
+      "bytes": 9540
+    },
+    {
+      "name": "dark-input.png",
+      "sha256": "a5d3ddd69a1c799f76c51e7b058dbb2086d15eaa3aa0e92b7cc229afc0ff605d",
+      "width": 320,
+      "height": 760,
+      "bytes": 8726
+    },
+    {
+      "name": "dark-mcp.png",
+      "sha256": "903f45686394ae2190ea8723fb31e81b2f43db8c6a11021771a46350fe253a13",
+      "width": 320,
+      "height": 760,
+      "bytes": 9922
+    },
+    {
+      "name": "dark-memory.png",
+      "sha256": "42c21cacedfcd55d6817d81ab2a2a5aff4a293556ac44d1b1e0b8ed7ff0f34a9",
+      "width": 320,
+      "height": 760,
+      "bytes": 8754
+    },
+    {
+      "name": "dark-picker.png",
+      "sha256": "cb75e72c9970307294e04352bd4b79fd8ffe29cec855818acf275df46e784c04",
+      "width": 320,
+      "height": 760,
+      "bytes": 12409
+    },
+    {
+      "name": "dark-settings.png",
+      "sha256": "2fe4888a20e45a74615a6c9d0f3b3909dd3ebc2dd6a4ce6bffed6334309e0dd5",
+      "width": 320,
+      "height": 760,
+      "bytes": 8554
+    },
+    {
+      "name": "dark-skills.png",
+      "sha256": "07f51bc6b681e52ffbbafdb2baecdb1a311cc69d3a1dc67263d202374f4d3b17",
+      "width": 320,
+      "height": 760,
+      "bytes": 9163
+    },
+    {
+      "name": "dark-status.png",
+      "sha256": "1c4ee81e69a376fd9f0c761922b79d554e1214a0796cbdd9fc97add8d1fe535a",
+      "width": 320,
+      "height": 760,
+      "bytes": 4665
+    },
+    {
+      "name": "dark-terminal.png",
+      "sha256": "0a18be9dd98d6c2973f6444948f4c65b27d0bff879c356651b4ed145941d0819",
+      "width": 320,
+      "height": 760,
+      "bytes": 7695
+    },
+    {
+      "name": "dark-toasts.png",
+      "sha256": "03e26ad7fc711cb41ffb033b8a4fc1947380ade04b27ae59c7efb9cd141eef78",
+      "width": 320,
+      "height": 760,
+      "bytes": 5655
+    },
+    {
+      "name": "dark-walkthrough.png",
+      "sha256": "36e784bb740498285e35b9c25c4d72fc444d25031a13bf90b6be2afee64c2fa2",
+      "width": 320,
+      "height": 760,
+      "bytes": 13687
+    },
+    {
+      "name": "dark-worktrees.png",
+      "sha256": "029376dded1289d6b571b50a5e39eaa727537886ead3b1940a00fd38f2afaf90",
+      "width": 320,
+      "height": 760,
+      "bytes": 8543
+    },
+    {
+      "name": "hc-dark-confirm.png",
+      "sha256": "aebdfe3e265d19d028c3a2fdb1f6caecc46b8158e5cc94a30ffeca8b1de7947e",
+      "width": 320,
+      "height": 760,
+      "bytes": 15409
+    },
+    {
+      "name": "hc-dark-diff.png",
+      "sha256": "43a3efe1ccf0622d9f122dcb01ebf1821fa05a6f377037af5be27745cc1e6a05",
+      "width": 320,
+      "height": 760,
+      "bytes": 16179
+    },
+    {
+      "name": "hc-dark-hooks.png",
+      "sha256": "998372b6f2b7ac6e406ffdd3fc684f738f3e0af26b4ea44e4550900a4fae0724",
+      "width": 320,
+      "height": 760,
+      "bytes": 9231
+    },
+    {
+      "name": "hc-dark-input.png",
+      "sha256": "780a82520a2dac9aa5547a246dbfab0849c23b64f80a3181b2c5cfec2e1b8204",
+      "width": 320,
+      "height": 760,
+      "bytes": 8694
+    },
+    {
+      "name": "hc-dark-mcp.png",
+      "sha256": "e3b122a053171ab40b8b5e1bed9b3a253f68a55572c1cfc62df3b8851ed9c727",
+      "width": 320,
+      "height": 760,
+      "bytes": 9616
+    },
+    {
+      "name": "hc-dark-memory.png",
+      "sha256": "8189ed7fa4ce589169e39ec999d779eb0b21d348937dbd5a8a8d037e63b05105",
+      "width": 320,
+      "height": 760,
+      "bytes": 8496
+    },
+    {
+      "name": "hc-dark-picker.png",
+      "sha256": "60568ec8cca6f8af075ec4a7af9a51f5b9250de2b4fd1c1ce89bd3fa72b1ee24",
+      "width": 320,
+      "height": 760,
+      "bytes": 12800
+    },
+    {
+      "name": "hc-dark-settings.png",
+      "sha256": "299bd0b6c91b75986191446b877f57d3e70cbb2106df49d9ca1efecc0582269a",
+      "width": 320,
+      "height": 760,
+      "bytes": 8367
+    },
+    {
+      "name": "hc-dark-skills.png",
+      "sha256": "f7319df2c232c82992356dd90fa80237ff087f63e1b9ee3462d8c36f7f2ea007",
+      "width": 320,
+      "height": 760,
+      "bytes": 8869
+    },
+    {
+      "name": "hc-dark-status.png",
+      "sha256": "9fb0544cfd22c53bdfb5646bfff1ca03a75f015322d836b4baf6688d682d1296",
+      "width": 320,
+      "height": 760,
+      "bytes": 4598
+    },
+    {
+      "name": "hc-dark-terminal.png",
+      "sha256": "a8f5d7bbc377ada325cd3f4207569ffbfa61e95728d8a02c11c965ba24d79641",
+      "width": 320,
+      "height": 760,
+      "bytes": 7244
+    },
+    {
+      "name": "hc-dark-toasts.png",
+      "sha256": "8f3722b099cb9e2749e87703cc995e4b39071616a8fe20334f14a988b9a4c210",
+      "width": 320,
+      "height": 760,
+      "bytes": 5496
+    },
+    {
+      "name": "hc-dark-walkthrough.png",
+      "sha256": "a7d72f23ff2f91d0b0941038ee2fcecd8bb77b8baba6d296e9718d34d121c2bf",
+      "width": 320,
+      "height": 760,
+      "bytes": 12896
+    },
+    {
+      "name": "hc-dark-worktrees.png",
+      "sha256": "0e3d01c0da971f3b8732cc8b996490eacaecf80b47ba13d70020182e7c30febb",
+      "width": 320,
+      "height": 760,
+      "bytes": 8308
+    },
+    {
+      "name": "hc-light-confirm.png",
+      "sha256": "6574e82734dbf9561fe108cb19a3e908f4767d2a1c27b76b8bc91217ffee3181",
+      "width": 320,
+      "height": 760,
+      "bytes": 16063
+    },
+    {
+      "name": "hc-light-diff.png",
+      "sha256": "ec60f6c7e2846574e1ce7998605b7d65ac19ddecb38ad2e1f14f5eb7e1876cf6",
+      "width": 320,
+      "height": 760,
+      "bytes": 17252
+    },
+    {
+      "name": "hc-light-hooks.png",
+      "sha256": "3c3295670f231582509f71725d54008ab3fb6abd731e6800cc9bb966555db62f",
+      "width": 320,
+      "height": 760,
+      "bytes": 9490
+    },
+    {
+      "name": "hc-light-input.png",
+      "sha256": "54fcfc6ef601647bdbad88c8e86281e8478427885434fbab29cb3a08bfe66133",
+      "width": 320,
+      "height": 760,
+      "bytes": 10408
+    },
+    {
+      "name": "hc-light-mcp.png",
+      "sha256": "de0848bbf5630f08b1d172d7fa2dd45b7282c796401ae4d54089106cd07db513",
+      "width": 320,
+      "height": 760,
+      "bytes": 9897
+    },
+    {
+      "name": "hc-light-memory.png",
+      "sha256": "38f94cbce7cc3307305c5e184463c7fe6945d0efc17c8d51451bf6ff5065ef8b",
+      "width": 320,
+      "height": 760,
+      "bytes": 8691
+    },
+    {
+      "name": "hc-light-picker.png",
+      "sha256": "267272842b8c8b3d5fcb97dc00934bc8074b7c4f0d24e6cc96e0569aafa4aa73",
+      "width": 320,
+      "height": 760,
+      "bytes": 14080
+    },
+    {
+      "name": "hc-light-settings.png",
+      "sha256": "ff84d230699cf29f298fa4e22ead1baeae110c7a35858900f72a52abdb7e227d",
+      "width": 320,
+      "height": 760,
+      "bytes": 8394
+    },
+    {
+      "name": "hc-light-skills.png",
+      "sha256": "bf39406615c54431e2bd6d5ab2f7bc6573c74b0a5a09f3c1e56ee42e86680041",
+      "width": 320,
+      "height": 760,
+      "bytes": 9110
+    },
+    {
+      "name": "hc-light-status.png",
+      "sha256": "5740805dd8d89ca1eaefe6ead0e8dc4b625a9dafb1169dd976f698b9fd95ddca",
+      "width": 320,
+      "height": 760,
+      "bytes": 4663
+    },
+    {
+      "name": "hc-light-terminal.png",
+      "sha256": "dbfba1d3b397738d3e408eb7358e465793bb553349fe16e7d0290dcea154f4f9",
+      "width": 320,
+      "height": 760,
+      "bytes": 7546
+    },
+    {
+      "name": "hc-light-toasts.png",
+      "sha256": "f3c595ad2e9a194435fc0ac989b8085c1e21b3f5bbd8d69280cf855ec0a32a73",
+      "width": 320,
+      "height": 760,
+      "bytes": 5555
+    },
+    {
+      "name": "hc-light-walkthrough.png",
+      "sha256": "5709b8e5e81c6d858642d55f53b21fd2a8520e2a120e5c31ad8b5998be0f6b21",
+      "width": 320,
+      "height": 760,
+      "bytes": 13422
+    },
+    {
+      "name": "hc-light-worktrees.png",
+      "sha256": "07c09d35653198f062ea97c50644b4c0c65507d8f6c651b37920c88efb4cfb1b",
+      "width": 320,
+      "height": 760,
+      "bytes": 8481
+    },
+    {
+      "name": "light-confirm.png",
+      "sha256": "8f75e6ebe4896c2e6e25b6c288eb2ffd7b727cde07a80c15a0d0fe55fb548b51",
+      "width": 320,
+      "height": 760,
+      "bytes": 15393
+    },
+    {
+      "name": "light-diff.png",
+      "sha256": "66320973c5d0697e7a71e339e73a65485fc40a3919a3e8f81d66e9fdb542dafa",
+      "width": 320,
+      "height": 760,
+      "bytes": 17715
+    },
+    {
+      "name": "light-hooks.png",
+      "sha256": "40d64032616795b5ed558f8a08d979abf56e9849b845ed371425f211e10869b6",
+      "width": 320,
+      "height": 760,
+      "bytes": 9480
+    },
+    {
+      "name": "light-input.png",
+      "sha256": "7cc7234cb9a6362d81abc132f3b24f7357b75bdf966de2553cc81a07a820d65a",
+      "width": 320,
+      "height": 760,
+      "bytes": 9616
+    },
+    {
+      "name": "light-mcp.png",
+      "sha256": "668736bcb4b266f7a39a1d5356ab60aa61103196317d076e0feb7b67b9573095",
+      "width": 320,
+      "height": 760,
+      "bytes": 9917
+    },
+    {
+      "name": "light-memory.png",
+      "sha256": "08258f3af11b828b2e3b884d3ac9eebc3b9c4b9c4e4c2463fe885129a92040f7",
+      "width": 320,
+      "height": 760,
+      "bytes": 8745
+    },
+    {
+      "name": "light-picker.png",
+      "sha256": "8e42fdbe9162dae460f9d9ebc69851b67d0f6993675d3890489c5afa1a078b9a",
+      "width": 320,
+      "height": 760,
+      "bytes": 13292
+    },
+    {
+      "name": "light-settings.png",
+      "sha256": "b543b38d8d7544d92d618c373f0f18d8c57b0e7b36d903c702d46bf4cbe969f9",
+      "width": 320,
+      "height": 760,
+      "bytes": 8539
+    },
+    {
+      "name": "light-skills.png",
+      "sha256": "734f5821f5c61525bc1324174c8966bbbdb7eb168ee885d3ed6a1be3019be8dd",
+      "width": 320,
+      "height": 760,
+      "bytes": 9140
+    },
+    {
+      "name": "light-status.png",
+      "sha256": "227643262757f8ed69a50bfd678ba2555c432cf1c545fe6e88dfbbdd6ffa6c3e",
+      "width": 320,
+      "height": 760,
+      "bytes": 4633
+    },
+    {
+      "name": "light-terminal.png",
+      "sha256": "7c19582c778394687e35be7e8baf0b1d3f313075b66d892d43aaaf1218148a29",
+      "width": 320,
+      "height": 760,
+      "bytes": 7491
+    },
+    {
+      "name": "light-toasts.png",
+      "sha256": "30380c748784777c3ad32b34fa746e4d53cbe42f874effb0189710b24c9bd18b",
+      "width": 320,
+      "height": 760,
+      "bytes": 5604
+    },
+    {
+      "name": "light-walkthrough.png",
+      "sha256": "947524aea3078c4f3f3bb084976258ecd0f1a46f7531b3757253ef30fc6ced2e",
+      "width": 320,
+      "height": 760,
+      "bytes": 13518
+    },
+    {
+      "name": "light-worktrees.png",
+      "sha256": "8d9074620fa6eeeefa86d4a9e6227641ee17207089ef0a88309f62e2e8c2df2b",
+      "width": 320,
+      "height": 760,
+      "bytes": 8513
+    }
+  ]
+}

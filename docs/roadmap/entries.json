@@ -772,7 +772,7 @@
     {
       "id": "M104",
       "title": "Every feature in every editor",
-      "summary": "Experimental native and companion panels and LSP are joined for verification; bundle budgets, installed-editor receipts and resource-chip parity still block qualification.",
+      "summary": "Experimental native and companion panels and LSP are joined for verification; bundle and security gates, ACP fixtures, native contracts, installed-editor receipts and resource-chip parity still block qualification.",
       "area": "editors",
       "labels": ["experimental", "untested"]
     },

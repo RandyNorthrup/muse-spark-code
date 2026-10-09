@@ -38219,7 +38219,7 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-09: waiting.** All five phase-2 joins are being verified on Kubuntu; unchanged bundle caps, installed qualification and the next resource-chip parity lane remain blockers. Retained requirements and receipts follow.
+**Status 2026-10-09: waiting.** All five phase-2 lanes are joined locally on Kubuntu. Verification retains the portable graph cap, duplication and SAST findings, four ACP fixture failures, native bridge contract checks, installed qualification and the next resource-chip parity lane as blockers. Retained requirements and receipts follow.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
 P3 evidence error inside B's paid engines and their shared guards. One
@@ -38911,6 +38911,67 @@ module inventory imports must have no launch-pipe side effect: enter the gate
 only when the actual installed file is explicitly named by Node's `--require`
 argument. Keep exact registration-before-GO, EOF refusal and guardian execution
 unchanged; verify real launches and archive native import/require parity.
+
+**M104INT native input-schema refusal blocker (2026-10-09).** The
+existing embedded bridge assertion rejects `{ type: "ready", apiKey: ... }`.
+It fails after exporting accepted input before Zod transforms: input schemas
+allow unknown members for stripping objects, while the old native export
+rejected them. Preserve the test and its strict native policy. Reconciling
+native normalization/closed shape with the frozen adoption requires a reviewed
+contract change and its complete native matrix; do not silently rewrite the
+1.4 snapshot, change the assertion or invent a one-field blacklist. This
+remains a main-integration blocker alongside the portable cap and ACP failures.
+
+**M104INT native matrix qualification blockers (2026-10-09).** Real
+JetBrains JCEF/native-dialog verification reports 80 of 84 tests passing:
+the dropdown foreground theme role, shared-panel readiness and two settled
+diagnostic/version results still fail. Both real Eclipse target matrices
+reach JUnit with Maven 3.9.11, but their contract reader refuses the joined
+`readOnly` and `exclusiveMinimum` schema vocabulary; each reports 87 tests
+and 71 error records, including secondary teardown errors. Keep their
+assertions and complete native contract policy unchanged. These failures
+require a reviewed native contract/service repair before main integration;
+passing fixture, lint or SDK compilation results do not qualify installed hosts.
+
+**M104INT final static-gate cleanup (2026-10-09).** Plain Knip identifies
+the Windows receipt/config and esbuild fixture as real path-invoked entries,
+plus two unused compatibility re-exports after the portable leaf extraction.
+Register those actual entries without adding ignores, and remove only the
+unused exports. No runtime behavior or public command changes. Recheck plain
+Knip, scoped lint/format and compiler gates before the final quality attempt.
+Run the installed-language bundle checker with its required private package
+root installed from a real test tarball; an invocation without that argument
+is an operator error, not evidence of an English-fallback defect.
+
+**M104INT duplication gate deferral (2026-10-09).** The full source/test
+union reports twelve clones (93 lines, 707 tokens) against its unchanged zero
+threshold. They span the host/runtime paid-ledger schema/setup and six test
+owners, including newer production consent and Windows trusted-path receipts.
+A separate shared-owner/test-fixture cleanup must preserve their independent
+guards and assertions; do not make cosmetic token changes or add excludes to
+hide equivalent implementations during this blocked integration join. Record
+the exact clone locations and retain duplication as a main-integration blocker.
+
+**M104INT SAST review deferral (2026-10-09).** The unchanged auto-rule
+scan reports sixteen blocking findings in six joined owners: Eclipse's
+launcher ProcessBuilder, JetBrains resource/script interpolation and embedded
+schema RegExp, Xcode generated HTML escaping, shared page HTML escaping and
+the portable page's text/session-id escaping. Retain each finding for the
+native/HTML boundary review; do not label them safe merely because they are
+audits or add suppression comments to obtain green. The scan also reports
+one default rule timeout in ModelApiHost's express-SSRF analysis. No rule,
+exclude, deadline or dependency is changed. These results block main integration
+alongside the portable cap, duplication, ACP and native qualification failures.
+
+**M104INT aggregate formatting cleanup (2026-10-09).** The single final
+quality attempt stops at formatting because native test runs left ignored
+Gradle/Tycho/private IDE outputs under the checkout, including truncated
+telemetry and generated HTML that Prettier cannot parse. Preserve the actual
+exit/tail, save native report hashes/case summaries and remove only owned
+untracked output directories. The sole tracked warning is Sublime's LSP
+sample configuration: format it and prove the parsed object is unchanged.
+Do not add ignores or repeat the full quality command; run clean-source
+format/lint/compiler gates separately and retain every other blocker.
 
 **M104INT guardian fixture preload repair (2026-10-09).** Delayed and
 refusing test guardians must retain the actual compiled launch gate in their
