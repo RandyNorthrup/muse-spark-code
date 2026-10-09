@@ -2301,10 +2301,10 @@
   "renameTitle": "重命名此对话",
   "renamePlaceholder": "对话名称",
   "rewindMenuLabel": "分叉或回退",
-  "forkFromHere": "从此处分叉对话",
+  "forkFromHere": "分叉对话",
   "rewindConversationToHere": "将对话回退到此处",
   "rewindCodeToHere": "将代码回退到此处",
-  "forkAndRewind": "分叉对话并回退代码",
+  "forkAndRewind": "分叉并回退",
   "rewindNothing": "此消息之后没有可回退的编辑。",
   "rewindDone": {
     "other": "代码已回退到此消息（{count} 处编辑）"

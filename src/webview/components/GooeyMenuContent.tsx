@@ -37,6 +37,11 @@ function pillKey(level: string | undefined, id: string): string {
   return JSON.stringify([level ?? null, id])
 }
 
+/** A level's labels, in order: a new label set measures its width again. */
+function widthKey(level: string | undefined, items: readonly GooeyItem[]): string {
+  return JSON.stringify([level ?? null, ...items.map((item) => item.label)])
+}
+
 function viewportNow() {
   return { width: window.innerWidth, height: window.innerHeight }
 }
@@ -54,6 +59,10 @@ export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuPro
   // The pills whose label ends in an ellipsis, measured before the first
   // paint: their tooltip gives the whole label.
   const [clipped, setClipped] = useState<ReadonlyMap<string, boolean>>(() => new Map())
+  // Each level's shared pill width (the owner, 2026-10-09: "uniform only as
+  // long as the text in the longest text button"): its labels' key to the
+  // widest pill's max-content width, measured before the first paint.
+  const [natural, setNatural] = useState<ReadonlyMap<string, number>>(() => new Map())
   const group = items.find((item): item is GooeyGroup => item.id === groupId && 'children' in item)
   const visibleItems = group?.children ?? items
   const returnFocus = () => {
@@ -103,13 +112,31 @@ export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuPro
   }, [origin])
 
   const level = group?.id
-  const layout = gooeyLayout(frame.point, items.length, frame.viewport)
+  const topKey = widthKey(undefined, items)
+  const levelKey = widthKey(level, visibleItems)
+  const isMeasuring = !natural.has(levelKey)
+  const layout = gooeyLayout(frame.point, items.length, frame.viewport, natural.get(topKey) ?? 0)
   const burst =
     (group === undefined
       ? undefined
-      : gooeySecondBurst(layout, items.indexOf(group), group.children.length, frame.viewport)) ??
-    layout
+      : gooeySecondBurst(
+          layout,
+          items.indexOf(group),
+          group.children.length,
+          frame.viewport,
+          natural.get(levelKey) ?? 0,
+        )) ?? layout
   const pillWidth = burst.pills[0]?.width
+  useLayoutEffect(() => {
+    // Drawn at max-content once, the widest pill gives the level its width.
+    if (!isMeasuring) {
+      return
+    }
+    const widths = visibleItems.map((item) =>
+      Math.ceil(buttons.current.get(item.id)?.getBoundingClientRect().width ?? 0),
+    )
+    setNatural((current) => new Map([...current, [levelKey, Math.max(0, ...widths)]]))
+  }, [isMeasuring, levelKey, visibleItems])
   useLayoutEffect(() => {
     // A label, a level or the panel's width may clip a label; the state
     // changes only when the clipped set did.
@@ -253,8 +280,8 @@ export function GooeyMenuContent({ items, label, origin, onClose }: GooeyMenuPro
               style={{
                 left,
                 top,
-                // One size for every pill, whatever its label (the owner).
-                width: pill?.width,
+                // One size for every pill: the longest label's (the owner).
+                width: isMeasuring ? 'max-content' : pill?.width,
                 height: GOOEY_MENU.pillHeight,
                 transformOrigin: `${String(burst.origin.x - left)}px ${String(burst.origin.y - top)}px`,
                 animationDelay: `${String(index * GOOEY_MENU.staggerMs)}ms`,

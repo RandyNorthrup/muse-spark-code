@@ -2350,10 +2350,10 @@
   "renameTitle": "Diese Unterhaltung umbenennen",
   "renamePlaceholder": "Name der Unterhaltung",
   "rewindMenuLabel": "Abzweigen oder zurücksetzen",
-  "forkFromHere": "Unterhaltung ab hier abzweigen",
+  "forkFromHere": "Unterhaltung abzweigen",
   "rewindConversationToHere": "Unterhaltung bis hierhin zurückspulen",
   "rewindCodeToHere": "Code bis hierher zurücksetzen",
-  "forkAndRewind": "Unterhaltung abzweigen und Code zurücksetzen",
+  "forkAndRewind": "Abzweigen und zurücksetzen",
   "rewindNothing": "Nach dieser Nachricht gibt es keine Bearbeitungen zum Zurücksetzen.",
   "rewindDone": {
     "one": "Code auf diese Nachricht zurückgesetzt ({count} Bearbeitung)",

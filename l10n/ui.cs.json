@@ -2448,10 +2448,10 @@
   "renameTitle": "Přejmenovat tuto konverzaci",
   "renamePlaceholder": "Název konverzace",
   "rewindMenuLabel": "Rozvětvit nebo vrátit",
-  "forkFromHere": "Rozvětvit konverzaci odsud",
+  "forkFromHere": "Rozvětvit konverzaci",
   "rewindConversationToHere": "Vrátit konverzaci sem",
   "rewindCodeToHere": "Vrátit kód sem",
-  "forkAndRewind": "Rozvětvit konverzaci a vrátit kód",
+  "forkAndRewind": "Rozvětvit a vrátit",
   "rewindNothing": "Po této zprávě nejsou žádné úpravy k vrácení.",
   "rewindDone": {
     "one": "Kód vrácen k této zprávě ({count} úprava)",

@@ -2399,10 +2399,10 @@
   "renameTitle": "Renommer cette conversation",
   "renamePlaceholder": "Nom de la conversation",
   "rewindMenuLabel": "Dupliquer ou revenir en arrière",
-  "forkFromHere": "Dupliquer la conversation à partir d’ici",
+  "forkFromHere": "Dupliquer la conversation",
   "rewindConversationToHere": "Revenir à ce point de la conversation",
   "rewindCodeToHere": "Ramener le code à ce point",
-  "forkAndRewind": "Dupliquer la conversation et ramener le code",
+  "forkAndRewind": "Dupliquer et revenir en arrière",
   "rewindNothing": "Aucune modification à annuler après ce message.",
   "rewindDone": {
     "one": "Code ramené à ce message ({count} modification)",

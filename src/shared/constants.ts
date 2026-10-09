@@ -176,11 +176,6 @@ export const GOOEY_MENU = {
   reach: 16,
   /** How much farther the fan's middle reaches than its ends: the arc. */
   bow: 32,
-  /**
-   * The narrowest panel the whole fan must fit (the owner's narrow-view
-   * rule): every pill's width is this less the padding and the bow.
-   */
-  narrowPanel: 320,
   /** Each pill starts its scale-in this long after the one before it. */
   staggerMs: 30,
 } as const

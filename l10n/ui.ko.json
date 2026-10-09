@@ -2301,10 +2301,10 @@
   "renameTitle": "이 대화 이름 바꾸기",
   "renamePlaceholder": "대화 이름",
   "rewindMenuLabel": "포크 또는 되감기",
-  "forkFromHere": "여기서 대화 포크",
+  "forkFromHere": "대화 포크",
   "rewindConversationToHere": "대화를 여기까지 되돌리기",
   "rewindCodeToHere": "코드를 여기로 되감기",
-  "forkAndRewind": "대화 포크 및 코드 되감기",
+  "forkAndRewind": "포크 및 되감기",
   "rewindNothing": "이 메시지 이후에 되감을 편집이 없습니다.",
   "rewindDone": {
     "other": "코드를 이 메시지 시점으로 되감았습니다(편집 {count}개)"

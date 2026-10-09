@@ -720,7 +720,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     endLine: z.optional(numberSchema),
   }),
   // Rewind code to a message: revert every edit after it, newest first (M13).
-  // With `fork` ("Fork conversation and rewind code", M72) the host forks
+  // With `fork` ("Fork and Rewind", M72) the host forks
   // after the rewind, in one action: before `lastTurnId`, or a fresh
   // conversation without one.
   z.object({

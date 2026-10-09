@@ -2448,10 +2448,10 @@
   "renameTitle": "Zmień nazwę tej rozmowy",
   "renamePlaceholder": "Nazwa rozmowy",
   "rewindMenuLabel": "Rozwidl lub cofnij",
-  "forkFromHere": "Rozwidl rozmowę od tego miejsca",
+  "forkFromHere": "Rozwidl rozmowę",
   "rewindConversationToHere": "Cofnij rozmowę do tego miejsca",
   "rewindCodeToHere": "Cofnij kod do tego miejsca",
-  "forkAndRewind": "Rozwidl rozmowę i cofnij kod",
+  "forkAndRewind": "Rozwidl i cofnij",
   "rewindNothing": "Brak edycji po tej wiadomości do cofnięcia.",
   "rewindDone": {
     "one": "Kod cofnięty do tej wiadomości ({count} edycja)",

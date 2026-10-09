@@ -25,6 +25,9 @@ function expectLabelledPills() {
   return pills
 }
 
+/** A pill's max-content width in this jsdom: 56 px of icon and padding, 7 px a character. */
+const drawnPill = (label: string | null) => 56 + 7 * (label ?? '').length
+
 const px = (value: string) => Number(value.replace('px', ''))
 
 /** The shown pills, all one size, inside 320 × 760 and apart. */
@@ -36,9 +39,15 @@ function expectPlacedInNarrowPanel(count: number) {
     width: px(pill.style.width),
   }))
   expect(boxes).toHaveLength(count)
-  // The owner: "they should be a uniform size", whatever the label.
+  // The owner: "they should be a uniform size", only as wide as the longest
+  // label (drawnPill's max-content width); a note longer than the panel
+  // stops at 320 - 2 × 8 and ends in an ellipsis.
+  const widest = Math.min(
+    304,
+    Math.max(...pills.map((pill) => drawnPill(pill.getAttribute('aria-label')))),
+  )
   expect(new Set(pills.map((pill) => `${pill.style.width} × ${pill.style.height}`))).toEqual(
-    new Set(['272px × 40px']),
+    new Set([`${String(widest)}px × 40px`]),
   )
   for (const [index, box] of boxes.entries()) {
     expect(box.left).toBeGreaterThanOrEqual(8)
@@ -417,6 +426,11 @@ describe('M87 F2 row menus', () => {
   it('keeps a row menu’s pills inside a 320 px panel and apart, in both bursts', () => {
     vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(320)
     vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(760)
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return new DOMRect(0, 0, drawnPill(this.getAttribute('aria-label')), 40)
+    })
     renderTranscript([user], {
       onRewind: vi.fn(),
       onFork: vi.fn(),

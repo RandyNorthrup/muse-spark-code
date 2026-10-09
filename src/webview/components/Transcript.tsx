@@ -144,7 +144,7 @@ export interface TranscriptProps {
   /** The user card's menu (M6, M13); absent while no session exists. */
   readonly onFork?: ((entryId: string) => void) | undefined
   readonly onRewind?: ((entryId: string) => void) | undefined
-  /** "Fork conversation and rewind code": one host action, the rewind then the fork (M72). */
+  /** "Fork and Rewind": one host action, the rewind then the fork (M72). */
   readonly onForkRewind?: ((entryId: string) => void) | undefined
   readonly onRewindConversation?: ((entryId: string) => void) | undefined
   /**
