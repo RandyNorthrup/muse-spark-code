@@ -8,7 +8,6 @@ import { compactVsix } from './lib/compactVsix.mjs'
 import {
   contributedIds,
   parseChangelog,
-  RELEASE_SECTION_LINE,
   repositoryUrl,
   selectWhatsNewReleases,
 } from './lib/whatsNewContent.mjs'
@@ -23,70 +22,60 @@ const COMPACT_JSON =
   /^(?:l10n\/(?:ui|usage)\.[^/]+\.json|dist\/(?:providerCatalog|whatsNew)\.json|package(?:\.nls(?:\.[^/]+)?)?\.json)$/
 
 /**
- * A planned release's Highlights section as written, from its Markdown range.
- */
-function highlightsMarkdown(range) {
-  const start = /^### Highlights\r?$/m.exec(range)
-  if (start === null) return
-  const rest = range.slice(start.index)
-  const next = /^### /m.exec(rest.slice('### Highlights'.length))
-  return rest.slice(0, next === null ? rest.length : '### Highlights'.length + next.index).trimEnd()
-}
-
-/**
  * The Marketplace and VS Code changelog tab's CHANGELOG.md: the Unreleased
  * Highlights when there are any, then the planned releases, then the link
- * to the complete history. `plan` is the writer's selection
+ * to the complete history. `releases` is the writer's own parse
+ * (`parseChangelog`) of `text`, `plan` its selection
  * (`selectWhatsNewReleases`): each entry ships in full, or as its
  * Highlights only with a link to its full notes — a shortened entry without
  * Highlights as the link alone, exactly as the page shows it (an `omitted`
  * entry ships nothing) — so the packaged notes agree with What's New's page
  * on what is shown. Without a plan the newest RECENT_RELEASES releases ship
- * in full, as always.
+ * in full, as always. Every section is sliced by the parser's source
+ * ranges; this file matches no heading of its own, so a fenced example or
+ * an indented heading can never select or package a different section than
+ * the writer did.
  */
-export function packagedChangelog(text, plan, repository) {
-  // The released sections come from the writer's own release pattern
-  // (prereleases included), so a plan entry always finds its section. The
-  // clone starts matching at zero: matchAll inherits a shared global
-  // pattern's lastIndex.
-  const headings = text.matchAll(new RegExp(RELEASE_SECTION_LINE)).toArray()
-  if (headings.length === 0) throw new Error('No released changelog section')
-  const firstRelease = headings[0].index
-  const prefix = text.slice(0, firstRelease)
-  const highlights = prefix
-    .split(/^### /m)
-    .filter((part) => part.startsWith('Highlights\n'))
-    .map((part) => part.slice('Highlights\n'.length).trim())
-    .join('\n\n')
-  const unreleased = prefix.includes('## [Unreleased]')
-    ? `# Changelog\n\n## [Unreleased]\n\n${highlights === '' ? '' : `### Highlights\n\n${highlights}\n\n`}[Complete Unreleased notes](${HISTORY}#unreleased).\n\n`
-    : prefix
+export function packagedChangelog(text, releases, plan, repository) {
+  if (releases.length === 0) throw new Error('No released changelog section')
+  const [newest] = releases
+  const unreleased = releases.unreleased
+  const header =
+    unreleased === undefined
+      ? text.slice(0, newest.range.start)
+      : `# Changelog\n\n## [Unreleased]\n\n${
+          unreleased.highlightsStart === undefined
+            ? ''
+            : `### Highlights\n\n${text.slice(unreleased.highlightsStart, unreleased.highlightsEnd).trim()}\n\n`
+        }[Complete Unreleased notes](${HISTORY}#unreleased).\n\n`
   if (plan === undefined) {
-    const end = headings[RECENT_RELEASES]?.index ?? text.length
-    return `${unreleased}${text.slice(firstRelease, end).trimEnd()}\n\n[Complete release history](${HISTORY}).\n`
+    const end = releases[RECENT_RELEASES]?.range.start ?? text.length
+    return `${header}${text.slice(newest.range.start, end).trimEnd()}\n\n[Complete release history](${HISTORY}).\n`
   }
   const changelog = repository === undefined ? HISTORY : `${repository}/blob/main/CHANGELOG.md`
   const shipped = []
   for (const entry of plan) {
-    const at = headings.findIndex((heading) => heading[0].startsWith(`## [${entry.version}]`))
-    if (at === -1) throw new Error(`packagedChangelog: no released section for ${entry.version}`)
+    const release = releases.find((candidate) => candidate.version === entry.version)
+    if (release === undefined)
+      throw new Error(`packagedChangelog: no released section for ${entry.version}`)
     if (entry.omitted === true) continue
-    const range = text.slice(headings[at].index, headings[at + 1]?.index ?? text.length).trimEnd()
+    const range = text.slice(release.range.start, release.range.end).trimEnd()
     if (entry.full) {
       shipped.push(range)
       continue
     }
-    const section = highlightsMarkdown(range)
-    const heading = headings[at][0]
-    if (section === undefined) {
+    const cut = range.indexOf('\n')
+    const heading = cut === -1 ? range : range.slice(0, cut)
+    if (release.range.highlightsStart === undefined) {
       // A shortened release without Highlights ships as its full-notes
       // link, exactly as the page shows it.
       shipped.push(`${heading}\n\n[Full notes for ${entry.version}](${changelog}).`)
       continue
     }
+    const section = text.slice(release.range.highlightsStart, release.range.highlightsEnd).trimEnd()
     shipped.push(`${heading}\n\n${section}\n\n[Full notes for ${entry.version}](${changelog}).`)
   }
-  return `${unreleased}${shipped.join('\n\n')}\n\n[Complete release history](${HISTORY}).\n`
+  return `${header}${shipped.join('\n\n')}\n\n[Complete release history](${HISTORY}).\n`
 }
 
 export async function stageVsix(root, stage) {
@@ -152,13 +141,11 @@ export async function stageVsix(root, stage) {
   const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
   const changelogText = readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8')
   const repository = repositoryUrl(manifest)
-  const selection = selectWhatsNewReleases(
-    parseChangelog(changelogText, contributedIds(manifest), repository),
-    repository,
-  )
+  const parsed = parseChangelog(changelogText, contributedIds(manifest), repository)
+  const selection = selectWhatsNewReleases(parsed, repository)
   writeFileSync(
     path.join(stage, 'CHANGELOG.md'),
-    packagedChangelog(changelogText, selection.plan, repository),
+    packagedChangelog(changelogText, parsed, selection.plan, repository),
   )
   return files
 }

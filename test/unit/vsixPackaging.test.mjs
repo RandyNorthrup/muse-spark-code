@@ -648,8 +648,14 @@ describe('VSIX packaging', () => {
     expect(shipped).toContain('[Complete Unreleased notes]')
     expect(shipped).not.toContain(sections[2][0])
     expect(shipped).toContain('[Complete release history]')
-    expect(packagedChangelog('## [0.1.0] - 2026-01-01\n\nNotes')).toContain('Notes')
-    expect(() => packagedChangelog('No releases')).toThrow('No released')
+    const tiny = '## [0.1.0] - 2026-01-01\n\nNotes'
+    const tinyParsed = parseChangelog(
+      tiny,
+      { commands: new Set(), settings: new Set() },
+      'https://github.com/example/repo',
+    )
+    expect(packagedChangelog(tiny, tinyParsed)).toContain('Notes')
+    expect(() => packagedChangelog('No releases', [])).toThrow('No released')
   })
   it('ships the writer’s plan, so the packaged notes agree with What’s New on what is shown', () => {
     const repository = 'https://github.com/example/repo'
@@ -691,7 +697,7 @@ describe('VSIX packaging', () => {
       { version: '2.0.0', full: true },
       { version: '1.9.0', full: false },
     ])
-    const packaged = packagedChangelog(changelog, shortened.plan, repository)
+    const packaged = packagedChangelog(changelog, parsed, shortened.plan, repository)
     expect(packaged).toContain('New detail stays.')
     expect(packaged).toContain('Stable highlight stays.')
     expect(packaged).toContain(`[Full notes for 1.9.0](${repository}/blob/main/CHANGELOG.md).`)
@@ -703,7 +709,7 @@ describe('VSIX packaging', () => {
       { version: '2.0.0', full: true },
       { version: '1.9.0', full: false, omitted: true },
     ])
-    const withoutSecond = packagedChangelog(changelog, omitted.plan, repository)
+    const withoutSecond = packagedChangelog(changelog, parsed, omitted.plan, repository)
     expect(withoutSecond).toContain('## [2.0.0]')
     expect(withoutSecond).not.toContain('1.9.0')
   })
@@ -734,7 +740,7 @@ describe('VSIX packaging', () => {
       { version: '1.0.4', full: true },
       { version: '1.0.3', full: false },
     ])
-    const packaged = packagedChangelog(changelog, selection.plan, repository)
+    const packaged = packagedChangelog(changelog, parsed, selection.plan, repository)
     expect(packaged).toContain('## [1.0.4]')
     expect(packaged).toContain('Current fix detail stays.')
     expect(packaged).toContain('## [1.0.3]')
@@ -768,9 +774,95 @@ describe('VSIX packaging', () => {
       { version: '2.0.0', full: true },
       { version: '2.0.0-beta.1', full: true },
     ])
-    const packaged = packagedChangelog(changelog, selection.plan, repository)
+    const packaged = packagedChangelog(changelog, parsed, selection.plan, repository)
     expect(packaged).toContain('## [2.0.0]')
     expect(packaged).toContain('## [2.0.0-beta.1]')
+    expect(packaged).toContain('Prerelease highlight.')
+  })
+  it('selects and packages the real beta when a fenced example names it first', () => {
+    const repository = 'https://github.com/example/repo'
+    const changelog = [
+      '## [2.0.0] - 2026-10-09',
+      '',
+      '### Highlights',
+      '',
+      '- **New.** Stable highlight.',
+      '',
+      '### Added',
+      '',
+      'An example names the beta first, but only as text:',
+      '',
+      '```md',
+      '## [2.0.0-beta.1] - 2026-10-01',
+      '```',
+      '',
+      '## [2.0.0-beta.1] - 2026-10-01',
+      '',
+      '### Highlights',
+      '',
+      '- **Beta.** Prerelease highlight.',
+      '',
+      '### Fixed',
+      '',
+      '- Beta fix stays.',
+      '',
+    ].join('\n')
+    const parsed = parseChangelog(
+      changelog,
+      { commands: new Set(), settings: new Set() },
+      repository,
+    )
+    // The writer never sees the fenced line as a section.
+    expect(parsed.map((release) => release.version)).toEqual(['2.0.0', '2.0.0-beta.1'])
+    const selection = selectWhatsNewReleases(parsed, repository, 100_000)
+    expect(selection.plan).toEqual([
+      { version: '2.0.0', full: true },
+      { version: '2.0.0-beta.1', full: true },
+    ])
+    // The packager slices the parsed ranges, so it ships the real beta
+    // section instead of the fenced text that names it first.
+    const packaged = packagedChangelog(changelog, parsed, selection.plan, repository)
+    expect(packaged).toContain('## [2.0.0-beta.1]')
+    expect(packaged).toContain('Beta fix stays.')
+    expect(packaged).toContain('Prerelease highlight.')
+  })
+  it('selects and packages an indented release heading exactly like the writer reads it', () => {
+    const repository = 'https://github.com/example/repo'
+    const changelog = [
+      '## [2.0.0] - 2026-10-09',
+      '',
+      '### Highlights',
+      '',
+      '- **New.** Stable highlight.',
+      '',
+      ' ## [2.0.0-beta.1] - 2026-10-01',
+      '',
+      '### Highlights',
+      '',
+      '- **Beta.** Prerelease highlight.',
+      '',
+      '### Fixed',
+      '',
+      '- Beta fix stays.',
+      '',
+    ].join('\n')
+    // One leading space is still a Markdown heading: the writer parses it.
+    const parsed = parseChangelog(
+      changelog,
+      { commands: new Set(), settings: new Set() },
+      repository,
+    )
+    expect(parsed.map((release) => release.version)).toEqual(['2.0.0', '2.0.0-beta.1'])
+    const selection = selectWhatsNewReleases(parsed, repository, 100_000)
+    expect(selection.plan).toEqual([
+      { version: '2.0.0', full: true },
+      { version: '2.0.0-beta.1', full: true },
+    ])
+    // The packager slices the same parsed section instead of throwing for
+    // a heading line its own pattern would never match.
+    const packaged = packagedChangelog(changelog, parsed, selection.plan, repository)
+    expect(packaged).toContain('## [2.0.0-beta.1]')
+    expect(packaged).toContain('Beta fix stays.')
     expect(packaged).toContain('Prerelease highlight.')
   })
   it('packages the retained earlier Highlights, so the packaged notes agree with the page', () => {
@@ -806,7 +898,7 @@ describe('VSIX packaging', () => {
       { version: '1.0.3', full: true },
       { version: '1.0.2', full: false },
     ])
-    const packaged = packagedChangelog(changelog, selection.plan, repository)
+    const packaged = packagedChangelog(changelog, parsed, selection.plan, repository)
     expect(packaged).toContain('## [1.0.2]')
     expect(packaged).toContain('Newest Highlights.')
     expect(packaged).toContain(`[Full notes for 1.0.2](${repository}/blob/main/CHANGELOG.md).`)
@@ -815,14 +907,14 @@ describe('VSIX packaging', () => {
     const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
     const source = readFileSync('CHANGELOG.md', 'utf8')
     const repository = repositoryUrl(manifest)
-    const selection = selectWhatsNewReleases(
-      parseChangelog(source, contributedIds(manifest), repository),
-      repository,
-    )
+    const parsed = parseChangelog(source, contributedIds(manifest), repository)
+    const selection = selectWhatsNewReleases(parsed, repository)
     expect(selection.plan).toEqual(
       selection.releases.map((release) => ({ version: release.version, full: true })),
     )
-    expect(packagedChangelog(source, selection.plan, repository)).toBe(packagedChangelog(source))
+    expect(packagedChangelog(source, parsed, selection.plan, repository)).toBe(
+      packagedChangelog(source, parsed),
+    )
   })
   it('generates both static badges from the manifest, with no unresolved token', () => {
     const version = JSON.parse(

@@ -192,6 +192,40 @@ describe('parseChangelog', () => {
     ).toThrow('CHANGELOG.md Unreleased: the Try it command "museSpark.nope"')
   })
 
+  it('reports each release’s source range for the packager to slice, never entering the JSON', () => {
+    // Ranges are source-map metadata: the shipped content shape is unchanged.
+    for (const release of releases) {
+      expect(Object.keys(release).toSorted((a, b) => a.localeCompare(b, 'en'))).toEqual([
+        'date',
+        'highlights',
+        'sections',
+        'version',
+      ])
+    }
+    expect(JSON.stringify(releases)).not.toContain('range')
+    // Whole-section slices tile the released span end to start.
+    expect(releases[0]?.range.start).toBe(CHANGELOG.indexOf('## [0.13.1]'))
+    expect(CHANGELOG.slice(releases[0]?.range.start, releases[0]?.range.end)).toBe(
+      '## [0.13.1] - 2026-10-06\n\n### Fixed\n\n- A fix with `code`, *emphasis* and ~~strike~~.\n\n',
+    )
+    expect(releases[0]?.range.highlightsStart).toBeUndefined()
+    expect(releases[0]?.range.end).toBe(releases[1]?.range.start)
+    expect(releases[1]?.range.end).toBe(releases[2]?.range.start)
+    expect(releases[2]?.range.end).toBe(CHANGELOG.length)
+    // The Highlights subsection slice is the section as written.
+    const highlights = releases[1]?.range
+    expect(CHANGELOG.slice(highlights?.highlightsStart, highlights?.highlightsEnd).trimEnd()).toBe(
+      '### Highlights\n\n- **New page.** Opens after updates. <!-- try: command museSpark.showWhatsNew -->\n- **A setting.** Turn it off.\n  <!-- try: setting museSpark.showWhatsNewOnUpdate -->\n- **Plain.** No button. <!-- a comment that is not a directive -->',
+    )
+    // The Unreleased Highlights span is the bullets only.
+    expect(
+      CHANGELOG.slice(
+        releases.unreleased?.highlightsStart,
+        releases.unreleased?.highlightsEnd,
+      ).trim(),
+    ).toBe('- **Not yet.** Unreleased work is never shown.')
+  })
+
   it('fails on Highlights that are not one list, on two of them, and on a repeated version', () => {
     expect(() =>
       parseChangelog('## [1.0.0] - 2026-10-05\n\n### Highlights\n\nProse.\n', ALLOWED, REPOSITORY),
@@ -477,6 +511,41 @@ describe('selectWhatsNewReleases (the budget-aware writer)', () => {
         ],
       },
     ])
+  })
+
+  it('keeps fitting earlier Highlights at the exact bound instead of reserving the flag', () => {
+    const bound = WHATS_NEW_CONTENT_DECODE_MAX_BYTES
+    const predecessor = '## [1.0.3] - 2026-10-04\n\n### Fixed\n\n- Previous fix.\n'
+    const fallback =
+      '## [1.0.2] - 2026-10-03\n\n### Highlights\n\n- Newest Highlights. <!-- try: command museSpark.showWhatsNew -->\n'
+    const changelogFor = (filler: string) =>
+      `## [1.0.4] - 2026-10-05\n\n### Fixed\n\n- Current fix ${filler}.\n\n${predecessor}\n${fallback}`
+    // Size the three selected entries (both fixes in full, the fallback as
+    // its Highlights with the full-notes link, the flag absent) to exactly
+    // the bound: the filler is plain ASCII text, one byte per character.
+    const base = selectWhatsNewReleases(
+      parseChangelog(changelogFor(''), ALLOWED, REPOSITORY),
+      REPOSITORY,
+      100_000,
+    )
+    expect(base.shortened).toBe(false)
+    expect(base.releases.map((release) => release.version)).toEqual(['1.0.4', '1.0.3', '1.0.2'])
+    const filler = 'x'.repeat(bound - envelopeBytes(base.releases, base.shortened))
+    const all = parseChangelog(changelogFor(filler), ALLOWED, REPOSITORY)
+    const selection = selectWhatsNewReleases(all, REPOSITORY, bound)
+    expect(selection.releases.map((release) => release.version)).toEqual([
+      '1.0.4',
+      '1.0.3',
+      '1.0.2',
+    ])
+    expect(selection.shortened).toBe(false)
+    expect(selection.plan).toEqual([
+      { version: '1.0.4', full: true },
+      { version: '1.0.3', full: true },
+      { version: '1.0.2', full: false },
+    ])
+    expect(selection.releases[2]?.highlights).toHaveLength(1)
+    expect(envelopeBytes(selection.releases, selection.shortened)).toBe(bound)
   })
 })
 

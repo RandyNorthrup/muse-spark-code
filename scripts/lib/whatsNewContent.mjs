@@ -43,15 +43,15 @@ const SCHEMA_VERSION = 1
 // out), instead of failing the build. Earlier details remain available
 // through the page's full-changelog link.
 const FULL_NOTES_RELEASES = 2
-/** A released version, prereleases included: the one pattern the writer and the packager share. */
+/**
+ * A released version, prereleases included. The writer classifies the
+ * Markdown parser's own heading nodes with this (never raw lines, so a
+ * fenced example or an indented heading cannot confuse it), and the
+ * packager slices the parsed source ranges instead of matching headings
+ * itself: one parser, never a second heading inventory.
+ */
 const RELEASE_VERSION = String.raw`\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?`
 const RELEASE_HEADING = new RegExp(String.raw`^\[(${RELEASE_VERSION})\] - (\d{4}-\d{2}-\d{2})$`)
-/**
- * A released `## ` section line in CHANGELOG.md, prereleases included. The
- * packager reads the same pattern the writer parses with, so a plan entry
- * always finds its section; never a second heading inventory.
- */
-export const RELEASE_SECTION_LINE = new RegExp(String.raw`^## \[${RELEASE_VERSION}\].*$`, 'gm')
 const UNRELEASED_HEADING = '[Unreleased]'
 const PATCH_RELEASE = /^\d+\.\d+\.(\d+)/
 const TRY_DIRECTIVE = /^<!--\s*try:\s*(\S+)\s+(\S+)\s*-->$/
@@ -256,6 +256,15 @@ function finishRelease(release, repository, allowed) {
 /**
  * The released sections of a CHANGELOG, newest first as written.
  *
+ * Each release carries its source range in a non-enumerable `range`: the
+ * whole `## ` section's start and end offsets, plus the `### Highlights`
+ * subsection's offsets (heading line included) when it has one. The
+ * returned array carries the same way a non-enumerable `unreleased`: the
+ * `[Unreleased]` section's Highlights content offsets (bullets only), or
+ * undefined when there is no such section. Both stay out of every JSON
+ * envelope and artifact; the packager slices the parsed text by them
+ * instead of inventorying headings a second time.
+ *
  * @param {string} markdown CHANGELOG.md's text
  * @param {{ commands: Set<string>, settings: Set<string> }} allowed what a Try it may name
  * @param {string} repository the repository's web address, for relative links
@@ -268,19 +277,51 @@ export function parseChangelog(markdown, allowed, repository) {
   const releases = []
   const seen = new Set()
   let current
-  const finish = () => {
+  let unreleased
+  // The open Highlights span ends where the next `### ` heading (or the
+  // section itself) starts.
+  const closeHighlights = (end) => {
+    if (
+      current !== undefined &&
+      current.highlightsStart !== undefined &&
+      current.highlightsEnd === undefined
+    ) {
+      current.highlightsEnd = end
+    }
+  }
+  const finish = (end) => {
     if (current === undefined) {
       return
     }
+    closeHighlights(end)
     // [Unreleased] is checked but never shown.
     const release = finishRelease(current, repository, allowed)
-    if (!current.isDraft) {
-      releases.push(release)
+    if (current.isDraft) {
+      if (current.highlightsStart === undefined) {
+        unreleased = { highlightsStart: undefined, highlightsEnd: undefined }
+      } else {
+        unreleased = {
+          highlightsStart: current.highlightsContentStart,
+          highlightsEnd: current.highlightsEnd,
+        }
+      }
+      return
     }
+    Object.defineProperty(release, 'range', {
+      value: {
+        start: current.start,
+        end,
+        highlightsStart: current.highlightsStart,
+        highlightsEnd: current.highlightsEnd,
+      },
+      enumerable: false,
+    })
+    releases.push(release)
   }
   for (const node of tree.children) {
     if (node.type === 'heading' && node.depth <= 2) {
-      finish()
+      const start = node.position.start.offset
+      finish(start)
       current = undefined
       const heading = textOf(node).trim()
       const match = RELEASE_HEADING.exec(heading)
@@ -290,6 +331,10 @@ export function parseChangelog(markdown, allowed, repository) {
           date: '',
           isDraft: true,
           parts: [{ heading: '', nodes: [] }],
+          start,
+          highlightsStart: undefined,
+          highlightsContentStart: undefined,
+          highlightsEnd: undefined,
         }
       } else if (match !== null && node.depth === 2) {
         const [, version, date] = match
@@ -297,7 +342,15 @@ export function parseChangelog(markdown, allowed, repository) {
           throw new Error(`CHANGELOG.md has two sections for ${version}`)
         }
         seen.add(version)
-        current = { version, date, parts: [{ heading: '', nodes: [] }] }
+        current = {
+          version,
+          date,
+          parts: [{ heading: '', nodes: [] }],
+          start,
+          highlightsStart: undefined,
+          highlightsContentStart: undefined,
+          highlightsEnd: undefined,
+        }
       }
       continue
     }
@@ -305,12 +358,19 @@ export function parseChangelog(markdown, allowed, repository) {
       continue
     }
     if (node.type === 'heading' && node.depth === 3) {
-      current.parts.push({ heading: textOf(node).trim(), nodes: [] })
+      closeHighlights(node.position.start.offset)
+      const heading = textOf(node).trim()
+      if (heading === HIGHLIGHTS_HEADING) {
+        current.highlightsStart = node.position.start.offset
+        current.highlightsContentStart = node.position.end.offset
+      }
+      current.parts.push({ heading, nodes: [] })
       continue
     }
     current.parts.at(-1).nodes.push(node)
   }
-  finish()
+  finish(markdown.length)
+  Object.defineProperty(releases, 'unreleased', { value: unreleased, enumerable: false })
   return releases
 }
 
@@ -414,17 +474,21 @@ export function selectWhatsNewReleases(
   const releases = [newest]
   const plan = [{ version: newest.version, full: true }]
   let isShortened = false
-  const canFit = (candidate, makesShortened) =>
-    envelopeBytes([...releases, candidate], isShortened || makesShortened) <= maxDecodeBytes
+  // Whether the envelope exactly as shipped — the candidate admitted (or
+  // left out) and the `shortened` flag set exactly as that decision leaves
+  // it — stays within the bound. No reserved or assumed bytes: a decision
+  // that leaves the flag absent is measured with the flag absent.
+  const canShip = (entries, shortenedAfter) =>
+    envelopeBytes(entries, shortenedAfter) <= maxDecodeBytes
   const predecessors = older.slice(0, FULL_NOTES_RELEASES - 1)
   for (const candidate of predecessors) {
-    if (canFit(candidate, false)) {
+    if (canShip([...releases, candidate], isShortened)) {
       releases.push(candidate)
       plan.push({ version: candidate.version, full: true })
       continue
     }
     const short = highlightsOnly(candidate, repository)
-    if (canFit(short, true)) {
+    if (canShip([...releases, short], true)) {
       releases.push(short)
       plan.push({ version: candidate.version, full: false })
       isShortened = true
@@ -441,9 +505,10 @@ export function selectWhatsNewReleases(
       // The standing rule's entry ships as its Highlights with the
       // full-notes link, like any other shortened release, and enters the
       // plan the same way, so the page and the packaged notes agree; only
-      // the budget skipping it counts as shortened.
+      // the budget skipping it counts as shortened, so admitting it is
+      // measured with the flag as it stands.
       const short = highlightsOnly(latestHighlights, repository)
-      if (canFit(short, true)) {
+      if (canShip([...releases, short], isShortened)) {
         releases.push(short)
         plan.push({ version: latestHighlights.version, full: false })
       } else {
