@@ -376,7 +376,12 @@ describe('Muse Code 1.4.2 feature ports', () => {
     })
     await closing
     await settle()
-    expect(reader.parseDeleteAdmission).toHaveBeenCalledOnce()
+    // M108 fences every pending command reply that races host close, host
+    // exit or a closed connection (889c8d11c), so the admission in that final
+    // read is refused unparsed; the terminal validated before shutdown is
+    // what the deletion keeps.
+    expect(server.requestsFor('session/delete')).toHaveLength(1)
+    expect(reader.parseDeleteAdmission).not.toHaveBeenCalled()
     expect(visible).toHaveBeenCalledOnce()
     expect(history.has('s')).toBe(outcome === 'failed')
     expect(host.sessionCount).toBe(outcome === 'failed' && ending !== 'host close' ? 1 : 0)
@@ -480,9 +485,14 @@ describe('Muse Code 1.4.2 feature ports', () => {
     expect(vi.getTimerCount()).toBe(0)
     expect(host.sessionCount).toBe(1)
     expect(visible).not.toHaveBeenCalled()
-    const abortListener = adding.mock.calls.find(([name]) => name === 'abort')?.[1]
-    expect(abortListener).toEqual(expect.any(Function))
-    expect(removing).toHaveBeenCalledExactlyOnceWith('abort', abortListener)
+    // The deletion's stop listener comes first; M108's command lease adds one
+    // for the admission request. Each is released exactly once.
+    const abortListeners = adding.mock.calls.flatMap(([name, listener]) =>
+      name === 'abort' ? [listener] : [],
+    )
+    expect(abortListeners[0]).toEqual(expect.any(Function))
+    expect(removing).toHaveBeenCalledTimes(abortListeners.length)
+    for (const listener of abortListeners) expect(removing).toHaveBeenCalledWith('abort', listener)
     await host.close()
     expect(vi.getTimerCount()).toBe(0)
   })
