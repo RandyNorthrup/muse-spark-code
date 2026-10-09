@@ -3,35 +3,57 @@
 // for every editor outside VS Code (and a VS Code-family host without
 // `vscode.git`), behind lane 0's `RuntimeGitDeps`.
 //
-// - The user's `git` runs by absolute path through the existing bounded
-//   runner (`createGitProcess`, D24 resolution, output caps, deadlines,
-//   whole-tree stop), with explicit argument arrays and no shell. Every
-//   argument list passes `assertNativeGitArgs` (a fixed allowlist: the
-//   subcommand and every flag are fixed, and any name git would resolve
-//   — a remote, a refspec, a ref — is refused unless plain, so `+`, `-`,
-//   `:` and whitespace cannot change what goes out). The one value git
-//   receives is the commit message, as a single `-m` value.
+// - The user's `git` (`RuntimeGitDeps.gitPath`, absolute) runs through the
+//   existing bounded runner (`createGitProcess`: output caps, deadlines,
+//   M107 admission, whole-tree stop), with explicit argument arrays and no
+//   shell. Every argument list passes `assertNativeGitArgs` (a fixed
+//   allowlist: the subcommand and every flag are fixed, and any name git
+//   would resolve — a remote, a refspec, a ref — is refused unless plain,
+//   so `+`, `-`, `:` and whitespace cannot change what goes out). The one
+//   value git receives is the commit message, as a single `-m` value.
+// - The last line before git is the runner's `beforeRun`, called after
+//   admission and the Windows job's preparation with no await before the
+//   spawn: the arguments, the operation's signal and owner, the editor's
+//   trust and the bound root's identity are all checked there again.
 // - Reads keep the quiet environment (no credentials, no prompt). A
 //   confirmed push and a pull request fetch are D104's named exception:
-//   the user's own environment (credential helpers, SSH agent, token
-//   variables, as a terminal would) with `GIT_TERMINAL_PROMPT=0`, and
-//   nothing of ours: no `http.extraHeader`, no credential helper of ours,
-//   no token variable.
+//   the user's own environment (`RuntimeGitDeps.userEnvironment`: their
+//   credential helpers, SSH agent and token variables, as a terminal would)
+//   with `GIT_TERMINAL_PROMPT=0`, and nothing of ours.
 // - Hooks and signing run as the user configured them (no `--no-verify`,
 //   no `--no-gpg-sign`); nothing is ever force-pushed.
-// - Paths stay in the workspace: the root is resolved (links and
-//   junctions seen through) and every write path confined under it; a
-//   worktree for someone else's pull request goes under the runtime data
-//   folder's `pr-worktrees/` (lane P's checkout builds on `addWorktree`).
-// - Trust, owner and lifetime are rechecked after every await: the
-//   editor's trust, the conversation's session, and the window's signal.
+// - The repository root is bound when the service is made: its canonical
+//   path and its directory identity (volume and file id). Every operation,
+//   and every spawn, refuses a path that now leads elsewhere (a rename and
+//   a link or junction in its place, a replacement directory), and git's
+//   own toplevel must be that same directory. Working-tree files are read
+//   confined by identity (`confinedFiles.ts`). A worktree for someone
+//   else's pull request goes under the runtime data folder's
+//   `pr-worktrees/`, which must be a real directory there.
+// - Mutations (commit, push, fetch, worktree) are serialized per physical
+//   repository across every conversation in this process, and each
+//   revalidates what its user confirmed inside that lock.
+// - Every method takes the caller's operation: its signal (Cancel, a
+//   session change, disposal) stops pending git, and its owner check runs
+//   after every await and at the spawn.
 // - Nothing secret is logged, thrown in clear, or shown: failures carry
-//   git's words to the caller, which redacts and caps them for the panel.
+//   git's words to the caller, which redacts them before any cut.
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
-import { canonicalPath } from '../../../host/canonicalPath'
+import {
+  fileIdentityKey,
+  identityOf,
+  lstatIdentity,
+  lstatIdentitySync,
+  sameFile,
+  statIdentity,
+  statIdentitySync,
+  type FileIdentity,
+} from '../../../core/fs/fileIdentity'
+import { canonicalPath, isMissingPath } from '../../../host/canonicalPath'
 import { createGitProcess, quietGitEnvironment, type GitProcess } from '../../../host/git'
 import {
   commitMessageProblem,
@@ -56,8 +78,15 @@ import {
   type NativeGitContext,
   type NativeStatusSnapshot,
 } from '../../../core/git/status'
+import { newFileDiff } from '../../../core/git/gitText'
 import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 import { GIT_TIMEOUT_MS, PULL_REQUEST_WORKTREES_DIR } from '../../../shared/constants'
+import {
+  ConfinementError,
+  fingerprintConfined,
+  readConfinedStart,
+  type ConfinedRoot,
+} from './confinedFiles'
 
 /** The subcommands the service runs; anything else is refused. */
 const NATIVE_GIT_SUBCOMMANDS = [
@@ -80,6 +109,7 @@ const SIGNING_CONFIG_KEYS = ['commit.gpgsign', 'gpg.format', 'user.signingkey'] 
 const WORKTREE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,100}$/
 /** `worktree add` takes its flags, the path and the commit: nothing else. */
 const WORKTREE_ADD_ARGUMENTS = 5
+const ALREADY_EXISTS = 'EEXIST'
 
 function haveSameArgs(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((arg, index) => arg === right[index])
@@ -209,11 +239,12 @@ export function nativePushArgs(plan: Extract<PushPlan, { ok: true }>): readonly 
     : ['push', plan.remote, plan.refspec]
 }
 
-/** The same command in the editor's terminal, for finishing a failed push there. */
+/** The same command in the editor's terminal, with the same `git`, for finishing a failed push there. */
 export function nativePushTerminalCommand(
   plan: Extract<PushPlan, { ok: true }>,
+  gitPath: string,
 ): readonly string[] {
-  return ['git', ...nativePushArgs(plan)]
+  return [gitPath, ...nativePushArgs(plan)]
 }
 
 /** Exactly what a pull request fetch receives (lane P): the remote, then the ref. */
@@ -240,46 +271,57 @@ export class CommitRefusedError extends Error {
 /**
  * A reason word the service throws (for the log, as `tokenSource.ts`
  * does): the adapter shows each in the panel's words. `closed` is an
- * aborted window or owner; `changed` a moved repository or form;
- * `untrusted` a lost trust; `refused` an argument git must not see.
+ * aborted window or operation (Cancel, a session change, disposal);
+ * `changed` a moved repository, root or form; `untrusted` a lost trust;
+ * `refused` an argument git must not see.
  */
 export type NativeGitRefusal = 'untrusted' | 'changed' | 'refused' | 'closed'
 
-export function refusalOf(error: unknown): NativeGitRefusal | undefined {
-  if (error instanceof CommitRefusedError) {
-    return undefined
+/** A refusal: nothing ran past the check that threw it. */
+export class NativeGitRefusalError extends Error {
+  public constructor(public readonly reason: NativeGitRefusal) {
+    super(reason)
+    this.name = 'NativeGitRefusalError'
   }
-  if (error instanceof Error) {
-    const reason = error.message
-    switch (reason) {
-      case 'untrusted':
-      case 'changed':
-      case 'refused': {
-        return reason
-      }
-      default: {
-        break
-      }
-    }
-    if (error.name === 'AbortError') {
-      return 'closed'
-    }
-  }
-  return undefined
 }
 
-/** The form's stamp: what the commit rechecks before staging anything. */
-export function statusStamp(snapshot: NativeStatusSnapshot): string {
-  return JSON.stringify({
-    oid: snapshot.headOid,
-    branch: snapshot.branch,
-    upstream: snapshot.upstream,
-    ahead: snapshot.ahead,
-    behind: snapshot.behind,
-    staged: snapshot.staged,
-    unstaged: snapshot.unstaged,
-    untracked: snapshot.untracked,
-  })
+export function refusalOf(error: unknown): NativeGitRefusal | undefined {
+  if (error instanceof NativeGitRefusalError) {
+    return error.reason
+  }
+  if (error instanceof ConfinementError) {
+    return 'changed'
+  }
+  return error instanceof Error && error.name === 'AbortError' ? 'closed' : undefined
+}
+
+/**
+ * What a caller's operation adds to the window's: its own signal (Cancel,
+ * a session change, disposal) and its owner check (the conversation's
+ * epoch and session), run after every await and at the spawn.
+ */
+export interface NativeGitOperation {
+  readonly signal?: AbortSignal | undefined
+  readonly check?: (() => void) | undefined
+}
+
+/** One operation's combined signal and check. */
+interface Guard {
+  readonly signal: AbortSignal
+  readonly check: () => void
+}
+
+/** The root the service bound to when it was made. */
+interface BoundRoot extends ConfinedRoot {
+  /** The physical repository, for the per-repository lock. */
+  readonly key: string
+}
+
+/** A commit form's facts and its stamp. */
+export interface StampedStatus {
+  readonly snapshot: NativeStatusSnapshot
+  readonly remotes: RemoteFacts[]
+  readonly stamp: string
 }
 
 /** `/` separators for comparing paths on every platform (CI runs on Windows). */
@@ -287,31 +329,120 @@ function slashed(folder: string): string {
   return folder.replaceAll('\\', '/').replace(/\/+$/, '')
 }
 
+/**
+ * The root as approved now: its canonical path and its directory identity,
+ * or undefined when it cannot be bound (every operation then refuses).
+ */
+async function bindRoot(root: string): Promise<BoundRoot | undefined> {
+  try {
+    const canonical = await canonicalPath(root)
+    const stats = await statIdentity(canonical)
+    const key = fileIdentityKey(stats)
+    return key !== undefined && stats.isDirectory()
+      ? { path: canonical, identity: identityOf(stats), key }
+      : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** The tail of each physical repository's mutation queue, shared by every conversation here. */
+const repositoryQueues = new Map<string, Promise<void>>()
+
+/** A promise that settles when `signal` aborts (it never rejects), or never. */
+function abortOf(signal: AbortSignal, listening: AbortSignal): Promise<void> {
+  // Node 20 (VS Code 1.99's host) has no Promise.withResolvers: the
+  // executor installs the listener directly.
+  return new Promise<void>((resolve) => {
+    signal.addEventListener(
+      'abort',
+      () => {
+        resolve()
+      },
+      { once: true, signal: listening },
+    )
+  })
+}
+
+/** Waits for `previous` unless `signal` aborts first (then `closed`). */
+async function turnOf(previous: Promise<void>, signal: AbortSignal): Promise<void> {
+  const listening = new AbortController()
+  try {
+    await Promise.race([previous, abortOf(signal, listening.signal)])
+  } finally {
+    listening.abort()
+  }
+  if (signal.aborted) {
+    throw new NativeGitRefusalError('closed')
+  }
+}
+
+/** The queue's tail after this turn: the previous one, then this one's end. */
+async function after(previous: Promise<void>, done: Promise<void>): Promise<void> {
+  await previous
+  await done
+}
+
+/**
+ * Runs `work` alone among this process's mutations of the repository
+ * `key`, in order. A caller cancelled while waiting leaves the queue and
+ * never runs.
+ */
+async function serialized<T>(key: string, signal: AbortSignal, work: () => Promise<T>): Promise<T> {
+  const previous = repositoryQueues.get(key) ?? Promise.resolve()
+  const finished = new AbortController()
+  const tail = after(previous, abortOf(finished.signal, new AbortController().signal))
+  repositoryQueues.set(key, tail)
+  try {
+    await turnOf(previous, signal)
+    return await work()
+  } finally {
+    finished.abort()
+    if (repositoryQueues.get(key) === tail) {
+      repositoryQueues.delete(key)
+    }
+  }
+}
+
+function isSamePlan(
+  left: Extract<PushPlan, { ok: true }>,
+  right: Extract<PushPlan, { ok: true }>,
+): boolean {
+  return (
+    left.remote === right.remote &&
+    left.remoteUrl === right.remoteUrl &&
+    left.branch === right.branch &&
+    left.target === right.target &&
+    left.refspec === right.refspec &&
+    left.setUpstream === right.setUpstream &&
+    left.commits === right.commits
+  )
+}
+
 export interface NativeGitServiceOptions {
   /** The bounded runner; the production `createGitProcess` wiring unless a test passes its own. */
   readonly run?: GitProcess | undefined
 }
 
+/** The bound root's identity now, or `changed` when it cannot be read. */
+async function identityNow(target: string): Promise<FileIdentity> {
+  try {
+    return identityOf(await statIdentity(target))
+  } catch {
+    throw new NativeGitRefusalError('changed')
+  }
+}
+
 /**
  * Git behind lane 0's `RuntimeGitDeps`, for lanes P and U, the ACP agent
- * and `exec` to build on. Every method rechecks the signal and the
- * editor's trust after every await, runs confined to the resolved root,
- * and asserts the argument allowlist at the last line before git.
+ * and `exec` to build on. Every method rechecks the operation, the signal
+ * and the editor's trust after every await and at the spawn, runs in the
+ * bound root, and asserts the argument allowlist at the last line before git.
  */
 export class NativeGitService {
   private readonly run: GitProcess
-
-  /** Reads through the quiet environment; the context names the confined root. */
-  private readonly quietRun: GitProcess = (args, options) =>
-    this.spawn(
-      args,
-      {
-        cwd: options.cwd,
-        env: quietGitEnvironment(process.env),
-        signal: this.deps.signal,
-      },
-      false,
-    )
+  /** The directory approved when the service was made; undefined when it could not be bound. */
+  private readonly bound: Promise<BoundRoot | undefined>
 
   public constructor(
     private readonly deps: RuntimeGitDeps,
@@ -324,204 +455,453 @@ export class NativeGitService {
         env: process.env,
         fileExists: existsSync,
         spawn,
+        // The git the host resolved, never another one on PATH.
+        executable: deps.gitPath,
       })
+    // The directory approved now is the one every later operation must find.
+    this.bound = bindRoot(deps.repositoryRoot)
   }
 
-  private checkEntry(): void {
-    this.deps.signal.throwIfAborted()
-    if (!this.deps.isTrusted()) {
-      throw new Error('untrusted')
+  private guard(operation: NativeGitOperation = {}): Guard {
+    const signal =
+      operation.signal === undefined
+        ? this.deps.signal
+        : AbortSignal.any([this.deps.signal, operation.signal])
+    return {
+      signal,
+      check: () => {
+        if (signal.aborted) {
+          throw new NativeGitRefusalError('closed')
+        }
+        if (!this.deps.isTrusted()) {
+          throw new NativeGitRefusalError('untrusted')
+        }
+        operation.check?.()
+      },
     }
   }
 
-  private quiet(cwd: string): NativeGitContext {
-    return {
-      cwd,
-      env: quietGitEnvironment(process.env),
-      signal: this.deps.signal,
-    }
-  }
-
-  private user(cwd: string): NativeGitContext {
-    return {
-      cwd,
-      env: nativePushEnvironment(process.env),
-      signal: this.deps.signal,
+  /** The spawn's last line (the runner's `beforeRun`): synchronous, after admission. */
+  private atSpawn(args: readonly string[], root: BoundRoot, guard: Guard): () => void {
+    return () => {
+      assertNativeGitArgs(args)
+      guard.check()
+      let identity: FileIdentity
+      try {
+        identity = identityOf(statIdentitySync(root.path))
+      } catch {
+        throw new NativeGitRefusalError('changed')
+      }
+      if (!sameFile(identity, root.identity)) {
+        throw new NativeGitRefusalError('changed')
+      }
     }
   }
 
   private async spawn(
     args: readonly string[],
-    context: NativeGitContext,
+    root: BoundRoot,
+    guard: Guard,
     isUserEnvironment: boolean,
   ): Promise<Buffer> {
     assertNativeGitArgs(args)
-    this.checkEntry()
+    guard.check()
     try {
       return await this.run(args, {
-        cwd: context.cwd,
-        env: context.env,
+        cwd: root.path,
+        env: isUserEnvironment
+          ? nativePushEnvironment(this.deps.userEnvironment())
+          : quietGitEnvironment(process.env),
         timeoutMs: GIT_TIMEOUT_MS,
-        signal: this.deps.signal,
+        signal: guard.signal,
+        beforeRun: this.atSpawn(args, root, guard),
         ...(isUserEnvironment && { isUserEnvironment: true }),
       })
     } catch (error: unknown) {
+      if (error instanceof NativeGitRefusalError) {
+        throw error
+      }
+      if (guard.signal.aborted) {
+        // Cancel or the window stopped it: never reported as git's failure.
+        throw new NativeGitRefusalError('closed')
+      }
       // Fixed words only: git's own text (paths, remotes, accounts) goes to
-      // the caller, which redacts and caps it for the panel.
+      // the caller, which redacts it before any cut.
       const [subcommand] = args
       this.deps.log.warn(`git ${subcommand ?? 'unknown'} failed`)
       throw error
     }
   }
 
-  private quietSpawn(args: readonly string[], cwd: string): Promise<Buffer> {
-    return this.spawn(args, this.quiet(cwd), false)
+  /** The quiet runner over the bound root, for the core readers. */
+  private reader(root: BoundRoot, guard: Guard): GitProcess {
+    return (args) => this.spawn(args, root, guard, false)
   }
 
-  private userSpawn(args: readonly string[], cwd: string): Promise<Buffer> {
-    return this.spawn(args, this.user(cwd), true)
+  private context(root: BoundRoot, guard: Guard): NativeGitContext {
+    return { cwd: root.path, env: {}, signal: guard.signal }
+  }
+
+  /** Mutations run through the host's admission when it has one (M72's checkpoints). */
+  private async admitted<T>(start: () => Promise<T>): Promise<T> {
+    const admit = this.deps.admitWorkspaceCommand
+    return admit === undefined ? await start() : await admit(start)
+  }
+
+  private async rootFor(guard: Guard): Promise<BoundRoot> {
+    guard.check()
+    const root = await this.bound
+    guard.check()
+    if (root === undefined) {
+      throw new NativeGitRefusalError('changed')
+    }
+    // The path still leads to the bound directory: a rename with a link or
+    // junction in its place, or a replacement directory, is refused.
+    let current: string
+    try {
+      current = await canonicalPath(this.deps.repositoryRoot)
+    } catch {
+      throw new NativeGitRefusalError('changed')
+    }
+    const identity = await identityNow(current)
+    guard.check()
+    if (slashed(current) !== slashed(root.path) || !sameFile(identity, root.identity)) {
+      throw new NativeGitRefusalError('changed')
+    }
+    // git's own toplevel is that same directory, by identity.
+    const toplevelBytes = await this.spawn(['rev-parse', '--show-toplevel'], root, guard, false)
+    const toplevel = await identityNow(toplevelBytes.toString('utf8').trim())
+    guard.check()
+    if (!sameFile(toplevel, root.identity)) {
+      throw new NativeGitRefusalError('changed')
+    }
+    return root
+  }
+
+  private async stamped(root: BoundRoot, guard: Guard): Promise<StampedStatus> {
+    const { snapshot, remotes } = await readNativeStatus(
+      this.reader(root, guard),
+      this.context(root, guard),
+    )
+    guard.check()
+    const worktree = await fingerprintConfined(
+      root,
+      [...snapshot.unstaged, ...snapshot.untracked],
+      guard.check,
+    )
+    guard.check()
+    const stamp = JSON.stringify({
+      oid: snapshot.headOid,
+      branch: snapshot.branch,
+      upstream: snapshot.upstream,
+      ahead: snapshot.ahead,
+      behind: snapshot.behind,
+      // The index's object names and modes beside each path: other bytes
+      // staged under the same name change the stamp.
+      records: snapshot.records,
+      // The working tree's bytes behind every unstaged and new file.
+      worktree,
+    })
+    return { snapshot, remotes, stamp }
+  }
+
+  private async planIn(root: BoundRoot, guard: Guard, chosenRemote?: string): Promise<PushPlan> {
+    const { snapshot, remotes } = await readNativeStatus(
+      this.reader(root, guard),
+      this.context(root, guard),
+    )
+    guard.check()
+    const head = toPushHead(snapshot, remotes)
+    return head.ok ? planPush(head.head, remotes, chosenRemote) : { ok: false, refusal: 'noRemote' }
   }
 
   /**
-   * The confined repository root: resolved through links and junctions,
-   * and verified against git's own toplevel, so a replaced or moved
-   * repository is refused rather than written through.
+   * The storage parent for held checkouts: `pr-worktrees/` directly under
+   * the resolved data folder, made if missing, and a real directory there
+   * (never a link or junction that leads elsewhere). Links above the data
+   * folder itself are the user's own layout and are resolved, not refused.
    */
-  public async resolveRoot(): Promise<string> {
-    this.checkEntry()
-    const cwd = await canonicalPath(this.deps.repositoryRoot)
-    this.checkEntry()
-    const toplevelBytes = await this.quietSpawn(['rev-parse', '--show-toplevel'], cwd)
-    const toplevel = toplevelBytes.toString('utf8').trim()
-    this.checkEntry()
-    const canonicalTop = await canonicalPath(toplevel)
-    this.checkEntry()
-    const isSameRoot =
-      process.platform === 'win32'
-        ? slashed(canonicalTop).toLowerCase() === slashed(cwd).toLowerCase()
-        : slashed(canonicalTop) === slashed(cwd)
-    if (!isSameRoot) {
-      throw new Error('changed')
+  private async worktreeParent(guard: Guard): Promise<ConfinedRoot> {
+    const storage = await canonicalPath(this.deps.dataFolder)
+    guard.check()
+    const parent = path.join(storage, PULL_REQUEST_WORKTREES_DIR)
+    try {
+      await mkdir(parent)
+    } catch (error: unknown) {
+      if (!(error instanceof Error && 'code' in error && error.code === ALREADY_EXISTS)) {
+        throw error
+      }
     }
-    return cwd
+    guard.check()
+    const held = await lstatIdentity(parent)
+    const resolved = await canonicalPath(parent)
+    const reached = await identityNow(resolved)
+    guard.check()
+    if (
+      held.isSymbolicLink() ||
+      !held.isDirectory() ||
+      slashed(resolved) !== slashed(parent) ||
+      !sameFile(reached, identityOf(held))
+    ) {
+      throw new NativeGitRefusalError('changed')
+    }
+    return { path: parent, identity: identityOf(held) }
+  }
+
+  /** The guard plus: the storage parent is still the real directory confined before. */
+  private parentHeld(guard: Guard, parent: ConfinedRoot): Guard {
+    return {
+      signal: guard.signal,
+      check: () => {
+        guard.check()
+        let isHeld: boolean
+        try {
+          const stats = lstatIdentitySync(parent.path)
+          isHeld =
+            !stats.isSymbolicLink() &&
+            stats.isDirectory() &&
+            sameFile(identityOf(stats), parent.identity)
+        } catch {
+          isHeld = false
+        }
+        if (!isHeld) {
+          throw new NativeGitRefusalError('changed')
+        }
+      },
+    }
+  }
+
+  /**
+   * The bound repository root, verified again: resolved through links and
+   * junctions, the same directory (by identity) as when the service was
+   * made, and git's own toplevel.
+   */
+  public async resolveRoot(operation?: NativeGitOperation): Promise<string> {
+    const root = await this.rootFor(this.guard(operation))
+    return root.path
+  }
+
+  /** The root as bound, unverified: only where a command is shown or a link keyed, never run. */
+  public async boundRoot(): Promise<string> {
+    const root = await this.bound
+    return root?.path ?? this.deps.repositoryRoot
   }
 
   /** The status snapshot and the remotes git knows, in the quiet environment. */
-  public async status(): Promise<{
+  public async status(operation?: NativeGitOperation): Promise<{
     readonly snapshot: NativeStatusSnapshot
     readonly remotes: RemoteFacts[]
   }> {
-    const cwd = await this.resolveRoot()
-    const { snapshot, remotes } = await readNativeStatus(this.quietRun, this.quiet(cwd))
-    this.checkEntry()
-    return { snapshot, remotes }
+    const guard = this.guard(operation)
+    const root = await this.rootFor(guard)
+    const read = await readNativeStatus(this.reader(root, guard), this.context(root, guard))
+    guard.check()
+    return read
+  }
+
+  /**
+   * The commit form's facts and its stamp: what the commit rechecks,
+   * inside the repository's lock, before staging anything.
+   */
+  public async formStatus(operation?: NativeGitOperation): Promise<StampedStatus> {
+    const guard = this.guard(operation)
+    const root = await this.rootFor(guard)
+    return await this.stamped(root, guard)
   }
 
   /** The staged or unstaged diff, bounded and binary-safe. */
-  public async diff(isStaged: boolean, maxBytes: number): Promise<TruncatedDiff> {
-    const cwd = await this.resolveRoot()
-    const truncated = await readNativeDiff(this.quietRun, this.quiet(cwd), isStaged, maxBytes)
-    this.checkEntry()
+  public async diff(
+    isStaged: boolean,
+    maxBytes: number,
+    operation?: NativeGitOperation,
+  ): Promise<TruncatedDiff> {
+    const guard = this.guard(operation)
+    const root = await this.rootFor(guard)
+    const truncated = await readNativeDiff(
+      this.reader(root, guard),
+      this.context(root, guard),
+      isStaged,
+      maxBytes,
+    )
+    guard.check()
     return truncated
   }
 
   /**
-   * Commits `message`: validates it, rechecks the repository against
-   * `expectedStamp` (the form's), stages everything for an unstaged
-   * commit, and runs the user's hooks and signer. The caller's press is
-   * the confirmation (lane U's form shows the message and the files, as
-   * the VS Code confirm modal does there).
+   * New files' starts for a commit-message prompt, as a diff would show
+   * them, within `maxBytes` read in all; each read confined to the bound
+   * root by identity. A link, a folder or a vanished file stays a
+   * file-list entry.
+   */
+  public async newFileParts(
+    files: readonly string[],
+    maxBytes: number,
+    operation?: NativeGitOperation,
+  ): Promise<string> {
+    const guard = this.guard(operation)
+    const root = await this.rootFor(guard)
+    const parts: string[] = []
+    let room = maxBytes
+    for (const file of files) {
+      if (room <= 0) {
+        break
+      }
+      let start: Awaited<ReturnType<typeof readConfinedStart>>
+      try {
+        start = await readConfinedStart(root, file, room, guard.check)
+      } catch (error: unknown) {
+        // A swapped ancestor or a lost owner refuses the prompt; an
+        // unreadable file (permissions) only stays out of it.
+        if (refusalOf(error) !== undefined) {
+          throw error
+        }
+        start = undefined
+      }
+      guard.check()
+      if (start === undefined) {
+        continue
+      }
+      room -= start.bytes.length
+      parts.push(newFileDiff(file, start.bytes, start.size))
+    }
+    return parts.join('\n')
+  }
+
+  /**
+   * Commits `message`: validates it, and inside the repository's lock
+   * rechecks the repository against `expectedStamp` (the form's: the
+   * status records with the index's object names, and the working tree's
+   * bytes), stages everything for an unstaged commit, and runs the user's
+   * hooks and signer. The caller's press is the confirmation.
    */
   public async commit(
     message: string,
     isUnstagedIncluded: boolean,
     expectedStamp?: string,
+    operation?: NativeGitOperation,
   ): Promise<{ readonly branch: string; readonly subject: string }> {
     const trimmed = message.trim()
     const problem = commitMessageProblem(message)
     if (problem !== undefined) {
       throw new CommitRefusedError(problem, trimmed)
     }
-    const cwd = await this.resolveRoot()
-    const { snapshot } = await readNativeStatus(this.quietRun, this.quiet(cwd))
-    this.checkEntry()
-    if (expectedStamp !== undefined && statusStamp(snapshot) !== expectedStamp) {
-      throw new Error('changed')
-    }
-    if (!isUnstagedIncluded && snapshot.staged.length === 0) {
-      throw new CommitRefusedError('nothingStaged', trimmed)
-    }
-    if (snapshot.staged.length + snapshot.unstaged.length + snapshot.untracked.length === 0) {
-      throw new CommitRefusedError('nothingToCommit', trimmed)
-    }
-    if (isUnstagedIncluded) {
-      await this.quietSpawn(nativeStageAllArgs(), cwd)
-      this.checkEntry()
-    }
-    await this.quietSpawn(nativeCommitArgs(trimmed), cwd)
-    this.checkEntry()
-    const fresh = await readNativeStatus(this.quietRun, this.quiet(cwd))
-    this.checkEntry()
-    return {
-      branch: fresh.snapshot.branch ?? 'HEAD',
-      subject: trimmed.split(/\r?\n/, 1)[0] ?? trimmed,
-    }
-  }
-
-  /** The push for the current branch, or why M71's push plan refuses it. */
-  public async planPush(): Promise<PushPlan> {
-    const cwd = await this.resolveRoot()
-    const { snapshot, remotes } = await readNativeStatus(this.quietRun, this.quiet(cwd))
-    this.checkEntry()
-    const head = toPushHead(snapshot, remotes)
-    return head.ok ? planPush(head.head, remotes) : { ok: false, refusal: 'noRemote' }
+    const guard = this.guard(operation)
+    const root = await this.rootFor(guard)
+    return await serialized(root.key, guard.signal, async () => {
+      guard.check()
+      const { snapshot, stamp } = await this.stamped(root, guard)
+      if (expectedStamp !== undefined && stamp !== expectedStamp) {
+        throw new NativeGitRefusalError('changed')
+      }
+      if (!isUnstagedIncluded && snapshot.staged.length === 0) {
+        throw new CommitRefusedError('nothingStaged', trimmed)
+      }
+      if (snapshot.staged.length + snapshot.unstaged.length + snapshot.untracked.length === 0) {
+        throw new CommitRefusedError('nothingToCommit', trimmed)
+      }
+      await this.admitted(async () => {
+        if (isUnstagedIncluded) {
+          await this.spawn(nativeStageAllArgs(), root, guard, false)
+          guard.check()
+        }
+        await this.spawn(nativeCommitArgs(trimmed), root, guard, false)
+      })
+      // The commit is made: it lands on the branch read inside the lock, and
+      // a Cancel after it never turns it into a failure.
+      return {
+        branch: snapshot.branch ?? 'HEAD',
+        subject: trimmed.split(/\r?\n/, 1)[0] ?? trimmed,
+      }
+    })
   }
 
   /**
-   * Pushes exactly `plan` (a second plain-name check at the last line
-   * before git; never a force mode) in the user's own Git environment.
-   * Throws the failure for the caller to show and to offer in the
-   * editor's terminal.
+   * The push for the current branch, or why M71's push plan refuses it.
+   * `chosenRemote` is the user's pick for a first push when git cannot
+   * tell (`chooseRemote` names the choices).
    */
-  public async push(plan: Extract<PushPlan, { ok: true }>): Promise<void> {
-    this.checkEntry()
+  public async planPush(chosenRemote?: string, operation?: NativeGitOperation): Promise<PushPlan> {
+    const guard = this.guard(operation)
+    const root = await this.rootFor(guard)
+    return await this.planIn(root, guard, chosenRemote)
+  }
+
+  /**
+   * Pushes exactly `plan`, the one the user confirmed: planned again inside
+   * the repository's lock and refused (`changed`) unless identical, a
+   * second plain-name check at the last line before git, never a force
+   * mode, in the user's own Git environment. Throws the failure for the
+   * caller to show and to offer in the editor's terminal.
+   */
+  public async push(
+    plan: Extract<PushPlan, { ok: true }>,
+    operation?: NativeGitOperation,
+  ): Promise<void> {
+    const guard = this.guard(operation)
+    guard.check()
     if (!isPlainRefspec(plan.refspec) || !isPlainRefName(plan.remote)) {
-      throw new Error('refused')
+      throw new NativeGitRefusalError('refused')
     }
-    const cwd = await this.resolveRoot()
-    await this.userSpawn(nativePushArgs(plan), cwd)
-    this.checkEntry()
+    const root = await this.rootFor(guard)
+    await serialized(root.key, guard.signal, async () => {
+      guard.check()
+      const fresh = await this.planIn(root, guard, plan.remote)
+      if (!fresh.ok || !isSamePlan(fresh, plan)) {
+        throw new NativeGitRefusalError('changed')
+      }
+      await this.admitted(() => this.spawn(nativePushArgs(plan), root, guard, true))
+    })
+    // The push went out: a Cancel after it never turns it into a failure.
     this.deps.log.info('Pushed through the native service')
   }
 
   /** A pull request fetch in the user's own Git environment (lane P). */
-  public async fetch(remote: string, ref?: string): Promise<void> {
-    this.checkEntry()
-    const cwd = await this.resolveRoot()
-    await this.userSpawn(nativeFetchArgs(remote, ref), cwd)
-    this.checkEntry()
+  public async fetch(remote: string, ref?: string, operation?: NativeGitOperation): Promise<void> {
+    const guard = this.guard(operation)
+    guard.check()
+    const root = await this.rootFor(guard)
+    await serialized(root.key, guard.signal, async () => {
+      await this.spawn(nativeFetchArgs(remote, ref), root, guard, true)
+    })
+    guard.check()
   }
 
   /**
    * A held checkout's worktree (lane P): `name` is one safe segment under
-   * the runtime data folder's `pr-worktrees/`, resolved and confined
-   * before anything runs. Returns the confined path.
+   * the runtime data folder's `pr-worktrees/`, confined before anything
+   * runs and again at the spawn. Returns the confined path.
    */
-  public async addWorktree(name: string, commit: string): Promise<string> {
-    this.checkEntry()
+  public async addWorktree(
+    name: string,
+    commit: string,
+    operation?: NativeGitOperation,
+  ): Promise<string> {
+    const guard = this.guard(operation)
+    guard.check()
     if (!WORKTREE_NAME.test(name) || !isPlainRefName(commit)) {
-      throw new Error('refused')
+      throw new NativeGitRefusalError('refused')
     }
-    const parent = await canonicalPath(path.join(this.deps.dataFolder, PULL_REQUEST_WORKTREES_DIR))
-    this.checkEntry()
-    const wtPath = await canonicalPath(path.join(parent, name))
-    this.checkEntry()
-    if (!slashed(wtPath).startsWith(`${slashed(parent)}/`)) {
-      throw new Error('changed')
+    const parent = await this.worktreeParent(guard)
+    const wtPath = path.join(parent.path, name)
+    let isTaken = true
+    try {
+      await lstatIdentity(wtPath)
+    } catch (error: unknown) {
+      if (!isMissingPath(error)) {
+        throw error
+      }
+      isTaken = false
     }
-    const cwd = await this.resolveRoot()
-    await this.quietSpawn(nativeWorktreeAddArgs(wtPath, commit), cwd)
-    this.checkEntry()
+    if (isTaken) {
+      // Something already sits there: git would refuse it, and a link would lead elsewhere.
+      throw new NativeGitRefusalError('changed')
+    }
+    const root = await this.rootFor(guard)
+    const args = nativeWorktreeAddArgs(wtPath, commit)
+    await serialized(root.key, guard.signal, async () => {
+      await this.spawn(args, root, this.parentHeld(guard, parent), false)
+    })
+    guard.check()
     return wtPath
   }
 }

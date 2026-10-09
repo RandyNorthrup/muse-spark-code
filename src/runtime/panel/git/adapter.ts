@@ -5,35 +5,43 @@
 // `./service`; the pull request half answers explicitly until lane P
 // lands it, and the sign-in card until lanes A and L land the sources.
 //
-// - `openCommit` posts the commit form; `commit` validates, rechecks the
-//   form's stamp, and commits (hooks and signers run). The caller's form
-//   press is the confirmation: lane U's panel shows the message and the
-//   files first, as the VS Code confirm modal does there.
+// - `openCommit` posts the commit form with its stamp (the status records,
+//   the index's object names among them, and the working tree's bytes);
+//   `commit` validates, rechecks that stamp inside the repository's lock,
+//   and commits (hooks and signers run). The caller's form press is the
+//   confirmation: lane U's panel shows the message and the files first, as
+//   the VS Code confirm modal does there.
 // - `push` plans with M71's push plan (same refusals, one shared table
-//   test) and pushes in the user's own Git environment. A failed push
-//   names the remote and opens the same command in the editor's terminal
-//   (the runtime has no modal to offer it in).
+//   test), asks which remote when git cannot tell (`pickRemote`), and asks
+//   before anything goes (`confirmPush`: the remote and its masked URL,
+//   the branch and its target, the commits). The confirmed plan is planned
+//   again inside the lock and pushed in the user's own Git environment.
+//   Only git's own failure of that push names the remote and opens the
+//   same command in the editor's terminal; a refusal, a lost trust or
+//   owner, or Cancel never does.
+// - Cancel, a session change and disposal abort the running operation's
+//   signal: pending git stops, and nothing new starts.
 // - The linked pull request shows from the runtime link store; its status
 //   and checks, the pull request form, creation and trust arrive with
 //   lane P. Until then those actions answer `gitHubSignInDeclined` (no
 //   sign-in was given, so nothing was sent) or `gitHeld`, never an empty
 //   success.
-// - Draft prompts for a commit message read the native diff; generations
-//   settle as the VS Code adapter's do.
+// - Draft prompts for a commit message read the native diff and new files
+//   confined to the bound root; generations settle as the VS Code
+//   adapter's do.
+// - Git's words reach the panel redacted first, then cut to size.
 
-import { constants as fsConstants } from 'node:fs'
-import { open as openFile } from 'node:fs/promises'
-import { canonicalPath } from '../../../host/canonicalPath'
 import type {
   ConversationGitPort,
   GitSurface,
 } from '../../../host/conversation/conversationController'
+import { isGitExitError } from '../../../host/git'
 import { redactSecrets } from '../../../core/redact'
+import { maskRemoteUrl } from '../../../core/git/githubRemote'
 import {
   commitMessageFrom,
   commitMessagePrompt,
   gitDraftContract,
-  newFileDiff,
   pullRequestTextFrom,
   structuredGitDraft,
   type GitDraftOutputPort,
@@ -58,10 +66,11 @@ import type {
 } from '../../../shared/git'
 import {
   CommitRefusedError,
+  NativeGitRefusalError,
   NativeGitService,
   nativePushTerminalCommand,
   refusalOf,
-  statusStamp,
+  type NativeGitOperation,
   type NativeGitServiceOptions,
 } from './service'
 
@@ -69,10 +78,14 @@ const AGENT_MESSAGE_KIND = 'agentMessage'
 const COMPLETED_TERMINAL = 'completed'
 const EMPTY_STATE_JSON = '{}'
 
-/** Git's words for the panel: redacted, capped, never a credential. */
+/**
+ * Git's words for the panel: the whole text redacted first, then cut to
+ * size, so a cut can never strip the name that marks a credential and
+ * leave its value.
+ */
 function nativeFailureText(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error)
-  return redactSecrets(text.slice(-STDERR_SHOWN_CHARS))
+  return redactSecrets(text).slice(-STDERR_SHOWN_CHARS)
 }
 
 function pushRefusalText(plan: Extract<PushPlan, { ok: false }>): string {
@@ -93,7 +106,27 @@ function pushRefusalText(plan: Extract<PushPlan, { ok: false }>): string {
       return UI_TEXT.gitPushNoRemote
     }
     case 'chooseRemote': {
+      // Only after the user dismissed the remote pick.
       return UI_TEXT.gitPushDeclined
+    }
+  }
+}
+
+/** A refusal the panel words: Cancel and disposal stay silent. */
+function refusalNotice(refusal: ReturnType<typeof refusalOf>): string | undefined {
+  switch (refusal) {
+    case 'untrusted': {
+      return UI_TEXT.gitRestricted
+    }
+    case 'changed': {
+      return UI_TEXT.gitOperationChanged
+    }
+    case 'refused': {
+      return UI_TEXT.gitPushUnsafeName
+    }
+    case 'closed':
+    case undefined: {
+      return undefined
     }
   }
 }
@@ -131,6 +164,8 @@ export class RuntimeGit implements ConversationGitPort {
   private isOperating = false
   private isDisposed = false
   private checkOperation: (() => void) | undefined
+  /** The running operation's own stop: Cancel, a session change and disposal abort it. */
+  private operationAbort = new AbortController()
   private draft: PendingDraft | undefined
   private draftEpoch = 0
   private readonly turnsSeen = new Map<
@@ -154,7 +189,7 @@ export class RuntimeGit implements ConversationGitPort {
     if (this.deps.repositoryRoot === '') {
       return UI_TEXT.noWorkspaceReason
     }
-    return this.deps.isTrusted() ? undefined : UI_TEXT.gitOperationChanged
+    return this.deps.isTrusted() ? undefined : UI_TEXT.gitRestricted
   }
 
   /** Notices when git cannot run here; true when it can. */
@@ -167,25 +202,58 @@ export class RuntimeGit implements ConversationGitPort {
     return false
   }
 
-  /** A consent belongs to this conversation and trust state, never to a later one. */
+  /**
+   * A consent belongs to this conversation and trust state, never to a
+   * later one. The service runs this after every await and at the spawn.
+   */
   private activityCheck(): () => void {
     const watched = { epoch: this.operationEpoch, session: this.surface.sessionId() }
     return () => {
       if (this.isDisposed) {
-        throw new Error(UI_TEXT.gitOperationChanged)
+        throw new NativeGitRefusalError('closed')
       }
-      if (watched.epoch !== this.operationEpoch || watched.session !== this.surface.sessionId()) {
-        throw new Error(UI_TEXT.gitOperationChanged)
+      if (
+        watched.epoch !== this.operationEpoch ||
+        watched.session !== this.surface.sessionId() ||
+        this.deps.repositoryRoot === ''
+      ) {
+        throw new NativeGitRefusalError('changed')
       }
-      const reason = this.unavailableReason()
-      if (reason !== undefined) {
-        throw new Error(reason)
+      if (!this.deps.isTrusted()) {
+        throw new NativeGitRefusalError('untrusted')
       }
     }
   }
 
   private checkCurrent(): void {
     this.checkOperation?.()
+  }
+
+  /** Whether the running operation is still this conversation's, trusted and unstopped. */
+  private isStillCurrent(): boolean {
+    try {
+      this.checkCurrent()
+    } catch {
+      return false
+    }
+    return !this.operationAbort.signal.aborted && !this.deps.signal.aborted
+  }
+
+  /** The running operation as the service takes it: its stop and its owner check. */
+  private operation(): NativeGitOperation {
+    return {
+      signal: this.operationAbort.signal,
+      check: () => {
+        this.checkCurrent()
+      },
+    }
+  }
+
+  /** Stops the running operation's pending git: Cancel, a session change, disposal. */
+  private stopOperation(): void {
+    this.operationEpoch += 1
+    this.operationAbort.abort()
+    this.operationAbort = new AbortController()
   }
 
   private canPost(): boolean {
@@ -216,19 +284,18 @@ export class RuntimeGit implements ConversationGitPort {
     this.commitStamp = undefined
   }
 
-  private async openCommitForm(): Promise<void> {
+  private async openCommitForm(operation: NativeGitOperation): Promise<void> {
     this.resetForm()
     if (!this.usable()) {
       return
     }
     let snapshot: NativeStatusSnapshot
+    let stamp: string
     try {
-      ;({ snapshot } = await this.service.status())
+      ;({ snapshot, stamp } = await this.service.formStatus(operation))
       this.checkCurrent()
     } catch (error: unknown) {
-      if (this.canPost()) {
-        this.surface.say('warning', nativeFailureText(error))
-      }
+      this.noticeFailure(error)
       return
     }
     const files: CommitFormFacts['files'] = [
@@ -242,7 +309,7 @@ export class RuntimeGit implements ConversationGitPort {
       this.surface.notice('info', UI_TEXT.gitNothingToCommit)
       return
     }
-    this.commitStamp = statusStamp(snapshot)
+    this.commitStamp = stamp
     this.checkCurrent()
     this.surface.post({
       type: 'gitCommitForm',
@@ -256,50 +323,104 @@ export class RuntimeGit implements ConversationGitPort {
     })
   }
 
-  private async pushAction(): Promise<void> {
+  /** The push for the current branch, asking which remote when git cannot tell (M71's pick). */
+  private async pushPlanFor(operation: NativeGitOperation): Promise<PushPlan | undefined> {
+    const plan = await this.service.planPush(undefined, operation)
+    this.checkCurrent()
+    if (plan.ok || plan.refusal !== 'chooseRemote') {
+      return plan
+    }
+    const names = plan.remotes ?? []
+    const chosen = await this.deps.pickRemote(names)
+    this.checkCurrent()
+    if (chosen === undefined || !names.includes(chosen)) {
+      this.surface.notice('info', UI_TEXT.gitPushDeclined)
+      return undefined
+    }
+    const picked = await this.service.planPush(chosen, operation)
+    this.checkCurrent()
+    return picked
+  }
+
+  private async pushAction(operation: NativeGitOperation): Promise<void> {
     if (!this.usable()) {
       return
     }
-    let plan: PushPlan
+    let plan: PushPlan | undefined
     try {
-      plan = await this.service.planPush()
-      this.checkCurrent()
+      plan = await this.pushPlanFor(operation)
     } catch (error: unknown) {
       this.noticeFailure(error)
+      return
+    }
+    if (plan === undefined) {
       return
     }
     if (!plan.ok) {
       this.surface.notice(plan.refusal === 'upToDate' ? 'info' : 'warning', pushRefusalText(plan))
       return
     }
-    try {
-      await this.service.push(plan)
-      this.checkCurrent()
-    } catch (error: unknown) {
-      if (refusalOf(error) === 'closed' || this.deps.signal.aborted) {
-        return
-      }
-      if (refusalOf(error) === 'refused') {
-        this.surface.notice('warning', UI_TEXT.gitPushUnsafeName)
-        return
-      }
-      // The push failed with the remote named; the same command opens in
-      // the editor's terminal for the user to finish (D104).
-      this.deps.log.warn('Push failed')
-      if (this.canPost()) {
-        this.surface.say('error', `${UI_TEXT.gitPushFailed}: ${nativeFailureText(error)}`)
-      }
-      await this.deps.openInTerminal(nativePushTerminalCommand(plan), this.deps.repositoryRoot)
-      this.checkCurrent()
+    // Nothing goes before the user saw where, what and how many (D104,
+    // M71's push modal): the remote and its masked URL, the target, the commits.
+    const isConfirmed = await this.deps.confirmPush({
+      remote: plan.remote,
+      remoteUrl: plan.remoteUrl === undefined ? undefined : maskRemoteUrl(plan.remoteUrl),
+      branch: plan.branch,
+      target: plan.target,
+      commits: plan.commits,
+    })
+    this.checkCurrent()
+    if (!isConfirmed) {
+      this.surface.notice('info', UI_TEXT.gitPushDeclined)
       return
     }
-    this.surface.notice(
-      'info',
-      fill(UI_TEXT.gitPushed, { branch: plan.branch, remote: plan.remote }),
-    )
+    try {
+      await this.service.push(plan, operation)
+    } catch (error: unknown) {
+      await this.pushFailed(plan, error, operation)
+      return
+    }
+    // The push went through: said as such even when Cancel came after it.
+    if (this.canPost()) {
+      this.surface.notice(
+        'info',
+        fill(UI_TEXT.gitPushed, { branch: plan.branch, remote: plan.remote }),
+      )
+    }
   }
 
-  /** A refusal in the panel's words; anything else is git's (redacted). */
+  /**
+   * Only git's own failure of the confirmed push, while this conversation
+   * still owns a trusted operation, names the remote and offers the same
+   * command (the same `git`, the bound root) in the editor's terminal
+   * (D104). A refusal, a lost trust or owner, Cancel or a timeout never does.
+   */
+  private async pushFailed(
+    plan: Extract<PushPlan, { ok: true }>,
+    error: unknown,
+    operation: NativeGitOperation,
+  ): Promise<void> {
+    const isGitsOwn =
+      refusalOf(error) === undefined && operation.signal?.aborted !== true && isGitExitError(error)
+    if (!isGitsOwn) {
+      this.noticeFailure(error)
+      return
+    }
+    this.deps.log.warn('Push failed')
+    if (this.canPost()) {
+      this.surface.say('error', `${UI_TEXT.gitPushFailed}: ${nativeFailureText(error)}`)
+    }
+    if (!this.isStillCurrent()) {
+      return
+    }
+    const root = await this.service.boundRoot()
+    if (!this.isStillCurrent()) {
+      return
+    }
+    await this.deps.openInTerminal(nativePushTerminalCommand(plan, this.deps.gitPath), root)
+  }
+
+  /** A refusal in the panel's words; anything else is git's (redacted, then cut). */
   private noticeFailure(error: unknown): void {
     if (!this.canPost()) {
       return
@@ -308,8 +429,9 @@ export class RuntimeGit implements ConversationGitPort {
     if (refusal === 'closed' || this.deps.signal.aborted) {
       return
     }
-    if (refusal === 'untrusted' || refusal === 'changed') {
-      this.surface.notice('warning', UI_TEXT.gitOperationChanged)
+    const notice = refusalNotice(refusal)
+    if (notice !== undefined) {
+      this.surface.notice('warning', notice)
       return
     }
     this.surface.say('warning', nativeFailureText(error))
@@ -341,14 +463,24 @@ export class RuntimeGit implements ConversationGitPort {
     }
   }
 
-  private async commitNow(message: string, isUnstagedIncluded: boolean): Promise<void> {
+  private async commitNow(
+    message: string,
+    isUnstagedIncluded: boolean,
+    operation: NativeGitOperation,
+  ): Promise<void> {
     if (!this.usable()) {
       this.answerCommit(false)
       return
     }
+    const stamp = this.commitStamp
+    if (stamp === undefined) {
+      // No open form (Cancel or a session change closed it): nothing to confirm.
+      this.surface.notice('warning', UI_TEXT.gitOperationChanged)
+      this.answerCommit(false)
+      return
+    }
     try {
-      const committed = await this.service.commit(message, isUnstagedIncluded, this.commitStamp)
-      this.checkCurrent()
+      const committed = await this.service.commit(message, isUnstagedIncluded, stamp, operation)
       this.resetForm()
       this.draft?.output?.abort.abort()
       this.draft = undefined
@@ -364,7 +496,8 @@ export class RuntimeGit implements ConversationGitPort {
         this.answerCommit(false)
         return
       }
-      if (refusalOf(error) === 'closed' || this.deps.signal.aborted) {
+      if (operation.signal?.aborted === true) {
+        // Cancel, a session change or disposal stopped it: no failure to say.
         this.answerCommit(false)
         return
       }
@@ -373,7 +506,6 @@ export class RuntimeGit implements ConversationGitPort {
         this.answerCommit(false)
         return
       }
-      this.checkCurrent()
       this.deps.log.warn('Commit failed')
       if (this.canPost()) {
         this.surface.say('error', `${UI_TEXT.gitCommitFailed}: ${nativeFailureText(error)}`)
@@ -388,7 +520,7 @@ export class RuntimeGit implements ConversationGitPort {
    * form's press is answered as failed, so its buttons come back.
    */
   private async exclusively(
-    operation: () => Promise<void>,
+    operation: (running: NativeGitOperation) => Promise<void>,
     form?: 'commit' | 'pullRequest',
   ): Promise<void> {
     if (this.isDisposed || this.isOperating) {
@@ -402,7 +534,8 @@ export class RuntimeGit implements ConversationGitPort {
     this.checkOperation = this.activityCheck()
     try {
       this.checkCurrent()
-      await operation()
+      // This operation's own stop, taken now: a later Cancel aborts it.
+      await operation(this.operation())
     } catch (error: unknown) {
       this.noticeFailure(error)
       if (form !== undefined) {
@@ -422,78 +555,6 @@ export class RuntimeGit implements ConversationGitPort {
     }
   }
 
-  /**
-   * One new file's start for the prompt, as a diff would show it, or
-   * undefined for a link, a folder, or anything unreadable: those stay a
-   * file-list entry. Never follows a link (O_NOFOLLOW).
-   */
-  private async untrackedFilePart(
-    fsPath: string,
-    label: string,
-    maxBytes: number,
-    check: () => void,
-  ): Promise<{ readonly part: string; readonly used: number } | undefined> {
-    let fd: Awaited<ReturnType<typeof openFile>>
-    try {
-      fd = await openFile(fsPath, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW)
-    } catch {
-      return undefined
-    }
-    try {
-      const stat = await fd.stat()
-      check()
-      const capacity = Math.min(maxBytes, stat.size)
-      const bytes = Buffer.alloc(capacity)
-      let filled = 0
-      while (filled < capacity) {
-        const chunk = await fd.read(bytes, filled, capacity - filled, filled)
-        if (chunk.bytesRead === 0) {
-          break
-        }
-        filled += chunk.bytesRead
-      }
-      check()
-      return { part: newFileDiff(label, bytes.subarray(0, filled), stat.size), used: filled }
-    } catch {
-      return undefined
-    } finally {
-      await fd.close()
-    }
-  }
-
-  private async appendFilePart(
-    parts: string[],
-    file: { readonly fsPath: string; readonly label: string },
-    room: number,
-    check: () => void,
-  ): Promise<number> {
-    check()
-    const read = await this.untrackedFilePart(file.fsPath, file.label, room, check)
-    check()
-    if (read === undefined) {
-      return room
-    }
-    parts.push(read.part)
-    return room - read.used
-  }
-
-  /** New files' bytes for the prompt, as a diff would show them, within budget. */
-  private async untrackedContents(
-    files: readonly { readonly fsPath: string; readonly label: string }[],
-    maxBytes: number,
-    check: () => void,
-  ): Promise<string> {
-    const snippets: string[] = []
-    let remaining = maxBytes
-    for (const file of files) {
-      if (remaining <= 0) {
-        return snippets.join('\n')
-      }
-      remaining = await this.appendFilePart(snippets, file, remaining, check)
-    }
-    return snippets.join('\n')
-  }
-
   private seen(turnId: string): { text: string | undefined; terminal: string | undefined } {
     const known = this.turnsSeen.get(turnId)
     if (known !== undefined) {
@@ -507,22 +568,21 @@ export class RuntimeGit implements ConversationGitPort {
     return fresh
   }
 
-  /** The new files' bytes appended to the diff, within the prompt's budget. */
+  /**
+   * The new files' bytes appended to the diff, within the prompt's budget,
+   * each read confined to the bound root by the identity of every
+   * directory on its way (never through a swapped link or junction).
+   */
   private async withNewFiles(
     diff: string,
     untracked: readonly string[],
-    cwd: string,
     room: number,
-    check: () => void,
+    operation: NativeGitOperation,
   ): Promise<string> {
     if (room <= 0 || untracked.length === 0) {
       return diff
     }
-    const added = await this.untrackedContents(
-      untracked.map((file) => ({ fsPath: `${cwd}/${file}`, label: file })),
-      room,
-      check,
-    )
+    const added = await this.service.newFileParts(untracked, room, operation)
     if (added === '') {
       return diff
     }
@@ -624,7 +684,8 @@ export class RuntimeGit implements ConversationGitPort {
   /** Reads the session's linked pull request for the strip. */
   private async refreshLink(sessionId: string, epoch: number): Promise<void> {
     try {
-      const root = await canonicalPath(this.deps.repositoryRoot)
+      // The store's key is the root the service bound to.
+      const root = await this.service.boundRoot()
       const link = await this.deps.links.get(root, sessionId)
       if (this.statusEpoch !== epoch || this.isDisposed) {
         return
@@ -646,8 +707,8 @@ export class RuntimeGit implements ConversationGitPort {
 
   public async handleAction(action: GitAction): Promise<void> {
     const handlers: Record<GitAction, () => Promise<void> | void> = {
-      openCommit: () => this.exclusively(() => this.openCommitForm()),
-      push: () => this.exclusively(() => this.pushAction()),
+      openCommit: () => this.exclusively((running) => this.openCommitForm(running)),
+      push: () => this.exclusively((running) => this.pushAction(running)),
       openPullRequest: () => {
         this.githubUnavailable()
       },
@@ -661,7 +722,8 @@ export class RuntimeGit implements ConversationGitPort {
         this.surface.notice('warning', UI_TEXT.gitHeld)
       },
       cancel: () => {
-        this.operationEpoch += 1
+        // Pending git stops: the running operation's signal aborts.
+        this.stopOperation()
         this.resetForm()
         this.generationFailed()
       },
@@ -670,7 +732,8 @@ export class RuntimeGit implements ConversationGitPort {
   }
 
   public async commit(message: string, isUnstagedIncluded: boolean): Promise<void> {
-    const operation = (): Promise<void> => this.commitNow(message, isUnstagedIncluded)
+    const operation = (running: NativeGitOperation): Promise<void> =>
+      this.commitNow(message, isUnstagedIncluded, running)
     await this.exclusively(operation, 'commit')
   }
 
@@ -687,23 +750,29 @@ export class RuntimeGit implements ConversationGitPort {
    * Throws with the reason in words when it cannot be built.
    */
   public async promptFor(kind: GitDraftKind): Promise<string> {
-    const check = this.activityCheck()
-    check()
     const reason = this.unavailableReason()
     if (reason !== undefined) {
       throw new Error(reason)
     }
+    const check = this.activityCheck()
+    check()
     if (kind === 'pullRequest') {
       // The pull request form (lane P) names the branches first.
       throw new Error(UI_TEXT.gitOpenPullRequestFirst)
     }
+    // The form's stop: Cancel or a session change ends the reads.
+    const operation: NativeGitOperation = { signal: this.formAbort.signal, check }
+    const failed = (error: unknown): Error => {
+      this.deps.log.warn('A draft diff could not be read')
+      return new Error(refusalNotice(refusalOf(error)) ?? nativeFailureText(error), {
+        cause: error,
+      })
+    }
     let snapshot: NativeStatusSnapshot
     try {
-      ;({ snapshot } = await this.service.status())
-      check()
+      ;({ snapshot } = await this.service.status(operation))
     } catch (error: unknown) {
-      this.deps.log.warn('A draft diff could not be read')
-      throw new Error(nativeFailureText(error), { cause: error })
+      throw failed(error)
     }
     const isStaged = snapshot.staged.length > 0
     const changes = isStaged ? snapshot.staged : [...snapshot.unstaged, ...snapshot.untracked]
@@ -712,26 +781,20 @@ export class RuntimeGit implements ConversationGitPort {
     }
     let diff: string
     try {
-      const staged = await this.service.diff(isStaged, GIT_PROMPT_DIFF_MAX_CHARS)
-      check()
-      diff = staged.bytes.toString('utf8')
+      const read = await this.service.diff(isStaged, GIT_PROMPT_DIFF_MAX_CHARS, operation)
+      diff = read.bytes.toString('utf8')
       if (!isStaged) {
         // `git diff` leaves new files out; their bytes come from the files
-        // themselves, so a crafted link is never followed (O_NOFOLLOW).
-        const cwd = await this.service.resolveRoot()
-        check()
+        // themselves, confined to the bound root.
         diff = await this.withNewFiles(
           diff,
           snapshot.untracked,
-          cwd,
           GIT_PROMPT_DIFF_MAX_CHARS - diff.length,
-          check,
+          operation,
         )
-        check()
       }
     } catch (error: unknown) {
-      this.deps.log.warn('A draft diff could not be read')
-      throw new Error(nativeFailureText(error), { cause: error })
+      throw failed(error)
     }
     check()
     return commitMessagePrompt({
@@ -843,7 +906,8 @@ export class RuntimeGit implements ConversationGitPort {
       sessionId === undefined ||
       (this.observedSessionId !== undefined && this.observedSessionId !== sessionId)
     ) {
-      this.operationEpoch += 1
+      // The old session's pending git stops with it.
+      this.stopOperation()
       this.resetForm()
       this.generationFailed()
     }
@@ -863,7 +927,7 @@ export class RuntimeGit implements ConversationGitPort {
 
   public dispose(): void {
     this.isDisposed = true
-    this.operationEpoch += 1
+    this.stopOperation()
     this.statusEpoch += 1
     this.resetForm()
     this.draft?.output?.abort.abort()

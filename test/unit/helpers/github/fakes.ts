@@ -9,6 +9,7 @@ import type {
   PullRequestLinkRecord,
   PullRequestLinkStore,
   RuntimeGitDeps,
+  RuntimePushConfirmation,
 } from '../../../../src/core/git/runtimeGit'
 import type {
   GitHubCredential,
@@ -115,6 +116,10 @@ export interface EditorCalls {
   readonly terminals: { readonly command: readonly string[]; readonly cwd: string }[]
   readonly folders: string[]
   readonly externals: string[]
+  /** Every push modal shown, in order; the fake answers yes unless a test overrides it. */
+  readonly confirmations: RuntimePushConfirmation[]
+  /** Every remote pick shown, with its choices. */
+  readonly remotePicks: (readonly string[])[]
 }
 
 /** RuntimeGitDeps for `repositoryRoot`, every editor call recorded in `calls`. */
@@ -122,7 +127,13 @@ export function fakeRuntimeGitDeps(
   repositoryRoot: string,
   overrides: Partial<RuntimeGitDeps> = {},
 ): { readonly deps: RuntimeGitDeps; readonly calls: EditorCalls } {
-  const calls: EditorCalls = { terminals: [], folders: [], externals: [] }
+  const calls: EditorCalls = {
+    terminals: [],
+    folders: [],
+    externals: [],
+    confirmations: [],
+    remotePicks: [],
+  }
   const deps: RuntimeGitDeps = {
     repositoryRoot,
     // Found on PATH by the child process; a test that checks resolution passes its own.
@@ -130,6 +141,15 @@ export function fakeRuntimeGitDeps(
     tokenSources: [],
     links: fakePullRequestLinkStore(),
     isTrusted: () => true,
+    confirmPush: (confirmation) => {
+      calls.confirmations.push(confirmation)
+      return Promise.resolve(true)
+    },
+    pickRemote: (names) => {
+      calls.remotePicks.push(names)
+      return Promise.resolve(undefined)
+    },
+    userEnvironment: () => process.env,
     openInTerminal: (command, cwd) => {
       calls.terminals.push({ command, cwd })
       return Promise.resolve()

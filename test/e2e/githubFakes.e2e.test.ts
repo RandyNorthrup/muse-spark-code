@@ -463,10 +463,22 @@ describe('the runtime link store and deps', () => {
     await deps.openInTerminal(['git', 'push'], '/repo')
     await deps.openFolder('/data/pr-worktrees/pr-51')
     await deps.openExternal(GITHUB_DEVICE_VERIFICATION_URL)
+    const confirmation = {
+      remote: 'origin',
+      remoteUrl: 'https://github.com/o/r.git',
+      branch: 'feature',
+      target: 'feature',
+      commits: 1,
+    }
+    // The fake's push modal answers yes, and its remote pick is dismissed.
+    expect(await deps.confirmPush(confirmation)).toBe(true)
+    expect(await deps.pickRemote(['alpha', 'beta'])).toBeUndefined()
     expect(calls).toEqual({
       terminals: [{ command: ['git', 'push'], cwd: '/repo' }],
       folders: ['/data/pr-worktrees/pr-51'],
       externals: [GITHUB_DEVICE_VERIFICATION_URL],
+      confirmations: [confirmation],
+      remotePicks: [['alpha', 'beta']],
     })
   })
 })

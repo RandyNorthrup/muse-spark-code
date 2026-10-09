@@ -7,7 +7,18 @@
 
 import path from 'node:path'
 import { tmpdir } from 'node:os'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmdirSync,
+  rmSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { execFileSync, spawn } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { canonicalPath } from '../../src/host/canonicalPath'
@@ -20,15 +31,31 @@ import {
   nativePushEnvironment,
   nativePushTerminalCommand,
   nativeWorktreeAddArgs,
+  NativeGitRefusalError,
   NativeGitService,
 } from '../../src/runtime/panel/git/service'
 import type { PushPlan } from '../../src/core/git/pushPlan'
+import { takeCredentials } from '../../src/runtime/credentialVariables'
+import {
+  keepGitCredentialRoutes,
+  runtimeGitUserEnvironment,
+} from '../../src/runtime/gitUserEnvironment'
 import { fakeRuntimeGitDeps } from './helpers/github/fakes'
 import { createFixtureRepositories, type FixtureRepositories } from './helpers/github/repositories'
 import type { RuntimeGitDeps } from '../../src/core/git/runtimeGit'
 
 const QUIET_CANARY_ENV = 'M123_G_TEST_QUIET_CANARY_TOKEN'
 const PUSH_CANARY_ENV = 'M123_G_TEST_PUSH_CANARY_TOKEN'
+
+/** Removes a link or junction itself, never what it leads to. */
+function removeLink(link: string): void {
+  try {
+    unlinkSync(link)
+  } catch {
+    // A Windows junction is removed as a directory entry.
+    rmdirSync(link)
+  }
+}
 
 function sortedEnvNames(keys: readonly string[]): readonly string[] {
   return keys.toSorted((left, right) => left.localeCompare(right))
@@ -117,7 +144,13 @@ describe('nativePushArgs', () => {
       'origin',
       'feature',
     ])
-    expect(nativePushTerminalCommand(okPlan())[0]).toBe('git')
+    // The terminal runs the same git the service does.
+    expect(nativePushTerminalCommand(okPlan(), '/opt/git/bin/git')).toEqual([
+      '/opt/git/bin/git',
+      'push',
+      'origin',
+      'feature',
+    ])
   })
 
   it('builds fetch and worktree commands the allowlist then rechecks', () => {
@@ -395,17 +428,12 @@ describe('NativeGitService on the fixture repositories', () => {
     try {
       const environment = { ...fixtures().environment, ...process.env }
       execFileSync('git', ['clone', '-q', fixtures().parentBare, direct], { env: environment })
-      const dump = path.join(direct, 'hook-env.txt')
+      // `/` separators: the hook's sh reads the path on Windows too.
+      const dump = path.join(direct, 'hook-env.txt').replaceAll('\\', '/')
       const hook = `#!/bin/sh\nenv > "${dump}"\nexit 1\n`
       writeFileSync(path.join(direct, '.git', 'hooks', 'pre-commit'), hook, { mode: 0o755 })
       writeFileSync(path.join(direct, '.git', 'hooks', 'pre-push'), hook, { mode: 0o755 })
-      const readDump = (): string => {
-        try {
-          return execFileSync('cat', [dump], { encoding: 'utf8' })
-        } catch {
-          return ''
-        }
-      }
+      const readDump = (): string => (existsSync(dump) ? readFileSync(dump, 'utf8') : '')
       const service = new NativeGitService(depsFor(direct), { run: gitRunner() })
       // A read carries no token variable of ours and never prompts.
       writeFileSync(path.join(direct, 'read.txt'), 'read\n')
@@ -481,24 +509,244 @@ describe('NativeGitService on the fixture repositories', () => {
       const service = new NativeGitService(depsFor(direct, { signal: controller.signal }), {
         run: gitRunner(),
       })
-      const pushing = service.push({
-        ...okPlan(),
-        branch: 'slow',
-        target: 'slow',
-        refspec: 'slow',
-        setUpstream: true,
-        commits: 1,
-      })
+      const plan = await service.planPush()
+      if (!plan.ok) {
+        throw new Error('the slow branch must plan a first push')
+      }
+      const pushing = service.push(plan)
       setTimeout(() => {
         controller.abort()
       }, 300).unref()
-      // Cancel wins the race: killed mid-hook, or refused before spawn.
-      await expect(pushing).rejects.toThrow(/closing|stopped/)
+      // Cancel wins the race: killed mid-hook, or refused before spawn,
+      // and either way reported as closed, never as git's failure.
+      await expect(pushing).rejects.toThrow('closed')
       expect(controller.signal.aborted).toBe(true)
       const fresh = new NativeGitService(depsFor(direct), { run: gitRunner() })
       await expect(fresh.status()).resolves.toBeDefined()
     } finally {
       rmSync(direct, { recursive: true, force: true })
+    }
+  })
+
+  /** A scratch repository with one commit and the given unstaged file. */
+  function scratchRepository(folder: string, file: string, text: string): void {
+    const environment = fixtures().environment
+    mkdirSync(folder, { recursive: true })
+    execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: folder, env: environment })
+    writeFileSync(path.join(folder, 'base.txt'), 'base\n')
+    execFileSync('git', ['add', 'base.txt'], { cwd: folder, env: environment })
+    execFileSync('git', ['commit', '-q', '-m', 'Base'], { cwd: folder, env: environment })
+    writeFileSync(path.join(folder, file), text)
+  }
+
+  function commitCount(folder: string): number {
+    return Number(
+      execFileSync('git', ['rev-list', '--count', 'HEAD'], {
+        cwd: folder,
+        env: fixtures().environment,
+        encoding: 'utf8',
+      }).trim(),
+    )
+  }
+
+  /** The fixture runner, pausing before the second `status` and recording each git that reached its spawn. */
+  function pausingRunner(): {
+    readonly run: GitProcess
+    readonly spawned: string[]
+    readonly reached: Promise<undefined>
+    readonly release: () => void
+  } {
+    const gate = Promise.withResolvers<undefined>()
+    const atGate = Promise.withResolvers<undefined>()
+    const spawned: string[] = []
+    let statusCalls = 0
+    const run: GitProcess = async (args, options) => {
+      const [subcommand = ''] = args
+      if (subcommand === 'status') {
+        statusCalls += 1
+        if (statusCalls === 1) {
+          atGate.resolve(undefined)
+          await gate.promise
+        }
+      }
+      return await gitRunner()(args, {
+        ...options,
+        beforeRun: () => {
+          options.beforeRun?.()
+          spawned.push(subcommand)
+        },
+      })
+    }
+    return {
+      run,
+      spawned,
+      reached: atGate.promise,
+      release: () => {
+        gate.resolve(undefined)
+      },
+    }
+  }
+
+  it('stops a pending commit when its operation is aborted: nothing is staged or committed', async () => {
+    const base = mkdtempSync(path.join(tmpdir(), 'm123-native-opsignal-'))
+    try {
+      const dir = path.join(base, 'repo')
+      scratchRepository(dir, 'a.txt', 'a\n')
+      const paused = pausingRunner()
+      const operation = new AbortController()
+      const service = new NativeGitService(depsFor(dir), { run: paused.run })
+      const committing = service.commit('Stopped', true, undefined, { signal: operation.signal })
+      await paused.reached
+      operation.abort()
+      paused.release()
+      await expect(committing).rejects.toThrow('closed')
+      expect(paused.spawned).not.toContain('add')
+      expect(paused.spawned).not.toContain('commit')
+      expect(commitCount(dir)).toBe(1)
+    } finally {
+      rmSync(base, { recursive: true, force: true })
+    }
+  })
+
+  it('stops a pending commit when its owner check fails: nothing is staged or committed', async () => {
+    const base = mkdtempSync(path.join(tmpdir(), 'm123-native-opcheck-'))
+    try {
+      const dir = path.join(base, 'repo')
+      scratchRepository(dir, 'a.txt', 'a\n')
+      const paused = pausingRunner()
+      let isMoved = false
+      const service = new NativeGitService(depsFor(dir), { run: paused.run })
+      const committing = service.commit('Moved on', true, undefined, {
+        check: () => {
+          if (isMoved) {
+            throw new NativeGitRefusalError('changed')
+          }
+        },
+      })
+      await paused.reached
+      isMoved = true
+      paused.release()
+      await expect(committing).rejects.toThrow('changed')
+      expect(paused.spawned).not.toContain('add')
+      expect(commitCount(dir)).toBe(1)
+    } finally {
+      rmSync(base, { recursive: true, force: true })
+    }
+  })
+
+  it('stays bound to the root it was made with: a link or a new folder in its place is refused', async () => {
+    const base = mkdtempSync(path.join(tmpdir(), 'm123-native-rebind-'))
+    try {
+      const original = path.join(base, 'repo')
+      const other = path.join(base, 'other')
+      scratchRepository(original, 'inside.txt', 'inside\n')
+      scratchRepository(other, 'outside.txt', 'outside\n')
+      const linked = new NativeGitService(depsFor(original), { run: gitRunner() })
+      await expect(linked.status()).resolves.toBeDefined()
+      // Rename the approved folder and put a link (a junction on Windows) to another repository in its place.
+      renameSync(original, path.join(base, 'repo-moved'))
+      symlinkSync(other, original, 'junction')
+      await expect(linked.commit('Through the link', true)).rejects.toThrow('changed')
+      expect(commitCount(other)).toBe(1)
+      // A replacement folder at the same path is another directory too.
+      removeLink(original)
+      const replaced = new NativeGitService(depsFor(path.join(base, 'repo-moved')), {
+        run: gitRunner(),
+      })
+      await expect(replaced.status()).resolves.toBeDefined()
+      renameSync(path.join(base, 'repo-moved'), path.join(base, 'repo-gone'))
+      scratchRepository(path.join(base, 'repo-moved'), 'impostor.txt', 'impostor\n')
+      await expect(replaced.commit('Into the impostor', true)).rejects.toThrow('changed')
+      expect(commitCount(path.join(base, 'repo-moved'))).toBe(1)
+    } finally {
+      rmSync(base, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses a worktree storage parent that leads outside the data folder', async () => {
+    const data = mkdtempSync(path.join(tmpdir(), 'm123-native-data-link-'))
+    const outside = mkdtempSync(path.join(tmpdir(), 'm123-native-outside-'))
+    try {
+      symlinkSync(outside, path.join(data, 'pr-worktrees'), 'junction')
+      const service = new NativeGitService(depsFor(fixtures().own, { dataFolder: data }), {
+        run: gitRunner(),
+      })
+      const sha = execFileSync('git', ['rev-parse', 'HEAD'], {
+        cwd: fixtures().own,
+        env: fixtures().environment,
+        encoding: 'utf8',
+      }).trim()
+      await expect(service.addWorktree('wt-outside', sha)).rejects.toThrow('changed')
+      expect(existsSync(path.join(outside, 'wt-outside'))).toBe(false)
+    } finally {
+      removeLink(path.join(data, 'pr-worktrees'))
+      rmSync(data, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('runs the git the host resolved, not the one on PATH', async () => {
+    const missing = path.join(tmpdir(), 'm123-no-such-git', 'bin', 'git')
+    // The production runner: no `run` override.
+    const service = new NativeGitService(depsFor(fixtures().own, { gitPath: missing }))
+    await expect(service.status()).rejects.toThrow(/ENOENT|not found/)
+  })
+
+  it('pushes in the user environment the host captured, not the scrubbed process one', async () => {
+    const direct = mkdtempSync(path.join(tmpdir(), 'm123-native-userenv-'))
+    try {
+      const environment = fixtures().environment
+      execFileSync('git', ['clone', '-q', fixtures().parentBare, direct], { env: environment })
+      execFileSync('git', ['checkout', '-q', '-b', 'routed'], { cwd: direct, env: environment })
+      writeFileSync(path.join(direct, 'routed.txt'), 'routed\n')
+      execFileSync('git', ['add', 'routed.txt'], { cwd: direct, env: environment })
+      execFileSync('git', ['commit', '-q', '-m', 'Routed'], { cwd: direct, env: environment })
+      const pushEnvs: NodeJS.ProcessEnv[] = []
+      const readEnvs: NodeJS.ProcessEnv[] = []
+      const recording: GitProcess = (args, options) => {
+        ;(args[0] === 'push' ? pushEnvs : readEnvs).push(options.env)
+        return gitRunner()(args, options)
+      }
+      const captured = { ...process.env, M123_G_USER_ROUTE_TOKEN: 'route' }
+      const service = new NativeGitService(depsFor(direct, { userEnvironment: () => captured }), {
+        run: recording,
+      })
+      const plan = await service.planPush()
+      if (!plan.ok) {
+        throw new Error('the routed branch must plan a first push')
+      }
+      await service.push(plan)
+      expect(pushEnvs).toHaveLength(1)
+      expect(Object.keys(pushEnvs[0] ?? {})).toContain('M123_G_USER_ROUTE_TOKEN')
+      for (const env of readEnvs) {
+        expect(Object.keys(env)).not.toContain('M123_G_USER_ROUTE_TOKEN')
+      }
+    } finally {
+      rmSync(direct, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('the standalone runtime’s captured Git routes', () => {
+  it('keeps the Git routes taken at start for the push, never a model or provider key', () => {
+    const env: NodeJS.ProcessEnv = {
+      PATH: '/usr/bin',
+      GH_TOKEN: 'route-a',
+      GITHUB_TOKEN: 'route-b',
+      META_API_KEY: 'model-key',
+      OPENAI_API_KEY: 'model-key',
+      HF_TOKEN: 'provider-key',
+    }
+    try {
+      keepGitCredentialRoutes(takeCredentials(env))
+      // Taken out of the runtime's own environment at start…
+      expect(sortedEnvNames(Object.keys(env))).toEqual(['PATH'])
+      // …and only the Git routes come back, for the push and the fetch.
+      expect(sortedEnvNames(Object.keys(runtimeGitUserEnvironment(env)))).toEqual(
+        sortedEnvNames(['GH_TOKEN', 'GITHUB_TOKEN', 'PATH']),
+      )
+    } finally {
+      keepGitCredentialRoutes([])
     }
   })
 })
