@@ -26357,6 +26357,8 @@ Status detail retained: planned; starts after M96 merges.
 
 ### M96c — Scheduler and traffic (D75)
 
+**Status 2026-10-09: built.** Scheduler, scheduler-tool, merge-queue, Traffic-view, runner, collision and orchestration lanes integrated with their review repairs and lazy package adapters; complete integration certified on macmini. Not in a release yet.
+
 **M96CINT round 2 integration (2026-10-05).** Finish the existing partial
 integration by merging reviewed C (`52d04b69`) and then O (`19bb0703`) with
 `--no-ff`, preserving every lane's intent. Resolve only integration seams
@@ -29257,6 +29259,8 @@ milestone is planned against it:
 Until then nothing is built for it.
 
 ### M100 — Paired devices as lane pools (D80, planned)
+
+**Status 2026-10-09: built.** Phase 2 accepted, not yet merged.
 
 **Status 2026-10-05: documentation only on `feature/m100-multi-device`.**
 Independent RVM100 review passed with no P1; its one P2 connectivity promise
@@ -33084,6 +33088,8 @@ No dependency, endpoint guard, paid default or budget changes. See
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**Status 2026-10-09: released.** Shipped in 0.17.0 (merged via INT0180).
+
 **FIXM109W integrated review repair (2026-10-07, Mac mini).** Verify every
 P1/P2 in `_ctx/codex/M109-findings.md` against integration `a1d2b73e7`,
 including already repaired U findings and the L certificate observation.
@@ -33639,6 +33645,8 @@ or helper-only-access certification.
 ---
 
 ### M110 — Muse Node: headless worker and orchestrator host (D90)
+
+**Status 2026-10-09: building.** Lanes N, OS1, OS2 and A1 built, in review; hardware qualification open.
 
 **Status 2026-10-05: planned.**
 
@@ -34199,6 +34207,8 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
         live or paid call without CLAUDE.md's count first
 
 ### M111 — Muse Desktop: the host edition's own shell (D91)
+
+**Status 2026-10-09: planned.** Threat model accepted as baseline; build lanes not started.
 
 **Status 2026-10-05: planned.**
 
@@ -37426,6 +37436,8 @@ recovery; interrupted Resume remains the captured control.
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M103 — Makers: boards, firmware and machines (D83)
+
+**Status 2026-10-09: built.** Document-epoch redesign in review.
 
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
