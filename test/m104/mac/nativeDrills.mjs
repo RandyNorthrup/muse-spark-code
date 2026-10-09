@@ -129,6 +129,16 @@ const mutations = [
 const pf5 = process.argv.includes('--pf5')
 const pf5Mutations = [
   [
+    'navigation packaged failure label',
+    'hosts/xcode/Scripts/generate.mjs',
+    "  'openFileFailed',\n",
+    '',
+    'testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures',
+  ],
+  ...mutations.filter(([label]) =>
+    ['four native appearance kinds', 'pending trust metadata'].includes(label),
+  ),
+  [
     'malformed remote panel fault isolation',
     'hosts/xcode/Shared/MhpSession.swift',
     'do { try schema.checkPanel(frame, kind: "error") } catch { return }',
@@ -159,15 +169,15 @@ const pf5Mutations = [
   [
     'navigation launch failure',
     'hosts/xcode/App/PanelModel.swift',
-    'navigationProcesses.removeValue(forKey: id)\n      self.error = UI_TEXT.xcodeEditRefused',
+    'navigationProcesses.removeValue(forKey: id)\n      self.error = UI_TEXT.openFileFailed',
     'navigationProcesses.removeValue(forKey: id)\n      self.error = nil',
     'testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures',
   ],
   [
     'navigation failed launch cleanup',
     'hosts/xcode/App/PanelModel.swift',
-    'navigationProcesses.removeValue(forKey: id)\n      self.error = UI_TEXT.xcodeEditRefused',
-    'self.error = UI_TEXT.xcodeEditRefused',
+    'navigationProcesses.removeValue(forKey: id)\n      self.error = UI_TEXT.openFileFailed',
+    'self.error = UI_TEXT.openFileFailed',
     'testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures',
   ],
   [
@@ -347,11 +357,15 @@ const previous = existsSync(record) ? JSON.parse(readFileSync(record, 'utf8')) :
 const receipt = previous.filter((item) => selected.every(([label]) => label !== item.label))
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex')
 function prepare() {
-  const result = spawnSync(process.execPath, ['hosts/xcode/Scripts/prepare-tests.mjs'], {
-    encoding: 'utf8',
-    env: buildEnvironment(process.env),
-  })
-  assert.equal(result.status, 0, 'NATIVE_FIXTURE_BUILD')
+  const scripts = ['hosts/xcode/Scripts/prepare-tests.mjs']
+  if (pf5) scripts.unshift('hosts/xcode/Scripts/generate.mjs')
+  for (const script of scripts) {
+    const result = spawnSync(process.execPath, [script], {
+      encoding: 'utf8',
+      env: buildEnvironment(process.env),
+    })
+    assert.equal(result.status, 0, 'NATIVE_FIXTURE_BUILD')
+  }
 }
 const drillDirectory = pf5 ? 'temp/m104pf5/drills' : 'temp/m104pf'
 mkdirSync(drillDirectory, { recursive: true })

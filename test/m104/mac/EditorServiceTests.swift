@@ -99,7 +99,46 @@ final class EditorServiceTests: XCTestCase {
       try RuntimeLauncher.navigationFile(localLink, workspace: workspace, line: 1),
       file.resolvingSymlinksInPath())
   }
+  @MainActor func testNativeAppearanceIncludesBothHighContrastKinds() throws {
+    let schema = try MhpSchema()
+    for (dark, contrast, expected) in [
+      (false, false, "light"), (true, false, "dark"),
+      (false, true, "highContrastLight"), (true, true, "highContrastDark"),
+    ] {
+      let kind = PanelModel.themeKind(dark: dark, contrast: contrast)
+      XCTAssertEqual(kind, expected)
+      let session = MhpSession(
+        schema: schema, write: { _ in }, launch: { _ in },
+        failed: {
+          XCTFail("appearance rejected")
+        }, service: { _, _, _, _ in })
+      try session.start(
+        workspace: URL(fileURLWithPath: "/workspace"), locale: "en",
+        theme: ["kind": kind, "tokens": [String: String]()], trusted: false)
+      session.close()
+    }
+  }
+  @MainActor func testTrustCannotDivergeWhileInitializationIsPending() throws {
+    _ = NSApplication.shared
+    let model = PanelModel()
+    let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    let runtime = root.appendingPathComponent("temp/m104x/trust-\(UUID().uuidString).sh")
+    try "#!/bin/sh\nsleep 30\n".write(to: runtime, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: runtime.path)
+    defer {
+      model.stop()
+      try? FileManager.default.removeItem(at: runtime)
+    }
+    model.workspace = root
+    model.runtime = runtime
+    model.start()
+    model.setTrust(true)
+    XCTAssertFalse(model.trusted)
+    XCTAssertEqual(model.error, UI_TEXT.xcodeUnavailable)
+  }
   @MainActor func testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures() throws {
+    XCTAssertFalse(UI_TEXT.openFileFailed.hasPrefix("ENATIVE_TEXT:"))
     let file = URL(fileURLWithPath: #filePath)
     var next: NavigationProcess? = NavigationProcess()
     let first = NavigationProcessReference(next)
@@ -130,13 +169,13 @@ final class EditorServiceTests: XCTestCase {
     second.process?.finish(status: 1)
     drainNavigationCallbacks()
     XCTAssertNil(second.process)
-    XCTAssertEqual(model.error, UI_TEXT.xcodeEditRefused)
+    XCTAssertEqual(model.error, UI_TEXT.openFileFailed)
     model.error = nil
     next = NavigationProcess()
     next?.refusesLaunch = true
     let failed = NavigationProcessReference(next)
     model.openInXcode(file, line: 1)
-    XCTAssertEqual(model.error, UI_TEXT.xcodeEditRefused)
+    XCTAssertEqual(model.error, UI_TEXT.openFileFailed)
     XCTAssertNil(failed.process, "launch failures must release their Process")
   }
   @MainActor func testStopTerminatesAndTracksNavigationWithoutStaleFailures() throws {

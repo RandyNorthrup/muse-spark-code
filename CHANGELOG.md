@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Xcode file-open failures use the existing translated file-open message.
+
+- Xcode's appearance and pending-trust regressions now run in the console-free
+  native core scheme, with both controls verified without starting the app or
+  UI test runner. Installed theme/trust interaction remains unqualified.
+
 - Xcode drops malformed remote panel errors without cancelling native requests
   on the companion relay. File navigation retains every xed process until it
   exits, reports failed launches/opens, and tracks termination during Stop.

@@ -73,6 +73,7 @@ describe('Xcode host shared boundary', () => {
         expect.objectContaining({
           xcodeOpenPanel: expect.any(String),
           xcodeUnavailable: expect.any(String),
+          openFileFailed: expect.any(String),
         }),
       )
       expect(full).toEqual(expect.objectContaining(subset))

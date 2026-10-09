@@ -46,6 +46,7 @@ const keys = [
   'xcodeEditRefused',
   'xcodeRuntimeNeeded',
   'xcodeOpenFile',
+  'openFileFailed',
   'xcodeWorkspaceRequired',
   'xcodeChooseRuntime',
   'xcodeDenied',

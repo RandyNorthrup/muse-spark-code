@@ -19202,6 +19202,13 @@ provider gaps. No merge, push, real xed/UI automation, privacy prompt, live/paid
 call, signing account or support promotion. Scoped sequential gates replace
 aggregate quality under the brief; commit each completed group with hooks on.
 
+**M104PF5 navigation text checkpoint (before code).** Reuse the already
+translated `openFileFailed` key for thrown xed launches and nonzero exits,
+adding it only to Xcode's generated table subset. Do not tell the user that a
+buffer changed when file opening failed. Core tests check the packaged label
+exists; a table-removal control proves that check, and all ownership/error
+controls are refreshed against the final source bytes.
+
 **M104PF5 metadata checkpoint (before code).** Now that NativeCore compiles
 PanelModel, move the existing appearance and pending-initialization trust
 regressions from the app-hosted unit target into the console-free core target.

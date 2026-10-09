@@ -114,7 +114,7 @@ admitted. Native focus state requires the bound window to be key while the app
 is active. File navigation passes a canonical regular workspace file to xed;
 directories, nonlocal/credential-bearing URLs, escapes and invalid lines refuse.
 Every xed process stays owned until termination; a launch error or nonzero exit
-shows the existing localized failure. Stop terminates pending navigation and
+shows the translated file-open failure. Stop terminates pending navigation and
 keeps tracking it until the process is reaped; retired callbacks cannot report
 into a replacement session. Malformed remote panel errors on unbound stdio
 channels are dropped without cancelling unrelated native requests.
@@ -151,14 +151,14 @@ For a console-free core regression run (no app/UI automation or privacy prompt):
 ```sh
 node hosts/xcode/Scripts/generate.mjs
 node hosts/xcode/Scripts/prepare-tests.mjs
-xcodebuild -project hosts/xcode/MuseSpark.xcodeproj -scheme NativeCore -configuration Debug -derivedDataPath temp/m104pf4/DerivedData -destination 'platform=macOS,arch=x86_64' test CODE_SIGN_IDENTITY=-
-node test/m104/mac/nativeDrills.mjs --core
+xcodebuild -project hosts/xcode/MuseSpark.xcodeproj -scheme NativeCore -configuration Debug -derivedDataPath temp/m104pf5/DerivedData -destination 'platform=macOS' test CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=NO
+node test/m104/mac/nativeDrills.mjs --pf5
 ```
 
 Compile the app, extension and their test bundles without running UI tests:
 
 ```sh
-xcodebuild -project hosts/xcode/MuseSpark.xcodeproj -scheme MuseSpark -configuration Debug -derivedDataPath temp/m104pf4/DerivedData -destination 'platform=macOS,arch=x86_64' build-for-testing CODE_SIGNING_ALLOWED=NO
+xcodebuild -project hosts/xcode/MuseSpark.xcodeproj -scheme MuseSpark -configuration Debug -derivedDataPath temp/m104pf5/DerivedData -destination 'platform=macOS' build-for-testing CODE_SIGNING_ALLOWED=NO
 ```
 
 The drill runs the complete core scheme after each deliberate mutation and

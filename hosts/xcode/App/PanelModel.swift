@@ -309,14 +309,14 @@ final class PanelModel: ObservableObject {
         }
         process.terminationHandler = nil
         if self.invocation == generation, process.terminationStatus != 0 {
-          self.error = UI_TEXT.xcodeEditRefused
+          self.error = UI_TEXT.openFileFailed
         }
       }
     }
     do { try process.run() } catch {
       process.terminationHandler = nil
       navigationProcesses.removeValue(forKey: id)
-      self.error = UI_TEXT.xcodeEditRefused
+      self.error = UI_TEXT.openFileFailed
     }
   }
 }

@@ -260,7 +260,7 @@
       "id": "F1",
       "name": "streaming-chat",
       "sharedOwner": "A",
-      "nativeComponentEvidence": "Native bootstrap and authenticated fake browser container only; MHP 1.3 exact snapshot and legacy refusal",
+      "nativeComponentEvidence": "Native bootstrap and authenticated fake browser container only; MHP 1.3 exact snapshot and legacy refusal; PF5 malformed remote panel errors preserve held native input and other channels",
       "requiredCapabilities": [],
       "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
@@ -269,7 +269,7 @@
       "id": "F2",
       "name": "tool-rows-and-output",
       "sharedOwner": "A",
-      "nativeComponentEvidence": null,
+      "nativeComponentEvidence": "PF5 regular-workspace navigation retains every xed Process, reports open failures and tracks Stop/reaping; fake launcher only",
       "requiredCapabilities": ["documents", "editor"],
       "remainingNative": "Document reads and native editor navigation",
       "installedReceipt": "missing"
@@ -296,7 +296,7 @@
       "id": "F5",
       "name": "permission-modes",
       "sharedOwner": "A",
-      "nativeComponentEvidence": null,
+      "nativeComponentEvidence": "PF5 pending-initialization trust guard runs in the console-free core target",
       "requiredCapabilities": ["workspace"],
       "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
@@ -359,7 +359,7 @@
       "id": "F12",
       "name": "history",
       "sharedOwner": "A",
-      "nativeComponentEvidence": "Generation rebinding infrastructure only; MHP 1.3 exact snapshot and legacy refusal",
+      "nativeComponentEvidence": "Generation rebinding infrastructure only; MHP 1.3 exact snapshot and legacy refusal; PF5 channel faults preserve unrelated native correlation and lifecycle",
       "requiredCapabilities": ["storage"],
       "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
@@ -368,7 +368,7 @@
       "id": "F13",
       "name": "fork-and-side-chat",
       "sharedOwner": "A",
-      "nativeComponentEvidence": "Fresh same-origin launch infrastructure only; MHP 1.3 exact snapshot and legacy refusal",
+      "nativeComponentEvidence": "Fresh same-origin launch infrastructure only; MHP 1.3 exact snapshot and legacy refusal; PF5 channel faults and retired navigation callbacks cannot tear down/answer a replacement owner",
       "requiredCapabilities": [],
       "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
@@ -386,7 +386,7 @@
       "id": "F15",
       "name": "mentions-and-selection",
       "sharedOwner": "B",
-      "nativeComponentEvidence": "Existing XcodeKit selection and UTF-16/stale edit guards",
+      "nativeComponentEvidence": "Existing XcodeKit selection and UTF-16/stale edit guards; PF5 canonical regular-file navigation and retained process ownership; no physical XcodeKit document binding",
       "requiredCapabilities": ["workspace", "editor"],
       "remainingNative": "Shared mentions, native current URI and snapshot handoff",
       "installedReceipt": "missing"
@@ -602,7 +602,7 @@
       "id": "F39",
       "name": "paid-use-consent",
       "sharedOwner": "B",
-      "nativeComponentEvidence": "Native opaque priced Deny and cancelled sheet tests",
+      "nativeComponentEvidence": "Native opaque priced Deny and cancelled sheet tests; PF5 held native input survives malformed remote channel faults; no actual paid/dialog receipt",
       "requiredCapabilities": ["ui"],
       "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
@@ -629,7 +629,7 @@
       "id": "F42",
       "name": "tab-completions",
       "sharedOwner": "B",
-      "nativeComponentEvidence": null,
+      "nativeComponentEvidence": "PF5 retained navigation processes, failed-open reporting and Stop/reaping via fake launcher",
       "requiredCapabilities": ["tab", "editor"],
       "remainingNative": "Command-only snapshot Tab integration, once-only priced consent and cross-editor daily ledger",
       "installedReceipt": "missing"
@@ -638,7 +638,7 @@
       "id": "F43",
       "name": "settings",
       "sharedOwner": "A",
-      "nativeComponentEvidence": "Default-off native trust metadata and transition tests",
+      "nativeComponentEvidence": "Default-off native trust metadata and transition tests; PF5 core trust consistency; native settings authority contract remains pending",
       "requiredCapabilities": ["settings", "ui"],
       "remainingNative": "Runtime-owned ui/showSetting route contract; full settings/UI group qualification and installed scenario",
       "installedReceipt": "missing"
@@ -665,7 +665,7 @@
       "id": "F46",
       "name": "display-languages",
       "sharedOwner": "C",
-      "nativeComponentEvidence": "Native locale and all four appearance kinds; English plus 14 translated resources",
+      "nativeComponentEvidence": "Native locale and all four appearance kinds; English plus 14 translated resources; PF5 four theme kinds and translated navigation failure in console-free core; no rendering/accessibility receipt",
       "requiredCapabilities": ["lifecycle"],
       "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
@@ -674,7 +674,7 @@
       "id": "F47",
       "name": "accessibility",
       "sharedOwner": "C",
-      "nativeComponentEvidence": "App-hosted controls; full accessibility qualification missing",
+      "nativeComponentEvidence": "App-hosted controls; full accessibility qualification missing; PF5 per-channel fault isolation and generation-fenced navigation Stop/reaping",
       "requiredCapabilities": [],
       "remainingNative": "Keyboard/focus/screen-reader and four-theme native receipts",
       "installedReceipt": "missing"
@@ -683,7 +683,7 @@
       "id": "F48",
       "name": "logs-and-diagnostics",
       "sharedOwner": "C",
-      "nativeComponentEvidence": "Process-group Stop, descriptor/environment and EOF cleanup tests",
+      "nativeComponentEvidence": "Process-group Stop, descriptor/environment and EOF cleanup tests; PF5 unbound remote faults preserve relay; navigation launch/exit failures are explicit",
       "requiredCapabilities": ["ui", "window"],
       "remainingNative": "Assembled adopted A/B/C native binding and installed Xcode/backend/provider scenario",
       "installedReceipt": "missing"
@@ -818,5 +818,12 @@
     "laneA": "fa60c3763",
     "merge": "0b643f521",
     "includes": ["737196296", "739cf1771"]
+  },
+  "continuation": {
+    "date": "2026-10-08",
+    "base": "64f3f527c",
+    "repairCheckpoint": "e0453bbb082c14a0f5bd2fb8afaccd576893b085",
+    "certification": "docs/certification/m104-pf5.md",
+    "scope": "Console-free component/artifact evidence only; zero installed row promotions; original source/checkpoint fields remain historical."
   }
 }
