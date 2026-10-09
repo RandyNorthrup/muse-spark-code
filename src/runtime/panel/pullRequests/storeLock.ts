@@ -15,13 +15,27 @@
 //   it has itself watched, unchanged, for that holder's lease (never more
 //   than the longest lease it honors), so it never acts before the
 //   holder's own lease has ended.
+// - Watching outlives one attempt: what this process has seen of each lock
+//   (the instance's identity and note id, and when it was first seen) is
+//   kept in one watch book per process, so attempts shorter than the lease
+//   (each gives up loudly after its timeout) still add up to it. A changed
+//   instance starts its watch again.
 // - Expired early: the owner is provably gone (on this host: no process
-//   has its id, or the one that has it started at another time); or the
-//   note is missing or torn (a crash between create and write) and the
-//   waiter has watched the instance for a short bound.
+//   has its id, or the one that has it was born at another time or in
+//   another boot; processOwner.ts), asked once per attempt; or the note is
+//   missing or torn (a crash between create and write) and the waiter has
+//   watched the instance for a short bound.
+//
+// Self-contained on purpose: the file port, the clocks, the owner probe
+// and the watch book all come in through `StoreLockEnv`, so the protocol
+// can be lifted out whole for other stores.
+// - Instance: a lock instance is its native file id, its birth time and its
+//   note's random id together. Linux reuses a freed inode number at once,
+//   so a fresh lock can carry the stale one's file id; the note id (and
+//   birth time) tell them apart.
 // - Takeover and release move the exact instance aside with one atomic
-//   rename, then compare the moved file's native identity with the one
-//   judged expired (or owned). A newer lock moved by mistake is linked
+//   rename, then compare the moved file's instance with the one judged
+//   expired (or owned). A newer lock moved by mistake is linked
 //   back where its owner looks, only while that name is free; a new lock is
 //   only ever made by the exclusive create. So no waiter ever deletes
 //   another window's fresh lock.
@@ -60,7 +74,24 @@ export interface StoreLockEnv {
   /** How long an instance without a readable note is watched before it is a crash's. */
   readonly unreadableMs: number
   readonly timeoutMs: number
+  /**
+   * What this process has watched of each lock, by its path, on `monotonic`'s
+   * clock. Every acquisition in one process shares the default book; one
+   * with its own clock passes its own.
+   */
+  readonly watches?: LockWatches
 }
+
+/** One lock instance a process watches: since when, on its monotonic clock. */
+export interface LockWatch {
+  readonly instance: LockInstance
+  readonly since: number
+}
+
+/** A process's watch book: lock path → the instance it is watching. */
+export type LockWatches = Map<string, LockWatch>
+
+const PROCESS_WATCHES: LockWatches = new Map()
 
 /** The lock, held: this exact file instance, with this note. */
 export interface StoreLease {
@@ -78,22 +109,33 @@ export class StoreBusyError extends Error {
   }
 }
 
-type Observation =
-  | { readonly kind: 'gone' }
-  | { readonly kind: 'changing' }
-  | {
-      readonly kind: 'seen'
-      readonly identity: FileIdentity
-      readonly note: LockNote | undefined
-    }
-
-/** One instance this waiter watches: since when, on its monotonic clock. */
-interface Watch {
+/**
+ * One lock instance: its native file id, its birth time and its note's
+ * random id. The file id alone is not enough: Linux hands a freed inode
+ * number to the next file at once, so a fresh lock can carry the id of the
+ * stale one it replaced.
+ */
+export interface LockInstance {
   readonly identity: FileIdentity
+  readonly bornNs: bigint
   readonly noteId: string | undefined
-  readonly since: number
-  readonly isOwnerGone: boolean
 }
+
+function isSameInstance(left: LockInstance, right: LockInstance): boolean {
+  return (
+    sameFile(left.identity, right.identity) &&
+    left.bornNs === right.bornNs &&
+    left.noteId === right.noteId
+  )
+}
+
+interface Seen {
+  readonly kind: 'seen'
+  readonly instance: LockInstance
+  readonly note: LockNote | undefined
+}
+
+type Observation = Seen | { readonly kind: 'gone' } | { readonly kind: 'changing' }
 
 function parseNote(bytes: Buffer): LockNote | undefined {
   try {
@@ -115,8 +157,13 @@ async function observe(fs: RecordStoreFs, lockPath: string): Promise<Observation
       before.mtimeNs === after.mtimeNs &&
       before.size === after.size &&
       after.isFile()
+    const note = parseNote(bytes)
     return isSteady
-      ? { kind: 'seen', identity: identityOf(after), note: parseNote(bytes) }
+      ? {
+          kind: 'seen',
+          instance: { identity: identityOf(after), bornNs: after.birthtimeNs, noteId: note?.id },
+          note,
+        }
       : { kind: 'changing' }
   } catch (error: unknown) {
     if (errorCode(error) === 'ENOENT') {
@@ -128,8 +175,9 @@ async function observe(fs: RecordStoreFs, lockPath: string): Promise<Observation
 
 /** Whether the watched instance may be taken over now. */
 function isExpired(
-  watch: Watch,
+  watch: LockWatch,
   note: LockNote | undefined,
+  isOwnerGone: boolean,
   env: Pick<StoreLockEnv, 'monotonic' | 'honoredLeaseMs' | 'unreadableMs'>,
 ): boolean {
   const watchedFor = env.monotonic() - watch.since
@@ -137,19 +185,41 @@ function isExpired(
   // something no version reads. Live writers finish in microseconds.
   return note === undefined
     ? watchedFor >= env.unreadableMs
-    : watch.isOwnerGone || watchedFor >= Math.min(note.leaseMs, env.honoredLeaseMs)
+    : isOwnerGone || watchedFor >= Math.min(note.leaseMs, env.honoredLeaseMs)
+}
+
+/** The watch for the instance seen: kept from earlier attempts while it is the same one. */
+function watchOf(watches: LockWatches, lockPath: string, seen: Seen, now: number): LockWatch {
+  const kept = watches.get(lockPath)
+  if (kept !== undefined && isSameInstance(kept.instance, seen.instance)) {
+    return kept
+  }
+  const watch: LockWatch = { instance: seen.instance, since: now }
+  watches.set(lockPath, watch)
+  return watch
+}
+
+/** The instance now at `file` (moved aside): undefined when it cannot be read whole. */
+async function instanceAt(fs: RecordStoreFs, file: string): Promise<LockInstance | undefined> {
+  try {
+    const stats = await fs.lstat(file)
+    const note = parseNote(await fs.readFile(file))
+    return { identity: identityOf(stats), bornNs: stats.birthtimeNs, noteId: note?.id }
+  } catch {
+    return undefined
+  }
 }
 
 /**
- * Moves the instance `identity` out of the lock's name with one atomic
- * rename. True when that very instance left the name (or the name was
- * already free); a newer instance moved by mistake goes back, only while
- * the name is free, and the answer is false.
+ * Moves `instance` out of the lock's name with one atomic rename. True
+ * when that very instance left the name (or the name was already free); a
+ * newer instance moved by mistake goes back, only while the name is free,
+ * and the answer is false.
  */
 async function hasRetiredInstance(
   fs: RecordStoreFs,
   lockPath: string,
-  identity: FileIdentity,
+  instance: LockInstance,
 ): Promise<boolean> {
   const aside = `${lockPath}.${randomUUID()}${RETIRED_LOCK_SUFFIX}`
   try {
@@ -163,13 +233,8 @@ async function hasRetiredInstance(
     }
     throw error
   }
-  let moved: FileIdentity | undefined
-  try {
-    moved = identityOf(await fs.lstat(aside))
-  } catch {
-    moved = undefined
-  }
-  const isThatInstance = moved !== undefined && sameFile(moved, identity)
+  const moved = await instanceAt(fs, aside)
+  const isThatInstance = moved !== undefined && isSameInstance(moved, instance)
   if (moved !== undefined && !isThatInstance) {
     try {
       // The same inode back under the name: its owner's identity check
@@ -191,8 +256,7 @@ async function hasRetiredInstance(
 function lease(
   env: StoreLockEnv,
   lockPath: string,
-  identity: FileIdentity,
-  note: LockNote,
+  instance: LockInstance,
   heldSince: number,
 ): StoreLease {
   let isReleased = false
@@ -202,7 +266,7 @@ function lease(
         return false
       }
       const seen = await observe(env.fs, lockPath)
-      return seen.kind === 'seen' && sameFile(seen.identity, identity) && seen.note?.id === note.id
+      return seen.kind === 'seen' && isSameInstance(seen.instance, instance)
     },
     release: async () => {
       if (isReleased) {
@@ -211,8 +275,8 @@ function lease(
       try {
         const seen = await observe(env.fs, lockPath)
         isReleased = true
-        if (seen.kind === 'seen' && sameFile(seen.identity, identity)) {
-          await hasRetiredInstance(env.fs, lockPath, identity)
+        if (seen.kind === 'seen' && isSameInstance(seen.instance, instance)) {
+          await hasRetiredInstance(env.fs, lockPath, instance)
         }
       } catch {
         // Unreleased, it expires with its lease; nothing else depends on it.
@@ -229,7 +293,10 @@ function lease(
  */
 export async function acquireStoreLock(lockPath: string, env: StoreLockEnv): Promise<StoreLease> {
   const deadline = env.monotonic() + env.timeoutMs
-  let watch: Watch | undefined
+  const watches = env.watches ?? PROCESS_WATCHES
+  // Whether the owner is gone is asked once per instance per attempt: a
+  // kept watch may outlive the owner it was first judged by.
+  let judged: { readonly watch: LockWatch; readonly isOwnerGone: boolean } | undefined
   for (;;) {
     // Before the create: the holder's lease never outlasts what a waiter,
     // who can only see the file after it exists, waits out.
@@ -251,29 +318,27 @@ export async function acquireStoreLock(lockPath: string, env: StoreLockEnv): Pro
     }
     const seen = await observe(env.fs, lockPath)
     if (isCreated && seen.kind === 'seen' && seen.note?.id === note.id) {
-      return lease(env, lockPath, seen.identity, note, heldSince)
+      watches.delete(lockPath)
+      return lease(env, lockPath, seen.instance, heldSince)
     }
     if (seen.kind === 'gone') {
+      watches.delete(lockPath)
       continue
     }
     if (!isCreated && seen.kind === 'seen') {
-      if (
-        watch === undefined ||
-        !sameFile(watch.identity, seen.identity) ||
-        watch.noteId !== seen.note?.id
-      ) {
-        watch = {
-          identity: seen.identity,
-          noteId: seen.note?.id,
-          since: env.monotonic(),
+      const watch = watchOf(watches, lockPath, seen, env.monotonic())
+      if (judged?.watch !== watch) {
+        judged = {
+          watch,
           isOwnerGone: seen.note !== undefined && (await env.isOwnerGone(seen.note.owner)),
         }
       }
       if (
-        isExpired(watch, seen.note, env) &&
-        (await hasRetiredInstance(env.fs, lockPath, seen.identity))
+        isExpired(watch, seen.note, judged.isOwnerGone, env) &&
+        (await hasRetiredInstance(env.fs, lockPath, seen.instance))
       ) {
-        watch = undefined
+        watches.delete(lockPath)
+        judged = undefined
         continue
       }
     }

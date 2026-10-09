@@ -76,9 +76,10 @@ const worktreeRecordSchema = z.object({
    */
   checkoutId: z.optional(z.string()),
   /**
-   * The finished worktree folder's native identity (`dev:ino`, links
+   * The finished worktree folder's identity (`dev:ino:birth`, links
    * resolved), sampled when the checkout completed: trust binds to that
-   * very folder, never to one made again at the same path.
+   * very folder, never to one made again at the same path (the birth time
+   * tells it apart where an inode number is reused).
    */
   folderIdentity: z.optional(z.string()),
   /** Who runs a pending checkout: a process that is gone leaves it to be taken over. */

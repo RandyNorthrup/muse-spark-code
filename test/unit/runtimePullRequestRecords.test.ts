@@ -33,6 +33,8 @@ import {
   currentProcessOwner,
   isProcessOwnerGone,
   processStartTime,
+  systemBootId,
+  type ProcessOwner,
 } from '../../src/runtime/panel/pullRequests/processOwner'
 import {
   acquireStoreLock,
@@ -138,6 +140,54 @@ function pausingFs(base: RecordStoreFs = nodeRecordStoreFs) {
   return { fs, pauseAt }
 }
 
+/** The file operations, with every lock instance reporting one inode number. */
+function reusingInodes(base: RecordStoreFs): RecordStoreFs {
+  return {
+    ...base,
+    lstat: async (file) => {
+      const stats = await base.lstat(file)
+      if (path.basename(file).startsWith('lock')) {
+        stats.ino = 1n
+      }
+      return stats
+    },
+  }
+}
+
+/**
+ * The file operations, holding the window's first generation publish
+ * (after its last lease check) until another window has published that
+ * same generation, or 2 s have passed: a takeover mid-write, every time.
+ */
+function holdingFirstPublish(base: RecordStoreFs, onHeld: () => void): RecordStoreFs {
+  let isArmed = true
+  return {
+    ...base,
+    link: async (existing, target) => {
+      if (isArmed && /\d+\.json$/u.test(target)) {
+        isArmed = false
+        onHeld()
+        const until = performance.now() + 2000
+        while (!existsSync(target) && performance.now() < until) {
+          await delay(5)
+        }
+      }
+      await base.link(existing, target)
+    },
+  }
+}
+
+/** Something to resolve from outside: a window reaching the point a test waits for. */
+function deferred(): { readonly promise: Promise<undefined>; readonly resolve: () => void } {
+  const { promise, resolve } = Promise.withResolvers<undefined>()
+  return {
+    promise,
+    resolve: () => {
+      resolve(undefined)
+    },
+  }
+}
+
 /** One turn of the event loop: other windows' steps run in it. */
 async function nextTurn(): Promise<void> {
   await new Promise((resolve) => {
@@ -235,11 +285,11 @@ async function lockEnv(overrides: Partial<StoreLockEnv> = {}): Promise<StoreLock
  * holder's monotonic clock), so a reader of either version reads the same
  * live or expired lock.
  */
-function lockNote(owner: { host: string; pid: number; processStart: number }, leaseMs: number) {
+function lockNote(owner: ProcessOwner, leaseMs: number, id = 'someone-else') {
   const now = Date.now()
   return JSON.stringify({
     owner,
-    id: 'someone-else',
+    id,
     acquiredAt: now,
     leaseMs,
     leaseUntil: now + leaseMs,
@@ -301,12 +351,37 @@ async function within<T>(work: Promise<T>, ms: number): Promise<T | Error | 'hun
 }
 
 describe('process owners (M123 lane P)', () => {
-  it('reads this process’s start time from the system', async () => {
+  it('reads this process’s birth from the system', async () => {
     const started = await processStartTime(process.pid)
     expect(started).toBeDefined()
-    expect(Math.abs((started ?? 0) - (Date.now() - process.uptime() * 1000))).toBeLessThan(2000)
+    const self = await currentProcessOwner()
+    expect(self.processStart).toBe(started)
     expect(await processStartTime(await exitedProcessId())).toBeUndefined()
   })
+
+  it.skipIf(process.platform === 'linux')(
+    'reads a Windows or macOS birth as the epoch time it was recorded at',
+    async () => {
+      const started = await processStartTime(process.pid)
+      expect(Math.abs((started ?? 0) - (Date.now() - process.uptime() * 1000))).toBeLessThan(2000)
+      const self = await currentProcessOwner()
+      expect(self.bootId).toBeUndefined()
+    },
+  )
+
+  it.runIf(process.platform === 'linux')(
+    'reads a Linux birth as kernel ticks in this boot, never the wall clock',
+    async () => {
+      // RVM123P5 finding 3, natively: ticks since boot and the boot id.
+      const bootId = await systemBootId()
+      expect(bootId).toMatch(/^[\da-f-]{36}$/u)
+      const self = await currentProcessOwner()
+      expect(self.bootId).toBe(bootId)
+      expect(self.processStart).toBe(await processStartTime(process.pid))
+      // Ticks since boot: far below any epoch time.
+      expect(self.processStart).toBeLessThan(Date.now() / 1000)
+    },
+  )
 
   it('names a gone owner only when it is provably gone', async () => {
     const self = await currentProcessOwner()
@@ -324,7 +399,7 @@ describe('process owners (M123 lane P)', () => {
     try {
       const started = await processStartTime(live.pid)
       expect(started).toBeDefined()
-      const owner = { host: self.host, pid: live.pid, processStart: started ?? 0 }
+      const owner = { ...self, pid: live.pid, processStart: started ?? 0 }
       expect(await isProcessOwnerGone(owner)).toBe(false)
       // RVM123P4 finding 4: the id now names a process that started at
       // another time, so the recorded owner is gone, whoever's id it is.
@@ -364,7 +439,8 @@ describe('worktree records lock (M123 lane P)', () => {
     const live = liveProcess()
     try {
       const self = await currentProcessOwner()
-      const reused = { host: self.host, pid: live.pid, processStart: Date.now() - 60_000 }
+      // Born at another time than the id's live process, in this boot.
+      const reused = { ...self, pid: live.pid, processStart: 1 }
       await writeFile(lockPath, lockNote(reused, 60_000))
       const lease = await acquireStoreLock(lockPath, await lockEnv({ timeoutMs: 3000 }))
       expect(await lease.isHeld()).toBe(true)
@@ -372,6 +448,61 @@ describe('worktree records lock (M123 lane P)', () => {
     } finally {
       await live.stop()
     }
+  })
+
+  it('waits out a live-looking owner’s lease across attempts shorter than it', async () => {
+    // RVM123P5 finding 1: each attempt gives up after its 10 s timeout; the
+    // instance watched in earlier attempts keeps its first-seen time, so the
+    // 30 s lease is waited out and the lock taken over.
+    const { lockPath } = await lockFolder()
+    await writeFile(lockPath, lockNote(await currentProcessOwner(), 30_000))
+    let elapsed = 0
+    const env = await lockEnv({
+      monotonic: () => elapsed,
+      sleep: async () => {
+        elapsed += 1000
+        await nextTurn()
+      },
+      timeoutMs: 10_000,
+      watches: new Map(),
+    })
+    const outcomes: string[] = []
+    for (let attempt = 1; attempt <= 5 && !outcomes.includes('acquired'); attempt += 1) {
+      try {
+        const lease = await acquireStoreLock(lockPath, env)
+        outcomes.push('acquired')
+        await lease.release()
+      } catch (error: unknown) {
+        outcomes.push(error instanceof StoreBusyError ? 'busy' : String(error))
+      }
+    }
+    // Two 10 s attempts give up; the third reaches 30 s watched and takes over.
+    expect(outcomes).toEqual(['busy', 'busy', 'acquired'])
+    expect(elapsed).toBeGreaterThanOrEqual(30_000)
+  })
+
+  it('starts the watch again when the instance changes between attempts', async () => {
+    const { lockPath } = await lockFolder()
+    await writeFile(lockPath, lockNote(await currentProcessOwner(), 30_000))
+    let elapsed = 0
+    const env = await lockEnv({
+      monotonic: () => elapsed,
+      sleep: async () => {
+        elapsed += 1000
+        await nextTurn()
+      },
+      timeoutMs: 20_000,
+      watches: new Map(),
+    })
+    await expect(acquireStoreLock(lockPath, env)).rejects.toBeInstanceOf(StoreBusyError)
+    // Another holder now: 20 s already watched of the old one count for nothing.
+    await rm(lockPath, { force: true })
+    await writeFile(lockPath, lockNote(await currentProcessOwner(), 30_000, 'another-holder'))
+    const started = elapsed
+    await expect(acquireStoreLock(lockPath, env)).rejects.toBeInstanceOf(StoreBusyError)
+    const lease = await acquireStoreLock(lockPath, env)
+    expect(elapsed - started).toBeGreaterThanOrEqual(30_000)
+    await lease.release()
   })
 
   it('waits for a live owner until its lease ends, and no longer', async () => {
@@ -488,6 +619,41 @@ describe('worktree records lock (M123 lane P)', () => {
     // No instance was left aside.
     const left = await readdir(path.dirname(lockPath))
     expect(left).toEqual([])
+  })
+
+  it('tells a fresh lock from the stale one it replaced when the inode number is reused', async () => {
+    // Found natively on Linux (FIXM123P6): ext4 gave A's fresh lock the
+    // stale lock's freed inode number, so B's move-aside check matched A's
+    // live lock by file id alone and deleted it. This port reports one
+    // inode number for every lock instance, as such reuse looks.
+    const { lockPath } = await lockFolder()
+    await writeFile(lockPath, lockNote(await currentProcessOwner(), 0))
+    const windowB = pausingFs(reusingInodes(nodeRecordStoreFs))
+    const beforeMove = windowB.pauseAt('rename', ([from]) => from === lockPath)
+    let isBHolding = false
+    const bEnv = await lockEnv({ fs: windowB.fs, watches: new Map() })
+    const bAcquire = (async () => {
+      const lease = await acquireStoreLock(lockPath, bEnv)
+      isBHolding = true
+      return lease
+    })()
+    await beforeMove.reached
+    const a = await acquireStoreLock(
+      lockPath,
+      await lockEnv({
+        fs: reusingInodes(nodeRecordStoreFs),
+        honoredLeaseMs: 0,
+        watches: new Map(),
+      }),
+    )
+    beforeMove.resume()
+    await delay(150)
+    expect(await a.isHeld()).toBe(true)
+    expect(isBHolding).toBe(false)
+    await a.release()
+    const b = await bAcquire
+    expect(await b.isHeld()).toBe(true)
+    await b.release()
   })
 
   it('releases only its own instance, never a lock taken over from it', async () => {
@@ -722,14 +888,22 @@ describe('worktree records generations (M123 lane P)', () => {
     // Every window polls every turn (no timer gaps leave the lock idle);
     // the third waits out others' leases for only a few milliseconds and
     // arrives staggered, so its takeovers land inside their writes: after
-    // their last lease check, before they publish.
+    // their last lease check, before they publish. However fast or loaded
+    // the machine, one takeover mid-write is certain: the first window
+    // holds its first publish until the third has taken the lock over and
+    // published that very generation (at most 2 s), so the fence must
+    // refuse it.
+    const firstHeld = deferred()
     const windows = [
       { seed: 11, honoredLeaseMs: 30_000 },
       { seed: 23, honoredLeaseMs: 30_000 },
       { seed: 37, honoredLeaseMs: 10 },
-    ].map(({ seed, honoredLeaseMs }) =>
+    ].map(({ seed, honoredLeaseMs }, index) =>
       createFileWorktreeRecordStore(dataFolder, process.platform, log, {
-        fs: jitteringFs(seed, 4, seen, 40),
+        fs:
+          index === 0
+            ? holdingFirstPublish(jitteringFs(seed, 4, seen, 40), firstHeld.resolve)
+            : jitteringFs(seed, 4, seen, 40),
         honoredLeaseMs,
         sleep: () => nextTurn(),
         timeoutMs: 4000,
@@ -741,6 +915,7 @@ describe('worktree records generations (M123 lane P)', () => {
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(async (number) => {
           const folder = path.join(heldRoot, `${String(index)}-${String(number)}`)
           if (index === EAGER) {
+            await firstHeld.promise
             await delay(number * 6)
           }
           try {
