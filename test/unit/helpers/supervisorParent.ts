@@ -15,7 +15,7 @@ const child = spawn(process.execPath, ['-e', 'process.on("SIGTERM",()=>{});setIn
 child.unref();
 require('node:fs').writeFileSync(process.argv[1],JSON.stringify({root:process.pid,detached:child.pid}));
 process.on('SIGTERM',()=>{});
-for (;;) {}
+setInterval(()=>{},1000);
 `
 const stdout = new PassThrough()
 stdout.resume()

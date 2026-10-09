@@ -96,6 +96,9 @@ func isUserPrivateGroup(_ gid: gid_t) -> Bool {
         guard String(cString: member) == name else { return false }
         members = members.advanced(by: 1)
     }
+    // No other account holds G as its primary gid. getgrouplist proves
+    // nothing here: it reports supplementary membership, and a primary
+    // member need not appear in gr_mem at all.
     setpwent()
     defer { endpwent() }
     var foundUser = false
@@ -111,14 +114,6 @@ func isUserPrivateGroup(_ gid: gid_t) -> Bool {
             continue
         }
         guard primary != gid else { return false }
-        var count: Int32 = 0
-        _ = getgrouplist(candidate, Int32(bitPattern: primary), nil, &count)
-        guard count > 0 else { return false }
-        var groups = [Int32](repeating: 0, count: Int(count))
-        guard getgrouplist(candidate, Int32(bitPattern: primary), &groups, &count) >= 0,
-              count > 0, count <= groups.count else { return false }
-        let known = groups.prefix(Int(count))
-        guard known.contains(Int32(bitPattern: primary)), !known.contains(Int32(bitPattern: gid)) else { return false }
     }
 }
 

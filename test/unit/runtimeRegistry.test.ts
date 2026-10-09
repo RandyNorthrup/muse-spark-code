@@ -279,6 +279,32 @@ describe('M104L private registry authority', () => {
   )
 
   it.runIf(process.platform === 'darwin')(
+    'keeps the failed ACL read as the cause of a refused record',
+    async () => {
+      const directory = path.join(folder, 'ls-cause')
+      await mkdir(directory, { mode: 0o700 })
+      const record = path.join(directory, 'owner.json')
+      await writePrivateRecord(record, '{}')
+      const failure = new Error('fixture ls withheld')
+      const probing = vi.spyOn(processTree, 'runProgram').mockImplementation((file) => {
+        if (file === '/bin/ls') return Promise.reject(failure)
+        throw new Error('unexpected native probe')
+      })
+      try {
+        await openPrivateRecord(record)
+        throw new Error('record falsely admitted')
+      } catch (error: unknown) {
+        if (!(error instanceof Error)) throw error
+        if (error.message === 'record falsely admitted') throw error
+        expect(error.message).toBe('ELSP_PRIVATE')
+        expect(error.cause).toBe(failure)
+      } finally {
+        probing.mockRestore()
+      }
+    },
+  )
+
+  it.runIf(process.platform === 'darwin')(
     'refuses a macOS extended ACL on the held directory fd',
     async () => {
       const directory = path.join(folder, 'acl')

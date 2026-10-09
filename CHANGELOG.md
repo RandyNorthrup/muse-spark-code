@@ -39,12 +39,17 @@ happened, not what was planned; superseded entries are kept.
 
 - Trusted POSIX runtime paths accept group-writable ancestors only when system
   lookups prove the group is the user's private primary group. Shared or unknown
-  membership still refuses; private leaves remain 0700.
+  membership still refuses; private leaves remain 0700. The proof enumerates
+  every passwd primary gid and refuses on any other account, empty enumeration
+  or lookup failure; the getent initgroups/getgrouplist path is removed.
 
 - Independent Stop searches every verified runtime root and remembered root
   location before signalling, so changed XDG/TMPDIR values or repaired earlier
   candidates cannot hide a running supervisor. Owner records bind their trust
-  root; ambiguous copies and root mismatches refuse, and no matching run exits 1.
+  root. Unreadable, empty, truncated or schema-invalid records are skipped and
+  reported, well-formed records from another trust root are skipped as foreign,
+  and Stop proceeds with the valid owners; only duplicate well-formed runs
+  refuse as ambiguous, and no valid run exits 1.
 
 - Private runtime state now verifies every real ancestor through the filesystem
   root with the shared StrictModes rule, selects only verified platform roots,

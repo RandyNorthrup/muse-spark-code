@@ -1,11 +1,11 @@
 import { spawn } from 'node:child_process'
-import { readFile, mkdtemp, mkdir, chmod, realpath, symlink, writeFile } from 'node:fs/promises'
+import { readFile, mkdtemp, mkdir, chmod, realpath, symlink } from 'node:fs/promises'
 import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as processTree from '../../src/host/processTree'
 import path from 'node:path'
 import process from 'node:process'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { verifyTrustedPath } from '../../src/runtime/trustedPath'
 import { trustedPrivateRoot } from '../../src/runtime/privateDirectory'
@@ -26,11 +26,15 @@ const componentSchema = z.strictObject({
       'shared',
       'unknown',
       'wrongGid',
-      'wrongName',
       'listed',
-      'primary',
-      'malformed',
-      'missingUser',
+      'nameMismatch',
+      'groupUnusable',
+      'passwdUnusable',
+      'passwdEmpty',
+      'passwdMalformed',
+      'userMissing',
+      'userMismatch',
+      'identityUnusable',
     ]),
   ),
   sticky: z.boolean(),
@@ -51,18 +55,44 @@ const vectors = z
   .parse(JSON.parse(await readFile('test/fixtures/trusted-path-vectors.json', 'utf8')))
 const privateVector = vectors.find((vector) => vector.name === 'UPG group-writable')
 if (privateVector === undefined) throw new Error('missing private-group vector')
+/** Each new proof check refuses with its own precise reason. */
+const groupRefusals = new Map<string, string>([
+  ['shared', 'shared gid'],
+  ['unknown', 'no group'],
+  ['wrongGid', 'group/other writable ancestor'],
+  ['listed', 'foreign member'],
+  ['nameMismatch', 'name mismatch'],
+  ['groupUnusable', 'no group'],
+  ['passwdUnusable', 'passwd failed'],
+  ['passwdEmpty', 'passwd empty'],
+  ['passwdMalformed', 'passwd malformed'],
+  ['userMissing', 'self missing'],
+  ['userMismatch', 'self mismatch'],
+  ['identityUnusable', 'user lookup failed'],
+])
 const portableVectors = [
   ...vectors,
-  ...(['wrongGid', 'wrongName', 'listed', 'primary', 'malformed', 'missingUser'] as const).map(
-    (group) => ({
-      ...privateVector,
-      name: `${group} membership refuses`,
-      posix: false,
-      components: privateVector.components.map((component) =>
-        component.group === undefined ? component : { ...component, group },
-      ),
-    }),
-  ),
+  ...(
+    [
+      'wrongGid',
+      'listed',
+      'nameMismatch',
+      'groupUnusable',
+      'passwdUnusable',
+      'passwdEmpty',
+      'passwdMalformed',
+      'userMissing',
+      'userMismatch',
+      'identityUnusable',
+    ] as const
+  ).map((group) => ({
+    ...privateVector,
+    name: `${group} membership refuses`,
+    posix: false,
+    components: privateVector.components.map((component) =>
+      component.group === undefined ? component : { ...component, group },
+    ),
+  })),
   ...['world writable', 'broad leaf'].map((name) => ({
     ...privateVector,
     name: `UPG ${name} refuses`,
@@ -76,72 +106,6 @@ const portableVectors = [
 ]
 const folder = await realpath(await mkdtemp(path.join(os.tmpdir(), 'muse-trusted-path-')))
 const native = process.platform === 'darwin' ? await darwinProcessHelper() : undefined
-const groupFixture = path.join(folder, 'group-lookups')
-beforeAll(async () => {
-  if (process.platform !== 'darwin') return
-  const source = await readFile('native/darwin/Dictation.swift', 'utf8')
-  const membership = source.slice(
-    source.indexOf('func isUserPrivateGroup('),
-    source.indexOf('struct PrivatePathComponent:'),
-  )
-  // Compile the production lookup function unchanged against test-only libc
-  // stand-ins. No OS account, group or membership is modified.
-  const fixture = `
-import Darwin
-import Foundation
-final class LookupFixture {
-var scenario = "private"
-var cursor = 0
-func getuid() -> uid_t { 501 }
-func getgid() -> gid_t { 20 }
-struct User { let pw_name: UnsafeMutablePointer<CChar>?; let pw_uid: uid_t; let pw_gid: gid_t }
-struct Group { let gr_name: UnsafeMutablePointer<CChar>?; let gr_mem: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>? }
-struct UserEntry { let pointee: User }
-struct GroupEntry { let pointee: Group }
-let name = strdup("fakeuser")
-let other = strdup("other")
-let members: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?> = {
-    let value = UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>.allocate(capacity: 2)
-    value.initialize(repeating: nil, count: 2)
-    return value
-}()
-func getpwuid(_ uid: uid_t) -> UserEntry? { UserEntry(pointee: User(pw_name: name, pw_uid: 501, pw_gid: 20)) }
-func getgrgid(_ gid: gid_t) -> GroupEntry? {
-    members.pointee = scenario == "listed" ? other : nil
-    return GroupEntry(pointee: Group(gr_name: scenario == "wrongName" ? other : name, gr_mem: members))
-}
-func setpwent() { cursor = 0 }
-func endpwent() {}
-func getpwent() -> UserEntry? {
-    cursor += 1
-    if cursor == 1 { return getpwuid(501) }
-    if cursor == 2 { return UserEntry(pointee: User(pw_name: other, pw_uid: 502, pw_gid: scenario == "primary" ? 20 : 21)) }
-    errno = scenario == "unavailable" ? EIO : 0
-    return nil
-}
-func getgrouplist(_ user: String, _ primary: Int32, _ groups: UnsafeMutablePointer<Int32>?, _ count: inout Int32) -> Int32 {
-    if scenario == "unknown" { count = 0; return -1 }
-    count = 2
-    guard let groups = groups else { return -1 }
-    groups[0] = primary
-    groups[1] = scenario == "shared" ? 20 : primary
-    return 0
-}
-`
-  const cases = `
-}
-let lookups = LookupFixture()
-var results: [Bool] = []
-for entry in ["private", "shared", "unknown", "listed", "primary", "wrongName", "wrongGid", "unavailable"] {
-    lookups.scenario = entry
-    results.append(lookups.isUserPrivateGroup(entry == "wrongGid" ? 21 : 20))
-}
-FileHandle.standardOutput.write(try JSONSerialization.data(withJSONObject: results))
-`
-  const file = `${groupFixture}.swift`
-  await writeFile(file, fixture + membership + cases)
-  await nativeRun('/usr/bin/swiftc', [file, '-o', groupFixture], '')
-})
 afterAll(async () => {
   await native?.remove()
   await removeFolder(folder)
@@ -172,6 +136,39 @@ function nativeRun(file: string, args: readonly string[], input: string): Promis
   })
 }
 
+/** Debian/Kubuntu passwd row shapes: field 4 is the primary gid. The fixture
+ * user takes the real uid/gid (readable even where passwd names are not) so
+ * the proof sees a consistent identity on every machine. */
+function fixturePasswd(uid: number, gid: number, group: string | undefined): string {
+  if (group === 'passwdEmpty') return ''
+  const self =
+    group === 'userMismatch'
+      ? `randy:x:${String(uid + 1)}:${String(gid)}:Randy,,,:/home/randy:/bin/bash`
+      : `randy:x:${String(uid)}:${String(gid)}:Randy,,,:/home/randy:/bin/bash`
+  const rows = [
+    'root:x:0:0:root:/root:/bin/bash',
+    'daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin',
+    'bin:x:2:2:bin:/bin:/usr/sbin/nologin',
+    'sys:x:3:3:sys:/dev:/usr/sbin/nologin',
+    'sync:x:4:65534:sync:/bin:/bin/sync',
+    'mail:x:8:8:mail:/var/mail:/usr/sbin/nologin',
+    'www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin',
+    'nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin',
+  ]
+  if (group === 'userMissing') return rows.join('\n')
+  if (group === 'shared') rows.push(`intruder:x:${String(uid + 2)}:${String(gid)}::/:/bin/sh`)
+  else rows.push(`intruder:x:${String(uid + 2)}:${String(gid + 2)}::/:/bin/sh`)
+  rows.push(self)
+  if (group === 'passwdMalformed') rows.push('broken-row')
+  return rows.join('\n')
+}
+
+function fixtureGroup(gid: number, group: string | undefined): string {
+  const name = group === 'nameMismatch' ? 'other' : 'randy'
+  const members = group === 'listed' ? 'intruder' : ''
+  return `${name}:x:${String(gid)}:${members}`
+}
+
 describe('one full-path trust rule', () => {
   it.runIf(process.platform !== 'win32').each(portableVectors)(
     'TypeScript shared vector: $name',
@@ -182,12 +179,13 @@ describe('one full-path trust rule', () => {
           : `${path.parse(folder).root}${Array.from({ length: index }, (_, offset) => `component${String(offset)}`).join(path.sep)}`,
       )
       const originalOpen = fs.open
+      const uid = process.getuid?.() ?? 0
+      const gid = process.getgid?.() ?? 0
       const rows = await Promise.all(
         vector.components.map(async (component) => {
           const info = await fs.lstat(folder, { bigint: true })
-          const uid = process.getuid?.() ?? 0
           info.uid = BigInt({ root: 0, user: uid, foreign: uid + 1 }[component.owner])
-          info.gid = BigInt((process.getgid?.() ?? 0) + (component.group === 'wrongGid' ? 1 : 0))
+          info.gid = BigInt(gid + (component.group === 'wrongGid' ? 1 : 0))
           info.mode = BigInt(component.mode | (component.sticky ? 0o1000 : 0))
           Object.defineProperty(info, 'isDirectory', {
             value: () => component.directory && !component.symlink,
@@ -195,6 +193,16 @@ describe('one full-path trust rule', () => {
           return info
         }),
       )
+      const group = vector.components.find((component) => component.group !== undefined)?.group
+      // Every lookup the proof uses is installed before the first awaited
+      // product call, and every spy is restored in the same finally, so one
+      // failing vector cannot leak mocks into the next.
+      const platform = Object.getOwnPropertyDescriptor(process, 'platform')
+      if (platform === undefined) throw new Error('fixture platform')
+      const userRead = vi.spyOn(os, 'userInfo').mockImplementation(() => {
+        if (group === 'identityUnusable') throw new Error('fixture passwd withheld')
+        return { username: 'randy', uid, gid, shell: '/bin/sh', homedir: '/home/randy' }
+      })
       const resolving = vi.spyOn(fs, 'realpath').mockResolvedValue(paths.at(-1) ?? '/')
       const stating = vi.spyOn(fs, 'lstat').mockImplementation((file) => {
         const info = rows[paths.indexOf(String(file))]
@@ -208,30 +216,21 @@ describe('one full-path trust rule', () => {
         vi.spyOn(handle, 'stat').mockResolvedValue(info)
         return handle
       })
-      const group = vector.components.find((component) => component.group !== undefined)?.group
-      const current = os.userInfo()
+      const lookups: string[] = []
       const lookup = vi.spyOn(processTree, 'runProgram').mockImplementation((_file, args) => {
-        if (args[0] === 'group')
-          return Promise.resolve(
-            `${group === 'wrongName' ? 'other' : current.username}:x:${String(current.gid)}:${group === 'listed' ? 'other' : ''}`,
-          )
-        if (args[0] === 'passwd')
-          return Promise.resolve(
-            `${group === 'missingUser' ? 'absent' : current.username}:x:${String(current.uid)}:${String(current.gid)}::/:/bin/sh\nother:x:${String(current.uid + 1)}:${String(current.gid + (group === 'primary' ? 0 : 1))}::/:/bin/sh`,
-          )
-        if (args[0] === 'initgroups') {
-          if (group === 'unknown') return Promise.reject(new Error('membership unavailable'))
-          if (group === 'malformed') return Promise.resolve('other bad-data')
-          return Promise.resolve(
-            `other ${String(current.gid + 1)}${group === 'shared' ? ` ${String(current.gid)}` : ''}`,
-          )
+        lookups.push(args[0] ?? '')
+        if (args[0] === 'group') {
+          return group === 'unknown' || group === 'groupUnusable'
+            ? Promise.reject(new Error('fixture group withheld'))
+            : Promise.resolve(fixtureGroup(gid, group))
         }
-        if (args[0] === 'private-group')
-          return Promise.resolve(JSON.stringify({ private: group === 'private' }))
-        throw new Error('unexpected membership lookup')
+        if (args[0] === 'passwd') {
+          return group === 'passwdUnusable'
+            ? Promise.reject(new Error('fixture passwd withheld'))
+            : Promise.resolve(fixturePasswd(uid, gid, group))
+        }
+        throw new Error('removed lookup called')
       })
-      const platform = Object.getOwnPropertyDescriptor(process, 'platform')
-      if (platform === undefined) throw new Error('fixture platform')
       Object.defineProperty(process, 'platform', { value: 'linux' })
       try {
         // Native ACL proof is separate from the portable POSIX metadata walk.
@@ -241,13 +240,34 @@ describe('one full-path trust rule', () => {
             ? Promise.reject(new Error('ELSP_PRIVATE: native ACL'))
             : Promise.resolve(),
         )
-        if (shouldPass) await expect(result).resolves.toHaveProperty('directory')
-        else await expect(result).rejects.toThrow('ELSP_PRIVATE')
+        if (shouldPass) {
+          await expect(result).resolves.toHaveProperty('directory')
+        } else {
+          await expect(result).rejects.toThrow('ELSP_PRIVATE')
+          const expected = group === undefined ? undefined : groupRefusals.get(group)
+          if (expected !== undefined) {
+            let refusal: unknown
+            try {
+              await result
+              throw new Error('vector falsely passed')
+            } catch (error: unknown) {
+              refusal = error
+            }
+            const detail =
+              refusal instanceof Error && refusal.cause instanceof Error
+                ? refusal.cause.message
+                : String(refusal)
+            expect(detail).toContain(expected)
+          }
+        }
+        // The getent initgroups/getgrouplist path is deleted: no vector may use it.
+        expect(lookups).not.toContain('initgroups')
       } finally {
         resolving.mockRestore()
         stating.mockRestore()
         opening.mockRestore()
         lookup.mockRestore()
+        userRead.mockRestore()
         Object.defineProperty(process, 'platform', platform)
       }
     },
@@ -267,23 +287,72 @@ describe('one full-path trust rule', () => {
     },
   )
   it.runIf(process.platform === 'darwin')(
-    'native private-group lookup refuses every other or unknown membership',
+    'native helper refuses the staff primary group against the real libc',
     async () => {
-      const results = z.array(z.boolean()).parse(JSON.parse(await nativeRun(groupFixture, [], '')))
-      expect(results).toEqual([true, false, false, false, false, false, false, false])
       if (native === undefined) throw new Error('missing native fixture')
-      const result = z
-        .strictObject({ private: z.boolean() })
-        .parse(
-          JSON.parse(
-            await nativeRun(
-              native.helperPath,
-              ['private-group', String(os.userInfo().gid + 1)],
-              '',
-            ),
-          ),
+      // This Mac has no user-private group: getgrgid(getgid()) is staff, not
+      // the user, with root among its members, so the real lookup refuses.
+      const gid = process.getgid?.()
+      if (gid === undefined) throw new Error('fixture gid')
+      const privateGroup = async (candidate: number) => {
+        const output = await nativeRun(native.helperPath, ['private-group', String(candidate)], '')
+        return z.strictObject({ private: z.boolean() }).parse(JSON.parse(output))
+      }
+      const own = await privateGroup(gid)
+      expect(own.private).toBe(false)
+      for (const other of [0, 1, 12, 80, 99, 501, 65_534]) {
+        if (other === gid) continue
+        const refused = await privateGroup(other)
+        expect(refused.private).toBe(false)
+      }
+    },
+  )
+  it.runIf(process.platform !== 'win32')(
+    'a real user-private group admits a group-writable directory, else named skip',
+    async (context) => {
+      const gid = process.getgid?.()
+      if (gid === undefined) throw new Error('fixture gid')
+      // Establish admission-shape with the real lookups before asserting.
+      let isPrivate: boolean
+      if (process.platform === 'darwin') {
+        if (native === undefined) throw new Error('missing native fixture')
+        const output = await nativeRun(native.helperPath, ['private-group', String(gid)], '')
+        isPrivate = z.strictObject({ private: z.boolean() }).parse(JSON.parse(output)).private
+      } else {
+        const { runProgram } = processTree
+        const groupText = await runProgram('/usr/bin/getent', ['group', String(gid)], process.env)
+        const usersText = await runProgram('/usr/bin/getent', ['passwd'], process.env)
+        const group = groupText.trim().split(':')
+        const rows = usersText
+          .trim()
+          .split('\n')
+          .map((line) => line.split(':'))
+        const self = rows.find(
+          (row) => row[2] !== undefined && Number(row[2]) === process.getuid?.(),
         )
-      expect(result.private).toBe(false)
+        isPrivate =
+          group.length === 4 &&
+          self !== undefined &&
+          group[0] === self[0] &&
+          group[2] === String(gid) &&
+          (group[3] ?? '').split(',').every((member) => member === '' || member === self[0]) &&
+          rows.every((row) => row[0] === self[0] || row[3] !== String(gid))
+      }
+      if (!isPrivate) {
+        context.skip(
+          'the running primary group is not a user-private group here (macOS staff refuses)',
+        )
+        return
+      }
+      const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'muse-upg-real-')))
+      const directory = path.join(root, 'shared')
+      try {
+        await mkdir(directory, { mode: 0o775 })
+        await chmod(directory, 0o775)
+        await expect(verifyTrustedPath(directory, false)).resolves.toHaveProperty('directory')
+      } finally {
+        await removeFolder(root)
+      }
     },
   )
   it.runIf(process.platform === 'win32')('Windows helper runs the same JSON vectors', async () => {

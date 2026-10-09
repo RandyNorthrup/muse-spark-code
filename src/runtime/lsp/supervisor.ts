@@ -32,6 +32,14 @@ async function readTreeReceipt(file: string) {
   return treeReceiptSchema.parse(await readStopRecord(file))
 }
 
+/** Which unusable-record check failed: unreadable, oversize or invalid JSON. */
+function unusableRecordReason(error: unknown): string {
+  if (error instanceof Error && 'code' in error && typeof error.code === 'string')
+    return `unreadable: ${error.code}`
+  if (error instanceof Error && error.message === 'ESTOP_RECORD') return 'oversize'
+  return error instanceof SyntaxError ? 'invalid' : 'unreadable'
+}
+
 export async function runtimeLocatorDirectory(packageRoot: string, shouldCreate = false) {
   const directory = path.join(await stablePrivateRoot(packageRoot, shouldCreate), 'runtime-roots')
   await privateDirectory(directory, shouldCreate)
@@ -352,11 +360,18 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
   }
 }
 
-/** Private authenticated control sockets reach every owner in this workspace. */
+/** Private authenticated control sockets reach every owner in this workspace.
+ * An unreadable, empty, truncated or schema-invalid owner file is an unusable
+ * record, and a well-formed record from another trust root is foreign: both
+ * are skipped and reported, never signalled and never fatal. Only two
+ * well-formed records for the same ownerId:generation stay ESTOP_AMBIGUOUS. */
 export async function stopWorkspace(
   registries: string | readonly string[],
   cwd: string,
   packageRoot = path.resolve(__dirname, '..'),
+  diagnostic: (message: string) => void = () => {
+    /* Callers that stop by string keep the previous silent-skip behaviour. */
+  },
 ): Promise<void> {
   const { ownerSchema, isReceiptMatching, isSameProcess } = await import('./stopReceipt')
   const prefix = `${workspaceKey(cwd)}-`
@@ -377,20 +392,25 @@ export async function stopWorkspace(
     const trustRoot = await realpath(path.dirname(registry))
     for (const file of files) {
       if (!file.startsWith(prefix) || !file.endsWith('.json')) continue
+      const record = path.join(registry, file)
       let raw: unknown
       try {
-        raw = await readStopRecord(path.join(registry, file))
+        raw = await readStopRecord(record)
       } catch (error: unknown) {
         // The owner removes its private record when it finishes stopping.
         if (error instanceof Error && 'code' in error && error.code === 'ENOENT') continue
-        throw error
+        diagnostic(`ESTOP_RECORD_UNUSABLE: ${record}: ${unusableRecordReason(error)}`)
+        continue
       }
       const parsed = ownerSchema.safeParse(raw)
-      if (
-        !parsed.success ||
-        parsed.data.trustRoot.replaceAll('\\', '/') !== trustRoot.replaceAll('\\', '/')
-      )
-        throw new UnverifiedStopError([])
+      if (!parsed.success) {
+        diagnostic(`ESTOP_RECORD_UNUSABLE: ${record}: schema-invalid`)
+        continue
+      }
+      if (parsed.data.trustRoot.replaceAll('\\', '/') !== trustRoot.replaceAll('\\', '/')) {
+        diagnostic(`ESTOP_RECORD_FOREIGN: ${record}: trust-root-mismatch`)
+        continue
+      }
       const owner = parsed.data
       const run = `${owner.ownerId}:${owner.generation}`
       if (runs.has(run)) throw new Error('ESTOP_AMBIGUOUS')

@@ -83,10 +83,12 @@ $rules = @($acl.GetAccessRules($true, $true, [System.Security.Principal.Security
       ...withoutKeyringRoutes(withoutCredentials(process.env)),
       LC_ALL: 'C',
     })
-  } catch {
+  } catch (error) {
     // A departing owner/recovery lock can vanish during the OS ACL read.
+    // The vanished-file ENOENT still propagates; a present-but-refused path
+    // keeps the underlying error as the cause instead of discarding it.
     await lstatIdentity(file)
-    throw new Error('ELSP_PRIVATE')
+    throw new Error('ELSP_PRIVATE', { cause: error })
   }
   const lines = output.trimEnd().split('\n')
   const expected = isDirectory ? 'drwx------' : '-rw-------'

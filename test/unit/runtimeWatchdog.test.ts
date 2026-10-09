@@ -1,12 +1,13 @@
 import './helpers/lspPrivateDirectoryMock'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { mkdtemp, readFile, readdir, writeFile, rm, mkdir, chmod, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import * as os from 'node:os'
 import * as processTree from '../../src/host/processTree'
 import type * as privateDirectories from '../../src/runtime/privateDirectory'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import {
   treeReceiptSchema,
@@ -21,8 +22,12 @@ import {
   UnverifiedStopError,
 } from '../../src/runtime/lsp/supervisor'
 import { isProcessAlive } from '../../src/host/checkpoints/windowPresence'
-import { runProgram } from '../../src/host/processTree'
 import { workspaceKey } from '../../src/runtime/dataFolder'
+import {
+  requireLiveSupervision,
+  requireProcessTable,
+  trackFixtureTree,
+} from './helpers/liveSupervision'
 import { removeFolder } from './helpers/temporaryFolders'
 
 vi.mock('node:os', async (original) => ({ ...(await original<typeof os>()) }))
@@ -60,32 +65,28 @@ async function receipt(file: string) {
   }
   throw new Error('no process receipt')
 }
-async function isRunning(pid: number): Promise<boolean> {
-  if (!isProcessAlive(pid)) return false
-  try {
-    const output = await runProgram('/bin/ps', ['-o', 'stat=', '-p', String(pid)], {})
-    const state = z.string().check(z.minLength(1)).parse(output.trim())
-    // M107 counts zombies as exited; kill(pid, 0) alone still sees their PID slot.
-    return !state.startsWith('Z')
-  } catch (error: unknown) {
-    if (!isProcessAlive(pid)) return false
-    throw error
-  }
-}
 async function waitExited(pid: number) {
+  // kill(pid, 0) sees a zombie PID slot as alive; fixture PIDs here are never
+  // this process's unreaped children (direct children are awaited on close),
+  // so a slot that persists is a genuinely live process, not a zombie.
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    if (!(await isRunning(pid))) return
+    if (!isProcessAlive(pid)) return
     await pause(50)
   }
   throw new Error(`owned fixture still alive: ${String(pid)}`)
 }
 
+const { track, reap } = trackFixtureTree()
+afterEach(reap)
+
 function runGuardian(label: string) {
   const registry = path.join(folder, label)
   const file = path.join(folder, `${label}.json`)
-  const parent = spawn(process.execPath, [parentFile, registry, folder, watchdogFile, file], {
-    stdio: 'ignore',
-  })
+  const parent = track(
+    spawn(process.execPath, [parentFile, registry, folder, watchdogFile, file], {
+      stdio: 'ignore',
+    }),
+  )
   return { registry, file, parent }
 }
 
@@ -134,10 +135,10 @@ async function prepareDiscovery(selector: string) {
   }
   const registry = path.join(root, `muse-runtime-${workspaceKey(home)}`)
   const file = path.join(home, 'run.json')
-  const parent = spawn(
-    process.execPath,
-    [parentFile, registry, home, watchdogFile, file, locatorDirectory],
-    { stdio: 'ignore' },
+  const parent = track(
+    spawn(process.execPath, [parentFile, registry, home, watchdogFile, file, locatorDirectory], {
+      stdio: 'ignore',
+    }),
   )
   const closed = new Promise<number | null>((resolve) => parent.once('close', resolve))
   const owned = await receipt(file)
@@ -152,11 +153,16 @@ describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian'
   // Native launch and fallback directory acquisition belong to shared setup;
   // the unchanged five-second tests measure independent discovery and Stop.
   beforeAll(async () => {
+    await requireLiveSupervision()
     for (const selector of selectors) discovery.set(selector, await prepareDiscovery(selector))
   })
   afterAll(async () => {
     for (const run of discovery.values()) {
-      await stopWorkspace(run.registry, run.home, folder)
+      try {
+        await stopWorkspace(run.registry, run.home, folder)
+      } catch {
+        // A failed Stop still leaves a tree to reap below.
+      }
       run.parent.kill('SIGKILL')
       await waitExited(run.owned.root)
       await waitExited(run.owned.detached)
@@ -166,6 +172,7 @@ describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian'
   it.each(selectors)(
     'independent Stop discovers the original root after %s environment and trust changes',
     async (selector) => {
+      await requireLiveSupervision()
       const run = discovery.get(selector)
       if (run === undefined) throw new Error('missing discovery fixture')
       const { home, rejected, changed, root, registry, locatorDirectory, owned, closed } = run
@@ -203,6 +210,7 @@ describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian'
   it.each(['duplicate', 'wrong-root', 'untrusted-forgery', 'separators'])(
     'independent Stop preflights every root and refuses or ignores %s before signalling',
     async (fault) => {
+      await requireLiveSupervision()
       const home = path.join(folder, fault)
       const firstRoot = path.join(home, 'first')
       const secondRoot = path.join(home, 'second')
@@ -213,10 +221,10 @@ describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian'
       const secondRegistry = path.join(secondRoot, `muse-runtime-${workspaceKey(home)}`)
       await mkdir(secondRegistry, { mode: 0o700 })
       const file = path.join(home, 'run.json')
-      const parent = spawn(
-        process.execPath,
-        [parentFile, firstRegistry, home, watchdogFile, file],
-        { stdio: 'ignore' },
+      const parent = track(
+        spawn(process.execPath, [parentFile, firstRegistry, home, watchdogFile, file], {
+          stdio: 'ignore',
+        }),
       )
       const homeRead = vi.spyOn(os, 'homedir').mockReturnValue(home)
       const platform = Object.getOwnPropertyDescriptor(process, 'platform')
@@ -261,8 +269,8 @@ describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian'
           await expect(stopping).rejects.toThrow(
             fault === 'duplicate' ? 'ESTOP_AMBIGUOUS' : 'ESTOP_UNVERIFIED',
           )
-          expect(await isRunning(owned.root)).toBe(true)
-          expect(await isRunning(owned.detached)).toBe(true)
+          expect(isProcessAlive(owned.root)).toBe(true)
+          expect(isProcessAlive(owned.detached)).toBe(true)
           expect(await readdir(firstRegistry)).toContain(ownerFile)
           expect(parent.exitCode).toBeNull()
         }
@@ -282,21 +290,15 @@ describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian'
     },
   )
 
-  it('independent Stop reports no such run without signalling or creating a registry', async () => {
-    const root = path.join(folder, 'no-run')
-    await mkdir(root, { mode: 0o700 })
-    await expect(stopWorkspace([path.join(root, 'absent')], root, folder)).rejects.toThrow(
-      'ESTOP_NO_RUN',
-    )
-    expect(await readdir(root)).toEqual([])
-  })
-
   it('retains ownership and names observed PIDs when the owner dies before guardian completion', async () => {
+    await requireLiveSupervision()
     const registry = path.join(folder, 'suspended-guardian')
     const file = path.join(folder, 'suspended.json')
-    const parent = spawn(process.execPath, [parentFile, registry, folder, watchdogFile, file], {
-      stdio: 'ignore',
-    })
+    const parent = track(
+      spawn(process.execPath, [parentFile, registry, folder, watchdogFile, file], {
+        stdio: 'ignore',
+      }),
+    )
     let guardian: number | undefined
     let owned: z.infer<typeof receiptSchema> | undefined
     try {
@@ -360,6 +362,7 @@ describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian'
   })
 
   it('rejects a genuine completion receipt copied from another guardian generation', async () => {
+    await requireLiveSupervision()
     const first = runGuardian('receipt-generation-a')
     const second = runGuardian('receipt-generation-b')
     let guardian: number | undefined
@@ -446,13 +449,16 @@ describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian'
   })
 
   it.each(['stop', 'ownerKilled'])(
-    'reaps a busy root and detached descendant after %s',
+    'reaps an unresponsive root and detached descendant after %s',
     async (ending) => {
+      await requireLiveSupervision()
       const registry = path.join(folder, ending)
       const file = path.join(folder, `${ending}.json`)
-      const parent = spawn(process.execPath, [parentFile, registry, folder, watchdogFile, file], {
-        stdio: 'ignore',
-      })
+      const parent = track(
+        spawn(process.execPath, [parentFile, registry, folder, watchdogFile, file], {
+          stdio: 'ignore',
+        }),
+      )
       let owned: z.infer<typeof receiptSchema> | undefined
       try {
         owned = await receipt(file)
@@ -462,8 +468,8 @@ describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian'
         else parent.kill('SIGKILL')
         await waitExited(owned.root)
         await waitExited(owned.detached)
-        expect(await isRunning(owned.root)).toBe(false)
-        expect(await isRunning(owned.detached)).toBe(false)
+        expect(isProcessAlive(owned.root)).toBe(false)
+        expect(isProcessAlive(owned.detached)).toBe(false)
         // Only the guardian's completed receipt permits stale ownership retirement.
         if (ending === 'ownerKilled') {
           const deadline = Date.now() + LSP_LIMITS.startupMs
@@ -500,6 +506,88 @@ describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian'
       }
     },
   )
+})
+
+// Socket-free: runs even where live supervision is unavailable.
+it('independent Stop reports no such run without signalling or creating a registry', async () => {
+  const root = path.join(folder, 'no-run')
+  await mkdir(root, { mode: 0o700 })
+  await expect(stopWorkspace([path.join(root, 'absent')], root, folder)).rejects.toThrow(
+    'ESTOP_NO_RUN',
+  )
+  expect(await readdir(root)).toEqual([])
+})
+
+function psCpuSeconds(field: string): number {
+  const parts = field.trim().split(':')
+  const seconds = Number(parts.pop() ?? NaN)
+  const minutes = parts.length > 0 ? Number(parts.pop() ?? 0) : 0
+  const hours = parts.length > 0 ? Number(parts.pop() ?? 0) : 0
+  if (!Number.isFinite(seconds) || !Number.isFinite(minutes) || !Number.isFinite(hours))
+    throw new Error('unreadable process CPU time')
+  return hours * 3600 + minutes * 60 + seconds
+}
+
+function watchdogCpuSeconds(pid: number): number {
+  const probed = spawnSync('/bin/ps', ['-o', 'time=', '-p', String(pid)], { encoding: 'utf8' })
+  if (probed.error !== undefined || probed.status !== 0)
+    throw new Error('process CPU time needs /bin/ps with a time field')
+  return psCpuSeconds(probed.stdout)
+}
+
+// Socket-free: the idle watchdog waits on its poll timer, never a hot loop.
+it.runIf(process.platform !== 'win32')('an idle watchdog burns no measurable CPU', async () => {
+  requireProcessTable()
+  const child = track(
+    spawn(process.execPath, [watchdogFile, String(process.pid), folder, folder], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }),
+  )
+  if (child.pid === undefined) throw new Error('no watchdog PID')
+  if (child.stdout === null || child.stdin === null || child.stderr === null)
+    throw new Error('no watchdog pipes')
+  child.stderr.resume()
+  const pid = child.pid
+  const closed = new Promise<number | null>((resolve) => {
+    child.once('close', resolve)
+  })
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error('watchdog did not report READY'))
+      }, 5000)
+      child.stdout?.once('data', (bytes: Buffer) => {
+        clearTimeout(timer)
+        if (bytes.toString('ascii') === 'READY\n') resolve()
+        else reject(new Error('watchdog reported an unexpected greeting'))
+      })
+    })
+    const readCpu =
+      process.platform === 'linux'
+        ? () => {
+            const stat = readFileSync(`/proc/${String(pid)}/stat`, 'utf8')
+            const fields = stat
+              .slice(stat.lastIndexOf(')') + 1)
+              .trim()
+              .split(/\s+/)
+            const utime = Number(fields[11])
+            const stime = Number(fields[12])
+            if (!Number.isFinite(utime) || !Number.isFinite(stime))
+              throw new Error('unreadable process CPU time')
+            return (utime + stime) / 100
+          }
+        : () => watchdogCpuSeconds(pid)
+    await pause(1000)
+    const before = readCpu()
+    await pause(3000)
+    const idleCpu = readCpu() - before
+    // A 250 ms poll timer costs ~0.01 s per 3 s idle; a hot loop costs ~3 s.
+    expect(idleCpu).toBeLessThan(0.5)
+    child.kill('SIGTERM')
+    expect(await closed).toBe(0)
+  } finally {
+    child.kill('SIGKILL')
+  }
 })
 
 describe('Stop receipt generation and identity bindings', () => {

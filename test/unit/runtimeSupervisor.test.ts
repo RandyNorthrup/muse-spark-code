@@ -10,7 +10,7 @@ import { createConnection } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import {
   superviseRuntime,
   stopWorkspace,
@@ -18,6 +18,7 @@ import {
 } from '../../src/runtime/lsp/supervisor'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { workspaceKey } from '../../src/runtime/dataFolder'
+import { requireLiveSupervision, trackFixtureTree } from './helpers/liveSupervision'
 import { removeFolder } from './helpers/temporaryFolders'
 
 vi.mock('node:child_process', async (importOriginal) => ({
@@ -50,10 +51,32 @@ async function waitFor(file: string): Promise<string> {
   throw new Error(`no receipt: ${file}`)
 }
 
+/** Two verified roots with an owner registry each, for cross-root preflight. */
+async function twoRegistries(label: string) {
+  const roots = path.join(directory, label)
+  const first = path.join(roots, 'first')
+  const second = path.join(roots, 'second')
+  await fs.mkdir(first, { mode: 0o700, recursive: true })
+  await fs.mkdir(second, { mode: 0o700, recursive: true })
+  const firstRegistry = path.join(first, `muse-runtime-${workspaceKey(directory)}`)
+  const secondRegistry = path.join(second, `muse-runtime-${workspaceKey(directory)}`)
+  await fs.mkdir(firstRegistry, { mode: 0o700 })
+  await fs.mkdir(secondRegistry, { mode: 0o700 })
+  return { roots, first, second, firstRegistry, secondRegistry }
+}
+async function writeOwnerRecord(registry: string, name: string, owner: unknown) {
+  await writeFile(path.join(registry, name), JSON.stringify(owner), { mode: 0o600 })
+}
+
+/** Every fixture process this file starts, so a failed assertion or a timeout
+ * still reaps the whole tree instead of leaking supervisors and workloads. */
+const { track, reap } = trackFixtureTree()
+afterEach(reap)
+
 function captureWorkload(receive: (child: childProcess.ChildProcess) => void) {
   const nativeSpawn = childProcess.spawn
   return vi.spyOn(childProcess, 'spawn').mockImplementation((...args) => {
-    const child = nativeSpawn(...args)
+    const child = track(nativeSpawn(...args))
     if (Array.isArray(args[1]) && args[1].includes('-e')) receive(child)
     return child
   })
@@ -98,10 +121,20 @@ describe('M104H2 runtime supervision', () => {
     try {
       await expect(stopWorkspace(registry, directory, directory)).resolves.toBeUndefined()
       expect(opening).toHaveBeenCalledWith(record, expect.any(Number))
+      // An unreadable owner file is an unusable record, never a fatal Stop:
+      // independent Stop reports ESTOP_NO_RUN and names the file, while the
+      // in-process string form keeps its tolerant resolve.
       failure = Object.assign(new Error('fixture forbidden'), { code: 'EACCES' })
-      await expect(stopWorkspace(registry, directory, directory)).rejects.toThrow(
-        'fixture forbidden',
-      )
+      const diagnostics: string[] = []
+      await expect(
+        stopWorkspace([registry], directory, directory, (message) => {
+          diagnostics.push(message)
+        }),
+      ).rejects.toThrow('ESTOP_NO_RUN')
+      expect(diagnostics).toHaveLength(1)
+      expect(diagnostics[0]).toContain('ESTOP_RECORD_UNUSABLE')
+      expect(diagnostics[0]).toContain(record)
+      await expect(stopWorkspace(registry, directory, directory)).resolves.toBeUndefined()
     } finally {
       opening.mockRestore()
       await removeFolder(registry)
@@ -162,6 +195,7 @@ describe('M104H2 runtime supervision', () => {
   it.runIf(process.platform !== 'win32')(
     'queues Stop until delayed guardian startup creates the child',
     async () => {
+      await requireLiveSupervision()
       const guardian = path.join(directory, 'delayed-watchdog.js')
       const release = path.join(directory, 'release-guardian')
       const ready = path.join(directory, 'startup-child')
@@ -227,6 +261,7 @@ describe('M104H2 runtime supervision', () => {
   it.runIf(process.platform !== 'win32')(
     'holds the Node workload until both registry registration and explicit admission',
     async () => {
+      await requireLiveSupervision()
       const marker = path.join(directory, 'gated-child')
       const authority = await processAuthority(directory, path.join(directory, 'owners'))
       const held = Promise.withResolvers<undefined>()
@@ -274,6 +309,7 @@ describe('M104H2 runtime supervision', () => {
   it.runIf(process.platform !== 'win32')(
     'retires a registered child without admitting it when guardian handoff fails',
     async () => {
+      await requireLiveSupervision()
       const guardian = path.join(directory, 'refusing-watchdog.js')
       const marker = path.join(directory, 'refused-child')
       await writeFile(
@@ -305,6 +341,7 @@ describe('M104H2 runtime supervision', () => {
   )
 
   it('builds its own guardian without a production dist directory', async () => {
+    await requireLiveSupervision()
     const run = start(
       directory,
       'process.stdin.resume();process.stdin.on("end",()=>process.exit(0))',
@@ -313,6 +350,7 @@ describe('M104H2 runtime supervision', () => {
     expect(await run.done).toBe(0)
   })
   it('preserves binary stdio and child exit status, stripping credentials', async () => {
+    await requireLiveSupervision()
     const run = start(
       directory,
       `
@@ -337,6 +375,7 @@ describe('M104H2 runtime supervision', () => {
   it.runIf(process.platform !== 'win32').each(['SIGKILL', 'SIGTERM'] as const)(
     'reports unexpected workload %s as a nonzero signal exit',
     async (signal) => {
+      await requireLiveSupervision()
       const onSignalExit = vi.fn()
       const code = await superviseRuntime({
         registry: path.join(directory, 'owners'),
@@ -358,6 +397,7 @@ describe('M104H2 runtime supervision', () => {
   it.runIf(process.platform !== 'win32').each([143, 137])(
     'maps intentional Stop with workload exit %s to documented exit zero',
     async (code) => {
+      await requireLiveSupervision()
       const ready = path.join(directory, `intentional-${String(code)}`)
       const run = start(
         directory,
@@ -376,6 +416,7 @@ describe('M104H2 runtime supervision', () => {
   )
 
   it('fails explicitly when the configured child cannot start', async () => {
+    await requireLiveSupervision()
     await expect(
       superviseRuntime({
         registry: path.join(directory, 'owners'),
@@ -391,7 +432,8 @@ describe('M104H2 runtime supervision', () => {
     ).resolves.toBe(1)
   })
 
-  it('Stop kills a busy TERM-ignoring root and grandchild, waits for both, and isolates workspaces', async () => {
+  it('Stop kills an unresponsive TERM-ignoring root and grandchild, waits for both, and isolates workspaces', async () => {
+    await requireLiveSupervision()
     const ready = path.join(directory, 'ready.json')
     const otherReady = path.join(directory, 'other.ready')
     const other = start(
@@ -409,7 +451,7 @@ describe('M104H2 runtime supervision', () => {
       const grandchild=spawn(process.execPath,['-e', "process.on('SIGTERM',()=>{});require('node:fs').writeFileSync(process.argv[1]+'.grandchild','ready');setInterval(()=>{},1000)",process.argv[1]],{stdio:'ignore'});
       process.on('SIGTERM',()=>{});
       require('node:fs').writeFileSync(process.argv[1],JSON.stringify([process.pid,grandchild.pid]));
-      for(;;){}
+      setInterval(()=>{},1000);
     `,
       [ready],
     )
@@ -451,6 +493,7 @@ describe('M104H2 runtime supervision', () => {
   it.runIf(process.platform !== 'win32')(
     'preserves admitted ownership when the supervisor cannot verify tree cleanup',
     async () => {
+      await requireLiveSupervision()
       const ready = path.join(directory, 'refused-stop.ready')
       let workload: childProcess.ChildProcess | undefined
       const spawning = captureWorkload((child) => {
@@ -516,6 +559,7 @@ describe('M104H2 runtime supervision', () => {
   it.runIf(process.platform !== 'win32')(
     'does not acknowledge Stop until registry actions attest that every identity has exited',
     async () => {
+      await requireLiveSupervision()
       const ready = path.join(directory, 'group.ready')
       const run = start(
         directory,
@@ -561,6 +605,7 @@ describe('M104H2 runtime supervision', () => {
   )
 
   it('refuses a wrong control token without stopping the owner', async () => {
+    await requireLiveSupervision()
     const ready = path.join(directory, 'authorized.ready')
     const run = start(
       directory,
@@ -639,17 +684,149 @@ describe('M104H2 runtime supervision', () => {
     }
   })
 
-  it('rejects malformed and oversized ownership records before dialing', async () => {
+  it('reports malformed and oversized ownership records without dialing', async () => {
     const registry = path.join(directory, 'owners')
+    await fs.mkdir(registry, { mode: 0o700, recursive: true })
     const record = path.join(registry, `${workspaceKey(directory)}-bad.json`)
+    const reported = async () => {
+      const diagnostics: string[] = []
+      await expect(
+        stopWorkspace([registry], directory, directory, (message) => {
+          diagnostics.push(message)
+        }),
+      ).rejects.toThrow('ESTOP_NO_RUN')
+      return diagnostics
+    }
     try {
       await writeFile(record, JSON.stringify({ pipe: 'bad', token: 'short' }), { mode: 0o600 })
-      await expect(stopWorkspace(registry, directory, directory)).rejects.toThrow()
+      const malformed = await reported()
+      expect(malformed).toHaveLength(1)
+      expect(malformed[0]).toContain('ESTOP_RECORD_UNUSABLE')
+      expect(malformed[0]).toContain('schema-invalid')
       await writeFile(record, 'x'.repeat(4096))
-      await expect(stopWorkspace(registry, directory, directory)).rejects.toThrow('ESTOP_RECORD')
+      const oversized = await reported()
+      expect(oversized).toHaveLength(1)
+      expect(oversized[0]).toContain('ESTOP_RECORD_UNUSABLE')
+      expect(oversized[0]).toContain('oversize')
+      await writeFile(record, '')
+      const empty = await reported()
+      expect(empty).toHaveLength(1)
+      expect(empty[0]).toContain('ESTOP_RECORD_UNUSABLE')
     } finally {
       await removeFolder(record)
     }
     await expect(stopWorkspace(path.join(directory, 'absent'), directory)).resolves.toBeUndefined()
   })
+
+  it('skips a foreign trust-root record and reports it without signalling', async () => {
+    const { roots, first, second, firstRegistry, secondRegistry } =
+      await twoRegistries('foreign-roots')
+    const owner = {
+      trustRoot: await fs.realpath(first),
+      pid: 1,
+      pipe: 'unused',
+      token: 'a'.repeat(64),
+      generation: 'b'.repeat(32),
+      ownerId: '00000000-0000-4000-8000-000000000002',
+      binding: null,
+    }
+    // Each copy is well-formed under the other root, foreign where found: the
+    // 'unused' pipe proves neither is signalled when Stop reports no run.
+    await writeOwnerRecord(firstRegistry, `${workspaceKey(directory)}-foreign.json`, {
+      ...owner,
+      trustRoot: await fs.realpath(second),
+    })
+    await writeOwnerRecord(secondRegistry, `${workspaceKey(directory)}-foreign.json`, owner)
+    const diagnostics: string[] = []
+    try {
+      await expect(
+        stopWorkspace([firstRegistry, secondRegistry], directory, directory, (message) => {
+          diagnostics.push(message)
+        }),
+      ).rejects.toThrow('ESTOP_NO_RUN')
+      expect(diagnostics).toHaveLength(2)
+      expect(diagnostics.every((line) => line.startsWith('ESTOP_RECORD_FOREIGN'))).toBe(true)
+    } finally {
+      await removeFolder(roots)
+    }
+  })
+
+  it('refuses duplicate well-formed owners across roots before signalling', async () => {
+    const { roots, first, second, firstRegistry, secondRegistry } =
+      await twoRegistries('ambiguous-roots')
+    const owner = {
+      trustRoot: await fs.realpath(first),
+      pid: 1,
+      pipe: 'unused',
+      token: 'a'.repeat(64),
+      generation: 'b'.repeat(32),
+      ownerId: '00000000-0000-4000-8000-000000000003',
+      binding: null,
+    }
+    // Same ownerId:generation, each well-formed under its own root.
+    await writeOwnerRecord(firstRegistry, `${workspaceKey(directory)}-copy.json`, owner)
+    await writeOwnerRecord(secondRegistry, `${workspaceKey(directory)}-copy.json`, {
+      ...owner,
+      trustRoot: await fs.realpath(second),
+    })
+    try {
+      await expect(
+        stopWorkspace([firstRegistry, secondRegistry], directory, directory),
+      ).rejects.toThrow('ESTOP_AMBIGUOUS')
+      // Fatal means retained: neither copy is removed or signalled.
+      expect(await readdir(firstRegistry)).toHaveLength(1)
+      expect(await readdir(secondRegistry)).toHaveLength(1)
+    } finally {
+      await removeFolder(roots)
+    }
+  })
+
+  it.runIf(process.platform !== 'win32')(
+    'stops the live owner while reporting an unusable record in another root',
+    async () => {
+      await requireLiveSupervision()
+      const roots = path.join(directory, 'mixed-roots')
+      const second = path.join(roots, 'second')
+      await fs.mkdir(second, { mode: 0o700, recursive: true })
+      const secondRegistry = path.join(second, `muse-runtime-${workspaceKey(directory)}`)
+      await fs.mkdir(secondRegistry, { mode: 0o700 })
+      await writeFile(path.join(secondRegistry, `${workspaceKey(directory)}-empty.json`), '', {
+        mode: 0o600,
+      })
+      const ready = path.join(directory, 'mixed-stop.ready')
+      const run = start(
+        directory,
+        `require('node:fs').writeFileSync(process.argv[1],'ready');setInterval(()=>{},1000)`,
+        [ready],
+      )
+      await waitFor(ready)
+      const diagnostics: string[] = []
+      try {
+        await stopWorkspace(
+          [path.join(directory, 'owners'), secondRegistry],
+          directory,
+          directory,
+          (message) => {
+            diagnostics.push(message)
+          },
+        )
+        expect(await run.done).toBe(0)
+        expect(diagnostics).toHaveLength(1)
+        expect(diagnostics[0]).toContain('ESTOP_RECORD_UNUSABLE')
+        expect(diagnostics[0]).toContain('empty.json')
+      } finally {
+        await removeFolder(secondRegistry)
+        try {
+          await stopWorkspace(path.join(directory, 'owners'), directory)
+        } catch {
+          /* The asserted Stop above already settled the run. */
+        }
+        try {
+          await run.done
+        } catch {
+          /* A refused Stop is the asserted outcome elsewhere. */
+        }
+      }
+    },
+  )
 })
