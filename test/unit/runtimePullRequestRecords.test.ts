@@ -1,20 +1,25 @@
-// The worktree records' cross-process lock and fenced generations (M123
-// lane P, RVM123P/P2/P3): two windows as two store instances over one data
-// folder, a file-operation port that pauses one call where an interleaving
-// matters, real files on this platform's file system.
+// The worktree records over the fenced file lease (M123 lane P,
+// RVM123P/P2–P6, M123P7): reservations that are a checkout id and a fence,
+// compare-and-swaps on them, the folder absent under the supersede's own
+// hold, the claim making the folder under the hold that claims it, and
+// generations that refuse a stale writer — two windows as two store
+// instances over one data folder, a file port that pauses or fails one
+// call where an interleaving matters, real files on this platform.
 
-import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { hostname, tmpdir } from 'node:os'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { setTimeout as delay } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import type { CoreLogger } from '../../src/core/logging'
+import { LeaseBusyError } from '../../src/core/locks/fileLease'
+import { currentProcessOwner } from '../../src/core/locks/processOwner'
 import type { WorktreeRecord } from '../../src/core/worktreeConversations'
 import {
   createFileWorktreeRecordStore,
+  createMemoryWorktreeRecordStore,
   holdForRoots,
   recordRevision,
   versionOf,
@@ -29,18 +34,6 @@ import {
   nodeRecordStoreFs,
   type RecordStoreFs,
 } from '../../src/runtime/panel/pullRequests/recordStoreFs'
-import {
-  currentProcessOwner,
-  isProcessOwnerGone,
-  processStartTime,
-  systemBootId,
-  type ProcessOwner,
-} from '../../src/runtime/panel/pullRequests/processOwner'
-import {
-  acquireStoreLock,
-  StoreBusyError,
-  type StoreLockEnv,
-} from '../../src/runtime/panel/pullRequests/storeLock'
 
 const quiet = () => undefined
 const log: CoreLogger = { trace: quiet, info: quiet, warn: quiet, error: quiet }
@@ -53,6 +46,11 @@ const ORIGIN = {
   headSha: 'c'.repeat(40),
   isAuthoredByUser: false,
 } as const
+const GENERATION_FILE = /\d+\.json$/u
+/** The folder check a supersede runs under its hold: nothing there. */
+function isFolderGone(): boolean {
+  return true
+}
 
 function slashed(folder: string): string {
   return folder.replaceAll('\\', '/')
@@ -64,15 +62,18 @@ interface Pause {
   readonly resume: () => void
 }
 
+type AsyncOp =
+  'mkdir' | 'readdir' | 'readFile' | 'createExclusive' | 'link' | 'rename' | 'unlink' | 'lstat'
+
 /** The node file operations, with one-shot pauses a test arms per call. */
 function pausingFs(base: RecordStoreFs = nodeRecordStoreFs) {
   const traps: {
-    readonly op: string
+    readonly op: AsyncOp
     readonly isMatch: (args: readonly string[]) => boolean
     readonly hit: () => void
     readonly gate: Promise<void>
   }[] = []
-  const pass = async (op: string, args: readonly string[]): Promise<void> => {
+  const pass = async (op: AsyncOp, args: readonly string[]): Promise<void> => {
     const index = traps.findIndex((trap) => trap.op === op && trap.isMatch(args))
     const trap = traps[index]
     if (trap === undefined) {
@@ -83,6 +84,7 @@ function pausingFs(base: RecordStoreFs = nodeRecordStoreFs) {
     await trap.gate
   }
   const fs: RecordStoreFs = {
+    ...base,
     mkdir: async (folder) => {
       await pass('mkdir', [folder])
       await base.mkdir(folder)
@@ -95,9 +97,9 @@ function pausingFs(base: RecordStoreFs = nodeRecordStoreFs) {
       await pass('readFile', [file])
       return await base.readFile(file)
     },
-    createExclusive: async (file, content) => {
+    createExclusive: async (file, content, durability) => {
       await pass('createExclusive', [file, content])
-      await base.createExclusive(file, content)
+      await base.createExclusive(file, content, durability)
     },
     link: async (existing, target) => {
       await pass('link', [existing, target])
@@ -116,10 +118,7 @@ function pausingFs(base: RecordStoreFs = nodeRecordStoreFs) {
       return await base.lstat(file)
     },
   }
-  const pauseAt = (
-    op: keyof RecordStoreFs,
-    isMatch: (args: readonly string[]) => boolean,
-  ): Pause => {
+  const pauseAt = (op: AsyncOp, isMatch: (args: readonly string[]) => boolean): Pause => {
     const reached = Promise.withResolvers<undefined>()
     const gate = Promise.withResolvers<undefined>()
     traps.push({
@@ -140,20 +139,6 @@ function pausingFs(base: RecordStoreFs = nodeRecordStoreFs) {
   return { fs, pauseAt }
 }
 
-/** The file operations, with every lock instance reporting one inode number. */
-function reusingInodes(base: RecordStoreFs): RecordStoreFs {
-  return {
-    ...base,
-    lstat: async (file) => {
-      const stats = await base.lstat(file)
-      if (path.basename(file).startsWith('lock')) {
-        stats.ino = 1n
-      }
-      return stats
-    },
-  }
-}
-
 /**
  * The file operations, holding the window's first generation publish
  * (after its last lease check) until another window has published that
@@ -164,7 +149,7 @@ function holdingFirstPublish(base: RecordStoreFs, onHeld: () => void): RecordSto
   return {
     ...base,
     link: async (existing, target) => {
-      if (isArmed && /\d+\.json$/u.test(target)) {
+      if (isArmed && GENERATION_FILE.test(target)) {
         isArmed = false
         onHeld()
         const until = performance.now() + 2000
@@ -219,7 +204,7 @@ function jitteringFs(
   }
   const base = nodeRecordStoreFs
   return {
-    mkdir: (folder) => base.mkdir(folder),
+    ...base,
     readdir: async (folder) => {
       await next()
       return await base.readdir(folder)
@@ -228,9 +213,9 @@ function jitteringFs(
       await next()
       return await base.readFile(file)
     },
-    createExclusive: async (file, content) => {
+    createExclusive: async (file, content, durability) => {
       await next()
-      await base.createExclusive(file, content)
+      await base.createExclusive(file, content, durability)
     },
     link: async (existing, target) => {
       // A writer that checked its lease lingers before it publishes, in real
@@ -255,418 +240,12 @@ function jitteringFs(
       }
       await base.rename(from, to)
     },
-    unlink: (file) => base.unlink(file),
     lstat: async (file) => {
       await next()
       return await base.lstat(file)
     },
   }
 }
-
-async function lockEnv(overrides: Partial<StoreLockEnv> = {}): Promise<StoreLockEnv> {
-  return {
-    fs: nodeRecordStoreFs,
-    now: Date.now,
-    monotonic: () => performance.now(),
-    sleep: (ms) => delay(ms),
-    owner: await currentProcessOwner(),
-    isOwnerGone: (owner) => isProcessOwnerGone(owner),
-    leaseMs: 30_000,
-    honoredLeaseMs: 30_000,
-    unreadableMs: 2000,
-    timeoutMs: 3000,
-    ...overrides,
-  }
-}
-
-/**
- * Another window's note. It carries the lease both ways an earlier note
- * did (`leaseUntil`, wall clock) and this one does (`leaseMs`, the
- * holder's monotonic clock), so a reader of either version reads the same
- * live or expired lock.
- */
-function lockNote(owner: ProcessOwner, leaseMs: number, id = 'someone-else') {
-  const now = Date.now()
-  return JSON.stringify({
-    owner,
-    id,
-    acquiredAt: now,
-    leaseMs,
-    leaseUntil: now + leaseMs,
-  })
-}
-
-/** A wall clock stepped an hour forward. */
-function anHourAhead(): number {
-  return Date.now() + 3_600_000
-}
-
-/** The id of a process that has exited: provably gone on this host. */
-async function exitedProcessId(): Promise<number> {
-  const child = spawn(process.execPath, ['-e', ''], { windowsHide: true })
-  await new Promise((resolve) => {
-    child.once('exit', resolve)
-  })
-  if (child.pid === undefined) {
-    throw new Error('the process never started')
-  }
-  return child.pid
-}
-
-/** A live process for the test's length; `stop` ends it and waits. */
-function liveProcess(): { readonly pid: number; readonly stop: () => Promise<void> } {
-  const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], {
-    windowsHide: true,
-  })
-  const exited = new Promise((resolve) => {
-    child.once('exit', resolve)
-  })
-  if (child.pid === undefined) {
-    throw new Error('the process never started')
-  }
-  return {
-    pid: child.pid,
-    stop: async () => {
-      child.kill('SIGKILL')
-      await exited
-    },
-  }
-}
-
-async function lockFolder(): Promise<{ readonly folder: string; readonly lockPath: string }> {
-  const folder = await mkdtemp(path.join(tmpdir(), 'm123p-lock-'))
-  return { folder, lockPath: path.join(folder, 'lock') }
-}
-
-/** How a promise settled within `ms`: its value, its error, or `hung`. */
-async function within<T>(work: Promise<T>, ms: number): Promise<T | Error | 'hung'> {
-  const settled = (async () => {
-    try {
-      return await work
-    } catch (error: unknown) {
-      return error instanceof Error ? error : new Error(String(error))
-    }
-  })()
-  return await Promise.race([settled, delay(ms, 'hung' as const)])
-}
-
-describe('process owners (M123 lane P)', () => {
-  it('reads this process’s birth from the system', async () => {
-    const started = await processStartTime(process.pid)
-    expect(started).toBeDefined()
-    const self = await currentProcessOwner()
-    expect(self.processStart).toBe(started)
-    expect(await processStartTime(await exitedProcessId())).toBeUndefined()
-  })
-
-  it.skipIf(process.platform === 'linux')(
-    'reads a Windows or macOS birth as the epoch time it was recorded at',
-    async () => {
-      const started = await processStartTime(process.pid)
-      expect(Math.abs((started ?? 0) - (Date.now() - process.uptime() * 1000))).toBeLessThan(2000)
-      const self = await currentProcessOwner()
-      expect(self.bootId).toBeUndefined()
-    },
-  )
-
-  it.runIf(process.platform === 'linux')(
-    'reads a Linux birth as kernel ticks in this boot, never the wall clock',
-    async () => {
-      // RVM123P5 finding 3, natively: ticks since boot and the boot id.
-      const bootId = await systemBootId()
-      expect(bootId).toMatch(/^[\da-f-]{36}$/u)
-      const self = await currentProcessOwner()
-      expect(self.bootId).toBe(bootId)
-      expect(self.processStart).toBe(await processStartTime(process.pid))
-      // Ticks since boot: far below any epoch time.
-      expect(self.processStart).toBeLessThan(Date.now() / 1000)
-    },
-  )
-
-  it('names a gone owner only when it is provably gone', async () => {
-    const self = await currentProcessOwner()
-    expect(await isProcessOwnerGone(self)).toBe(false)
-    // This process's id with another start time: an earlier process.
-    expect(await isProcessOwnerGone({ ...self, processStart: self.processStart - 60_000 })).toBe(
-      true,
-    )
-    expect(await isProcessOwnerGone({ ...self, pid: await exitedProcessId() })).toBe(true)
-    // Another host's process is never provably gone: its lease decides.
-    expect(await isProcessOwnerGone({ ...self, host: `${self.host}-elsewhere`, pid: 1 })).toBe(
-      false,
-    )
-    const live = liveProcess()
-    try {
-      const started = await processStartTime(live.pid)
-      expect(started).toBeDefined()
-      const owner = { ...self, pid: live.pid, processStart: started ?? 0 }
-      expect(await isProcessOwnerGone(owner)).toBe(false)
-      // RVM123P4 finding 4: the id now names a process that started at
-      // another time, so the recorded owner is gone, whoever's id it is.
-      expect(
-        await isProcessOwnerGone({ ...owner, processStart: owner.processStart - 60_000 }),
-      ).toBe(true)
-      // A live id whose start time cannot be read proves nothing.
-      expect(
-        await isProcessOwnerGone(
-          { ...owner, processStart: 1 },
-          { startTimeOf: () => Promise.resolve(undefined) },
-        ),
-      ).toBe(false)
-    } finally {
-      await live.stop()
-    }
-  })
-})
-
-describe('worktree records lock (M123 lane P)', () => {
-  it('takes over at once a lock whose owner process is gone', async () => {
-    const { lockPath } = await lockFolder()
-    const gone = { host: hostname(), pid: await exitedProcessId(), processStart: 1 }
-    await writeFile(lockPath, lockNote(gone, 60_000))
-    const started = performance.now()
-    const lease = await acquireStoreLock(lockPath, await lockEnv())
-    expect(performance.now() - started).toBeLessThan(1000)
-    expect(await lease.isHeld()).toBe(true)
-    await lease.release()
-    expect(existsSync(lockPath)).toBe(false)
-  })
-
-  it('takes over at once a lock whose owner id now names another process', async () => {
-    // RVM123P4 finding 4: the owner crashed and the system gave its id to a
-    // live, unrelated process; its lease would otherwise hold for a minute.
-    const { lockPath } = await lockFolder()
-    const live = liveProcess()
-    try {
-      const self = await currentProcessOwner()
-      // Born at another time than the id's live process, in this boot.
-      const reused = { ...self, pid: live.pid, processStart: 1 }
-      await writeFile(lockPath, lockNote(reused, 60_000))
-      const lease = await acquireStoreLock(lockPath, await lockEnv({ timeoutMs: 3000 }))
-      expect(await lease.isHeld()).toBe(true)
-      await lease.release()
-    } finally {
-      await live.stop()
-    }
-  })
-
-  it('waits out a live-looking owner’s lease across attempts shorter than it', async () => {
-    // RVM123P5 finding 1: each attempt gives up after its 10 s timeout; the
-    // instance watched in earlier attempts keeps its first-seen time, so the
-    // 30 s lease is waited out and the lock taken over.
-    const { lockPath } = await lockFolder()
-    await writeFile(lockPath, lockNote(await currentProcessOwner(), 30_000))
-    let elapsed = 0
-    const env = await lockEnv({
-      monotonic: () => elapsed,
-      sleep: async () => {
-        elapsed += 1000
-        await nextTurn()
-      },
-      timeoutMs: 10_000,
-      watches: new Map(),
-    })
-    const outcomes: string[] = []
-    for (let attempt = 1; attempt <= 5 && !outcomes.includes('acquired'); attempt += 1) {
-      try {
-        const lease = await acquireStoreLock(lockPath, env)
-        outcomes.push('acquired')
-        await lease.release()
-      } catch (error: unknown) {
-        outcomes.push(error instanceof StoreBusyError ? 'busy' : String(error))
-      }
-    }
-    // Two 10 s attempts give up; the third reaches 30 s watched and takes over.
-    expect(outcomes).toEqual(['busy', 'busy', 'acquired'])
-    expect(elapsed).toBeGreaterThanOrEqual(30_000)
-  })
-
-  it('starts the watch again when the instance changes between attempts', async () => {
-    const { lockPath } = await lockFolder()
-    await writeFile(lockPath, lockNote(await currentProcessOwner(), 30_000))
-    let elapsed = 0
-    const env = await lockEnv({
-      monotonic: () => elapsed,
-      sleep: async () => {
-        elapsed += 1000
-        await nextTurn()
-      },
-      timeoutMs: 20_000,
-      watches: new Map(),
-    })
-    await expect(acquireStoreLock(lockPath, env)).rejects.toBeInstanceOf(StoreBusyError)
-    // Another holder now: 20 s already watched of the old one count for nothing.
-    await rm(lockPath, { force: true })
-    await writeFile(lockPath, lockNote(await currentProcessOwner(), 30_000, 'another-holder'))
-    const started = elapsed
-    await expect(acquireStoreLock(lockPath, env)).rejects.toBeInstanceOf(StoreBusyError)
-    const lease = await acquireStoreLock(lockPath, env)
-    expect(elapsed - started).toBeGreaterThanOrEqual(30_000)
-    await lease.release()
-  })
-
-  it('waits for a live owner until its lease ends, and no longer', async () => {
-    const { lockPath } = await lockFolder()
-    await writeFile(lockPath, lockNote(await currentProcessOwner(), 400))
-    await expect(
-      acquireStoreLock(lockPath, await lockEnv({ timeoutMs: 100 })),
-    ).rejects.toBeInstanceOf(StoreBusyError)
-    const lease = await acquireStoreLock(lockPath, await lockEnv())
-    expect(await lease.isHeld()).toBe(true)
-    await lease.release()
-  })
-
-  it('waits out another window’s lease only up to the longest it honors', async () => {
-    const { lockPath } = await lockFolder()
-    await writeFile(lockPath, lockNote(await currentProcessOwner(), 3_600_000))
-    const lease = await acquireStoreLock(
-      lockPath,
-      await lockEnv({ honoredLeaseMs: 300, timeoutMs: 2000 }),
-    )
-    expect(await lease.isHeld()).toBe(true)
-    await lease.release()
-  })
-
-  it('bounds the wait when the wall clock steps back', async () => {
-    // RVM123P4 finding 3: the wall clock moves back an hour during the
-    // wait; the wait and the lease are measured on the monotonic clock.
-    const { lockPath } = await lockFolder()
-    await writeFile(lockPath, lockNote(await currentProcessOwner(), 60_000))
-    let calls = 0
-    const steppingBack = () => {
-      calls += 1
-      return calls === 1 ? Date.now() : Date.now() - 3_600_000
-    }
-    try {
-      const outcome = await within(
-        acquireStoreLock(lockPath, await lockEnv({ now: steppingBack, timeoutMs: 300 })),
-        2000,
-      )
-      expect(outcome).toBeInstanceOf(StoreBusyError)
-    } finally {
-      // Lets a wait that never ended (the earlier wall-clock deadline) end.
-      await rm(lockPath, { force: true })
-    }
-  })
-
-  it('never lets a wall clock step forward cut a live lease', async () => {
-    const { lockPath } = await lockFolder()
-    await writeFile(lockPath, lockNote(await currentProcessOwner(), 60_000))
-    await expect(
-      acquireStoreLock(lockPath, await lockEnv({ now: anHourAhead, timeoutMs: 300 })),
-    ).rejects.toBeInstanceOf(StoreBusyError)
-    // The holder's own lease does not end with a step either.
-    await rm(lockPath, { force: true })
-    let isStepped = false
-    const lease = await acquireStoreLock(
-      lockPath,
-      await lockEnv({ now: () => (isStepped ? Date.now() + 3_600_000 : Date.now()) }),
-    )
-    isStepped = true
-    expect(await lease.isHeld()).toBe(true)
-    await lease.release()
-  })
-
-  it('expires a lock whose owner note is missing or torn after the short bound', async () => {
-    // RVM123P3 finding 5: a crash between creating the lock and writing
-    // its note must not leave a lock that never expires.
-    const { lockPath } = await lockFolder()
-    for (const content of ['', '{"owner":{"host"']) {
-      await writeFile(lockPath, content)
-      // Watched less than the bound: its writer may still be writing.
-      await expect(
-        acquireStoreLock(lockPath, await lockEnv({ unreadableMs: 300, timeoutMs: 100 })),
-      ).rejects.toBeInstanceOf(StoreBusyError)
-      // Watched past the bound: taken over.
-      const lease = await acquireStoreLock(
-        lockPath,
-        await lockEnv({ unreadableMs: 300, timeoutMs: 2000 }),
-      )
-      expect(await lease.isHeld()).toBe(true)
-      await lease.release()
-    }
-  })
-
-  it('never lets two waiters on one expired lock delete each other’s fresh lock', async () => {
-    // RVM123P3 finding 1: both windows judge the same expired instance; A
-    // takes it over first, then B's already-authorized move reaches A's
-    // fresh lock.
-    const { lockPath } = await lockFolder()
-    await writeFile(lockPath, lockNote(await currentProcessOwner(), 0))
-    const windowB = pausingFs()
-    const beforeMove = windowB.pauseAt('rename', ([from]) => from === lockPath)
-    let isBHolding = false
-    const bEnv = await lockEnv({ fs: windowB.fs })
-    const bAcquire = (async () => {
-      const lease = await acquireStoreLock(lockPath, bEnv)
-      isBHolding = true
-      return lease
-    })()
-    await beforeMove.reached
-    const a = await acquireStoreLock(lockPath, await lockEnv({ honoredLeaseMs: 0 }))
-    expect(await a.isHeld()).toBe(true)
-    beforeMove.resume()
-    await delay(150)
-    // B moved A's lock aside, saw it was not the instance it judged, and
-    // put it back: A still holds, B still waits.
-    expect(await a.isHeld()).toBe(true)
-    expect(isBHolding).toBe(false)
-    await a.release()
-    const b = await bAcquire
-    expect(await b.isHeld()).toBe(true)
-    expect(await a.isHeld()).toBe(false)
-    await b.release()
-    // No instance was left aside.
-    const left = await readdir(path.dirname(lockPath))
-    expect(left).toEqual([])
-  })
-
-  it('tells a fresh lock from the stale one it replaced when the inode number is reused', async () => {
-    // Found natively on Linux (FIXM123P6): ext4 gave A's fresh lock the
-    // stale lock's freed inode number, so B's move-aside check matched A's
-    // live lock by file id alone and deleted it. This port reports one
-    // inode number for every lock instance, as such reuse looks.
-    const { lockPath } = await lockFolder()
-    await writeFile(lockPath, lockNote(await currentProcessOwner(), 0))
-    const windowB = pausingFs(reusingInodes(nodeRecordStoreFs))
-    const beforeMove = windowB.pauseAt('rename', ([from]) => from === lockPath)
-    let isBHolding = false
-    const bEnv = await lockEnv({ fs: windowB.fs, watches: new Map() })
-    const bAcquire = (async () => {
-      const lease = await acquireStoreLock(lockPath, bEnv)
-      isBHolding = true
-      return lease
-    })()
-    await beforeMove.reached
-    const a = await acquireStoreLock(
-      lockPath,
-      await lockEnv({
-        fs: reusingInodes(nodeRecordStoreFs),
-        honoredLeaseMs: 0,
-        watches: new Map(),
-      }),
-    )
-    beforeMove.resume()
-    await delay(150)
-    expect(await a.isHeld()).toBe(true)
-    expect(isBHolding).toBe(false)
-    await a.release()
-    const b = await bAcquire
-    expect(await b.isHeld()).toBe(true)
-    await b.release()
-  })
-
-  it('releases only its own instance, never a lock taken over from it', async () => {
-    const { lockPath } = await lockFolder()
-    const a = await acquireStoreLock(lockPath, await lockEnv({ leaseMs: 100 }))
-    await delay(200)
-    const b = await acquireStoreLock(lockPath, await lockEnv())
-    expect(await a.isHeld()).toBe(false)
-    await a.release()
-    expect(await b.isHeld()).toBe(true)
-    await b.release()
-  })
-})
 
 function byName(left: string, right: string): number {
   return left.localeCompare(right)
@@ -681,6 +260,10 @@ function heldRecord(folder: string, overrides: Partial<WorktreeRecord> = {}): Wo
     isHeld: true,
     ...overrides,
   }
+}
+
+function pendingRecord(folder: string, checkoutId: string): WorktreeRecord {
+  return heldRecord(folder, { checkoutId, isCheckoutPending: true })
 }
 
 async function dataSetup() {
@@ -711,7 +294,185 @@ async function seeded(dataFolder: string, folder: string, isTrusted: boolean) {
   return reserved.stored
 }
 
-const GENERATION_FILE = /\d+\.json$/u
+describe('worktree record store: fenced reservations (M123 lane P)', () => {
+  it('stamps each write with its hold’s fence and refuses a reservation another write moved', async () => {
+    const { dataFolder, folder } = await dataSetup()
+    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    const reserved = await store.reserve(pendingRecord(folder, 'a'))
+    if (!reserved.ok) {
+      throw new Error('refused')
+    }
+    expect(reserved.stored.fence).toBe(reserved.reservation.fence)
+    expect(store.holdsSync(reserved.reservation)).toBe(true)
+    const claimed = await store.claim(reserved.reservation, () => Promise.resolve('made'))
+    if (claimed.status !== 'made') {
+      throw new Error('claim refused')
+    }
+    expect(claimed.reservation.fence).toBeGreaterThan(reserved.reservation.fence)
+    // The claim moved the fence: the reservation it replaced is spent.
+    expect(store.holdsSync(reserved.reservation)).toBe(false)
+    expect(await store.complete(reserved.reservation, 'dev:2')).toBe(false)
+    expect(await store.discard(reserved.reservation)).toBe(false)
+    expect(store.holdsSync(claimed.reservation)).toBe(true)
+    expect(await store.complete(claimed.reservation, 'dev:2')).toBe(true)
+    expect(store.holdsSync(claimed.reservation)).toBe(false)
+    const ready = await store.recordFor(folder)
+    expect(ready?.isCheckoutPending).toBeUndefined()
+    expect(ready?.folderIdentity).toBe('dev:2')
+    expect(ready?.fence).toBeGreaterThan(claimed.reservation.fence)
+  })
+
+  it('supersedes only the version read, and only while the folder is absent under its hold', async () => {
+    const { dataFolder, folder } = await dataSetup()
+    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    const first = await store.reserve(pendingRecord(folder, 'a'))
+    if (!first.ok) {
+      throw new Error('refused')
+    }
+    let asked = 0
+    const present = await store.supersede(
+      folder,
+      versionOf(first.stored),
+      pendingRecord(folder, 'b'),
+      () => {
+        asked += 1
+        return false
+      },
+    )
+    expect(asked).toBe(1)
+    expect(present.ok).toBe(false)
+    const replaced = await store.supersede(
+      folder,
+      versionOf(first.stored),
+      pendingRecord(folder, 'b'),
+      isFolderGone,
+    )
+    expect(replaced.ok).toBe(true)
+    // The version read is gone now: a second supersede of it is refused.
+    const again = await store.supersede(
+      folder,
+      versionOf(first.stored),
+      pendingRecord(folder, 'c'),
+      isFolderGone,
+    )
+    expect(again.ok).toBe(false)
+    const current = await store.recordFor(folder)
+    expect(current?.checkoutId).toBe('b')
+    expect(store.holdsSync(first.reservation)).toBe(false)
+  })
+
+  it('claims under one hold, and makes nothing for a reservation that moved', async () => {
+    const { dataFolder, folder } = await dataSetup()
+    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    const first = await store.reserve(pendingRecord(folder, 'a'))
+    if (!first.ok) {
+      throw new Error('refused')
+    }
+    const replaced = await store.supersede(
+      folder,
+      versionOf(first.stored),
+      pendingRecord(folder, 'b'),
+      isFolderGone,
+    )
+    expect(replaced.ok).toBe(true)
+    let made = 0
+    const refused = await store.claim(first.reservation, () => {
+      made += 1
+      return Promise.resolve()
+    })
+    expect(refused.status).toBe('refused')
+    expect(made).toBe(0)
+    // The claim's making runs while the hold that published it is held.
+    if (!replaced.ok) {
+      throw new Error('refused')
+    }
+    const lockPath = path.join(dataFolder, 'worktree-records', 'lock')
+    const claimed = await store.claim(replaced.reservation, () => {
+      made += 1
+      return Promise.resolve(existsSync(lockPath))
+    })
+    expect(claimed).toMatchObject({ status: 'made', made: true })
+    expect(made).toBe(1)
+  })
+
+  it('hands back the claimed reservation when making the folder failed', async () => {
+    const store = createMemoryWorktreeRecordStore(process.platform)
+    const folder = path.join(tmpdir(), 'pr-worktrees', '51-claim')
+    const reserved = await store.reserve(pendingRecord(folder, 'a'))
+    if (!reserved.ok) {
+      throw new Error('refused')
+    }
+    const failure = new Error('the folder was there')
+    const claimed = await store.claim(reserved.reservation, () => Promise.reject(failure))
+    if (claimed.status !== 'failed') {
+      throw new Error('expected a failed claim')
+    }
+    expect(claimed.error).toBe(failure)
+    expect(store.holdsSync(claimed.reservation)).toBe(true)
+    expect(await store.discard(claimed.reservation)).toBe(true)
+    expect(await store.recordFor(folder)).toBeUndefined()
+  })
+
+  it('reads a reservation synchronously, and refuses one it cannot read', async () => {
+    const { dataFolder, folder, recordsFolder } = await dataSetup()
+    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    const reserved = await store.reserve(pendingRecord(folder, 'a'))
+    if (!reserved.ok) {
+      throw new Error('refused')
+    }
+    expect(store.holdsSync(reserved.reservation)).toBe(true)
+    expect(
+      store.holdsSync({ ...reserved.reservation, fence: reserved.reservation.fence + 1 }),
+    ).toBe(false)
+    expect(store.holdsSync({ ...reserved.reservation, checkoutId: 'b' })).toBe(false)
+    // A torn head proves nothing: the gate refuses.
+    const names = await readdir(recordsFolder)
+    const head =
+      names
+        .filter((name) => GENERATION_FILE.test(name))
+        .toSorted(byName)
+        .at(-1) ?? ''
+    await writeFile(path.join(recordsFolder, head), '{"generation":')
+    expect(store.holdsSync(reserved.reservation)).toBe(false)
+  })
+
+  it('keeps a pending checkout owner’s boot through the file', async () => {
+    // A Linux birth is clock ticks of one boot: without its boot id a
+    // pending owner could never be judged gone by its birth.
+    const { dataFolder, folder } = await dataSetup()
+    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    const pendingOwner = {
+      host: 'this-host',
+      pid: 4242,
+      processStart: 50_000,
+      bootId: 'a3f1c0de-1111-4222-8333-944455556666',
+    }
+    const reserved = await store.reserve({ ...pendingRecord(folder, 'a'), pendingOwner })
+    expect(reserved.ok).toBe(true)
+    const fresh = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    const record = await fresh.recordFor(folder)
+    expect(record?.pendingOwner).toEqual(pendingOwner)
+  })
+
+  it('keeps publishing above the records’ fence when the fences lost their history', async () => {
+    const { dataFolder, folder, other, recordsFolder } = await dataSetup()
+    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    for (let index = 0; index < 3; index += 1) {
+      const reserved = await store.reserve(
+        pendingRecord(`${folder}-${String(index)}`, `a${String(index)}`),
+      )
+      expect(reserved.ok).toBe(true)
+    }
+    const before = await readRecordHead(nodeRecordStoreFs, recordsFolder, log)
+    await rm(path.join(recordsFolder, 'lock.fences'), { recursive: true, force: true })
+    const reserved = await store.reserve(pendingRecord(other, 'b'))
+    if (!reserved.ok) {
+      throw new Error('refused')
+    }
+    expect(reserved.reservation.fence).toBeGreaterThan(before.fence ?? Infinity)
+    expect(await store.list()).toHaveLength(4)
+  })
+})
 
 describe('worktree records generations (M123 lane P)', () => {
   it('never lets a delayed old owner land a write after a takeover', async () => {
@@ -737,6 +498,7 @@ describe('worktree records generations (M123 lane P)', () => {
       folder,
       versionOf(trusted),
       heldRecord(folder, { checkoutId: 'new-checkout', createdAt: 2000, isCheckoutPending: true }),
+      isFolderGone,
     )
     expect(replaced.ok).toBe(true)
     beforePublish.resume()
@@ -761,6 +523,7 @@ describe('worktree records generations (M123 lane P)', () => {
       folder,
       checkoutId: 'old-checkout',
       revision: recordRevision(ready),
+      fence: ready.fence,
       headSha: ORIGIN.headSha,
       folderIdentity: 'dev:1',
       pullRequest: { ...ORIGIN },
@@ -781,6 +544,7 @@ describe('worktree records generations (M123 lane P)', () => {
       folder,
       versionOf(ready),
       heldRecord(folder, { checkoutId: 'new-checkout', createdAt: 2000, isCheckoutPending: true }),
+      isFolderGone,
     )
     expect(replaced.ok).toBe(true)
     beforePublish.resume()
@@ -845,15 +609,64 @@ describe('worktree records generations (M123 lane P)', () => {
     }
     // Generation 3 was swept; a writer that read generation 2 long ago
     // takes the free number, and must learn its place cannot be proven.
-    const stale = { generation: 2, writeId: 'long-gone', records: [] }
+    const stale = { generation: 2, writeId: 'long-gone', fence: undefined, records: [] }
     expect(
-      await writeNextGeneration(nodeRecordStoreFs, recordsFolder, stale, [], () =>
-        Promise.resolve(true),
-      ),
+      await writeNextGeneration(nodeRecordStoreFs, recordsFolder, stale, [], 1000, () => true),
     ).toBe('unverified')
     const head = await readRecordHead(nodeRecordStoreFs, recordsFolder, log)
     expect(head.generation).toBe(12)
     expect(head.records).toHaveLength(12)
+  })
+
+  it('refuses a publish under a fence not above the head’s, whatever its lease says', async () => {
+    // The registry's compare-and-swap on the fence: a writer whose hold is
+    // older than the head's publishes nothing, even when its own lease
+    // check would let it.
+    const { dataFolder, folder, recordsFolder } = await dataSetup()
+    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    const reserved = await store.reserve(pendingRecord(folder, 'a'))
+    expect(reserved.ok).toBe(true)
+    const head = await readRecordHead(nodeRecordStoreFs, recordsFolder, log)
+    const fence = head.fence ?? 0
+    for (const stale of [fence, fence - 1]) {
+      expect(
+        await writeNextGeneration(nodeRecordStoreFs, recordsFolder, head, [], stale, () => true),
+      ).toBe('lost')
+    }
+    const unchanged = await readRecordHead(nodeRecordStoreFs, recordsFolder, log)
+    expect(unchanged.generation).toBe(head.generation)
+    // Above it, and still current: published.
+    expect(
+      await writeNextGeneration(nodeRecordStoreFs, recordsFolder, head, [], fence + 1, () => true),
+    ).toBe('written')
+  })
+
+  it('refuses a publish once its lease is no longer current, checked just before the link', async () => {
+    const { dataFolder, folder, recordsFolder } = await dataSetup()
+    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    const reserved = await store.reserve(pendingRecord(folder, 'a'))
+    expect(reserved.ok).toBe(true)
+    const head = await readRecordHead(nodeRecordStoreFs, recordsFolder, log)
+    let checks = 0
+    expect(
+      await writeNextGeneration(
+        nodeRecordStoreFs,
+        recordsFolder,
+        head,
+        [],
+        (head.fence ?? 0) + 1,
+        () => {
+          checks += 1
+          return false
+        },
+      ),
+    ).toBe('lost')
+    expect(checks).toBe(1)
+    const unchanged = await readRecordHead(nodeRecordStoreFs, recordsFolder, log)
+    expect(unchanged.generation).toBe(head.generation)
+    // No stage was left behind either.
+    const names = await readdir(recordsFolder)
+    expect(names.filter((name) => name.startsWith('.stage-'))).toEqual([])
   })
 
   it('takes over a lock left without its note by a crash, on the store', async () => {
@@ -866,7 +679,7 @@ describe('worktree records generations (M123 lane P)', () => {
       timeoutMs: 100,
     })
     await expect(hurried.reserve(heldRecord(folder, { checkoutId: 'a' }))).rejects.toBeInstanceOf(
-      StoreBusyError,
+      LeaseBusyError,
     )
     const patient = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
       unreadableMs: 200,
@@ -876,13 +689,79 @@ describe('worktree records generations (M123 lane P)', () => {
     expect(reserved.ok).toBe(true)
   })
 
+  it('never removes a fresh holder’s lock it moved aside and could not read', async () => {
+    // RVM123P6 finding 3 on the store: window B judged an expired lock;
+    // before B's move, window A took it over and made a fresh lock, which
+    // B's move reached. B's read of the moved file failed (EACCES). The
+    // fresh lock must go back, and B must not write as if it held the lock.
+    const { dataFolder, folder, recordsFolder } = await dataSetup()
+    await mkdir(recordsFolder, { recursive: true })
+    const lockPath = path.join(recordsFolder, 'lock')
+    const owner = await currentProcessOwner()
+    const note = (id: string, leaseMs: number) => {
+      const now = Date.now()
+      return JSON.stringify({
+        owner,
+        id,
+        renewal: 0,
+        acquiredAt: now,
+        leaseMs,
+        leaseUntil: now + leaseMs,
+      })
+    }
+    await writeFile(lockPath, note('expired-holder', 0))
+    let hasSwapped = false
+    const windowB: RecordStoreFs = {
+      ...nodeRecordStoreFs,
+      rename: async (from, to) => {
+        if (!hasSwapped && from === lockPath) {
+          hasSwapped = true
+          // Window A's takeover, finished just before B's move.
+          await rm(lockPath, { force: true })
+          await writeFile(lockPath, note('fresh-holder', 30_000))
+        }
+        await nodeRecordStoreFs.rename(from, to)
+      },
+      readFile: async (file) => {
+        if (file.endsWith('.retired')) {
+          throw Object.assign(new Error(`EACCES: permission denied, open '${file}'`), {
+            code: 'EACCES',
+          })
+        }
+        return await nodeRecordStoreFs.readFile(file)
+      },
+    }
+    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
+      fs: windowB,
+      timeoutMs: 300,
+    })
+    const started = performance.now()
+    let outcome: string
+    try {
+      const reserved = await store.reserve(pendingRecord(folder, 'b'))
+      outcome = reserved.ok ? 'reserved' : 'refused'
+    } catch (error: unknown) {
+      outcome = error instanceof Error ? error.name : String(error)
+    }
+    expect(hasSwapped).toBe(true)
+    // A's fresh lock is where A looks for it, whole.
+    const kept = JSON.parse(await readFile(lockPath, 'utf8')) as { readonly id: string }
+    expect(kept.id).toBe('fresh-holder')
+    // B waited for the lease it could not prove ended, and wrote nothing.
+    expect(outcome).not.toBe('reserved')
+    expect(performance.now() - started).toBeGreaterThanOrEqual(250)
+    const fresh = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    await rm(lockPath, { force: true })
+    expect(await fresh.recordFor(folder)).toBeUndefined()
+  })
+
   it('loses no update and lands each once while windows race through forced takeovers', async () => {
     // Property: three windows, a seeded random number of turns before every
     // file call, and one window that waits out no other window's lease, so
     // it takes their lock over mid-write again and again (a delayed or
     // evicted owner, from their side). Whatever interleaving results, the
     // records are exactly the reserves that reported success, each once,
-    // and the kept generations form one chain.
+    // and the kept generations form one chain whose fences only rise.
     const { dataFolder, heldRoot, recordsFolder } = await dataSetup()
     const seen = { lockMoves: 0, lostGenerations: 0 }
     // Every window polls every turn (no timer gaps leave the lock idle);
@@ -891,8 +770,7 @@ describe('worktree records generations (M123 lane P)', () => {
     // their last lease check, before they publish. However fast or loaded
     // the machine, one takeover mid-write is certain: the first window
     // holds its first publish until the third has taken the lock over and
-    // published that very generation (at most 2 s), so the fence must
-    // refuse it.
+    // published that very generation (at most 2 s), so it must be refused.
     const firstHeld = deferred()
     const windows = [
       { seed: 11, honoredLeaseMs: 30_000 },
@@ -939,7 +817,8 @@ describe('worktree records generations (M123 lane P)', () => {
     const landed = head.records.map((record) => record.folder)
     expect(new Set(landed).size).toBe(landed.length)
     expect(landed.toSorted(byName)).toEqual(succeeded.toSorted(byName))
-    // The kept generations: each one's parent is the one before.
+    // The kept generations: each one's parent is the one before, and each
+    // was written under a later fence than its parent.
     const listed = await readdir(recordsFolder)
     const generations = listed.filter((name) => /^\d+\.json$/u.test(name)).toSorted(byName)
     const files = await Promise.all(
@@ -949,12 +828,14 @@ describe('worktree records generations (M123 lane P)', () => {
             readonly generation: number
             readonly writeId: string
             readonly parent: string | null
+            readonly fence: number
           },
       ),
     )
     const top = files.filter((file) => file.generation > head.generation - 8)
     for (let index = 1; index < top.length; index += 1) {
       expect(top[index]?.parent).toBe(top[index - 1]?.writeId)
+      expect(top[index]?.fence).toBeGreaterThan(top[index - 1]?.fence ?? Infinity)
     }
   })
 })
