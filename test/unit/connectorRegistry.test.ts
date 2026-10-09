@@ -1569,6 +1569,53 @@ describe('M124 round 4: receipts, races and the live gate (RVM124R3)', () => {
     release(h)
   })
 
+  it('starts no owner read after the kill switch during the dispatching receipt wait (P1)', async () => {
+    const h = await harness()
+    h.state.holds.add('dispatching')
+    const answer = h.call('muse_prompt_list', { scope: 'user' })
+    await vi.waitFor(() => {
+      expect(h.state.held).toHaveLength(1)
+    })
+    h.state.killed = true
+    release(h)
+    expect(await answer).toMatchObject({ status: 'refused', reason: 'forbidden' })
+    expect(h.state.reads).toBe(0)
+  })
+
+  it('keeps a result decided at its delivery gate: a cancellation meanwhile adds no second end (P2-3)', async () => {
+    const h = await harness()
+    h.state.holds.add('settled')
+    const reply = h.protocol.handle(callFrame(9, 'muse_prompt_list', { scope: 'user' }))
+    await vi.waitFor(() => {
+      expect(h.state.held).toHaveLength(1)
+    })
+    await h.protocol.handle(cancelFrame(9))
+    release(h)
+    expect(await reply).toBeUndefined()
+    await flush()
+    const ended = events(h).filter((record) => TERMINAL.has(record.event))
+    expect(ended.map((record) => record.event)).toEqual(['settled'])
+  })
+
+  it('never holds the transport’s shutdown on a committed delivery’s receipt, over stdio (P2-3)', async () => {
+    const h = await harness()
+    const pipe = stdio(h)
+    h.state.holds.add('settled')
+    pipe.call(9, 'muse_prompt_list', { scope: 'user' })
+    await vi.waitFor(() => {
+      expect(h.state.held).toHaveLength(1)
+    })
+    pipe.input.end()
+    let isServed = false
+    void pipe.served.then(() => {
+      isServed = true
+    })
+    await vi.waitFor(() => {
+      expect(isServed).toBe(true)
+    })
+    release(h)
+  })
+
   it('journals no edge out of a call cancelled while admission waits (finding 5)', async () => {
     const h = await harness()
     let takeToken: (() => void) | undefined
