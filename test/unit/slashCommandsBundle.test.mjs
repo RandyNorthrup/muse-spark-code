@@ -24,10 +24,14 @@ it('certifies lazy slash-command registration without increasing activation byte
   )
   expect(owners).toHaveLength(1)
   expect(startup.has(owners[0][0])).toBe(false)
+  // a704f711c: the "/" list is no surface of its own; it loads with the
+  // palette registry, whose deferred import App already makes.
+  const registry = 'src/shared/paletteRegistry.ts'
   const entry = Object.entries(meta.outputs).find(
-    ([, output]) => output.entryPoint?.replaceAll('\\', '/') === source,
+    ([, output]) => output.entryPoint?.replaceAll('\\', '/') === registry,
   )
   expect(entry).toBeDefined()
   expect(startup.has(entry[0])).toBe(false)
+  expect(owners[0][0]).toBe(entry[0])
   expect(statSync(path.join(build.root, 'dist/extension.js')).size).toBeLessThanOrEqual(587_451)
 })
