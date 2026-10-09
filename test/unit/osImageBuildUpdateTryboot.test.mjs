@@ -1,35 +1,33 @@
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { Buffer } from 'node:buffer'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import {
+  OS1_INITIAL,
+  PI_PARTITION,
+  bootInto,
+  dtInt,
+  hostLacks,
+  noFlockReason,
+  piBackend as backend,
+  piLayout,
+  posixPath,
+  shell,
+} from './helpers/osPiTryboot.mjs'
 
-const backend = fileURLToPath(new URL('../../os/update/pi-tryboot-backend', import.meta.url))
+const noFlock = hostLacks('flock')
+const writes = noFlock ? `writes (${noFlockReason})` : 'writes'
 
-// The backend is POSIX sh. CI runs unit tests on Windows with Git Bash, so
-// resolve a shell the way the runner does and hand it forward-slash paths;
-// a missing shell fails loudly, never skips.
-function posixPath(p) {
-  return process.platform === 'win32' ? p.split(path.sep).join(path.posix.sep) : p
-}
-let shell = 'sh'
-if (process.platform === 'win32') {
-  const candidates = [
-    'sh',
-    path.join(process.env.ProgramFiles ?? 'C:/Program Files', 'Git/bin/sh.exe'),
-  ]
-  const found = candidates.find((candidate) => {
-    try {
-      const probe = spawnSync(candidate, ['-c', 'echo os2-shell-ok'], { encoding: 'utf8' })
-      return probe.status === 0 && probe.stdout.includes('os2-shell-ok')
-    } catch {
-      return false
-    }
-  })
-  if (found === undefined) throw new Error('M110-OS2 needs a POSIX shell (Git for Windows)')
-  shell = found
-}
 const temporary = []
 function directory() {
   const dir = mkdtempSync(path.join(process.env.TMPDIR ?? os.tmpdir(), 'm110-os2-tryboot-'))
@@ -40,35 +38,32 @@ afterEach(() => {
   for (const dir of temporary.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
-// Post-handoff layout fixture: the controller FAT holds only autoboot.txt
-// (label muse-pi-ctl, never a RAUC slot); boot-a/boot-b are separate FATs.
-const OS1_INITIAL = '[all]\ntryboot_a_b=1\nboot_partition=1\n[tryboot]\nboot_partition=2\n'
-
-function setup(booted = '1') {
+// Post-handoff layout fixture: the controller FAT (partition 1, label
+// muse-pi-ctl, never a RAUC slot) holds only autoboot.txt; boot A/B are
+// partitions 2/3.
+function setup(booted = 'A') {
   const dir = directory()
-  const bootDir = path.join(dir, 'controller')
-  const dt = path.join(dir, 'proc/device-tree/chosen/bootloader')
-  mkdirSync(bootDir, { recursive: true })
-  mkdirSync(dt, { recursive: true })
-  writeFileSync(path.join(bootDir, 'autoboot.txt'), OS1_INITIAL)
-  writeFileSync(path.join(dt, 'partition'), `${booted}\n`)
-  return { dir, bootDir, dt, lock: path.join(dir, 'pi-tryboot.lock') }
+  const layout = piLayout(dir, booted)
+  writeFileSync(path.join(layout.bootDir, 'autoboot.txt'), OS1_INITIAL)
+  return { dir, ...layout, lock: layout.env.MUSE_PI_LOCK_FILE }
 }
 
 function run(h, args, extraEnv = {}) {
   return spawnSync(shell, [posixPath(backend), ...args], {
     encoding: 'utf8',
-    env: {
-      ...process.env,
-      MUSE_PI_BOOT_DIR: posixPath(h.bootDir),
-      MUSE_PI_DEVICE_TREE: posixPath(path.join(h.dir, 'proc/device-tree')),
-      MUSE_PI_LOCK_FILE: posixPath(h.lock),
-      ...extraEnv,
-    },
+    env: { ...process.env, ...h.env, ...extraEnv },
   })
 }
 
-describe('M110-OS2 Pi tryboot backend', () => {
+const autoboot = (h) => readFileSync(path.join(h.bootDir, 'autoboot.txt'), 'utf8')
+
+describe('M110-OS2 Pi tryboot backend: reads', () => {
+  it('uses the documented controller-first geometry: controller 1, A 2, B 3', () => {
+    // Raspberry Pi's autoboot.txt A/B example: partition 1 holds only
+    // autoboot.txt, the boot slots are 2 and 3.
+    expect(PI_PARTITION).toEqual({ controller: 1, A: 2, B: 3 })
+  })
+
   it('accepts the OS1 initial file: primary A, no trial, A good', () => {
     const h = setup()
     expect(run(h, ['get-primary']).stdout.trim()).toBe('A')
@@ -78,6 +73,157 @@ describe('M110-OS2 Pi tryboot backend', () => {
     expect(run(h, ['get-current']).stdout.trim()).toBe('A')
   })
 
+  it('accepts B stable on partition 3 and refuses the controller as a selection', () => {
+    const h = setup()
+    writeFileSync(
+      path.join(h.bootDir, 'autoboot.txt'),
+      '[all]\ntryboot_a_b=1\nboot_partition=3\n[tryboot]\nboot_partition=2\n',
+    )
+    expect(run(h, ['get-primary']).stdout.trim()).toBe('B')
+    // The pre-handoff 1/2 numbering selects the controller FAT: refused.
+    writeFileSync(
+      path.join(h.bootDir, 'autoboot.txt'),
+      '[all]\ntryboot_a_b=1\nboot_partition=1\n[tryboot]\nboot_partition=2\n',
+    )
+    const controller = run(h, ['get-primary'])
+    expect(controller.status).toBe(3)
+    expect(controller.stdout.trim()).toBe('')
+    expect(controller.stderr).toContain('PI_TRYBOOT_MALFORMED boot_partition=1 controller')
+  })
+
+  it.each([
+    [
+      'unknown key',
+      '[all]\ntryboot_a_b=1\nboot_partition=2\nevil=1\n[tryboot]\nboot_partition=3\n',
+    ],
+    ['unknown section', '[all]\ntryboot_a_b=1\nboot_partition=2\n[evil]\nboot_partition=3\n'],
+    ['comment', '[all]\ntryboot_a_b=1\n# comment\nboot_partition=2\n[tryboot]\nboot_partition=3\n'],
+    ['disabled tryboot', '[all]\ntryboot_a_b=0\nboot_partition=2\n[tryboot]\nboot_partition=3\n'],
+    ['bad partition', '[all]\ntryboot_a_b=1\nboot_partition=4\n[tryboot]\nboot_partition=3\n'],
+    [
+      'bad tryboot partition',
+      '[all]\ntryboot_a_b=1\nboot_partition=2\n[tryboot]\nboot_partition=9\n',
+    ],
+    [
+      'duplicate key',
+      '[all]\ntryboot_a_b=1\nboot_partition=2\nboot_partition=3\n[tryboot]\nboot_partition=3\n',
+    ],
+    ['missing section', '[all]\ntryboot_a_b=1\nboot_partition=2\n'],
+    [
+      'carriage return',
+      '[all]\r\ntryboot_a_b=1\r\nboot_partition=2\r\n[tryboot]\r\nboot_partition=3\r\n',
+    ],
+  ])('refuses malformed content (%s), never guesses', (_label, content) => {
+    const h = setup()
+    writeFileSync(path.join(h.bootDir, 'autoboot.txt'), content)
+    const result = run(h, ['get-primary'])
+    expect(result.status).toBe(3)
+    expect(result.stdout.trim()).toBe('')
+    expect(result.stderr).toContain('PI_TRYBOOT_')
+  })
+
+  it('rejects unknown slots and commands', () => {
+    const h = setup()
+    expect(run(h, ['get-state', 'C']).status).toBe(2)
+    expect(run(h, ['set-state', 'A', 'maybe']).status).toBe(2)
+    expect(run(h, ['frobnicate']).status).toBe(2)
+  })
+
+  it('reads the booted slot from binary device-tree integers, never from a mount', () => {
+    const h = setup('B')
+    // A findmnt that screams if consulted proves the production path never
+    // asks for a mount: the answer must still come from the device tree.
+    const bin = path.join(h.dir, 'bin')
+    mkdirSync(bin, { recursive: true })
+    const scream = path.join(bin, 'findmnt')
+    writeFileSync(scream, '#!/bin/sh\necho FINDMNT-CONSULTED >&2\nexit 9\n')
+    chmodSync(scream, 0o755)
+    const pathEnv = { PATH: `${bin}${path.delimiter}${process.env.PATH}` }
+    writeFileSync(path.join(h.dt, 'partition'), Buffer.from([0, 0, 0, 3]))
+    const b = run(h, ['get-current'], pathEnv)
+    expect(b.stdout.trim()).toBe('B')
+    expect(b.stderr).not.toContain('FINDMNT-CONSULTED')
+    writeFileSync(path.join(h.dt, 'partition'), Buffer.from([0, 0, 0, 2]))
+    expect(run(h, ['get-current'], pathEnv).stdout.trim()).toBe('A')
+  })
+
+  it.each([
+    ['ASCII digit', Buffer.from('2\n')],
+    ['bare ASCII digit', Buffer.from('3')],
+    ['three bytes', Buffer.from([0, 0, 2])],
+    ['five bytes', Buffer.from([0, 0, 0, 0, 2])],
+    ['empty', Buffer.alloc(0)],
+    ['the controller partition', dtInt(1)],
+    ['an unmapped partition', dtInt(4)],
+    ['a little-endian 2', Buffer.from([2, 0, 0, 0])],
+  ])('refuses a partition record that is %s', (_label, bytes) => {
+    const h = setup()
+    writeFileSync(path.join(h.dt, 'partition'), bytes)
+    const result = run(h, ['get-current'])
+    expect(result.status).toBe(3)
+    expect(result.stdout.trim()).toBe('')
+    expect(result.stderr).toContain('PI_TRYBOOT_NO_CURRENT')
+  })
+
+  it('refuses get-current when the device tree is missing or unreadable', () => {
+    const h = setup()
+    rmSync(path.join(h.dir, 'proc'), { recursive: true, force: true })
+    const missing = run(h, ['get-current'])
+    expect(missing.status).not.toBe(0)
+    expect(missing.stderr).toContain('PI_TRYBOOT_NO_CURRENT')
+    const h2 = setup()
+    rmSync(path.join(h2.dt, 'partition'))
+    mkdirSync(path.join(h2.dt, 'partition'), { recursive: true })
+    const unreadable = run(h2, ['get-current'])
+    expect(unreadable.status).not.toBe(0)
+    expect(unreadable.stderr).toContain('PI_TRYBOOT_NO_CURRENT')
+  })
+
+  it('validates the binary tryboot flag when present and ignores its absence', () => {
+    const h = setup()
+    writeFileSync(path.join(h.dt, 'tryboot'), dtInt(1))
+    expect(run(h, ['get-current']).stdout.trim()).toBe('A')
+    writeFileSync(path.join(h.dt, 'tryboot'), dtInt(0))
+    expect(run(h, ['get-current']).stdout.trim()).toBe('A')
+    for (const bytes of [Buffer.from('1\n'), dtInt(2), Buffer.from([0, 1])]) {
+      writeFileSync(path.join(h.dt, 'tryboot'), bytes)
+      const bad = run(h, ['get-current'])
+      expect(bad.status).toBe(3)
+      expect(bad.stdout.trim()).toBe('')
+      expect(bad.stderr).toContain('PI_TRYBOOT_MALFORMED')
+    }
+  })
+
+  it('refuses every command unless the controller label is mounted at the boot dir', () => {
+    const h = setup()
+    const slotFat = path.join(h.dir, 'dev-muse-pi-boot-a')
+    writeFileSync(slotFat, '')
+    for (const mountinfo of [
+      // A boot slot FAT mounted where the controller belongs.
+      `36 25 179:2 / ${posixPath(h.bootDir)} rw - vfat ${posixPath(slotFat)} rw\n`,
+      // Nothing mounted there at all.
+      `36 25 179:5 / / rw - ext4 /dev/root rw\n`,
+      '',
+    ]) {
+      writeFileSync(h.mountinfo, mountinfo)
+      for (const args of [['get-primary'], ['get-current'], ['set-primary', 'B']]) {
+        const result = run(h, args)
+        expect(result.status).toBe(3)
+        expect(result.stdout.trim()).toBe('')
+        expect(result.stderr).toContain('PI_TRYBOOT_NOT_CONTROLLER')
+      }
+    }
+    expect(autoboot(h)).toBe(OS1_INITIAL)
+    rmSync(h.device)
+    writeFileSync(
+      h.mountinfo,
+      `36 25 179:1 / ${posixPath(h.bootDir)} rw - vfat ${posixPath(h.device)} rw\n`,
+    )
+    expect(run(h, ['get-primary']).stderr).toContain('PI_TRYBOOT_NOT_CONTROLLER device=')
+  })
+})
+
+describe.skipIf(noFlock)(`M110-OS2 Pi tryboot backend: ${writes}`, () => {
   it('set-primary arms a one-shot trial and never changes the stable slot', () => {
     const h = setup()
     // RAUC install.c calls set-primary B after writing B: B must become the
@@ -86,6 +232,11 @@ describe('M110-OS2 Pi tryboot backend', () => {
     expect(run(h, ['get-primary']).stdout.trim()).toBe('A')
     expect(run(h, ['get-trial']).stdout.trim()).toBe('B')
     expect(run(h, ['get-state', 'A']).stdout.trim()).toBe('good')
+    // Physical numbers on disk: [all] stays on A (2), [tryboot] selects B (3).
+    expect(autoboot(h)).toBe(
+      '[all]\ntryboot_a_b=1\nboot_partition=2\nmuse_trial=B\nmuse_state_a=good\nmuse_state_b=bad\n' +
+        '[tryboot]\nboot_partition=3\n',
+    )
   })
 
   it('set-primary on the stable slot clears any trial instead', () => {
@@ -101,11 +252,13 @@ describe('M110-OS2 Pi tryboot backend', () => {
     run(h, ['set-primary', 'B'])
     expect(run(h, ['get-primary']).stdout.trim()).toBe('A')
     expect(run(h, ['get-trial']).stdout.trim()).toBe('B')
-    // A crash or reset falls back to A by itself: the stable selection is kept.
-    writeFileSync(path.join(h.dt, 'partition'), '2\n')
+    // The firmware booted partition 3 on the trial.
+    bootInto(h, 'B')
     expect(run(h, ['set-state', 'B', 'good']).status).toBe(0)
     expect(run(h, ['get-primary']).stdout.trim()).toBe('B')
     expect(run(h, ['get-trial']).stdout.trim()).toBe('none')
+    expect(autoboot(h)).toContain('[all]\ntryboot_a_b=1\nboot_partition=3\n')
+    expect(autoboot(h)).toContain('[tryboot]\nboot_partition=2\n')
   })
 
   it('never promotes a good marking made outside the trial slot', () => {
@@ -134,76 +287,26 @@ describe('M110-OS2 Pi tryboot backend', () => {
     expect(run(h, ['get-trial']).stdout.trim()).toBe('none')
   })
 
-  it.each([
-    [
-      'unknown key',
-      '[all]\ntryboot_a_b=1\nboot_partition=1\nevil=1\n[tryboot]\nboot_partition=2\n',
-    ],
-    ['unknown section', '[all]\ntryboot_a_b=1\nboot_partition=1\n[evil]\nboot_partition=2\n'],
-    ['comment', '[all]\ntryboot_a_b=1\n# comment\nboot_partition=1\n[tryboot]\nboot_partition=2\n'],
-    ['disabled tryboot', '[all]\ntryboot_a_b=0\nboot_partition=1\n[tryboot]\nboot_partition=2\n'],
-    ['bad partition', '[all]\ntryboot_a_b=1\nboot_partition=3\n[tryboot]\nboot_partition=2\n'],
-    [
-      'duplicate key',
-      '[all]\ntryboot_a_b=1\nboot_partition=1\nboot_partition=2\n[tryboot]\nboot_partition=2\n',
-    ],
-    ['missing section', '[all]\ntryboot_a_b=1\nboot_partition=1\n'],
-    [
-      'carriage return',
-      '[all]\r\ntryboot_a_b=1\r\nboot_partition=1\r\n[tryboot]\r\nboot_partition=2\r\n',
-    ],
-  ])('refuses malformed content (%s), never guesses', (_label, content) => {
+  it('removes only its own temp file and reports another stray', () => {
     const h = setup()
-    writeFileSync(path.join(h.bootDir, 'autoboot.txt'), content)
-    const result = run(h, ['get-primary'])
-    expect(result.status).toBe(3)
-    expect(result.stdout.trim()).toBe('')
-    expect(result.stderr).toContain('PI_TRYBOOT_')
-  })
-
-  it('rejects unknown slots and commands', () => {
-    const h = setup()
-    expect(run(h, ['get-state', 'C']).status).toBe(2)
-    expect(run(h, ['set-state', 'A', 'maybe']).status).toBe(2)
-    expect(run(h, ['frobnicate']).status).toBe(2)
-  })
-
-  it('reads the booted slot from the device tree, never from a mount', () => {
-    const h = setup('2')
-    // A findmnt that screams if consulted proves the production path never
-    // asks for a mount: the answer must still come from the device tree.
-    const bin = path.join(h.dir, 'bin')
-    mkdirSync(bin, { recursive: true })
-    const scream = path.join(bin, 'findmnt')
-    writeFileSync(scream, '#!/bin/sh\necho FINDMNT-CONSULTED >&2\nexit 9\n')
-    chmodSync(scream, 0o755)
-    const result = run(h, ['get-current'], { PATH: `${bin}${path.delimiter}${process.env.PATH}` })
-    expect(result.stdout.trim()).toBe('B')
-    expect(result.stderr).not.toContain('FINDMNT-CONSULTED')
-  })
-
-  it('refuses get-current when the device tree is missing or unreadable', () => {
-    const h = setup()
-    rmSync(path.join(h.dir, 'proc'), { recursive: true, force: true })
-    const missing = run(h, ['get-current'])
-    expect(missing.status).not.toBe(0)
-    expect(missing.stderr).toContain('PI_TRYBOOT_NO_CURRENT')
-    const h2 = setup()
-    rmSync(path.join(h2.dt, 'partition'))
-    mkdirSync(path.join(h2.dt, 'partition'), { recursive: true })
-    const unreadable = run(h2, ['get-current'])
-    expect(unreadable.status).not.toBe(0)
-    expect(unreadable.stderr).toContain('PI_TRYBOOT_NO_CURRENT')
-  })
-
-  it('validates the tryboot flag when present and ignores its absence', () => {
-    const h = setup()
-    writeFileSync(path.join(h.dt, 'tryboot'), '1\n')
-    expect(run(h, ['get-current']).stdout.trim()).toBe('A')
-    writeFileSync(path.join(h.dt, 'tryboot'), 'sometimes\n')
-    const bad = run(h, ['get-current'])
-    expect(bad.status).not.toBe(0)
-    expect(bad.stderr).toContain('PI_TRYBOOT_MALFORMED')
+    const stray = path.join(h.bootDir, 'autoboot.txt.muse-tmp-OTHER1')
+    writeFileSync(stray, 'another writer\n')
+    const result = run(h, ['set-primary', 'B'])
+    expect(result.status).toBe(0)
+    expect(result.stderr).toContain('PI_TRYBOOT_STRAY left=')
+    expect(readFileSync(stray, 'utf8')).toBe('another writer\n')
+    expect(run(h, ['get-trial']).stdout.trim()).toBe('B')
+    // This writer's own temp file is gone: only the foreign stray remains.
+    const own = ['set-primary', 'A']
+    expect(run(h, own).status).toBe(0)
+    const left = spawnSync(shell, ['-c', `ls ${posixPath(h.bootDir)}`], { encoding: 'utf8' })
+    expect(
+      left.stdout
+        .trim()
+        .split('\n')
+        .toSorted((a, b) => a.localeCompare(b)),
+    ).toEqual(['autoboot.txt', 'autoboot.txt.muse-tmp-OTHER1'])
+    expect(existsSync(stray)).toBe(true)
   })
 
   it('serialises concurrent writers: every writer succeeds, state stays valid', () => {
@@ -219,21 +322,15 @@ describe('M110-OS2 Pi tryboot backend', () => {
     chmodSync(driver, 0o755)
     const result = spawnSync(shell, [posixPath(driver)], {
       encoding: 'utf8',
-      env: {
-        ...process.env,
-        MUSE_PI_BOOT_DIR: posixPath(h.bootDir),
-        MUSE_PI_DEVICE_TREE: posixPath(path.join(h.dir, 'proc/device-tree')),
-        MUSE_PI_LOCK_FILE: posixPath(h.lock),
-      },
+      env: { ...process.env, ...h.env },
     })
     // A writer whose temp file was deleted by the other writer would fail
     // its rename: any nonzero status here is the P2-9 race.
     expect(result.status).toBe(0)
     expect(run(h, ['get-primary']).status).toBe(0)
-    expect(run(h, ['get-trial']).status).toBe(0)
     // Arming B leaves trial B; naming stable A clears it: both are valid
     // serialised outcomes.
-    expect(['A', 'B', 'none']).toContain(run(h, ['get-trial']).stdout.trim())
+    expect(['B', 'none']).toContain(run(h, ['get-trial']).stdout.trim())
   })
 
   it('blocks a writer while another holder owns the lock', async () => {
@@ -249,12 +346,7 @@ describe('M110-OS2 Pi tryboot backend', () => {
       const blocked = spawnSync(shell, [posixPath(backend), 'set-primary', 'B'], {
         encoding: 'utf8',
         timeout: 2000,
-        env: {
-          ...process.env,
-          MUSE_PI_BOOT_DIR: posixPath(h.bootDir),
-          MUSE_PI_DEVICE_TREE: posixPath(path.join(h.dir, 'proc/device-tree')),
-          MUSE_PI_LOCK_FILE: posixPath(h.lock),
-        },
+        env: { ...process.env, ...h.env },
       })
       expect(blocked.status).toBe(null)
       expect(run(h, ['get-trial']).stdout.trim()).toBe('none')

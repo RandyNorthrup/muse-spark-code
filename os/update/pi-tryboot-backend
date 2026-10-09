@@ -25,49 +25,63 @@
 #  - get-current prints the firmware's booted slot from the device tree
 #    (MUSE_PI_DEVICE_TREE, default /proc/device-tree), never a mount.
 #
-# Controller partition (OS2-OS1-CONTROLLER handoff in the certification):
-# autoboot.txt lives on a dedicated small controller FAT (label muse-pi-ctl,
-# mounted at BOOT_DIR, default /boot/firmware) that is NOT a RAUC slot.
-# boot-a/boot-b are separate FATs and the only boot slots. This script does
-# not check the mount source: the recipe must mount the controller label at
-# BOOT_DIR, and the tests use that post-handoff layout.
+# Partition map (the ONE source of truth; tests read it from this file):
+# controller-first, exactly Raspberry Pi's documented autoboot.txt A/B
+# example (config_txt.html#autoboot-txt): physical partition 1 is the
+# controller FAT holding only autoboot.txt (label muse-pi-ctl, NOT a RAUC
+# slot), boot A is partition 2 and boot B is partition 3. autoboot.txt's
+# boot_partition and the device tree's booted partition both use these
+# physical numbers. The controller number is never a valid selection.
+#
+# Controller identity (OS2-OS1-CONTROLLER handoff in the certification):
+# every command first checks that BOOT_DIR is a mount whose source resolves
+# to the controller label (MUSE_PI_CTL_DEVICE, default
+# /dev/disk/by-partlabel/muse-pi-ctl), read from MUSE_PROC_MOUNTINFO
+# (default /proc/self/mountinfo). Anything else (unmounted, a boot slot
+# mounted there, an unreadable table) refuses PI_TRYBOOT_NOT_CONTROLLER, so
+# a selection can never be read from or written to a slot FAT. A mount point
+# containing whitespace or backslashes (escaped in mountinfo) never matches
+# and refuses (fail closed).
 #
 # Accepted file vocabulary (anything else is refused, never guessed):
 #   sections [all] and [tryboot] only;
-#   [all]: tryboot_a_b (=1), boot_partition (1|2), muse_trial (none|A|B),
-#          muse_state_a and muse_state_b (good|bad);
-#   [tryboot]: boot_partition (1|2).
+#   [all]: tryboot_a_b (=1), boot_partition (PART_A|PART_B), muse_trial
+#          (none|A|B), muse_state_a and muse_state_b (good|bad);
+#   [tryboot]: boot_partition (PART_A|PART_B).
 # No comments, no carriage returns, no padded whitespace, no duplicate keys,
 # no missing required key. Unknown content fails every command (fail closed).
 #
-# Device-tree contract (qualification gap Q-M110-OS2-DT, see certification):
+# Device-tree contract (hardware receipt Q-M110-OS2-DT, see certification):
 # `$MUSE_PI_DEVICE_TREE/chosen/bootloader/partition` holds the firmware's
-# booted-partition selector, 1 (A) or 2 (B), in autoboot.txt numbering.
-# `$MUSE_PI_DEVICE_TREE/chosen/bootloader/tryboot`, when present, holds 0/1
-# and is validated for well-formedness only; it never changes the answer.
-# A missing or unreadable partition file refuses PI_TRYBOOT_NO_CURRENT.
-# If hardware shows raw GPT numbers instead of selector values, the mapping
-# below (not the callers) changes, with the swap test updated to match.
+# booted partition and `.../tryboot` (when present) the tryboot flag. Both
+# are device-tree integers: exactly four bytes, big-endian binary (for
+# example 00 00 00 02), NOT ASCII text. They are decoded with od(1), as
+# upstream rpi-eeprom-update's readDtInt does; any other length or a value
+# outside the map refuses (NO_CURRENT for the partition, MALFORMED for the
+# flag). The tryboot flag (0|1) is validated only; it never changes the
+# answer.
 #
 # Concurrency: every read-modify-write (set-primary, set-state) holds one
 # exclusive flock on MUSE_PI_LOCK_FILE (default
 # /run/muse-update/pi-tryboot.lock; the recipe creates /run/muse-update/).
-# The temp file is created only after the lock is held, so any other temp
-# file seen during the write predates this transaction and is a crash
-# leftover: only the writer's own temp file survives cleanup. Readers take no
-# lock (rename is the commit point; temp files are never read back).
+# Readers take no lock (rename is the commit point; temp files are never
+# read back).
 #
 # Writes go to a temp file in the same directory, are fsynced with
 # `sync <file>`, renamed over autoboot.txt, and the directory is synced.
 # FAT honesty (H15): FAT has no journal and rename is not atomic across
 # power loss; the temp name (`autoboot.txt.muse-tmp-*`) is never read back,
 # so a torn write leaves either the previous complete file or a stray temp
-# file, never a half-parsed selection. A stray temp file is removed on the
-# next successful locked write and reported on stderr.
+# file, never a half-parsed selection. A writer removes ONLY its own temp
+# file (on every exit path, including TERM from the caller's time limit);
+# another writer's stray is reported on stderr (PI_TRYBOOT_STRAY) and left
+# for the recipe's boot-time cleanup, never deleted here.
 #
 # Environment: MUSE_PI_BOOT_DIR (default /boot/firmware),
 # MUSE_PI_DEVICE_TREE (default /proc/device-tree),
-# MUSE_PI_LOCK_FILE (default /run/muse-update/pi-tryboot.lock).
+# MUSE_PI_LOCK_FILE (default /run/muse-update/pi-tryboot.lock),
+# MUSE_PI_CTL_DEVICE (default /dev/disk/by-partlabel/muse-pi-ctl),
+# MUSE_PROC_MOUNTINFO (default /proc/self/mountinfo).
 
 set -u
 
@@ -75,6 +89,13 @@ BOOT_DIR="${MUSE_PI_BOOT_DIR:-/boot/firmware}"
 FILE="$BOOT_DIR/autoboot.txt"
 DT_BASE="${MUSE_PI_DEVICE_TREE:-/proc/device-tree}"
 LOCK_FILE="${MUSE_PI_LOCK_FILE:-/run/muse-update/pi-tryboot.lock}"
+CTL_DEVICE="${MUSE_PI_CTL_DEVICE:-/dev/disk/by-partlabel/muse-pi-ctl}"
+MOUNTINFO="${MUSE_PROC_MOUNTINFO:-/proc/self/mountinfo}"
+
+# The partition map (see header). Change it here only.
+PART_CONTROLLER=1
+PART_A=2
+PART_B=3
 
 err() {
     echo "pi-tryboot-backend: PI_TRYBOOT_$1" >&2
@@ -83,16 +104,18 @@ err() {
 
 to_num() {
     case "$1" in
-        A) echo 1 ;;
-        B) echo 2 ;;
+        A) echo "$PART_A" ;;
+        B) echo "$PART_B" ;;
         *) err "UNKNOWN_SLOT slot=$1" 2 ;;
     esac
 }
 
+# to_slot runs in a command substitution: callers must propagate its exit.
 to_slot() {
     case "$1" in
-        1) echo A ;;
-        2) echo B ;;
+        "$PART_A") echo A ;;
+        "$PART_B") echo B ;;
+        "$PART_CONTROLLER") err "MALFORMED boot_partition=$1 controller" ;;
         *) err "MALFORMED boot_partition=$1" ;;
     esac
 }
@@ -133,6 +156,28 @@ lock_acquire() {
 
 lock_release() {
     exec 9>&- || err "NO_LOCK unlock"
+}
+
+# check_controller refuses unless BOOT_DIR is mounted from the controller
+# label (the last mountinfo entry for the mount point wins, as in the kernel).
+check_controller() {
+    if [ ! -f "$MOUNTINFO" ] || [ ! -r "$MOUNTINFO" ]; then
+        err "NOT_CONTROLLER mountinfo=$MOUNTINFO"
+    fi
+    want=$(readlink -f "$CTL_DEVICE" 2>/dev/null) || want=""
+    if [ -z "$want" ] || [ ! -e "$want" ]; then
+        err "NOT_CONTROLLER device=$CTL_DEVICE"
+    fi
+    src=$(awk -v mp="$BOOT_DIR" '
+        $5 == mp { for (i = 7; i < NF; i++) if ($i == "-") { s = $(i + 2); break } }
+        END { print s }' "$MOUNTINFO" 2>/dev/null) || err "NOT_CONTROLLER mountinfo-read"
+    if [ -z "$src" ]; then
+        err "NOT_CONTROLLER unmounted=$BOOT_DIR"
+    fi
+    got=$(readlink -f "$src" 2>/dev/null) || got=""
+    if [ "$got" != "$want" ]; then
+        err "NOT_CONTROLLER source=$src"
+    fi
 }
 
 # read_state sets P_ALL, P_TRY, TRIAL, ST_A, ST_B or refuses.
@@ -196,10 +241,7 @@ read_state() {
                 boot_partition)
                     [ "$seen_all_part" = "0" ] || err "MALFORMED duplicate=$name"
                     seen_all_part=1
-                    case "$value" in
-                        1 | 2) P_ALL=$(to_slot "$value") ;;
-                        *) err "MALFORMED boot_partition=$value" ;;
-                    esac
+                    P_ALL=$(to_slot "$value") || exit "$?"
                     ;;
                 muse_trial)
                     [ "$seen_trial" = "0" ] || err "MALFORMED duplicate=$name"
@@ -232,10 +274,7 @@ read_state() {
                 boot_partition)
                     [ "$seen_try_part" = "0" ] || err "MALFORMED duplicate=$name"
                     seen_try_part=1
-                    case "$value" in
-                        1 | 2) P_TRY=$(to_slot "$value") ;;
-                        *) err "MALFORMED boot_partition=$value" ;;
-                    esac
+                    P_TRY=$(to_slot "$value") || exit "$?"
                     ;;
                 *) err "MALFORMED key=$name" ;;
             esac
@@ -256,61 +295,74 @@ read_state() {
 }
 
 # write_state <primary> <tryboot> <trial> <state_a> <state_b>.
-# The caller must hold the lock: the temp file is created after the lock, so
-# any other temp file seen here predates this transaction and is a crash
-# leftover. Only this writer's own temp file survives cleanup.
+# The caller must hold the lock. Only this writer's own temp file is ever
+# removed (EXIT/TERM trap until the rename commits it); another stray is
+# reported, never deleted.
 write_state() {
     w_all="$1"
     w_try="$2"
     w_trial="$3"
     w_sa="$4"
     w_sb="$5"
+    for stray in "$FILE".muse-tmp-*; do
+        if [ -f "$stray" ]; then
+            echo "pi-tryboot-backend: PI_TRYBOOT_STRAY left=$stray" >&2
+        fi
+    done
+    tmp=""
+    trap 'if [ -n "$tmp" ]; then rm -f "$tmp"; fi' EXIT
+    trap 'exit 143' TERM INT HUP
     tmp=$(mktemp "$FILE.muse-tmp-XXXXXX") || err "NO_BOOT_DIR mktemp"
     {
         printf '[all]\ntryboot_a_b=1\nboot_partition=%s\nmuse_trial=%s\nmuse_state_a=%s\nmuse_state_b=%s\n[tryboot]\nboot_partition=%s\n' \
             "$(to_num "$w_all")" "$w_trial" "$w_sa" "$w_sb" "$(to_num "$w_try")"
-    } >"$tmp" || {
-        rm -f "$tmp"
-        err "NO_BOOT_DIR write"
-    }
-    # Strays seen under the lock are crash leftovers, never a live writer's
-    # file: every live writer creates its temp only while holding this lock.
-    for stray in "$FILE".muse-tmp-*; do
-        if [ "$stray" != "$tmp" ] && [ -f "$stray" ]; then
-            rm -f "$stray"
-            echo "pi-tryboot-backend: PI_TRYBOOT_STRAY removed=$stray" >&2
-        fi
-    done
-    sync "$tmp" || {
-        rm -f "$tmp"
-        err "NO_BOOT_DIR fsync"
-    }
-    mv -f "$tmp" "$FILE" || {
-        rm -f "$tmp"
-        err "NO_BOOT_DIR rename"
-    }
+    } >"$tmp" || err "NO_BOOT_DIR write"
+    sync "$tmp" || err "NO_BOOT_DIR fsync"
+    mv -f "$tmp" "$FILE" || err "NO_BOOT_DIR rename"
+    tmp=""
     sync "$BOOT_DIR" || err "NO_BOOT_DIR dirsync"
 }
 
+# dt_int <file> prints a device-tree integer: exactly four bytes, big-endian
+# (upstream rpi-eeprom-update's readDtInt also decodes with od). Any other
+# length, or an unreadable file, returns nonzero.
+dt_int() {
+    bytes=$(od -An -v -tu1 "$1" 2>/dev/null) || return 1
+    # Word splitting of od's byte list is intended here.
+    # shellcheck disable=SC2086
+    set -- $bytes
+    if [ "$#" != "4" ]; then
+        return 1
+    fi
+    for byte in "$@"; do
+        case "$byte" in
+            '' | *[!0-9]*) return 1 ;;
+        esac
+    done
+    echo $((($1 << 24) | ($2 << 16) | ($3 << 8) | $4))
+}
+
 # current_slot prints the firmware's booted slot from the device tree, never
-# from a mount. A missing or unreadable partition record refuses NO_CURRENT;
-# a present-but-malformed tryboot flag refuses MALFORMED.
+# from a mount. A missing, unreadable, wrongly sized or unmapped partition
+# record refuses NO_CURRENT; a present-but-malformed tryboot flag refuses
+# MALFORMED.
 current_slot() {
     part_file="$DT_BASE/chosen/bootloader/partition"
     try_file="$DT_BASE/chosen/bootloader/tryboot"
     if [ ! -f "$part_file" ] || [ -L "$part_file" ]; then
         err "NO_CURRENT partition=$part_file"
     fi
-    part=$(cat "$part_file" 2>/dev/null) || err "NO_CURRENT read"
-    part=$(printf '%s' "$part" | tr -d ' \t\r\n') || err "NO_CURRENT parse"
+    part=$(dt_int "$part_file") || err "NO_CURRENT partition-not-dt-int"
     case "$part" in
-        1) slot="A" ;;
-        2) slot="B" ;;
+        "$PART_A") slot="A" ;;
+        "$PART_B") slot="B" ;;
         *) err "NO_CURRENT partition=$part" ;;
     esac
-    if [ -f "$try_file" ] && [ ! -L "$try_file" ]; then
-        flag=$(cat "$try_file" 2>/dev/null) || err "NO_CURRENT tryboot-read"
-        flag=$(printf '%s' "$flag" | tr -d ' \t\r\n') || err "NO_CURRENT tryboot-parse"
+    if [ -e "$try_file" ] || [ -L "$try_file" ]; then
+        if [ ! -f "$try_file" ] || [ -L "$try_file" ]; then
+            err "MALFORMED tryboot-not-file"
+        fi
+        flag=$(dt_int "$try_file") || err "MALFORMED tryboot-not-dt-int"
         case "$flag" in
             0 | 1) ;;
             *) err "MALFORMED tryboot=$flag" ;;
@@ -320,6 +372,7 @@ current_slot() {
 }
 
 cmd="${1:-}"
+check_controller
 case "$cmd" in
     get-primary)
         [ "$#" = "1" ] || err "USAGE get-primary" 2

@@ -16,7 +16,11 @@
 #    running here (current == trial) is probed: pass marks good (and the
 #    backend promotes the stable selection), failure marks bad and reboots
 #    into the untouched stable slot. No trial means an ordinary boot: exit 0
-#    without touching RAUC or the backend.
+#    without touching RAUC or the backend. The pass path calls ONLY RAUC's
+#    `rauc status mark-good boot.N`: RAUC dispatches `set-state <A|B> good`
+#    to the backend, which promotes there, and this script then confirms the
+#    promotion (stable == trial, no trial left). Nothing is promoted before
+#    RAUC accepts; a RAUC refusal leaves the stable slot untouched.
 #  - UEFI (no autoboot.txt): the trial marker is
 #    MUSE_EFI_TRIAL_FILE (default /var/lib/muse-update/efi-trial), written by
 #    the update agent at activation time (handoff OS2-RUNTIME) and holding one
@@ -28,32 +32,47 @@
 #
 # RAUC bookkeeping (`rauc status mark-good/mark-bad <slot>`) always names its
 # slot explicitly (boot.0/boot.1 on Pi, usr.0/usr.1 on EFI) so it can never
-# land on RAUC's `booted` default after a fallback. The backend (Pi) and the
-# BootOrder update (EFI) are authoritative for booting: if RAUC is missing or
-# refuses, this script fails closed without marking anything good.
+# land on RAUC's `booted` default after a fallback. If RAUC is missing or
+# refuses mark-good, this script fails closed without marking anything good
+# or promoting anything.
+#
+# Exit status (the unit maps it; see muse-mark-good.service):
+#   0  marked good, or no trial pending (ordinary or first boot);
+#   3  trial failed and was HANDLED: recorded bad and either already running
+#      the stable slot (fallback) or a reboot into it was requested. The
+#      unit lists 3 in SuccessExitStatus so FailureAction=reboot does not
+#      reboot a machine that is already where it should be;
+#   1  anything unhandled (an unreadable state, a refusal, a failed reboot
+#      request): the unit fails and FailureAction=reboot reboots. A reboot
+#      never re-arms a Pi trial (the firmware tryboot flag is one-shot) and
+#      the next run records the pending trial as fallen back.
 #
 # Bounds (H09/H15): the overall deadline runs on the monotonic clock
-# (MUSE_PROC_UPTIME, default /proc/uptime), every child (probe, backend,
-# rauc, curl) runs under a per-call limit of MUSE_MARK_GOOD_CALL_TIMEOUT_SEC
-# seconds, and the loop stops after MUSE_MARK_GOOD_MAX_ATTEMPTS attempts.
-# The limit is a shell watchdog (background child plus a sleep/kill guard),
-# not timeout(1): the rig's /usr/bin/timeout (uutils 0.8.0) cannot spawn any
-# child under the lane sandbox (`timeout 30 echo hi` fails with Operation not
-# permitted), so a timeout(1) call would fail every child here and could never
-# be verified; the watchdog needs only fork/sleep/kill and is exercised by
-# the hung-probe test. The unit adds TimeoutStartSec with FailureAction=reboot;
-# a kernel that hangs before this script runs needs the hardware watchdog
-# (qualification gap Q-M110-OS2-WD, not claimed here).
+# (MUSE_PROC_UPTIME, default /proc/uptime) and is checked before each probe
+# starts AND after each probe returns, so a probe that succeeds after the
+# deadline never passes; the loop also stops after MUSE_MARK_GOOD_MAX_ATTEMPTS
+# attempts. Every child (probe, backend, rauc, curl) runs under timeout(1)
+# (coreutils, always on the image): MUSE_MARK_GOOD_CALL_TIMEOUT_SEC seconds,
+# then TERM to the child's whole process group, then KILL after
+# MUSE_MARK_GOOD_KILL_GRACE_SEC more seconds, so a child that ignores TERM is
+# still bounded. After the call returns, any descendant left in that group
+# is killed too, so a leftover cannot hold a command-substitution pipe open.
+# A missing timeout(1) refuses before anything runs (no unbounded fallback).
+# The unit adds TimeoutStartSec with FailureAction=reboot; a kernel that
+# hangs before this script runs needs the hardware watchdog (qualification
+# gap Q-M110-OS2-WD, not claimed here).
 #
 # Environment: MUSE_TRYBOOT_BACKEND (default
 # /usr/lib/muse-update/pi-tryboot-backend), MUSE_PI_BOOT_DIR (default
-# /boot/firmware), MUSE_PI_DEVICE_TREE and MUSE_PI_LOCK_FILE (passed through
-# to the backend), MUSE_RAUC_CMD (default rauc), MUSE_READYZ_PROBE (a probe
-# command whose exit 0 passes; default curls the port named by
+# /boot/firmware), MUSE_PI_DEVICE_TREE, MUSE_PI_LOCK_FILE, MUSE_PI_CTL_DEVICE
+# and MUSE_PROC_MOUNTINFO (passed through to the backend), MUSE_RAUC_CMD
+# (default rauc), MUSE_READYZ_PROBE (a probe command whose exit 0 passes;
+# default curls the port named by
 # MUSE_NODE_PORT_FILE, default /run/muse-node/port, with --max-time 5),
 # MUSE_MARK_GOOD_TIMEOUT_SEC (default 300), MUSE_MARK_GOOD_INTERVAL_SEC
 # (default 5), MUSE_MARK_GOOD_MAX_ATTEMPTS (default 100),
-# MUSE_MARK_GOOD_CALL_TIMEOUT_SEC (default 30), MUSE_PROC_UPTIME (default
+# MUSE_MARK_GOOD_CALL_TIMEOUT_SEC (default 30),
+# MUSE_MARK_GOOD_KILL_GRACE_SEC (default 5), MUSE_PROC_UPTIME (default
 # /proc/uptime), MUSE_EFI_TRIAL_FILE (default
 # /var/lib/muse-update/efi-trial), MUSE_PROC_CMDLINE (default /proc/cmdline),
 # MUSE_REBOOT_CMD (default reboot). Tests inject the probe, rauc and reboot
@@ -68,6 +87,7 @@ TIMEOUT="${MUSE_MARK_GOOD_TIMEOUT_SEC:-300}"
 INTERVAL="${MUSE_MARK_GOOD_INTERVAL_SEC:-5}"
 MAX_ATTEMPTS="${MUSE_MARK_GOOD_MAX_ATTEMPTS:-100}"
 CALL_TIMEOUT="${MUSE_MARK_GOOD_CALL_TIMEOUT_SEC:-30}"
+KILL_GRACE="${MUSE_MARK_GOOD_KILL_GRACE_SEC:-5}"
 UPTIME_FILE="${MUSE_PROC_UPTIME:-/proc/uptime}"
 EFI_TRIAL_FILE="${MUSE_EFI_TRIAL_FILE:-/var/lib/muse-update/efi-trial}"
 CMDLINE_FILE="${MUSE_PROC_CMDLINE:-/proc/cmdline}"
@@ -79,6 +99,13 @@ log() {
 fail() {
     log "FAIL $1"
     exit 1
+}
+
+# handled: the trial failed, it is recorded, and the machine is (or is about
+# to be) on the stable slot. Exit 3, which the unit treats as success.
+handled() {
+    log "TRIAL-FAILED-HANDLED $1"
+    exit 3
 }
 
 case "$TIMEOUT" in
@@ -93,23 +120,24 @@ esac
 case "$CALL_TIMEOUT" in
     '' | 0 | *[!0-9]*) fail "bad-call-timeout=$CALL_TIMEOUT" ;;
 esac
+case "$KILL_GRACE" in
+    '' | 0 | *[!0-9]*) fail "bad-kill-grace=$KILL_GRACE" ;;
+esac
+command -v timeout >/dev/null 2>&1 || fail "no-timeout"
 
-# run_limited <seconds> <command> [args...]: runs the command with a
-# per-call wall-clock limit and returns its status (143 when the guard kills
-# it). Implemented with a background child and a sleep/kill guard so the
-# bound needs nothing beyond fork, sleep and kill: see the header for why
-# timeout(1) is not used.
+# run_limited <seconds> <command> [args...]: runs the command under
+# timeout(1) and returns its status (124 on TERM, 137 on the KILL
+# escalation). timeout(1) puts itself and the command in a new process group
+# (its pid) and signals that whole group on expiry; once it has returned,
+# any descendant still in the group is killed so nothing outlives the call.
 run_limited() {
     limit=$1
     shift
-    "$@" &
-    child=$!
-    ( sleep "$limit"; kill -TERM "$child" 2>/dev/null ) &
-    killer=$!
-    wait "$child"
+    timeout -k "$KILL_GRACE" "$limit" "$@" &
+    limited=$!
+    wait "$limited"
     status=$?
-    kill "$killer" 2>/dev/null
-    wait "$killer" 2>/dev/null
+    kill -KILL -"$limited" 2>/dev/null
     return "$status"
 }
 
@@ -161,23 +189,37 @@ uptime_now() {
     echo "$up"
 }
 
+# trial_expired is true once the monotonic deadline has passed.
+trial_expired() {
+    now=$(uptime_now) || fail "no-clock"
+    elapsed=$((now - start))
+    if [ "$elapsed" -lt 0 ]; then
+        elapsed=0
+    fi
+    [ "$elapsed" -ge "$TIMEOUT" ]
+}
+
+# probe_until_ready passes only for a probe that both started and returned
+# inside the trial window.
 probe_until_ready() {
     start=$(uptime_now) || fail "no-clock"
     attempts=0
     while :; do
+        if trial_expired; then
+            log "deadline before-probe attempts=$attempts"
+            return 1
+        fi
         attempts=$((attempts + 1))
-        if probe_once; then
+        probe_once
+        probed=$?
+        if trial_expired; then
+            log "deadline after-probe attempts=$attempts"
+            return 1
+        fi
+        if [ "$probed" = "0" ]; then
             return 0
         fi
         if [ "$attempts" -ge "$MAX_ATTEMPTS" ]; then
-            return 1
-        fi
-        now=$(uptime_now) || fail "no-clock"
-        elapsed=$((now - start))
-        if [ "$elapsed" -lt 0 ]; then
-            elapsed=0
-        fi
-        if [ "$elapsed" -ge "$TIMEOUT" ]; then
             return 1
         fi
         sleep "$INTERVAL" || fail "no-sleep"
@@ -215,7 +257,7 @@ mark_bad_and_fall_back() {
     rauc_mark bad "$3" || log "continuing-to-reboot-without-rauc-mark"
     log "rebooting-to-stable"
     "$REBOOT" >/dev/null 2>&1 || fail "no-reboot"
-    fail "reboot-returned"
+    handled "probe-failed reboot-requested"
 }
 
 # efi_trial_slot prints the pending EFI trial slot (A|B). Exit 1 means no
@@ -273,11 +315,17 @@ if [ -f "${MUSE_PI_BOOT_DIR:-/boot/firmware}/autoboot.txt" ]; then
         log "fell-back trial=$trial current=$current"
         backend set-state "$trial" bad >/dev/null 2>&1 || fail "backend-bad slot=$trial"
         rauc_mark bad "$slot" || log "continuing-without-rauc-mark"
-        fail "trial-failed"
+        handled "fell-back"
     fi
     if probe_until_ready; then
-        backend set-state "$trial" good >/dev/null 2>&1 || fail "backend-good slot=$trial"
+        # RAUC's mark-good dispatches `set-state <trial> good` to the
+        # backend, which promotes; nothing is promoted before RAUC accepts.
         rauc_mark good "$slot" || fail "rauc-good"
+        primary=$(backend get-primary 2>/dev/null) || fail "backend-primary"
+        left=$(backend get-trial 2>/dev/null) || fail "backend-trial"
+        if [ "$primary" != "$trial" ] || [ "$left" != "none" ]; then
+            fail "promotion-unconfirmed primary=$primary trial=$left"
+        fi
         log "marked-good trial=$trial"
         exit 0
     fi
@@ -312,7 +360,7 @@ else
         log "fell-back trial=$trial booted=$booted"
         rauc_mark bad "$slot" || log "continuing-without-rauc-mark"
         rm -f "$EFI_TRIAL_FILE" || fail "efi-trial-clear"
-        fail "trial-failed"
+        handled "fell-back"
     fi
     if probe_until_ready; then
         rauc_mark good "$slot" || fail "rauc-good"
@@ -325,5 +373,5 @@ else
     rm -f "$EFI_TRIAL_FILE" || fail "efi-trial-clear"
     log "rebooting-to-stable"
     "$REBOOT" >/dev/null 2>&1 || fail "no-reboot"
-    fail "reboot-returned"
+    handled "probe-failed reboot-requested"
 fi
