@@ -1,11 +1,16 @@
 import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { describe, expect, it, onTestFinished } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { CheckRunJournal } from '../../src/core/reporting/checkRuns'
 import { ReportStorage } from '../../src/core/reporting/history'
 import type { CheckRunRecord } from '../../src/core/reporting/sources/types'
 import { reportOptions } from './helpers/reporting/snapshot'
 import { removeFolder } from './helpers/temporaryFolders'
+
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const { reportingProcessLauncher } = await import('./helpers/reporting/runtime')
+  return reportingProcessLauncher(await original())
+})
 
 const TEMP = path.resolve(import.meta.dirname, '../../temp')
 const COMMIT = 'a'.repeat(40)

@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { createReportingEngine, createReportingServices } from '../../src/runtime/reporting/engine'
 import { reportWorkspaceKey } from '../../src/core/reporting/sources/local'
@@ -14,6 +14,10 @@ import { referenceModel as nodeReference } from '../../src/runtime/reference.nod
 import { referenceModel } from '../../src/shared/reference/reference.generated'
 
 const roots: string[] = []
+vi.mock('../../src/core/resources/launcher', async (original) => {
+  const { reportingProcessLauncher } = await import('./helpers/reporting/runtime')
+  return reportingProcessLauncher(await original())
+})
 afterEach(async () => {
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
 })

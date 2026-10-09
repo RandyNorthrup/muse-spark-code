@@ -37780,6 +37780,20 @@ lane A's first step.
 
 ## 7. Gates
 
+**CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting
+journals/cache/engine, schedule-runtime and M114 panel/conversation failures
+from hosted run 37897298018 on the macbook rig. Repair only the shared
+reporting fixture boundary, host-dependent schedule expectations and proved
+macOS browser causes; preserve all assertions, timeouts, budgets and visual
+baselines. Diagnose native-helper and static-gate failures before changing
+product code. No paid/live model calls, merges, pushes or full quality run;
+scoped checks and local hook-enabled commits follow the lane brief. Native
+compile job 113711458248 succeeded; job 113717543639 is an aggregate gate,
+not a compiler failure. Log downloads return HTTP 403; readable job metadata
+and local reproductions are the evidence. Results and red drills live in
+`docs/certification/cifixm-macos-ci.md`. Combined quality, build/deferred
+bundle/cycle repairs and visual baselines remain with their assigned lanes.
+
 **MERGESPAWN (2026-10-08).** `rel017/spawn4` is merged into `release/0.17.0`
 with both sides' behaviour; the reporting bundles now share resource
 admission and `dist/validation.js` exports `tuple`. Open for the lead, caps

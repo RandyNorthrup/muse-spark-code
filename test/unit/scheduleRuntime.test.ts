@@ -290,8 +290,8 @@ describe('schedule runtime lifecycle', () => {
       await runtime.close()
     },
   )
-  it('hosts persisted due workspaces before firing, settles, closes resources and removes a spent wake', async () => {
-    const { runtime, control, host, unwatch, close, reconcile } = setup()
+  it.each(['linux', 'win32', 'darwin'] as const)('%s: hosts persisted due workspaces before firing, settles, closes resources and rearms through its platform owner', async (platform) => {
+    const { runtime, control, host, unwatch, close, reconcile } = setup(platform)
     // Global run-due takes persisted keys; existing session watches close too.
     await runtime.holdWorkspace('/one')
     await runtime.holdWorkspace('/two')
@@ -308,7 +308,7 @@ describe('schedule runtime lifecycle', () => {
     expect(control.close).toHaveBeenCalledOnce()
     expect(unwatch).toHaveBeenCalledTimes(2)
     expect(close).toHaveBeenCalledOnce()
-    expect(reconcile).toHaveBeenCalledOnce()
+    expect(reconcile).toHaveBeenCalledTimes(platform === 'darwin' ? 0 : 1)
     expect(host.holds(workspaceKey('/one'))).toBe(false)
     await runtime.close()
     expect(close).toHaveBeenCalledOnce()

@@ -92,6 +92,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Reporting journal, history-engine and response-cache tests retain real OS
+  process-birth probes on macOS and Windows without requiring unrelated
+  resource-governor installation in their storage fixtures.
+
 - Scheduled prompts spend about half the time on their store per fire: the
   store keeps one journal per workspace, so its validated snapshot and deltas
   are reused between calls, and a read copies the folded state once instead
