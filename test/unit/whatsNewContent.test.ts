@@ -27,6 +27,7 @@ import {
 import { releasesToShow } from '../../src/core/whatsNew/whatsNewVersions'
 import { renderWhatsNewPage } from '../../src/host/whatsNew/whatsNewHtml'
 import {
+  UI_TEXT,
   WHATS_NEW_CHANGELOG_URL,
   WHATS_NEW_CONTENT_DECODE_MAX_BYTES,
   WHATS_NEW_CONTENT_MAX_BYTES,
@@ -359,7 +360,28 @@ describe('selectWhatsNewReleases (the budget-aware writer)', () => {
     const parse = () => parseChangelog(changelog, ALLOWED, REPOSITORY)
     const kept = selectWhatsNewReleases(parse(), REPOSITORY, 100_000)
     expect(kept.releases.map((release) => release.version)).toEqual(['1.0.4', '1.0.3', '1.0.2'])
-    expect(kept.releases[2]?.sections).toEqual([])
+    expect(kept.plan).toEqual([
+      { version: '1.0.4', full: true },
+      { version: '1.0.3', full: true },
+      { version: '1.0.2', full: false },
+    ])
+    expect(kept.releases[2]?.sections).toEqual([
+      {
+        heading: '',
+        blocks: [
+          {
+            t: 'p',
+            c: [
+              {
+                t: 'link',
+                href: `${REPOSITORY}/blob/main/CHANGELOG.md`,
+                c: [{ t: 'text', v: 'Full notes for 1.0.2' }],
+              },
+            ],
+          },
+        ],
+      },
+    ])
     expect(kept.shortened).toBe(false)
     const skipped = selectWhatsNewReleases(parse(), REPOSITORY, 600)
     expect(skipped.releases.map((release) => release.version)).toEqual(['1.0.4', '1.0.3'])
@@ -370,6 +392,91 @@ describe('selectWhatsNewReleases (the budget-aware writer)', () => {
     const first = JSON.stringify(selectWhatsNewReleases(parsed(), REPOSITORY, 3000))
     const second = JSON.stringify(selectWhatsNewReleases(parsed(), REPOSITORY, 3000))
     expect(second).toBe(first)
+  })
+
+  it('measures the shipped envelope with its shortened flag: an exact-fit newest release gets the named refusal', () => {
+    const bound = 3000
+    const predecessor = '## [1.9.0] - 2026-10-01\n\n### Fixed\n\n- Older fix.\n'
+    const changelogFor = (filler: string) =>
+      `## [2.0.0] - 2026-10-09\n\n### Highlights\n\n- **New.** Shiny.\n\n### Added\n\n- Detail ${filler}.\n\n${predecessor}`
+    // Size the newest release so its envelope is exactly the bound: the
+    // filler is plain text, one byte per character.
+    const overhead = envelopeBytes(
+      parseChangelog(changelogFor(''), ALLOWED, REPOSITORY).slice(0, 1),
+      false,
+    )
+    const filler = 'x'.repeat(bound - overhead)
+    const all = parseChangelog(changelogFor(filler), ALLOWED, REPOSITORY)
+    expect(envelopeBytes(all.slice(0, 1), false)).toBe(bound)
+    // Alone it fits and ships unshortened; with a predecessor left out, the
+    // flag's own bytes no longer fit, so selection refuses by name instead
+    // of handing the encoder a selection it can only reject generically.
+    const alone = selectWhatsNewReleases(all.slice(0, 1), REPOSITORY, bound)
+    expect(alone.shortened).toBe(false)
+    expect(envelopeBytes(alone.releases, alone.shortened)).toBe(bound)
+    const shipped = envelopeBytes(all.slice(0, 1), true)
+    expect(shipped).toBeGreaterThan(bound)
+    expect(() => selectWhatsNewReleases(all, REPOSITORY, bound)).toThrow(
+      `CHANGELOG.md 2.0.0: its release notes decode to ${String(shipped)} bytes, over the What's New bound of ${String(bound)} bytes; trim the notes (docs/RELEASING.md)`,
+    )
+    try {
+      selectWhatsNewReleases(all, REPOSITORY, bound)
+      expect.unreachable()
+    } catch (error) {
+      expect(String(error)).not.toContain(UI_TEXT.actionFailed)
+    }
+  })
+
+  it('enters the retained earlier Highlights in the plan, with the full-notes link', () => {
+    const changelog = `## [1.0.4] - 2026-10-05
+
+### Fixed
+
+- Current fix.
+
+## [1.0.3] - 2026-10-04
+
+### Fixed
+
+- Previous fix.
+
+## [1.0.2] - 2026-10-03
+
+### Highlights
+
+- Newest Highlights. <!-- try: command museSpark.showWhatsNew -->
+`
+    const parse = () => parseChangelog(changelog, ALLOWED, REPOSITORY)
+    const selection = selectWhatsNewReleases(parse(), REPOSITORY, 100_000)
+    expect(selection.plan).toEqual([
+      { version: '1.0.4', full: true },
+      { version: '1.0.3', full: true },
+      { version: '1.0.2', full: false },
+    ])
+    expect(selection.shortened).toBe(false)
+    expect(selection.releases.map((release) => release.version)).toEqual([
+      '1.0.4',
+      '1.0.3',
+      '1.0.2',
+    ])
+    expect(selection.releases[2]?.highlights).toHaveLength(1)
+    expect(selection.releases[2]?.sections).toEqual([
+      {
+        heading: '',
+        blocks: [
+          {
+            t: 'p',
+            c: [
+              {
+                t: 'link',
+                href: `${REPOSITORY}/blob/main/CHANGELOG.md`,
+                c: [{ t: 'text', v: 'Full notes for 1.0.2' }],
+              },
+            ],
+          },
+        ],
+      },
+    ])
   })
 })
 
@@ -429,7 +536,23 @@ describe('writeWhatsNewContent', () => {
     const content = parseWhatsNewContent(readFileSync(path.join(root, CONTENT_FILE), 'utf8'))
     expect(content.releases.map((release) => release.version)).toEqual(['1.0.4', '1.0.3', '1.0.2'])
     expect(content.releases.slice(0, 2).every((release) => release.sections.length > 0)).toBe(true)
-    expect(content.releases[2]?.sections).toEqual([])
+    expect(content.releases[2]?.sections).toEqual([
+      {
+        heading: '',
+        blocks: [
+          {
+            t: 'p',
+            c: [
+              {
+                t: 'link',
+                href: `${repositoryUrl(manifest)}/blob/main/CHANGELOG.md`,
+                c: [{ t: 'text', v: 'Full notes for 1.0.2' }],
+              },
+            ],
+          },
+        ],
+      },
+    ])
     expect(content.releases[2]?.highlights[0]?.tries).toEqual([
       { kind: 'command', id: 'museSpark.showWhatsNew' },
     ])

@@ -10069,7 +10069,15 @@ we make". His standing ruling: enhancements are on by default.
   bound; older window releases follow newest first while the decoded total
   fits, else as Highlights only with a link to their full notes, else left
   out (`shortened`, and the page says "Earlier notes: see the full
-  changelog"); the packaged changelog ships the same plan.
+  changelog"); the packaged changelog ships the same plan. Round 2
+  (RVWNBUDGET, 2026-10-09): the selection measures the shipped envelope
+  with its `shortened` flag (an exact-fit newest release with a predecessor
+  left out gets the named refusal, never the encoder's generic one); a
+  shortened release without Highlights ships as its full-notes link,
+  exactly as the page shows it; packaging reads the writer's own release
+  pattern (prereleases included), never a second heading inventory; the
+  retained earlier Highlights enter the plan with the full-notes link, so
+  the page and the packaged notes agree in every case.
 - **Security.** Strict CSP (`default-src 'none'`, the stylesheet from the
   webview origin, one script by nonce, no inline style); every piece of text
   escaped on the host; links carry their address for keyboards and screen

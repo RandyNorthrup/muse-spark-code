@@ -707,6 +707,110 @@ describe('VSIX packaging', () => {
     expect(withoutSecond).toContain('## [2.0.0]')
     expect(withoutSecond).not.toContain('1.9.0')
   })
+  it('ships a shortened release without Highlights as its full-notes link, as the page shows it', () => {
+    const repository = 'https://github.com/example/repo'
+    const pad = 'y'.repeat(2000)
+    const changelog = [
+      '## [1.0.4] - 2026-10-05',
+      '',
+      '### Fixed',
+      '',
+      `- Current fix detail stays. ${pad}`,
+      '',
+      '## [1.0.3] - 2026-10-04',
+      '',
+      '### Fixed',
+      '',
+      `- Previous fix detail goes. ${pad}`,
+      '',
+    ].join('\n')
+    const parsed = parseChangelog(
+      changelog,
+      { commands: new Set(), settings: new Set() },
+      repository,
+    )
+    const selection = selectWhatsNewReleases(parsed, repository, 3000)
+    expect(selection.plan).toEqual([
+      { version: '1.0.4', full: true },
+      { version: '1.0.3', full: false },
+    ])
+    const packaged = packagedChangelog(changelog, selection.plan, repository)
+    expect(packaged).toContain('## [1.0.4]')
+    expect(packaged).toContain('Current fix detail stays.')
+    expect(packaged).toContain('## [1.0.3]')
+    expect(packaged).toContain(`[Full notes for 1.0.3](${repository}/blob/main/CHANGELOG.md).`)
+    expect(packaged).not.toContain('Previous fix detail goes.')
+  })
+  it('packages a prerelease predecessor through the writer’s own release pattern', () => {
+    const repository = 'https://github.com/example/repo'
+    const changelog = [
+      '## [2.0.0] - 2026-10-09',
+      '',
+      '### Highlights',
+      '',
+      '- **New.** Stable highlight.',
+      '',
+      '## [2.0.0-beta.1] - 2026-10-01',
+      '',
+      '### Highlights',
+      '',
+      '- **Beta.** Prerelease highlight.',
+      '',
+    ].join('\n')
+    const parsed = parseChangelog(
+      changelog,
+      { commands: new Set(), settings: new Set() },
+      repository,
+    )
+    expect(parsed.map((release) => release.version)).toEqual(['2.0.0', '2.0.0-beta.1'])
+    const selection = selectWhatsNewReleases(parsed, repository, 100_000)
+    expect(selection.plan).toEqual([
+      { version: '2.0.0', full: true },
+      { version: '2.0.0-beta.1', full: true },
+    ])
+    const packaged = packagedChangelog(changelog, selection.plan, repository)
+    expect(packaged).toContain('## [2.0.0]')
+    expect(packaged).toContain('## [2.0.0-beta.1]')
+    expect(packaged).toContain('Prerelease highlight.')
+  })
+  it('packages the retained earlier Highlights, so the packaged notes agree with the page', () => {
+    const repository = 'https://github.com/example/repo'
+    const changelog = [
+      '## [1.0.4] - 2026-10-05',
+      '',
+      '### Fixed',
+      '',
+      '- Current fix.',
+      '',
+      '## [1.0.3] - 2026-10-04',
+      '',
+      '### Fixed',
+      '',
+      '- Previous fix.',
+      '',
+      '## [1.0.2] - 2026-10-03',
+      '',
+      '### Highlights',
+      '',
+      '- Newest Highlights.',
+      '',
+    ].join('\n')
+    const parsed = parseChangelog(
+      changelog,
+      { commands: new Set(), settings: new Set() },
+      repository,
+    )
+    const selection = selectWhatsNewReleases(parsed, repository, 100_000)
+    expect(selection.plan).toEqual([
+      { version: '1.0.4', full: true },
+      { version: '1.0.3', full: true },
+      { version: '1.0.2', full: false },
+    ])
+    const packaged = packagedChangelog(changelog, selection.plan, repository)
+    expect(packaged).toContain('## [1.0.2]')
+    expect(packaged).toContain('Newest Highlights.')
+    expect(packaged).toContain(`[Full notes for 1.0.2](${repository}/blob/main/CHANGELOG.md).`)
+  })
   it('packs the writer’s plan for the real CHANGELOG exactly as the legacy slice', () => {
     const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
     const source = readFileSync('CHANGELOG.md', 'utf8')

@@ -43,7 +43,15 @@ const SCHEMA_VERSION = 1
 // out), instead of failing the build. Earlier details remain available
 // through the page's full-changelog link.
 const FULL_NOTES_RELEASES = 2
-const RELEASE_HEADING = /^\[(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\] - (\d{4}-\d{2}-\d{2})$/
+/** A released version, prereleases included: the one pattern the writer and the packager share. */
+const RELEASE_VERSION = String.raw`\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?`
+const RELEASE_HEADING = new RegExp(String.raw`^\[(${RELEASE_VERSION})\] - (\d{4}-\d{2}-\d{2})$`)
+/**
+ * A released `## ` section line in CHANGELOG.md, prereleases included. The
+ * packager reads the same pattern the writer parses with, so a plan entry
+ * always finds its section; never a second heading inventory.
+ */
+export const RELEASE_SECTION_LINE = new RegExp(String.raw`^## \[${RELEASE_VERSION}\].*$`, 'gm')
 const UNRELEASED_HEADING = '[Unreleased]'
 const PATCH_RELEASE = /^\d+\.\d+\.(\d+)/
 const TRY_DIRECTIVE = /^<!--\s*try:\s*(\S+)\s+(\S+)\s*-->$/
@@ -377,8 +385,10 @@ function highlightsOnly(release, repository) {
  *   Highlights only (plus a link to its full notes); one whose Highlights
  *   do not fit either is left out. Either way the selection is `shortened`.
  * - The standing rule still holds: when nothing shipped has Highlights, the
- *   newest earlier Highlights ship with their notes omitted (left out
- *   instead when even they do not fit). That rule alone never `shortened`.
+ *   newest earlier Highlights ship as their Highlights with the full-notes
+ *   link and enter the plan like any other shortened release (left out
+ *   instead when even they do not fit, and the packaged notes agree either
+ *   way). That rule alone never `shortened`.
  *
  * Deterministic: the same CHANGELOG always gives byte-identical output.
  *
@@ -428,15 +438,28 @@ export function selectWhatsNewReleases(
       .slice(FULL_NOTES_RELEASES)
       .find((release) => release.highlights.length > 0)
     if (latestHighlights !== undefined) {
-      // The standing rule's entry ships without the full-notes link, as
-      // always; only the budget skipping it counts as shortened.
-      const short = { ...latestHighlights, sections: [] }
+      // The standing rule's entry ships as its Highlights with the
+      // full-notes link, like any other shortened release, and enters the
+      // plan the same way, so the page and the packaged notes agree; only
+      // the budget skipping it counts as shortened.
+      const short = highlightsOnly(latestHighlights, repository)
       if (canFit(short, true)) {
         releases.push(short)
+        plan.push({ version: latestHighlights.version, full: false })
       } else {
         isShortened = true
       }
     }
+  }
+  // The `shortened` flag is itself bytes in the shipped envelope: leaving a
+  // release out sets it without adding a release, so the envelope as shipped
+  // is measured here. An exact-fit newest release otherwise ends in the
+  // encoder's generic refusal; instead it gets the named one.
+  const finalBytes = envelopeBytes(releases, isShortened)
+  if (finalBytes > maxDecodeBytes) {
+    throw new Error(
+      `CHANGELOG.md ${newest.version}: its release notes decode to ${String(finalBytes)} bytes, over the What's New bound of ${String(maxDecodeBytes)} bytes; trim the notes (docs/RELEASING.md)`,
+    )
   }
   return { releases, shortened: isShortened, plan }
 }

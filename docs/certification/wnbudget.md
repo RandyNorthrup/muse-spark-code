@@ -31,21 +31,32 @@ hiding the newest release.
   ships the writer's own plan, so the packaged notes agree with the page;
   without a plan the legacy slice is byte-identical. `stageVsix` computes
   the plan from the same parse (which also validates Try its at pack time).
-- Scope note: the standing-rule fallback entry still ships link-free in the
-  page and is still absent from the packaged notes, as before; only the
-  budget-shortened window was brought into agreement.
+- Round 2 (review RVWNBUDGET, four P2 findings): the selection measures the
+  shipped envelope with its `shortened` flag (an exact-fit newest release
+  with a predecessor left out gets the named refusal, never the encoder's
+  generic one); a shortened release without Highlights ships as its
+  full-notes link, exactly as the page shows it; packaging reads the
+  writer's own `RELEASE_SECTION_LINE` (prereleases such as 2.0.0-beta.1
+  included), never a second heading inventory; the retained earlier
+  Highlights enter the plan with the full-notes link, so the page and the
+  packaged notes agree in every case (the exclusion this note stated in
+  round 1 is removed).
 
 ## Behaviour → test map
 
-| Behaviour                                                              | Test                                                                                                  |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Newest alone over budget refuses, naming release, size, bound          | `whatsNewContent`: refusal test (80 KB fixture at the real bound, exact message; small-bound variant) |
-| Second fits fully / only Highlights fit / nothing fits                 | `whatsNewContent`: three selection tests (plan, link section, envelopes within bound)                 |
-| Newest-with-Highlights fallback still holds, within budget or skipped  | `whatsNewContent`: fallback test (kept + skipped-shortened)                                           |
-| Determinism (byte-identical)                                           | `whatsNewContent`: determinism test + real-CHANGELOG double-select                                    |
-| Real CHANGELOG ships the same releases as today                        | `whatsNewContent`: real-CHANGELOG parity test (versions, full, not shortened)                         |
-| Page Earlier-notes line only when shortened, translated at render time | `whatsNewHtml`: two tests; `whatsNewPanel`: content-flag test                                         |
-| Packaged notes agree (full / Highlights+link / omitted; legacy parity) | `vsixPackaging`: writer's-plan test + real-CHANGELOG legacy-equality test                             |
+| Behaviour                                                                           | Test                                                                                                                                     |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Newest alone over budget refuses, naming release, size, bound                       | `whatsNewContent`: refusal test (80 KB fixture at the real bound, exact message; small-bound variant)                                    |
+| Second fits fully / only Highlights fit / nothing fits                              | `whatsNewContent`: three selection tests (plan, link section, envelopes within bound)                                                    |
+| Newest-with-Highlights fallback still holds, within budget or skipped               | `whatsNewContent`: fallback test (kept + skipped-shortened)                                                                              |
+| Determinism (byte-identical)                                                        | `whatsNewContent`: determinism test + real-CHANGELOG double-select                                                                       |
+| Real CHANGELOG ships the same releases as today                                     | `whatsNewContent`: real-CHANGELOG parity test (versions, full, not shortened)                                                            |
+| Page Earlier-notes line only when shortened, translated at render time              | `whatsNewHtml`: two tests; `whatsNewPanel`: content-flag test                                                                            |
+| Packaged notes agree (full / Highlights+link / omitted; legacy parity)              | `vsixPackaging`: writer's-plan test + real-CHANGELOG legacy-equality test                                                                |
+| Exact-fit newest + omitted predecessor gets the named refusal (flag bytes measured) | `whatsNewContent`: exact-fit test (envelope exactly the bound; alone ships, with predecessor refuses by name, never the generic failure) |
+| Shortened release without Highlights ships as its full-notes link                   | `vsixPackaging`: highlight-less test (plan `full: false`, packaged heading + link, old detail absent)                                    |
+| Prerelease predecessor packages through the writer's own pattern                    | `vsixPackaging`: prerelease test (`2.0.0-beta.1` parsed, planned and packaged)                                                           |
+| Retained earlier Highlights enter the plan with the link; page and package agree    | `whatsNewContent`: plan-entry test + updated fallback/page tests; `vsixPackaging`: fallback-agreement test                               |
 
 ## Red drills (each broke on purpose, failed, restored byte-exact)
 
@@ -58,6 +69,17 @@ all three files.
 | 1   | `selectWhatsNewReleases`: `if (canFit(candidate, false))` → `if (true)` (budget ignored)            | `ships the second release as its Highlights only …` — 1 failed, 22 skipped                             | OK `6518db7a…` |
 | 2   | `whatsNewHtml`: Earlier-notes paragraph → `''`                                                      | `points at the full changelog only when older notes were shortened or left out` — 1 failed, 12 skipped | OK `f79de62d…` |
 | 3   | `packagedChangelog`: `if (plan === undefined)` → `if (plan === undefined \|\| true)` (plan ignored) | `ships the writer's plan …` — failed                                                                   | OK `36753de8…` |
+
+Round 2 (RVWNBUDGET findings; baselines `5d04db82…` `f22fd730…`,
+backups under `$TMPDIR/wnbudget-r2-bak`; `sha256sum -c` OK for both
+files after every restore):
+
+| #   | Break                                                                                             | Failing test (observed)                                                                                                       | Restore        |
+| --- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| R1  | `selectWhatsNewReleases`: `if (finalBytes > maxDecodeBytes)` → `&& false` (flag bytes unmeasured) | `measures the shipped envelope with its shortened flag …` — `expected [Function] to throw an error`, 1 failed, 24 skipped     | OK `5d04db82…` |
+| R2  | `packagedChangelog`: highlight-less branch → `throw … no Highlights section for …`                | `ships a shortened release without Highlights …` — `packagedChangelog: no Highlights section for 1.0.3`, 1 failed, 83 skipped | OK `f22fd730…` |
+| R3  | `packagedChangelog`: `RELEASE_SECTION_LINE` → old `/^## \[\d+\.\d+\.\d+\].*$/gm`                  | `packages a prerelease predecessor …` — `packagedChangelog: no released section for 2.0.0-beta.1`, 1 failed, 83 skipped       | OK `f22fd730…` |
+| R4  | `selectWhatsNewReleases`: fallback `plan.push(…)` removed                                         | `enters the retained earlier Highlights in the plan …` — plan 2 entries vs 3, 1 failed, 24 skipped                            | OK `5d04db82…` |
 
 ## Sizes for the real CHANGELOG, before → after
 
@@ -76,6 +98,9 @@ Same releases before and after: 0.17.0 + 0.16.0, both in full,
 - `npx vitest run` (repo default timeouts, `--maxWorkers=3`):
   `whatsNewContent` 23 passed, `whatsNewHtml` 13 passed,
   `whatsNewPanel` 10 passed, `vsixPackaging` 81 passed.
+- Round 2 reruns (repo default timeouts, no overrides):
+  `whatsNewContent` 25 passed, `whatsNewHtml` 13 passed,
+  `whatsNewPanel` 10 passed, `vsixPackaging` 84 passed.
 - `node scripts/check-l10n.mjs`: 0 problems.
 - `node scripts/gen-reference.mjs --check`: pass (no command/setting/feature touched).
 - `npm run build` (production, includes the writer end-to-end,
@@ -85,3 +110,9 @@ Same releases before and after: 0.17.0 + 0.16.0, both in full,
 - `npx prettier --check`, changed-file ESLint (`--max-warnings=0`),
   `tsc -p tsconfig.json --noEmit`, `tsc -p test/unit/tsconfig.json
 --noEmit`: pass.
+- Round 2 reruns: `npx prettier --check` (6 files), changed-file ESLint
+  (`--max-warnings=0`), `tsc -p tsconfig.json --noEmit`, `node
+scripts/check-l10n.mjs` (0 problems), `node
+scripts/gen-reference.mjs --check` (current), `npm run build`
+  (production): all pass. `dist/whatsNew.json` still 25,347 bytes,
+  `shortened` absent; real CHANGELOG ships 0.17.0 + 0.16.0 in full.

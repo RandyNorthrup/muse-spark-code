@@ -8,6 +8,7 @@ import { compactVsix } from './lib/compactVsix.mjs'
 import {
   contributedIds,
   parseChangelog,
+  RELEASE_SECTION_LINE,
   repositoryUrl,
   selectWhatsNewReleases,
 } from './lib/whatsNewContent.mjs'
@@ -37,13 +38,18 @@ function highlightsMarkdown(range) {
  * Highlights when there are any, then the planned releases, then the link
  * to the complete history. `plan` is the writer's selection
  * (`selectWhatsNewReleases`): each entry ships in full, or as its
- * Highlights only with a link to its full notes (an `omitted` entry ships
- * nothing), so the packaged notes agree with What's New's page on what is
- * shown. Without a plan the newest RECENT_RELEASES releases ship in full,
- * as always.
+ * Highlights only with a link to its full notes — a shortened entry without
+ * Highlights as the link alone, exactly as the page shows it (an `omitted`
+ * entry ships nothing) — so the packaged notes agree with What's New's page
+ * on what is shown. Without a plan the newest RECENT_RELEASES releases ship
+ * in full, as always.
  */
 export function packagedChangelog(text, plan, repository) {
-  const headings = text.matchAll(/^## \[\d+\.\d+\.\d+\].*$/gm).toArray()
+  // The released sections come from the writer's own release pattern
+  // (prereleases included), so a plan entry always finds its section. The
+  // clone starts matching at zero: matchAll inherits a shared global
+  // pattern's lastIndex.
+  const headings = text.matchAll(new RegExp(RELEASE_SECTION_LINE)).toArray()
   if (headings.length === 0) throw new Error('No released changelog section')
   const firstRelease = headings[0].index
   const prefix = text.slice(0, firstRelease)
@@ -71,9 +77,13 @@ export function packagedChangelog(text, plan, repository) {
       continue
     }
     const section = highlightsMarkdown(range)
-    if (section === undefined)
-      throw new Error(`packagedChangelog: no Highlights section for ${entry.version}`)
     const heading = headings[at][0]
+    if (section === undefined) {
+      // A shortened release without Highlights ships as its full-notes
+      // link, exactly as the page shows it.
+      shipped.push(`${heading}\n\n[Full notes for ${entry.version}](${changelog}).`)
+      continue
+    }
     shipped.push(`${heading}\n\n${section}\n\n[Full notes for ${entry.version}](${changelog}).`)
   }
   return `${unreleased}${shipped.join('\n\n')}\n\n[Complete release history](${HISTORY}).\n`
