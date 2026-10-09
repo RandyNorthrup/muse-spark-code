@@ -761,6 +761,11 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     if (hookPolicy?.isConfigurationInvalid === true) {
       return quiet('hooks-invalid')
     }
+    // A change was detected and its reload has not published: nothing is
+    // read under a policy that is already out of date (RVM94KR2 3).
+    if (hookPolicy?.isReloading === true) {
+      return quiet('policy-changed')
+    }
     const policy = bindRequestPolicy(hookPolicy?.key ?? '')
     const { settings } = policy
     // Everything the request reads, asks and sends names this one model.
@@ -822,14 +827,16 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     if (!policy.isCurrent()) {
       return quiet('policy-changed')
     }
-    // The D48 question, once per window (Q-M94a, lane L), for the request's
-    // own model: Deny sends nothing. The shim snoozes the window on
-    // `consent-denied`.
-    if (!(await deps.consent.requestUse(model))) {
+    // The D48 question (Q-M94a, lane L) for the request's own model and
+    // price: Deny sends nothing. The shim snoozes the window on
+    // `consent-denied`. The grant is bound to its key and read again at
+    // every later check, the send's included (RVM94KR2 1–2).
+    const grant = await deps.consent.requestUse(model)
+    if (grant === undefined) {
       return quiet('consent-denied')
     }
     // Consent for a model the settings no longer name is never used (RVM94KR 3).
-    if (!policy.isCurrent()) {
+    if (!policy.isCurrent() || !grant.isCurrent()) {
       return quiet('policy-changed')
     }
     const line = document.lineAt(position.line).text
@@ -888,7 +895,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     const sendBlocker = (): TabQuietReason | undefined =>
       stateQuietReason(document, rootAbs, isInvoke) ??
       (ignore.currentGeneration === ignoreGeneration ? undefined : 'ineligible-file') ??
-      (policy.isCurrent() ? undefined : 'policy-changed')
+      (policy.isCurrent() && grant.isCurrent() ? undefined : 'policy-changed')
     const lateReason = isDisposed() ? 'cancelled-before-send' : sendBlocker()
     if (lateReason !== undefined) {
       deps.spend.settle(reservation, NOTHING_SENT)
@@ -914,10 +921,11 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       cursorLineBefore: line.slice(0, position.character),
       lineAbove: lines[position.line - 1] ?? '',
       linesBelow: lines.slice(position.line + 1, position.line + 1 + TAB_MULTILINE_MAX_LINES),
-      // Read when the engine's debounce or a free slot ends the wait, right
-      // before sending: a keystroke since, a disposed provider, or any change
-      // the late check refuses, the bound policy included, sends nothing
-      // (RVM94HU 3, RVM94KR 2).
+      // Read when the engine's debounce or a free slot ends the wait, and last
+      // synchronously inside the client's send path, after its credential,
+      // pacing and admission waits: a keystroke since, a disposed provider,
+      // or any change the late check refuses, the bound policy and consent
+      // included, sends nothing (RVM94HU 3, RVM94KR 2, RVM94KR2 4).
       isCancelled: () =>
         token.isCancellationRequested || isDisposed() || sendBlocker() !== undefined,
     }
@@ -946,7 +954,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       return []
     }
     // An answer reached under a policy that has since moved is not shown.
-    if (!policy.isCurrent()) {
+    if (!policy.isCurrent() || !grant.isCurrent()) {
       return quiet('policy-changed')
     }
     if (completion === undefined) {

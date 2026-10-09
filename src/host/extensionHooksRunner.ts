@@ -121,6 +121,8 @@ export class ExtensionHookRunner {
   /** A scope's file is present but did not load whole: Tab reads refuse (RVM94KR 1). */
   private isTabConfigurationInvalid = false
   private version = 0
+  /** Detected changes whose observer and reload have not finished (RVM94KR2 3). */
+  private detections = 0
   private pendingReload: Promise<SparkHookSnapshot> | undefined
 
   public constructor(private readonly deps: ExtensionHookRunnerDeps) {
@@ -180,6 +182,46 @@ export class ExtensionHookRunner {
     return dispatch
   }
 
+  /**
+   * A hook file or setting changed: the policy epoch moves now, before any
+   * observer is awaited, and Tab refuses until the returned release runs
+   * after the reload (RVM94KR2 3).
+   */
+  private detect(): () => void {
+    this.version += 1
+    this.detections += 1
+    let isReleased = false
+    return () => {
+      if (isReleased) {
+        return
+      }
+      isReleased = true
+      this.detections -= 1
+    }
+  }
+
+  /** Observes the change under the old snapshot, then reloads; the epoch already moved. */
+  private async observeThenReload(
+    fields: Readonly<Record<string, unknown>>,
+    matcherValue: string | undefined,
+  ): Promise<void> {
+    const release = this.detect()
+    try {
+      await this.fire('ConfigChange', fields, matcherValue)
+    } finally {
+      try {
+        await this.reload()
+      } finally {
+        release()
+      }
+    }
+  }
+
+  /** True from a change's detection until its reload has published. */
+  public isReloading(): boolean {
+    return this.detections > 0 || this.pendingReload !== undefined
+  }
+
   public async reload(): Promise<void> {
     this.version += 1
     const version = this.version
@@ -214,7 +256,9 @@ export class ExtensionHookRunner {
    * until it is fixed; only no Tab hook at all is `absent`.
    */
   public async tabHookState(event: TabHookRun['event']): Promise<TabHookState> {
+    if (this.detections > 0) return 'reloading'
     await this.waitForReload()
+    if (this.detections > 0) return 'reloading'
     if (this.isTabConfigurationInvalid) return 'invalid'
     const matcher = event === 'beforeTabFileRead' ? 'TabRead' : 'TabWrite'
     return this.hooks.some(
@@ -227,8 +271,9 @@ export class ExtensionHookRunner {
   /** Raw endings: Tab decides before fail-open or onFailure handling can run. */
   public async runTab(request: TabHookRun): Promise<readonly ShellResult[] | undefined> {
     await this.waitForReload()
-    // A configuration that did not load whole never answers: undefined refuses.
-    if (!this.isArmed() || this.isTabConfigurationInvalid) return undefined
+    // A configuration that did not load whole, or one still reloading, never
+    // answers: undefined refuses.
+    if (!this.isArmed() || this.isTabConfigurationInvalid || this.isReloading()) return undefined
     const selected = this.hooks.filter(
       (hook) =>
         hook.event === request.event &&
@@ -319,8 +364,7 @@ export class ExtensionHookRunner {
     if (relativePath === undefined) {
       return
     }
-    await this.fire('ConfigChange', configChangeFields(relativePath, reason), relativePath)
-    await this.reload()
+    await this.observeThenReload(configChangeFields(relativePath, reason), relativePath)
   }
 
   /** Both backends' controller displays keep the original in history. */
@@ -333,8 +377,7 @@ export class ExtensionHookRunner {
   /** Setting events have no file path; an empty path names the workspace root. */
   public async noteSettingsChange(): Promise<void> {
     if (!this.isArmed()) return
-    await this.fire('ConfigChange', configChangeFields('', 'settings'), undefined)
-    await this.reload()
+    await this.observeThenReload(configChangeFields('', 'settings'), undefined)
   }
 
   /**

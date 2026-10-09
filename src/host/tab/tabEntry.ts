@@ -72,6 +72,7 @@ export function createTabProvider(deps: TabProviderDeps & TabBundleTable): TabPr
       ? {
           isHooksEnabled: dispatch.isHooksEnabled,
           configurationVersion: () => runner?.configurationVersion() ?? '',
+          isReloading: () => runner?.isReloading() ?? false,
           hookState: async (event) => {
             runner = await dispatch.load()
             if (runner === undefined) throw new Error('Tab hook dispatch unavailable')

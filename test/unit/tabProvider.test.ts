@@ -32,6 +32,7 @@ import {
   TAB_COMMAND_IDS,
   isTabLanguageOn,
   type TabCompletionSnapshot,
+  type TabConsentGrant,
   type TabDocumentChange,
   type TabHookBridge,
   type TabOutcome,
@@ -68,6 +69,9 @@ import { FakeUri } from './mocks/vscode'
 
 const openContextDocument: (uri: vscode.Uri) => Thenable<vscode.TextDocument> =
   workspace.openTextDocument
+
+/** A consent grant that stays current: the provider cases test other bindings. */
+const GRANTED: TabConsentGrant = { scope: 'window', isCurrent: () => true }
 
 const USAGE: TabReportedUsage = { inputTokens: 10, cachedTokens: 2, outputTokens: 3 }
 const NOTHING_SENT: TabReportedUsage = { inputTokens: 0, cachedTokens: 0, outputTokens: 0 }
@@ -112,7 +116,8 @@ function bridge(overrides: Partial<TabHookBridge> = {}): TabHookBridge {
   return {
     beforeRead: () => Promise.resolve(true),
     afterEdit: () => undefined,
-    bindPolicy: () => Promise.resolve({ key: 'hooks-1', isConfigurationInvalid: false }),
+    bindPolicy: () =>
+      Promise.resolve({ key: 'hooks-1', isConfigurationInvalid: false, isReloading: false }),
     policyKey: () => 'hooks-1',
     ...overrides,
   }
@@ -494,7 +499,7 @@ function providerHarness(
   })
   const reserve = vi.fn((): Promise<TabReservation | undefined> => Promise.resolve(RESERVATION))
   const settle = vi.fn((): void => undefined)
-  const requestUse = vi.fn((): Promise<boolean> => Promise.resolve(true))
+  const requestUse = vi.fn((): Promise<TabConsentGrant | undefined> => Promise.resolve(GRANTED))
   const beforeRead = vi.fn((): Promise<boolean> => Promise.resolve(true))
   const afterEdit = vi.fn((): void => undefined)
   const log = new FakeLogOutputChannel()
@@ -687,7 +692,7 @@ describe('createTabProvider', () => {
   })
 
   it('sends nothing on Deny, and nothing past the budget', async () => {
-    const denied = providerHarness({ consent: { requestUse: () => Promise.resolve(false) } })
+    const denied = providerHarness({ consent: { requestUse: () => Promise.resolve(undefined) } })
     await expect(denied.serve()).resolves.toEqual([])
     expect(denied.outcomes).toEqual([{ kind: 'quiet', reason: 'consent-denied' }])
     expect(denied.complete).not.toHaveBeenCalled()
@@ -982,7 +987,7 @@ describe('createTabProvider', () => {
       consent: {
         requestUse: () => {
           box.harness?.handle.dispose()
-          return Promise.resolve(true)
+          return Promise.resolve(GRANTED)
         },
       },
     })
@@ -1490,7 +1495,7 @@ describe('RVM94KR 2: a request is bound to the policy it started under', () => {
         requestUse: () => {
           hooks.version = 'v2'
           hooks.verdict = 'deny'
-          return Promise.resolve(true)
+          return Promise.resolve(GRANTED)
         },
       },
     })
@@ -1586,7 +1591,7 @@ describe('RVM94KR 3: the model asked about is the model sent', () => {
           asked.push(model)
           // The user switches to Standard while the question is open.
           state.model = STANDARD
-          return Promise.resolve(true)
+          return Promise.resolve(GRANTED)
         },
       },
     })
@@ -1617,7 +1622,7 @@ describe('RVM94KR 3: the model asked about is the model sent', () => {
         consent: {
           requestUse: (model) => {
             asked.push(model)
-            return Promise.resolve(true)
+            return Promise.resolve(GRANTED)
           },
         },
       },

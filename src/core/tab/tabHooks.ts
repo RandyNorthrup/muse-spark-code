@@ -21,9 +21,11 @@ export type TabHookEvent = 'beforeTabFileRead' | 'afterTabFileEdit'
 /**
  * What the hook configuration in force says about one event (RVM94KR 1): no
  * Tab hook, a configured one, or a hook file present that did not load
- * whole. Only `absent` reads without a guard; `invalid` refuses every read.
+ * whole. Only `absent` reads without a guard; `invalid` refuses every read,
+ * and so does `reloading`: a change was detected and its reload has not
+ * finished (RVM94KR2 3).
  */
-export type TabHookState = 'absent' | 'present' | 'invalid'
+export type TabHookState = 'absent' | 'present' | 'invalid' | 'reloading'
 
 /** The hook policy a Tab request binds to at its start (RVM94KR 2). */
 export interface TabHookPolicy {
@@ -31,6 +33,8 @@ export interface TabHookPolicy {
   readonly key: string
   /** A configured hook file did not load whole: Tab reads nothing until it is fixed. */
   readonly isConfigurationInvalid: boolean
+  /** A change was detected and is still reloading: the request reads nothing. */
+  readonly isReloading: boolean
 }
 
 export interface TabHookContext {
@@ -74,8 +78,13 @@ export interface TabHookRun {
 export interface TabHooksDeps {
   readonly isWorkspaceTrusted: () => boolean
   readonly isHooksEnabled: () => boolean
-  /** Changes whenever either scope's hook snapshot changes. */
+  /**
+   * The policy epoch: moves the moment a hook file or setting change is
+   * detected, before any observer runs, and again when its reload starts.
+   */
   readonly configurationVersion: () => string
+  /** True from a change's detection until its reload has published (RVM94KR2 3). */
+  readonly isReloading?: (() => boolean) | undefined
   /**
    * Production loads the snapshot lazily and waits for a pending reload:
    * `absent` preserves the old read, `invalid` refuses it, and a rejection
@@ -145,9 +154,18 @@ export function createTabHooks(deps: TabHooksDeps) {
     return isTrusted() && deps.isHooksEnabled()
   }
 
-  /** Trust, the opt-in and the configuration version: a request's bound key. */
+  function isReloading(): boolean {
+    return deps.isReloading?.() === true
+  }
+
+  /** Trust, the opt-in, the policy epoch and the reload: a request's bound key. */
   function policyKey(): string {
-    return JSON.stringify([isTrusted(), deps.isHooksEnabled(), deps.configurationVersion()])
+    return JSON.stringify([
+      isTrusted(),
+      deps.isHooksEnabled(),
+      deps.configurationVersion(),
+      isReloading(),
+    ])
   }
 
   /** Settles the configuration in force first, so its version is the one bound. */
@@ -161,7 +179,11 @@ export function createTabHooks(deps: TabHooksDeps) {
         state = undefined
       }
     }
-    return { key: policyKey(), isConfigurationInvalid: state === 'invalid' }
+    return {
+      key: policyKey(),
+      isConfigurationInvalid: state === 'invalid',
+      isReloading: state === 'reloading' || (isAllowed() && isReloading()),
+    }
   }
 
   async function canRead(
@@ -182,17 +204,26 @@ export function createTabHooks(deps: TabHooksDeps) {
         deps.log('beforeTabFileRead: hook configuration invalid; read refused')
         return false
       }
+      if (state === 'reloading' || isReloading()) {
+        deps.log('beforeTabFileRead: hook configuration reloading; read refused')
+        return false
+      }
       if (state === 'absent') return isTrusted()
     }
+    if (isReloading()) return false
     const capturedVersion = currentVersion()
     const digest = createHash('sha256').update(content).digest('hex')
-    const key = JSON.stringify([filePath, digest])
+    // A verdict answers for the model the guard was told and the epoch it
+    // ran under, never another (RVM94KR2 5).
+    const key = JSON.stringify([filePath, digest, context.model, capturedVersion])
     const cached = verdicts.get(key)
     if (cached !== undefined) {
       verdicts.delete(key)
       verdicts.set(key, cached)
       const isReadPermitted = await cached
-      return isReadPermitted && isAllowed() && capturedVersion === currentVersion()
+      return (
+        isReadPermitted && isAllowed() && !isReloading() && capturedVersion === currentVersion()
+      )
     }
     const stdin = JSON.stringify({
       ...envelope('beforeTabFileRead', filePath, context),
@@ -217,6 +248,7 @@ export function createTabHooks(deps: TabHooksDeps) {
       }
       const isReadPermitted =
         isAllowed() &&
+        !isReloading() &&
         capturedVersion === currentVersion() &&
         results?.every((result) => isReadAllowed(result)) === true
       deps.log(`beforeTabFileRead: ${isReadPermitted ? 'allowed' : 'denied'}`)

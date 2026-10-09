@@ -239,12 +239,13 @@ import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
 import {
   TAB_BUNDLE_FILE,
-  TAB_CONSENT_MODEL_STATE_KEY,
+  TAB_CONSENT_STATE_KEY,
   TAB_LEDGER_DIR,
   TAB_SNOOZE_STATE_KEY,
   type TabFilesExclude,
   createTabActivation,
-  modelBoundTabConsent,
+  createTabConsent,
+  tabPriceFingerprint,
   tabTextChangeEvent,
   deferredRefresh,
 } from './host/tab/tabBundle'
@@ -1448,7 +1449,10 @@ async function activateWindow(
     // window's ledger file (lane L) from these. The key client is the one
     // M44 loads on its first paid use; it is read only on a Tab request.
     services: {
-      stream: (body, signal, budget) => keyClient().streamResponse(body, signal, undefined, budget),
+      // The engine's guard runs last, synchronously, inside the client's send
+      // path (RVM94KR2 4).
+      stream: (body, signal, budget, admit) =>
+        keyClient().streamResponse(body, signal, undefined, budget, admit),
       ledgerDirectory: path.join(context.globalStorageUri.fsPath, TAB_LEDGER_DIR),
       windowId: crypto.randomUUID(),
       onSent: () => {
@@ -1462,23 +1466,26 @@ async function activateWindow(
     onTodayTotalChanged: () => {
       broadcastPaidState()
     },
-    // D48's question, once per window (Q-M94a): the first request asks with
-    // its own model's rates and today's budget; Deny snoozes the window. A
-    // request for another model than the one last allowed asks again
-    // (RVM94KR 3).
-    consent: modelBoundTabConsent({
-      allows: async (model, isNewModel) =>
-        await paid.consent.allows(
-          { feature: 'tab', modelId: model, budgetUsd: currentSettings().tabDailyBudgetUsd },
-          isNewModel,
-        ),
-      allowedModel: () => {
-        const model = context.workspaceState.get<unknown>(TAB_CONSENT_MODEL_STATE_KEY)
-        return typeof model === 'string' ? model : undefined
+    // D48's question (Q-M94a), keyed by model and price (RVM94KR2): the
+    // first request for a key asks with its rates and today's budget; Deny
+    // snoozes the window. A kept or window grant counts only for its key.
+    consent: createTabConsent({
+      priceOf: tabPriceFingerprint,
+      ask: async (model) =>
+        await paid.consent.askScope({
+          feature: 'tab',
+          modelId: model,
+          budgetUsd: currentSettings().tabDailyBudgetUsd,
+        }),
+      isOn: () => paid.gate.isOn('tab'),
+      isRemembered: () => paid.consent.isRemembered('tab'),
+      windowOnceToken: () => paid.consent.windowOnceToken('tab'),
+      revocations: () => paid.consent.revocations,
+      readAlways: () => context.workspaceState.get<unknown>(TAB_CONSENT_STATE_KEY),
+      writeAlways: async (record) => {
+        await context.workspaceState.update(TAB_CONSENT_STATE_KEY, record)
       },
-      rememberAllowedModel: async (model) => {
-        await context.workspaceState.update(TAB_CONSENT_MODEL_STATE_KEY, model)
-      },
+      log,
     }),
   })
   tabDisposables.push({
@@ -3237,7 +3244,9 @@ async function activateWindow(
     if (!areHooksArmed()) {
       return
     }
-    const runner = await hookRunnerFor(shouldAnnounceFailure)
+    // A loaded runner runs at once, inside the event: a ConfigChange moves
+    // Tab's policy epoch before anything is awaited (RVM94KR2 3).
+    const runner = hookRunner ?? (await hookRunnerFor(shouldAnnounceFailure))
     if (runner === undefined) {
       return
     }

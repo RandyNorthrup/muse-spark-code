@@ -22,7 +22,6 @@ import {
   deferredRefresh,
   isTabBundle,
   isTabLanguageOn,
-  modelBoundTabConsent,
   readCopilotPosture,
   shouldYieldToCopilot,
   tabLoader,
@@ -316,7 +315,9 @@ function activationHarness(
     bundleServices: services = harnessServices(),
     ...deps
   } = overrides
-  const consent: TabUseConsent = { requestUse: () => Promise.resolve(true) }
+  const consent: TabUseConsent = {
+    requestUse: () => Promise.resolve({ scope: 'window', isCurrent: () => true }),
+  }
   let servicesFound: TabServicesDeps | undefined
   const log = new FakeLogOutputChannel()
   const loadBundle = vi.fn(() => {
@@ -637,48 +638,6 @@ describe('RVM94KR 1: the status says why Tab reads nothing', () => {
   })
 })
 
-/** The model-bound consent over a recording gate and an in-memory kept model. */
-function consentHarness(initial?: string) {
-  const kept = { model: initial }
-  const allows = vi.fn((_model: string, _isNewModel: boolean) => Promise.resolve(true))
-  const consent = modelBoundTabConsent({
-    allows,
-    allowedModel: () => kept.model,
-    rememberAllowedModel: (model) => {
-      kept.model = model
-      return Promise.resolve()
-    },
-  })
-  return { kept, allows, consent }
-}
-
-describe('RVM94KR 3: modelBoundTabConsent', () => {
-  it('asks about the request’s model, and again for another model under a kept grant', async () => {
-    const h = consentHarness()
-    expect(await h.consent.requestUse('muse-spark-1.3')).toBe(true)
-    expect(h.allows).toHaveBeenLastCalledWith('muse-spark-1.3', false)
-    expect(h.kept.model).toBe('muse-spark-1.3')
-    await h.consent.requestUse('muse-spark-1.3')
-    expect(h.allows).toHaveBeenLastCalledWith('muse-spark-1.3', false)
-    await h.consent.requestUse('muse-spark-1.3-contributor')
-    expect(h.allows).toHaveBeenLastCalledWith('muse-spark-1.3-contributor', true)
-    expect(h.kept.model).toBe('muse-spark-1.3-contributor')
-  })
-
-  it('keeps no model a Deny named, and shares one open question per model', async () => {
-    const h = consentHarness('muse-spark-1.3')
-    const answer = Promise.withResolvers<boolean>()
-    h.allows.mockReturnValueOnce(answer.promise)
-    const first = h.consent.requestUse('muse-spark-1.3-contributor')
-    const second = h.consent.requestUse('muse-spark-1.3-contributor')
-    answer.resolve(false)
-    expect(await first).toBe(false)
-    expect(await second).toBe(false)
-    expect(h.allows).toHaveBeenCalledOnce()
-    expect(h.kept.model).toBe('muse-spark-1.3')
-  })
-})
-
 describe('the shipped Tab bundle', () => {
   it('is the module the loader accepts', () => {
     const loaded = tabLoader({
@@ -771,7 +730,9 @@ describe('the shipped Tab bundle', () => {
       onIgnoreFilesChanged: () => ({ dispose: () => undefined }),
       onDidChangeTextDocument: () => ({ dispose: () => undefined }),
       ...services,
-      consent: { requestUse: () => Promise.resolve(true) },
+      consent: {
+        requestUse: () => Promise.resolve({ scope: 'window', isCurrent: () => true }),
+      },
       onOutcome: () => undefined,
       log: new FakeLogOutputChannel(),
       uiTable: UI_TEXT,
