@@ -22575,6 +22575,11 @@ extension's own storage, never the workspace's `.git`.
 ### M73 — Observation packing (D49)
 
 - **Goal.** Long sessions stop resending large old tool outputs.
+- **D78 released-main default (2026-10-04): on.** The owner's target makes
+  `museSpark.modelApiObservationPacking` available by default.
+  **Candidate packing default: on.** M101INT integrated the released manifest
+  and runtime default with the README; ACP/headless uses the same shared packing
+  engine. Explicit-off requests retain their golden bytes.
 - **Status 2026-10-02: shipped off by default after its M75 run passed.**
   Built 2026-10-01 on
   `feature/m73-packing`, from M75's merged head. What is in it:
