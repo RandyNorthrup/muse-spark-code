@@ -47,7 +47,13 @@ tested, at which version, and what was found.
 
 Node.js 22 or later is required.
 
-- From a GitHub Release, by the package's URL:
+- From npm (0.11.0 and later):
+
+  ```sh
+  npm install -g muse-spark-code-acp
+  ```
+
+- Or from a GitHub Release, by the package's URL:
 
   ```sh
   npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v<version>/muse-spark-code-acp-<version>.tgz
@@ -56,7 +62,11 @@ Node.js 22 or later is required.
   or download `muse-spark-code-acp-<version>.tgz` and run
   `npm install -g ./muse-spark-code-acp-<version>.tgz`.
 
-- From npm (0.11.0 and later): `npm install -g muse-spark-code-acp`.
+The project ships from four places: the agent from npm and GitHub Releases,
+and the VS Code extension from the
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
+[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code) and
+[GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases).
 
 `muse-spark-code-acp --version` confirms the install.
 

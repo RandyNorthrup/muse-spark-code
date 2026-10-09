@@ -7,6 +7,7 @@
   <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace installs" src="https://badgen.net/vs-marketplace/i/RandyNorthrup.muse-spark-code?color=3b6cf6"></a>
   <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX version" src="https://badgen.net/open-vsx/version/RandyNorthrup/muse-spark-code?label=Open%20VSX&color=3b6cf6"></a>
   <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX downloads" src="https://badgen.net/open-vsx/d/RandyNorthrup/muse-spark-code?label=Open%20VSX%20downloads&color=3b6cf6"></a>
+  <a href="https://www.npmjs.com/package/muse-spark-code-acp"><img alt="ACP agent: npm version" src="https://badgen.net/npm/v/muse-spark-code-acp?label=ACP%20agent%20(npm)&color=3b6cf6"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/releases/latest"><img alt="ACP agent: GitHub Release" src="https://badgen.net/github/release/RandyNorthrup/muse-spark-code?label=ACP%20agent%20(GitHub)&color=3b6cf6"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg"></a>
   <a href="#install-in-your-editor"><img alt="Editors: VS Code-based (engine 1.99 or newer) and ACP" src="https://img.shields.io/badge/editors-VS%20Code--based%20%C2%B7%20ACP-2b7de9"></a>
@@ -482,6 +483,12 @@ Muse Code's subscription and its existing explicit key-paid opt-ins are unchange
    code --install-extension muse-spark-code-0.14.0.vsix
    ```
 
+   Other editors install it from
+   [Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code)
+   or run the ACP agent from
+   [npm](https://www.npmjs.com/package/muse-spark-code-acp); see
+   [Install in your editor](#install-in-your-editor).
+
 2. Open the **Muse Spark** view from the activity bar (or press
    `Ctrl+Shift+Alt+Esc` on Windows, `Cmd+Shift+Esc` on macOS,
    `Ctrl+Shift+Esc` on Linux for a conversation in an editor tab).
@@ -656,7 +663,8 @@ from Open VSX or a `.vsix`.
 
 Get it from the
 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
-[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code) or
+[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code),
+[npm](https://www.npmjs.com/package/muse-spark-code-acp) (the ACP agent) or
 [GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases)
 (both the `.vsix` and the agent's `.tgz`).
 
@@ -669,11 +677,18 @@ Get it from the
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
 | **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
 
-**The ACP agent** needs Node.js 22 or later. Install it from the release:
+**The ACP agent** needs Node.js 22 or later. Install it from npm:
 
 ```bash
-npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.14.0/muse-spark-code-acp-0.14.0.tgz
+npm install -g muse-spark-code-acp
 muse-spark-code-acp --version
+```
+
+Or install the `.tgz` attached to a GitHub Release, replacing `<version>`
+with the release's version:
+
+```bash
+npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v<version>/muse-spark-code-acp-<version>.tgz
 ```
 
 **Zed** (tested with Zed 1.20.2): add this to `settings.json`, then pick
@@ -1990,6 +2005,15 @@ also unavailable while a pull request worktree is held.
   pickers, discard confirmations and native metadata waits.
 - **Restricted Mode.** None of this runs there, and the panel says why:
   git can run programs a repository's configuration names.
+
+**The project's GitHub app (arriving with M123).** Editors without their own
+GitHub sign-in will sign in through the GitHub OAuth app "Muse Spark Code
+(Unofficial)", using GitHub's device flow (no client secret). Like the
+extension, the app is unofficial and not affiliated with or endorsed by Meta
+or GitHub. Its GitHub Marketplace listing is awaiting GitHub's review.
+
+<!-- Marketplace listing (draft, pending GitHub review): https://github.com/marketplace/muse-spark-code-u
+     Turn this into a link in the release that follows approval. -->
 
 <!-- reference: streamed-argument-previews -->
 
