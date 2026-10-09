@@ -800,6 +800,8 @@
     "sizeExceeded": "이 파일은 {size}을(를) 초과합니다.",
     "convertToMp4": "mp4로 변환",
     "converterUnavailable": "변환기가 없습니다. mp4 파일을 선택하세요.",
+    "converterConfiguredRefused": "설정된 변환기가 거부되었습니다: {reason}",
+    "converterSharedFolder": "변환기를 찾았지만 상위 폴더를 다른 사용자가 변경할 수 있습니다({reason}). 본인이나 시스템만 변경할 수 있는 폴더의 변환기로 경로를 설정하세요.",
     "transcribeSound": "소리를 텍스트로 변환",
     "transcribe": "텍스트로 변환",
     "useSoundtrackModel": "이 메시지에 {model} 사용",

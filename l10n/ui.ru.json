@@ -812,6 +812,8 @@
     "sizeExceeded": "Этот файл превышает {size}.",
     "convertToMp4": "Преобразовать в mp4",
     "converterUnavailable": "Конвертер недоступен. Выберите файл mp4.",
+    "converterConfiguredRefused": "Настроенный конвертер отклонён: {reason}",
+    "converterSharedFolder": "Конвертер найден, но папку над ним могут изменять другие пользователи ({reason}). Укажите путь к конвертеру в папке, которую можете изменять только вы или система.",
     "transcribeSound": "Расшифровать звук",
     "transcribe": "Расшифровать",
     "useSoundtrackModel": "Использовать {model} для этого сообщения",

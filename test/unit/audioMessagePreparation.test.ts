@@ -4,7 +4,7 @@
 // marker text part stands in for lane V's attach-port token registry;
 // everything past `resolveSource` is product code.
 import { describe, expect, it } from 'vitest'
-import { readFile, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createPrepareAudioMessage } from '../../src/core/voice/audioMessagePreparation'
@@ -102,8 +102,12 @@ function rig(options?: { readonly voiceOn?: boolean }): Rig {
         converter: { kind: 'ffmpeg' as const, command: path.join(tmpdir(), 'muse-fake-ffmpeg') },
       }),
     conversionOptions: {
-      trustedPath: { verify: () => Promise.resolve('ok' as const) },
+      trustedPath: { verify: (file: string) => Promise.resolve({ ok: true as const, path: file }) },
       readRssBytes: () => Promise.resolve(0),
+      // Windows needs an owner-only directory the host creates (chmod cannot).
+      ...(process.platform === 'win32' && {
+        createPrivateDirectory: () => mkdtemp(path.join(tmpdir(), 'm105-private-fake-')),
+      }),
       probeVersion: () =>
         Promise.resolve('ffmpeg version 7.0-test Copyright (c) 2025 the FFmpeg developers'),
       run: async (_command: string, _args: readonly string[], runOptions): Promise<void> => {

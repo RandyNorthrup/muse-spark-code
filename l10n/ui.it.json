@@ -808,6 +808,8 @@
     "sizeExceeded": "Questo file supera {size}.",
     "convertToMp4": "Converti in mp4",
     "converterUnavailable": "Nessun convertitore disponibile. Scegli un file mp4.",
+    "converterConfiguredRefused": "Il convertitore configurato è stato rifiutato: {reason}",
+    "converterSharedFolder": "È stato trovato un convertitore, ma una cartella superiore può essere modificata da altri utenti ({reason}). Imposta il percorso del convertitore in una cartella che solo tu o il sistema potete modificare.",
     "transcribeSound": "Trascrivi l’audio",
     "transcribe": "Trascrivi",
     "useSoundtrackModel": "Usa {model} per questo messaggio",

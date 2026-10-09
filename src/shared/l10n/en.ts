@@ -976,6 +976,9 @@ export const EN = {
     sizeExceeded: 'This file exceeds {size}.',
     convertToMp4: 'Convert to mp4',
     converterUnavailable: 'No converter is available. Choose an mp4 file.',
+    converterConfiguredRefused: 'The configured converter was refused: {reason}',
+    converterSharedFolder:
+      'A converter was found, but a folder above it can be changed by other users ({reason}). Set the converter path to one in a folder only you or the system can change.',
     transcribeSound: 'Transcribe the sound',
     transcribe: 'Transcribe',
     useSoundtrackModel: 'Use {model} for this message',

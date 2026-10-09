@@ -804,6 +804,8 @@
     "sizeExceeded": "Ez a fájl túllépi a(z) {size} méretet.",
     "convertToMp4": "Konvertálás mp4 formátumba",
     "converterUnavailable": "Nincs elérhető konverter. Válasszon mp4 fájlt.",
+    "converterConfiguredRefused": "A beállított konverter el lett utasítva: {reason}",
+    "converterSharedFolder": "Találtunk konvertert, de egy fölötte lévő mappát más felhasználók is módosíthatnak ({reason}). Állítsa a konverter útvonalát egy olyan mappára, amelyet csak Ön vagy a rendszer módosíthat.",
     "transcribeSound": "A hang átírása",
     "transcribe": "Átírás",
     "useSoundtrackModel": "A(z) {model} használata ehhez az üzenethez",

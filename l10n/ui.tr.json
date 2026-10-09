@@ -804,6 +804,8 @@
     "sizeExceeded": "Bu dosya {size} boyutunu aşıyor.",
     "convertToMp4": "mp4 biçimine dönüştür",
     "converterUnavailable": "Dönüştürücü yok. Bir mp4 dosyası seçin.",
+    "converterConfiguredRefused": "Yapılandırılan dönüştürücü reddedildi: {reason}",
+    "converterSharedFolder": "Bir dönüştürücü bulundu, ancak üstündeki bir klasörü başka kullanıcılar değiştirebilir ({reason}). Dönüştürücü yolunu yalnızca sizin veya sistemin değiştirebileceği bir klasöre ayarlayın.",
     "transcribeSound": "Sesi yazıya dök",
     "transcribe": "Yazıya dök",
     "useSoundtrackModel": "Bu mesaj için {model} kullan",

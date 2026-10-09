@@ -800,6 +800,8 @@
     "sizeExceeded": "このファイルは {size} を超えています。",
     "convertToMp4": "mp4 に変換",
     "converterUnavailable": "変換ツールがありません。mp4 ファイルを選んでください。",
+    "converterConfiguredRefused": "設定された変換ツールは拒否されました: {reason}",
+    "converterSharedFolder": "変換ツールが見つかりましたが、その上位フォルダーを他のユーザーが変更できます ({reason})。あなたかシステムだけが変更できるフォルダー内の変換ツールをパスに設定してください。",
     "transcribeSound": "音声を文字起こし",
     "transcribe": "文字起こし",
     "useSoundtrackModel": "このメッセージに {model} を使用",

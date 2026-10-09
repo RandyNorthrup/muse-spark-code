@@ -804,6 +804,8 @@
     "sizeExceeded": "Diese Datei überschreitet {size}.",
     "convertToMp4": "In mp4 umwandeln",
     "converterUnavailable": "Kein Konverter verfügbar. Wähle eine mp4-Datei.",
+    "converterConfiguredRefused": "Der eingestellte Konverter wurde abgelehnt: {reason}",
+    "converterSharedFolder": "Ein Konverter wurde gefunden, aber ein übergeordneter Ordner kann von anderen Benutzern geändert werden ({reason}). Stelle den Konverterpfad auf einen Ordner ein, den nur du oder das System ändern kann.",
     "transcribeSound": "Ton transkribieren",
     "transcribe": "Transkribieren",
     "useSoundtrackModel": "{model} für diese Nachricht verwenden",

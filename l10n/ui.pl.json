@@ -812,6 +812,8 @@
     "sizeExceeded": "Ten plik przekracza {size}.",
     "convertToMp4": "Konwertuj do mp4",
     "converterUnavailable": "Brak dostępnego konwertera. Wybierz plik mp4.",
+    "converterConfiguredRefused": "Skonfigurowany konwerter został odrzucony: {reason}",
+    "converterSharedFolder": "Znaleziono konwerter, ale folder nad nim mogą zmieniać inni użytkownicy ({reason}). Ustaw ścieżkę konwertera w folderze, który możesz zmieniać tylko Ty lub system.",
     "transcribeSound": "Transkrybuj dźwięk",
     "transcribe": "Transkrybuj",
     "useSoundtrackModel": "Użyj {model} dla tej wiadomości",

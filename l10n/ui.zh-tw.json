@@ -800,6 +800,8 @@
     "sizeExceeded": "此檔案超出 {size}。",
     "convertToMp4": "轉換為 mp4",
     "converterUnavailable": "沒有可用的轉換器。請選擇 mp4 檔案。",
+    "converterConfiguredRefused": "已拒絕設定的轉換器：{reason}",
+    "converterSharedFolder": "找到了轉換器，但其上層資料夾可由其他使用者變更（{reason}）。請將轉換器路徑設為只有你或系統可以變更的資料夾。",
     "transcribeSound": "轉錄聲音",
     "transcribe": "轉錄",
     "useSoundtrackModel": "對此訊息使用 {model}",

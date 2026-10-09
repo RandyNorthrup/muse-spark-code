@@ -21,7 +21,11 @@ import {
   type AudioSource,
 } from '../../src/core/voice/transcribeBatch'
 import { convertToWav16kMono, locateMediaConverter } from '../../src/core/media/convert'
-import { MEDIA_CONVERTER_INSTALL_PATHS, UI_TEXT } from '../../src/shared/constants'
+import {
+  MEDIA_CONVERTER_INSTALL_PATHS,
+  MEDIA_CONVERTER_WINDOWS_INSTALLS,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { readWavFormat } from '../../src/core/media/sniff/riff'
 import type { Usd } from '../../src/shared/usd'
 
@@ -34,7 +38,11 @@ function documentedInstalls(): readonly string[] {
       return MEDIA_CONVERTER_INSTALL_PATHS.darwin
     }
     case 'win32': {
-      return MEDIA_CONVERTER_INSTALL_PATHS.win32
+      // Resolved from the environment, as the product resolves them.
+      return MEDIA_CONVERTER_WINDOWS_INSTALLS.flatMap(({ variable, segments }) => {
+        const root = Object.entries(process.env).find(([name]) => name.toUpperCase() === variable)
+        return root?.[1] === undefined ? [] : [path.win32.join(root[1], ...segments)]
+      })
     }
     default: {
       return MEDIA_CONVERTER_INSTALL_PATHS.linux
@@ -46,12 +54,15 @@ function documentedInstalls(): readonly string[] {
 async function verifyDocumentedInstall(
   file: string,
   _options: { readonly leafKind: 'file' },
-): Promise<'ok' | { readonly refused: true; readonly component: string; readonly reason: string }> {
+): Promise<
+  | { readonly ok: true; readonly path: string }
+  | { readonly refused: true; readonly component: string; readonly reason: string }
+> {
   if (!documentedInstalls().includes(file))
     return { refused: true, component: file, reason: 'not a documented converter install' }
   try {
     const entry = await stat(file)
-    if (entry.isFile()) return 'ok'
+    if (entry.isFile()) return { ok: true, path: file }
   } catch {
     // Missing below: documented but absent.
   }
@@ -140,8 +151,12 @@ function rig(options?: {
           converter: { kind: 'ffmpeg' as const, command: path.join(tmpdir(), 'muse-fake-ffmpeg') },
         })),
     conversionOptions: {
-      trustedPath: { verify: () => Promise.resolve('ok' as const) },
+      trustedPath: { verify: (file: string) => Promise.resolve({ ok: true as const, path: file }) },
       readRssBytes: () => Promise.resolve(0),
+      // Windows needs an owner-only directory the host creates (chmod cannot).
+      ...(process.platform === 'win32' && {
+        createPrivateDirectory: () => mkdtemp(path.join(tmpdir(), 'm105-private-fake-')),
+      }),
       probeVersion: () =>
         Promise.resolve('ffmpeg version 7.0-test Copyright (c) 2025 the FFmpeg developers'),
       ...(stubWav !== undefined && {

@@ -800,6 +800,8 @@
     "sizeExceeded": "此文件超出 {size}。",
     "convertToMp4": "转换为 mp4",
     "converterUnavailable": "没有可用的转换器。请选择 mp4 文件。",
+    "converterConfiguredRefused": "已拒绝配置的转换器：{reason}",
+    "converterSharedFolder": "找到了转换器，但其上层文件夹可被其他用户更改（{reason}）。请将转换器路径设为只有你或系统可以更改的文件夹。",
     "transcribeSound": "转录声音",
     "transcribe": "转录",
     "useSoundtrackModel": "对此消息使用 {model}",

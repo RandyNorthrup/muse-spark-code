@@ -1304,8 +1304,12 @@ export const TRANSCRIBE_WAV_SAMPLE_RATES = [16_000, 24_000] as const
 export const MEDIA_PROVIDER_POOL_BYTES = 100 * 1024 * 1024 * 1024
 export const MEDIA_SNIFF_MAX_BYTES = 1024 * 1024
 export const MEDIA_CONVERTER_PROBE_TIMEOUT_MS = 2000
+/** One Windows ACL query per path component (PowerShell start included). */
+export const MEDIA_CONVERTER_TRUST_TIMEOUT_MS = 15_000
 export const MEDIA_CONVERTER_PROBE_MAX_BYTES = 16 * 1024
 export const MEDIA_CONVERSION_MAX_RSS_BYTES = 512 * 1024 * 1024
+/** The `code` a kernel-limited encoder launch rejects with when its memory cap hit. */
+export const MEDIA_CONVERSION_MEMORY_CAP_CODE = 'EMEDIA_MEMORY_CAP'
 export const MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS = 25
 export const MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS = 100
 export const MEDIA_PROC_RSS_UNIT_BYTES = 1024
@@ -1315,11 +1319,26 @@ export const MEDIA_PROC_EXITED_PATTERN = /^State:\s+[ZX]\b/mu
 export const MEDIA_FFMPEG_VERSION_PATTERN =
   /^ffmpeg version (\d+\.\d+(?:\.\d+)?(?:-[\w.+-]+)?) Copyright \(c\) \d{4}(?:-\d{4})? the FFmpeg developers$/u
 export const MEDIA_AVCONVERT_VERSION_PATTERN = /^avconvert version (\d+\.\d+(?:\.\d+)?)$/u
+// Documented install locations (M105 lane V, lead decision A): distribution
+// and Homebrew/MacPorts paths on POSIX; on Windows the Program Files install
+// and winget's link, each resolved from the environment (never a drive
+// letter) and verified at its canonical target. A configured path
+// (`museSpark.mediaConverterPath`, `--media-converter`) replaces them.
 export const MEDIA_CONVERTER_INSTALL_PATHS = {
   linux: ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
-  darwin: ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
-  win32: ['C:/Program Files/ffmpeg/bin/ffmpeg.exe'],
+  darwin: ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/opt/local/bin/ffmpeg'],
 } as const
+export const MEDIA_CONVERTER_WINDOWS_INSTALLS = [
+  { variable: 'PROGRAMFILES', segments: ['ffmpeg', 'bin', 'ffmpeg.exe'] },
+  { variable: 'LOCALAPPDATA', segments: ['Microsoft', 'WinGet', 'Links', 'ffmpeg.exe'] },
+] as const
+// Launcher shims run a second binary the verifier never saw: Chocolatey's
+// and Scoop's shims and snap's /snap tree are refused at their canonical path.
+export const MEDIA_CONVERTER_SHIM_PATTERNS = [
+  /[\\/]chocolatey[\\/]bin[\\/]/iu,
+  /[\\/]scoop[\\/]shims[\\/]/iu,
+  /^\/snap\//u,
+] as const
 export const MEDIA_FILE_EXPIRY_MIN_S = 3600
 export const MEDIA_FILE_EXPIRY_MAX_S = 2_592_000
 export const MEDIA_FILE_EXPIRY_DEFAULT_S = 604_800
@@ -4742,6 +4761,39 @@ export const WINDOWS_ARGUMENT_SYNTAX = /["&|<>^%!]/
 export const CHECK_FIX_MAX_ROUNDS = 3
 // Native directory identity checks use bigint, including on Node 20 hosts.
 export const WORKSPACE_IDENTITY_ZERO = 0n
+/** M104L: limits shared by stdio LSP and its private workspace broker.
+ * Adopted verbatim from m104/lsp 12fc73167 with `runtime/trustedPath.ts`
+ * (M105 lane V); M104 merges onto the same block. */
+export const LSP_LIMITS = {
+  groupFields: 4,
+  passwdFields: 7,
+  stickyMode: 0o1000,
+  headerBytes: 8192,
+  headerDelimiterBytes: 4,
+  frameBytes: 4_194_304,
+  queuedBytes: 8_388_608,
+  documentBytes: 1_048_576,
+  documentCount: 128,
+  pendingRequests: 32,
+  uriChars: 4096,
+  messageChars: 65_536,
+  diagnosticCount: 256,
+  diagnosticSeverities: 4,
+  watchdogScanMs: 1000,
+  watchdogPollMs: 250,
+  recordLinkCount: 1n,
+  watchdogProcesses: 512,
+  requestMs: 30_000,
+  startupMs: 10_000,
+  idleMs: 60_000,
+  pollMs: 50,
+  clients: 8,
+  fileMode: 0o600,
+  directoryMode: 0o700,
+  recordBytes: 4096,
+  tokenBytes: 32,
+  socketNameBytes: 8,
+} as const
 // How long the language servers are given to report on an edited file once
 // it is shown: a first report is awaited this long (a file no server reads
 // never gets one, and is then "not checked", never clean), then the wait

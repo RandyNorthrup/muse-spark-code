@@ -11,11 +11,14 @@ import {
   BYTES_PER_MIB,
   MEDIA_AVCONVERT_VERSION_PATTERN,
   MEDIA_CONVERTER_INSTALL_PATHS,
+  MEDIA_CONVERTER_SHIM_PATTERNS,
+  MEDIA_CONVERTER_WINDOWS_INSTALLS,
   MEDIA_CONVERTER_PROBE_MAX_BYTES,
   MEDIA_CONVERTER_PROBE_TIMEOUT_MS,
   MEDIA_FFMPEG_VERSION_PATTERN,
   MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES,
   MEDIA_CONVERSION_MAX_RSS_BYTES,
+  MEDIA_CONVERSION_MEMORY_CAP_CODE,
   MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS,
   MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS,
   MEDIA_MAX_UPLOAD_MIB,
@@ -27,6 +30,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import type { TrustedPathVerifier } from '../../runtime/trustedPathPort'
 import {
   checkMediaLimits,
   sniffMedia,
@@ -53,17 +57,6 @@ const INPUT_FORMATS: Readonly<Record<MediaFileInfo['mediaType'], string>> = {
   'audio/mpeg': 'mp3',
 }
 
-/** REDM104L3's StrictModes/safe_path seam. The binding must realpath and check
- * every component's owner/mode and reject symlinks on the canonical path. */
-interface TrustedPathVerifier {
-  readonly verify: (
-    file: string,
-    options: { readonly leafKind: 'file' },
-  ) => Promise<
-    'ok' | { readonly refused: true; readonly component: string; readonly reason: string }
-  >
-}
-
 interface VersionProbeOptions {
   readonly timeoutMs: number
   readonly env: NodeJS.ProcessEnv
@@ -71,6 +64,8 @@ interface VersionProbeOptions {
 }
 
 export interface ConverterVerification {
+  /** The shared StrictModes/safe_path port (REDM104L3's `runtime/trustedPath.ts`
+   * on POSIX, `runtime/windowsTrustedPath.ts` on Windows). Absent refuses. */
   readonly trustedPath?: TrustedPathVerifier
   /** Raw bounded version stdout; an unrecognised banner is refused. */
   readonly probeVersion?: (
@@ -82,8 +77,52 @@ export interface ConverterVerification {
 
 interface ConverterDiscoveryOptions extends ConverterVerification {
   readonly platform?: NodeJS.Platform
-  /** User/machine configuration, never workspace PATH lookup. */
+  /** Machine configuration (`museSpark.mediaConverterPath`, the runtime's
+   * `--media-converter`), never workspace PATH lookup. When given, it is the
+   * only candidate: a failure refuses with its reason, never falling back. */
   readonly configuredConverters?: readonly MediaConverter[]
+  /** Where Windows install locations resolve from; never a drive literal. */
+  readonly env?: NodeJS.ProcessEnv
+}
+
+/** Documented install locations: POSIX paths, Windows ones from the environment. */
+function documentedConverters(
+  platform: NodeJS.Platform,
+  env: NodeJS.ProcessEnv,
+): readonly MediaConverter[] {
+  if (platform === 'win32')
+    return MEDIA_CONVERTER_WINDOWS_INSTALLS.flatMap(({ variable, segments }) => {
+      const root = Object.entries(env).find(([name]) => name.toUpperCase() === variable)?.[1]
+      return root === undefined || !path.win32.isAbsolute(root) || /\p{Cc}/u.test(root)
+        ? []
+        : [{ kind: 'ffmpeg' as const, command: path.win32.join(root, ...segments) }]
+    })
+  const installations: Partial<Record<NodeJS.Platform, readonly string[]>> =
+    MEDIA_CONVERTER_INSTALL_PATHS
+  return [
+    ...(platform === 'darwin' ? [{ kind: 'avconvert' as const, command: AVCONVERT }] : []),
+    ...(installations[platform] ?? []).map((command) => ({ kind: 'ffmpeg' as const, command })),
+  ]
+}
+
+/** REDM104L3's refusal for a group/other-writable ancestor. */
+const SHARED_ANCESTOR = 'group/other writable ancestor'
+
+type TrustedCommand =
+  { readonly ok: true; readonly path: string } | { readonly ok: false; readonly reason: string }
+
+/** The verified canonical executable to launch, or why not. A launcher shim
+ * (Chocolatey, Scoop, snap) runs a second, unverified binary, so it refuses. */
+async function trustedCommand(
+  converter: MediaConverter,
+  options: ConverterVerification,
+): Promise<TrustedCommand> {
+  if (options.trustedPath === undefined) return { ok: false, reason: 'no trusted-path verifier' }
+  const verdict = await options.trustedPath.verify(converter.command, { leafKind: 'file' })
+  if ('refused' in verdict) return { ok: false, reason: `${verdict.component}: ${verdict.reason}` }
+  return MEDIA_CONVERTER_SHIM_PATTERNS.some((pattern) => pattern.test(verdict.path))
+    ? { ok: false, reason: `${verdict.path}: launcher shim` }
+    : { ok: true, path: verdict.path }
 }
 
 function converterEnvironment(): NodeJS.ProcessEnv {
@@ -94,13 +133,6 @@ function converterEnvironment(): NodeJS.ProcessEnv {
         !HOOK_FORBIDDEN_ENV_NAMES.has(name.toUpperCase()),
     ),
   )
-}
-
-async function isTrusted(
-  converter: MediaConverter,
-  options: ConverterVerification,
-): Promise<boolean> {
-  return (await options.trustedPath?.verify(converter.command, { leafKind: 'file' })) === 'ok'
 }
 
 function observeConverter(
@@ -154,14 +186,18 @@ function probeVersion(
   })
 }
 
-async function hasKnownVersion(
+/** The verified canonical command with a strictly parsed release banner, or
+ * why not. The probe itself launches the verified canonical path. */
+async function knownVersionCommand(
   converter: MediaConverter,
   options: ConverterVerification,
   signal?: AbortSignal,
-): Promise<boolean> {
-  if (!(await isTrusted(converter, options)) || isAborted(signal)) return false
+): Promise<TrustedCommand> {
+  const trusted = await trustedCommand(converter, options)
+  if (!trusted.ok || isAborted(signal))
+    return trusted.ok ? { ok: false, reason: 'stopped' } : trusted
   const output = await (options.probeVersion ?? probeVersion)(
-    converter.command,
+    trusted.path,
     [converter.kind === 'ffmpeg' ? '-version' : '--version'],
     {
       timeoutMs: MEDIA_CONVERTER_PROBE_TIMEOUT_MS,
@@ -170,17 +206,28 @@ async function hasKnownVersion(
     },
   )
   const banner = output.split('\n', 1)[0]?.replace(/\r$/u, '') ?? ''
-  return (
-    Buffer.byteLength(output) <= MEDIA_CONVERTER_PROBE_MAX_BYTES &&
+  return Buffer.byteLength(output) <= MEDIA_CONVERTER_PROBE_MAX_BYTES &&
     (converter.kind === 'ffmpeg'
       ? MEDIA_FFMPEG_VERSION_PATTERN
       : MEDIA_AVCONVERT_VERSION_PATTERN
     ).test(banner)
-  )
+    ? trusted
+    : { ok: false, reason: `${trusted.path}: no release version` }
 }
 
-/** Documented installs or explicit configuration only; never consult PATH.
- * No verifier means no offer. Every version probe is itself a verified launch. */
+/** Immediately before encoding: the same canonical path verifies again. */
+async function recheckedCommand(
+  converter: MediaConverter,
+  probed: string,
+  options: ConverterVerification,
+): Promise<string | undefined> {
+  const trusted = await trustedCommand(converter, options)
+  return trusted.ok && trusted.path === probed ? trusted.path : undefined
+}
+
+/** Explicit configuration first and alone, else documented installs; never
+ * PATH. No verifier means no offer. Every version probe is a verified launch,
+ * and the converter returned names the verified canonical executable. */
 export async function locateMediaConverter(
   options: ConverterDiscoveryOptions = {},
 ): Promise<
@@ -188,27 +235,46 @@ export async function locateMediaConverter(
   | { readonly ok: false; readonly reason: string }
 > {
   const platform = options.platform ?? process.platform
-  const installations: Partial<Record<NodeJS.Platform, readonly string[]>> =
-    MEDIA_CONVERTER_INSTALL_PATHS
-  const paths = installations[platform] ?? []
-  const candidates: readonly MediaConverter[] = [
-    ...(options.configuredConverters ?? []),
-    ...(platform === 'darwin' ? [{ kind: 'avconvert' as const, command: AVCONVERT }] : []),
-    ...paths.map((command) => ({ kind: 'ffmpeg' as const, command })),
-  ]
+  const configured = options.configuredConverters ?? []
+  const candidates =
+    configured.length > 0 ? configured : documentedConverters(platform, options.env ?? process.env)
   const pathApi = platform === 'win32' ? path.win32 : path.posix
+  const reasons: string[] = []
   for (const converter of candidates) {
-    if (!pathApi.isAbsolute(converter.command)) continue
+    if (!pathApi.isAbsolute(converter.command)) {
+      reasons.push(`${converter.command}: absolute path required`)
+      continue
+    }
     try {
-      if (await hasKnownVersion(converter, options)) return { ok: true, converter }
+      const known = await knownVersionCommand(converter, options)
+      if (known.ok) return { ok: true, converter: { kind: converter.kind, command: known.path } }
+      reasons.push(known.reason)
     } catch {
-      // Missing, untrusted and unversioned candidates share a fixed diagnostic.
+      // A missing candidate or a failed probe names only its path.
+      reasons.push(`${converter.command}: unavailable`)
     }
   }
-  return { ok: false, reason: UI_TEXT.media.converterUnavailable }
+  // A configured path that fails says why; it never falls back to discovery.
+  if (configured.length > 0)
+    return {
+      ok: false,
+      reason: fill(UI_TEXT.media.converterConfiguredRefused, { reason: reasons.join('; ') }),
+    }
+  // A found converter under a shared-writable folder (Intel Homebrew's
+  // admin-group /usr/local/bin until M104's signed private-group lookup)
+  // names the fix rather than the generic absence.
+  const shared = reasons.find((reason) => reason.includes(SHARED_ANCESTOR))
+  return {
+    ok: false,
+    reason:
+      shared === undefined
+        ? UI_TEXT.media.converterUnavailable
+        : fill(UI_TEXT.media.converterSharedFolder, { reason: shared }),
+  }
 }
 
-interface ConversionRunOptions {
+/** What every encoder launch must enforce, whatever watches its memory. */
+export interface LimitedRunOptions {
   readonly cwd: string
   readonly env: NodeJS.ProcessEnv
   readonly timeoutMs: number
@@ -216,6 +282,9 @@ interface ConversionRunOptions {
   readonly outputPath: string
   readonly maxOutputBytes: number
   readonly maxRssBytes: number
+}
+
+interface ConversionRunOptions extends LimitedRunOptions {
   readonly readRssBytes: (pid: number) => Promise<number>
 }
 
@@ -223,9 +292,21 @@ export interface MediaConversionOptions extends ConverterVerification {
   readonly limits?: MediaLimits
   readonly signal?: AbortSignal
   readonly timeoutMs?: number
-  /** Native/kernel sampler for the encoder PID. Required off Linux until the
-   * M107 process-ticket binding is available; absent monitoring refuses. */
+  /** Native/kernel sampler for the encoder PID. Off Linux, encoding requires
+   * either this bounded sampler or `memoryLimitedRun`; neither refuses. */
   readonly readRssBytes?: (pid: number) => Promise<number>
+  /**
+   * A process boundary whose memory cap the kernel enforces (the Windows job's
+   * JOB_OBJECT_LIMIT_JOB_MEMORY), used when no sampler is bound. It applies
+   * `maxRssBytes` as that cap, enforces the output and deadline limits itself,
+   * awaits the child's close, and rejects with an error whose `code` is
+   * `MEDIA_CONVERSION_MEMORY_CAP_CODE` when the cap stopped the encoder.
+   */
+  readonly memoryLimitedRun?: (
+    command: string,
+    args: readonly string[],
+    options: LimitedRunOptions,
+  ) => Promise<void>
   /** Fresh owner-only directory. Required on Windows: chmod cannot set its ACL.
    * The host/native runtime creates the directory; conversion owns its cleanup. */
   readonly createPrivateDirectory?: () => Promise<string>
@@ -276,33 +357,42 @@ function runConverter(
     })
     let hasFailed = false
     let hasClosed = false
+    // Node reaps the child before 'exit': from then on its PID is no
+    // reading. RSS is bounded by the samples taken while it ran; after
+    // close only the output decides (MEDIAVB finding on RVM105M12's rule).
+    let hasExited = false
+    child.once('exit', () => {
+      hasExited = true
+    })
     let resourceCheck: Promise<void> | undefined
     const stop = () => {
       hasFailed = true
       if (!hasClosed) child.kill('SIGKILL')
     }
+    /** The output's type and size cap: while the child runs and once after close. */
+    const isOutputWithinCap = async (): Promise<boolean> => {
+      const output = await lstat(options.outputPath)
+      return output.isFile() && output.size <= options.maxOutputBytes
+    }
     const sampleResources = async () => {
       try {
-        const output = await lstat(options.outputPath)
-        if (!output.isFile() || output.size > options.maxOutputBytes) {
-          stop()
-          return
-        }
-        if (child.pid === undefined) {
+        if (!(await isOutputWithinCap()) || child.pid === undefined) {
           stop()
           return
         }
         const rss = await options.readRssBytes(child.pid)
         if (!Number.isSafeInteger(rss) || rss < 0 || rss > options.maxRssBytes) stop()
       } catch {
-        stop()
+        // A live child's unavailable sample refuses. A sample that lost the
+        // race with the exit read a reaped PID, which proves nothing.
+        if (!hasExited) stop()
       }
     }
     const checkResources = async () => {
       let sampleDeadline: ReturnType<typeof setTimeout> | undefined
       const expired = new Promise<void>((settle) => {
         sampleDeadline = setTimeout(() => {
-          stop()
+          if (!hasExited) stop()
           settle()
         }, MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS)
       })
@@ -332,9 +422,17 @@ function runConverter(
       watcher?.close()
       clearInterval(watchdog)
       const finish = async () => {
-        // A successful exit cannot outrun its outstanding or final sample.
+        // A successful exit cannot outrun its outstanding sample, and its
+        // final output must still be a file within the cap. No RSS is read
+        // from the reaped PID.
         await resourceCheck
-        if (!hasFailed && code === 0) await checkResources()
+        if (!hasFailed && code === 0) {
+          try {
+            if (!(await isOutputWithinCap())) hasFailed = true
+          } catch {
+            hasFailed = true
+          }
+        }
         release()
         if (hasFailed || code !== 0) reject(new Error('Converter failed'))
         else resolve()
@@ -355,6 +453,53 @@ async function readLinuxRssBytes(pid: number): Promise<number> {
 
 function isAborted(signal: AbortSignal | undefined): boolean {
   return signal?.aborted === true
+}
+
+type MemoryWatch =
+  | { readonly kind: 'sampler'; readonly readRssBytes: (pid: number) => Promise<number> }
+  | {
+      readonly kind: 'kernel'
+      readonly run: NonNullable<MediaConversionOptions['memoryLimitedRun']>
+    }
+
+/** A bounded RSS sampler, else a kernel-enforced cap, else (off Linux) none. */
+async function memoryWatch(options: MediaConversionOptions): Promise<MemoryWatch | undefined> {
+  if (options.readRssBytes !== undefined)
+    return { kind: 'sampler', readRssBytes: options.readRssBytes }
+  if (options.memoryLimitedRun !== undefined)
+    return { kind: 'kernel', run: options.memoryLimitedRun }
+  if (process.platform !== 'linux') return undefined
+  await readLinuxRssBytes(process.pid)
+  return { kind: 'sampler', readRssBytes: readLinuxRssBytes }
+}
+
+function encode(
+  command: string,
+  args: readonly string[],
+  limits: LimitedRunOptions,
+  watch: MemoryWatch,
+  run: MediaConversionOptions['run'],
+): Promise<void> {
+  return watch.kind === 'kernel'
+    ? watch.run(command, args, limits)
+    : (run ?? runConverter)(command, args, { ...limits, readRssBytes: watch.readRssBytes })
+}
+
+/** The kernel's memory cap stopped the encoder: said as such, never guessed. */
+function isMemoryCap(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === MEDIA_CONVERSION_MEMORY_CAP_CODE
+  )
+}
+
+function memoryCapFailed() {
+  return {
+    ok: false,
+    reason: fill(UI_TEXT.media.conversionFailed, { reason: 'memory cap' }),
+  } as const
 }
 
 async function sniffFile(filePath: string, sizeBytes: number): Promise<SniffMediaResult> {
@@ -405,11 +550,10 @@ export async function convertToMp4(
     const input = await lstat(inputPath)
     if (!input.isFile()) return failed()
     const source = await sniffFile(inputPath, input.size)
-    if (!source.ok || !(await hasKnownVersion(converter, options, options.signal))) return failed()
-    const readRssBytes =
-      options.readRssBytes ?? (process.platform === 'linux' ? readLinuxRssBytes : undefined)
-    if (readRssBytes === undefined) return failed()
-    if (options.readRssBytes === undefined) await readLinuxRssBytes(process.pid)
+    const known = await knownVersionCommand(converter, options, options.signal)
+    if (!source.ok || !known.ok) return failed()
+    const watch = await memoryWatch(options)
+    if (watch === undefined) return failed()
     const privateDirectory =
       options.createPrivateDirectory === undefined
         ? await mkdtemp(path.join(tmpdir(), 'muse-media-'))
@@ -463,18 +607,24 @@ export async function convertToMp4(
             '--replace',
           ]
     // Recheck immediately before encoding: discovery/probing does not grant trust.
-    if (!(await isTrusted(converter, options)) || isAborted(options.signal)) return failed()
+    const command = await recheckedCommand(converter, known.path, options)
+    if (command === undefined || isAborted(options.signal)) return failed()
     const env = converterEnvironment()
-    await (options.run ?? runConverter)(converter.command, args, {
-      cwd: directory,
-      env,
-      timeoutMs,
-      outputPath: output,
-      maxOutputBytes,
-      maxRssBytes: MEDIA_CONVERSION_MAX_RSS_BYTES,
-      readRssBytes,
-      ...(options.signal !== undefined && { signal: options.signal }),
-    })
+    await encode(
+      command,
+      args,
+      {
+        cwd: directory,
+        env,
+        timeoutMs,
+        outputPath: output,
+        maxOutputBytes,
+        maxRssBytes: MEDIA_CONVERSION_MAX_RSS_BYTES,
+        ...(options.signal !== undefined && { signal: options.signal }),
+      },
+      watch,
+      options.run,
+    )
     if (isAborted(options.signal)) return failed()
     const stat = await lstat(output)
     if (!stat.isFile()) return failed()
@@ -489,8 +639,8 @@ export async function convertToMp4(
     const dispose = () => rm(ownedDirectory, { recursive: true, force: true })
     directory = undefined
     return { ok: true, path: output, info: result.info, dispose }
-  } catch {
-    return failed()
+  } catch (error: unknown) {
+    return isMemoryCap(error) ? memoryCapFailed() : failed()
   } finally {
     if (directory !== undefined) await rm(directory, { recursive: true, force: true })
   }
@@ -537,11 +687,10 @@ export async function convertToWav16kMono(
     const input = await lstat(inputPath)
     if (!input.isFile()) return failed()
     const source = await sniffFile(inputPath, input.size)
-    if (!source.ok || !(await hasKnownVersion(converter, options, options.signal))) return failed()
-    const readRssBytes =
-      options.readRssBytes ?? (process.platform === 'linux' ? readLinuxRssBytes : undefined)
-    if (readRssBytes === undefined) return failed()
-    if (options.readRssBytes === undefined) await readLinuxRssBytes(process.pid)
+    const known = await knownVersionCommand(converter, options, options.signal)
+    if (!source.ok || !known.ok) return failed()
+    const watch = await memoryWatch(options)
+    if (watch === undefined) return failed()
     const privateDirectory =
       options.createPrivateDirectory === undefined
         ? await mkdtemp(path.join(tmpdir(), 'muse-media-'))
@@ -553,10 +702,11 @@ export async function convertToWav16kMono(
     const reserved = await open(output, 'wx', OWNER_FILE_MODE)
     await reserved.close()
     // Recheck immediately before encoding: discovery/probing does not grant trust.
-    if (!(await isTrusted(converter, options)) || isAborted(options.signal)) return failed()
+    const command = await recheckedCommand(converter, known.path, options)
+    if (command === undefined || isAborted(options.signal)) return failed()
     const env = converterEnvironment()
-    await (options.run ?? runConverter)(
-      converter.command,
+    await encode(
+      command,
       [
         '-nostdin',
         '-max_alloc',
@@ -587,9 +737,10 @@ export async function convertToWav16kMono(
         outputPath: output,
         maxOutputBytes,
         maxRssBytes: MEDIA_CONVERSION_MAX_RSS_BYTES,
-        readRssBytes,
         ...(options.signal !== undefined && { signal: options.signal }),
       },
+      watch,
+      options.run,
     )
     if (isAborted(options.signal)) return failed()
     const stat = await lstat(output)
@@ -605,8 +756,8 @@ export async function convertToWav16kMono(
     const dispose = () => rm(ownedDirectory, { recursive: true, force: true })
     directory = undefined
     return { ok: true, path: output, info: result.info, dispose }
-  } catch {
-    return failed()
+  } catch (error: unknown) {
+    return isMemoryCap(error) ? memoryCapFailed() : failed()
   } finally {
     if (directory !== undefined) await rm(directory, { recursive: true, force: true })
   }

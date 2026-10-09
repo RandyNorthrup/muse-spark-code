@@ -812,6 +812,8 @@
     "sizeExceeded": "Tento soubor překračuje {size}.",
     "convertToMp4": "Převést na mp4",
     "converterUnavailable": "Není dostupný převodník. Vyberte soubor mp4.",
+    "converterConfiguredRefused": "Nastavený převodník byl odmítnut: {reason}",
+    "converterSharedFolder": "Převodník byl nalezen, ale složku nad ním mohou měnit jiní uživatelé ({reason}). Nastavte cestu k převodníku ve složce, kterou můžete měnit jen vy nebo systém.",
     "transcribeSound": "Přepsat zvuk",
     "transcribe": "Přepsat",
     "useSoundtrackModel": "Použít {model} pro tuto zprávu",

@@ -808,6 +808,8 @@
     "sizeExceeded": "Este arquivo excede {size}.",
     "convertToMp4": "Converter para mp4",
     "converterUnavailable": "Nenhum conversor disponível. Escolha um arquivo mp4.",
+    "converterConfiguredRefused": "O conversor configurado foi recusado: {reason}",
+    "converterSharedFolder": "Um conversor foi encontrado, mas outros usuários podem alterar uma pasta acima dele ({reason}). Defina o caminho do conversor para uma pasta que só você ou o sistema possam alterar.",
     "transcribeSound": "Transcrever o som",
     "transcribe": "Transcrever",
     "useSoundtrackModel": "Usar {model} para esta mensagem",
