@@ -19121,6 +19121,13 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
+**Q-VISREGEN2 release-content hold (2026-10-09).** The retained two-release
+What’s New tree is 79,510 bytes against its unchanged 76,800-byte decoded
+bound. A budget-preserving content/codec repair or an owner release-content
+choice is needed before the complete visual refresh can run. The lane’s
+readiness fix is proved; no bound or release note is changed. See §7 and
+`docs/certification/visregen017.md` for the exact receipts.
+
 - **Q-CIFIXM-HOSTED-ERRORS (2026-10-09, macbook):** log downloads for
   hosted run 37897298018 return HTTP 403. The two owned M114 browser suites
   pass three times here (159 cases per run, repository deadlines); no visual or
@@ -35515,6 +35522,14 @@ M110, and fake providers for every adapter.
   marker alongside ordinary deferred surfaces; product pointer semantics
   and before-paint pill sizing remain unchanged. Owning browser regressions
   fail with the old selector and pass with the new one.
+  The controlled before render reproduces the previous six narrow failures
+  exactly (9,603 / 9,603 / 9,603 / 9,533 / 9,600 / 9,600 pixels).
+  Ten delayed-load repetitions in both widths are byte-identical in all six
+  states. A further 720-frame six-theme repetition has zero counted pixel
+  differences under the existing policy. Evidence and gate holds are in
+  `docs/certification/visregen017.md` and its stability JSON; G92 records
+  the missed-loading-marker pitfall. The complete refresh remains held by
+  §7’s release-content bound, with original media and manifest byte-exact.
 
 - **Integration review repairs (FIXM114I, 2026-10-07):** address RVM114W's six
   P2 findings and the font-usage P3. Route CI pixel replay exclusively through
