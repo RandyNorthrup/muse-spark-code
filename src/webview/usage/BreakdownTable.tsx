@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
 import type { UsageTotals } from '../../shared/usagePage'
-import { billedCost, count, costText, duration, type BreakdownRow, type PostUsage } from './display'
+import {
+  count,
+  costText,
+  duration,
+  metricValue,
+  type BreakdownRow,
+  type PostUsage,
+} from './display'
 
 type SortKey = 'name' | 'cost' | 'input' | 'output' | 'requests' | 'time'
 function sortValue(row: BreakdownRow, key: SortKey): string | number | undefined {
@@ -11,7 +18,7 @@ function sortValue(row: BreakdownRow, key: SortKey): string | number | undefined
       return row.label
     }
     case 'cost': {
-      return billedCost(totals)
+      return metricValue(totals, 'cost')
     }
     case 'input': {
       return totals.tokens.input

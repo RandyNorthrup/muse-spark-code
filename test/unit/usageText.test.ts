@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { Usd } from '../../src/shared/usd'
 import { createUsageFeatures } from '../../src/runtime/usage/usageServiceEntry'
 import { createUsageService } from '../../src/core/usage/usageService'
 import { usageText } from '../../src/core/usage/usageText'
@@ -48,9 +49,13 @@ describe('usage text in every editor', () => {
       usageFixtureRecord({
         id: 'plan',
         tokens: {},
-        cost: { certainty: 'plan', apiEquivalentUsd: 4 },
+        cost: { certainty: 'plan', apiEquivalentUsd: Usd.from('4').toAmount() },
       }),
-      usageFixtureRecord({ id: 'uncertain', tokens: {}, cost: { certainty: 'uncertain', usd: 2 } }),
+      usageFixtureRecord({
+        id: 'uncertain',
+        tokens: {},
+        cost: { certainty: 'uncertain', usd: Usd.from('2').toAmount() },
+      }),
     ]
     const state = await createUsageService(usageFixtureDeps(records)).snapshot()
     const text = usageText(state)
@@ -67,7 +72,12 @@ describe('usage text in every editor', () => {
     const current = {
       ...base!,
       windows: [{ id: 'window', usedPercent: 70, resetsAt: usageNow + 9_000_000, windowMins: 300 }],
-      account: { usedUsd: 7, limitUsd: 10, remainingUsd: 3, period: 'month' },
+      account: {
+        usedUsd: Usd.from('7').toAmount(),
+        limitUsd: Usd.from('10').toAmount(),
+        remainingUsd: Usd.from('3').toAmount(),
+        period: 'month',
+      },
     }
     const older = {
       ...current,
@@ -77,7 +87,7 @@ describe('usage text in every editor', () => {
         { ...current.windows[0]!, usedPercent: 10 },
         { id: 'expired-window', usedPercent: 90, resetsAt: usageNow },
       ],
-      account: { ...current.account, usedUsd: 1 },
+      account: { ...current.account, usedUsd: Usd.from('1').toAmount() },
     }
     const stale = {
       ...current,
@@ -118,9 +128,9 @@ describe('usage text in every editor', () => {
   })
   it('formats the combined charge once after exact accumulation across certainty lanes', async () => {
     const records = [
-      usageFixtureRecord({ cost: { certainty: 'reported', usd: 0.001 } }),
-      usageFixtureRecord({ cost: { certainty: 'computed', usd: 0.002 } }),
-      usageFixtureRecord({ cost: { certainty: 'estimated', usd: 0.022 } }),
+      usageFixtureRecord({ cost: { certainty: 'reported', usd: Usd.from('0.001').toAmount() } }),
+      usageFixtureRecord({ cost: { certainty: 'computed', usd: Usd.from('0.002').toAmount() } }),
+      usageFixtureRecord({ cost: { certainty: 'estimated', usd: Usd.from('0.022').toAmount() } }),
     ]
     const state = await createUsageService(usageFixtureDeps(records)).snapshot()
     expect(usageText(state)).toContain('Total cost: $0.03')
@@ -130,7 +140,7 @@ describe('usage text in every editor', () => {
     const record = usageFixtureRecord({
       model: '[link](https://attacker.invalid)',
       provider: 'ollama',
-      cost: { certainty: 'local', usd: 0 },
+      cost: { certainty: 'local', usd: Usd.from('0').toAmount() },
     })
     const state = await createUsageService(usageFixtureDeps([record])).snapshot({
       range: 'today',

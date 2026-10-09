@@ -4546,7 +4546,7 @@ describe('ConversationController: account & usage (M8)', () => {
 
   it('aggregates today by provider while withholding an unknown dollar total', async () => {
     const base = {
-      v: 1,
+      v: 2,
       type: 'usage',
       id: 'one',
       at: 100,
@@ -4566,21 +4566,25 @@ describe('ConversationController: account & usage (M8)', () => {
       flush: () => Promise.resolve(),
       today: () =>
         Promise.resolve([
-          { ...base, tokens: { input: 10, output: 5 }, cost: { certainty: 'computed', usd: 0.1 } },
+          {
+            ...base,
+            tokens: { input: 10, output: 5 },
+            cost: { certainty: 'computed', usd: Usd.from('0.1').toAmount() },
+          },
           { ...base, id: 'two', tokens: { input: 20, output: 3 }, cost: { certainty: 'unpriced' } },
           {
             ...base,
             id: 'local',
             provider: 'ollama',
             tokens: { input: 7, output: 2 },
-            cost: { certainty: 'local', usd: 0 },
+            cost: { certainty: 'local', usd: Usd.from('0').toAmount() },
           },
           {
             ...base,
             id: 'uncertain',
             provider: 'openrouter',
             tokens: {},
-            cost: { certainty: 'uncertain', usd: 0.2 },
+            cost: { certainty: 'uncertain', usd: Usd.from('0.2').toAmount() },
           },
         ]),
     }
@@ -4618,7 +4622,7 @@ describe('ConversationController: account & usage (M8)', () => {
 
   it('sums a provider row settled dollars exactly (M121)', async () => {
     const base = {
-      v: 1,
+      v: 2,
       type: 'usage',
       day: '2026-10-05',
       at: 100,
@@ -4638,8 +4642,8 @@ describe('ConversationController: account & usage (M8)', () => {
       flush: () => Promise.resolve(),
       today: () =>
         Promise.resolve([
-          { ...base, id: 'one', cost: { certainty: 'computed', usd: 0.1 } },
-          { ...base, id: 'two', cost: { certainty: 'computed', usd: 0.2 } },
+          { ...base, id: 'one', cost: { certainty: 'computed', usd: Usd.from('0.1').toAmount() } },
+          { ...base, id: 'two', cost: { certainty: 'computed', usd: Usd.from('0.2').toAmount() } },
         ]),
     }
     const t = setup({ usageRecording })

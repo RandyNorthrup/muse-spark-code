@@ -150,7 +150,7 @@ describe('UsagePanel', () => {
     expect(message).not.toHaveProperty('state.totals.tokens.output')
     expect(message).not.toHaveProperty('state.totals.costs.0.usd')
     const calls = tab.webview.postMessage.mock.calls.length
-    ports.post({ type: 'usage/state', state: Object.assign(usageState(), { v: 2 }) })
+    ports.post({ type: 'usage/state', state: Object.assign(usageState(), { v: 3 }) })
     expect(tab.webview.postMessage).toHaveBeenCalledTimes(calls)
   })
 

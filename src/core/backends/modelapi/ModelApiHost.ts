@@ -16242,10 +16242,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       budget: {
         id: this.sessionId,
         kind: 'conversation',
-        capUsd: Number(capUsd),
-        spentUsd: Number(spentUsd),
+        capUsd: Usd.from(capUsd).toAmount(),
+        spentUsd: Usd.from(spentUsd).toAmount(),
         stopped: isPositiveUsd(capUsd) && Usd.from(spentUsd).compare(Usd.from(capUsd)) >= 0,
-        ...(total?.uncertainUsd !== undefined && { uncertainUsd: Number(total.uncertainUsd) }),
+        ...(total?.uncertainUsd !== undefined && {
+          uncertainUsd: Usd.from(total.uncertainUsd).toAmount(),
+        }),
       },
     }
   }

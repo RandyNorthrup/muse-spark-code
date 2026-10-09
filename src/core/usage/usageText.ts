@@ -17,6 +17,12 @@ import { usagePeriodDelta, usageRange, usageSumUsd, usageWindowStatus } from './
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
 import type { UsageCertainty, UsageLimitSnapshot } from '../../shared/usageJournal'
 import type { UsagePageState, UsageTotals } from '../../shared/usagePage'
+import type { UsdAmount } from '../../shared/usdSchema'
+
+/** A period's change is a ratio, not money: the only number made from dollars here. */
+function ratioOf(value: UsdAmount | undefined): number | undefined {
+  return value === undefined ? undefined : Number(value)
+}
 
 export type UsageTextFormat = 'markdown' | 'plain'
 function certaintyLabel(certainty: UsageCertainty): string {
@@ -37,14 +43,14 @@ function certaintyNote(certainty: UsageCertainty): string | undefined {
   if (certainty === 'plan') return USAGE_TEXT.apiEquivalentNote
   return
 }
-function amount(value: number | undefined): string {
+function amount(value: UsdAmount | undefined): string {
   return value === undefined ? USAGE_TEXT.unknown : formatUsd(value, 2)
 }
 function count(value: number | undefined): string {
   return value === undefined ? USAGE_TEXT.unknown : formatNumber(value)
 }
 /** Liability and API-equivalent plan dollars never become confirmed charges. */
-function charge(totals: UsageTotals): number | undefined {
+function charge(totals: UsageTotals): UsdAmount | undefined {
   const costs = totals.costs.filter(
     (cost) => !['plan', 'uncertain', 'unpriced'].includes(cost.certainty) && cost.usd !== undefined,
   )
@@ -88,6 +94,8 @@ export function usageText(
     lines.push(escape(plural(USAGE_TEXT.newerRecords, state.history.newerVersionRecords)))
   if (state.history.tornLines > 0)
     lines.push(escape(plural(USAGE_TEXT.tornLines, state.history.tornLines)))
+  if (state.history.inexactRecords > 0)
+    lines.push(escape(plural(USAGE_TEXT.inexactRecords, state.history.inexactRecords)))
   const introEnd = lines.length
   row(USAGE_TEXT.requests, plural(USAGE_TEXT.requestCount, state.totals.records))
   row(USAGE_TEXT.inputTokens, count(state.totals.tokens.input))
@@ -96,7 +104,10 @@ export function usageText(
   row(USAGE_TEXT.cacheWriteTokens, count(state.totals.tokens.cacheWrite))
   row(USAGE_TEXT.reasoningTokens, count(state.totals.tokens.reasoning))
   row(USAGE_TEXT.totalCost, amount(charge(state.totals)))
-  const change = usagePeriodDelta(charge(state.totals), charge(state.previousTotals))
+  const change = usagePeriodDelta(
+    ratioOf(charge(state.totals)),
+    ratioOf(charge(state.previousTotals)),
+  )
   lines.push(
     escape(
       change === undefined

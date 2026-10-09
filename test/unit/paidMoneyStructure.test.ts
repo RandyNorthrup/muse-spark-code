@@ -26,13 +26,13 @@ import { analyzeFixtures, analyzeSource, MONEY_KEY } from './helpers/moneyTypeGu
 //   as sent, and VS Code number settings with their declared defaults. Each
 //   entry cites a PLAN line.
 //
-// - `trackedDebt`: current numeric money M121 converts to `UsdAmount`. Each
-//   conversion removes its entries; the category ends empty.
+// M121 converted every former `trackedDebt` entry (the 0.17 inventory of
+// current numeric money) to `UsdAmount`; that category no longer exists.
 //
 // Every other money leaf fails, and a listed entry that no longer matches is
 // stale and fails too.
 
-type MoneyCategory = 'nonMoney' | 'sanctioned' | 'trackedDebt'
+type MoneyCategory = 'nonMoney' | 'sanctioned'
 interface AllowEntry {
   readonly category: MoneyCategory
   readonly reason: string
@@ -43,7 +43,6 @@ const WIRE = 'Vendor wire unit captured as sent, converted exactly at the bounda
 const SETTING =
   'VS Code number setting or its declared default/limit, read with Usd.from (PLAN.md:20254).'
 const TOKENS = 'Token count, not money.'
-const DEBT = 'Numeric money; M121 converts it to UsdAmount.'
 
 const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   // --- nonMoney: token counts, durations, character limits, worker counts.
@@ -121,39 +120,6 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
     category: 'sanctioned',
     reason: SETTING,
   },
-  // --- trackedDebt: numeric money M121 converts to UsdAmount.
-  'acp/translate.ts:usd': { category: 'trackedDebt', reason: DEBT },
-  'core/backends/modelapi/ModelApiHost.ts:capUsd': { category: 'trackedDebt', reason: DEBT },
-  'core/backends/modelapi/ModelApiHost.ts:spentUsd': { category: 'trackedDebt', reason: DEBT },
-  'core/backends/modelapi/ModelApiHost.ts:uncertainUsd': { category: 'trackedDebt', reason: DEBT },
-  'core/usage/aggregate.ts:apiEquivalentUsd': { category: 'trackedDebt', reason: DEBT },
-  'core/usage/aggregate.ts:usd': { category: 'trackedDebt', reason: DEBT },
-  'core/usage/journalRecord.ts:apiEquivalentUsd': { category: 'trackedDebt', reason: DEBT },
-  'core/usage/journalRecord.ts:usd': { category: 'trackedDebt', reason: DEBT },
-  'core/usage/usageService.ts:projectedUsd': { category: 'trackedDebt', reason: DEBT },
-  'extension.ts:limitUsd': { category: 'trackedDebt', reason: DEBT },
-  'extension.ts:remainingUsd': { category: 'trackedDebt', reason: DEBT },
-  'extension.ts:usedUsd': { category: 'trackedDebt', reason: DEBT },
-  'host/paid/paidDailyBudget.ts:capUsd': { category: 'trackedDebt', reason: DEBT },
-  'host/paid/paidDailyBudget.ts:spentUsd': { category: 'trackedDebt', reason: DEBT },
-  'host/paid/paidDailyBudget.ts:uncertainUsd': { category: 'trackedDebt', reason: DEBT },
-  'host/usage/usagePanelEntry.ts:capUsd': { category: 'trackedDebt', reason: DEBT },
-  'host/usage/usagePanelEntry.ts:spentUsd': { category: 'trackedDebt', reason: DEBT },
-  'host/usage/usagePanelEntry.ts:uncertainUsd': { category: 'trackedDebt', reason: DEBT },
-  'runtime/usage/usageServiceEntry.ts:apiEquivalentUsd': { category: 'trackedDebt', reason: DEBT },
-  'runtime/usage/usageServiceEntry.ts:usd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usageJournal.ts:apiEquivalentUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usageJournal.ts:limitUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usageJournal.ts:remainingUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usageJournal.ts:usd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usageJournal.ts:usedUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usagePage.ts:apiEquivalentUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usagePage.ts:cacheUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usagePage.ts:capUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usagePage.ts:projectedUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usagePage.ts:spentUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usagePage.ts:uncertainUsd': { category: 'trackedDebt', reason: DEBT },
-  'shared/usagePage.ts:usd': { category: 'trackedDebt', reason: DEBT },
 }
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url))
@@ -203,8 +169,11 @@ export const computed = z.object({ [key]: z.number() })`,
   'pipeAlias.ts': `import * as z from 'zod/mini'
 const amount = z.pipe(z.number(), z.number())
 export const schema = z.object({ nested: z.object({ fooUsd: amount }) })`,
+  'numericBase.ts': `import * as z from 'zod/mini'
+export const externalNumeric = z.number().check(z.nonnegative())`,
+  'numericReexport.ts': `export { externalNumeric as reexportedNumeric } from './numericBase'`,
   'importedOptional.ts': `import * as z from 'zod/mini'
-import { reexportedNumeric } from '../helpers/moneyGuardReexport'
+import { reexportedNumeric } from './numericReexport'
 export const schema = z.object({ fooUsd: z.optional(reexportedNumeric) })`,
   'numericConst.ts': `export const feeUsd = 0.5`,
   'exactMoney.ts': `import * as z from 'zod/mini'
@@ -249,7 +218,6 @@ describe('exact-money type guard', () => {
         continue
       }
       if (!SOURCE.flagged.has(id)) problems.push(`${id}: stale ${entry.category} entry`)
-      if (entry.category === 'trackedDebt') continue
       const line = /PLAN\.md:(\d+)/.exec(entry.reason)?.[1]
       if (line === undefined || (PLAN_LINES[Number(line) - 1] ?? '').trim() === '')
         problems.push(`${id}: sanctioned entry without a PLAN citation`)

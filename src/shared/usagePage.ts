@@ -20,6 +20,7 @@ import {
   usageLimitSnapshotSchema,
   usageTokensSchema,
   usageUnitsSchema,
+  usageUsdSchema,
 } from './usageJournal'
 import { resourceHistorySchema } from './resourceHistory'
 
@@ -47,8 +48,8 @@ export const usageExportFormatSchema = z.enum(['callsCsv', 'summaryCsv', 'json']
 const certaintyTotalSchema = z.strictObject({
   certainty: usageCertaintySchema,
   records: usageCountSchema,
-  usd: z.optional(usageAmountSchema),
-  apiEquivalentUsd: z.optional(usageAmountSchema),
+  usd: z.optional(usageUsdSchema),
+  apiEquivalentUsd: z.optional(usageUsdSchema),
 })
 export const usageTotalsSchema = z.strictObject({
   records: usageCountSchema,
@@ -82,12 +83,12 @@ const bucketSchema = z.strictObject({
 export const usageBudgetSchema = z.strictObject({
   id: usageIdSchema,
   kind: z.enum(['paidDaily', 'tabDaily', 'vscodeChatDaily', 'conversation', 'headless']),
-  spentUsd: usageAmountSchema,
-  capUsd: z.optional(usageAmountSchema),
-  uncertainUsd: z.optional(usageAmountSchema),
+  spentUsd: usageUsdSchema,
+  capUsd: z.optional(usageUsdSchema),
+  uncertainUsd: z.optional(usageUsdSchema),
   stopped: z.boolean(),
   raisedToday: z.optional(z.boolean()),
-  projectedUsd: z.optional(usageAmountSchema),
+  projectedUsd: z.optional(usageUsdSchema),
   resetsAt: z.optional(usageCountSchema),
 })
 const modelDetailSchema = z.strictObject({
@@ -132,6 +133,8 @@ export const usagePageStateSchema = z.strictObject({
     recordCount: usageCountSchema,
     newerVersionRecords: usageCountSchema,
     tornLines: usageCountSchema,
+    // M121: version 1 records whose written dollars a number cannot carry.
+    inexactRecords: usageCountSchema,
     since: z.optional(usageDaySchema),
   }),
   totals: usageTotalsSchema,
@@ -165,7 +168,7 @@ export const usagePageStateSchema = z.strictObject({
   ),
   savings: z.strictObject({
     cachedTokens: z.optional(usageCountSchema),
-    cacheUsd: z.optional(usageAmountSchema),
+    cacheUsd: z.optional(usageUsdSchema),
     packedAvoided: z.optional(usageCountSchema),
   }),
   modelDetail: z.optional(modelDetailSchema),

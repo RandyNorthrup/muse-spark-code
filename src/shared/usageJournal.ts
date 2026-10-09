@@ -3,6 +3,7 @@
 // Optional counters remain absent when unknown. Strict objects reject content,
 // paths, credentials and account identifiers rather than silently storing them.
 import * as z from 'zod/mini'
+import { legacyUsdSchema, nonnegativeUsdSchema } from './usdSchema'
 import {
   USAGE_HEADER_MAX_CHARS,
   USAGE_ID_MAX_CHARS,
@@ -113,14 +114,24 @@ export const usageUnitsSchema = z.strictObject({
   images: z.optional(usageCountSchema),
   audioSeconds: z.optional(usageAmountSchema),
 })
-export const usageCostSchema = z.strictObject({
-  usd: z.optional(usageAmountSchema),
-  certainty: usageCertaintySchema,
-  source: z.optional(z.enum(['list', 'catalogue', 'user', 'meta-published'])),
-  date: z.optional(usageDaySchema),
-  // An equivalent API price is not the amount a subscription charged.
-  apiEquivalentUsd: z.optional(usageAmountSchema),
-})
+// M121: version 2 stores dollars as canonical decimal text. Version 1 stored
+// JSON numbers; the reader converts each to the decimal it was written as
+// (`legacyUsdSchema`), and the store refuses a line whose written digits a
+// number cannot carry (journalStore.ts), never rounding or zeroing it.
+export const USAGE_LEGACY_JOURNAL_VERSION = 1
+export const usageUsdSchema = nonnegativeUsdSchema
+function costSchemaWith<M extends typeof usageUsdSchema | typeof legacyUsdSchema>(money: M) {
+  return z.strictObject({
+    usd: z.optional(money),
+    certainty: usageCertaintySchema,
+    source: z.optional(z.enum(['list', 'catalogue', 'user', 'meta-published'])),
+    date: z.optional(usageDaySchema),
+    // An equivalent API price is not the amount a subscription charged.
+    apiEquivalentUsd: z.optional(money),
+  })
+}
+export const usageCostSchema = costSchemaWith(usageUsdSchema)
+export const usageLegacyCostSchema = costSchemaWith(legacyUsdSchema)
 export type UsageCost = z.infer<typeof usageCostSchema>
 
 const identity = {
@@ -138,29 +149,36 @@ function isWithinRecordCap(value: unknown): boolean {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength < USAGE_RECORD_MAX_BYTES
 }
 
-export const usageRecordSchema = z
-  .strictObject({
-    ...identity,
-    type: z.literal('usage'),
-    account: z.optional(accountIdSchema),
-    startedAt: usageCountSchema,
-    model: usageLabelSchema,
-    served: z.optional(usageLabelSchema),
-    kind: usageKindSchema,
-    tokens: usageTokensSchema,
-    units: z.optional(usageUnitsSchema),
-    cost: usageCostSchema,
-    outcome: z.enum(['completed', 'incomplete', 'failed', 'cancelled', 'refused']),
-    durationMs: z.optional(usageAmountSchema),
-    firstTokenMs: z.optional(usageAmountSchema),
-    retries: z.optional(usageCountSchema),
-    rateLimited: z.optional(z.boolean()),
-    retryDelayMs: z.optional(usageAmountSchema),
-    session: z.optional(usageIdSchema),
-    packedAvoided: z.optional(usageCountSchema),
-    headers: z.optional(usageHeadersSchema),
-  })
-  .check(z.refine(isWithinRecordCap))
+function recordSchemaWith<
+  V extends number,
+  C extends typeof usageCostSchema | typeof usageLegacyCostSchema,
+>(version: V, cost: C) {
+  return z
+    .strictObject({
+      ...identity,
+      v: z.literal(version),
+      type: z.literal('usage'),
+      account: z.optional(accountIdSchema),
+      startedAt: usageCountSchema,
+      model: usageLabelSchema,
+      served: z.optional(usageLabelSchema),
+      kind: usageKindSchema,
+      tokens: usageTokensSchema,
+      units: z.optional(usageUnitsSchema),
+      cost,
+      outcome: z.enum(['completed', 'incomplete', 'failed', 'cancelled', 'refused']),
+      durationMs: z.optional(usageAmountSchema),
+      firstTokenMs: z.optional(usageAmountSchema),
+      retries: z.optional(usageCountSchema),
+      rateLimited: z.optional(z.boolean()),
+      retryDelayMs: z.optional(usageAmountSchema),
+      session: z.optional(usageIdSchema),
+      packedAvoided: z.optional(usageCountSchema),
+      headers: z.optional(usageHeadersSchema),
+    })
+    .check(z.refine(isWithinRecordCap))
+}
+export const usageRecordSchema = recordSchemaWith(USAGE_JOURNAL_VERSION, usageCostSchema)
 export type UsageRecord = z.infer<typeof usageRecordSchema>
 
 export const usageLimitWindowSchema = z.strictObject({
@@ -171,31 +189,58 @@ export const usageLimitWindowSchema = z.strictObject({
   resetsAt: z.optional(usageCountSchema),
   windowMins: z.optional(usageAmountSchema),
 })
-export const usageLimitSnapshotSchema = z
-  .strictObject({
-    ...identity,
-    type: z.literal('limit'),
-    source: z.enum(['museCode', 'openRouter', 'headers', 'chatgpt']),
-    observedAt: usageCountSchema,
-    windows: z.array(usageLimitWindowSchema),
-    account: z.optional(
-      z.strictObject({
-        usedUsd: z.optional(usageAmountSchema),
-        limitUsd: z.optional(usageAmountSchema),
-        remainingUsd: z.optional(usageAmountSchema),
-        period: usageLabelSchema,
-      }),
-    ),
-    // No arbitrary JSON: account/key responses must be normalised first.
-    raw: z.optional(usageHeadersSchema),
-  })
-  .check(z.refine(isWithinRecordCap))
+function limitSchemaWith<
+  V extends number,
+  M extends typeof usageUsdSchema | typeof legacyUsdSchema,
+>(version: V, money: M) {
+  return z
+    .strictObject({
+      ...identity,
+      v: z.literal(version),
+      type: z.literal('limit'),
+      source: z.enum(['museCode', 'openRouter', 'headers', 'chatgpt']),
+      observedAt: usageCountSchema,
+      windows: z.array(usageLimitWindowSchema),
+      account: z.optional(
+        z.strictObject({
+          usedUsd: z.optional(money),
+          limitUsd: z.optional(money),
+          remainingUsd: z.optional(money),
+          period: usageLabelSchema,
+        }),
+      ),
+      // No arbitrary JSON: account/key responses must be normalised first.
+      raw: z.optional(usageHeadersSchema),
+    })
+    .check(z.refine(isWithinRecordCap))
+}
+export const usageLimitSnapshotSchema = limitSchemaWith(USAGE_JOURNAL_VERSION, usageUsdSchema)
 export type UsageLimitSnapshot = z.infer<typeof usageLimitSnapshotSchema>
 export const usageJournalEntrySchema = z.discriminatedUnion('type', [
   usageRecordSchema,
   usageLimitSnapshotSchema,
 ])
 export type UsageJournalEntry = z.infer<typeof usageJournalEntrySchema>
+
+/**
+ * What a stored line may be: a version 2 entry, or a version 1 entry whose
+ * numeric dollars convert to the same exact decimals, read as version 2.
+ */
+export const usageLegacyLimitSnapshotSchema = limitSchemaWith(
+  USAGE_LEGACY_JOURNAL_VERSION,
+  legacyUsdSchema,
+)
+export const usageJournalReadSchema = z.union([
+  usageJournalEntrySchema,
+  z.pipe(
+    z.discriminatedUnion('type', [
+      recordSchemaWith(USAGE_LEGACY_JOURNAL_VERSION, usageLegacyCostSchema),
+      usageLegacyLimitSnapshotSchema,
+    ]),
+    z.transform((entry): UsageJournalEntry => ({ ...entry, v: USAGE_JOURNAL_VERSION })),
+  ),
+])
+
 // M102 extends its record schemas with these fields once its journal lands.
 // Absence denotes a pre-M108 record; the reader resolves it to `default`.
 import { accountIdSchema } from './accountId'

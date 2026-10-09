@@ -167,6 +167,12 @@ export function analyzeFixtures(
   const getSourceFile = host.getSourceFile.bind(host)
   host.readFile = (file) => virtual.get(file.replaceAll('\\', '/')) ?? readFile(file)
   host.fileExists = (file) => virtual.has(file.replaceAll('\\', '/')) || fileExists(file)
+  // The fixture folder exists only in memory; module resolution between
+  // fixtures asks for it first.
+  const fixtureFolder = folder.replaceAll('\\', '/')
+  const directoryExists = host.directoryExists?.bind(host)
+  host.directoryExists = (directory) =>
+    directory.replaceAll('\\', '/') === fixtureFolder || (directoryExists?.(directory) ?? true)
   host.getSourceFile = (file, language, onError, shouldCreate) => {
     const text = virtual.get(file.replaceAll('\\', '/'))
     return text === undefined

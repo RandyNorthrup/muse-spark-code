@@ -84,7 +84,7 @@ describe('the paid-use popup (M58)', () => {
     const opened = vi.spyOn(Date, 'now').mockReturnValue(100)
     try {
       const record = usageRecordSchema.parse({
-        v: 1,
+        v: 2,
         type: 'usage',
         id: 'old',
         at: 99,
