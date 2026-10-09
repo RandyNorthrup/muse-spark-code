@@ -8204,6 +8204,37 @@
       "gradeSourceRevision": "LEFT017B current rendered descendants; image review recorded in int0170-combined.md"
     },
     {
+      "file": "src/webview/money.tsx",
+      "owner": "P2",
+      "selectors": [".models-cost-notice"],
+      "scene": "models-test-cost",
+      "grades": {
+        "colour": "inherited",
+        "radius": "inherited",
+        "elevation": "inherited",
+        "motion": "inherited",
+        "focus": "inherited",
+        "states": "inherited",
+        "highContrast": "inherited",
+        "accessibility": "inherited",
+        "typographySpacing": "inherited"
+      },
+      "roles": ["colour.surface", "colour.text", "typography.font-ui"],
+      "findings": ["inherited"],
+      "fix": "Inspect the money hub through the exact prices it fills in at .models-cost-notice and its MoneyUnavailable alert (words plus Retry) in all six themes and both widths; retain semantic names, token contrast, focus rings, reduced motion and responsive layout.",
+      "evidence": [
+        {
+          "file": "src/webview/money.tsx",
+          "line": 235,
+          "selector": ".models-cost-notice",
+          "declarations": "export function MoneyUnavailable({"
+        }
+      ],
+      "captureSelector": ".models-cost-notice",
+      "vscodeVariables": [],
+      "gradeSourceRevision": "REL017CI: STARTUP017 hub, inherited through its rendered consumers (CostNotice row)"
+    },
+    {
       "file": "src/webview/playbook/DeferredPlaybook.tsx",
       "owner": "P2",
       "selectors": [".playbook-surface"],
@@ -10067,6 +10098,11 @@
       "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
     },
     {
+      "file": "src/webview/moneyHooks.ts",
+      "classification": "logic-only",
+      "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
+    },
+    {
       "file": "src/webview/page.css",
       "classification": "stylesheet",
       "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
@@ -10139,6 +10175,11 @@
     {
       "file": "src/webview/schedules/reportAction.css",
       "classification": "stylesheet",
+      "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
+    },
+    {
+      "file": "src/webview/schedules/settlement.ts",
+      "classification": "logic-only",
       "audit": "Supporting source: inspect theme/token/lazy lifecycle behavior through its actual rendered consumers in the current component inventory."
     },
     {
@@ -10482,7 +10523,7 @@
   "sources": [
     {
       "file": "src/webview/App.tsx",
-      "sha256": "7a4246843bfd0ee28adf97f029da62a9282e15a52e24bb37c10be8a3e704ab61"
+      "sha256": "85196f0223e567c6224f0f7d257acb7dc39d59eafc468b9a5a49c730c7f08560"
     },
     {
       "file": "src/webview/TasksApp.tsx",
@@ -10566,7 +10607,7 @@
     },
     {
       "file": "src/webview/components/Composer.tsx",
-      "sha256": "036f75b36068807ac4d5e37b749a21b158f0dd4b47c8079f2ac17e0bc7123a4b"
+      "sha256": "13d251b3b182d6aa8b4abc7d81fd2e25921968dbf681ef554a77e7292f956e69"
     },
     {
       "file": "src/webview/components/ContextMeter.tsx",
@@ -10694,7 +10735,7 @@
     },
     {
       "file": "src/webview/components/PaidBadge.tsx",
-      "sha256": "35534c7eb945c1217872d8ff8fe4313794d2fd15947cf46ec289ec9f0145059a"
+      "sha256": "ff1ade6c201961c609fe593eb080477489a606dd3b60cd88dd2d18b5b6881193"
     },
     {
       "file": "src/webview/components/PaidUsageSection.tsx",
@@ -10702,7 +10743,7 @@
     },
     {
       "file": "src/webview/components/Palette.tsx",
-      "sha256": "6e00d086802abaf2bba06782a80cd09e3d61c88e696798a75135de44bb9dcc51"
+      "sha256": "70d2b2a99cb563a9d0201afa878e9e5a068427156f31fe114bf24d53adc98dec"
     },
     {
       "file": "src/webview/components/PlanUi.tsx",
@@ -10830,7 +10871,7 @@
     },
     {
       "file": "src/webview/components/Transcript.tsx",
-      "sha256": "95d317dc2ecc83e91dcab4cf16afb3f077220be8ec299479b51645d0af222f7a"
+      "sha256": "86ca43b930fce3c8899305d765dcbaaa656d956394eaefed56b70af064f7b07f"
     },
     {
       "file": "src/webview/components/UsageDialog.tsx",
@@ -10950,7 +10991,7 @@
     },
     {
       "file": "src/webview/estimator/EstimatorPanel.tsx",
-      "sha256": "fd208cbd503b6393773a296464dbbc94439b26558955f4fa93843e4947e8a189"
+      "sha256": "334ca014920f80b04f5c785b921671b8108dbfea9f40a852c7ab75ae59dd53b3"
     },
     {
       "file": "src/webview/estimator/commandPrefix.ts",
@@ -11018,7 +11059,7 @@
     },
     {
       "file": "src/webview/main.tsx",
-      "sha256": "cbb028c245d78fffc89082522af0050653260ff41143dd3020710854e2fe7d6d"
+      "sha256": "5e7bf44a76e3ae7706d0fc378e0af5056d8f62267cccf8ad246a9f0157f5d59b"
     },
     {
       "file": "src/webview/media/CompanionMedia.tsx",
@@ -11066,15 +11107,15 @@
     },
     {
       "file": "src/webview/models/ModelsSection.tsx",
-      "sha256": "1be35de4ed5f5a338f2fe975e09f045409acdf843bfdc1a1bf201b0b9e5173c3"
+      "sha256": "f917f223935c2783f7838193abc3eb218c9d5a02b31f0d378706e05f0337dca1"
     },
     {
       "file": "src/webview/models/ProvidersSection.tsx",
-      "sha256": "5bd4b84d01ec9b59e3dbdf768122cf0ddd3a11329224374ad81ea24d9a3d5d56"
+      "sha256": "b98b7e462edc857352e0d5e94be7665d137d52014a519662c8901fadfc6f9793"
     },
     {
       "file": "src/webview/models/Wizard.tsx",
-      "sha256": "16d210a28a450a9e9896818dd7a3d9320d48aa326ba7a1f17c9d4b2cfd9a5927"
+      "sha256": "3d76d415b23b0696099f4f20adc91d15a31dd5685d7e8e193215c57061b6b0af"
     },
     {
       "file": "src/webview/models/components/Badge.tsx",
@@ -11082,7 +11123,7 @@
     },
     {
       "file": "src/webview/models/components/CostNotice.tsx",
-      "sha256": "73716161bc7565feb61e5b1ef500d31685f4aa9c5f9d6270b434f29c39ee630d"
+      "sha256": "862d4ed08b567d8e25159d6e36adbc58a5945f70bb575e2e53cfc636403423e2"
     },
     {
       "file": "src/webview/models/components/DataTable.tsx",
@@ -11110,7 +11151,7 @@
     },
     {
       "file": "src/webview/models/components/SuggestionCard.tsx",
-      "sha256": "e3161e436279a3ffaba23502d02bf020a9f97d2ee1b3f13bc024996158bb647a"
+      "sha256": "7bb7b7a3d59c238188dd3632197bdbb2dbb1a96fe17e15c2acd3c41c189eea54"
     },
     {
       "file": "src/webview/models/components/UndoBar.tsx",
@@ -11126,15 +11167,15 @@
     },
     {
       "file": "src/webview/models/panel.tsx",
-      "sha256": "02abb34a5d9fdfaab03fa3ae5b9f37aca457d482a848dac16e225d90c3e41617"
+      "sha256": "1b6d841cacd87ab7fe21ebf7a32ab7267af41bfee1392dccc393a93400b30395"
     },
     {
       "file": "src/webview/models/reducer.ts",
-      "sha256": "2665aa3e6d13978fd11b4bedfc51030982429457d46e1d6d8494112a1b850ace"
+      "sha256": "a03d5378131fad9d85f2a3670bf3aa3ca520c128d02090bafe880961ce143a01"
     },
     {
       "file": "src/webview/models/sections.ts",
-      "sha256": "4d31102db0ac9529c4cf793a7996e487c3db15af204c7e720bc6f3f0560139b4"
+      "sha256": "9a91502ac02d3b9bf50bdb7f1bc202c807e50271a04d6f2e4901857dec05a292"
     },
     {
       "file": "src/webview/models/sections/accounts/AccountEditor.tsx",
@@ -11195,6 +11236,14 @@
     {
       "file": "src/webview/models/sections/vault/vaultPresentation.tsx",
       "sha256": "cf8c3f6f78dc149d35c5a893b380ab7aba6bc12200fdf561ecb237faf88d6371"
+    },
+    {
+      "file": "src/webview/money.tsx",
+      "sha256": "1f4fadfe699dce10285e300c2e56b9979e89c33483b65c147daf30742a481927"
+    },
+    {
+      "file": "src/webview/moneyHooks.ts",
+      "sha256": "5447a290f1f0841d0f546595380eac6c47b2a3ef769b4112caeb59dc62b8bb50"
     },
     {
       "file": "src/webview/page.css",
@@ -11306,7 +11355,7 @@
     },
     {
       "file": "src/webview/schedules/ScheduleRunBody.tsx",
-      "sha256": "1d83ec9a82f8376c86bc7757d0f64df09e24164ba8ec98d7c126718e33d412cc"
+      "sha256": "836337a7ae454caf5004b7d20a6d60deecc6fc0ca97fa5c6b3247d77f53986ba"
     },
     {
       "file": "src/webview/schedules/ScheduleSurface.tsx",
@@ -11342,7 +11391,7 @@
     },
     {
       "file": "src/webview/schedules/presentation.ts",
-      "sha256": "55175dcbbf95baad8b5ec5f486852ba3b8091d0972eecda920be1a24527a1fae"
+      "sha256": "38c81eb5147f0af0afe38897add473c5e9b2bc78a05ca25ead5894860fc4ea05"
     },
     {
       "file": "src/webview/schedules/prompt.ts",
@@ -11351,6 +11400,10 @@
     {
       "file": "src/webview/schedules/reportAction.css",
       "sha256": "5a042fbe0ed4d3631345c9b264c06b2660ce217a507e43cb3bcb923a5f12d6cd"
+    },
+    {
+      "file": "src/webview/schedules/settlement.ts",
+      "sha256": "6a17073efd13a574c5770fe485464f6bbaeed6eb621f863d4ca5e5404ade0e36"
     },
     {
       "file": "src/webview/sharing/ChatShareBridge.tsx",
@@ -11386,11 +11439,11 @@
     },
     {
       "file": "src/webview/state/transcriptEntries.ts",
-      "sha256": "45c558cbbb4448ae319ac97694480beea0a5a31630af9384e6b61a85624bfeb8"
+      "sha256": "e21b474c0d28debfb2cc51e909c79b2cde28d5bfda70f2055a1f28d000868f2e"
     },
     {
       "file": "src/webview/state/uiState.ts",
-      "sha256": "979c50fd21c8c39e116f437bdc2eaf1747f29b1b074bb67421ffaeebc2e2fd91"
+      "sha256": "0dc17c546c3d74b7f5ba107f04f01f444c09d1d3b2b473ba49bd2f3ebd5e3823"
     },
     {
       "file": "src/webview/stepSummary.ts",
@@ -11418,7 +11471,7 @@
     },
     {
       "file": "src/webview/toolPresentation.ts",
-      "sha256": "85dd12b2b1674ccdc772ef4afcc681a28dacf9c0ab938ad0e31432c0857d0ed8"
+      "sha256": "f1547d820ac6adaad2118ae714f3d27c2f61a1993323450f596287361a5f122f"
     },
     {
       "file": "src/webview/toolStatus.ts",
@@ -11466,7 +11519,7 @@
     },
     {
       "file": "src/webview/usage/LazyResourcesSection.tsx",
-      "sha256": "21573316acd79c56a36fa5f95e3974927d3454efe6a9c662d13735f6c0cb4b87"
+      "sha256": "cac6934ca5be4f7c42cc01270a6f2b2a252a9fd9337b48de191472bc2ce1a73b"
     },
     {
       "file": "src/webview/usage/LimitsSection.tsx",
@@ -11474,15 +11527,15 @@
     },
     {
       "file": "src/webview/usage/ModelDetail.tsx",
-      "sha256": "0c5990e6fee616476ff9515a4240ebccea7f237bc52c9df7c24905d3d9d68d72"
+      "sha256": "aa1693265ab6c3aeed2a3d425d8409c4be621077520d2adfcf1aacda80b16c7c"
     },
     {
       "file": "src/webview/usage/ResourcesSection.css",
-      "sha256": "8ae453d975b19b792f1e70370851b5e48222187de96d675706e54adb3cd0a0ec"
+      "sha256": "0e407036b74ab0e611614f61efddf611dbf01f5e652f65faf4c73c9599f769a8"
     },
     {
       "file": "src/webview/usage/ResourcesSection.tsx",
-      "sha256": "faa4c687bc02777fce147669f26f398b871f5d055fcf54ac606b48af017fd062"
+      "sha256": "b7c2f76182f45b8bd1541219bf4a90c9006aec84b0fb257c77de81c2c90260ee"
     },
     {
       "file": "src/webview/usage/SavingsSection.tsx",
@@ -11490,7 +11543,7 @@
     },
     {
       "file": "src/webview/usage/UsageApp.tsx",
-      "sha256": "188d2a2bded5ca25b0f711387f534226582d65338c98ca685e6ffde4400ac822"
+      "sha256": "fba19e01942e5765b548101cd1745503bda87eb468f2c25fc76edb92cc954ac8"
     },
     {
       "file": "src/webview/usage/accountsSectionLoader.ts",
