@@ -5,6 +5,8 @@ export {
   _default,
   NEVER,
   nonoptional,
+  // Exact money codecs (scheduleV2) read through the shared wire bundle.
+  codec,
   custom,
   length,
   partialRecord,
