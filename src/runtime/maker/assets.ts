@@ -4,6 +4,7 @@ import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID, WEBVIEW_L10N_ELEMENT_ID } from '../..
 import { uiLocale } from '../../shared/l10n/text'
 
 // The installed shared panel supplies every view; this script is only its host bridge.
+// Both directions parse with the deferred maker schemas; /events opens only once they load.
 const BRIDGE = `let state;
 let connect;
 const connected=new Promise(resolve=>{connect=resolve;});
@@ -12,8 +13,8 @@ window.acquireVsCodeApi = () => ({
   setState: value => {state=value;},
   postMessage: raw => {void (async () => {
     await connected;
-    const {companionPresenceSchema,makerBoundarySchemas}=await ready;
-    const {makerHostMessageSchema,makerSurfaceMessageSchema}=await makerBoundarySchemas();
+    const {companionPresenceSchema}=await ready;
+    const {makerHostMessageSchema,makerSurfaceMessageSchema}=await boundaries;
     const message=makerSurfaceMessageSchema.parse(raw);
     const headers={'Content-Type':'application/json'};
     const answering=message.type==='makerAnswer';
@@ -32,7 +33,8 @@ window.acquireVsCodeApi = () => ({
 
 });
 const ready=import('/assets/main.js');
-const {companionBootstrapSchema,companionLaunchSchema,makerHostMessageSchema}=await ready;
+const boundaries=ready.then(main=>main.makerBoundarySchemas());
+const {companionBootstrapSchema,companionLaunchSchema}=await ready;
 const delivery=await fetch('/launch-code',{method:'POST'});
 if(!delivery.ok) throw new Error('maker-launch-refused');
 const launch=companionLaunchSchema.parse(await delivery.json());
@@ -42,6 +44,7 @@ const bootstrapRaw=await response.json();
 const bootstrap=companionBootstrapSchema.parse(bootstrapRaw);
 window.museSparkThonnyProvider=bootstrap.provider;
 connect();
+const {makerHostMessageSchema}=await boundaries;
 const events=new EventSource('/events');
 events.onmessage=event => {window.dispatchEvent(new MessageEvent('message',{data:makerHostMessageSchema.parse(JSON.parse(event.data))}));};`
 
