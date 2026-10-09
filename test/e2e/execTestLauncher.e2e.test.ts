@@ -124,6 +124,8 @@ async function packageTree(): Promise<void> {
       estimator: path.join(ROOT, 'src/host/estimator/estimatorEntry.ts'),
       recorder: path.join(ROOT, 'src/host/support/recorderEntry.ts'),
       resourceGovernor: path.join(ROOT, 'src/core/resources/resourceGovernorEntry.ts'),
+      // f74dc661b: the shared resource journal ships beside the governor.
+      resourceJournal: path.join(ROOT, 'src/runtime/resources/resourceJournalEntry.ts'),
       resourceAdmission: path.join(ROOT, 'src/core/resources/admission.ts'),
       exec: path.join(ROOT, 'src/runtime/exec/execEntry.ts'),
       mcpPool: path.join(ROOT, 'src/core/backends/modelapi/mcpPoolEntry.ts'),
