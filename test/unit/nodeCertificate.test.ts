@@ -2,7 +2,7 @@ import { generateKeyPairSync, X509Certificate } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { readFile, rm, readdir } from 'node:fs/promises'
-import { beforeAll, afterAll, describe, expect, it } from 'vitest'
+import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
 import { NodePrivateFiles } from '../../src/runtime/node/privateFiles'
 import {
   checkNodeCertificate,
@@ -13,10 +13,13 @@ import {
   NODE_MAX_AUTH_BYTES,
   NODE_TLS_CERT_FILE,
   NODE_TLS_KEY_FILE,
+  NODE_TLS_DIRECTORY,
+  NODE_TLS_PENDING_DIRECTORY,
+  NODE_TLS_ISSUE_TIMEOUT_MS,
 } from '../../src/shared/constants'
 import { nodeNativeTest, nodeTempRoot } from './helpers/nodeNative'
 
-const fixture = { root: '', pem: '', key: '', fingerprint: '', ca: '' }
+const fixture = { root: '', certificateRoot: '', pem: '', key: '', fingerprint: '', ca: '' }
 beforeAll(async () => {
   if (process.platform === 'win32') return
   fixture.root = await nodeTempRoot('m110-a1-certificate-')
@@ -28,15 +31,18 @@ beforeAll(async () => {
     '/usr/bin/openssl',
     new AbortController().signal,
   )
-  fixture.pem = await files.read(NODE_TLS_CERT_FILE, NODE_MAX_AUTH_BYTES)
-  fixture.key = await files.read(NODE_TLS_KEY_FILE, NODE_MAX_AUTH_BYTES)
+  fixture.certificateRoot = issued.root
+  const committed = new NodePrivateFiles(issued.root)
+  fixture.pem = await committed.read(NODE_TLS_CERT_FILE, NODE_MAX_AUTH_BYTES)
+  fixture.key = await committed.read(NODE_TLS_KEY_FILE, NODE_MAX_AUTH_BYTES)
   fixture.fingerprint = issued.fingerprint
   const caFile = files.file('fixture-ca.pem')
-  await promisify(execFile)('/usr/bin/openssl', [
+  const args = [
     'req',
+    '-new',
     '-x509',
     '-key',
-    files.file(NODE_TLS_KEY_FILE),
+    committed.file(NODE_TLS_KEY_FILE),
     '-out',
     caFile,
     '-subj',
@@ -45,7 +51,14 @@ beforeAll(async () => {
     'basicConstraints=critical,CA:TRUE',
     '-addext',
     'subjectAltName=DNS:home.local,DNS:localhost',
-  ])
+  ]
+  // LibreSSL otherwise waits for a CSR on stdin. Prove the fixture requests a
+  // new leaf explicitly; this assertion also makes the portability guard fire.
+  expect(args).toContain('-new')
+  await promisify(execFile)('/usr/bin/openssl', args, {
+    env: {},
+    timeout: NODE_TLS_ISSUE_TIMEOUT_MS,
+  })
   fixture.ca = await readFile(caFile, 'utf8')
   await rm(caFile)
 })
@@ -67,7 +80,8 @@ describe('H02 pinned non-CA certificate', () => {
         fixture.fingerprint,
       ),
     ).toBe(fixture.fingerprint)
-    expect(await readdir(fixture.root)).toEqual(
+    expect(await readdir(fixture.root)).toEqual([NODE_TLS_DIRECTORY])
+    expect(await readdir(fixture.certificateRoot)).toEqual(
       [NODE_TLS_CERT_FILE, NODE_TLS_KEY_FILE].toSorted((a, b) => a.localeCompare(b, 'en')),
     )
   })
@@ -135,7 +149,7 @@ describe('H02 pinned non-CA certificate', () => {
           '/usr/bin/openssl',
           new AbortController().signal,
         ),
-      ).rejects.toThrow('changed')
+      ).rejects.toThrow()
       await expect(
         issueNodeCertificate(
           files,
@@ -145,7 +159,29 @@ describe('H02 pinned non-CA certificate', () => {
           new AbortController().signal,
         ),
       ).rejects.toThrow()
-      expect(await files.read(NODE_TLS_CERT_FILE, NODE_MAX_AUTH_BYTES)).toBe(fixture.pem)
+      expect(
+        await new NodePrivateFiles(fixture.certificateRoot).read(
+          NODE_TLS_CERT_FILE,
+          NODE_MAX_AUTH_BYTES,
+        ),
+      ).toBe(fixture.pem)
+      const root = await nodeTempRoot('m110-a2-legacy-cert-')
+      const legacy = new NodePrivateFiles(root)
+      try {
+        await legacy.write(NODE_TLS_KEY_FILE, fixture.key)
+        await expect(
+          issueNodeCertificate(
+            legacy,
+            ['home.local'],
+            Date.now,
+            '/usr/bin/openssl',
+            new AbortController().signal,
+          ),
+        ).rejects.toThrow('changed')
+        expect(await legacy.read(NODE_TLS_KEY_FILE, NODE_MAX_AUTH_BYTES)).toBe(fixture.key)
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
     },
   )
   nodeNativeTest(
@@ -183,6 +219,96 @@ describe('H02 pinned non-CA certificate', () => {
           ),
         ).rejects.toThrow()
         expect(await readdir(root)).toEqual([])
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+  )
+  nodeNativeTest(
+    'H02/H15 certificate-write failure leaves no partial commit and retry succeeds',
+    async () => {
+      const root = await nodeTempRoot('m110-a2-cert-failure-')
+      const files = new NodePrivateFiles(root)
+      const write = NodePrivateFiles.prototype.write
+      const spy = vi
+        .spyOn(NodePrivateFiles.prototype, 'write')
+        .mockImplementationOnce(write)
+        .mockImplementationOnce(write)
+        .mockRejectedValueOnce(new Error('injected certificate-write failure'))
+      try {
+        await expect(
+          issueNodeCertificate(
+            files,
+            ['home.local'],
+            Date.now,
+            '/usr/bin/openssl',
+            new AbortController().signal,
+          ),
+        ).rejects.toThrow()
+        expect(spy.mock.calls[2]?.[0]).toBe(NODE_TLS_CERT_FILE)
+        spy.mockRestore()
+        expect(await readdir(root)).toEqual([])
+        const issued = await issueNodeCertificate(
+          files,
+          ['home.local'],
+          Date.now,
+          '/usr/bin/openssl',
+          new AbortController().signal,
+        )
+        const pair = new NodePrivateFiles(issued.root)
+        expect(
+          checkNodeCertificate(
+            await pair.read(NODE_TLS_CERT_FILE, NODE_MAX_AUTH_BYTES),
+            await pair.read(NODE_TLS_KEY_FILE, NODE_MAX_AUTH_BYTES),
+            ['home.local'],
+            Date.now(),
+            issued.fingerprint,
+          ),
+        ).toBe(issued.fingerprint)
+      } finally {
+        spy.mockRestore()
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+  )
+  nodeNativeTest(
+    'H02/H15 restart discards an uncommitted key and preserves a committed pair',
+    async () => {
+      const root = await nodeTempRoot('m110-a2-cert-crash-')
+      const files = new NodePrivateFiles(root)
+      try {
+        await files.prepare()
+        const staging = new NodePrivateFiles(files.file(NODE_TLS_PENDING_DIRECTORY))
+        await staging.write(NODE_TLS_KEY_FILE, fixture.key)
+        await staging.write('abandoned.tmp', 'uncommitted issuance')
+        const issued = await issueNodeCertificate(
+          files,
+          ['home.local'],
+          Date.now,
+          '/usr/bin/openssl',
+          new AbortController().signal,
+        )
+        expect(await readdir(root)).toEqual([NODE_TLS_DIRECTORY])
+        const committed = new NodePrivateFiles(issued.root)
+        expect(await readdir(committed.root)).toEqual(
+          [NODE_TLS_CERT_FILE, NODE_TLS_KEY_FILE].toSorted((a, b) => a.localeCompare(b, 'en')),
+        )
+        const certificate = await committed.read(NODE_TLS_CERT_FILE, NODE_MAX_AUTH_BYTES)
+        const key = await committed.read(NODE_TLS_KEY_FILE, NODE_MAX_AUTH_BYTES)
+        expect(key).not.toBe(fixture.key)
+        await expect(
+          issueNodeCertificate(
+            files,
+            ['home.local'],
+            Date.now,
+            '/usr/bin/openssl',
+            new AbortController().signal,
+          ),
+        ).resolves.toEqual(issued)
+        expect(await committed.read(NODE_TLS_CERT_FILE, NODE_MAX_AUTH_BYTES)).toBe(certificate)
+        expect(
+          checkNodeCertificate(certificate, key, ['home.local'], Date.now(), issued.fingerprint),
+        ).toBe(issued.fingerprint)
       } finally {
         await rm(root, { recursive: true, force: true })
       }

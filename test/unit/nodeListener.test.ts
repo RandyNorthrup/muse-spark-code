@@ -9,6 +9,7 @@ import path from 'node:path'
 import type { Duplex } from 'node:stream'
 import { afterAll, beforeAll, beforeEach, describe, expect, vi } from 'vitest'
 import { NodeListener, type NodeListenerOptions } from '../../src/runtime/node/listener'
+import { NodeListenerError } from '../../src/runtime/node/listenerGuard'
 import { nodeMethods } from '../../src/shared/hostApi/nodeMethods'
 import {
   NODE_HTTP_BODY_BYTES,
@@ -72,6 +73,7 @@ beforeAll(async () => {
   await promisify(execFile)('openssl', [
     'req',
     '-x509',
+    '-new',
     '-key',
     path.join(built.root, 'key.pem'),
     '-days',
@@ -209,6 +211,47 @@ async function tcpSocket(): Promise<Socket> {
 }
 
 describe('M110-N real selected-interface HTTPS listener', () => {
+  nodeNativeTest(
+    'H09 challenge 429s cannot keep console enrollment behind account backoff',
+    async () => {
+      const port = await vacantPort()
+      const retry = new NodeListener({
+        ...built.options,
+        clock: { now: () => Date.now(), monotonicMs: () => 0 },
+        config: { ...built.options.config, listener: { address: '127.0.0.1', port } },
+      })
+      await retry.start()
+      try {
+        fixture.request
+          .mockRejectedValueOnce(new NodeListenerError('rateLimited'))
+          .mockRejectedValueOnce(new NodeListenerError('rateLimited'))
+          .mockResolvedValueOnce({
+            v: 1,
+            id: 'console-enrollment',
+            purpose: 'enroll',
+            rpId: 'home.local',
+            origin: `https://home.local:${String(port)}`,
+            challenge: 'a'.repeat(43),
+            issuedAt: 0,
+            expiresAt: 1000,
+          })
+        for (let count = 0; count < 2; count++) {
+          const refused = await post('/node/auth/begin', '{"purpose":"signin"}', {}, port)
+          expect(refused.status).toBe(429)
+        }
+        const setup = await post(
+          '/node/auth/begin',
+          JSON.stringify({ purpose: 'enroll', setupCode: 'b'.repeat(43) }),
+          {},
+          port,
+        )
+        expect(setup.status).toBe(200)
+        expect(fixture.request).toHaveBeenCalledTimes(3)
+      } finally {
+        await retry.close()
+      }
+    },
+  )
   nodeNativeTest('H09 raw connections are bounded before TLS work', async () => {
     const held: Socket[] = []
     try {

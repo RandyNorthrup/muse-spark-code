@@ -263,6 +263,22 @@ describe('home node records', () => {
       ).toBe(false)
     },
   )
+  it('H15 audit distinguishes verified auth proofs from allowed access only for auth', () => {
+    const { v, seq, time, nodeId, sessionId, previousHash, hash } = nodeAudit()
+    const fields = { v, seq, time, nodeId, sessionId, previousHash, hash, outcome: 'verified' }
+    expect(
+      nodeAuditSchema.safeParse({
+        ...fields,
+        kind: 'signin',
+        action: 'signin',
+        credentialIdHash: nodeHash,
+      }).success,
+    ).toBe(true)
+    expect(
+      nodeAuditSchema.safeParse({ ...fields, kind: 'stepUp', actionDigest: nodeHash }).success,
+    ).toBe(true)
+    expect(nodeAuditSchema.safeParse({ ...nodeAudit(), outcome: 'verified' }).success).toBe(false)
+  })
   it.each([
     ['version', { ...nodeEvent(), v: 2 }],
     ['sequence', { ...nodeEvent(), seq: 0 }],

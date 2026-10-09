@@ -11,6 +11,8 @@ import {
   nodeDomainSchema,
   nodeTokenSchema,
   type NodeAuthPort,
+  type NodeAuthChallenge,
+  type NodeStepUp,
 } from '../../../shared/nodeAuth'
 import { fill, formatDateTime } from '../../../shared/l10n/text'
 import { NodeListenerAdmission, NodeListenerError } from '../listenerGuard'
@@ -122,6 +124,7 @@ export class NodePasskeyAuth {
     isProof: boolean,
     credentialId: string,
     work: () => Promise<T>,
+    action: 'signin' | 'enroll' = 'signin',
   ): Promise<T> {
     const release = this.admission.enter(source, true)
     return this.transactions.enqueue(async () => {
@@ -130,7 +133,13 @@ export class NodePasskeyAuth {
         const result = await work()
         isFailed = false
         return result
-      } catch {
+      } catch (error: unknown) {
+        if (error instanceof NodeListenerError && error.code === 'rateLimited') {
+          // Allocation refusal is not a bad proof; it must not block completion
+          // of an already-issued challenge or a legitimate console enrollment.
+          isFailed = false
+          throw error
+        }
         const state = this.options.state.read()
         if (isProof && state.passkeys.some((key) => !key.disabled)) {
           await this.options.state.update(state.generation, (value) => ({
@@ -151,7 +160,7 @@ export class NodePasskeyAuth {
             await this.audit('lockout', credentialId, 'denied')
           }
         }
-        await this.audit(isProof ? 'signin' : 'enroll', credentialId, 'denied')
+        await this.audit(action, credentialId, 'denied')
         throw new NodeListenerError('unauthenticated')
       } finally {
         release(isFailed, isProof)
@@ -162,7 +171,7 @@ export class NodePasskeyAuth {
   private async audit(
     action: 'signin' | 'enroll' | 'signout' | 'lockout',
     credentialId: string,
-    outcome: 'allowed' | 'denied',
+    outcome: 'allowed' | 'denied' | 'verified',
     sessionId: string | null = null,
   ): Promise<void> {
     await this.options.state.append({
@@ -175,76 +184,116 @@ export class NodePasskeyAuth {
     })
   }
 
+  private async authenticate(action: 'signin' | 'enroll', credentialId: string) {
+    const result = this.sessions.create()
+    try {
+      // "Allowed" records issued access. The earlier "verified" write is the
+      // persistence barrier; freshness is checked after it and before issuance.
+      await this.audit(action, credentialId, 'allowed', result.session.id)
+      return result
+    } catch (error: unknown) {
+      this.sessions.end(result.session.id)
+      throw error
+    }
+  }
+
+  private async auditStepUp(
+    challenge: Extract<NodeAuthChallenge, { purpose: 'stepUp' }>,
+    outcome: 'verified' | 'allowed' | 'denied',
+  ): Promise<void> {
+    await this.options.state.append({
+      kind: 'stepUp',
+      actionDigest: challenge.actionDigest,
+      sessionId: challenge.sessionId,
+      time: this.options.clock.now(),
+      outcome,
+    })
+  }
+
   /** Bind to the transport's actual remote address, never a client-supplied source field. */
   forSource(source: string, sessionId?: string): NodeAuthPort {
     return {
       begin: async (purpose, setupCode) =>
-        await this.attempt(source, false, '', () => {
-          const state = this.options.state.read()
-          if (purpose === 'enroll') {
-            const codeHash = digest(nodeTokenSchema.parse(setupCode))
-            if (
-              state.setup === null ||
-              state.passkeys.length > 0 ||
-              this.setupDeadline <= this.options.clock.monotonicMs() ||
-              !timingSafeEqual(
-                Buffer.from(codeHash, 'hex'),
-                Buffer.from(state.setup.codeHash, 'hex'),
+        await this.attempt(
+          source,
+          false,
+          '',
+          () => {
+            const state = this.options.state.read()
+            if (purpose === 'enroll') {
+              const codeHash = digest(nodeTokenSchema.parse(setupCode))
+              if (
+                state.setup === null ||
+                state.passkeys.length > 0 ||
+                this.setupDeadline <= this.options.clock.monotonicMs() ||
+                !timingSafeEqual(
+                  Buffer.from(codeHash, 'hex'),
+                  Buffer.from(state.setup.codeHash, 'hex'),
+                )
               )
-            )
-              throw new Error(UI_TEXT.nodeErrors.unauthenticated)
-            return Promise.resolve(this.challenges.issue('enroll', codeHash))
-          }
-          if (state.passkeys.every((key) => key.disabled))
-            throw new Error(UI_TEXT.nodeErrors.locked)
-          return Promise.resolve(this.challenges.issue('signin'))
-        }),
+                throw new Error(UI_TEXT.nodeErrors.unauthenticated)
+              return Promise.resolve(this.challenges.issue('enroll', source, codeHash))
+            }
+            if (state.passkeys.every((key) => key.disabled))
+              throw new Error(UI_TEXT.nodeErrors.locked)
+            return Promise.resolve(this.challenges.issue('signin', source))
+          },
+          purpose,
+        ),
       beginStepUp: (requestedSession, action, actionDigest) => {
         if (requestedSession !== sessionId) throw new Error(UI_TEXT.nodeErrors.forbidden)
         this.sessions.sessionSignal(requestedSession).throwIfAborted()
-        return Promise.resolve(this.challenges.stepUp(requestedSession, action, actionDigest))
+        return Promise.resolve(
+          this.challenges.stepUp(requestedSession, action, actionDigest, source),
+        )
       },
       enroll: async (challengeId, credential) =>
-        await this.attempt(source, true, credential.id, async () => {
-          const epoch = this.epoch
-          const pending = this.challenges.take(challengeId, 'enroll')
-          const state = this.options.state.read()
-          if (
-            state.setup === null ||
-            state.passkeys.length > 0 ||
-            state.setup.codeHash !== pending.setupHash ||
-            this.setupDeadline <= this.options.clock.monotonicMs()
-          )
-            throw new Error(UI_TEXT.nodeErrors.expired)
-          const key = await this.verifier.enroll(pending.challenge, credential, state.ownerId)
-          this.checkEpoch(epoch)
-          if (
-            pending.deadline <= this.options.clock.monotonicMs() ||
-            this.setupDeadline <= this.options.clock.monotonicMs()
-          )
-            throw new Error(UI_TEXT.nodeErrors.expired)
-          const current = this.options.state.read()
-          await this.options.state.update(current.generation, (value) => ({
-            ...value,
-            setup: null,
-            passkeys: [key],
-          }))
-          this.setupDeadline = 0
-          await this.audit('enroll', credential.id, 'allowed')
-          if (pending.deadline <= this.options.clock.monotonicMs())
-            throw new Error(UI_TEXT.nodeErrors.expired)
-          this.checkEpoch(epoch)
-          return this.sessions.create()
-        }),
+        await this.attempt(
+          source,
+          true,
+          credential.id,
+          async () => {
+            const epoch = this.epoch
+            const pending = this.challenges.take(challengeId, 'enroll')
+            const state = this.options.state.read()
+            if (
+              state.setup === null ||
+              state.passkeys.length > 0 ||
+              state.setup.codeHash !== pending.setupHash ||
+              this.setupDeadline <= this.options.clock.monotonicMs()
+            )
+              throw new Error(UI_TEXT.nodeErrors.expired)
+            const key = await this.verifier.enroll(pending.challenge, credential, state.ownerId)
+            this.checkEpoch(epoch)
+            if (
+              pending.deadline <= this.options.clock.monotonicMs() ||
+              this.setupDeadline <= this.options.clock.monotonicMs()
+            )
+              throw new Error(UI_TEXT.nodeErrors.expired)
+            const current = this.options.state.read()
+            await this.options.state.update(current.generation, (value) => ({
+              ...value,
+              setup: null,
+              passkeys: [key],
+            }))
+            this.setupDeadline = 0
+            await this.audit('enroll', credential.id, 'verified')
+            if (pending.deadline <= this.options.clock.monotonicMs())
+              throw new Error(UI_TEXT.nodeErrors.expired)
+            this.checkEpoch(epoch)
+            return await this.authenticate('enroll', credential.id)
+          },
+          'enroll',
+        ),
       signIn: async (challengeId, credential) =>
         await this.attempt(source, true, credential.id, async () => {
           const epoch = this.epoch
           const verified = await this.assert(challengeId, credential, 'signin')
-          await this.audit('signin', credential.id, 'allowed')
+          await this.audit('signin', credential.id, 'verified')
           if (verified.deadline <= this.options.clock.monotonicMs())
             throw new Error(UI_TEXT.nodeErrors.expired)
           this.checkEpoch(epoch)
-          return this.sessions.create()
+          return await this.authenticate('signin', credential.id)
         }),
       stepUp: async (challengeId, credential) =>
         await this.attempt(source, true, credential.id, async () => {
@@ -258,20 +307,30 @@ export class NodePasskeyAuth {
           if (challenge.purpose !== 'stepUp') throw new Error(UI_TEXT.nodeErrors.forbidden)
           this.checkEpoch(epoch)
           this.sessions.sessionSignal(challenge.sessionId).throwIfAborted()
-          await this.options.state.append({
-            kind: 'stepUp',
-            actionDigest: challenge.actionDigest,
-            sessionId: challenge.sessionId,
-            time: this.options.clock.now(),
-            outcome: 'allowed',
-          })
-          this.checkEpoch(epoch)
-          return this.sessions.issueProof(
-            challenge.sessionId,
-            challenge.action,
-            challenge.actionDigest,
-            verifiedTime,
-          )
+          let proof: NodeStepUp | undefined
+          try {
+            await this.auditStepUp(challenge, 'verified')
+            this.checkEpoch(epoch)
+            proof = this.sessions.issueProof(
+              challenge.sessionId,
+              challenge.action,
+              challenge.actionDigest,
+              verifiedTime,
+            )
+            await this.auditStepUp(challenge, 'allowed')
+            return proof
+          } catch (error: unknown) {
+            if (proof !== undefined) {
+              // Consume burns even an expired proof; preserve the audit error.
+              try {
+                await this.sessions.consumeStepUp(proof, new AbortController().signal)
+              } catch {
+                /* Expired or revoked access has already failed closed. */
+              }
+            }
+            await this.auditStepUp(challenge, 'denied')
+            throw error
+          }
         }),
       end: async (requestedSession) => {
         if (requestedSession !== sessionId) throw new Error(UI_TEXT.nodeErrors.forbidden)
@@ -284,10 +343,10 @@ export class NodePasskeyAuth {
 
   /** Local owner console control only; intentionally absent from the network method catalog. */
   consoleSetup(): Promise<void> {
-    this.endAll()
     return this.transactions.enqueue(async () => {
       const state = this.options.state.read()
       if (state.passkeys.some((key) => !key.disabled)) throw new Error(UI_TEXT.nodeErrors.forbidden)
+      this.endAll()
       const code = randomBytes(NODE_AUTH_RANDOM_BYTES).toString('base64url')
       const now = this.options.clock.now()
       const deadline = this.options.clock.monotonicMs() + NODE_SETUP_TTL_MS

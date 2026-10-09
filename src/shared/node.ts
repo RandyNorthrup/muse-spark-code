@@ -174,15 +174,20 @@ const auditFields = {
   hash: nodeDigestSchema,
   outcome: z.enum(['allowed', 'denied', 'expired', 'cancelled', 'failed']),
 }
+const authAuditFields = {
+  ...auditFields,
+  // A verified proof can still expire at the persistence barrier before access.
+  outcome: z.enum(['allowed', 'denied', 'expired', 'cancelled', 'failed', 'verified']),
+}
 /** No free-text payloads, bearer, keys, proof bytes, terminal data or model text. */
 export const nodeAuditSchema = z.discriminatedUnion('kind', [
   z.strictObject({
-    ...auditFields,
+    ...authAuditFields,
     kind: z.literal('signin'),
     action: z.enum(['enroll', 'signin', 'signout', 'lockout']),
     credentialIdHash: nodeDigestSchema,
   }),
-  z.strictObject({ ...auditFields, kind: z.literal('stepUp'), actionDigest: nodeDigestSchema }),
+  z.strictObject({ ...authAuditFields, kind: z.literal('stepUp'), actionDigest: nodeDigestSchema }),
   z.strictObject({
     ...auditFields,
     kind: z.literal('terminal'),

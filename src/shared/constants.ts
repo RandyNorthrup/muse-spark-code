@@ -17,6 +17,8 @@ export const NODE_TLS_VALID_DAYS = 365
 export const NODE_TLS_SERIAL_BYTES = 16
 export const NODE_TLS_CERT_FILE = 'node-certificate.pem'
 export const NODE_TLS_KEY_FILE = 'node-tls-key.pem'
+export const NODE_TLS_DIRECTORY = 'node-tls'
+export const NODE_TLS_PENDING_DIRECTORY = '.node-tls-pending'
 export const NODE_TLS_ISSUE_TIMEOUT_MS = 10_000
 export const NODE_AUTH_USER_HANDLE = 'b3duZXI'
 export const NODE_AUTH_ALGORITHMS = [-7, -257] as const
@@ -100,6 +102,12 @@ export const NODE_SIGNIN_BACKOFF_MS = 1000
 export const NODE_SIGNIN_BACKOFF_MAX_MS = 60 * 1000
 export const NODE_MAX_SESSIONS = 100
 export const NODE_MAX_CHALLENGES = 100
+export const NODE_SOURCE_CHALLENGES = 2
+export const NODE_SIGNIN_CHALLENGES = NODE_MAX_CHALLENGES / 2
+export const NODE_STEP_UP_CHALLENGES =
+  NODE_MAX_CHALLENGES - NODE_SIGNIN_CHALLENGES - NODE_SOURCE_CHALLENGES
+// At most one unauthenticated issuance per interval, even with rotating sources.
+export const NODE_CHALLENGE_BACKOFF_MS = NODE_CHALLENGE_TTL_MS / NODE_SIGNIN_CHALLENGES
 export const NODE_MAX_WORKSPACES = 64
 export const NODE_MAX_PAGE_ITEMS = 1000
 export const NODE_MAX_NAMES = 16

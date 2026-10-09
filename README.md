@@ -3925,6 +3925,18 @@ library; the runnable home node still awaits the sign-in, certificate,
 controller and deployment bindings and platform receipts listed in
 [the node certification](docs/certification/m110-n-node-service.md#named-listener-handoffs).
 
+The passkey and browser-pairing libraries build separately with
+`npm run build:node-auth`, under unchanged 500/350 KiB server/page caps
+(the page cap includes CSS). Challenge issuance has per-source limits and
+a global six-second interval, with separate slots for console-code
+enrollment. Refused recovery preserves healthy sessions. TLS issuance
+publishes the key and certificate together under `node-tls/`; retry after
+a crash discards private uncommitted staging or recovers the same complete
+leaf and fingerprint without overwriting it. Auth audit records distinguish
+`verified` proofs from `allowed` issued access, and record refusal when
+persistence outlasts proof freshness. These libraries still require the
+[A1 integration bindings and platform receipts](docs/certification/m110-a1-passkeys-and-the-pinned-certificate.md#integration-bindings).
+
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
 consent from `dist/reviewer.js`, also shipped with the ACP agent. Ordinary

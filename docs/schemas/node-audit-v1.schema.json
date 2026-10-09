@@ -45,7 +45,7 @@
         },
         "outcome": {
           "type": "string",
-          "enum": ["allowed", "denied", "expired", "cancelled", "failed"]
+          "enum": ["allowed", "denied", "expired", "cancelled", "failed", "verified"]
         },
         "kind": {
           "type": "string",
@@ -119,7 +119,7 @@
         },
         "outcome": {
           "type": "string",
-          "enum": ["allowed", "denied", "expired", "cancelled", "failed"]
+          "enum": ["allowed", "denied", "expired", "cancelled", "failed", "verified"]
         },
         "kind": {
           "type": "string",

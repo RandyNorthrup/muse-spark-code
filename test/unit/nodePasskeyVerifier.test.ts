@@ -1,4 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
+import { createHash, generateKeyPairSync, sign } from 'node:crypto'
+import { verifyAuthenticationResponse, verifyRegistrationResponse } from '@simplewebauthn/server'
+import { isoCBOR, cose } from '@simplewebauthn/server/helpers'
 import * as z from 'zod/mini'
 import { nodeWebAuthnCapture as capture } from './helpers/node/webAuthnCapture'
 import { SimpleNodePasskeys, type NodePasskey } from '../../src/runtime/node/auth/passkeys'
@@ -140,21 +143,39 @@ describe('H05 real SimpleWebAuthn against captured CDP proofs', () => {
           Buffer.from(fixture.registration.response.clientDataJSON, 'base64url').toString(),
         ),
       )
-    await expect(
-      verifier.enroll(
-        challenge('enroll'),
-        {
-          ...fixture.registration,
-          response: {
-            ...fixture.registration.response,
-            clientDataJSON: Buffer.from(
-              JSON.stringify({ ...registrationClient, crossOrigin: true }),
-            ).toString('base64url'),
-          },
+    const registration = {
+      ...fixture.registration,
+      response: {
+        ...fixture.registration.response,
+        clientDataJSON: Buffer.from(
+          JSON.stringify({ ...registrationClient, crossOrigin: true }),
+        ).toString('base64url'),
+      },
+    }
+    // None attestation has no signature to invalidate. The SDK accepts these
+    // cross-origin bytes, so rejection isolates our stricter origin guard.
+    const registered = await verifyRegistrationResponse({
+      response: {
+        id: registration.id,
+        rawId: registration.rawId,
+        type: registration.type,
+        clientExtensionResults: {},
+        response: {
+          clientDataJSON: registration.response.clientDataJSON,
+          attestationObject: registration.response.attestationObject,
+          transports: registration.response.transports ?? [],
         },
-        'owner',
-      ),
-    ).rejects.toThrow('Sign in')
+      },
+      expectedChallenge: fixture.challenge,
+      expectedOrigin: fixture.capture.origin,
+      expectedRPID: 'localhost',
+      requireUserPresence: true,
+      requireUserVerification: true,
+    })
+    expect(registered.verified).toBe(true)
+    await expect(verifier.enroll(challenge('enroll'), registration, 'owner')).rejects.toThrow(
+      'Sign in',
+    )
     const proof = assertion()
     const data: unknown = JSON.parse(
       Buffer.from(proof.response.clientDataJSON, 'base64url').toString(),
@@ -162,20 +183,60 @@ describe('H05 real SimpleWebAuthn against captured CDP proofs', () => {
     const client = z
       .object({ type: z.string(), challenge: z.string(), origin: z.string() })
       .parse(data)
-    await expect(
-      verifier.assert(
-        challenge(),
-        {
-          ...proof,
-          response: {
-            ...proof.response,
-            clientDataJSON: Buffer.from(JSON.stringify({ ...client, crossOrigin: true })).toString(
-              'base64url',
-            ),
-          },
+    // Derive a negative from the captured shape with an ephemeral local key.
+    // Sign the changed clientData hash, so the SDK can no longer reject merely
+    // because the original captured signature covered different bytes.
+    const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+    const jwk = z
+      .object({ x: z.string(), y: z.string() })
+      .parse(publicKey.export({ format: 'jwk' }))
+    const publicCose = isoCBOR.encode(
+      new Map<number, number | Uint8Array>([
+        [cose.COSEKEYS.kty, cose.COSEKTY.EC2],
+        [cose.COSEKEYS.alg, cose.COSEALG.ES256],
+        [cose.COSEKEYS.crv, 1],
+        [cose.COSEKEYS.x, Buffer.from(jwk.x, 'base64url')],
+        [cose.COSEKEYS.y, Buffer.from(jwk.y, 'base64url')],
+      ]),
+    )
+    const encoded = Buffer.from(JSON.stringify({ ...client, crossOrigin: true })).toString(
+      'base64url',
+    )
+    const signed = {
+      ...proof,
+      response: {
+        ...proof.response,
+        clientDataJSON: encoded,
+        signature: sign(
+          'sha256',
+          Buffer.concat([
+            Buffer.from(proof.response.authenticatorData, 'base64url'),
+            createHash('sha256').update(Buffer.from(encoded, 'base64url')).digest(),
+          ]),
+          privateKey,
+        ).toString('base64url'),
+      },
+    }
+    const syntheticKey = { ...key(), publicKey: Buffer.from(publicCose).toString('base64url') }
+    const authenticated = await verifyAuthenticationResponse({
+      response: {
+        id: signed.id,
+        rawId: signed.rawId,
+        type: signed.type,
+        clientExtensionResults: {},
+        response: {
+          clientDataJSON: signed.response.clientDataJSON,
+          authenticatorData: signed.response.authenticatorData,
+          signature: signed.response.signature,
         },
-        key(),
-      ),
-    ).rejects.toThrow('Sign in')
+      },
+      credential: { id: syntheticKey.id, publicKey: publicCose, counter: syntheticKey.counter },
+      expectedChallenge: fixture.challenge,
+      expectedOrigin: fixture.capture.origin,
+      expectedRPID: 'localhost',
+      requireUserVerification: true,
+    })
+    expect(authenticated.verified).toBe(true)
+    await expect(verifier.assert(challenge(), signed, syntheticKey)).rejects.toThrow('Sign in')
   })
 })

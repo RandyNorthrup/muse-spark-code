@@ -163,6 +163,9 @@ export class NodeListener {
       response.end(JSON.stringify(result))
       isFailed = false
     } catch (error: unknown) {
+      // A challenge-allocation refusal is not a failed proof. Repeated 429s
+      // cannot keep account backoff armed against a console-code enrollment.
+      if (error instanceof NodeListenerError && error.code === 'rateLimited') isFailed = false
       refuse(response, error)
     } finally {
       clearTimeout(timeout)

@@ -22540,6 +22540,33 @@ a lazy browser pairing/sign-in entry with OS trust instructions and no
 persistent credential storage. Browser/platform trust receipts remain
 qualification prerequisites; no trust store or firewall is changed here.
 
+**FIXM110A2 scope (RVM110A1B, 2026-10-09).** Close all six A1 review
+findings within H02/H04/H05/H08/H09/H15/H19/H20: bound challenge issuance
+by actual source and globally, with identifier-independent monotonic backoff
+and reserved console-enrollment capacity; refuse healthy-owner recovery
+before invalidating any capabilities; publish the TLS key and leaf in one
+fsynced directory rename and recover abandoned staging or the unchanged
+committed pair/pin at the next issuance. Retain refusal for existing legacy
+flat files and mismatched names; N uses the returned private pair root.
+Make the OpenSSL CA fixture portable to LibreSSL, prove the cross-origin
+guard with a correctly signed negative derivation accepted by the pinned SDK,
+and distinguish verified proofs from issued access in the append-only audit
+so expiry during persistence never records allowed access. Add baseline
+regressions and byte-exact SHA-256 red drills to the A1 certification. No
+dependency, paid/live call, host setting or gate change is in scope.
+
+**FIXM110A2 receipt.** All six RVM110A1B findings are closed. The original
+source reproduces the challenge, recovery, split-publication and audit
+regressions; counterfactual old/new test comparisons expose the test-only
+origin/LibreSSL gaps without claiming a new macOS receipt. **19** red drills
+restore byte-exact with final-source SHA-256 matches. **268** scoped tests
+pass with default timeouts, along with all five type projects, scoped
+lint/format, localization, deadcode, duplication and both production builds.
+Auth server/page sizes are **495.9/500** and **284.4/350 KiB**; every existing
+bundle cap remains green. The prior J-owned host API snapshot mismatch and
+aggregate/platform/audit handoffs remain §7 deferrals. See the A1 certification
+and its `fixm110a2-*.json` registers; no paid/live attempt occurred.
+
 **A1 dependency pins.** `@simplewebauthn/server` 14.0.3 and
 `@simplewebauthn/browser` 14.0.0 are MIT, with no peer dependencies (checked
 2026-10-06). Server integrity:
@@ -23039,6 +23066,20 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
         live or paid call without CLAUDE.md's count first
 
 ## 7. Gates
+
+**FIXM110A2 gate boundary (2026-10-09).** The brief reserves aggregate
+quality/coverage and platform certification for the lead and forbids merging,
+rebasing, pushing and modifying existing shared dependency entries. Run
+scoped whole files directly on Kubuntu with repository-default timeouts,
+at most three files per invocation and one worker. Run all five type projects,
+changed-file lint/format, localization, deadcode, duplication, host API and
+both production builds serially. Vitest's `--cache=false` avoids updating its
+shared results cache. Install the exact lockfile only in private scratch
+space, copying missing package directories without overwriting any entry.
+Retain the existing A1 generated-host-record and inherited dependency-audit
+handoffs below; no gate, cap, rule or hook is weakened. Final receipts and
+SHA-256 red drills are in the A1 certification and its `fixm110a2-*.json`
+registers.
 
 **M110 A1 scoped certification (2026-10-06).** The lane brief forbids the
 aggregate quality run and changes to other owners' files. A1 runs its own

@@ -29,6 +29,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Home-node authentication groundwork bounds challenge issuance per source
+  and globally, reserves console-enrollment slots, and preserves sessions
+  when healthy-owner recovery is refused.
+- Home-node TLS issuance publishes the key and certificate in one atomic
+  commit; retries recover abandoned staging or the unchanged committed pair.
+- Home-node auth audit distinguishes verification from issued access, so a
+  proof that expires during persistence is recorded as refused. Certificate
+  fixtures explicitly request new leaves on OpenSSL/LibreSSL, and the
+  cross-origin regression uses a correctly signed negative proof.
+
 - Home-node WebSocket upgrades accept the browser's `websocket` Fetch
   Metadata destination while HTTP requests keep `empty`; both transports
   continue to reject foreign origins and sites.

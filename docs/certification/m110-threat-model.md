@@ -109,6 +109,26 @@ they do not certify this unimplemented OS runner.
 
 ## Deliberate limits and phase exclusions
 
+**A1 review corrections (RVM110A1B, FIXM110A2, 2026-10-09).** H09 bounds
+outstanding challenges to two per actual socket source and purpose, with
+50 sign-in, 48 step-up and two console-enrollment slots. Sign-in and step-up
+each have an independent global six-second monotonic issuance interval;
+rotating sources or consuming an id cannot reset it, and refused allocation
+cannot extend proof/account backoff. Valid console codes alone reach the
+reserved enrollment slots (H04/H20). Transport/admission limits still apply;
+no finite service promises availability under unlimited network traffic.
+H08/H20's healthy-owner recovery refusal has no session, proof, challenge or
+durable-state side effect. H02/H15 commits both TLS files by one fsynced
+directory rename under N's exclusive service hold; restart discards validated
+uncommitted staging or returns the same verified pair/pin to the console.
+Existing flat legacy files are never overwritten. H05's cross-origin guard
+is isolated by a signed derivation the pinned SDK accepts without that guard.
+H15/H19 auth audit uses `verified` for a valid proof before the persistence
+barrier, `denied` if it expires there, and `allowed` only after capability
+issuance. An allowed row describes issuance, not eventual response delivery
+or later proof consumption. Detailed guard-fire receipts are in the
+[A1 certification](m110-a1-passkeys-and-the-pinned-certificate.md).
+
 **H13 stream lifecycle (RVM110L0-2).** The tool-host observer is installed
 before spawn. Output is acknowledged in order with bounded buffering and
 paused PTY reads; a spontaneous exit follows all output exactly once.

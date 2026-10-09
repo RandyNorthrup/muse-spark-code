@@ -7,13 +7,16 @@ import {
   createPrivateKey,
 } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
-import { readFile, unlink } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { lstat, open, readFile, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import {
   NODE_MAX_AUTH_BYTES,
   NODE_TLS_CERT_FILE,
   NODE_TLS_KEY_FILE,
+  NODE_TLS_DIRECTORY,
+  NODE_TLS_PENDING_DIRECTORY,
   NODE_TLS_ISSUE_TIMEOUT_MS,
   NODE_TLS_SERIAL_BYTES,
   NODE_TLS_VALID_DAYS,
@@ -22,7 +25,7 @@ import {
 import { fill } from '../../../shared/l10n/text'
 import { nodeLanAddressSchema } from '../../../shared/node'
 import { nodeDomainSchema, nodeDigestSchema } from '../../../shared/nodeAuth'
-import { isMissingFile, type NodePrivateFiles } from '../privateFiles'
+import { isMissingFile, NodePrivateFiles } from '../privateFiles'
 
 export interface NodeCertificate {
   root: string
@@ -110,6 +113,38 @@ export async function issueNodeCertificate(
     }
     throw new Error(UI_TEXT.nodeErrors.conflict)
   }
+  const committedRoot = files.file(NODE_TLS_DIRECTORY)
+  let hasCommitted = false
+  try {
+    await lstat(committedRoot)
+    hasCommitted = true
+  } catch (error: unknown) {
+    if (!isMissingFile(error)) throw error
+  }
+  if (hasCommitted) {
+    // A crash after publication may precede the console's receipt of the pin.
+    // Recover the same validated pair; never generate over existing material.
+    const committed = new NodePrivateFiles(committedRoot)
+    const fingerprint = checkNodeCertificate(
+      await committed.read(NODE_TLS_CERT_FILE, NODE_MAX_AUTH_BYTES),
+      await committed.read(NODE_TLS_KEY_FILE, NODE_MAX_AUTH_BYTES),
+      names,
+      now(),
+    )
+    signal.throwIfAborted()
+    return {
+      root: committedRoot,
+      certificateFile: NODE_TLS_CERT_FILE,
+      privateKeyFile: NODE_TLS_KEY_FILE,
+      fingerprint,
+    }
+  }
+  // C/S0 holds N's exclusive service lock through issuance. A leftover staging
+  // directory was never committed; validate its ownership before discarding it.
+  const staging = new NodePrivateFiles(files.file(NODE_TLS_PENDING_DIRECTORY))
+  await staging.prepare()
+  await rm(staging.root, { recursive: true })
+  await staging.prepare()
   const stem = `tls-${randomUUID()}`
   const temporaryKey = `${stem}.key.pem`
   const temporaryCert = `${stem}.cert.pem`
@@ -118,8 +153,8 @@ export async function issueNodeCertificate(
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
     publicKeyEncoding: { type: 'spki', format: 'pem' },
   })
-  await files.write(temporaryKey, privateKey)
   try {
+    await staging.write(temporaryKey, privateKey)
     await promisify(execFile)(
       opensslPath,
       [
@@ -127,9 +162,9 @@ export async function issueNodeCertificate(
         '-new',
         '-x509',
         '-key',
-        files.file(temporaryKey),
+        staging.file(temporaryKey),
         '-out',
-        files.file(temporaryCert),
+        staging.file(temporaryCert),
         '-days',
         String(NODE_TLS_VALID_DAYS),
         '-set_serial',
@@ -147,7 +182,7 @@ export async function issueNodeCertificate(
       ],
       {
         env: {},
-        cwd: files.root,
+        cwd: staging.root,
         timeout: NODE_TLS_ISSUE_TIMEOUT_MS,
         maxBuffer: NODE_MAX_AUTH_BYTES,
         signal,
@@ -155,13 +190,31 @@ export async function issueNodeCertificate(
     )
     // OpenSSL creates output according to umask. Copy only after the child exits;
     // the staging directory is private and C/S0 owns its parent permissions.
-    const pem = await readFile(files.file(temporaryCert), 'utf8')
+    const pem = await readFile(staging.file(temporaryCert), 'utf8')
     const fingerprint = checkNodeCertificate(pem, privateKey, names, now())
     signal.throwIfAborted()
-    await files.write(NODE_TLS_KEY_FILE, privateKey)
-    await files.write(NODE_TLS_CERT_FILE, pem)
+    await staging.write(NODE_TLS_KEY_FILE, privateKey)
+    await staging.write(NODE_TLS_CERT_FILE, pem)
+    await rm(staging.file(temporaryKey))
+    await rm(staging.file(temporaryCert))
+    const directory = await open(staging.root, constants.O_RDONLY | constants.O_DIRECTORY)
+    try {
+      await directory.sync()
+    } finally {
+      await directory.close()
+    }
+    signal.throwIfAborted()
+    // Both fsynced files become visible in one rename. A crash before it leaves
+    // only disposable staging; after it, restart sees the complete pinned pair.
+    await rename(staging.root, committedRoot)
+    const parent = await open(files.root, constants.O_RDONLY | constants.O_DIRECTORY)
+    try {
+      await parent.sync()
+    } finally {
+      await parent.close()
+    }
     return {
-      root: files.root,
+      root: committedRoot,
       certificateFile: NODE_TLS_CERT_FILE,
       privateKeyFile: NODE_TLS_KEY_FILE,
       fingerprint,
@@ -169,6 +222,6 @@ export async function issueNodeCertificate(
   } catch {
     throw new Error(UI_TEXT.nodeErrors.unavailable)
   } finally {
-    await Promise.allSettled([unlink(files.file(temporaryKey)), unlink(files.file(temporaryCert))])
+    await rm(staging.root, { recursive: true, force: true })
   }
 }

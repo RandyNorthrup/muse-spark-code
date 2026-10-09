@@ -1,11 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   NODE_CHALLENGE_TTL_MS,
+  NODE_CHALLENGE_BACKOFF_MS,
+  NODE_MAX_CHALLENGES,
   NODE_SETUP_TTL_MS,
   NODE_SIGNIN_BACKOFF_MAX_MS,
   NODE_SIGNIN_MAX_FAILURES,
 } from '../../src/shared/constants'
 import { NodePasskeyAuth } from '../../src/runtime/node/auth/service'
+import { nodeStepUpSchema } from '../../src/shared/nodeAuth'
 import {
   authFixture,
   enrolledFixture,
@@ -111,6 +114,27 @@ describe('H04 console enrollment', () => {
     await expect(restarted.forSource('127.0.0.1').begin('enroll', f.code())).rejects.toThrow()
     restarted.endAll()
   })
+  it('H08/H20 refused console recovery preserves sessions, proofs and pending challenges', async () => {
+    const f = await enrolledFixture()
+    const bound = f.auth.forSource('127.0.0.1', f.session.session.id)
+    const step = await bound.beginStepUp(f.session.session.id, 'maker.action', 'a'.repeat(64))
+    const proof = await bound.stepUp(step.id, assertionProof)
+    const pending = await f.port.begin('signin')
+    const signal = f.auth.sessions.sessionSignal(f.session.session.id)
+    const before = f.store.read()
+    await expect(f.auth.consoleSetup()).rejects.toThrow()
+    expect(f.store.read()).toEqual(before)
+    expect(signal.aborted).toBe(false)
+    expect(f.lifecycle.ended).not.toHaveBeenCalled()
+    await expect(
+      f.auth.sessions.verifyBearer(f.session.bearer, new AbortController().signal),
+    ).resolves.toMatchObject({ id: f.session.session.id })
+    await expect(
+      f.auth.sessions.consumeStepUp(proof, new AbortController().signal),
+    ).resolves.toEqual(proof)
+    await expect(f.port.signIn(pending.id, assertionProof)).resolves.toHaveProperty('bearer')
+    f.auth.endAll()
+  })
   it('refuses an enrollment that expires during crypto verification', async () => {
     const f = authFixture()
     await f.auth.consoleSetup()
@@ -138,11 +162,27 @@ describe('H04 console enrollment', () => {
     }
     await expect(port.enroll(challenge.id, registrationProof)).rejects.toThrow()
     expect(f.lifecycle.attached).not.toHaveBeenCalled()
+    expect(f.audit).not.toContainEqual(expect.objectContaining({ outcome: 'allowed' }))
+    expect(f.audit).toContainEqual(expect.objectContaining({ action: 'enroll', outcome: 'denied' }))
     f.auth.endAll()
   })
 })
 
 describe('H05/H08/H09/H19/H20 sign-in controls', () => {
+  it('H09 successful begins cannot hold the table or arm proof backoff through repeated 429s', async () => {
+    const f = await enrolledFixture()
+    const first = await f.auth.forSource('attacker-source').begin('signin')
+    for (let index = 0; index < NODE_MAX_CHALLENGES; index++) {
+      await expect(f.auth.forSource(`rotated-${String(index)}`).begin('signin')).rejects.toThrow(
+        'Too many',
+      )
+    }
+    expect(f.store.read().passkeys[0]).toMatchObject({ failures: 0, disabled: false })
+    await expect(f.port.signIn(first.id, assertionProof)).resolves.toHaveProperty('bearer')
+    f.advance(NODE_CHALLENGE_BACKOFF_MS)
+    await expect(f.port.begin('signin')).resolves.toHaveProperty('challenge')
+    f.auth.endAll()
+  })
   it('refuses another session at begin/end and does not treat an unknown credential as the owner', async () => {
     const f = await enrolledFixture()
     const bound = f.auth.forSource('127.0.0.1', f.session.session.id)
@@ -229,6 +269,32 @@ describe('H05/H08/H09/H19/H20 sign-in controls', () => {
       return result
     }
     await expect(bound.stepUp(challenge.id, assertionProof)).rejects.toThrow()
+    expect(f.audit).not.toContainEqual(
+      expect.objectContaining({ kind: 'stepUp', outcome: 'allowed' }),
+    )
+    expect(f.audit).toContainEqual(expect.objectContaining({ kind: 'stepUp', outcome: 'denied' }))
+    expect(f.audit).toContainEqual(expect.objectContaining({ outcome: 'denied' }))
+    f.auth.endAll()
+  })
+  it('H15 access audit failure revokes a minted session and burns a minted step-up proof', async () => {
+    const f = await enrolledFixture()
+    const append = f.store.append
+    f.store.append = (details) =>
+      details.outcome === 'allowed'
+        ? Promise.reject(new Error('access audit unavailable'))
+        : append(details)
+    const signin = await f.port.begin('signin')
+    await expect(f.port.signIn(signin.id, assertionProof)).rejects.toThrow()
+    expect(f.lifecycle.ended).toHaveBeenCalledOnce()
+    f.advance(NODE_SIGNIN_BACKOFF_MAX_MS)
+    const bound = f.auth.forSource('127.0.0.1', f.session.session.id)
+    const step = await bound.beginStepUp(f.session.session.id, 'maker.action', 'a'.repeat(64))
+    const issue = vi.spyOn(f.auth.sessions, 'issueProof')
+    await expect(bound.stepUp(step.id, assertionProof)).rejects.toThrow()
+    const proof = nodeStepUpSchema.parse(issue.mock.results[0]?.value)
+    await expect(
+      f.auth.sessions.consumeStepUp(proof, new AbortController().signal),
+    ).rejects.toThrow()
     f.auth.endAll()
   })
   it('mints no sign-in session when audit outlasts the challenge', async () => {
@@ -242,6 +308,10 @@ describe('H05/H08/H09/H19/H20 sign-in controls', () => {
     }
     await expect(f.port.signIn(challenge.id, assertionProof)).rejects.toThrow()
     expect(f.lifecycle.attached).toHaveBeenCalledOnce()
+    expect(f.audit).not.toContainEqual(
+      expect.objectContaining({ action: 'signin', outcome: 'allowed' }),
+    )
+    expect(f.audit).toContainEqual(expect.objectContaining({ action: 'signin', outcome: 'denied' }))
     f.auth.endAll()
   })
   it('shows durable lockout on the console even when the audit store is unavailable', async () => {

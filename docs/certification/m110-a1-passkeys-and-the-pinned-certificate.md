@@ -317,3 +317,135 @@ made to overwrite or delete the cache again, substitute a launcher, change
 hook configuration or alter a gate. The side effect is retained explicitly
 in `m110-a1/dependency-install.json`, rather than claiming every existing
 entry remained untouched throughout testing.
+
+## RVM110A1B corrections — FIXM110A2, 2026-10-09
+
+Base `7ad52905d`, branch `m110/a2`, rig Kubuntu. All six findings are closed
+in the shared runtime, schemas and owning tests; no editor-specific path,
+new dependency, trust-store change, external listener or model call is added.
+
+| Finding                                                     | Threat rows        | Correction and regression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1 challenge table held without backoff                     | H04, H09, H19, H20 | `auth/challenges.ts` limits each purpose to two pending challenges per actual source, with 50 sign-in, 48 step-up and two console-enrollment slots. Independent sign-in/step-up global six-second monotonic intervals survive consuming ids and changing sources. Rejected allocations do not move these deadlines or arm failed-proof/account backoff in `auth/service.ts` or `listener.ts`. `nodeAuthChallenges`, `nodePasskeyAuth` and the real HTTPS `nodeListener` regressions cover rotating sources, quotas, reserved enrollment and successful proof completion after repeated 429s. |
+| P2 refused console recovery revokes sessions                | H08, H20           | `consoleSetup` checks healthy passkeys inside the serialized transaction before `endAll`. The regression verifies unchanged durable state, an un-aborted session signal, bearer verification, proof consumption and completion of an already-pending sign-in. Accepted disabled-owner recovery retains revocation and console-only setup.                                                                                                                                                                                                                                                    |
+| P2 separate key/certificate commits                         | H02, H15           | `tls/certificate.ts` writes both files into owner-validated `.node-tls-pending`, fsyncs files/directory, renames that directory once to `node-tls`, then fsyncs its parent. The returned `root` is this private pair directory. Retry discards abandoned staging or revalidates and returns the unchanged complete pair/pin after publication. Legacy flat files, changed SANs, unsafe ownership, invalid keys and expired leaves refuse; existing material is never overwritten. Tests inject certificate-write failure, retry, and simulate restart before/after publication.              |
+| P3 H02 fixture portability                                  | H02                | The CA fixture explicitly supplies `req -new -x509`, an empty environment and a bounded child timeout. A named fixture assertion verifies `-new`; removing it fails the hook. The listener's CA fixture also supplies `-new`. Linux runs the real assertions; native Windows retains the existing named unsupported DACL boundary.                                                                                                                                                                                                                                                           |
+| P3 cross-origin regression does not isolate assertion guard | H05                | The test signs changed client data with an ephemeral local P-256 key, in the captured response shape, and first verifies that the pinned SDK accepts it. It then requires our verifier to reject. The none-attestation registration derivation also proves SDK acceptance before testing our guard. No private key is persisted or captured, and no new browser/service wire shape is invented.                                                                                                                                                                                              |
+| P3 expired proof audited as allowed                         | H15, H19           | Auth audit has a non-authorizing `verified` outcome, confined to sign-in and step-up schema branches and the shipped JSON schema. The persistence barrier records verification, then checks freshness before capability issuance; expiry records denial and no allowed row. Allowed rows record issued access. Failure of the final access audit revokes the minted session or burns the proof. Enrollment denials carry their correct action; expired step-up also has its own denied row.                                                                                                  |
+
+### Before-fix comparisons and red drills
+
+[The baseline register](m110-a1/fixm110a2-baselines.json) records exact
+`git show 7ad52905d:<path>` source bytes and original/restored SHA-256 for
+five comparisons. All final bytes restored exactly:
+
+- Original auth service and challenge table: **6 failed / 18 passed**, including
+  challenge flooding, refused recovery, enrollment/sign-in/step-up audit expiry
+  and final audit failure.
+- Original certificate issuer against the new suite: **3 failed / 5 passed**,
+  including the orphan key after the injected certificate-write failure and
+  failed restart recovery.
+- Original listener: **1 failed / 9 passed**, the repeated-429 enrollment
+  regression.
+- Original verifier test with only the assertion `checkClientData` call removed:
+  **10 passed**. This proves the old unsigned assertion missed that hole;
+  the new signed test fails when the same call is removed.
+- Original issuer and original H02 test on this Linux/OpenSSL rig:
+  **6 passed**. The review's macOS/LibreSSL 3.3.6 receipt instead reports a
+  hook timeout and six skipped tests. This lane fixes the argv and proves its
+  fixture guard fires, but does not claim a new macOS receipt. The two
+  test-only P3 corrections prove gaps in the old tests rather than falsely
+  claiming a baseline production failure where the guard already existed.
+
+[The drill register](m110-a1/fixm110a2-drills.json) contains **19 accepted
+red failures and 19 byte-exact restorations**, with SHA-256 for original,
+mutated and restored files, the whole-file command and the named failed
+assertion. Every original hash matches the final source. Drills cover global
+issuance backoff/arming, per-source and purpose quotas, both 429 boundaries,
+recovery refusal, partial TLS publication, abandoned and committed crash
+states, the OpenSSL fixture, both origin guards, all three audit expiry
+paths, schema acceptance and audit-failure capability cleanup.
+
+The first TLS publication mutation affected the shared fixture itself and
+prevented the new regression from executing; it is not counted as an
+accepted guard drill. The accepted mutation changes publication only for the
+single-name regression leaf, leaving the two-name shared fixture intact.
+An exploratory removal of both origin calls failed the old registration
+assertion; the accepted baseline comparison removes only the assertion call
+and demonstrates the exact reviewed gap. No production workaround or gate
+change was retained.
+
+### Dependency installation and limits
+
+The rig initially lacked the pinned WebAuthn package directories. A canonical
+`npm ci --prefix "$TMPDIR/deps" --ignore-scripts --no-audit` installed the
+exact existing lockfile in private disk-backed scratch space. Only the 24
+missing top-level package trees were copied in, including `tsyringe`'s nested
+`tslib` (25 package directories). A SHA-256/stat snapshot of **31,224**
+pre-existing regular files and symlinks proves **zero** changed entries across
+copy-in. [The copy receipt](m110-a1/fixm110a2-dependency-copy.json) records the
+snapshot digest and paths. No existing package, binary, symlink or npm
+bookkeeping entry was overwritten, renamed or deleted; dependency pins and
+lockfile are unchanged. Test commands use `--cache=false` to avoid the
+predecessor's generated Vitest results-cache side effect. Scratch installation
+is removed after verification.
+
+N/C/S0 must retain the exclusive `ownService` hold around certificate
+issuance and use the returned pair root. An allowed audit row describes
+capability issuance, not response delivery or later proof use; existing
+monotonic session/proof checks still govern use. Global issuance limits and
+reserved enrollment remove the reviewed challenge-holding attack; finite
+transport bounds cannot promise availability under unlimited network load.
+A0-TLS/A0-NAME, editor/browser/platform bindings, integrated quality and the
+previously recorded J-owned host API and inherited audit blockers remain
+lead-owned. No paid/live model attempt occurred (**0**).
+
+### Final scoped verification
+
+Final whole-file runs on Kubuntu use `--maxWorkers=1 --cache=false`, at most
+three files per invocation, and the repository's unchanged test/hook timeouts:
+
+| Files                                                      |  Passed |
+| ---------------------------------------------------------- | ------: |
+| `nodePasskeyAuth`, `nodeAuthChallenges`, `nodeCertificate` |      42 |
+| `nodePasskeyVerifier`, `nodeListener`, `nodeListenerGuard` |      80 |
+| `node`, `nodeAuthSessions`, `nodeAuthMethods`              |     130 |
+| `NodePairing`, `nodeAuthBuild`                             |      16 |
+| Total                                                      | **268** |
+
+`npm run typecheck` passes all five projects. Changed-file ESLint with
+`--max-warnings=0`, changed-text Prettier, `npm run deadcode`, `npx jscpd`
+(zero clones), and localization all pass: **623 sources, 14 tables, 164
+manifest strings, 0 problems**. The schema-matching test exposed the event
+schema's embedded audit branches as well as the standalone audit document;
+both shipped schemas now match their canonical parsers. No test filter,
+raised timeout, new ignore, escape hatch, lint suppression or cap change is
+used. Git hooks remain configured as `.husky/_` with the installed
+lint-staged and staged gitleaks commands.
+
+Both `npm run build` and the README's `npm run build:node-auth` exit **0**.
+The regular build passes every size, split, host-globals and notices check.
+Final representative sizes (KiB):
+
+| Artifact                          | Size / unchanged cap |
+| --------------------------------- | -------------------: |
+| Auth server                       |          495.9 / 500 |
+| Auth page including CSS           |          284.4 / 350 |
+| Extension                         |          437.0 / 600 |
+| Model API                         |          447.0 / 475 |
+| Checkpoint store                  |           77.3 / 225 |
+| Node service                      |            65.1 / 75 |
+| ACP                               |          817.9 / 850 |
+| Webview entry plus static imports |          896.8 / 900 |
+| Deferred webview JS               |            49.7 / 50 |
+
+`npm run check:host-api` still exits **1**, one generated-record mismatch:
+inherited Node import counts and A1's pairing stylesheet in the unchanged
+61-variable theme list. Regeneration stays with J at integration, as already
+recorded under PLAN §7; this lane neither edits that owner's record nor
+weakens the gate. The inherited dependency-audit blockers remain the earlier
+A1 receipt; pins and lockfile are unchanged and no new network audit is run
+under this brief's network limit. Full `npm run quality`/coverage and the
+macOS/Windows/platform trust receipts remain lead-owned, explicitly deferred
+under the lane brief. All six review findings are closed within this scoped
+receipt; this is not a claim of aggregate quality or home-node support.
