@@ -19131,6 +19131,78 @@ schedule data directory). Evidence: `test/unit/windowsTrustedPath.test.ts`
 in-tree junctions below it, drive-letter spelling) and
 `docs/certification/trustroot.md`.
 
+### D109 — Secondary roles: a busy role borrows an idle agent, and gives it back (M120, 2026-10-09)
+
+The owner, 2026-10-09: "i want to be able to assign fallback roles to agents
+so they have the main role but if all of a certain type of lane needs help
+... a codex agent is assigned a role as a review agent and all of the coding
+slots are consumed the coding could fallback to that review agent ... if the
+review agent is needed its main role needs to resume priority and there
+should be timers on this so an agent is not pulled ... if they have work very
+soon in the pipeline and we dont want them assigned to that sub role if it
+just became needed it should be a minute or longer". Lead's calls on the
+name and the timers are below. This extends D103; it does not replace it.
+
+- **The name.** Every agent (D103 candidate) has one **main role** and may
+  have **secondary roles**, in order. The panel says "Main role: Review ·
+  Also helps with: Coding". Lending an agent to a secondary role is
+  **borrowing**; taking it back is a **recall**.
+- **When a role may borrow.** All of these hold:
+  - the role has a task that has waited at least the **demand wait** (60 s
+    by default, never less than 60 s) with every candidate on its own
+    preference list busy, capped, rate-limited or unavailable, the whole
+    time (a main candidate freeing up in the window cancels the borrow);
+  - the agent lists that role as a secondary role, meets the task's
+    conditions (D103: platform, tools; review ≠ author), and is under its
+    own caps and the team's;
+  - the agent has no running task and no main-role work **due soon**: none
+    of its main role's tasks is queued, and no running task that will
+    produce main-role work for it (a coding lane that will need a review, a
+    review that will need a fix) is expected to finish within the
+    **lookahead** (10 min by default). The expected finish comes from the
+    running task's time box and the role's recorded median duration;
+  - the agent has not come back from a borrow within the **cooldown**
+    (3 min by default).
+- **Who is borrowed first.** The agent whose main role is idlest: the
+  longest expected time to its next main-role work, then the agent's own
+  secondary-role order, then the borrowing role's preference list order.
+- **One task at a time.** A borrowed agent takes one task. When it ends,
+  the agent returns to its main role before it can be borrowed again.
+- **The main role takes it back.** When main-role work arrives for a
+  borrowed agent, and no other main candidate can take it:
+  - a borrowed task expected to finish within the **finish grace** (5 min
+    by default) finishes first;
+  - otherwise the agent is recalled at the task's next safe point, waiting
+    at most the **recall wait** (2 min by default). The D103 handoff
+    captures the work: commits, uncommitted diff, new files, a progress
+    note. The task goes back to the head of its role's queue, keeping its
+    place. If no safe point comes within the recall wait, the agent is
+    stopped and the work is captured the same way, so nothing is lost.
+  - if a main candidate frees up first, the main-role work goes there, and
+    the borrow continues.
+- **Review ≠ author, through borrowing.** An agent that coded a task as a
+  borrowed coder never reviews that task, and neither does its engine (D103).
+- **Meters and money.** A borrowed agent's use counts against its own caps
+  and the borrowing role's pool caps. Paid extras still ask once before the
+  first charge (D78). Borrowing never raises a cap.
+- **Shown, not hidden.** The roster and the panel show "Codex: Review,
+  helping with Coding (since 14:02)". Every skip has a reason ("not
+  borrowed: a review is due in about 4 min"). A recall shows why. The task
+  report records each borrow and each recall in the D103 chain.
+- **Settings.** Each role's advanced settings hold the demand wait,
+  lookahead, finish grace, recall wait and cooldown, with the defaults above.
+  The demand wait cannot go below 60 s. The preference editor sets an
+  agent's secondary roles by drag and drop, in every editor.
+- **Defaults.** A user with no team, or with no secondary role set, sees no
+  change; golden requests stay byte-identical. The built-in team templates
+  set sensible secondary roles out of the box (enhancements on by default):
+  `frontend` and `backend` help each other and `engineering`; `review` helps
+  `engineering`. The user can clear them.
+- **Fleet first.** The lead's rig fleet follows the same rules. In
+  `scratchpad/rig-lanes/roles.json`, the review engine's secondary role is
+  coding, with the same timers. Every borrow and recall is logged to
+  `fleet-outcomes.tsv`.
+
 ## 3. Open questions (need the owner)
 
 - **Q-CIFIXM-HOSTED-ERRORS (2026-10-09, macbook):** log downloads for
@@ -37237,7 +37309,7 @@ recovery; interrupted Resume remains the captured control.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
-### M120 — Preferred agents, availability routing and lane handoff (D103)
+### M120 — Preferred agents, availability routing and lane handoff (D103, D109)
 
 **Status 2026-10-08: planned.**
 
@@ -37252,9 +37324,11 @@ recovery; interrupted Resume remains the captured control.
     area hints, task-to-role routing, split-or-cross-review for mixed
     tasks, and user-defined specializations;
   - S, selection: the live availability, skip reasons and conditions,
-    including review ≠ author;
+    including review ≠ author; D109 borrowing (demand wait, due-soon
+    lookahead, cooldown, idlest-first) on the same clock and board;
   - H, handoff: safe points, stopping the tree, capturing work, the resume
-    brief and the chain record;
+    brief and the chain record; D109 recall (finish grace, recall wait,
+    back to the head of the queue);
   - P, panel: the preference editor and "Move to…" in every editor;
   - W, wiring into D75 pools, M100/M110 routing, the judge engine, M95
     provider order and M116 dispatch.
@@ -37268,6 +37342,11 @@ recovery; interrupted Resume remains the captured control.
   - a front-end task goes to the `frontend` preference list and a back-end
     task to `backend`, with the reason shown;
   - a mixed task is split, or cross-reviewed by the other specialist;
+  - D109, on a fake clock: a role borrows only after 60 s of unmet demand
+    and never an agent with main-role work due within the lookahead; a
+    main-role task recalls the borrowed agent (finish grace honoured,
+    recall wait bounded, work captured, task back at the queue head); the
+    cooldown stops thrash; a borrowed coder never reviews its own task;
   - reorder suggestions come from recorded outcomes, and nothing reorders
     by itself unless the user opts in;
   - a single-model user sees no change (golden requests byte-identical);
