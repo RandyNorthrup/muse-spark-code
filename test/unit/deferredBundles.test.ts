@@ -24,6 +24,7 @@ import {
   sharedValidation,
   sharedWire,
 } from '../../scripts/lib/deferredBundles.mjs'
+import { hardwareGuardSplit } from '../../scripts/lib/hardwareGuardSplit.mjs'
 import type * as validation from '../../src/shared/validationEntry'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -76,14 +77,8 @@ beforeAll(async () => {
       ...common,
       outdir: 'dist',
       entryPoints: {
-        extension: 'src/extension.ts',
         questionNotes: 'src/core/questions/deferralEntry.ts',
         reference: 'src/shared/reference/referenceEntry.ts',
-        conversation: 'src/host/conversation/conversationEntry.ts',
-        verifyEditor: 'src/host/editor/verifyEditor.ts',
-        makerHost: 'src/host/maker/makerEntry.ts',
-        makerPreviewHost: 'src/host/maker/makerPreviewEntry.ts',
-        modelApi: 'src/host/backend/modelApiEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',
         reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
         foreignHooks: 'src/core/backends/modelapi/foreignHooksEntry.ts',
@@ -108,6 +103,21 @@ beforeAll(async () => {
       plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
       external: ['vscode', '@napi-rs/keyring'],
     }),
+    // scripts/build.mjs gives the host family and Model API the hardware guard proxy.
+    build({
+      ...common,
+      outdir: 'dist',
+      entryPoints: {
+        extension: 'src/extension.ts',
+        conversation: 'src/host/conversation/conversationEntry.ts',
+        verifyEditor: 'src/host/editor/verifyEditor.ts',
+        makerHost: 'src/host/maker/makerEntry.ts',
+        makerPreviewHost: 'src/host/maker/makerPreviewEntry.ts',
+        modelApi: 'src/host/backend/modelApiEntry.ts',
+      },
+      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, hardwareGuardSplit],
+      external: ['vscode', '@napi-rs/keyring'],
+    }),
     build({
       ...common,
       outdir: 'dist',
@@ -117,7 +127,7 @@ beforeAll(async () => {
         acpQuestions: 'src/acp/questionDeferralEntry.ts',
         runtimeQuestions: 'src/runtime/questions/questionRegistryEntry.ts',
       },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, hardwareGuardSplit],
       external: ['@napi-rs/keyring'],
     }),
     build({
