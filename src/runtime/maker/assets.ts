@@ -14,7 +14,7 @@ window.acquireVsCodeApi = () => ({
   postMessage: raw => {void (async () => {
     await connected;
     const {companionPresenceSchema}=await ready;
-    const {makerHostMessageSchema,makerSurfaceMessageSchema}=await boundaries;
+    const {makerHostMessageSchema,makerSurfaceMessageSchema}=await schemas;
     const message=makerSurfaceMessageSchema.parse(raw);
     const headers={'Content-Type':'application/json'};
     const answering=message.type==='makerAnswer';
@@ -26,27 +26,25 @@ window.acquireVsCodeApi = () => ({
         headers['X-Maker-Approval']=result.grant;
       }
     }
-    const response=await fetch(answering?'/answer':'/message',{method:'POST',headers:headers,body:JSON.stringify(message)});
-    if (!response.ok) throw new Error('maker-message-refused');
-    if (response.status !== 204) {const result=await response.json(); const parsed=makerHostMessageSchema.safeParse(result); if(parsed.success) window.dispatchEvent(new MessageEvent('message',{data:parsed.data}));}
-  })().catch(error => {window.dispatchEvent(new ErrorEvent('error',{error:error}));});}
-
+    const response=await fetch(answering?'/answer':'/message',{method:'POST',headers,body:JSON.stringify(message)});
+    if(!response.ok) throw new Error('maker-message-refused');
+    if(response.status!==204){const result=await response.json();const parsed=makerHostMessageSchema.safeParse(result); if(parsed.success) window.dispatchEvent(new MessageEvent('message',{data:parsed.data}));}
+  })().catch(error=>{window.dispatchEvent(new ErrorEvent('error',{error:error}));});}
 });
 const ready=import('/assets/main.js');
-const boundaries=ready.then(main=>main.makerBoundarySchemas());
+const schemas=ready.then(main=>main.makerBoundarySchemas());
 const {companionBootstrapSchema,companionLaunchSchema}=await ready;
 const delivery=await fetch('/launch-code',{method:'POST'});
 if(!delivery.ok) throw new Error('maker-launch-refused');
 const launch=companionLaunchSchema.parse(await delivery.json());
 const response=await fetch('/launch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(launch)});
 if(!response.ok) throw new Error('maker-launch-refused');
-const bootstrapRaw=await response.json();
-const bootstrap=companionBootstrapSchema.parse(bootstrapRaw);
+const bootstrap=companionBootstrapSchema.parse(await response.json());
 window.museSparkThonnyProvider=bootstrap.provider;
 connect();
-const {makerHostMessageSchema}=await boundaries;
+const {makerHostMessageSchema}=await schemas;
 const events=new EventSource('/events');
-events.onmessage=event => {window.dispatchEvent(new MessageEvent('message',{data:makerHostMessageSchema.parse(JSON.parse(event.data))}));};`
+events.onmessage=event=>{window.dispatchEvent(new MessageEvent('message',{data:makerHostMessageSchema.parse(JSON.parse(event.data))}));};`
 
 function escape(text: string): string {
   return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;')
