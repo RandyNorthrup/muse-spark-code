@@ -113,6 +113,11 @@ and selection, then commit once; cancellation cannot undo a write already
 admitted. Native focus state requires the bound window to be key while the app
 is active. File navigation passes a canonical regular workspace file to xed;
 directories, nonlocal/credential-bearing URLs, escapes and invalid lines refuse.
+Every xed process stays owned until termination; a launch error or nonzero exit
+shows the existing localized failure. Stop terminates pending navigation and
+keeps tracking it until the process is reaped; retired callbacks cannot report
+into a replacement session. Malformed remote panel errors on unbound stdio
+channels are dropped without cancelling unrelated native requests.
 These have core component receipts; actual Xcode commands, undo, focus and
 permission interaction still need the owner at the console.
 

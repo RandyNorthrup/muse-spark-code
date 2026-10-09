@@ -20,6 +20,12 @@ final class PanelModel: ObservableObject {
   private var invocation = UUID()
   weak var webView: WKWebView?
 
+  private let navigationProcessFactory: () -> Process
+  private var navigationProcesses: [UUID: Process] = [:]
+  init(navigationProcessFactory: @escaping () -> Process = { Process() }) {
+    self.navigationProcessFactory = navigationProcessFactory
+  }
+
   static func themeKind(dark: Bool, contrast: Bool) -> String {
     if contrast { return dark ? "highContrastDark" : "highContrastLight" }
     return dark ? "dark" : "light"
@@ -107,6 +113,11 @@ final class PanelModel: ObservableObject {
   }
   func stop() {
     invocation = UUID()
+    // Process reaps the child on termination. Keep ownership until its handler
+    // runs, including after Stop; the retired generation cannot publish errors.
+    for process in navigationProcesses.values {
+      if process.isRunning { process.terminate() }
+    }
     launcher.stop()
     nativeUi.close()
     if let request = pending {
@@ -282,18 +293,31 @@ final class PanelModel: ObservableObject {
       self.error = UI_TEXT.linkOutsideWorkspace
       return
     }
-    let process = Process()
+    let process = navigationProcessFactory()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
     process.arguments = ["xed", "--line", String(line), "--", target.path]
     process.environment = RuntimeLauncher.environment(ProcessInfo.processInfo.environment)
     process.standardOutput = FileHandle.nullDevice
     process.standardError = FileHandle.nullDevice
+    let id = UUID()
+    let generation = invocation
+    navigationProcesses[id] = process
     process.terminationHandler = { [weak self] process in
-      if process.terminationStatus != 0 {
-        DispatchQueue.main.async { self?.error = UI_TEXT.xcodeEditRefused }
+      DispatchQueue.main.async {
+        guard let self = self, self.navigationProcesses.removeValue(forKey: id) === process else {
+          return
+        }
+        process.terminationHandler = nil
+        if self.invocation == generation, process.terminationStatus != 0 {
+          self.error = UI_TEXT.xcodeEditRefused
+        }
       }
     }
-    do { try process.run() } catch { self.error = UI_TEXT.xcodeEditRefused }
+    do { try process.run() } catch {
+      process.terminationHandler = nil
+      navigationProcesses.removeValue(forKey: id)
+      self.error = UI_TEXT.xcodeEditRefused
+    }
   }
 }
 private struct PanelPrompt: Encodable {

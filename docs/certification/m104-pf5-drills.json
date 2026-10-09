@@ -1,0 +1,74 @@
+[
+  {
+    "label": "malformed remote panel fault isolation",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testMalformedRemotePanelErrorsPreserveHeldNativeRequests",
+    "exit": 65,
+    "sha256": "1232b0905b7bc480ef30d15cfc6a44314086854865c1875028925e6951977350",
+    "logSha256": "5717406309010044ac8d30ec5f0fe5e330d56e6512334ab759504557bedb926f",
+    "restored": true
+  },
+  {
+    "label": "navigation process retention",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures",
+    "exit": 65,
+    "sha256": "e868532a60b2b7e600b6cf8acb0d0806d31a844f4cf6dca48742f144aedc7b78",
+    "logSha256": "3059f8a1571ccaa0e7d83cfd8ece75d1311efb1cb4562b082475acaa365ab843",
+    "restored": true
+  },
+  {
+    "label": "navigation process reaping",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures",
+    "exit": 65,
+    "sha256": "e868532a60b2b7e600b6cf8acb0d0806d31a844f4cf6dca48742f144aedc7b78",
+    "logSha256": "3b899fd99d668e51b3d22edc38a896e60022e14c090e9a1d33a8e99cce5ff95b",
+    "restored": true
+  },
+  {
+    "label": "navigation exit failure",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures",
+    "exit": 65,
+    "sha256": "e868532a60b2b7e600b6cf8acb0d0806d31a844f4cf6dca48742f144aedc7b78",
+    "logSha256": "e50c9d00eebf8efbd01e4c9d003747cd7316273340616943b465bd5096531eb3",
+    "restored": true
+  },
+  {
+    "label": "navigation launch failure",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures",
+    "exit": 65,
+    "sha256": "e868532a60b2b7e600b6cf8acb0d0806d31a844f4cf6dca48742f144aedc7b78",
+    "logSha256": "4ef35f9891f6ba661a21b8e813073030ea436b380acadd17c3828107ef601ddc",
+    "restored": true
+  },
+  {
+    "label": "navigation failed launch cleanup",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures",
+    "exit": 65,
+    "sha256": "e868532a60b2b7e600b6cf8acb0d0806d31a844f4cf6dca48742f144aedc7b78",
+    "logSha256": "5c82d93b0ea59bb1ffa3467fc2bec4df25ee937d8cfd632e706eb9ee6c1d1f75",
+    "restored": true
+  },
+  {
+    "label": "navigation Stop termination",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testStopTerminatesAndTracksNavigationWithoutStaleFailures",
+    "exit": 65,
+    "sha256": "e868532a60b2b7e600b6cf8acb0d0806d31a844f4cf6dca48742f144aedc7b78",
+    "logSha256": "5b2fd25c2eabcb47a69c767ee8227444abbcc85eeeee46b68100584513ca40fb",
+    "restored": true
+  },
+  {
+    "label": "navigation retired callback",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testStopTerminatesAndTracksNavigationWithoutStaleFailures",
+    "exit": 65,
+    "sha256": "e868532a60b2b7e600b6cf8acb0d0806d31a844f4cf6dca48742f144aedc7b78",
+    "logSha256": "39186c259bcb7a35f7af2061c998ec9c56e8cb86160e9e72d7ab54c8b87109de",
+    "restored": true
+  }
+]

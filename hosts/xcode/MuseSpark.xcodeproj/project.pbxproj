@@ -5,6 +5,8 @@
 	"objectVersion" = "56";
 	"archiveVersion" = "1";
 	"objects" = {
+		"F104F5000000000000000002" = { "isa" = "PBXBuildFile"; "fileRef" = "0246D6BAAC439D6619B5099B"; };
+		"F104F5000000000000000001" = { "isa" = "PBXBuildFile"; "fileRef" = "653E5FBDE21C9EE673ED9226"; };
 		"F104F4000000000000000001" = { "isa" = "PBXFileReference"; "path" = "../../test/m104/mac/EditorServiceTests.swift"; "lastKnownFileType" = "sourcecode.swift"; "sourceTree" = "SOURCE_ROOT"; };
 		"F104F4000000000000000002" = { "isa" = "PBXBuildFile"; "fileRef" = "F104F4000000000000000001"; };
 		"F104F4000000000000000003" = { "isa" = "PBXBuildFile"; "fileRef" = "C0BB0CBA42683980469AAB84"; };
@@ -921,6 +923,8 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = "2147483647";
 			"files" = (
+				"F104F5000000000000000001",
+				"F104F5000000000000000002",
 				"F104F4000000000000000002",
 				"F104F4000000000000000003",
 				"91877A774289818017E2A06A",

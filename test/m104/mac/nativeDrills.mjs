@@ -125,8 +125,68 @@ const mutations = [
     'testSameOriginFreshLaunchReloadsAndOldClearCannotEraseNewLink',
   ],
 ]
+// --pf5 runs the complete console-free scheme for the PF5 review controls.
+const pf5 = process.argv.includes('--pf5')
+const pf5Mutations = [
+  [
+    'malformed remote panel fault isolation',
+    'hosts/xcode/Shared/MhpSession.swift',
+    'do { try schema.checkPanel(frame, kind: "error") } catch { return }',
+    'try schema.checkPanel(frame, kind: "error")',
+    'testMalformedRemotePanelErrorsPreserveHeldNativeRequests',
+  ],
+  [
+    'navigation process retention',
+    'hosts/xcode/App/PanelModel.swift',
+    'navigationProcesses[id] = process',
+    'navigationProcesses.removeValue(forKey: id)',
+    'testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures',
+  ],
+  [
+    'navigation process reaping',
+    'hosts/xcode/App/PanelModel.swift',
+    'self.navigationProcesses.removeValue(forKey: id) === process',
+    'self.navigationProcesses[id] === process',
+    'testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures',
+  ],
+  [
+    'navigation exit failure',
+    'hosts/xcode/App/PanelModel.swift',
+    'process.terminationStatus != 0',
+    'process.terminationStatus < 0',
+    'testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures',
+  ],
+  [
+    'navigation launch failure',
+    'hosts/xcode/App/PanelModel.swift',
+    'navigationProcesses.removeValue(forKey: id)\n      self.error = UI_TEXT.xcodeEditRefused',
+    'navigationProcesses.removeValue(forKey: id)\n      self.error = nil',
+    'testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures',
+  ],
+  [
+    'navigation failed launch cleanup',
+    'hosts/xcode/App/PanelModel.swift',
+    'navigationProcesses.removeValue(forKey: id)\n      self.error = UI_TEXT.xcodeEditRefused',
+    'self.error = UI_TEXT.xcodeEditRefused',
+    'testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures',
+  ],
+  [
+    'navigation Stop termination',
+    'hosts/xcode/App/PanelModel.swift',
+    'if process.isRunning { process.terminate() }',
+    'if !process.isRunning { process.terminate() }',
+    'testStopTerminatesAndTracksNavigationWithoutStaleFailures',
+  ],
+  [
+    'navigation retired callback',
+    'hosts/xcode/App/PanelModel.swift',
+    'self.invocation == generation, process.terminationStatus != 0',
+    'self.invocation == generation || process.terminationStatus != 0',
+    'testStopTerminatesAndTracksNavigationWithoutStaleFailures',
+  ],
+]
 // --core runs every test in NativeCore, without starting the app/UI scheme.
-const core = process.argv.includes('--core')
+const core = pf5 || process.argv.includes('--core')
 const coreMutations = [
   [
     'cancelled listener startup',
@@ -269,10 +329,14 @@ const coreMutations = [
     'testNativeFailuresAndMalformedResultsUseTheFrozenErrorCodes',
   ],
 ]
-const candidates = core ? coreMutations : mutations
-const record = core
+const coreCandidates = core ? coreMutations : mutations
+const candidates = pf5 ? pf5Mutations : coreCandidates
+const coreRecord = core
   ? 'docs/certification/m104-pf4-core-drills.json'
   : 'docs/certification/m104-pf-native-drills.json'
+const record = pf5 ? 'docs/certification/m104-pf5-drills.json' : coreRecord
+const coreDerivedData = core ? 'temp/m104pf4/DerivedData' : 'temp/m104x/DerivedData'
+const derivedData = pf5 ? 'temp/m104pf5/DerivedData' : coreDerivedData
 const requested = core ? process.argv[3] : process.argv[2]
 const selected =
   requested === undefined
@@ -289,7 +353,8 @@ function prepare() {
   })
   assert.equal(result.status, 0, 'NATIVE_FIXTURE_BUILD')
 }
-mkdirSync('temp/m104pf', { recursive: true })
+const drillDirectory = pf5 ? 'temp/m104pf5/drills' : 'temp/m104pf'
+mkdirSync(drillDirectory, { recursive: true })
 for (const [label, file, before, after, test] of selected) {
   const original = readFileSync(file)
   assert.equal(original.toString().split(before).length, 2, `MHP_DRILL_TARGET:${label}`)
@@ -309,19 +374,27 @@ for (const [label, file, before, after, test] of selected) {
         '-configuration',
         'Debug',
         '-derivedDataPath',
-        core ? 'temp/m104pf4/DerivedData' : 'temp/m104x/DerivedData',
+        derivedData,
         '-destination',
         'platform=macOS',
         'test',
         'CODE_SIGN_IDENTITY=-',
+        ...(pf5 ? ['CODE_SIGNING_ALLOWED=NO'] : []),
       ],
       { encoding: 'utf8', env: buildEnvironment(process.env), maxBuffer: 16 * 1024 * 1024 },
     )
     const log = (output.stdout ?? '') + (output.stderr ?? '')
-    writeFileSync(`temp/m104pf/drill-${receipt.length}.log`, log)
+    writeFileSync(`${drillDirectory}/drill-${receipt.length}.log`, log)
     assert.notEqual(output.status, 0, `MHP_DRILL_DID_NOT_FIRE:${label}`)
-    assert.ok(log.includes(test) && log.includes('failed'), `MHP_DRILL_WRONG_FAILURE:${label}`)
-    receipt.push({ label, file, test, exit: output.status, sha256: digest(original) })
+    assert.ok(log.includes(`${test}]' failed (`), `MHP_DRILL_WRONG_FAILURE:${label}`)
+    receipt.push({
+      label,
+      file,
+      test,
+      exit: output.status,
+      sha256: digest(original),
+      ...(pf5 && { logSha256: digest(log), restored: true }),
+    })
   } finally {
     writeFileSync(file, original)
     assert.equal(digest(readFileSync(file)), digest(original), `MHP_DRILL_RESTORE:${label}`)

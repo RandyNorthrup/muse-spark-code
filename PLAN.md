@@ -19189,6 +19189,28 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104PF5 review repair and continuation (2026-10-08, before code).**
+Repair RVM104PF4's two P2 findings: invalid remote panel errors must stay
+on their unbound channel without cancelling held native requests; every xed
+Process must remain owned until termination, report launch/nonzero failures,
+and be terminated/tracked during Stop. Add console-free core regressions with
+the reviewer's malformed frames and an injected fake Process factory; prove
+both repairs with failing controls and exact source restoration. Continue F's
+available native/service and exact-artifact rows in dependency order, retaining
+explicit A/B/C contract, installed-console, Xcode-version/architecture and
+provider gaps. No merge, push, real xed/UI automation, privacy prompt, live/paid
+call, signing account or support promotion. Scoped sequential gates replace
+aggregate quality under the brief; commit each completed group with hooks on.
+
+**M104PF5 metadata checkpoint (before code).** Now that NativeCore compiles
+PanelModel, move the existing appearance and pending-initialization trust
+regressions from the app-hosted unit target into the console-free core target.
+Preserve their behavior and prove both controls there. Explicitly create only
+NSApplication's invisible test instance for appearance reads; never display a
+window, activate an app, show a sheet or launch the UI test runner. Rebuild the
+real private runtime/native archives and record exact extracted inventories,
+separating local artifact integrity from installed/editor/provider qualification.
+
 **M104PF4 continuation (2026-10-08, before code).** On macmini/Xcode
 26.3, qualify the existing 1.3 relay with real loopback and core XCTest runs.
 Validate every inbound channel against the frozen editor/panel snapshots;
@@ -21021,6 +21043,9 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 | M104PF location                                                                       | Escape hatch                                        | Reason                                                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `hosts/xcode/Shared/{MhpSchema,MhpSession}.swift`, native UI service and native tests | Swift `Any` at JSONSerialization/service boundaries | Foundation's JSONSerialization exposes heterogeneous JSON as Any. The native validator checks A's reviewed schema and narrows each member before use; correlated results are validated again before writing. No key or credential enters this boundary. |
+
+| `hosts/xcode/Shared/MhpSession.swift` (PF5) | Caught invalid remote panel-error validation | The companion binds no stdio surfaces. Drop these unbound remote faults without echo or raw logging; pending native requests stay active. |
+| `test/m104/mac/EditorServiceTests.swift` (PF5) | Swift `Any` Process stream overrides and `@unchecked Sendable` | Foundation requires those concrete Process signatures. This fake launches no child, and all mutable fake state/callbacks are driven on the main thread. |
 
 | M104 B2 location                     | Escape hatch                                       | Reason                                                                                                                                                                                                         |
 | ------------------------------------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

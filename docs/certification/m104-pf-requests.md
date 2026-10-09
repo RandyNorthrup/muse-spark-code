@@ -1,5 +1,38 @@
 # M104PF — requests to owning lanes
 
+## PF5 current dependency audit (2026-10-08)
+
+The RVM104PF4 repairs are owned and tested by F; they require no change to
+shared schemas, model adapters or capability advertising. Current source still
+blocks the next editor/voice/Tab and auxiliary groups:
+
+- **A/B/E, F9/F15/F30/F34:** `runPanel.ts` has no `tab/complete` handler;
+  `backendEntry.ts` exports `createRuntimeTab` without its native invocation
+  composition. XcodeKit still supplies no file URI/background document version.
+  Supply the opaque command snapshot/transaction binding, full document service,
+  selected-model admission, priced consent, hard ledger and awaited settlement.
+- **A/B, F33:** `RuntimeEngineOptions.voice` is the current contribution seam,
+  through `RuntimeFactoryOptions.engineOptions`. The default factory supplies
+  no voice driver. `createRuntimeVoice` requires a guarded listener-based
+  `DictationSetup`, cancellation and drain; the frozen `voice/capture` method
+  alone is insufficient. Supply the owning production contribution and fake
+  helper fixtures before native integration. Real privacy/paid tests remain
+  owner-at-console/explicit-live gaps.
+- **A/C, F7/F19/F21/F43/F45:** `companionSurface` still opens auxiliary pages
+  through opaque `ui/openExternal({ uri })`; Xcode's single WKWebView cannot
+  distinguish replacement chat from another surface by an approved native
+  binding. `ui/showSetting` still needs the settings surface/authority route.
+  Supply surface identity/kind/open/focus/close metadata and settings authority;
+  retain immutable ownership and cross-view paid isolation.
+- **A/lead, distribution:** official `src/runtime/nodeRuntime.json`, shared
+  help catalog/reference tools and the standalone native-drill Knip entry remain
+  absent. Exact private archive evidence cannot replace approved Node pins,
+  licence closure, production manifests or installed backend/provider receipts.
+
+The complete native suite, fake-launcher regressions and current artifacts are
+in [m104-pf5.md](m104-pf5.md). No unrequested merge/network fetch, ownership
+crossing, partial capability promise or installed-row promotion is authorized.
+
 ## PF4 current dependencies (2026-10-08)
 
 - **Lead/D:** the brief's accepted fix commit `0ed2c82b5` and branch
@@ -16,7 +49,7 @@
   URL or route such a buffer through `fileURLToPath`/disk context. Validate Deny
   before dispatch, stale/cancelled completion before one command transaction,
   actual acceptance/rejection and uncertain-spend settlement.
-- **A/B — native voice:** provide the actual `RuntimeFactoryOptions.voice`
+- **A/B — native voice:** provide the actual `RuntimeEngineOptions.voice`
   recorder/driver contribution for the Xcode owner, selected-model admission,
   priced paid consent, bounded duration/audio, hard ledger and awaited
   cancellation/settlement. `voice/capture` describes audio, while the existing

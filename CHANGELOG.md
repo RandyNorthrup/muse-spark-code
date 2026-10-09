@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Xcode drops malformed remote panel errors without cancelling native requests
+  on the companion relay. File navigation retains every xed process until it
+  exits, reports failed launches/opens, and tracks termination during Stop.
+  Console-free regressions use malformed frames and a fake process launcher.
+
 - Xcode command callbacks now fence cancellation at buffer commit and prevent
   listener/client startup after cancellation or close. File navigation resolves
   regular workspace files before xed, and focus reports the bound window's state.

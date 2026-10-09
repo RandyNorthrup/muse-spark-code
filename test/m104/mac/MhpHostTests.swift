@@ -359,6 +359,71 @@ final class MhpHostTests: XCTestCase {
     try session.trust(true)
     session.close()
   }
+  func testMalformedRemotePanelErrorsPreserveHeldNativeRequests() throws {
+    var writes: [Data] = []
+    var held: ((Result<Any, Error>) -> Void)?
+    var heldToken: MhpCancellation?
+    let answered = expectation(description: "held input answered after channel faults")
+    let schema = try MhpSchema()
+    let session = MhpSession(
+      schema: schema,
+      write: { data in
+        writes.append(data)
+        if let frame = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          frame["id"] as? String == "held", frame["result"] != nil
+        {
+          answered.fulfill()
+        }
+      }, launch: { _ in }, failed: { XCTFail("remote panel error closed unrelated relay") },
+      service: { method, _, token, reply in
+        if method == "ui/input" {
+          held = reply
+          heldToken = token
+        } else {
+          reply(.success(NSNull()))
+        }
+      })
+    defer { session.close() }
+    try session.start(
+      workspace: URL(fileURLWithPath: "/workspace"), locale: "en",
+      theme: ["kind": "dark", "tokens": [String: String]()], trusted: false)
+    session.receive(try bytes(initialized()))
+    session.receive(
+      try bytes([
+        "jsonrpc": "2.0", "id": "held", "method": "ui/input",
+        "params": ["title": "held", "prompt": "value"],
+      ]))
+    let count = writes.count
+    let invalid: [[String: Any]] = [
+      ["mhp": "1.3", "kind": "panelError", "code": "MHP_PANEL_UNKNOWN_SURFACE"],
+      [
+        "mhp": "1.3", "kind": "panelError", "surface": "unknown", "seq": 1,
+        "code": "MHP_PANEL_UNKNOWN_SURFACE", "extra": true,
+      ],
+      ["mhp": "1.3", "kind": "panelError", "surface": "unknown", "seq": 1, "code": "new-code"],
+    ]
+    for frame in invalid {
+      XCTAssertThrowsError(try schema.checkPanel(frame, kind: "error"))
+      session.receive(try bytes(frame))
+      XCTAssertTrue(try XCTUnwrap(heldToken).isActive)
+      XCTAssertEqual(writes.count, count, "unbound remote faults must not echo")
+    }
+    session.receive(
+      try bytes([
+        "mhp": "1.3", "kind": "panel", "surface": "another-channel", "seq": 1,
+        "direction": "toPanel", "payload": ["type": "ready"],
+      ]))
+    let channelReply = try XCTUnwrap(
+      JSONSerialization.jsonObject(with: XCTUnwrap(writes.last)) as? [String: Any])
+    XCTAssertEqual(channelReply["surface"] as? String, "another-channel")
+    XCTAssertEqual(channelReply["code"] as? String, "MHP_PANEL_UNKNOWN_SURFACE")
+    try session.trust(true)
+    try XCTUnwrap(held)(.success("answer"))
+    wait(for: [answered], timeout: 1)
+    try schema.check(
+      XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(writes.last)) as? [String: Any]),
+      method: "ui/input", result: true)
+  }
   private func bytes(_ frame: [String: Any]) throws -> Data {
     var data = try JSONSerialization.data(withJSONObject: frame)
     data.append(10)

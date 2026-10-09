@@ -99,6 +99,85 @@ final class EditorServiceTests: XCTestCase {
       try RuntimeLauncher.navigationFile(localLink, workspace: workspace, line: 1),
       file.resolvingSymlinksInPath())
   }
+  @MainActor func testNavigationOwnsEveryProcessUntilTerminationAndReportsFailures() throws {
+    let file = URL(fileURLWithPath: #filePath)
+    var next: NavigationProcess? = NavigationProcess()
+    let first = NavigationProcessReference(next)
+    let model = PanelModel(navigationProcessFactory: {
+      let process = next!
+      next = nil
+      return process
+    })
+    model.workspace = file.deletingLastPathComponent()
+    defer { model.stop() }
+    model.openInXcode(file, line: 1)
+    XCTAssertNotNil(first.process, "navigation process must survive the launch call")
+    XCTAssertEqual(first.process?.executableURL?.path, "/usr/bin/xcrun")
+    XCTAssertEqual(
+      first.process?.arguments, ["xed", "--line", "1", "--", file.resolvingSymlinksInPath().path])
+    XCTAssertFalse(
+      first.process?.environment?.keys.contains(where: { $0.uppercased().hasSuffix("_API_KEY") })
+        ?? true)
+    next = NavigationProcess()
+    let second = NavigationProcessReference(next)
+    model.openInXcode(file, line: 2)
+    XCTAssertNotNil(second.process)
+    first.process?.finish(status: 0)
+    drainNavigationCallbacks()
+    XCTAssertNil(first.process, "completed navigation must release its Process")
+    XCTAssertNotNil(second.process, "another navigation must remain owned")
+    XCTAssertNil(model.error)
+    second.process?.finish(status: 1)
+    drainNavigationCallbacks()
+    XCTAssertNil(second.process)
+    XCTAssertEqual(model.error, UI_TEXT.xcodeEditRefused)
+    model.error = nil
+    next = NavigationProcess()
+    next?.refusesLaunch = true
+    let failed = NavigationProcessReference(next)
+    model.openInXcode(file, line: 1)
+    XCTAssertEqual(model.error, UI_TEXT.xcodeEditRefused)
+    XCTAssertNil(failed.process, "launch failures must release their Process")
+  }
+  @MainActor func testStopTerminatesAndTracksNavigationWithoutStaleFailures() throws {
+    let file = URL(fileURLWithPath: #filePath)
+    var next: NavigationProcess? = NavigationProcess()
+    let first = NavigationProcessReference(next)
+    let model = PanelModel(navigationProcessFactory: {
+      let process = next!
+      next = nil
+      return process
+    })
+    model.workspace = file.deletingLastPathComponent()
+    defer { model.stop() }
+    model.openInXcode(file, line: 1)
+    next = NavigationProcess()
+    let second = NavigationProcessReference(next)
+    model.openInXcode(file, line: 1)
+    model.stop()
+    XCTAssertEqual(first.process?.terminations, 1)
+    XCTAssertEqual(second.process?.terminations, 1)
+    XCTAssertNotNil(first.process, "Stop must retain running navigation until reaped")
+    XCTAssertNotNil(second.process)
+    next = NavigationProcess()
+    let current = NavigationProcessReference(next)
+    model.openInXcode(file, line: 1)
+    first.process?.finish(status: 1)
+    second.process?.finish(status: 1)
+    drainNavigationCallbacks()
+    XCTAssertNil(first.process)
+    XCTAssertNil(second.process)
+    XCTAssertNil(model.error, "retired navigation cannot report into a replacement owner")
+    XCTAssertNotNil(current.process)
+    current.process?.finish(status: 0)
+    drainNavigationCallbacks()
+    XCTAssertNil(current.process)
+  }
+  @MainActor private func drainNavigationCallbacks() {
+    let drained = expectation(description: "navigation termination callbacks")
+    DispatchQueue.main.async { drained.fulfill() }
+    wait(for: [drained], timeout: 1)
+  }
   @MainActor func testFocusRequiresTheBoundWindowAndApplicationActivity() throws {
     _ = NSApplication.shared
     let window = FocusWindow(contentRect: .zero, styleMask: [], backing: .buffered, defer: true)
@@ -180,4 +259,60 @@ final class EditorServiceTests: XCTestCase {
 @MainActor private final class FocusWindow: NSWindow {
   var reportsKey = false
   override var isKeyWindow: Bool { reportsKey }
+}
+
+// No child or real xed is launched. The unchecked Process conformance is
+// required by Foundation; all fake state is driven on the main thread.
+private final class NavigationProcess: Process, @unchecked Sendable {
+  private var fakeExecutable: URL?
+  private var fakeArguments: [String]?
+  private var fakeEnvironment: [String: String]?
+  private var fakeOutput: Any?
+  private var fakeError: Any?
+  private var fakeHandler: (@Sendable (Process) -> Void)?
+  override var executableURL: URL? {
+    get { fakeExecutable }
+    set { fakeExecutable = newValue }
+  }
+  override var arguments: [String]? {
+    get { fakeArguments }
+    set { fakeArguments = newValue }
+  }
+  override var environment: [String: String]? {
+    get { fakeEnvironment }
+    set { fakeEnvironment = newValue }
+  }
+  override var standardOutput: Any? {
+    get { fakeOutput }
+    set { fakeOutput = newValue }
+  }
+  override var standardError: Any? {
+    get { fakeError }
+    set { fakeError = newValue }
+  }
+  override var terminationHandler: (@Sendable (Process) -> Void)? {
+    get { fakeHandler }
+    set { fakeHandler = newValue }
+  }
+  private var fakeRunning = false
+  private var status: Int32 = 0
+  var refusesLaunch = false
+  private(set) var terminations = 0
+  override var isRunning: Bool { fakeRunning }
+  override var terminationStatus: Int32 { status }
+  override func run() throws {
+    if refusesLaunch { throw NativeFailure.launch }
+    fakeRunning = true
+  }
+  override func terminate() { terminations += 1 }
+  func finish(status: Int32) {
+    fakeRunning = false
+    self.status = status
+    terminationHandler?(self)
+  }
+}
+
+private final class NavigationProcessReference {
+  weak var process: NavigationProcess?
+  init(_ process: NavigationProcess?) { self.process = process }
 }

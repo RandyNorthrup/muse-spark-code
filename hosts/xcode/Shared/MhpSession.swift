@@ -221,7 +221,9 @@ final class MhpSession {
   }
   private func acceptPanel(_ frame: [String: Any]) throws {
     if frame["kind"] as? String == "panelError" {
-      try schema.checkPanel(frame, kind: "error")
+      // No stdio surface is bound here. Drop invalid remote channel faults too;
+      // they must never retire unrelated JSON-RPC requests or echo another error.
+      do { try schema.checkPanel(frame, kind: "error") } catch { return }
       return
     }
     var surface: Any = NSNull()
