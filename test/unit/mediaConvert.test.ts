@@ -2,6 +2,7 @@ import { Buffer } from 'node:buffer'
 import { spawn } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import type * as ChildProcess from 'node:child_process'
+import type * as FsPromises from 'node:fs/promises'
 import fs, { chmod, lstat, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -27,6 +28,19 @@ import { fill } from '../../src/shared/l10n/text'
 vi.mock('node:child_process', async (original) => {
   const actual = await original<typeof ChildProcess>()
   return { ...actual, spawn: vi.fn(actual.spawn) }
+})
+// RVMEDIAV 6: a test can hold the final output stat; every other call passes through.
+const heldOutput: { path?: string; onHeld?: () => void } = {}
+vi.mock('node:fs/promises', async (original) => {
+  const actual = await original<typeof FsPromises>()
+  return {
+    ...actual,
+    lstat: vi.fn((file: Parameters<typeof actual.lstat>[0]) => {
+      if (file !== heldOutput.path) return actual.lstat(file)
+      heldOutput.onHeld?.()
+      return new Promise<never>(() => undefined)
+    }),
+  }
 })
 
 const fake: MediaConverter = { kind: 'ffmpeg', command: process.execPath }
@@ -471,6 +485,43 @@ describe('M105 private local conversion', () => {
     // The live sample only: the closed child's PID is never read again.
     expect(readRssBytes).toHaveBeenCalledTimes(1)
     if (result.ok) await result.dispose()
+  })
+
+  it('settles Stop and the deadline while the final output stat is held after close', async () => {
+    const encoding = await fakeEncodingChild()
+    const controller = new AbortController()
+    const readRssBytes = vi.fn(() => {
+      queueMicrotask(() => {
+        // From the successful close on, the output's stat never answers;
+        // Stop arrives while the final check waits on it.
+        heldOutput.path = encoding.output
+        heldOutput.onHeld = () => {
+          controller.abort()
+        }
+        encoding.child.emit('close', 0)
+      })
+      return Promise.resolve(0)
+    })
+    try {
+      const converting = convertToMp4(fixture.input, fake, {
+        readRssBytes,
+        signal: controller.signal,
+        timeoutMs: 50,
+      })
+      const pending = Symbol('pending')
+      const settled = await Promise.race([
+        converting,
+        new Promise<typeof pending>((resolve) =>
+          setTimeout(() => {
+            resolve(pending)
+          }, 1000),
+        ),
+      ])
+      expect(settled).toMatchObject({ ok: false })
+    } finally {
+      delete heldOutput.path
+      delete heldOutput.onHeld
+    }
   })
 
   it.each(['excessive', 'invalid', 'unavailable', 'stalled'])(

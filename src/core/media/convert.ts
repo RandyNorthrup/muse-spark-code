@@ -383,6 +383,28 @@ function runConverter(
       const output = await lstat(options.outputPath)
       return output.isFile() && output.size <= options.maxOutputBytes
     }
+    /** The final check, bounded like a sample (and Windows' job run): a
+     * stalled stat is a failed check, so Stop and the deadline settle. */
+    const isFinalOutputWithinCap = async (): Promise<boolean> => {
+      let deadline: ReturnType<typeof setTimeout> | undefined
+      const late = new Promise<false>((settle) => {
+        deadline = setTimeout(() => {
+          settle(false)
+        }, MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS)
+      })
+      const read = (async () => {
+        try {
+          return await isOutputWithinCap()
+        } catch {
+          return false
+        }
+      })()
+      try {
+        return await Promise.race([read, late])
+      } finally {
+        clearTimeout(deadline)
+      }
+    }
     const sampleResources = async () => {
       try {
         if (!(await isOutputWithinCap()) || child.pid === undefined) {
@@ -435,13 +457,7 @@ function runConverter(
         // final output must still be a file within the cap. No RSS is read
         // from the reaped PID.
         await resourceCheck
-        if (!hasFailed && code === 0) {
-          try {
-            if (!(await isOutputWithinCap())) hasFailed = true
-          } catch {
-            hasFailed = true
-          }
-        }
+        if (!hasFailed && code === 0 && !(await isFinalOutputWithinCap())) hasFailed = true
         release()
         if (hasFailed || code !== 0) reject(new Error('Converter failed'))
         else resolve()
