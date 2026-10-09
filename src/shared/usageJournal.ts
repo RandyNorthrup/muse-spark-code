@@ -3,7 +3,7 @@
 // Optional counters remain absent when unknown. Strict objects reject content,
 // paths, credentials and account identifiers rather than silently storing them.
 import * as z from 'zod/mini'
-import { legacyUsdSchema, nonnegativeUsdSchema } from './usdSchema'
+import { nonnegativeUsdSchema, type legacyUsdSchema } from './usdSchema'
 import {
   USAGE_HEADER_MAX_CHARS,
   USAGE_ID_MAX_CHARS,
@@ -115,12 +115,11 @@ export const usageUnitsSchema = z.strictObject({
   audioSeconds: z.optional(usageAmountSchema),
 })
 // M121: version 2 stores dollars as canonical decimal text. Version 1 stored
-// JSON numbers; the reader converts each to the decimal it was written as
-// (`legacyUsdSchema`), and the store refuses a line whose written digits a
-// number cannot carry (journalStore.ts), never rounding or zeroing it.
-export const USAGE_LEGACY_JOURNAL_VERSION = 1
+// JSON numbers; the journal store builds its version 1 reader from these
+// builders with `legacyUsdSchema` (journalStore.ts), so other bundles carry
+// only the current schemas.
 export const usageUsdSchema = nonnegativeUsdSchema
-function costSchemaWith<M extends typeof usageUsdSchema | typeof legacyUsdSchema>(money: M) {
+export function costSchemaWith<M extends typeof usageUsdSchema | typeof legacyUsdSchema>(money: M) {
   return z.strictObject({
     usd: z.optional(money),
     certainty: usageCertaintySchema,
@@ -131,11 +130,11 @@ function costSchemaWith<M extends typeof usageUsdSchema | typeof legacyUsdSchema
   })
 }
 export const usageCostSchema = costSchemaWith(usageUsdSchema)
-export const usageLegacyCostSchema = costSchemaWith(legacyUsdSchema)
+type CostSchema = typeof usageCostSchema | ReturnType<typeof costSchemaWith<typeof legacyUsdSchema>>
 export type UsageCost = z.infer<typeof usageCostSchema>
 
+// Each builder adds its own `v` literal.
 const identity = {
-  v: z.literal(USAGE_JOURNAL_VERSION),
   id: usageIdSchema,
   at: usageCountSchema,
   day: usageDaySchema,
@@ -149,10 +148,7 @@ function isWithinRecordCap(value: unknown): boolean {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength < USAGE_RECORD_MAX_BYTES
 }
 
-function recordSchemaWith<
-  V extends number,
-  C extends typeof usageCostSchema | typeof usageLegacyCostSchema,
->(version: V, cost: C) {
+export function recordSchemaWith<V extends number, C extends CostSchema>(version: V, cost: C) {
   return z
     .strictObject({
       ...identity,
@@ -189,7 +185,7 @@ export const usageLimitWindowSchema = z.strictObject({
   resetsAt: z.optional(usageCountSchema),
   windowMins: z.optional(usageAmountSchema),
 })
-function limitSchemaWith<
+export function limitSchemaWith<
   V extends number,
   M extends typeof usageUsdSchema | typeof legacyUsdSchema,
 >(version: V, money: M) {
@@ -221,25 +217,6 @@ export const usageJournalEntrySchema = z.discriminatedUnion('type', [
   usageLimitSnapshotSchema,
 ])
 export type UsageJournalEntry = z.infer<typeof usageJournalEntrySchema>
-
-/**
- * What a stored line may be: a version 2 entry, or a version 1 entry whose
- * numeric dollars convert to the same exact decimals, read as version 2.
- */
-export const usageLegacyLimitSnapshotSchema = limitSchemaWith(
-  USAGE_LEGACY_JOURNAL_VERSION,
-  legacyUsdSchema,
-)
-export const usageJournalReadSchema = z.union([
-  usageJournalEntrySchema,
-  z.pipe(
-    z.discriminatedUnion('type', [
-      recordSchemaWith(USAGE_LEGACY_JOURNAL_VERSION, usageLegacyCostSchema),
-      usageLegacyLimitSnapshotSchema,
-    ]),
-    z.transform((entry): UsageJournalEntry => ({ ...entry, v: USAGE_JOURNAL_VERSION })),
-  ),
-])
 
 // M102 extends its record schemas with these fields once its journal lands.
 // Absence denotes a pre-M108 record; the reader resolves it to `default`.

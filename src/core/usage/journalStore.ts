@@ -17,13 +17,12 @@ import {
   USAGE_HISTOGRAM_EDGES_MS,
   USAGE_WINDOW_DAY_MS,
 } from '../../shared/constants'
-import { canonicalUsd } from '../../shared/usdSchema'
+import { canonicalUsd, legacyUsdSchema } from '../../shared/usdSchema'
 import {
-  USAGE_LEGACY_JOURNAL_VERSION,
   usageJournalEntrySchema,
-  usageJournalReadSchema,
-  usageLegacyCostSchema,
-  usageLegacyLimitSnapshotSchema,
+  costSchemaWith,
+  limitSchemaWith,
+  recordSchemaWith,
   usageLimitSnapshotSchema,
   usageAmountSchema,
   usageCountSchema,
@@ -84,6 +83,26 @@ const decoder = new TextDecoder('utf-8', { fatal: true })
 // The host constructs one writer per process; even an accidental second
 // instance must not repeat a diagnostic that could otherwise flood the log.
 const writeDiagnosticState = { hasLogged: false }
+// M121: version 1 stored dollars as JSON numbers. They read through
+// `legacyUsdSchema` as the decimals they were written as; a line whose written
+// digits a number cannot carry is refused (`parseUsageJson`), never rounded.
+const USAGE_LEGACY_JOURNAL_VERSION = 1
+const usageLegacyCostSchema = costSchemaWith(legacyUsdSchema)
+const usageLegacyLimitSnapshotSchema = limitSchemaWith(
+  USAGE_LEGACY_JOURNAL_VERSION,
+  legacyUsdSchema,
+)
+/** A stored line: a version 2 entry, or a version 1 entry read as version 2. */
+const usageJournalReadSchema = z.union([
+  usageJournalEntrySchema,
+  z.pipe(
+    z.discriminatedUnion('type', [
+      recordSchemaWith(USAGE_LEGACY_JOURNAL_VERSION, usageLegacyCostSchema),
+      usageLegacyLimitSnapshotSchema,
+    ]),
+    z.transform((entry): UsageJournalEntry => ({ ...entry, v: USAGE_JOURNAL_VERSION })),
+  ),
+])
 const histogramSchema = z
   .array(usageCountSchema)
   .check(z.length(USAGE_HISTOGRAM_EDGES_MS.length + 1))
