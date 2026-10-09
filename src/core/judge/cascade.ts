@@ -22,6 +22,7 @@ import { JUDGE_CASCADE_CONFIDENCE } from '../../shared/constants'
 import { applyCalibration } from './calibration/apply'
 import type { CalibrationIdentity, CalibrationLimits } from './calibration/schema'
 import { entropyConfidence } from './math'
+import { isServedJudgeModel } from './served'
 import { techniqueProbabilities, type JudgeTechniqueReceipt } from './sampling'
 import {
   judgeCapabilitySchema,
@@ -189,12 +190,17 @@ export function combineCascadeDistributions(
   return { distribution, confidence: entropyConfidence(distribution) }
 }
 
+/** The model that actually served a side: its accepted reported id, else its request id. */
+function servingModel(attempt: SideAttempt, side: JudgeCascadeSide): string {
+  return attempt.status === 'answered' ? attempt.result.model : side.capability.model
+}
+
 function isSideReady(side: JudgeCascadeSide, model: string | undefined): boolean {
   return (
     typeof side.run === 'function' &&
     side.fitVersion.length > 0 &&
     judgeCapabilitySchema.safeParse(side.capability).success &&
-    (model === undefined || model === side.capability.model)
+    (model === undefined || isServedJudgeModel(model, side.capability.model, side.servedModels))
   )
 }
 
@@ -353,7 +359,7 @@ async function attemptSide(
     const result = parsed.data.result
     const ids = Object.keys(request.questions)
     const answered = Object.keys(result.answers)
-    return result.model !== side.capability.model ||
+    return !isServedJudgeModel(result.model, side.capability.model, side.servedModels) ||
       answered.length !== ids.length ||
       ids.some((id) => !answered.includes(id))
       ? { status: 'failed', reason: 'engine-failure', malformed: true }
@@ -450,7 +456,7 @@ function namedAnswer(
   const answer = parsedAnswer.data
   const meta = parsedMeta.data
   return meta.source !== side.capability.source ||
-    meta.model !== side.capability.model ||
+    !isServedJudgeModel(meta.model, side.capability.model, side.servedModels) ||
     techniqueProbabilities(question, answer) === undefined
     ? undefined
     : { answer, meta }
@@ -590,7 +596,7 @@ function settleCascade(
       muse[id] = {
         source: 'both',
         technique: 'cascade',
-        model: deps.separate.capability.model,
+        model: servingModel(separate, deps.separate),
         // No cascade-level profile exists: M75's held-out paired runs of
         // same-only, separate-only and this cascade must first certify one.
         label: 'uncalibrated',
@@ -624,7 +630,7 @@ function settleCascade(
     const combined = judgeOutcomeSchema.safeParse({
       outcome: 'answered',
       result: {
-        model: isSameOnly ? deps.same.capability.model : deps.separate.capability.model,
+        model: isSameOnly ? servingModel(same, deps.same) : servingModel(separate, deps.separate),
         answers,
         muse,
         usage: { input_tokens: inputTokens, output_tokens: outputTokens },

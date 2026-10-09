@@ -76,7 +76,12 @@ export interface HostPhase2BindingInputs {
    * The window's key, ledger, consent and transport for the production
    * side-factory port. Absent: only `sources()` can supply a side.
    */
-  readonly separatePorts?: ((action: JudgeEntryParts) => SeparateSourcePorts) | undefined
+  readonly separatePorts?:
+    ((action: JudgeEntryParts) => Omit<SeparateSourcePorts, 'hasStoredKey'>) | undefined
+  /** A route's key presence changed after discovery: the surface refreshes its status. */
+  readonly onKeyChange?: (() => void) | undefined
+  /** M95's stored credential value for a provider id, for the route's key check. */
+  readonly readStoredCredential?: ((providerId: string) => Promise<string | undefined>) | undefined
 }
 
 /** The window's production phase-2 factory: one shared binding builder. */
@@ -94,6 +99,26 @@ export function createHostPhase2(deps: HostPhase2BindingInputs): {
   })
   const hasJudgeAdoption = (record: unknown, context: JudgeAdoptionContext): boolean =>
     loadJudgeP2().hasJudgeAdoptionEvidence(record, context)
+  // The route's key, checked by the same rule the CLI applies before it
+  // builds (stored, an API key, bound to the route's origin). SecretStorage
+  // is asynchronous, so the answer is read ahead and kept: the first check
+  // starts at construction, and every binding read refreshes it.
+  const keyReady = new Map<string, boolean>()
+  const refreshKey = (separateId: string): void => {
+    const read = deps.readStoredCredential
+    if (read === undefined || separateId === '') return
+    void loadJudgeP2()
+      .hasSeparateSourceKey(separateId, read)
+      .then((isReady) => {
+        const isChanged = keyReady.get(separateId) !== isReady
+        keyReady.set(separateId, isReady)
+        if (isChanged) deps.onKeyChange?.()
+      })
+      .catch(() => {
+        keyReady.set(separateId, false)
+      })
+  }
+  refreshKey(deps.separateId().trim())
   return {
     binding: (action: JudgeEntryParts): ReturnType<typeof createPhase2Binding> => {
       const context = deps.context(action)
@@ -105,7 +130,15 @@ export function createHostPhase2(deps: HostPhase2BindingInputs): {
       const built =
         separateId === '' || sources.separate !== undefined || deps.separatePorts === undefined
           ? undefined
-          : loadJudgeP2().separateSource(separateId, deps.separatePorts(action), 'noul')
+          : loadJudgeP2().separateSource(
+              separateId,
+              {
+                ...deps.separatePorts(action),
+                hasStoredKey: () => keyReady.get(separateId),
+              },
+              'noul',
+            )
+      refreshKey(separateId)
       const separate = sources.separate ?? (built?.kind === 'built' ? built.source : undefined)
       const embeddingQuery = sources.embedding?.query
       const isAwaitingLabels =

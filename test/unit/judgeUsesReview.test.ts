@@ -15,24 +15,15 @@ import type { MuseCodeReviewOutcome } from '../../src/host/review/museCodeReview
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { raceRequested, raceUpdated } from './helpers/stageRaceCapture'
+import { raceUpdated } from './helpers/stageRaceCapture'
+import { capturedApproval } from './helpers/judgeApprovalFixtures'
 import { useAction, useAnswer, useOutput, usePolicy, useQuestion } from './helpers/judgeUsesFixture'
 
 type Approval = Extract<AgentEvent, { type: 'approvalRequested' }>
 
 /** M90's named live capture; no new MSP field or shape invented here. */
 function approval(): Approval {
-  const params = raceRequested('s1')
-  params['turnId'] = 't1'
-  const mapped = mapNotification({ params, method: 'approval/requested' })
-  if (
-    typeof mapped !== 'string' &&
-    'event' in mapped &&
-    mapped.event.type === 'approvalRequested'
-  ) {
-    return mapped.event
-  }
-  throw new Error('captured approval did not map')
+  return capturedApproval()
 }
 
 /** Synthetic internal network subjects reuse M90's captured approval envelope. */

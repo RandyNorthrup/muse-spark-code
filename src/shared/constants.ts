@@ -947,6 +947,10 @@ export const JUDGE_FIT_VERSION = '1'
 // A `museSpark.judge.separate` / `--separate` id naming the local judge
 // (2j); it stays a named gap until vetted install records exist.
 export const JUDGE_LOCAL_SEPARATE_PREFIX = 'local:'
+// Why a configured separate source has no side in this build (M98 phase 2
+// redesign): the window's status line and the CLI/MCP refusal name the
+// same code.
+export const JUDGE_SEPARATE_GAPS = ['key', 'capture', 'install', 'unknown'] as const
 // Recorded phase-2 evidence (PLAN M98 2b/2i, P2B measurement plan) lives in
 // owner storage under this directory: the host's global storage, the
 // CLI/MCP data directory beside the credential file. Never in the VSIX.

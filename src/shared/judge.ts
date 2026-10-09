@@ -1,12 +1,7 @@
 // Extension-owned Judge status, validated at the panel boundary.
 import * as z from 'zod/mini'
 import { JUDGE_PANEL_REASONS } from './judgePanelSchema'
-
-/**
- * Why a configured separate source has no side in this build (M98 phase 2
- * redesign); the status line names it in plain words. Window-only.
- */
-export const JUDGE_SEPARATE_GAPS = ['key', 'capture', 'install', 'unknown'] as const
+import { JUDGE_SEPARATE_GAPS } from './constants'
 
 export const judgeStatusSchema = z.object({
   mode: z.enum(['same', 'separate', 'both', 'off']),

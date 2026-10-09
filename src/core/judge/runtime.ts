@@ -8,7 +8,7 @@ import type { JudgeModeContext, JudgeModeResolution2a, JudgeModeTriggers } from 
 import { judgeOutcomeSchema, type JudgeOutcome, type JudgeRequest } from './schema'
 import type { runEmbeddingJudge, EmbeddingSource } from './embedding/route'
 import type { embeddingAvailability, JudgeEmbeddingBinding } from './embedding/availability'
-import type { JUDGE_SEPARATE_GAPS } from '../../shared/judge'
+import type { JUDGE_SEPARATE_GAPS } from '../../shared/constants'
 
 export interface JudgeRuntimeBinding {
   readonly attemptCostUsd?:

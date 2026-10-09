@@ -59,7 +59,7 @@ describe('P1: the CLI/MCP run budget constrains the dispatched binding', () => {
       '0.0002',
     ])
     const resolved = await deps.resolveSource?.(parsed.options, signal, REQUEST)
-    if (resolved === undefined) throw new Error('source should resolve')
+    if (resolved === undefined || 'outcome' in resolved) throw new Error('source should resolve')
     // The embedding tariff changes after resolution, before dispatch.
     current = {
       ...current,

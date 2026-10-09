@@ -92,6 +92,12 @@ export function createWindowJudge(
           separateConfigured: true,
           sources: () => ({}),
           ...(deps.readStoredCredential !== undefined && {
+            readStoredCredential: deps.readStoredCredential,
+            // A key discovered after the first action refreshes the status
+            // line, so a named gap appears or clears without another action.
+            onKeyChange: () => {
+              refreshPanelGap()
+            },
             separatePorts: (action: JudgeEntryParts) =>
               systemOnePorts(action, deps.readStoredCredential ?? noStoredCredential),
           }),
@@ -113,11 +119,9 @@ export function createWindowJudge(
                   : deps.ledger !== undefined &&
                     current.contextLimit !== undefined &&
                     deps.modelApi(action) !== undefined,
-              paidConsent: windowPaidConsent(
-                backend,
-                deps.ledger !== undefined,
-                deps.paid.consent.remembered().includes('judge'),
-              ),
+              // The action's own consent, Allow once included, reaches the
+              // plan: a configured missing side never suppresses phase 1.
+              paidConsent: actionPaidConsent(action, backend),
               readyRate: deps.readyRate?.(backend),
               minReadyRate: JUDGE_MIN_READY_RATE,
             }
@@ -129,22 +133,76 @@ export function createWindowJudge(
         }))
   const cache = new JudgeResultCache()
   const paidGrants = new Set<string>()
-  // Key presence is read asynchronously from SecretStorage and cached; the
-  // binding reads the cache synchronously, so a key added later is picked
-  // up on a later action and a missing one names its gap meanwhile.
-  const storedKeys = new Map<string, boolean>()
-  let systemOneConsent: 'granted' | 'needed' | 'declined' = 'needed'
+  function refreshPanelGap(): void {
+    if (panel === undefined) return
+    const gap = phase2?.binding(panel.action)?.separateGap
+    if (gap === panel.status.separateGap) return
+    const { separateGap: _previous, ...rest } = panel.status
+    const next = gap === undefined ? rest : { ...rest, separateGap: gap }
+    panel = { ...panel, status: next }
+    deps.status(panel.action, next)
+  }
+  // Each action's own judge consent (Allow once included), read by the
+  // plan and the trigger identity alike so they never disagree.
+  const actionConsent = new WeakMap<JudgeEntryParts, 'granted' | 'declined'>()
+  function actionPaidConsent(
+    action: JudgeEntryParts,
+    backend: 'museCode' | 'modelApi',
+  ): 'granted' | 'declined' | 'unasked' | 'not-required' {
+    const given = actionConsent.get(action)
+    return given !== undefined && backend === 'modelApi' && deps.ledger !== undefined
+      ? given
+      : windowPaidConsent(
+          backend,
+          deps.ledger !== undefined,
+          deps.paid.consent.remembered().includes('judge'),
+        )
+  }
+  // Each action's trigger generation: it moves whenever the action's live
+  // trigger identity (owner, chat model, engine, separate source, turn)
+  // differs from the last one seen, and lane C fences its admission, key
+  // read and POST on it.
+  const triggerGenerations = new WeakMap<JudgeEntryParts, { key: string; generation: number }>()
+  function triggerGenerationOf(action: JudgeEntryParts): number {
+    const key = JSON.stringify(windowTriggers(action))
+    const seen = triggerGenerations.get(action)
+    if (seen === undefined) {
+      triggerGenerations.set(action, { key, generation: 0 })
+      return 0
+    }
+    if (seen.key !== key) triggerGenerations.set(action, { key, generation: seen.generation + 1 })
+    return triggerGenerations.get(action)?.generation ?? 0
+  }
   function systemOnePorts(
     action: JudgeEntryParts,
     readStoredCredential: (providerId: string) => Promise<string | undefined>,
-  ): SeparateSourcePorts {
+  ): Omit<SeparateSourcePorts, 'hasStoredKey'> {
+    // The loud tally: each sent call is its own paid judge row, settled at
+    // the route's own rates into Account & usage.
+    const rows = new JudgeUsageRows({
+      billing: 'modelApi',
+      usage: deps.paid.usage,
+      emit: (event) => {
+        deps.emit(action, event)
+      },
+    })
     return {
-      fetch: globalThis.fetch,
-      hasStoredKey: (providerId) => {
-        void readStoredCredential(providerId)
-          .then((stored) => storedKeys.set(providerId, stored !== undefined && stored !== ''))
-          .catch(() => storedKeys.set(providerId, false))
-        return storedKeys.get(providerId) === true
+      ...(deps.separateTransport !== undefined && { transport: deps.separateTransport }),
+      onCall: (model) => {
+        const id = randomUUID()
+        rows.started(id, action.turnId, model, 'separate')
+        return {
+          failed: () => {
+            rows.failed(id)
+          },
+          settled: (usage, costUsd) => {
+            rows.finished(
+              id,
+              usage === undefined ? undefined : { ...usage, cachedTokens: 0, reasoningTokens: 0 },
+              costUsd,
+            )
+          },
+        }
       },
       systemOne: {
         readStoredCredential,
@@ -163,22 +221,29 @@ export function createWindowJudge(
             },
           }
         },
-        consent: () => (deps.paid.gate.isOn('judge') ? systemOneConsent : 'declined'),
+        // Consent is bound to exactly this route's recipient and tariff and
+        // to the current revocation generation; an ordinary judge grant
+        // never covers it, and "Ask again" asks again.
+        consent: (route) => {
+          if (!deps.paid.gate.isOn('judge')) return 'declined'
+          return deps.paid.consent.isRouteAllowed(route.consentKey) ? 'granted' : 'needed'
+        },
+        generation: () => triggerGenerationOf(action),
         confidential: () => deps.context(action)?.confidential ?? true,
         isExplicit: () => deps.engine() === 'separate' || deps.engine() === 'both',
         // D48: the price and recipient are named before the first charge;
         // the user's own provider key pays, never the subscription.
-        askConsent: async (route) => {
-          if (systemOneConsent === 'granted' && deps.paid.gate.isOn('judge')) return true
-          const isAllowed = await deps.paid.consent.allows({
-            feature: 'judge',
-            modelId: route.model,
-            dailyBudgetUsd: deps.dailyBudgetUsd?.() ?? 0,
-            systemOne: { worstCaseUsd: route.worstCaseUsd, recipient: route.recipient },
-          })
-          systemOneConsent = isAllowed ? 'granted' : 'declined'
-          return isAllowed
-        },
+        askConsent: (route) =>
+          deps.paid.consent.allowsRoute(
+            {
+              feature: 'judge',
+              modelId: route.model,
+              dailyBudgetUsd: deps.dailyBudgetUsd?.() ?? 0,
+              systemOne: { worstCaseUsd: route.worstCaseUsd, recipient: route.recipient },
+            },
+            route.consentKey,
+            () => deps.paid.gate.isOn('judge'),
+          ),
       },
     }
   }
@@ -254,12 +319,11 @@ export function createWindowJudge(
           engine: deps.engine(),
           providerId: current.providerId ?? current.backend,
           modelId: current.modelId,
-          paidConsent: windowPaidConsent(
-            current.backend,
-            deps.ledger !== undefined,
-            deps.paid.consent.remembered().includes('judge'),
-          ),
+          paidConsent: actionPaidConsent(action, current.backend),
           confidential: current.confidential,
+          // The selected separate source is part of the run's identity: a
+          // changed `museSpark.judge.separate` cancels, never re-plans.
+          separateId: deps.separateId?.().trim() ?? '',
           endpoint: current.endpoint,
           profileId: current.profileId,
           ownerId: current.ownerId,
@@ -467,6 +531,7 @@ export function createWindowJudge(
           allowsPaidJudge: async (model) => {
             const isAllowed = await deps.paid.allowsJudgeUse(model)
             consent = isAllowed ? 'granted' : 'declined'
+            actionConsent.set(action, consent)
             isRemembered = deps.paid.consent.remembered().includes('judge')
             return isAllowed
           },

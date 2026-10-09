@@ -7,9 +7,22 @@
 // owner's TypeSafe ruling): only an explicit `separate` or `both` engine
 // selects it, `auto` never does, and it only adds caution to the Muse
 // judge. It never answers the user, writes code or settles a decision alone.
+import { lookup } from 'node:dns/promises'
+import { isIP } from 'node:net'
 import * as z from 'zod/mini'
-import { capabilities, credentialRecord, presets } from '../../../host/backend/providersEntry'
-import { JUDGE_FIT_VERSION, JUDGE_MAX_BODY_BYTES } from '../../../shared/constants'
+import type { PinnedResponse, PinnedTarget } from '../../web/webFetch'
+import { isSecretFieldName, redactSecrets } from '../../redact'
+import {
+  capabilities,
+  credentialRecord,
+  endpointPolicy,
+  presets,
+} from '../../../host/backend/providersEntry'
+import {
+  ADDRESS_FAMILIES,
+  JUDGE_FIT_VERSION,
+  JUDGE_MAX_BODY_BYTES,
+} from '../../../shared/constants'
 import type { Phase2SeparateSource } from '../binding'
 import type { JudgeCapability } from '../schema'
 import { systemOneUsd } from './policy'
@@ -18,6 +31,10 @@ import { createSystemOneJudge, type SystemOneJudgeDependencies } from './source'
 const { systemOneCapability } = capabilities
 const { systemOnePresetById } = presets
 const { isCredentialBound, parseCredentialRecord } = credentialRecord
+/** What the exact credential becomes wherever a provider echoes it. */
+const REDACTED = '[redacted]'
+/** Field names that carry a credential, beyond the shared redactor's names. */
+const CREDENTIAL_FIELD = /authori[sz]ation|bearer|api[-_]?key|secret|token|cookie/i
 
 /** The secret beside a parsed M95 credential record; read, never logged. */
 const storedSecretSchema = z.object({ secret: z.string().check(z.minLength(1)) })
@@ -36,6 +53,11 @@ export interface SystemOneRoute {
   readonly worstCaseUsd: number
   /** The response model ids the capture allows for this request id. */
   readonly servedModels: readonly string[]
+  /**
+   * What a consent for this route is bound to: recipient, model and tariff
+   * ceiling. Another route, or a changed price, never inherits it.
+   */
+  readonly consentKey: string
 }
 
 /** The route a separate id names, or undefined when it names no captured SystemOne model. */
@@ -55,6 +77,13 @@ export function systemOneRoute(separateId: string): SystemOneRoute | undefined {
     verified: preset.wireCapture,
     worstCaseUsd: systemOneUsd(captured.requestTokens, 0, captured),
     servedModels: captured.responseModels,
+    consentKey: JSON.stringify([
+      preset.origin,
+      preset.path,
+      presetId,
+      model,
+      systemOneUsd(captured.requestTokens, 0, captured),
+    ]),
     // The judge-side identity of the captured route. SystemOne serves its
     // own wire only: no logprob request exists (`unknown`), and the route
     // neither forces reasoning nor caches a prefix for the judge.
@@ -82,8 +111,15 @@ export interface SystemOneSideIo {
   readonly readStoredCredential: (providerId: string) => Promise<string | undefined>
   readonly post: SystemOneJudgeDependencies['post']
   readonly reserve: SystemOneJudgeDependencies['reserve']
-  /** Paid consent for this route's price, asked before the first charge. */
-  readonly consent: () => 'granted' | 'needed' | 'declined'
+  /** Paid consent for exactly this route (recipient and tariff), read at every checkpoint. */
+  readonly consent: (route: SystemOneRoute) => 'granted' | 'needed' | 'declined'
+  /**
+   * The surface's current trigger generation for this run (the window's
+   * owner, chat model, engine, separate source and turn). Lane C fences
+   * admission, the key read and the POST on it: a change refunds before
+   * anything is sent.
+   */
+  readonly generation: () => number
   readonly confidential: () => boolean
   readonly measureTokens: (text: string) => number
   /** An explicit `separate`/`both` engine; `auto` never selects an untested route. */
@@ -120,29 +156,151 @@ export async function systemOneKey(
     : undefined
 }
 
-/**
- * The SystemOne POST over the platform's `fetch`: the preset's fixed
- * origin and path only, the key as a bearer header, no redirect followed,
- * and a bounded JSON body. A thrown send keeps its liability (lane C's
- * source treats it as sent); only a parsed 200 can become an answer.
- */
-export function fetchSystemOnePost(fetcher: typeof fetch): SystemOneJudgeDependencies['post'] {
-  return async (request) => {
-    const response = await fetcher(new URL(request.path, request.origin), {
-      method: 'POST',
-      redirect: 'error',
-      headers: { authorization: `Bearer ${request.key}`, 'content-type': 'application/json' },
-      body: request.body,
-      signal: request.signal,
-    })
-    const text = await response.text()
-    let body: unknown
-    try {
-      body = Buffer.byteLength(text) <= JUDGE_MAX_BODY_BYTES ? JSON.parse(text) : undefined
-    } catch {
-      body = undefined
+/** The pinned send the M95 providers use (`pinnedPostRequest`), as an injectable seam. */
+export type SystemOneSend = (
+  target: PinnedTarget,
+  body: string,
+  headers: Readonly<Record<string, string>>,
+  signal: AbortSignal,
+  onConnected: () => void,
+) => Promise<PinnedResponse>
+
+/** Name resolution for the route's host; every address is returned. */
+export type SystemOneResolve = (host: string) => Promise<readonly string[]>
+
+async function defaultResolve(host: string): Promise<readonly string[]> {
+  const rows = await lookup(host, { all: true })
+  return rows.map((row) => row.address)
+}
+
+async function defaultSend(...args: Parameters<SystemOneSend>): Promise<PinnedResponse> {
+  // The Model API bundle's pinned POST, loaded only when a request is made.
+  const { pinnedPostRequest } = await import('../../../host/backend/modelApiEntry')
+  return await pinnedPostRequest(...args)
+}
+
+async function boundedJson(response: PinnedResponse): Promise<unknown> {
+  const chunks: Uint8Array[] = []
+  let size = 0
+  try {
+    for await (const chunk of response.body) {
+      size += chunk.byteLength
+      if (size > JUDGE_MAX_BODY_BYTES) return undefined
+      chunks.push(chunk)
     }
-    return { sent: true, status: response.status, body }
+  } finally {
+    response.close()
+  }
+  try {
+    const parsed: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    return parsed
+  } catch {
+    return undefined
+  }
+}
+
+/** The service's owned shape: kept by name, every value still scrubbed. */
+const OWNED_FIELDS = new Set(['model', 'answers', 'usage'])
+const recordSchema = z.record(z.string(), z.unknown())
+
+/** A field that names a credential is dropped with its value. */
+function isCredentialName(name: string): boolean {
+  return CREDENTIAL_FIELD.test(name) || isSecretFieldName(name)
+}
+
+function scrubValue(value: unknown, key: string, isOwnedMap = false): unknown {
+  if (typeof value === 'string') return redactSecrets(value.split(key).join(REDACTED))
+  if (Array.isArray(value)) return value.map((item) => scrubValue(item, key))
+  const record = recordSchema.safeParse(value)
+  if (!record.success) return value
+  return Object.fromEntries(
+    Object.entries(record.data).flatMap(([name, item]) =>
+      // Names in an owned map (question ids, usage counters) are ours.
+      !isOwnedMap && isCredentialName(name) ? [] : [[name, scrubValue(item, key)]],
+    ),
+  )
+}
+
+/**
+ * A provider body as it may enter a result: the exact active credential is
+ * replaced wherever it appears, string values pass the shared redactor, and
+ * every unknown addition that names a credential is dropped, before any of
+ * it reaches results, receipts, stdout or MCP. The owned shape (`model`,
+ * the answers keyed by question id, `usage`) keeps its names for lane C's
+ * own validation.
+ */
+export function scrubSystemOneBody(value: unknown, key: string): unknown {
+  const record = recordSchema.safeParse(value)
+  if (!record.success) return scrubValue(value, key)
+  return Object.fromEntries(
+    Object.entries(record.data).flatMap(([name, item]) => {
+      if (OWNED_FIELDS.has(name))
+        return [[name, scrubValue(item, key, name === 'answers' || name === 'usage')]]
+      return isCredentialName(name) ? [] : [[name, scrubValue(item, key)]]
+    }),
+  )
+}
+
+/**
+ * The SystemOne POST over the M95 providers' own transport: the preset's
+ * fixed origin and path, resolved once and checked by M95's endpoint policy
+ * (a private or refused address never connects), then sent pinned to that
+ * address with `pinnedPostRequest`. In VS Code that request takes the
+ * user's proxy and certificates, exactly as the M95 providers' requests do
+ * (`src/host/web/pinnedRequest.ts`). No redirect is followed and the body
+ * is bounded. A refusal before the connection is up is not a send (lane C
+ * refunds it); anything after it keeps its liability.
+ */
+export function pinnedSystemOnePost(
+  seams: { readonly resolve?: SystemOneResolve; readonly send?: SystemOneSend } = {},
+): SystemOneJudgeDependencies['post'] {
+  return async (request) => {
+    const notSent = { sent: false, status: 0, body: undefined }
+    const url = new URL(request.path, request.origin)
+    if (url.origin !== request.origin || url.protocol !== 'https:') return notSent
+    const host = url.hostname.replaceAll(/^\[|\]$/g, '')
+    let answers: readonly string[]
+    try {
+      answers = isIP(host) === 0 ? await (seams.resolve ?? defaultResolve)(host) : [host]
+    } catch {
+      return notSent
+    }
+    const verdict = endpointPolicy.checkEndpointUrl(url.href, answers)
+    const address = answers[0]
+    // Only a public address: a SystemOne preset never has a private one.
+    if (address === undefined || verdict.kind !== 'ok' || verdict.network !== 'public')
+      return notSent
+    const target: PinnedTarget = {
+      url,
+      host,
+      address,
+      family:
+        isIP(address) === ADDRESS_FAMILIES.ipv6 ? ADDRESS_FAMILIES.ipv6 : ADDRESS_FAMILIES.ipv4,
+    }
+    const connection = { isUp: false }
+    try {
+      const response = await (seams.send ?? defaultSend)(
+        target,
+        request.body,
+        {
+          authorization: `Bearer ${request.key}`,
+          'content-type': 'application/json',
+          accept: 'application/json',
+        },
+        request.signal,
+        () => {
+          connection.isUp = true
+        },
+      )
+      return {
+        sent: true,
+        status: response.status,
+        body: scrubSystemOneBody(await boundedJson(response), request.key),
+      }
+    } catch (error: unknown) {
+      if (!connection.isUp) return notSent
+      throw error
+    }
   }
 }
 
@@ -153,13 +311,13 @@ export function createSystemOneSide(
 ): Phase2SeparateSource {
   const runtime = createSystemOneJudge({
     configuration: () => ({
-      generation: 0,
+      generation: io.generation(),
       presetId: route.presetId,
       model: route.model,
       enabled: true,
       selection: io.isExplicit() ? 'explicit' : 'auto',
       confidential: io.confidential(),
-      consent: io.consent(),
+      consent: io.consent(route),
     }),
     readKey: (providerId) => systemOneKey(io, providerId, route.recipient),
     measureTokens: io.measureTokens,

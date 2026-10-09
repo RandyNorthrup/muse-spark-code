@@ -6,6 +6,7 @@ import type {
 import type { JudgePanelSnapshot } from '../../shared/judgePanel'
 import type { StartSessionOptions, AgentSession } from '../../core/agent/agentBackend'
 import type { JudgeDailyLedger } from '../../core/judge/admission'
+import type { SeparateSourcePorts } from '../../core/judge/sides'
 import type { JudgeEntryParts } from '../../core/judge/entries'
 import type { JudgeAdvisory } from '../../core/judge/use'
 import type { JudgeFenceSample } from '../../core/judge/use'
@@ -40,6 +41,8 @@ export interface JudgeWindowDeps {
    * only when a configured SystemOne route needs its key. Never logged.
    */
   readonly readStoredCredential?: ((providerId: string) => Promise<string | undefined>) | undefined
+  /** Tests' seams for the SystemOne route's pinned M95 transport; production passes none. */
+  readonly separateTransport?: SeparateSourcePorts['transport']
   readonly dailyBudgetUsd?: () => number
   readonly engine: () => JudgeEngine
   readonly context: (action: JudgeEntryParts) =>

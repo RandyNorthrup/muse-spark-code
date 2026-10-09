@@ -67,11 +67,13 @@ function children() {
   return childFactories.current
 }
 
+function sourcesFeatures() {
+  return children().sources().createJudgeSourcesFeatures({ uiText: UI_TEXT, uiLocale: uiLocale() })
+}
+
 const features = {
   loadSources() {
-    return Promise.resolve(
-      children().sources().createJudgeSourcesFeatures({ uiText: UI_TEXT, uiLocale: uiLocale() }),
-    )
+    return Promise.resolve(sourcesFeatures())
   },
   hasJudgeAdoptionEvidence,
   // The one binding policy, shared with the window: the CLI/ACP and MCP
@@ -83,10 +85,12 @@ const features = {
   // The one production side-factory port: the separate source a configured
   // id names, or exactly what it is missing, built inside the sources child.
   separateSource(...args: Parameters<SourcesFeatures['buildSeparateSource']>) {
-    return children()
-      .sources()
-      .createJudgeSourcesFeatures({ uiText: UI_TEXT, uiLocale: uiLocale() })
-      .buildSeparateSource(...args)
+    return sourcesFeatures().buildSeparateSource(...args)
+  },
+  // Whether a configured route's key is stored and usable, read before the
+  // binding exists so a missing key refuses before any claim.
+  hasSeparateSourceKey(...args: Parameters<SourcesFeatures['hasSeparateSourceKey']>) {
+    return sourcesFeatures().hasSeparateSourceKey(...args)
   },
   createRuntime(deps: JudgeRuntimeDeps) {
     return Promise.resolve(

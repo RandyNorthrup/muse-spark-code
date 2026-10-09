@@ -750,12 +750,27 @@ async function main(): Promise<number> {
       // provenance or admission. The factory runs inside `dist/judgeP2.js`,
       // so judge schemas stay lazy for ordinary commands.
       const commandDeps = await features.createCommandDeps({
-        binding: cliJudgeBinding({
+        binding: await cliJudgeBinding({
           features,
           options: command.options,
           store,
           readSecret: async (name) => await secrets.get(name),
-          fetch: globalThis.fetch,
+          // The same D78 daily journal every paid headless use settles into.
+          daily: async () => {
+            const accounting = await import('./runtimeAccountingEntry.js')
+            return accounting.createRuntimeDailyBudget({
+              dataFolder: agentDataFolder({
+                platform: process.platform,
+                env: process.env,
+                homeDir: homedir(),
+              }),
+              now: () => Date.now(),
+              sleep: (ms) =>
+                new Promise((resolve) => {
+                  setTimeout(resolve, ms)
+                }),
+            })
+          },
         }),
         billing: 'free',
         worstCaseUsd: () => 0,

@@ -137,7 +137,12 @@ export async function askPaidUse(
     (request.feature === 'autoReviewer' &&
       autoReviewPrice(request.modelId, request.pricing) === undefined) ||
     (request.feature === 'judge' &&
-      (autoReviewPrice(request.modelId) === undefined ||
+      // A SystemOne route is priced by its own captured tariff, never by
+      // the conversation model's card.
+      ((request.systemOne === undefined
+        ? autoReviewPrice(request.modelId) === undefined
+        : !Number.isFinite(request.systemOne.worstCaseUsd) ||
+          request.systemOne.worstCaseUsd <= 0) ||
         !Number.isFinite(request.dailyBudgetUsd) ||
         request.dailyBudgetUsd < 0))
   ) {

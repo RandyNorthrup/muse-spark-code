@@ -247,6 +247,15 @@ export class PaidUseConsent {
    * that arrive meanwhile share it and its answer instead of asking again.
    */
   private readonly pendingWindowOnce = new Map<PaidFeature, Promise<boolean>>()
+  /**
+   * Route-bound grants (an experimental separate judge route): each covers
+   * one recipient, model and tariff ceiling, in this window only, under the
+   * revocation generation it was given in. "Ask again" and a price change
+   * bump the generation, so the next use asks again. Memory only.
+   */
+  private readonly routeOnce = new Map<string, number>()
+  private readonly pendingRoute = new Map<string, Promise<boolean>>()
+  private routeGeneration = 0
 
   public constructor(private readonly deps: PaidUseConsentDeps) {}
 
@@ -294,6 +303,12 @@ export class PaidUseConsent {
     return feature === 'judge'
       ? (this.deps.isJudgeEnabled?.() ?? this.deps.isOn(feature))
       : this.deps.isOn(feature)
+  }
+
+  /** Every route-bound grant asks again (Ask again, a price acceptance change). */
+  private revokeRoutes(): void {
+    this.routeGeneration += 1
+    this.routeOnce.clear()
   }
 
   /** Asks in the popup now and keeps what the answer grants. */
@@ -406,13 +421,56 @@ export class PaidUseConsent {
    * `windowOnceGeneration`.
    */
   public revokeWindowOnce(feature: PaidFeature): void {
+    if (feature === 'judge') this.revokeRoutes()
     if (this.windowOnce.delete(feature)) {
       this.deps.log.info(`Paid use of ${feature} asks again in this window`)
     }
   }
 
+  /** Whether a route-bound grant for exactly this route holds now. */
+  public isRouteAllowed(routeKey: string): boolean {
+    return this.routeOnce.get(routeKey) === this.routeGeneration
+  }
+
+  /**
+   * A paid use bound to its own recipient and tariff (an experimental
+   * separate judge route, billed to the user's own provider key): never
+   * covered by the feature's ordinary grants, asked in the popup with Allow
+   * once and Deny only, and kept for this window under the route's identity
+   * and the current revocation generation. Concurrent first uses share one
+   * question. `isEnabled` is the route's own gate, read again after the popup.
+   */
+  public async allowsRoute(
+    request: PaidUseRequest,
+    routeKey: string,
+    isEnabled: () => boolean,
+  ): Promise<boolean> {
+    if (!isEnabled()) return false
+    if (this.isRouteAllowed(routeKey)) return true
+    const pending = this.pendingRoute.get(routeKey)
+    if (pending !== undefined) return await pending
+    const generation = this.routeGeneration
+    const decision = (async () => {
+      const answer = await this.deps.ask(request, false)
+      if (answer === 'deny' || !isEnabled() || generation !== this.routeGeneration) {
+        this.deps.log.info(`Paid use of ${request.feature} on its route: not allowed`)
+        return false
+      }
+      this.routeOnce.set(routeKey, generation)
+      this.deps.log.info(`Paid use of ${request.feature} on its route: allowed once in this window`)
+      return true
+    })()
+    this.pendingRoute.set(routeKey, decision)
+    try {
+      return await decision
+    } finally {
+      this.pendingRoute.delete(routeKey)
+    }
+  }
+
   /** Account & usage's "Ask again": every feature asks again here. */
   public async forget(): Promise<void> {
+    this.revokeRoutes()
     const hasWindowOnce = this.windowOnce.size > 0
     this.windowOnce.clear()
     if (this.deps.readGrants().size === 0 && (this.deps.readTeamGrants?.().size ?? 0) === 0) {

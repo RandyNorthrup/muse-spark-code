@@ -5,12 +5,14 @@
 // ordinary commands (the dispatch gate).
 import type { Phase2EvidenceStore } from '../../core/judge/evidencePaths'
 import type { JudgeRuntimeBinding } from '../../core/judge/runtime'
+import type { SeparateSourcePorts } from '../../core/judge/sides'
 import {
   JUDGE_CALIBRATION_LIMITS,
   JUDGE_CRITERIA_VERSION,
   JUDGE_MIN_READY_RATE,
   JUDGE_PROMPT_VERSION,
   JUDGE_RISK_FAMILY,
+  JUDGE_REQUEST_TIMEOUT_MS,
   PROVIDER_SECRET_PREFIX,
 } from '../../shared/constants'
 import type { JudgeCliOptions } from './args'
@@ -18,50 +20,91 @@ import type * as JudgeEntry from './judgeEntry'
 
 type JudgeFeatures = ReturnType<typeof JudgeEntry.createJudgeFeatures>
 
+/** The runtime's D78 daily ledger (`createRuntimeDailyBudget`), as the CLI judge uses it. */
+export interface CliDailyLedger {
+  reserve(
+    costUsd: number,
+    signal: AbortSignal,
+  ): Promise<{
+    readonly reservedUsd: number
+    /** Final admission; the runtime claim reads the live cap itself, so the argument is unused. */
+    check(capUsd: number): unknown
+    settle(actualCostUsd: number): Promise<unknown>
+  }>
+}
+
 /**
  * The CLI's binding reader. A configured SystemOne route becomes the real
- * side over the OS store's M95 record and the platform fetch; any other id
- * names its gap. With no separate id the reader answers nothing, which is
- * the single-model refusal the CLI always gave.
+ * side over the OS store's M95 record, the M95 providers' pinned transport
+ * and the runtime's daily ledger; any other id names its gap. With no
+ * separate id the reader answers nothing, which is the single-model refusal
+ * the CLI always gave. The key is checked here, before anything is resolved
+ * or reserved, so a missing key refuses with the window's `key` code.
  */
-export function cliJudgeBinding(deps: {
+export async function cliJudgeBinding(deps: {
   readonly features: JudgeFeatures
   readonly options: JudgeCliOptions
   readonly store: Phase2EvidenceStore
   /** The OS credential store's value for a name; never logged. */
   readonly readSecret: (name: string) => Promise<string | undefined>
-  readonly fetch: typeof fetch
-}): () => JudgeRuntimeBinding | undefined {
+  /** The runtime's daily ledger, loaded on the first reservation. */
+  readonly daily: () => Promise<CliDailyLedger>
+  /** Tests' seams for the pinned transport; production passes none. */
+  readonly transport?: SeparateSourcePorts['transport']
+}): Promise<() => JudgeRuntimeBinding | undefined> {
   const separateId = deps.options.separate?.trim() ?? ''
   const engine = deps.options.engine
+  const readStoredCredential = (providerId: string) =>
+    deps.readSecret(`${PROVIDER_SECRET_PREFIX}${providerId}`)
+  const hasKey =
+    separateId !== '' &&
+    (await deps.features.hasSeparateSourceKey(separateId, readStoredCredential))
   const built =
     separateId === ''
       ? undefined
       : deps.features.separateSource(
           separateId,
           {
-            fetch: deps.fetch,
-            // The CLI has no status line: a missing key refuses at dispatch
-            // as `source-unavailable`, after its reservation is refunded.
-            hasStoredKey: () => true,
+            ...(deps.transport !== undefined && { transport: deps.transport }),
+            hasStoredKey: () => hasKey,
             systemOne: {
-              readStoredCredential: (providerId) =>
-                deps.readSecret(`${PROVIDER_SECRET_PREFIX}${providerId}`),
-              // `--budget-usd` already admitted the plan's whole ceiling, which
-              // bounds this route's quote; the run cap keeps that reservation
-              // as liability whatever the settlement (M80, D65).
-              reserve: (usd) =>
-                Promise.resolve({
+              readStoredCredential,
+              // The D78 daily ledger on top of `--budget-usd`: the run cap
+              // admitted the plan's whole ceiling, and this claim settles the
+              // reported cost into the daily journal every paid headless use
+              // shares (PAID_DAILY_BUDGET).
+              reserve: async (usd) => {
+                const ledger = await deps.daily()
+                let claim: Awaited<ReturnType<CliDailyLedger['reserve']>>
+                try {
+                  claim = await ledger.reserve(usd, AbortSignal.timeout(JUDGE_REQUEST_TIMEOUT_MS))
+                } catch {
+                  return { reserved: false, reason: 'over-budget' }
+                }
+                try {
+                  claim.check(0)
+                } catch {
+                  await claim.settle(0)
+                  return { reserved: false, reason: 'over-budget' }
+                }
+                return {
                   reserved: true,
                   claim: {
-                    reservedUsd: usd,
-                    settle: () => Promise.resolve(),
-                    refund: () => Promise.resolve(),
+                    reservedUsd: claim.reservedUsd,
+                    settle: async (actualUsd) => {
+                      await claim.settle(actualUsd)
+                    },
+                    refund: async () => {
+                      await claim.settle(0)
+                    },
                   },
-                }),
+                }
+              },
               // Headless admission is the explicit engine flag plus the hard
               // budget: dispatch is reached only after the run cap admits it.
               consent: () => 'granted',
+              // One CLI process plans under one fixed trigger identity.
+              generation: () => 0,
               confidential: () => false,
               isExplicit: () => engine === 'separate' || engine === 'both',
             },

@@ -5,17 +5,23 @@
 // I/O. A side that cannot be built returns the exact gap, and the surface
 // keeps the working phase-1 same-model judge.
 import type { ModelCapabilityRecord } from '../providers/capabilityRecord'
-import { JUDGE_LOCAL_SEPARATE_PREFIX } from '../../shared/constants'
-import type { JUDGE_SEPARATE_GAPS } from '../../shared/judge'
+import { JUDGE_LOCAL_SEPARATE_PREFIX, type JUDGE_SEPARATE_GAPS } from '../../shared/constants'
 import type { Phase2SeparateSource } from './binding'
 import { chooseByoTechnique } from './providers/decide'
 import type { JudgeCapability, JudgeProfileIdentity, JudgeQuestion } from './schema'
+import * as z from 'zod/mini'
 import {
   createSystemOneSide,
-  fetchSystemOnePost,
+  pinnedSystemOnePost,
+  systemOneKey,
   systemOneRoute,
+  type SystemOneResolve,
+  type SystemOneSend,
   type SystemOneSideIo,
 } from './systemone/side'
+
+/** The only status whose body lane C reads as a SystemOne result. */
+const SYSTEMONE_HTTP_OK = 200
 
 /**
  * The one technique selector for a judge side. A bring-your-own side's
@@ -61,12 +67,64 @@ export type SeparateSourceBuild =
     }
   | { readonly kind: 'gap'; readonly gap: SeparateSourceGap }
 
+/** One sent SystemOne call, as the surface's usage tally sees it. */
+export interface SeparateSourceCall {
+  /** The call reached the service but no settled receipt followed. */
+  failed(): void
+  /** The call settled at this cost, with its reported token usage when read. */
+  settled(
+    usage: { readonly inputTokens: number; readonly outputTokens: number } | undefined,
+    costUsd: number,
+  ): void
+}
+
 export interface SeparateSourcePorts {
-  /** The surface's key, ledger, consent and policy readers; the transport is the platform fetch. */
+  /** The surface's key, ledger, consent and policy readers. */
   readonly systemOne: Omit<SystemOneSideIo, 'post' | 'measureTokens'>
-  readonly fetch: typeof fetch
-  /** Whether M95's store holds a credential record for this provider id. */
-  readonly hasStoredKey: (providerId: string) => boolean
+  /** Tests' seams for the M95 pinned transport; production passes none. */
+  readonly transport?:
+    { readonly resolve?: SystemOneResolve; readonly send?: SystemOneSend } | undefined
+  /**
+   * Whether M95's store holds a usable, origin-bound key for this provider
+   * id. `undefined` means not read yet (the window's first action after
+   * activation): the side is built and lane C reads the key at dispatch, a
+   * missing one refunding before anything is sent.
+   */
+  readonly hasStoredKey: (providerId: string) => boolean | undefined
+  /** The surface's loud tally: one row per call actually sent (the window). */
+  readonly onCall?: ((model: string) => SeparateSourceCall) | undefined
+}
+
+const usageSchema = z.looseObject({
+  usage: z.looseObject({
+    input_tokens: z.int().check(z.nonnegative()),
+    output_tokens: z.int().check(z.nonnegative()),
+  }),
+})
+
+/**
+ * The provider id and origin whose stored key a configured route needs, so a
+ * surface that reads keys asynchronously can check one before it builds.
+ */
+export function separateSourceKey(
+  separateId: string,
+): { readonly providerId: string; readonly origin: string } | undefined {
+  const route = systemOneRoute(separateId.trim())
+  return route === undefined
+    ? undefined
+    : { providerId: route.keyProviderId, origin: route.recipient }
+}
+
+/** Whether a usable key is stored for a configured route (no route: nothing to check). */
+export async function hasSeparateSourceKey(
+  separateId: string,
+  readStoredCredential: SystemOneSideIo['readStoredCredential'],
+): Promise<boolean> {
+  const needed = separateSourceKey(separateId)
+  return (
+    needed !== undefined &&
+    (await systemOneKey({ readStoredCredential }, needed.providerId, needed.origin)) !== undefined
+  )
 }
 
 /** Build the configured separate source, or name exactly what it is missing. */
@@ -78,22 +136,78 @@ export function buildSeparateSource(
   const id = separateId.trim()
   const route = systemOneRoute(id)
   if (route !== undefined) {
-    if (!ports.hasStoredKey(route.keyProviderId)) return { kind: 'gap', gap: 'key' }
+    if (ports.hasStoredKey(route.keyProviderId) === false) return { kind: 'gap', gap: 'key' }
+    const post = pinnedSystemOnePost(ports.transport)
+    // One side instance serves one judge run (each binding read builds a
+    // new one), so its reserve, send and settle belong to the same call.
+    let call: SeparateSourceCall | undefined
+    let reported: { inputTokens: number; outputTokens: number } | undefined
     const built = createSystemOneSide(route, {
       ...ports.systemOne,
       // The service bills its own prompt on top of the body (the recorded
       // OpenRouter call billed 491 input tokens for a far shorter body), so
       // a body-sized quote under-reserves. Reserve the route's captured
       // per-request ceiling instead; settlement charges the reported usage.
-      reserve: (usd) => ports.systemOne.reserve(Math.max(usd, route.worstCaseUsd)),
-      post: fetchSystemOnePost(ports.fetch),
+      reserve: async (usd) => {
+        const reserved = await ports.systemOne.reserve(Math.max(usd, route.worstCaseUsd))
+        if (!reserved.reserved) return reserved
+        return {
+          reserved: true,
+          claim: {
+            reservedUsd: reserved.claim.reservedUsd,
+            settle: async (actualUsd) => {
+              await reserved.claim.settle(actualUsd)
+              call?.settled(reported, actualUsd)
+              call = undefined
+            },
+            refund: async () => {
+              await reserved.claim.refund()
+              call?.failed()
+              call = undefined
+            },
+          },
+        }
+      },
+      post: async (request) => {
+        const result = await post(request)
+        if (!result.sent) return result
+        call = ports.onCall?.(route.model)
+        const parsed = usageSchema.safeParse(result.body)
+        reported = parsed.success
+          ? {
+              inputTokens: parsed.data.usage.input_tokens,
+              outputTokens: parsed.data.usage.output_tokens,
+            }
+          : undefined
+        if (result.status !== SYSTEMONE_HTTP_OK) {
+          // Sent and refused by the service: the claim stays liability.
+          call?.failed()
+          call = undefined
+        }
+        return result
+      },
       // UTF-8 bytes bound tokens conservatively: an over-long state refuses
       // as over-context rather than being estimated low.
       measureTokens: (text) => Buffer.byteLength(text),
     })
     return {
       kind: 'built',
-      source: { ...built, technique: judgeSideTechnique({ capability: route.capability, kind }) },
+      source: {
+        ...built,
+        // A sent call that never settled (an unreadable 200 keeps its
+        // liability) still closes its row as failed.
+        runtime: {
+          judge: async (request, signal) => {
+            try {
+              return await built.runtime.judge(request, signal)
+            } finally {
+              call?.failed()
+              call = undefined
+            }
+          },
+        },
+        technique: judgeSideTechnique({ capability: route.capability, kind }),
+      },
       worstCaseUsd: route.worstCaseUsd,
       recipient: route.recipient,
       model: route.model,

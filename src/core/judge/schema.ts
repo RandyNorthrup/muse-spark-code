@@ -20,6 +20,7 @@ import {
   JUDGE_QUESTION_MIN,
   JUDGE_SCORE_LEVEL_MAX,
   JUDGE_SCORE_LEVEL_MIN,
+  JUDGE_SEPARATE_GAPS,
 } from '../../shared/constants'
 
 /** Where a verdict came from. Phase 1 emits only `same` (lane J's resolver). */
@@ -404,6 +405,12 @@ export const judgeOutcomeSchema = z.discriminatedUnion('outcome', [
       ),
     ),
   }),
-  z.strictObject({ outcome: z.literal('no-answer'), reason: z.enum(JUDGE_NO_ANSWER_REASONS) }),
+  z.strictObject({
+    outcome: z.literal('no-answer'),
+    reason: z.enum(JUDGE_NO_ANSWER_REASONS),
+    // A configured separate source that cannot be built here names why,
+    // in the code the window's status line shows (M98 phase 2 redesign).
+    gap: z.optional(z.enum(JUDGE_SEPARATE_GAPS)),
+  }),
 ])
 export type JudgeOutcome = z.infer<typeof judgeOutcomeSchema>

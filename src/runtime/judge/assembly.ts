@@ -20,7 +20,15 @@ export function createJudgeCommandDeps(
         engine: options.engine,
         hasFreeSides: deps.billing === 'free',
       })
-      if (!isJudgePlan(plan) || plan.resolution.mode === 'off') return Promise.resolve(undefined)
+      if (!isJudgePlan(plan)) return Promise.resolve(undefined)
+      // A configured source that cannot be built refuses at resolution,
+      // before any claim, with the code the window's status line shows.
+      if (plan.resolution.mode === 'off')
+        return Promise.resolve(
+          plan.separateGap === undefined
+            ? undefined
+            : { outcome: 'no-answer', reason: 'source-unavailable', gap: plan.separateGap },
+        )
       const mode = plan.resolution.mode
       // A run with any priced leg is paid, including a free judge with paid
       // embeddings: it goes through the budget path, so `--budget-usd 0`

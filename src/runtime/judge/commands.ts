@@ -18,6 +18,7 @@ import type { FdWriter } from '../exec/fdWriter'
 import { readPromptStdin } from '../exec/keyInput'
 import { JudgeCliInputError, type JudgeCliCommand, type JudgeCliOptions } from './args'
 import { runJudgeMcp } from './mcp'
+import { isServedJudgeModel } from '../../core/judge/served'
 
 /** Z supplies current context; resolution must not start a chat backend/session. */
 export interface JudgeCliSource {
@@ -62,7 +63,7 @@ export interface JudgeCliDeps {
     options: JudgeCliOptions,
     signal: AbortSignal,
     request: JudgeRequest,
-  ): Promise<JudgeCliSource | undefined>
+  ): Promise<JudgeCliSource | Extract<JudgeOutcome, { outcome: 'no-answer' }> | undefined>
   /**
    * Z's adapter must obtain current consent and D78's durable reservation for
    * EVERY attempt before dispatch. reservedUsd is a hard uncached run cap for
@@ -162,6 +163,8 @@ function judgeCaller(options: JudgeCliOptions, deps: JudgeCliDeps) {
     )
     signal.throwIfAborted()
     if (source === undefined) return noAnswer('source-unavailable')
+    // A precise refusal at resolution (a named source gap) is the answer.
+    if ('outcome' in source) return source
     if (
       (source.source !== options.engine && options.engine !== 'auto') ||
       (source.model !== model && source.source !== 'separate')
@@ -189,15 +192,15 @@ function judgeCaller(options: JudgeCliOptions, deps: JudgeCliDeps) {
     // An embedding answer names the source's declared embedding model on
     // the envelope and on every verdict, never the conversation model. A
     // genuinely foreign model matches neither identity and stays refused.
-    const served = source.servedModels ?? [source.model]
+    const isServed = (model: string) => isServedJudgeModel(model, source.model, source.servedModels)
     const isValid =
       isAligned(request, parsed.data) &&
       Buffer.byteLength(JSON.stringify(parsed.data)) <= JUDGE_MAX_BODY_BYTES &&
       (parsed.data.outcome === 'no-answer' ||
         source.source === 'both' ||
-        (served.includes(parsed.data.result.model) &&
+        (isServed(parsed.data.result.model) &&
           Object.values(parsed.data.result.muse).every(
-            (meta) => meta.source === source.source && served.includes(meta.model),
+            (meta) => meta.source === source.source && isServed(meta.model),
           )) ||
         (parsed.data.result.model === source.embeddingModel &&
           Object.values(parsed.data.result.muse).every(

@@ -97,9 +97,12 @@ describe('the production window keeps phase-1 when no phase-2 side can be built'
       expect(fence?.read()).toBe('caution')
       expect(rig.sessions).toHaveLength(1)
       expect(rig.statuses.at(-1)).toMatchObject({ mode: 'same', reason: 'auto-same' })
-      // A configured id with no buildable side names its exact gap.
-      expect(rig.statuses.at(-1)?.separateGap).toBe(gap)
-      if (separateId !== '')
+      // A configured id with no buildable side names its exact gap; a key
+      // found missing after the first action refreshes the status itself.
+      await vi.waitFor(() => {
+        expect(rig.statuses.at(-1)?.separateGap).toBe(gap)
+      })
+      if (separateId !== '' && gap !== 'key')
         expect(rig.statuses.at(-1)).toMatchObject({ autoSameReason: 'source-unavailable' })
       rig.judge.dispose()
     },

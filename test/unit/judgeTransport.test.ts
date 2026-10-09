@@ -3,25 +3,12 @@ import { admittedModelApiJudge } from '../../src/host/judge/judgeTransport'
 import { JudgeUsageRows } from '../../src/host/judge/judgeUsage'
 import { PaidUsage } from '../../src/core/paid/paidFeatures'
 import type { JudgeAdmissionBinding, JudgeDailyLedger } from '../../src/core/judge/admission'
-import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
+import { JUDGE_MODEL_API_BODY } from './helpers/judgeApprovalFixtures'
 import type { ModelApiJudgeConnection } from '../../src/core/judge/same/modelApiSource'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
-const BODY: CreateResponseBody = {
-  model: 'muse-spark-1.3',
-  instructions: '',
-  tools: [],
-  input: [],
-  tool_choice: 'auto',
-  reasoning: { effort: 'medium', summary: 'auto' },
-  stream: true,
-  store: false,
-  include: [],
-  max_output_tokens: 100,
-  prompt_cache_key: 'judge',
-  prompt_cache_retention: 'in_memory',
-}
+const BODY = JUDGE_MODEL_API_BODY
 
 function setup() {
   let binding: JudgeAdmissionBinding = {

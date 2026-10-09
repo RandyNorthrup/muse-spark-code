@@ -71,6 +71,8 @@ export interface JudgePlan {
   readonly dispatch: 'phase2' | 'phase1'
   /** The surface's trigger identity at resolution; only ever narrows the run. */
   readonly triggerKey: string | undefined
+  /** Why the configured separate source has no side here, when it has none. */
+  readonly separateGap?: JudgeRuntimeBinding['separateGap']
 }
 
 export interface JudgePlanOptions {
@@ -239,6 +241,7 @@ export function planJudgeRun(
     dispatch:
       mode === 'same' && same === undefined && embedding === undefined ? 'phase1' : 'phase2',
     triggerKey: triggers === undefined ? undefined : JSON.stringify(triggers),
+    ...(binding.separateGap !== undefined && { separateGap: binding.separateGap }),
   })
 }
 
