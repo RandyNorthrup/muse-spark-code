@@ -4589,12 +4589,13 @@ export const MSP_ATTACHMENT_FRAME_BUDGET_BYTES =
   MSP_FRAME_LIMIT_BYTES - MSP_ATTACHMENT_FRAME_HEADROOM_BYTES
 // `session/list` refuses a larger page (msp.d.ts SessionListParams.limit).
 export const MSP_SESSION_LIST_MAX_LIMIT = 200
-// The captured 1.4.2 build now matches the SDK's own pin (M106 S).
-// Keep its identity here; older fingerprints are no longer additive
-// successors of this SDK and must retain the mismatch warning. Future
-// successors need a served capture before they enter this map.
+// The captured 1.4.4 build matches the SDK's own pin (SDK144, served
+// 2026-10-09 by 1.4.4-R5419.1). Keep its identity here; older fingerprints
+// (1.4.2-R4684.1 included) are no longer additive successors of this SDK
+// and must retain the mismatch warning. Future successors need a served
+// capture before they enter this map.
 export const MSP_KNOWN_SCHEMA_FINGERPRINTS: Readonly<Record<string, string>> = {
-  'sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2': '1.4.2-R4684.1',
+  'sha256:7c94f153c41659cb3f1bd3c3e04438be254644cb2a97d65d48edc7449b74858a': '1.4.4-R5419.1',
 }
 // Muse Code's documented exit codes (SDK `classifyExit`) after which a
 // restart cannot help; what each code means is `UI_TEXT.museExitMeanings`.

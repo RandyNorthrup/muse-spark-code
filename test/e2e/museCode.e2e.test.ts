@@ -498,13 +498,13 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     expect(next.info.serverName).toBe('muse')
   })
 
-  it('recognizes the native 1.4.2 schema and still warns about an unknown one (M106 S)', async () => {
-    const known = 'sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2'
+  it('recognizes the native 1.4.4 schema and still warns about an unknown one (SDK144)', async () => {
+    const known = 'sha256:7c94f153c41659cb3f1bd3c3e04438be254644cb2a97d65d48edc7449b74858a'
     const successor = manager({ fingerprint: known })
     await successor.manager.ensureHost()
     const mismatch = expect.stringContaining('MSP schema fingerprint mismatch') as string
     expect(successor.log.warn).not.toHaveBeenCalledWith(mismatch)
-    expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[known]).toBe('1.4.2-R4684.1')
+    expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[known]).toBe('1.4.4-R5419.1')
     expect(successor.log.info).not.toHaveBeenCalledWith(expect.stringContaining('MSP schema'))
     const unknown = manager({ fingerprint: 'sha256:not-a-known-build' })
     await unknown.manager.ensureHost()

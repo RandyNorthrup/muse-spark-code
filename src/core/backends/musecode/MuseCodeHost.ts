@@ -682,10 +682,12 @@ function mspInput(parts: readonly TurnPart[]): readonly TurnPart[] {
 }
 
 /**
- * `Connection.command` without its memory (PLAN.md D26). The SDK keeps the
- * canonical payload of every command for the connection's life, an image
- * turn's base64 included, to check replays across reconnects this
- * extension never makes, so a long session's memory only grew. The same
+ * `Connection.command` without its memory (PLAN.md D26). Up to SDK 1.4.2 it
+ * kept the canonical payload of every command for the connection's life,
+ * an image turn's base64 included, to check replays across reconnects this
+ * extension never makes (#35). 1.4.4 keeps a SHA-256 per command instead,
+ * still never evicted; this stays because each attempt here is also fenced
+ * by the host generation and heard by the watchdog (SDK144). The same
  * contract otherwise: the command id rides in the params, the ack must echo
  * it, and a refusal that admitted nothing (`overloaded`, `backpressured`)
  * is retried with the same id after a short, growing, jittered wait.

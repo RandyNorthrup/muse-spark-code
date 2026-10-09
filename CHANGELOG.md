@@ -55,6 +55,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
+  (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
+  without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
+  after earlier bumps. The SDK now hides the `muse serve` window on Windows
+  itself (meta-models/muse-code-sdk#34). The extension's other Muse Code
+  workarounds were re-checked against 1.4.4 and are still needed
+  (`docs/certification/sdk144.md`).
 - The README's Resources screenshot is retaken with the rest of the set (the
   same Linux Chrome build and fonts); the other 18 screenshots still match the
   current UI and are unchanged.

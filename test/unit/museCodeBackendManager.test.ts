@@ -96,13 +96,13 @@ async function startWithFingerprint(fingerprint: string): Promise<FakeLogOutputC
   return log
 }
 
-describe('MuseCodeBackendManager: known MSP builds (SDK142)', () => {
+describe('MuseCodeBackendManager: known MSP builds (SDK144)', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
   it.each([
-    ['sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2', '1.4.2-R4684.1'],
+    ['sha256:7c94f153c41659cb3f1bd3c3e04438be254644cb2a97d65d48edc7449b74858a', '1.4.4-R5419.1'],
   ])('recognizes %s as %s without a mismatch warning', async (fingerprint, build) => {
     expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[fingerprint]).toBe(build)
     const log = await startWithFingerprint(fingerprint)
@@ -112,11 +112,11 @@ describe('MuseCodeBackendManager: known MSP builds (SDK142)', () => {
     expect(log.info).not.toHaveBeenCalledWith(expect.stringContaining('MSP schema'))
   })
 
-  it('uses the captured 1.4.2-R4684.1 SDK pin and logs no mismatch', async () => {
+  it('uses the captured 1.4.4-R5419.1 SDK pin and logs no mismatch', async () => {
     expect(sdk.EXPECTED_SCHEMA_FINGERPRINT).toBe(
-      'sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2',
+      'sha256:7c94f153c41659cb3f1bd3c3e04438be254644cb2a97d65d48edc7449b74858a',
     )
-    expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[sdk.EXPECTED_SCHEMA_FINGERPRINT]).toBe('1.4.2-R4684.1')
+    expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[sdk.EXPECTED_SCHEMA_FINGERPRINT]).toBe('1.4.4-R5419.1')
     const log = await startWithFingerprint(sdk.EXPECTED_SCHEMA_FINGERPRINT)
     expect(log.warn).not.toHaveBeenCalledWith(
       expect.stringContaining('MSP schema fingerprint mismatch'),
@@ -125,9 +125,11 @@ describe('MuseCodeBackendManager: known MSP builds (SDK142)', () => {
   })
 
   // 1.4.1-R4503.1 never reached npm and no live frame of it was captured,
-  // so its manifest fingerprint is not trusted as a known successor.
+  // so its manifest fingerprint is not trusted as a known successor; the
+  // captured 1.4.2-R4684.1 build is older than the 1.4.4 pin (SDK144).
   it.each([
     'sha256:unknown-build',
+    'sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2',
     'sha256:e0e163db6ccf00dbe68402ce55d6319b3edc33c421f31e9583b587b2de8a118f',
     'sha256:7469c9e352e67def4a59df7e439984d7194fa351e1c8b7abb34060fd977ced81',
     'sha256:36466f634c8c78a812462ec941187fd4547b232ee06153e5feb2a1482f0d3d7f',

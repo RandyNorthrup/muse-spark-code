@@ -362,7 +362,7 @@ tested on chunk splits inside frames and inside multi-byte characters.
 | `@vscode/vsce`                                                                                       | 4.0.0                             |
 | `react` / `react-dom` / `@types/react` / `@types/react-dom`                                          | 19.3.0                            |
 | `zod`                                                                                                | 4.6.5                             |
-| `@muse-code/sdk`                                                                                     | 1.3.0                             |
+| `@muse-code/sdk`                                                                                     | 1.4.4                             |
 | `husky` / `lint-staged`                                                                              | 9.1.7 / 17.5.1                    |
 | `jscpd`                                                                                              | 5.4.0                             |
 | `npm-run-all2`                                                                                       | 9.0.3                             |
@@ -416,7 +416,7 @@ tested on chunk splits inside frames and inside multi-byte characters.
 
 **`zod`** — Runtime validation of every webview ⇄ extension message and every HTTP/MSP boundary.
 
-**`@muse-code/sdk`** — Official MSP client. Developer Preview: "minor releases may alter APIs before 1.0" → exact pin, adapter isolated in one module, schema fingerprint checked at handshake. Installed with a one-off `--min-release-age=0` on 2026-09-22 (published 2026-09-18, inside the 7-day window); the lockfile pins it so `npm ci` is unaffected. Only its `Connection`/`spawnMspConnection` surface is used; `Connection.onNotification` holds a single handler, so the facade (`MuseClient`) is not composed.
+**`@muse-code/sdk`** — Official MSP client. Developer Preview: "minor releases may alter APIs before 1.0" → exact pin, adapter isolated in one module, schema fingerprint checked at handshake. Installed with a one-off `--min-release-age=0` on 2026-09-22 (published 2026-09-18, inside the 7-day window); the lockfile pins it so `npm ci` is unaffected. Only its `Connection`/`spawnMspConnection` surface is used; `Connection.onNotification` holds a single handler, so the facade (`MuseClient`) is not composed. **1.4.4 (SDK144):** Installed with a one-off `--min-release-age=0` on 2026-10-09 (published 2026-10-08, inside the 7-day window); owner approved 2026-10-09; the lockfile pins it. Peer range unchanged (`@types/node >=20`). Re-checked against 1.4.4 on 2026-10-09: `onNotification` still holds one handler, still needed (`docs/certification/sdk144.md`).
 
 **`husky` / `lint-staged`** — Pre-commit gates.
 
@@ -2474,7 +2474,7 @@ Section B of the audit (D24), plus the lifecycle rows of section G.
 
 - **Report:** `windowsHide` on every spawn
   **Finding:** Every spawn the extension makes hides its window; the SDK's own `spawnMspConnection` has no such option and spawns without it (VS Code's extension host has a hidden console, which children inherit, so no window shows). Filed as meta-models/muse-code-sdk#34 (2026-09-23).
-  **Change:** Recorded; nothing the extension can pass.
+  **Change:** Recorded; nothing the extension can pass. **Fixed in SDK 1.4.4 (2026-10-09, SDK144):** every `MuseServeChild.spawn`, the public `spawnMspConnection` included, passes `windowsHide: true` (FR-45141-1; the issue is still open upstream). `test/unit/museCodeSdk142.test.ts` pins it.
 
 - **Report:** A slow start is killed, and its failure shown by every waiter (0.10.1)
   **Finding:** On a CPU-starved machine (an activation that took 211 s) `muse serve` missed the 30 s handshake deadline and was killed though its process still ran; each caller waiting on that one start (six skill listings from the palette and slash menu, the warm-up) showed its own "That did not work" card for the same failure.
@@ -2507,6 +2507,75 @@ automatically" was M21's (D24) and the exit codes M22's (D25).
 | The Model API session store grows for ever                   | Every session was read whole into memory at start; a crash left `.tmp` files; Windows refuses a rename while a scanner holds the file (Codex #29812, Claude Code #89075).                                                                                                                                  | The window keeps headers and reads a session whole when it is opened (after the saves queued before it). Sessions idle past `museSpark.cleanupPeriodDays` (Claude Code's `cleanupPeriodDays`, default 30, 0 keeps them) are deleted when the list is read. A `.tmp` older than a minute is removed; `EPERM` / `EACCES` / `EBUSY` renames are tried five times, the wait doubling from 25 ms.                                                                                                                                                                                                                 |
 | Stop and refusals (Model API)                                | Queued messages vanished on Stop; a refusal part rendered as an empty reply.                                                                                                                                                                                                                               | Each queued message ends with the reason above; a refusal's own words are the reply.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | A late acceptance makes a finished turn "running"            | `send()` set the active turn from the ack, which can land after its own `turn/completed` (the D28 companion), and from a queued turn.                                                                                                                                                                      | The controller remembers finished turns; neither a finished nor a queued turn becomes the running one, and a `turnCompleted` for another turn leaves the running one alone.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+
+**Amendment 2026-10-09 (SDK144): re-checked against Muse Code SDK 1.4.4
+and CLI 1.4.4-R5419.1.** Each workaround above was compared with the 1.4.4
+source and the upstream issue (`docs/certification/sdk144.md` has the table).
+
+- A resume parks the turn with no card: re-checked against 1.4.4, still
+  needed. The SDK's read loop is unchanged, so a server request in the same
+  read still reaches the handler before the awaiting command resumes.
+- The handshake facts are dropped: re-checked against 1.4.4, still needed.
+  Rename and fork on Windows (#30, #31, both open) were not retested (no
+  Windows CLI in this lane); the limits stay on every version.
+- The 10 MiB frame cap: re-checked against 1.4.4, still needed. The SDK
+  limits inbound frames only; an oversized outbound command is still
+  written and never answered.
+- `session/list` over its maximum: re-checked against 1.4.4, still needed
+  (the schema still says "Maximum 200").
+- The SDK keeps every command for ever (#35, open): partly fixed in 1.4.4
+  (FR-45137-1). `Connection.command` now remembers a SHA-256 of each command
+  and ack, not the payload, but still never forgets an entry. `sendCommand`
+  stays: each attempt is also fenced by the host generation and heard by the
+  watchdog, which `Connection.command` cannot do.
+- 1.4.4 removes `session/delete` and `session/deleteCompleted` from MSP.
+  1.4.4-R5419.1 answers `session/delete` with `methodNotFound` (probe,
+  2026-10-09, zero model attempts). The extension's delete port
+  (`MuseCodeHost.deleteSession`, lane W's lifecycle reader) is not wired in
+  production, so nothing user-visible breaks; it must not be wired for
+  1.4.4 hosts.
+
+The workarounds recorded elsewhere, re-checked the same day:
+
+- `windowsHide` (#34, D25): fixed in 1.4.4; nothing of ours to remove (the
+  extension never had an option to pass).
+- One notification handler (D3): still needed; `onNotification` replaces
+  its handler.
+- The deep `ChildStdioTransport` import and our own account spawner (M108):
+  still needed; 1.4.4 adds no public hook before a write.
+- The POSIX PID side file (M107): still needed; `MuseServeChild` still has
+  no PID.
+- The fingerprint map: 1.4.4-R5419.1 replaces 1.4.2-R4684.1 (served
+  capture `test/fixtures/sdk144/msp-echo-1.4.4.json`); 1.4.2 now warns.
+- Windows sandbox under the profile (#26, open; D12), the `.cmd` spawn
+  (D1a), the approval ledger fence (#29, closed upstream 2026-10-05): not
+  retested (no Windows CLI in this lane); kept.
+- The approval replay fault and the event-log-failed session (1.4.2), the
+  hooks that do not fire (#84 SessionFork, StopFailure): not retested; each
+  needs live turns, which this lane does not make. Kept.
+- PDF input on Muse Code (#48, open): still needed; 1.4.4 adds `video`, not
+  a file part.
+
+New in MSP 1.4.4, worth adopting later (not built; rule 13 needs a captured
+frame for each first):
+
+- `video` turn input parts and chunked `media/upload` (`uploadId`): video on
+  the Muse Code backend, and the chunked upload path #48 asked for.
+- `session/sideChat` with `SideProvenance`: Muse Code's own side chat.
+- `hook/list` and `plugin/list`: the Hooks picker and plugin catalogue from
+  the host.
+- `skill/setActivation`: turn a skill on, off or user-invocable only.
+- `userInput/interrupt` and `userInput/engaged`: answer part of a question
+  and stop, and see when another surface engaged it.
+- `workflow/pause` and the item status fields (`statusHealth`,
+  `statusProgress`, `statusStep`, `toolReceipt`): richer workflow and tool
+  cards.
+- `turn/foregroundCompleted` and `Session.lastTurn`: show when the
+  foreground turn ended while agents still run, and a session's last result
+  in History.
+- `computerUseSettings/read|update`: the host's computer-use settings.
+- `MuseHostStartError` from the facade: typed spawn failures, if the facade
+  is ever composed.
 
 **Amendment 2026-09-27 (0.9.1): Windows limits hold for every version.**
 D26 hid rename and fork on Windows, and D12's profile-workspace warning

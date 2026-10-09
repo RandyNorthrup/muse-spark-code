@@ -1,6 +1,8 @@
+import { type SpawnOptions, spawn } from 'node:child_process'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { EXPECTED_SCHEMA_FINGERPRINT } from '@muse-code/sdk'
-import echoCapture from '../fixtures/m106/msp-echo-1.4.2.json'
+import { EXPECTED_SCHEMA_FINGERPRINT, MuseServeChild } from '@muse-code/sdk'
+import echoCapture142 from '../fixtures/m106/msp-echo-1.4.2.json'
+import echoCapture from '../fixtures/sdk144/msp-echo-1.4.4.json'
 import {
   MuseCodeHost,
   type MuseCodeFeaturePorts,
@@ -115,8 +117,10 @@ describe('Muse Code 1.4.2 feature ports', () => {
     const host = new MuseCodeHost(fixture.host, new FakeLogOutputChannel())
     fixture.server.handle('model/list', () => echoCapture.modelList)
     expect(echoCapture.initialize.schema.fingerprint).toBe(EXPECTED_SCHEMA_FINGERPRINT)
+    // The 1.4.2 capture is older than the SDK 1.4.4 pin (SDK144).
+    expect(echoCapture142.initialize.schema.fingerprint).not.toBe(EXPECTED_SCHEMA_FINGERPRINT)
     expect(echoCapture.provenance.modelAttempts).toBe(0)
-    expect(host.info.serverVersion).toBe('1.4.2')
+    expect(host.info.serverVersion).toBe('1.4.4')
     await expect(host.listModels()).resolves.toEqual([])
   })
   it('keeps the old model result when no effort reader is installed', async () => {
@@ -579,5 +583,24 @@ describe('Muse Code 1.4.2 feature ports', () => {
     })
     await expect(host.deleteSession('s')).resolves.toMatchObject({ outcome: 'failed' })
     expect(host.sessionCount).toBe(1)
+  })
+})
+
+// meta-models/muse-code-sdk#34 (PLAN.md D25): SDK 1.4.4 (FR-45141-1) spawns
+// `muse serve` with `windowsHide`, on the public path as on ours (SDK144).
+describe('Muse Code SDK 1.4.4 spawn options', () => {
+  it('hides the host window on every spawn the SDK makes', async () => {
+    const seen: SpawnOptions[] = []
+    const child = MuseServeChild.spawn({
+      museBin: process.execPath,
+      args: ['-e', ''],
+      spawnFn: ((command: string, args: readonly string[], options: SpawnOptions) => {
+        seen.push(options)
+        return spawn(command, args, options)
+      }) as typeof spawn,
+    })
+    await child.exit
+    expect(seen).toHaveLength(1)
+    expect(seen[0]?.windowsHide).toBe(true)
   })
 })
