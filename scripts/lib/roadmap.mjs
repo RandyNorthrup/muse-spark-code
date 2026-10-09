@@ -87,18 +87,34 @@ function readEntries(text, problems) {
   return parsed.entries
 }
 
+const WORD_CHARACTER = /[\p{L}\p{N}]/u
+
 /**
- * One case-insensitive pattern for every milestone and working id PLAN.md
+ * One case-insensitive matcher for every milestone and working id PLAN.md
  * and entries.json know (M19, m19, SECWINPATH, M26-follow-up), matched as a
  * whole word, as milestone selection matches ids.
  */
-function knownIdPattern(ids) {
+function knownIdMatcher(ids) {
   if (ids.size === 0) return null
-  const alternatives = [...ids]
+  // A plain search, never a RegExp built from data (semgrep detect-non-literal-regexp).
+  const needles = [...ids]
     .toSorted((left, right) => right.length - left.length)
-    .map((id) => id.replaceAll(/[$()*+.?[\\\]^{|}]/g, String.raw`\$&`))
-  const word = String.raw`[\p{L}\p{N}]`
-  return new RegExp(`(?<!${word})(?:${alternatives.join('|')})(?!${word})`, 'iu')
+    .map((id) => id.toLowerCase())
+  return {
+    /** The first known id in `text` as written there, or undefined. */
+    firstIn(text) {
+      const haystack = text.toLowerCase()
+      for (const needle of needles) {
+        for (let at = haystack.indexOf(needle); at !== -1; at = haystack.indexOf(needle, at + 1)) {
+          const before = at === 0 ? '' : haystack.charAt(at - 1)
+          const after = haystack.charAt(at + needle.length)
+          if (!WORD_CHARACTER.test(before) && !WORD_CHARACTER.test(after))
+            return haystack.length === text.length ? text.slice(at, at + needle.length) : needle
+        }
+      }
+      return
+    },
+  }
 }
 
 /**
@@ -252,9 +268,9 @@ function render(placed, pending, releases, sources) {
 }
 
 class EntryChecker {
-  constructor(versions, idPattern, problems) {
+  constructor(versions, idMatcher, problems) {
     this.versions = versions
-    this.idPattern = idPattern
+    this.idMatcher = idMatcher
     this.problems = problems
   }
 
@@ -265,7 +281,7 @@ class EntryChecker {
     }
     // Milestone, decision and working ids appear only as the generated tag.
     if (!isRendered) return true
-    const known = this.idPattern?.exec(value)?.[0]
+    const known = this.idMatcher?.firstIn(value)
     if (known !== undefined)
       this.problems.push(`${id}: "${key}" names the milestone or working id ${known}`)
     else if (/\b[MD]\d+/.test(value))
@@ -330,7 +346,7 @@ function placeEntries(facts, entries, versions, pending, plan, problems, notes) 
   const ids = new Set(facts.milestones.map(({ id }) => id.toLowerCase()))
   for (const entry of entries)
     if (isEntryObject(entry) && hasValidId(entry)) ids.add(entry.id.toLowerCase())
-  const checker = new EntryChecker(versions, knownIdPattern(ids), problems)
+  const checker = new EntryChecker(versions, knownIdMatcher(ids), problems)
   const seen = new Set()
   const placed = []
   for (const [index, entry] of entries.entries()) {
