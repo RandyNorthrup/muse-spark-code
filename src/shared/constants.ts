@@ -1701,7 +1701,8 @@ export const GITHUB_SCOPES_HEADER = 'x-oauth-scopes'
 // registers the app; the device flow refuses to start while it is.
 export const GITHUB_OAUTH_CLIENT_ID = ''
 // GitHub's device flow (docs.github.com, "Authorizing OAuth apps", device
-// flow, read 2026-10-08). Only this verification address is ever opened.
+// flow; lane A re-reads and dates it). Only this verification address is
+// ever opened.
 export const GITHUB_DEVICE_CODE_URL = 'https://github.com/login/device/code'
 export const GITHUB_DEVICE_TOKEN_URL = 'https://github.com/login/oauth/access_token'
 export const GITHUB_DEVICE_VERIFICATION_URL = 'https://github.com/login/device'

@@ -20167,6 +20167,48 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 **Status 2026-10-08: planned.**
 
+- **Lane 0 landed on `feature/m123` (2026-10-08, Kubuntu).** Record:
+  `docs/certification/m123.md`.
+  - **Contracts.** `src/core/git/tokenSource.ts`: the `GitHubTokenSource`
+    port, `resolveGitHubCredential` (a silent pass in D104's order, then one
+    source asked: the user's pick or the first), expired credentials passed
+    over, `leaseExpiresAt` (never past `GITHUB_LEASE_TTL_MS`, 15 minutes),
+    the permitted scopes and the `X-OAuth-Scopes` check, the client id that
+    refuses while empty, and `isGhLoginEnabled` (the user's own value only).
+    `src/core/git/runtimeGit.ts`: `RuntimeGitDeps`, what lane G's
+    `createRuntimeGit(surface, deps): ConversationGitPort` takes, and the
+    `PullRequestLinkStore` port (lane P). `ConversationGitPort` is
+    unchanged.
+  - **Constants and the setting.** The GitHub block in `constants.ts`;
+    `museSpark.github.useGhLogin`, off and machine-scoped, in 15 tables, the
+    catalogue and the reference. Nothing reads it yet (lane A).
+  - **Dependency on M104 (recorded, not copied).** This base has no
+    `src/shared/hostApi/methods.ts`: the F36 rows (`auth/github`,
+    `auth/githubLease`, `github/request`) and `nativeGitHub.ts` live on the
+    unmerged M104 branches (`m104/pe`). So the additive `expiresAt` (epoch
+    ms, a positive integer, optional) is defined runtime-side as
+    `githubLeaseResultSchema`. When M104 merges, its `auth/githubLease`
+    result row gains the same field, the MHP schema snapshot takes its one
+    minor bump, `tokenSource.ts` reads the row's schema instead of its own,
+    and `check:host-api` covers it. Until then lanes A, G and P need nothing
+    from M104; lane L does.
+  - **Fakes.** `test/e2e/fakeGitHub.ts`: one loopback github.com, REST
+    replaying M71's captures through the unit route table (scopes per
+    token, 401 for an unknown one) and the device flow (every documented
+    error, `slow_down` +5 s, 900 s expiry, deny, refresh rotation, form or
+    JSON replies, a phishing address on request, a lost network).
+    `test/fixtures/github/fake-gh.mjs`: `gh auth token --hostname
+github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
+    the fixture repositories (own, fork with parent, behind, detached,
+    failing hook, signer; GitHub URLs routed to local bare repositories by
+    `insteadOf`), an in-memory link store and `RuntimeGitDeps`. The
+    TypeScript helpers sit there, not under `test/fixtures/github/`,
+    because only the test projects' folders are type-checked and linted.
+  - **Not captured.** The device-flow shapes are GitHub's documented
+    examples, not re-read in lane 0 (the fetch was refused in the lane's
+    sandbox). Lane A checks and dates them, and captures one sign-in after
+    Q-M123 (AGENTS.md rule 14).
+
 - **Goal.** F36 (M71's Git and pull request features) works in every editor
   in M104's matrix. That means the same forms, drafts, confirmations, links,
   checks and held checkout as in VS Code, with Git run natively by the

@@ -191,8 +191,8 @@ export async function startFakeGitHub(
   const refresh = (params: OAuthParams): object => {
     const token = params.refresh_token ?? ''
     if (!refreshTokens.delete(token)) {
-      // The word GitHub documents for an unknown refresh token ("Refreshing
-      // user access tokens", read 2026-10-08); not captured either.
+      // GitHub's documented word for an unknown refresh token ("Refreshing
+      // user access tokens"); neither re-read in lane 0 nor captured.
       return { error: 'bad_refresh_token' }
     }
     return issueTokens()

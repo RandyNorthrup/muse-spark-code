@@ -1,9 +1,11 @@
 // GitHub's OAuth device flow as its documentation describes it
-// (docs.github.com, "Authorizing OAuth apps", section "Device flow", read
-// 2026-10-08). NOT a capture: no capture is possible until the owner
-// registers the project's OAuth App (PLAN.md Q-M123). Lane A replaces these
-// with a capture of one sign-in after Q-M123 (AGENTS.md rule 14), and the
-// parser keeps any field GitHub adds as it came.
+// (docs.github.com, "Authorizing OAuth apps", section "Device flow"). Lane 0
+// wrote these from that page's known examples without re-reading it (the
+// lane's sandbox refused the fetch); lane A checks them against the page,
+// dated, before its parser relies on them. NOT a capture: none is possible
+// until the owner registers the project's OAuth App (PLAN.md Q-M123). Lane
+// A replaces these with a capture of one sign-in after Q-M123 (AGENTS.md
+// rule 14), and the parser keeps any field GitHub adds as it came.
 //
 // Values are the documentation's examples, with the token values replaced
 // by canaries that cannot pass for a real token.

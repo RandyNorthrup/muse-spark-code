@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Groundwork for Git and pull requests in every editor** (M123 lane 0,
+  PLAN.md D104). The shared contracts for the GitHub sign-in sources (the
+  editor's own sign-in by lease, Muse Spark's device-flow sign-in, and the
+  user's `gh` login), the runtime Git adapter's inputs and the pull request
+  link store, with fakes of GitHub, the device flow, `gh` and Git remotes
+  for the lanes that build on them. New setting
+  `museSpark.github.useGhLogin` (off, user settings only); nothing reads it
+  yet. The device-flow sign-in waits for the project's OAuth App (Q-M123).
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
