@@ -3,6 +3,7 @@
 import * as z from 'zod/mini'
 import {
   NODE_CHALLENGE_TTL_MS,
+  NODE_CHALLENGE_MAX_CHARS,
   NODE_DIGEST_PATTERN,
   NODE_DNS_LABEL_CHARS,
   NODE_ID_PATTERN,
@@ -49,6 +50,14 @@ export const nodeTokenSchema = z
     z.maxLength(NODE_MAX_RANDOM_TOKEN_CHARS),
     z.regex(new RegExp(NODE_TOKEN_PATTERN, 'u')),
   )
+/** Opaque authenticated challenge; ordinary ids and bearers keep their bounds. */
+export const nodeChallengeTokenSchema = z
+  .string()
+  .check(
+    z.minLength(1),
+    z.maxLength(NODE_CHALLENGE_MAX_CHARS),
+    z.regex(new RegExp(NODE_TOKEN_PATTERN, 'u')),
+  )
 const publicBytesSchema = z
   .string()
   .check(
@@ -69,8 +78,8 @@ export const nodeStepUpActionSchema = z.enum([
 ])
 const challengeFields = {
   v: z.literal(NODE_PROTOCOL_VERSION),
-  id: nodeIdentifierSchema,
-  challenge: nodeTokenSchema,
+  id: nodeChallengeTokenSchema,
+  challenge: nodeChallengeTokenSchema,
   rpId: nodeDomainSchema,
   origin: z.url().check(z.maxLength(NODE_MAX_ORIGIN_CHARS)),
   issuedAt: nodeTimeSchema,
@@ -196,7 +205,7 @@ export const nodePasskeySchema = z
   })
   .check(z.refine((key) => key.failures < NODE_SIGNIN_MAX_FAILURES || key.disabled))
 
-/** The real verifier checks the consumed challenge, UV, RP, origin and signature. */
+/** The real verifier checks the authenticated challenge, UV, RP, origin and signature. */
 export interface NodeAuthPort {
   begin(purpose: 'enroll' | 'signin', setupCode?: string): Promise<NodeAuthChallenge>
   beginStepUp(

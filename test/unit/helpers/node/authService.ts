@@ -1,5 +1,6 @@
+import { randomBytes } from 'node:crypto'
 import { vi } from 'vitest'
-import { NODE_ZERO_DIGEST } from '../../../../src/shared/constants'
+import { NODE_CHALLENGE_KEY_BYTES, NODE_ZERO_DIGEST } from '../../../../src/shared/constants'
 import { nodeStateSchema, type NodeAudit } from '../../../../src/shared/node'
 import type { NodeStateStore } from '../../../../src/runtime/node/state'
 import { NodePasskeyAuth } from '../../../../src/runtime/node/auth/service'
@@ -55,6 +56,7 @@ export function authFixture() {
   const options = {
     state: store,
     clock,
+    challengeKey: randomBytes(NODE_CHALLENGE_KEY_BYTES),
     rpId: 'home.local',
     origin: 'https://home.local:7443',
     verifier,

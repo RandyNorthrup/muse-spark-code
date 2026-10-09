@@ -125,9 +125,13 @@ export class NodeListener {
       guardNodeRequest(request, this.config, false)
       if (request.method !== 'POST') throw new NodeListenerError('invalidRequest')
       const method = nodeRoute(request.url)
-      hasAuthenticated = method === 'node/auth/signin' || method === 'node/auth/enroll'
+      hasAuthenticated = [
+        'node/auth/signin',
+        'node/auth/enroll',
+        'node/auth/stepUp/complete',
+      ].includes(method)
       const entry = nodeMethods[method]
-      release = this.admission.enter(request.socket.remoteAddress ?? '', entry.access === 'public')
+      release = this.admission.enter(request.socket.remoteAddress ?? '', hasAuthenticated)
       const auth = nodeHeader(request, 'authorization')
       const session =
         entry.access === 'public'
@@ -148,6 +152,7 @@ export class NodeListener {
         body,
         session,
         {
+          source: request.socket.remoteAddress ?? '',
           methods: this.options.methods,
           verifier: this.options.verifier,
           now: () => this.options.clock.now(),
@@ -163,8 +168,7 @@ export class NodeListener {
       response.end(JSON.stringify(result))
       isFailed = false
     } catch (error: unknown) {
-      // A challenge-allocation refusal is not a failed proof. Repeated 429s
-      // cannot keep account backoff armed against a console-code enrollment.
+      // Admission refusal is not a failed proof and cannot extend source backoff.
       if (error instanceof NodeListenerError && error.code === 'rateLimited') isFailed = false
       refuse(response, error)
     } finally {

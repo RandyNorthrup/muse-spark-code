@@ -1,39 +1,78 @@
-import { randomBytes, randomUUID } from 'node:crypto'
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import * as z from 'zod/mini'
 import {
-  NODE_AUTH_RANDOM_BYTES,
+  NODE_CHALLENGE_NONCE_BYTES,
+  NODE_CHALLENGE_KEY_BYTES,
   NODE_CHALLENGE_TTL_MS,
-  NODE_SOURCE_CHALLENGES,
-  NODE_SIGNIN_CHALLENGES,
-  NODE_STEP_UP_CHALLENGES,
-  NODE_CHALLENGE_BACKOFF_MS,
   NODE_PROTOCOL_VERSION,
   UI_TEXT,
 } from '../../../shared/constants'
 import type { NodeClock } from '../../../shared/node'
-import { nodeAuthChallengeSchema, type NodeAuthChallenge } from '../../../shared/nodeAuth'
-import { NodeListenerError } from '../listenerGuard'
+import {
+  nodeAuthChallengeSchema,
+  nodeChallengeTokenSchema,
+  nodeDigestSchema,
+  nodeTokenSchema,
+  type NodeAuthChallenge,
+} from '../../../shared/nodeAuth'
 
-interface Pending {
-  challenge: NodeAuthChallenge
-  deadline: number
-  setupHash: string | null
-  source: string
-}
+const payloadSchema = z.strictObject({
+  challenge: nodeAuthChallengeSchema,
+  issuedMono: z.number().check(z.nonnegative()),
+  epoch: nodeTokenSchema,
+  setupHash: z.nullable(nodeDigestSchema),
+})
+type VerifiedChallenge = z.infer<typeof payloadSchema> & { deadline: number; nonce: string }
+
+/** Unproved challenges retain nothing. Only successful proofs enter the expiry set. */
 export class NodeChallenges {
-  private readonly pending = new Map<string, Pending>()
-  private readonly retryAt = { signin: 0, stepUp: 0 }
+  private readonly consumed = new Map<string, number>()
+  private epoch = randomBytes(NODE_CHALLENGE_KEY_BYTES).toString('base64url')
+  private readonly key: Buffer
   constructor(
     private readonly clock: NodeClock,
     private readonly rpId: string,
     private readonly origin: string,
-  ) {}
+    key: Uint8Array,
+  ) {
+    if (key.byteLength !== NODE_CHALLENGE_KEY_BYTES) throw new Error(UI_TEXT.nodeErrors.unavailable)
+    this.key = Buffer.from(key)
+  }
+
+  private prune(): void {
+    for (const [nonce, deadline] of this.consumed)
+      if (deadline <= this.clock.monotonicMs()) this.consumed.delete(nonce)
+  }
+
+  private issueFields(raw: unknown, setupHash: string | null): NodeAuthChallenge {
+    this.prune()
+    const challenge = nodeAuthChallengeSchema.parse(raw)
+    const payload = Buffer.from(
+      JSON.stringify(
+        payloadSchema.parse({
+          challenge,
+          issuedMono: this.clock.monotonicMs(),
+          epoch: this.epoch,
+          setupHash,
+        }),
+      ),
+    )
+    const mac = createHmac('sha256', this.key).update(payload).digest()
+    const token = nodeChallengeTokenSchema.parse(
+      Buffer.concat([payload, mac]).toString('base64url'),
+    )
+    // WebAuthn signs the complete authenticated token, including its purpose
+    // and bindings. The browser echoes it through the existing opaque id.
+    return { ...challenge, id: token, challenge: token }
+  }
 
   private fields() {
     const issuedAt = this.clock.now()
+    const nonce = randomBytes(NODE_CHALLENGE_NONCE_BYTES).toString('base64url')
     return {
       v: NODE_PROTOCOL_VERSION,
-      id: randomUUID(),
-      challenge: randomBytes(NODE_AUTH_RANDOM_BYTES).toString('base64url'),
+      id: nonce,
+      challenge: nonce,
       rpId: this.rpId,
       origin: this.origin,
       issuedAt,
@@ -41,80 +80,62 @@ export class NodeChallenges {
     }
   }
 
-  private save(raw: unknown, setupHash: string | null, source: string): NodeAuthChallenge {
-    const now = this.clock.monotonicMs()
-    for (const [id, record] of this.pending) if (record.deadline <= now) this.pending.delete(id)
-    const challenge = nodeAuthChallengeSchema.parse(raw)
-    const purpose = challenge.purpose
-    let count = 0
-    let sourceCount = 0
-    for (const record of this.pending.values()) {
-      if (record.challenge.purpose !== purpose) continue
-      count += 1
-      if (record.source === source) sourceCount += 1
-    }
-    const limit = {
-      signin: NODE_SIGNIN_CHALLENGES,
-      stepUp: NODE_STEP_UP_CHALLENGES,
-      enroll: NODE_SOURCE_CHALLENGES,
-    }[purpose]
-    if (
-      count >= limit ||
-      sourceCount >= NODE_SOURCE_CHALLENGES ||
-      (purpose !== 'enroll' && now < this.retryAt[purpose])
-    )
-      throw new NodeListenerError('rateLimited')
-    // Enrollment has already proved the console code. Its reserved slots and
-    // separate budget cannot be consumed by sign-in or authenticated step-up.
-    if (purpose !== 'enroll') this.retryAt[purpose] = now + NODE_CHALLENGE_BACKOFF_MS
-    this.pending.set(challenge.id, {
-      challenge,
-      deadline: now + NODE_CHALLENGE_TTL_MS,
-      setupHash,
-      source,
-    })
-    return structuredClone(challenge)
-  }
-
-  issue(
-    purpose: 'enroll' | 'signin',
-    source: string,
-    setupHash: string | null = null,
-  ): NodeAuthChallenge {
-    return this.save({ ...this.fields(), purpose }, setupHash, source)
+  issue(purpose: 'enroll' | 'signin', setupHash: string | null = null): NodeAuthChallenge {
+    return this.issueFields({ ...this.fields(), purpose }, setupHash)
   }
 
   stepUp(
     sessionId: string,
     action: Extract<NodeAuthChallenge, { purpose: 'stepUp' }>['action'],
     actionDigest: string,
-    source: string,
   ): NodeAuthChallenge {
-    return this.save(
+    return this.issueFields(
       { ...this.fields(), purpose: 'stepUp', sessionId, action, actionDigest },
       null,
-      source,
     )
   }
 
-  take(id: string, purpose: NodeAuthChallenge['purpose']): Pending {
-    const record = this.pending.get(id)
-    this.pending.delete(id)
+  verify(id: string, purpose: NodeAuthChallenge['purpose']): VerifiedChallenge {
+    this.prune()
+    const bytes = Buffer.from(nodeChallengeTokenSchema.parse(id), 'base64url')
+    const payload = bytes.subarray(0, -NODE_CHALLENGE_KEY_BYTES)
+    const mac = bytes.subarray(-NODE_CHALLENGE_KEY_BYTES)
+    const expected = createHmac('sha256', this.key).update(payload).digest()
+    if (mac.length !== expected.length || !timingSafeEqual(mac, expected))
+      throw new Error(UI_TEXT.nodeErrors.unauthenticated)
+    const raw: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(payload))
+    const record = payloadSchema.parse(raw)
+    const challenge = record.challenge
+    const deadline = record.issuedMono + NODE_CHALLENGE_TTL_MS
     if (
-      record === undefined ||
-      record.deadline <= this.clock.monotonicMs() ||
-      record.challenge.purpose !== purpose
+      record.epoch !== this.epoch ||
+      challenge.purpose !== purpose ||
+      challenge.rpId !== this.rpId ||
+      challenge.origin !== this.origin ||
+      challenge.expiresAt - challenge.issuedAt !== NODE_CHALLENGE_TTL_MS ||
+      challenge.issuedAt > this.clock.now() ||
+      challenge.expiresAt <= this.clock.now() ||
+      record.issuedMono > this.clock.monotonicMs() ||
+      deadline <= this.clock.monotonicMs() ||
+      this.consumed.has(challenge.id)
     )
       throw new Error(UI_TEXT.nodeErrors.expired)
-    return record
+    return {
+      ...record,
+      deadline,
+      nonce: challenge.id,
+      challenge: { ...challenge, id, challenge: id },
+    }
+  }
+
+  consume(record: VerifiedChallenge): void {
+    // Revalidate after asynchronous proof work, then retain only the nonce.
+    const verified = this.verify(record.challenge.id, record.challenge.purpose)
+    this.consumed.set(verified.nonce, verified.deadline)
   }
 
   clear(): void {
-    this.pending.clear()
-  }
-  end(sessionId: string): void {
-    for (const [id, record] of this.pending)
-      if (record.challenge.purpose === 'stepUp' && record.challenge.sessionId === sessionId)
-        this.pending.delete(id)
+    this.epoch = randomBytes(NODE_CHALLENGE_KEY_BYTES).toString('base64url')
+    this.consumed.clear()
   }
 }

@@ -27,7 +27,13 @@ const built: {
   port: number
   listener: NodeListener | undefined
   options: NodeListenerOptions
-} = { root: '', certificate: '', port: 0, listener: undefined, options: fixture.options }
+} = {
+  root: '',
+  certificate: '',
+  port: 0,
+  listener: undefined,
+  options: { ...fixture.options, methods: vi.fn(fixture.options.methods) },
+}
 
 async function vacantPort(): Promise<number> {
   const server = createServer()
@@ -102,11 +108,13 @@ beforeAll(async () => {
         .toLowerCase(),
     },
   }
+  built.options = { ...built.options, methods: vi.fn(built.options.methods) }
   built.listener = new NodeListener(built.options)
   await built.listener.start()
 })
 beforeEach(() => {
   fixture.request.mockReset().mockResolvedValue({ done: true })
+  vi.mocked(built.options.methods).mockClear()
   fixture.verifier.verifyBearer.mockClear()
   fixture.verifier.consumeStepUp.mockClear()
 })
@@ -423,6 +431,10 @@ describe('M110-N real selected-interface HTTPS listener', () => {
     expect(response.status).toBe(200)
     expect(response.body).toBe('{"done":true}')
     expect(fixture.request).toHaveBeenCalledWith('node/stop', {}, expect.any(AbortSignal))
+    expect(built.options.methods).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerId: 'owner' }),
+      '127.0.0.1',
+    )
     expect(fixture.verifier.consumeStepUp).not.toHaveBeenCalled()
     expect(await status('/node/stop', '{}', {}, built.port, 'OPTIONS')).toBe(400)
     expect(await status('/node/stop', '{}', {}, built.port, 'GET')).toBe(400)

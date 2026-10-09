@@ -29,9 +29,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- Home-node authentication groundwork bounds challenge issuance per source
-  and globally, reserves console-enrollment slots, and preserves sessions
-  when healthy-owner recovery is refused.
+- Home-node authentication groundwork uses stateless HMAC challenges, with
+  replay records only after successful passkey proofs. A paced 25-address
+  issuance flood cannot prevent owner sign-in or console-code recovery;
+  proof-work limits and backoff apply per source. Healthy-owner recovery
+  refusal preserves sessions, and expired proofs require verified and denied
+  audit records.
 - Home-node TLS issuance publishes the key and certificate in one atomic
   commit; retries recover abandoned staging or the unchanged committed pair.
 - Home-node auth audit distinguishes verification from issued access, so a

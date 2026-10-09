@@ -3927,9 +3927,11 @@ controller and deployment bindings and platform receipts listed in
 
 The passkey and browser-pairing libraries build separately with
 `npm run build:node-auth`, under unchanged 500/350 KiB server/page caps
-(the page cap includes CSS). Challenge issuance has per-source limits and
-a global six-second interval, with separate slots for console-code
-enrollment. Refused recovery preserves healthy sessions. TLS issuance
+(the page cap includes CSS). Challenges are stateless authenticated tokens,
+so abandoned sign-ins cannot fill an issuance table. Successful proofs alone
+retain one-use nonces until expiry; proof-work limits apply per source.
+Console recovery still requires a fresh setup code, and refused recovery
+preserves healthy sessions. TLS issuance
 publishes the key and certificate together under `node-tls/`; retry after
 a crash discards private uncommitted staging or recovers the same complete
 leaf and fingerprint without overwriting it. Auth audit records distinguish

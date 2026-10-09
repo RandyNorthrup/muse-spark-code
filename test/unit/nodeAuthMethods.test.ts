@@ -35,6 +35,42 @@ describe('A1 listener bindings', () => {
     ).rejects.toThrow()
     expect(foreign).toHaveBeenCalledOnce()
   })
+  it('H09 dispatches the actual source into the auth factory', async () => {
+    const f = authFixture()
+    const methods = vi.fn(() => downstream())
+    await expect(
+      dispatchNodeMethod(
+        'node/stop',
+        {},
+        null,
+        {
+          source: 'fd42::25',
+          methods,
+          verifier: f.auth.sessions,
+          now: f.clock.now,
+        },
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow()
+    // A privileged route cannot test source propagation without a verified session.
+    const session = f.auth.sessions.create()
+    await expect(
+      dispatchNodeMethod(
+        'node/stop',
+        {},
+        session.session,
+        {
+          source: 'fd42::25',
+          methods,
+          verifier: f.auth.sessions,
+          now: f.clock.now,
+        },
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow('unbound')
+    expect(methods).toHaveBeenCalledWith(session.session, 'fd42::25')
+    f.auth.endAll()
+  })
   it('installs the caller language and parses enrollment and signout through the catalog', async () => {
     const f = authFixture()
     const translated = { ...EN, nodeLabels: { ...EN.nodeLabels, setupCode: 'Code local' } }
@@ -99,6 +135,7 @@ describe('A1 listener bindings', () => {
       },
     }
     const binding = {
+      source: '127.0.0.1',
       methods: () =>
         nodeAuthMethods(
           f.auth,

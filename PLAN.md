@@ -22567,6 +22567,42 @@ bundle cap remains green. The prior J-owned host API snapshot mismatch and
 aggregate/platform/audit handoffs remain §7 deferrals. See the A1 certification
 and its `fixm110a2-*.json` registers; no paid/live attempt occurred.
 
+**M110A3 redesign scope (RVM110A2, 2026-10-09).** Replace the
+fillable challenge table and global issuance backoff with stateless
+HMAC-SHA-256 challenges: purpose, 128-bit nonce, exact issuance/expiry,
+console-code hash or session/action/digest binding, and a process epoch.
+The WebAuthn challenge is the complete authenticated token, echoed as the
+opaque challenge id; dedicated bounded schemas admit it without widening
+other identifiers or bearers. Derive the per-node HMAC key with HKDF from
+the protected committed TLS private key and certificate fingerprint, so
+rotation and A2's atomic crash recovery cover both identities. N injects
+that key through the existing lazy auth factory. Keep only successfully
+verified consumed nonces until their monotonic expiry, never abandoned or
+failed issues. Preserve the SDK's signature-counter checks, epoch and
+post-persistence expiry barriers. Issuance does not enter proof admission. Proof-work admission and failure backoff
+are per source, with a bounded attempts window; remove shared account
+backoff, and pass the actual socket source through both listener dispatches.
+H20 recovery remains console-code-only and independent of challenge capacity;
+healthy-owner refusal still preserves sessions. Reproduce the reviewer's
+25-address steady-state flood on e5f11498b, prove owner sign-in and lockout
+recovery, replay/forgery/purpose/expiry and independent-source admission, and
+require verified plus denied audit rows on expiry. Record byte-exact guard
+drills, update challenge threat rows and scoped certification. No dependency,
+paid/live call, trust-store change, aggregate gate or cap change is authorized.
+
+**M110A3 receipt (2026-10-09).** The stateless redesign closes RVM110A2's
+P1 and both P3 findings. The exact e5f11498b stack fails four new service
+regressions while retaining 22 passing tests. All **29** guard drills fire
+and restore SHA-256-identical final source; the final **306** scoped tests
+pass with repository-default timeouts. All five type projects, scoped
+lint/format, localization, deadcode, duplication and both builds pass.
+Auth server/page are **497.0/500** and **284.4/350 KiB**; every existing cap
+stays green. Only missing locked dependency trees were added; all **31,224**
+existing files/symlinks match their pre-install bytes and metadata. The
+inherited generated-host-record, aggregate/platform/audit and named runtime
+bindings remain §7 lead handoffs. No paid/live model attempt occurred. See
+A1 certification's A3 section and `m110-a1/a3-*.json` registers.
+
 **A1 dependency pins.** `@simplewebauthn/server` 14.0.3 and
 `@simplewebauthn/browser` 14.0.0 are MIT, with no peer dependencies (checked
 2026-10-06). Server integrity:
@@ -23066,6 +23102,10 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
         live or paid call without CLAUDE.md's count first
 
 ## 7. Gates
+
+**M110A3 gate boundary (2026-10-09).** The same scoped/lead-owned
+aggregate and platform handoff below applies to the A3 redesign. No merge,
+rebase, push or modification of existing shared dependency entries is allowed.
 
 **FIXM110A2 gate boundary (2026-10-09).** The brief reserves aggregate
 quality/coverage and platform certification for the lead and forbids merging,

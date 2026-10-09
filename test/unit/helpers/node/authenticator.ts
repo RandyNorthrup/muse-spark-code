@@ -1,3 +1,5 @@
+import { generateKeyPairSync } from 'node:crypto'
+import { isoCBOR, cose } from '@simplewebauthn/server/helpers'
 import * as z from 'zod/mini'
 
 /** Inject a Playwright CDPSession; no browser launches or trust bypasses here. */
@@ -42,4 +44,20 @@ export class VirtualNodeAuthenticator {
       await this.cdp.send('WebAuthn.removeVirtualAuthenticator', { authenticatorId: this.id }),
     )
   }
+}
+
+/** Ephemeral test key; the private half is never persisted or captured. */
+export function nodeSigningKey() {
+  const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+  const jwk = z.object({ x: z.string(), y: z.string() }).parse(publicKey.export({ format: 'jwk' }))
+  const publicCose = isoCBOR.encode(
+    new Map<number, number | Uint8Array>([
+      [cose.COSEKEYS.kty, cose.COSEKTY.EC2],
+      [cose.COSEKEYS.alg, cose.COSEALG.ES256],
+      [cose.COSEKEYS.crv, 1],
+      [cose.COSEKEYS.x, Buffer.from(jwk.x, 'base64url')],
+      [cose.COSEKEYS.y, Buffer.from(jwk.y, 'base64url')],
+    ]),
+  )
+  return { privateKey, publicCose }
 }

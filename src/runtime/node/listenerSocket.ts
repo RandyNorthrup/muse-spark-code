@@ -124,7 +124,12 @@ export function upgradeNodeTerminal(
       method,
       params,
       session,
-      { methods: options.methods, verifier: options.verifier, now: () => options.clock.now() },
+      {
+        methods: options.methods,
+        verifier: options.verifier,
+        now: () => options.clock.now(),
+        source: request.socket.remoteAddress ?? '',
+      },
       signal,
     )
   }

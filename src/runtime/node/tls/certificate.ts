@@ -5,6 +5,7 @@ import {
   randomUUID,
   X509Certificate,
   createPrivateKey,
+  hkdfSync,
 } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
 import { constants } from 'node:fs'
@@ -13,6 +14,8 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import {
   NODE_MAX_AUTH_BYTES,
+  NODE_CHALLENGE_KEY_BYTES,
+  NODE_CHALLENGE_KEY_CONTEXT,
   NODE_TLS_CERT_FILE,
   NODE_TLS_KEY_FILE,
   NODE_TLS_DIRECTORY,
@@ -71,6 +74,22 @@ export function checkNodeCertificate(
   )
     throw new Error(UI_TEXT.nodeErrors.forbidden)
   return digest
+}
+
+/** Derive a separate auth key from the same protected, atomically published TLS pair. */
+export async function readNodeChallengeKey(files: NodePrivateFiles): Promise<Buffer> {
+  const key = createPrivateKey(await files.read(NODE_TLS_KEY_FILE, NODE_MAX_AUTH_BYTES))
+  const certificate = new X509Certificate(await files.read(NODE_TLS_CERT_FILE, NODE_MAX_AUTH_BYTES))
+  if (!certificate.checkPrivateKey(key)) throw new Error(UI_TEXT.nodeErrors.forbidden)
+  return Buffer.from(
+    hkdfSync(
+      'sha256',
+      key.export({ type: 'pkcs8', format: 'der' }),
+      certificate.fingerprint256,
+      NODE_CHALLENGE_KEY_CONTEXT,
+      NODE_CHALLENGE_KEY_BYTES,
+    ),
+  )
 }
 
 /** Check on-node resolution; clients still need their own LAN DNS/hosts entry. */

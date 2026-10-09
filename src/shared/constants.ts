@@ -102,12 +102,12 @@ export const NODE_SIGNIN_BACKOFF_MS = 1000
 export const NODE_SIGNIN_BACKOFF_MAX_MS = 60 * 1000
 export const NODE_MAX_SESSIONS = 100
 export const NODE_MAX_CHALLENGES = 100
-export const NODE_SOURCE_CHALLENGES = 2
-export const NODE_SIGNIN_CHALLENGES = NODE_MAX_CHALLENGES / 2
-export const NODE_STEP_UP_CHALLENGES =
-  NODE_MAX_CHALLENGES - NODE_SIGNIN_CHALLENGES - NODE_SOURCE_CHALLENGES
-// At most one unauthenticated issuance per interval, even with rotating sources.
-export const NODE_CHALLENGE_BACKOFF_MS = NODE_CHALLENGE_TTL_MS / NODE_SIGNIN_CHALLENGES
+export const NODE_CHALLENGE_NONCE_BYTES = 16
+export const NODE_CHALLENGE_KEY_BYTES = 32
+export const NODE_CHALLENGE_MAX_CHARS = 4096
+export const NODE_CHALLENGE_KEY_CONTEXT = 'muse-node-auth-challenges-v1'
+export const NODE_PROOF_MAX_ATTEMPTS = 100
+export const NODE_PROOF_WINDOW_MS = 60 * 1000
 export const NODE_MAX_WORKSPACES = 64
 export const NODE_MAX_PAGE_ITEMS = 1000
 export const NODE_MAX_NAMES = 16

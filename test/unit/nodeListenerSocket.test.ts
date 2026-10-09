@@ -110,10 +110,14 @@ describe('M110-N WebSocket first-frame boundary', () => {
   it('H08 authenticates fragmented network chunks, scopes attach/input/resize/close to the shared port, and disposes on lock', async () => {
     const test = stream()
     test.open()
+    const methods = vi.fn(test.options.methods)
+    Object.defineProperty(test.options, 'methods', { value: methods })
+    Object.defineProperty(test.handshake.socket, 'remoteAddress', { value: 'fd42::25' })
     const bytes = maskedFrame(auth)
     test.socket.emit('data', bytes.subarray(0, 1))
     test.socket.emit('data', bytes.subarray(1))
     await flushListener()
+    expect(methods).toHaveBeenCalledWith(expect.objectContaining({ ownerId: 'owner' }), 'fd42::25')
     expect(test.request).toHaveBeenCalledWith(
       'node/terminal/attach',
       { terminalId: 'terminal-1' },

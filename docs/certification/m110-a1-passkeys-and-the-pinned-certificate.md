@@ -23,7 +23,7 @@ lane runs scoped checks directly, with repository-default test timeouts.
 | H06     | Random page-memory bearers; memory stores only their hashes. HTTP headers only, cookies omitted, redirects refused, API cache disabled, reload starts signed out. State/audit contain no bearer, setup code or proof bytes.                                             | Session and browser storage/header/reload tests.                                                                        |
 | H07     | N retains Host/Origin/Fetch-Metadata and first-frame socket guards. Browser requests use same-origin mode.                                                                                                                                                              | N's existing accepted transport suites; A1 adds no competing listener.                                                  |
 | H08     | Idle/absolute monotonic deadlines; timers abort streams without another request; detach always runs. Action proofs expire and are consumed once. Signout/lock invalidate sessions/challenges/proofs.                                                                    | `nodeAuthSessions.test.ts`, `nodeAuthChallenges.test.ts`, epoch/signout tests; byte-exact core drills.                  |
-| H09     | Per-source/account admission/backoff before verifier work, durable failure count and disable at 100, bounded sessions/challenges/proofs, N's capped hash-chained audit.                                                                                                 | Throttle, caps and 100-failure tests and drills.                                                                        |
+| H09     | Per-source proof-work admission/backoff, durable failure count and disable at 100, stateless challenges and expiring successful-proof nonce set, bounded sessions/action proofs, N's capped hash-chained audit.                                                         | Throttle, caps and 100-failure tests and drills.                                                                        |
 | H17     | Exact MIT WebAuthn pins and integrity, lazy artifacts confined to their own side, and notices from actual bundled inputs. Existing bundle caps remain unchanged; the browser cap includes CSS.                                                                          | Real production artifact, cross-platform split, oversized output and license-presence/allow-list drills.                |
 | H19     | Fresh UV for each maker action, bound to session/action/exact payload digest and consumed atomically. Stop stays authenticated session access.                                                                                                                          | Changed binding and concurrent reuse tests, plus shared N method dispatch.                                              |
 | H20     | Disabled state printed on console at boot and lockout. Recovery is local console-only issuance of a fresh hashed one-use setup code; replace disabled passkeys atomically. No network recovery method.                                                                  | Lockout/restart/recovery/code-replay tests.                                                                             |
@@ -90,7 +90,13 @@ failure receipt; unsupported trust remains unavailable.
 ## Integration bindings
 
 - **A1-N-AUTH:** load `dist/nodeAuth.js` only for setup/sign-in. Construct
-  `NodePasskeyAuth` with N's state/audit, clock and session lifecycle. Bind
+  `NodePasskeyAuth` with N's state/audit, clock and session lifecycle. A3
+  also requires `challengeKey`, read with the lazy bundle's
+  `readNodeChallengeKey(new NodePrivateFiles(committedPair.root))` before
+  construction. This derives a domain-separated key from the protected TLS
+  private key and certificate fingerprint without persisting another secret.
+  N's method factory takes `(session, source)` from the actual socket and
+  passes `source` to `nodeAuthMethods`; never take it from request params. Bind
   `auth.sessions` as `NodeListenerVerifier`; attach/reverify calls N's
   attendance and `ended` detaches expired identities. N's `endSessions`
   calls `auth.endAll()` synchronously before waiting for tools/streams.
@@ -286,8 +292,9 @@ most three files/workers, using the normal repository config and default
 timeouts. No `--testTimeout`, timeout override or test filter is used.
 Both drill registers still match the exact final production source hashes:
 **29 core + 55 auth/browser/build = 84** named red failures and byte-exact
-restorations. Production sizes remain **492.3/500 KiB** for the auth server
-and **284.2/350 KiB** for the page including CSS. The regular production
+restorations. Production sizes at this A1 resume checkpoint were **492.3/500 KiB** for the
+auth server and **284.2/350 KiB** for the page; A2 and A3 below supersede these
+intermediate measurements including CSS. The regular production
 build passes every unchanged size/split/notices/host-globals check, at the
 sizes recorded above.
 
@@ -393,8 +400,9 @@ is removed after verification.
 N/C/S0 must retain the exclusive `ownService` hold around certificate
 issuance and use the returned pair root. An allowed audit row describes
 capability issuance, not response delivery or later proof use; existing
-monotonic session/proof checks still govern use. Global issuance limits and
-reserved enrollment remove the reviewed challenge-holding attack; finite
+monotonic session/proof checks still govern use. A2's global issuance limits and reserved enrollment closed the first single-source
+finding, but RVM110A2 proved the paced rotator still fills them; A3 below
+supersedes that design. finite
 transport bounds cannot promise availability under unlimited network load.
 A0-TLS/A0-NAME, editor/browser/platform bindings, integrated quality and the
 previously recorded J-owned host API and inherited audit blockers remain
@@ -449,3 +457,153 @@ under this brief's network limit. Full `npm run quality`/coverage and the
 macOS/Windows/platform trust receipts remain lead-owned, explicitly deferred
 under the lane brief. All six review findings are closed within this scoped
 receipt; this is not a claim of aggregate quality or home-node support.
+
+## A3 stateless redesign — RVM110A2 (2026-10-09)
+
+Kubuntu, `/home/randy/lanes/M110A3`, branch `m110/a3`, base `e5f11498b`.
+The A1/A2 measurements and source hashes above are historical receipts;
+this section records the current implementation. No paid/live model call,
+credential read, browser/profile, OS trust-store or firewall change occurred.
+Model attempts: **0**. This remains an internal integration library, with the
+same lead-owned platform and runnable-node qualifications.
+
+### Design and findings
+
+There is no pending-challenge table, issuance quota or global issuance clock.
+The opaque id and WebAuthn challenge are the same base64url token: a strict
+JSON payload followed by its HMAC-SHA-256 tag. The authenticated payload
+carries purpose, a **128-bit random nonce**, exact five-minute issuance/expiry,
+RP/origin, monotonic issue time, process epoch and console-code hash or
+session/action/payload digest. The passkey signs the complete token.
+Dedicated **4,096-character** schemas bound only these opaque challenge
+fields; ordinary identifiers and bearers retain their prior limits.
+
+`readNodeChallengeKey` derives a separate 32-byte key with HKDF-SHA-256,
+using the protected committed TLS private key, certificate fingerprint and
+`muse-node-auth-challenges-v1` context. N reads it from the returned protected
+pair root and injects `challengeKey` into the lazy factory. No third secret
+file or independent commit/rotation is needed. A mixed pair refuses; a new
+certificate/key pair changes the derived key. A2's atomic publication,
+abandoned-staging cleanup and unchanged-pair recovery are retained.
+
+Verification authenticates the token before parsing its payload, checks
+purpose/context/epoch/expiry, and then verifies the exact passkey proof.
+Only a successful proof consumes its nonce, before durable counter/access
+writes, through its original monotonic deadline. Issuance and verification
+prune expired consumed entries; failed and abandoned challenges add no entry.
+Lock/restart invalidate the process epoch, so no replay set needs persistence.
+The pinned SDK still checks available signature counters. A real signed
+counterless assertion derived from the existing captured shape verifies the
+full token, refuses consumed replay, rejects a proof for another token, and
+then accepts that still-unconsumed token with its correct proof.
+
+Issuance never enters auth proof admission. Proof attempts use per-source
+100-attempt windows of one minute and exponential failure backoff; no
+account-wide retry clock or busy bit exists. HTTP and WebSocket dispatch
+pass the actual remote address to the shared factory, never request text.
+The reviewer's 25-address rotator issues 100 challenges every six seconds,
+with the owner arriving immediately after its final issue: owner sign-in
+succeeds. After durable lockout, console recovery still requires the new
+code and succeeds under the same outstanding flood. Healthy-owner recovery
+continues to refuse before revoking sessions, proofs or tokens.
+
+Finite transport/source/concurrency bounds still apply. This proves the
+paced issuance and source-isolation properties, not availability under raw
+network saturation. All editors use the shared method port; no VS Code-only
+control, new executable command, setting, product flow or dependency was
+introduced. This base has no feature-catalog/reference generator, and this
+internal defensive change does not add a help command to document.
+
+| Review finding                                              | Threat rows         | Regression and closure                                                                                                                                                                                                                                                                                                                                                                                       |
+| ----------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P1 allowed issuance rate fills every owner challenge slot   | H04/H05/H09/H19/H20 | Stateless issuance; the reviewer-paced 25-address flood preserves owner sign-in and code recovery. `nodePasskeyAuth`, `nodeAuthChallenges`, `nodeStatelessProof`, and listener/guard/socket/method tests prove exact proof, replay, forgery, purpose, expiry and independent-source limits. A stronger 1,001-source abandoned-issue test also prevents auth admission rows from becoming an issuance budget. |
+| P3 expiry tests allow the verified audit write to disappear | H15/H19             | Enrollment, sign-in and slow step-up require `verified` and `denied`, and forbid `allowed`. Deleting each verified append independently makes its named expiry regression fail.                                                                                                                                                                                                                              |
+| P3 certification claims two current auth sizes              | H17                 | The old A1 resume sizes are explicitly labelled intermediate. The A2 final table remains its historical receipt; the A3 current build sizes are below.                                                                                                                                                                                                                                                       |
+
+### Baseline and byte-exact drills
+
+[The baseline register](m110-a1/a3-baseline.json) records exact original
+`git show e5f11498b:<path>` bytes for service, challenge table, admission,
+constants and auth schema. The whole new service suite reports **4 failed /
+22 passed** on that original stack: reviewer-paced flood, abandoned issues,
+failed-proof retry and independent-source backoff. The new injected test key
+is ignored by that stack; its helper temporarily uses a literal 32-byte size
+while old constants are installed. Every source and helper restores exactly.
+An initial comparison mixed the new parser with old constants and invalidated
+enrollment; it is discarded, not counted as a regression. The corrected
+whole-stack comparison above preserves the other 22 passing service tests.
+
+[The drill register](m110-a1/a3-drills.json) records **29 accepted red drills**,
+with exact mutation/restoration SHA-256, whole-file commands and failed
+assertion names. All original/restored hashes match current production bytes.
+Every invocation uses `--maxWorkers=1 --cache=false`, repository-default
+timeouts, and at most three whole files; no test filter or timeout override.
+
+| Drill group                                                                                                                                            | Threat rows             | Red failures / exact restorations |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------- | --------------------------------: |
+| MAC, purpose, monotonic/wall expiry and future issuance, exact lifetime, replay membership/recording, pruning, epoch, RP/origin, key size, token bound | H03/H04/H05/H08/H09/H15 |                                14 |
+| Success-only consumption, successful assertion consumption, complete-token proof                                                                       | H05/H09                 |                                 3 |
+| Proof admission, no issuance admission, CPU window, source backoff and shared-source counterfactual                                                    | H09/H20                 |                                 5 |
+| Actual HTTP, WebSocket and method-factory source propagation                                                                                           | H09                     |                                 3 |
+| Protected TLS pair match before key derivation                                                                                                         | H02/H05                 |                                 1 |
+| Enrollment, sign-in and step-up verified audit writes                                                                                                  | H15/H19                 |                                 3 |
+| Total                                                                                                                                                  |                         |                            **29** |
+
+The initial 28-drill pass was followed by the 1,001-source regression, which
+exposed issuance still entering proof admission. That test first failed,
+issuance was removed from that path, and all **29** final drills were rerun
+against the final bytes. The duplication gate also first failed on repeated
+synthetic key setup; both signed-proof tests now use the existing test-only
+authenticator helper. No ignore, cap, threshold, rule or hook was changed.
+The listener fixture installs its method spy even on the unsupported Windows
+fallback path; this is a portable fixture correction, not a new Windows receipt.
+
+### Dependencies and final verification
+
+The rig lacked the pinned WebAuthn dependencies. An exact locked
+`npm ci --prefix "$TMPDIR/a3-deps" --ignore-scripts --no-audit` installed in
+private disk-backed scratch. Only **24 absent top-level package trees**
+(including the nested `tslib` tree) were copied in. [The dependency receipt](m110-a1/a3-dependencies.json)
+compares SHA-256, inode, mode, size and modification time for **31,224**
+pre-existing files/symlinks: **0 changed entries**. No existing package,
+symlink, npm bookkeeping, manifest pin or lockfile was modified. Vitest cache
+writes are disabled. Scratch installation is removed before handoff.
+
+Final whole-file verification on Kubuntu:
+
+| Files                                                          |  Passed |
+| -------------------------------------------------------------- | ------: |
+| `nodePasskeyAuth`, `nodeAuthChallenges`, `nodeCertificate`     |      51 |
+| `nodePasskeyVerifier`, `nodeStatelessProof`, `nodeAuthMethods` |      15 |
+| `nodeListener`, `nodeListenerGuard`, `nodeListenerSocket`      |      97 |
+| `node`, `nodeAuthSessions`                                     |     127 |
+| `NodePairing`, `nodeAuthBuild`                                 |      16 |
+| Total                                                          | **306** |
+
+All five type projects, changed-file ESLint (`--max-warnings=0`), Prettier,
+plain knip, duplication (**0 clones**), and localization (**14 tables, 164
+manifest strings, 623 sources, 0 problems**) pass. Both production builds
+exit **0**, including every unchanged size/split/host-globals/notices gate.
+No new cast, escape hatch, suppression, timeout or test skip was introduced.
+
+| Artifact                          | Size / unchanged cap (KiB) |
+| --------------------------------- | -------------------------: |
+| Auth server                       |            **497.0 / 500** |
+| Auth page including CSS           |            **284.4 / 350** |
+| Extension                         |                437.0 / 600 |
+| Model API                         |                447.0 / 475 |
+| Checkpoint store                  |                 77.3 / 225 |
+| Node service                      |                  65.2 / 75 |
+| ACP                               |                817.9 / 850 |
+| Webview entry plus static imports |                896.8 / 900 |
+| Deferred webview JS               |                  49.7 / 50 |
+
+`check:host-api` exits **1** on the inherited generated record: Node import
+counts and the already present pairing stylesheet. It reports 332 VS Code
+APIs, 31 importing files, 25 Node built-ins and 61 theme variables, with one
+record mismatch. J's integration regeneration, aggregate quality/coverage,
+the inherited dependency-audit blockers, N/M104/T/C bindings and per-platform
+browser/trust receipts remain the existing PLAN §7 handoffs. No network audit
+or live/paid call is made under this brief. This receipt closes RVM110A2's
+three findings within the authorized scoped lane, without claiming those
+lead-owned certifications.

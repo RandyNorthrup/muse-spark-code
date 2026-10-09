@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { createHash, generateKeyPairSync, sign } from 'node:crypto'
+import { createHash, sign } from 'node:crypto'
 import { verifyAuthenticationResponse, verifyRegistrationResponse } from '@simplewebauthn/server'
-import { isoCBOR, cose } from '@simplewebauthn/server/helpers'
 import * as z from 'zod/mini'
+import { nodeSigningKey } from './helpers/node/authenticator'
 import { nodeWebAuthnCapture as capture } from './helpers/node/webAuthnCapture'
 import { SimpleNodePasskeys, type NodePasskey } from '../../src/runtime/node/auth/passkeys'
 import {
@@ -186,19 +186,7 @@ describe('H05 real SimpleWebAuthn against captured CDP proofs', () => {
     // Derive a negative from the captured shape with an ephemeral local key.
     // Sign the changed clientData hash, so the SDK can no longer reject merely
     // because the original captured signature covered different bytes.
-    const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
-    const jwk = z
-      .object({ x: z.string(), y: z.string() })
-      .parse(publicKey.export({ format: 'jwk' }))
-    const publicCose = isoCBOR.encode(
-      new Map<number, number | Uint8Array>([
-        [cose.COSEKEYS.kty, cose.COSEKTY.EC2],
-        [cose.COSEKEYS.alg, cose.COSEALG.ES256],
-        [cose.COSEKEYS.crv, 1],
-        [cose.COSEKEYS.x, Buffer.from(jwk.x, 'base64url')],
-        [cose.COSEKEYS.y, Buffer.from(jwk.y, 'base64url')],
-      ]),
-    )
+    const { privateKey, publicCose } = nodeSigningKey()
     const encoded = Buffer.from(JSON.stringify({ ...client, crossOrigin: true })).toString(
       'base64url',
     )

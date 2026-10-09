@@ -1,6 +1,8 @@
 import type { IncomingMessage } from 'node:http'
 import {
   NODE_LISTENER_MAX_REQUESTS,
+  NODE_PROOF_MAX_ATTEMPTS,
+  NODE_PROOF_WINDOW_MS,
   NODE_LISTENER_MAX_SOURCES,
   NODE_LISTENER_SOURCE_CONNECTIONS,
   NODE_SIGNIN_BACKOFF_MS,
@@ -106,15 +108,16 @@ interface AdmissionState {
   retryAt: number
   lastAt: number
   busy: number
+  attempts: number
+  windowAt: number
 }
 function initialAdmission(): AdmissionState {
-  return { failures: 0, retryAt: 0, lastAt: 0, busy: 0 }
+  return { failures: 0, retryAt: 0, lastAt: 0, busy: 0, attempts: 0, windowAt: 0 }
 }
 
 /** Transport bounds precede parsing/verifier work. A1 owns durable H09/H20 lockout. */
 export class NodeListenerAdmission {
   private readonly sources = new Map<string, AdmissionState>()
-  private readonly account = initialAdmission()
   private active = 0
   constructor(private readonly monotonicMs: () => number) {}
 
@@ -133,35 +136,33 @@ export class NodeListenerAdmission {
       state = initialAdmission()
       this.sources.set(source, state)
     }
+    if (now - state.windowAt >= NODE_PROOF_WINDOW_MS) {
+      state.attempts = 0
+      state.windowAt = now
+    }
     if (
       this.active >= NODE_LISTENER_MAX_REQUESTS ||
       state.busy >= NODE_LISTENER_SOURCE_CONNECTIONS ||
-      (isSignin && (state.retryAt > now || this.account.retryAt > now || this.account.busy > 0))
+      (isSignin && (state.retryAt > now || state.attempts >= NODE_PROOF_MAX_ATTEMPTS))
     ) {
       throw new NodeListenerError('rateLimited')
     }
     state.busy += 1
     state.lastAt = now
-    if (isSignin) this.account.busy += 1
+    if (isSignin) state.attempts += 1
     this.active += 1
     return (hasFailed, hasAuthenticated = true) => {
       this.active -= 1
       state.busy -= 1
       state.lastAt = this.monotonicMs()
       if (!isSignin) return
-      this.account.busy -= 1
       // Issuing a challenge does not clear failed-proof backoff.
       if (!hasFailed && !hasAuthenticated) return
-      for (const target of [state, this.account]) {
-        target.failures = hasFailed ? Math.min(target.failures + 1, NODE_SIGNIN_MAX_FAILURES) : 0
-        target.retryAt = hasFailed
-          ? state.lastAt +
-            Math.min(
-              NODE_SIGNIN_BACKOFF_MS * 2 ** (target.failures - 1),
-              NODE_SIGNIN_BACKOFF_MAX_MS,
-            )
-          : 0
-      }
+      state.failures = hasFailed ? Math.min(state.failures + 1, NODE_SIGNIN_MAX_FAILURES) : 0
+      state.retryAt = hasFailed
+        ? state.lastAt +
+          Math.min(NODE_SIGNIN_BACKOFF_MS * 2 ** (state.failures - 1), NODE_SIGNIN_BACKOFF_MAX_MS)
+        : 0
     }
   }
 }

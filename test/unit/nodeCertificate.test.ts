@@ -8,9 +8,11 @@ import {
   checkNodeCertificate,
   checkNodeNames,
   issueNodeCertificate,
+  readNodeChallengeKey,
 } from '../../src/runtime/node/auth/entry'
 import {
   NODE_MAX_AUTH_BYTES,
+  NODE_CHALLENGE_KEY_BYTES,
   NODE_TLS_CERT_FILE,
   NODE_TLS_KEY_FILE,
   NODE_TLS_DIRECTORY,
@@ -67,6 +69,33 @@ afterAll(async () => {
 })
 
 describe('H02 pinned non-CA certificate', () => {
+  nodeNativeTest(
+    'H02/H05 derives a stable challenge key from the protected pair and rotates with it',
+    async () => {
+      const original = await readNodeChallengeKey(new NodePrivateFiles(fixture.certificateRoot))
+      expect(original).toHaveLength(NODE_CHALLENGE_KEY_BYTES)
+      expect(await readNodeChallengeKey(new NodePrivateFiles(fixture.certificateRoot))).toEqual(
+        original,
+      )
+      const root = await nodeTempRoot('m110-a3-challenge-key-')
+      try {
+        const pair = await issueNodeCertificate(
+          new NodePrivateFiles(root),
+          ['home.local'],
+          Date.now,
+          '/usr/bin/openssl',
+          new AbortController().signal,
+        )
+        const files = new NodePrivateFiles(pair.root)
+        expect(await readNodeChallengeKey(files)).not.toEqual(original)
+        // A mixed pair must not yield an authentication key.
+        await files.write(NODE_TLS_KEY_FILE, fixture.key)
+        await expect(readNodeChallengeKey(files)).rejects.toThrow()
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+  )
   nodeNativeTest('issues a matching private leaf and a full SHA-256 fingerprint', async () => {
     const certificate = new X509Certificate(fixture.pem)
     expect(certificate.ca).toBe(false)

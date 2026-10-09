@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   NODE_CHALLENGE_TTL_MS,
-  NODE_CHALLENGE_BACKOFF_MS,
-  NODE_MAX_CHALLENGES,
+  NODE_LISTENER_MAX_SOURCES,
   NODE_SETUP_TTL_MS,
   NODE_SIGNIN_BACKOFF_MAX_MS,
   NODE_SIGNIN_MAX_FAILURES,
@@ -163,24 +162,59 @@ describe('H04 console enrollment', () => {
     await expect(port.enroll(challenge.id, registrationProof)).rejects.toThrow()
     expect(f.lifecycle.attached).not.toHaveBeenCalled()
     expect(f.audit).not.toContainEqual(expect.objectContaining({ outcome: 'allowed' }))
+    expect(f.audit).toContainEqual(
+      expect.objectContaining({ action: 'enroll', outcome: 'verified' }),
+    )
     expect(f.audit).toContainEqual(expect.objectContaining({ action: 'enroll', outcome: 'denied' }))
     f.auth.endAll()
   })
 })
 
 describe('H05/H08/H09/H19/H20 sign-in controls', () => {
-  it('H09 successful begins cannot hold the table or arm proof backoff through repeated 429s', async () => {
+  it('H09/H20 the 25-address rotation flood cannot deny owner sign-in or console recovery', async () => {
     const f = await enrolledFixture()
-    const first = await f.auth.forSource('attacker-source').begin('signin')
-    for (let index = 0; index < NODE_MAX_CHALLENGES; index++) {
-      await expect(f.auth.forSource(`rotated-${String(index)}`).begin('signin')).rejects.toThrow(
-        'Too many',
-      )
+    // Exactly the reviewer's old permitted rate: 50 live rows from 25
+    // addresses, then replace each expiring row every six seconds.
+    for (let index = 0; index < 100; index++) {
+      await f.auth.forSource(`fd42::${String(index % 25)}`).begin('signin')
+      if (index < 99) f.advance(6000)
     }
+    const challenge = await f.port.begin('signin')
+    await expect(f.port.signIn(challenge.id, assertionProof)).resolves.toHaveProperty('bearer')
     expect(f.store.read().passkeys[0]).toMatchObject({ failures: 0, disabled: false })
+    const state = f.store.read()
+    await f.store.update(state.generation, (value) => ({
+      ...value,
+      passkeys: value.passkeys.map((key) => ({
+        ...key,
+        disabled: true,
+        failures: NODE_SIGNIN_MAX_FAILURES,
+      })),
+    }))
+    await f.auth.consoleSetup()
+    const recovery = f.auth.forSource('console-owner')
+    const enroll = await recovery.begin('enroll', f.code())
+    await expect(recovery.enroll(enroll.id, registrationProof)).resolves.toHaveProperty('bearer')
+    expect(f.store.read().passkeys[0]).toMatchObject({ failures: 0, disabled: false })
+    f.auth.endAll()
+  })
+  it('H09 abandoned and failed issues cannot consume an owner challenge', async () => {
+    const f = await enrolledFixture()
+    const first = await f.port.begin('signin')
+    for (let index = 0; index < NODE_LISTENER_MAX_SOURCES + 1; index++)
+      await f.auth.forSource(`rotated-${String(index)}`).begin('signin')
     await expect(f.port.signIn(first.id, assertionProof)).resolves.toHaveProperty('bearer')
-    f.advance(NODE_CHALLENGE_BACKOFF_MS)
-    await expect(f.port.begin('signin')).resolves.toHaveProperty('challenge')
+    f.auth.endAll()
+  })
+  it('H05 refuses replay after a successful proof and retains nothing after a failed proof', async () => {
+    const f = await enrolledFixture()
+    const challenge = await f.port.begin('signin')
+    f.verifier.assert.mockRejectedValueOnce(new Error('invalid'))
+    await expect(f.port.signIn(challenge.id, assertionProof)).rejects.toThrow()
+    f.advance(NODE_SIGNIN_BACKOFF_MAX_MS)
+    await expect(f.port.signIn(challenge.id, assertionProof)).resolves.toHaveProperty('bearer')
+    await expect(f.auth.forSource('replay').signIn(challenge.id, assertionProof)).rejects.toThrow()
+    expect(f.verifier.assert).toHaveBeenCalledTimes(2)
     f.auth.endAll()
   })
   it('refuses another session at begin/end and does not treat an unknown credential as the owner', async () => {
@@ -221,18 +255,19 @@ describe('H05/H08/H09/H19/H20 sign-in controls', () => {
     expect(JSON.stringify(f.audit)).not.toContain('sensitive')
     f.auth.endAll()
   })
-  it('refuses source and account retries before verification, then permits after backoff', async () => {
+  it('H09 proof backoff for one source never blocks another source', async () => {
     const f = await enrolledFixture()
-    const challenge = await f.port.begin('signin')
+    const attacker = f.auth.forSource('attacker')
+    const challenge = await attacker.begin('signin')
     f.verifier.assert.mockRejectedValueOnce(new Error('invalid'))
-    await expect(f.port.signIn(challenge.id, assertionProof)).rejects.toThrow()
-    await expect(f.port.begin('signin')).rejects.toThrow('Too many')
-    await expect(f.auth.forSource('other-source').begin('signin')).rejects.toThrow('Too many')
-    expect(f.verifier.assert).toHaveBeenCalledOnce()
+    await expect(attacker.signIn(challenge.id, assertionProof)).rejects.toThrow()
+    const retry = await attacker.begin('signin')
+    await expect(attacker.signIn(retry.id, assertionProof)).rejects.toThrow('Too many')
+    const owner = await f.port.begin('signin')
+    await expect(f.port.signIn(owner.id, assertionProof)).resolves.toHaveProperty('bearer')
+    expect(f.verifier.assert).toHaveBeenCalledTimes(2)
     f.advance(NODE_SIGNIN_BACKOFF_MAX_MS)
-    const next = await f.port.begin('signin')
-    await f.port.signIn(next.id, assertionProof)
-    expect(f.store.read().passkeys[0]?.failures).toBe(0)
+    await expect(attacker.signIn(retry.id, assertionProof)).resolves.toHaveProperty('bearer')
     f.auth.endAll()
   })
   it('locks at 100, survives restart, and recovers only with a fresh console code', async () => {
@@ -272,6 +307,7 @@ describe('H05/H08/H09/H19/H20 sign-in controls', () => {
     expect(f.audit).not.toContainEqual(
       expect.objectContaining({ kind: 'stepUp', outcome: 'allowed' }),
     )
+    expect(f.audit).toContainEqual(expect.objectContaining({ kind: 'stepUp', outcome: 'verified' }))
     expect(f.audit).toContainEqual(expect.objectContaining({ kind: 'stepUp', outcome: 'denied' }))
     expect(f.audit).toContainEqual(expect.objectContaining({ outcome: 'denied' }))
     f.auth.endAll()
@@ -310,6 +346,9 @@ describe('H05/H08/H09/H19/H20 sign-in controls', () => {
     expect(f.lifecycle.attached).toHaveBeenCalledOnce()
     expect(f.audit).not.toContainEqual(
       expect.objectContaining({ action: 'signin', outcome: 'allowed' }),
+    )
+    expect(f.audit).toContainEqual(
+      expect.objectContaining({ action: 'signin', outcome: 'verified' }),
     )
     expect(f.audit).toContainEqual(expect.objectContaining({ action: 'signin', outcome: 'denied' }))
     f.auth.endAll()

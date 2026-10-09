@@ -1,0 +1,423 @@
+{
+  "rig": "kubuntu",
+  "defaultTimeouts": true,
+  "records": [
+    {
+      "drill": "mac",
+      "threatRows": "H05",
+      "file": "src/runtime/node/auth/challenges.ts",
+      "originalSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "mutatedSha256": "9d49ea2d3b6b95d32fc3fcfc83c261541a86efffc597d0f22a4d70ef4ff3ee5e",
+      "restoredSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "command": "npx vitest run test/unit/nodeAuthChallenges.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-mac.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04/H05/H09 stateless authenticated one-use challenges refuses forged id before proof work",
+        "H04/H05/H09 stateless authenticated one-use challenges refuses forged purpose before proof work",
+        "H04/H05/H09 stateless authenticated one-use challenges refuses forged issuedAt before proof work",
+        "H04/H05/H09 stateless authenticated one-use challenges refuses forged expiresAt before proof work",
+        "H04/H05/H09 stateless authenticated one-use challenges refuses forged origin before proof work",
+        "H04/H05/H09 stateless authenticated one-use challenges refuses forged rpId before proof work",
+        "H04/H05/H09 stateless authenticated one-use challenges refuses forged actionDigest before proof work",
+        "H04/H05/H09 stateless authenticated one-use challenges binds exact session/action/digest, isolates nodes and invalidates on lock or restart"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "purpose",
+      "threatRows": "H04/H05",
+      "file": "src/runtime/node/auth/challenges.ts",
+      "originalSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "mutatedSha256": "52f6de094ccac823320efc531117260bef4c2426ee95bc1f5d92ea4cfa34b4db",
+      "restoredSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "command": "npx vitest run test/unit/nodeAuthChallenges.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-purpose.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04/H05/H09 stateless authenticated one-use challenges refuses wrong purpose without burning an unproved challenge"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "mono-expiry",
+      "threatRows": "H05/H08",
+      "file": "src/runtime/node/auth/challenges.ts",
+      "originalSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "mutatedSha256": "9352503462989deb7421a60643c02c9cdebf9b6c986810928b5af8050c4f8b79",
+      "restoredSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "command": "npx vitest run test/unit/nodeAuthChallenges.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-mono-expiry.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04/H05/H09 stateless authenticated one-use challenges refuses expiry at the exact monotonic deadline even after wall rollback"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "wall-expiry",
+      "threatRows": "H05",
+      "file": "src/runtime/node/auth/challenges.ts",
+      "originalSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "mutatedSha256": "60e13e3f21c73b022ffdd8938081788611a785e3f61353009e6e317c8e1f671b",
+      "restoredSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "command": "npx vitest run test/unit/nodeAuthChallenges.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-wall-expiry.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04/H05/H09 stateless authenticated one-use challenges checks wall expiry, future issuance and the exact authenticated lifetime"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "future-wall-issue",
+      "threatRows": "H05",
+      "file": "src/runtime/node/auth/challenges.ts",
+      "originalSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "mutatedSha256": "da97476fc63bc21a49d2558d1ef6c504febd7456f39d83d46ac50e4b77efec4c",
+      "restoredSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "command": "npx vitest run test/unit/nodeAuthChallenges.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-future-wall-issue.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04/H05/H09 stateless authenticated one-use challenges checks wall expiry, future issuance and the exact authenticated lifetime"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "future-mono-issue",
+      "threatRows": "H05",
+      "file": "src/runtime/node/auth/challenges.ts",
+      "originalSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "mutatedSha256": "f1a5ac0ce2ac894e741ea7a3929ee3e57f165ff5987723a091f662e55388f591",
+      "restoredSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "command": "npx vitest run test/unit/nodeAuthChallenges.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-future-mono-issue.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04/H05/H09 stateless authenticated one-use challenges checks wall expiry, future issuance and the exact authenticated lifetime"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "exact-lifetime",
+      "threatRows": "H05",
+      "file": "src/runtime/node/auth/challenges.ts",
+      "originalSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "mutatedSha256": "c5c8daee46f759034653af511fbf850038ce2828ff66e93ce2d5e0b6639e3aa9",
+      "restoredSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "command": "npx vitest run test/unit/nodeAuthChallenges.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-exact-lifetime.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04/H05/H09 stateless authenticated one-use challenges checks wall expiry, future issuance and the exact authenticated lifetime"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "replay-set",
+      "threatRows": "H05",
+      "file": "src/runtime/node/auth/challenges.ts",
+      "originalSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "mutatedSha256": "bcf68250f83621d88abe864163fc1fce878f309244a2aac49430c9c8c4927355",
+      "restoredSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "command": "npx vitest run test/unit/nodeAuthChallenges.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-replay-set.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04/H05/H09 stateless authenticated one-use challenges uses 128-bit random nonces and signs the exact complete token with WebAuthn",
+        "H04/H05/H09 stateless authenticated one-use challenges retains no issuance table or failed proofs; prunes only successfully consumed nonces"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "consume",
+      "threatRows": "H05",
+      "file": "src/runtime/node/auth/challenges.ts",
+      "originalSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "mutatedSha256": "2769db6f07b515148fbde78deddafb50bc4a999b660b66200fc611469721493c",
+      "restoredSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "command": "npx vitest run test/unit/nodeAuthChallenges.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-consume.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04/H05/H09 stateless authenticated one-use challenges uses 128-bit random nonces and signs the exact complete token with WebAuthn",
+        "H04/H05/H09 stateless authenticated one-use challenges retains no issuance table or failed proofs; prunes only successfully consumed nonces"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "prune",
+      "threatRows": "H05/H09",
+      "file": "src/runtime/node/auth/challenges.ts",
+      "originalSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "mutatedSha256": "e0634cf59886f62274b717dc71dd799f394868482a728c12e557feabe18e3158",
+      "restoredSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "command": "npx vitest run test/unit/nodeAuthChallenges.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-prune.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04/H05/H09 stateless authenticated one-use challenges retains no issuance table or failed proofs; prunes only successfully consumed nonces"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "epoch",
+      "threatRows": "H08/H15",
+      "file": "src/runtime/node/auth/challenges.ts",
+      "originalSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "mutatedSha256": "3c240ee241e3eceb35dcbac51f8afb6751edaaa10c9c6c2f8689af76fc4a0316",
+      "restoredSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "command": "npx vitest run test/unit/nodeAuthChallenges.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-epoch.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04/H05/H09 stateless authenticated one-use challenges binds exact session/action/digest, isolates nodes and invalidates on lock or restart"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "context",
+      "threatRows": "H03/H05",
+      "file": "src/runtime/node/auth/challenges.ts",
+      "originalSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "mutatedSha256": "815526221aaaa5192a842fa503ec776388aa85738ff10acf97bdc7c5beb3b9e2",
+      "restoredSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "command": "npx vitest run test/unit/nodeAuthChallenges.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-context.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04/H05/H09 stateless authenticated one-use challenges refuses a correctly authenticated token for another configured RP/origin"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "key-size",
+      "threatRows": "H05",
+      "file": "src/runtime/node/auth/challenges.ts",
+      "originalSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "mutatedSha256": "67679d20de90a90612a89a5ed3f91fbe5a259690c02917532f0ac7e2be73e5e0",
+      "restoredSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "command": "npx vitest run test/unit/nodeAuthChallenges.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-key-size.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04/H05/H09 stateless authenticated one-use challenges binds exact session/action/digest, isolates nodes and invalidates on lock or restart"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "token-bound",
+      "threatRows": "H09",
+      "file": "src/shared/nodeAuth.ts",
+      "originalSha256": "5f24ac826e5c947b40a23f91fa9b84d78f3ccb7e28a0af9212b868ae3036acbc",
+      "mutatedSha256": "20658925703b28e5342465f27adc05a76cf7e18f36783ffcedbc9caa8876ab58",
+      "restoredSha256": "5f24ac826e5c947b40a23f91fa9b84d78f3ccb7e28a0af9212b868ae3036acbc",
+      "command": "npx vitest run test/unit/nodeAuthChallenges.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-token-bound.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04/H05/H09 stateless authenticated one-use challenges H09 bounds opaque tokens independently of ids and bearers"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "success-only-consumption",
+      "threatRows": "H05/H09",
+      "file": "src/runtime/node/auth/service.ts",
+      "originalSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "mutatedSha256": "84c7d285031d499f8dc492cb510706a3e02af871f0ad4661bbd29815fbb6fc41",
+      "restoredSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "command": "npx vitest run test/unit/nodePasskeyAuth.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-success-only-consumption.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H05/H08/H09/H19/H20 sign-in controls H05 refuses replay after a successful proof and retains nothing after a failed proof"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "assert-consumption",
+      "threatRows": "H05",
+      "file": "src/runtime/node/auth/service.ts",
+      "originalSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "mutatedSha256": "4720792569f79176bbe97338bc3d9c1b523dd83da3f6862aa8382b3110acf258",
+      "restoredSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "command": "npx vitest run test/unit/nodePasskeyAuth.test.ts test/unit/nodeStatelessProof.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-assert-consumption.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H05/H08/H09/H19/H20 sign-in controls H05 refuses replay after a successful proof and retains nothing after a failed proof",
+        "H05 real passkey proof over the stateless token verifies the complete token, refuses counterless replay and preserves a failed unconsumed challenge"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "complete-token-proof",
+      "threatRows": "H05",
+      "file": "src/runtime/node/auth/service.ts",
+      "originalSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "mutatedSha256": "11c23ec1f3467c024a019fbbfc53f3808b37535584b1af12f2c62e40f3d66e3f",
+      "restoredSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "command": "npx vitest run test/unit/nodeStatelessProof.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-complete-token-proof.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H05 real passkey proof over the stateless token verifies the complete token, refuses counterless replay and preserves a failed unconsumed challenge"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "proof-admission",
+      "threatRows": "H09",
+      "file": "src/runtime/node/auth/service.ts",
+      "originalSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "mutatedSha256": "35ad35a2f85fac39e2fd165d8383730139bf1314618c66d7bf9edb392e9b6ee3",
+      "restoredSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "command": "npx vitest run test/unit/nodePasskeyAuth.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-proof-admission.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H05/H08/H09/H19/H20 sign-in controls H09 proof backoff for one source never blocks another source"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "issuance-admission",
+      "threatRows": "H09/H20",
+      "file": "src/runtime/node/auth/service.ts",
+      "originalSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "mutatedSha256": "5db39a12d52caea209730c0f4fc0833420ab91d82e8c608494d6182699833dea",
+      "restoredSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "command": "npx vitest run test/unit/nodePasskeyAuth.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-issuance-admission.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H05/H08/H09/H19/H20 sign-in controls H09 abandoned and failed issues cannot consume an owner challenge",
+        "H05/H08/H09/H19/H20 sign-in controls H09 proof backoff for one source never blocks another source"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "proof-window",
+      "threatRows": "H09",
+      "file": "src/runtime/node/listenerGuard.ts",
+      "originalSha256": "59a01e11618672f01843d5b6598702c7cbeefb20f965b459910109f613315843",
+      "mutatedSha256": "be3cf82dfbea4d623b272829abd68194760f6b4cd0815385c5e776e91b7a32e3",
+      "restoredSha256": "59a01e11618672f01843d5b6598702c7cbeefb20f965b459910109f613315843",
+      "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-proof-window.json",
+      "exitCode": 1,
+      "failedTests": [
+        "M110-N listener guards H09 per-source failure and proof-work limits never block another source"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "source-backoff",
+      "threatRows": "H09",
+      "file": "src/runtime/node/listenerGuard.ts",
+      "originalSha256": "59a01e11618672f01843d5b6598702c7cbeefb20f965b459910109f613315843",
+      "mutatedSha256": "54f13866d427058f384508952b2f2042f28481ee1b6f85d659fd724dfe22ae43",
+      "restoredSha256": "59a01e11618672f01843d5b6598702c7cbeefb20f965b459910109f613315843",
+      "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-source-backoff.json",
+      "exitCode": 1,
+      "failedTests": [
+        "M110-N listener guards H09 per-source failure and proof-work limits never block another source"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "shared-backoff",
+      "threatRows": "H09",
+      "file": "src/runtime/node/listenerGuard.ts",
+      "originalSha256": "59a01e11618672f01843d5b6598702c7cbeefb20f965b459910109f613315843",
+      "mutatedSha256": "09c380df65bc7c7ac49f6e9c1b204c231591edcb264c7399da8534063dc25d9a",
+      "restoredSha256": "59a01e11618672f01843d5b6598702c7cbeefb20f965b459910109f613315843",
+      "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-shared-backoff.json",
+      "exitCode": 1,
+      "failedTests": [
+        "M110-N listener guards H09 per-source failure and proof-work limits never block another source"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "http-source",
+      "threatRows": "H09",
+      "file": "src/runtime/node/listener.ts",
+      "originalSha256": "5b70d13e2ee7587cf2a372e99faa59a62d8f49c0f4c0f9a241b30976199c8635",
+      "mutatedSha256": "91553171c55def0a1cf1514fad63143e629b4f643c1bf9915413cd0ebda7642e",
+      "restoredSha256": "5b70d13e2ee7587cf2a372e99faa59a62d8f49c0f4c0f9a241b30976199c8635",
+      "command": "npx vitest run test/unit/nodeListener.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-http-source.json",
+      "exitCode": 1,
+      "failedTests": [
+        "M110-N real selected-interface HTTPS listener validated routes dispatch only through the shared session port"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "socket-source",
+      "threatRows": "H09",
+      "file": "src/runtime/node/listenerSocket.ts",
+      "originalSha256": "c1acf5f66db19aaa59608018f3258329a8dee668bb5778e08d94aae6b1838c98",
+      "mutatedSha256": "0fe8e2b4e137932f9271e065adf1fe772957929402cdc6a5a363df9a931b0ec9",
+      "restoredSha256": "c1acf5f66db19aaa59608018f3258329a8dee668bb5778e08d94aae6b1838c98",
+      "command": "npx vitest run test/unit/nodeListenerSocket.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-socket-source.json",
+      "exitCode": 1,
+      "failedTests": [
+        "M110-N WebSocket first-frame boundary H08 authenticates fragmented network chunks, scopes attach/input/resize/close to the shared port, and disposes on lock"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "dispatch-source",
+      "threatRows": "H09",
+      "file": "src/runtime/node/listenerMethods.ts",
+      "originalSha256": "988e4805afe2e1b55ce5707c22e26313b715cc498091ef8b080e76b9eea7e032",
+      "mutatedSha256": "cf2dd8ed4e60ba79f7b234ddacea40ad7684b6a0561f0ab2de9041877bf40c1b",
+      "restoredSha256": "988e4805afe2e1b55ce5707c22e26313b715cc498091ef8b080e76b9eea7e032",
+      "command": "npx vitest run test/unit/nodeAuthMethods.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-dispatch-source.json",
+      "exitCode": 1,
+      "failedTests": [
+        "A1 listener bindings H09 dispatches the actual source into the auth factory"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "pair-match",
+      "threatRows": "H02/H05",
+      "file": "src/runtime/node/tls/certificate.ts",
+      "originalSha256": "fdb1423a9f209727e4152467426a80d52fc181d65efc204bf4229170c89471eb",
+      "mutatedSha256": "d4ee6024602e75ea4789aa7d190c45f9c621113247a9bec9f28b4dbdad95ba3a",
+      "restoredSha256": "fdb1423a9f209727e4152467426a80d52fc181d65efc204bf4229170c89471eb",
+      "command": "npx vitest run test/unit/nodeCertificate.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-pair-match.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H02 pinned non-CA certificate H02/H05 derives a stable challenge key from the protected pair and rotates with it"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "enroll-verified",
+      "threatRows": "H15",
+      "file": "src/runtime/node/auth/service.ts",
+      "originalSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "mutatedSha256": "509b852b4f150c4822ee81705be5032a0b9e3efdb6073014a5bd99c6fbb9131a",
+      "restoredSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "command": "npx vitest run test/unit/nodePasskeyAuth.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-enroll-verified.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H04 console enrollment mints no session when enrollment audit outlasts the challenge"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "signin-verified",
+      "threatRows": "H15",
+      "file": "src/runtime/node/auth/service.ts",
+      "originalSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "mutatedSha256": "109c40eae849fac7f64e9de984c868625845ff8c494c530f5b78c797967c74b1",
+      "restoredSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "command": "npx vitest run test/unit/nodePasskeyAuth.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-signin-verified.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H05/H08/H09/H19/H20 sign-in controls mints no sign-in session when audit outlasts the challenge"
+      ],
+      "guardFired": true
+    },
+    {
+      "drill": "stepup-verified",
+      "threatRows": "H15/H19",
+      "file": "src/runtime/node/auth/service.ts",
+      "originalSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "mutatedSha256": "eb04cd97e96d147f9740249df17407c579d4085c6e50dc79d7a6a2104de21c88",
+      "restoredSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "command": "npx vitest run test/unit/nodePasskeyAuth.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-drill-stepup-verified.json",
+      "exitCode": 1,
+      "failedTests": [
+        "H05/H08/H09/H19/H20 sign-in controls keeps UV freshness anchored before a slow audit write"
+      ],
+      "guardFired": true
+    }
+  ]
+}

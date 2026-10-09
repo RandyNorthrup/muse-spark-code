@@ -12,6 +12,8 @@ import {
 import { nodeLanAddressSchema } from '../../src/shared/node'
 import {
   NODE_LISTENER_MAX_REQUESTS,
+  NODE_PROOF_MAX_ATTEMPTS,
+  NODE_PROOF_WINDOW_MS,
   NODE_LISTENER_MAX_SOURCES,
   NODE_LISTENER_SOURCE_CONNECTIONS,
 } from '../../src/shared/constants'
@@ -153,23 +155,28 @@ describe('M110-N listener guards', () => {
     await expect(nodeAuthenticate(verifier, nodeBearer, 'owner', signal)).rejects.toThrow('Sign in')
     expect(await nodeAuthenticate(verifier, nodeBearer, 'owner', signal)).toEqual(nodeSession())
   })
-  it('H09 backs off source AND account before work, caps concurrent/source tables, and expires transport backoff', () => {
+  it('H09 per-source failure and proof-work limits never block another source', () => {
     let time = 0
     const admission = new NodeListenerAdmission(() => time)
     const signin = admission.enter('source-a', true)
-    expect(() => admission.enter('source-b', true)).toThrow()
+    admission.enter('source-b', true)(false)
     signin(true)
     expect(() => admission.enter('source-a', true)).toThrow()
-    expect(() => admission.enter('source-b', true)).toThrow()
-    const stop = admission.enter('source-a', false)
-    stop(false)
+    admission.enter('source-b', true)(false)
     time = 1000
-    admission.enter('source-b', true)(false, false)
-    admission.enter('source-b', true)(true)
+    admission.enter('source-a', true)(false, false)
+    admission.enter('source-a', true)(true)
     time = 2999
     expect(() => admission.enter('source-a', true)).toThrow()
     time = 3000
-    admission.enter('source-b', true)(false)
+    admission.enter('source-a', true)(false)
+    const work = new NodeListenerAdmission(() => time)
+    for (let index = 0; index < NODE_PROOF_MAX_ATTEMPTS; index++)
+      work.enter('busy-source', true)(false)
+    expect(() => work.enter('busy-source', true)).toThrow()
+    work.enter('other-source', true)(false)
+    time += NODE_PROOF_WINDOW_MS
+    work.enter('busy-source', true)(false)
     const held = Array.from({ length: NODE_LISTENER_SOURCE_CONNECTIONS }, () =>
       admission.enter('same', false),
     )
@@ -189,7 +196,12 @@ describe('M110-N listener guards', () => {
   })
   it('H19 exact payload, action, session, freshness and single use bind each fake physical action; Stop stays ungated', async () => {
     const fixture = listenerFixture()
-    const ports = { methods: fixture.options.methods, verifier: fixture.verifier, now: () => 1000 }
+    const ports = {
+      methods: fixture.options.methods,
+      verifier: fixture.verifier,
+      now: () => 1000,
+      source: '127.0.0.1',
+    }
     const signal = new AbortController().signal
     const params = {
       deviceId: 'device-1',

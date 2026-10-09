@@ -28,6 +28,8 @@ function digest(text: string): string {
 export interface NodeAuthOptions {
   state: Pick<NodeStateStore, 'read' | 'update' | 'append'>
   clock: NodeClock
+  /** Derived from the committed protected TLS key; never supplied by a client. */
+  challengeKey: Uint8Array
   rpId: string
   origin: string
   lifecycle: NodeSessionLifecycle
@@ -56,7 +58,7 @@ export class NodePasskeyAuth {
       !options.state.read().config.browserNames.includes(rpId)
     )
       throw new Error(UI_TEXT.nodeErrors.forbidden)
-    this.challenges = new NodeChallenges(options.clock, rpId, options.origin)
+    this.challenges = new NodeChallenges(options.clock, rpId, options.origin, options.challengeKey)
     this.sessions = new NodeMemorySessions(
       options.clock,
       options.state.read().ownerId,
@@ -87,7 +89,7 @@ export class NodePasskeyAuth {
     purpose: 'signin' | 'stepUp',
     sessionId?: string,
   ) {
-    const pending = this.challenges.take(challengeId, purpose)
+    const pending = this.challenges.verify(challengeId, purpose)
     const credential = nodeAssertionSchema.parse(raw)
     const state = this.options.state.read()
     const key = state.passkeys.find((entry) => entry.id === credential.id && !entry.disabled)
@@ -103,6 +105,7 @@ export class NodePasskeyAuth {
       throw new Error(UI_TEXT.nodeErrors.expired)
     if (pending.challenge.purpose === 'stepUp')
       this.sessions.sessionSignal(pending.challenge.sessionId).throwIfAborted()
+    this.challenges.consume(pending)
     const verifiedTime = {
       time: this.options.clock.now(),
       monotonicMs: this.options.clock.monotonicMs(),
@@ -126,7 +129,8 @@ export class NodePasskeyAuth {
     work: () => Promise<T>,
     action: 'signin' | 'enroll' = 'signin',
   ): Promise<T> {
-    const release = this.admission.enter(source, true)
+    // Stateless issuance has no verifier work and reserves no auth admission row.
+    const release = isProof ? this.admission.enter(source, true) : undefined
     return this.transactions.enqueue(async () => {
       let isFailed = true
       try {
@@ -135,8 +139,7 @@ export class NodePasskeyAuth {
         return result
       } catch (error: unknown) {
         if (error instanceof NodeListenerError && error.code === 'rateLimited') {
-          // Allocation refusal is not a bad proof; it must not block completion
-          // of an already-issued challenge or a legitimate console enrollment.
+          // Admission refusal is not a bad proof and must not disable the owner.
           isFailed = false
           throw error
         }
@@ -163,7 +166,7 @@ export class NodePasskeyAuth {
         await this.audit(action, credentialId, 'denied')
         throw new NodeListenerError('unauthenticated')
       } finally {
-        release(isFailed, isProof)
+        release?.(isFailed, isProof)
       }
     })
   }
@@ -232,20 +235,18 @@ export class NodePasskeyAuth {
                 )
               )
                 throw new Error(UI_TEXT.nodeErrors.unauthenticated)
-              return Promise.resolve(this.challenges.issue('enroll', source, codeHash))
+              return Promise.resolve(this.challenges.issue('enroll', codeHash))
             }
             if (state.passkeys.every((key) => key.disabled))
               throw new Error(UI_TEXT.nodeErrors.locked)
-            return Promise.resolve(this.challenges.issue('signin', source))
+            return Promise.resolve(this.challenges.issue('signin'))
           },
           purpose,
         ),
       beginStepUp: (requestedSession, action, actionDigest) => {
         if (requestedSession !== sessionId) throw new Error(UI_TEXT.nodeErrors.forbidden)
         this.sessions.sessionSignal(requestedSession).throwIfAborted()
-        return Promise.resolve(
-          this.challenges.stepUp(requestedSession, action, actionDigest, source),
-        )
+        return Promise.resolve(this.challenges.stepUp(requestedSession, action, actionDigest))
       },
       enroll: async (challengeId, credential) =>
         await this.attempt(
@@ -254,7 +255,7 @@ export class NodePasskeyAuth {
           credential.id,
           async () => {
             const epoch = this.epoch
-            const pending = this.challenges.take(challengeId, 'enroll')
+            const pending = this.challenges.verify(challengeId, 'enroll')
             const state = this.options.state.read()
             if (
               state.setup === null ||
@@ -270,6 +271,7 @@ export class NodePasskeyAuth {
               this.setupDeadline <= this.options.clock.monotonicMs()
             )
               throw new Error(UI_TEXT.nodeErrors.expired)
+            this.challenges.consume(pending)
             const current = this.options.state.read()
             await this.options.state.update(current.generation, (value) => ({
               ...value,
@@ -335,7 +337,6 @@ export class NodePasskeyAuth {
       end: async (requestedSession) => {
         if (requestedSession !== sessionId) throw new Error(UI_TEXT.nodeErrors.forbidden)
         this.sessions.end(requestedSession)
-        this.challenges.end(requestedSession)
         await this.audit('signout', '', 'allowed', requestedSession)
       },
     }

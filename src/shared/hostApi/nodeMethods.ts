@@ -24,6 +24,7 @@ import {
 } from '../node'
 import {
   nodeAssertionSchema,
+  nodeChallengeTokenSchema,
   nodeAuthChallengeSchema,
   nodeAuthenticationSchema,
   nodeDigestSchema,
@@ -41,7 +42,7 @@ const pathFields = { ...workspace, path: nodeRelativePathSchema }
 const cursor = z.nullable(nodeIdentifierSchema)
 const stepUp = { stepUpId: nodeIdentifierSchema, actionDigest: nodeDigestSchema }
 const terminal = z.strictObject({ terminalId: nodeIdentifierSchema })
-const credentialProof = { challengeId: nodeIdentifierSchema, credential: nodeAssertionSchema }
+const credentialProof = { challengeId: nodeChallengeTokenSchema, credential: nodeAssertionSchema }
 const fileMutation = { ...pathFields, expectedDigest: z.nullable(nodeDigestSchema) }
 const ref = z
   .string()
@@ -90,7 +91,7 @@ export const nodeMethods = {
   'node/auth/enroll': {
     access: 'public',
     params: z.strictObject({
-      challengeId: nodeIdentifierSchema,
+      challengeId: nodeChallengeTokenSchema,
       credential: nodeRegistrationSchema,
     }),
     result: nodeAuthenticationSchema,

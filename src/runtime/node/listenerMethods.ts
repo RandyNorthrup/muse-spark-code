@@ -10,7 +10,10 @@ import { NODE_STEP_UP_TTL_MS } from '../../shared/constants'
 import { NodeListenerError, type NodeListenerVerifier } from './listenerGuard'
 
 /** Construct a shared port scoped to the verified session, never to an editor. */
-export type NodeListenerMethodFactory = (session: NodeSession | null) => NodeMethodPort
+export type NodeListenerMethodFactory = (
+  session: NodeSession | null,
+  source: string,
+) => NodeMethodPort
 
 const proofFields = z.strictObject({ stepUpId: z.string(), actionDigest: z.string() })
 const actions: Partial<Record<NodeMethodName, NodeStepUp['action']>> = {
@@ -39,6 +42,7 @@ export async function dispatchNodeMethod(
     methods: NodeListenerMethodFactory
     verifier: NodeListenerVerifier | undefined
     now: () => number
+    source: string
   },
   signal: AbortSignal,
 ): Promise<unknown> {
@@ -76,7 +80,9 @@ export async function dispatchNodeMethod(
       throw new NodeListenerError('forbidden')
   }
   signal.throwIfAborted()
-  return entry.result.parse(await ports.methods(session).request(method, parsed.data, signal))
+  return entry.result.parse(
+    await ports.methods(session, ports.source).request(method, parsed.data, signal),
+  )
 }
 
 export function nodeRoute(url: string | undefined): NodeMethodName {

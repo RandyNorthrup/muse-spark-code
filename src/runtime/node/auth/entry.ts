@@ -2,7 +2,12 @@ import { setUiText } from '../../../shared/l10n/text'
 import type { UiText } from '../../../shared/l10n/en'
 import { NodePasskeyAuth, type NodeAuthOptions } from './service'
 export { nodeAuthMethods } from './methods'
-export { checkNodeCertificate, checkNodeNames, issueNodeCertificate } from '../tls/certificate'
+export {
+  checkNodeCertificate,
+  checkNodeNames,
+  issueNodeCertificate,
+  readNodeChallengeKey,
+} from '../tls/certificate'
 
 /** N loads dist/nodeAuth.js on first setup/sign-in, installing its own language table. */
 export function createNodePasskeyAuth(
