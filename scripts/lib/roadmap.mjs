@@ -87,34 +87,33 @@ function readEntries(text, problems) {
   return parsed.entries
 }
 
-const WORD_CHARACTER = /^[\p{L}\p{N}]$/u
-const isWord = (character) => character !== undefined && WORD_CHARACTER.test(character)
+const WORD_CHARACTER = /[\p{L}\p{N}]/u
 
 /**
- * Finds the first milestone or working id PLAN.md and entries.json know
- * (M19, m19, SECWINPATH, M26-follow-up) in a text, case-insensitively and as
- * a whole word, as milestone selection matches ids; the longest id wins at a
- * position. A plain scan, not a pattern built from the ids: ids are data,
- * so no regular expression is compiled from them.
+ * One case-insensitive matcher for every milestone and working id PLAN.md
+ * and entries.json know (M19, m19, SECWINPATH, M26-follow-up), matched as a
+ * whole word, as milestone selection matches ids.
  */
-function knownIdFinder(ids) {
-  if (ids.size === 0) return
-  const known = [...ids].toSorted((left, right) => right.length - left.length)
-  return (value) => {
-    const characters = [...value]
-    const lower = characters.map((character) => character.toLowerCase())
-    for (let start = 0; start < characters.length; start += 1) {
-      if (isWord(characters[start - 1])) continue
-      for (const id of known) {
-        const length = [...id].length
-        if (
-          lower.slice(start, start + length).join('') === id &&
-          !isWord(characters[start + length])
-        )
-          return characters.slice(start, start + length).join('')
+function knownIdMatcher(ids) {
+  if (ids.size === 0) return null
+  // A plain search, never a RegExp built from data (semgrep detect-non-literal-regexp).
+  const needles = [...ids]
+    .toSorted((left, right) => right.length - left.length)
+    .map((id) => id.toLowerCase())
+  return {
+    /** The first known id in `text` as written there, or undefined. */
+    firstIn(text) {
+      const haystack = text.toLowerCase()
+      for (const needle of needles) {
+        for (let at = haystack.indexOf(needle); at !== -1; at = haystack.indexOf(needle, at + 1)) {
+          const before = at === 0 ? '' : haystack.charAt(at - 1)
+          const after = haystack.charAt(at + needle.length)
+          if (!WORD_CHARACTER.test(before) && !WORD_CHARACTER.test(after))
+            return haystack.length === text.length ? text.slice(at, at + needle.length) : needle
+        }
       }
-    }
-    return
+      return
+    },
   }
 }
 
@@ -269,9 +268,9 @@ function render(placed, pending, releases, sources) {
 }
 
 class EntryChecker {
-  constructor(versions, findId, problems) {
+  constructor(versions, idMatcher, problems) {
     this.versions = versions
-    this.findId = findId
+    this.idMatcher = idMatcher
     this.problems = problems
   }
 
@@ -282,7 +281,7 @@ class EntryChecker {
     }
     // Milestone, decision and working ids appear only as the generated tag.
     if (!isRendered) return true
-    const known = this.findId?.(value)
+    const known = this.idMatcher?.firstIn(value)
     if (known !== undefined)
       this.problems.push(`${id}: "${key}" names the milestone or working id ${known}`)
     else if (/\b[MD]\d+/.test(value))
@@ -347,7 +346,7 @@ function placeEntries(facts, entries, versions, pending, plan, problems, notes) 
   const ids = new Set(facts.milestones.map(({ id }) => id.toLowerCase()))
   for (const entry of entries)
     if (isEntryObject(entry) && hasValidId(entry)) ids.add(entry.id.toLowerCase())
-  const checker = new EntryChecker(versions, knownIdFinder(ids), problems)
+  const checker = new EntryChecker(versions, knownIdMatcher(ids), problems)
   const seen = new Set()
   const placed = []
   for (const [index, entry] of entries.entries()) {
