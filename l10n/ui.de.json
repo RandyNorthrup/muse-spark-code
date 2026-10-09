@@ -2740,6 +2740,15 @@
     "chat": "Chat Completions",
     "anthropic": "Anthropic Messages"
   },
+  "customLimitsContext": "Kontextfenster (Token)",
+  "customLimitsOutput": "Längste Antwort (Token)",
+  "customLimitsMissing": "Jedes gewählte Modell braucht vor dem Speichern sein Kontextfenster und seine längste Antwort.",
+  "customLimitsTokensPlaceholder": "Token, zum Beispiel 128000",
+  "customLimitsInvalid": "Geben Sie eine positive ganze Zahl an Token ein.",
+  "customLimitsOutputCap": "Die längste Antwort darf das Kontextfenster nicht überschreiten.",
+  "providerPresetUnsupported": "{provider} ist nicht verfügbar: Diese Version unterstützt seine Voreinstellung ({preset}) nicht.",
+  "signInNotOffered": "Hier nicht angeboten.",
+  "signInRemoteWindow": "In einem Remote-Fenster nicht verfügbar. Melden Sie sich in einem lokalen Fenster an.",
   "getKey": "Schlüssel besorgen",
   "enterKey": "Schlüssel eingeben…",
   "providerConnect": "{provider}-Konto verbinden",
@@ -4051,6 +4060,7 @@
     "copilotQuota": "Ihr Copilot-Kontingent ist aufgebraucht. Verwalten Sie die Nutzung oder wählen Sie ein anderes Modell.",
     "copilotRateLimit": "Copilot begrenzt die Anfragerate. Versuchen Sie es später erneut.",
     "copilotConsent": "Erlauben Sie den Zugriff im Zustimmungsdialog von Copilot.",
+    "copilotConfidential": "Copilot ist nicht verfügbar, solange dieser Arbeitsbereich vertraulich ist.",
     "copilotNotice": "Copilot-Modelle für VS Code, abgerechnet über Ihren Copilot-Plan oder AI-Credits.",
     "expired": "ChatGPT hat eine zu kurze Gültigkeit für diese Anfrage gewährt. Melden Sie sich erneut an.",
     "retry": "ChatGPT ist vorübergehend nicht verfügbar. Versuchen Sie es erneut."

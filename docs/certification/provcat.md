@@ -85,6 +85,121 @@ lead's ledger with the panel walk-through.
 
 ---
 
+# PROVWIZ2 round 2 — closing the four RVPROVCAT findings
+
+Recorded 2026-10-09 in the PROVWIZ2 lane, branch `fix/provider-wizard2`,
+same worktree and branch as round 1. The read-only review RVPROVCAT (base
+`e7bf0e140`) confirmed four P2 findings; all four are closed below, each
+with a regression test that fails before its fix (drills at the end, every
+break restored byte-exact by SHA-256). Ten UI strings were added in all 14
+language tables with real translations (`npm run check:l10n` 0 problems).
+
+Overclaim corrected: round 1's "adds a custom server end to end" used the
+memory store, which does not enforce the production file's contract, so it
+never proved a custom save. The CHANGELOG entry above now says so, and the
+new custom regression below saves through `createModelsPanelSeam(...).store`
+on a temporary real file and asserts the saved file's contents.
+
+## 1. A custom server saves its per-model limits through the production store
+
+`providerEntrySchema` requires `modelLimits` for every chosen model of a
+`custom` entry, but the wizard never collected them. Now the draft carries
+`modelLimits` (`draftModelLimitsSchema` in `src/shared/modelsPanel.ts`,
+partial while the wizard asks; also on `prefillFieldsSchema`), the scan
+prefills each listed model's reported context window without overwriting
+entered values (`scan` in `src/host/models/modelsPanel.ts`), the models step
+(`src/webview/models/Wizard.tsx`) asks per ticked model for "Context window
+(tokens)" and "Longest reply (tokens)", and the host keeps Save (and every
+Continue) disabled with `customLimitsMissing` until each ticked model has
+valid limits (`syncDraftBlockers`, run after every panel message).
+`draftEntry()` carries only complete limits, and the quick pick's custom
+path (`src/host/models/modelsQuickPick.ts`) asks both counts per chosen
+model (re-asking after invalid input, aborting on dismiss) before saving.
+Unticking a model drops its limits. The wizard's tick comparisons now use
+the bare model id the draft holds (the full ref never matched, so ticked
+rows showed unchecked and could not be unticked).
+
+Tests: `modelsPanel.test.ts` "saves a custom server with per-model limits
+through the production store" (real seam store on a temp file: scan-prefill
+asserted, blocker asserted before/after the limits prefill, saved file
+asserted to hold the limits); `modelsQuickPick.test.ts` "asks a custom
+server for every chosen model's limits and saves them";
+`modelsPanelSections.test.tsx` "asks each ticked custom model for its
+limits and gates Continue on them".
+
+## 2. The Test that asked for consent uses it
+
+The `providers/test` handler built the tested entry before the native
+private-network question, so the first accepted Test still sent
+`privateNetwork: false` and the transport refused it. Now the handler
+rebuilds the entry after consent (`testedEntry` carries `privateNetwork:
+true`) and uses it for the key test and the follow-up draft scan alike.
+
+Tests: `modelsPanel.test.ts` "tests a private endpoint with the consent
+just granted" (real endpoint policy, private DNS answer, accept once: the
+key test receives the grant and sends once, the scan receives it too, the
+draft shows the result) and "sends nothing when the private-network
+question is declined" (neither test nor scan runs).
+
+## 3. One stale card never hides valid saved providers
+
+`refresh()` threw when a saved provider's preset card was refused, losing
+every configured row. Now the affected provider stays listed as unavailable
+with its plain reason (`unavailable` on `providerStateSchema`;
+`providerPresetUnsupported`, naming the provider label and the technical
+preset id) and the same value-free log style as the card skip
+(`Provider <id> left out of the panel: <preset>`); the row is still
+schema-validated and removable. `format` is optional on the row because an
+unreadable card cannot supply one and nothing renders it.
+
+Tests: `modelsPanel.test.ts` "keeps valid saved providers when one preset
+card is refused" (saved Anthropic + mistral-plan, refused mistral-plan card:
+Anthropic's row is published, mistral-plan's row carries the reason, no
+failure notice, both log lines asserted);
+`modelsPanelSections.test.tsx` "shows a saved provider with a refused card
+as unavailable with its reason".
+
+## 4. Sign-in rows follow availability, and selection refuses early
+
+The picker offered ChatGPT and Copilot even where the host reports them
+unavailable, and `providers/select` called the connector before failing.
+Now the pick step (`signInReason` in `src/webview/models/Wizard.tsx`) hides
+Copilot in a confidential workspace (the README's rule) and otherwise shows
+an unavailable sign-in disabled with its reason (`signInNotOffered`,
+`signInRemoteWindow`; `SearchableSelect` renders disabled rows and never
+selects them by click or keyboard). The host (`subscriptionRefusal` in
+`src/host/models/modelsPanel.ts`) refuses `providers/select` and
+`providers/connectSubscription` with the specific reason before any
+connector runs (ChatGPT: no connector, or a remote window per
+`chatgptSignIn.ts`; Copilot: confidential workspace per
+`planUi.copilotConfidential`, or no connector). The state carries
+`remoteWindow` and `confidentialWorkspace` for the picker.
+
+Tests: `modelsPanel.test.ts` "refuses ChatGPT sign-in in a remote window…",
+"refuses Copilot sign-in in a confidential workspace…", "refuses a sign-in
+with no connector as not offered here" (connectors never called, specific
+notices); `modelsPanelSections.test.tsx` "hides Copilot in a confidential
+workspace and offers ChatGPT", "disables ChatGPT in a remote window with
+its reason and never selects it", "disables a sign-in with no connector as
+not offered, and picks an offered one".
+
+## Round 2 red drills
+
+Each break was applied to the working tree, run on the Mac mini, and the
+file restored byte-exact (SHA-256 compared).
+
+| Break                                              | Result                                                     |
+| -------------------------------------------------- | ---------------------------------------------------------- |
+| `draftEntry` skips custom limits (`custom-broken`) | custom production-save test fails                          |
+| Test uses the pre-consent entry                    | private-consent test fails (grant missing)                 |
+| `refresh` throws on a refused card again           | stale-card test fails                                      |
+| `providers/select` ignores the refusal             | remote-window test fails (connector runs, generic failure) |
+| Picker ignores the remote window                   | remote-disabled webview test fails                         |
+| Quick pick skips the custom limits                 | quick-pick custom test fails                               |
+| Continue ignores blockers                          | limits-gating webview test fails                           |
+
+---
+
 # PROVWIZ2 — the provider wizard's scan, plan key and sign-in text
 
 Recorded 2026-10-09 in the PROVWIZ2 lane, branch `fix/provider-wizard2`,

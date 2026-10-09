@@ -2740,6 +2740,15 @@
     "chat": "Chat Completions",
     "anthropic": "Anthropic Messages"
   },
+  "customLimitsContext": "Bağlam penceresi (jeton)",
+  "customLimitsOutput": "En uzun yanıt (jeton)",
+  "customLimitsMissing": "Seçilen her modelin kaydedilmeden önce bağlam penceresine ve en uzun yanıta ihtiyacı var.",
+  "customLimitsTokensPlaceholder": "Jeton, örneğin 128000",
+  "customLimitsInvalid": "Pozitif bir tam sayı girin (jeton).",
+  "customLimitsOutputCap": "En uzun yanıt bağlam penceresini aşamaz.",
+  "providerPresetUnsupported": "{provider} kullanılamıyor: bu sürüm hazır ayarını ({preset}) desteklemiyor.",
+  "signInNotOffered": "Burada sunulmuyor.",
+  "signInRemoteWindow": "Uzak pencerede kullanılamıyor. Yerel bir pencereden oturum açın.",
   "getKey": "Anahtar alın",
   "enterKey": "Anahtarı girin…",
   "providerConnect": "{provider} hesabını bağlayın",
@@ -4051,6 +4060,7 @@
     "copilotQuota": "Copilot kotanız tükendi. Kullanımı yönetin veya başka bir model seçin.",
     "copilotRateLimit": "Copilot istek sıklığını sınırlıyor. Daha sonra tekrar deneyin.",
     "copilotConsent": "Devam etmek için Copilot onay penceresinde erişime izin verin.",
+    "copilotConfidential": "Bu çalışma alanı gizliyken Copilot kullanılamıyor.",
     "copilotNotice": "VS Code’a tahsis edilen Copilot modelleri, Copilot planınıza veya yapay zekâ kredilerinize faturalandırılır.",
     "expired": "ChatGPT bu istek için çok kısa bir geçerlilik süresi verdi. Yeniden oturum açın.",
     "retry": "ChatGPT geçici olarak kullanılamıyor. Tekrar deneyin."

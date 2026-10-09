@@ -50,11 +50,13 @@ function WizardNav({
   onClose,
   showBack,
   continueLabel,
+  continueDisabled,
 }: {
   readonly post: (message: PanelToHostMessage) => void
   readonly onClose: () => void
   readonly showBack: boolean
   readonly continueLabel: string
+  readonly continueDisabled: boolean
 }) {
   return (
     <div className="models-row-actions">
@@ -72,6 +74,7 @@ function WizardNav({
       <button
         type="button"
         className="models-button-primary"
+        disabled={continueDisabled}
         onClick={() => {
           post({ type: 'providers/wizard', event: 'next' })
         }}
@@ -87,28 +90,61 @@ function WizardNav({
 
 /**
  * The closing block of every wizard step except confirm: the step's
- * errors, then Continue with Back and Cancel beside it.
+ * errors and blockers, then Continue with Back and Cancel beside it.
+ * Continue stays disabled with the blockers inline while any stands.
  */
 function StepFoot({
   errors,
+  blockers,
   post,
   onClose,
 }: {
   readonly errors: readonly string[]
+  readonly blockers: readonly string[]
   readonly post: (message: PanelToHostMessage) => void
   readonly onClose: () => void
 }) {
   return (
     <>
-      <InlineError messages={errors} />
+      <InlineError messages={[...errors, ...blockers]} />
       <WizardNav
         post={post}
         onClose={onClose}
         showBack={true}
         continueLabel={UI_TEXT.wizardContinue}
+        continueDisabled={blockers.length > 0}
       />
     </>
   )
+}
+
+/**
+ * Why a subscription sign-in row cannot be picked, or undefined when it can.
+ * A confidential workspace hides Copilot outright (the README's rule); any
+ * other unavailable sign-in stays visible but disabled, with its reason.
+ */
+function signInReason(
+  panelState: ModelsPanelState,
+  preset: PresetCard,
+): { readonly hidden: boolean; readonly reason?: string } {
+  if (preset.auth !== 'subscription' || (preset.id !== 'chatgpt' && preset.id !== 'copilot')) {
+    return { hidden: false }
+  }
+  if (preset.id === 'copilot' && panelState.confidentialWorkspace === true) {
+    return { hidden: true }
+  }
+  if (preset.id === 'copilot' && panelState.copilotAvailable !== true) {
+    return { hidden: false, reason: UI_TEXT.signInNotOffered }
+  }
+  if (preset.id === 'copilot') {
+    return { hidden: false }
+  }
+  if (panelState.subscriptionsAvailable !== true) {
+    return { hidden: false, reason: UI_TEXT.signInNotOffered }
+  }
+  return panelState.remoteWindow === true
+    ? { hidden: false, reason: UI_TEXT.signInRemoteWindow }
+    : { hidden: false }
 }
 
 function PickStep({ panelState, post, onClose }: Omit<WizardProps, 'draft' | 'onNavigateModels'>) {
@@ -130,12 +166,24 @@ function PickStep({ panelState, post, onClose }: Omit<WizardProps, 'draft' | 'on
       <SearchableSelect
         label={UI_TEXT.providerFields.provider}
         placeholder={UI_TEXT.providerSearchPlaceholder}
-        options={panelState.presets.map((preset) => ({
-          value: preset.id,
-          label: preset.label,
-          description: preset.description,
-          category: preset.category,
-        }))}
+        options={panelState.presets.flatMap((preset) => {
+          const availability = signInReason(panelState, preset)
+          if (availability.hidden) {
+            return []
+          }
+          return [
+            {
+              value: preset.id,
+              label: preset.label,
+              description: preset.description,
+              category: preset.category,
+              ...(availability.reason !== undefined && {
+                disabled: true,
+                disabledReason: availability.reason,
+              }),
+            },
+          ]
+        })}
         chips={chips}
         activeChip={chip}
         onChip={setChip}
@@ -293,7 +341,7 @@ function ConfigureStep({
           </label>
         </>
       )}
-      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
+      <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
     </div>
   )
 }
@@ -310,7 +358,7 @@ function CredentialStep({
     return (
       <div className="models-wizard-step">
         <h3>{preset?.label ?? UI_TEXT.providerFields.provider}</h3>
-        <StepFoot errors={draft.errors} post={post} onClose={onClose} />
+        <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
       </div>
     )
   }
@@ -369,7 +417,7 @@ function CredentialStep({
           {fill(UI_TEXT.providerConnectWaiting, { provider: preset?.label ?? '' })}
         </p>
       )}
-      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
+      <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
     </div>
   )
 }
@@ -428,7 +476,7 @@ function TestStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'onNav
           }}
         />
       )}
-      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
+      <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
     </div>
   )
 }
@@ -440,13 +488,38 @@ function WizardModelsStep({
   onClose,
 }: Omit<WizardProps, 'onNavigateModels'>) {
   const rows = panelState.models.filter((row) => row.providerId === draft.presetId)
-  const toggle = (ref: string): void => {
+  const isCustom = draft.presetId === 'custom'
+  // The draft holds bare model ids (the host strips the `<providerId>/`
+  // prefix), so ticked state compares those, while the message keeps the
+  // full ref the host routes on.
+  const toggle = (ref: string, modelId: string): void => {
     const scope: TickScope = { scope: 'wizard' }
     post({
       type: 'models/tick',
       scope,
       ref,
-      ticked: !draft.models.includes(ref),
+      ticked: !draft.models.includes(modelId),
+    })
+  }
+  // A custom server saves every chosen model's limits: the scan fills what
+  // it reported, and each ticked row asks the rest as plain numbers. An
+  // emptied field drops that number, never sends it.
+  const setLimit = (modelId: string, kind: 'contextTokens' | 'outputTokens', raw: number): void => {
+    const valued = Number.isNaN(raw) ? undefined : Math.floor(raw)
+    const current = draft.modelLimits?.[modelId]
+    const contextTokens = kind === 'contextTokens' ? valued : current?.contextTokens
+    const outputTokens = kind === 'outputTokens' ? valued : current?.outputTokens
+    post({
+      type: 'providers/prefill',
+      fields: {
+        modelLimits: {
+          ...draft.modelLimits,
+          [modelId]: {
+            ...(contextTokens !== undefined && { contextTokens }),
+            ...(outputTokens !== undefined && { outputTokens }),
+          },
+        },
+      },
     })
   }
   return (
@@ -460,17 +533,47 @@ function WizardModelsStep({
               <input
                 id={`models-wizard-tick-${row.ref}`}
                 type="checkbox"
-                checked={draft.models.includes(row.ref)}
+                checked={draft.models.includes(row.modelId)}
                 onChange={() => {
-                  toggle(row.ref)
+                  toggle(row.ref, row.modelId)
                 }}
               />
               <span>{row.label ?? row.modelId}</span>
             </label>
+            {isCustom && draft.models.includes(row.modelId) && (
+              <div className="models-limits">
+                <label className="models-field" htmlFor={`models-limits-context-${row.ref}`}>
+                  <span>{UI_TEXT.customLimitsContext}</span>
+                  <input
+                    id={`models-limits-context-${row.ref}`}
+                    type="number"
+                    min={1}
+                    value={
+                      draft.modelLimits?.[row.modelId]?.contextTokens ?? row.contextTokens ?? ''
+                    }
+                    onChange={(event) => {
+                      setLimit(row.modelId, 'contextTokens', event.target.valueAsNumber)
+                    }}
+                  />
+                </label>
+                <label className="models-field" htmlFor={`models-limits-output-${row.ref}`}>
+                  <span>{UI_TEXT.customLimitsOutput}</span>
+                  <input
+                    id={`models-limits-output-${row.ref}`}
+                    type="number"
+                    min={1}
+                    value={draft.modelLimits?.[row.modelId]?.outputTokens ?? ''}
+                    onChange={(event) => {
+                      setLimit(row.modelId, 'outputTokens', event.target.valueAsNumber)
+                    }}
+                  />
+                </label>
+              </div>
+            )}
           </li>
         ))}
       </ul>
-      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
+      <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
     </div>
   )
 }
@@ -565,7 +668,7 @@ function PrivacyStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'on
           {UI_TEXT.spendLimitLink}
         </button>
       )}
-      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
+      <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
     </div>
   )
 }
@@ -653,7 +756,7 @@ function SuggestionsStep({ panelState, draft, post, onClose, onNavigateModels }:
           {fill(UI_TEXT.lastDefaultHint, { model: panelState.lastChoices.defaultModelRef })}
         </p>
       )}
-      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
+      <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
     </div>
   )
 }

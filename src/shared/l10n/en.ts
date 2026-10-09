@@ -452,6 +452,8 @@ export const EN = {
     copilotQuota: 'Your Copilot quota is exhausted. Manage usage or choose another model.',
     copilotRateLimit: 'Copilot is rate limited. Try again later.',
     copilotConsent: 'Allow access to Copilot in its consent dialog to continue.',
+    // Said when a confidential workspace refuses Copilot sign-in.
+    copilotConfidential: 'Copilot is unavailable while this workspace is confidential.',
     // What Copilot uses and who bills it: VS Code's granted models, the Copilot plan.
     copilotNotice: 'Copilot models granted to VS Code, billed to your Copilot plan or AI credits.',
     expired: 'ChatGPT granted too little time to finish this request. Sign in again.',
@@ -4112,6 +4114,23 @@ export const EN = {
     chat: 'Chat Completions',
     anthropic: 'Anthropic Messages',
   },
+  // A custom server's per-model limits, asked on the wizard's models step.
+  customLimitsContext: 'Context window (tokens)',
+  customLimitsOutput: 'Longest reply (tokens)',
+  // Shown while a chosen custom model still misses a valid limit.
+  customLimitsMissing:
+    'Each chosen model needs its context window and longest reply before saving.',
+  // The quick pick's token-count prompt.
+  customLimitsTokensPlaceholder: 'Tokens, for example 128000',
+  customLimitsInvalid: 'Enter a positive whole number of tokens.',
+  customLimitsOutputCap: 'The longest reply cannot pass the context window.',
+  // {provider}: the saved provider's label; {preset}: its preset id (technical).
+  providerPresetUnsupported:
+    '{provider} is unavailable: this version does not support its preset ({preset}).',
+  // A sign-in the picker shows disabled: no connector in this editor.
+  signInNotOffered: 'Not offered here.',
+  // A sign-in the picker shows disabled: ChatGPT sign-in needs a local window.
+  signInRemoteWindow: 'Unavailable in a remote window. Sign in from a local window.',
   getKey: 'Get a key',
   enterKey: 'Enter key…',
   // {provider}: the preset's name.

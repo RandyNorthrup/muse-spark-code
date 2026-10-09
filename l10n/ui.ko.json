@@ -2643,6 +2643,15 @@
     "chat": "Chat Completions",
     "anthropic": "Anthropic Messages"
   },
+  "customLimitsContext": "컨텍스트 창(토큰)",
+  "customLimitsOutput": "가장 긴 답변(토큰)",
+  "customLimitsMissing": "저장하기 전에 선택한 각 모델에 컨텍스트 창과 가장 긴 답변을 입력해야 합니다.",
+  "customLimitsTokensPlaceholder": "토큰(예: 128000)",
+  "customLimitsInvalid": "양의 정수 토큰 수를 입력하세요.",
+  "customLimitsOutputCap": "가장 긴 답변은 컨텍스트 창을 초과할 수 없습니다.",
+  "providerPresetUnsupported": "{provider}을(를) 사용할 수 없습니다. 이 버전은 해당 프리셋({preset})을 지원하지 않습니다.",
+  "signInNotOffered": "여기서는 제공되지 않습니다.",
+  "signInRemoteWindow": "원격 창에서는 사용할 수 없습니다. 로컬 창에서 로그인하세요.",
   "getKey": "키 받기",
   "enterKey": "키 입력…",
   "providerConnect": "{provider} 계정 연결",
@@ -3907,6 +3916,7 @@
     "copilotQuota": "Copilot 할당량을 모두 사용했습니다. 사용량을 관리하거나 다른 모델을 선택하세요.",
     "copilotRateLimit": "Copilot 요청 빈도가 제한되었습니다. 나중에 다시 시도하세요.",
     "copilotConsent": "계속하려면 Copilot 동의 대화 상자에서 접근을 허용하세요.",
+    "copilotConfidential": "이 작업 영역이 기밀인 동안 Copilot을 사용할 수 없습니다.",
     "copilotNotice": "VS Code에 부여된 Copilot 모델이며 Copilot 플랜 또는 AI 크레딧으로 청구됩니다.",
     "expired": "ChatGPT가 부여한 유효 시간이 이 요청에 너무 짧습니다. 다시 로그인하세요.",
     "retry": "ChatGPT를 일시적으로 사용할 수 없습니다. 다시 시도하세요."

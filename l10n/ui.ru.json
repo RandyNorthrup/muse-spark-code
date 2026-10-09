@@ -2934,6 +2934,15 @@
     "chat": "Chat Completions",
     "anthropic": "Anthropic Messages"
   },
+  "customLimitsContext": "Контекстное окно (токены)",
+  "customLimitsOutput": "Самый длинный ответ (токены)",
+  "customLimitsMissing": "Каждой выбранной модели перед сохранением нужны контекстное окно и самый длинный ответ.",
+  "customLimitsTokensPlaceholder": "Токены, например 128000",
+  "customLimitsInvalid": "Введите положительное целое число токенов.",
+  "customLimitsOutputCap": "Самый длинный ответ не может превышать контекстное окно.",
+  "providerPresetUnsupported": "{provider} недоступен: эта версия не поддерживает его пресет ({preset}).",
+  "signInNotOffered": "Здесь не предлагается.",
+  "signInRemoteWindow": "Недоступно в удалённом окне. Войдите из локального окна.",
   "getKey": "Получить ключ",
   "enterKey": "Ввести ключ…",
   "providerConnect": "Подключить аккаунт {provider}",
@@ -4339,6 +4348,7 @@
     "copilotQuota": "Лимит Copilot исчерпан. Управляйте использованием или выберите другую модель.",
     "copilotRateLimit": "Copilot ограничивает частоту запросов. Повторите попытку позже.",
     "copilotConsent": "Чтобы продолжить, разрешите доступ в диалоговом окне согласия Copilot.",
+    "copilotConfidential": "Copilot недоступен, пока эта рабочая область конфиденциальна.",
     "copilotNotice": "Модели Copilot, предоставленные VS Code, оплачиваются по вашей подписке Copilot или AI-кредитами.",
     "expired": "ChatGPT выдал слишком короткий срок действия для этого запроса. Войдите снова.",
     "retry": "ChatGPT временно недоступен. Повторите попытку."

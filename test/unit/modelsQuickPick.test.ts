@@ -198,4 +198,52 @@ describe('runAddProviderQuickPick', () => {
     ).resolves.toBeUndefined()
     expect(ui.errors).toHaveLength(1)
   })
+
+  it('asks a custom server for every chosen model’s limits and saves them', async () => {
+    const customPreset = {
+      id: 'custom',
+      name: 'Custom server',
+      description: 'Any Chat Completions server',
+      kind: 'cloud' as const,
+      origin: '',
+      format: 'chat',
+      auth: 'apiKey' as const,
+      keyHint: 'The key the server expects',
+      keyPage: '',
+      isKeyShape: () => true,
+      freeTest: 'modelsList' as const,
+      localProbes: [],
+    }
+    const { providers } = testProvidersHost({
+      deps: {
+        store: memoryProvidersStore(),
+        catalog: {
+          get: (id) => (id === 'custom' ? customPreset : undefined),
+          has: (id) => id === 'custom',
+          ids: () => ['custom'],
+        },
+        fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
+      },
+    })
+    vi.mocked(window.showInputBox).mockResolvedValue('synthetic-key')
+    const ui = scriptedUi({
+      pickOne: ['custom', 'chat'],
+      pickMany: [['m1']],
+      inputText: ['https://llm.example', '128000', '4000'],
+      confirmSave: [true],
+    })
+    const outcome = await runAddProviderQuickPick({ providers, isRemote: false, ui })
+    expect(outcome).toEqual({ providerId: 'custom', modelRef: 'custom/m1' })
+    expect(await providers.providers()).toEqual([
+      {
+        id: 'custom',
+        preset: 'custom',
+        address: 'https://llm.example',
+        auth: 'apiKey',
+        models: ['m1'],
+        format: 'chat',
+        modelLimits: { m1: { contextTokens: 128_000, outputTokens: 4000 } },
+      },
+    ])
+  })
 })

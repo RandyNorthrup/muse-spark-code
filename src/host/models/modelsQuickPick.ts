@@ -63,6 +63,49 @@ function parseBudgetUsd(value: string): UsdAmount | undefined {
   return parsed.success ? parsed.data : undefined
 }
 
+/** A positive whole token count, or undefined for anything else. */
+function parseTokenCount(value: string): number | undefined {
+  const trimmed = value.trim()
+  if (!/^\d+$/.test(trimmed)) {
+    return undefined
+  }
+  const count = Number(trimmed)
+  return Number.isSafeInteger(count) && count > 0 ? count : undefined
+}
+
+/**
+ * Asks one token count, re-asking after an invalid answer until the user
+ * answers validly or dismisses. `max` caps the longest reply at the window.
+ */
+async function askTokenCount(
+  ui: ProviderQuickPickUi,
+  title: string,
+  value: string | undefined,
+  max: number | undefined,
+): Promise<number | undefined> {
+  for (;;) {
+    const answer = await ui.inputText({
+      title,
+      placeholder: UI_TEXT.customLimitsTokensPlaceholder,
+      ...(value !== undefined && { value }),
+      validate: (candidate) =>
+        parseTokenCount(candidate) === undefined ? UI_TEXT.customLimitsInvalid : undefined,
+    })
+    if (answer === undefined) {
+      return undefined
+    }
+    const count = parseTokenCount(answer)
+    if (count === undefined) {
+      continue
+    }
+    if (max !== undefined && count > max) {
+      ui.showError(UI_TEXT.customLimitsOutputCap)
+      continue
+    }
+    return count
+  }
+}
+
 /**
  * Adds one provider through the quick pick. The outcome, or undefined when
  * cancelled at any step (nothing written).
@@ -201,6 +244,37 @@ export async function runAddProviderQuickPick(
   if (ticked === undefined || ticked.length === 0) {
     return undefined
   }
+  // A custom server saves every chosen model's limits (the production file
+  // rejects the entry without them): the scan fills what it reports, the
+  // user answers the rest. Dismissing writes nothing.
+  let modelLimits: ProviderEntry['modelLimits']
+  if (preset.id === 'custom') {
+    const limits: Record<string, { contextTokens: number; outputTokens: number }> = {}
+    for (const id of ticked) {
+      const row = scanned.rows.find((candidate) => candidate.id === id)
+      const known = row?.context === undefined ? undefined : String(row.context)
+      const contextTokens = await askTokenCount(
+        ui,
+        `${UI_TEXT.customLimitsContext} (${id})`,
+        known,
+        undefined,
+      )
+      if (contextTokens === undefined) {
+        return undefined
+      }
+      const outputTokens = await askTokenCount(
+        ui,
+        `${UI_TEXT.customLimitsOutput} (${id})`,
+        undefined,
+        contextTokens,
+      )
+      if (outputTokens === undefined) {
+        return undefined
+      }
+      limits[id] = { contextTokens, outputTokens }
+    }
+    modelLimits = limits
+  }
   // OpenRouter's privacy routing (D74: private by default) is the panel's
   // choice (lane M renders it from `privacyChoices`); the quick pick keeps
   // the default until lane P's file holds the routing. Noted in m95-k.md.
@@ -282,7 +356,11 @@ export async function runAddProviderQuickPick(
     return undefined
   }
   const outcome = await providers.saveDraft({
-    provider: { ...entry, models: [...ticked] },
+    provider: {
+      ...entry,
+      models: [...ticked],
+      ...(modelLimits !== undefined && { modelLimits }),
+    },
     credential,
     credentialAuth,
     defaultModel: modelRef,

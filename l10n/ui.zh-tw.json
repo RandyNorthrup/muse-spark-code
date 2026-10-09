@@ -2643,6 +2643,15 @@
     "chat": "Chat Completions",
     "anthropic": "Anthropic Messages"
   },
+  "customLimitsContext": "上下文視窗（token）",
+  "customLimitsOutput": "最長回覆（token）",
+  "customLimitsMissing": "儲存前，每個選定的模型都需要填寫上下文視窗和最長回覆。",
+  "customLimitsTokensPlaceholder": "Token 數量，例如 128000",
+  "customLimitsInvalid": "請輸入正整數的 token 數量。",
+  "customLimitsOutputCap": "最長回覆不能超過上下文視窗。",
+  "providerPresetUnsupported": "{provider} 無法使用：此版本不支援其預設集（{preset}）。",
+  "signInNotOffered": "此處不提供。",
+  "signInRemoteWindow": "在遠端視窗中無法使用。請從本機視窗登入。",
   "getKey": "取得金鑰",
   "enterKey": "輸入金鑰…",
   "providerConnect": "連接 {provider} 帳戶",
@@ -3907,6 +3916,7 @@
     "copilotQuota": "Copilot 配額已用盡。請管理用量或選擇其他模型。",
     "copilotRateLimit": "Copilot 請求頻率受到限制。請稍後重試。",
     "copilotConsent": "請在 Copilot 授權對話框中允許存取以繼續。",
+    "copilotConfidential": "此工作區處於機密狀態時 Copilot 無法使用。",
     "copilotNotice": "授予 VS Code 的 Copilot 模型，按您的 Copilot 計畫或 AI 點數計費。",
     "expired": "ChatGPT 授予的有效期限不足以完成此請求。請重新登入。",
     "retry": "ChatGPT 暫時無法使用。請重試。"

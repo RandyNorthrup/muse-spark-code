@@ -123,9 +123,12 @@ export const providerStateSchema = z.strictObject({
   id: z.string(),
   /** The preset it was added from (or `custom`). */
   presetId: z.string(),
+  /** Set when the preset card is unavailable: the row shows this reason instead of its controls. */
+  unavailable: z.optional(z.string()),
+  /** Absent on an unavailable row whose preset card could not be read. */
+  format: z.optional(z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama'])),
   label: z.string(),
   address: z.optional(z.string()),
-  format: z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama']),
   auth: z.enum(['apiKey', 'none', 'subscription']),
   key: providerKeySchema,
   test: providerTestSchema,
@@ -260,6 +263,20 @@ const endpointFields = {
   customFormat: z.optional(customFormatSchema),
 }
 
+/**
+ * A custom server's per-model limits as the draft holds them: either number
+ * may still be empty while the wizard asks. The host requires both before
+ * saving (the production entry schema rejects an incomplete set).
+ */
+export const draftModelLimitsSchema = z.record(
+  z.string(),
+  z.strictObject({
+    contextTokens: z.optional(z.number()),
+    outputTokens: z.optional(z.number()),
+  }),
+)
+export type DraftModelLimits = z.infer<typeof draftModelLimitsSchema>
+
 export const panelDraftSchema = z.strictObject({
   ...endpointFields,
   step: wizardStepSchema,
@@ -272,6 +289,8 @@ export const panelDraftSchema = z.strictObject({
   costAccepted: z.boolean(),
   test: z.optional(providerTestSchema),
   models: z.array(z.string()),
+  /** A custom server's per-model limits, keyed by model id. */
+  modelLimits: z.optional(draftModelLimitsSchema),
   privacy: openRouterPrivacySchema,
   providerOrder: z.array(z.string()),
   allowFallbacks: z.boolean(),
@@ -361,6 +380,10 @@ export const modelsPanelStateSchema = z.strictObject({
   notice: z.optional(z.string()),
   subscriptionsAvailable: z.optional(z.boolean()),
   copilotAvailable: z.optional(z.boolean()),
+  /** True in a remote window: ChatGPT sign-in is refused there. */
+  remoteWindow: z.optional(z.boolean()),
+  /** True where the workspace is confidential: Copilot is hidden and refused. */
+  confidentialWorkspace: z.optional(z.boolean()),
 })
 export type ModelsPanelState = z.infer<typeof modelsPanelStateSchema>
 
@@ -373,6 +396,8 @@ export const prefillFieldsSchema = z.strictObject({
   privateConfirmed: z.optional(z.boolean()),
   defaultModel: z.optional(z.string()),
   sessionBudgetUsd: z.optional(legacyUsdSchema),
+  /** A custom server's per-model limits (replaces the draft's set). */
+  modelLimits: z.optional(draftModelLimitsSchema),
 })
 export type PrefillFields = z.infer<typeof prefillFieldsSchema>
 

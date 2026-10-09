@@ -15,6 +15,7 @@ import type {
   ModelsPanelState,
   ModelsWizardStep,
   PanelToHostMessage,
+  PresetCard,
 } from '../../src/shared/modelsPanel'
 import { ModelsSection } from '../../src/webview/models/ModelsSection'
 import { ProvidersSection } from '../../src/webview/models/ProvidersSection'
@@ -32,6 +33,32 @@ import {
 
 function fail(message: string): never {
   throw new Error(message)
+}
+
+const CHATGPT_CARD: PresetCard = {
+  id: 'chatgpt',
+  label: 'ChatGPT',
+  description: 'ChatGPT Plus and Pro accounts',
+  category: 'subscription',
+  format: 'responses',
+  originKind: 'fixed',
+  originDisplay: 'https://api.openai.com',
+  auth: 'subscription',
+  connectOAuth: true,
+  keyHint: '',
+}
+
+const COPILOT_CARD: PresetCard = {
+  id: 'copilot',
+  label: 'Copilot',
+  description: 'Copilot models granted to VS Code',
+  category: 'subscription',
+  format: 'chat',
+  originKind: 'fixed',
+  originDisplay: 'https://github.com/copilot',
+  auth: 'subscription',
+  connectOAuth: false,
+  keyHint: '',
 }
 
 function props(
@@ -176,6 +203,62 @@ describe('ProvidersSection', () => {
     expect(post).toHaveBeenCalledWith({ type: 'providers/select', presetId: 'ollama' })
   })
 
+  it('hides Copilot in a confidential workspace and offers ChatGPT', () => {
+    const post = vi.fn()
+    const state = makeState({
+      presets: [CHATGPT_CARD, COPILOT_CARD],
+      subscriptionsAvailable: true,
+      copilotAvailable: false,
+      confidentialWorkspace: true,
+      drafts: { edits: {}, wizard: makeDraft() },
+    })
+    render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+    fireEvent.focus(screen.getByRole('combobox'))
+    expect(screen.queryByText('Copilot')).toBeNull()
+    expect(screen.getByText('ChatGPT')).toBeDefined()
+  })
+
+  it('disables ChatGPT in a remote window with its reason and never selects it', () => {
+    const post = vi.fn()
+    const state = makeState({
+      presets: [CHATGPT_CARD, COPILOT_CARD],
+      subscriptionsAvailable: true,
+      copilotAvailable: true,
+      remoteWindow: true,
+      drafts: { edits: {}, wizard: makeDraft() },
+    })
+    render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+    const box = screen.getByRole('combobox')
+    fireEvent.focus(box)
+    const reason = screen.getByText(UI_TEXT.signInRemoteWindow)
+    expect(reason.closest('li')?.getAttribute('aria-disabled')).toBe('true')
+    fireEvent.change(box, { target: { value: 'ChatGPT' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    fireEvent.mouseDown(reason.closest('li') ?? fail('chatgpt row missing'))
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it('disables a sign-in with no connector as not offered, and picks an offered one', () => {
+    const post = vi.fn()
+    const state = makeState({
+      presets: [CHATGPT_CARD, COPILOT_CARD],
+      subscriptionsAvailable: false,
+      copilotAvailable: true,
+      drafts: { edits: {}, wizard: makeDraft() },
+    })
+    render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+    const box = screen.getByRole('combobox')
+    fireEvent.focus(box)
+    const reason = screen.getByText(UI_TEXT.signInNotOffered)
+    expect(reason.closest('li')?.getAttribute('aria-disabled')).toBe('true')
+    fireEvent.change(box, { target: { value: 'ChatGPT' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(post).not.toHaveBeenCalledWith({ type: 'providers/select', presetId: 'chatgpt' })
+    fireEvent.change(box, { target: { value: 'Copilot' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(post).toHaveBeenCalledWith({ type: 'providers/select', presetId: 'copilot' })
+  })
+
   it('prefills the loopback port where the preset allows it', () => {
     const post = vi.fn()
     const state = makeState({
@@ -303,6 +386,67 @@ describe('ProvidersSection', () => {
       ref: 'ollama/qwen3:8b',
       ticked: true,
     })
+  })
+
+  it('asks each ticked custom model for its limits and gates Continue on them', () => {
+    const post = vi.fn()
+    const state = makeState({
+      models: [
+        makeRow({
+          ref: 'custom/m1',
+          providerId: 'custom',
+          modelId: 'm1',
+          contextTokens: 128_000,
+          ticked: true,
+        }),
+      ],
+      totalModels: 1,
+      drafts: {
+        edits: {},
+        wizard: makeDraft({
+          step: 'models',
+          presetId: 'custom',
+          models: ['m1'],
+          modelLimits: { m1: { contextTokens: 128_000 } },
+          blockers: [UI_TEXT.customLimitsMissing],
+        }),
+      },
+    })
+    render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+    // The scan's reported window is filled; the longest reply is asked.
+    expect(screen.getByLabelText(UI_TEXT.customLimitsContext)).toHaveProperty('value', '128000')
+    expect(screen.getByLabelText(UI_TEXT.customLimitsOutput)).toHaveProperty('value', '')
+    expect(screen.getByText(UI_TEXT.customLimitsMissing)).toBeDefined()
+    expect(screen.getByRole('button', { name: UI_TEXT.wizardContinue })).toHaveProperty(
+      'disabled',
+      true,
+    )
+    fireEvent.change(screen.getByLabelText(UI_TEXT.customLimitsOutput), {
+      target: { value: '4000' },
+    })
+    expect(post).toHaveBeenCalledWith({
+      type: 'providers/prefill',
+      fields: { modelLimits: { m1: { contextTokens: 128_000, outputTokens: 4000 } } },
+    })
+  })
+
+  it('shows a saved provider with a refused card as unavailable with its reason', () => {
+    const post = vi.fn()
+    const state = makeState({
+      providers: [
+        makeProvider({
+          id: 'mistral-plan',
+          presetId: 'mistral-plan',
+          label: 'Mistral plan',
+          unavailable: 'Mistral plan is unavailable: its preset changed.',
+        }),
+      ],
+    })
+    render(<ProvidersSection {...props(state, post)} />)
+    expect(screen.getByText('Mistral plan is unavailable: its preset changed.')).toBeDefined()
+    expect(screen.queryByRole('button', { name: UI_TEXT.testConnection })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerRemove }))
+    expect(post).toHaveBeenCalledWith({ type: 'providers/remove', providerId: 'mistral-plan' })
   })
 
   it('keeps OpenRouter private by default and routes on choice', () => {

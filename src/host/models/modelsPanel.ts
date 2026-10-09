@@ -13,6 +13,7 @@ import {
   parsePanelToHostMessage,
   parseHostToPanelMessage,
   presetCardSchema,
+  providerStateSchema,
   wizardStepSchema,
   type ModelsPanelState,
   type PanelDraft,
@@ -22,6 +23,8 @@ import {
   type ProviderTest,
 } from '../../shared/modelsPanel'
 import { buildWebviewHtml, createNonce } from '../html'
+import { fill } from '../../shared/l10n/text'
+import { modelLimitsSchema } from '../../shared/providerRouting'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import type { ImportPreview } from '../providers/importExport'
@@ -186,12 +189,27 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     if (preset === undefined) {
       throw new Error(UI_TEXT.actionFailed)
     }
+    // A custom entry saves only complete limits per chosen model; the
+    // blockers below keep Save disabled until each one is valid, and the
+    // production store rejects the entry if one is still missing.
+    const modelLimits =
+      preset.id === 'custom'
+        ? Object.fromEntries(
+            draft.models.flatMap(
+              (model): [string, { contextTokens: number; outputTokens: number }][] => {
+                const parsed = modelLimitsSchema.safeParse(draft.modelLimits?.[model])
+                return parsed.success ? [[model, parsed.data]] : []
+              },
+            ),
+          )
+        : undefined
     return {
       id: id ?? preset.id,
       preset: preset.id,
       address: draft.address ?? preset.origin,
       auth: draft.auth,
       models: draft.models,
+      ...(modelLimits !== undefined && { modelLimits }),
       ...(draft.customFormat !== undefined && { format: draft.customFormat }),
       ...(preset.id === 'openrouter' && {
         routing: {
@@ -202,6 +220,37 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }),
       privateNetwork: draft.privateConfirmed,
     }
+  }
+  /** Save stays disabled with its reason until each ticked custom model has valid limits. */
+  const syncCustomBlockers = (draft: PanelDraft): void => {
+    const rest = draft.blockers.filter((blocker) => blocker !== UI_TEXT.customLimitsMissing)
+    const hasIncompleteLimits =
+      draft.presetId === 'custom' &&
+      draft.models.some((model) => !modelLimitsSchema.safeParse(draft.modelLimits?.[model]).success)
+    draft.blockers = hasIncompleteLimits ? [...rest, UI_TEXT.customLimitsMissing] : rest
+  }
+  const syncDraftBlockers = (): void => {
+    if (state.drafts.wizard !== undefined) {
+      syncCustomBlockers(state.drafts.wizard)
+    }
+    for (const draft of Object.values(state.drafts.edits)) {
+      syncCustomBlockers(draft)
+    }
+  }
+  /** Why a subscription sign-in cannot start, or undefined when it can. */
+  const subscriptionRefusal = (id: string): string | undefined => {
+    if (id === 'chatgpt' && deps.connectChatGpt === undefined) {
+      return UI_TEXT.signInNotOffered
+    }
+    if (id === 'chatgpt' && deps.isRemote === true) {
+      return UI_TEXT.signInRemoteWindow
+    }
+    if (id === 'copilot' && deps.isConfidential?.() === true) {
+      return UI_TEXT.planUi.copilotConfidential
+    }
+    return id === 'copilot' && deps.connectCopilot === undefined
+      ? UI_TEXT.signInNotOffered
+      : undefined
   }
   const draftSecret = (entry: ProviderEntry, id?: string): string | undefined => {
     const record = credentials.get(id ?? 'wizard')
@@ -241,29 +290,73 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     })
     state.subscriptionsAvailable = deps.connectChatGpt !== undefined
     state.copilotAvailable = deps.connectCopilot !== undefined && deps.isConfidential?.() !== true
+    state.remoteWindow = deps.isRemote === true
+    state.confidentialWorkspace = deps.isConfidential?.() === true
     const providerStates = await providers.providerStates()
-    state.providers = providerStates.map(({ entry, hasKey, origin }) => {
+    state.providers = providerStates.flatMap(({ entry, hasKey, origin }) => {
       const preset = state.presets.find((candidate) => candidate.id === entry.preset)
+      const info = providers.preset(entry.preset)
       if (preset === undefined) {
-        throw new Error(UI_TEXT.actionFailed)
+        // One stale card never hides a valid saved provider: the affected
+        // row stays, marked unavailable with its reason. Names ids only.
+        const label = info?.name ?? entry.id
+        // Only a known wire format rides along; anything else stays absent.
+        let infoFormat: 'responses' | 'chat' | 'anthropic' | 'gemini' | 'ollama' | undefined
+        switch (info?.format) {
+          case 'responses':
+          case 'chat':
+          case 'anthropic':
+          case 'gemini':
+          case 'ollama': {
+            infoFormat = info.format
+            break
+          }
+          default: {
+            infoFormat = undefined
+            break
+          }
+        }
+        const parsed = providerStateSchema.safeParse({
+          id: entry.id,
+          presetId: entry.preset,
+          unavailable: fill(UI_TEXT.providerPresetUnsupported, {
+            provider: label,
+            preset: entry.preset,
+          }),
+          label,
+          address: entry.address,
+          format: entry.format ?? infoFormat,
+          auth: entry.auth,
+          key: {
+            state: hasKey ? 'stored' : 'missing',
+            origin,
+          },
+          test: { status: 'untested' },
+          models: [...entry.models],
+          pinned: [...(entry.pinned ?? [])],
+        })
+        log.warn(`Provider ${entry.id} left out of the panel: ${entry.preset}`)
+        return parsed.success ? [parsed.data] : []
       }
       const isBound = origin === undefined || origin === new URL(entry.address).origin
-      return {
-        id: entry.id,
-        presetId: entry.preset,
-        label: preset.label,
-        address: entry.address,
-        format: entry.format ?? preset.format,
-        auth: entry.auth,
-        key: {
-          state: hasKey ? (isBound ? 'stored' : 'needs-again') : 'missing',
-          origin,
-          actualOrigin: isBound ? undefined : new URL(entry.address).origin,
+      return [
+        {
+          id: entry.id,
+          presetId: entry.preset,
+          label: preset.label,
+          address: entry.address,
+          format: entry.format ?? preset.format,
+          auth: entry.auth,
+          key: {
+            state: hasKey ? (isBound ? 'stored' : 'needs-again') : 'missing',
+            origin,
+            actualOrigin: isBound ? undefined : new URL(entry.address).origin,
+          },
+          test: { status: 'untested' },
+          models: [...entry.models],
+          pinned: [...(entry.pinned ?? [])],
         },
-        test: { status: 'untested' },
-        models: [...entry.models],
-        pinned: [...(entry.pinned ?? [])],
-      }
+      ]
     })
     const all: ModelRow[] = []
     const families = new Map<string, string>()
@@ -390,6 +483,19 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     if (draft === undefined) {
       return
     }
+    if (draft.presetId === 'custom') {
+      // The server's model list fills what it reports; the wizard asks the
+      // rest. Limits the user already entered always win.
+      const reported: Record<string, { contextTokens: number }> = {}
+      for (const row of outcome.rows) {
+        if (row.context !== undefined) {
+          reported[row.id] = { contextTokens: row.context }
+        }
+      }
+      if (Object.keys(reported).length > 0) {
+        draft.modelLimits = { ...reported, ...draft.modelLimits }
+      }
+    }
     {
       const suggested = providers.suggestDefaultModel(outcome.rows)
       state.suggestions =
@@ -436,6 +542,13 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         return
       }
       case 'providers/connectSubscription': {
+        // An unavailable sign-in is refused with its reason before any
+        // connector runs, never a generic failure after one does.
+        const refusal = subscriptionRefusal(message.providerId)
+        if (refusal !== undefined) {
+          state.notice = refusal
+          break
+        }
         const connect = message.providerId === 'chatgpt' ? deps.connectChatGpt : deps.connectCopilot
         if (connect === undefined) throw new Error(UI_TEXT.actionFailed)
         await connect()
@@ -450,6 +563,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         // Leaving the pick step retires the last scan's rows.
         state.localScan = undefined
         if (preset.auth === 'subscription') {
+          const refusal = subscriptionRefusal(preset.id)
+          if (refusal !== undefined) {
+            state.notice = refusal
+            break
+          }
           const connect = preset.id === 'chatgpt' ? deps.connectChatGpt : deps.connectCopilot
           if (connect === undefined) throw new Error(UI_TEXT.actionFailed)
           await connect()
@@ -562,16 +680,22 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           draft.privateConfirmed = verdict.kind === 'private'
           draft.privateAsked = true
         }
+        // The consent just granted rides on the tested entry itself: the
+        // transport refuses a private address without it, so testing the
+        // entry built before the question would fail despite consent.
+        const testedEntry = verdict.kind === 'private' ? { ...entry, privateNetwork: true } : entry
         const secret =
-          draft === undefined ? await providers.storedCredential(entry) : draftSecret(entry, id)
+          draft === undefined
+            ? await providers.storedCredential(testedEntry)
+            : draftSecret(testedEntry, id)
         let tested: KeyTestResult
         if (secret === undefined) {
           tested =
-            entry.auth === 'none'
+            testedEntry.auth === 'none'
               ? { kind: 'ok', models: 0 }
               : { kind: 'failed', detail: UI_TEXT.importNeedsKey }
         } else {
-          tested = await providers.testCredential(entry, secret)
+          tested = await providers.testCredential(testedEntry, secret)
         }
         let status: ProviderTest['status'] = tested.kind === 'ok' ? 'ok' : 'failed'
         if (tested.kind === 'paid') {
@@ -590,7 +714,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           saved.test = test
         }
         if (draft !== undefined && tested.kind === 'ok') {
-          await scan(entry, draft, id)
+          await scan(testedEntry, draft, id)
         }
         publish()
         return
@@ -733,6 +857,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             ...draft.models.filter((value) => value !== model),
             ...(message.ticked ? [model] : []),
           ]
+          // An unticked model drops its custom limits with it.
+          if (!message.ticked && draft.modelLimits?.[model] !== undefined) {
+            draft.modelLimits = Object.fromEntries(
+              Object.entries(draft.modelLimits).filter(([id]) => id !== model),
+            )
+          }
         } else {
           const entry = await entryOf(id)
           await providers.updateProvider({
@@ -784,6 +914,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         break
       }
     }
+    syncDraftBlockers()
     await refresh()
     publish()
   }

@@ -195,6 +195,28 @@ function ProviderRow({
 }) {
   const { post } = props
   const [editing, setEditing] = useState(false)
+  // A saved provider whose preset card is unavailable stays listed with its
+  // reason instead of its controls; removing it still works.
+  if (provider.unavailable !== undefined)
+    return (
+      <li className="models-provider">
+        <h3 className="models-provider-name">{provider.label}</h3>
+        <p className="models-hint" role="status">
+          {provider.unavailable}
+        </p>
+        <div className="models-row-actions">
+          <button
+            type="button"
+            className="models-button"
+            onClick={() => {
+              post({ type: 'providers/remove', providerId: provider.id })
+            }}
+          >
+            {UI_TEXT.providerRemove}
+          </button>
+        </div>
+      </li>
+    )
   if (provider.auth === 'subscription')
     return (
       <li className="models-provider">

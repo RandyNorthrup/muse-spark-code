@@ -2643,6 +2643,15 @@
     "chat": "Chat Completions",
     "anthropic": "Anthropic Messages"
   },
+  "customLimitsContext": "コンテキストウィンドウ (トークン)",
+  "customLimitsOutput": "最長の返答 (トークン)",
+  "customLimitsMissing": "保存する前に、選択した各モデルにコンテキストウィンドウと最長の返答が必要です。",
+  "customLimitsTokensPlaceholder": "トークン数 (例: 128000)",
+  "customLimitsInvalid": "正の整数のトークン数を入力してください。",
+  "customLimitsOutputCap": "最長の返答はコンテキストウィンドウを超えられません。",
+  "providerPresetUnsupported": "{provider} は利用できません: このバージョンはそのプリセット ({preset}) をサポートしていません。",
+  "signInNotOffered": "ここでは提供されていません。",
+  "signInRemoteWindow": "リモートウィンドウでは利用できません。ローカルウィンドウからサインインしてください。",
   "getKey": "キーを取得",
   "enterKey": "キーを入力…",
   "providerConnect": "{provider} アカウントを接続",
@@ -3907,6 +3916,7 @@
     "copilotQuota": "Copilotの利用枠を使い切りました。利用状況を管理するか別のモデルを選んでください。",
     "copilotRateLimit": "Copilotのリクエスト頻度が制限されています。後で再試行してください。",
     "copilotConsent": "続けるにはCopilotの同意画面でアクセスを許可してください。",
+    "copilotConfidential": "このワークスペースが機密扱いの間は Copilot を利用できません。",
     "copilotNotice": "VS Codeに付与されたCopilotモデル。CopilotプランまたはAIクレジットで請求されます。",
     "expired": "ChatGPTが付与した有効期間ではこのリクエストを完了できません。再度サインインしてください。",
     "retry": "ChatGPTを一時的に利用できません。再試行してください。"

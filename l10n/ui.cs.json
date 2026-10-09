@@ -2934,6 +2934,15 @@
     "chat": "Chat Completions",
     "anthropic": "Anthropic Messages"
   },
+  "customLimitsContext": "Kontextové okno (tokeny)",
+  "customLimitsOutput": "Nejdelší odpověď (tokeny)",
+  "customLimitsMissing": "Každý zvolený model potřebuje před uložením kontextové okno a nejdelší odpověď.",
+  "customLimitsTokensPlaceholder": "Tokeny, například 128000",
+  "customLimitsInvalid": "Zadejte kladné celé číslo tokenů.",
+  "customLimitsOutputCap": "Nejdelší odpověď nesmí překročit kontextové okno.",
+  "providerPresetUnsupported": "{provider} je nedostupný: tato verze nepodporuje jeho předvolbu ({preset}).",
+  "signInNotOffered": "Zde není nabízeno.",
+  "signInRemoteWindow": "Ve vzdáleném okně nedostupné. Přihlaste se z místního okna.",
   "getKey": "Získat klíč",
   "enterKey": "Zadat klíč…",
   "providerConnect": "Připojit účet {provider}",
@@ -4339,6 +4348,7 @@
     "copilotQuota": "Kvóta Copilot je vyčerpána. Spravujte využití nebo vyberte jiný model.",
     "copilotRateLimit": "Copilot omezuje počet požadavků. Zkuste to později.",
     "copilotConsent": "Pro pokračování povolte přístup v dialogu souhlasu Copilot.",
+    "copilotConfidential": "Copilot je nedostupný, dokud je tento pracovní prostor důvěrný.",
     "copilotNotice": "Modely Copilot zpřístupněné aplikaci VS Code, účtované vašemu tarifu Copilot nebo AI kreditům.",
     "expired": "ChatGPT poskytl příliš krátkou platnost pro tento požadavek. Přihlaste se znovu.",
     "retry": "ChatGPT je dočasně nedostupný. Zkuste to znovu."

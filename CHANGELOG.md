@@ -38,11 +38,25 @@ happened, not what was planned; superseded entries are kept.
   the Subscription sign-in chip, where the plan put them, and Custom server
   (Chat Completions, Responses or Anthropic Messages) is in the picker again.
   A preset the contract still refuses is left out on its own, with a log line
-  that names the preset and the field but no value. A test now opens every
-  shipped preset and adds Anthropic and a custom server end to end.
+  that names the preset and the field but no value. A test opens every
+  shipped preset and adds Anthropic end to end. (The custom-server save in
+  that test used the memory store, so it missed that a custom entry needs
+  per-model limits to save through the production file; corrected below.)
 - The Action's apply tests no longer race a detached Git maintenance repack
   in their fake origin: the fixture turns off receive auto-gc and plain-git
   auto maintenance, and a witness test proves none runs.
+- Models & Agents: four review findings closed. A custom server now asks, per
+  ticked model, for its context window and longest reply (prefilled from the
+  server's model list where reported); Save stays disabled with the reason
+  until each ticked model has valid limits, and the entry saves through the
+  production file, which a new test proves against a real providers file. The
+  first Test of a private endpoint now carries the consent just granted, so it
+  sends once and shows its result; declining still sends nothing. A saved
+  provider whose preset card is refused stays listed as unavailable with its
+  reason instead of hiding every valid provider. Subscription sign-ins follow
+  availability: an unavailable sign-in shows disabled with its reason in the
+  picker (Copilot stays hidden in confidential workspaces, per the README),
+  and choosing one is refused with that reason before any connector runs.
 
 ### Documentation
 

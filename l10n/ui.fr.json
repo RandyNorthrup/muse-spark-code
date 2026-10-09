@@ -2837,6 +2837,15 @@
     "chat": "Chat Completions",
     "anthropic": "Anthropic Messages"
   },
+  "customLimitsContext": "Fenêtre de contexte (jetons)",
+  "customLimitsOutput": "Réponse la plus longue (jetons)",
+  "customLimitsMissing": "Chaque modèle choisi a besoin de sa fenêtre de contexte et de sa réponse la plus longue avant l’enregistrement.",
+  "customLimitsTokensPlaceholder": "Jetons, par exemple 128000",
+  "customLimitsInvalid": "Saisissez un nombre entier positif de jetons.",
+  "customLimitsOutputCap": "La réponse la plus longue ne peut pas dépasser la fenêtre de contexte.",
+  "providerPresetUnsupported": "{provider} est indisponible : cette version ne prend pas en charge son préréglage ({preset}).",
+  "signInNotOffered": "Non proposé ici.",
+  "signInRemoteWindow": "Indisponible dans une fenêtre distante. Connectez-vous depuis une fenêtre locale.",
   "getKey": "Obtenir une clé",
   "enterKey": "Saisir la clé…",
   "providerConnect": "Connecter le compte {provider}",
@@ -4195,6 +4204,7 @@
     "copilotQuota": "Votre quota Copilot est épuisé. Gérez votre utilisation ou choisissez un autre modèle.",
     "copilotRateLimit": "Copilot limite la fréquence des requêtes. Réessayez plus tard.",
     "copilotConsent": "Autorisez l’accès dans la boîte de consentement de Copilot pour continuer.",
+    "copilotConfidential": "Copilot est indisponible tant que cet espace de travail est confidentiel.",
     "copilotNotice": "Modèles Copilot accordés à VS Code, facturés à votre forfait Copilot ou à vos crédits IA.",
     "expired": "ChatGPT a accordé une durée trop courte pour cette requête. Reconnectez-vous.",
     "retry": "ChatGPT est temporairement indisponible. Réessayez."

@@ -2740,6 +2740,15 @@
     "chat": "Chat Completions",
     "anthropic": "Anthropic Messages"
   },
+  "customLimitsContext": "Környezetablak (tokenek)",
+  "customLimitsOutput": "Leghosszabb válasz (tokenek)",
+  "customLimitsMissing": "Minden kiválasztott modellhez meg kell adni a környezetablakot és a leghosszabb választ mentés előtt.",
+  "customLimitsTokensPlaceholder": "Tokenek, például 128000",
+  "customLimitsInvalid": "Adjon meg egy pozitív egész számot tokenekben.",
+  "customLimitsOutputCap": "A leghosszabb válasz nem lépheti túl a környezetablakot.",
+  "providerPresetUnsupported": "{provider} nem érhető el: ez a verzió nem támogatja az előre beállított profilját ({preset}).",
+  "signInNotOffered": "Itt nem érhető el.",
+  "signInRemoteWindow": "Távoli ablakban nem érhető el. Jelentkezzen be egy helyi ablakból.",
   "getKey": "Kulcs beszerzése",
   "enterKey": "Kulcs megadása…",
   "providerConnect": "{provider}-fiók csatlakoztatása",
@@ -4051,6 +4060,7 @@
     "copilotQuota": "A Copilot-kerete elfogyott. Kezelje a használatot, vagy válasszon másik modellt.",
     "copilotRateLimit": "A Copilot korlátozza a kérések gyakoriságát. Próbálja később.",
     "copilotConsent": "A folytatáshoz engedélyezze a hozzáférést a Copilot beleegyezési ablakában.",
+    "copilotConfidential": "A Copilot nem érhető el, amíg ez a munkaterület bizalmas.",
     "copilotNotice": "A VS Code számára biztosított Copilot-modellek, a Copilot-előfizetése vagy AI-kreditjei terhére.",
     "expired": "A ChatGPT túl rövid érvényességet adott a kéréshez. Jelentkezzen be újra.",
     "retry": "A ChatGPT átmenetileg nem érhető el. Próbálja újra."
