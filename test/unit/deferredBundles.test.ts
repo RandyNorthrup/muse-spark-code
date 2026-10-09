@@ -111,6 +111,7 @@ beforeAll(async () => {
       modelApiHooks: 'src/core/backends/modelapi/modelApiHooksEntry.ts',
       modelApiMcp: 'src/core/backends/modelapi/modelApiMcpEntry.ts',
       runtimeAccounting: 'src/runtime/runtimeAccountingEntry.ts',
+      sharingRuntime: 'src/runtime/sharing/sharingEntry.ts',
       legalScan: 'src/core/legal/entry.ts',
       imageResizeWorker: 'src/core/imageResizeWorker.ts',
       reporting: 'src/runtime/reporting/reportsEntry.ts',
@@ -164,7 +165,7 @@ beforeAll(async () => {
           nodeReferenceData,
           englishZodLocales,
           // Match the shipped prompt archive before checking real production caps.
-          ...(['modelApi', 'reference', 'codeIntel'].includes(name)
+          ...(['modelApi', 'reference', 'codeIntel', 'hookRuntime'].includes(name)
             ? [compressedModelText(true)]
             : []),
         ],
@@ -224,7 +225,7 @@ beforeAll(async () => {
     build({
       ...common,
       outdir: 'dist',
-      entryPoints: { modelApiBoundaries: 'src/shared/modelApiBoundariesEntry.ts' },
+      entryPoints: { modelApiBoundaries: 'src/core/nodeBoundariesEntry.ts' },
       plugins: [sharedUiText, sharedValidation],
     }),
     build({
@@ -1012,6 +1013,7 @@ describe('deferred cohort bundles', () => {
 
   it('shares the captured Model API validators and pure team admission across Node consumers', () => {
     for (const source of [
+      'src/core/pathIdentity.ts',
       'src/core/backends/modelapi/schemas.ts',
       'src/shared/teamConversation.ts',
       'src/shared/paidBoundary.ts',
@@ -1024,6 +1026,8 @@ describe('deferred cohort bundles', () => {
       }
     }
     expect(bundleText('modelApi')).toContain('./modelApiBoundaries.js')
+    expect(inputs('sharingRuntime')).not.toContain('src/core/pathIdentity.ts')
+    expect(bundleText('sharingRuntime')).toContain('./modelApiBoundaries.js')
   })
 
   it('keeps paid review execution out of the session first-turn bundle', () => {

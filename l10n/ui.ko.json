@@ -2040,6 +2040,7 @@
   "browserCheckScopeChanged": "준비하는 동안 브라우저 검사가 접근할 수 있는 호스트가 바뀌어 아무것도 열지 않았습니다. 새 호스트로 검사를 다시 요청하세요.",
   "browserCheckNotOffered": "여기서는 더 이상 브라우저 검사를 사용할 수 없습니다(작업 영역 신뢰, 권한 모드, 네트워크 설정 또는 런타임 설정이 바뀜). 아무것도 열지 않았습니다.",
   "browserCheckLaunch": "브라우저 검사용 브라우저를 시작하지 못했습니다.",
+  "browserCheckSystemDirectoryUnavailable": "Windows 시스템 디렉터리를 사용할 수 없습니다. SystemRoot를 실제 경로로 설정하세요.",
   "browserCheckUnrecognized": "브라우저 검사를 중지했습니다: 브라우저가 예상한 정확한 버전과 구성이 아니었습니다.",
   "browserCheckProfile": "브라우저 검사를 중지했습니다: 새 비공개 브라우저 프로필을 준비하지 못했습니다.",
   "browserCheckRouteUnconfirmed": "브라우저 검사를 중지했습니다: 페이지의 트래픽이 자체 프록시만 거친다는 것을 확인하지 못했습니다.",
@@ -2602,6 +2603,9 @@
   "agentRetryUnavailable": "다시 시도할 수 없습니다. 이 백엔드는 격리된 작업 트리 체크포인트를 제공하지 않습니다. 공유 작업 공간의 변경 사항은 유지됩니다.",
   "agentContinueUnavailable": "이 에이전트 또는 현재 상태에서는 계속할 수 없습니다.",
   "referenceAgentOutcomes": "에이전트는 활동과 증거 기반 결과를 표시합니다. 종료된 에이전트를 선택하면 제한된 기록과 시도 내역을 볼 수 있습니다. 확인 후 계속하면 세션과 변경 사항이 유지되며, 다시 시도하려면 격리된 체크포인트가 필요합니다. 증거가 없으면 미검증으로 표시됩니다. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "windowsPathRefused": "이 경로는 확장 기능이 허용하지 않는 Windows 표기법을 사용합니다. 일반 경로를 사용하세요.",
+  "checkpointStorageUncertain": "확장 기능이 이 경로가 체크포인트 저장소 밖에 있는지 확인할 수 없으므로 도구로 편집할 수 없습니다.",
+  "windowsSystemRootMissing": "Windows 시스템 디렉터리를 사용할 수 없습니다. SystemRoot를 실제 경로로 설정하세요.",
   "agentMapHint": "에이전트를 클릭하면 세부 정보가 표시됩니다",
   "agentMapEmpty": "이 대화에 하위 에이전트가 없습니다.",
   "teamTraffic": {
@@ -3009,7 +3013,7 @@
   "bannerDismiss": "해제",
   "trustGrantedNotice": "작업 영역 신뢰됨: Muse는 다음 메시지부터 작업 영역의 규칙, 스킬, 메모리를 로드합니다.",
   "sandboxRestartNotice": "Muse Code 설정이 변경되었습니다. Muse Code는 다음 메시지에서 변경된 설정으로 다시 시작하고 이 대화를 계속합니다.",
-  "sandboxProfileNotice": "이 작업 영역은 사용자 프로필 아래에 있으며, 여기서는 Muse Code의 Windows 샌드박스가 명령을 실행하지 못할 수 있습니다. 명령이 프로젝트 대신 PowerShell 폴더에서 시작되거나 끝나지 않을 수 있습니다. 파일 읽기와 편집에는 영향이 없습니다. C:\\Users 외부의 작업 영역에서는 명령이 해당 위치에서 실행됩니다.",
+  "sandboxProfileNotice": "이 작업 영역은 사용자 프로필 아래에 있으며, 여기서는 Muse Code의 Windows 샌드박스가 명령을 실행하지 못할 수 있습니다. 명령이 프로젝트 대신 PowerShell 폴더에서 시작되거나 끝나지 않을 수 있습니다. 파일 읽기와 편집에는 영향이 없습니다. %USERPROFILE% 외부의 작업 영역에서는 명령이 해당 위치에서 실행됩니다.",
   "permissionModes": {
     "manual": "수동",
     "acceptEdits": "자동 편집",

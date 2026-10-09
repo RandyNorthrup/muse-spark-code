@@ -2040,6 +2040,7 @@
   "browserCheckScopeChanged": "準備中にブラウザー チェックがアクセスできるホストが変わったため、何も開いていません。新しいホストでもう一度チェックを依頼してください。",
   "browserCheckNotOffered": "ここではブラウザー チェックを利用できなくなりました (ワークスペースの信頼、アクセス許可モード、ネットワーク設定、またはランタイム設定が変わりました)。何も開いていません。",
   "browserCheckLaunch": "ブラウザー チェック用のブラウザーを起動できませんでした。",
+  "browserCheckSystemDirectoryUnavailable": "Windows のシステムディレクトリを利用できません。SystemRoot に実際のパスを設定してください。",
   "browserCheckUnrecognized": "ブラウザー チェックを停止しました: ブラウザーが想定どおりのバージョンと構成ではありませんでした。",
   "browserCheckProfile": "ブラウザー チェックを停止しました: 新しいプライベートなブラウザー プロファイルを用意できませんでした。",
   "browserCheckRouteUnconfirmed": "ブラウザー チェックを停止しました: ページの通信が専用のプロキシだけを通ることを確認できませんでした。",
@@ -2602,6 +2603,9 @@
   "agentRetryUnavailable": "再試行できません。このバックエンドには分離された作業ツリーのチェックポイントがありません。共有ワークスペースの変更は保持されます。",
   "agentContinueUnavailable": "このエージェントまたは現在の状態では続行できません。",
   "referenceAgentOutcomes": "エージェントは活動状況と証拠に基づく結果を表示します。終了したエージェントを選ぶと、サイズ制限付きの記録と試行履歴が開きます。確認後の続行ではセッションと変更を保持し、再試行には分離されたチェックポイントが必要です。証拠がない場合は未検証と表示します。ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "windowsPathRefused": "このパスは拡張機能が受け付けない Windows の表記を使用しています。通常のパスを使用してください。",
+  "checkpointStorageUncertain": "拡張機能はこのパスがチェックポイントの保存領域外にあることを確認できないため、ツールでは編集できません。",
+  "windowsSystemRootMissing": "Windows のシステムディレクトリを利用できません。SystemRoot に実際のパスを設定してください。",
   "agentMapHint": "エージェントをクリックすると詳細を表示します",
   "agentMapEmpty": "この会話にサブエージェントはありません。",
   "teamTraffic": {
@@ -3009,7 +3013,7 @@
   "bannerDismiss": "閉じる",
   "trustGrantedNotice": "ワークスペースを信頼しました: Muse は次のメッセージからワークスペースのルール、スキル、メモリを読み込みます。",
   "sandboxRestartNotice": "Muse Code の設定が変更されました。Muse Code は次のメッセージでその設定を使用して再起動し、この会話を続行します。",
-  "sandboxProfileNotice": "このワークスペースはユーザー プロファイルの下にあり、Muse Code の Windows サンドボックスはそこでコマンドを実行できない場合があります。コマンドがプロジェクトではなく PowerShell フォルダーで開始されたり、終了しなかったりすることがあります。ファイルの読み取りと編集には影響しません。C:\\Users の外にあるワークスペースでは、コマンドはその場で実行されます。",
+  "sandboxProfileNotice": "このワークスペースはユーザー プロファイルの下にあり、Muse Code の Windows サンドボックスはそこでコマンドを実行できない場合があります。コマンドがプロジェクトではなく PowerShell フォルダーで開始されたり、終了しなかったりすることがあります。ファイルの読み取りと編集には影響しません。%USERPROFILE% の外にあるワークスペースでは、コマンドはその場で実行されます。",
   "permissionModes": {
     "manual": "手動",
     "acceptEdits": "自動編集",

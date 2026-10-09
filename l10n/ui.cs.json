@@ -2139,6 +2139,7 @@
   "browserCheckScopeChanged": "Hostitelé, na které smí kontrola v prohlížeči přistupovat, se během přípravy změnili, proto se nic neotevřelo. Požádejte o kontrolu znovu s novými hostiteli.",
   "browserCheckNotOffered": "Kontrola v prohlížeči tu už není k dispozici (změnila se důvěryhodnost pracovního prostoru, režim oprávnění, nastavení sítě nebo nastavení prohlížeče pro kontrolu), proto se nic neotevřelo.",
   "browserCheckLaunch": "Prohlížeč pro kontrolu v prohlížeči se nepodařilo spustit.",
+  "browserCheckSystemDirectoryUnavailable": "Systémový adresář Windows není dostupný; nastavte SystemRoot na jeho skutečnou cestu.",
   "browserCheckUnrecognized": "Kontrola v prohlížeči se zastavila: prohlížeč neodpovídal přesné verzi a nastavení, které očekává.",
   "browserCheckProfile": "Kontrola v prohlížeči se zastavila: nepodařilo se připravit nový soukromý profil prohlížeče.",
   "browserCheckRouteUnconfirmed": "Kontrola v prohlížeči se zastavila: nepodařilo se ověřit, že veškerý provoz stránky jde jen přes její vlastní proxy.",
@@ -2770,6 +2771,9 @@
   "agentRetryUnavailable": "Opakování není dostupné: backend neposkytuje izolovaný kontrolní bod pracovního stromu. Změny sdíleného pracovního prostoru zůstanou zachovány.",
   "agentContinueUnavailable": "Pokračování není pro tohoto agenta nebo jeho aktuální stav dostupné.",
   "referenceAgentOutcomes": "Agenti zobrazují aktivitu a výsledky podložené důkazy. Výběrem ukončeného agenta otevřete omezený záznam a historii pokusů. Pokračování po potvrzení zachová relaci a změny; opakování vyžaduje izolovaný kontrolní bod. Chybějící důkazy jsou neověřené. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "windowsPathRefused": "Tato cesta používá zápis systému Windows, který rozšíření nepřijímá; použijte běžnou cestu.",
+  "checkpointStorageUncertain": "Rozšíření nemůže ověřit, že je tato cesta mimo úložiště kontrolních bodů; nástroje ji nemohou upravovat.",
+  "windowsSystemRootMissing": "Systémový adresář Windows není dostupný; nastavte SystemRoot na jeho skutečnou cestu.",
   "agentMapHint": "kliknutím na agenta zobrazíte podrobnosti",
   "agentMapEmpty": "V této konverzaci nejsou žádní podagenti.",
   "teamTraffic": {
@@ -3204,7 +3208,7 @@
   "bannerDismiss": "Zavřít",
   "trustGrantedNotice": "Pracovní prostor je důvěryhodný: Muse od další zprávy načte jeho pravidla, dovednosti a paměť.",
   "sandboxRestartNotice": "Změnilo se nastavení Muse Code; Muse Code se s ním při další zprávě restartuje a bude v této konverzaci pokračovat.",
-  "sandboxProfileNotice": "Tento pracovní prostor je ve vašem uživatelském profilu, kde sandbox Muse Code pro Windows nemusí spouštět příkazy: mohou se spustit ve složce PowerShellu místo v projektu, nebo nikdy neskončit. Čtení a úpravy souborů to neovlivní. Pracovní prostor mimo C:\\Users spouští příkazy na místě.",
+  "sandboxProfileNotice": "Tento pracovní prostor je ve vašem uživatelském profilu, kde sandbox Muse Code pro Windows nemusí spouštět příkazy: mohou se spustit ve složce PowerShellu místo v projektu, nebo nikdy neskončit. Čtení a úpravy souborů to neovlivní. Pracovní prostor mimo %USERPROFILE% spouští příkazy na místě.",
   "permissionModes": {
     "manual": "Ruční",
     "acceptEdits": "Upravovat automaticky",

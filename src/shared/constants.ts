@@ -5861,6 +5861,19 @@ export const MODEL_TEXT = {
   memoryNoWorkspace: 'no workspace folder is open, so this scope has no memory',
   memoryNoHome: 'the home folder is unknown, so this scope has no memory',
   checkpointStorageWrite: 'This path is in the extension checkpoint storage; tools cannot edit it.',
+  // A refused Windows spelling and an unverifiable storage identity, in the
+  // model's words: fixed English, whatever the display language.
+  checkpointWindowsPathRefused:
+    "This path uses a Windows spelling the extension doesn't accept; use the normal path.",
+  checkpointStorageUncertain:
+    'The extension cannot verify that this path is outside checkpoint storage; tools cannot edit it.',
+  windowsDeviceNamespace: 'names a Windows device namespace',
+  windowsDriveRelative: 'uses a drive-relative Windows path',
+  windowsUncOutsideWorkspace: 'names a UNC path outside a UNC workspace',
+  windowsAlternateStream: 'names an alternate data stream',
+  windowsReservedDevice: 'names a Windows device',
+  windowsTrailingName: 'ends a name with a dot or a space, which Windows drops',
+  windowsUnprovenUncPath: 'path {path} has no proven UNC workspace ancestry',
   imageFileChanged:
     'the reserved file was changed by something else while the image was made; it was left as it is',
   // M68 (PLAN.md D49): the verify loop's words that the activation bundle
@@ -5919,6 +5932,8 @@ export const MODEL_TEXT = {
     "preparing the browser check's browser took longer than {minutes} minutes; nothing was opened",
   // Its confinement: nothing from the page is returned after any of these.
   browserCheckLaunch: "the browser check's browser could not be started; nothing was opened",
+  browserCheckSystemDirectoryUnavailable:
+    'the Windows system directory is unavailable; set SystemRoot to its actual path, so no browser was started',
   browserCheckUnrecognized:
     'the browser check stopped before opening the page: the browser did not match the exact version and setup it expects',
   browserCheckProfile:

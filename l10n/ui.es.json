@@ -2106,6 +2106,7 @@
   "browserCheckScopeChanged": "Los hosts a los que puede llegar la comprobación en el navegador cambiaron mientras se preparaba, así que no se abrió nada. Pídala de nuevo para comprobar con los hosts nuevos.",
   "browserCheckNotOffered": "La comprobación en el navegador ya no está disponible aquí (cambió la confianza del área de trabajo, el modo de permisos, la configuración de red o la del entorno del navegador), así que no se abrió nada.",
   "browserCheckLaunch": "No se pudo iniciar el navegador de la comprobación en el navegador.",
+  "browserCheckSystemDirectoryUnavailable": "El directorio del sistema Windows no está disponible; establece SystemRoot en su ruta real.",
   "browserCheckUnrecognized": "La comprobación en el navegador se detuvo: el navegador no coincidía exactamente con la versión y la configuración que espera.",
   "browserCheckProfile": "La comprobación en el navegador se detuvo: no pudo preparar un perfil de navegador nuevo y privado.",
   "browserCheckRouteUnconfirmed": "La comprobación en el navegador se detuvo: no pudo confirmar que el tráfico de la página pasa solo por su propio proxy.",
@@ -2714,6 +2715,9 @@
   "agentRetryUnavailable": "El reintento no está disponible: este backend no proporciona un punto de control aislado del árbol de trabajo. Se conservan los cambios del espacio compartido.",
   "agentContinueUnavailable": "Continuar no está disponible para este agente o su estado actual.",
   "referenceAgentOutcomes": "Los agentes muestran actividad y resultados basados en evidencia. Seleccione un agente finalizado para ver su registro limitado y su historial de intentos. Continuar conserva la sesión y los cambios tras confirmar; reintentar requiere un punto de control aislado. La evidencia ausente figura como no verificada. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "windowsPathRefused": "Esta ruta usa una forma de Windows que la extensión no acepta; usa la ruta normal.",
+  "checkpointStorageUncertain": "La extensión no puede comprobar que esta ruta esté fuera del almacenamiento de puntos de control; las herramientas no pueden editarla.",
+  "windowsSystemRootMissing": "El directorio del sistema Windows no está disponible; establece SystemRoot en su ruta real.",
   "agentMapHint": "haga clic en un agente para ver los detalles",
   "agentMapEmpty": "No hay subagentes en esta conversación.",
   "teamTraffic": {
@@ -3139,7 +3143,7 @@
   "bannerDismiss": "Descartar",
   "trustGrantedNotice": "Área de trabajo de confianza: Muse cargará sus reglas, aptitudes y memoria a partir del siguiente mensaje.",
   "sandboxRestartNotice": "Cambió una opción de configuración de Muse Code; Muse Code se reinicia con ella en el siguiente mensaje y continúa esta conversación.",
-  "sandboxProfileNotice": "Esta área de trabajo está en su perfil de usuario, donde es posible que el espacio aislado de Windows de Muse Code no ejecute comandos: pueden iniciarse en la carpeta de PowerShell en lugar de en el proyecto, o no terminar nunca. Las lecturas y ediciones de archivos no se ven afectadas. Un área de trabajo fuera de C:\\Users ejecuta los comandos en su sitio.",
+  "sandboxProfileNotice": "Esta área de trabajo está en su perfil de usuario, donde es posible que el espacio aislado de Windows de Muse Code no ejecute comandos: pueden iniciarse en la carpeta de PowerShell en lugar de en el proyecto, o no terminar nunca. Las lecturas y ediciones de archivos no se ven afectadas. Un área de trabajo fuera de %USERPROFILE% ejecuta los comandos en su sitio.",
   "permissionModes": {
     "manual": "Manual",
     "acceptEdits": "Editar automáticamente",

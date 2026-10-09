@@ -2106,6 +2106,7 @@
   "browserCheckScopeChanged": "Gli host che il controllo nel browser può raggiungere sono cambiati durante la preparazione, quindi non è stato aperto nulla. Richiedi di nuovo il controllo con i nuovi host.",
   "browserCheckNotOffered": "Il controllo nel browser non è più disponibile qui (sono cambiati l’attendibilità dell’area di lavoro, la modalità di autorizzazione, l’impostazione di rete o quella del browser di controllo), quindi non è stato aperto nulla.",
   "browserCheckLaunch": "Non è stato possibile avviare il browser del controllo nel browser.",
+  "browserCheckSystemDirectoryUnavailable": "La directory di sistema Windows non è disponibile; imposta SystemRoot sul suo percorso effettivo.",
   "browserCheckUnrecognized": "Il controllo nel browser si è interrotto: il browser non corrispondeva esattamente alla versione e alla configurazione previste.",
   "browserCheckProfile": "Il controllo nel browser si è interrotto: non è riuscito a preparare un profilo del browser nuovo e privato.",
   "browserCheckRouteUnconfirmed": "Il controllo nel browser si è interrotto: non è riuscito a confermare che il traffico della pagina passa solo dal suo proxy.",
@@ -2714,6 +2715,9 @@
   "agentRetryUnavailable": "Il nuovo tentativo non è disponibile: questo backend non fornisce un punto di controllo isolato dell’albero di lavoro. Le modifiche dello spazio condiviso vengono conservate.",
   "agentContinueUnavailable": "La continuazione non è disponibile per questo agente o il suo stato attuale.",
   "referenceAgentOutcomes": "Gli agenti mostrano attività e risultati basati su prove. Seleziona un agente terminato per il resoconto limitato e la cronologia. Continua conserva sessione e modifiche dopo conferma; Riprova richiede un punto di controllo isolato. Le prove mancanti restano non verificate. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "windowsPathRefused": "Questo percorso usa una notazione Windows che l’estensione non accetta; usa il percorso normale.",
+  "checkpointStorageUncertain": "L’estensione non può verificare che questo percorso sia esterno all’archivio dei punti di controllo; gli strumenti non possono modificarlo.",
+  "windowsSystemRootMissing": "La directory di sistema Windows non è disponibile; imposta SystemRoot sul suo percorso effettivo.",
   "agentMapHint": "fai clic su un agente per i dettagli",
   "agentMapEmpty": "Nessun agente secondario in questa conversazione.",
   "teamTraffic": {
@@ -3139,7 +3143,7 @@
   "bannerDismiss": "Ignora",
   "trustGrantedNotice": "Area di lavoro considerata attendibile: Muse caricherà le sue regole, competenze e memoria dal prossimo messaggio.",
   "sandboxRestartNotice": "Un’impostazione di Muse Code è cambiata; Muse Code si riavvia con questa impostazione al prossimo messaggio e continua questa conversazione.",
-  "sandboxProfileNotice": "Questa area di lavoro si trova nel tuo profilo utente, dove la sandbox di Windows di Muse Code potrebbe non eseguire i comandi: possono avviarsi nella cartella di PowerShell anziché nel progetto, oppure non terminare mai. La lettura e la modifica dei file non sono interessate. Un’area di lavoro esterna a C:\\Users esegue i comandi sul posto.",
+  "sandboxProfileNotice": "Questa area di lavoro si trova nel tuo profilo utente, dove la sandbox di Windows di Muse Code potrebbe non eseguire i comandi: possono avviarsi nella cartella di PowerShell anziché nel progetto, oppure non terminare mai. La lettura e la modifica dei file non sono interessate. Un’area di lavoro esterna a %USERPROFILE% esegue i comandi sul posto.",
   "permissionModes": {
     "manual": "Manuale",
     "acceptEdits": "Modifica automaticamente",

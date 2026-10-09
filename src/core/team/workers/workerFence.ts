@@ -11,6 +11,7 @@ import { scrubWorkerEnv } from './workerEnv'
 import { fileIdentityKey, statIdentity } from '../../fs/fileIdentity'
 import { homedir } from 'node:os'
 import { pathModule } from '../../workspaceRoot'
+import { windowsPathProblem } from '../../windowsPathSpelling'
 import type { RealPathIo } from '../../workspacePath'
 import { isProtectedPath } from '../../protectedPaths'
 import { isGlobMatch } from '../../backends/modelapi/globLimits'
@@ -223,20 +224,6 @@ type WorkerPath =
     }
   | { readonly ok: false }
 
-function isWorkerPathNameAllowed(absolute: string, platform: NodeJS.Platform): boolean {
-  const p = pathModule(platform)
-  const segments = absolute.slice(p.parse(absolute).root.length).split(/[\\/]/)
-  return (
-    platform !== 'win32' ||
-    segments.every(
-      (segment) =>
-        !segment.includes(':') &&
-        !/[. ]$/.test(segment) &&
-        !/^(?:con|prn|aux|nul|conin\$|conout\$|com\d|lpt\d)(?:\..*)?$/i.test(segment),
-    )
-  )
-}
-
 /** Unresolvable targets (including new files) refuse; there is no textual fallback. */
 export async function confineWorkerPath(
   input: WorkerPathInput,
@@ -248,8 +235,9 @@ export async function confineWorkerPath(
     const grant = input.grant ?? (await assertWorkerRoot(input))
     const root = await recheckWorkerRoot(input, grant)
     const expanded = /^~(?:[\\/]|$)/.test(given) ? p.join(homedir(), given.slice(1)) : given
+    if (windowsPathProblem(expanded, input.platform, root) !== undefined) return { ok: false }
     const absolute = p.resolve(root, expanded)
-    if (!isWorkerPathNameAllowed(absolute, input.platform)) return { ok: false }
+    if (windowsPathProblem(absolute, input.platform, root) !== undefined) return { ok: false }
     const [base, target] = await Promise.all([
       identify(root, input.platform, input.io),
       identify(absolute, input.platform, input.io),
@@ -288,12 +276,18 @@ export async function withWorkerFile<T>(
     throw new MuseWorkerFolderError()
   const p = pathModule(input.platform)
   const expanded = /^~(?:[\\/]|$)/.test(given) ? p.join(homedir(), given.slice(1)) : given
+  if (windowsPathProblem(expanded, input.platform, root) !== undefined)
+    throw new MuseWorkerFolderError()
   const absolute = p.resolve(root, expanded)
-  if (!isWorkerPathNameAllowed(absolute, input.platform)) throw new MuseWorkerFolderError()
+  if (windowsPathProblem(absolute, input.platform, root) !== undefined)
+    throw new MuseWorkerFolderError()
   const handle = await input.io.openFile(absolute, isWrite)
   try {
     const target = await handle.identify()
-    if (!p.isAbsolute(target.absolute) || !isWorkerPathNameAllowed(target.absolute, input.platform))
+    if (
+      !p.isAbsolute(target.absolute) ||
+      windowsPathProblem(target.absolute, input.platform, root) !== undefined
+    )
       throw new MuseWorkerFolderError()
     const parents = await lineage(target, input.platform, input.io)
     const rootIndex = parents.findIndex((entry) => entry.identity === grants.get(grant)?.identity)

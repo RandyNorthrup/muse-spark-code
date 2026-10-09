@@ -20045,6 +20045,58 @@ The assigned integration brief supersedes common.md's legacy merge and scoped
 verification instructions. Certification records every command, repair, drill,
 size and external blocker; it does not claim hosted/platform/live certification.
 
+### SECWINPATH2 — Windows identity and ordinary-workspace repair (2026-10-08, win11)
+
+Implement the lead's second-review decisions on `cb27043ae`: accept the CLI's
+local drive verbatim prefix before applying segment rules; resolve existing
+long names and missing leaves before protected-write classification, refusing
+unresolved short-name aliases and drive-relative spellings. Storage and holds
+compare native identities: different devices are outside; a same-device walk
+must reach the volume's root or a share root above the folder; unusable IDs
+below the root remain uncertain. Missing held folders are judged by their
+nearest existing ancestor and suffix. Linked ancestors of workspace/storage
+roots are ordinary. Allow real extensions on device-like names (pull-request
+trees stay conservative), distinguish spelling/storage/unknown refusals,
+translate new text in every table, and remove guessed `C:` system roots and
+the `C:\Users` wording.
+
+- [x] Regressions and native probes: C:/D:/Z:, real 8.3 names, UNC/WSL,
+      admin-share availability, relocated junction roots and storage
+      (directory symbolic links need privilege this host lacks).
+- [x] One red/restored drill per decision; replay new regressions on the base.
+- [x] Fresh npm-ci CI clone: prescribed suites (real-git stores three times),
+      five typechecks, lint/format, knip, duplication, localization, host API,
+      reference and production build; normal hooks, no merge/push/live calls.
+
+The shared rules delegate aggregate quality to the lead (§7); scoped gate
+results and hosted-admin-share qualification status are recorded in
+`docs/certification/sec-win-path-aliases2.md`.
+
+### SECWINPATH — Windows path alias security repair (2026-10-08, win11)
+
+Implement the owner's AUDITWINPATH decisions on base `67099ce1b`: one shared
+Windows spelling refusal at workspace, worker/ACP, held-tree and checkpoint
+admission; flagged Muse Code write subjects require a manual once-only answer.
+Storage exclusion and held-worktree/separation boundaries compare native
+volume/file identities through the nearest existing ancestor. UNC admission
+requires a UNC workspace and proven ancestry; uncertain UNC hold/exclusion
+proof fails closed. Preserve ordinary protected-folder behavior and POSIX names.
+Share the native identity walker through the existing Node boundary bundle;
+the unchanged sharing-runtime cap must accommodate the refusal at admission.
+Its Node entry stays in core, outside the browser project's shared sources.
+
+- [x] Capture native Win32 normalization and loopback SMB identity in owned temp folders.
+- [x] Run new regressions against the unchanged base, then repair the owning boundaries.
+- [x] Fire stream, trailing-dot and storage-identity guards deliberately and restore bytes.
+- [x] Commit validated pieces with hooks; qualify a fresh `npm ci`, `CI=true` clone
+      with owning suites three times at repository deadlines, five typechecks,
+      changed-file lint/format, plain knip, duplication, cycles, localization,
+      reference and capped production build.
+
+The rig brief overrides common.md's stale merge step: no merges, push, paid/live
+calls or aggregate quality. Full aggregate quality remains with the lead under
+the shared lane rules (§7). Receipts: `docs/certification/sec-win-path-aliases.md`.
+
 ### FIX0160X — Repair release CI composition (2026-10-07, macmini)
 
 **Status 2026-10-07: released.** Shipped in 0.16.0 (§10).
@@ -36370,6 +36422,49 @@ Record regression failures, byte-exact red drills and bounded checks in
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### FIXM116P4 — Final outcome verification repairs (2026-10-06)
+
+SECWINPATH (2026-10-08): the owner's shared lane rules prohibit aggregate
+`npm run quality` on the shared rig and delegate it to the lead. This lane
+qualifies its committed fresh clone with every owning suite three times,
+repository deadlines, five typechecks, changed-file lint/format, plain knip,
+duplication, cycles, localization/reference/host API and capped production
+build instead. No gate or threshold is changed; aggregate qualification is
+a lead handoff, not a claim that it ran here. See its certification record.
+
+**FIX0160W2 scoped Windows qualification (2026-10-07).** The named lane
+brief and shared common rules prohibit aggregate quality and delegate it to
+the lead. This lane runs complete owned suites with short TEMP/TMP and
+repository deadlines, every prescribed individual compiler/static/build gate,
+and deliberate byte-exact failure drills. No gate, timeout, assertion or native
+guard is weakened. Hosted Windows replay remains the release's qualification;
+`docs/certification/fix0160w2.md` records the local evidence and its limits.
+
+**FIX0160X scoped release repair (2026-10-07).** The shared lane brief
+prohibits aggregate quality and reserves it for the lead. This lane runs
+every named owning file at repository deadlines and all prescribed individual
+compiler/static/build/package checks. No threshold, deadline, assertion or
+package refusal is waived. Hosted cross-platform qualification remains with
+the joined release; receipts are in `docs/certification/fix0160x.md`.
+
+**DEP138 rig verification.** The lane's rig note limits each test invocation
+to three files. Certify every configured unit/process-e2e file in batches of
+at most three, with `CI=true`, V8 coverage and repository deadlines. Partial
+blob reports use the repository's existing shard handling; merge every report
+with the original global thresholds enabled. Run every other locally runnable
+quality gate separately in the same fresh `npm ci` clone. The monolithic
+`npm run quality` is deferred only because its test command exceeds the rig's
+explicit file cap; no gate, assertion, file, threshold or timeout is removed.
+The certification record must name every actual exit and any unavailable
+platform/hosted checks rather than claim an aggregate-command pass.
+Amended 2026-10-07 (lead): the rig's batched coverage run was not completed.
+Hosted CI on the pull request is the full gate for coverage and the
+accessibility harness (merged coverage on three OSes with the original
+thresholds and deadlines, accessibility on Ubuntu, static gates with lint at
+the unchanged 6144 MiB heap on three OSes; pull requests run the full tier
+while `CI_MERGE_QUEUE` is not `on`). None of the bumped packages takes part in
+the harness, and main's PR #139, merged into this branch, fixed harness
+readiness.
+The rig's failed first full accessibility run stays in the record.
 
 **Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 **MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared

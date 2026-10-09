@@ -2073,6 +2073,7 @@
   "browserCheckScopeChanged": "A böngészős ellenőrzés által elérhető gazdagépek az előkészítés közben megváltoztak, ezért semmi sem nyílt meg. Kérje újra az ellenőrzést az új gazdagépekkel.",
   "browserCheckNotOffered": "A böngészős ellenőrzés itt már nem érhető el (megváltozott a munkaterület megbízhatósága, az engedélyezési mód, a hálózati beállítás vagy a futtatókörnyezet beállítása), ezért semmi sem nyílt meg.",
   "browserCheckLaunch": "A böngészős ellenőrzés böngészőjét nem sikerült elindítani.",
+  "browserCheckSystemDirectoryUnavailable": "A Windows rendszerkönyvtára nem érhető el; állítsa a SystemRoot értékét a tényleges útvonalára.",
   "browserCheckUnrecognized": "A böngészős ellenőrzés leállt: a böngésző nem pontosan a várt verzió és beállítás volt.",
   "browserCheckProfile": "A böngészős ellenőrzés leállt: nem tudott új, privát böngészőprofilt létrehozni.",
   "browserCheckRouteUnconfirmed": "A böngészős ellenőrzés leállt: nem tudta megerősíteni, hogy az oldal forgalma csak a saját proxyján halad át.",
@@ -2658,6 +2659,9 @@
   "agentRetryUnavailable": "Az újrapróbálás nem elérhető: a háttérrendszer nem biztosít elszigetelt munkafa-ellenőrzőpontot. A közös munkaterület módosításai megmaradnak.",
   "agentContinueUnavailable": "A folytatás nem elérhető ennél az ügynöknél vagy a jelenlegi állapotában.",
   "referenceAgentOutcomes": "Az ügynökök tevékenységet és bizonyítékokon alapuló eredményeket mutatnak. Válasszon befejezett ügynököt a korlátozott bizonylathoz és az előzményekhez. A megerősített folytatás megőrzi a munkamenetet és a módosításokat; az újrapróbálás elszigetelt ellenőrzőpontot igényel. A hiányzó bizonyíték ellenőrizetlen marad. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "windowsPathRefused": "Ez az útvonal olyan Windows-jelölést használ, amelyet a bővítmény nem fogad el; használja a szokásos útvonalat.",
+  "checkpointStorageUncertain": "A bővítmény nem tudja ellenőrizni, hogy ez az útvonal az ellenőrzőpontok tárolóján kívül van-e; az eszközök nem szerkeszthetik.",
+  "windowsSystemRootMissing": "A Windows rendszerkönyvtára nem érhető el; állítsa a SystemRoot értékét a tényleges útvonalára.",
   "agentMapHint": "kattintson egy ügynökre a részletekért",
   "agentMapEmpty": "Ebben a beszélgetésben nincsenek alügynökök.",
   "teamTraffic": {
@@ -3074,7 +3078,7 @@
   "bannerDismiss": "Elvetés",
   "trustGrantedNotice": "A munkaterület megbízható: a Muse a következő üzenettől betölti a szabályait, képességeit és memóriáját.",
   "sandboxRestartNotice": "Egy Muse Code-beállítás megváltozott; a Muse Code a következő üzenetnél ezzel újraindul, és folytatja ezt a beszélgetést.",
-  "sandboxProfileNotice": "Ez a munkaterület a felhasználói profilja alatt van, ahol a Muse Code Windows-homokozója esetleg nem futtatja a parancsokat: a projekt helyett a PowerShell mappájában indulhatnak, vagy soha nem fejeződnek be. A fájlok olvasását és szerkesztését ez nem érinti. A C:\\Users mappán kívüli munkaterületeken a parancsok helyben futnak.",
+  "sandboxProfileNotice": "Ez a munkaterület a felhasználói profilja alatt van, ahol a Muse Code Windows-homokozója esetleg nem futtatja a parancsokat: a projekt helyett a PowerShell mappájában indulhatnak, vagy soha nem fejeződnek be. A fájlok olvasását és szerkesztését ez nem érinti. A %USERPROFILE% mappán kívüli munkaterületeken a parancsok helyben futnak.",
   "permissionModes": {
     "manual": "Kézi",
     "acceptEdits": "Automatikus szerkesztés",

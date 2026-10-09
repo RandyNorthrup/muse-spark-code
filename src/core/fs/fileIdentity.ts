@@ -42,6 +42,11 @@ function isSameFile(left: FileIdentity, right: FileIdentity): boolean {
 
 export { isSameFile as sameFile }
 
+/** The same volume serial (WSL's device 0 included); never proof of the same file. */
+export function isSameVolume(left: FileIdentity, right: FileIdentity): boolean {
+  return left.dev === right.dev
+}
+
 /** An absent/invalid native ID cannot bind a workspace or an import preview. */
 export function fileIdentityKey(identity: FileIdentity): string | undefined {
   return identity.ino <= WORKSPACE_IDENTITY_ZERO || identity.dev < WORKSPACE_IDENTITY_ZERO

@@ -49,7 +49,7 @@
     // The help generator bundles this catalog in memory, then imports its export.
     "src/shared/featureCatalog.ts",
     "src/shared/estimateContractsEntry.ts",
-    "src/shared/modelApiBoundariesEntry.ts",
+    "src/core/nodeBoundariesEntry.ts",
     // Vault schemas shared by real Node bundle readers (D6).
     "src/shared/vaultBoundariesEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.

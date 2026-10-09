@@ -303,7 +303,7 @@ const conversationOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const sharingRuntimeOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [SHARING_RUNTIME_ENTRY],
   outfile: SHARING_RUNTIME_OUTFILE,
   platform: 'node',
@@ -368,7 +368,7 @@ const reportingPanelOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiBoundariesOptions = {
   ...modelApiOptions,
-  entryPoints: ['src/shared/modelApiBoundariesEntry.ts'],
+  entryPoints: ['src/core/nodeBoundariesEntry.ts'],
   outfile: 'dist/modelApiBoundaries.js',
   plugins: [sharedUiText, sharedValidation, compressedModelText(isProduction)],
 }

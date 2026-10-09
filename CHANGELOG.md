@@ -30,11 +30,12 @@ happened, not what was planned; superseded entries are kept.
   chip and status adapter once their M104 bridges bind them; none does yet.
   ACP and terminals keep `/resources` and `resources status|resume`.
 
+### Changed
+
 - Preserve exact decimal USD across schedule authorization, consent and agent caps,
   rental cost estimates, reporting facts, account totals and voice consent. Read
   historical numeric records at validated boundaries; saved reports verify their
   original hashes before migration to exact money version 2.
-
 
 ### Fixed
 
@@ -111,6 +112,23 @@ happened, not what was planned; superseded entries are kept.
   still working. Every grant records its approval epoch; concurrent asks on
   another instance cannot resurrect a revoked grant. Help says paid consent
   stays per workspace in all fourteen translated tables.
+
+### Security
+
+- Refuse ambiguous Windows path spellings at file admission, including device
+  namespaces, drive-relative `X:name`, alternate streams, trailing dots/spaces
+  and reserved device names (superscript digits included), on any drive letter,
+  with their own message. Muse Code approvals naming these paths, or a file
+  whose resolved long name is protected (8.3 names, junctions, `subst`
+  letters), require a manual once-only decision; Muse Code's own `\\?\X:\`
+  spelling of an ordinary file keeps Edit automatically, the Auto reviewer and
+  "Always allow". Checkpoint storage and held pull-request boundaries compare
+  native file identities: other volumes, WSL and loopback-share workspaces are
+  outside, relocated profile folders behind junctions or links work, and only
+  an identity that cannot be proven refuses writes, with its own message.
+  `con.d`, `aux.js` and similar names are ordinary on Windows 11. The browser
+  check and the token-file ACL find Windows on any drive (`SystemRoot`, then
+  `windir`) instead of assuming `C:\Windows`.
 
 ### Pending
 
@@ -304,7 +322,6 @@ happened, not what was planned; superseded entries are kept.
   loading, honest chunk failure and retry. Retain provider, usage, report
   and scheduling behavior while integrating playbook review fixes.
 
-
 ### Fixed
 
 - Preserve reports, provider/team workflows and playbook together during candidate
@@ -422,7 +439,6 @@ happened, not what was planned; superseded entries are kept.
   accepted); a failed outer playbook wrapper chunk stays local with retry
   instead of unmounting the chat; the edit totals and task list mount only
   when there is something to show, so their chunks load on first use.
-
 
 ### Added
 

@@ -2106,6 +2106,7 @@
   "browserCheckScopeChanged": "Os hosts que a verificação no navegador pode alcançar mudaram durante a preparação, então nada foi aberto. Peça a verificação de novo com os novos hosts.",
   "browserCheckNotOffered": "A verificação no navegador não está mais disponível aqui (mudou a confiança do workspace, o modo de permissão, a configuração de rede ou a do ambiente do navegador), então nada foi aberto.",
   "browserCheckLaunch": "Não foi possível iniciar o navegador da verificação no navegador.",
+  "browserCheckSystemDirectoryUnavailable": "O diretório de sistema do Windows está indisponível; defina SystemRoot com seu caminho real.",
   "browserCheckUnrecognized": "A verificação no navegador parou: o navegador não correspondia exatamente à versão e à configuração esperadas.",
   "browserCheckProfile": "A verificação no navegador parou: não foi possível preparar um perfil de navegador novo e privado.",
   "browserCheckRouteUnconfirmed": "A verificação no navegador parou: não foi possível confirmar que o tráfego da página passa apenas pelo próprio proxy.",
@@ -2714,6 +2715,9 @@
   "agentRetryUnavailable": "Nova tentativa indisponível: este backend não fornece um ponto de controle isolado da árvore de trabalho. As alterações do espaço compartilhado são mantidas.",
   "agentContinueUnavailable": "Continuar está indisponível para este agente ou seu estado atual.",
   "referenceAgentOutcomes": "Os agentes mostram atividade e resultados baseados em evidências. Selecione um agente encerrado para seu registro limitado e histórico. Continuar mantém a sessão e as alterações após confirmação; tentar novamente exige um ponto de controle isolado. Evidências ausentes aparecem como não verificadas. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "windowsPathRefused": "Este caminho usa uma notação do Windows que a extensão não aceita; use o caminho normal.",
+  "checkpointStorageUncertain": "A extensão não pode verificar se este caminho está fora do armazenamento de pontos de controle; as ferramentas não podem editá-lo.",
+  "windowsSystemRootMissing": "O diretório de sistema do Windows está indisponível; defina SystemRoot com seu caminho real.",
   "agentMapHint": "clique em um agente para ver os detalhes",
   "agentMapEmpty": "Nenhum subagente nesta conversa.",
   "teamTraffic": {
@@ -3139,7 +3143,7 @@
   "bannerDismiss": "Descartar",
   "trustGrantedNotice": "Espaço de trabalho confiável: o Muse carregará as regras, as habilidades e a memória dele a partir da próxima mensagem.",
   "sandboxRestartNotice": "Uma configuração do Muse Code foi alterada; o Muse Code é reiniciado com ela na próxima mensagem e continua esta conversa.",
-  "sandboxProfileNotice": "Este espaço de trabalho está no seu perfil de usuário, onde a área restrita do Windows do Muse Code pode não executar comandos: eles podem começar na pasta do PowerShell em vez de no projeto, ou nunca terminar. Leituras e edições de arquivos não são afetadas. Um espaço de trabalho fora de C:\\Users executa os comandos no próprio local.",
+  "sandboxProfileNotice": "Este espaço de trabalho está no seu perfil de usuário, onde a área restrita do Windows do Muse Code pode não executar comandos: eles podem começar na pasta do PowerShell em vez de no projeto, ou nunca terminar. Leituras e edições de arquivos não são afetadas. Um espaço de trabalho fora de %USERPROFILE% executa os comandos no próprio local.",
   "permissionModes": {
     "manual": "Manual",
     "acceptEdits": "Editar automaticamente",

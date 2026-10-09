@@ -2040,6 +2040,7 @@
   "browserCheckScopeChanged": "准备期间浏览器检查可访问的主机发生了变化，因此未打开任何内容。请使用新的主机重新请求检查。",
   "browserCheckNotOffered": "此处已无法使用浏览器检查（工作区信任、权限模式、网络设置或运行时设置已更改），因此未打开任何内容。",
   "browserCheckLaunch": "无法启动浏览器检查所用的浏览器。",
+  "browserCheckSystemDirectoryUnavailable": "Windows 系统目录不可用；请将 SystemRoot 设置为其实际路径。",
   "browserCheckUnrecognized": "浏览器检查已停止：浏览器与预期的确切版本和配置不符。",
   "browserCheckProfile": "浏览器检查已停止：无法准备新的私有浏览器配置文件。",
   "browserCheckRouteUnconfirmed": "浏览器检查已停止：无法确认页面的流量只经过它自己的代理。",
@@ -2602,6 +2603,9 @@
   "agentRetryUnavailable": "无法重试：此后端不提供隔离的工作树检查点。共享工作区的更改会保留。",
   "agentContinueUnavailable": "此代理或其当前状态无法继续。",
   "referenceAgentOutcomes": "代理显示活动状态和基于证据的结果。选择已结束的代理可查看有大小限制的记录及尝试历史。确认后继续会保留会话和更改；重试需要隔离的检查点。缺失的证据显示为未验证。ACP：/agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+  "windowsPathRefused": "此路径使用了扩展不接受的 Windows 写法；请使用普通路径。",
+  "checkpointStorageUncertain": "扩展无法验证此路径是否位于检查点存储之外；工具不能编辑它。",
+  "windowsSystemRootMissing": "Windows 系统目录不可用；请将 SystemRoot 设置为其实际路径。",
   "agentMapHint": "单击代理查看详细信息",
   "agentMapEmpty": "此对话中没有子代理。",
   "teamTraffic": {
@@ -3009,7 +3013,7 @@
   "bannerDismiss": "关闭",
   "trustGrantedNotice": "工作区已受信任：从下一条消息开始，Muse 将加载其规则、技能和记忆。",
   "sandboxRestartNotice": "Muse Code 的某项设置已更改；Muse Code 将在下一条消息时以新设置重启，并继续此对话。",
-  "sandboxProfileNotice": "此工作区位于你的用户配置文件目录下，Muse Code 的 Windows 沙盒可能无法在此运行命令：命令可能会在 PowerShell 文件夹而不是项目中启动，或者永远不会结束。文件读取和编辑不受影响。位于 C:\\Users 之外的工作区会就地运行命令。",
+  "sandboxProfileNotice": "此工作区位于你的用户配置文件目录下，Muse Code 的 Windows 沙盒可能无法在此运行命令：命令可能会在 PowerShell 文件夹而不是项目中启动，或者永远不会结束。文件读取和编辑不受影响。位于 %USERPROFILE% 之外的工作区会就地运行命令。",
   "permissionModes": {
     "manual": "手动",
     "acceptEdits": "自动编辑",
