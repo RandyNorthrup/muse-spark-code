@@ -12,6 +12,7 @@
 // P's merge reconciles names instead of behaviour.
 
 import type { CustomCompat } from '../../core/providers/providersFile'
+import type { PresetCard } from '../../shared/modelsPanel'
 
 /** How a provider proves its calls (D74: `apiKey`, `none`, `subscription`). */
 export type ProviderAuthMode = 'apiKey' | 'none' | 'subscription'
@@ -99,8 +100,8 @@ export interface ProvidersStore {
   defaultModel(): Promise<string | undefined>
 }
 
-/** The dropdown's filter chips (D74). */
-export type PresetKind = 'cloud' | 'local' | 'subscription' | 'aggregator'
+/** The dropdown's filter chips (D74): the panel's card categories but `custom`. */
+export type PresetKind = Exclude<PresetCard['category'], 'custom'>
 
 /** One loopback address Scan this computer probes (D74: preset data). */
 export interface LocalProbeTarget {

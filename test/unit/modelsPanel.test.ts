@@ -1,6 +1,9 @@
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { window } from 'vscode'
 import { window as fakeWindow, FakeUri } from './mocks/vscode'
+import { createModelsPanelSeam } from '../../src/core/providers/panelSeam'
 import { createModelsPanel, type ModelsPanelDeps } from '../../src/host/models/modelsPanel'
 import { parseHostToPanelMessage, type ModelsPanelState } from '../../src/shared/modelsPanel'
 import { EN } from '../../src/shared/l10n/en'
@@ -230,5 +233,132 @@ describe('Models host contract', () => {
         expect(latestState(panel).models[0]?.ticked).toBe(false)
       },
     )
+  })
+})
+
+// The fixture catalogue above has two presets; the shipped one is the
+// contract. A card the shared schema refuses once emptied the whole dropdown
+// (0.16.0: Mistral's plan key carried a category the panel did not know).
+function realCatalogue(store = memoryProvidersStore()) {
+  const seam = createModelsPanelSeam({
+    configFile: path.join(tmpdir(), 'models-panel-unused', 'providers.json'),
+    subscriptionModels: () => Promise.resolve([]),
+  })
+  const { providers } = testProvidersHost({
+    deps: {
+      store,
+      catalog: seam.catalog,
+      fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
+    },
+  })
+  return { ids: seam.catalog.ids(), providers, store }
+}
+describe('Models panel over the shipped preset catalogue', () => {
+  it('lists every preset under its filter chip and opens each one', async () => {
+    const { ids, providers, store } = realCatalogue()
+    const subscribe = (id: string, address: string) =>
+      vi.fn(() => {
+        store.current.push({ id, preset: id, address, auth: 'subscription', models: [] })
+        return Promise.resolve()
+      })
+    const connectChatGpt = subscribe('chatgpt', 'https://api.openai.com')
+    const connectCopilot = subscribe('copilot', 'https://github.com/copilot')
+    const { panel, warnings } = setup({ providers, connectChatGpt, connectCopilot })
+    await send(panel, { type: 'modelsPanel/ready' }, () => {
+      expect(latestState(panel).presets.map((preset) => preset.id)).toEqual(ids)
+    })
+    expect(warnings).toEqual([])
+    const category = new Map(latestState(panel).presets.map((card) => [card.id, card.category]))
+    expect(category.get('anthropic')).toBe('cloud')
+    expect(category.get('openrouter')).toBe('aggregator')
+    expect(category.get('ollama')).toBe('local')
+    expect(category.get('custom')).toBe('custom')
+    for (const id of ['mistral-plan', 'chatgpt', 'copilot']) {
+      expect(category.get(id)).toBe('subscription')
+    }
+    for (const id of ids) {
+      if (id === 'chatgpt' || id === 'copilot') {
+        const connect = id === 'chatgpt' ? connectChatGpt : connectCopilot
+        await send(panel, { type: 'providers/select', presetId: id }, () => {
+          expect(connect).toHaveBeenCalledOnce()
+          expect(latestState(panel).scans[id]?.status).toBe('done')
+        })
+        continue
+      }
+      await send(panel, { type: 'providers/select', presetId: id }, () => {
+        expect(latestState(panel).drafts.wizard).toMatchObject({ presetId: id, step: 'configure' })
+      })
+    }
+    expect(warnings).toEqual([])
+    expect(latestState(panel).notice).toBeUndefined()
+  })
+  it.each([
+    { id: 'anthropic', key: 'sk-ant-bare-synthetic-secret', address: 'https://api.anthropic.com' },
+    {
+      id: 'custom',
+      key: 'bare-synthetic-secret',
+      address: 'https://llm.example',
+      fields: { address: 'https://llm.example', customFormat: 'chat' as const },
+    },
+  ])('adds $id through the wizard without the key crossing the bridge', async (row) => {
+    const { providers } = realCatalogue()
+    const { panel, saved, warnings } = setup({ providers })
+    vi.mocked(window.showInputBox).mockResolvedValue(row.key)
+    await send(panel, { type: 'providers/select', presetId: row.id }, () => {
+      expect(latestState(panel).drafts.wizard?.presetId).toBe(row.id)
+    })
+    if (row.fields !== undefined) {
+      await send(panel, { type: 'providers/prefill', fields: row.fields }, () => {
+        expect(latestState(panel).drafts.wizard?.address).toBe(row.address)
+      })
+    }
+    await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
+      expect(latestState(panel).drafts.wizard).toMatchObject({ keyPresent: true, keyShapeOk: true })
+    })
+    await send(panel, { type: 'providers/test', acceptCost: false }, () => {
+      expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
+    })
+    await send(
+      panel,
+      { type: 'models/tick', scope: { scope: 'wizard' }, ref: `${row.id}/m1`, ticked: true },
+      () => {
+        expect(latestState(panel).drafts.wizard?.models).toEqual(['m1'])
+      },
+    )
+    await send(panel, { type: 'providers/save', useNow: true }, () => {
+      expect(saved).toHaveBeenCalledOnce()
+    })
+    expect(await providers.providers()).toMatchObject([
+      {
+        id: row.id,
+        preset: row.id,
+        address: row.address,
+        models: ['m1'],
+        ...(row.fields !== undefined && { format: row.fields.customFormat }),
+      },
+    ])
+    expect(warnings).toEqual([])
+    expect(JSON.stringify(panel.webview.postMessage.mock.calls)).not.toContain(
+      'bare-synthetic-secret',
+    )
+  })
+  it('leaves out only a preset the card contract refuses, naming no value', async () => {
+    const { providers } = realCatalogue()
+    const stale = {
+      ...providers,
+      preset: (id: string) => {
+        const preset = providers.preset(id)
+        return id === 'mistral-plan' && preset !== undefined
+          ? { ...preset, format: 'bare-synthetic-format' }
+          : preset
+      },
+    }
+    const { panel, warnings } = setup({ providers: stale })
+    await send(panel, { type: 'modelsPanel/ready' }, () => {
+      expect(latestState(panel).presets.map((card) => card.id)).toContain('anthropic')
+    })
+    expect(latestState(panel).presets.map((card) => card.id)).not.toContain('mistral-plan')
+    expect(latestState(panel).notice).toBeUndefined()
+    expect(warnings).toEqual(['Provider preset mistral-plan left out of the panel: format'])
   })
 })

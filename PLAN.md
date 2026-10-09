@@ -35599,7 +35599,12 @@ release acceptance are still pending.**
         this computer, Subscription sign-in, Aggregator), each row naming
         where the code goes and who bills it; **Scan this computer** for
         local servers; or **Custom server** (Chat Completions, Responses
-        or Anthropic Messages).
+        or Anthropic Messages). PROVCAT (2026-10-09): the card's category
+        enum is the contract and the host's `PresetKind` is derived from
+        it (minus `custom`); ChatGPT, Copilot and plan keys sit under
+        Subscription sign-in; a card the contract refuses is left out
+        alone with a value-free log line, never the whole list; a test
+        opens every shipped preset (`docs/certification/provcat.md`).
      2. **Prefilled form.** The preset's address, format, auth mode, key
         hint, docs, data-use and privacy notes, and **Get a key**; editable
         only where the preset allows (Azure's resource and deployment, a
@@ -38313,7 +38318,12 @@ release acceptance are still pending.**
         this computer, Subscription sign-in, Aggregator), each row naming
         where the code goes and who bills it; **Scan this computer** for
         local servers; or **Custom server** (Chat Completions, Responses
-        or Anthropic Messages).
+        or Anthropic Messages). PROVCAT (2026-10-09): the card's category
+        enum is the contract and the host's `PresetKind` is derived from
+        it (minus `custom`); ChatGPT, Copilot and plan keys sit under
+        Subscription sign-in; a card the contract refuses is left out
+        alone with a value-free log line, never the whole list; a test
+        opens every shipped preset (`docs/certification/provcat.md`).
      2. **Prefilled form.** The preset's address, format, auth mode, key
         hint, docs, data-use and privacy notes, and **Get a key**; editable
         only where the preset allows (Azure's resource and deployment, a

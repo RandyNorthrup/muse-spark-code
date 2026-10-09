@@ -224,7 +224,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         keyPage: preset.keyPage,
       })
       if (!card.success) {
-        throw new Error(UI_TEXT.actionFailed)
+        // One stale preset must not empty the whole dropdown. Preset data is
+        // fixed and holds no key, so the log names the preset and its fields.
+        const fields = card.error.issues.map((issue) => issue.path.join('.')).join(', ')
+        log.warn(`Provider preset ${id} left out of the panel: ${fields}`)
+        return []
       }
       return [card.data]
     })

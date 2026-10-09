@@ -65,7 +65,11 @@ export const presetCardSchema = z.strictObject({
   label: z.string(),
   /** One line for the searchable provider dropdown. */
   description: z.string(),
-  category: z.enum(['cloud', 'local', 'aggregator', 'custom']),
+  /**
+   * The dropdown's filter chip (D74). The host's `PresetKind` is this list
+   * without `custom`, so a new host kind fails the type check, not the panel.
+   */
+  category: z.enum(['cloud', 'local', 'subscription', 'aggregator', 'custom']),
   format: z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama']),
   /** Where the endpoint comes from; `fixed` names it in `originDisplay`. */
   originKind: z.enum(['fixed', 'azure-resource', 'loopback', 'custom']),

@@ -20,6 +20,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Models & Agents: the provider picker works again. In 0.16.0 it showed only
+  "That did not work" and listed no provider, Anthropic included, because
+  Mistral's plan key carried the Subscription sign-in category the panel's
+  card contract did not accept, and one refused card emptied the list. The
+  contract now has that category, and the host's chip type is derived from
+  it, so the two cannot drift again. ChatGPT and Copilot sign-ins move under
+  the Subscription sign-in chip, where the plan put them, and Custom server
+  (Chat Completions, Responses or Anthropic Messages) is in the picker again.
+  A preset the contract still refuses is left out on its own, with a log line
+  that names the preset and the field but no value. A test now opens every
+  shipped preset and adds Anthropic and a custom server end to end.
 - The Action's apply tests no longer race a detached Git maintenance repack
   in their fake origin: the fixture turns off receive auto-gc and plain-git
   auto maintenance, and a witness test proves none runs.

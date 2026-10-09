@@ -98,9 +98,11 @@ export function createModelsPanelSeam(options: {
       }),
   }
   const catalog = new Map<string, PresetInfo>()
+  // Local servers and the Custom server are the user's own, so they are
+  // listed without a capture of their own (the transport admits them too).
   for (const preset of [
     ...listedPresets(),
-    ...PRESETS.filter((row) => row.category === 'local'),
+    ...PRESETS.filter((row) => row.category === 'local' || row.category === 'custom'),
     ...PLAN_KEY_PRESETS,
   ]) {
     const origin = preset.origin.kind === 'fixed' ? preset.origin.origin : ''
@@ -133,7 +135,7 @@ export function createModelsPanelSeam(options: {
       id,
       name: id === 'chatgpt' ? 'ChatGPT' : 'Copilot',
       description: id === 'chatgpt' ? UI_TEXT.acpChatGpt.notice : UI_TEXT.planUi.aiContent,
-      kind: 'cloud',
+      kind: 'subscription',
       origin: address,
       format,
       auth: 'subscription',
