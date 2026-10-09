@@ -47,6 +47,14 @@ async function fixture(isHome = false, env: NodeJS.ProcessEnv = {}) {
   cleanups.push(() => first.close())
   return { root, workspace, runtime, ask, permission, first, services }
 }
+async function enabledFixture() {
+  const f = await fixture()
+  f.first.setInteractive(true)
+  await f.first.command('/hardware enable supervised bench')
+  const host = f.services[0]?.host
+  if (host === undefined) throw new Error('host')
+  return { f, host }
+}
 function request(): ApprovalRequest {
   return {
     kind: 'command',
@@ -81,11 +89,7 @@ describe('real ACP maker runtime admission', () => {
     expect(await f.first.command('/stop-machine')).toBe(UI_TEXT.makerSoftwareStopWarning)
   })
   it('exactly one active session reaches the real approval and losing exclusivity revokes pending approval', async () => {
-    const f = await fixture()
-    f.first.setInteractive(true)
-    await f.first.command('/hardware enable supervised bench')
-    const host = f.services[0]?.host
-    if (host === undefined) throw new Error('host')
+    const { f, host } = await enabledFixture()
     const snapshot = request()
     const engine = new MakerApproval(snapshot, () => host.isInteractive())
     expect(engine.answer(await host.confirm(snapshot, (raw) => engine.review(raw)))).toBeDefined()
@@ -122,11 +126,7 @@ describe('real ACP maker runtime admission', () => {
     expect(await tools(second)).not.toContain('machine_status')
   })
   it('the editor prompt is the review: only its exact allow reviews, and refusals never reach presence', async () => {
-    const f = await fixture()
-    f.first.setInteractive(true)
-    await f.first.command('/hardware enable supervised bench')
-    const host = f.services[0]?.host
-    if (host === undefined) throw new Error('host')
+    const { f, host } = await enabledFixture()
     const authorize = vi.spyOn(host, 'authorize')
     const unreviewed = new MakerApproval(request(), () => host.isInteractive())
     expect(unreviewed.answer(await host.confirm(unreviewed.request))).toBeUndefined()
