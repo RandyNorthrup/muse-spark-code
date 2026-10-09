@@ -5125,12 +5125,14 @@ choices:
     `src/webview/heartbeatBeam.ts`, our waveform sampled in the 0..100 by
     0..24 box (flat at 12; P bump 18–29; dip at 38, spike to y=2 at 43 and
     down to 22 at 48, back at 53; T bump 63–73; flat). One sweep takes
-    about 1.2 s (half a pixel per tick: the reference's 0.6 s reads as
-    frantic at this size), driven by one `requestAnimationFrame` loop with
+    about 1.4 s (half a pixel per 7 ms tick: the reference's 0.6 s reads as
+    frantic at this size, and 1.2 s still read a little fast — owner,
+    2026-10-09), driven by one `requestAnimationFrame` loop with
     fixed ticks, paused while the page is hidden. Step and trail tunables
     are `HEARTBEAT_BEAM_*` in `src/shared/constants.ts`.
-  - **Size and place.** 1.5 em high (inside one line of the 13 px text)
-    and 6 em wide, backed by `devicePixelRatio`. The working line's grid
+  - **Size and place.** 16 × 56 px (`--ms-space-16` high, 3.5× as wide;
+    72 × 20 sat a little large beside the text — owner, 2026-10-09),
+    backed by `devicePixelRatio`. The working line's grid
     (`auto auto 1fr`) puts the trace right after the verb box with the
     line's gap, so mark, verb and trace read as one unit. The verb box is
     as wide as the longest verb in the installed language (every verb sits

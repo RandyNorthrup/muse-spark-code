@@ -55,6 +55,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- The working line's heartbeat trace is calmer and smaller: one sweep now takes about
+  1.4 s instead of 1.2 s, and the trace is 56 × 16 px instead of 72 × 20.
 - Preserve exact decimal USD across schedule authorization, consent and agent caps,
   rental cost estimates, reporting facts, account totals and voice consent. Read
   historical numeric records at validated boundaries; saved reports verify their

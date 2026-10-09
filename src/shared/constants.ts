@@ -4365,9 +4365,10 @@ export const OUTPUT_PAGE_BYTES = 256 * 1024
 export const STATUS_VERB_INTERVAL_MS = 4000
 // The working line's heart-monitor beam (M87, D66): a canvas port of Vahid's
 // HTML5 Canvas Heart Monitor (CodePen MWvmvd, MIT; written fresh). The beam
-// advances this far every tick, so the 100-unit box sweeps in about 1.2 s —
-// slower than the reference's 0.6 s, which reads as frantic at this size.
-export const HEARTBEAT_BEAM_TICK_MS = 6
+// advances this far every tick, so the 100-unit box sweeps in about 1.4 s —
+// slower than the reference's 0.6 s, which reads as frantic at this size
+// (1.2 s still read as a little fast: owner, 2026-10-09).
+export const HEARTBEAT_BEAM_TICK_MS = 7
 export const HEARTBEAT_BEAM_STEP_PX = 0.5
 // The beam's trail: the last this-many ticks of its path are drawn, fading
 // from opaque at the beam to nothing (100 ticks = half a sweep, 0.6 s). Nothing

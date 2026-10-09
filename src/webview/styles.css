@@ -1589,8 +1589,9 @@ body {
    trace's box. The working line's grid puts it right after the verb box. */
 .heartbeat-trace {
   color: var(--ms-progress);
-  width: calc(var(--ms-space-24) * 3);
-  height: var(--ms-space-20);
+  /* 56 × 16 px: 72 × 20 sat a little large beside the status text (owner, 2026-10-09). */
+  width: calc(var(--ms-space-16) * 3.5);
+  height: var(--ms-space-16);
 }
 
 /* M107 U: shared resources chip, popover and Traffic/task row. */
