@@ -19,11 +19,12 @@
 // port carries the documented untrusted-lane arguments until integration
 // converges them (see `untrustedCheckoutArgs`).
 
-import { execFile, spawn } from 'node:child_process'
+import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { Buffer } from 'node:buffer'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import {
+  GIT_BATCH_KILL_GRACE_MS,
   GIT_OUTPUT_MAX_BYTES,
   GIT_WORKTREE_TIMEOUT_MS,
   HELD_CHECKOUT_MAX_BYTES,
@@ -32,6 +33,7 @@ import {
   HELD_FILE_MODE,
   UI_TEXT,
   UNTRUSTED_CHECKOUT_MIN_GIT_MINOR,
+  WORKTREE_RECORD_SAVE_ATTEMPTS,
 } from '../../../shared/constants'
 import { fill, formatBytes } from '../../../shared/l10n/text'
 import { GitHubClient, GitHubError, isCommitSha, type PullRequest } from '../../../core/git/github'
@@ -59,7 +61,13 @@ import type { CoreLogger } from '../../../core/logging'
 import { redactSecrets } from '../../../core/redact'
 import { resolveGitHubCredential, type GitHubCredential } from '../../../core/git/tokenSource'
 import { PullRequestServiceError, type RuntimePullRequestDeps } from './pullRequests'
-import { holdForRoots, type WorktreeRecordStore } from './records'
+import {
+  holdForRoots,
+  recordRevision,
+  type RecordVersion,
+  type ReserveResult,
+  type WorktreeRecordStore,
+} from './records'
 
 const COMMIT_PEEL = '^{commit}'
 const OWN_FOLDER_PREFIX = 'pr-'
@@ -199,6 +207,28 @@ interface NodeGitRunner {
   text(args: readonly string[], cwd: string, env: NodeJS.ProcessEnv): Promise<string>
 }
 
+/**
+ * Stops the batch child and, on POSIX where it leads a process group of
+ * its own, the helpers it spawned with it. Windows has no groups: there
+ * the root is terminated and the pipes are destroyed, and the operation
+ * settles either way (lane G's runner owns whole-tree retirement).
+ */
+function killBatchTree(child: ChildProcess, platform: NodeJS.Platform): void {
+  const pid = child.pid
+  if (pid !== undefined && platform !== 'win32') {
+    try {
+      process.kill(-pid, 'SIGKILL')
+    } catch {
+      // The group is gone already: nothing left to bound.
+    }
+  }
+  try {
+    child.kill('SIGKILL')
+  } catch {
+    // The root is gone already.
+  }
+}
+
 /** The per-command overrides that switch off every named hook where git runs. */
 async function hookOverrides(
   git: NodeGitRunner,
@@ -306,36 +336,116 @@ async function writeHeldBlobs(
     unreadable,
   )
   check()
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn(
-      git.gitPath,
-      [...untrustedCheckoutArgs(git.platform), 'cat-file', '--batch'],
-      {
-        cwd,
-        env: git.quietEnv,
-        windowsHide: true,
-        signal: git.signal,
-        timeout: GIT_WORKTREE_TIMEOUT_MS,
-      },
-    )
-    // Nothing reads the error stream: discard it, so a chatty git can
-    // never fill the pipe and stall the batch past its deadline.
-    child.stderr.resume()
-    let hasFailed = false
-    const fail = (error: Error) => {
-      if (hasFailed) {
+  const child = spawn(
+    git.gitPath,
+    [...untrustedCheckoutArgs(git.platform), 'cat-file', '--batch'],
+    {
+      cwd,
+      env: git.quietEnv,
+      windowsHide: true,
+      signal: git.signal,
+      timeout: GIT_WORKTREE_TIMEOUT_MS,
+      // Its own group on POSIX, so the deadline stops the helpers it
+      // spawned with it, not just the root.
+      detached: git.platform !== 'win32',
+    },
+  )
+  // Nothing reads the error stream: discard it, so a chatty git can
+  // never fill the pipe and stall the batch past its deadline.
+  child.stderr.resume()
+  child.stdin.write(blobs.map((entry) => `${entry.oid}\n`).join(''))
+  child.stdin.end()
+  await runBatchChild(child, answers, {
+    deadlineMs: GIT_WORKTREE_TIMEOUT_MS,
+    killGraceMs: GIT_BATCH_KILL_GRACE_MS,
+    platform: git.platform,
+    signal: git.signal,
+  })
+}
+
+export interface BatchChildOptions {
+  /** The batch's own deadline: a root that ignores its signal still ends the checkout. */
+  readonly deadlineMs: number
+  /** How long a killed batch is observed before the checkout settles anyway. */
+  readonly killGraceMs: number
+  readonly platform: NodeJS.Platform
+  /** Cancel or shutdown settles the batch however quiet its child is. */
+  readonly signal: AbortSignal
+}
+
+/**
+ * Every answer the batch child completes, then its exit — or its death:
+ * the deadline kills the tree, destroys our pipe ends so the reader
+ * cannot hang on a helper holding them, observes the exit for a bounded
+ * grace, then settles anyway. Nothing keeps the checkout pending past
+ * both its deadline and Cancel. Exported so the tests can stand a
+ * scripted root with a helper where git would be.
+ */
+export function runBatchChild(
+  child: ChildProcess,
+  answers: BlobAnswers,
+  options: BatchChildOptions,
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const { signal } = options
+    let hasSettled = false
+    const settleResolve = () => {
+      if (hasSettled) {
         return
       }
-      hasFailed = true
-      child.kill()
-      reject(error)
+      hasSettled = true
+      clearTimeout(deadline)
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }
+    // The spawn timeout kills the root but never settles the pipes a
+    // surviving helper holds, and neither does Cancel once the root is
+    // gone. This failure stops the tree, destroys our pipe ends so the
+    // reader cannot hang on them, observes the exit for a bounded grace,
+    // then settles anyway: nothing keeps the checkout pending past both
+    // its deadline and Cancel.
+    const fail = (error: Error) => {
+      if (hasSettled) {
+        return
+      }
+      hasSettled = true
+      clearTimeout(deadline)
+      signal.removeEventListener('abort', onAbort)
+      killBatchTree(child, options.platform)
+      child.stdout?.destroy()
+      child.stderr?.destroy()
+      child.stdin?.destroy()
+      const reject_ = () => {
+        reject(error)
+      }
+      if (child.exitCode !== null) {
+        reject_()
+        return
+      }
+      const grace = setTimeout(reject_, options.killGraceMs)
+      child.once('close', () => {
+        clearTimeout(grace)
+        reject_()
+      })
+    }
+    const onAbort = () => {
+      const reason: unknown = signal.reason
+      fail(reason instanceof Error ? reason : new Error('The operation was aborted'))
+    }
+    // The batch's own deadline, independent of the spawn timeout: a root
+    // that ignores its signal still ends the checkout.
+    const deadline = setTimeout(() => {
+      fail(unreadable())
+    }, options.deadlineMs)
+    signal.addEventListener('abort', onAbort, { once: true })
+    if (signal.aborted) {
+      onAbort()
+      return
     }
     child.on('error', fail)
     // Attached before the stream is read: the close may already have fired
     // once the last answer is consumed.
     const closed = new Promise<number | null>((done) => child.on('close', done))
-    child.stdin.write(blobs.map((entry) => `${entry.oid}\n`).join(''))
-    child.stdin.end()
     void (async () => {
       try {
         await takeChunks(answers, child.stdout)
@@ -354,13 +464,19 @@ async function writeHeldBlobs(
         fail(error instanceof Error ? error : unreadable())
         return
       }
-      resolve()
+      settleResolve()
     })()
   })
 }
 
 /** Every answer the stream completes, written before git goes on. */
-async function takeChunks(answers: BlobAnswers, stdout: NodeJS.ReadableStream): Promise<void> {
+async function takeChunks(
+  answers: BlobAnswers,
+  stdout: NodeJS.ReadableStream | null,
+): Promise<void> {
+  if (stdout === null) {
+    throw unreadable()
+  }
   for await (const chunk of stdout) {
     if (!Buffer.isBuffer(chunk)) {
       throw unreadable()
@@ -612,20 +728,9 @@ export class RuntimePullRequestCheckout {
         // did not make, or a checkout that never finished, is never taken
         // over or opened.
         const existing = await this.deps.records.recordFor(folder)
-        if (existing === undefined || existing.isCheckoutPending === true) {
-          return { ok: false, reason: `${UI_TEXT.worktreeFolderExists} ${folder}` }
-        }
-        const shouldReopen = await this.deps.confirm(
-          fill(UI_TEXT.openPullRequestExisting, { number }),
-          folder,
-          UI_TEXT.worktreeOpen,
-        )
-        this.checkTrust()
-        if (shouldReopen) {
-          await this.deps.openFolder(folder)
-          return { ok: true, folder, held: existing.isHeld, number }
-        }
-        return { ok: false, reason: UI_TEXT.gitPushDeclined }
+        return existing === undefined || existing.isCheckoutPending === true
+          ? { ok: false, reason: `${UI_TEXT.worktreeFolderExists} ${folder}` }
+          : await this.offerExistingCheckout(folder, number, existing)
       }
       const isConfirmed = await this.deps.confirm(
         fill(UI_TEXT.openPullRequestConfirm, { number }),
@@ -666,47 +771,197 @@ export class RuntimePullRequestCheckout {
         this.deps.log.warn(`Fetching pull request #${String(number)} failed`)
         return { ok: false, reason: `${UI_TEXT.openPullRequestFetchFailed}: ${failureText(error)}` }
       }
-      const record: WorktreeRecord = {
-        folder,
-        repositoryRoot: this.deps.repositoryRoot,
-        createdAt: this.deps.now(),
-        pullRequest: {
-          repository: repositoryLabel(remote.repository),
-          number,
-          url: pullRequest.url,
-          title: pullRequest.title,
-          author: pullRequest.author.login,
-          headSha: pullRequest.headSha,
-          isAuthoredByUser: isOwn,
-        },
-        isHeld: !isOwn,
-        isCheckoutPending: true,
-      }
-      // Recorded before the folder exists, so no window ever sees it unrecorded.
-      const previous = await this.deps.records.put(record)
-      try {
-        this.checkTrust()
-        if (isOwn) {
-          await this.deps.git.addOwnWorktree(cwd, folder, pullRequest.headSha, () => {
-            this.checkTrust()
-          })
-        } else {
-          await this.deps.git.checkOutHeld(folder, pullRequest.headSha, cwd, () => {
-            this.checkTrust()
-          })
-        }
-        await this.deps.records.complete(folder, record.createdAt)
-      } catch (error: unknown) {
-        await this.deps.records.remove(folder, record.createdAt, previous)
-        return { ok: false, reason: `${UI_TEXT.worktreeAddFailed}: ${failureText(error)}` }
-      }
-      this.checkTrust()
-      this.deps.log.info(
-        `Pull request #${String(number)} checked out in a worktree${isOwn ? '' : ', held'}`,
-      )
-      await this.deps.openFolder(folder)
-      return { ok: true, folder, held: !isOwn, number }
+      return await this.claimAndCheckout(folder, remote, number, pullRequest, isOwn)
     })
+  }
+
+  /** A finished checkout, offered again as it is, never taken over. */
+  private async offerExistingCheckout(
+    folder: string,
+    number: number,
+    existing: WorktreeRecord,
+  ): Promise<OpenPullRequestResult> {
+    const shouldReopen = await this.deps.confirm(
+      fill(UI_TEXT.openPullRequestExisting, { number }),
+      folder,
+      UI_TEXT.worktreeOpen,
+    )
+    this.checkTrust()
+    if (shouldReopen) {
+      await this.deps.openFolder(folder)
+      return { ok: true, folder, held: existing.isHeld, number }
+    }
+    return { ok: false, reason: UI_TEXT.gitPushDeclined }
+  }
+
+  /**
+   * Validate → act → persist for one checkout: reserve the folder's
+   * record, run git, then complete or roll back exactly the version
+   * reserved. A reserve that finds another checkout there follows what is
+   * there — a checkout in flight is refused honestly, a finished one is
+   * offered again, and only a finished record whose folder is gone is
+   * taken over, at exactly the version read. Nothing here overwrites a
+   * record it did not read.
+   */
+  private async claimAndCheckout(
+    folder: string,
+    remote: GitHubRemote,
+    number: number,
+    pullRequest: PullRequest,
+    isOwn: boolean,
+  ): Promise<OpenPullRequestResult> {
+    const makeRecord = (): WorktreeRecord => ({
+      // Recorded before the folder exists, so no window ever sees it unrecorded.
+      folder,
+      repositoryRoot: this.deps.repositoryRoot,
+      createdAt: this.deps.now(),
+      pullRequest: {
+        repository: repositoryLabel(remote.repository),
+        number,
+        url: pullRequest.url,
+        title: pullRequest.title,
+        author: pullRequest.author.login,
+        headSha: pullRequest.headSha,
+        isAuthoredByUser: isOwn,
+      },
+      isHeld: !isOwn,
+      isCheckoutPending: true,
+    })
+    const changed: OpenPullRequestResult = { ok: false, reason: UI_TEXT.gitOperationChanged }
+    for (let attempt = 1; ; attempt += 1) {
+      const record = makeRecord()
+      let reservation: ReserveResult
+      try {
+        reservation = await this.deps.records.reserve(record)
+      } catch {
+        return changed
+      }
+      if (reservation.ok) {
+        return await this.finishCheckout(
+          folder,
+          number,
+          isOwn,
+          pullRequest.headSha,
+          reservation.stored,
+          reservation.previous,
+        )
+      }
+      const current = reservation.current
+      if (current === undefined || current.isCheckoutPending === true) {
+        // Another checkout owns this folder right now (or it went away
+        // mid-claim and the next attempt re-reads it).
+        if (current !== undefined || attempt >= WORKTREE_RECORD_SAVE_ATTEMPTS) {
+          return changed
+        }
+        continue
+      }
+      if (this.deps.pathExists(folder)) {
+        return await this.offerExistingCheckout(folder, number, current)
+      }
+      let takeover: ReserveResult
+      try {
+        takeover = await this.deps.records.supersede(
+          folder,
+          { createdAt: current.createdAt, revision: recordRevision(current) },
+          record,
+        )
+      } catch {
+        return changed
+      }
+      if (takeover.ok) {
+        return await this.finishCheckout(
+          folder,
+          number,
+          isOwn,
+          pullRequest.headSha,
+          takeover.stored,
+          takeover.previous,
+        )
+      }
+      const next = takeover.current
+      if (next !== undefined && next.isCheckoutPending !== true && this.deps.pathExists(folder)) {
+        return await this.offerExistingCheckout(folder, number, next)
+      }
+      if (attempt >= WORKTREE_RECORD_SAVE_ATTEMPTS) {
+        return changed
+      }
+    }
+  }
+
+  /** Runs git for a reserved record, then completes or rolls back that version. */
+  private async finishCheckout(
+    folder: string,
+    number: number,
+    isOwn: boolean,
+    headSha: string,
+    stored: WorktreeRecord,
+    previous: WorktreeRecord | undefined,
+  ): Promise<OpenPullRequestResult> {
+    const cwd = this.deps.repositoryRoot
+    const version: RecordVersion = {
+      createdAt: stored.createdAt,
+      revision: recordRevision(stored),
+    }
+    try {
+      this.checkTrust()
+      const check = () => {
+        this.checkTrust()
+      }
+      await (isOwn
+        ? this.deps.git.addOwnWorktree(cwd, folder, headSha, check)
+        : this.deps.git.checkOutHeld(folder, headSha, cwd, check))
+    } catch (error: unknown) {
+      try {
+        await this.deps.records.remove(folder, version.createdAt, version.revision, previous)
+      } catch {
+        this.deps.log.warn(`A failed checkout's record could not be rolled back: ${folder}`)
+      }
+      return { ok: false, reason: `${UI_TEXT.worktreeAddFailed}: ${failureText(error)}` }
+    }
+    if (!(await this.settleComplete(folder, version))) {
+      return { ok: false, reason: UI_TEXT.gitOperationChanged }
+    }
+    this.checkTrust()
+    this.deps.log.info(
+      `Pull request #${String(number)} checked out in a worktree${isOwn ? '' : ', held'}`,
+    )
+    await this.deps.openFolder(folder)
+    return { ok: true, folder, held: !isOwn, number }
+  }
+
+  /**
+   * pending → ready for exactly the version reserved. A complete that
+   * lost (its version moved on) re-reads first: when the reserved record
+   * is ready, the checkout finished and the report is success.
+   */
+  private async settleComplete(folder: string, version: RecordVersion): Promise<boolean> {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        if (await this.deps.records.complete(folder, version.createdAt, version.revision)) {
+          return true
+        }
+      } catch {
+        // The store is busy: the re-read below decides.
+      }
+      let current: WorktreeRecord | undefined
+      try {
+        current = await this.deps.records.recordFor(folder)
+      } catch {
+        current = undefined
+      }
+      if (current === undefined) {
+        if (attempt >= WORKTREE_RECORD_SAVE_ATTEMPTS) {
+          return false
+        }
+        continue
+      }
+      if (current.createdAt === version.createdAt && current.isCheckoutPending !== true) {
+        return true
+      }
+      if (attempt >= WORKTREE_RECORD_SAVE_ATTEMPTS) {
+        return false
+      }
+    }
   }
 
   public async open(
@@ -770,7 +1025,14 @@ export class RuntimePullRequestCheckout {
     } catch (error: unknown) {
       return { ok: false, reason: failureText(error) }
     }
-    const released = await this.deps.records.release(folder, this.deps.now())
+    // A release the store cannot persist, or one for a checkout still
+    // pending, reads as changed: the card tries again after it finishes.
+    let released: WorktreeRecord | undefined
+    try {
+      released = await this.deps.records.release(folder, this.deps.now())
+    } catch {
+      return { ok: false, reason: UI_TEXT.gitOperationChanged }
+    }
     if (released !== undefined) {
       this.deps.log.info('The held worktree was trusted in the card')
     }
