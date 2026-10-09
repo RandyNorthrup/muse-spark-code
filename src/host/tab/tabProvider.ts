@@ -15,6 +15,7 @@ import { compileGlob } from '../../core/backends/modelapi/globLimits'
 import { redactSecrets } from '../../core/redact'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { contextWindow, orderSnippets, type TabSnippet } from '../../core/tab/tabContext'
+import type { TabHookContext } from '../../core/tab/tabHooks'
 import { tabUserText } from '../../core/tab/tabRequest'
 import {
   TAB_CONTEXT_FILES,
@@ -354,6 +355,7 @@ export interface TabFileCheckDeps {
   readonly hasSibling?: ((relativePath: string) => boolean) | undefined
   /** Lane K's bridge; absent until lane K lands (then every failure refuses). */
   readonly hooks?: TabHookBridge | undefined
+  readonly hookContext?: TabHookContext | undefined
 }
 
 /**
@@ -392,7 +394,10 @@ export async function isTabFileEligible(
       // every hook failure fails closed.
       return false
     }
-    if (!(await deps.hooks.beforeRead(candidate.absolutePath, candidate.content))) {
+    if (
+      deps.hookContext === undefined ||
+      !(await deps.hooks.beforeRead(candidate.absolutePath, candidate.content, deps.hookContext))
+    ) {
       return false
     }
   }
@@ -483,6 +488,8 @@ function positionAfter(
 }
 
 interface TabTracked extends TabTrackedItem {
+  readonly hookContext: TabHookContext
+  readonly lineText: string
   readonly generationId: string
   readonly model: string
   /** The whole suggestion arrived in one change: the item's command follows (V8). */
@@ -506,6 +513,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     onIgnoreFilesChanged: deps.onIgnoreFilesChanged,
   })
   let generation = 0
+  let request = 0
   let tracked: TabTracked | undefined
   // Disposed: pending work stops at its next step and reports nothing
   // (RVM94HU 2).
@@ -571,6 +579,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     lineNumber: number,
     lineText: string,
     isCancelled: () => boolean,
+    hookContext: TabHookContext,
   ): Promise<string> {
     const checkedGeneration = ignore.currentGeneration
     const candidates = [...(deps.recentEdits?.() ?? [])]
@@ -618,6 +627,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
         rootAbs,
         hasSibling: (sibling) => deps.ignoreFileExists(path.join(rootAbs, ...sibling.split('/'))),
         hooks: deps.hooks,
+        hookContext,
       }
       try {
         const target = relativeInside(
@@ -702,12 +712,19 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     if (firstReason !== undefined) {
       return quiet(firstReason)
     }
+    request += 1
+    const hookContext: TabHookContext = {
+      workspaceRoots: deps.workspaceRoots(document.uri.fsPath),
+      model: deps.settings().tabModel,
+      generationId: `request-${String(request)}`,
+    }
     const checks: TabFileCheckDeps = {
       filesExclude: deps.filesExclude(document.uri),
       ignore,
       rootAbs,
       hasSibling: (sibling) => deps.ignoreFileExists(path.join(rootAbs, ...sibling.split('/'))),
       hooks: deps.hooks,
+      hookContext,
     }
     // Links resolved: the target must stay inside the folder and must not be
     // private or protected itself (RVM94HU 12).
@@ -777,9 +794,10 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
             position.line,
             line,
             () => token.isCancellationRequested || isDisposed(),
+            hookContext,
           )
         : ''
-    const model = deps.settings().tabModel
+    const model = hookContext.model
     const redactedPath = redactSecrets(relativePath)
     // The worst case is priced on everything sent: the instructions and the
     // one user message (D73, M82's one token per UTF-8 byte; RVM94HU 16).
@@ -882,6 +900,8 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       rest: completion,
       generationId,
       model,
+      hookContext,
+      lineText: line,
       isWholeInserted: false,
       isPartlyAccepted: false,
     }
@@ -919,10 +939,15 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     const startColumn = at.character + 1
     deps.hooks.afterEdit({
       filePath: at.filePath,
-      generationId: at.generationId,
+      generationId: at.hookContext.generationId,
       model: at.model,
-      oldLine: startLine,
-      newLine: startLine,
+      workspaceRoots: at.hookContext.workspaceRoots,
+      oldLine: at.lineText,
+      newLine:
+        (at.lineText.slice(0, at.character) + newString + at.lineText.slice(at.character)).split(
+          '\n',
+          1,
+        )[0] ?? '',
       range: {
         startLineNumber: startLine,
         startColumn,
@@ -948,7 +973,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     // A full accept is known exactly from the item's command (V8), whether
     // its document change arrived first or not (RVM94HU 5). Lane K caps the
     // strings and counts the cut.
-    emitEdit(accepted, args.completion, false)
+    emitEdit(accepted, accepted.isPartlyAccepted ? accepted.rest : args.completion, false)
   }
 
   function onTextChanged(change: TabDocumentChange): void {
@@ -978,7 +1003,15 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     emitEdit(tracked, change.insertedText, true)
     // The rest now starts where the accepted text ended (RVM94HU 6).
     const next = positionAfter(tracked.line, tracked.character, change.insertedText)
-    tracked = rest === '' ? undefined : { ...tracked, ...next, rest, isPartlyAccepted: true }
+    const editedLines = (
+      tracked.lineText.slice(0, tracked.character) +
+      change.insertedText +
+      tracked.lineText.slice(tracked.character)
+    ).split('\n')
+    tracked =
+      rest === ''
+        ? undefined
+        : { ...tracked, ...next, rest, lineText: editedLines.at(-1) ?? '', isPartlyAccepted: true }
   }
 
   const provider: vscode.InlineCompletionItemProvider = {
@@ -1006,6 +1039,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       lifecycle.isDisposed = true
       textWatcher.dispose()
       ignore.dispose()
+      deps.hooks?.dispose?.()
     },
     acceptNotified,
   }

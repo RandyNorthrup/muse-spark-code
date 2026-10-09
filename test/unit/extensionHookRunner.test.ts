@@ -4,7 +4,7 @@
 // DirectoryAdded fire at their operations only, and never with the gates
 // closed.
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import {
   ExtensionHookRunner,
@@ -38,7 +38,10 @@ interface HookRun {
 function setup(
   options: {
     readonly files?: Record<string, string>
-    readonly runHook?: (command: string, payload: Record<string, unknown>) => ShellResult
+    readonly runHook?: (
+      command: string,
+      payload: Record<string, unknown>,
+    ) => ShellResult | Promise<ShellResult>
     readonly isWorkspaceTrusted?: () => boolean
     readonly isHooksEnabled?: () => boolean
     readonly isIndexed?: (relativePath: string) => Promise<boolean>
@@ -46,13 +49,14 @@ function setup(
   } = {},
 ) {
   const files = new Map<string, string | Uint8Array>(Object.entries(options.files ?? {}))
+  const io = memoryContextIo(files, options.links)
   const hookRuns: HookRun[] = []
   const notices: { readonly level: string; readonly text: string }[] = []
   const outputs: { readonly title: string; readonly text: string }[] = []
   const warnings: string[] = []
   let clock = 1_000_000
   const deps: ExtensionHookRunnerDeps = {
-    io: memoryContextIo(files, options.links),
+    io,
     runHook: (command, payload) => {
       const parsed = z.record(z.string(), z.unknown()).parse(JSON.parse(payload))
       hookRuns.push({ command, payload: parsed })
@@ -79,6 +83,7 @@ function setup(
   const runner = new ExtensionHookRunner(deps)
   return {
     runner,
+    io,
     files,
     hookRuns,
     notices,
@@ -401,5 +406,163 @@ describe('ExtensionHookRunner', () => {
     })
     await t.runner.runSetup('init')
     expect(t.notices).toEqual([{ level: 'info', text: 'setup finished' }])
+  })
+})
+
+describe('Tab raw dispatch on both backends', () => {
+  it('waits for the latest snapshot before selecting and dispatching Tab hooks', async () => {
+    const t = setup({ runHook: () => hookResult('{"permission":"allow"}') })
+    await t.runner.reload()
+    const { promise, resolve } = Promise.withResolvers<Uint8Array>()
+    const read = t.io.readFile
+    vi.spyOn(t.io, 'readFile').mockImplementation((file, maxBytes) =>
+      file === PROJECT_HOOKS ? promise : read(file, maxBytes),
+    )
+    const reload = t.runner.reload()
+    const selected = t.runner.hasTabHooks('beforeTabFileRead')
+    const dispatched = t.runner.runTab({
+      event: 'beforeTabFileRead',
+      matcherValue: 'TabRead',
+      maxTimeoutMs: 1500,
+      stdin: '{}',
+    })
+    expect(t.hookRuns).toHaveLength(0)
+    resolve(
+      Buffer.from(
+        sparkDoc({ beforeTabFileRead: [{ hooks: [{ type: 'command', command: 'fresh' }] }] }),
+      ),
+    )
+    await reload
+    expect(await selected).toBe(true)
+    expect(await dispatched).toEqual([hookResult('{"permission":"allow"}')])
+    expect(t.hookRuns.map((run) => run.command)).toEqual(['fresh'])
+  })
+
+  it.each([
+    { format: 'cline', sourceEvent: 'beforeTabFileRead' },
+    { format: 'cursor', sourceEvent: 'afterTabFileEdit' },
+    { format: 'cursor', sourceEvent: 'beforeTabFileRead', async: true },
+    { format: 'cursor', sourceEvent: 'beforeTabFileRead', failClosed: 'false' },
+  ])('refuses an invalid Tab import group ($format, $sourceEvent)', async (fields) => {
+    const t = setup({
+      files: {
+        [PROJECT_HOOKS]: sparkDoc({
+          beforeTabFileRead: [{ ...fields, hooks: [{ type: 'command', command: 'guard' }] }],
+        }),
+      },
+    })
+    await t.runner.reload()
+    expect(await t.runner.hasTabHooks('beforeTabFileRead')).toBe(false)
+    expect(t.warnings.join('\n')).toContain('invalid group')
+  })
+
+  it('refuses a raw result from an old configuration', async () => {
+    const { promise, resolve: finish } = Promise.withResolvers<ShellResult>()
+    const t = setup({
+      files: {
+        [PROJECT_HOOKS]: sparkDoc({
+          beforeTabFileRead: [{ hooks: [{ type: 'command', command: 'guard' }] }],
+        }),
+      },
+      runHook: () => promise,
+    })
+    await t.runner.reload()
+    const pending = t.runner.runTab({
+      event: 'beforeTabFileRead',
+      matcherValue: 'TabRead',
+      maxTimeoutMs: 1500,
+      stdin: '{}',
+    })
+    await vi.waitFor(() => {
+      expect(t.hookRuns).toHaveLength(1)
+    })
+    await t.runner.reload()
+    finish(hookResult('{"permission":"allow"}'))
+    expect(await pending).toBeUndefined()
+  })
+  it('admits configured Cursor Tab matchers and returns raw vetoes without onFailure rescue', async () => {
+    const t = setup({
+      files: {
+        [PROJECT_HOOKS]: sparkDoc({
+          beforeTabFileRead: [
+            {
+              format: 'cursor',
+              sourceEvent: 'beforeTabFileRead',
+              failClosed: false,
+              matcher: 'TabRead',
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'guard',
+                  onFailure: { type: 'command', command: 'rescue' },
+                },
+              ],
+            },
+          ],
+          afterTabFileEdit: [
+            { matcher: 'TabWrite', hooks: [{ type: 'command', command: 'observe' }] },
+          ],
+        }),
+      },
+      runHook: () => ({ ...hookResult('{"permission":"allow"}'), exitCode: 2 }),
+    })
+    await t.runner.reload()
+    expect(await t.runner.hasTabHooks('beforeTabFileRead')).toBe(true)
+    expect(await t.runner.hasTabHooks('afterTabFileEdit')).toBe(true)
+    const result = await t.runner.runTab({
+      event: 'beforeTabFileRead',
+      matcherValue: 'TabRead',
+      maxTimeoutMs: 1500,
+      stdin: JSON.stringify({
+        hook_event_name: 'beforeTabFileRead',
+        file_path: '/ws/file.ts',
+        content: 'local source',
+        generation_id: 'request-1',
+        workspace_roots: ['/ws'],
+        model: 'muse-spark-1.3',
+      }),
+    })
+    expect(result?.[0]?.exitCode).toBe(2)
+    expect(t.hookRuns.map((run) => run.command)).toEqual(['guard'])
+    expect(t.hookRuns[0]?.payload).toMatchObject({
+      file_path: '/ws/file.ts',
+      content: 'local source',
+      generation_id: 'request-1',
+    })
+    const mismatch = await t.runner.runTab({
+      event: 'beforeTabFileRead',
+      matcherValue: 'TabWrite',
+      maxTimeoutMs: 1500,
+      stdin: '{}',
+    })
+    expect(mismatch).toEqual([])
+    expect(t.hookRuns).toHaveLength(1)
+  })
+
+  it('refuses dispatch after trust revocation and clears snapshot when disabled', async () => {
+    let isTrusted = true
+    const t = setup({
+      isWorkspaceTrusted: () => isTrusted,
+      files: {
+        [PROJECT_HOOKS]: sparkDoc({
+          beforeTabFileRead: [{ hooks: [{ type: 'command', command: 'guard' }] }],
+        }),
+      },
+    })
+    await t.runner.reload()
+    const version = t.runner.configurationVersion()
+    isTrusted = false
+    expect(
+      await t.runner.runTab({
+        event: 'beforeTabFileRead',
+        matcherValue: 'TabRead',
+        maxTimeoutMs: 1500,
+        stdin: '{}',
+      }),
+    ).toBeUndefined()
+    await t.runner.reload()
+    expect(t.runner.configurationVersion()).not.toBe(version)
+    expect(await t.runner.hasTabHooks('beforeTabFileRead')).toBe(false)
+    expect(t.hookRuns).toEqual([])
   })
 })

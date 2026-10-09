@@ -1038,6 +1038,9 @@ export const EXTENSION_HOOK_EVENTS = [
   'BeforeToolSelection',
   'AfterAgentThought',
   'Manual',
+  // Cursor's own Tab names and contract (M94 lane K, D73).
+  'beforeTabFileRead',
+  'afterTabFileEdit',
 ] as const
 // A save storm or a build's output changes a path many times in a burst, so FileChanged fires once per path in this quiet window.
 export const HOOK_FILE_CHANGED_DEBOUNCE_MS = 500
@@ -3403,6 +3406,8 @@ export const AGENT_IMPORT_GEMINI_TOOLS: Readonly<Record<string, readonly string[
 }
 /** Cursor's hook events (cursor.com/docs/hooks) by our names. */
 export const AGENT_IMPORT_CURSOR_EVENTS: Readonly<Record<string, string>> = {
+  beforeTabFileRead: 'beforeTabFileRead',
+  afterTabFileEdit: 'afterTabFileEdit',
   sessionStart: 'SessionStart',
   sessionEnd: 'SessionEnd',
   preToolUse: 'PreToolUse',

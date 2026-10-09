@@ -8,6 +8,12 @@ import path from 'node:path'
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { removeFolder } from './helpers/temporaryFolders'
+import { ExtensionHookRunner } from '../../src/host/extensionHooksRunner'
+import { memoryContextIo } from './helpers/fakeContextIo'
+import { hookEnvironment, runCommand } from '../../src/host/backend/toolIo'
+import { createTabProvider as entryProvider } from '../../src/host/tab/tabEntry'
+import { BASE_LOCALE } from '../../src/shared/l10n/text'
+import { readFileSync } from 'node:fs'
 import type * as vscode from 'vscode'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -36,7 +42,6 @@ import {
 import {
   TabIgnoreCache,
   chooseTabMode,
-  createTabProvider,
   inferTabPartialAccept,
   isFilesExcluded,
   isTabFileEligible,
@@ -51,6 +56,8 @@ import {
   TAB_FILE_MAX_BYTES,
   TAB_MODEL_TEXT,
   TAB_MULTILINE_MAX_OUTPUT_TOKENS,
+  UI_TEXT,
+  HOOK_OUTPUT_MAX_BYTES,
 } from '../../src/shared/constants'
 import { FakeCancellationToken, FakeLogOutputChannel, FakeTextDocument } from './helpers/fakes'
 import { SYNTHETIC } from './helpers/syntheticTokens'
@@ -438,7 +445,7 @@ interface ProviderHarness {
   readonly log: FakeLogOutputChannel
   readonly textListeners: ((event: TabTextChangeEvent) => void)[]
   readonly provider: vscode.InlineCompletionItemProvider
-  readonly handle: ReturnType<typeof createTabProvider>
+  readonly handle: ReturnType<typeof entryProvider>
   serve(
     text?: string,
     line?: number,
@@ -481,7 +488,9 @@ function providerHarness(
   const afterEdit = vi.fn((): void => undefined)
   const log = new FakeLogOutputChannel()
   const textListeners: ((event: TabTextChangeEvent) => void)[] = []
-  const handle = createTabProvider({
+  const handle = entryProvider({
+    uiTable: UI_TEXT,
+    locale: BASE_LOCALE,
     settings: () => ({
       tabModel: 'muse-spark-1.3',
       tabLanguages: { '*': true },
@@ -771,10 +780,11 @@ describe('createTabProvider', () => {
     harness.handle.acceptNotified(items[0]?.command?.arguments?.[0])
     expect(harness.afterEdit).toHaveBeenCalledWith({
       filePath: '/ws/file.ts',
-      generationId: args?.generationId,
+      generationId: 'request-1',
       model: 'muse-spark-1.3',
-      oldLine: 1,
-      newLine: 1,
+      workspaceRoots: ['/ws'],
+      oldLine: 'const y = ',
+      newLine: 'const y = foo()',
       range: { startLineNumber: 1, startColumn: 11, endLineNumber: 1, endColumn: 11 },
       oldString: '',
       newString: 'foo()',
@@ -812,6 +822,8 @@ describe('createTabProvider', () => {
     expect(harness.afterEdit).toHaveBeenLastCalledWith(
       expect.objectContaining({
         newString: 'bar)',
+        oldLine: 'const y = foo(',
+        newLine: 'const y = foo(bar)',
         inferred: true,
         range: { startLineNumber: 1, startColumn: 15, endLineNumber: 1, endColumn: 15 },
       }),
@@ -1167,5 +1179,157 @@ describe('Tab multi-line context wiring', () => {
     expect(workspace.openTextDocument).not.toHaveBeenCalled()
     expect(commands.executeCommand).not.toHaveBeenCalled()
     harness.handle.dispose()
+  })
+})
+
+describe('M94KW configured hooks through the lazy factory', () => {
+  it('vetoes before a model call, then observes and edits an accepted completion with a real fake hook', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'muse-tab-hook-flow-'))
+    const file = path.join(root, 'file.ts')
+    const fixture = path.resolve('test/fixtures/tabHooks/completion.mjs')
+    const hookRuns: {
+      readonly command: string
+      readonly stdin: string
+      readonly timeoutMs: number
+    }[] = []
+    const files = new Map<string, string | Uint8Array>([
+      [
+        path.join(root, '.muse/spark-hooks.json').replaceAll('\\', '/'),
+        JSON.stringify({
+          hooks: {
+            beforeTabFileRead: [
+              {
+                format: 'cursor',
+                sourceEvent: 'beforeTabFileRead',
+                failClosed: false,
+                matcher: 'TabRead',
+                hooks: [{ type: 'command', command: 'fake-read', timeout: 10 }],
+              },
+            ],
+            afterTabFileEdit: [
+              {
+                format: 'cursor',
+                sourceEvent: 'afterTabFileEdit',
+                matcher: 'TabWrite',
+                hooks: [{ type: 'command', command: 'fake-edit' }],
+              },
+            ],
+          },
+        }),
+      ],
+    ])
+    const runner = new ExtensionHookRunner({
+      io: memoryContextIo(files),
+      platform: process.platform,
+      workspaceRoot: root,
+      settingsPath: path.join(root, 'config/settings.json'),
+      isWorkspaceTrusted: () => true,
+      isHooksEnabled: () => true,
+      now: Date.now,
+      runHook: async (command, stdin, cwd, timeoutMs, signal) => {
+        hookRuns.push({ command, stdin, timeoutMs })
+        return await runCommand({
+          file: process.execPath,
+          args: [fixture],
+          cwd,
+          env: hookEnvironment(process.env, process.platform),
+          timeoutMs,
+          signal,
+          stdin,
+          maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
+          tree: {
+            platform: process.platform,
+            systemRoot: process.env['SystemRoot'],
+            log: () => undefined,
+          },
+        })
+      },
+      notice: () => undefined,
+      showOutput: () => undefined,
+      warn: () => undefined,
+    })
+    await runner.reload()
+    const harness = providerHarness({
+      workspaceRoots: () => [root],
+      hookDispatch: {
+        isHooksEnabled: () => true,
+        load: () => Promise.resolve(runner),
+      },
+    })
+    try {
+      await expect(
+        harness.serve('BLOCK_TAB', 0, 0, new FakeCancellationToken(), file),
+      ).resolves.toEqual([])
+      expect(harness.complete).not.toHaveBeenCalled()
+      await harness.serve('BLOCK_TAB', 0, 0, new FakeCancellationToken(), file)
+      expect(hookRuns).toHaveLength(1)
+      writeFileSync(file, 'const y = ')
+      const items = await harness.serve('const y = ', 0, 10, new FakeCancellationToken(), file)
+      expect(items).toHaveLength(1)
+      expect(hookRuns.at(-1)?.timeoutMs).toBe(1500)
+      const args = items[0]?.command?.arguments?.[0]
+      writeFileSync(file, 'const y = foo()')
+      harness.handle.acceptNotified(args)
+      await vi.waitFor(() => {
+        expect(readFileSync(file, 'utf8')).toContain('fake hook edited accepted completion')
+      })
+      expect(JSON.parse(hookRuns.at(-1)?.stdin ?? '{}')).toMatchObject({
+        hook_event_name: 'afterTabFileEdit',
+        generation_id: 'request-3',
+        file_path: file,
+        edits: [
+          {
+            old_string: '',
+            new_string: 'foo()',
+            old_line: 'const y = ',
+            new_line: 'const y = foo()',
+            range: { start_line_number: 1, start_column: 11, end_line_number: 1, end_column: 11 },
+          },
+        ],
+      })
+      expect(harness.complete).toHaveBeenCalledOnce()
+    } finally {
+      harness.handle.dispose()
+      await removeFolder(root)
+    }
+  })
+
+  it('keeps completion bytes identical with no configured guard, including JSON-expanded text', async () => {
+    const plain = providerHarness()
+    const run = vi.fn().mockResolvedValue([])
+    const wired = providerHarness({
+      hookDispatch: {
+        isHooksEnabled: () => true,
+        configurationVersion: () => 'empty',
+        hasHooks: () => Promise.resolve(false),
+        run,
+      },
+    })
+    const text = 'const y = ' + '"'.repeat(TAB_FILE_MAX_BYTES / 2)
+    expect(JSON.stringify(await wired.serve(text))).toBe(JSON.stringify(await plain.serve(text)))
+    expect(wired.snapshots).toEqual(
+      plain.snapshots.map((snapshot) => ({ ...snapshot, isCancelled: expect.any(Function) })),
+    )
+    expect(run).not.toHaveBeenCalled()
+    plain.handle.dispose()
+    wired.handle.dispose()
+  })
+})
+
+describe('Tab accepted edit metadata', () => {
+  it('reports only the remaining full insertion after a partial word', async () => {
+    const harness = providerHarness({ engineCompletion: 'foo(bar)', withHooks: true })
+    const items = await harness.serve()
+    harness.textListeners[0]?.({ changes: [textChange({ insertedText: 'foo(' })] })
+    harness.handle.acceptNotified(items[0]?.command?.arguments?.[0])
+    expect(harness.afterEdit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        newString: 'bar)',
+        oldLine: 'const y = foo(',
+        newLine: 'const y = foo(bar)',
+        range: { startLineNumber: 1, startColumn: 15, endLineNumber: 1, endColumn: 15 },
+        inferred: false,
+      }),
+    )
   })
 })

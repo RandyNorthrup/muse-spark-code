@@ -50,6 +50,7 @@ import {
   type HookDefinition,
   type HookLoadDeps,
   type HookSource,
+  type ForeignHookSpec,
 } from './hooks'
 import { sparkHooksFiles } from './hookNames'
 import { compileGlob } from './globLimits'
@@ -113,6 +114,8 @@ const PATH_MATCHED_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
 ])
 /** Events whose matcher selects names (a skill, a tool, a task subject…). */
 const NAME_MATCHED_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
+  'beforeTabFileRead',
+  'afterTabFileEdit',
   'UserPromptExpansion',
   'PermissionDenied',
   'TaskCreated',
@@ -132,6 +135,7 @@ export interface ExtensionHookDefinition {
   /** The group's own words, for the Run Hook pick (M91 lane E). */
   readonly description?: string | undefined
   readonly onFailure?: ExtensionHookDefinition | undefined
+  readonly foreign?: ForeignHookSpec | undefined
 }
 
 const MATCH_EXACT = /^[A-Za-z0-9_|]+$/
@@ -176,7 +180,7 @@ function matcherFor(
   return `matcher is not valid for ${event}`
 }
 
-function isExtensionMatch(
+export function isExtensionMatch(
   matcher: ExtensionHookMatcher | undefined,
   value: string | undefined,
   warn: (message: string) => void,
@@ -231,6 +235,16 @@ const SPARK_HANDLER_FIELDS = new Set([
   'onFailure',
 ])
 const SPARK_GROUP_FIELDS = new Set(['matcher', 'hooks', 'description'])
+const tabGroupSchema = z.strictObject({
+  format: z.literal('cursor'),
+  sourceEvent: z.enum(['beforeTabFileRead', 'afterTabFileEdit']),
+  matcher: z.optional(z.string()),
+  hooks: z.array(z.unknown()),
+  sourceEntry: z.optional(z.unknown()),
+  failClosed: z.optional(z.boolean()),
+  description: z.optional(z.string()),
+  async: z.optional(z.literal(false)),
+})
 
 function sparkHandler(
   value: unknown,
@@ -339,7 +353,20 @@ export function parseSparkHooksConfig(
       if (!isRecord(group) || !Array.isArray(group.hooks)) {
         return { hooks: [], warnings: [`${source} spark-hooks.json: ${name} has an invalid group`] }
       }
-      const extraGroupField = Object.keys(group).find((key) => !SPARK_GROUP_FIELDS.has(key))
+      const isTab: boolean = name === 'beforeTabFileRead' || name === 'afterTabFileEdit'
+      const importedTab: ReturnType<typeof tabGroupSchema.safeParse> | undefined =
+        isTab && group['format'] !== undefined ? tabGroupSchema.safeParse(group) : undefined
+      if (
+        importedTab !== undefined &&
+        (!importedTab.success || importedTab.data.sourceEvent !== name)
+      ) {
+        warnings.push(`${source} spark-hooks.json: ${name} has an invalid group`)
+        continue
+      }
+      const extraGroupField =
+        importedTab === undefined
+          ? Object.keys(group).find((key) => !SPARK_GROUP_FIELDS.has(key))
+          : undefined
       if (extraGroupField !== undefined) {
         warnings.push(
           `${source} spark-hooks.json: ${name} has unsupported group field ${extraGroupField}`,
@@ -353,6 +380,10 @@ export function parseSparkHooksConfig(
       }
       for (const entry of group.hooks) {
         const parsed = sparkHandler(entry, name, source, platform, matcher)
+        if (isTab && typeof parsed !== 'string' && parsed.isAsync) {
+          warnings.push(`${source} spark-hooks.json: ${name} has an invalid group`)
+          continue
+        }
         if (typeof parsed === 'string') {
           if (
             parsed.includes('must be a non-negative integer') ||
@@ -365,11 +396,21 @@ export function parseSparkHooksConfig(
           if (hooks.length >= HOOK_SOURCE_MAX_HANDLERS) {
             return { hooks: [], warnings: [`${source} spark-hooks.json exceeds the handler limit`] }
           }
+          const definition =
+            importedTab?.success === true
+              ? {
+                  ...parsed,
+                  foreign: {
+                    format: importedTab.data.format,
+                    sourceEvent: importedTab.data.sourceEvent,
+                  },
+                }
+              : parsed
           const description = group['description']
           hooks.push(
             typeof description === 'string' && description.trim() !== ''
-              ? { ...parsed, description: description.trim() }
-              : parsed,
+              ? { ...definition, description: description.trim() }
+              : definition,
           )
         }
       }

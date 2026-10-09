@@ -8,9 +8,11 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 // gate itself (`createTabServices`) from what activation hands it: the key
 // client's stream, the ledger's folder and this window's id. Activation
 // keeps the paid question (lane L's PaidUseConsent) and the tally. Lane K's
-// hooks stay an optional dependency until lane K lands.
+// guard and dispatch bridge are constructed inside the lazy Tab bundle.
 
 import * as vscode from 'vscode'
+import type { TabHookContext, TabHooksDeps } from '../../core/tab/tabHooks'
+import type { ExtensionHookRunner } from '../extensionHooksRunner'
 import type {
   TabEngine,
   TabEngineRequest,
@@ -173,9 +175,10 @@ export interface TabAcceptedEdit {
   readonly generationId: string
   /** The model the suggestion came from. */
   readonly model: string
-  /** 1-based, as Cursor sends them. */
-  readonly oldLine: number
-  readonly newLine: number
+  /** Actual line text around the accepted insertion. */
+  readonly oldLine: string
+  readonly newLine: string
+  readonly workspaceRoots: readonly string[]
   /** 1-based start/end line and column. */
   readonly range: {
     readonly startLineNumber: number
@@ -193,12 +196,13 @@ export interface TabAcceptedEdit {
  * Lane K's hook bridge (M94 step 7, after M91 merges): `beforeRead` answers
  * whether a file's text may enter a request (every failure refuses, and an
  * oversize payload is refused unrun); `afterEdit` observes an accept and
- * never blocks. Absent until lane K lands: with no hooks configured every
- * read is allowed and every accept unobserved.
+ * never blocks. With no configured hooks every read is allowed and every
+ * accept is unobserved.
  */
 export interface TabHookBridge {
-  beforeRead(absolutePath: string, content: string): Promise<boolean>
+  beforeRead(absolutePath: string, content: string, context: TabHookContext): Promise<boolean>
   afterEdit(edit: TabAcceptedEdit): void
+  dispose?(): void
 }
 
 /** The last failure's class, fixed technical words (never code or a path). */
@@ -259,8 +263,17 @@ export interface TabProviderDeps {
   readonly spend: TabSpendGate
   /** Lane L's once-per-window question (the M94 integration branch injects it). */
   readonly consent: TabUseConsent
-  /** Lane K's hooks (absent until lane K lands). */
+  /** An injected bridge; production constructs it in the lazy Tab bundle. */
   readonly hooks?: TabHookBridge | undefined
+  readonly hookDispatch?:
+    | Omit<TabHooksDeps, 'isWorkspaceTrusted' | 'log'>
+    | {
+        readonly isHooksEnabled: () => boolean
+        readonly load: () => Promise<
+          Pick<ExtensionHookRunner, 'configurationVersion' | 'hasTabHooks' | 'runTab'> | undefined
+        >
+      }
+    | undefined
   /** The outcome of each trigger: the status bar follows it. */
   readonly onOutcome: (outcome: TabOutcome) => void
   readonly log: Logger
@@ -817,8 +830,9 @@ export interface TabActivationDeps {
    * with the price and the daily budget; nothing is sent before the answer.
    */
   readonly consent: TabUseConsent
-  /** Lane K's hooks (absent until lane K lands). */
+  /** An injected bridge; production constructs it in the lazy Tab bundle. */
   readonly hooks?: TabHookBridge | undefined
+  readonly hookDispatch?: TabProviderDeps['hookDispatch']
 }
 
 interface ActiveTab {
@@ -946,6 +960,7 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       spend,
       consent,
       hooks: deps.hooks,
+      hookDispatch: deps.hookDispatch,
       onOutcome: (outcome) => {
         // Deny snoozes the window (Q-M94a): set it before the status redraws.
         if (outcome.kind === 'quiet' && outcome.reason === 'consent-denied') {

@@ -1315,7 +1315,13 @@ async function activateWindow(
     }
     return absolutePath === root || absolutePath.startsWith(`${root}${path.sep}`)
   }
+  // Lane K: Tab's hook guard and dispatch bridge load with the lazy Tab
+  // bundle on first use; activation only hands the runner factory over.
   const tab = createTabActivation({
+    hookDispatch: {
+      isHooksEnabled: () => currentSettings().modelApiHooks,
+      load: () => hookRunnerFor(false),
+    },
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', TAB_BUNDLE_FILE).fsPath,
     log,
     isTabSettingOn: () => currentSettings().modelApiTab,
@@ -3157,10 +3163,10 @@ async function activateWindow(
     let loaded: ExtensionHooksModule
     try {
       loaded = await hookBundle.loadBundle()
-    } catch (error: unknown) {
-      log.warn(
-        `Extension hooks are unavailable: ${error instanceof Error ? error.message : String(error)}`,
-      )
+    } catch {
+      // Fixed words only: a bundle-load failure can name a path under the
+      // user's profile (M94 lane K).
+      log.warn('Extension hooks are unavailable')
       if (shouldAnnounceFailure) {
         void vscode.window.showWarningMessage(UI_TEXT.extensionHooksUnavailable)
       }

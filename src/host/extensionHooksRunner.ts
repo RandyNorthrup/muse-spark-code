@@ -11,6 +11,10 @@
 // drive it with fakes and the bundle gate keeps it out of activation.
 
 import { randomUUID } from 'node:crypto'
+import * as z from 'zod/mini'
+import type { TabHookRun } from '../core/tab/tabHooks'
+import type { ShellResult } from '../core/shellResult'
+import { MILLISECONDS_PER_SECOND } from '../shared/constants'
 import {
   configChangeFields,
   createFileChangedThrottle,
@@ -25,6 +29,7 @@ import {
   manualFields,
   messageDisplayFields,
   isFileChangedWatched,
+  isExtensionMatch,
   type ConfigChangeReason,
   type ExtensionHookContext,
   type ExtensionHookDefinition,
@@ -110,6 +115,8 @@ export class ExtensionHookRunner {
   private readonly fileChangedThrottle: FileChangedThrottle = createFileChangedThrottle()
   private readonly hostSessionId: string
   private hooks: readonly ExtensionHookDefinition[] = []
+  private version = 0
+  private pendingReload: Promise<readonly ExtensionHookDefinition[]> | undefined
 
   public constructor(private readonly deps: ExtensionHookRunnerDeps) {
     this.hostSessionId = `host:${deps.instanceId ?? randomUUID()}`
@@ -133,6 +140,10 @@ export class ExtensionHookRunner {
   /** The gates every firing checks: a trusted workspace and the opt-in. */
   private isArmed(): boolean {
     return this.deps.isWorkspaceTrusted() && this.deps.isHooksEnabled()
+  }
+
+  private async waitForReload(): Promise<void> {
+    while (this.pendingReload !== undefined) await this.pendingReload
   }
 
   /**
@@ -165,14 +176,79 @@ export class ExtensionHookRunner {
   }
 
   public async reload(): Promise<void> {
-    this.hooks =
+    this.version += 1
+    const version = this.version
+    const pending =
       this.deps.isWorkspaceTrusted() && this.deps.isHooksEnabled()
-        ? await loadSparkHookDefinitions(this.loadDeps)
-        : []
+        ? loadSparkHookDefinitions(this.loadDeps)
+        : Promise.resolve([])
+    this.pendingReload = pending
+    try {
+      const hooks = await pending
+      if (version === this.version && this.isArmed()) this.hooks = hooks
+      else if (!this.isArmed()) this.hooks = []
+    } finally {
+      if (this.pendingReload === pending) this.pendingReload = undefined
+    }
   }
 
   public snapshot(): readonly ExtensionHookDefinition[] {
     return this.hooks
+  }
+
+  public configurationVersion(): string {
+    return String(this.version)
+  }
+
+  public async hasTabHooks(event: TabHookRun['event']): Promise<boolean> {
+    await this.waitForReload()
+    const matcher = event === 'beforeTabFileRead' ? 'TabRead' : 'TabWrite'
+    return this.hooks.some(
+      (hook) => hook.event === event && isExtensionMatch(hook.matcher, matcher, this.deps.warn),
+    )
+  }
+
+  /** Raw endings: Tab decides before fail-open or onFailure handling can run. */
+  public async runTab(request: TabHookRun): Promise<readonly ShellResult[] | undefined> {
+    await this.waitForReload()
+    if (!this.isArmed()) return undefined
+    const selected = this.hooks.filter(
+      (hook) =>
+        hook.event === request.event &&
+        isExtensionMatch(hook.matcher, request.matcherValue, this.deps.warn),
+    )
+    const payload = z.record(z.string(), z.unknown()).parse(JSON.parse(request.stdin))
+    const version = this.version
+    const results: ShellResult[] = []
+    for (const hook of selected) {
+      let stdin = request.stdin
+      if (hook.foreign !== undefined) {
+        if (hook.foreign.format !== 'cursor') return undefined
+        const entry = await import('../core/backends/modelapi/foreignHooksEntry.js')
+        const built = entry.buildForeignStdin('cursor', request.event, payload, {
+          sourceEvent: hook.foreign.sourceEvent,
+          workspaceRoot: this.deps.workspaceRoot,
+          platform: this.deps.platform,
+        })
+        if (built.outcome !== 'run') return undefined
+        stdin = built.stdin
+      }
+      if (!this.isArmed() || version !== this.version) return undefined
+      const timeoutMs = Math.min(
+        request.maxTimeoutMs,
+        hook.timeoutSeconds * MILLISECONDS_PER_SECOND,
+      )
+      results.push(
+        await this.deps.runHook(
+          hook.command,
+          stdin,
+          this.deps.workspaceRoot,
+          timeoutMs,
+          AbortSignal.timeout(timeoutMs),
+        ),
+      )
+    }
+    return this.isArmed() && version === this.version ? results : undefined
   }
 
   /**
