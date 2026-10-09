@@ -4203,6 +4203,7 @@
   "anthropicCodecImageInvalid": "Anthropic 이미지에는 지원되는 이미지 형식의 base64 데이터 URL을 사용해야 합니다.",
   "anthropicCodecToolArgumentsInvalid": "Anthropic 도구 인수는 JSON 객체여야 합니다.",
   "anthropicCodecEffortUnsupported": "Anthropic은 이 추론 수준을 지원하지 않습니다.",
+  "chatCodecEffortUnsupported": "선택한 모델은 이 추론 수준을 지원하지 않습니다.",
   "anthropicCodecEmptyTurn": "Anthropic에는 메시지가 하나 이상 필요합니다.",
   "anthropicCodecLimitExceeded": "Anthropic 응답이 디코딩 한도를 초과했습니다.",
   "modelsEmpty": "아직 모델 공급자가 없습니다. 직접 모델을 사용하려면 추가하세요.",

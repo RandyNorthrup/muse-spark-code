@@ -4203,6 +4203,7 @@
   "anthropicCodecImageInvalid": "Anthropic 圖片必須使用支援圖片類型的 base64 資料 URL。",
   "anthropicCodecToolArgumentsInvalid": "Anthropic 工具參數必須是 JSON 物件。",
   "anthropicCodecEffortUnsupported": "Anthropic 不支援此推理等級。",
+  "chatCodecEffortUnsupported": "所選模型不支援此推理等級。",
   "anthropicCodecEmptyTurn": "Anthropic 至少需要一則訊息。",
   "anthropicCodecLimitExceeded": "Anthropic 回應超出了一個解碼限制。",
   "modelsEmpty": "尚無模型供應商。新增一個以使用自己的模型。",

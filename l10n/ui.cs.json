@@ -4551,6 +4551,7 @@
   "anthropicCodecImageInvalid": "Obrázky pro Anthropic musí používat datovou URL v base64 s podporovaným typem obrázku.",
   "anthropicCodecToolArgumentsInvalid": "Argumenty nástroje Anthropic musí být objekt JSON.",
   "anthropicCodecEffortUnsupported": "Anthropic tuto úroveň uvažování nepodporuje.",
+  "chatCodecEffortUnsupported": "Vybraný model tuto úroveň uvažování nepodporuje.",
   "anthropicCodecEmptyTurn": "Anthropic vyžaduje alespoň jednu zprávu.",
   "anthropicCodecLimitExceeded": "Odpověď Anthropic překročila limit dekódování.",
   "modelsEmpty": "Zatím žádní poskytovatelé modelů. Přidejte jednoho, abyste mohli používat vlastní modely.",

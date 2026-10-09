@@ -26,6 +26,7 @@ import * as z from 'zod/mini'
 import {
   CODEC_EMPTY_TOOL_OUTPUT,
   CODEC_IMAGE_WITHOUT_VISION,
+  THINKING_OFF_EFFORT,
   UI_TEXT,
 } from '../../../../shared/constants'
 import { cleanWireText, isBlankWireText, nativeCallId, type CallIdFormat } from './shared'
@@ -76,6 +77,20 @@ export interface ChatPresetQuirks {
    * own level names. Absent means the effort goes as it came.
    */
   readonly effortMap?: Readonly<Record<string, string>> | undefined
+  /**
+   * How effort `none` (Thinking off) reaches the wire: the preset's
+   * declared thinking-off switch sends `thinking: {type: "disabled"}`
+   * and omits the effort parameter. Absent keeps the preset's existing
+   * bytes. Lane P fills this from `presets.ts`.
+   */
+  readonly thinkingOff?: 'thinking-switch' | undefined
+  /**
+   * The selected model's declared effort levels, from its capability
+   * record (lane P fills this). A non-`none` effort the list cannot
+   * express is refused rather than sent unlisted. Absent (a direct
+   * caller with no record) sends the effort as it came.
+   */
+  readonly effortLevels?: readonly string[] | undefined
   /** Send `prompt_cache_key` (Mistral, Fireworks in the captures). */
   readonly sendCacheKey: boolean
   /** Send `stream_options: {include_usage: true}` (every capture). */
@@ -189,7 +204,7 @@ export interface ChatFunctionTool {
 /**
  * The native request body, built in this fixed key order: model, messages,
  * tools, tool_choice, parallel_tool_calls, stream, stream_options, the
- * output cap, provider, reasoning, prompt_cache_key, tool_stream.
+ * output cap, provider, reasoning, thinking, prompt_cache_key, tool_stream.
  */
 export interface ChatCompletionRequest {
   readonly model: string
@@ -213,6 +228,11 @@ export interface ChatCompletionRequest {
     | undefined
   readonly reasoning?: { readonly effort: string } | undefined
   readonly reasoning_effort?: string | undefined
+  /**
+   * The thinking-mode switch; only `disabled` is ever sent, for effort
+   * `none` on a preset that declares it. Never beside an effort value.
+   */
+  readonly thinking?: { readonly type: 'disabled' } | undefined
 }
 
 /** What the transport sends: codec-owned headers plus the JSON body. */
@@ -607,14 +627,28 @@ function nativeRouting(routing: ChatRouting): NonNullable<ChatCompletionRequest[
   }
 }
 
+class ChatCodecError extends Error {
+  override readonly name = 'ChatCodecError'
+}
+
 function nativeReasoning(
   body: CreateResponseBody,
   quirks: ChatPresetQuirks,
-): Pick<ChatCompletionRequest, 'reasoning' | 'reasoning_effort'> {
+): Pick<ChatCompletionRequest, 'reasoning' | 'reasoning_effort' | 'thinking'> {
   if (quirks.reasoningParam === 'none') {
     return {}
   }
+  if (body.reasoning.effort === THINKING_OFF_EFFORT && quirks.thinkingOff === 'thinking-switch') {
+    return { thinking: { type: 'disabled' } }
+  }
   const effort = quirks.effortMap?.[body.reasoning.effort] ?? body.reasoning.effort
+  if (
+    body.reasoning.effort !== THINKING_OFF_EFFORT &&
+    quirks.effortLevels !== undefined &&
+    !quirks.effortLevels.includes(effort)
+  ) {
+    throw new ChatCodecError(`${UI_TEXT.chatCodecEffortUnsupported} (unsupported_reasoning_effort)`)
+  }
   return quirks.reasoningParam === 'effort-object'
     ? { reasoning: { effort } }
     : { reasoning_effort: effort }

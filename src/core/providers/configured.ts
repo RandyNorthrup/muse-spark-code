@@ -474,6 +474,12 @@ export function createConfiguredProviderServices(
           ? 'max_completion_tokens'
           : 'max_tokens',
       reasoningParam,
+      // DeepSeek's declared thinking-off switch (presets.ts); the model's
+      // own declared effort levels gate any other effort at the codec.
+      ...(preset.quirks.thinkingOff !== undefined && { thinkingOff: preset.quirks.thinkingOff }),
+      ...(record.reasoning.effortLevels.state === 'yes' && {
+        effortLevels: record.reasoning.effortLevels.value,
+      }),
       sendCacheKey: record.cache.acceptsKey,
       includeUsage: true,
       toolStream: preset.id === 'zai',

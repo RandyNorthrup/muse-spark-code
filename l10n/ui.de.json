@@ -4319,6 +4319,7 @@
   "anthropicCodecImageInvalid": "Bilder für Anthropic müssen eine Base64-Daten-URL mit einem unterstützten Bildtyp verwenden.",
   "anthropicCodecToolArgumentsInvalid": "Werkzeugargumente für Anthropic müssen ein JSON-Objekt sein.",
   "anthropicCodecEffortUnsupported": "Diese Denkintensität wird von Anthropic nicht unterstützt.",
+  "chatCodecEffortUnsupported": "Diese Denkintensität wird vom ausgewählten Modell nicht unterstützt.",
   "anthropicCodecEmptyTurn": "Anthropic benötigt mindestens eine Nachricht.",
   "anthropicCodecLimitExceeded": "Die Antwort von Anthropic hat ein Dekodierungslimit überschritten.",
   "modelsEmpty": "Noch keine Modellanbieter. Fügen Sie einen hinzu, um Ihre eigenen Modelle zu verwenden.",

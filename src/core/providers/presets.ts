@@ -120,6 +120,14 @@ export interface FormatQuirks {
    * owner-confirmed strict capability; unknown/custom/local records stay off.
    */
   readonly supportsStrictTools: boolean
+  /**
+   * How the preset expresses reasoning effort `none` (Thinking off) on
+   * the wire. DeepSeek's thinking-mode switch (`thinking: {type:
+   * "disabled"}`, research D2 `guides/thinking_mode` and the lead's
+   * L98P2 live capture) is the only declared form. Absent keeps the
+   * preset's existing bytes.
+   */
+  readonly thinkingOff?: 'thinking-switch' | undefined
 }
 
 /** The five formats' defaults; presets override per provider. */
@@ -473,6 +481,10 @@ const DEEPSEEK_PRESET: ProviderPreset = {
   quirks: {
     reasoningField: 'reasoning_content',
     cachedUsageFields: ['prompt_tokens_details.cached_tokens', 'prompt_cache_hit_tokens'],
+    // The catalogue's DeepSeek `toggle` plus effort `[low, high, max]`
+    // (`vendor/models-dev/snapshot.json`): Thinking off is the documented
+    // thinking-mode switch, never `reasoning_effort: "none"`.
+    thinkingOff: 'thinking-switch',
   },
   wireCapture: true,
 }

@@ -4435,6 +4435,7 @@
   "anthropicCodecImageInvalid": "Les images pour Anthropic doivent utiliser une URL de données base64 avec un type d’image pris en charge.",
   "anthropicCodecToolArgumentsInvalid": "Les arguments des outils Anthropic doivent être un objet JSON.",
   "anthropicCodecEffortUnsupported": "Anthropic ne prend pas en charge ce niveau de raisonnement.",
+  "chatCodecEffortUnsupported": "Le modèle sélectionné ne prend pas en charge ce niveau de raisonnement.",
   "anthropicCodecEmptyTurn": "Anthropic nécessite au moins un message.",
   "anthropicCodecLimitExceeded": "La réponse d’Anthropic a dépassé une limite de décodage.",
   "modelsEmpty": "Aucun fournisseur de modèles pour l’instant. Ajoutez-en un pour utiliser vos propres modèles.",
