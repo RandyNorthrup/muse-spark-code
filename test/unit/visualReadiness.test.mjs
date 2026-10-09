@@ -1,22 +1,16 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import path from 'node:path'
-import { tmpdir } from 'node:os'
 import { chromium } from 'playwright-core'
-import { afterAll, afterEach, beforeAll, beforeEach, expect, it } from 'vitest'
-import { findChrome } from '../../scripts/lib/chrome.mjs'
+import { afterAll, afterEach, beforeAll, beforeEach, expect, inject, it } from 'vitest'
+import { REVIEW_BROWSER_KEY } from './helpers/reviewBrowser.mjs'
 import { CAPTURE_CONTEXT, waitForDeferredPaint } from '../harness/goldens/capture.mjs'
 
-const runtime = { profile: undefined, browser: undefined, page: undefined }
+const runtime = { connection: undefined, browser: undefined, page: undefined }
 beforeAll(async () => {
-  runtime.profile = await mkdtemp(path.join(tmpdir(), 'visual-readiness-'))
-  runtime.browser = await chromium.launchPersistentContext(runtime.profile, {
-    ...CAPTURE_CONTEXT,
-    executablePath: findChrome(),
-  })
+  runtime.connection = await chromium.connect(inject(REVIEW_BROWSER_KEY))
+  runtime.browser = await runtime.connection.newContext(CAPTURE_CONTEXT)
 })
 afterAll(async () => {
   await runtime.browser?.close()
-  if (runtime.profile !== undefined) await rm(runtime.profile, { recursive: true, force: true })
+  await runtime.connection?.close()
 })
 beforeEach(async () => {
   runtime.page = await runtime.browser.newPage()

@@ -314,22 +314,31 @@ async function stateShot(page, cdp, state, target) {
 }
 
 /** Streaming comparison avoids retaining thousands of images in memory. */
-export async function captureMatrix(root, audit, matrix, onCapture, groups) {
+export async function captureMatrix(root, audit, matrix, onCapture, groups, browserEndpoint) {
   const chrome = findChrome()
   if (chrome === undefined) throw new Error('Chrome is required for check:visual')
   const { server, port } = await serveRepo(root)
   let browser
+  let connection
   let profile
   let fixtures
   let totalBytes = 0
   const captures = []
   try {
-    fixtures = await makeFixtures(root, port)
-    profile = await mkdtemp(path.join(root, 'temp/m114-visual-profile-'))
-    browser = await chromium.launchPersistentContext(profile, {
-      ...CAPTURE_CONTEXT,
-      ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
-    })
+    // Ordinary chat scenes use the harness directly; they need none of the
+    // exceptional component/notes bundles that makeFixtures compiles.
+    if (audit.scenes.some((scene) => fixtureScenes.has(scene) || scene.startsWith('whats-new')))
+      fixtures = await makeFixtures(root, port)
+    if (browserEndpoint === undefined) {
+      profile = await mkdtemp(path.join(root, 'temp/m114-visual-profile-'))
+      browser = await chromium.launchPersistentContext(profile, {
+        ...CAPTURE_CONTEXT,
+        ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
+      })
+    } else {
+      connection = await chromium.connect(browserEndpoint)
+      browser = await connection.newContext(CAPTURE_CONTEXT)
+    }
     const rasterization = await rasterizationFingerprint(browser)
     const page = await browser.newPage()
     const errors = []
@@ -447,6 +456,7 @@ export async function captureMatrix(root, audit, matrix, onCapture, groups) {
     }
   } finally {
     await browser?.close()
+    await connection?.close()
     server.close()
     if (fixtures !== undefined)
       await rm(path.join(root, fixtures), { recursive: true, force: true })

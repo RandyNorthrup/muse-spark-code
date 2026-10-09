@@ -47,3 +47,97 @@ route refused with **Host key verification failed**. No SSH trust setting or
 known-host file was changed. An approved route or lead-run macOS receipts were
 requested while Linux work continued. Local Linux receipts do not certify
 macOS; remaining platform receipts will be recorded here explicitly.
+
+### 2. Visual setup and resource-history disposal
+
+Hosted setup causes are explicit in the failed stack frames: stability's
+first hook runs `scripts/build.mjs --production --webview-only`; readiness's
+first hook creates a persistent Chrome profile and starts the browser. Both
+spend their ten-second hook budget on cold process/compile work under hosted
+CPU contention. Stability also invokes the exceptional-fixture builder even
+for an ordinary scene. The history disposal case obtains admission from a
+real machine sampler whose probes have a five-second budget, equal to the
+case deadline, and whose machine pressure can queue admission.
+
+Fix: register visual stability and conversation review with the existing
+shared production build. Start one real Chrome server in global setup, before
+workers, selected only for owning suites; each suite/scene owns a separate
+context. Global setup stages stability's complete source/output copy; no
+capture mutates the shared build. Ordinary capture scenes compile no unused
+exceptional fixtures. Keep every scene, state, origin, raster and pixel
+assertion. The disposal test scripts only the machine sampler and retains
+real admission, disposal, filesystem journalling and the one-minute assertion.
+
+Rejected setup path: copying a capture root inside a timed hook. The first
+incomplete copy lacked the harness's unit helpers; adding those exposed the
+copy's own ten-second deadline. Stop that timed-copy path: global setup now
+owns staging before workers. The harness's estimator imports its JSON DAG
+fixture too, so a capture source copy carries the complete test input tree,
+not a guessed list of fixture subfolders. None of these setup failures was
+accepted as a passing receipt or addressed by a longer deadline.
+
+Linux receipt: complete readiness, stability and history-review files at
+repository defaults, **40/40 passed**, 36.57 seconds (`setup-green.log`).
+The unchanged pre-fix visual/conversation batch also passed **93/93** on this
+Linux rig in 123.56 seconds; Linux did not reproduce the hosted macOS
+cold-start failures.
+
+Disposal red drill: replace only `await state.flush?.()` in
+`src/core/resources/admission.ts` with a no-op. The complete history-review
+file exits 1: **35 passed, one failed**, precisely the window-disposal
+one-minute assertion (received zero lines). Restore byte-exact, confirmed by
+`cmp` and SHA-256 before/after:
+`3bd7f777d238af0fb2939f9c9dde9b01d4f5d46402b24014757d516ce7124ebe`.
+Log: `history-red.log`.
+
+Browser infrastructure drill: close the shared Chrome server immediately
+before workers connect. Readiness exits 1 with `browserType.connect:
+WebSocket error: connect ECONNREFUSED`; all three descendants are skipped by
+failed setup, not by a test edit. Restore byte-exact with `cmp` and SHA-256
+`91a496192bb25d1c09880dfa21003010b53dc3b7ce82df0773b7af406ca26365`.
+Log: `browser-red.log`.
+
+### 3. Conversation review setup and state measurement
+
+The review now reads the same globally built production webview as the
+packaging suites and connects to the pre-started browser. Its direct
+component contrast fixture has no fake-host scenario timers, so it waits for
+the real component mount and advances 100 ms instead of running 6.5 seconds
+of unnecessary animation-frame callbacks. Actual scenario pages retain
+6.5 seconds of scenario advancement, pause further timer progression during
+measurement, and wait for deferred controls to settle. Before comparing
+hover/pressed screenshots, advance paint callbacks: a computed style is not
+a compositor-frame receipt.
+
+No CSS, token, outline expectation, screenshot comparison, contrast threshold,
+state, theme, viewport or baseline changes. Linux: the complete conversation
+review and both lazy-load owners pass **92/92**, 155.32 seconds
+(`conversation-green.log`); the previously slow light contrast case takes
+1,473 ms. Every six-theme/narrow forced-colour feedback assertion remains.
+
+**Platform limit:** neither the original nor repaired review fails on this
+Linux rig. These setup/measurement corrections are verified here, but the
+macOS-only 3 px outline and equal-image failures cannot be declared closed
+without macOS replay. No speculative product CSS change is made.
+
+### 4. Lazy import rejection: caught, not unhandled
+
+The downloaded logs identify `resourceChatLoad.test.tsx` and
+`AppPaletteLazy.test.tsx`. Both pass in the hosted jobs. React explicitly
+reports that `SurfaceBoundary` caught the error and will recreate the tree.
+The jobs have no Vitest unhandled-error summary for these messages. A throwing
+Vitest import factory adds its generic mocking advice to the rejected import;
+React's development `defaultOnCaughtError` prints that caught error.
+
+The same complete owners pass locally, displaying the scoped failure and
+invoking the product's saved-state retry. No test catch, console suppression,
+product error swallowing or blanket rejection listener is introduced.
+
+Red proof: make `SurfaceBoundary.getDerivedStateFromError` retain `failed:
+false`. Both failure-path tests fail (**two failed, one passed**) and Vitest
+reports **one actual unhandled error**. This is observably different from the
+original handled-error logs. Restore `DeferredSurface.tsx` byte-exact with
+`cmp`; SHA-256 before/after
+`5e437aea8c23d69b3d1c56315ed7fdca3b31223a020eb833d4fc928e3bd6a306`.
+Log: `lazy-red.log`. The boundary was already the product's correct rejection
+owner; no product fix is warranted by the downloaded evidence.

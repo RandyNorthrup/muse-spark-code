@@ -16,15 +16,19 @@ import path from 'node:path'
 import { withoutCredentials } from '../../../src/runtime/credentialVariables'
 
 export const PRODUCTION_BUILD_KEY = 'productionBuild'
+export const VISUAL_BUILD_KEY = 'visualBuild'
 declare module 'vitest' {
   export interface ProvidedContext {
     [PRODUCTION_BUILD_KEY]: string
+    [VISUAL_BUILD_KEY]: string
   }
 }
 export const PRODUCTION_BUILD_SUITES = [
   '/runtimeChatGptPackage.test.ts',
   '/webviewBundle.test.mjs',
   '/execStdio.e2e.test.ts',
+  '/visualStability.test.mjs',
+  '/m114ConversationReview.test.mjs',
 ]
 
 export function buildProductionPackage(root: string, folder: string, shared?: unknown): void {
@@ -39,8 +43,7 @@ export function buildProductionPackage(root: string, folder: string, shared?: un
     'l10n',
     'docs',
     'media',
-    'test/integration',
-    'test/packaging',
+    'test',
   ])
     cpSync(path.join(root, source), path.join(folder, source), { recursive: true })
   for (const file of [

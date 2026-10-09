@@ -1,13 +1,14 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { contrastRatio } from '../../scripts/check-tokens.mjs'
-import { findChrome } from '../../scripts/lib/chrome.mjs'
+import { PRODUCTION_BUILD_KEY } from './helpers/productionPackage'
+import { REVIEW_BROWSER_KEY } from './helpers/reviewBrowser.mjs'
+import { waitForDeferredPaint } from '../harness/goldens/capture.mjs'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
-import { compactBrowserEnglish } from '../../scripts/lib/uiTextRegions.mjs'
 import { webviewStartupOutputs } from '../../scripts/lib/webviewBundles.mjs'
 
 const themes = ['light', 'dark', 'hc-dark', 'hc-light', 'one-dark-pro', 'dracula']
@@ -34,30 +35,18 @@ createRoot(document.getElementById('root')).render(<>
     onAnswer={noop} onCancelQuestion={noop} onMoveToBackground={noop} onStopTask={noop}
     canStopUserShell={false} onOpenEditDiff={noop} onOpenFile={noop}/>
 </>);`
-const buildOptions = {
-  entryPoints: ['src/webview/main.tsx'],
-  outdir: 'dist/webview',
-  bundle: true,
-  minify: true,
-  metafile: true,
-  write: false,
-  charset: 'utf8',
-  platform: 'browser',
-  format: 'esm',
-  splitting: true,
-  chunkNames: 'chunks/[hash]',
-  target: 'chrome128',
-  jsx: 'automatic',
-  define: { 'process.env.NODE_ENV': '"production"' },
-}
-
 beforeAll(async () => {
-  const bundle = await build({ ...buildOptions, plugins: [compactBrowserEnglish] })
+  const shared = inject(PRODUCTION_BUILD_KEY)
+  const browserFiles = await readdir(path.join(shared, 'dist/webview'), { recursive: true })
   runtime.outputs = new Map(
-    bundle.outputFiles.map((file) => [
-      `/${path.relative(process.cwd(), file.path).replaceAll('\\', '/')}`,
-      file.text,
-    ]),
+    await Promise.all(
+      browserFiles
+        .filter((file) => /\.(?:js|css)$/.test(file))
+        .map(async (file) => [
+          `/dist/webview/${file.replaceAll('\\', '/')}`,
+          await readFile(path.join(shared, 'dist/webview', file), 'utf8'),
+        ]),
+    ),
   )
   runtime.css = runtime.outputs.get('/dist/webview/main.css')
   const fixture = await build({
@@ -82,11 +71,7 @@ beforeAll(async () => {
       ]),
     ),
   )
-  const chrome = findChrome()
-  if (chrome === undefined) throw new Error('Chrome is required for the review regressions')
-  runtime.browser = await chromium.launch({
-    ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
-  })
+  runtime.browser = await chromium.connect(inject(REVIEW_BROWSER_KEY))
   Object.assign(runtime, await serveRepo(process.cwd()))
 })
 
@@ -127,7 +112,13 @@ async function pageFor(theme, scene, forcedColors = 'none') {
         })
       return url.hostname === '127.0.0.1' ? route.continue() : route.abort()
     })
-    if (scene !== 'jump') await page.clock.install({ time: new Date('2026-10-06T12:00:00Z') })
+    if (scene !== 'jump') {
+      const time = new Date('2026-10-06T12:00:00Z')
+      await page.clock.install({ time })
+      // Async chunk I/O continues, but scenario timers cannot replace a
+      // measured control between CDP pseudo-state changes and screenshots.
+      if (scene !== undefined) await page.clock.pauseAt(new Date(time.getTime() + 60_000))
+    }
     if (scene === undefined)
       await page.setContent(
         `<!doctype html><html lang="en"><title>Review fixture</title><style>${runtime.css}</style><main id="root"></main></html>`,
@@ -180,7 +171,14 @@ async function pageFor(theme, scene, forcedColors = 'none') {
           .locator('textarea, .gate, .todo-surface, .schedule-v2-surface, [role="alert"]')
           .first()
           .waitFor({ state: 'attached' })
-      await page.clock.runFor(6500)
+      if (scene === undefined) {
+        // The direct component fixture has no fake-host scenario timers.
+        await page.locator('.hook-edited button').waitFor({ state: 'attached' })
+        await page.clock.runFor(100)
+      } else {
+        await page.clock.runFor(6500)
+        await waitForDeferredPaint(page, scene)
+      }
     }
     return page
   } catch (error) {
@@ -249,6 +247,9 @@ async function forcedColorStates(page, selector) {
       width: Math.min(320, box.x + box.width + 6) - Math.max(0, box.x - 6),
       height: Math.min(760, box.y + box.height + 6) - Math.max(0, box.y - 6),
     }
+    // Flush the frozen clock's paint callbacks before asking the compositor
+    // for pixels. Computed style alone does not prove a frame has painted.
+    await page.clock.runFor(100)
     const hoverImage = await page.screenshot({ clip, animations: 'disabled' })
     await forced.session.send('CSS.forcePseudoState', {
       nodeId: forced.nodeId,
@@ -260,6 +261,7 @@ async function forcedColorStates(page, selector) {
     expect(pressed.outlineStyle, selector).toBe('solid')
     expect(pressed.outlineColor, selector).toBe(highlight)
     expect(pressed.outlineOffset, selector).toBe('0px')
+    await page.clock.runFor(100)
     const pressedImage = await page.screenshot({ clip, animations: 'disabled' })
     expect(pressedImage.equals(hoverImage), selector).toBe(false)
     for (const states of [
