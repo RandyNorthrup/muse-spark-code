@@ -5,6 +5,8 @@
 import { randomBytes } from 'node:crypto'
 import { mkdir, open, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
+import * as z from 'zod/mini'
 import {
   CONNECTOR_FILE_MODE,
   CONNECTOR_FOLDER,
@@ -17,11 +19,47 @@ import {
   type ConnectorGrant,
 } from '../../shared/connector'
 import type { AuditPort } from '../../core/connector/audit'
+import type { LimitState, LimitsPort } from '../../core/connector/policy'
 
 const AUDIT_KEY_BYTES = 32
+/** A lock older than this belongs to a process that died holding it. */
+const LOCK_STALE_MS = 5000
+const LOCK_RETRY_MS = 10
+const LOCK_TRIES = 200
+
+const limitStateSchema = z.strictObject({
+  tokens: z.number(),
+  last: z.number(),
+  leases: z.array(
+    z.strictObject({ id: z.string(), kind: z.enum(['read', 'pending']), until: z.number() }),
+  ),
+})
 
 function isMissing(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ENOENT'
+}
+
+/** An exclusive lock file; one left by a dead process is taken over once it is stale. */
+async function acquire(lock: string): Promise<void> {
+  for (let attempt = 0; attempt < LOCK_TRIES; attempt += 1) {
+    try {
+      const handle = await open(lock, 'wx', CONNECTOR_FILE_MODE)
+      await handle.close()
+      return
+    } catch (error: unknown) {
+      if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
+    }
+    let age = 0
+    try {
+      const held = await stat(lock)
+      age = Date.now() - held.mtimeMs
+    } catch {
+      /* Released meanwhile: try again. */
+    }
+    if (age > LOCK_STALE_MS) await rm(lock, { force: true })
+    else await sleep(LOCK_RETRY_MS)
+  }
+  throw new Error('ELOCKED')
 }
 
 export class ConnectorStore {
@@ -104,6 +142,37 @@ export class ConnectorStore {
       `${JSON.stringify({ on: isOn, at: nowIso })}\n`,
       { mode: CONNECTOR_FILE_MODE },
     )
+  }
+
+  /**
+   * The connection's limit state, shared by every server process of that
+   * connection and kept across restarts: read, changed and replaced whole
+   * under an exclusive lock file. Any failure throws, and the caller refuses.
+   */
+  public limits(connectionId: string): LimitsPort {
+    return {
+      update: async (change) => {
+        const file = path.join(await this.folder('limits'), `${connectionId}.json`)
+        const lock = `${file}.lock`
+        const temp = `${file}.${randomBytes(CONNECTOR_LIMITS.idBytes).toString('hex')}.tmp`
+        await acquire(lock)
+        try {
+          let saved: LimitState | undefined
+          try {
+            saved = limitStateSchema.parse(JSON.parse(await readFile(file, 'utf8')))
+          } catch (error: unknown) {
+            if (!isMissing(error)) throw error
+          }
+          const [next, value] = change(saved)
+          await writeFile(temp, JSON.stringify(next), { mode: CONNECTOR_FILE_MODE, flag: 'wx' })
+          await rename(temp, file)
+          return value
+        } finally {
+          await rm(temp, { force: true })
+          await rm(lock, { force: true })
+        }
+      },
+    }
   }
 
   /** Bounded JSONL: one live segment and one older one, pruned after the retention. */

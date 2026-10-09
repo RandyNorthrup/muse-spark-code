@@ -77,44 +77,83 @@ export function grantScopes(requested: readonly ConnectorScope[]): ConnectorScop
   return [...scopes]
 }
 
-/** A token bucket: `burst` at once, refilled to `perMinute` per minute. */
-export class CallLimiter {
-  private tokens: number
-  private last: number
-
-  public constructor(
-    private readonly now: () => number,
-    private readonly perMinute: number = CONNECTOR_LIMITS.callsPerMinute,
-    private readonly burst: number = CONNECTOR_LIMITS.burst,
-  ) {
-    this.tokens = burst
-    this.last = now()
-  }
-
-  public take(): boolean {
-    const at = this.now()
-    const refill = ((at - this.last) * this.perMinute) / CONNECTOR_LIMITS.minuteMs
-    this.tokens = Math.min(this.burst, this.tokens + refill)
-    this.last = at
-    if (this.tokens < 1) return false
-    this.tokens -= 1
-    return true
-  }
+/** A connection's shared limit state: its token bucket and its leases. */
+export interface LimitState {
+  readonly tokens: number
+  readonly last: number
+  readonly leases: readonly LimitLease[]
+}
+export interface LimitLease {
+  readonly id: string
+  readonly kind: 'read' | 'pending'
+  readonly until: number
 }
 
-/** Concurrent ordinary reads; Stop never counts against it. */
-export class ActiveReads {
-  private active = 0
+/**
+ * The saved state behind every server process of one connection (store.ts
+ * holds it in a locked file), so a second process or a restart gets no
+ * fresh allowance. `update` applies one change atomically or throws.
+ */
+export interface LimitsPort {
+  readonly update: <T>(change: (state: LimitState | undefined) => [LimitState, T]) => Promise<T>
+}
 
-  public constructor(private readonly max: number = CONNECTOR_LIMITS.activeReads) {}
+const LEASE_MAX = { read: CONNECTOR_LIMITS.activeReads, pending: CONNECTOR_LIMITS.pendingApprovals }
 
-  public enter(): boolean {
-    if (this.active >= this.max) return false
-    this.active += 1
-    return true
+/**
+ * The grant's limits: a token bucket (`burst` at once, `callsPerMinute`
+ * refill) and bounded leases for active reads and pending approvals. A
+ * lease expires on its own, so a crashed process never holds a slot. An
+ * unreadable state refuses (fail closed). Stop never comes here.
+ */
+export class SharedLimits {
+  public constructor(
+    private readonly port: LimitsPort,
+    private readonly now: () => number,
+  ) {}
+
+  private async apply(change: (state: LimitState, at: number) => LimitState | undefined) {
+    const at = this.now()
+    try {
+      return await this.port.update((saved) => {
+        const state: LimitState = {
+          tokens: Math.min(
+            CONNECTOR_LIMITS.burst,
+            saved === undefined
+              ? CONNECTOR_LIMITS.burst
+              : saved.tokens +
+                  (Math.max(0, at - saved.last) * CONNECTOR_LIMITS.callsPerMinute) /
+                    CONNECTOR_LIMITS.minuteMs,
+          ),
+          last: Math.max(at, saved?.last ?? at),
+          leases: (saved?.leases ?? []).filter((lease) => lease.until > at),
+        }
+        const next = change(state, at)
+        return [next ?? state, next !== undefined]
+      })
+    } catch {
+      return false
+    }
   }
 
-  public leave(): void {
-    this.active = Math.max(0, this.active - 1)
+  public take(): Promise<boolean> {
+    return this.apply((state) =>
+      state.tokens < 1 ? undefined : { ...state, tokens: state.tokens - 1 },
+    )
+  }
+
+  public enter(kind: LimitLease['kind'], id: string, ttlMs: number): Promise<boolean> {
+    return this.apply((state, at) =>
+      state.leases.filter((lease) => lease.kind === kind).length >= LEASE_MAX[kind]
+        ? undefined
+        : { ...state, leases: [...state.leases, { id, kind, until: at + ttlMs }] },
+    )
+  }
+
+  public async leave(id: string): Promise<void> {
+    await this.apply((state) => ({
+      ...state,
+      leases: state.leases.filter((lease) => lease.id !== id),
+    }))
   }
 }

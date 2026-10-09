@@ -1,7 +1,8 @@
 // M124 (D106): the connector's registry and policy through the real MCP
 // protocol class, with fake owner ports. Approval can only come from the
 // approval page's `decide`; Stop never asks; results are scrubbed.
-import { describe, expect, it } from 'vitest'
+import { PassThrough } from 'node:stream'
+import { describe, expect, it, vi } from 'vitest'
 import {
   CONNECTOR_LIMITS,
   CONNECTOR_MODEL_TEXT,
@@ -12,10 +13,12 @@ import { CONNECTOR_TOOLS } from '../../src/shared/connectorTools'
 import type { SavedPrompt } from '../../src/shared/prompts'
 import { ApprovalLedger, bindingDigest } from '../../src/core/connector/approval'
 import { ConnectorAudit, type AuditPort } from '../../src/core/connector/audit'
+import type { LimitState, LimitsPort } from '../../src/core/connector/policy'
 import { ConnectorProtocol } from '../../src/core/connector/protocol'
 import { createConnectorScrub } from '../../src/core/connector/redaction'
 import { ConnectorRegistry, type RegistryDeps } from '../../src/core/connector/registry'
 import { createChatSharePrivacy } from '../../src/core/sharing/privacy'
+import { serveStdio } from '../../src/runtime/connector/stdio'
 
 /** The awaited result's field (the lint rule forbids member access on an await). */
 async function field<T extends object, K extends keyof T>(
@@ -69,6 +72,18 @@ function prompt(overrides: Partial<SavedPrompt> = {}): SavedPrompt {
   }
 }
 
+/** The limit file's behaviour in memory: one saved state, changed whole. */
+function memoryLimits(): LimitsPort {
+  let saved: LimitState | undefined
+  return {
+    update: (change) => {
+      const [next, value] = change(saved)
+      saved = next
+      return Promise.resolve(value)
+    },
+  }
+}
+
 interface Harness {
   readonly registry: ConnectorRegistry
   readonly protocol: ConnectorProtocol
@@ -84,11 +99,15 @@ interface Harness {
     audit: string[]
     paused: string[]
     confidential: boolean | undefined
+    /** Gates that hold a port until released: audit events by name, `list`, `write`. */
+    holds: Set<string>
+    held: (() => void)[]
+    listFails: boolean
   }
   call(name: string, args?: unknown): Promise<Record<string, unknown>>
 }
 
-async function harness(): Promise<Harness> {
+async function harness(limits: LimitsPort = memoryLimits()): Promise<Harness> {
   const state: Harness['state'] = {
     grant: grantOf(),
     killed: false,
@@ -101,12 +120,22 @@ async function harness(): Promise<Harness> {
     audit: [],
     paused: [],
     confidential: false,
+    holds: new Set(),
+    held: [],
+    listFails: false,
   }
+  const gate = (name: string) =>
+    state.holds.has(name)
+      ? new Promise<void>((resolve) => {
+          state.held.push(resolve)
+        })
+      : Promise.resolve()
   const port: AuditPort = {
-    append: (line) => {
-      if (state.auditFails) return Promise.reject(new Error('disk full'))
+    append: async (line) => {
+      if (state.auditFails) throw new Error('disk full')
+      const event = (JSON.parse(line) as { event: string }).event
+      await gate(event)
       state.audit.push(line)
-      return Promise.resolve()
     },
     key: () => Promise.resolve(new Uint8Array(32).fill(7)),
   }
@@ -126,6 +155,7 @@ async function harness(): Promise<Harness> {
     killed: () => Promise.resolve(state.killed),
     confidential: () => state.confidential,
     audit: new ConnectorAudit(port, 'codex', now, scrub.text),
+    limits,
     scrub,
     surface: {
       show: () => {
@@ -135,12 +165,15 @@ async function harness(): Promise<Harness> {
       changed: () => undefined,
     },
     prompts: {
-      list: (_root, scope) =>
-        Promise.resolve(state.prompts.filter((candidate) => candidate.scope === scope)),
-      write: (_root, saved) => {
+      list: async (_root, scope) => {
+        await gate('list')
+        if (state.listFails) throw new Error(`EACCES ${HOME}/private`)
+        return state.prompts.filter((candidate) => candidate.scope === scope)
+      },
+      write: async (_root, saved) => {
+        await gate('write')
         state.writes.push(saved)
         state.prompts.push(saved)
-        return Promise.resolve()
       },
       preview: (_root, saved, format) => `${format}:${saved.body}`,
     },
@@ -165,7 +198,8 @@ async function harness(): Promise<Harness> {
       },
     },
     reports: {
-      generate: (root, kind) => Promise.resolve(`# ${kind} report for ${root}`),
+      generate: (root, kind, subjectId) =>
+        Promise.resolve(`# ${kind} report for ${root} ${subjectId ?? ''} private-narrative`),
     },
   }
   const registry = new ConnectorRegistry(deps, 'muse-spark-code')
@@ -547,5 +581,307 @@ describe('M124 one-use approvals', () => {
     expect(open()).toBeDefined()
     expect(open()).toBeUndefined()
     expect(ledger.cancelAll()).toHaveLength(CONNECTOR_LIMITS.pendingApprovals)
+  })
+})
+
+/** Lets queued promise work run (real timers). */
+async function flush(): Promise<void> {
+  for (let index = 0; index < 5; index += 1) await new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+function release(h: Harness): void {
+  h.state.holds.clear()
+  for (const resolve of h.state.held.splice(0)) resolve()
+}
+
+function events(h: Harness): { event: string; tool?: string; reason?: string }[] {
+  return h.state.audit.map(
+    (line) => JSON.parse(line) as { event: string; tool?: string; reason?: string },
+  )
+}
+
+async function approveFirst(h: Harness): Promise<void> {
+  const [intent] = h.registry.pending()
+  expect(h.registry.decide(intent?.intentId ?? '', intent?.digest ?? '', true)).toBe(true)
+  await Promise.resolve()
+}
+
+/** Saves, approves, holds the dispatch at `hold`, then stops the operation. */
+async function stopWhileHeld(h: Harness, hold: string) {
+  const { operationId } = (await field(h.call('muse_prompt_save', SAVE), 'data')) as {
+    operationId: string
+  }
+  h.state.holds.add(hold)
+  await approveFirst(h)
+  await vi.waitFor(() => {
+    expect(h.state.held).toHaveLength(1)
+  })
+  const stop = await h.call('muse_stop', {
+    workspaceId: 'ws-1',
+    target: { kind: 'operation', id: operationId },
+  })
+  return { operationId, stop }
+}
+
+const REPORT = { workspaceId: 'ws-1', kind: 'project', format: 'markdown' }
+
+describe('M124 review fixes (RVM124)', () => {
+  it('returns report bodies only with the content grant; metadata otherwise (P1)', async () => {
+    const h = await harness()
+    h.state.grant = grantOf({
+      scopes: ['reports:read'],
+      workspaces: [{ id: 'ws-1', root: '/work/repo', label: 'repo', content: false }],
+    })
+    const metadata = await h.call('muse_report', REPORT)
+    expect(metadata['status']).toBe('ok')
+    expect(metadata['data']).toEqual({ kind: 'project', format: 'markdown', contentWithheld: true })
+    expect(JSON.stringify(metadata)).not.toContain('private-narrative')
+    // The workspace's content flag alone is not the content scope, and the reverse.
+    h.state.grant = grantOf({ scopes: ['reports:read'] })
+    expect(JSON.stringify(await h.call('muse_report', REPORT))).not.toContain('private-narrative')
+    h.state.grant = grantOf({
+      workspaces: [{ id: 'ws-1', root: '/work/repo', label: 'repo', content: false }],
+    })
+    expect(JSON.stringify(await h.call('muse_report', REPORT))).not.toContain('private-narrative')
+    h.state.grant = grantOf()
+    expect(JSON.stringify(await h.call('muse_report', REPORT))).toContain('private-narrative')
+  })
+
+  it('never writes after Stop cancels a consumed approval that is still dispatching (P2-2)', async () => {
+    const h = await harness()
+    const { operationId, stop } = await stopWhileHeld(h, 'dispatched')
+    expect(stop['data']).toEqual({ outcome: 'stopped' })
+    release(h)
+    await flush()
+    expect(h.state.writes).toEqual([])
+    h.state.now += CONNECTOR_LIMITS.pollMinMs
+    const status = await h.call('muse_operation_get', { operationId })
+    expect((status['data'] as { state: string }).state).toBe('cancelled')
+  })
+
+  it('reports stopRequested, not stopped, once the effect has started (P2-2)', async () => {
+    const h = await harness()
+    const { stop } = await stopWhileHeld(h, 'write')
+    expect(stop['data']).toEqual({ outcome: 'stopRequested' })
+    release(h)
+    await flush()
+    expect(h.state.writes).toHaveLength(1)
+  })
+
+  it('opens no approvable write for a cancelled call (P2-3)', async () => {
+    const h = await harness()
+    h.state.holds.add('list')
+    const reply = h.protocol.handle(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 77,
+        method: 'tools/call',
+        params: { name: 'muse_prompt_save', arguments: SAVE },
+      }),
+    )
+    await vi.waitFor(() => {
+      expect(h.state.held).toHaveLength(1)
+    })
+    await h.protocol.handle(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'notifications/cancelled',
+        params: { requestId: 77 },
+      }),
+    )
+    expect(await reply).toBeUndefined()
+    release(h)
+    await flush()
+    expect(h.registry.pending()).toEqual([])
+    expect(h.state.shown).toBe(0)
+  })
+
+  it('opens no approvable write after the client disconnects over stdio (P2-3)', async () => {
+    const h = await harness()
+    const input = new PassThrough()
+    const output = new PassThrough()
+    output.resume()
+    const served = serveStdio({ input, output }, h.protocol)
+    h.state.holds.add('list')
+    input.write(
+      `${JSON.stringify({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'muse_prompt_save', arguments: SAVE } })}\n`,
+    )
+    await vi.waitFor(() => {
+      expect(h.state.held).toHaveLength(1)
+    })
+    input.end()
+    await served
+    release(h)
+    await flush()
+    expect(h.registry.pending()).toEqual([])
+    expect(h.state.shown).toBe(0)
+    expect(await field(h.call('muse_prompt_list', { scope: 'user' }), 'status')).toBe('refused')
+  })
+
+  it('shares the rate limit between servers of one grant (P2-7)', async () => {
+    const shared = memoryLimits()
+    const first = await harness(shared)
+    const second = await harness(shared)
+    const answers = []
+    for (let index = 0; index < 2 * CONNECTOR_LIMITS.burst; index += 1)
+      answers.push(
+        await (index % 2 === 0 ? first : second).call('muse_prompt_list', { scope: 'user' }),
+      )
+    expect(answers.filter((answer) => answer['status'] === 'ok')).toHaveLength(
+      CONNECTOR_LIMITS.burst,
+    )
+  })
+
+  it('settles every read at the deadline, frees its slot and drops the late answer (P2-8)', async () => {
+    const h = await harness()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      h.state.holds.add('list')
+      let answer: Record<string, unknown> | undefined
+      void h.call('muse_prompt_get', { promptId: 'p1' }).then((value) => {
+        answer = value
+      })
+      await vi.advanceTimersByTimeAsync(CONNECTOR_LIMITS.requestDeadlineMs + 1)
+      expect(answer).toMatchObject({ status: 'refused', reason: 'unavailable' })
+      // The stalled read no longer holds one of the four read slots.
+      h.state.holds.clear()
+      const reads = await Promise.all(
+        Array.from({ length: CONNECTOR_LIMITS.activeReads }, () =>
+          h.call('muse_prompt_list', { scope: 'user' }),
+        ),
+      )
+      expect(reads.map((read) => read['status'])).toEqual(
+        Array.from({ length: CONNECTOR_LIMITS.activeReads }, () => 'ok'),
+      )
+      release(h)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(answer).toMatchObject({ status: 'refused', reason: 'unavailable' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('bounds the complete MCP result, text and structured copy, to 64 KiB (P2-9)', async () => {
+    const h = await harness()
+    h.state.prompts = [prompt({ body: 'Plain words. '.repeat(3077) })]
+    const reply = await h.protocol.handle(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'muse_prompt_get', arguments: { promptId: 'p1' } },
+      }),
+    )
+    const result = (reply as { result: { structuredContent: Record<string, unknown> } }).result
+    expect(new TextEncoder().encode(JSON.stringify(result)).byteLength).toBeLessThanOrEqual(
+      CONNECTOR_LIMITS.resultBytes,
+    )
+    expect(result.structuredContent['message']).toBe(CONNECTOR_MODEL_TEXT.tooLarge)
+  })
+
+  it('leaves an audit receipt for every refusal (P2-10)', async () => {
+    const h = await harness()
+    await h.call('muse_no_such_tool')
+    await h.call('muse_fleet_status')
+    h.state.killed = true
+    await h.call('muse_prompt_list', { scope: 'user' })
+    h.state.killed = false
+    for (let index = 0; index < CONNECTOR_LIMITS.burst + 1; index += 1)
+      await h.call('muse_prompt_list', { scope: 'user', page: { limit: 0 } })
+    const refused = events(h).filter((record) => record.event === 'refused')
+    expect(refused[0]).toEqual(expect.not.objectContaining({ tool: expect.anything() }))
+    expect(refused.map((record) => record.reason)).toEqual([
+      'unavailable',
+      'unavailable',
+      'forbidden',
+      ...Array.from({ length: CONNECTOR_LIMITS.burst }, () => 'invalid_input'),
+      'rate_limited',
+    ])
+  })
+
+  it('lets a user-library-only grant stop its own operation (P2-12)', async () => {
+    const h = await harness()
+    h.state.grant = grantOf({
+      scopes: ['prompts:write', 'operations:read', 'control:stop'],
+      workspaces: [],
+    })
+    const { operationId } = (await field(h.call('muse_prompt_save', SAVE), 'data')) as {
+      operationId: string
+    }
+    const stop = await h.call('muse_stop', { target: { kind: 'operation', id: operationId } })
+    expect(stop).toMatchObject({ status: 'ok', data: { outcome: 'stopped' } })
+    expect(h.registry.pending()).toEqual([])
+  })
+
+  it('settles the operation when an owner read fails, before or after approval (P2-13)', async () => {
+    const h = await harness()
+    h.state.listFails = true
+    expect(await field(h.call('muse_prompt_save', SAVE), 'reason')).toBe('unavailable')
+    h.state.listFails = false
+    const retry = await h.call('muse_prompt_save', SAVE)
+    expect(retry).toMatchObject({ status: 'ok', data: { state: 'failed' } })
+    const pending = await h.call('muse_prompt_save', { ...SAVE, requestId: 'r2' })
+    const { operationId } = pending['data'] as { operationId: string }
+    h.state.listFails = true
+    await approveFirst(h)
+    await flush()
+    h.state.now += CONNECTOR_LIMITS.pollMinMs
+    const status = await h.call('muse_operation_get', { operationId })
+    expect((status['data'] as { state: string }).state).toBe('failed')
+    expect(h.state.writes).toEqual([])
+  })
+
+  it('answers a retry with the real state of the operation (P2-14)', async () => {
+    const h = await harness()
+    await h.call('muse_prompt_save', SAVE)
+    await approveFirst(h)
+    await flush()
+    const again = await h.call('muse_prompt_save', SAVE)
+    expect(again).toMatchObject({ status: 'ok', data: { state: 'completed' } })
+    expect(h.state.writes).toHaveLength(1)
+  })
+})
+
+describe('M124 settled intents (RVM124 P2-6)', () => {
+  it('drops payloads at settlement and keeps a bounded history', () => {
+    let now = 0
+    const ledger = new ApprovalLedger(
+      () => now,
+      () => undefined,
+    )
+    const ids: string[] = []
+    for (let cycle = 0; cycle < 600; cycle += 1) {
+      const id = ledger.open(
+        {
+          principal: 'p',
+          grantGeneration: 1,
+          workspaceId: undefined,
+          tool: 't',
+          toolClass: 'write',
+          payload: { body: `raw prompt ${String(cycle)}` },
+          targetGeneration: 0,
+          priceMicrousd: 0,
+        },
+        {
+          client: '',
+          connectionId: 'c',
+          workspace: 'w',
+          tool: 't',
+          toolClass: 'write',
+          generation: 0,
+          priceMicrousd: 0,
+          fields: [],
+        },
+      )
+      ids.push(id ?? '')
+      const [view] = ledger.pending()
+      if (cycle % 2 === 0) ledger.decide(id ?? '', view?.digest ?? '', false)
+      else now += CONNECTOR_LIMITS.approvalLeaseMs + 1
+    }
+    ledger.expireDue()
+    expect(ledger.size).toBe(0)
+    expect(ledger.stateOf(ids[0] ?? '')).toBeUndefined()
+    expect(ledger.stateOf(ids.at(-2) ?? '')).toBe('denied')
+    expect(ledger.stateOf(ids.at(-1) ?? '')).toBe('expired')
   })
 })

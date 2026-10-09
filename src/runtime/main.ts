@@ -1603,10 +1603,16 @@ async function main(): Promise<number> {
             },
             reports: {
               generate: async (root, kind, subjectId, signal) => {
-                const result = await reports().acp.execute(
-                  [kind, ...(subjectId === undefined ? [] : ['--milestone', subjectId])].join(' '),
-                  { cwd: root, sessionId: 'connector', format: 'md', signal },
-                )
+                // M113's own grammar: a positional subject, except playbook's --milestone.
+                let subject: string[] = []
+                if (subjectId !== undefined)
+                  subject = kind === 'playbook' ? ['--milestone', subjectId] : [subjectId]
+                const result = await reports().acp.execute([kind, ...subject].join(' '), {
+                  cwd: root,
+                  sessionId: 'connector',
+                  format: 'md',
+                  signal,
+                })
                 if (result.code !== 0) throw new Error(UI_TEXT.reportUi.generationFailed)
                 return result.text
               },

@@ -104,6 +104,7 @@ export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> 
       killed: () => store.isKilled(),
       confidential: runtimeSharingConfidential,
       audit,
+      limits: store.limits(command.connectionId),
       scrub,
       schedules: deps.schedules,
       reports: deps.reports,

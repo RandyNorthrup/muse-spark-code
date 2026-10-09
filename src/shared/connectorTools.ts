@@ -96,7 +96,7 @@ export const CONNECTOR_TOOLS: readonly ConnectorToolSpec[] = [
           'id',
         ]),
       },
-      ['workspaceId', 'target'],
+      ['target'],
     ),
   ),
   unavailable('muse_playbook_advice', 'read', ['advice:read'], 'reasonAdviceNotWired'),

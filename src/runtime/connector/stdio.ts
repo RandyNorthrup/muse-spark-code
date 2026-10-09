@@ -3,7 +3,7 @@
 // stdout (diagnostics go to stderr through the runtime logger). A line over
 // the frame bound is refused before it is parsed and discarded up to its end.
 // Calls run concurrently, so a cancellation can reach a call in flight;
-// replies are written in completion order.
+// replies are written in completion order, within bounded admission.
 import type { Readable, Writable } from 'node:stream'
 import { CONNECTOR_LIMITS, JSON_RPC_ERRORS } from '../../shared/constants'
 import { ConnectorProtocol, type FrameReply } from '../../core/connector/protocol'
@@ -59,22 +59,52 @@ class LineFramer {
   }
 }
 
-/** Serves until stdin ends or stdout closes; resolves after the last reply is written. */
+/**
+ * Serves until stdin ends or stdout closes, whichever is first: either side
+ * closing is the client's disconnect. Work is admitted, not unbounded: at
+ * most `transportTasks` frames at once (busy beyond that), with
+ * `controlTasks` more kept for Stop, schedule cancel and cancellation
+ * notices. Replies honour stdout's backpressure; a client that leaves more
+ * than `outputQueueBytes` unread is disconnected. Resolves after the last
+ * reply is written.
+ */
 export async function serveStdio(
   handles: StdioHandles,
   protocol: Pick<ConnectorProtocol, 'handle' | 'close'>,
   maxFrameBytes: number = CONNECTOR_LIMITS.frameBytes,
 ): Promise<void> {
   const pending = new Set<Promise<void>>()
-  const state = { isClosed: false }
-  const onClose = () => {
+  const state = { isClosed: false, isWaiting: false, queued: 0 }
+  const queue: string[] = []
+  const close = () => {
+    if (state.isClosed) return
     state.isClosed = true
+    queue.length = 0
+    protocol.close()
+    handles.input.destroy()
   }
-  handles.output.once('close', onClose)
-  handles.output.once('error', onClose)
+  const flush = () => {
+    while (!state.isWaiting && !state.isClosed) {
+      const line = queue.shift()
+      if (line === undefined) return
+      state.queued -= Buffer.byteLength(line)
+      if (handles.output.write(line)) continue
+      state.isWaiting = true
+      handles.output.once('drain', () => {
+        state.isWaiting = false
+        flush()
+      })
+    }
+  }
+  handles.output.once('close', close)
+  handles.output.once('error', close)
   const write = (reply: FrameReply) => {
     if (reply === undefined || state.isClosed) return
-    handles.output.write(`${JSON.stringify(reply)}\n`)
+    const line = `${JSON.stringify(reply)}\n`
+    queue.push(line)
+    state.queued += Buffer.byteLength(line)
+    if (state.queued > CONNECTOR_LIMITS.outputQueueBytes) close()
+    else flush()
   }
   const answer = async (text: string) => {
     try {
@@ -97,7 +127,17 @@ export async function serveStdio(
         })
         return
       }
-      if (text.trim() === '') return
+      if (text.trim() === '' || state.isClosed) return
+      if (pending.size >= CONNECTOR_LIMITS.transportTasks) {
+        const frame = ConnectorProtocol.classify(text)
+        if (
+          !frame.isControl ||
+          pending.size >= CONNECTOR_LIMITS.transportTasks + CONNECTOR_LIMITS.controlTasks
+        ) {
+          if (frame.id !== undefined) write(ConnectorProtocol.busy(frame.id))
+          return
+        }
+      }
       const task = answer(text)
       pending.add(task)
       void task.finally(() => {
@@ -113,11 +153,14 @@ export async function serveStdio(
       if (state.isClosed) break
       framer.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8'))
     }
+  } catch (error: unknown) {
+    // Closing stdout destroys stdin to end this loop; any other failure is real.
+    if (!state.isClosed) throw error
   } finally {
     // End of input is the client's disconnect: calls in flight stop.
     protocol.close()
     await Promise.allSettled(pending)
-    handles.output.off('close', onClose)
-    handles.output.off('error', onClose)
+    handles.output.off('close', close)
+    handles.output.off('error', close)
   }
 }

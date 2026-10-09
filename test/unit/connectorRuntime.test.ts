@@ -4,7 +4,8 @@
 import { mkdtemp, readFile, rm, stat, writeFile, mkdir } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { PassThrough } from 'node:stream'
+import { PassThrough, Writable } from 'node:stream'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   CONNECTOR_LIMITS,
@@ -12,6 +13,7 @@ import {
   CONNECTOR_SCHEMA_VERSION,
   UI_TEXT,
 } from '../../src/shared/constants'
+import { SharedLimits } from '../../src/core/connector/policy'
 import { ConnectorProtocol, type ConnectorServer } from '../../src/core/connector/protocol'
 import { serveStdio } from '../../src/runtime/connector/stdio'
 import { startApprovalPage } from '../../src/runtime/connector/approvalPage'
@@ -44,11 +46,21 @@ function fakeServer(overrides: Partial<ConnectorServer> = {}): ConnectorServer {
     initialized: () => Promise.resolve('instructions'),
     list: () => Promise.resolve([]),
     call: () => Promise.resolve({ content: [{ type: 'text', text: '{}' }], isError: false }),
+    disconnect: () => undefined,
     ...overrides,
   }
 }
 
 const frame = (message: unknown) => JSON.stringify(message)
+
+/** Whether the work settles within `ms` (a hung server never does). */
+async function isSettledWithin(work: Promise<unknown>, ms: number): Promise<boolean> {
+  const isSettled = async () => {
+    await work
+    return true
+  }
+  return await Promise.race([isSettled(), sleep(ms, false)])
+}
 const INIT = frame({
   jsonrpc: '2.0',
   id: 1,
@@ -128,14 +140,28 @@ describe('M124 MCP protocol subset', () => {
   })
 })
 
+/** A client's two pipes; `lines` collects every reply line written to stdout. */
+function pipes() {
+  const input = new PassThrough()
+  const output = new PassThrough()
+  const lines: string[] = []
+  output.on('data', (chunk: Buffer) => {
+    lines.push(...chunk.toString('utf8').split('\n').filter(Boolean))
+  })
+  return { input, output, lines }
+}
+
+/** Serving a protocol that answers nothing; `close` counts disconnects. */
+function idleServe() {
+  const { input, output } = pipes()
+  const close = vi.fn()
+  const served = serveStdio({ input, output }, { handle: () => Promise.resolve(undefined), close })
+  return { input, output, close, served }
+}
+
 describe('M124 stdio framing', () => {
   it('keeps stdout to one JSON reply per line, refuses an oversized frame and continues', async () => {
-    const input = new PassThrough()
-    const output = new PassThrough()
-    const lines: string[] = []
-    output.on('data', (chunk: Buffer) => {
-      lines.push(...chunk.toString('utf8').split('\n').filter(Boolean))
-    })
+    const { input, output, lines } = pipes()
     const served = serveStdio({ input, output }, new ConnectorProtocol(fakeServer()), 64)
     input.write(INIT.slice(0, 10))
     input.write(`${INIT.slice(10)}\r\n`)
@@ -154,16 +180,71 @@ describe('M124 stdio framing', () => {
   })
 
   it('stops calls in flight when stdin ends (the client disconnected)', async () => {
-    const input = new PassThrough()
-    const output = new PassThrough()
-    const close = vi.fn()
-    const served = serveStdio(
-      { input, output },
-      { handle: () => Promise.resolve(undefined), close },
-    )
+    const { input, close, served } = idleServe()
     input.end()
     await served
-    expect(close).toHaveBeenCalledOnce()
+    expect(close).toHaveBeenCalled()
+  })
+
+  it('closes the connector when stdout closes while stdin stays open (RVM124 P2-4)', async () => {
+    const { output, close, served } = idleServe()
+    output.destroy()
+    expect(await isSettledWithin(served, 1000)).toBe(true)
+    expect(close).toHaveBeenCalled()
+  })
+
+  it('honours stdout backpressure and disconnects a client that never reads (RVM124 P2-5)', async () => {
+    const input = new PassThrough()
+    // A client that never reads: the first write never completes.
+    const output = new Writable({ highWaterMark: 16, write: () => undefined })
+    const served = serveStdio({ input, output }, new ConnectorProtocol(fakeServer()))
+    const ping = `${frame({ jsonrpc: '2.0', id: 1, method: 'ping' })}\n`
+    input.write(ping.repeat(50_000))
+    expect(await isSettledWithin(served, 2000)).toBe(true)
+    expect(output.writableLength).toBeLessThanOrEqual(CONNECTOR_LIMITS.frameBytes)
+  })
+
+  it('answers busy beyond the task bound and keeps room for Stop (RVM124 P2-5)', async () => {
+    const { input, output, lines } = pipes()
+    const hung: (() => void)[] = []
+    const served = serveStdio(
+      { input, output },
+      {
+        handle: (raw) =>
+          raw.includes('muse_stop')
+            ? Promise.resolve({ jsonrpc: '2.0', id: 'stop', result: {} })
+            : new Promise((resolve) => {
+                hung.push(() => {
+                  resolve(undefined)
+                })
+              }),
+        close: () => {
+          for (const resolve of hung.splice(0)) resolve()
+        },
+      },
+    )
+    const extra = 4
+    for (let id = 1; id <= CONNECTOR_LIMITS.transportTasks + extra; id += 1)
+      input.write(
+        `${frame({ jsonrpc: '2.0', id, method: 'tools/call', params: { name: 'muse_prompt_list' } })}\n`,
+      )
+    input.write(
+      `${frame({ jsonrpc: '2.0', id: 'stop', method: 'tools/call', params: { name: 'muse_stop' } })}\n`,
+    )
+    await vi.waitFor(() => {
+      expect(lines).toHaveLength(extra + 1)
+    })
+    const replies = lines.map(
+      (line) => JSON.parse(line) as { id: unknown; error?: { code: number } },
+    )
+    expect(
+      replies.filter((reply) => reply.error?.code === -32_002).map((reply) => reply.id),
+    ).toEqual(
+      Array.from({ length: extra }, (_, index) => CONNECTOR_LIMITS.transportTasks + 1 + index),
+    )
+    expect(replies.some((reply) => reply.id === 'stop' && reply.error === undefined)).toBe(true)
+    input.end()
+    await served
   })
 })
 
@@ -266,6 +347,21 @@ describe('M124 owner-only store and commands', () => {
       expect((await field(stat(path.join(data, 'connector', 'audit.key')), 'mode')) & 0o777).toBe(
         0o600,
       )
+  })
+
+  it('keeps the limits of one grant across server processes and restarts (RVM124 P2-7)', async () => {
+    const data = await folder()
+    // Two stores on one folder stand for two server processes: no memory is shared.
+    const first = new SharedLimits(new ConnectorStore(data).limits('default'), Date.now)
+    const second = new SharedLimits(new ConnectorStore(data).limits('default'), Date.now)
+    const taken = await Promise.all(
+      Array.from({ length: 2 * CONNECTOR_LIMITS.burst }, (_, index) =>
+        (index % 2 === 0 ? first : second).take(),
+      ),
+    )
+    expect(taken.filter(Boolean)).toHaveLength(CONNECTOR_LIMITS.burst)
+    const restarted = new SharedLimits(new ConnectorStore(data).limits('default'), Date.now)
+    expect(await restarted.take()).toBe(false)
   })
 
   it('parses only its own words and needs a terminal confirmation to widen authority', async () => {

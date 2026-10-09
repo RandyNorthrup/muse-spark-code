@@ -7909,6 +7909,12 @@ export const CONNECTOR_LIMITS = {
   auditRetentionMs: 2_592_000_000,
   idBytes: 16,
   connectionIdChars: 64,
+  /** Frames the transport works on at once; a full table refuses with busy. */
+  transportTasks: 16,
+  /** Extra room kept for Stop, schedule cancel and cancellation notices. */
+  controlTasks: 4,
+  /** 1 MiB of replies a client has not read yet before it is disconnected. */
+  outputQueueBytes: 1_048_576,
 } as const
 export const CONNECTOR_COMPANION_LIMITS = {
   /** 4 KiB. */
@@ -7928,7 +7934,11 @@ export const CONNECTOR_FILE_MODE = 0o600
 export const CONNECTOR_FOLDER_MODE = 0o700
 export const CONNECTOR_DEFAULT_CONNECTION = 'default'
 /** MCP's JSON-RPC codes beyond JSON_RPC_ERRORS: an internal failure, and our bounded refusals. */
-export const CONNECTOR_RPC_ERRORS = { internal: -32_603, requestTooLarge: -32_001 } as const
+export const CONNECTOR_RPC_ERRORS = {
+  internal: -32_603,
+  requestTooLarge: -32_001,
+  busy: -32_002,
+} as const
 
 /**
  * What the calling agent's model reads (M124): tool descriptions, refusal
@@ -7942,7 +7952,7 @@ export const CONNECTOR_MODEL_TEXT = {
     'No connection grant exists for this connection. The owner creates one in their own terminal with `muse-spark-code-acp mcp grant`; until then every tool refuses.',
   operationGet:
     'Status of an operation this connection started: awaitingApproval, running, completed, failed, cancelled, expired or unknown. Poll at most every 2 seconds.',
-  stop: 'Stop owned work. Never waits for approval, limits or the kill switch. Connector operations stop here; lanes and teams answer unavailable until their runtime is reachable.',
+  stop: 'Stop owned work. Never waits for approval, limits or the kill switch. Connector operations stop here (workspaceId is needed only for a workspace operation); lanes and teams answer unavailable until their runtime is reachable.',
   promptList:
     'List saved prompt metadata (id, title, tags, variables, generation) in a granted workspace, or the user library when granted. No prompt bodies.',
   promptGet:
@@ -7958,7 +7968,7 @@ export const CONNECTOR_MODEL_TEXT = {
   scheduleCancel:
     'Pause a schedule so it fires no more. Never waits for approval; resume it in Muse Spark Code.',
   report:
-    'Generate a deterministic M113 report in memory from existing local sources (no network, no checks, no history write).',
+    'Generate a deterministic M113 report in memory from existing local sources (no network, no checks, no history write). subjectId: a milestone for milestone, estimate and playbook, a version for release (default latest). The body needs the workspace’s content grant; without it only metadata returns.',
   unavailable: 'Unavailable in this build: {reason}',
   forbidden: 'Refused: {reason}',
   invalidInput: 'Invalid input: {reason}',

@@ -9,7 +9,12 @@ import os from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { CONNECTOR_SCHEMA_VERSION, PROMPT_USER_FOLDER, UI_TEXT } from '../../src/shared/constants'
+import {
+  CONNECTOR_LIMITS,
+  CONNECTOR_SCHEMA_VERSION,
+  PROMPT_USER_FOLDER,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { serialisePromptFile } from '../../src/shared/prompts'
 
 const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'm124-connector-e2e-')))
@@ -50,6 +55,12 @@ beforeAll(async () => {
     entryPoints: [path.resolve('src/runtime/connector/entry.ts')],
     outfile: path.join(directory, 'dist', 'connector.js'),
   })
+  // The real M113 engine behind muse_report (RVM124 P2-11).
+  await build({
+    ...common,
+    entryPoints: [path.resolve('src/runtime/reporting/reportsEntry.ts')],
+    outfile: path.join(directory, 'dist', 'reporting.js'),
+  })
   await writeFile(path.join(directory, 'package.json'), JSON.stringify({ version: '0.0.0-test' }))
   await cp(path.resolve('l10n'), path.join(directory, 'l10n'), { recursive: true })
 })
@@ -62,10 +73,10 @@ afterAll(async () => {
  * One session: frames in; stdin stays open until `replies` lines arrived (a
  * client closes stdin to disconnect, which stops calls still in flight).
  */
-function session(frames: readonly string[], replies: number) {
+function session(frames: readonly string[], replies: number, connection = 'default') {
   return new Promise<{ lines: string[]; stderr: string; code: number | null }>(
     (resolve, reject) => {
-      const child = spawn(process.execPath, [agent, 'mcp'], { env })
+      const child = spawn(process.execPath, [agent, 'mcp', '--connection', connection], { env })
       let stdout = ''
       let stderr = ''
       const lines = () => stdout.split('\n').filter((line) => line !== '')
@@ -107,14 +118,18 @@ function structured(reply: Record<string, unknown> | undefined) {
   return (reply?.['result'] as { structuredContent: Record<string, unknown> }).structuredContent
 }
 
-async function grant(scopes: readonly string[], hasContent = true): Promise<void> {
+async function grant(
+  scopes: readonly string[],
+  hasContent = true,
+  connection = 'default',
+): Promise<void> {
   const folder = path.join(dataFolder(), 'connector', 'grants')
   await mkdir(folder, { recursive: true })
   await writeFile(
-    path.join(folder, 'default.json'),
+    path.join(folder, `${connection}.json`),
     json({
       schemaVersion: CONNECTOR_SCHEMA_VERSION,
-      connectionId: 'default',
+      connectionId: connection,
       generation: 1,
       createdAt: '2026-10-09T00:00:00.000Z',
       revoked: false,
@@ -233,5 +248,46 @@ describe('M124 connector over real stdio', () => {
     )
     expect(grantAttempt.status).toBe(1)
     expect(grantAttempt.stderr).toContain(UI_TEXT.acpConnector.grantNeedsTerminal)
+  })
+
+  it('generates every offered report kind through the real runtime adapter (RVM124 P2-11)', async () => {
+    // Its own connection: limits are kept per grant, across processes.
+    await grant(['reports:read', 'content:read'], true, 'reports')
+    await rm(path.join(dataFolder(), 'connector', 'kill-switch.json'), { force: true })
+    const kinds: readonly (readonly [string, string?])[] = [
+      ['project'],
+      ['milestone', 'M1'],
+      ['release'],
+      ['release', 'latest'],
+      ['estimate', 'M1'],
+      ['playbook'],
+      ['playbook', 'M1'],
+      ['changes'],
+      ['usage'],
+      ['schedules'],
+    ]
+    const answers: Record<string, unknown>[] = []
+    // At most four reads run at once per grant.
+    for (let start = 0; start < kinds.length; start += CONNECTOR_LIMITS.activeReads) {
+      const batch = kinds.slice(start, start + CONNECTOR_LIMITS.activeReads)
+      const result = await session(
+        [
+          INIT,
+          ...batch.map(([kind, subjectId], index) =>
+            call(index + 1, 'muse_report', {
+              workspaceId: 'ws-test',
+              kind,
+              format: 'markdown',
+              ...(subjectId !== undefined && { subjectId }),
+            }),
+          ),
+        ],
+        batch.length + 1,
+        'reports',
+      )
+      const replies = byId(result.lines)
+      answers.push(...batch.map((_, index) => structured(replies.get(index + 1))))
+    }
+    expect(answers.map((answer) => answer['status'])).toEqual(kinds.map(() => 'ok'))
   })
 })

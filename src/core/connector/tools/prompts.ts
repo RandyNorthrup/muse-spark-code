@@ -10,6 +10,7 @@ export interface PromptsPort {
   readonly list: (
     root: string | undefined,
     scope: SavedPrompt['scope'],
+    signal?: AbortSignal,
   ) => Promise<readonly SavedPrompt[]>
   readonly write: (root: string | undefined, prompt: SavedPrompt) => Promise<void>
   /** M118's scrubbed share preview of a saved prompt (in memory). */

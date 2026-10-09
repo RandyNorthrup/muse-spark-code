@@ -5,7 +5,7 @@ import * as z from 'zod/mini'
 
 export interface SchedulesPort {
   /** The runtime's JSON answer for `schedule list` in that workspace. */
-  readonly list: (root: string) => Promise<unknown>
+  readonly list: (root: string, signal?: AbortSignal) => Promise<unknown>
   /** The runtime's JSON answer for `schedule pause <id>`. */
   readonly pause: (root: string, id: string) => Promise<unknown>
 }

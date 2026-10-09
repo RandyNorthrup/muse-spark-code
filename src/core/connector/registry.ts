@@ -5,6 +5,7 @@
 // cancel never ask and never meet the call limits, the kill switch or audit
 // failure. A tool without a backing owner answers `unavailable`.
 import { randomBytes } from 'node:crypto'
+import { once } from 'node:events'
 import {
   CONNECTOR_LIMITS,
   CONNECTOR_MODEL_TEXT,
@@ -25,10 +26,11 @@ import type { SavedPrompt } from '../../shared/prompts'
 import { ApprovalLedger, type ApprovalBinding } from './approval'
 import type { ConnectorAudit } from './audit'
 import { OperationRegistry, type OperationRecord } from './operations'
-import { ActiveReads, CallLimiter, admit, isRefusal, refusal, type Refusal } from './policy'
+import { SharedLimits, admit, isRefusal, refusal, type LimitsPort, type Refusal } from './policy'
 import type { ConnectorCallResult, ConnectorServer, ConnectorToolEntry } from './protocol'
 import type { ConnectorScrub } from './redaction'
 import {
+  type PromptDraftInput,
   isDraftWithinLimits,
   isMatching,
   libraryGeneration,
@@ -64,6 +66,8 @@ export interface RegistryDeps {
   readonly killed: () => Promise<boolean>
   readonly confidential: (root: string) => boolean | undefined
   readonly audit: ConnectorAudit
+  /** The grant's limits, shared with every other process of this connection. */
+  readonly limits: LimitsPort
   readonly scrub: ConnectorScrub
   readonly surface: ApprovalSurface
   readonly prompts: PromptsPort
@@ -90,6 +94,13 @@ const REPORT_KINDS_OFFERED: ReadonlySet<string> = new Set([
   'playbook',
   'schedules',
 ])
+/** M113's subject per kind: milestone and estimate need one; release defaults to latest. */
+const REPORT_SUBJECTS: Readonly<Record<string, 'required' | 'optional'>> = {
+  milestone: 'required',
+  estimate: 'required',
+  release: 'optional',
+  playbook: 'optional',
+}
 
 interface Envelope {
   readonly schemaVersion: number
@@ -137,6 +148,38 @@ function forbidden(reason: string): Refusal {
   return refusal('forbidden', fill(CONNECTOR_MODEL_TEXT.forbidden, { reason }))
 }
 
+/**
+ * The call's answer, or `unavailable` once its signal aborts (the deadline,
+ * a cancellation or a disconnect), even while an owner port still hangs; a
+ * late answer is dropped, and the work itself rechecks the signal.
+ */
+async function bounded(work: Promise<Outcome>, signal: AbortSignal): Promise<Outcome> {
+  const settled = new AbortController()
+  try {
+    return await Promise.race([ownerAnswer(work), deadline(signal, settled.signal)])
+  } finally {
+    settled.abort()
+  }
+}
+
+async function ownerAnswer(work: Promise<Outcome>): Promise<Outcome> {
+  try {
+    return await work
+  } catch {
+    // An owner's failure text can name a path; the client gets fixed words.
+    return unavailable('owner failed')
+  }
+}
+
+async function deadline(signal: AbortSignal, settled: AbortSignal): Promise<Outcome> {
+  try {
+    if (!signal.aborted) await once(signal, 'abort', { signal: settled })
+  } catch {
+    /* The call answered first; this branch lost the race. */
+  }
+  return unavailable('deadline')
+}
+
 /** The issue's path and code only: a client's value is never echoed back. */
 function issueOf(error: { readonly issues: readonly { path: PropertyKey[]; code: string }[] }) {
   const issue = error.issues[0]
@@ -146,8 +189,9 @@ function issueOf(error: { readonly issues: readonly { path: PropertyKey[]; code:
 export class ConnectorRegistry implements ConnectorServer {
   private readonly operations: OperationRegistry
   private readonly ledger: ApprovalLedger
-  private readonly limiter: CallLimiter
-  private readonly reads = new ActiveReads()
+  private readonly limits: SharedLimits
+  /** Set by disconnect: no call is admitted and no intent opens afterwards. */
+  private isClosed = false
   private readonly cursors = new Map<string, PageCursor>()
   private readonly principal = newId()
   private client = ''
@@ -161,80 +205,52 @@ export class ConnectorRegistry implements ConnectorServer {
   ) {
     this.serverInfo = { name: serverName, version: deps.version }
     this.operations = new OperationRegistry(deps.now)
-    this.limiter = new CallLimiter(deps.now)
+    this.limits = new SharedLimits(deps.limits, deps.now)
     this.ledger = new ApprovalLedger(deps.now, (intentId, outcome) => {
       this.settled(intentId, outcome)
     })
   }
 
+  /** An ordinary call; every refusal it returns is audited by `call`. */
   private async route(
     tool: ConnectorToolSpec,
+    name: ConnectorBackedTool,
     args: unknown,
     callId: string,
     signal: AbortSignal,
   ): Promise<Outcome> {
-    const availability = tool.availability
-    if (availability.kind === 'unavailable') {
-      void this.deps.audit.record({
-        event: 'refused',
-        callId,
-        tool: tool.name,
-        toolClass: tool.toolClass,
-        reason: 'unavailable',
-      })
-      return unavailable(CONNECTOR_MODEL_TEXT[availability.reason])
-    }
-    // Stop's reserved path: no limiter, no kill switch, no approval, no audit gate.
-    if (tool.toolClass === 'stop') return await this.stopPath(availability.tool, tool, args, callId)
     const isKilled = await this.deps.killed()
-    if (isKilled && availability.tool !== 'muse_operation_get') {
-      this.cancelPending('denied')
+    if (isKilled && name !== 'muse_operation_get') {
+      this.cancelPending()
       return refusal('forbidden', CONNECTOR_MODEL_TEXT.killSwitch)
     }
-    if (!this.limiter.take()) return refusal('rate_limited', CONNECTOR_MODEL_TEXT.rateLimited)
-    const parsed = connectorInputSchemas[availability.tool].safeParse(args ?? {})
-    if (!parsed.success) {
-      void this.deps.audit.record({
-        event: 'refused',
-        callId,
-        tool: tool.name,
-        reason: 'invalid_input',
-      })
-      return invalid(issueOf(parsed.error))
-    }
+    if (!(await this.limits.take()))
+      return refusal('rate_limited', CONNECTOR_MODEL_TEXT.rateLimited)
+    const parsed = connectorInputSchemas[name].safeParse(args ?? {})
+    if (!parsed.success) return invalid(issueOf(parsed.error))
     const grant = await this.deps.grant()
     const input: Readonly<Record<string, unknown>> = parsed.data
     const workspaceId = typeof input['workspaceId'] === 'string' ? input['workspaceId'] : undefined
     const isUserLibrary =
-      input['scope'] === 'user' ||
-      (workspaceId === undefined && USER_LIBRARY_TOOLS.has(availability.tool))
+      input['scope'] === 'user' || (workspaceId === undefined && USER_LIBRARY_TOOLS.has(name))
     const admission = admit(
       grant,
       tool,
       { workspaceId, userLibrary: isUserLibrary },
       this.deps.confidential,
     )
-    if (grant === undefined || isRefusal(admission)) {
-      const refused = isRefusal(admission) ? admission : forbidden(CONNECTOR_MODEL_TEXT.noGrant)
-      void this.deps.audit.record({
-        event: 'refused',
-        callId,
-        tool: tool.name,
-        reason: refused.reason,
-        ...(workspaceId !== undefined && { workspaceId }),
-      })
-      return refused
-    }
+    if (isRefusal(admission)) return admission
+    if (grant === undefined) return forbidden(CONNECTOR_MODEL_TEXT.noGrant)
     if (tool.toolClass === 'write')
-      return await this.request(
-        availability.tool,
-        tool,
-        parsed.data,
-        grant,
-        admission.workspace,
-        callId,
-      )
-    if (!this.reads.enter()) return refusal('rate_limited', CONNECTOR_MODEL_TEXT.rateLimited)
+      return await this.request(name, tool, parsed.data, grant, admission.workspace, callId, signal)
+    const lease = newId()
+    if (!(await this.limits.enter('read', lease, CONNECTOR_LIMITS.requestDeadlineMs)))
+      return refusal('rate_limited', CONNECTOR_MODEL_TEXT.rateLimited)
+    // The slot frees when the call ends or its deadline passes, whichever is first.
+    const leave = () => {
+      void this.limits.leave(lease)
+    }
+    signal.addEventListener('abort', leave, { once: true })
     try {
       // Reads fail closed when their receipt cannot be written.
       const isAudited = await this.deps.audit.record({
@@ -245,19 +261,12 @@ export class ConnectorRegistry implements ConnectorServer {
         grantGeneration: grant.generation,
         ...(workspaceId !== undefined && { workspaceId }),
       })
-      if (!isAudited) return refusal('audit_unavailable', CONNECTOR_MODEL_TEXT.auditUnavailable)
-      const deadline = AbortSignal.any([
-        signal,
-        AbortSignal.timeout(CONNECTOR_LIMITS.requestDeadlineMs),
-      ])
-      try {
-        return await this.read(availability.tool, parsed.data, grant, admission.workspace, deadline)
-      } catch {
-        // An owner's failure text can name a path; the client gets fixed words.
-        return unavailable(deadline.aborted ? 'deadline' : 'owner failed')
-      }
+      return isAudited
+        ? await this.read(name, parsed.data, grant, admission.workspace, signal)
+        : refusal('audit_unavailable', CONNECTOR_MODEL_TEXT.auditUnavailable)
     } finally {
-      this.reads.leave()
+      signal.removeEventListener('abort', leave)
+      leave()
     }
   }
 
@@ -276,7 +285,7 @@ export class ConnectorRegistry implements ConnectorServer {
         const listInput = connectorInputSchemas.muse_prompt_list.parse(input)
         if (workspace === undefined && listInput.scope === 'workspace')
           return forbidden(CONNECTOR_MODEL_TEXT.reasonWorkspace)
-        const prompts = await this.deps.prompts.list(workspace?.root, listInput.scope)
+        const prompts = await this.deps.prompts.list(workspace?.root, listInput.scope, signal)
         signal.throwIfAborted()
         const matching = prompts.filter((prompt) =>
           isMatching(prompt, listInput.query, listInput.tags),
@@ -291,7 +300,7 @@ export class ConnectorRegistry implements ConnectorServer {
       }
       case 'muse_prompt_get': {
         const promptInput = connectorInputSchemas.muse_prompt_get.parse(input)
-        const prompt = await this.findPrompt(workspace, promptInput.promptId)
+        const prompt = await this.findPrompt(workspace, promptInput.promptId, signal)
         if (prompt === undefined) return this.notFound('prompt')
         return {
           kind: 'ok',
@@ -305,7 +314,7 @@ export class ConnectorRegistry implements ConnectorServer {
       }
       case 'muse_prompt_prepare': {
         const prepare = connectorInputSchemas.muse_prompt_prepare.parse(input)
-        const prompt = await this.findPrompt(workspace, prepare.promptId)
+        const prompt = await this.findPrompt(workspace, prepare.promptId, signal)
         if (prompt === undefined) return this.notFound('prompt')
         if (promptGeneration(prompt) !== prepare.expectedGeneration)
           return this.stale(prepare.expectedGeneration)
@@ -322,7 +331,7 @@ export class ConnectorRegistry implements ConnectorServer {
       case 'muse_share_preview': {
         const share = connectorInputSchemas.muse_share_preview.parse(input)
         if (share.source.kind === 'chat') return unavailable(CONNECTOR_MODEL_TEXT.reasonChatShare)
-        const prompt = await this.findPrompt(workspace, share.source.promptId)
+        const prompt = await this.findPrompt(workspace, share.source.promptId, signal)
         if (prompt === undefined) return this.notFound('prompt')
         const format = share.format === 'markdown' ? 'md' : share.format
         const content = this.deps.prompts.preview(workspace?.root, prompt, format)
@@ -335,7 +344,8 @@ export class ConnectorRegistry implements ConnectorServer {
       case 'muse_schedule_list': {
         if (workspace === undefined) return forbidden(CONNECTOR_MODEL_TEXT.reasonWorkspace)
         const listInput = connectorInputSchemas.muse_schedule_list.parse(input)
-        const answer = projectScheduleList(await this.deps.schedules.list(workspace.root))
+        const answer = projectScheduleList(await this.deps.schedules.list(workspace.root, signal))
+        signal.throwIfAborted()
         return answer.kind === 'refused'
           ? unavailable(this.deps.scrub.text(answer.reason))
           : this.page(
@@ -351,14 +361,28 @@ export class ConnectorRegistry implements ConnectorServer {
         const report = connectorInputSchemas.muse_report.parse(input)
         if (!REPORT_KINDS_OFFERED.has(report.kind))
           return unavailable(fill(CONNECTOR_MODEL_TEXT.reasonKind, { kind: report.kind }))
-        if (report.subjectId !== undefined && report.kind !== 'milestone')
+        const subject = REPORT_SUBJECTS[report.kind]
+        const subjectId = report.subjectId ?? (report.kind === 'release' ? 'latest' : undefined)
+        if (
+          subject === 'required'
+            ? subjectId === undefined
+            : subject === undefined && subjectId !== undefined
+        )
           return invalid('subjectId')
+        // Q-M124.3: a report body is content; without the content grant only metadata returns.
+        if (!grant.scopes.includes('content:read') || !workspace.content)
+          return {
+            kind: 'ok',
+            data: { kind: report.kind, format: report.format, contentWithheld: true },
+            limitations: [CONNECTOR_MODEL_TEXT.reasonContent],
+          }
         const text = await this.deps.reports.generate(
           workspace.root,
           report.kind,
-          report.subjectId,
+          subjectId,
           signal,
         )
+        signal.throwIfAborted()
         return {
           kind: 'ok',
           data: { kind: report.kind, format: report.format, text },
@@ -374,11 +398,14 @@ export class ConnectorRegistry implements ConnectorServer {
   private async findPrompt(
     workspace: ConnectorWorkspaceGrant | undefined,
     promptId: string,
+    signal: AbortSignal,
   ): Promise<SavedPrompt | undefined> {
     const prompts = await this.deps.prompts.list(
       workspace?.root,
       workspace === undefined ? 'user' : 'workspace',
+      signal,
     )
+    signal.throwIfAborted()
     return prompts.find((prompt) => prompt.id === promptId)
   }
 
@@ -460,6 +487,7 @@ export class ConnectorRegistry implements ConnectorServer {
     grant: ConnectorGrant,
     workspace: ConnectorWorkspaceGrant | undefined,
     callId: string,
+    signal: AbortSignal,
   ): Promise<Outcome> {
     if (name !== 'muse_prompt_save') return unavailable(CONNECTOR_MODEL_TEXT.reasonScheduleGrant)
     const save = connectorInputSchemas.muse_prompt_save.parse(input)
@@ -469,100 +497,161 @@ export class ConnectorRegistry implements ConnectorServer {
     if (!isDraftWithinLimits(draft)) return invalid('prompt limits')
     const payload = { ...draft, workspaceId: save.workspaceId }
     const digest = await this.deps.audit.digest(payload)
+    if (signal.aborted || this.isClosed) return unavailable('cancelled')
     const claim = this.operations.claim(tool.name, save.requestId, save.workspaceId, digest)
     if (claim.kind === 'conflict') return invalid(CONNECTOR_MODEL_TEXT.reasonRequestReused)
     if (claim.kind === 'full') return refusal('rate_limited', CONNECTOR_MODEL_TEXT.rateLimited)
-    if (claim.kind === 'same') return { kind: 'pending', operationId: claim.record.id }
+    // A retry gets the operation's real state, never an invented pending one.
+    if (claim.kind === 'same')
+      return claim.record.state === 'awaitingApproval'
+        ? { kind: 'pending', operationId: claim.record.id }
+        : { kind: 'ok', data: this.operationView(claim.record) }
     const record = claim.record
-    const root = workspace?.root
-    const generation = libraryGeneration(await this.deps.prompts.list(root, save.scope))
-    if (generation !== save.expectedGeneration) {
-      this.operations.move(record.id, ['awaitingApproval'], 'failed', { reason: 'stale_target' })
-      return this.stale(save.expectedGeneration)
-    }
-    // Paid authority is zero in the local phase (Q-M124.4); this tool is free.
-    const binding: ApprovalBinding = {
-      principal: `${this.deps.connectionId}/${this.principal}`,
-      grantGeneration: grant.generation,
-      workspaceId: save.workspaceId,
-      tool: tool.name,
-      toolClass: 'write',
-      payload,
-      targetGeneration: generation,
-      priceMicrousd: 0,
-    }
-    // The intent is durable in the audit before anything can approve it.
-    const isAudited = await this.deps.audit.record({
-      event: 'awaitingApproval',
-      callId,
-      tool: tool.name,
-      toolClass: 'write',
-      grantGeneration: grant.generation,
-      operationId: record.id,
-      payloadDigest: digest,
-      ...(save.workspaceId !== undefined && { workspaceId: save.workspaceId }),
-    })
-    if (!isAudited) {
-      this.operations.move(record.id, ['awaitingApproval'], 'failed', {
-        reason: 'audit_unavailable',
-      })
-      return refusal('audit_unavailable', CONNECTOR_MODEL_TEXT.auditUnavailable)
-    }
-    const intentId = this.ledger.open(binding, {
-      client: this.client,
-      connectionId: this.deps.connectionId,
-      workspace: workspace?.label ?? 'user',
-      tool: tool.name,
-      toolClass: 'write',
-      generation,
-      priceMicrousd: 0,
-      fields: [
-        { label: 'title', value: draft.title },
-        { label: 'scope', value: draft.scope },
-        { label: 'tags', value: draft.tags.join(', ') },
-        { label: 'body', value: draft.body },
-      ],
-    })
-    if (intentId === undefined) {
-      this.operations.move(record.id, ['awaitingApproval'], 'failed', { reason: 'rate_limited' })
-      return refusal('rate_limited', CONNECTOR_MODEL_TEXT.rateLimited)
-    }
-    record.intentId = intentId
-    this.dispatches.set(intentId, async () => {
-      const current = await this.deps.grant()
-      const isKilled = await this.deps.killed()
-      const live = libraryGeneration(await this.deps.prompts.list(root, save.scope))
-      // Re-read everything at dispatch; any change refuses (CAS on the binding).
-      const isCurrent =
-        current !== undefined &&
-        !current.revoked &&
-        !isKilled &&
-        current.scopes.includes('prompts:write') &&
-        this.ledger.consume(intentId, {
-          ...binding,
-          grantGeneration: current.generation,
-          targetGeneration: live,
-        })
-      if (!isCurrent) {
-        this.operations.move(record.id, ['awaitingApproval'], 'cancelled', {
-          reason: 'stale_target',
-        })
-        return
+    let intentId: string | undefined
+    // Every failure settles the claimed operation; nothing is left awaiting approval.
+    const end = (reason: ConnectorReason | undefined, outcome: Refusal): Refusal => {
+      if (intentId !== undefined) {
+        this.ledger.cancel(intentId)
+        this.dispatches.delete(intentId)
+        this.deps.surface.changed()
       }
-      const isDispatched = await this.deps.audit.record({
-        event: 'dispatched',
+      void this.limits.leave(record.id)
+      this.operations.move(
+        record.id,
+        ['awaitingApproval'],
+        reason === undefined ? 'cancelled' : 'failed',
+        reason === undefined ? {} : { reason },
+      )
+      return outcome
+    }
+    // A cancelled, timed-out or disconnected call opens nothing (rechecked after every await).
+    const isGone = () => signal.aborted || this.isClosed
+    const gone = () => end(undefined, unavailable('cancelled'))
+    const root = workspace?.root
+    try {
+      const generation = libraryGeneration(await this.deps.prompts.list(root, save.scope, signal))
+      if (isGone()) return gone()
+      if (generation !== save.expectedGeneration)
+        return end('stale_target', this.stale(save.expectedGeneration))
+      // Paid authority is zero in the local phase (Q-M124.4); this tool is free.
+      const binding: ApprovalBinding = {
+        principal: `${this.deps.connectionId}/${this.principal}`,
+        grantGeneration: grant.generation,
+        workspaceId: save.workspaceId,
         tool: tool.name,
+        toolClass: 'write',
+        payload,
+        targetGeneration: generation,
+        priceMicrousd: 0,
+      }
+      // The intent is durable in the audit before anything can approve it.
+      const isAudited = await this.deps.audit.record({
+        event: 'awaitingApproval',
+        callId,
+        tool: tool.name,
+        toolClass: 'write',
+        grantGeneration: grant.generation,
         operationId: record.id,
         payloadDigest: digest,
+        ...(save.workspaceId !== undefined && { workspaceId: save.workspaceId }),
       })
-      if (!isDispatched) {
-        this.operations.move(record.id, ['awaitingApproval'], 'failed', {
-          reason: 'audit_unavailable',
-        })
-        return
-      }
-      this.operations.move(record.id, ['awaitingApproval'], 'running')
+      if (isGone()) return gone()
+      if (!isAudited)
+        return end(
+          'audit_unavailable',
+          refusal('audit_unavailable', CONNECTOR_MODEL_TEXT.auditUnavailable),
+        )
+      const isAdmitted = await this.limits.enter(
+        'pending',
+        record.id,
+        CONNECTOR_LIMITS.approvalLeaseMs,
+      )
+      if (isGone()) return gone()
+      intentId = isAdmitted
+        ? this.ledger.open(binding, {
+            client: this.client,
+            connectionId: this.deps.connectionId,
+            workspace: workspace?.label ?? 'user',
+            tool: tool.name,
+            toolClass: 'write',
+            generation,
+            priceMicrousd: 0,
+            fields: [
+              { label: 'title', value: draft.title },
+              { label: 'scope', value: draft.scope },
+              { label: 'tags', value: draft.tags.join(', ') },
+              { label: 'body', value: draft.body },
+            ],
+          })
+        : undefined
+      if (intentId === undefined)
+        return end('rate_limited', refusal('rate_limited', CONNECTOR_MODEL_TEXT.rateLimited))
+      record.intentId = intentId
+      this.dispatches.set(intentId, this.dispatcher(record, intentId, binding, draft, root))
+      this.deps.surface.changed()
+      const isShown = await this.deps.surface.show()
+      if (isGone()) return gone()
+      return isShown
+        ? { kind: 'pending', operationId: record.id }
+        : end(
+            'approval_unavailable',
+            refusal('approval_unavailable', CONNECTOR_MODEL_TEXT.approvalUnavailable),
+          )
+    } catch {
+      return end('unavailable', unavailable('owner failed'))
+    }
+  }
+
+  /**
+   * The approved intent's work. Ordered: the approval is consumed and the
+   * operation moves to running in one step (no await between), the
+   * dispatch receipt is written, and the effect starts only if Stop has
+   * not cancelled the operation meanwhile. It never rejects.
+   */
+  private dispatcher(
+    record: OperationRecord,
+    intentId: string,
+    binding: ApprovalBinding,
+    draft: PromptDraftInput,
+    root: string | undefined,
+  ): () => Promise<void> {
+    const { tool } = record
+    return async () => {
       try {
+        const current = await this.deps.grant()
+        const isKilled = await this.deps.killed()
+        const live = libraryGeneration(await this.deps.prompts.list(root, draft.scope))
+        // Re-read everything at dispatch; any change refuses (CAS on the binding).
+        const isCurrent =
+          current !== undefined &&
+          !current.revoked &&
+          !isKilled &&
+          current.scopes.includes('prompts:write') &&
+          this.ledger.consume(intentId, {
+            ...binding,
+            grantGeneration: current.generation,
+            targetGeneration: live,
+          })
+        if (!isCurrent || !this.operations.move(record.id, ['awaitingApproval'], 'running')) {
+          this.ledger.cancel(intentId)
+          this.operations.move(record.id, ['awaitingApproval'], 'cancelled', {
+            reason: 'stale_target',
+          })
+          return
+        }
+        const isDispatched = await this.deps.audit.record({
+          event: 'dispatched',
+          tool,
+          operationId: record.id,
+          payloadDigest: record.payloadDigest,
+        })
+        if (!isDispatched) {
+          this.operations.move(record.id, ['running'], 'failed', { reason: 'audit_unavailable' })
+          return
+        }
+        // Stop cancelled it while the receipt was written: no effect.
+        if (record.state !== 'running') return
+        record.isEffectStarted = true
         const prompt = newPrompt(draft, new Date(this.deps.now()).toISOString())
         await this.deps.prompts.write(root, prompt)
         this.operations.move(record.id, ['running'], 'completed', {
@@ -572,22 +661,15 @@ export class ConnectorRegistry implements ConnectorServer {
             untrusted: true,
           }),
         })
-        void this.deps.audit.record({ event: 'completed', tool: tool.name, operationId: record.id })
+        void this.deps.audit.record({ event: 'completed', tool, operationId: record.id })
       } catch {
-        this.operations.move(record.id, ['running'], 'failed', { reason: 'unavailable' })
-        void this.deps.audit.record({ event: 'failed', tool: tool.name, operationId: record.id })
+        this.ledger.cancel(intentId)
+        this.operations.move(record.id, ['awaitingApproval', 'running'], 'failed', {
+          reason: 'unavailable',
+        })
+        void this.deps.audit.record({ event: 'failed', tool, operationId: record.id })
       }
-    })
-    this.deps.surface.changed()
-    if (!(await this.deps.surface.show())) {
-      this.ledger.cancel(intentId)
-      this.dispatches.delete(intentId)
-      this.operations.move(record.id, ['awaitingApproval'], 'failed', {
-        reason: 'approval_unavailable',
-      })
-      return refusal('approval_unavailable', CONNECTOR_MODEL_TEXT.approvalUnavailable)
     }
-    return { kind: 'pending', operationId: record.id }
   }
 
   /** A settled intent: approval dispatches, denial and expiry end the operation. */
@@ -596,6 +678,7 @@ export class ConnectorRegistry implements ConnectorServer {
     const dispatch = this.dispatches.get(intentId)
     this.dispatches.delete(intentId)
     if (record === undefined) return
+    void this.limits.leave(record.id)
     void this.deps.audit.record({ event: outcome, tool: record.tool, operationId: record.id })
     if (outcome === 'approved' && dispatch !== undefined) {
       void dispatch()
@@ -611,17 +694,23 @@ export class ConnectorRegistry implements ConnectorServer {
     )
   }
 
-  private cancelPending(reason: ConnectorReason): void {
+  /** Disconnect and the kill switch: every unsettled intent is cancelled. */
+  private cancelPending(): void {
     for (const intentId of this.ledger.cancelAll()) {
       this.dispatches.delete(intentId)
       const record = this.operations.byIntent(intentId)
-      if (record !== undefined)
-        this.operations.move(record.id, ['awaitingApproval'], 'cancelled', { reason })
+      if (record === undefined) continue
+      void this.limits.leave(record.id)
+      this.operations.move(record.id, ['awaitingApproval'], 'cancelled', { reason: 'denied' })
     }
     this.deps.surface.changed()
   }
 
-  /** Stop's reserved path: authenticated by the grant, never queued or limited. */
+  /**
+   * Stop's reserved path: authenticated by the grant, never queued or
+   * limited. Ownership resolves first: an operation this connection owns in
+   * the user library stops without a workspace grant.
+   */
   private async stopPath(
     name: ConnectorBackedTool,
     tool: ConnectorToolSpec,
@@ -629,37 +718,51 @@ export class ConnectorRegistry implements ConnectorServer {
     callId: string,
   ): Promise<Outcome> {
     const parsed = connectorInputSchemas[name].safeParse(args ?? {})
-    if (!parsed.success) return invalid(issueOf(parsed.error))
-    const input: Readonly<Record<string, unknown>> = parsed.data
-    const workspaceId = typeof input['workspaceId'] === 'string' ? input['workspaceId'] : undefined
-    const admission = admit(await this.deps.grant(), tool, { workspaceId }, this.deps.confidential)
-    if (isRefusal(admission)) return admission
     let outcome: Outcome
-    if (name === 'muse_stop') {
+    if (!parsed.success) outcome = invalid(issueOf(parsed.error))
+    else if (name === 'muse_stop') {
       const stop = connectorInputSchemas.muse_stop.parse(parsed.data)
-      if (stop.target.kind === 'operation') {
-        const record = this.operations.get(stop.target.id)
-        if (record?.workspaceId !== undefined && record.workspaceId !== stop.workspaceId)
-          outcome = this.notFound('operation')
-        else {
-          if (record?.intentId !== undefined && this.ledger.cancel(record.intentId)) {
-            this.dispatches.delete(record.intentId)
-            this.deps.surface.changed()
-          }
-          outcome = { kind: 'ok', data: { outcome: this.operations.stop(stop.target.id) } }
-        }
-      } else {
+      const record =
+        stop.target.kind === 'operation' ? this.operations.get(stop.target.id) : undefined
+      const admission = admit(
+        await this.deps.grant(),
+        tool,
+        { workspaceId: record === undefined ? stop.workspaceId : record.workspaceId },
+        this.deps.confidential,
+      )
+      if (isRefusal(admission)) outcome = admission
+      else if (stop.target.kind !== 'operation')
         outcome = unavailable(CONNECTOR_MODEL_TEXT.reasonNoRunPort)
+      else if (record?.workspaceId !== undefined && record.workspaceId !== stop.workspaceId)
+        outcome = this.notFound('operation')
+      else {
+        if (record?.intentId !== undefined && this.ledger.cancel(record.intentId)) {
+          this.dispatches.delete(record.intentId)
+          void this.limits.leave(record.id)
+          this.deps.surface.changed()
+        }
+        outcome = { kind: 'ok', data: { outcome: this.operations.stop(stop.target.id) } }
       }
     } else {
       const cancel = connectorInputSchemas.muse_schedule_cancel.parse(parsed.data)
-      const root = admission.workspace?.root
-      if (root === undefined) return forbidden(CONNECTOR_MODEL_TEXT.reasonWorkspace)
-      const answer = projectSchedulePause(await this.deps.schedules.pause(root, cancel.scheduleId))
-      outcome =
-        answer.kind === 'ok'
-          ? { kind: 'ok', data: { outcome: answer.value } }
-          : unavailable(this.deps.scrub.text(answer.reason))
+      const admission = admit(
+        await this.deps.grant(),
+        tool,
+        { workspaceId: cancel.workspaceId },
+        this.deps.confidential,
+      )
+      const root = isRefusal(admission) ? undefined : admission.workspace?.root
+      if (isRefusal(admission)) outcome = admission
+      else if (root === undefined) outcome = forbidden(CONNECTOR_MODEL_TEXT.reasonWorkspace)
+      else {
+        const answer = projectSchedulePause(
+          await this.deps.schedules.pause(root, cancel.scheduleId),
+        )
+        outcome =
+          answer.kind === 'ok'
+            ? { kind: 'ok', data: { outcome: answer.value } }
+            : unavailable(this.deps.scrub.text(answer.reason))
+      }
     }
     // Best effort: a failed journal never holds Stop back.
     void this.deps.audit.record({
@@ -667,7 +770,6 @@ export class ConnectorRegistry implements ConnectorServer {
       callId,
       tool: tool.name,
       toolClass: 'stop',
-      ...(workspaceId !== undefined && { workspaceId }),
       ...('reason' in outcome && { reason: outcome.reason }),
     })
     return outcome
@@ -706,28 +808,29 @@ export class ConnectorRegistry implements ConnectorServer {
         data: { operationId: outcome.operationId, state: 'awaitingApproval' },
         limitations: ['approve or deny in Muse Spark Code; poll muse_operation_get'],
       }
-    let text = this.deps.scrub.whole(JSON.stringify(envelope))
-    if (
-      text === undefined ||
-      new TextEncoder().encode(text).byteLength > CONNECTOR_LIMITS.resultBytes
-    ) {
-      envelope = {
-        ...base,
-        status: 'refused',
-        reason: text === undefined ? 'forbidden' : 'unavailable',
-        message: text === undefined ? CONNECTOR_MODEL_TEXT.withheld : CONNECTOR_MODEL_TEXT.tooLarge,
-        limitations: [],
-      }
-      text = JSON.stringify(envelope)
-    }
-    const isError = envelope.status === 'refused'
     // Revisions before structured output get the same envelope as text only.
     const isStructured = protocolVersion >= CONNECTOR_STRUCTURED_SINCE
-    return {
-      content: [{ type: 'text', text }],
-      ...(isStructured && { structuredContent: { ...envelope } }),
-      isError,
+    const text = this.deps.scrub.whole(JSON.stringify(envelope))
+    const result = (shown: Envelope, shownText: string): ConnectorCallResult => ({
+      content: [{ type: 'text', text: shownText }],
+      ...(isStructured && { structuredContent: { ...shown } }),
+      isError: shown.status === 'refused',
+    })
+    // The bound is on the complete result as it is written: text, structured copy and escaping.
+    if (
+      text !== undefined &&
+      new TextEncoder().encode(JSON.stringify(result(envelope, text))).byteLength <=
+        CONNECTOR_LIMITS.resultBytes
+    )
+      return result(envelope, text)
+    const refused: Envelope = {
+      ...base,
+      status: 'refused',
+      reason: text === undefined ? 'forbidden' : 'unavailable',
+      message: text === undefined ? CONNECTOR_MODEL_TEXT.withheld : CONNECTOR_MODEL_TEXT.tooLarge,
+      limitations: [],
     }
+    return result(refused, JSON.stringify(refused))
   }
 
   /** The approval page's authenticated decision; the only caller of `decide`. */
@@ -792,15 +895,49 @@ export class ConnectorRegistry implements ConnectorServer {
   ): Promise<ConnectorCallResult> {
     const callId = newId()
     const tool = connectorTool(name)
-    const outcome =
-      tool === undefined
-        ? refusal('unavailable', fill(CONNECTOR_MODEL_TEXT.unknownTool, { name: '' }))
-        : await this.route(tool, args, callId, signal)
+    let outcome: Outcome
+    if (tool === undefined)
+      outcome = refusal('unavailable', fill(CONNECTOR_MODEL_TEXT.unknownTool, { name: '' }))
+    else if (tool.availability.kind === 'unavailable')
+      outcome = unavailable(CONNECTOR_MODEL_TEXT[tool.availability.reason])
+    else if (this.isClosed) outcome = unavailable('disconnected')
+    // Stop's reserved path: no limiter, no kill switch, no approval, no audit gate.
+    else if (tool.toolClass === 'stop')
+      return this.answer(
+        callId,
+        await this.stopPath(tool.availability.tool, tool, args, callId),
+        protocolVersion,
+      )
+    else {
+      // One deadline bounds the whole ordinary call, admission and audit included.
+      const expiry = new AbortController()
+      const timer = setTimeout(() => {
+        expiry.abort()
+      }, CONNECTOR_LIMITS.requestDeadlineMs)
+      const bound = AbortSignal.any([signal, expiry.signal])
+      try {
+        outcome = await bounded(
+          this.route(tool, tool.availability.tool, args, callId, bound),
+          bound,
+        )
+      } finally {
+        clearTimeout(timer)
+      }
+    }
+    // Every refusal leaves a receipt (an unknown tool's name is the client's, so it is left out).
+    if ('reason' in outcome)
+      void this.deps.audit.record({
+        event: 'refused',
+        callId,
+        ...(tool !== undefined && { tool: tool.name, toolClass: tool.toolClass }),
+        reason: outcome.reason,
+      })
     return this.answer(callId, outcome, protocolVersion)
   }
 
-  /** Disconnect: unanswered intents are cancelled; nothing dispatches later. */
+  /** Disconnect: no call is admitted again, and every unanswered intent is cancelled. */
   public disconnect(): void {
-    this.cancelPending('denied')
+    this.isClosed = true
+    this.cancelPending()
   }
 }

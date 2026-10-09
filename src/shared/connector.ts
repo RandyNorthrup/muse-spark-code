@@ -141,8 +141,9 @@ const promptScope = z.enum(['user', 'workspace'])
 /** The inputs of the tools this build backs; every object is strict. */
 export const connectorInputSchemas = {
   muse_operation_get: z.strictObject({ operationId: connectorIdSchema }),
+  // An operation the connection owns in the user library stops without a workspace.
   muse_stop: z.strictObject({
-    ...workspaceField,
+    ...optionalWorkspace,
     target: z.strictObject({
       kind: z.enum(['lane', 'team', 'operation']),
       id: connectorIdSchema,

@@ -20,6 +20,7 @@ export interface ApprovalBinding {
 }
 
 type IntentState = 'pending' | 'approved' | 'denied' | 'expired' | 'consumed' | 'cancelled'
+type SettledState = Exclude<IntentState, 'pending' | 'approved'>
 
 interface Intent {
   readonly id: string
@@ -51,7 +52,10 @@ export function bindingDigest(binding: ApprovalBinding, expiresAt: number): stri
 export type DecisionOutcome = 'approved' | 'denied' | 'refused'
 
 export class ApprovalLedger {
+  /** Pending and approved intents: the only ones that keep their payload. */
   private readonly intents = new Map<string, Intent>()
+  /** Settled intents keep only their state, the newest `maxSettled` of them. */
+  private readonly settledStates = new Map<string, SettledState>()
 
   public constructor(
     private readonly now: () => number,
@@ -61,7 +65,18 @@ export class ApprovalLedger {
     ) => void,
     private readonly leaseMs: number = CONNECTOR_LIMITS.approvalLeaseMs,
     private readonly maxPending: number = CONNECTOR_LIMITS.pendingApprovals,
+    private readonly maxSettled: number = CONNECTOR_LIMITS.operationsKept,
   ) {}
+
+  /** Settlement drops the payload; the bounded history keeps the state alone. */
+  private settle(intent: Intent, state: SettledState): void {
+    this.intents.delete(intent.id)
+    this.settledStates.set(intent.id, state)
+    for (const id of this.settledStates.keys()) {
+      if (this.settledStates.size <= this.maxSettled) break
+      this.settledStates.delete(id)
+    }
+  }
 
   /** A new pending intent, or undefined when the connection's pending cap is reached. */
   public open(
@@ -69,9 +84,7 @@ export class ApprovalLedger {
     view: Omit<ConnectorIntentView, 'intentId' | 'digest' | 'expiresAt'>,
   ): string | undefined {
     this.expireDue()
-    let pending = 0
-    for (const intent of this.intents.values()) if (intent.state === 'pending') pending += 1
-    if (pending >= this.maxPending) return undefined
+    if (this.intents.size >= this.maxPending) return undefined
     const id = randomBytes(CONNECTOR_LIMITS.idBytes).toString('hex')
     const expiresAt = this.now() + this.leaseMs
     this.intents.set(id, {
@@ -93,9 +106,11 @@ export class ApprovalLedger {
     this.expireDue()
     const intent = this.intents.get(intentId)
     if (intent?.state !== 'pending' || intent.digest !== digest) return 'refused'
-    intent.state = isApproved ? 'approved' : 'denied'
-    this.onSettled(intentId, intent.state)
-    return intent.state
+    if (isApproved) intent.state = 'approved'
+    else this.settle(intent, 'denied')
+    const outcome = isApproved ? 'approved' : 'denied'
+    this.onSettled(intentId, outcome)
+    return outcome
   }
 
   /**
@@ -105,33 +120,27 @@ export class ApprovalLedger {
   public consume(intentId: string, current: ApprovalBinding): boolean {
     const intent = this.intents.get(intentId)
     if (intent?.state !== 'approved') return false
-    if (this.now() > intent.expiresAt) {
-      intent.state = 'expired'
-      return false
-    }
-    if (bindingDigest(current, intent.expiresAt) !== intent.digest) {
-      intent.state = 'cancelled'
-      return false
-    }
-    intent.state = 'consumed'
-    return true
+    let state: SettledState = 'consumed'
+    if (this.now() > intent.expiresAt) state = 'expired'
+    else if (bindingDigest(current, intent.expiresAt) !== intent.digest) state = 'cancelled'
+    this.settle(intent, state)
+    return state === 'consumed'
   }
 
   public cancel(intentId: string): boolean {
     const intent = this.intents.get(intentId)
-    if (intent?.state !== 'pending' && intent?.state !== 'approved') return false
-    intent.state = 'cancelled'
+    if (intent === undefined) return false
+    this.settle(intent, 'cancelled')
     return true
   }
 
   /** Disconnect, revocation and the kill switch cancel every unsettled intent. */
   public cancelAll(): readonly string[] {
     const cancelled: string[] = []
-    for (const intent of this.intents.values())
-      if (intent.state === 'pending' || intent.state === 'approved') {
-        intent.state = 'cancelled'
-        cancelled.push(intent.id)
-      }
+    for (const intent of this.intents.values()) {
+      cancelled.push(intent.id)
+      this.settle(intent, 'cancelled')
+    }
     return cancelled
   }
 
@@ -139,7 +148,7 @@ export class ApprovalLedger {
     const now = this.now()
     for (const intent of this.intents.values())
       if (intent.state === 'pending' && now > intent.expiresAt) {
-        intent.state = 'expired'
+        this.settle(intent, 'expired')
         this.onSettled(intent.id, 'expired')
       }
   }
@@ -160,6 +169,11 @@ export class ApprovalLedger {
   }
 
   public stateOf(intentId: string): IntentState | undefined {
-    return this.intents.get(intentId)?.state
+    return this.intents.get(intentId)?.state ?? this.settledStates.get(intentId)
+  }
+
+  /** Intents still holding a payload (pending or approved, not yet consumed). */
+  public get size(): number {
+    return this.intents.size
   }
 }

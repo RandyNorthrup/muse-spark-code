@@ -494,7 +494,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |
-| `node:events`            | 3     |
+| `node:events`            | 4     |
 | `node:fs`                | 70    |
 | `node:fs/promises`       | 111   |
 | `node:http`              | 15    |
@@ -510,7 +510,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:stream`            | 19    |
 | `node:stream/promises`   | 3     |
 | `node:string_decoder`    | 3     |
-| `node:timers/promises`   | 24    |
+| `node:timers/promises`   | 25    |
 | `node:tls`               | 1     |
 | `node:url`               | 8     |
 | `node:util`              | 11    |

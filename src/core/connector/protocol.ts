@@ -38,6 +38,8 @@ export interface ConnectorServer {
     protocolVersion: string,
     signal: AbortSignal,
   ) => Promise<ConnectorCallResult>
+  /** The client is gone: nothing is admitted again and pending intents are cancelled. */
+  readonly disconnect: () => void
 }
 
 const initializeParamsSchema = z.object({
@@ -46,6 +48,8 @@ const initializeParamsSchema = z.object({
 })
 const callParamsSchema = z.object({ name: z.string(), arguments: z.optional(z.unknown()) })
 const CLIENT_NAME_CHARS = 64
+/** Stop's reserved path keeps room in a full transport. */
+const CONTROL_TOOLS: ReadonlySet<string> = new Set(['muse_stop', 'muse_schedule_cancel'])
 
 export function negotiateVersion(requested: string): string {
   const supported: readonly string[] = CONNECTOR_PROTOCOL_VERSIONS
@@ -66,6 +70,27 @@ export class ConnectorProtocol {
   /** A frame larger than the bound is refused before it is parsed. */
   public static tooLarge(): Readonly<Record<string, unknown>> {
     return error(null, CONNECTOR_RPC_ERRORS.requestTooLarge, 'Request too large')
+  }
+
+  /** The answer to a frame the transport has no room for. */
+  public static busy(id: unknown): Readonly<Record<string, unknown>> {
+    return error(id, CONNECTOR_RPC_ERRORS.busy, 'Server busy')
+  }
+
+  /** Read only when the transport is full: the frame's id, and whether it is Stop's path. */
+  public static classify(raw: string): { readonly id: unknown; readonly isControl: boolean } {
+    try {
+      const message = messageSchema.parse(JSON.parse(raw))
+      const call = callParamsSchema.safeParse(message.params)
+      return {
+        id: message.id,
+        isControl:
+          message.method === MCP_CANCELLED_NOTIFICATION ||
+          (message.method === 'tools/call' && call.success && CONTROL_TOOLS.has(call.data.name)),
+      }
+    } catch {
+      return { id: null, isControl: false }
+    }
   }
 
   private protocolVersion: string | undefined
@@ -134,8 +159,9 @@ export class ConnectorProtocol {
     }
   }
 
-  /** Disconnect: every call in flight stops. */
+  /** Disconnect: the server closes first, then every call in flight stops. */
   public close(): void {
+    this.server.disconnect()
     for (const controller of this.inFlight.values()) controller.abort()
     this.inFlight.clear()
   }

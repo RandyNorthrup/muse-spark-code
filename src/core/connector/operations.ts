@@ -17,6 +17,8 @@ export interface OperationRecord {
   state: ConnectorOperationState
   updatedAt: number
   intentId?: string
+  /** Set the moment the dispatched effect starts; Stop can no longer prevent it. */
+  isEffectStarted?: boolean
   reason?: ConnectorReason
   /** The scrubbed projection of the finished effect, never raw output. */
   result?: unknown
@@ -119,16 +121,17 @@ export class OperationRegistry {
     return true
   }
 
-  /** Stop never waits: pending work is cancelled; dispatched work is reported truthfully. */
+  /**
+   * Stop never waits: pending work, and dispatched work whose effect has not
+   * started, is cancelled; an effect already under way is reported truthfully.
+   */
   public stop(id: string): StopOutcome {
     const record = this.records.get(id)
     if (record === undefined) return 'unknown'
     if (isTerminal(record.state)) return 'alreadyStopped'
-    if (record.state === 'awaitingApproval') {
-      this.move(id, ['awaitingApproval'], 'cancelled')
-      return 'stopped'
-    }
-    // A dispatched local write cannot be interrupted midway; its receipt arrives.
-    return 'stopRequested'
+    // A local write that has started cannot be interrupted midway; its receipt arrives.
+    if (record.isEffectStarted === true) return 'stopRequested'
+    this.move(id, ['awaitingApproval', 'running'], 'cancelled')
+    return 'stopped'
   }
 }
