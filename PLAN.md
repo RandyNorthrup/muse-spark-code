@@ -28923,17 +28923,18 @@ live check remains with the lead. W also moves the small status item into the
 activation shim, translates the multi-line picker, and wires recent-edit
 and definition snippets through the same privacy checks as the current file.
 
-**M94KR3 handoff qualification (2026-10-09, kubuntu).** Review the inherited
-round-3 implementation against every RVM94KR2 reproduction before retaining
-it. Bind request-only grants to revocation too, recheck after asynchronous
-Always persistence, and add a pure attempt check after credentials, pacing
-and admission and immediately before dispatch without replaying stateful
-paid admission. Fake-clock interleavings cover consent, ledger reservation,
-scheduler waits and the client waits, including cancellation. Every review
-scenario gets a byte-exact restored red drill in
-`docs/certification/m94kr3.md`; golden request bytes and activation/Tab
-headroom are compared with `bea292208`. The lane brief prohibits aggregate
-quality and leaves it to the lead; no merges, pushes or paid/live calls.
+**M94KR3 handoff qualification (2026-10-09, kubuntu).** The inherited
+round-3 implementation was critically reviewed against every RVM94KR2
+reproduction before retaining it. Request-only grants now bind revocation;
+Always persistence rechecks after its asynchronous write. A pure attempt
+check runs after credentials, endpoint verification, pacing and admission,
+and immediately before dispatch without replaying stateful paid admission.
+Fake-clock interleavings cover consent, ledger reservation, scheduler waits
+and client waits, including cancellation. Every review scenario has a
+byte-exact restored red drill (20 total) in `docs/certification/m94kr3.md`.
+Golden request bytes match `bea292208`; the production build preserves all
+caps and activation/Tab headroom. The lane brief prohibits aggregate quality
+and leaves it to the lead; no merges, pushes or paid/live calls.
 The full gate also joins main's M87 palette-tip contract: Tab's paid row
 gets a tip in English and every translated table before it is certified.
 The review fixture follows the shared privacy rule that a bare `.pem`
@@ -37958,6 +37959,12 @@ also reproduced unchanged in the base archive; the new binding suite has
 no remaining clone. Leave those unrelated fixture repairs and aggregate
 quality to the lead under the scoped brief; no rule, assertion or threshold
 is waived.
+The additional visual run stopped while reconstructing the committed
+baseline `484964c46c307b48a5f00b127c4bf358dd27aebf`, before candidate comparison:
+Playwright's `scrollIntoViewIfNeeded` found a detached control at
+`test/harness/goldens/capture.mjs:413` after 2,160 baseline captures. The
+manifest and pixel thresholds remain unchanged; full visual verification
+stays open with the lead rather than altering the unrelated harness.
 Receipts, default-timeout suites, red drills and production measurements:
 `docs/certification/m94kr3.md`.
 
