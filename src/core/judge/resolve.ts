@@ -219,7 +219,10 @@ export interface JudgeModeResolution2a {
 type SeparateGate =
   { readonly blocked: true; readonly reason: JudgeModeReason2a } | { readonly blocked: false }
 
-function separateGate(separate: JudgeSeparateReadiness | undefined): SeparateGate {
+function separateGate(
+  separate: JudgeSeparateReadiness | undefined,
+  isProfileGated = true,
+): SeparateGate {
   // Readiness arrives over a trust boundary, so each field is read as
   // `unknown` and compared against literal `true`: a truthy malformed
   // value ("false") must fail closed. Comparing the typed `boolean`
@@ -234,7 +237,9 @@ function separateGate(separate: JudgeSeparateReadiness | undefined): SeparateGat
     return { blocked: true, reason: 'source-untested' }
   }
   const profilesReady: unknown = separate?.profilesReady
-  return profilesReady === true ? { blocked: false } : { blocked: true, reason: 'profile-missing' }
+  return profilesReady === true || !isProfileGated
+    ? { blocked: false }
+    : { blocked: true, reason: 'profile-missing' }
 }
 
 /**
@@ -250,7 +255,11 @@ export function resolveJudgeMode2a(context: JudgeModeContext): JudgeModeResoluti
   }
   const engine = prefix.engine
   if (engine === 'separate') {
-    const gate = separateGate(context.separate)
+    // The setting's contract: `separate` runs the configured source alone
+    // once it is verified and permitted. Fitted profiles qualify the
+    // cascade (`both`, `auto` → `both`), which combines two sides; an
+    // uncalibrated separate answer keeps its own honest label.
+    const gate = separateGate(context.separate, false)
     return gate.blocked
       ? { mode: 'off', reason: gate.reason }
       : { mode: 'separate', reason: 'explicit-separate' }

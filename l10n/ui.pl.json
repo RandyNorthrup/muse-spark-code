@@ -4348,5 +4348,10 @@
   "judgeAutoNoProfiles": "Ten sam model: brak dopasowanych profili",
   "judgeAutoNoEvidence": "Ten sam model: brak dowodów z porównania parami na odłożonych danych",
   "judgeEmbedNoLabels": "Skrót embeddingu wymaga setek niezależnych etykiet dla tej rodziny; nie zapisano jeszcze żadnych, więc zamiast niego działa pełny Muse Judge.",
-  "paidConfirmJudgeEmbedding": "Żądanie embeddingu do {model} kosztuje najwyżej {price}, naliczane na klucz dostawcy. Wspólny dzienny budżet wynosi {budget}. Subskrypcja nie płaci za to żądanie. Zezwól raz obejmuje to okno; przejście z darmowego źródła lub zmiana ceny wymaga ponownej zgody."
+  "paidConfirmJudgeEmbedding": "Żądanie embeddingu do {model} kosztuje najwyżej {price}, naliczane na klucz dostawcy. Wspólny dzienny budżet wynosi {budget}. Subskrypcja nie płaci za to żądanie. Zezwól raz obejmuje to okno; przejście z darmowego źródła lub zmiana ceny wymaga ponownej zgody.",
+  "paidConfirmJudgeSystemOne": "Eksperymentalne i nieprzetestowane: żądanie sędziego SystemOne do {model} w {recipient} kosztuje najwyżej {price} i jest rozliczane z Twojego własnego klucza dostawcy. Oceniana akcja jest tam wysyłana; wynik jedynie dodaje ostrożności do oceny Twojego modelu i nigdy Ci nie odpowiada ani nie decyduje sam. Wspólny budżet dzienny to {budget}. Twoja subskrypcja nie płaci za to żądanie. Zezwól raz obejmuje to okno; zmiana ceny pyta ponownie.",
+  "judgeSeparateNeedsKey": "Osobny sędzia potrzebuje klucza swojego dostawcy w sekcji Modele i dostawcy",
+  "judgeSeparateNeedsCapture": "Osobny sędzia: ten model dostawcy najpierw potrzebuje przechwyconego żądania sędziego w formie strukturalnej lub z logprob",
+  "judgeSeparateNeedsInstall": "Osobny sędzia: lokalny sędzia potrzebuje zweryfikowanej instalacji na certyfikowanej platformie",
+  "judgeSeparateUnknown": "Osobny sędzia: skonfigurowany identyfikator nie wskazuje żadnego znanego źródła"
 }

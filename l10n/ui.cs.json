@@ -4348,5 +4348,10 @@
   "judgeAutoNoProfiles": "Stejný model: chybí kalibrované profily",
   "judgeAutoNoEvidence": "Stejný model: chybí důkazy z párového hodnocení na oddělených datech",
   "judgeEmbedNoLabels": "Zkratka embedding potřebuje stovky nezávislých popisků pro tuto rodinu; zatím nejsou žádné zaznamenány, takže místo ní běží úplný Muse Judge.",
-  "paidConfirmJudgeEmbedding": "Požadavek na embedding pro {model} stojí nejvýše {price} a účtuje se vašemu klíči poskytovatele. Sdílený denní rozpočet je {budget}. Předplatné tento požadavek nehradí. Povolit jednou platí pro toto okno; přechod z bezplatného zdroje nebo změna ceny vyžaduje nový souhlas."
+  "paidConfirmJudgeEmbedding": "Požadavek na embedding pro {model} stojí nejvýše {price} a účtuje se vašemu klíči poskytovatele. Sdílený denní rozpočet je {budget}. Předplatné tento požadavek nehradí. Povolit jednou platí pro toto okno; přechod z bezplatného zdroje nebo změna ceny vyžaduje nový souhlas.",
+  "paidConfirmJudgeSystemOne": "Experimentální a neotestované: požadavek soudce SystemOne na {model} na {recipient} stojí nejvýše {price} a účtuje se na váš vlastní klíč poskytovatele. Posuzovaná akce se odešle tam; výsledek pouze přidá opatrnost k úsudku vašeho vlastního modelu a nikdy vám neodpovídá ani nerozhoduje sám. Sdílený denní rozpočet je {budget}. Vaše předplatné tento požadavek neplatí. Povolit jednou platí pro toto okno; změna ceny se zeptá znovu.",
+  "judgeSeparateNeedsKey": "Samostatný soudce potřebuje klíč svého poskytovatele v části Modely a poskytovatelé",
+  "judgeSeparateNeedsCapture": "Samostatný soudce: tento model poskytovatele nejprve potřebuje zachycený strukturovaný nebo logprob požadavek soudce",
+  "judgeSeparateNeedsInstall": "Samostatný soudce: místní soudce potřebuje prověřenou instalaci na certifikované platformě",
+  "judgeSeparateUnknown": "Samostatný soudce: nastavené id neoznačuje žádný známý zdroj"
 }

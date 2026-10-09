@@ -4204,5 +4204,10 @@
   "judgeAutoNoProfiles": "Stesso modello: mancano i profili adattati",
   "judgeAutoNoEvidence": "Stesso modello: mancano le prove di valutazione appaiata su dati riservati",
   "judgeEmbedNoLabels": "La scorciatoia di embedding richiede centinaia di etichette indipendenti per questa famiglia; nessuna ancora registrata, quindi viene eseguito il giudice completo.",
-  "paidConfirmJudgeEmbedding": "Una richiesta di embedding a {model} costa al massimo {price}, addebitato alla tua chiave del fornitore. Il budget giornaliero condiviso è {budget}. Il tuo abbonamento non paga questa richiesta. Consenti una volta copre questa finestra; passare da una fonte gratuita o cambiare prezzo richiede un nuovo consenso."
+  "paidConfirmJudgeEmbedding": "Una richiesta di embedding a {model} costa al massimo {price}, addebitato alla tua chiave del fornitore. Il budget giornaliero condiviso è {budget}. Il tuo abbonamento non paga questa richiesta. Consenti una volta copre questa finestra; passare da una fonte gratuita o cambiare prezzo richiede un nuovo consenso.",
+  "paidConfirmJudgeSystemOne": "Sperimentale e non testato: una richiesta di giudice SystemOne a {model} su {recipient} costa al massimo {price}, addebitata sulla tua chiave del fornitore. L’azione giudicata viene inviata lì; il risultato aggiunge solo cautela al giudizio del tuo modello e non ti risponde né decide mai da solo. Il budget giornaliero condiviso è {budget}. Il tuo abbonamento non paga questa richiesta. Consenti una volta vale per questa finestra; un cambio di prezzo chiede di nuovo.",
+  "judgeSeparateNeedsKey": "Il giudice separato ha bisogno della chiave del suo fornitore in Modelli e fornitori",
+  "judgeSeparateNeedsCapture": "Giudice separato: questo modello del fornitore richiede prima una richiesta di giudice strutturata o logprob acquisita",
+  "judgeSeparateNeedsInstall": "Giudice separato: il giudice locale richiede un’installazione verificata su una piattaforma certificata",
+  "judgeSeparateUnknown": "Giudice separato: l’id configurato non indica alcuna fonte nota"
 }

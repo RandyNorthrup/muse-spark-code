@@ -44,21 +44,31 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
 }> {
   switch (request.feature) {
     case 'judge': {
-      if (request.embedding !== undefined) {
+      // A priced judge route (paid embeddings, an experimental SystemOne
+      // judge) names its per-request ceiling and the shared daily budget.
+      const ceiling = request.systemOne ?? request.embedding
+      if (ceiling !== undefined) {
         if (
-          !Number.isFinite(request.embedding.worstCaseUsd) ||
-          request.embedding.worstCaseUsd <= 0 ||
+          !Number.isFinite(ceiling.worstCaseUsd) ||
+          ceiling.worstCaseUsd <= 0 ||
           !Number.isFinite(request.dailyBudgetUsd) ||
           request.dailyBudgetUsd < 0
         )
-          throw new Error('Judge embedding needs a verified tariff and daily budget')
+          throw new Error('Judge route needs a verified tariff and daily budget')
+        const values = {
+          model: request.modelId,
+          price: formatUsd(ceiling.worstCaseUsd, EXEC_USD_DECIMALS),
+          budget: formatUsd(request.dailyBudgetUsd, 2),
+        }
         return {
           title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidJudgeName }),
-          detail: fill(UI_TEXT.paidConfirmJudgeEmbedding, {
-            model: request.modelId,
-            price: formatUsd(request.embedding.worstCaseUsd, EXEC_USD_DECIMALS),
-            budget: formatUsd(request.dailyBudgetUsd, 2),
-          }),
+          detail:
+            request.systemOne === undefined
+              ? fill(UI_TEXT.paidConfirmJudgeEmbedding, values)
+              : fill(UI_TEXT.paidConfirmJudgeSystemOne, {
+                  ...values,
+                  recipient: request.systemOne.recipient,
+                }),
         }
       }
       const price = autoReviewPrice(request.modelId)

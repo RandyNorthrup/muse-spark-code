@@ -6,8 +6,11 @@ import { PaidUseConsent, paidUseQuestion } from '../../../src/core/paid/paidCons
 import { vi } from 'vitest'
 import { createPaidFeatures } from '../../../src/host/paid/paidHost'
 import { createWindowJudge } from '../../../src/host/judge/judgeEntry'
-import type { JudgeRuntime } from '../../../src/core/judge/engine'
-import type { JudgeRuntimeBinding, JudgeRuntimeDeps } from '../../../src/core/judge/runtime'
+import type {
+  JudgePlanRuntime,
+  JudgeRuntimeBinding,
+  JudgeRuntimeDeps,
+} from '../../../src/core/judge/runtime'
 import type { JudgeEntryParts } from '../../../src/core/judge/entries'
 import { embeddingHeadDigest, weightEnvelopeFor } from '../../../src/core/judge/embedding/schema'
 import { fitEmbeddingHead } from '../../../src/core/judge/embedding/fit'
@@ -139,7 +142,7 @@ export function embeddedBinding(locality: 'same-provider' | 'verified-local', co
 
 export interface Phase2Window {
   readonly binding: (action: JudgeEntryParts) => JudgeRuntimeBinding | undefined
-  readonly createRuntime: (deps: JudgeRuntimeDeps) => Promise<JudgeRuntime>
+  readonly createRuntime: (deps: JudgeRuntimeDeps) => Promise<JudgePlanRuntime>
 }
 
 /** A phase-2 window over the Muse Code backend with the given binding factory. */

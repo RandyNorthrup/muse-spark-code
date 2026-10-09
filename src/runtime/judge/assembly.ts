@@ -1,12 +1,9 @@
 // Surface adapters preserve CLI's hard per-process cap while each source owns
-// its own durable per-attempt admission in the shared runtime.
-import {
-  createJudgeRuntime,
-  judgeRuntimeContext,
-  type JudgeRuntimeBinding,
-  type JudgeRuntimeDeps,
-} from '../../core/judge/runtime'
-import { shouldReResolve, resolveJudgeMode2a } from '../../core/judge/resolve'
+// its own durable per-attempt admission in the shared runtime. One plan per
+// request: the run cap, paid admission and dispatch all read it, and the
+// binding is read exactly once, when the plan is built.
+import { createJudgeRuntime, type JudgeRuntimeDeps } from '../../core/judge/runtime'
+import { isJudgePlan } from '../../core/judge/plan'
 import type { JudgeRequest } from '../../core/judge/schema'
 import type { JudgeCliDeps } from './commands'
 
@@ -16,92 +13,57 @@ export function createJudgeCommandDeps(
     readonly worstCaseUsd: (request: JudgeRequest) => number | undefined
   },
 ): JudgeCliDeps {
-  const paidGrants = new Set<string>()
+  const runtime = createJudgeRuntime({ ...deps, paidGrants: new Set<string>() })
   return {
-    resolveSource: (options) => {
-      const binding = deps.binding()
-      if (binding === undefined) return Promise.resolve(undefined)
-      const context = { ...judgeRuntimeContext(binding), engine: options.engine }
-      const resolution = resolveJudgeMode2a(context)
-      const mode = resolution.mode
-      if (mode === 'off') return Promise.resolve(undefined)
-      // A run that mixes a free judge with paid embeddings is paid: it
-      // goes through the budget path, so `--budget-usd 0` refuses before
-      // anything is sent.
-      const isEmbeddingPaidAtResolve = binding.embedding?.source.locality === 'same-provider'
-      const billing = isEmbeddingPaidAtResolve || deps.billing === 'paid' ? 'paid' : 'free'
-      // The binding the run dispatches, read anew for admission and
-      // dispatch alike. A changed trigger set, or a paid embedding
-      // appearing or vanishing after resolution, refuses instead of
-      // pricing or sending under the resolution's assumptions.
-      const snapshot = (): JudgeRuntimeBinding | undefined => {
-        const current = deps.binding()
-        return current !== undefined &&
-          !shouldReResolve(binding.context, current.context) &&
-          (current.embedding?.source.locality === 'same-provider') === isEmbeddingPaidAtResolve
-          ? current
-          : undefined
-      }
-      const ceilingOf = (
-        target: JudgeRuntimeBinding,
-        request: JudgeRequest,
-      ): number | undefined => {
-        const sides = mode === 'both' ? (['same', 'separate'] as const) : ([mode] as const)
-        let total = 0
-        for (const side of sides) {
-          // Free judge sides carry no priced attempt. A priced judge
-          // without a price is unpriced, never zero.
-          const cost =
-            target.attemptCostUsd?.(request, side) ?? (deps.billing === 'free' ? 0 : undefined)
-          if (cost === undefined || !Number.isFinite(cost) || cost < 0) return undefined
-          total += cost
-        }
-        const embedding = target.embedding
-        if (embedding?.source.locality === 'same-provider') {
-          const tariff = embedding.source.uncachedCostUsd
-          if (!Number.isFinite(tariff) || tariff < 0) return undefined
-          total += tariff
-        }
-        return total
-      }
-      const runtime = createJudgeRuntime({
-        ...deps,
-        paidGrants,
-        binding: () => {
-          const current = snapshot()
-          return current === undefined
-            ? undefined
-            : { ...current, context: { ...current.context, engine: options.engine } }
-        },
+    resolveSource: (options, _signal, request) => {
+      const plan = runtime.plan(request, {
+        engine: options.engine,
+        hasFreeSides: deps.billing === 'free',
       })
+      if (!isJudgePlan(plan) || plan.resolution.mode === 'off') return Promise.resolve(undefined)
+      const mode = plan.resolution.mode
+      // A run with any priced leg is paid, including a free judge with paid
+      // embeddings: it goes through the budget path, so `--budget-usd 0`
+      // refuses before anything is sent.
+      const billing = deps.billing === 'paid' || plan.isPaid ? 'paid' : 'free'
+      const isPlanned = (candidate: JudgeRequest) =>
+        JSON.stringify(candidate) === JSON.stringify(plan.request)
       return Promise.resolve({
         source: mode,
         model:
           mode === 'separate'
-            ? (binding.separate?.capability.model ?? context.modelId)
-            : context.modelId,
-        runtime,
-        billing,
-        worstCaseUsd: (request) => {
-          // A free run carries no priced legs, so the surface fallback
-          // stands. A paid run prices the binding it will dispatch, never
-          // the one seen at resolution: a tariff or binding change before
-          // dispatch is re-priced here and re-checked in `admitPaid`.
-          if (billing === 'free') return deps.worstCaseUsd(request)
-          const current = snapshot()
-          return current === undefined ? undefined : ceilingOf(current, request)
+            ? (plan.separate?.model ?? plan.context.modelId)
+            : plan.context.modelId,
+        // Dispatch runs exactly this plan; another request is never served by it.
+        runtime: {
+          judge: (candidate, signal) => {
+            if (!isPlanned(candidate))
+              return Promise.resolve({ outcome: 'no-answer', reason: 'engine-failure' })
+            return plan.dispatch === 'phase2'
+              ? runtime.run(plan, signal)
+              : Promise.resolve({ outcome: 'no-answer', reason: 'source-unavailable' })
+          },
         },
+        billing,
+        // A free run carries no priced legs, so the surface fallback stands.
+        // A paid run is priced from the plan alone, never from a re-read.
+        worstCaseUsd: (candidate) => {
+          if (billing === 'free') return deps.worstCaseUsd(candidate)
+          return isPlanned(candidate) ? plan.worstCaseUsd : undefined
+        },
+        // A separate route may report its captured aliases for its request id.
+        ...(mode === 'separate' &&
+          plan.separate?.side.servedModels !== undefined && {
+            servedModels: plan.separate.side.servedModels,
+          }),
         // An embedding answer names this model instead of the conversation
         // model; the CLI accepts exactly it for embedding verdicts.
-        ...(binding.embedding !== undefined && {
-          embeddingModel: binding.embedding.source.model,
-        }),
+        ...(plan.embedding !== undefined && { embeddingModel: plan.embedding.source.model }),
       })
     },
     admitPaid: (source, request, reservedUsd, signal) => {
-      // Re-check the cap against the dispatch-time binding: a tariff or
-      // binding change after the caller's reservation refuses here, before
-      // anything is sent.
+      // The reservation must cover the plan's whole ceiling; the plan is
+      // the one that dispatches, so the cap cannot be widened afterwards.
       const ceiling = source.worstCaseUsd(request)
       return ceiling === undefined || ceiling > reservedUsd
         ? Promise.resolve({ outcome: 'no-answer', reason: 'over-budget' })

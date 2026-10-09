@@ -11,7 +11,11 @@ import {
 } from '../../../src/core/judge/calibration/schema'
 import { reportCalibration } from '../../../src/core/judge/calibration/report'
 import type { JudgeModeContext } from '../../../src/core/judge/resolve'
-import type { JudgeRequest } from '../../../src/core/judge/schema'
+import type { JudgeCapability, JudgeRequest } from '../../../src/core/judge/schema'
+import {
+  resolveModelCapabilities,
+  type ModelCapabilityRecord,
+} from '../../../src/core/providers/capabilityRecord'
 
 export const wiringLimits: CalibrationLimits = {
   maxSamples: 1000,
@@ -129,6 +133,9 @@ export function wiringFixture(evaluationCount = 2) {
         profile: reported.profile,
         fitVersion: 'fit-1',
         limits: wiringLimits,
+        // The fixture side answers with stated confidence, so its own
+        // selector's technique is `stated`.
+        technique: 'stated' as const,
         run,
       },
       profile: reported.profile,
@@ -197,4 +204,40 @@ export function wiringFixture(evaluationCount = 2) {
     highStakes: true,
   }
   return { same: same.side, separate: separate.side, adoption, context, options }
+}
+
+/** The surface context every fixture binding is requested under. */
+export const FIXTURE_BINDING_CONTEXT = {
+  providerId: 'fixture-provider',
+  modelId: 'chosen',
+  endpoint: 'fixture://offline',
+  profileId: 'fit-1',
+  ownerId: 'owner-1',
+  turn: 'turn-1',
+  confidential: false,
+  sourceAvailable: true,
+  paidConsent: 'not-required' as const,
+  readyRate: undefined,
+  minReadyRate: 0.5,
+}
+
+/**
+ * A captured M95 record for a fixture side: logprobs refused, a structured
+ * `json_schema` output recorded. `chooseByoTechnique` reads it as `stated`,
+ * which is what the fixture sides run. Fixture data, never product evidence.
+ */
+export function statedRecord(capability: JudgeCapability): ModelCapabilityRecord {
+  const source = { kind: 'capture' as const, ref: 'fixture-capture' }
+  return resolveModelCapabilities(
+    { provider: capability.providerId, nativeModel: capability.model, format: 'chat' },
+    [
+      {
+        source,
+        fields: {
+          logprobs: { state: 'no', source },
+          output: { formats: { state: 'yes', value: ['text', 'json_schema'], source } },
+        },
+      },
+    ],
+  )
 }

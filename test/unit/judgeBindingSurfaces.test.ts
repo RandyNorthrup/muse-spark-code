@@ -24,11 +24,12 @@ import { createJudgeCommandDeps } from '../../src/runtime/judge/assembly'
 import { runJudgeCommand } from '../../src/runtime/judge/commands'
 import { createWindowJudge } from '../../src/host/judge/judgeEntry'
 import { createHostPhase2 } from '../../src/host/judge/judgeBinding'
+import { judgeSideTechnique } from '../../src/core/judge/sides'
 import { JUDGE_MIN_READY_RATE, type JudgeEngine } from '../../src/shared/constants'
 import type { JudgeEntryParts } from '../../src/core/judge/entries'
 import type { JudgeStatus } from '../../src/shared/judge'
 import { bindingWindowBase, toRuntime } from './helpers/judgeBinding'
-import { wiringFixture, wiringLimits } from './helpers/judgeWiring'
+import { statedRecord, wiringFixture, wiringLimits } from './helpers/judgeWiring'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { command, io, REQUEST } from './judgeCliFixtures'
 
@@ -70,8 +71,8 @@ async function runAsk(
 function fileEvidence() {
   const wired = wiringFixture()
   const root = mkdtempSync(path.join(tmpdir(), 'muse-p2b-evidence-'))
-  mkdirSync(path.join(root, 'judge', 'profiles'), { recursive: true })
-  mkdirSync(path.join(root, 'judge', 'adoption'), { recursive: true })
+  mkdirSync(path.join(root, 'profiles'), { recursive: true })
+  mkdirSync(path.join(root, 'adoption'), { recursive: true })
   const profileQuery = (source: 'same' | 'separate') => ({
     providerId: 'fixture-provider',
     model: source === 'same' ? 'chosen' : 'separate-model',
@@ -133,6 +134,11 @@ function fileEvidence() {
         fitVersion: 'fit-1',
         verified: true as const,
         locality: 'remote' as const,
+        technique: judgeSideTechnique({
+          capability: wired.separate.capability,
+          record: statedRecord(wired.separate.capability),
+          kind: 'noul',
+        }),
       },
     }),
   }

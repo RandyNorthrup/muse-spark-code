@@ -48,6 +48,7 @@ describe('judge CLI bounded advisory commands', () => {
     expect(resolveSource).toHaveBeenCalledWith(
       expect.objectContaining({ model: 'chosen', engine: 'auto', budgetUsd: 0 }),
       expect.any(AbortSignal),
+      REQUEST,
     )
   })
   it('refuses absent same context without resolving or switching models', async () => {
@@ -86,6 +87,7 @@ describe('judge CLI bounded advisory commands', () => {
       expect(resolveSource).toHaveBeenCalledWith(
         expect.objectContaining({ engine: kind, separate: 'picked' }),
         expect.any(AbortSignal),
+        REQUEST,
       )
       expect(fake.judge).toHaveBeenCalledWith(REQUEST, expect.any(AbortSignal))
     }

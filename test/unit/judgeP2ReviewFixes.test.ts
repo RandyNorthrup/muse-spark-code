@@ -37,7 +37,10 @@ function asLogprobProfile(profile: unknown): unknown {
 }
 
 describe('P1: the CLI/MCP run budget constrains the dispatched binding', () => {
-  it('refuses a tariff rise between source resolution and dispatch before anything is sent', async () => {
+  it('keeps the planned tariff when the binding rises after resolution, and refuses an undersized reservation', async () => {
+    // Redesign (RVM98P2BF): the run's one plan holds the tariff it was
+    // priced at. A later tariff rise reaches the next plan, never this
+    // dispatch; a reservation below the plan's ceiling sends nothing.
     const rig = embeddedBinding('same-provider')
     let current: JudgeRuntimeBinding = rig.value
     const deps = createJudgeCommandDeps({
@@ -55,7 +58,7 @@ describe('P1: the CLI/MCP run budget constrains the dispatched binding', () => {
       '--budget-usd',
       '0.0002',
     ])
-    const resolved = await deps.resolveSource?.(parsed.options, signal)
+    const resolved = await deps.resolveSource?.(parsed.options, signal, REQUEST)
     if (resolved === undefined) throw new Error('source should resolve')
     // The embedding tariff changes after resolution, before dispatch.
     current = {
@@ -68,21 +71,21 @@ describe('P1: the CLI/MCP run budget constrains the dispatched binding', () => {
               source: { ...current.embedding.source, uncachedCostUsd: 0.2 },
             },
     }
-    const streams = io(JSON.stringify(REQUEST))
-    const code = await runJudgeCommand(parsed, streams, {
-      resolveSource: () => Promise.resolve(resolved),
-      ...(deps.admitPaid !== undefined && { admitPaid: deps.admitPaid }),
-    })
-    expectOverBudgetRefusal(code, streams.output(), rig)
-    expect(rig.prompts).toHaveLength(0)
-    // The admission layer re-checks the same cap against the changed
-    // binding, so a stale reservation cannot dispatch either.
-    expect(await deps.admitPaid?.(resolved, REQUEST, 0.0002, signal)).toEqual({
+    expect(resolved.worstCaseUsd(REQUEST)).toBe(0.0002)
+    expect(await deps.admitPaid?.(resolved, REQUEST, 0.0001, signal)).toEqual({
       outcome: 'no-answer',
       reason: 'over-budget',
     })
     expect(rig.embed).not.toHaveBeenCalled()
     expect(rig.claims).toHaveLength(0)
+    const streams = io(JSON.stringify(REQUEST))
+    const code = await runJudgeCommand(parsed, streams, {
+      resolveSource: () => Promise.resolve(resolved),
+      ...(deps.admitPaid !== undefined && { admitPaid: deps.admitPaid }),
+    })
+    expect(code).toBe(0)
+    expect(rig.embed).toHaveBeenCalledTimes(1)
+    expect(rig.claims).toEqual([0.0002])
   })
 
   it('treats a free judge with paid embeddings as paid, so --budget-usd 0 refuses first', async () => {

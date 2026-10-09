@@ -8,7 +8,6 @@ import {
   cascadeSideFromRuntime,
   cliEvidenceRoot,
   createClientlessBinding,
-  createEntryClientlessBinding,
   createPhase2Binding,
   emptyPhase2EvidenceStore,
   phase2AdoptionSlug,
@@ -16,19 +15,21 @@ import {
   phase2EvidenceFile,
   phase2EvidenceSlug,
   phase2ProfileSlug,
-  phase2SideTechnique,
   unavailablePhase2SeparateSource,
-  type ClientlessEntryParts,
   type Phase2BindingRequest,
   type Phase2EvidenceStore,
   type Phase2SeparateSource,
 } from '../../src/core/judge/binding'
-import { createJudgeRuntime, judgeRuntimeContext } from '../../src/core/judge/runtime'
+import { createJudgeRuntime } from '../../src/core/judge/runtime'
+import { judgeRuntimeContext } from '../../src/core/judge/plan'
+import { judgeSideTechnique } from '../../src/core/judge/sides'
+import { createJudgeFeatures } from '../../src/runtime/judge/judgeEntry'
+import { EN } from '../../src/shared/l10n/en'
 import { resolveJudgeMode2a } from '../../src/core/judge/resolve'
 import { JUDGE_MIN_READY_RATE } from '../../src/shared/constants'
 import type { JudgeCapability } from '../../src/core/judge/schema'
 import { toRuntime } from './helpers/judgeBinding'
-import { wiringFixture, wiringLimits } from './helpers/judgeWiring'
+import { statedRecord, wiringFixture, wiringLimits } from './helpers/judgeWiring'
 import { REQUEST } from './judgeCliFixtures'
 
 const OPTIONS = {
@@ -61,6 +62,11 @@ function evidenceFixtures() {
     fitVersion: 'fit-1',
     verified: true,
     locality: 'remote',
+    technique: judgeSideTechnique({
+      capability: wired.separate.capability,
+      record: statedRecord(wired.separate.capability),
+      kind: 'noul',
+    }),
   }
   const store: Phase2EvidenceStore = {
     readProfile: (query) => (query.source === 'same' ? wired.same.profile : wired.separate.profile),
@@ -274,37 +280,47 @@ describe('production phase-2 binding', () => {
     expect(receipt.outcome).toEqual({ outcome: 'no-answer', reason: 'source-unavailable' })
   })
 
-  it('names the side technique from its capability', () => {
+  it('takes each side technique from the one selector, never from capability booleans', () => {
     const { wired } = evidenceFixtures()
-    expect(phase2SideTechnique(wired.separate.capability)).toBe('stated')
+    const capability = wired.separate.capability
+    expect(judgeSideTechnique({ capability, record: statedRecord(capability), kind: 'noul' })).toBe(
+      'stated',
+    )
+    // Without a captured record a non-SystemOne capability supports nothing.
+    expect(judgeSideTechnique({ capability, kind: 'noul' })).toBeUndefined()
     expect(
-      phase2SideTechnique({ ...wired.separate.capability, stated: false, systemone: true }),
+      judgeSideTechnique({
+        capability: { ...capability, stated: false, systemone: true },
+        kind: 'noul',
+      }),
     ).toBe('systemone')
   })
 
-  it('builds evidence paths that survive Windows separators', () => {
-    expect(
-      phase2EvidenceFile(String.raw`C:\Users\randy\.config\muse\judge`, 'profile', 'a__b'),
-    ).toBe('C:/Users/randy/.config/muse/judge/judge/profiles/a__b.json')
-    expect(phase2EvidenceFile('/home/u/.config/muse/judge/', 'adoption', 'a')).toBe(
-      '/home/u/.config/muse/judge/judge/adoption/a.json',
+  it('builds evidence paths directly under the surface root on every platform', () => {
+    const slug = phase2EvidenceSlug(['a/b', 'c:d', '', '..'])
+    expect(slug).toMatch(/^a-b__c-d__unknown--[0-9a-f]{32}$/)
+    expect(slug).not.toMatch(/[/\\:]/)
+    expect(phase2EvidenceFile(String.raw`C:\Users\randy\.config\muse\judge`, 'profile', slug)).toBe(
+      `C:/Users/randy/.config/muse/judge/profiles/${slug}.json`,
     )
-    expect(phase2EvidenceSlug(['a/b', 'c:d', '', '..'])).toBe('a-b__c-d__unknown__..')
-    expect(phase2EvidenceSlug(['x'])).not.toMatch(/[/\\]/)
-    expect(
-      phase2ProfileSlug({
-        providerId: 'p',
-        model: 'm',
-        modelVersion: 'v',
-        endpoint: 'e',
-        source: 'same',
-        technique: 'stated',
-        family: 'risk.destructive',
-        promptVersion: 'prompt-1',
-        criteriaVersion: 'criteria-1',
-        fitVersion: 'fit-1',
-      }),
-    ).toBe('p__m__v__e__same__stated__risk.destructive__prompt-1__criteria-1__fit-1')
+    expect(phase2EvidenceFile('/home/u/.config/muse/judge/', 'adoption', 'a')).toBe(
+      '/home/u/.config/muse/judge/adoption/a.json',
+    )
+    const profile = phase2ProfileSlug({
+      providerId: 'p',
+      model: 'm',
+      modelVersion: 'v',
+      endpoint: 'e',
+      source: 'same',
+      technique: 'stated',
+      family: 'risk.destructive',
+      promptVersion: 'prompt-1',
+      criteriaVersion: 'criteria-1',
+      fitVersion: 'fit-1',
+    })
+    expect(profile).toMatch(
+      /^p__m__v__e__same__stated__risk\.destructive__prompt-1__criteria-1__fit-1--[0-9a-f]{32}$/,
+    )
     expect(
       phase2AdoptionSlug({
         providerId: 'p',
@@ -313,7 +329,7 @@ describe('production phase-2 binding', () => {
         promptVersion: 'prompt-1',
         criteriaVersion: 'criteria-1',
       }),
-    ).toBe('p__m__risk.destructive__prompt-1__criteria-1')
+    ).toMatch(/^p__m__risk\.destructive__prompt-1__criteria-1--[0-9a-f]{32}$/)
     expect(
       phase2EmbeddingSlug({
         providerId: 'p',
@@ -327,7 +343,11 @@ describe('production phase-2 binding', () => {
         fitVersion: 'fit-1',
         dimension: 8,
       }),
-    ).toBe('p__m__v__e__separate__risk.destructive__prompt-1__criteria-1__fit-1__8')
+    ).toMatch(
+      /^p__m__v__e__separate__risk\.destructive__prompt-1__criteria-1__fit-1__8--[0-9a-f]{32}$/,
+    )
+    // Identities that sanitize alike still name different files.
+    expect(phase2EvidenceSlug(['a/b'])).not.toBe(phase2EvidenceSlug(['a:b']))
     expect(cliEvidenceRoot({ evidenceDir: '  ', configHome: String.raw`C:\Users\r\.config` })).toBe(
       'C:/Users/r/.config/muse/judge',
     )
@@ -342,56 +362,48 @@ describe('production phase-2 binding', () => {
   })
 })
 
-/** The bundle entry's twin constructor: entry-sized, budget-fitting, field-for-field equal. */
-function entryParts(overrides: Partial<ClientlessEntryParts> = {}): ClientlessEntryParts {
-  const { wired } = evidenceFixtures()
+/** A configured id with no live side, as the CLI and the window both request it. */
+function clientlessRequest(overrides: Partial<Phase2BindingRequest> = {}) {
+  const { store } = evidenceFixtures()
   return {
     engine: 'auto',
     separateId: 'fixture-separate',
     separateConfigured: true,
-    sourceAvailable: BASE_CONTEXT.sourceAvailable,
-    providerId: BASE_CONTEXT.providerId,
-    modelId: BASE_CONTEXT.modelId,
-    ownerId: BASE_CONTEXT.ownerId,
-    confidential: BASE_CONTEXT.confidential,
-    paidConsent: BASE_CONTEXT.paidConsent,
-    readyRate: BASE_CONTEXT.readyRate,
-    minReadyRate: BASE_CONTEXT.minReadyRate,
+    store,
     options: OPTIONS,
     limits: wiringLimits,
-    adoptionRecord: wired.adoption.record,
-    adoptionCheck: hasJudgeAdoptionEvidence,
-    billing: 'free',
+    context: BASE_CONTEXT,
+    billing: 'free' as const,
     ...overrides,
   }
 }
 
-describe('entry-clientless-parity', () => {
+describe('one binding policy', () => {
   it.each([
     ['recorded receipt', {}],
-    ['missing receipt', { adoptionRecord: undefined }],
+    ['missing receipt', { store: emptyPhase2EvidenceStore() }],
     ['unbilled', { billing: undefined }],
-    ['no owner', { ownerId: undefined }],
-  ] as const)('entry twin matches the shared constructor with %s', (_label, overrides) => {
-    const twin = createEntryClientlessBinding(entryParts(overrides))
-    const shared = createClientlessBinding({ ...entryParts(overrides) })
-    expect(twin).toBeDefined()
-    expect(twin).toEqual(shared)
-    // The same gap is named on both: nothing dispatches without sides.
-    for (const binding of [twin, shared]) {
-      expect(resolveJudgeMode2a({ ...binding!.context, engine: 'auto' })).toMatchObject({
-        mode: 'same',
-        autoSameReason: 'source-unavailable',
-      })
-    }
+    ['a named gap', { separateGap: 'unknown-source' as const }],
+  ] as const)('the judgeP2 entry builds exactly the host binding with %s', (_label, overrides) => {
+    const request = clientlessRequest(overrides)
+    const entry = createJudgeFeatures({ uiText: EN, uiLocale: 'en' }).createPhase2Binding(request)
+    const host = createPhase2Binding({ ...request, adoptionCheck: hasJudgeAdoptionEvidence })
+    expect(entry).toBeDefined()
+    expect(entry).toEqual(host)
+    expect(createClientlessBinding).toBeTypeOf('function')
+    expect(resolveJudgeMode2a({ ...entry!.context, engine: 'auto' })).toMatchObject({
+      mode: 'same',
+      autoSameReason: 'source-unavailable',
+    })
   })
 
-  it('entry twin keeps phase-1 behaviour without a configured separate source', () => {
-    expect(createEntryClientlessBinding(entryParts({ separateId: '' }))).toBeUndefined()
-    expect(createEntryClientlessBinding(entryParts({ separateId: '  ' }))).toBeUndefined()
-    expect(
-      createEntryClientlessBinding(entryParts({ separateConfigured: undefined })),
-    ).toBeUndefined()
-    expect(createEntryClientlessBinding(entryParts({ separateConfigured: false }))).toBeUndefined()
+  it('keeps phase-1 behaviour without a configured separate source', () => {
+    const features = createJudgeFeatures({ uiText: EN, uiLocale: 'en' })
+    for (const overrides of [
+      { separateId: '' },
+      { separateId: '  ' },
+      { separateConfigured: false },
+    ])
+      expect(features.createPhase2Binding(clientlessRequest(overrides))).toBeUndefined()
   })
 })

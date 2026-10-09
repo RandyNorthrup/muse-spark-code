@@ -1,12 +1,12 @@
-// The extension host's production phase-2 binding (M98 P2B).
+// The extension host's production phase-2 binding (M98 P2B, redesign).
 //
 // Built inside `dist/judge.js` so activation stays thin: extension.ts only
-// passes the separate-source id, the evidence root and the sibling bundle
-// path. Recorded evidence is read from `<globalStorage>/judge/...`; C/E/J
-// live clients are injected as they land (none plumbed yet, so a
-// configured separate source honestly reports `source-unavailable` until
-// its lane wires a client). The adoption check runs inside the sibling
-// `dist/judgeP2.js` through the shared lazy loader, keeping every
+// passes plain inputs. Recorded evidence is read from the evidence root
+// (`<globalStorage>/judge`) directly. The separate side comes from the one
+// production side-factory port inside `dist/judgeP2.js`'s sources child:
+// a SystemOne route on M95's stored key is built for real; every other id
+// names its exact gap and the window keeps its phase-1 same-model judge.
+// The adoption check runs in `dist/judgeP2.js` too, keeping every
 // calibration module in that bundle alone (the split guard enforces it).
 
 import { readFileSync } from 'node:fs'
@@ -21,9 +21,9 @@ import {
 import type { JudgeAdoptionContext } from '../../core/judge/adoption'
 import type { JudgeCascadeSide, JudgeCascadeOptions } from '../../core/judge/cascade'
 import type { CalibrationLimits } from '../../core/judge/calibration/schema'
-import type { JudgeRuntime } from '../../core/judge/engine'
-import type { JudgeRuntimeDeps } from '../../core/judge/runtime'
+import type { JudgePlanRuntime, JudgeRuntimeDeps } from '../../core/judge/runtime'
 import type { JudgeEntryParts } from '../../core/judge/entries'
+import type { SeparateSourcePorts } from '../../core/judge/sides'
 import type { Logger } from '../logger'
 import { judgeFeaturesLoader } from '../../runtime/judge/judgeBundle'
 
@@ -72,12 +72,17 @@ export interface HostPhase2BindingInputs {
    * Defaults to whether a live separate source exists.
    */
   readonly separateConfigured?: boolean | undefined
+  /**
+   * The window's key, ledger, consent and transport for the production
+   * side-factory port. Absent: only `sources()` can supply a side.
+   */
+  readonly separatePorts?: ((action: JudgeEntryParts) => SeparateSourcePorts) | undefined
 }
 
 /** The window's production phase-2 factory: one shared binding builder. */
 export function createHostPhase2(deps: HostPhase2BindingInputs): {
   readonly binding: (action: JudgeEntryParts) => ReturnType<typeof createPhase2Binding>
-  readonly createRuntime: (runtime: JudgeRuntimeDeps) => Promise<JudgeRuntime>
+  readonly createRuntime: (runtime: JudgeRuntimeDeps) => Promise<JudgePlanRuntime>
 } {
   const loadJudgeP2 = judgeFeaturesLoader({
     bundlePath: deps.judgeP2BundlePath,
@@ -94,6 +99,14 @@ export function createHostPhase2(deps: HostPhase2BindingInputs): {
       const context = deps.context(action)
       if (context === undefined) return undefined
       const sources = deps.sources()
+      const separateId = deps.separateId().trim()
+      // The one side-factory port: a buildable route becomes the real side,
+      // anything else names its gap; phase 1 stays the window's judge.
+      const built =
+        separateId === '' || sources.separate !== undefined || deps.separatePorts === undefined
+          ? undefined
+          : loadJudgeP2().separateSource(separateId, deps.separatePorts(action), 'noul')
+      const separate = sources.separate ?? (built?.kind === 'built' ? built.source : undefined)
       const embeddingQuery = sources.embedding?.query
       const isAwaitingLabels =
         embeddingQuery !== undefined &&
@@ -108,10 +121,11 @@ export function createHostPhase2(deps: HostPhase2BindingInputs): {
         context,
         billing: deps.billing(action),
         ...(sources.same !== undefined && { same: sources.same }),
-        ...(sources.separate !== undefined && { separate: sources.separate }),
-        ...((deps.separateConfigured ?? sources.separate !== undefined) && {
+        ...(separate !== undefined && { separate }),
+        ...((deps.separateConfigured ?? separate !== undefined) && {
           separateConfigured: true as const,
         }),
+        ...(built?.kind === 'gap' && { separateGap: built.gap }),
         adoptionCheck: hasJudgeAdoption,
         ...(isAwaitingLabels && { embeddingAwaitingLabels: true as const }),
       }

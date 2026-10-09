@@ -1,21 +1,29 @@
-// Recorded phase-2 evidence paths and store (M98 P2B).
+// Recorded phase-2 evidence paths and store (M98 P2B, redesign).
 //
-// Deliberately import-light: only the shared constants. The CLI/ACP entry
-// (`src/runtime/main.ts`) reads these at startup while keeping judge
-// schemas lazy (the dispatch gate trips when `core/judge/schema.ts`
-// loads), so nothing here may ever import a judge schema, calibration
-// module or the binding factory. Everything judge-shaped stays type-only
-// at this layer; validation lives in `dist/judgeP2.js`.
+// Deliberately import-light: only the shared constants and node:crypto. The
+// CLI/ACP entry (`src/runtime/main.ts`) reads these at startup while
+// keeping judge schemas lazy (the dispatch gate trips when
+// `core/judge/schema.ts` loads), so nothing here may ever import a judge
+// schema, calibration module or the binding factory. Everything
+// judge-shaped stays type-only at this layer; validation lives in
+// `dist/judgeP2.js`.
+//
+// One root convention: a surface passes its evidence root, which already
+// IS the judge evidence directory (`<globalStorage>/judge` in the host,
+// `<config>/muse/judge` for the CLI/MCP). Files live directly beneath it,
+// at `<root>/<kind>/<slug>.json`; nothing appends another `judge`.
 
-import { JUDGE_EVIDENCE_DIRNAME } from '../../shared/constants'
+import { createHash } from 'node:crypto'
+import {
+  JUDGE_EVIDENCE_DIRNAME,
+  JUDGE_EVIDENCE_SLUG_HASH_CHARS,
+  JUDGE_EVIDENCE_SLUG_PREFIX_CHARS,
+} from '../../shared/constants'
 import type { JudgeAdoptionContext } from './adoption'
 import type { JudgeCascadeOptions, JudgeCascadeSide } from './cascade'
 import type { CalibrationLimits } from './calibration/schema'
 import type { JudgeRuntimeBinding } from './runtime'
 import type { JudgeModeContext } from './resolve'
-
-/** Where recorded phase-2 evidence lives under a surface's storage root. */
-export const PHASE2_EVIDENCE_DIR = JUDGE_EVIDENCE_DIRNAME
 
 /** B's fitted calibration profiles, one JSON file per side identity. */
 export const PHASE2_PROFILE_BASENAME = 'profiles'
@@ -107,29 +115,39 @@ export function emptyPhase2EvidenceStore(): Phase2EvidenceStore {
   }
 }
 
-/** Slug parts are file-name safe, never paths. */
-const MAX_SLUG_PART_LENGTH = 96
-
 function sanitizeSlugPart(value: string): string {
   const cleaned = value
     .normalize('NFC')
     .replaceAll(/[^a-zA-Z0-9._-]+/g, '-')
     .replaceAll(/^-+|-+$/g, '')
-  return cleaned === '' ? 'unknown' : cleaned.slice(0, MAX_SLUG_PART_LENGTH)
+  return cleaned === '' ? 'unknown' : cleaned
 }
 
 /**
- * File name for one recorded artifact. Parts are sanitized so model ids
- * containing `/` or `:` cannot escape their directory on any platform.
+ * File name for one recorded artifact: a readable, sanitized prefix of the
+ * identity, cut to a fixed length, then a hash of the COMPLETE identity.
+ * The whole basename is bounded however long each part is, parts cannot
+ * escape their directory on any platform (no `/`, `:` or `..` survives),
+ * and two identities that sanitize alike still get different names.
  */
 export function phase2EvidenceSlug(parts: readonly string[]): string {
-  return parts.map((part) => sanitizeSlugPart(part)).join('__')
+  const readable = parts
+    .map((part) => sanitizeSlugPart(part))
+    .join('__')
+    .slice(0, JUDGE_EVIDENCE_SLUG_PREFIX_CHARS)
+    .replaceAll(/[-_.]+$/g, '')
+  const digest = createHash('sha256')
+    .update(JSON.stringify(parts))
+    .digest('hex')
+    .slice(0, JUDGE_EVIDENCE_SLUG_HASH_CHARS)
+  return `${readable}--${digest}`
 }
 
 /**
  * Storage path for one recorded artifact, with `/` separators on every
  * platform (callers must normalise before comparing: CI runs on Windows).
- * The measurement lane writes these exact paths; the binding reads them.
+ * `root` is the surface's evidence root itself; the measurement lane
+ * writes these exact paths and the binding reads them.
  */
 export function phase2EvidenceFile(
   root: string,
@@ -141,9 +159,8 @@ export function phase2EvidenceFile(
     adoption: PHASE2_ADOPTION_BASENAME,
     embedding: PHASE2_EMBEDDING_BASENAME,
   }
-  const base = bases[kind]
   const rootSlash = root.replaceAll('\\', '/').replaceAll(/\/+$/g, '')
-  return `${rootSlash}/${PHASE2_EVIDENCE_DIR}/${base}/${slug}.json`
+  return `${rootSlash}/${bases[kind]}/${slug}.json`
 }
 
 /** Slug for one side's fitted profile file. */
@@ -237,7 +254,7 @@ export function cliEvidenceRoot(input: {
 }): string {
   const override = input.evidenceDir?.trim() ?? ''
   return override === ''
-    ? `${input.configHome.replaceAll('\\', '/').replaceAll(/\/+$/g, '')}/muse/judge`
+    ? `${input.configHome.replaceAll('\\', '/').replaceAll(/\/+$/g, '')}/muse/${JUDGE_EVIDENCE_DIRNAME}`
     : override
 }
 
@@ -284,6 +301,7 @@ export interface ClientlessBindingParts {
   readonly billing?: JudgeRuntimeBinding['billing']
   readonly attemptCostUsd?: JudgeRuntimeBinding['attemptCostUsd']
   readonly embeddingNote?: JudgeRuntimeBinding['embeddingNote']
+  readonly separateGap?: JudgeRuntimeBinding['separateGap']
 }
 
 /**
@@ -343,81 +361,6 @@ export function createClientlessBinding(
     // Unknown locality reports remote so confidential workspaces refuse.
     separateLocality: 'remote',
     ...(parts.embeddingNote !== undefined && { embeddingNote: parts.embeddingNote }),
-  }
-}
-
-/**
- * The bundle entry's clientless parts: everything `dist/judgeP2.js`
- * assembles, and nothing it cannot hold. The CLI, ACP and MCP surfaces
- * never carry live sides, per-side costs or embedding notes, so those
- * stay with the shared constructor (the window still needs them) and out
- * of the capped bundle. Locked field for field by the
- * `entry-clientless-parity` test.
- */
-export interface ClientlessEntryParts {
-  readonly engine: ClientlessBindingParts['engine']
-  readonly separateId: string | undefined
-  readonly separateConfigured?: boolean | undefined
-  readonly sourceAvailable: boolean
-  readonly providerId: string
-  readonly modelId: string
-  readonly ownerId?: string | undefined
-  readonly confidential: boolean
-  readonly paidConsent: ClientlessBindingParts['paidConsent']
-  readonly readyRate: number | undefined
-  readonly minReadyRate: number
-  readonly options: JudgeCascadeOptions
-  readonly limits: CalibrationLimits
-  readonly adoptionRecord: unknown
-  readonly adoptionCheck: NonNullable<ClientlessBindingParts['adoptionCheck']>
-  readonly billing?: JudgeRuntimeBinding['billing']
-}
-
-/**
- * The bundle entry's clientless constructor. A twin of the shared one
- * over the entry's smaller shape — the parameter is deliberately not
- * called `parts`, so the two assemblies never token-match under the
- * zero-tolerance duplication gate. Behaviour on the overlap is
- * identical by construction and locked by test.
- */
-export function createEntryClientlessBinding(
-  entry: ClientlessEntryParts,
-): JudgeRuntimeBinding | undefined {
-  const separateId = entry.separateId?.trim() ?? ''
-  if (separateId === '' || entry.separateConfigured !== true) return undefined
-  return {
-    ...(entry.billing !== undefined && { billing: entry.billing }),
-    context: {
-      engine: entry.engine,
-      paidConsent: entry.paidConsent,
-      readyRate: entry.readyRate,
-      minReadyRate: entry.minReadyRate,
-      sourceAvailable: entry.sourceAvailable,
-      providerId: entry.providerId,
-      modelId: entry.modelId,
-      confidential: entry.confidential,
-      ...(entry.ownerId !== undefined && { ownerId: entry.ownerId }),
-      separate: {
-        available: false,
-        verified: false,
-        profilesReady: false,
-        adoption:
-          entry.adoptionRecord === undefined
-            ? undefined
-            : {
-                record: entry.adoptionRecord,
-                check: entry.adoptionCheck,
-                context: {
-                  providerId: entry.providerId,
-                  modelId: entry.modelId,
-                  limits: entry.limits,
-                },
-              },
-      },
-    },
-    options: entry.options,
-    separateVerified: false,
-    // Unknown locality reports remote so confidential workspaces refuse.
-    separateLocality: 'remote',
+    ...(parts.separateGap !== undefined && { separateGap: parts.separateGap }),
   }
 }

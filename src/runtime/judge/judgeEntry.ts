@@ -2,10 +2,7 @@
 // an explicit judge surface. Source selection and per-attempt admission are
 // supplied by the caller; importing this factory starts no backend or server.
 import { hasJudgeAdoptionEvidence } from '../../core/judge/adoption'
-import {
-  createEntryClientlessBinding,
-  type ClientlessEntryParts,
-} from '../../core/judge/evidencePaths'
+import { createPhase2Binding, type Phase2BindingRequest } from '../../core/judge/binding'
 import { createJudgeRuntime, type JudgeRuntimeDeps } from '../../core/judge/runtime'
 import { createJudgeCommandDeps } from './assembly'
 import path from 'node:path'
@@ -17,6 +14,7 @@ import type * as HookEntry from './judgeHookEntry'
 import type * as LocalEntry from './judgeLocalEntry'
 import type * as UsesEntry from './judgeUsesEntry'
 import type * as SourcesEntry from './judgeSourcesEntry'
+type SourcesFeatures = ReturnType<typeof SourcesEntry.createJudgeSourcesFeatures>
 import type * as ServeEntry from './judgeServeEntry'
 import { applyCalibration } from '../../core/judge/calibration/apply'
 import { fitCalibration } from '../../core/judge/calibration/fit'
@@ -76,15 +74,19 @@ const features = {
     )
   },
   hasJudgeAdoptionEvidence,
-  // The CLI/ACP and MCP surfaces hold no live separate source (their
-  // C/E/J client lanes have not landed): the caller reads the recorded
-  // receipt beside the call, and the entry assembles the entry-sized
-  // clientless binding with the real adoption check, so recorded
-  // evidence is reported, gaps are named, and nothing dispatches
-  // without sides. Live sides arrive through the full factory when
-  // their lanes land.
-  createBinding(request: Omit<ClientlessEntryParts, 'adoptionCheck'>) {
-    return createEntryClientlessBinding({ ...request, adoptionCheck: hasJudgeAdoptionEvidence })
+  // The one binding policy, shared with the window: the CLI/ACP and MCP
+  // surfaces build their binding through the same factory, with the real
+  // adoption check applied here so calibration stays in this bundle.
+  createPhase2Binding(request: Omit<Phase2BindingRequest, 'adoptionCheck'>) {
+    return createPhase2Binding({ ...request, adoptionCheck: hasJudgeAdoptionEvidence })
+  },
+  // The one production side-factory port: the separate source a configured
+  // id names, or exactly what it is missing, built inside the sources child.
+  separateSource(...args: Parameters<SourcesFeatures['buildSeparateSource']>) {
+    return children()
+      .sources()
+      .createJudgeSourcesFeatures({ uiText: UI_TEXT, uiLocale: uiLocale() })
+      .buildSeparateSource(...args)
   },
   createRuntime(deps: JudgeRuntimeDeps) {
     return Promise.resolve(

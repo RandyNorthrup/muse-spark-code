@@ -4060,5 +4060,10 @@
   "judgeAutoNoProfiles": "Gleiches Modell: angepasste Profile fehlen",
   "judgeAutoNoEvidence": "Gleiches Modell: Nachweise aus gepaarten Auswertungen mit zurückgehaltenen Daten fehlen",
   "judgeEmbedNoLabels": "Der Embedding-Shortcut braucht Hunderte unabhängige Labels für diese Familie; bisher wurden keine aufgezeichnet, daher läuft stattdessen die vollständige Beurteilung.",
-  "paidConfirmJudgeEmbedding": "Eine Embedding-Anfrage an {model} kostet höchstens {price} und wird Ihrem Anbieterschlüssel berechnet. Das gemeinsame Tagesbudget beträgt {budget}. Ihr Abonnement bezahlt diese Anfrage nicht. Einmal erlauben gilt für dieses Fenster; beim Wechsel von einer kostenlosen Quelle oder bei einer Preisänderung wird erneut gefragt."
+  "paidConfirmJudgeEmbedding": "Eine Embedding-Anfrage an {model} kostet höchstens {price} und wird Ihrem Anbieterschlüssel berechnet. Das gemeinsame Tagesbudget beträgt {budget}. Ihr Abonnement bezahlt diese Anfrage nicht. Einmal erlauben gilt für dieses Fenster; beim Wechsel von einer kostenlosen Quelle oder bei einer Preisänderung wird erneut gefragt.",
+  "paidConfirmJudgeSystemOne": "Experimentell und ungetestet: Eine SystemOne-Beurteilungsanfrage an {model} bei {recipient} kostet höchstens {price} und wird über Ihren eigenen Anbieterschlüssel abgerechnet. Die beurteilte Aktion wird dorthin gesendet; das Ergebnis fügt dem Urteil Ihres eigenen Modells nur Vorsicht hinzu, antwortet Ihnen nie und entscheidet nie allein. Das gemeinsame Tagesbudget beträgt {budget}. Ihr Abonnement bezahlt diese Anfrage nicht. „Einmal erlauben“ gilt für dieses Fenster; eine Preisänderung fragt erneut.",
+  "judgeSeparateNeedsKey": "Die separate Beurteilung braucht den Schlüssel ihres Anbieters unter „Modelle und Anbieter“",
+  "judgeSeparateNeedsCapture": "Separate Beurteilung: Für dieses Anbietermodell muss zuerst eine strukturierte oder Logprob-Beurteilungsanfrage aufgezeichnet werden",
+  "judgeSeparateNeedsInstall": "Separate Beurteilung: Die lokale Beurteilung braucht eine geprüfte Installation auf einer zertifizierten Plattform",
+  "judgeSeparateUnknown": "Separate Beurteilung: Die konfigurierte ID bezeichnet keine bekannte Quelle"
 }

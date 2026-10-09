@@ -1141,6 +1141,10 @@ async function activateWindow(
     evidenceRoot: path.join(context.globalStorageUri.fsPath, JUDGE_EVIDENCE_DIRNAME),
     judgeP2BundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', JUDGE_P2_BUNDLE_FILE)
       .fsPath,
+    // M95's stored record for a SystemOne route's provider (the user's own
+    // key, origin-bound); read only when a configured route needs it.
+    readStoredCredential: async (providerId) =>
+      await context.secrets.get(`${PROVIDER_SECRET_PREFIX}${providerId}`),
     context: (action) => {
       if (!isProjectTrusted()) return
       for (const controller of controllers.values()) {

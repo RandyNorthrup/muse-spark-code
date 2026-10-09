@@ -119,6 +119,8 @@ const JUDGE_CHILDREN = [
       'src/core/judge/systemone/source.ts',
       'src/core/judge/systemone/wire.ts',
       'src/core/judge/systemone/policy.ts',
+      'src/core/judge/systemone/side.ts',
+      'src/core/judge/sides.ts',
     ],
   },
   {

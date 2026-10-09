@@ -33,13 +33,18 @@ import type { TokenUsage } from '../../shared/agentEvents'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import { createHostPhase2 } from './judgeBinding'
-import { createJudgeUse } from './judgeUse'
+import { createJudgeUse, type JudgeUseHostDeps } from './judgeUse'
 import { JudgeUsageRows } from './judgeUsage'
 import { MuseCodeSameJudge } from './museCodeSameJudge'
 import { ModelApiSameJudge } from './modelApiSameJudge'
 import { admittedModelApiJudge } from './judgeTransport'
 import type { JudgeWindowDeps, JudgeWindowPort } from './judgeBundle'
 import type { Phase2BindingContext } from '../../core/judge/binding'
+import type { SeparateSourcePorts } from '../../core/judge/sides'
+
+function noStoredCredential(): Promise<string | undefined> {
+  return Promise.resolve(undefined)
+}
 
 /** First-charge consent as the production binding sees it before any popup. */
 function windowPaidConsent(
@@ -81,11 +86,15 @@ export function createWindowJudge(
             criteriaVersion: JUDGE_CRITERIA_VERSION,
             highStakes: true,
           }),
-          // Live C/E/J clients land in their own lanes; until then a
-          // configured id reports its gap instead of silently staying
-          // phase-1.
+          // The production side-factory port builds the configured side
+          // (a SystemOne route on M95's stored key) or names its gap; the
+          // window keeps its phase-1 same-model judge either way.
           separateConfigured: true,
           sources: () => ({}),
+          ...(deps.readStoredCredential !== undefined && {
+            separatePorts: (action: JudgeEntryParts) =>
+              systemOnePorts(action, deps.readStoredCredential ?? noStoredCredential),
+          }),
           context: (action): Phase2BindingContext | undefined => {
             const current = deps.context(action)
             if (current === undefined) return undefined
@@ -120,6 +129,59 @@ export function createWindowJudge(
         }))
   const cache = new JudgeResultCache()
   const paidGrants = new Set<string>()
+  // Key presence is read asynchronously from SecretStorage and cached; the
+  // binding reads the cache synchronously, so a key added later is picked
+  // up on a later action and a missing one names its gap meanwhile.
+  const storedKeys = new Map<string, boolean>()
+  let systemOneConsent: 'granted' | 'needed' | 'declined' = 'needed'
+  function systemOnePorts(
+    action: JudgeEntryParts,
+    readStoredCredential: (providerId: string) => Promise<string | undefined>,
+  ): SeparateSourcePorts {
+    return {
+      fetch: globalThis.fetch,
+      hasStoredKey: (providerId) => {
+        void readStoredCredential(providerId)
+          .then((stored) => storedKeys.set(providerId, stored !== undefined && stored !== ''))
+          .catch(() => storedKeys.set(providerId, false))
+        return storedKeys.get(providerId) === true
+      },
+      systemOne: {
+        readStoredCredential,
+        reserve: async (usd) => {
+          const ledger = deps.ledger
+          if (ledger === undefined) return { reserved: false, reason: 'ledger-unavailable' }
+          if (usd > (await ledger.remainingUsd())) return { reserved: false, reason: 'over-budget' }
+          const claim = await ledger.reserve(usd)
+          claim.check()
+          return {
+            reserved: true,
+            claim: {
+              reservedUsd: claim.reservedUsd,
+              settle: (actualUsd) => claim.settle(actualUsd),
+              refund: () => claim.settle(0),
+            },
+          }
+        },
+        consent: () => (deps.paid.gate.isOn('judge') ? systemOneConsent : 'declined'),
+        confidential: () => deps.context(action)?.confidential ?? true,
+        isExplicit: () => deps.engine() === 'separate' || deps.engine() === 'both',
+        // D48: the price and recipient are named before the first charge;
+        // the user's own provider key pays, never the subscription.
+        askConsent: async (route) => {
+          if (systemOneConsent === 'granted' && deps.paid.gate.isOn('judge')) return true
+          const isAllowed = await deps.paid.consent.allows({
+            feature: 'judge',
+            modelId: route.model,
+            dailyBudgetUsd: deps.dailyBudgetUsd?.() ?? 0,
+            systemOne: { worstCaseUsd: route.worstCaseUsd, recipient: route.recipient },
+          })
+          systemOneConsent = isAllowed ? 'granted' : 'declined'
+          return isAllowed
+        },
+      },
+    }
+  }
   const sideSessions = new Set<string>()
   const uses = new Map<string, { action: JudgeEntryParts; use: JudgeUse }>()
   let panel: { action: JudgeEntryParts; status: JudgeStatus; identity: string } | undefined
@@ -180,6 +242,29 @@ export function createWindowJudge(
   const selectedBinding = (action: JudgeEntryParts) => {
     const selected = phase2?.binding(action)
     return selected !== undefined && selected.context.turn !== action.turnId ? undefined : selected
+  }
+  // The window's live trigger identity for one action: what it observes
+  // itself (its context, engine and paid-consent grant), never a re-read of
+  // the phase-2 binding. A change cancels a running plan; it never re-plans.
+  const windowTriggers = (action: JudgeEntryParts) => {
+    const current = deps.context(action)
+    return current === undefined
+      ? undefined
+      : {
+          engine: deps.engine(),
+          providerId: current.providerId ?? current.backend,
+          modelId: current.modelId,
+          paidConsent: windowPaidConsent(
+            current.backend,
+            deps.ledger !== undefined,
+            deps.paid.consent.remembered().includes('judge'),
+          ),
+          confidential: current.confidential,
+          endpoint: current.endpoint,
+          profileId: current.profileId,
+          ownerId: current.ownerId,
+          turn: action.turnId,
+        }
   }
   let hasNotice = false
   const onError = () => {
@@ -274,6 +359,105 @@ export function createWindowJudge(
                 }),
           }
         }
+        // The working phase-1 same-model judge: the Model API or Muse Code
+        // side request, admitted per call on the shared D78 ledger.
+        const phase1Runner = (
+          entries: Parameters<JudgeUseHostDeps['createRunner']>[0],
+          lifetime: AbortSignal,
+        ) => {
+          const rows = new JudgeUsageRows({
+            billing: initial.backend === 'museCode' ? 'subscription' : 'modelApi',
+            usage: deps.paid.usage,
+            emit: (event) => {
+              deps.emit(action, event)
+            },
+          })
+          const limit = initial.contextLimit ?? JUDGE_MAX_STATE_TOKENS
+          // MSP has no tokenizer endpoint. UTF-8 bytes are a conservative input bound;
+          // refusal leaves the complete state intact rather than estimating it low.
+          const runner = {
+            entries,
+            cache,
+            modelId: initial.modelId,
+            signal: lifetime,
+            measureTokens: (text: string) => Buffer.byteLength(text),
+            contextTokenLimit: Math.min(
+              JUDGE_MAX_STATE_TOKENS,
+              initial.backend === 'modelApi' ? limit - MODEL_API_MAX_OUTPUT_TOKENS : limit,
+            ),
+            onError,
+          }
+          if (initial.backend === 'modelApi') {
+            const connection = deps.modelApi(action)
+            if (connection === undefined || deps.ledger === undefined)
+              throw new Error('Judge daily ledger or source unavailable')
+            return new ModelApiSameJudge({
+              ...runner,
+              source: connection.source,
+              transport: admittedModelApiJudge({
+                connection,
+                ledger: deps.ledger,
+                binding: () => binding(lifetime),
+                rows,
+                turnId: action.turnId,
+                signal: lifetime,
+                contextLimit: limit,
+              }),
+              redact: redactSecrets,
+            })
+          }
+          const calls = new Map<string, { id: string; usage: TokenUsage | undefined }>()
+          return new MuseCodeSameJudge({
+            ...runner,
+            readSettingsText: deps.readSettingsText,
+            startSession: deps.startSession,
+            makeTempRoot: () => mkdtemp(path.join(tmpdir(), JUDGE_TEMP_PREFIX)),
+            removeTempRoot: (root) => rm(root, { recursive: true, force: true }),
+            onSideSession: (id) => sideSessions.add(id),
+            describeFailure: failureForLog,
+            logInfo: (text) => {
+              deps.log.info(text)
+            },
+            logWarn: (text) => {
+              deps.log.warn(text)
+            },
+            sendTurn: async (session, parts, timeout) => {
+              const signal = AbortSignal.any([lifetime, timeout])
+              signal.throwIfAborted()
+              if (Buffer.byteLength(JSON.stringify(parts)) > limit)
+                throw new Error('Judge request exceeds the loaded context limit')
+              const admitted = await admitJudgeCall({
+                binding: binding(signal),
+                currentBinding: () => binding(signal),
+                billing: { kind: 'subscription' },
+                estimatedInputTokens: Buffer.byteLength(JSON.stringify(parts)),
+                maxOutputTokens: MODEL_API_MAX_OUTPUT_TOKENS,
+              })
+              if (!admitted.admitted)
+                throw new Error(`Judge admission refused: ${admitted.refusal}`)
+              const verified = await verifyJudgeDispatch(admitted.claim, () => binding(signal))
+              signal.throwIfAborted()
+              if (!verified.proceed || !rebindJudgeClaim(admitted.claim, binding(signal)).rebound)
+                throw new Error('Judge dispatch binding expired')
+              admitted.claim.check()
+              const id = randomUUID()
+              calls.set(session.sessionId, { id, usage: undefined })
+              rows.started(id, action.turnId, initial.modelId)
+              return await session.sendTurn(parts)
+            },
+            onUsage: (id, usage) => {
+              const call = calls.get(id)
+              if (call !== undefined) call.usage = usage
+            },
+            onFinished: (id, failed) => {
+              const call = calls.get(id)
+              if (call === undefined) return
+              calls.delete(id)
+              if (failed) rows.failed(call.id)
+              else rows.finished(call.id, call.usage)
+            },
+          })
+        }
         const use = createJudgeUse({
           backend: initial.backend,
           billing: () =>
@@ -293,7 +477,10 @@ export function createWindowJudge(
           }),
           onError,
           onFence: deps.onFence,
-          onStatus: (status) => {
+          onStatus: (resolved) => {
+            // A configured id whose side cannot be built names its gap.
+            const gap = phase2?.binding(action)?.separateGap
+            const status = gap === undefined ? resolved : { ...resolved, separateGap: gap }
             panel = { action, status, identity }
             deps.status(action, status)
           },
@@ -306,164 +493,85 @@ export function createWindowJudge(
             deps.notice(text)
           },
           createRunner: (entries, _action, lifetime) => {
-            if (phase2 !== undefined && selectedBinding(action) !== undefined) {
-              const embeddingId = randomUUID()
-              const embeddingRows = new JudgeUsageRows({
-                billing:
-                  selectedBinding(action)?.embedding?.source.locality === 'same-provider'
-                    ? 'modelApi'
-                    : 'subscription',
-                usage: deps.paid.usage,
-                emit: (event) => {
-                  deps.emit(action, event)
-                },
-              })
-              return {
-                judge: (job) => {
-                  void phase2
-                    .createRuntime({
-                      binding: () => selectedBinding(action),
-                      paidGrants,
-                      embeddingStatus: (status) => {
-                        if (panel?.action !== action) return
-                        // A configured transport with no recorded head names
-                        // its missing labels in plain words (L98P2-EMBED).
-                        const note = selectedBinding(action)?.embeddingNote
-                        const next = {
-                          ...panel.status,
-                          embeddingReason: status.available ? undefined : (note ?? status.reason),
-                        }
-                        panel = { ...panel, status: next }
-                        deps.status(action, next)
-                      },
-                      embeddingAttempt: (phase, source) => {
-                        if (phase === 'started')
-                          embeddingRows.started(embeddingId, action.turnId, source.model)
-                        else if (phase === 'failed') embeddingRows.failed(embeddingId)
-                        else embeddingRows.finished(embeddingId, undefined)
-                      },
-                    })
-                    .then(async (runtime) => {
-                      const outcome = await runtime.judge(
-                        {
-                          state: job.stateText,
-                          model: initial.modelId,
-                          questions: Object.fromEntries(
-                            job.questions.map((question) => [
-                              question.id,
-                              { type: 'noul' as const, instructions: question.text },
-                            ]),
-                          ),
-                        },
-                        lifetime,
-                      )
-                      const isCaution =
-                        outcome.outcome === 'answered' &&
-                        Object.values(outcome.result.answers).some(
-                          (answer) =>
-                            answer.type === 'noul' && answer.noul >= JUDGE_ADVISORY_THRESHOLD,
-                        )
-                      let settlement: 'failed' | 'caution' | 'none' = 'none'
-                      if (outcome.outcome === 'no-answer') settlement = 'failed'
-                      else if (isCaution) settlement = 'caution'
-                      entries.settle(job.entryKey, settlement)
-                    })
-                    .catch(onError)
-                },
-              }
-            }
-            const rows = new JudgeUsageRows({
-              billing: initial.backend === 'museCode' ? 'subscription' : 'modelApi',
+            const phase1 = () => phase1Runner(entries, lifetime)
+            if (phase2 === undefined || selectedBinding(action) === undefined) return phase1()
+            const embeddingId = randomUUID()
+            const embeddingRows = new JudgeUsageRows({
+              billing:
+                selectedBinding(action)?.embedding?.source.locality === 'same-provider'
+                  ? 'modelApi'
+                  : 'subscription',
               usage: deps.paid.usage,
               emit: (event) => {
                 deps.emit(action, event)
               },
             })
-            const limit = initial.contextLimit ?? JUDGE_MAX_STATE_TOKENS
-            // MSP has no tokenizer endpoint. UTF-8 bytes are a conservative input bound;
-            // refusal leaves the complete state intact rather than estimating it low.
-            const runner = {
-              entries,
-              cache,
-              modelId: initial.modelId,
-              signal: lifetime,
-              measureTokens: (text: string) => Buffer.byteLength(text),
-              contextTokenLimit: Math.min(
-                JUDGE_MAX_STATE_TOKENS,
-                initial.backend === 'modelApi' ? limit - MODEL_API_MAX_OUTPUT_TOKENS : limit,
-              ),
-              onError,
+            return {
+              judge: (job) => {
+                void phase2
+                  .createRuntime({
+                    binding: () => selectedBinding(action),
+                    // The window's own trigger identity: a change cancels
+                    // the run; it never re-reads the binding.
+                    triggers: () => windowTriggers(action),
+                    paidGrants,
+                    embeddingStatus: (status) => {
+                      if (panel?.action !== action) return
+                      // A configured transport with no recorded head names
+                      // its missing labels in plain words (L98P2-EMBED).
+                      const note = selectedBinding(action)?.embeddingNote
+                      const next = {
+                        ...panel.status,
+                        embeddingReason: status.available ? undefined : (note ?? status.reason),
+                      }
+                      panel = { ...panel, status: next }
+                      deps.status(action, next)
+                    },
+                    embeddingAttempt: (phase, source) => {
+                      if (phase === 'started')
+                        embeddingRows.started(embeddingId, action.turnId, source.model)
+                      else if (phase === 'failed') embeddingRows.failed(embeddingId)
+                      else embeddingRows.finished(embeddingId, undefined)
+                    },
+                  })
+                  .then(async (runtime) => {
+                    // The run's one binding read: its plan decides everything.
+                    const plan = runtime.plan({
+                      state: job.stateText,
+                      model: initial.modelId,
+                      questions: Object.fromEntries(
+                        job.questions.map((question) => [
+                          question.id,
+                          { type: 'noul' as const, instructions: question.text },
+                        ]),
+                      ),
+                    })
+                    // No request-level side for a `same` plan: the working
+                    // phase-1 same-model judge answers, never a side-less
+                    // runtime that sends nothing.
+                    if (!('resolution' in plan) || plan.dispatch === 'phase1') {
+                      if ('resolution' in plan) {
+                        phase1().judge(job)
+                        return
+                      }
+                      entries.settle(job.entryKey, 'failed')
+                      return
+                    }
+                    const outcome = await runtime.run(plan, lifetime)
+                    const isCaution =
+                      outcome.outcome === 'answered' &&
+                      Object.values(outcome.result.answers).some(
+                        (answer) =>
+                          answer.type === 'noul' && answer.noul >= JUDGE_ADVISORY_THRESHOLD,
+                      )
+                    let settlement: 'failed' | 'caution' | 'none' = 'none'
+                    if (outcome.outcome === 'no-answer') settlement = 'failed'
+                    else if (isCaution) settlement = 'caution'
+                    entries.settle(job.entryKey, settlement)
+                  })
+                  .catch(onError)
+              },
             }
-            if (initial.backend === 'modelApi') {
-              const connection = deps.modelApi(action)
-              if (connection === undefined || deps.ledger === undefined)
-                throw new Error('Judge daily ledger or source unavailable')
-              return new ModelApiSameJudge({
-                ...runner,
-                source: connection.source,
-                transport: admittedModelApiJudge({
-                  connection,
-                  ledger: deps.ledger,
-                  binding: () => binding(lifetime),
-                  rows,
-                  turnId: action.turnId,
-                  signal: lifetime,
-                  contextLimit: limit,
-                }),
-                redact: redactSecrets,
-              })
-            }
-            const calls = new Map<string, { id: string; usage: TokenUsage | undefined }>()
-            return new MuseCodeSameJudge({
-              ...runner,
-              readSettingsText: deps.readSettingsText,
-              startSession: deps.startSession,
-              makeTempRoot: () => mkdtemp(path.join(tmpdir(), JUDGE_TEMP_PREFIX)),
-              removeTempRoot: (root) => rm(root, { recursive: true, force: true }),
-              onSideSession: (id) => sideSessions.add(id),
-              describeFailure: failureForLog,
-              logInfo: (text) => {
-                deps.log.info(text)
-              },
-              logWarn: (text) => {
-                deps.log.warn(text)
-              },
-              sendTurn: async (session, parts, timeout) => {
-                const signal = AbortSignal.any([lifetime, timeout])
-                signal.throwIfAborted()
-                if (Buffer.byteLength(JSON.stringify(parts)) > limit)
-                  throw new Error('Judge request exceeds the loaded context limit')
-                const admitted = await admitJudgeCall({
-                  binding: binding(signal),
-                  currentBinding: () => binding(signal),
-                  billing: { kind: 'subscription' },
-                  estimatedInputTokens: Buffer.byteLength(JSON.stringify(parts)),
-                  maxOutputTokens: MODEL_API_MAX_OUTPUT_TOKENS,
-                })
-                if (!admitted.admitted)
-                  throw new Error(`Judge admission refused: ${admitted.refusal}`)
-                const verified = await verifyJudgeDispatch(admitted.claim, () => binding(signal))
-                signal.throwIfAborted()
-                if (!verified.proceed || !rebindJudgeClaim(admitted.claim, binding(signal)).rebound)
-                  throw new Error('Judge dispatch binding expired')
-                admitted.claim.check()
-                const id = randomUUID()
-                calls.set(session.sessionId, { id, usage: undefined })
-                rows.started(id, action.turnId, initial.modelId)
-                return await session.sendTurn(parts)
-              },
-              onUsage: (id, usage) => {
-                const call = calls.get(id)
-                if (call !== undefined) call.usage = usage
-              },
-              onFinished: (id, failed) => {
-                const call = calls.get(id)
-                if (call === undefined) return
-                calls.delete(id)
-                if (failed) rows.failed(call.id)
-                else rows.finished(call.id, call.usage)
-              },
-            })
           },
         })
         active = { action, use }

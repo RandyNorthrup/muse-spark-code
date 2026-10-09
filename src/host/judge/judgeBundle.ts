@@ -1,5 +1,8 @@
-import type { JudgeRuntimeBinding, JudgeRuntimeDeps } from '../../core/judge/runtime'
-import type { JudgeRuntime } from '../../core/judge/engine'
+import type {
+  JudgePlanRuntime,
+  JudgeRuntimeBinding,
+  JudgeRuntimeDeps,
+} from '../../core/judge/runtime'
 import type { JudgePanelSnapshot } from '../../shared/judgePanel'
 import type { StartSessionOptions, AgentSession } from '../../core/agent/agentBackend'
 import type { JudgeDailyLedger } from '../../core/judge/admission'
@@ -20,7 +23,7 @@ export interface JudgeWindowDeps {
   readonly phase2?:
     | {
         readonly binding: (action: JudgeEntryParts) => JudgeRuntimeBinding | undefined
-        readonly createRuntime: (deps: JudgeRuntimeDeps) => Promise<JudgeRuntime>
+        readonly createRuntime: (deps: JudgeRuntimeDeps) => Promise<JudgePlanRuntime>
       }
     | undefined
   /**
@@ -32,6 +35,11 @@ export interface JudgeWindowDeps {
   readonly separateId?: (() => string) | undefined
   readonly evidenceRoot?: string | undefined
   readonly judgeP2BundlePath?: string | undefined
+  /**
+   * M95's stored credential value for a provider id (SecretStorage), read
+   * only when a configured SystemOne route needs its key. Never logged.
+   */
+  readonly readStoredCredential?: ((providerId: string) => Promise<string | undefined>) | undefined
   readonly dailyBudgetUsd?: () => number
   readonly engine: () => JudgeEngine
   readonly context: (action: JudgeEntryParts) =>

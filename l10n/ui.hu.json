@@ -4060,5 +4060,10 @@
   "judgeAutoNoProfiles": "Azonos modell: hiányoznak az illesztett profilok",
   "judgeAutoNoEvidence": "Azonos modell: hiányzik a félretett adatokon végzett páros értékelés bizonyítéka",
   "judgeEmbedNoLabels": "A beágyazási parancsikonnak több száz független címkére van szüksége ehhez a családhoz; még egy sincs rögzítve, ezért helyette a teljes Muse Judge fut.",
-  "paidConfirmJudgeEmbedding": "A(z) {model} beágyazási kérése legfeljebb {price} összegbe kerül, a szolgáltatói kulcsára számlázva. A közös napi keret {budget}. Az előfizetése ezt nem fedezi. Az Egyszer engedélyezés erre az ablakra érvényes; ingyenes forrásról váltás vagy árváltozás új beleegyezést kér."
+  "paidConfirmJudgeEmbedding": "A(z) {model} beágyazási kérése legfeljebb {price} összegbe kerül, a szolgáltatói kulcsára számlázva. A közös napi keret {budget}. Az előfizetése ezt nem fedezi. Az Egyszer engedélyezés erre az ablakra érvényes; ingyenes forrásról váltás vagy árváltozás új beleegyezést kér.",
+  "paidConfirmJudgeSystemOne": "Kísérleti és teszteletlen: egy SystemOne bírálói kérés a(z) {model} modellhez a(z) {recipient} címen legfeljebb {price}, amelyet a saját szolgáltatói kulcsára számlázunk. A megítélt művelet oda kerül; az eredmény csak óvatosságot ad a saját modellje ítéletéhez, soha nem válaszol Önnek és nem dönt egyedül. A közös napi keret {budget}. Az előfizetése nem fizeti ezt a kérést. Az Egyszeri engedélyezés erre az ablakra vonatkozik; az ár változásakor újra rákérdez.",
+  "judgeSeparateNeedsKey": "A külön bírálónak szüksége van a szolgáltatója kulcsára a Modellek és szolgáltatók részben",
+  "judgeSeparateNeedsCapture": "Külön bíráló: ehhez a szolgáltatói modellhez előbb rögzített strukturált vagy logprob bírálói kérés kell",
+  "judgeSeparateNeedsInstall": "Külön bíráló: a helyi bírálóhoz ellenőrzött telepítés kell egy tanúsított platformon",
+  "judgeSeparateUnknown": "Külön bíráló: a beállított azonosító nem nevez meg ismert forrást"
 }

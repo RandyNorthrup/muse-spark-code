@@ -33,6 +33,7 @@ import {
   type JudgeCapability,
   type JudgeMuse,
   type JudgeOutcome,
+  type JudgeProfileIdentity,
   type JudgeQuestion,
   type JudgeRequest,
   type JevAnswer,
@@ -51,6 +52,19 @@ export interface JudgeCascadeSide {
   readonly fitVersion: string
   /** P0's named calibration limits. */
   readonly limits: CalibrationLimits
+  /**
+   * The technique this side's own selector chose for the family (a BYO side:
+   * `chooseByoTechnique`; a SystemOne side: its SystemOne wire). Profiles
+   * are looked up and qualified under exactly this technique; absent means
+   * the source supports none, so its evidence never qualifies a mode.
+   */
+  readonly technique?: JudgeProfileIdentity['technique'] | undefined
+  /**
+   * Response model ids this side may report for its request id (a SystemOne
+   * alias resolves to a dated model). Absent means exactly the capability's
+   * model. A surface that checks the serving model reads this set.
+   */
+  readonly servedModels?: readonly string[] | undefined
   /**
    * Dispatch one whole-request attempt with this side's own admission
    * claim, settle once, refund only a known non-send. Each invocation is

@@ -940,10 +940,24 @@ export const JUDGE_RISK_FAMILY = 'risk.destructive'
 export const JUDGE_PROMPT_VERSION = '1'
 export const JUDGE_CRITERIA_VERSION = '1'
 export const JUDGE_P2_BUNDLE_FILE = 'judgeP2.js'
+// The fit version every phase-2 side is resolved with (M98 redesign): the
+// measurement plan records each fitted profile under exactly this version,
+// so a rotated fit never inherits an older approval.
+export const JUDGE_FIT_VERSION = '1'
+// A `museSpark.judge.separate` / `--separate` id naming the local judge
+// (2j); it stays a named gap until vetted install records exist.
+export const JUDGE_LOCAL_SEPARATE_PREFIX = 'local:'
 // Recorded phase-2 evidence (PLAN M98 2b/2i, P2B measurement plan) lives in
 // owner storage under this directory: the host's global storage, the
 // CLI/MCP data directory beside the credential file. Never in the VSIX.
 export const JUDGE_EVIDENCE_DIRNAME = 'judge'
+// One recorded artifact's file name: a readable prefix of the sanitized
+// identity, cut to this many characters, then a SHA-256 of the complete
+// identity cut to this many hex characters. The whole basename stays far
+// below every rig filesystem's 255-byte component limit, however long the
+// provider, model, revision or deployment URL (RVM98P2BF finding 5).
+export const JUDGE_EVIDENCE_SLUG_PREFIX_CHARS = 96
+export const JUDGE_EVIDENCE_SLUG_HASH_CHARS = 32
 // The one calibration bound set the production binding and the measurement
 // lane share (M98 P2B): fitted profiles and adoption receipts are parsed
 // with exactly these limits, so a measurement taken under other bounds

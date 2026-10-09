@@ -38,18 +38,12 @@ import {
   SETTING_DEFAULTS,
   USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
-  JUDGE_CALIBRATION_LIMITS,
-  JUDGE_CRITERIA_VERSION,
-  JUDGE_MIN_READY_RATE,
-  JUDGE_PROMPT_VERSION,
-  JUDGE_RISK_FAMILY,
 } from '../shared/constants'
 import {
   cliEvidenceRoot,
   filePhase2EvidenceStore,
   type Phase2EvidenceStore,
 } from '../core/judge/evidencePaths'
-import type { JudgeRuntimeBinding } from '../core/judge/runtime'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale } from '../shared/l10n/text'
 import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
@@ -108,6 +102,7 @@ import {
 } from '../core/usage/recording'
 import { requireFile } from '../host/lazyBundle'
 import { judgeFeaturesLoader } from './judge/judgeBundle'
+import { cliJudgeBinding } from './judge/cliBinding'
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
 import { fileContextIo } from '../host/backend/contextIo'
 import { createToolIo } from '../host/backend/toolIo'
@@ -749,55 +744,19 @@ async function main(): Promise<number> {
           }
         },
       })
-      // Production phase-2 binding (M98 P2B), shared with the window and
-      // MCP: explicit modes bypass only the automatic readiness default,
-      // never consent, confidentiality, provenance or admission. Live C/E/J
-      // clients land in their own lanes; until then a configured id
-      // reports its gap instead of silently staying phase-1. The factory
-      // itself runs inside `dist/judgeP2.js`, so judge schemas stay lazy
-      // for ordinary commands.
+      // Production phase-2 binding (M98 P2B, redesign), the window's own
+      // policy and side-factory port: explicit modes bypass only the
+      // automatic readiness default, never consent, confidentiality,
+      // provenance or admission. The factory runs inside `dist/judgeP2.js`,
+      // so judge schemas stay lazy for ordinary commands.
       const commandDeps = await features.createCommandDeps({
-        binding: (): JudgeRuntimeBinding | undefined => {
-          // No separate id means a true single-model setup: keep exact
-          // phase-1 behaviour without touching the store. Otherwise the
-          // recorded receipt is read beside the call (startup-safe: the
-          // store and paths live in the import-light evidence module)
-          // and the bundle entry assembles the shared binding with the
-          // real adoption check.
-          const separateId = command.options.separate?.trim() ?? ''
-          if (separateId === '') return undefined
-          const modelId = command.options.model ?? ''
-          return features.createBinding({
-            engine: command.options.engine,
-            separateId,
-            separateConfigured: true,
-            // The CLI names no provider; adoption stays unverified until
-            // a provider client identifies it (a C/E lane owns that).
-            providerId: '',
-            modelId,
-            ownerId: '',
-            confidential: false,
-            sourceAvailable: command.options.model !== undefined,
-            paidConsent: 'not-required',
-            readyRate: undefined,
-            minReadyRate: JUDGE_MIN_READY_RATE,
-            options: {
-              family: JUDGE_RISK_FAMILY,
-              promptVersion: JUDGE_PROMPT_VERSION,
-              criteriaVersion: JUDGE_CRITERIA_VERSION,
-              highStakes: true,
-            },
-            limits: JUDGE_CALIBRATION_LIMITS,
-            adoptionRecord: store.readAdoptionRecord({
-              providerId: '',
-              modelId,
-              family: JUDGE_RISK_FAMILY,
-              promptVersion: JUDGE_PROMPT_VERSION,
-              criteriaVersion: JUDGE_CRITERIA_VERSION,
-            }),
-            billing: 'free',
-          })
-        },
+        binding: cliJudgeBinding({
+          features,
+          options: command.options,
+          store,
+          readSecret: async (name) => await secrets.get(name),
+          fetch: globalThis.fetch,
+        }),
         billing: 'free',
         worstCaseUsd: () => 0,
       })

@@ -25,6 +25,13 @@ export function JudgeStatusLine({ status }: { readonly status: JudgeStatus | und
     'profile-missing': UI_TEXT.judgeAutoNoProfiles,
     'evidence-missing': UI_TEXT.judgeAutoNoEvidence,
   }
+  // Why a configured separate source has no side in this build.
+  const gaps = {
+    'needs-key': UI_TEXT.judgeSeparateNeedsKey,
+    'needs-capability-capture': UI_TEXT.judgeSeparateNeedsCapture,
+    'needs-local-install': UI_TEXT.judgeSeparateNeedsInstall,
+    'unknown-source': UI_TEXT.judgeSeparateUnknown,
+  }
   const billing = {
     subscription: UI_TEXT.judgeStatusSubscription,
     modelApi: UI_TEXT.judgeStatusPaid,
@@ -36,6 +43,7 @@ export function JudgeStatusLine({ status }: { readonly status: JudgeStatus | und
       {status.autoSameReason === undefined
         ? (reasons[status.reason] ?? fill(UI_TEXT.judgeNoAnswer, { reason: status.reason }))
         : fallback[status.autoSameReason]}
+      {status.separateGap === undefined ? null : <> · {gaps[status.separateGap]}</>}
       {status.mode === 'off' ? null : (
         <>
           {' '}

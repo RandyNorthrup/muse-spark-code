@@ -4204,5 +4204,10 @@
   "judgeAutoNoProfiles": "Mesmo modelo: faltam perfis ajustados",
   "judgeAutoNoEvidence": "Mesmo modelo: faltam evidências de avaliação pareada com dados reservados",
   "judgeEmbedNoLabels": "O atalho de embedding precisa de centenas de rótulos independentes para esta família; nenhum registrado ainda, então o juiz completo é executado.",
-  "paidConfirmJudgeEmbedding": "Uma solicitação de embedding a {model} custa no máximo {price}, cobrado na sua chave do provedor. O orçamento diário compartilhado é {budget}. Sua assinatura não paga esta solicitação. Permitir uma vez vale para esta janela; mudar de uma fonte gratuita ou alterar o preço exige novo consentimento."
+  "paidConfirmJudgeEmbedding": "Uma solicitação de embedding a {model} custa no máximo {price}, cobrado na sua chave do provedor. O orçamento diário compartilhado é {budget}. Sua assinatura não paga esta solicitação. Permitir uma vez vale para esta janela; mudar de uma fonte gratuita ou alterar o preço exige novo consentimento.",
+  "paidConfirmJudgeSystemOne": "Experimental e não testado: uma solicitação de juiz SystemOne a {model} em {recipient} custa no máximo {price}, cobrado na sua própria chave do provedor. A ação julgada é enviada para lá; o resultado só acrescenta cautela ao julgamento do seu próprio modelo e nunca responde a você nem decide sozinho. O orçamento diário compartilhado é {budget}. Sua assinatura não paga esta solicitação. Permitir uma vez vale para esta janela; mudar o preço pergunta de novo.",
+  "judgeSeparateNeedsKey": "O juiz separado precisa da chave do provedor em Modelos e provedores",
+  "judgeSeparateNeedsCapture": "Juiz separado: este modelo do provedor precisa primeiro de uma solicitação de juiz estruturada ou com logprobs capturada",
+  "judgeSeparateNeedsInstall": "Juiz separado: o juiz local precisa de uma instalação verificada em uma plataforma certificada",
+  "judgeSeparateUnknown": "Juiz separado: o id configurado não indica nenhuma fonte conhecida"
 }

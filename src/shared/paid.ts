@@ -155,6 +155,8 @@ export type PaidUseRequest =
       readonly modelId: string
       readonly dailyBudgetUsd: number
       readonly embedding?: { readonly worstCaseUsd: number }
+      /** An experimental SystemOne judge route: its per-request ceiling and recipient. */
+      readonly systemOne?: { readonly worstCaseUsd: number; readonly recipient: string }
     }
   | { readonly feature: 'webSearch' }
   | { readonly feature: 'voice' }

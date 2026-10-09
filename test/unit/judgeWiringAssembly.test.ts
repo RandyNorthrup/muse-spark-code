@@ -88,7 +88,11 @@ describe('phase-2 paths through the shipped lazy assembly', () => {
       current = { ...current, context: { ...current.context, turn: 'replacement' } }
       return await binding().separate.run(request, signal)
     })
-    const runtime = await features().createRuntime({ binding: () => current })
+    // The surface's trigger identity changes; the plan is cancelled, never re-planned.
+    const runtime = await features().createRuntime({
+      binding: () => current,
+      triggers: () => current.context,
+    })
     expect(await runtime.judge(REQUEST, new AbortController().signal)).toEqual({
       outcome: 'no-answer',
       reason: 'cancelled',

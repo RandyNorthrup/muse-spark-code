@@ -32,6 +32,11 @@ export interface JudgeCliSource {
    * the conversation model; anything else stays a foreign-model refusal.
    */
   readonly embeddingModel?: string | undefined
+  /**
+   * The model ids a separate source may report for `model` (a SystemOne
+   * alias resolves to a dated model). Absent means exactly `model`.
+   */
+  readonly servedModels?: readonly string[] | undefined
 }
 
 export interface JudgeCliIo {
@@ -49,7 +54,15 @@ interface OfflineCommand {
 
 export interface JudgeCliDeps {
   initialize?(signal: AbortSignal): Promise<void>
-  resolveSource?(options: JudgeCliOptions, signal: AbortSignal): Promise<JudgeCliSource | undefined>
+  /**
+   * Resolve once per request: the returned source carries that request's
+   * one plan, so its price, admission and dispatch cannot drift apart.
+   */
+  resolveSource?(
+    options: JudgeCliOptions,
+    signal: AbortSignal,
+    request: JudgeRequest,
+  ): Promise<JudgeCliSource | undefined>
   /**
    * Z's adapter must obtain current consent and D78's durable reservation for
    * EVERY attempt before dispatch. reservedUsd is a hard uncached run cap for
@@ -144,7 +157,7 @@ function judgeCaller(options: JudgeCliOptions, deps: JudgeCliDeps) {
     const model = options.model ?? request.model
     if (model === undefined && options.engine !== 'separate') return noAnswer('source-unavailable')
     const source = await untilAborted(
-      Promise.resolve(deps.resolveSource?.({ ...options, model }, signal)),
+      Promise.resolve(deps.resolveSource?.({ ...options, model }, signal, request)),
       signal,
     )
     signal.throwIfAborted()
@@ -176,14 +189,15 @@ function judgeCaller(options: JudgeCliOptions, deps: JudgeCliDeps) {
     // An embedding answer names the source's declared embedding model on
     // the envelope and on every verdict, never the conversation model. A
     // genuinely foreign model matches neither identity and stays refused.
+    const served = source.servedModels ?? [source.model]
     const isValid =
       isAligned(request, parsed.data) &&
       Buffer.byteLength(JSON.stringify(parsed.data)) <= JUDGE_MAX_BODY_BYTES &&
       (parsed.data.outcome === 'no-answer' ||
         source.source === 'both' ||
-        (parsed.data.result.model === source.model &&
+        (served.includes(parsed.data.result.model) &&
           Object.values(parsed.data.result.muse).every(
-            (meta) => meta.source === source.source && meta.model === source.model,
+            (meta) => meta.source === source.source && served.includes(meta.model),
           )) ||
         (parsed.data.result.model === source.embeddingModel &&
           Object.values(parsed.data.result.muse).every(

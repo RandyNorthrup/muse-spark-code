@@ -40,7 +40,12 @@ import type { JudgeAdoptionContext } from './adoption'
 import type { CalibrationLimits } from './calibration/schema'
 import type { JudgeRuntimeBinding } from './runtime'
 import type { JudgeModeContext } from './resolve'
-import { judgeCapabilitySchema, type JudgeCapability, type JudgeOutcome } from './schema'
+import {
+  judgeCapabilitySchema,
+  type JudgeCapability,
+  type JudgeOutcome,
+  type JudgeProfileIdentity,
+} from './schema'
 import type {
   Phase2AdoptionQuery,
   Phase2BindingContext,
@@ -55,7 +60,6 @@ import { createClientlessBinding } from './evidencePaths'
 export {
   cliEvidenceRoot,
   createClientlessBinding,
-  createEntryClientlessBinding,
   emptyPhase2EvidenceStore,
   filePhase2EvidenceStore,
   phase2AdoptionSlug,
@@ -65,7 +69,6 @@ export {
   phase2ProfileSlug,
 } from './evidencePaths'
 export type {
-  ClientlessEntryParts,
   Phase2BindingContext,
   Phase2EmbeddingQuery,
   Phase2EvidenceStore,
@@ -86,6 +89,14 @@ export interface Phase2SeparateSource {
   readonly verified: boolean
   /** Remote, verified-local or unverified-local; gates confidential use. */
   readonly locality: 'remote' | 'verified-local' | 'unverified-local'
+  /**
+   * The technique the one selector (`judgeSideTechnique`, beside the side
+   * factories in the sources bundle) chose for this source. Absent means
+   * the source supports none: its profiles are never read.
+   */
+  readonly technique?: JudgeProfileIdentity['technique'] | undefined
+  /** Response model ids the source may report (its captured aliases). */
+  readonly servedModels?: readonly string[] | undefined
   /**
    * Ledger-backed costs for an answered outcome. Defaults to zero (free
    * local sources); a paid side supplies its reservation reader. Usage
@@ -129,6 +140,7 @@ export function cascadeSideFromRuntime(deps: {
   readonly limits: CalibrationLimits
   readonly costsOf?:
     ((outcome: Extract<JudgeOutcome, { outcome: 'answered' }>) => Phase2SideCosts) | undefined
+  readonly servedModels?: readonly string[] | undefined
 }): JudgeCascadeSide | undefined {
   if (!judgeCapabilitySchema.safeParse(deps.capability).success) return undefined
   if (typeof deps.fitVersion !== 'string' || deps.fitVersion.length === 0) return undefined
@@ -138,6 +150,7 @@ export function cascadeSideFromRuntime(deps: {
     profile: deps.profile,
     fitVersion: deps.fitVersion,
     limits: deps.limits,
+    ...(deps.servedModels !== undefined && { servedModels: deps.servedModels }),
     run: async (request, signal) => {
       const outcome = await deps.runtime.judge(request, signal)
       return outcome.outcome === 'answered'
@@ -145,12 +158,6 @@ export function cascadeSideFromRuntime(deps: {
         : { ...zeroCosts(), outcome }
     },
   }
-}
-
-/** Technique guess for a side's profile lookup, from its capability. */
-export function phase2SideTechnique(capability: JudgeCapability): string {
-  if (capability.systemone) return 'systemone'
-  return capability.stated ? 'stated' : 'logprob'
 }
 
 export interface Phase2BindingRequest {
@@ -189,6 +196,8 @@ export interface Phase2BindingRequest {
    * is configured, in which case nothing is missing for the chosen mode.
    */
   readonly embeddingAwaitingLabels?: boolean
+  /** A configured id whose side the port could not build, and why. */
+  readonly separateGap?: JudgeRuntimeBinding['separateGap']
 }
 
 /**
@@ -216,39 +225,35 @@ export function createPhase2Binding(
       ? request.separate
       : undefined
 
+  // Profiles are read under the technique the side's own selector chose;
+  // a side that supports no technique has none read and qualifies nothing.
   const withProfile = (
     side: JudgeCascadeSide | undefined,
     source: 'same' | 'separate',
-    technique: string,
-    fitVersion: string,
+    technique: JudgeProfileIdentity['technique'] | undefined,
   ): JudgeCascadeSide | undefined => {
     if (side === undefined) return undefined
     const parsed = judgeCapabilitySchema.safeParse(side.capability)
     if (!parsed.success) return undefined
-    const recorded = store.readProfile({
-      providerId: parsed.data.providerId,
-      model: parsed.data.model,
-      modelVersion: parsed.data.modelVersion,
-      endpoint: parsed.data.endpoint,
-      source,
-      technique,
-      family: options.family,
-      promptVersion: options.promptVersion,
-      criteriaVersion: options.criteriaVersion,
-      fitVersion,
-    })
-    return { ...side, profile: recorded }
+    const recorded =
+      technique === undefined
+        ? undefined
+        : store.readProfile({
+            providerId: parsed.data.providerId,
+            model: parsed.data.model,
+            modelVersion: parsed.data.modelVersion,
+            endpoint: parsed.data.endpoint,
+            source,
+            technique,
+            family: options.family,
+            promptVersion: options.promptVersion,
+            criteriaVersion: options.criteriaVersion,
+            fitVersion: side.fitVersion,
+          })
+    return { ...side, profile: recorded, technique }
   }
 
-  const same =
-    request.same === undefined
-      ? undefined
-      : withProfile(
-          request.same,
-          'same',
-          phase2SideTechnique(request.same.capability),
-          request.same.fitVersion,
-        )
+  const same = withProfile(request.same, 'same', request.same?.technique)
   const adaptedSeparate =
     separate === undefined
       ? undefined
@@ -259,16 +264,9 @@ export function createPhase2Binding(
           fitVersion: separate.fitVersion,
           limits,
           ...(separate.costsOf !== undefined && { costsOf: separate.costsOf }),
+          ...(separate.servedModels !== undefined && { servedModels: separate.servedModels }),
         })
-  const separateSide =
-    adaptedSeparate === undefined || separate === undefined
-      ? undefined
-      : withProfile(
-          adaptedSeparate,
-          'separate',
-          phase2SideTechnique(separate.capability),
-          separate.fitVersion,
-        )
+  const separateSide = withProfile(adaptedSeparate, 'separate', separate?.technique)
 
   const adoptionQuery: Phase2AdoptionQuery = {
     providerId: request.context.providerId,
@@ -311,6 +309,7 @@ export function createPhase2Binding(
       ...(request.billing !== undefined && { billing: request.billing }),
       ...(request.attemptCostUsd !== undefined && { attemptCostUsd: request.attemptCostUsd }),
       ...(embeddingNote !== undefined && { embeddingNote }),
+      ...(request.separateGap !== undefined && { separateGap: request.separateGap }),
     })
   }
 

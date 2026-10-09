@@ -3801,6 +3801,14 @@ export const EN = {
   // Phase-2 source/status labels; runtime availability is supplied by the source lanes.
   paidConfirmJudgeEmbedding:
     'An embedding request to {model} costs at most {price}, billed to your provider key. The shared daily budget is {budget}. Your subscription does not pay for this request. Allow once covers this window; switching from a free source or changing the price asks again.',
+  paidConfirmJudgeSystemOne:
+    'Experimental and untested: a SystemOne judge request to {model} at {recipient} costs at most {price}, billed to your own provider key. The judged action is sent there; the result only adds caution to your own model’s judgment and never answers you or decides alone. The shared daily budget is {budget}. Your subscription does not pay for this request. Allow once covers this window; changing the price asks again.',
+  judgeSeparateNeedsKey: 'Separate judge needs its provider key in Models & Providers',
+  judgeSeparateNeedsCapture:
+    'Separate judge: this provider model needs a captured structured or logprob judge request first',
+  judgeSeparateNeedsInstall:
+    'Separate judge: the local judge needs a vetted install on a certified platform',
+  judgeSeparateUnknown: 'Separate judge: the configured id names no known source',
   judgeSourceSame: 'Own chat model',
   judgeSourceSeparate: 'Separate judge',
   judgeSourceBoth: 'Own model and separate judge',
