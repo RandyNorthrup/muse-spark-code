@@ -43452,6 +43452,10 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   Open items:
   - M109's attested RESULT record must reach `conversionJobFailure`, the
     named seam, before a cap stop reports `EMEDIA_MEMORY_CAP`.
+  - The runtime (ACP, exec) has no M50 launcher. Its package omits
+    `MuseSparkMcpLauncher.cs`, and `runtime/backends.ts` prepares only the
+    shell job. Lane V ships and prepares the launcher, or Windows conversion
+    in the runtime refuses.
   - The darwin private group stays with M104's signed helper.
 
 - **M105-F-integration-gates (RVM105F corrections).** All four review findings
