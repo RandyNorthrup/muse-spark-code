@@ -71,6 +71,14 @@ export function certaintyLabel(certainty: UsageCertainty): string {
 export function money(value: UsdAmount | undefined): string {
   return value === undefined ? USAGE_TEXT.unknown : formatUsd(value, 2)
 }
+/**
+ * Exact cost label: the original amount, never a value rebuilt from plotted
+ * geometry (geometry ceils sub-nano-dollars, so a label made from it would
+ * overstate small charges; M121 P2-2).
+ */
+export function costLabel(totals: UsageTotals): string {
+  return money(billedCost(totals))
+}
 /** Exact sum of the known amounts (M121); undefined when none is known. */
 export function usdSum(values: readonly (UsdAmount | undefined)[]): UsdAmount | undefined {
   let sum: Usd | undefined

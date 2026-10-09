@@ -7,6 +7,7 @@ import {
   metricLabel,
   metricText,
   certaintyLabel,
+  costLabel,
   costText,
   totalsFacts,
 } from './display'
@@ -69,7 +70,8 @@ export function KpiTiles({
         {USAGE_TEXT.previousPeriod}: {costText(previous)}
       </p>
       <p>
-        {USAGE_TEXT.previousPeriod}: {metricLabel(metric)}: {metricText(previousCost, metric)}
+        {USAGE_TEXT.previousPeriod}: {metricLabel(metric)}:{' '}
+        {metric === 'cost' ? costLabel(previous) : metricText(previousCost, metric)}
       </p>
       <p>{comparison}</p>
       <h2>{USAGE_TEXT.certainty}</h2>

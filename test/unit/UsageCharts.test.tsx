@@ -8,6 +8,8 @@ import { MirroredColumns } from '../../src/webview/usage/charts/MirroredColumns'
 import { ShareBar } from '../../src/webview/usage/charts/ShareBar'
 import { StepLines } from '../../src/webview/usage/charts/StepLines'
 import { BurnLine } from '../../src/webview/usage/charts/BurnLine'
+import { BreakdownTable } from '../../src/webview/usage/BreakdownTable'
+import { KpiTiles } from '../../src/webview/usage/KpiTiles'
 import {
   billedCost,
   costPlot,
@@ -15,6 +17,7 @@ import {
   knownSum,
   metricText,
   metricValue,
+  money,
   percentOf,
   remainingUsd,
 } from '../../src/webview/usage/display'
@@ -117,6 +120,50 @@ describe('usage charts', () => {
     expect(costPlot(a('0.0000000001'))).toBe(1)
     expect(metricText(costPlot(a('0.125')), 'cost')).toBe('$0.13')
   })
+  it.each(['0.0000000001', '0.00000000001'])(
+    'labels one xAI tick (%s) exactly, never from plotted geometry (M121 P2-2)',
+    (tick) => {
+      const exact = money(a(tick))
+      // Plotted geometry ceils both ticks to one nano-dollar and would label
+      // each `$0.0000000010`: ten and a hundred times the actual charge.
+      expect(exact).not.toBe('$0.0000000010')
+      const tickTotals = () => ({
+        ...usageTotals('reported', 1),
+        costs: [{ certainty: 'reported' as const, records: 1, usd: a(tick) }],
+      })
+      const state = usageStateFor('one-provider')
+      state.query.metric = 'cost'
+      for (const row of [...state.breakdown, ...state.buckets[0]!.groups]) row.totals = tickTotals()
+      state.buckets[0]!.totals = tickTotals()
+      for (const Chart of [StackedColumns, ShareBar]) {
+        const rendered = render(<Chart state={state} />)
+        expect(screen.getByRole('status')).toHaveTextContent(exact)
+        fireEvent.click(screen.getByText('Show chart data'))
+        const table = screen.getByRole('table', { hidden: true })
+        expect(table).toHaveTextContent(exact)
+        expect(table).not.toHaveTextContent('$0.0000000010')
+        rendered.unmount()
+      }
+      const budget = {
+        ...usageStateFor().budgets[0]!,
+        spentUsd: a(tick),
+        projectedUsd: a(tick),
+      }
+      const burn = render(<BurnLine budget={budget} now={Date.now()} />)
+      expect(screen.getByRole('status')).toHaveTextContent(exact)
+      fireEvent.click(screen.getByText('Show chart data'))
+      expect(screen.getByRole('table', { hidden: true })).toHaveTextContent(exact)
+      expect(screen.getByRole('table', { hidden: true })).not.toHaveTextContent('$0.0000000010')
+      burn.unmount()
+      const table = render(<BreakdownTable rows={state.breakdown} post={() => undefined} />)
+      expect(screen.getByRole('table')).toHaveTextContent(exact)
+      table.unmount()
+      const kpis = render(<KpiTiles totals={tickTotals()} previous={tickTotals()} metric="cost" />)
+      expect(kpis.container.textContent).toContain(exact)
+      expect(kpis.container.textContent).not.toContain('$0.0000000010')
+      kpis.unmount()
+    },
+  )
   it.each([StackedColumns, MirroredColumns, ShareBar])(
     'renders SVG attributes without inline styles and preserves the numbers in its table',
     (Chart) => {

@@ -12,16 +12,23 @@ export function BurnLine({
   readonly budget: UsagePageState['budgets'][number]
   readonly now: number
 }) {
-  // Geometry in whole nano-dollars (`costPlot`); every label stays exact.
+  // Geometry in whole nano-dollars (`costPlot`); every label shows the
+  // original amount, never a value rebuilt from geometry (M121 P2-2).
   const spent = costPlot(budget.spentUsd) ?? 0
   const projected = costPlot(budget.projectedUsd)
   const cap = costPlot(budget.capUsd)
   const points = [
-    { id: 'now', label: formatDateTime(now), values: [spent, undefined, cap] },
+    {
+      id: 'now',
+      label: formatDateTime(now),
+      values: [spent, undefined, cap],
+      texts: [money(budget.spentUsd), undefined, money(budget.capUsd)],
+    },
     {
       id: 'projection',
       label: budget.resetsAt === undefined ? USAGE_TEXT.unknown : formatDateTime(budget.resetsAt),
       values: [undefined, projected, cap],
+      texts: [undefined, money(budget.projectedUsd), money(budget.capUsd)],
     },
   ]
   const series = [
