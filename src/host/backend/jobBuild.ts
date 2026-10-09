@@ -40,7 +40,8 @@ export interface JobBuild {
 // this same compiler. On loaded Windows runners that startup can consume the
 // process deadline. Compile directly, keeping that deadline and reporting
 // stdout (where csc writes diagnostics), stderr and termination metadata.
-const runCompiler: RunProgram = (file, args, env) => runBootstrap(file, args, env)
+const runCompiler: RunProgram = (file, args, env) =>
+  runBootstrap(file, args, env, { isOutputReported: true })
 
 /** The built file's name for this source (the whole C#, the shared half included). */
 export function jobFileName(build: JobBuild, csharp: string): string {

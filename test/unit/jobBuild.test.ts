@@ -11,6 +11,11 @@ import { readJobSource } from './helpers/jobSource'
 import { removeFolder } from './helpers/temporaryFolders'
 
 vi.mock('node:fs/promises', { spy: true })
+// The real compiler runs under the bootstrap runner; only its admission is a fixture.
+vi.mock('../../src/core/resources/admission', async (original) => {
+  const { withFixtureBootstrap } = await import('./helpers/resources/fixtureLaunch')
+  return withFixtureBootstrap(await original())
+})
 
 const paths = { root: '' }
 afterEach(() => {
