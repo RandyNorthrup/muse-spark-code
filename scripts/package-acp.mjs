@@ -51,6 +51,7 @@ const BUNDLES = [
   'modelApi.js',
   'resourceAdmission.js',
   'resourceGovernor.js',
+  'resourceJournal.js',
   'modelApiHooks.js',
   'modelApiMcp.js',
   'runtimeAccounting.js',

@@ -22,6 +22,7 @@ const HOST_BUNDLES = [
   'dist/extension.js',
   'dist/resourceAdmission.js',
   'dist/resourceGovernor.js',
+  'dist/resourceJournal.js',
   'dist/conversation.js',
   'dist/tab.js',
   'dist/usageService.js',

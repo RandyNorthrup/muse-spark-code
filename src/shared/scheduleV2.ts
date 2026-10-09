@@ -1,4 +1,4 @@
-import { Usd, legacyUsdSchema, nonnegativeUsdSchema } from './usd'
+import { compareUsdAmounts, legacyUsdSchema, nonnegativeUsdSchema } from './usdSchema'
 // M115's internal, editor-independent contracts. M52's v1 on-disk schema stays
 // in schedule.ts until lane S has verified and removed every migrated job.
 import * as z from 'zod/mini'
@@ -300,7 +300,7 @@ function isSchedulePolicyValid(schedule: SchedulePolicy): boolean {
   return (
     (!schedule.parallel || schedule.delivery === 'newConversation') &&
     (schedule.target.kind !== 'newConversation' || schedule.delivery === 'newConversation') &&
-    Usd.from(schedule.paidCapUsd).compare(Usd.from(schedule.grant.paidCapUsd)) <= 0 &&
+    compareUsdAmounts(schedule.paidCapUsd, schedule.grant.paidCapUsd) <= 0 &&
     (schedule.action.kind !== 'report' ||
       (schedule.paidCapUsd === '0' && schedule.grant.paidCapUsd === '0'))
   )
@@ -314,7 +314,7 @@ export const scheduleV2Schema = scheduleV2BaseSchema.check(
   z.refine(
     (schedule) =>
       schedule.paidConsent === undefined ||
-      Usd.from(schedule.paidConsent.dailyCapUsd).compare(Usd.from(schedule.paidCapUsd)) <= 0,
+      compareUsdAmounts(schedule.paidConsent.dailyCapUsd, schedule.paidCapUsd) <= 0,
   ),
   z.refine((schedule) => schedule.action.kind !== 'report' || schedule.paidConsent === undefined),
 )

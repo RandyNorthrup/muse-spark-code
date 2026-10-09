@@ -2,9 +2,9 @@ import { legacyUsdSchema, type UsdAmount } from './usdSchema'
 // M108's local contracts, shared by every editor and the runtime. No vendor
 // response is parsed here; live wire shapes remain with their captured codecs.
 import * as z from 'zod/mini'
-import { ACCOUNT_ID_PATTERN, ACCOUNT_LABEL_MAX_LENGTH, ACCOUNT_MAX_PER_PROVIDER } from './constants'
-
-export const accountIdSchema = z.string().check(z.regex(ACCOUNT_ID_PATTERN))
+import { ACCOUNT_LABEL_MAX_LENGTH, ACCOUNT_MAX_PER_PROVIDER } from './constants'
+import { accountIdSchema } from './accountId'
+export { accountIdSchema } from './accountId'
 const opaqueId = z
   .string()
   .check(z.minLength(1), z.maxLength(ACCOUNT_LABEL_MAX_LENGTH), z.regex(/^[A-Za-z0-9_-]+$/))

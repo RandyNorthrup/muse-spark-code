@@ -371,6 +371,12 @@ const resourceGovernorOptions = {
   entryPoints: [RESOURCE_ENTRY],
   outfile: RESOURCE_OUTFILE,
 }
+// INT0170: M107 W2's resource journal, shared by the governor and the usage service.
+const resourceJournalOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/runtime/resources/resourceJournalEntry.ts'],
+  outfile: 'dist/resourceJournal.js',
+}
 const resourceAdmissionOptions = {
   ...modelApiOptions,
   entryPoints: [RESOURCE_ADMISSION_ENTRY],
@@ -1146,6 +1152,7 @@ if (isWatch) {
     esbuild.context(sharingRuntimeOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
+    esbuild.context(resourceJournalOptions),
     esbuild.context(resourceAdmissionOptions),
     esbuild.context(providersOptions),
     esbuild.context(subscriptionsOptions),
@@ -1252,6 +1259,7 @@ if (isWatch) {
     sharingRuntime: esbuild.build(sharingRuntimeOptions),
     modelApi: esbuild.build(modelApiOptions),
     resourceGovernor: esbuild.build(resourceGovernorOptions),
+    resourceJournal: esbuild.build(resourceJournalOptions),
     resourceAdmission: esbuild.build(resourceAdmissionOptions),
     providers: esbuild.build(providersOptions),
     subscriptions: esbuild.build(subscriptionsOptions),

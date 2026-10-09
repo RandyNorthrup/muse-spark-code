@@ -284,7 +284,9 @@ describe('the production webview chunks (FIX78W)', () => {
       (sum, output) => sum + statSync(outputFile(output)).size,
       0,
     )
-    expect(bytes).toBeLessThanOrEqual(733.8 * 1024)
+    // INT0170 lead decision (PLAN §8): 0.17.0's measured first paint, 760,059 B,
+    // plus 0.16.0's margin of about 1.4 KB. FIXDIET1's pin was 733.8 KiB.
+    expect(bytes).toBeLessThanOrEqual(743.7 * 1024)
   })
 
   it('keeps original deferred bytes within the unchanged FIXDIET1 baseline', () => {

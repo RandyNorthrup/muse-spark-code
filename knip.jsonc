@@ -50,6 +50,8 @@
     "src/shared/featureCatalog.ts",
     "src/shared/estimateContractsEntry.ts",
     "src/core/nodeBoundariesEntry.ts",
+    // M107 W2's resource journal, shared by the governor and the usage service (INT0170).
+    "src/runtime/resources/resourceJournalEntry.ts",
     // Vault schemas shared by real Node bundle readers (D6).
     "src/shared/vaultBoundariesEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.

@@ -4,6 +4,7 @@ import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import { formatUsd } from '../../src/shared/l10n/exactUsd'
 import {
   Usd,
+  compareUsdAmounts,
   isPositiveUsd,
   legacyUsdSchema,
   nonnegativeUsdSchema,
@@ -63,6 +64,28 @@ describe('shared exact USD', () => {
     expect(Usd.from(-1).divideIntegerCeiling(3).toString()).toBe('-0.333333333')
     expect(Usd.from('-1.1').floorDivide(Usd.from(1))).toBe(-2n)
     expect(() => Usd.from(1).floorDivide(Usd.from(0))).toThrow('positive')
+  })
+
+  it('orders canonical amounts at the boundary exactly as the arithmetic module does', () => {
+    const amounts = [
+      '-12.5',
+      '-1',
+      '-0.000000001',
+      '0',
+      '0.000000001',
+      '0.0000000011',
+      '0.1',
+      '0.10000000000000002',
+      '1',
+      '1.001',
+      '9007199254740993',
+      '9007199254740993.001',
+    ].map((amount) => usdAmountSchema.parse(amount))
+    for (const left of amounts)
+      for (const right of amounts)
+        expect(compareUsdAmounts(left, right), `${left} vs ${right}`).toBe(
+          Usd.from(left).compare(Usd.from(right)),
+        )
   })
 
   it('ceilings sub-cent prices to at least two significant digits without under-reporting', () => {
