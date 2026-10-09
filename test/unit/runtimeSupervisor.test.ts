@@ -9,6 +9,7 @@ import { ownerSchema } from '../../src/runtime/lsp/stopReceipt'
 import { mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import * as fs from 'node:fs/promises'
 import * as childProcess from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { createConnection } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -121,6 +122,31 @@ function start(cwd: string, source: string, args: readonly string[] = [], guardi
   return { stdout, stdin, done }
 }
 
+// An owner whose control socket is already closed, as just after STOPPED.
+async function closedOwner(pid: number) {
+  const registry = path.join(directory, 'owners')
+  await fs.mkdir(registry, { mode: 0o700 })
+  const ownerId = randomUUID()
+  const record = path.join(registry, `${workspaceKey(directory)}-${ownerId}.json`)
+  await writeFile(
+    record,
+    JSON.stringify({
+      trustRoot: await fs.realpath(directory),
+      pid,
+      pipe:
+        process.platform === 'win32'
+          ? String.raw`\\.\pipe\muse-stop-${randomUUID()}`
+          : path.join(directory, `closed-${ownerId}`, 'control'),
+      token: 'a'.repeat(64),
+      generation: 'b'.repeat(32),
+      ownerId,
+      binding: null,
+    }),
+    { mode: 0o600 },
+  )
+  return { registry, record }
+}
+
 describe('M104H2 runtime supervision', () => {
   it.runIf(process.platform !== 'win32')(
     'keeps Stop sockets within the OS limit even with deeply nested registries',
@@ -163,6 +189,31 @@ describe('M104H2 runtime supervision', () => {
       }
     },
   )
+
+  it('waits out an owner that closed its control socket and is removing its record', async () => {
+    const { registry, record } = await closedOwner(process.pid)
+    const removal = setTimeout(() => void fs.rm(record, { force: true }), 200)
+    try {
+      await expect(stopWorkspace(registry, directory)).resolves.toBeUndefined()
+    } finally {
+      clearTimeout(removal)
+    }
+  })
+
+  it('refuses an owner that closed its control socket and died keeping its record', async () => {
+    const owner = childProcess.spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], {
+      stdio: 'ignore',
+    })
+    if (owner.pid === undefined) throw new Error('owner did not start')
+    const { registry } = await closedOwner(owner.pid)
+    const death = setTimeout(() => owner.kill('SIGKILL'), 200)
+    try {
+      await expect(stopWorkspace(registry, directory)).rejects.toBeInstanceOf(UnverifiedStopError)
+    } finally {
+      clearTimeout(death)
+      owner.kill('SIGKILL')
+    }
+  })
 
   it.runIf(process.platform !== 'win32')(
     'refuses an oversized runtime socket root before creating control state or children',

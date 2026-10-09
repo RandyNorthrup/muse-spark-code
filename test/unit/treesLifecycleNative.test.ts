@@ -17,6 +17,8 @@ import { darwinProcessHelper } from './helpers/darwinProcessHelper'
 
 // Thirty-two real births each perform native identity and registry probes.
 const NATIVE_PID_REUSE_TIMEOUT_MS = 15_000
+// collect2 finds ld through PATH where the toolchain has no private copy (Ubuntu 26.04).
+const COMPILE_ENV = { LC_ALL: 'C', PATH: '/usr/bin:/bin' }
 
 describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
   'native registered lifecycle',
@@ -35,11 +37,11 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
       const folder = await mkdtemp(path.join(tmpdir(), 'm107-t2-root-zombie-'))
       try {
         const file = path.join(folder, 'lifecycle')
-        await runTreeProgram('/usr/bin/cc', [
-          path.resolve('test/unit/helpers/resourceLifecycle.c'),
-          '-o',
-          file,
-        ])
+        await runTreeProgram(
+          '/usr/bin/cc',
+          [path.resolve('test/unit/helpers/resourceLifecycle.c'), '-o', file],
+          COMPILE_ENV,
+        )
         const parent = spawn(file, ['hold-zombie'], {
           detached: true,
           env: {},
@@ -106,11 +108,11 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
         const births = new Set<string>()
         try {
           const file = path.join(folder, 'lifecycle')
-          await runTreeProgram('/usr/bin/cc', [
-            path.resolve('test/unit/helpers/resourceLifecycle.c'),
-            '-o',
-            file,
-          ])
+          await runTreeProgram(
+            '/usr/bin/cc',
+            [path.resolve('test/unit/helpers/resourceLifecycle.c'), '-o', file],
+            COMPILE_ENV,
+          )
           for (let attempt = 0; attempt < 32; attempt++) {
             const child = spawn(file, ['short'], {
               detached: true,
@@ -169,11 +171,11 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
       const births: ResourceProcessIdentity[] = []
       try {
         const file = path.join(folder, 'lifecycle')
-        await runTreeProgram('/usr/bin/cc', [
-          path.resolve('test/unit/helpers/resourceLifecycle.c'),
-          '-o',
-          file,
-        ])
+        await runTreeProgram(
+          '/usr/bin/cc',
+          [path.resolve('test/unit/helpers/resourceLifecycle.c'), '-o', file],
+          COMPILE_ENV,
+        )
         const rootProcess = spawn(file, ['descendants'], {
           detached: true,
           env: {},

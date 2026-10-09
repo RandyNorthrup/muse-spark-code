@@ -3,6 +3,7 @@ import { type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { lstat, readdir, realpath, rename, rm } from 'node:fs/promises'
 import { createConnection, createServer } from 'node:net'
+import { setTimeout as delay } from 'node:timers/promises'
 import path from 'node:path'
 import { constants as osConstants } from 'node:os'
 import type { Readable, Writable } from 'node:stream'
@@ -426,77 +427,104 @@ export async function stopWorkspace(
     }
   }
   if (typeof registries !== 'string' && owners.length === 0) throw new Error('ESTOP_NO_RUN')
-  for (let offset = 0; offset < owners.length; offset += RUNTIME_STOP.owners) {
-    await Promise.all(
-      owners.slice(offset, offset + RUNTIME_STOP.owners).map(async ({ registry, file, owner }) => {
-        if (!isProcessAlive(owner.pid)) {
-          const receiptFile = `${path.join(registry, file)}.tree`
-          let receipt: StopReceipt | undefined
+  const isRecordGone = async (record: string) => {
+    try {
+      await lstat(record)
+      return false
+    } catch (error: unknown) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return true
+      throw error
+    }
+  }
+  const stopOwner = async (entry: (typeof owners)[number]): Promise<void> => {
+    const { registry, file, owner } = entry
+    const record = path.join(registry, file)
+    if (!isProcessAlive(owner.pid)) {
+      const receiptFile = `${record}.tree`
+      let receipt: StopReceipt | undefined
+      try {
+        receipt = await readTreeReceipt(receiptFile)
+      } catch {
+        // Missing, invalid or unsafe receipt never certifies descendant exit.
+      }
+      const binding = owner.binding
+      if (
+        receipt?.isComplete !== true ||
+        binding?.generation !== owner.generation ||
+        owner.ownerId !== binding.ownerId ||
+        file !== `${prefix}${owner.ownerId}.json` ||
+        !isReceiptMatching(receipt, binding)
+      ) {
+        let observed = receipt
+        if (binding === null || (observed !== undefined && !isReceiptMatching(observed, binding)))
+          observed = undefined
+        if (observed === undefined) {
           try {
-            receipt = await readTreeReceipt(receiptFile)
+            const pending = await readTreeReceipt(`${receiptFile}.observed`)
+            if (binding !== null && isReceiptMatching(pending, binding)) observed = pending
           } catch {
-            // Missing, invalid or unsafe receipt never certifies descendant exit.
+            /* Missing/unsafe observations provide no authority. */
           }
-          const binding = owner.binding
-          if (
-            receipt?.isComplete !== true ||
-            binding?.generation !== owner.generation ||
-            owner.ownerId !== binding.ownerId ||
-            file !== `${prefix}${owner.ownerId}.json` ||
-            !isReceiptMatching(receipt, binding)
-          ) {
-            let observed = receipt
-            if (
-              binding === null ||
-              (observed !== undefined && !isReceiptMatching(observed, binding))
-            )
-              observed = undefined
-            if (observed === undefined) {
-              try {
-                const pending = await readTreeReceipt(`${receiptFile}.observed`)
-                if (binding !== null && isReceiptMatching(pending, binding)) observed = pending
-              } catch {
-                /* Missing/unsafe observations provide no authority. */
-              }
-            }
-            throw new UnverifiedStopError(
-              observed?.members.map((member) => member.pid) ?? [owner.pid],
-            )
-          }
-          const { processAuthority } = await import('./processAuthority')
-          const authority = await processAuthority(packageRoot, registry)
-          const liveGuardian = await authority.identity(binding.guardian.pid)
-          // A completed guardian may have exited; a live/reused PID must match its birth.
-          if (
-            (liveGuardian === null && isProcessAlive(binding.guardian.pid)) ||
-            (liveGuardian !== null && !isSameProcess(liveGuardian, binding.guardian))
-          )
-            throw new UnverifiedStopError(receipt.members.map((member) => member.pid))
-          await rm(path.join(registry, file), { force: true })
-          await rm(receiptFile, { force: true })
-          await rm(`${receiptFile}.observed`, { force: true })
+        }
+        throw new UnverifiedStopError(observed?.members.map((member) => member.pid) ?? [owner.pid])
+      }
+      const { processAuthority } = await import('./processAuthority')
+      const authority = await processAuthority(packageRoot, registry)
+      const liveGuardian = await authority.identity(binding.guardian.pid)
+      // A completed guardian may have exited; a live/reused PID must match its birth.
+      if (
+        (liveGuardian === null && isProcessAlive(binding.guardian.pid)) ||
+        (liveGuardian !== null && !isSameProcess(liveGuardian, binding.guardian))
+      )
+        throw new UnverifiedStopError(receipt.members.map((member) => member.pid))
+      await rm(path.join(registry, file), { force: true })
+      await rm(receiptFile, { force: true })
+      await rm(`${receiptFile}.observed`, { force: true })
+      return
+    }
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const socket = createConnection(owner.pipe)
+        socket.setTimeout(RUNTIME_STOP.exitMs, () => {
+          socket.destroy(new Error('ESTOP_TIMEOUT'))
+        })
+        let reply = ''
+        socket.on('error', reject)
+        socket.on('connect', () => {
+          socket.write(`${owner.token}\n`)
+        })
+        socket.on('data', (bytes: Buffer) => {
+          reply += bytes.toString('utf8')
+          if (reply.length > RUNTIME_STOP.handshakeChars) socket.destroy(new Error('ESTOP_REPLY'))
+        })
+        socket.on('close', (failed) => {
+          if (!failed && reply === 'STOPPED\n') resolve()
+          else reject(new Error('ESTOP_TREE'))
+        })
+      })
+    } catch (error: unknown) {
+      // A stopping owner closes its control socket before it removes its record.
+      if (
+        !(error instanceof Error && 'code' in error) ||
+        (error.code !== 'ENOENT' && error.code !== 'ECONNREFUSED')
+      )
+        throw error
+      const deadline = Date.now() + RUNTIME_STOP.exitMs
+      for (;;) {
+        // Sample liveness first: a record seen after death is final, never mid-removal.
+        const [isAlive, isGone] = [isProcessAlive(owner.pid), await isRecordGone(record)]
+        if (isGone) return
+        if (!isAlive) {
+          await stopOwner(entry)
           return
         }
-        await new Promise<void>((resolve, reject) => {
-          const socket = createConnection(owner.pipe)
-          socket.setTimeout(RUNTIME_STOP.exitMs, () => {
-            socket.destroy(new Error('ESTOP_TIMEOUT'))
-          })
-          let reply = ''
-          socket.on('error', reject)
-          socket.on('connect', () => {
-            socket.write(`${owner.token}\n`)
-          })
-          socket.on('data', (bytes: Buffer) => {
-            reply += bytes.toString('utf8')
-            if (reply.length > RUNTIME_STOP.handshakeChars) socket.destroy(new Error('ESTOP_REPLY'))
-          })
-          socket.on('close', (failed) => {
-            if (!failed && reply === 'STOPPED\n') resolve()
-            else reject(new Error('ESTOP_TREE'))
-          })
-        })
-      }),
-    )
+        if (Date.now() >= deadline) throw error
+        await delay(RUNTIME_STOP.pollMs)
+      }
+    }
   }
+  for (let offset = 0; offset < owners.length; offset += RUNTIME_STOP.owners)
+    await Promise.all(
+      owners.slice(offset, offset + RUNTIME_STOP.owners).map((entry) => stopOwner(entry)),
+    )
 }
