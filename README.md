@@ -2287,10 +2287,19 @@ empty. One separate source is buildable today, on the window
 Providers, chosen only by an explicit `separate`/`both` engine and never by
 `auto`, asked about first with its price (at most $0.002688 a request) and the
 shared daily budget, and only ever adding caution. That question is the
-route's own popup (Allow once or Deny): an "always" Judge grant never covers
-it, and "Ask again" in Account & usage asks again. Each request is a paid
-Judge row in Account & usage; the CLI settles it into the same shared daily
-budget on top of `--budget-usd` and refuses a missing key before any charge
+route's own popup, with "Allow in this window" or Deny: its grant covers every
+request on that route until the window closes (as Tab's does), an "always"
+Judge grant never covers it, and "Ask again every time" beside the route in
+Account & usage asks again. The status line and Account & usage name the
+route's own model, price and grant, never the chat model's. A request is
+withdrawn unsent, and its reservation refunded, when the owner, chat model,
+source or the route's grant changes, or the daily budget stops, while it
+waits on the popup, the key, name resolution or the connection; an answer
+whose grant was revoked in flight adds no caution. Each request is a paid
+Judge row in Account & usage from the moment it is sent, so a call that fails
+afterwards still shows as an uncertain paid use; the CLI settles it into the
+same shared daily budget on top of `--budget-usd` (exact to the nano-dollar,
+up to nine decimals) and refuses a missing key before any charge
 (`"gap":"key"`). It works on either backend with only its own engine setting
 and key: the Meta judge's price acceptance is never needed, and an explicit
 `separate` run never shows the Meta judge's popup. Like every paid setting it

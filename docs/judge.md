@@ -239,3 +239,20 @@ a buildable route needs no Meta judge consent and never shows its popup. The
 settings stay machine-scoped; a separate judge selected only in the
 workspace's settings files is named with gap `scope` in the status line and
 logged once, never honoured.
+
+Fix round 2 (RVM98P2R2) closes the waits. The route's grant stays
+window-scoped by the lead's decision (as Tab's), and its popup now says so:
+"Allow in this window" or Deny. The run's identity (owner, chat model, source,
+turn and the route grant's revocation count) is captured before the popup and
+read again after the popup, the key read, name resolution and once the
+connection is up, before any request byte is written (`pinnedPostRequest`'s
+`shouldWrite` fence); the same fence reads the durable D78 claim's live check
+(Stop, day change, reduced cap). A withdrawn request refunds; an answer whose
+grant was revoked in flight is charged but never answers. The paid row opens
+at dispatch, credential-bearing property names are dropped at every depth,
+and workspace settings files are read within bounds (regular files only, 256
+KiB each, 1 MiB and 32 files in all). Money on this path is exact nano-USD:
+the route's tariff and receipts, the CLI's `--budget-usd` (nine decimals) and
+run cap, and the D78 journal's totals. A C-only run's status and Account &
+usage project the route's own source, model, tariff and grant, with its own
+Ask again.

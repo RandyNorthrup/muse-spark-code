@@ -42850,6 +42850,29 @@ popup; a separate judge set only in workspace settings is named (gap `scope`,
 status line and log), never honoured. The status field `separateGap` became
 `gap` to pay for the code (`dist/wire.js` stays 51,196 of 51,200 bytes).
 
+**Phase 2 fix round 2 (M98P2R, RVM98P2R2, 2026-10-08).** 3 P1 and 7 P2,
+each with a regression and a byte-exact red drill (18 drills), under the
+lead's decisions. (1) C's route grant stays window-scoped like Tab's; the
+popup says "Allow in this window" and the docs describe it. (2) The run's
+identity (owner, chat model, source, turn, the route grant's revocation
+count) is captured before the popup and read again after the popup, the key
+read, DNS and once connected, before any request byte (`pinnedPostRequest`
+`shouldWrite`); a revoked in-flight answer is charged, never an answer. (3)
+Both C adapters keep the D78 claim's live check, read in that same fence.
+(4) Credential-bearing property names are dropped recursively. (5) C's paid
+row opens at dispatch. (6) Workspace settings reads are bounded (regular
+files, 256 KiB each, 1 MiB and 32 files). (7) The reference witness guards
+`paidAvailability` and its caller. (8) Exact nano-USD for C's tariff and
+receipts, the judge CLI's `--budget-usd` (nine decimals) and run cap, and
+the D78 journal's totals and remaining amount; `src/shared/usd.ts` is main's
+file copied byte-for-byte, and main's exact journal supersedes this branch's
+minimal journal change at the merge. (9) A C-only run projects C's own
+route in the status line and Account & usage, with its own Ask again. (10)
+The delivery suite consumes one shared production build from M100's Vitest
+global setup (`test/unit/productionBuild.ts`) with its source-generation
+proof; no deadline was raised. Receipt: `docs/certification/m98.md`, "Phase 2
+fix round 2 (RVM98P2R2)".
+
 **Lead live-capture steps for the remaining sides (M98P2R).** These are
 the lead's steps, not owner blocks; no lane creates or requests a
 credential.

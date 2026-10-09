@@ -46,7 +46,18 @@ happened, not what was planned; superseded entries are kept.
   Meta judge's price acceptance, and an explicit `separate` run never shows
   the Meta judge's popup. Set only in workspace settings, it is not used
   (paid settings are read from user settings), and the status line and the
-  log say so in place of staying silent.
+  log say so in place of staying silent. Its popup says what its grant does:
+  "Allow in this window" covers the route until the window closes, and the
+  route has its own "Ask again every time" in Account & usage, where it is
+  shown with its own model, price and grant. A request waiting on the popup,
+  the key, name resolution or the connection is withdrawn unsent and
+  refunded when the owner, chat model, source or grant changes or the daily
+  budget stops; a revoked call's answer adds no caution. A sent call is a
+  paid row from the moment it is sent, failed or not. Credential-bearing
+  property names in a provider reply are dropped. Workspace settings files
+  are read within fixed bounds. The CLI's `--budget-usd` takes up to nine
+  decimals, and the shared daily budget's totals are exact to the
+  nano-dollar.
 
 - Judge phase-2 status now reports separate and cascade modes, explains automatic same-model fallback in every UI language, and refuses verdicts after endpoint, profile, owner or turn changes. Automatic cascade selection validates recorded independent profiles and held-out paired M75 evidence. One request-only judge runtime reaches the cascade from the window, CLI and MCP surfaces given a real binding; the experimental embedding fast path stays capability-gated with its attempt ceiling published before dispatch, paid consent asked once, and verified-local models behind explicit opt-in. The production phase-2 binding builds every surface's runtime from real C/E/J sides and recorded evidence; each missing input (unverified source, fitted profiles, adoption receipt, embedding labels) is named in the status line in all 14 languages instead of a silent phase-1 fallback. No live separate source or recorded evidence ships yet, so the production window (`src/extension.ts`), CLI and MCP (`src/runtime/main.ts`) report those gaps rather than dispatching separate, cascade or embedding runs.
 
