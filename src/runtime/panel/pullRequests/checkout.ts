@@ -134,6 +134,8 @@ export interface NodePullRequestCheckoutGitOptions {
   /** No credentials, no prompt, no optional locks. */
   readonly quietEnv: NodeJS.ProcessEnv
   readonly platform: NodeJS.Platform
+  /** Cancel or shutdown stops every git it runs, however quiet it is. */
+  readonly signal: AbortSignal
   readonly log: CoreLogger
 }
 
@@ -162,6 +164,7 @@ function runText(
   args: readonly string[],
   cwd: string,
   env: NodeJS.ProcessEnv,
+  signal: AbortSignal,
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     execFile(
@@ -173,6 +176,7 @@ function runText(
         timeout: GIT_WORKTREE_TIMEOUT_MS,
         maxBuffer: GIT_OUTPUT_MAX_BYTES,
         windowsHide: true,
+        signal,
       },
       (error, stdout) => {
         if (error === null) {
@@ -189,6 +193,7 @@ interface NodeGitRunner {
   readonly gitPath: string
   readonly quietEnv: NodeJS.ProcessEnv
   readonly platform: NodeJS.Platform
+  readonly signal: AbortSignal
   readonly log: CoreLogger
   versionChecked: boolean
   text(args: readonly string[], cwd: string, env: NodeJS.ProcessEnv): Promise<string>
@@ -305,8 +310,17 @@ async function writeHeldBlobs(
     const child = spawn(
       git.gitPath,
       [...untrustedCheckoutArgs(git.platform), 'cat-file', '--batch'],
-      { cwd, env: git.quietEnv, windowsHide: true },
+      {
+        cwd,
+        env: git.quietEnv,
+        windowsHide: true,
+        signal: git.signal,
+        timeout: GIT_WORKTREE_TIMEOUT_MS,
+      },
     )
+    // Nothing reads the error stream: discard it, so a chatty git can
+    // never fill the pipe and stall the batch past its deadline.
+    child.stderr.resume()
     let hasFailed = false
     const fail = (error: Error) => {
       if (hasFailed) {
@@ -366,14 +380,15 @@ export function createNodePullRequestCheckoutGit(
     gitPath: options.gitPath,
     quietEnv: options.quietEnv,
     platform: options.platform,
+    signal: options.signal,
     log: options.log,
     versionChecked: false,
-    text: (args, cwd, env) => runText(options.gitPath, args, cwd, env),
+    text: (args, cwd, env) => runText(options.gitPath, args, cwd, env, options.signal),
   }
   return {
     fetch: async (cwd, remote, ref, check) => {
       check()
-      await runText(options.gitPath, ['fetch', remote, ref], cwd, options.userEnv)
+      await runText(options.gitPath, ['fetch', remote, ref], cwd, options.userEnv, options.signal)
     },
     readFetchHead: (cwd, check) => {
       check()
@@ -382,6 +397,7 @@ export function createNodePullRequestCheckoutGit(
         ['rev-parse', '--verify', `${FETCH_HEAD}${COMMIT_PEEL}`],
         cwd,
         options.quietEnv,
+        options.signal,
       )
     },
     addOwnWorktree: async (cwd, folder, sha, check) => {
@@ -397,6 +413,7 @@ export function createNodePullRequestCheckoutGit(
         ],
         cwd,
         options.quietEnv,
+        options.signal,
       )
     },
     checkOutHeld: async (folder, sha, cwd, check) => {
@@ -502,6 +519,9 @@ function failureText(error: unknown): string {
  * offered again as it is, never taken over.
  */
 export class RuntimePullRequestCheckout {
+  /** One opening per destination folder: overlapping opens queue behind it. */
+  private readonly admissions = new Map<string, Promise<void>>()
+
   public constructor(private readonly deps: RuntimeCheckoutDeps) {}
 
   private checkTrust(): void {
@@ -509,6 +529,31 @@ export class RuntimePullRequestCheckout {
       throw new PullRequestServiceError(UI_TEXT.gitRestricted)
     }
     this.deps.signal.throwIfAborted()
+  }
+
+  private withFolderLock<T>(folder: string, work: () => Promise<T>): Promise<T> {
+    const previous = this.admissions.get(folder) ?? Promise.resolve()
+    const next = (async (): Promise<T> => {
+      await previous
+      return await work()
+    })()
+    const turn = (async (): Promise<void> => {
+      try {
+        await next
+      } catch {
+        // A failed opening releases the next queued one.
+      }
+    })()
+    this.admissions.set(folder, turn)
+    return (async (): Promise<T> => {
+      try {
+        return await next
+      } finally {
+        if (this.admissions.get(folder) === turn) {
+          this.admissions.delete(folder)
+        }
+      }
+    })()
   }
 
   private async checkOutWith(
@@ -542,102 +587,109 @@ export class RuntimePullRequestCheckout {
           this.deps.platform,
         )
       : heldWorktreeFolder(this.deps.dataFolder, remote.repository, number, this.deps.platform)
-    if (this.deps.pathExists(folder)) {
-      // Checked out before: offered again as it is. A folder this service
-      // did not make, or a checkout that never finished, is never taken
-      // over or opened.
-      const existing = await this.deps.records.recordFor(folder)
-      if (existing === undefined || existing.isCheckoutPending === true) {
-        return { ok: false, reason: `${UI_TEXT.worktreeFolderExists} ${folder}` }
+    // Overlapping opens of one pull request queue here: the second sees
+    // the finished checkout instead of racing its record.
+    return await this.withFolderLock(folder, async () => {
+      if (this.deps.pathExists(folder)) {
+        // Checked out before: offered again as it is. A folder this service
+        // did not make, or a checkout that never finished, is never taken
+        // over or opened.
+        const existing = await this.deps.records.recordFor(folder)
+        if (existing === undefined || existing.isCheckoutPending === true) {
+          return { ok: false, reason: `${UI_TEXT.worktreeFolderExists} ${folder}` }
+        }
+        const shouldReopen = await this.deps.confirm(
+          fill(UI_TEXT.openPullRequestExisting, { number }),
+          folder,
+          UI_TEXT.worktreeOpen,
+        )
+        this.checkTrust()
+        if (shouldReopen) {
+          await this.deps.openFolder(folder)
+          return { ok: true, folder, held: existing.isHeld, number }
+        }
+        return { ok: false, reason: UI_TEXT.gitPushDeclined }
       }
-      const shouldReopen = await this.deps.confirm(
-        fill(UI_TEXT.openPullRequestExisting, { number }),
-        folder,
-        UI_TEXT.worktreeOpen,
+      const isConfirmed = await this.deps.confirm(
+        fill(UI_TEXT.openPullRequestConfirm, { number }),
+        pullRequestCheckoutConfirmation(pullRequest, isOwn),
+        UI_TEXT.openPullRequestAction,
       )
       this.checkTrust()
-      if (shouldReopen) {
-        await this.deps.openFolder(folder)
-        return { ok: true, folder, held: existing.isHeld, number }
+      if (!isConfirmed) {
+        return { ok: false, reason: UI_TEXT.gitPushDeclined }
       }
-      return { ok: false, reason: UI_TEXT.gitPushDeclined }
-    }
-    const isConfirmed = await this.deps.confirm(
-      fill(UI_TEXT.openPullRequestConfirm, { number }),
-      pullRequestCheckoutConfirmation(pullRequest, isOwn),
-      UI_TEXT.openPullRequestAction,
-    )
-    this.checkTrust()
-    if (!isConfirmed) {
-      return { ok: false, reason: UI_TEXT.gitPushDeclined }
-    }
-    if (!isCommitSha(pullRequest.headSha)) {
-      return { ok: false, reason: `${UI_TEXT.gitHubFailed}: ${redactSecrets(pullRequest.headSha)}` }
-    }
-    // A remote named like an option would read as one where git receives it.
-    if (!isPlainRefName(remote.name)) {
-      return { ok: false, reason: UI_TEXT.gitPushUnsafeName }
-    }
-    const cwd = this.deps.repositoryRoot
-    try {
-      this.checkTrust()
-      // Through the user's environment, so its credentials reach a private repository.
-      await this.deps.git.fetch(cwd, remote.name, pullHeadRef(number), () => {
-        this.checkTrust()
-      })
-      this.checkTrust()
-      // The head GitHub named must be what came: a push in between is refused, not guessed.
-      const fetched = await this.deps.git.readFetchHead(cwd, () => {
-        this.checkTrust()
-      })
-      this.checkTrust()
-      if (fetched.trim() !== pullRequest.headSha) {
-        return { ok: false, reason: UI_TEXT.gitOperationChanged }
+      if (!isCommitSha(pullRequest.headSha)) {
+        return {
+          ok: false,
+          reason: `${UI_TEXT.gitHubFailed}: ${redactSecrets(pullRequest.headSha)}`,
+        }
       }
-    } catch (error: unknown) {
-      this.deps.log.warn(`Fetching pull request #${String(number)} failed`)
-      return { ok: false, reason: `${UI_TEXT.openPullRequestFetchFailed}: ${failureText(error)}` }
-    }
-    const record: WorktreeRecord = {
-      folder,
-      repositoryRoot: this.deps.repositoryRoot,
-      createdAt: this.deps.now(),
-      pullRequest: {
-        repository: repositoryLabel(remote.repository),
-        number,
-        url: pullRequest.url,
-        title: pullRequest.title,
-        author: pullRequest.author.login,
-        headSha: pullRequest.headSha,
-        isAuthoredByUser: isOwn,
-      },
-      isHeld: !isOwn,
-      isCheckoutPending: true,
-    }
-    // Recorded before the folder exists, so no window ever sees it unrecorded.
-    const previous = await this.deps.records.put(record)
-    try {
-      this.checkTrust()
-      if (isOwn) {
-        await this.deps.git.addOwnWorktree(cwd, folder, pullRequest.headSha, () => {
+      // A remote named like an option would read as one where git receives it.
+      if (!isPlainRefName(remote.name)) {
+        return { ok: false, reason: UI_TEXT.gitPushUnsafeName }
+      }
+      const cwd = this.deps.repositoryRoot
+      try {
+        this.checkTrust()
+        // Through the user's environment, so its credentials reach a private repository.
+        await this.deps.git.fetch(cwd, remote.name, pullHeadRef(number), () => {
           this.checkTrust()
         })
-      } else {
-        await this.deps.git.checkOutHeld(folder, pullRequest.headSha, cwd, () => {
+        this.checkTrust()
+        // The head GitHub named must be what came: a push in between is refused, not guessed.
+        const fetched = await this.deps.git.readFetchHead(cwd, () => {
           this.checkTrust()
         })
+        this.checkTrust()
+        if (fetched.trim() !== pullRequest.headSha) {
+          return { ok: false, reason: UI_TEXT.gitOperationChanged }
+        }
+      } catch (error: unknown) {
+        this.deps.log.warn(`Fetching pull request #${String(number)} failed`)
+        return { ok: false, reason: `${UI_TEXT.openPullRequestFetchFailed}: ${failureText(error)}` }
       }
-      await this.deps.records.complete(folder, record.createdAt)
-    } catch (error: unknown) {
-      await this.deps.records.remove(folder, record.createdAt, previous)
-      return { ok: false, reason: `${UI_TEXT.worktreeAddFailed}: ${failureText(error)}` }
-    }
-    this.checkTrust()
-    this.deps.log.info(
-      `Pull request #${String(number)} checked out in a worktree${isOwn ? '' : ', held'}`,
-    )
-    await this.deps.openFolder(folder)
-    return { ok: true, folder, held: !isOwn, number }
+      const record: WorktreeRecord = {
+        folder,
+        repositoryRoot: this.deps.repositoryRoot,
+        createdAt: this.deps.now(),
+        pullRequest: {
+          repository: repositoryLabel(remote.repository),
+          number,
+          url: pullRequest.url,
+          title: pullRequest.title,
+          author: pullRequest.author.login,
+          headSha: pullRequest.headSha,
+          isAuthoredByUser: isOwn,
+        },
+        isHeld: !isOwn,
+        isCheckoutPending: true,
+      }
+      // Recorded before the folder exists, so no window ever sees it unrecorded.
+      const previous = await this.deps.records.put(record)
+      try {
+        this.checkTrust()
+        if (isOwn) {
+          await this.deps.git.addOwnWorktree(cwd, folder, pullRequest.headSha, () => {
+            this.checkTrust()
+          })
+        } else {
+          await this.deps.git.checkOutHeld(folder, pullRequest.headSha, cwd, () => {
+            this.checkTrust()
+          })
+        }
+        await this.deps.records.complete(folder, record.createdAt)
+      } catch (error: unknown) {
+        await this.deps.records.remove(folder, record.createdAt, previous)
+        return { ok: false, reason: `${UI_TEXT.worktreeAddFailed}: ${failureText(error)}` }
+      }
+      this.checkTrust()
+      this.deps.log.info(
+        `Pull request #${String(number)} checked out in a worktree${isOwn ? '' : ', held'}`,
+      )
+      await this.deps.openFolder(folder)
+      return { ok: true, folder, held: !isOwn, number }
+    })
   }
 
   public async open(

@@ -10,6 +10,7 @@ import { mkdir, mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { resolveExecutable } from '../../src/core/executables'
 import { heldWorktreesRoot } from '../../src/core/worktreeConversations'
 import { UI_TEXT } from '../../src/shared/constants'
 import {
@@ -53,6 +54,7 @@ interface GitCalls {
 function recordingGit(
   headSha: string,
   failures: { readonly fetch?: boolean; readonly add?: boolean } = {},
+  addOwnWorktree?: (call: number) => Promise<void>,
 ): {
   readonly git: PullRequestCheckoutGit
   readonly calls: GitCalls
@@ -70,6 +72,9 @@ function recordingGit(
       readFetchHead: () => Promise.resolve(`${headSha}\n`),
       addOwnWorktree: (cwd, folder, sha) => {
         calls.addedOwn.push({ cwd, folder, sha })
+        if (addOwnWorktree !== undefined) {
+          return addOwnWorktree(calls.addedOwn.length)
+        }
         return failures.add === true
           ? Promise.reject(new Error('the worktree could not be added'))
           : Promise.resolve()
@@ -92,6 +97,8 @@ async function checkoutSetup(
     readonly headSha?: string
     readonly noSources?: boolean
     readonly failures?: { readonly fetch?: boolean; readonly add?: boolean }
+    readonly now?: () => number
+    readonly addOwnWorktree?: (call: number) => Promise<void>
   } = {},
 ) {
   const github = fakeGitHub()
@@ -108,7 +115,11 @@ async function checkoutSetup(
     isSignedIn: options.signedIn ?? true,
     fetch: github.fetch,
   })
-  const recording = recordingGit(options.headSha ?? CAPTURED_PULL_OWN.head.sha, options.failures)
+  const recording = recordingGit(
+    options.headSha ?? CAPTURED_PULL_OWN.head.sha,
+    options.failures,
+    options.addOwnWorktree,
+  )
   const records = createMemoryWorktreeRecordStore('linux')
   const heldRoots = [
     heldWorktreesRoot(storageRoot, 'linux'),
@@ -120,7 +131,7 @@ async function checkoutSetup(
     dataFolder,
     tokenSources: options.noSources === true ? [] : [source],
     platform: 'linux',
-    now: () => 2000,
+    now: options.now ?? (() => 2000),
     confirm: (message, detail, action) => {
       confirms.push({ message, detail, action })
       return Promise.resolve(options.confirm ?? true)
@@ -154,6 +165,10 @@ async function checkoutSetup(
 }
 
 const OWN_REMOTES = [{ name: 'origin', repository: OWN }]
+
+function uncancelledCheck(): void {
+  // The operation runs uncancelled; the signal carries the cancel.
+}
 
 describe('runtime pull request checkout (M123 lane P)', () => {
   it('refuses a pull request reference that is not one', async () => {
@@ -261,6 +276,40 @@ describe('runtime pull request checkout (M123 lane P)', () => {
     if (!result.ok) {
       expect(result.reason).toContain(UI_TEXT.worktreeAddFailed)
     }
+  })
+
+  it('serializes overlapping opens instead of stranding the checkout pending', async () => {
+    let stamps = 0
+    const setup = await checkoutSetup({
+      now: () => {
+        stamps += 1
+        return 1000 + stamps
+      },
+      // The first add succeeds while the second is still running; the
+      // second then fails, as its folder is taken.
+      addOwnWorktree: (call) =>
+        new Promise<void>((resolve, reject) => {
+          const delayMs = call === 1 ? 30 : 60
+          setTimeout(() => {
+            if (call === 1) {
+              resolve()
+            } else {
+              reject(new Error('the worktree folder exists already'))
+            }
+          }, delayMs)
+        }),
+    })
+    const [first, second] = await Promise.all([
+      setup.checkout.open('56', OWN_REMOTES, 'origin'),
+      setup.checkout.open('56', OWN_REMOTES, 'origin'),
+    ])
+    expect(first.ok).toBe(true)
+    expect(second.ok).toBe(false)
+    if (!first.ok) {
+      throw new Error('first checkout failed')
+    }
+    const record = await setup.records.recordFor(first.folder)
+    expect(record?.isCheckoutPending).toBeUndefined()
   })
 
   it('refuses a remote named like an option', async () => {
@@ -524,6 +573,7 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
         userEnv: pullRequestFetchEnvironment({ ...fixtures.environment }),
         quietEnv: quietPullRequestEnvironment({ ...fixtures.environment }),
         platform: 'linux',
+        signal: deps.signal,
         log,
       }),
       pathExists: (fsPath) => existsSync(fsPath),
@@ -542,6 +592,34 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
     expect(existsSync(result.folder)).toBe(true)
     expect(git(result.folder, 'rev-parse', 'HEAD')).toBe(sha)
     expect(opened).toEqual([result.folder])
+  })
+
+  it('stops the fetch and the held batch on cancel instead of hanging', async () => {
+    const gitPath = resolveExecutable('git', {
+      platform: process.platform,
+      pathVariable: process.env['PATH'],
+      fileExists: existsSync,
+    })
+    if (gitPath === undefined) {
+      throw new Error('git is not on PATH')
+    }
+    const log = recordingLogger()
+    const runner = createNodePullRequestCheckoutGit({
+      gitPath,
+      userEnv: pullRequestFetchEnvironment({ ...fixtures.environment }),
+      quietEnv: quietPullRequestEnvironment({ ...fixtures.environment }),
+      platform: process.platform,
+      signal: AbortSignal.abort(),
+      log,
+    })
+    // A fetch that would succeed against the fixture's origin is refused
+    // before git starts, and the held batch never spawns its child.
+    await expect(runner.fetch(fixtures.own, 'origin', 'feature', uncancelledCheck)).rejects.toThrow(
+      /abort/iu,
+    )
+    const sha = git(fixtures.own, 'rev-parse', 'HEAD')
+    const folder = await mkdtemp(path.join(tmpdir(), 'm123p-cancelled-'))
+    await expect(runner.checkOutHeld(folder, sha, fixtures.own, uncancelledCheck)).rejects.toThrow()
   })
 
   it('checks out someone else’s pull request held, byte for byte', async () => {
