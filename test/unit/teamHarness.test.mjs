@@ -7,6 +7,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
+import { assertCurrentProductionBuild } from './productionBuild'
 import { serveRepo, TRAFFIC_SCENARIOS } from '../../scripts/lib/harnessServer.mjs'
 import { testSettings } from './helpers/fakes'
 import { buildWebviewHtml } from '../../src/host/html'
@@ -26,7 +27,7 @@ const HARNESS_ERROR_DIAGNOSTIC_LIMIT = 1024
 const rig = { browser: undefined, server: undefined, origin: '', packagedFiles: [] }
 beforeAll(async () => {
   // The run's one production build (test/unit/productionBuild.ts) is already in dist/.
-  if (!inject('productionBuild')) throw new Error('No shared production build in this run')
+  assertCurrentProductionBuild(inject('productionBuild'), process.cwd())
   execFileSync(process.execPath, ['scripts/pseudo-l10n.mjs'], { stdio: 'pipe' })
   rig.packagedFiles = execFileSync(
     process.execPath,

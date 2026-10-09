@@ -4,9 +4,13 @@
 // them from dist/. Those suites check for this shared build in their
 // preparation instead of rebuilding, so their named preparation budget covers
 // only their own server and browser, and two suites never write dist/ at once.
+// Vitest keeps a global setup for a whole watch session, so every rerun that
+// selects such a suite builds again, and the proof each suite checks is the
+// generation of the build inputs it was built from (RVM100J2 1).
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import type { TestProject } from 'vitest/node'
 
 /** The suites that serve the production build from dist/. */
 const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
@@ -15,11 +19,27 @@ const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
 ])
 // A hung build fails the run with its output instead of holding it open.
 const PRODUCTION_BUILD_TIMEOUT_MS = 600_000
+// What scripts/build.mjs reads: these tracked folders and root files.
+const BUILD_INPUT_FOLDERS: ReadonlySet<string> = new Set([
+  'src',
+  'scripts',
+  'l10n',
+  'vendor',
+  'native',
+  'media',
+  'resources',
+  'skills',
+  'first-party-skills',
+])
+const BUILD_INPUT_FILE =
+  /^(?:package(?:\.nls(?:\.[\w-]+)?)?\.json|package-lock\.json|tsconfig(?:\.\w+)?\.json|THIRD_PARTY_NOTICES\.txt)$/u
+// The tracked-file listing of a large repository.
+const GIT_LIST_MAX_BYTES = 64 * 1024 * 1024
 
 declare module 'vitest' {
   export interface ProvidedContext {
-    /** This run built the production bundles before its first file started. */
-    productionBuild: boolean
+    /** The build inputs' generation this run built from; empty when it built nothing. */
+    productionBuild: string
   }
 }
 
@@ -30,16 +50,93 @@ export function requiresProductionBuild(root: string, selected: readonly string[
   )
 }
 
-export default function setup(project: TestProject): void {
-  const root = project.config.root
-  // The run's selected files (the state API is experimental: a change there
-  // shows as the serving suites' own refusal below, never a silent skip).
-  const isNeeded = requiresProductionBuild(root, project.vitest.state.getPaths())
-  if (isNeeded)
+/** The tracked build inputs, repository-relative. */
+function buildInputs(root: string): string[] {
+  return execFileSync('git', ['ls-files', '-z'], {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: GIT_LIST_MAX_BYTES,
+  })
+    .split('\0')
+    .filter(
+      (file) =>
+        file !== '' &&
+        (BUILD_INPUT_FOLDERS.has(file.split('/', 1)[0] ?? '') || BUILD_INPUT_FILE.test(file)),
+    )
+}
+
+/** One hash over every build input's path and bytes: any source edit is a new generation. */
+export function buildGeneration(
+  root: string,
+  files: readonly string[] = buildInputs(root),
+): string {
+  const hash = createHash('sha256')
+  // Byte order, independent of locale.
+  const ordered = files.toSorted((left, right) => (left < right ? -1 : Number(left > right)))
+  for (const file of ordered) {
+    hash.update(file).update('\0')
+    try {
+      hash.update(readFileSync(path.join(root, file)))
+    } catch {
+      hash.update('missing')
+    }
+    hash.update('\0')
+  }
+  return hash.digest('hex')
+}
+
+/** Refuses a run with no shared build, or one built from sources since changed. */
+export function assertCurrentProductionBuild(
+  built: string,
+  root: string,
+  files?: readonly string[],
+): void {
+  if (built === '') throw new Error('No shared production build in this run')
+  if (built !== buildGeneration(root, files))
+    throw new Error('Stale shared production build: its sources changed after this run built it')
+}
+
+/** The part of Vitest's test project this setup uses. */
+interface SetupProject {
+  readonly config: { readonly root: string }
+  readonly vitest: { readonly state: { getPaths(): string[] } }
+  provide(key: 'productionBuild', value: string): void
+  onTestsRerun(listener: (specifications: readonly { readonly moduleId: string }[]) => void): void
+}
+interface BuildPorts {
+  build(root: string): void
+  generation(root: string): string
+}
+const realBuild: BuildPorts = {
+  build: (root) => {
     execFileSync(process.execPath, ['scripts/build.mjs', '--production'], {
       cwd: root,
       stdio: 'pipe',
       timeout: PRODUCTION_BUILD_TIMEOUT_MS,
     })
-  project.provide('productionBuild', isNeeded)
+  },
+  generation: (root) => buildGeneration(root),
 }
+
+/** The global setup over its build ports (the real build by default). */
+export function productionBuildSetup(ports: BuildPorts = realBuild) {
+  return (project: SetupProject): void => {
+    const root = project.config.root
+    const prepare = (selected: readonly string[]) => {
+      if (!requiresProductionBuild(root, selected)) {
+        project.provide('productionBuild', '')
+        return
+      }
+      ports.build(root)
+      project.provide('productionBuild', ports.generation(root))
+    }
+    // The run's selected files (the state API is experimental: a change there
+    // shows as the serving suites' own refusal, never a silent skip).
+    prepare(project.vitest.state.getPaths())
+    project.onTestsRerun((specifications) => {
+      prepare(specifications.map((specification) => specification.moduleId))
+    })
+  }
+}
+
+export default productionBuildSetup()

@@ -5,6 +5,7 @@ import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
+import { assertCurrentProductionBuild } from './productionBuild'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
 import { parseDeviceHostMessage } from '../../src/shared/devicesPanel'
 import { EN } from '../../src/shared/l10n/en'
@@ -103,7 +104,7 @@ const HARNESS_PREPARE_TIMEOUT_MS = 60_000
 const READY_TIMEOUT_MS = 2000
 beforeAll(async () => {
   // The run's one production build (test/unit/productionBuild.ts) is already in dist/.
-  if (!inject('productionBuild')) throw new Error('No shared production build in this run')
+  assertCurrentProductionBuild(inject('productionBuild'), process.cwd())
   const serving = await serveRepo(process.cwd())
   rig.server = serving.server
   rig.origin = `http://127.0.0.1:${serving.port}`
