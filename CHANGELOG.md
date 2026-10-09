@@ -30,14 +30,39 @@ happened, not what was planned; superseded entries are kept.
     contributor models. It is uploaded once through the Files API, its id is
     replayed, and it is reserved at the calibrated bound, scheduled turns
     included.
-  - Attaching video or audio from the panel, the CLI or ACP, and soundtrack
-    or audio transcription, are **not available yet**. They need lane V's
-    bindings: attach-port tokens with a part-to-source registry, the
-    transcription POST transport, a trusted converter binding, the paid
-    consent and reserve adapters, and an ACP media port. The product
-    installs no audio port until then.
   - The transcription adapter keeps a video's visual part beside its
     soundtrack transcript, and disposes a converted WAV on every path.
+- Attached video and audio work in production on every surface (M105 lane V):
+  - **Attaching video.** On the Muse Spark 1.2 and 1.3 contributor models an
+    mp4 or mov can be attached in the panel (picker, drop, paste), through
+    ACP (`/attach`, resource links, embedded media) and with
+    `exec --attach`. It uploads once, replays its file id and is priced on the
+    one admission path. Other models refuse with the reason. VS Code asks once
+    per conversation on a contributor model (Send, Use the Standard model,
+    Remove) and always for a screen recording; the ACP agent's
+    `--allow-contributor-models` stands for that question.
+  - **Muse Voice transcription.** On 1.3, which does not hear a video's sound,
+    the soundtrack is transcribed and the transcript goes beside the video;
+    declining, or a machine with no converter, sends the video without its
+    sound. A WAV or MP3 is attached only while Muse Voice is on and becomes
+    its transcript; Meta audio is never sent as audio. Each transcription
+    asks first with the price and the shared daily budget, reserves exactly on
+    that budget (and on a conversation cap), settles from the billed seconds
+    and counts on the tally. The ACP agent turns it on with `--muse-voice`;
+    `exec` has none.
+  - **The trusted converter.** `ffmpeg` is used only at the machine's
+    configured path (`museSpark.mediaConverterPath`, or `mediaConverterPath`
+    in the agent's `settings.json`) or a documented install, never `PATH`,
+    after the trusted-path check (M104's verifier on macOS and Linux, the
+    owner and ACL check on Windows, on any drive). Launcher shims are refused;
+    a refused configured path says why and never falls back. Conversion runs
+    on Linux and, in a kernel job with a memory cap, on Windows (VS Code and
+    the runtime, whose package now ships the job launcher). On macOS it is
+    refused until its memory sampler is bound.
+  - **Bundles.** Transcription loads with `dist/productionAudio.js` (68.1 KiB,
+    cap 75 KiB) on the first turn with attached sound, and the runtime's media
+    port with `dist/runtimeMedia.js` (52.5 KiB, cap 75 KiB). `dist/modelApi.js`
+    stays at 524.6 KiB under its 525 KiB cap; no cap rose.
 
 ### Fixed
 
@@ -47,6 +72,12 @@ happened, not what was planned; superseded entries are kept.
   capture keep counting its bytes (RVMEDIAW2).
 - The Model API factory drops a caller-supplied audio preparation callback;
   the only audio path is the one the bundle binds itself (RVMEDIAW2).
+- An RSS sample of a converter that already exited no longer fails a
+  conversion that finished cleanly: after close only the output decides
+  (M105 lane V).
+- "Storage billing has not been verified" is gone from every refusal: U6c
+  recorded that storage is not billed. A session without a file upload
+  service now says so (M105 lane V).
 - The privacy notice and the README now say what a contributor-model
   `read_file` of a video already does: the bytes go to Meta's Files API, the
   upload expires after seven days, and session deletion or the retention purge
@@ -76,7 +107,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
-- M105 lane VB (the media converter's platform bindings), for lane V to wire:
+- M105 lane VB (the media converter's platform bindings), wired by lane V
+  on Windows and for the private folder; the macOS sampler is not bound yet:
   - On Windows the encoder runs inside a kill-on-close kernel job whose job
     memory limit is the conversion's memory cap. It starts through the
     compiled job launcher, with no PowerShell per conversion. Output size,

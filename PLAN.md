@@ -43455,8 +43455,50 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   - The runtime (ACP, exec) has no M50 launcher. Its package omits
     `MuseSparkMcpLauncher.cs`, and `runtime/backends.ts` prepares only the
     shell job. Lane V ships and prepares the launcher, or Windows conversion
-    in the runtime refuses.
+    in the runtime refuses. (Done by lane V: see the next item.)
   - The darwin private group stays with M104's signed helper.
+
+- **M105-V-production-binding (lane V, 2026-10-08; lead decisions).**
+  Attached video and audio work in production in VS Code, ACP serve and exec,
+  through five seams, each with regressions and red drills
+  (`docs/certification/m105.md`, Lane V):
+  1. A `media` turn part and one attached-media registry per window or
+     runtime. The attach port registers each approved file with its digest
+     and a reopening source. VS Code asks D85.7's question; ACP takes
+     `--allow-contributor-models`.
+  2. A narrow transcription POST (`requestTranscription`) that returns the
+     captured 400 body.
+  3. The trusted converter:
+     - M104's `runtime/trustedPath.ts` with an additive executable mode;
+       Windows uses its owner and ACL verifier on the canonical target;
+     - documented installs resolved from the environment;
+     - a machine-scoped configured path (`museSpark.mediaConverterPath`, the
+       runtime's `settings.json` `mediaConverterPath`) that refuses with no
+       fallback;
+     - shims are refused;
+     - the reaped-PID RSS read is fixed.
+  4. Muse Voice's consent and reservations over the hosts' own money ports:
+     `allowsPaidUse`, and the D78 daily ledger through `reservePaidExtra`
+     plus M82's session journal.
+  5. The ACP and exec media port (`dist/runtimeMedia.js`) and the agent's
+     `--muse-voice` flag.
+
+  The audio path loads with `dist/productionAudio.js` on the first turn with
+  attached sound. Lane VB's Windows job runner and private folder are wired
+  in both hosts, and the ACP package ships the job launcher.
+
+  Open items:
+  - The macOS RSS sampler is unbound. It reads through M107's
+    resource-policy modules, which only the governor's bundle may carry, so
+    conversion refuses on macOS.
+  - `exec` has no Muse Voice: its run ledger does not admit transcription
+    spend.
+  - Embedded ACP audio cannot be transcribed, because there is no file to
+    convert.
+  - `mediaAudioAction` is not read yet.
+  - Attach-chip UI for the sound choices (Use 1.2, Send without sound) is
+    still not wired: the router's default applies, and declining
+    transcription sends a video without its sound.
 
 - **M105-F-integration-gates (RVM105F corrections).** All four review findings
   are fixed with regressions and red drills (`docs/certification/m105-f.md`).

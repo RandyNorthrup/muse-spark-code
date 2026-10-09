@@ -1063,9 +1063,13 @@ those adapters require explicit target permission and their missing owning hosts
 ## Multimodal integration boundary (M105)
 
 **What leaves the machine today.** On the Muse Spark 1.2 and 1.3 contributor
-models, a Model API `read_file` of a workspace mp4 or mov (an approved read,
-under the session's permission rules) uploads the file's bytes to Meta's Files
-API with the stored Model API key. One upload is made per file content
+models, an mp4 or mov goes to Meta's Files API with the stored Model API key.
+That happens when you attach it (in the panel; through ACP's `/attach`, a
+resource link or embedded media; or with `exec --attach`), or when the model
+reads one from the workspace with `read_file` (an approved read, under the
+session's permission rules). In VS Code, attaching on a contributor model first
+asks once per conversation (and always for a screen recording); the ACP agent
+takes `--allow-contributor-models` as that consent. One upload is made per file content
 (SHA-256) and account; later turns send only its provider file id. Every upload
 asks Meta to delete it seven days after creation (`expires_after`); the
 `mediaUploadExpiryDays` setting is not yet applied to these uploads.
@@ -1090,10 +1094,28 @@ refuses a deletion, the session is kept and the failure is reported, so its
 file reference is never silently dropped. Meta's expiry removes the file in
 any case. **Delete uploaded files…** is not bound in this build.
 
-**Not enabled yet.** Attaching video or audio from the panel, the CLI or ACP,
-batch transcription and native recording are not enabled by the production
-bindings; their adapters are tested with fakes. A screen recording includes
+**Muse Voice transcription of attached sound.** A video's soundtrack on a
+model that does not hear it (Muse Spark 1.3), or an attached WAV or MP3, is sent
+to Meta's Muse Voice batch endpoint (`/asr/transcribe`) with the stored Model
+API key, only while Muse Voice is on (`--muse-voice` for the ACP agent; never
+in `exec`) and only after you allow the paid use with its price and the
+shared daily budget. What is sent is a 16 or 24 kHz mono 16-bit WAV: a file
+already in that form as it is, anything else after a local conversion. The
+transcript comes back as text beside the video, or in place of the audio, and
+is kept in the conversation like any message; the audio is not uploaded to the
+Files API and no Meta model receives it as audio.
+
+**Local conversion.** Conversion runs the machine's own `ffmpeg`: the path in
+`museSpark.mediaConverterPath` (or `mediaConverterPath` in the agent's
+`settings.json`) or a documented install, never one found on `PATH` and never
+a launcher shim, after a trusted-path check of its owner and folders. It works
+in a fresh owner-only temporary folder, with no network and no credential in
+its environment, and the converted WAV is deleted on every path, success or
+failure. On Windows it runs in a kernel job that caps its memory and ends it
+with the conversion; on macOS conversion is not available yet.
+
+**Not enabled yet.** Native recording is not enabled by the production
+bindings; its adapters are tested with fakes. A screen recording includes
 visible screen content; microphone and system sound require separate opt-ins,
 and Attach follows a private preview. Discard deletes local temporary bytes.
-Batch transcription requires price and budget consent before any paid request.
-See [M105 certification](certification/m105.md) for the missing bindings.
+See [M105 certification](certification/m105.md) for what remains.

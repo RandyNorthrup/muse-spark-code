@@ -2929,14 +2929,36 @@ integration owners; editor font settings continue to decide inside editors.
 - **Multimodal integration status (M105).** The picker recognizes video and
   audio; paste/drop sends approved host URI tokens without reading their bytes
   in the browser. A bytes-only audio/video paste is refused. On the Muse Spark
-  1.2 and 1.3 contributor models, a Model API `read_file` of a workspace mp4 or
-  mov uploads the file to Meta's Files API once, with a seven-day expiry, and
-  later turns replay its file id; other models refuse video with the reason.
-  Attaching video or audio and transcription are not available yet (see the
-  matrix below). `mediaAudioAction` selects the intended audio route; it does
-  not enable transcription. Muse Spark 1.3 ignores a video's soundtrack;
-  1.2 hears it, according to the recorded captures. Standalone Meta audio is
-  refused because the capture found it silently ignored.
+  1.2 and 1.3 contributor models, a video (mp4 or mov) goes to Meta's Files API
+  once, with a seven-day expiry, and later turns replay its file id. It can be
+  attached in the panel (picker, drop, paste), through ACP (`/attach`, resource
+  links, embedded media) and with `exec --attach`, or read by the model with
+  `read_file`. Other models refuse video with the reason. Attaching asks once
+  per conversation on a contributor model (Send, Use the Standard model,
+  Remove), and always for a screen recording; the ACP agent takes
+  `--allow-contributor-models` as that consent. Muse Spark 1.3 ignores a
+  video's soundtrack; 1.2 hears it, according to the recorded captures. On
+  1.3 the sound is transcribed by [Muse Voice](#paid-features) ($0.18 per audio
+  hour, asked first with the price and the shared daily budget, reserved on
+  that budget and any conversation cap, counted on the tally) where a trusted
+  converter can extract it, and the transcript goes beside the video;
+  declining sends the video without its sound, and so does a machine with no
+  converter. Standalone Meta audio is never sent as audio, because the capture
+  found it silently ignored: a WAV or MP3 is attached only while Muse Voice is
+  on (`--muse-voice` for the ACP agent) and becomes its transcript. A 16 or
+  24 kHz mono 16-bit WAV is sent as it is; anything else converts first.
+  `exec` has no Muse Voice, and embedded ACP audio cannot be transcribed (no
+  file to convert). `mediaAudioAction` is not read yet: the default route,
+  Transcribe, applies.
+  The converter is the machine's configured `ffmpeg`
+  (`museSpark.mediaConverterPath`, or `mediaConverterPath` in the agent's
+  `settings.json`), which must pass the trusted-path check or is refused with
+  the reason, else a documented install (Program Files or winget on Windows,
+  Homebrew or MacPorts on macOS, `/usr/bin` or `/usr/local/bin` on Linux).
+  `PATH` is never searched and launcher shims are refused. Conversion runs on
+  Linux (memory watched through `/proc`) and Windows (in a kernel job with a
+  memory cap, in VS Code and the runtime); on macOS it is refused until its
+  memory sampler is bound.
   **Attach screen recording…** and ACP `/record` require an installed recorder
   binding and otherwise explain that recording is unavailable. **Attach latest
   screen recording** can inspect an existing Linux recording, but admission
@@ -2948,17 +2970,15 @@ integration owners; editor font settings continue to decide inside editors.
   other session uses. **Delete uploaded files…** is not bound in this build.
   These commands do not establish provider/editor certification.
 
-  | Backend/model                                | Images and PDFs                                                                                                                                                                                                                           | Video                                                                                                            | Standalone audio                                                              |
-  | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-  | Model API, current production binding        | Inline; on contributor models every image (attached, read or from an MCP tool) is priced at the calibrated bound. No PDF page rate exists: an uncapped PDF counts its bytes, a capped one is refused. Models without captures count bytes | `read_file` of mp4/mov on the 1.2/1.3 contributor models (Files upload, id replay); attaching: not available yet | Not available yet: no Meta model hears it, and transcription waits for lane V |
-  | Muse Code                                    | Existing image path; established document rules                                                                                                                                                                                           | Off: U16/MSP capture pending                                                                                     | Off: needs captured Model API route                                           |
-  | Gemini / OpenAI-compatible and other vendors | Their future captured capability record                                                                                                                                                                                                   | Off: lane V and vendor captures pending                                                                          | Off: captured capability/codec pending                                        |
+  | Backend/model                                | Images and PDFs                                                                                                                                                                                                                           | Video                                                                                                                                                                                               | Standalone audio                                                                          |
+  | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+  | Model API, current production binding        | Inline; on contributor models every image (attached, read or from an MCP tool) is priced at the calibrated bound. No PDF page rate exists: an uncapped PDF counts its bytes, a capped one is refused. Models without captures count bytes | Attached (panel, ACP, `exec --attach`) or `read_file` mp4/mov on the 1.2/1.3 contributor models (Files upload, id replay); 1.3's soundtrack transcribed by Muse Voice where a converter extracts it | WAV/MP3 transcribed by Muse Voice (paid, asked first) while it is on; never sent as audio |
+  | Muse Code                                    | Existing image path; established document rules                                                                                                                                                                                           | Off: U16/MSP capture pending                                                                                                                                                                        | Off: needs captured Model API route                                                       |
+  | Gemini / OpenAI-compatible and other vendors | Their future captured capability record                                                                                                                                                                                                   | Off: vendor captures pending                                                                                                                                                                        | Off: captured capability/codec pending                                                    |
 
-  Attaching video or audio from the panel, the CLI or ACP, and transcribing
-  sound, are not available yet. Five bindings are missing: attach-port
-  tokens with a part-to-source registry, the transcription POST transport, a
-  trusted converter binding, the paid consent and reserve adapters, and an
-  ACP media port (M105 lane V).
+  Lane V bound these in production: attach tokens with a part-to-source
+  registry, Muse Voice's transcription POST, the trusted converter, the paid
+  consent and reserve adapters, and the ACP and exec media port.
 
   Portable core and editor adapters have fake-based tests. Installed-editor,
   native recording and live provider receipts remain open in
@@ -4342,7 +4362,8 @@ Bypass at once.
 | `mediaMaxUploadMiB` | `200` | Uploaded media cap in MiB, 1–1024; machine-scoped. An attachment over it is refused before it is read |
 | `mediaUploadExpiryDays` | `7` | Uploaded media expiry in days, 1–30; machine-scoped. **Delete uploaded files…** removes them early |
 | `screenRecordingMaxSeconds` | `120` | Screen recording length cap in seconds, 10–600; machine-scoped. Shorter bounds are clamped, not refused |
-| `mediaAudioAction` | `"transcribe"` | What pasted or dropped audio becomes: `transcribe` (free text the model reads) or `sendAudio` (a playable clip); machine-scoped |
+| `mediaAudioAction` | `"transcribe"` | What pasted or dropped audio becomes: `transcribe` (free text the model reads) or `sendAudio` (a playable clip); machine-scoped. Not read yet: attached audio is transcribed |
+| `mediaConverterPath` | `""` | Absolute path to the `ffmpeg` that converts attached sound for transcription; empty uses documented installs only, never `PATH`. A set path is the only candidate and must pass the trusted-path check; machine-scoped |
 
 The Model API backend's shell tool applies `terminal.integrated.env.*` the
 way VS Code's terminal does. A restart of Muse Code, for a setting, trust
