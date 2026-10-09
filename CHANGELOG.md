@@ -88,6 +88,10 @@ happened, not what was planned; superseded entries are kept.
   are reused between calls, and a read copies the folded state once instead
   of every journal entry. Every read still rereads and checks the bytes.
 
+- Model API turns no longer reinstall the whole display-language table for
+  every recorded context read (about 4 ms each); the schedules bundle
+  installs it once per language.
+
 - Packaged translation tables round-trip byte-exact again: every language
   table lists its keys in English's order, including the resource history
   and Windows path strings merged for 0.17.0.
