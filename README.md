@@ -568,10 +568,14 @@ closes, **Allow always in this workspace** remembers revocable consent, and
 The question names the model the request will use, and your answer covers
 that model at its price only: a request for another model asks again, even
 under **Allow always**, and **Allow once** never reaches another window. An
-**Allow always** kept by an earlier version asks once more, then is kept for
-that model. A request whose model, consent or hook configuration changes
-before it goes out sends nothing; the last check runs immediately before
-the request is sent.
+**Allow always** kept by an earlier version asks a migration question. Only
+answering **Allow always in this workspace** saves the model and price;
+answering **Allow once** saves nothing and the next window asks again.
+Accepting another paid feature's price or turning voice off preserves Tab's
+**Allow once**. **Ask again** and Tab's own price acceptance changes end its
+consent; a changed model or price asks again for its own key. A request whose
+model, consent or hook configuration changes before it goes out sends
+nothing; the last check runs immediately before the request is sent.
 
 The hard daily budget defaults to **$1.00 across every window on this
 machine**, reserved before each request. The status shows today's spend;

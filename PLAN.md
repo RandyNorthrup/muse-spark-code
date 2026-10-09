@@ -10706,8 +10706,14 @@ and the two hook points.
       key never answers another, Allow always included, so the contributor
       tier's training note is in an answered question; a pending question
       is shared only by its full key; a legacy feature-wide Always with no
-      recorded key asks once, then is recorded (Q-M94b; RVM94KR 3,
-      2026-10-09; RVM94KR2, lead decision 2026-10-09).
+      recorded key asks the migration question. Only an Allow always answer
+      records its model and price; Allow once records nothing and the next
+      window asks again (Q-M94b; RVM94KR 3, 2026-10-09; RVM94KR2 and
+      RVM94KR3G, lead decisions 2026-10-09).
+    - Window-once revocation is per feature: accepting image generation's
+      price or turning voice off preserves Tab's Allow once. Ask again and
+      Tab's own price acceptance changes invalidate its consent; a changed
+      model or price asks again for its own key (RVM94KR3G P2).
   - **Shown and counted.** The status bar shows today's spend, and Account &
     usage gains a Tab row (requests, tokens, cached tokens, cost today and
     this window, the budget). `PaidUsage` counts each request. Hooks never
@@ -28918,10 +28924,23 @@ on the 0.17.0 base as M94KR, M91 merged); review RVM94KR's three P1 and two
 P2 findings were closed on `m94/kr2` (M94KR2); re-review RVM94KR2's five P1
 and one P2 are closed by the round-3 redesign on `m94/kr3` (M94KR3: keyed
 consent, policy epoch at detection, a final synchronous gate at the HTTP
-send, model- and epoch-bound verdicts) and await re-review; the final
+send, model- and epoch-bound verdicts). RVM94KR3G's follow-up P2 and P3
+are addressed by per-feature revocation and precise migration wording,
+awaiting re-review; the final
 live check remains with the lead. W also moves the small status item into the
 activation shim, translates the multi-line picker, and wires recent-edit
 and definition snippets through the same privacy checks as the current file.
+
+**RVM94KR3G follow-up (2026-10-09, kubuntu).** The shared window-once
+revocation counter is replaced with per-feature generations, retaining every
+Tab revocation and the global Ask again fence. Regressions prove Tab's Allow
+once survives image-generation price acceptance and voice withdrawal,
+including a request waiting to send. The legacy Always migration is explicit:
+only Always persists the keyed record; Allow once leaves nothing recorded
+and every new window asks again. All 30 Tab/paid suites pass (706 tests) at
+repository deadlines; four additional byte-exact red/restored drills and
+scoped checks are recorded in `docs/certification/m94kr3.md`. Aggregate
+quality remains with the lead.
 
 **M94KR3 handoff qualification (2026-10-09, kubuntu).** The inherited
 round-3 implementation was critically reviewed against every RVM94KR2
@@ -37945,6 +37964,17 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**RVM94KR3G scoped follow-up (2026-10-09, kubuntu).** All 30 Tab/paid
+suites pass (706 tests) at repository deadlines, including four additional
+byte-exact restored red drills. The new fixtures' two duplication findings
+are removed using the existing held-wait helper and the request's feature.
+Full jscpd still reports only the unchanged 51-token
+`test/unit/windowsTrustedPath.test.ts:206,279` clone already deferred below;
+that file has no diff against `84e7df7fc`. No ignore, threshold, assertion,
+timeout or hook is changed. Aggregate quality and the unrelated fixture
+remain with the lead under the shared lane rules. Follow-up receipts are in
+`docs/certification/m94kr3.md`.
 
 **M94KR3 scoped qualification (2026-10-09, kubuntu).** The lane's required
 host typecheck, and the webview and unit projects, pass. The broader E2E

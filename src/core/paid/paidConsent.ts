@@ -452,8 +452,8 @@ export class PaidUseConsent {
    * generation it was given under: memory only, never stored.
    */
   private readonly windowOnce = new Map<PaidFeature, number | undefined>()
-  /** Moves whenever window onces are revoked: `windowOnceToken` carries it. */
-  private windowOnceRevocations = 0
+  /** Each feature's local revocations; Ask again also moves the shared `revocation`. */
+  private readonly windowOnceRevocations = new Map<PaidFeature, number>()
   /**
    * A window-once feature's first question while it is open: ordinary uses
    * that arrive meanwhile share it and its answer instead of asking again.
@@ -828,9 +828,9 @@ export class PaidUseConsent {
       : undefined
   }
 
-  /** Moves whenever grants are revoked here ("Ask again" or a price change). */
-  public get revocations(): number {
-    return this.windowOnceRevocations
+  /** Moves on this feature's price changes and the shared "Ask again". */
+  public revocations(feature: PaidFeature): number {
+    return this.revocation + (this.windowOnceRevocations.get(feature) ?? 0)
   }
 
   /**
@@ -840,7 +840,7 @@ export class PaidUseConsent {
    */
   public windowOnceToken(feature: PaidFeature): string | undefined {
     return this.isWindowOnce(feature)
-      ? JSON.stringify([this.windowOnceRevocations, this.windowOnce.get(feature)])
+      ? JSON.stringify([this.revocations(feature), this.windowOnce.get(feature)])
       : undefined
   }
 
@@ -852,7 +852,7 @@ export class PaidUseConsent {
    */
   public revokeWindowOnce(feature: PaidFeature): void {
     if (feature === 'webSearch') this.searchWindowOnce.clear()
-    this.windowOnceRevocations += 1
+    this.windowOnceRevocations.set(feature, (this.windowOnceRevocations.get(feature) ?? 0) + 1)
     if (this.windowOnce.delete(feature)) {
       this.deps.log.info(`Paid use of ${feature} asks again in this window`)
     }
@@ -864,7 +864,6 @@ export class PaidUseConsent {
       this.windowOnce.size > 0 || this.searchWindowOnce.size > 0 || this.authority.hasGrant()
     this.searchWindowOnce.clear()
     this.windowOnce.clear()
-    this.windowOnceRevocations += 1
     this.revocation += 1
     this.authority.revokeAll(this.quoteGeneration())
     await this.deps.revokeQuoteGrants?.()

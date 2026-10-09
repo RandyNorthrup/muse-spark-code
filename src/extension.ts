@@ -1480,7 +1480,7 @@ async function activateWindow(
       isOn: () => paid.gate.isOn('tab'),
       isRemembered: () => paid.consent.isRemembered('tab'),
       windowOnceToken: () => paid.consent.windowOnceToken('tab'),
-      revocations: () => paid.consent.revocations,
+      revocations: () => paid.consent.revocations('tab'),
       readAlways: () => context.workspaceState.get<unknown>(TAB_CONSENT_STATE_KEY),
       writeAlways: async (record) => {
         await context.workspaceState.update(TAB_CONSENT_STATE_KEY, record)

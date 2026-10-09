@@ -155,7 +155,7 @@ function tabWindow(
     isOn: () => true,
     isRemembered: () => paid.isRemembered('tab'),
     windowOnceToken: () => paid.windowOnceToken('tab'),
-    revocations: () => paid.revocations,
+    revocations: () => paid.revocations('tab'),
     readAlways: () => stores.state.get(TAB_CONSENT_STATE_KEY),
     writeAlways: async (record) => {
       await options.writeAlways?.()
@@ -574,7 +574,7 @@ describe('RVM94KR2 2: Once and window answers are never persisted', () => {
   })
 })
 
-describe('RVM94KR2 P2: a legacy feature-wide Always asks once, then is recorded', () => {
+describe('RVM94KR2 P2: legacy Always migrates only after an Always answer', () => {
   it('asks the migration question once for the model, and records only Always', async () => {
     const stores = workspaceStores()
     stores.grants = new Set<PaidFeature>(['tab'])
@@ -612,15 +612,56 @@ describe('RVM94KR2 P2: a legacy feature-wide Always asks once, then is recorded'
     await first.popup.opened(1)
     first.popup.answer('once')
     await expect(migrated).resolves.toHaveLength(1)
+    await expect(tab.serve()).resolves.toHaveLength(1)
+    expect(first.popup.asked).toEqual([STANDARD])
     expect(stores.state.has(TAB_CONSENT_STATE_KEY)).toBe(false)
     tab.handle.dispose()
     const second = tabWindow(stores)
     const next = await tabHarness({ consent: second.consent })
     const asked = next.serve()
     await second.popup.opened(1)
+    expect(second.popup.asked).toEqual([STANDARD])
+    expect(next.posts()).toEqual([])
     second.popup.answer('deny')
     await expect(asked).resolves.toEqual([])
+    expect(stores.state.has(TAB_CONSENT_STATE_KEY)).toBe(false)
     next.handle.dispose()
+  })
+})
+
+describe('RVM94KR3G: feature-scoped window consent revocations', () => {
+  it.each(['imageGeneration', 'voice', 'tab'] as const)(
+    'revoking %s while credentials wait affects only its own consent',
+    async (feature) => {
+      vi.useFakeTimers()
+      const window = tabWindow(workspaceStores())
+      const tab = await tabHarness({ consent: window.consent })
+      const { request } = await startHeld(tab, window, tab.credentials)
+      window.paid.revokeWindowOnce(feature)
+      tab.credentials.release.resolve(undefined)
+      if (feature === 'tab') {
+        await expectNothingSent(tab, request)
+      } else {
+        await expect(request).resolves.toHaveLength(1)
+        expect(tab.posts()).toHaveLength(1)
+        expect(tab.sent).toHaveLength(1)
+        expect(window.popup.asked).toEqual([STANDARD])
+        tab.handle.dispose()
+      }
+    },
+  )
+
+  it('refuses a Tab answer revoked while its question is still open', async () => {
+    const window = tabWindow(workspaceStores())
+    const tab = await tabHarness({ consent: window.consent })
+    const request = tab.serve()
+    await window.popup.opened(1)
+    window.paid.revokeWindowOnce('tab')
+    window.popup.answer('once')
+    await expect(request).resolves.toEqual([])
+    expect(tab.posts()).toEqual([])
+    expect(tab.sent).toEqual([])
+    tab.handle.dispose()
   })
 })
 

@@ -666,7 +666,7 @@
     {
       "id": "M94",
       "title": "Tab completions",
-      "summary": "Ghost-text code completions in the languages you enable, billed to your Model API key after consent to the selected model and price, stopped by a separate hard daily budget and dropped when their consent or hook policy changes.",
+      "summary": "Ghost-text completions billed to your Model API key with a hard daily budget and model/price consent; other paid features preserve Tab's window grant, and legacy consent persists only after Allow always.",
       "area": "editors",
       "release": "0.14.0"
     },

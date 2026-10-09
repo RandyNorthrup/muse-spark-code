@@ -129,14 +129,22 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Tab consent review RVM94KR3G: accepting image generation's price or turning
+  voice off preserves Tab's **Allow once**, including requests waiting to
+  send. Revocation is per feature; **Ask again** and Tab's own price acceptance
+  changes end its consent, and a changed model or price asks for its own key.
+  The legacy **Allow always** migration saves the model and price only when answered
+  **Allow always in this workspace**; **Allow once** saves nothing and the
+  next window asks again.
 - Tab consent and hook-policy review RVM94KR2 (M94 lane K, redesign). Each
   point fails closed.
   - Tab's consent is keyed by model and price. A question open for one model
     no longer answers a request for another; **Allow once** stays in its
     window and is never written down; **Allow always** is kept with the model
     and price it named. An **Allow always** kept by an earlier version asks
-    once more, then is kept for the model it is answered for. An answer given
-    after **Ask again** sends nothing.
+    a migration question: only **Allow always in this workspace** saves the
+    model and price; **Allow once** saves nothing and the next window asks
+    again. An answer given after **Ask again** sends nothing.
   - A hook file or setting change stops Tab reading from the moment it is
     noticed, before the `ConfigChange` hook runs, until it has reloaded.
   - A request's last check now runs immediately before it is sent, after the

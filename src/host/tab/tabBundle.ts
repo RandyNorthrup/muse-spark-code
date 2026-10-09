@@ -214,7 +214,7 @@ export interface TabConsentDeps {
   readonly isRemembered: () => boolean
   /** The feature's window once as a token; it changes whenever that once is revoked. */
   readonly windowOnceToken: () => string | undefined
-  /** Moves whenever grants are revoked ("Ask again", a price change). */
+  /** Moves on Tab's price acceptance changes or the shared "Ask again". */
   readonly revocations: () => number
   readonly readAlways: () => unknown
   readonly writeAlways: (record: TabAlwaysRecord | undefined) => Promise<void>
@@ -226,8 +226,9 @@ export interface TabConsentDeps {
  * The paid gate's grants for the feature alone are necessary, never
  * sufficient: a kept "always" counts only for the key its record names, and
  * a window once only for the keys answered in this window. A legacy grant
- * with no record asks once (the migration question). An open question is
- * shared only by requests with its full key.
+ * with no record asks the migration question: only Always records its key,
+ * so Allow once asks again in the next window. An open question is shared
+ * only by requests with its full key.
  */
 export function createTabConsent(deps: TabConsentDeps): TabUseConsent {
   const windowKeys = new Map<string, string>()
