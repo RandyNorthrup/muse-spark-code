@@ -17,10 +17,21 @@ export interface ExactJsonRead {
 /** A value is exact when its written decimal denotes the parsed double. */
 function isSameDecimal(source: string, parsed: number): boolean {
   try {
-    return canonicalUsd(source) === canonicalUsd(parsed)
+    if (!Number.isFinite(parsed) || Object.is(parsed, -0)) return false
+    const canonical = canonicalUsd(parsed)
+    const exponent = Number(source.split(/e/i, 2)[1] ?? 0)
+    // A matching decimal cannot need more exponent expansion than the input
+    // digits plus the double's canonical digits. Refuse an unbounded expansion
+    // before allocating it, including exotic zero literals.
+    return (
+      Number.isSafeInteger(exponent) &&
+      Math.abs(exponent) <= source.length + canonical.length &&
+      canonicalUsd(source) === canonical
+    )
   } catch {
-    // Not a non-negative decimal: the schema refuses the record anyway.
-    return true
+    // Exactness was not proved. A schema may accept the rounded value (even
+    // underflowed zero), so it cannot decide whether the written money was lost.
+    return false
   }
 }
 

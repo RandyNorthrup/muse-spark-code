@@ -13,6 +13,7 @@ import {
 import { fakeSchedule } from './helpers/schedules/fixtures'
 import { MemoryScheduleFs } from './helpers/schedules/storage'
 import { withholdReviverSource } from './helpers/withholdReviverSource'
+import { INEXACT_MONEY_LITERALS } from './helpers/inexactMoneyLiterals'
 
 const counterSchema = z.object({ values: z.record(z.string(), z.int()) })
 function counter(fs: MemoryScheduleFs) {
@@ -471,6 +472,25 @@ describe('bounded schedule generations', () => {
 })
 
 describe('version 1 schedule money (M121 P2-1)', () => {
+  it.each(INEXACT_MONEY_LITERALS)(
+    'refuses exotic literal %s through the actual store (RVM121B)',
+    async (literal) => {
+      const fs = new MemoryScheduleFs()
+      const job = fakeSchedule()
+      const store = createScheduleStore(fs)
+      await store.create(job)
+      const snapshot = generationNames(fs)[0]!
+      const bytes = fs.files.get(snapshot)!
+      expect(bytes).toContain('"paidCapUsd":"0"')
+      fs.files.set(
+        snapshot,
+        bytes.replace('"paidCapUsd":"0"', () => `"paidCapUsd":${literal}`),
+      )
+      await expect(store.list(job.workspaceKey)).rejects.toThrow('scheduleStoredJsonInvalid')
+      expect(fs.files.get(snapshot)).toContain(`"paidCapUsd":${literal}`)
+    },
+  )
+
   const REVIEWER = '0.123456789012345678901'
   function refusesReviewerLiteral(): void {
     expect(() => parseScheduleStoredJson(`{"paidCapUsd":${REVIEWER}}`)).toThrow(

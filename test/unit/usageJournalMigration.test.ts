@@ -6,6 +6,12 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { USAGE_JOURNAL_ROOT, UsageJournalStore } from '../../src/core/usage/journalStore'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { withholdReviverSource } from './helpers/withholdReviverSource'
+import { INEXACT_MONEY_LITERALS } from './helpers/inexactMoneyLiterals'
+import { createUsageService } from '../../src/core/usage/usageService'
+import { usageText } from '../../src/core/usage/usageText'
+import { plural } from '../../src/shared/l10n/text'
+import { USAGE_TEXT } from '../../src/shared/l10n/usageTable'
+import { usageFixtureDeps } from './helpers/usageFixture'
 
 // M121: the usage journal moves from version 1 (JSON-number dollars) to
 // version 2 (exact decimal text). The fixture is a real journal written by
@@ -34,6 +40,34 @@ async function rig() {
 }
 
 describe('usage journal version 1 to version 2 (M121)', () => {
+  it('withholds exotic literals through the real store and shows the refusal notice (RVM121B)', async () => {
+    const { root, store } = await rig()
+    const original = await readFile(path.join(root, RAW_DAY), 'utf8')
+    const line = original.split('\n').find((text) => text.includes('"id":"r20"'))!
+    const edits = INEXACT_MONEY_LITERALS.map((literal, index) =>
+      line
+        .replace('"id":"r20"', () => `"id":"exotic-${String(index)}"`)
+        .replace('"usd":0.123456789', () => `"usd":${literal}`),
+    ).join('\n')
+    const bytes = `${original}${edits}\n`
+    await writeFile(path.join(root, RAW_DAY), bytes)
+    const journal = await store.read()
+    expect(journal).toMatchObject({
+      inexactRecords: INEXACT_MONEY_LITERALS.length,
+      invalidLines: 0,
+    })
+    expect(journal.records.some((record) => record.id.startsWith('exotic-'))).toBe(false)
+    const state = await createUsageService({
+      ...usageFixtureDeps(),
+      now: () => NOW,
+      journal: { ...usageFixtureDeps().journal, read: () => store.read() },
+    }).snapshot()
+    expect(usageText(state)).toContain(
+      plural(USAGE_TEXT.inexactRecords, INEXACT_MONEY_LITERALS.length),
+    )
+    expect(await readFile(path.join(root, RAW_DAY), 'utf8')).toBe(bytes)
+  })
+
   it('reads every 0.17 dollar as the exact decimal it was written as, without touching the files', async () => {
     const { root, store } = await rig()
     const before = await Promise.all(

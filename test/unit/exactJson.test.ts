@@ -3,10 +3,34 @@
 // (absent on Node 20, the production host target).
 import { describe, expect, it } from 'vitest'
 import { parseJsonWithExactNumbers } from '../../src/shared/exactJson'
+import { INEXACT_MONEY_LITERALS } from './helpers/inexactMoneyLiterals'
 
 const MONEY = new Set(['usd', 'paidCapUsd'])
 
 describe('parseJsonWithExactNumbers', () => {
+  it.each(INEXACT_MONEY_LITERALS)(
+    'fails closed for exotic money literal %s (RVM121B)',
+    (literal) => {
+      expect(parseJsonWithExactNumbers(`{"usd":${literal}}`, MONEY).isExact).toBe(false)
+    },
+  )
+
+  it('accepts generated writer spellings at the finite double extremes', () => {
+    for (const value of [
+      0,
+      Number.MIN_VALUE,
+      Number.MAX_VALUE,
+      ...[1, 2, 100].flatMap((n) => [n, n / 100, n * 1e-300, n * 1e300]),
+    ]) {
+      const literal = JSON.stringify(value)
+      expect(parseJsonWithExactNumbers(`{"usd":${literal}}`, MONEY).isExact).toBe(true)
+    }
+  })
+
+  it.each(['NaN', 'Infinity', '-Infinity'])('refuses invalid JSON money %s', (literal) => {
+    expect(() => parseJsonWithExactNumbers(`{"usd":${literal}}`, MONEY)).toThrow(SyntaxError)
+  })
+
   it('refuses the reviewer literal a double cannot carry', () => {
     const text = '{"v":1,"cost":{"usd":0.123456789012345678901}}'
     const { value, isExact } = parseJsonWithExactNumbers(text, MONEY)

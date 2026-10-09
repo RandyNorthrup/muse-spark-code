@@ -20286,6 +20286,18 @@ scope: `npm run build` stops at What's New (the 0.17.0 notes exceed the
 75 KiB content budget), and `usageIntegration.test.ts`'s panel-auth case
 expects 401 but the server answers 502.
 
+**RVM121B repair scope (2026-10-09, M121A round 3).** Refuse every legacy
+money literal whose exactness cannot be proved, including canonicalization
+failures, negative zero and out-of-range exponents, through the shared JSON
+reader used by journals and schedules. Calculate period changes and money
+ordering from original `UsdAmount` values in the usage page and portable text;
+numeric chart values serve geometry only. Resolve mapped properties through
+apparent types, union/intersection members and inherited interfaces in the
+type-checker guard. Add reviewer and generated-literal regressions, prove each
+repair with byte-exact red drills, and retain every existing bundle cap.
+Receipts and scoped verification belong in `docs/certification/m121.md`;
+aggregate quality and the inherited What's New build blocker stay with the lead.
+
 ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
 
 **Status 2026-10-07: built.** Linux receipts in `docs/certification/int0180.md`; the package job stays red without genuine macOS artifacts.

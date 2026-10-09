@@ -81,6 +81,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Legacy money reads fail closed on overflow, underflow, negative zero and
+  unconvertible exponents (M121A round 3), preserving the precision-refusal
+  notice instead of accepting a rounded zero.
 - Exact money keeps every promise on every Node version (M121A fix round).
   Version 1 journals and schedules read dollars through a small JSON parse
   that keeps each number's written digits, so a literal a double cannot

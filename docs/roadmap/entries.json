@@ -890,7 +890,7 @@
     {
       "id": "M121",
       "title": "Exact money everywhere",
-      "summary": "Every cost, budget and usage total kept as an exact decimal dollar amount, so the figures you see match what the budget checks enforce.",
+      "summary": "Every cost, budget and usage total kept as an exact decimal dollar amount, with exact period comparisons and historical records refused when their dollars cannot be preserved.",
       "area": "usage-billing"
     },
     {
