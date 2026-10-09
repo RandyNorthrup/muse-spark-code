@@ -19133,6 +19133,14 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
+**Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
+change and Highlight while tightening only that release's wording below
+72,000 decoded bytes. Keep 0.16.0 and older notes byte-exact and all content
+bounds unchanged. The editorial rewrite measures 68,401 decoded bytes
+(25,347 encoded bytes), down from 79,510. The resulting-head visual,
+README and source-record refresh is complete; receipts in
+`docs/certification/visregen017.md`.
+
 - **Q-CIFIXM-HOSTED-ERRORS (2026-10-09, macbook):** log downloads for
   hosted run 37897298018 return HTTP 403. The two owned M114 browser suites
   pass three times here (159 cases per run, repository deadlines); no visual or
@@ -35511,6 +35519,42 @@ M110, and fake providers for every adapter.
 
 ### M114 — Design language and polish (D94)
 
+- **VISREGEN2 release refresh scope (2026-10-09):** investigate the identical-source
+  narrow One Dark Pro quote-menu displacement on release head `8f0a75ea1`.
+  Test scrollbar, font, wrapping and capture-readiness hypotheses with DOM
+  traces and at least ten repetitions. Repair the measured root cause with
+  a failing-base regression, preserve the before-paint pill measurement and
+  all pixel policies, then prove ten consecutive captures in six states and
+  both widths. Review the complete 9,792-frame matrix, use the reviewed-update
+  flow, refresh intended README media and current source records, and replay
+  visual owners plus six-theme accessibility. Hooks-on local commits;
+  no merge, push or live/paid calls. Full quality remains lead-owned.
+  Root proved: a question restored from the preceding scene has a 25 px
+  `aria-busy` placeholder and a 39 px settled row. The late 14 px growth
+  leaves the replayed menu origin stale. The capture now awaits that busy
+  marker alongside ordinary deferred surfaces; product pointer semantics
+  and before-paint pill sizing remain unchanged. Owning browser regressions
+  fail with the old selector and pass with the new one.
+  The controlled before render reproduces the previous six narrow failures
+  exactly (9,603 / 9,603 / 9,603 / 9,533 / 9,600 / 9,600 pixels).
+  Ten delayed-load repetitions in both widths are byte-identical in all six
+  states. A further 720-frame six-theme repetition has zero counted pixel
+  differences under the existing policy. Evidence and final gate receipts are in
+  `docs/certification/visregen017.md` and its stability JSON; G92 records
+  the missed-loading-marker pitfall. The lead authorizes an editorial-only 0.17.0 notes repair below 72,000
+  decoded bytes. That repair measures 68,401. The complete current-head
+  review covers 9,792 frames and 25 changed scenes; reviewed goldens and
+  eight intended README images are refreshed after inspection. Five audit
+  source hashes and the README input digest are refreshed only after that
+  capture. All owning suites and the complete normal visual replay pass:
+  9,792 frames, eighteen counted pixels within unchanged per-image tolerance.
+  Six-theme a11y records 1,632 pages, zero violated pages and 315 retained
+  incomplete findings. An additional ordinary-loading-selector drill fails
+  its intended test; byte-exact restoration passes all three readiness cases.
+  Prior fix and proof commits remain intact. The artifact refresh and
+  certification are complete; aggregate quality and hosted CI remain with
+  the lead, including the inherited Windows duplication repair.
+
 - **Integration review repairs (FIXM114I, 2026-10-07):** address RVM114W's six
   P2 findings and the font-usage P3. Route CI pixel replay exclusively through
   its required six shards; polish Open Questions focus; refresh current render
@@ -37944,6 +37988,33 @@ the unchanged Windows 15-second test deadline. Shared fixture copies keep
 the drill and all assertions intact. Split-check latency and actual-release
 content qualification remain with the lead; no green release claim follows
 from the private package fixture.
+
+**VISREGEN2 release-content repair and verified refresh (2026-10-09).**
+The original two-release tree measured 79,510 decoded bytes against the
+unchanged 76,800-byte bound. The lead authorized tightening only 0.17.0
+wording, preserving every change, Highlight and section heading, with a
+72,000-byte target. The result is 68,401 decoded / 25,347 encoded bytes;
+0.16.0 and older notes remain byte-exact. The standard writer passes. Full
+visual review and reviewed-update capture finish all 9,792 frames. The
+review explains the original 23 status/menu scenes and two notes scenes;
+eight intended README shots and their stale source records are refreshed.
+All six required visual owners pass 195 tests at repository defaults.
+Fix/rendering owners add 152 passing tests; the notes owners add eighteen.
+Five type projects, changed-file lint/format, plain knip, localization,
+reference, host API, tokens, plan, roadmap and production build pass. The
+normal visual replay passes all 9,792 frames with eighteen counted pixels
+within unchanged per-image tolerance; the manifest remains unchanged.
+Six-theme accessibility passes 1,632 pages with zero violated pages and
+315 retained incomplete findings. The ordinary deferred-loading-selector
+drill fails its target, then byte-exact restoration passes all three
+readiness tests at repository defaults. Goldens, intended README images,
+current source records and certification are refreshed on committed source
+`53fb033b49635ec95e0d5fa26dbed5248db445e8`.
+Bounded deferral: fresh `npx jscpd` still finds the inherited 51-token clone
+at `test/unit/windowsTrustedPath.test.ts:206,279`, with none in changed
+files; the lead repairs that unrelated Windows fixture before aggregate
+quality. No gate, timeout or cap changes; common.md assigns aggregate
+quality and hosted CI to the lead.
 
 **CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting
 journals/cache/engine, schedule-runtime and M114 panel/conversation failures
