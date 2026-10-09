@@ -37766,6 +37766,19 @@ lane A's first step.
 
 ## 7. Gates
 
+**CIFIXV hosted visual repair (2026-10-09, linuxlt).** Own only the three
+visual failures at `f5e0760c3`: reconstruct schedules under the served source
+root, review any intended pixel changes before regenerating goldens, and
+refresh current-source classification hashes without changing coverage.
+Keep all thresholds and repository deadlines. Full quality remains the lead's
+gate under the shared lane rules; no merge, push or live/paid calls.
+
+- [x] Prove historical schedule loading fails before the repair and passes after.
+- [ ] Resolve visual comparisons and identify the aggregate's actual failure.
+- [x] Refresh source receipts and pass the owning audit suite.
+- [ ] Pass full visual, six-theme accessibility and default-timeout stability gates.
+- [ ] Record evidence and local hooks-on commits in `docs/certification/cifixv.md`.
+
 **MERGESPAWN (2026-10-08).** `rel017/spawn4` is merged into `release/0.17.0`
 with both sides' behaviour; the reporting bundles now share resource
 admission and `dist/validation.js` exports `tuple`. Open for the lead, caps

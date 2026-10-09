@@ -91,6 +91,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Visual regression reconstructs the recorded schedule surface inside the
+  served historical revision, so clean CI can load its lazy schedule entry.
+  The current-source audit also records the accounts accessibility stylesheet.
+
 - Scheduled prompts spend about half the time on their store per fire: the
   store keeps one journal per workspace, so its validated snapshot and deltas
   are reused between calls, and a read copies the folded state once instead

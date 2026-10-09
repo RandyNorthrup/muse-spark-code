@@ -351,7 +351,7 @@ export async function serveRepo(repoRoot) {
     }
     try {
       if (url.pathname.endsWith('/test/harness/schedules.mjs')) {
-        scheduleBuild ??= buildScheduleHarness()
+        scheduleBuild ??= buildScheduleHarness(repoRoot)
         await scheduleBuild
       }
       const body = await readFile(target)
