@@ -5024,7 +5024,8 @@ export const EN = {
   providerExport: 'Export',
   providerImport: 'Import',
   providerImportPreviewTitle: 'Import Preview',
-  importNeedsKey: 'Needs a Key',
+  importNeedsKey: 'needs a key',
+  importNeedsKeyLabel: 'Needs a Key',
   providerOpenRouterServices:
     'OpenRouter account connection and key usage are not available yet. Paste a key to use models.',
   refreshModels: 'Refresh Models',
@@ -5084,7 +5085,8 @@ export const EN = {
   providerAddressInvalid: 'This address cannot be used: {detail}',
   // {address}: a private-network address, saved only after confirmation.
   providerPrivateNetwork: '{address} is on a private network. Use it only if you trust it.',
-  providerPrivateConfirm: 'Use It Anyway',
+  providerPrivateConfirm: 'Use it anyway',
+  providerPrivateConfirmLabel: 'Use It Anyway',
   // {expected}: the origin the credential was entered for; {actual}: where
   // the file points now. The request is refused until it is entered again.
   originBindingMismatch:

@@ -4137,6 +4137,7 @@
   "providerImport": "Importálás",
   "providerImportPreviewTitle": "Importálási előnézet",
   "importNeedsKey": "kulcsot igényel",
+  "importNeedsKeyLabel": "kulcsot igényel",
   "providerOpenRouterServices": "Az OpenRouter-fiók csatlakoztatása és a kulcshasználat lekérdezése még nem érhető el. A modellek használatához illesszen be egy kulcsot.",
   "refreshModels": "Modellek frissítése",
   "scanNewModels": {
@@ -4186,6 +4187,7 @@
   "providerAddressInvalid": "Ez a cím nem használható: {detail}",
   "providerPrivateNetwork": "A(z) {address} privát hálózaton van. Csak akkor használja, ha megbízik benne.",
   "providerPrivateConfirm": "Mégis használom",
+  "providerPrivateConfirmLabel": "Mégis használom",
   "originBindingMismatch": "Ez a szolgáltató most ide mutat: {actual}, pedig a tárolt hitelesítő adat ide lett megadva: {expected}. Adja meg újra.",
   "providerRedirectRefused": "A szolgáltató átirányította a kérést, ezért az nem lett elküldve.",
   "addModelProviderRow": "Modellszolgáltató hozzáadása…",

@@ -4355,6 +4355,7 @@
   "providerImport": "Importuj",
   "providerImportPreviewTitle": "Podgląd importu",
   "importNeedsKey": "wymaga klucza",
+  "importNeedsKeyLabel": "wymaga klucza",
   "providerOpenRouterServices": "Łączenie konta OpenRouter i odczyt użycia klucza nie są jeszcze dostępne. Wklej klucz, aby korzystać z modeli.",
   "refreshModels": "Odśwież modele",
   "scanNewModels": {
@@ -4410,6 +4411,7 @@
   "providerAddressInvalid": "Tego adresu nie można użyć: {detail}",
   "providerPrivateNetwork": "{address} jest w sieci prywatnej. Używaj go tylko, jeśli mu ufasz.",
   "providerPrivateConfirm": "Użyj mimo to",
+  "providerPrivateConfirmLabel": "Użyj mimo to",
   "originBindingMismatch": "Ten dostawca wskazuje teraz na {actual}, ale przechowywane poświadczenie wpisano dla {expected}. Wpisz je ponownie.",
   "providerRedirectRefused": "Dostawca przekierował żądanie, więc nie zostało wysłane.",
   "addModelProviderRow": "Dodaj dostawcę modeli…",

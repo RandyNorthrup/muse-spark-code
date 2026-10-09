@@ -4028,6 +4028,7 @@
   "providerImport": "インポート",
   "providerImportPreviewTitle": "インポートのプレビュー",
   "importNeedsKey": "キーが必要です",
+  "importNeedsKeyLabel": "キーが必要です",
   "providerOpenRouterServices": "OpenRouterアカウントの接続とキーの使用状況の取得はまだ利用できません。モデルを使うにはキーを貼り付けてください。",
   "refreshModels": "モデルを更新",
   "scanNewModels": {
@@ -4074,6 +4075,7 @@
   "providerAddressInvalid": "このアドレスは使えません: {detail}",
   "providerPrivateNetwork": "{address} はプライベートネットワーク上にあります。信頼できる場合のみ使ってください。",
   "providerPrivateConfirm": "それでも使う",
+  "providerPrivateConfirmLabel": "それでも使う",
   "originBindingMismatch": "このプロバイダーは現在 {actual} を指していますが、保存済みの資格情報は {expected} 用に入力されました。再度入力してください。",
   "providerRedirectRefused": "プロバイダーがリクエストをリダイレクトしたため、送信されませんでした。",
   "addModelProviderRow": "モデルプロバイダーを追加…",

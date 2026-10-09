@@ -66,7 +66,11 @@ happened, not what was planned; superseded entries are kept.
   and state labels such as **1 Background Task** and **Running**) and keeps
   error text that shares a key with a label in sentence case (`Duration
   unknown`, `Stop upload`, `All slots busy`), with separate label keys for
-  the chips and buttons that show those words.
+  the chips and buttons that show those words. A later pass splits two more
+  shared keys the same way: the missing-key failure stays `needs a key`
+  while its labels read **Needs a Key**, and the unconfirmed private-network
+  failure stays `Use it anyway` while its dialog button reads **Use It
+  Anyway**.
 - **A sent message's menu is shorter and its pills fit their labels.**
   **Fork conversation from here** is now **Fork Conversation**, and **Fork
   conversation and rewind code** is now **Fork and Rewind**, in every

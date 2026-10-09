@@ -4137,6 +4137,7 @@
   "providerImport": "Importieren",
   "providerImportPreviewTitle": "Importvorschau",
   "importNeedsKey": "braucht einen Schlüssel",
+  "importNeedsKeyLabel": "braucht einen Schlüssel",
   "providerOpenRouterServices": "Die Verbindung mit einem OpenRouter-Konto und die Anzeige der Schlüsselnutzung sind noch nicht verfügbar. Fügen Sie einen Schlüssel ein, um Modelle zu nutzen.",
   "refreshModels": "Modelle aktualisieren",
   "scanNewModels": {
@@ -4186,6 +4187,7 @@
   "providerAddressInvalid": "Diese Adresse kann nicht verwendet werden: {detail}",
   "providerPrivateNetwork": "{address} liegt in einem privaten Netzwerk. Verwenden Sie sie nur, wenn Sie ihr vertrauen.",
   "providerPrivateConfirm": "Trotzdem verwenden",
+  "providerPrivateConfirmLabel": "Trotzdem verwenden",
   "originBindingMismatch": "Dieser Anbieter zeigt jetzt auf {actual}, aber die gespeicherte Anmeldemethode wurde für {expected} eingegeben. Geben Sie sie erneut ein.",
   "providerRedirectRefused": "Der Anbieter hat die Anfrage umgeleitet, daher wurde sie nicht gesendet.",
   "addModelProviderRow": "Modellanbieter hinzufügen…",

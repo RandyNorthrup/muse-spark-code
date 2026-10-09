@@ -399,7 +399,7 @@ describe('ProvidersSection', () => {
     render(<ProvidersSection {...props(state, post, { importOpen: true })} />)
     expect(screen.getByText(UI_TEXT.providerImportPreviewTitle)).toBeDefined()
     expect(screen.getByText(UI_TEXT.importUntrusted)).toBeDefined()
-    expect(screen.getByText(UI_TEXT.importNeedsKey)).toBeDefined()
+    expect(screen.getByText(UI_TEXT.importNeedsKeyLabel)).toBeDefined()
     const confirm = screen.getAllByRole('button', { name: UI_TEXT.providerImport }).at(-1)
     fireEvent.click(confirm ?? fail('import confirm missing'))
     expect(post).toHaveBeenCalledWith({

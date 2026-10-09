@@ -4246,6 +4246,7 @@
   "providerImport": "Importer",
   "providerImportPreviewTitle": "Aperçu de l’import",
   "importNeedsKey": "nécessite une clé",
+  "importNeedsKeyLabel": "nécessite une clé",
   "providerOpenRouterServices": "La connexion au compte OpenRouter et la consultation de l’utilisation de la clé ne sont pas encore disponibles. Collez une clé pour utiliser les modèles.",
   "refreshModels": "Actualiser les modèles",
   "scanNewModels": {
@@ -4298,6 +4299,7 @@
   "providerAddressInvalid": "Cette adresse ne peut pas être utilisée : {detail}",
   "providerPrivateNetwork": "{address} est sur un réseau privé. Ne l’utilisez que si vous lui faites confiance.",
   "providerPrivateConfirm": "L’utiliser quand même",
+  "providerPrivateConfirmLabel": "L’utiliser quand même",
   "originBindingMismatch": "Ce fournisseur pointe désormais vers {actual}, mais l’identifiant stocké a été saisi pour {expected}. Saisissez-le à nouveau.",
   "providerRedirectRefused": "Le fournisseur a redirigé la requête, qui n’a donc pas été envoyée.",
   "addModelProviderRow": "Ajouter un fournisseur de modèles…",

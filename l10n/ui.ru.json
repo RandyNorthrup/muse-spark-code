@@ -4355,6 +4355,7 @@
   "providerImport": "Импорт",
   "providerImportPreviewTitle": "Предпросмотр импорта",
   "importNeedsKey": "нужен ключ",
+  "importNeedsKeyLabel": "нужен ключ",
   "providerOpenRouterServices": "Подключение учётной записи OpenRouter и просмотр использования ключа пока недоступны. Вставьте ключ для использования моделей.",
   "refreshModels": "Обновить модели",
   "scanNewModels": {
@@ -4410,6 +4411,7 @@
   "providerAddressInvalid": "Этот адрес нельзя использовать: {detail}",
   "providerPrivateNetwork": "{address} в частной сети. Используйте его, только если доверяете ему.",
   "providerPrivateConfirm": "Всё равно использовать",
+  "providerPrivateConfirmLabel": "Всё равно использовать",
   "originBindingMismatch": "Этот поставщик теперь указывает на {actual}, а сохранённый ключ был введён для {expected}. Введите его снова.",
   "providerRedirectRefused": "Поставщик перенаправил запрос, поэтому он не был отправлен.",
   "addModelProviderRow": "Добавить поставщика моделей…",

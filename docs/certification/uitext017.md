@@ -1752,3 +1752,47 @@ chip-display tests (`AttachmentMediaCost`, `Composer`, `companionMedia`)
 cover the new label keys through the components. Guard-fire drill: with
 `media.durationUnknown` temporarily recased to `Duration Unknown`, the new
 paidFeatures test fails; restored byte-exact (SHA-256 match).
+
+### 6.4 Two more shared keys split (RVUITEXT2 P2, 2026-10-09, lane UITEXT3)
+
+| Key                                       | Old (sweep)   | New           |
+| ----------------------------------------- | ------------- | ------------- |
+| `importNeedsKey` (error)                  | Needs a Key   | needs a key   |
+| `importNeedsKeyLabel` (new label)         | —             | Needs a Key   |
+| `providerPrivateConfirm` (error)          | Use It Anyway | Use it anyway |
+| `providerPrivateConfirmLabel` (new label) | —             | Use It Anyway |
+
+`importNeedsKey` label consumers moved to the new key: the import-preview
+badge (`ProvidersSection.tsx:386`) and the native confirm-import line
+(`modelsPanelEntry.ts:321`). Six failure consumers keep the error key with
+the original wording: the origin-mismatch and missing-key throws and the
+`failed` details (`providersHost.ts:149,240,260`,
+`modelsPanel.ts:202,461,556`).
+
+`providerPrivateConfirm` was found by diffing every base-vs-HEAD English
+value against error-position consumers (201 throw keys plus
+detail/showError/InlineError/notice sites): it is the only other changed
+key whose value is itself both a failure and a label. Its button consumer
+moved to the new key (`modelsPanelEntry.ts:293,295`); the unconfirmed
+private-network throw (`wizardSave.ts:71`) keeps the error key.
+
+New keys translated in all 14 `l10n/ui.*.json` tables by copying each
+error key's existing translation (unchanged text, each locale's own
+convention).
+
+Checked and left alone on purpose: `boardTitle` (a label interpolated as
+an error notice's `Session Board: …` prefix, not failure wording),
+`judgeStatusSame` (a status display in both paths, never a failure),
+`schedulePaidOff` (failure/notice-only, no label consumer; its Title Case
+stands as the approved guidance text), `accounts.usageReached` (a usage
+status detail, not a failure), and single-word keys (`Delete`, `Failed`,
+`Loading…`) where Title Case and sentence case coincide.
+
+Tests added (one literal error-text assertion per error key):
+`providerProvidersHost.test.ts` (draft scan throws `needs a key`; stored
+test resolves `{ kind: 'failed', detail: 'needs a key' }`),
+`providerWizardSave.test.ts` (unconfirmed private network throws
+`Use it anyway`). The import-preview component test
+(`modelsPanelSections.test.tsx:402`) now reads the label key.
+Guard-fire drill: with each error key temporarily recased, its new test
+fails; both restored byte-exact (SHA-256 match).

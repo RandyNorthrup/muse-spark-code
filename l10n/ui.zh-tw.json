@@ -4028,6 +4028,7 @@
   "providerImport": "匯入",
   "providerImportPreviewTitle": "匯入預覽",
   "importNeedsKey": "需要金鑰",
+  "importNeedsKeyLabel": "需要金鑰",
   "providerOpenRouterServices": "OpenRouter 帳戶連線和金鑰用量查詢尚未提供。請貼上金鑰以使用模型。",
   "refreshModels": "重新整理模型",
   "scanNewModels": {
@@ -4074,6 +4075,7 @@
   "providerAddressInvalid": "此位址無法使用：{detail}",
   "providerPrivateNetwork": "{address} 位於私人網路中。僅在信任時使用。",
   "providerPrivateConfirm": "仍要使用",
+  "providerPrivateConfirmLabel": "仍要使用",
   "originBindingMismatch": "此提供者現在指向 {actual}，但儲存的憑證是為 {expected} 輸入的。請重新輸入。",
   "providerRedirectRefused": "提供者重新導向了請求，因此未傳送。",
   "addModelProviderRow": "新增模型提供者…",

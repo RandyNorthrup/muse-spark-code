@@ -4246,6 +4246,7 @@
   "providerImport": "Importar",
   "providerImportPreviewTitle": "Vista previa de la importación",
   "importNeedsKey": "necesita una clave",
+  "importNeedsKeyLabel": "necesita una clave",
   "providerOpenRouterServices": "La conexión de cuentas de OpenRouter y la consulta del uso de la clave aún no están disponibles. Pegue una clave para usar los modelos.",
   "refreshModels": "Actualizar los modelos",
   "scanNewModels": {
@@ -4298,6 +4299,7 @@
   "providerAddressInvalid": "Esta dirección no se puede usar: {detail}",
   "providerPrivateNetwork": "{address} está en una red privada. Úsela solo si confía en ella.",
   "providerPrivateConfirm": "Usarla igualmente",
+  "providerPrivateConfirmLabel": "Usarla igualmente",
   "originBindingMismatch": "Este proveedor ahora apunta a {actual}, pero la credencial almacenada se escribió para {expected}. Escríbala de nuevo.",
   "providerRedirectRefused": "El proveedor redirigió la solicitud, así que no se envió.",
   "addModelProviderRow": "Añadir un proveedor de modelos…",

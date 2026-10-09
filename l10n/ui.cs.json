@@ -4355,6 +4355,7 @@
   "providerImport": "Importovat",
   "providerImportPreviewTitle": "Náhled importu",
   "importNeedsKey": "potřebuje klíč",
+  "importNeedsKeyLabel": "potřebuje klíč",
   "providerOpenRouterServices": "Připojení účtu OpenRouter a údaje o využití klíče zatím nejsou dostupné. Pro použití modelů vložte klíč.",
   "refreshModels": "Aktualizovat modely",
   "scanNewModels": {
@@ -4410,6 +4411,7 @@
   "providerAddressInvalid": "Tuto adresu nelze použít: {detail}",
   "providerPrivateNetwork": "{address} je v privátní síti. Použijte ji, jen pokud jí důvěřujete.",
   "providerPrivateConfirm": "Přesto použít",
+  "providerPrivateConfirmLabel": "Přesto použít",
   "originBindingMismatch": "Tento poskytovatel nyní ukazuje na {actual}, ale uložený údaj byl zadán pro {expected}. Zadejte jej znovu.",
   "providerRedirectRefused": "Poskytovatel požadavek přesměroval, takže nebyl odeslán.",
   "addModelProviderRow": "Přidat poskytovatele modelů…",

@@ -118,6 +118,15 @@ describe('createProvidersHost', () => {
     })
   })
 
+  it('keeps the sentence-case needs-a-key failure on scans and stored-key tests', async () => {
+    const { providers } = testProvidersHost()
+    await expect(providers.scanDraft(TEST_ENTRY, undefined)).rejects.toThrow('needs a key')
+    await expect(providers.testStoredCredential(TEST_ENTRY)).resolves.toEqual({
+      kind: 'failed',
+      detail: 'needs a key',
+    })
+  })
+
   it('removes with undo and exports without secrets', async () => {
     const { providers } = testProvidersHost()
     await expect(providers.remove('openrouter')).resolves.toEqual(TEST_ENTRY)

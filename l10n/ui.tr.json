@@ -4137,6 +4137,7 @@
   "providerImport": "İçe aktar",
   "providerImportPreviewTitle": "İçe aktarma önizlemesi",
   "importNeedsKey": "anahtar gerekli",
+  "importNeedsKeyLabel": "anahtar gerekli",
   "providerOpenRouterServices": "OpenRouter hesabı bağlantısı ve anahtar kullanım bilgileri henüz kullanılamıyor. Modelleri kullanmak için bir anahtar yapıştırın.",
   "refreshModels": "Modelleri yenile",
   "scanNewModels": {
@@ -4186,6 +4187,7 @@
   "providerAddressInvalid": "Bu adres kullanılamaz: {detail}",
   "providerPrivateNetwork": "{address} özel bir ağda. Yalnızca güveniyorsanız kullanın.",
   "providerPrivateConfirm": "Yine de kullan",
+  "providerPrivateConfirmLabel": "Yine de kullan",
   "originBindingMismatch": "Bu sağlayıcı artık {actual} adresini gösteriyor, ama kayıtlı kimlik {expected} için girilmişti. Yeniden girin.",
   "providerRedirectRefused": "Sağlayıcı isteği yönlendirdi, bu yüzden gönderilmedi.",
   "addModelProviderRow": "Model sağlayıcı ekle…",
