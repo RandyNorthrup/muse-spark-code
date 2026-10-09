@@ -5245,6 +5245,13 @@
     },
     {
       "route": "serve",
+      "name": "serve: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
       "name": "serve: --verbose",
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
@@ -5498,6 +5505,18 @@
     },
     {
       "route": "login",
+      "name": "login: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "login",
       "name": "login: --verbose",
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
@@ -5719,6 +5738,18 @@
       "name": "setup: --image-generation",
       "description": "--image-generation               Offer paid image generation (Model API backend; its price is asked first)",
       "text": { "cli": "image-generation" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "setup",
+      "name": "setup: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
       "contract": {
         "type": "boolean",
         "repeatable": false,
@@ -5973,6 +6004,18 @@
     },
     {
       "route": "authSet",
+      "name": "authSet: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authSet",
       "name": "authSet: --verbose",
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
@@ -6216,6 +6259,18 @@
     },
     {
       "route": "authStatus",
+      "name": "authStatus: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authStatus",
       "name": "authStatus: --verbose",
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
@@ -6450,6 +6505,18 @@
       "name": "authClear: --image-generation",
       "description": "--image-generation               Offer paid image generation (Model API backend; its price is asked first)",
       "text": { "cli": "image-generation" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authClear",
+      "name": "authClear: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
       "contract": {
         "type": "boolean",
         "repeatable": false,

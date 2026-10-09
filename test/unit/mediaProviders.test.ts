@@ -4,7 +4,7 @@ import { createMediaAttachments } from '../../src/host/media/mediaAttach'
 import { AttachedMedia } from '../../src/core/media/attachedMedia'
 import { sniffMediaBytes } from '../../src/core/media/limits'
 import { metaMediaCapabilities } from '../../src/core/media/metaMediaCapabilities'
-import { withCapturedMedia } from '../../src/host/media/mediaEntry'
+import { withCapturedMedia } from '../../src/core/media/capturedMedia'
 import {
   createMediaAttachDeps,
   dialogFiltersOption,

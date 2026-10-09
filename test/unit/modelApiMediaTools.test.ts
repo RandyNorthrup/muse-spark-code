@@ -103,7 +103,7 @@ describe('media read_file', () => {
     // Real media with no upload binding is the only billing refusal.
     const { media: _dropped, ...withoutBinding } = h.ctx
     const missing = await executeTool('read_file', '{"path":"clip.mp4"}', withoutBinding)
-    expect(missing.failureReason).toBe(UI_TEXT.media.uploadStorageUnknown)
+    expect(missing.failureReason).toBe(UI_TEXT.media.uploadUnavailable)
     expect(h.readMedia).toHaveBeenCalled()
     expect(h.prepare).not.toHaveBeenCalled()
     // No confined reader at all still bills without sniffing.
@@ -113,7 +113,7 @@ describe('media read_file', () => {
       ...withoutIo,
       io: bareIo,
     })
-    expect(blind.failureReason).toBe(UI_TEXT.media.uploadStorageUnknown)
+    expect(blind.failureReason).toBe(UI_TEXT.media.uploadUnavailable)
   })
 
   it('refuses policy-denied paths and escapes before upload', async () => {

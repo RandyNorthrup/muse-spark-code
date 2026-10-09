@@ -36,6 +36,7 @@ const HOST_BUNDLES = [
   'dist/modelApiMcp.js',
   'dist/productionMedia.js',
   'dist/productionAudio.js',
+  'dist/runtimeMedia.js',
   'dist/runtimeAccounting.js',
   'dist/providerPolicy.js',
   'dist/modelApiBoundaries.js',

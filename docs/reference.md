@@ -3722,6 +3722,7 @@ These are defaults; editor customizations take precedence.
 - `serve: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false}`
 - `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
@@ -3747,6 +3748,7 @@ These are defaults; editor customizations take precedence.
 - `login: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `login: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `login: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
@@ -3770,6 +3772,7 @@ These are defaults; editor customizations take precedence.
 - `setup: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `setup: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
@@ -3795,6 +3798,7 @@ These are defaults; editor customizations take precedence.
 - `authSet: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authSet: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authSet: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
@@ -3819,6 +3823,7 @@ These are defaults; editor customizations take precedence.
 - `authStatus: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authStatus: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authStatus: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
@@ -3843,6 +3848,7 @@ These are defaults; editor customizations take precedence.
 - `authClear: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authClear: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authClear: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`

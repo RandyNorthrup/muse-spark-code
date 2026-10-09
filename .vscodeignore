@@ -113,6 +113,7 @@
 !dist/modelApiMcp.js
 !dist/productionMedia.js
 !dist/productionAudio.js
+!dist/runtimeMedia.js
 
 !dist/reporting.js
 !dist/reportingPanel.js

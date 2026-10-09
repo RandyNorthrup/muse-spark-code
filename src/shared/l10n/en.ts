@@ -374,6 +374,8 @@ export const EN = {
       '--web-search                     Offer paid web search (Model API backend; its price is asked first)',
     'image-generation':
       '--image-generation               Offer paid image generation (Model API backend; its price is asked first)',
+    'muse-voice':
+      '--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)',
     'scheduled-prompts':
       '--scheduled-prompts              Offer paid scheduled prompts (Model API backend; its price is asked first)',
     verbose: '--verbose                        Log every detail on stderr',
@@ -1042,8 +1044,6 @@ export const EN = {
     recordingNoRecent: 'No recent screen recording was found.',
     recorderUnavailable: 'No screen recorder is available on this host.',
     attachHeadless: 'Refused for headless runs: pass the file with --attach instead.',
-    uploadStorageUnknown:
-      'Storage billing has not been verified. Uploads are unavailable until it is recorded.',
     attachmentUnknownType: 'Unsupported attachment type: {type}',
     recordingStart: 'Start recording',
     recordingStop: 'Stop recording',
@@ -4115,6 +4115,7 @@ export const EN = {
     '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
+    '  --muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)',
     '  --no-auto-compaction             Disable automatic compaction',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',

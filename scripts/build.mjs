@@ -1193,6 +1193,11 @@ if (isWatch) {
     }),
     esbuild.context({
       ...modelApiOptions,
+      entryPoints: ['src/runtime/runtimeMediaEntry.ts'],
+      outfile: 'dist/runtimeMedia.js',
+    }),
+    esbuild.context({
+      ...modelApiOptions,
       entryPoints: ['src/runtime/runtimeAccountingEntry.ts'],
       outfile: 'dist/runtimeAccounting.js',
     }),
@@ -1310,6 +1315,11 @@ if (isWatch) {
       ...modelApiOptions,
       entryPoints: ['src/host/backend/productionAudioEntry.ts'],
       outfile: 'dist/productionAudio.js',
+    }),
+    runtimeMedia: esbuild.build({
+      ...modelApiOptions,
+      entryPoints: ['src/runtime/runtimeMediaEntry.ts'],
+      outfile: 'dist/runtimeMedia.js',
     }),
     runtimeAccounting: esbuild.build({
       ...modelApiOptions,

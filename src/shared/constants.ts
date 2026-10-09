@@ -4017,15 +4017,19 @@ export const ACP_AUTH_METHODS = {
 export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort', account: 'account' } as const
 // The paid Model API features the agent can use (M63c, PLAN.md D30): each
 // only with its flag, and each use asked in the editor (M58, D48). Muse
-// Voice needs the panel's microphone, so the agent has none.
+// Voice is its batch transcription of attached sound (M105 lane V); live
+// dictation needs the panel's microphone, so the agent has none.
 export const ACP_PAID_FEATURES = [
   'webSearch',
   'imageGeneration',
+  // M105 lane V: batch transcription of attached sound needs no microphone.
+  'voice',
 ] as const satisfies readonly PaidFeature[]
 export type AcpPaidFeature = (typeof ACP_PAID_FEATURES)[number]
 export const ACP_PAID_FLAGS = {
   webSearch: 'web-search',
   imageGeneration: 'image-generation',
+  voice: 'muse-voice',
 } as const satisfies Readonly<Record<AcpPaidFeature, string>>
 // The question before each paid use (M58, PLAN.md D48): its tool call row (a
 // count appended) and its answers.
@@ -5837,6 +5841,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/modelApiMcp.js',
   'dist/productionMedia.js',
   'dist/productionAudio.js',
+  'dist/runtimeMedia.js',
 ])
 // One window journals at most this many failures in REPORT_RECORD_WINDOW_MS
 // (M93): a render or reconnect loop cannot turn every frame into a disk

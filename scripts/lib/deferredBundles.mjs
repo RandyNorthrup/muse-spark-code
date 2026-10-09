@@ -177,6 +177,13 @@ export const DEFERRED = [
     ],
   },
   {
+    // M105 lane V seam 5: the runtime's ACP and exec media port and its
+    // attached-media registry, loaded on the first media prompt.
+    output: 'dist/runtimeMedia.js',
+    metafile: 'dist/meta/runtimeMedia.json',
+    files: ['src/runtime/runtimeMediaEntry.ts', 'src/acp/mediaPort.ts'],
+  },
+  {
     output: 'dist/modelApiMcp.js',
     metafile: 'dist/meta/modelApiMcp.json',
     files: [
@@ -928,6 +935,7 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/backends/modelapi/pluginHooksEntry.ts'), 'dist/pluginHooks.js'],
   [path.resolve('src/host/backend/productionMediaEntry.ts'), 'dist/productionMedia.js'],
   [path.resolve('src/host/backend/productionAudioEntry.ts'), 'dist/productionAudio.js'],
+  [path.resolve('src/runtime/runtimeMediaEntry.ts'), 'dist/runtimeMedia.js'],
 ])
 /** @type {import('esbuild').Plugin} */
 export const deferredCohort = {
@@ -951,7 +959,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|productionMediaEntry|productionAudioEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

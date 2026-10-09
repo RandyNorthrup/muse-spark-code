@@ -1198,7 +1198,7 @@ async function readMediaFile(
   const unavailable =
     context.media !== undefined && 'reason' in context.media
       ? context.media.reason
-      : UI_TEXT.media.uploadStorageUnknown
+      : UI_TEXT.media.uploadUnavailable
   if (readMedia === undefined) return failure(unavailable)
   try {
     context.signal?.throwIfAborted()

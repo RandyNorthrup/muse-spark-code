@@ -1759,17 +1759,26 @@ describe('M105 headless attachment entry', () => {
     expect(typed.api.responseBodies()).toHaveLength(0)
     expect(typed.err.chunks.join('')).toContain(UI_TEXT.media.attachHeadless)
   })
-  it('returns usage/2 for an escaped path or an unbound media route before an API attempt', async () => {
-    for (const given of ['../private.mp4', 'clip.mp4']) {
-      const h = await harness(['--attach', given])
-      writeFileSync(path.join(h.cwd, 'clip.mp4'), videoFixture())
-      const done = await h.run()
-      expect(done.code).toBe(2)
-      expect(h.api.requests).toHaveLength(0)
-      expect(h.err.chunks.join('')).toContain(
-        given.startsWith('..') ? UI_TEXT.textFilePrivate : UI_TEXT.media.uploadStorageUnknown,
-      )
-    }
+  it('returns usage/2 for an escaped path before an API attempt', async () => {
+    const h = await harness(['--attach', '../private.mp4'])
+    writeFileSync(path.join(h.cwd, 'clip.mp4'), videoFixture())
+    const done = await h.run()
+    expect(done.code).toBe(2)
+    expect(h.api.requests).toHaveLength(0)
+    expect(h.err.chunks.join('')).toContain(UI_TEXT.textFilePrivate)
+  })
+
+  it('binds --attach to the runtime media port, priced against the hard budget (lane V seam 5)', async () => {
+    // Before lane V the runtime had no port and this refused as unbound.
+    // Now the video is admitted, priced at its seeded bound, and a budget
+    // too small for it stops the run before any response request.
+    const h = await harness(['--attach', 'clip.mp4'])
+    writeFileSync(path.join(h.cwd, 'clip.mp4'), videoFixture({ soundtrack: false }))
+    const done = await h.run()
+    expect(h.err.chunks.join('')).not.toContain(UI_TEXT.media.uploadUnavailable)
+    expect(h.api.requests.some((request) => request.path === '/responses')).toBe(false)
+    expect(h.api.requests.some((request) => request.path.startsWith('/files'))).toBe(false)
+    expect(done.code).toBe(5)
   })
 
   it('hands repeatable confined links to a noninteractive media port and keeps bytes out of exec output', async () => {

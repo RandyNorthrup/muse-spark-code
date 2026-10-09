@@ -107,8 +107,8 @@ describe('companion browser transport', () => {
     rig.reply(rig.body, 200, 'https://foreign.example/media')
     await expect(rig.pending).rejects.toThrow(UI_TEXT.attachmentUnreadable)
     const failure = setup()
-    failure.reply({ reason: UI_TEXT.media.uploadStorageUnknown }, 400)
-    await expect(failure.pending).rejects.toThrow(UI_TEXT.media.uploadStorageUnknown)
+    failure.reply({ reason: UI_TEXT.media.uploadUnavailable }, 400)
+    await expect(failure.pending).rejects.toThrow(UI_TEXT.media.uploadUnavailable)
   })
   it.each(['network', 'invalid JSON'])(
     'reports %s failure without completion progress',

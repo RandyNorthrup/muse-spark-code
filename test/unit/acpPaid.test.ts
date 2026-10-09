@@ -284,7 +284,7 @@ describe('AcpPaidUse', () => {
     const paid = new AcpPaidUse({ flagged: [], canRemember: () => true, grants, log })
     await paid.forgetUnflagged()
     expect(log.warn).toHaveBeenCalledWith(
-      'Paid uses allowed always could not be forgotten for webSearch, imageGeneration: read-only data folder',
+      'Paid uses allowed always could not be forgotten for webSearch, imageGeneration, voice: read-only data folder',
     )
     expect(paid.isRemembered(FOLDER, 'webSearch')).toBe(false)
   })
@@ -309,7 +309,8 @@ describe('AcpPaidUse', () => {
     const grants = memoryPaidGrants()
     const forget = vi.spyOn(grants, 'forget')
     const paid = new AcpPaidUse({
-      flagged: ['webSearch', 'imageGeneration'],
+      // Muse Voice's batch transcription is the third flag (M105 lane V).
+      flagged: ['webSearch', 'imageGeneration', 'voice'],
       canRemember: () => true,
       grants,
       log: logger(),

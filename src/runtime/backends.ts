@@ -49,6 +49,10 @@ import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
 import { MuseCodeBackendManager, type ProxySettings } from '../host/backend/museCodeBackendManager'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { createToolIo } from '../host/backend/toolIo'
+import type { ToolIo } from '../core/backends/modelapi/tools'
+import type { AcpMediaFactory } from '../acp/media'
+import type { AttachedMedia, AttachedMediaPort } from '../core/media/attachedMedia'
+import type * as RuntimeMediaEntry from './runtimeMediaEntry'
 import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
 import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'
 import { CredentialStore, type SecretStore } from '../host/auth/credentialStore'
@@ -138,6 +142,12 @@ export interface RuntimeBackend {
    * grants to the Model API agent, which a user may run beside it.
    */
   readonly forgetUnflaggedGrants: () => Promise<void>
+  /**
+   * Lane V seam 5: ACP serve's and exec's media port on the Model API
+   * backend, over the runtime's attached-media registry. Absent on Muse
+   * Code, which refuses media with its own reason.
+   */
+  readonly media?: AcpMediaFactory
   readonly close: () => Promise<void>
 }
 
@@ -206,6 +216,12 @@ function modelApiManager(
   paid: AcpPaidUse,
   workspaceEdits: WorkspaceEdits,
   assertWorkspaceCurrent: () => void,
+  media: {
+    /** The runtime's one registry: the media port writes, every session resolves. */
+    readonly attached: AttachedMediaPort
+    /** The folder's confined reads, for the media port. */
+    readonly onIo: (io: ToolIo) => void
+  },
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
   const providerConfigFile = path.join(
@@ -277,6 +293,7 @@ function modelApiManager(
           })
         : undefined,
   })
+  media.onIo(io)
   // Muse Code's memory (M49, PLAN.md D41), in the data home `muse serve` sees.
   const warnMemory = (message: string) => {
     warn(`Memory: ${message}`)
@@ -365,6 +382,8 @@ function modelApiManager(
         }
   return new ModelApiBackendManager({
     log,
+    // Lane V seam 1/5: attached video and audio from ACP and exec resolve here.
+    attachedMedia: media.attached,
     usageRecording: deps.usageRecording,
     hasExternalPaidRecording: deps.exec !== undefined,
     getApiKey: () => credentials.getApiKey(),
@@ -579,6 +598,19 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     { readonly manager: ModelApiBackendManager; readonly identity: string }
   >()
   const workspaceEdits = new Map<string, WorkspaceEdits>()
+  // Lane V seam 5: one attached-media registry for the runtime, and each
+  // folder's confined reads for its media port.
+  // The registry itself loads with dist/runtimeMedia.js on the first media
+  // prompt; until then nothing is attached and nothing resolves.
+  let mediaEntry: Promise<typeof RuntimeMediaEntry> | undefined
+  let registry: AttachedMedia | undefined
+  const attachedMedia: AttachedMediaPort = {
+    resolve: (part) => registry?.resolve(part),
+    source: (media) => registry?.source(media),
+    audio: (part) => registry?.audio(part),
+    path: async (token) => await registry?.path(token),
+  }
+  const mediaIo = new Map<string, ToolIo>()
   const credentials = new CredentialStore(
     deps.secrets,
     (message) => {
@@ -725,6 +757,12 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       paid,
       edits,
       assertWorkspaceCurrent,
+      {
+        attached: attachedMedia,
+        onIo: (io) => {
+          mediaIo.set(cwd, io)
+        },
+      },
     )
     modelApiHosts.set(cwd, { manager, identity: key })
     return await manager.ensureHost()
@@ -762,6 +800,26 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     },
     museCode,
     paid,
+    ...(deps.options.backend === 'modelApi' && {
+      media: async (context) => {
+        // The folder's host first: it owns the confined reads the port uses.
+        await modelApiHostFor(context.cwd)
+        const io = mediaIo.get(context.cwd)
+        if (io === undefined) throw new Error(UI_TEXT.media.uploadUnavailable)
+        const entry = await (mediaEntry ??= import('./runtimeMediaEntry'))
+        entry.setUiText(UI_TEXT, uiLocale())
+        return entry.runtimeMediaPort(context, {
+          platform: deps.platform,
+          io,
+          attached: (registry ??= entry.createAttachedMedia()),
+          newToken: () => randomUUID(),
+          // Muse Voice transcribes attached sound only under its flag.
+          transcribesSound: (info) =>
+            paid.isOn('voice') &&
+            (info.mediaType === 'audio/wav' || info.mediaType === 'audio/mpeg'),
+        })
+      },
+    }),
     forgetUnflaggedGrants: () =>
       deps.exec === undefined && deps.options.backend === 'modelApi'
         ? paid.forgetUnflagged()

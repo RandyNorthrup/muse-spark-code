@@ -70,8 +70,12 @@ const BUDGETS = [
   // returned dist/modelApi.js under its unchanged 525 KiB cap.
   { path: 'dist/productionMedia.js', budgetKiB: 100 },
   // M105 lane V seam 3B: transcription and the trusted converter, loaded on
-  // the first turn that carries attached sound (measured region +15%).
+  // the first turn that carries attached sound: 58.4 KiB measured +15%,
+  // rounded up to 25 KiB.
   { path: 'dist/productionAudio.js', budgetKiB: 75 },
+  // M105 lane V seam 5: the runtime's ACP and exec media port, loaded on the
+  // first media prompt: 52.5 KiB measured +15%, rounded up to 25 KiB.
+  { path: 'dist/runtimeMedia.js', budgetKiB: 75 },
   { path: 'dist/runtimeAccounting.js', budgetKiB: 50 },
   // TRAIN15E: credentials/model references only; 7.7 KiB +15%, rounded to 25 KiB.
   { path: 'dist/providerPolicy.js', budgetKiB: 25 },

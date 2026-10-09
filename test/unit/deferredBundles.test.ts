@@ -112,6 +112,7 @@ beforeAll(async () => {
       modelApiMcp: 'src/core/backends/modelapi/modelApiMcpEntry.ts',
       productionMedia: 'src/host/backend/productionMediaEntry.ts',
       productionAudio: 'src/host/backend/productionAudioEntry.ts',
+      runtimeMedia: 'src/runtime/runtimeMediaEntry.ts',
       runtimeAccounting: 'src/runtime/runtimeAccountingEntry.ts',
       legalScan: 'src/core/legal/entry.ts',
       imageResizeWorker: 'src/core/imageResizeWorker.ts',
@@ -531,6 +532,15 @@ describe('deferred cohort bundles', () => {
     for (const parent of ['extension', 'modelApi', 'runtimeEngine'])
       expect(bundleText(parent)).toContain('import("./productionMedia.js")')
     expect(bundleText('modelApi')).toContain('import("./productionAudio.js")')
+    // Lane V seam 5: ACP serve's and exec's media port and the runtime's
+    // registry load on the first media prompt, not with the engine.
+    for (const source of ['src/acp/mediaPort.ts', 'src/runtime/runtimeMediaEntry.ts']) {
+      expect(inputs('runtimeMedia')).toContain(source)
+      for (const parent of [...parents, 'productionMedia', 'productionAudio'])
+        expect(inputs(parent)).not.toContain(source)
+    }
+    expect(inputs('runtimeEngine')).not.toContain('src/core/media/attachedMedia.ts')
+    expect(bundleText('runtimeEngine')).toContain('import("./runtimeMedia.js")')
   })
 
   it('loads media inspection only on first use and rejects an ACP inline copy', async () => {

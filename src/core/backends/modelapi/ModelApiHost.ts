@@ -8395,7 +8395,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const run = this.getScheduledRun()
       const decisionId = await this.workspaceAccess(path, 'mcp')
       const read = io.readMedia
-      if (read === undefined) throw new Error(UI_TEXT.media.uploadStorageUnknown)
+      if (read === undefined) throw new Error(UI_TEXT.media.uploadUnavailable)
       let source: Extract<ContentSource, { kind: 'file' }> | undefined
       const media = await read(path, maxBytes, expected, signal, (captured) => {
         source = captured

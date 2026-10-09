@@ -641,7 +641,7 @@ class AcpSession {
   private mediaPort(): Promise<AcpMediaPort> {
     const factory = this.deps.media
     if (factory === undefined)
-      throw RequestError.invalidParams(undefined, UI_TEXT.media.uploadStorageUnknown)
+      throw RequestError.invalidParams(undefined, UI_TEXT.media.uploadUnavailable)
     this.media ??= factory({
       cwd: this.cwd,
       sessionId: this.sessionId,

@@ -260,6 +260,15 @@ describe('parseCommandLine', () => {
       command: 'invalid',
       reason: '--image-generation needs --backend modelApi: paid features bill a Model API key.',
     })
+    // M105 lane V seam 5: Muse Voice's batch transcription is the agent's third flag.
+    expect(parseCommandLine(['--backend', 'museCode', '--muse-voice'])).toEqual({
+      command: 'invalid',
+      reason: '--muse-voice needs --backend modelApi: paid features bill a Model API key.',
+    })
+    expect(parseCommandLine(['--backend', 'modelApi', '--muse-voice'])).toMatchObject({
+      command: 'serve',
+      options: { paidFeatures: ['voice'] },
+    })
   })
 
   it('reads the sign-in commands after the configured flags, as terminal sign-ins append them', () => {

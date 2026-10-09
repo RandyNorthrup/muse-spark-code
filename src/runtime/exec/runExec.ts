@@ -277,7 +277,6 @@ function relativePaths(cwd: string, paths: readonly string[]): string[] {
 
 export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<number> {
   const { options } = deps
-  const mediaFactory = deps.media
   const cwd = path.resolve(deps.processCwd, options.cwd ?? deps.processCwd)
   const literals: string[] = []
   let isFinished = false
@@ -614,8 +613,6 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           execAttachmentBlocks(options.attachFiles ?? [], cwd, lifecycle.signal, deps.platform),
         )),
       ]
-      if ((options.attachFiles?.length ?? 0) > 0 && deps.media === undefined)
-        throw new Error(UI_TEXT.media.uploadStorageUnknown)
       let secrets = providerRun?.secrets ?? deps.storeSecrets
       if (providerRun === undefined && options.keyFromStdin) {
         const key = await lifecycle.race(readKeyLine(deps.stdin, lifecycle.signal))
@@ -767,6 +764,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         return await finish()
       }
       tap = observeBackend(runtime.backend)
+      // Lane V seam 5: the runtime's own media port when the caller gives none.
+      const mediaFactory = deps.media ?? runtime.media
+      if (mediaFactory === undefined && (options.attachFiles?.length ?? 0) > 0)
+        throw new Error(UI_TEXT.media.uploadUnavailable)
       const { createAcpAgent, createExecClient } = engine
       const agent = createAcpAgent({
         questions: 'decline',

@@ -46,6 +46,7 @@ function fixture() {
     'modelApiMcp',
     'productionMedia',
     'productionAudio',
+    'runtimeMedia',
     'runtimeAccounting',
     'acpQuestions',
     'acpPlaybook',

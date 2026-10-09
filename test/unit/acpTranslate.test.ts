@@ -518,7 +518,7 @@ describe('promptParts', () => {
         undefined,
         true,
       ),
-    ).toEqual({ ok: false, reason: UI_TEXT.media.uploadStorageUnknown })
+    ).toEqual({ ok: false, reason: UI_TEXT.media.uploadUnavailable })
     expect(
       await promptParts(
         [{ type: 'audio', data: 'AAAA', mimeType: 'audio/wav' }],
@@ -526,7 +526,7 @@ describe('promptParts', () => {
         undefined,
         true,
       ),
-    ).toEqual({ ok: false, reason: UI_TEXT.media.uploadStorageUnknown })
+    ).toEqual({ ok: false, reason: UI_TEXT.media.uploadUnavailable })
   })
 
   it('keeps ordinary links as mentions even when the media port is bound', async () => {
