@@ -29,6 +29,32 @@ function deferred() {
   return Promise.withResolvers<string>()
 }
 
+/** A sampler past its first, failed ps run; later runs would succeed. */
+async function afterFirstFailure() {
+  const time = clock()
+  const run = vi.fn<ResourceTreeRun>(() => Promise.reject(new Error('exit 1')))
+  const read = macRssSampler({ run, parentPid: PARENT, now: time.now })
+  await expect(read(PID)).rejects.toBeInstanceOf(RssSampleRefused)
+  run.mockImplementation(() => Promise.resolve(row()))
+  return { time, run, read }
+}
+
+/** A sampler whose ps runs settle only when the test says; the first has answered 2 MiB. */
+async function withHeldRuns() {
+  const time = clock()
+  const runs: ReturnType<typeof deferred>[] = []
+  const run = vi.fn<ResourceTreeRun>(() => {
+    const next = deferred()
+    runs.push(next)
+    return next.promise
+  })
+  const read = macRssSampler({ run, parentPid: PARENT, now: time.now })
+  const first = read(PID)
+  runs[0]?.resolve(row())
+  await expect(first).resolves.toBe(2 * MIB)
+  return { time, runs, run, read }
+}
+
 describe('macRssSampler', () => {
   it('reads one PID through the absolute /bin/ps and its numeric columns', async () => {
     const run = vi.fn<ResourceTreeRun>(() => Promise.resolve(row()))
@@ -68,38 +94,20 @@ describe('macRssSampler', () => {
   )
 
   it('keeps a failure final for the PID it watches', async () => {
-    const time = clock()
-    const run = vi.fn<ResourceTreeRun>(() => Promise.reject(new Error('exit 1')))
-    const read = macRssSampler({ run, parentPid: PARENT, now: time.now })
-    await expect(read(PID)).rejects.toBeInstanceOf(RssSampleRefused)
-    run.mockImplementation(() => Promise.resolve(row()))
+    const { time, run, read } = await afterFirstFailure()
     time.advance(MEDIA_RSS_SAMPLE_INTERVAL_MS)
     await expect(read(PID)).rejects.toBeInstanceOf(RssSampleRefused)
     expect(run).toHaveBeenCalledTimes(1)
   })
 
   it('forgets a PID nobody asked about for longer than a reading lives', async () => {
-    const time = clock()
-    const run = vi.fn<ResourceTreeRun>(() => Promise.reject(new Error('exit 1')))
-    const read = macRssSampler({ run, parentPid: PARENT, now: time.now })
-    await expect(read(PID)).rejects.toBeInstanceOf(RssSampleRefused)
+    const { time, read } = await afterFirstFailure()
     time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS + 1)
-    run.mockImplementation(() => Promise.resolve(row()))
     await expect(read(PID)).resolves.toBe(2 * MIB)
   })
 
   it('runs ps at most once per interval and refreshes before the reading expires', async () => {
-    const time = clock()
-    const runs: ReturnType<typeof deferred>[] = []
-    const run = vi.fn<ResourceTreeRun>(() => {
-      const next = deferred()
-      runs.push(next)
-      return next.promise
-    })
-    const read = macRssSampler({ run, parentPid: PARENT, now: time.now })
-    const first = read(PID)
-    runs[0]?.resolve(row())
-    await expect(first).resolves.toBe(2 * MIB)
+    const { time, runs, run, read } = await withHeldRuns()
     for (let step = 0; step < 4; step += 1) {
       time.advance(MEDIA_RSS_SAMPLE_INTERVAL_MS / 5)
       await expect(read(PID)).resolves.toBe(2 * MIB)
@@ -118,17 +126,7 @@ describe('macRssSampler', () => {
   })
 
   it('waits for a fresh reading past the maximum age and refuses a late one', async () => {
-    const time = clock()
-    const runs: ReturnType<typeof deferred>[] = []
-    const run = vi.fn<ResourceTreeRun>(() => {
-      const next = deferred()
-      runs.push(next)
-      return next.promise
-    })
-    const read = macRssSampler({ run, parentPid: PARENT, now: time.now })
-    const first = read(PID)
-    runs[0]?.resolve(row())
-    await first
+    const { time, runs, run, read } = await withHeldRuns()
     time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
     let isSettled = false
     const waiting = (async () => {

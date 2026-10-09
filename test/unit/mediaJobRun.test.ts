@@ -159,29 +159,18 @@ describe('jobMemoryLimitedRun', () => {
     expect(spawnJob).not.toHaveBeenCalled()
   })
 
-  it('refuses a cancelled conversion without starting it', async () => {
+  it.each([
+    ['before it is prepared', 0],
+    ['while the launcher is prepared', 1],
+  ] as const)('refuses a conversion cancelled %s, never starting it', async (moment, prepared) => {
     const where = await workspace()
     const spawnJob = directLauncher()
     const stop = new AbortController()
-    stop.abort()
-    await expect(
-      jobMemoryLimitedRun({ jobExecutable: () => Promise.resolve(EXECUTABLE), spawnJob })(
-        process.execPath,
-        encoder(where, KIB, 'exit0'),
-        options(where, { signal: stop.signal }),
-      ),
-    ).rejects.toMatchObject(FAILED)
-    expect(spawnJob).not.toHaveBeenCalled()
-  })
-
-  it('refuses a conversion cancelled while the launcher was prepared', async () => {
-    const where = await workspace()
-    const spawnJob = directLauncher()
-    const stop = new AbortController()
-    const jobExecutable = () => {
+    if (prepared === 0) stop.abort()
+    const jobExecutable = vi.fn(() => {
       stop.abort()
       return Promise.resolve(EXECUTABLE)
-    }
+    })
     await expect(
       jobMemoryLimitedRun({ jobExecutable, spawnJob })(
         process.execPath,
@@ -189,6 +178,7 @@ describe('jobMemoryLimitedRun', () => {
         options(where, { signal: stop.signal }),
       ),
     ).rejects.toMatchObject(FAILED)
+    expect(jobExecutable).toHaveBeenCalledTimes(prepared)
     expect(spawnJob).not.toHaveBeenCalled()
   })
 
