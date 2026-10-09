@@ -179,6 +179,10 @@ const MEDIA_ENTRY = 'src/host/media/mediaEntry.ts'
 const MEDIA_OUTFILE = 'dist/media.js'
 // M105 lane W: the screen-recording command with the R1-R3 platform drivers,
 // loaded the first time a recording command runs.
+// RVMEDIAV 8: the window's attached-media registry, contributor consent and
+// attach binding, required on the first attach beside dist/media.js.
+const MEDIA_HOST_ENTRY = 'src/host/media/mediaHostEntry.ts'
+const MEDIA_HOST_OUTFILE = 'dist/mediaHost.js'
 const SCREEN_RECORD_ENTRY = 'src/host/media/screenRecordEntry.ts'
 const SCREEN_RECORD_OUTFILE = 'dist/screenRecord.js'
 // The browser check's own bundle (M81): the pipe, the run, the browser's processes.
@@ -787,6 +791,18 @@ const mediaOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const mediaHostOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [MEDIA_HOST_ENTRY],
+  outfile: MEDIA_HOST_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const screenRecordOptions = {
   ...common,
   plugins: [sharedUiText, sharedValidation, sharedWire],
@@ -1216,6 +1232,7 @@ if (isWatch) {
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(mediaOptions),
+    esbuild.context(mediaHostOptions),
     esbuild.context(screenRecordOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
@@ -1341,6 +1358,7 @@ if (isWatch) {
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     media: esbuild.build(mediaOptions),
+    mediaHost: esbuild.build(mediaHostOptions),
     screenRecord: esbuild.build(screenRecordOptions),
     agentImport: esbuild.build(agentImportOptions),
     conversationGit: esbuild.build(conversationGitOptions),
@@ -1468,6 +1486,7 @@ if (isWatch) {
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(MEDIA_OUTFILE)
+  reportSize(MEDIA_HOST_OUTFILE)
   reportSize(SCREEN_RECORD_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(CONVERSATION_GIT_OUTFILE)

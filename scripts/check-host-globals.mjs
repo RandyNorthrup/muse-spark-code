@@ -69,6 +69,7 @@ const HOST_BUNDLES = [
   'dist/codeIntel.js',
   'dist/voice.js',
   'dist/media.js',
+  'dist/mediaHost.js',
   'dist/screenRecord.js',
   'dist/webFetch.js',
   'dist/museCodeReviewer.js',

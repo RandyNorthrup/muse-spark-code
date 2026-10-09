@@ -218,6 +218,32 @@ export type AttachedMediaPort = Pick<
 >
 
 /**
+ * A host's registry before its first attach (RVMEDIAV 8): the registry loads
+ * with its own bundle, and until then nothing is attached and nothing
+ * resolves. VS Code and the CLI/ACP runtime both hold their registry so.
+ */
+export function lazyAttachedMedia(current: () => AttachedMedia | undefined): AttachedMediaPort {
+  return {
+    resolve: (part) => current()?.resolve(part),
+    source: (media) => current()?.source(media),
+    audio: (part) => current()?.audio(part),
+    path: async (token) => await current()?.path(token),
+    read: (token, signal) => {
+      const registry = current()
+      if (registry === undefined) throw new Error(UI_TEXT.attachmentUnreadable)
+      return registry.read(token, signal)
+    },
+    // Nothing registered yet: a turn has nothing to claim.
+    claim: (parts) => {
+      const release = current()?.claim(parts)
+      return () => {
+        release?.()
+      }
+    },
+  }
+}
+
+/**
  * An attached source over a host open hook that rechecks confinement and
  * identity on every open: each read streams one fresh handle, closed after.
  */

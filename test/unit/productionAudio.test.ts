@@ -15,6 +15,7 @@ import { createProductionAudio } from '../../src/core/voice/productionAudio'
 import { AttachedMedia, reopeningSource } from '../../src/core/media/attachedMedia'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { fakeModelApiClientSettings } from './helpers/fakeModelApi'
+import { wavFixture } from './helpers/media/fixtures'
 import { voiceSeamDeps } from './helpers/voiceSeams'
 import { conversionBindings, privateRootFor } from '../../src/host/backend/productionAudioEntry'
 import * as privateDirectory from '../../src/runtime/privateDirectory'
@@ -159,26 +160,14 @@ describe('production audio binding (M105 lane V seam 3B)', () => {
 
 /** A 16 kHz mono 16-bit PCM WAV of `seconds`: the batch contract, as attached. */
 function contractWav(seconds: number): Uint8Array {
-  const data = seconds * 32_000
-  const bytes = new Uint8Array(44 + data)
-  const view = new DataView(bytes.buffer)
-  const ascii = (offset: number, text: string) => {
-    bytes.set(new TextEncoder().encode(text), offset)
-  }
-  ascii(0, 'RIFF')
-  view.setUint32(4, 36 + data, true)
-  ascii(8, 'WAVE')
-  ascii(12, 'fmt ')
-  view.setUint32(16, 16, true)
-  view.setUint16(20, 1, true)
-  view.setUint16(22, 1, true)
-  view.setUint32(24, 16_000, true)
-  view.setUint32(28, 32_000, true)
-  view.setUint16(32, 2, true)
-  view.setUint16(34, 16, true)
-  ascii(36, 'data')
-  view.setUint32(40, data, true)
-  return bytes
+  return wavFixture(seconds, { sampleRate: 16_000 })
+}
+
+/** Nothing left the machine: no POST, the reservation refunded, no usage counted. */
+function expectNothingSpent(t: ReturnType<typeof probe>): void {
+  expect(t.fetches).not.toHaveBeenCalled()
+  expect(t.settled).toEqual(['0'])
+  expect(t.notePaidUse).not.toHaveBeenCalled()
 }
 
 /**
@@ -305,9 +294,7 @@ describe('RVMEDIAV probes over the real registry, production audio and Meta clie
       // Two seconds approved; something else on disk when the turn is sent.
       writeFileSync(t.file, replacement())
       await expect(t.run()).rejects.toThrow(fill(UI_TEXT.media.sourceChanged, { name: 'clip.wav' }))
-      expect(t.fetches).not.toHaveBeenCalled()
-      expect(t.settled).toEqual(['0'])
-      expect(t.notePaidUse).not.toHaveBeenCalled()
+      expectNothingSpent(t)
     },
   )
 
@@ -325,9 +312,7 @@ describe('RVMEDIAV probes over the real registry, production audio and Meta clie
         },
       })
       await expect(t.run()).rejects.toThrow()
-      expect(t.fetches).not.toHaveBeenCalled()
-      expect(t.settled).toEqual(['0'])
-      expect(t.notePaidUse).not.toHaveBeenCalled()
+      expectNothingSpent(t)
     },
   )
 
@@ -348,9 +333,7 @@ describe('RVMEDIAV probes over the real registry, production audio and Meta clie
   it('refunds a known local non-send and counts no usage: no key stored (finding 3)', async () => {
     const t = probe({ apiKey: () => Promise.resolve(undefined) })
     await expect(t.run()).rejects.toThrow()
-    expect(t.fetches).not.toHaveBeenCalled()
-    expect(t.settled).toEqual(['0'])
-    expect(t.notePaidUse).not.toHaveBeenCalled()
+    expectNothingSpent(t)
   })
 
   it('checks the host model revision before dispatch: a change during consent spends nothing (finding 4)', async () => {

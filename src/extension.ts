@@ -1,5 +1,4 @@
 import { notify } from './core/events/notify'
-import type { MEDIA_CONTRIBUTOR_CHOICES } from './shared/constants'
 import {
   PAID_APPROVAL_ORDER_DIRECTORY,
   LEGAL_EXPLANATION_BUNDLE_FILE,
@@ -321,13 +320,9 @@ import { loadUiTable, readUiTableFile } from './host/l10n'
 import type { InsightsReader } from './runtime/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
 import { voiceLoader } from './host/voice/voiceBundle'
-import {
-  createMediaAttachDeps,
-  createMediaSourceOpen,
-  dialogFiltersOption,
-} from './host/media/mediaProviders'
-import { AttachedMedia } from './core/media/attachedMedia'
-import { mediaBundleLoader } from './host/media/mediaBundle'
+import { dialogFiltersOption } from './host/media/mediaProviders'
+import { lazyAttachedMedia, type AttachedMedia } from './core/media/attachedMedia'
+import { mediaBundleLoader, mediaHostBundleLoader } from './host/media/mediaBundle'
 import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRecordBundle'
 import { createLinuxLatestPort } from './host/media/recordingLatest'
 import { latestLinuxRecording } from './core/media/record/linux'
@@ -2511,8 +2506,10 @@ async function activateWindow(
   // M105 lane V seam 1: the window's attached-media registry. The attach
   // port registers each approved video or audio file (metadata, digest, a
   // reopening source); the Model API session's media service resolves the
-  // turn's `media` parts through it. It holds no bytes.
-  const attachedMedia = new AttachedMedia()
+  // turn's `media` parts through it. It holds no bytes, and it loads with
+  // dist/mediaHost.js on the first attach (RVMEDIAV 8).
+  let mediaRegistry: AttachedMedia | undefined
+  const attachedMedia = lazyAttachedMedia(() => mediaRegistry)
   const modelApi: ModelApiBackendManager = new ModelApiBackendManager({
     attachedMedia,
     // Machine scope only (lane V seam 3B): a repository never picks the converter.
@@ -3312,36 +3309,17 @@ async function activateWindow(
     await reportingPanel.open(argumentsText)
   }
   // M105 W: the lazy media bindings. Activation carries only these loaders;
-  // dist/media.js (attach port) and dist/screenRecord.js (recording command)
-  // load on first use. Recorder-produced files live under recordingTempRoot,
-  // the one directory the media open hook exempts from workspace confinement.
+  // dist/media.js (attach port), dist/mediaHost.js (the registry, the open
+  // hook and contributor consent; RVMEDIAV 8) and dist/screenRecord.js
+  // (recording command) load on first use. Recorder-produced files live under
+  // recordingTempRoot, the one directory the media open hook exempts from
+  // workspace confinement.
   const loadMedia = mediaBundleLoader(path.join(context.extensionPath, 'dist', 'media.js'), log)
+  const loadMediaHost = mediaHostBundleLoader(
+    path.join(context.extensionPath, 'dist', 'mediaHost.js'),
+    log,
+  )
   const recordingTempRoot = path.join(context.globalStorageUri.fsPath, 'muse-screen')
-  const mediaOpen = createMediaSourceOpen({
-    canonicalRelativePath: (fsPath) => files.canonicalRelativePath(fsPath),
-    recordingTempRoot,
-  })
-  // U18: the batch endpoint takes contract WAV; MP3 converts first (T9).
-  const TRANSCRIBABLE_AUDIO: ReadonlySet<string> = new Set(['audio/wav', 'audio/mpeg'])
-  // D85.7 in VS Code: a modal with Send, Use the Standard model and Remove;
-  // dismissing it is Remove, so nothing is sent unasked.
-  const askMediaContributor = async (question: {
-    readonly title: string
-    readonly detail: string
-    readonly choices: typeof MEDIA_CONTRIBUTOR_CHOICES
-  }): Promise<(typeof MEDIA_CONTRIBUTOR_CHOICES)[number]> => {
-    const labels = {
-      send: UI_TEXT.media.send,
-      useStandard: UI_TEXT.media.useStandard,
-      remove: UI_TEXT.removeAttachment,
-    } as const
-    const picked = await vscode.window.showWarningMessage(
-      question.title,
-      { modal: true, detail: question.detail },
-      ...question.choices.map((choice) => labels[choice]),
-    )
-    return question.choices.find((choice) => labels[choice] === picked) ?? 'remove'
-  }
   const linuxLatestPort = createLinuxLatestPort({ tempRoot: recordingTempRoot })
   const latestScreenRecording = async (): Promise<ScreenRecordingPreview | undefined> => {
     if (process.platform !== 'linux') return undefined
@@ -3407,28 +3385,34 @@ async function activateWindow(
           // M105 W (E1-media-host-binding): the lazy attach port. Settings
           // supply limits, the selected model its capabilities; binding
           // registers with the window's attached-media registry (lane V
-          // seam 1), and D85.7's contributor question is a modal here.
-          mediaAttachments: () =>
-            Promise.resolve(
+          // seam 1), made on this first attach with dist/mediaHost.js, where
+          // D85.7's contributor question is a modal (RVMEDIAV 8).
+          mediaAttachments: () => {
+            const host = loadMediaHost()
+            mediaRegistry ??= host.createAttachedMedia()
+            return Promise.resolve(
               loadMedia().createMediaAttachments(
-                createMediaAttachDeps(
-                  () => ({
+                host.windowMediaAttachDeps({
+                  settings: () => ({
                     mediaMaxUploadMiB: currentSettings().mediaMaxUploadMiB,
                     screenRecordingMaxSeconds: currentSettings().screenRecordingMaxSeconds,
                   }),
-                  mediaOpen,
-                  {
-                    attached: attachedMedia,
-                    askContributor: askMediaContributor,
-                    // Seam 3B: Muse Voice transcribes WAV and MP3 when it is on.
-                    transcribesSound: (info) =>
-                      paid.gate.isOn('voice') && TRANSCRIBABLE_AUDIO.has(info.mediaType),
+                  // The open hook confines to the workspace, except the
+                  // recorder's own files under recordingTempRoot.
+                  open: {
+                    canonicalRelativePath: (fsPath) => files.canonicalRelativePath(fsPath),
+                    recordingTempRoot,
                   },
-                ),
+                  attached: mediaRegistry,
+                  isVoiceOn: () => paid.gate.isOn('voice'),
+                  table: UI_TEXT,
+                  locale: uiLocale(),
+                }),
                 UI_TEXT,
                 uiLocale(),
               ),
-            ),
+            )
+          },
           // M105 W (E1-recording-host-binding): the recording command's deps.
           // No native driver binds in this round: macOS needs its signed
           // helper, Windows direct capture is unavailable here, and Linux

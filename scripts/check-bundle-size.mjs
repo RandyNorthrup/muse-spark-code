@@ -145,6 +145,10 @@ const BUDGETS = [
   // sniffers, limits and modality gate), loaded on first attach: 21.0 KiB
   // after the USD split. Measured size plus 15%, rounded up to 25 KiB.
   { path: 'dist/media.js', budgetKiB: 25 },
+  // RVMEDIAV 8: the window's attached-media registry, the attach port's open
+  // hook and contributor consent, loaded on the first attach beside
+  // dist/media.js: 18.1 KiB measured. Measured size plus 15%, rounded up to 25 KiB.
+  { path: 'dist/mediaHost.js', budgetKiB: 25 },
   // M105 lane W: the screen-recording command with the R1-R3 platform
   // drivers, loaded on the first recording command: 30.2 KiB when split
   // out. Measured size plus 15%, rounded up to 25 KiB.

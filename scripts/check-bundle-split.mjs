@@ -675,6 +675,22 @@ for (const file of VAULT_ONLY) {
     problems.push(`${VAULT.output} no longer carries ${file}`)
   }
 }
+// RVMEDIAV 8 (M105): the window's attached-media registry, the attach port's
+// open hook and D85.7's contributor consent load with dist/mediaHost.js on
+// the first attach. Activation keeps only the registry's delegating holder
+// and the loader: never the entry, the registry's class (its duplicate-token
+// refusal is the marker) or the consent's question (its one reader).
+const MEDIA_HOST = { output: 'dist/mediaHost.js', metafile: 'dist/meta/mediaHost.json' }
+const mediaHost = inputsOf(MEDIA_HOST)
+if (activation.has('src/host/media/mediaHostEntry.ts'))
+  problems.push(`${BUNDLES.activation.output} carries src/host/media/mediaHostEntry.ts`)
+for (const file of ['src/core/media/attachedMedia.ts', 'src/core/media/contributorConsent.ts'])
+  if (!mediaHost.has(file)) problems.push(`${MEDIA_HOST.output} no longer carries ${file}`)
+const activationText = readFileSync(BUNDLES.activation.output, 'utf8')
+if (activationText.includes('Duplicate media path token'))
+  problems.push(`${BUNDLES.activation.output} carries the attached-media registry`)
+if (/\.contributorQuestion\b/u.test(activationText))
+  problems.push(`${BUNDLES.activation.output} carries the contributor consent`)
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',

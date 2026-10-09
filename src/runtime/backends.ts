@@ -52,7 +52,11 @@ import { mcpJobExecutable } from '../host/backend/mcpJobExecutable'
 import { createToolIo } from '../host/backend/toolIo'
 import type { ToolIo } from '../core/backends/modelapi/tools'
 import type { AcpMediaFactory } from '../acp/media'
-import type { AttachedMedia, AttachedMediaPort } from '../core/media/attachedMedia'
+import {
+  lazyAttachedMedia,
+  type AttachedMedia,
+  type AttachedMediaPort,
+} from '../core/media/attachedMedia'
 import type * as RuntimeMediaEntry from './runtimeMediaEntry'
 import { AccountHosts, connectAccountSession } from '../host/auth/accountHost'
 import { CliAccount, isCliSignedIn } from '../host/auth/cliAccount'
@@ -621,23 +625,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   // prompt; until then nothing is attached and nothing resolves.
   let mediaEntry: Promise<typeof RuntimeMediaEntry> | undefined
   let registry: AttachedMedia | undefined
-  const attachedMedia: AttachedMediaPort = {
-    resolve: (part) => registry?.resolve(part),
-    source: (media) => registry?.source(media),
-    audio: (part) => registry?.audio(part),
-    path: async (token) => await registry?.path(token),
-    read: (token, signal) => {
-      if (registry === undefined) throw new Error(UI_TEXT.attachmentUnreadable)
-      return registry.read(token, signal)
-    },
-    // Nothing registered yet: a turn has nothing to claim.
-    claim: (parts) => {
-      const release = registry?.claim(parts)
-      return () => {
-        release?.()
-      }
-    },
-  }
+  const attachedMedia = lazyAttachedMedia(() => registry)
   const mediaIo = new Map<string, ToolIo>()
   const credentials = new CredentialStore(
     deps.secrets,
