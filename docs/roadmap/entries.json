@@ -841,7 +841,7 @@
     {
       "id": "M114",
       "title": "Refreshed design",
-      "summary": "Panel surfaces share one set of theme-aware design tokens, with consistent hover, focus and pressed states and motion that stops when reduced motion is on.",
+      "summary": "Panel surfaces share theme-aware design tokens, compact activity indicators and menus sized to their labels, with consistent hover, focus and pressed states and motion that stops when reduced motion is on.",
       "area": "platform",
       "release": "0.17.0"
     },
