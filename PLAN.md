@@ -43498,7 +43498,8 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   in both hosts, and the ACP package ships the job launcher.
 
   Open items:
-  - The macOS RSS sampler is unbound. It reads through M107's
+  - (Closed with lane VB's fix round.) The macOS RSS sampler is bound per
+    encoder child and loads from the governor's bundle. It reads through M107's
     resource-policy modules, which only the governor's bundle may carry, so
     conversion refuses on macOS.
   - `exec` has no Muse Voice: its run ledger does not admit transcription

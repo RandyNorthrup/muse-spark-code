@@ -57,8 +57,10 @@ happened, not what was planned; superseded entries are kept.
     owner and ACL check on Windows, on any drive). Launcher shims are refused;
     a refused configured path says why and never falls back. Conversion runs
     on Linux and, in a kernel job with a memory cap, on Windows (VS Code and
-    the runtime, whose package now ships the job launcher). On macOS it is
-    refused until its memory sampler is bound.
+    the runtime, whose package now ships the job launcher) and on macOS, with
+    its memory read through `ps` for that encoder alone. Each conversion
+    works in a fresh owner-only folder inside a private root in the host's
+    own storage, never a shared temporary folder.
   - **Bundles.** Transcription loads with `dist/productionAudio.js` (68.1 KiB,
     cap 75 KiB) on the first turn with attached sound, and the runtime's media
     port with `dist/runtimeMedia.js` (52.5 KiB, cap 75 KiB). `dist/modelApi.js`

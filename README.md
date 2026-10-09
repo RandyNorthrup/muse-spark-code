@@ -2957,8 +2957,9 @@ integration owners; editor font settings continue to decide inside editors.
   Homebrew or MacPorts on macOS, `/usr/bin` or `/usr/local/bin` on Linux).
   `PATH` is never searched and launcher shims are refused. Conversion runs on
   Linux (memory watched through `/proc`) and Windows (in a kernel job with a
-  memory cap, in VS Code and the runtime); on macOS it is refused until its
-  memory sampler is bound.
+  memory cap, in VS Code and the runtime) and macOS (memory read through `ps`
+  for that encoder alone), in a fresh owner-only folder inside a private root
+  in the host's own storage, never a shared temporary folder.
   **Attach screen recording…** and ACP `/record` require an installed recorder
   binding and otherwise explain that recording is unavailable. **Attach latest
   screen recording** can inspect an existing Linux recording, but admission

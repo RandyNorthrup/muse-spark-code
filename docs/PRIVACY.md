@@ -1109,10 +1109,11 @@ Files API and no Meta model receives it as audio.
 `museSpark.mediaConverterPath` (or `mediaConverterPath` in the agent's
 `settings.json`) or a documented install, never one found on `PATH` and never
 a launcher shim, after a trusted-path check of its owner and folders. It works
-in a fresh owner-only temporary folder, with no network and no credential in
+in a fresh owner-only folder, with no network and no credential in
 its environment, and the converted WAV is deleted on every path, success or
 failure. On Windows it runs in a kernel job that caps its memory and ends it
-with the conversion; on macOS conversion is not available yet.
+with the conversion. The owner-only folder sits in a private root in the
+extension's or the agent's own storage, never in a shared temporary folder.
 
 **Not enabled yet.** Native recording is not enabled by the production
 bindings; its adapters are tested with fakes. A screen recording includes
