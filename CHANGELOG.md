@@ -18,6 +18,19 @@ happened, not what was planned; superseded entries are kept.
   `museSpark.github.useGhLogin` (off, user settings only); nothing reads it
   yet. The device-flow sign-in waits for the project's OAuth App (Q-M123).
 
+- **Pull requests in the runtime, in every editor** (M123 lane P, PLAN.md
+  D104). Draft and open a pull request (draft or ready, a fork onto its
+  parent) after the user confirms what goes out, link it to the session
+  instead of opening a second one, read its status and checks, and check it
+  out into its own worktree (the user's own beside the repository as
+  `pr-<n>`, anyone else's held under the runtime data folder), all through
+  M71's REST client with a credential from lane 0's token-source port. The
+  held checkout refuses exactly as in VS Code, the hold spans VS Code's
+  storage and the runtime data folder, and the trust card releases it. The
+  bearer travels only in the `Authorization` header; credential-shaped
+  strings are masked, never sent. No new setting; the panel wiring follows
+  in lane U. The device-flow sign-in still waits for Q-M123.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

@@ -20208,6 +20208,28 @@ github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
     examples, not re-read in lane 0 (the fetch was refused in the lane's
     sandbox). Lane A checks and dates them, and captures one sign-in after
     Q-M123 (AGENTS.md rule 14).
+- **Lane P built on `m123/p` (2026-10-08, linuxlt).** Record:
+  `docs/certification/m123.md`.
+  - **Core moves (VS Code wrappers stay, behaviour proved by M71's
+    suites).** `src/core/git/pullRequestLinksStore.ts`: the link schema,
+    the newest-200 prune and the in-memory lane 0 port (per root, `/`
+    keys). `src/core/git/heldCheckoutCore.ts`: the `cat-file --batch`
+    answers and the checkout confirmation both hosts show.
+    `src/host/git/pullRequestLinks.ts`, `heldCheckout.ts` and
+    `pullRequestCheckout.ts` delegate to them. `worktreeConversations.ts`
+    is untouched: the hold already takes both roots.
+  - **Runtime.** `src/runtime/panel/pullRequests/`: `pullRequests.ts`
+    (prepare/create/status through `GitHubClient` and
+    `resolveGitHubCredential`; forks onto the parent; credential shapes
+    masked; nothing posts without `confirm`; 401 drops the credential),
+    `checkout.ts` (own beside the repository as `pr-<n>`, foreign held
+    under the data folder's `pr-worktrees/` on the RV71c path, the fetch
+    in the user's environment, everything else quiet, the hold over both
+    roots, the card's release) and `records.ts` (memory and file
+    worktree-record stores). The untrusted-lane arguments are carried
+    beside the port until integration converges them on lane G's runner;
+    the scope precheck ships with lane A; the panel wiring follows in
+    lane U. No new command, setting, UI string or bundle.
 
 - **Goal.** F36 (M71's Git and pull request features) works in every editor
   in M104's matrix. That means the same forms, drafts, confirmations, links,
