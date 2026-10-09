@@ -119,7 +119,11 @@ export class RuntimePaidUse extends AcpPaidUse {
       windowOnceFeatures: new Set(['tab']),
       windowOnceGeneration: () => state.generation,
       ask: async (request, canRemember) => {
+        // Both generations are captured when the popup opens: an answer
+        // that arrives after Ask again (or disposal) bumped either one is
+        // stale and denies, whatever it says.
         const generation = this.generation
+        const windowGenerationAtOpen = state.generation
         try {
           this.check(generation)
           if (this.runtimeAsker === undefined) return 'deny'
@@ -129,7 +133,7 @@ export class RuntimePaidUse extends AcpPaidUse {
               this.ending.signal,
             )) ?? 'deny'
           this.check(generation)
-          if (windowGeneration !== state.generation) return 'deny'
+          if (windowGenerationAtOpen !== state.generation) return 'deny'
           if (answer === 'deny' && request.feature === 'tab') state.isTabDenied = true
           return answer
         } catch (error: unknown) {
@@ -220,13 +224,19 @@ export class RuntimePaidUse extends AcpPaidUse {
       },
       consent: {
         allows: (request) => this.allows(root, surfaceId, request, false),
-        forget: () =>
-          this.mutate(async (check) => {
-            this.revoke(root)
+        forget: () => {
+          // Ask again invalidates open answers at once, before the mutation
+          // queue is awaited: every popup captured the old generation when it
+          // opened, so its answer denies, and the queued workspace write
+          // below applies under the new generation instead of racing them.
+          this.generation += 1
+          this.revoke(root)
+          return this.mutate(async (check) => {
             check()
             await this.runtimeDeps.grants.forgetWorkspace(root)
             check()
-          }),
+          })
+        },
       },
       usage: {
         add: (feature, units) => {

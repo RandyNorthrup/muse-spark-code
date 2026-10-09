@@ -266,12 +266,14 @@ export class PaidUseConsent {
       (!(await this.deps.acceptJudgePrice()) || !this.isEnabled(feature))
     )
       return false
-    if (
-      answer === 'always' &&
-      canRemember &&
-      this.deps.canRemember() &&
-      (await this.remember(feature))
-    ) {
+    if (answer === 'always' && canRemember && this.deps.canRemember()) {
+      // Fail closed: an "always" that could not be kept (a queued Ask again
+      // revoked its generation, or the store failed) authorizes nothing, so
+      // this use asks again instead of spending once on an unstored grant.
+      if (!(await this.remember(feature))) {
+        this.deps.log.info(`Paid use of ${feature}: "always" was not kept, so it is refused`)
+        return false
+      }
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       this.notify()
     } else if (answer === 'once' && this.isWindowOnceFeature(feature)) {

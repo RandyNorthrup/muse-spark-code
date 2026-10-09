@@ -177,6 +177,47 @@ describe('interactive paid policy apart from ACP flags', () => {
     await paid.dispose()
   })
 
+  it('refuses an in-hand Always answer when Ask again queues behind a settings write', async () => {
+    const releaseSetting = Promise.withResolvers<undefined>()
+    const { paid, ask, grants } = setup(undefined, undefined, {
+      setSetting: () => releaseSetting.promise,
+    })
+    const composition = paid.composition('/ws', 'window')
+    const turningOff = composition.gate.turnOff('webSearch')
+    const held = Promise.withResolvers<'always'>()
+    ask.mockReturnValue(held.promise)
+    const deciding = composition.consent.allows({ feature: 'voice' })
+    const forgetting = composition.consent.forget()
+    held.resolve('always')
+    releaseSetting.resolve(undefined)
+    expect(await deciding).toBe(false)
+    expect(grants.add).not.toHaveBeenCalled()
+    await expect(turningOff).rejects.toThrow('MHP_PAID_OWNER_REPLACED')
+    await forgetting
+    await paid.dispose()
+  })
+
+  it('refuses an in-hand Allow once answer when Ask again queues behind a settings write', async () => {
+    const releaseSetting = Promise.withResolvers<undefined>()
+    const { paid, ask, grants } = setup(undefined, undefined, {
+      setSetting: () => releaseSetting.promise,
+    })
+    const composition = paid.composition('/ws', 'window')
+    const turningOff = composition.gate.turnOff('webSearch')
+    const held = Promise.withResolvers<'once'>()
+    ask.mockReturnValue(held.promise)
+    const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 } as const
+    const deciding = composition.consent.allows(request)
+    const forgetting = composition.consent.forget()
+    held.resolve('once')
+    releaseSetting.resolve(undefined)
+    expect(await deciding).toBe(false)
+    expect(grants.add).not.toHaveBeenCalled()
+    await expect(turningOff).rejects.toThrow('MHP_PAID_OWNER_REPLACED')
+    await forgetting
+    await paid.dispose()
+  })
+
   it('rejects a late Always answer after owner replacement without retaining a grant', async () => {
     const { paid, ask, state, grants } = setup()
     const held = Promise.withResolvers<'always'>()
