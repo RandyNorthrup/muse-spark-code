@@ -7,10 +7,13 @@
 // without carrying the backend that loads on first use (M57, PLAN.md D6).
 
 import { pathModule } from './workspaceRoot'
-import { isUncPath, normalWindowsPath, windowsPathProblem } from './windowsPathSpelling'
+import {
+  isUncPath,
+  normalWindowsPath,
+  unprovenUncPathReason,
+  windowsPathProblem,
+} from './windowsPathSpelling'
 import { pathIdentityRelation } from './pathIdentity'
-import { MODEL_TEXT } from '../shared/constants'
-import { fill } from '../shared/l10n/text'
 
 export type PathResolution =
   | {
@@ -132,7 +135,7 @@ export function resolveWorkspacePath(
     isUncPath(absolute) &&
     pathIdentityRelation(absolute, workspaceRoot, platform) !== 'inside'
   ) {
-    return { ok: false, reason: fill(MODEL_TEXT.windowsUnprovenUncPath, { path: given }) }
+    return { ok: false, reason: unprovenUncPathReason(given) }
   }
   const segments = relative.split(p.sep)
   const forward = segments.join('/')

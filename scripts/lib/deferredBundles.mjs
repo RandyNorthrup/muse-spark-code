@@ -1052,7 +1052,7 @@ export const sharedModelApiBoundaries = {
     build.onResolve(
       {
         filter:
-          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol)(?:\.[jt]s)?$/,
+          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
@@ -1083,6 +1083,8 @@ export const sharedModelApiBoundaries = {
         }
         return [
           'src/core/pathIdentity.ts',
+          // INT0170: the Windows path rules and their words, once per process.
+          'src/core/windowsPathSpelling.ts',
           'src/core/backends/modelapi/schemas.ts',
           'src/shared/teamConversation.ts',
           'src/shared/paidBoundary.ts',

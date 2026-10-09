@@ -1014,6 +1014,7 @@ describe('deferred cohort bundles', () => {
   it('shares the captured Model API validators and pure team admission across Node consumers', () => {
     for (const source of [
       'src/core/pathIdentity.ts',
+      'src/core/windowsPathSpelling.ts',
       'src/core/backends/modelapi/schemas.ts',
       'src/shared/teamConversation.ts',
       'src/shared/paidBoundary.ts',
@@ -1026,6 +1027,11 @@ describe('deferred cohort bundles', () => {
       }
     }
     expect(bundleText('modelApi')).toContain('./modelApiBoundaries.js')
+    // INT0170: the headless preflight confines attachments through
+    // workspacePath.ts and takes the Windows path rules from the shared bundle.
+    expect(inputs('headless')).toContain('src/core/workspacePath.ts')
+    expect(inputs('headless')).not.toContain('src/core/windowsPathSpelling.ts')
+    expect(bundleText('headless')).toContain('./modelApiBoundaries.js')
     expect(inputs('sharingRuntime')).not.toContain('src/core/pathIdentity.ts')
     expect(bundleText('sharingRuntime')).toContain('./modelApiBoundaries.js')
   })

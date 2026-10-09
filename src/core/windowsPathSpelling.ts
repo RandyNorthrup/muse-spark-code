@@ -1,7 +1,10 @@
 // Refuse ambiguous Win32 names; never turn a model spelling into a guessed target.
 // Every rule is drive-letter generic: Windows, the profile, the workspace and
 // the extension's storage may each be on any letter.
-import { MODEL_TEXT } from '../shared/constants'
+// Node bundles share this module through dist/modelApiBoundaries.js, as they
+// share pathIdentity.ts, so its rules and words load once (INT0170).
+import { WINDOWS_PATH_MODEL_TEXT } from '../shared/constants'
+import { fill } from '../shared/l10n/text'
 
 const DEVICE_STEM = String.raw`(?:con|prn|aux|nul|conin\$|conout\$|com[1-9¹²³]|lpt[1-9¹²³])`
 // A reserved device: the bare name, or the name followed only by dots or
@@ -38,6 +41,11 @@ export function isUncPath(given: string): boolean {
   return forward.startsWith('//') && !WINDOWS_PREFIX.test(forward)
 }
 
+/** Why a UNC path is refused when its caller cannot prove UNC workspace ancestry. */
+export function unprovenUncPathReason(given: string): string {
+  return fill(WINDOWS_PATH_MODEL_TEXT.windowsUnprovenUncPath, { path: given })
+}
+
 /** UNC is admitted only when the caller also proves ancestry in a UNC workspace. */
 export function windowsPathProblem(
   given: string,
@@ -46,18 +54,18 @@ export function windowsPathProblem(
 ): string | undefined {
   if (platform !== 'win32') return undefined
   const forward = normalWindowsPath(given).replaceAll('\\', '/')
-  if (WINDOWS_PREFIX.test(forward)) return MODEL_TEXT.windowsDeviceNamespace
-  if (DRIVE_RELATIVE.test(forward)) return MODEL_TEXT.windowsDriveRelative
+  if (WINDOWS_PREFIX.test(forward)) return WINDOWS_PATH_MODEL_TEXT.windowsDeviceNamespace
+  if (DRIVE_RELATIVE.test(forward)) return WINDOWS_PATH_MODEL_TEXT.windowsDriveRelative
   if (isUncPath(given) && (workspaceRoot === undefined || !isUncPath(workspaceRoot))) {
-    return MODEL_TEXT.windowsUncOutsideWorkspace
+    return WINDOWS_PATH_MODEL_TEXT.windowsUncOutsideWorkspace
   }
   const withoutDrive = forward.replace(/^[a-z]:/iu, '')
-  if (withoutDrive.includes(':')) return MODEL_TEXT.windowsAlternateStream
+  if (withoutDrive.includes(':')) return WINDOWS_PATH_MODEL_TEXT.windowsAlternateStream
   for (const segment of withoutDrive.split('/')) {
     // Navigation components are resolved by the caller's containment check.
     if (segment === '.' || segment === '..') continue
-    if (WINDOWS_DEVICE.test(segment)) return MODEL_TEXT.windowsReservedDevice
-    if (WINDOWS_TRAILING.test(segment)) return MODEL_TEXT.windowsTrailingName
+    if (WINDOWS_DEVICE.test(segment)) return WINDOWS_PATH_MODEL_TEXT.windowsReservedDevice
+    if (WINDOWS_TRAILING.test(segment)) return WINDOWS_PATH_MODEL_TEXT.windowsTrailingName
   }
   return undefined
 }

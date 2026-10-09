@@ -62,14 +62,14 @@
 //   dist/recorder.js. The ACP agent loads that same journal before serving.
 // - a model text block beside MODEL_TEXT (MODEL_API_, CODE_INTEL_,
 //   CHECKPOINT_, AGENT_IMPORT_, GIT_, REVIEW_, WEB_FETCH_, EXEC_,
-//   AUTO_REVIEWER_MODEL_TEXT) is
+//   AUTO_REVIEWER_, WINDOWS_PATH_MODEL_TEXT) is
 //   in any shipped bundle but the ones declared to read it, or no longer in
 //   one of those; a block is declared that this check does not guard;
 //   FILE_REFUSAL_MODEL_TEXT, which activation carries by design, holds other
-//   keys than its pinned ones; a Node bundle that reads zod/mini from
-//   dist/validation.js carries classic zod (INT0170); or a key of
-//   MODEL_TEXT, which every bundle reading any key of it carries whole, is
-//   read by no source file of
+//   keys than its pinned ones; dist/headless.js carries MODEL_TEXT, or a
+//   Node bundle that reads zod/mini from dist/validation.js carries classic
+//   zod (INT0170); or a key of MODEL_TEXT, which every bundle reading any
+//   key of it carries whole, is read by no source file of
 //   dist/extension.js (it belongs in the block of the bundle that reads it).
 //
 // Exits 1 on any problem.
@@ -1111,6 +1111,16 @@ const TEXT_BLOCKS = [
     sentinels: ['autoReviewerInstructions', 'museCodeReviewerTurn'],
     readers: ['dist/reviewer.js', 'dist/museCodeReviewer.js'],
   },
+  // SECWINPATH's refusals (INT0170): src/core/windowsPathSpelling.ts reads
+  // them and the Node bundles share it through dist/modelApiBoundaries.js;
+  // a bundle that carried the block would have inlined the module. The
+  // report engine is built without that plugin (its own shared set) and
+  // inlines the module, as it inlines pathIdentity.ts.
+  {
+    block: 'WINDOWS_PATH_MODEL_TEXT',
+    sentinels: ['windowsDeviceNamespace', 'windowsUnprovenUncPath'],
+    readers: ['dist/modelApiBoundaries.js', 'dist/reporting.js'],
+  },
   // The same-model Judge's sources and question load only at an eligible approval.
   {
     block: 'JUDGE_MODEL_TEXT',
@@ -1199,6 +1209,32 @@ const fileRefusalKeys = blockKeys(FILE_REFUSAL.block)
 if (fileRefusalKeys.join(', ') !== FILE_REFUSAL.keys.join(', ')) {
   problems.push(
     `${FILE_REFUSAL.block} holds ${fileRefusalKeys.join(', ')}, not ${FILE_REFUSAL.keys.join(', ')}: every bundle that reads a key of it, dist/extension.js among them, carries all of it`,
+  )
+}
+// INT0170: MODEL_TEXT is carried whole by every bundle that reads one key of
+// it. The headless preflight reads none: SECWINPATH's refusals reached it as
+// MODEL_TEXT through runExec.ts -> attachArgs.ts -> workspacePath.ts ->
+// windowsPathSpelling.ts (+10.4 KiB). Name each source that reads it there.
+const MODEL_TEXT_SENTINEL_KEY = 'memoryNoteExists'
+if (!blockKeys('MODEL_TEXT').includes(MODEL_TEXT_SENTINEL_KEY)) {
+  problems.push(`MODEL_TEXT has no key ${MODEL_TEXT_SENTINEL_KEY}: pick another sentinel for it`)
+}
+const MODEL_TEXT_SENTINEL = new RegExp(`[{,]${MODEL_TEXT_SENTINEL_KEY}:`)
+for (const { output, metafile } of [
+  { output: 'dist/headless.js', metafile: 'dist/meta-acp/headless.json' },
+]) {
+  if (!MODEL_TEXT_SENTINEL.test(textOf(output))) continue
+  const readers = inputsOf({ output, metafile })
+    .keys()
+    .filter(
+      (input) =>
+        input !== CONSTANTS &&
+        input.startsWith('src/') &&
+        /\bMODEL_TEXT\b/.test(readFileSync(input, 'utf8')),
+    )
+    .toArray()
+  problems.push(
+    `${output} carries MODEL_TEXT whole, read by ${readers.join(', ') || 'no named source'}: give those words a block of their own`,
   )
 }
 // What stays in MODEL_TEXT is what dist/extension.js reads: a key no source
@@ -1535,7 +1571,7 @@ console.log(
 )
 console.log(`ok   ${BUNDLES.providers.output}: codecs and provider core load exclusively there`)
 console.log(
-  `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
+  `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation, none in dist/headless.js`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
 console.log('ok   webview: optional surfaces and highlighting load only in guarded deferred chunks')

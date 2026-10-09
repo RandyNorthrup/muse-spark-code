@@ -5867,13 +5867,6 @@ export const MODEL_TEXT = {
     "This path uses a Windows spelling the extension doesn't accept; use the normal path.",
   checkpointStorageUncertain:
     'The extension cannot verify that this path is outside checkpoint storage; tools cannot edit it.',
-  windowsDeviceNamespace: 'names a Windows device namespace',
-  windowsDriveRelative: 'uses a drive-relative Windows path',
-  windowsUncOutsideWorkspace: 'names a UNC path outside a UNC workspace',
-  windowsAlternateStream: 'names an alternate data stream',
-  windowsReservedDevice: 'names a Windows device',
-  windowsTrailingName: 'ends a name with a dot or a space, which Windows drops',
-  windowsUnprovenUncPath: 'path {path} has no proven UNC workspace ancestry',
   imageFileChanged:
     'the reserved file was changed by something else while the image was made; it was left as it is',
   // M68 (PLAN.md D49): the verify loop's words that the activation bundle
@@ -6112,6 +6105,23 @@ export const FILE_REFUSAL_MODEL_TEXT = {
   fileHasUnsavedChanges:
     'has unsaved changes in an editor; ask the user to save or revert them, then try again',
   pathChangedAfterApproval: 'path changed after approval; request a new approval',
+} as const
+
+// SECWINPATH: why a model-given Windows path spelling is refused, in the
+// model's words: fixed English, whatever the display language. Only
+// src/core/windowsPathSpelling.ts reads it, and the Node bundles share that
+// module through dist/modelApiBoundaries.js; a block of its own so that the
+// bundles that resolve a workspace path (the headless preflight through
+// src/runtime/exec/attachArgs.ts among them) do not carry MODEL_TEXT whole
+// (PLAN.md D6, INT0170). The bundle-split gate keeps it in that bundle alone.
+export const WINDOWS_PATH_MODEL_TEXT = {
+  windowsDeviceNamespace: 'names a Windows device namespace',
+  windowsDriveRelative: 'uses a drive-relative Windows path',
+  windowsUncOutsideWorkspace: 'names a UNC path outside a UNC workspace',
+  windowsAlternateStream: 'names an alternate data stream',
+  windowsReservedDevice: 'names a Windows device',
+  windowsTrailingName: 'ends a name with a dot or a space, which Windows drops',
+  windowsUnprovenUncPath: 'path {path} has no proven UNC workspace ancestry',
 } as const
 
 // M80 (PLAN.md D49): a headless run's attached files (`muse-spark exec`),

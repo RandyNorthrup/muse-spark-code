@@ -35,7 +35,7 @@ import {
   createCheckpointPort,
   withCheckpointStorageGuard,
 } from '../../src/host/checkpoints/checkpointHost'
-import { MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
+import { MODEL_TEXT, UI_TEXT, WINDOWS_PATH_MODEL_TEXT } from '../../src/shared/constants'
 import { thrownToolOutcome } from '../../src/core/backends/modelapi/ModelApiHost'
 import { checkpointPort, harness, removeCheckpointFolders } from './helpers/checkpointHarness'
 import { noopToolIo } from './helpers/fakeToolIo'
@@ -95,11 +95,11 @@ describe('SECWINPATH2 spellings on any drive letter', () => {
         relative: 'notes.txt',
       })
       const segmentRules = [
-        [String.raw`${verbatim}\.git.\config`, MODEL_TEXT.windowsTrailingName],
-        [String.raw`${verbatim}\AGENTS.md `, MODEL_TEXT.windowsTrailingName],
-        [String.raw`${verbatim}\AGENTS.md::$DATA`, MODEL_TEXT.windowsAlternateStream],
-        [String.raw`${verbatim}\src\CON`, MODEL_TEXT.windowsReservedDevice],
-        [String.raw`${verbatim}\src\lpt¹..`, MODEL_TEXT.windowsReservedDevice],
+        [String.raw`${verbatim}\.git.\config`, WINDOWS_PATH_MODEL_TEXT.windowsTrailingName],
+        [String.raw`${verbatim}\AGENTS.md `, WINDOWS_PATH_MODEL_TEXT.windowsTrailingName],
+        [String.raw`${verbatim}\AGENTS.md::$DATA`, WINDOWS_PATH_MODEL_TEXT.windowsAlternateStream],
+        [String.raw`${verbatim}\src\CON`, WINDOWS_PATH_MODEL_TEXT.windowsReservedDevice],
+        [String.raw`${verbatim}\src\lpt¹..`, WINDOWS_PATH_MODEL_TEXT.windowsReservedDevice],
       ] as const
       for (const [given, reason] of segmentRules) {
         expect(windowsPathProblem(given, 'win32'), given).toBe(reason)
@@ -114,10 +114,12 @@ describe('SECWINPATH2 spellings on any drive letter', () => {
         `${VERBATIM}${letter}:/w/x`,
         `//?/${letter}:/w/x`,
       ]) {
-        expect(windowsPathProblem(given, 'win32'), given).toBe(MODEL_TEXT.windowsDeviceNamespace)
+        expect(windowsPathProblem(given, 'win32'), given).toBe(
+          WINDOWS_PATH_MODEL_TEXT.windowsDeviceNamespace,
+        )
       }
       expect(windowsPathProblem(`\\\\localhost\\${letter}$\\w\\x`, 'win32')).toBe(
-        MODEL_TEXT.windowsUncOutsideWorkspace,
+        WINDOWS_PATH_MODEL_TEXT.windowsUncOutsideWorkspace,
       )
     },
   )
@@ -131,7 +133,9 @@ describe('SECWINPATH2 spellings on any drive letter', () => {
       `${letter}:notes.txt`,
       `${letter}:`,
     ]) {
-      expect(windowsPathProblem(given, 'win32'), given).toBe(MODEL_TEXT.windowsDriveRelative)
+      expect(windowsPathProblem(given, 'win32'), given).toBe(
+        WINDOWS_PATH_MODEL_TEXT.windowsDriveRelative,
+      )
       expect(resolveWorkspacePath(String.raw`${letter}:\w`, given, 'win32').ok, given).toBe(false)
       expect(isProtectedFileAccess(write(given)), given).toBe(true)
     }
@@ -141,10 +145,12 @@ describe('SECWINPATH2 spellings on any drive letter', () => {
   it('refuses only real device names; a real extension is an ordinary name', () => {
     for (const name of ['CON', 'con..', 'PRN ', 'AUX', 'NUL. .', 'COM1', 'LPT9', 'COM¹', 'LPT³']) {
       expect(windowsPathProblem(`src/${name}`, 'win32'), name).toBe(
-        MODEL_TEXT.windowsReservedDevice,
+        WINDOWS_PATH_MODEL_TEXT.windowsReservedDevice,
       )
     }
-    expect(windowsPathProblem('src/CON:', 'win32')).toBe(MODEL_TEXT.windowsAlternateStream)
+    expect(windowsPathProblem('src/CON:', 'win32')).toBe(
+      WINDOWS_PATH_MODEL_TEXT.windowsAlternateStream,
+    )
     for (const name of ['con.d', 'aux.js', 'nul.txt', 'COM1.txt', 'LPT¹.log', 'COM0', 'LPT0']) {
       expect(windowsPathProblem(`C:\\Users\\dev\\${name}\\ws\\notes.txt`, 'win32'), name).toBe(
         undefined,
