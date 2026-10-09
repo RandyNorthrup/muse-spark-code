@@ -3,8 +3,10 @@
 Rig: win11, release base `8f0a75ea1`, branch `rel017/cifixw`, 2026-10-09.
 Brief: `C:/lanes/_ctx/CIFIX017W.rig.md`; digest: run 37950960680.
 No live/paid calls, network calls, merges, pushes, gate/cap/timeout changes,
-hook modifications or aggregate quality runs. Installed hooks resolve to
-`.husky/_` and the fail-closed pre-commit stub exists.
+custom hook modifications or aggregate quality runs. Hooks resolve to
+`.husky/_`. The first commit attempt refused the plain Husky stubs; the
+repository's prescribed `npm run prepare` installed its fail-closed stubs.
+Every successful commit runs the unchanged repository hooks.
 
 ## Recorder native path spelling
 
@@ -23,7 +25,7 @@ the original root's resolved identity, so the whole suite exercises hosted
 TEMP conditions on this rig. An additional control uses its long spelling.
 
 Default-timeout full-file replays pass 39/39 twice: 7.144 s and 7.057 s
-suite time (including native setup). Cancellation reaches `copying` then
+test time (JSON report, excluding hooks). Cancellation reaches `copying` then
 `cancelled`, partial/completed private copies disappear, and source bytes
 remain unchanged. Traversal and existing-destination refusals still pass.
 
@@ -46,3 +48,19 @@ The initial recorder/history/upload batch passes 93/93 in 36.56 s.
 Native schedule background passes its full file; package setup fails before
 tests with ENOBUFS, masking the build's existing What's New decoded-content
 budget failure. Measurements and final checks will be appended per fix.
+
+## Companion upload acknowledgement and cleanup
+
+The handler sent success before its inspection handle's `finally` close
+and the outer private-directory removal. The HTTP client could therefore
+finish and tear down its parent while Windows still held the file open.
+Reply only after both cleanup steps, for success and refusal alike.
+
+The regression observes `ServerResponse.writableEnded` at the real read
+handle's close and also checks that no private directory remains after the
+response. With original product code: 47 passed, two failed (1.526 s test
+time), proving acknowledgement while the handle remained open and leftover
+private bytes after the Unicode response. Restore the fixed product file
+byte-exact: SHA-256
+`47e74ab14afb2cf43c8ce6b043c92b9e77ef2eb9ff791ea9064d945850ed4def`.
+Final full-file repeats: 49/49, 601/648 ms.

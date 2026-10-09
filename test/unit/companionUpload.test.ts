@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
+import type * as NodeFsPromises from 'node:fs/promises'
 import { mkdtemp, readdir, readFile, rm, stat } from 'node:fs/promises'
-import { createServer, request, type IncomingHttpHeaders } from 'node:http'
+import { createServer, request, type IncomingHttpHeaders, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,6 +11,27 @@ import { TINY_PNG_BASE64 } from './helpers/fakeModelApi'
 import { pdfFixture } from './helpers/pdfFixture'
 import { videoFixture, wavFixture, ebmlFixture } from './helpers/media/fixtures'
 
+const handles = vi.hoisted(() => ({ beforeClose: vi.fn<() => void>() }))
+vi.mock('node:fs/promises', async (original) => {
+  const actual = await original<typeof NodeFsPromises>()
+  return {
+    ...actual,
+    open: async (...args: Parameters<typeof actual.open>) => {
+      const file = await actual.open(...args)
+      const close = file.close.bind(file)
+      file.close = async () => {
+        try {
+          handles.beforeClose()
+        } finally {
+          await close()
+        }
+      }
+      return file
+    },
+  }
+})
+
+const responses: ServerResponse[] = []
 const fixture = videoFixture()
 const state = {
   root: '',
@@ -96,6 +118,7 @@ function config(overrides: Partial<CompanionUploadOptions> = {}): CompanionUploa
 
 async function serve(overrides: Partial<CompanionUploadOptions> = {}): Promise<void> {
   const server = createServer((req, response) => {
+    responses.push(response)
     void companionUpload(config(overrides))(req, response)
   })
   await new Promise<void>((resolve) => {
@@ -119,6 +142,8 @@ beforeEach(async () => {
   state.stop = new AbortController()
   state.isCurrent = true
   sources.length = 0
+  responses.length = 0
+  handles.beforeClose.mockReset()
   consume.mockReset().mockImplementation(consumeSource)
   admit.mockReset().mockImplementation(() => Promise.resolve({ ok: true }))
   await serve()
@@ -130,6 +155,18 @@ afterEach(async () => {
 })
 
 describe('guarded companion upload', () => {
+  it('closes the inspection handle and removes private bytes before acknowledging the upload', async () => {
+    let wasAcknowledgedWhileOpen: boolean | undefined
+    handles.beforeClose.mockImplementationOnce(() => {
+      wasAcknowledgedWhileOpen = responses.at(-1)?.writableEnded
+    })
+    const response = await send()
+    expect(response.status).toBe(200)
+    expect(handles.beforeClose).toHaveBeenCalledOnce()
+    expect(wasAcknowledgedWhileOpen).toBe(false)
+    expect(await readdir(state.root)).toEqual([])
+  })
+
   it('decodes ASCII-safe metadata before validating and consuming the Unicode name', async () => {
     const name = '録画 100% 🎥.mp4'
     const response = await send({
@@ -141,6 +178,7 @@ describe('guarded companion upload', () => {
     expect(response.status).toBe(200)
     expect(companionMediaUploadSchema.parse(response.body).name).toBe(name)
     expect(sources[0]?.name).toBe(name)
+    expect(await readdir(state.root)).toEqual([])
   })
   it.each(['%invalid', '%7B%22bytes%22%3A%22canary%22%7D'])(
     'refuses malformed encoded metadata %s before intake',

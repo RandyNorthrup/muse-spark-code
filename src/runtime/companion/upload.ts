@@ -167,6 +167,8 @@ export function companionUpload(
       return
     }
     let reason = fill(UI_TEXT.media.attachmentUnknownType, { type: 'media' })
+    let status: number = HTTP_STATUS.badRequest
+    let body: unknown
     let directory: string | undefined
     const cancelled = new AbortController()
     const signal = AbortSignal.any([options.signal, cancelled.signal])
@@ -250,23 +252,26 @@ export function companionUpload(
         )
         signal.throwIfAborted()
         if (!options.isCurrent()) throw new Error(UI_TEXT.media.uploadStop)
-        const body = companionMediaUploadSchema.parse({
+        body = companionMediaUploadSchema.parse({
           requestId: metadata.requestId,
           name: metadata.name,
           info,
           uploadToken,
         })
-        reply(response, HTTP_STATUS.ok, body)
+        status = HTTP_STATUS.ok
       } finally {
         await file.close()
       }
     } catch {
       // Do not echo an injected policy/provider exception: it can contain a path or key.
-      if (!response.destroyed) reply(response, HTTP_STATUS.badRequest, { reason })
+      body = { reason }
     } finally {
       request.off('aborted', abort)
       response.off('close', closed)
       if (directory !== undefined) await rm(directory, { recursive: true, force: true })
     }
+    // A completed response transfers lifetime to the caller. Close the read
+    // handle and remove the private copy before that caller can tear down its root.
+    if (!response.destroyed) reply(response, status, body)
   }
 }
