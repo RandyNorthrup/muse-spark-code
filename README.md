@@ -2269,21 +2269,30 @@ call or production calibration is claimed.
 
 `museSpark.judge.engine` is machine-scoped: `auto` (default) uses the same
 model, `same` keeps that selection explicit, and `off` disables Judge.
-`separate` selects a verified separate source once one is configured with
-recorded fitted profiles; `both` runs the separate source first and asks the
-conversation model when entropy confidence is low or the family is high
-stakes. Automatic `both` additionally requires recorded held-out paired M75
-evidence. Until each input is recorded, `auto` keeps the same model and the
-status line names the gap in the same words: "Same model: no separate source
-is available", "Same model: separate source has not been verified", "Same
-model: fitted profiles are missing", or "Same model: held-out paired
-evaluation evidence is missing"; explicit `separate`/`both` stay off with the
-matching "Off: ..." sentence. No live separate source ships yet: the window
-builds its binding from settings without one (`src/extension.ts`), and the
-CLI and MCP build theirs the same way (`src/runtime/main.ts`), so today these
-modes report their gap instead of dispatching. `museSpark.judge.separate`
-holds its source/model identifier, without a credential; its default is
-empty. Set it to `off` in Settings to stop future judgments. A measured
+`separate` runs a verified, permitted separate source alone; `both` runs the
+separate source first and asks the conversation model when entropy
+confidence is low or the family is high stakes, and needs recorded fitted
+profiles for both sides. Automatic `both` additionally requires recorded
+held-out paired M75 evidence. Until each input is recorded, `auto` keeps the
+same model and the status line names the gap in the same words: "Same model:
+no separate source is available", "Same model: separate source has not been
+verified", "Same model: fitted profiles are missing", or "Same model:
+held-out paired evaluation evidence is missing"; explicit `separate`/`both`
+stay off with the matching "Off: ..." sentence. `museSpark.judge.separate`
+(CLI `--separate`) holds the source id, without a credential; its default is
+empty. One separate source is buildable today, on the window
+(`src/extension.ts`) and the CLI/MCP (`src/runtime/main.ts`) alike: the
+**experimental, untested** SystemOne route `openrouter-jev:typesafe/jev-1.13`
+(or `~typesafe/jev-latest`), billed to your own OpenRouter key from Models &
+Providers, chosen only by an explicit `separate`/`both` engine and never by
+`auto`, asked about first with its price (at most $0.002688 a request) and the
+shared daily budget, and only ever adding caution. Every other id names its
+gap after the reason: "Separate judge needs its provider key in Models &
+Providers", "...this provider model needs a captured structured or logprob
+judge request first" (bring-your-own models), "...the local judge needs a
+vetted install on a certified platform" (`local:` ids) or "...the configured
+id names no known source". With no buildable side the window keeps its own
+same-model judge. Set it to `off` in Settings to stop future judgments. A measured
 ready rate below the floor disables `auto` on that backend; no production
 ready-rate or precision measurement is claimed here. Status and separate
 dispatch rows show what ran, with missing usage left unknown. One

@@ -7,6 +7,24 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- **M98 phase 2 judge redesign.** Each judge run is planned once: one
+  immutable plan holds the resolved mode, the dispatched sides with their
+  techniques, profiles and tariffs, the embedding route and its tariff, the
+  receipt that decided `auto`, and the whole run's worst-case cost. The CLI
+  and MCP run cap, paid admission and dispatch all read that plan, so a
+  receipt or tariff that changes mid-run can no longer widen what was
+  admitted. A configured separate id that cannot be built keeps the window's
+  own same-model judge (with its caution) and names the exact gap in the
+  status line in every UI language. The experimental, untested SystemOne
+  route `openrouter-jev:typesafe/jev-1.13` is the first buildable separate
+  source, on your own OpenRouter key, asked about first with its price; it
+  only adds caution. Explicit `separate` needs a verified, permitted source,
+  not fitted profiles; `both` and automatic `both` still need them. Profiles
+  are looked up under the technique the side's own selector chose, recorded
+  evidence lives directly under the evidence root (no doubled `judge`
+  folder), and every evidence file name is bounded with a hash of its full
+  identity.
+
 - Judge phase-2 status now reports separate and cascade modes, explains automatic same-model fallback in every UI language, and refuses verdicts after endpoint, profile, owner or turn changes. Automatic cascade selection validates recorded independent profiles and held-out paired M75 evidence. One request-only judge runtime reaches the cascade from the window, CLI and MCP surfaces given a real binding; the experimental embedding fast path stays capability-gated with its attempt ceiling published before dispatch, paid consent asked once, and verified-local models behind explicit opt-in. The production phase-2 binding builds every surface's runtime from real C/E/J sides and recorded evidence; each missing input (unverified source, fitted profiles, adoption receipt, embedding labels) is named in the status line in all 14 languages instead of a silent phase-1 fallback. No live separate source or recorded evidence ships yet, so the production window (`src/extension.ts`), CLI and MCP (`src/runtime/main.ts`) report those gaps rather than dispatching separate, cascade or embedding runs.
 
 - **M98 phase 2 cascade settlement.** Every cascade outcome uses one

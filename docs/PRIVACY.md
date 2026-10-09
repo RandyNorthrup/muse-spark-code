@@ -199,7 +199,18 @@ extension's state; ACP ChatGPT tallies currently live for the process lifetime.
   select no recipient. Explicit judge CLI/MCP dispatch loads the library;
   missing source and offline/surface adapters refuse, and MCP initialization
   and tool listing require no inference. A later admitted source must redact content before remote
-  sends and disclose its recipient; this slice adds no remote recipient.
+  sends and disclose its recipient.
+- **Experimental SystemOne judge (M98 phase 2, opt-in, untested).** Only when
+  you set `museSpark.judge.separate` (or `--separate`) to
+  `openrouter-jev:typesafe/jev-1.13` (or another captured route) and choose
+  the explicit `separate` or `both` engine, the judged action's state and the
+  judge's question, with secrets redacted first, go to **OpenRouter**
+  (`https://openrouter.ai/api/v1/systemone`), billed to your own OpenRouter
+  key from Models & Providers. The window asks first with the price and the
+  shared daily budget; the CLI sends only under `--budget-usd`. It is never
+  sent in a confidential workspace, never chosen by `auto`, and its answer
+  only adds caution to your own model's judgment: it never answers you,
+  writes code or decides alone. Nothing is sent without that setting.
 - **Auto reviewer (Model API, available by default).** With
   `museSpark.modelApiAutoReviewer` enabled and its paid-use popup accepted,
   a separate request to Meta judges an eligible tool call. It includes your

@@ -42806,48 +42806,104 @@ Live C/E/J clients, fitted profiles, adoption receipts and `L98P2-EMBED`
 heads are still open; the measurement plan below is the path. Receipt:
 `docs/certification/m98.md`, “Production binding (P2B)”.
 
-**Measurement plan for the missing phase-2 evidence (P2B, 2026-10-08).**
-No live or paid call is made here; the lane that runs this plan spends only
-through the paid gate (D48 consent naming the price and the shared daily
-budget first, `PaidUsage` accounting after, contributor models only).
+**Phase 2 redesign (M98P2R, 2026-10-08, round 3 → redesign).** RVM98P2BF
+showed the run budget, the production sides and the technique match were
+still patched rather than designed. One immutable judge-run plan
+(`src/core/judge/plan.ts`) is built from exactly one binding read per run
+and holds the mode, the dispatched sides (endpoint, model, technique,
+profile identity, tariff), the embedding route and tariff, the deciding
+receipt and the whole run's worst-case USD; pricing, the CLI/MCP run cap,
+paid admission and dispatch read only it, and a trigger change can only
+cancel. One production side-factory port (`src/core/judge/sides.ts`, in
+`dist/judgeSources.js`) serves the window and the CLI/MCP: a captured
+SystemOne route on M95's stored key is built for real; every other id names
+its gap (`key`, `capture`, `install`, `unknown`; `judgeSeparate*`, all 14 tables) and the window keeps its
+phase-1 same-model judge. One technique selector (`judgeSideTechnique`,
+`chooseByoTechnique` for bring-your-own records); one evidence-root
+convention (`<root>/<kind>/<slug>.json`) with hash-bounded file names; one
+binding policy (`createPhase2Binding`) on every surface. Explicit
+`separate` now needs a verified, permitted source and consent, not fitted
+profiles (the setting's documented contract; B fits only logprob and
+stated, so a SystemOne side could never be profiled); `both` and automatic
+`both` still need both sides' profiles. Receipt: `docs/certification/m98.md`,
+"Phase 2 redesign".
 
-Labels needed (first family `risk.destructive`, prompt `1`, criteria `1`):
+**Owner-facing prerequisites for the remaining sides (M98P2R).** No
+credential is created or requested by any lane.
 
-- Fitted B profiles: 2 artifacts (same side + one separate side), each fit
-  under exactly `JUDGE_CALIBRATION_LIMITS`. At least 200 independent labels
-  per side (the pinned isotonic floor); fewer only if lane B re-pins a
-  platt-only method set and records it as the new fit version.
-- Held-out paired adoption receipt: 1 family artifact. Schema minimum 2
-  grouped held-out paired M75 rows; M75 owns the confident count, and the
-  rows must be disjoint from every fit/tuning split by label id.
-- `L98P2-EMBED` head and manifest: 1 family artifact. At least 200
-  independent family labels for the head (the pinned isotonic floor) plus
-  the manifest's grouped evaluation rows (minimum 2).
+- **C, SystemOne (built; experimental, untested, opt-in).** Credential: the
+  owner's own **OpenRouter API key**, minted by the owner at
+  openrouter.ai → Keys, entered through Models & Providers (M95), which
+  stores it origin-bound to `https://openrouter.ai` in SecretStorage (window)
+  or the OS credential store (CLI/ACP). Direct TypeSafe (`typesafe-jev`)
+  needs a **TypeSafe key from the sales call** (owner ruling 2026-10-04) and
+  stays untested: its wire is documented, not captured. Captures before any
+  product claim: `L98P2-SYSTEMONE`, at most **3** attempts on
+  `openrouter-jev:typesafe/jev-1.13` (consent popup, ledger settle, served
+  alias), counted, external spend at most $0.009 (3 × the route's $0.002688 ceiling).
+- **E, bring-your-own models (named gap).** No credential beyond the
+  model's existing M95 provider key. Blocker: M95's canonical request
+  (`CreateResponseBody`) carries no structured-output format or logprob
+  request, and 2e forbids a plain-text stated path. Capture first:
+  `L98P2-CAPABILITY`, at most **2** attempts per named M95 model variant,
+  recording a structured (`json_schema`/strict/forced tool) or logprob judge
+  request and response; the codec field and the E side factory follow that
+  capture. Lead-owned run.
+- **J, local judge (named gap).** No credential. Needs, vetted by the lead
+  per platform: the runtime installation record (executable path, owner
+  SID or UID, executable SHA-256), the model directory and its manifest
+  digest, the platform certification id and native-host proof
+  (`LocalJudgeConfiguration.installation`), the packaged peer helper built
+  and verified on that OS (Windows C#, Linux pidfd C, macOS libproc), and a
+  full-request token measurement for the chosen model. Captures:
+  `L98P2-LOCAL`, one exact per-OS manifest and count before execution (the
+  2j spike used its own at-most-60 free-call ledger); free, local only, no
+  pulls authorized.
+- **Fitted profiles and receipts (all sides).** `L98P2-M75` and
+  `L98P2-EMBED` below.
 
-Where they come from: the same chat model for the same side, the
-contributor separate model for the separate side (SystemOne, BYO or local
-per lanes C/E/J once a source is verified), the M75 harness for the
-held-out pairs (borrowed goldens plus fresh pairs), and the configured
-embedding transport for the head labels.
+**Measurement plan for the missing phase-2 evidence (M98P2R, replaces the
+P2B draft, 2026-10-08).** No live or paid call is made by this plan's
+author. The lane that runs it records the model/endpoint, the manifest, the
+integer ceilings below and the USD cap first, spends only through D48
+consent and the D78 ledger, and counts every POST, refusal and retry.
 
-Calls by type (floors, contributor models): 2 sides × 200 stated fit
-attempts = 400 inference calls; M75 held-out pairs (2 minimum, M75's count
-when set); embedding head labels (200 minimum) plus manifest rows. Cost is
-counted per call at the contributor model's fingerprinted price, settled
-through the D78 daily ledger inside the shared budget; no price is pinned
-in-repo, so the run computes its total from the live price record and asks
-D48 consent with that total before spending.
-
-How the result is recorded (the binding picks it up with no code change):
-JSON files under `<globalStorage>/judge` (host) or `<config>/muse/judge`
-(CLI/MCP), named by `phase2ProfileSlug`, `phase2AdoptionSlug` and
-`phase2EmbeddingSlug`; profile files hold a `parseCalibrationProfile`
-artifact, adoption files a `parseAdoptionRecord` artifact (datasets
-included, byte-complete), embedding files a `{ head, weights, manifest }`
-envelope. `filePhase2EvidenceStore` reads them; the runtime re-validates
-identity, independent evidence, grouped lineage and cascade metrics before
-any dispatch, so a malformed drop only ever reports its gap. Verify with a
-schema parse plus a dry `auto` resolution, never a paid probe.
+- **Labels (independent, 2b).** Family `risk.destructive`, prompt `1`,
+  criteria `1`, fit version `1` (`JUDGE_FIT_VERSION`). **400 labels**:
+  owner- or lead-authored independent hand labels
+  (`labelSource: 'independent-hand'`) over M75's command-replay states, plus
+  M75 fixture labels (`labelSource: 'm75'`). Never approvals, test outcomes,
+  reviewer answers or any model's belief or logprob. One grouped manifest,
+  disjoint by task group and repository group: **fit 240, tuning 60,
+  evaluation 100**. Stored beside the evidence as
+  `<evidence root>/labels/risk.destructive--<hash>.json` by the measurement
+  lane (not read by the product).
+- **Models.** Same side: `muse-spark-1.3-contributor` on the Model API
+  (stated JSON, contributor tier). Separate side for fitted profiles:
+  local Ollama `qwen3:4b-instruct-2507-q4_K_M` (logprob, free) on a rig with
+  J's install records; the SystemOne route cannot be fitted until B supports
+  the `systemone` technique, so it is excluded. Embedding: a verified-local
+  embedding model named by lane I's capture; none is captured today, so the
+  embedding arm is blocked until that capture exists.
+- **Calls by arm (integer ceilings, one question per request, no retries).**
+  same-only **400** (all labels; paid contributor); separate-only **400**
+  (all labels; free local); cascade **200** on the 100 evaluation labels
+  (100 separate first, 100 same follow-ups, since the family is high stakes;
+  100 paid); embedding **400** acquisitions (free local) plus at most **400**
+  full-judge fallbacks (`fallbackAttempts: 1`, paid same side). Paid
+  contributor calls at most **900**.
+- **USD ceiling.** Per paid call at most 32,000 input tokens at $0.10/M plus
+  the admitted 32,768 output tokens at $0.20/M = $0.0097536; 900 × that =
+  $8.778. **Hard cap $9.00**, inside the shared daily budget, with D48
+  consent showing the computed total first. Local arms cost $0.
+- **Recording.** Profiles as `parseCalibrationProfile` artifacts at
+  `<root>/profiles/<phase2ProfileSlug>.json`, the held-out paired receipt
+  (same-only, separate-only, cascade arms on the 100 evaluation rows) as a
+  `parseAdoptionRecord` artifact at `<root>/adoption/<phase2AdoptionSlug>.json`,
+  the embedding head and manifest at `<root>/embedding/<phase2EmbeddingSlug>.json`;
+  `<root>` is `<globalStorage>/judge` (window) or `<config>/muse/judge`
+  (CLI/MCP). Verify with a schema parse and a dry `auto` resolution, never a
+  paid probe.
 
 ## 7. Gates
 
