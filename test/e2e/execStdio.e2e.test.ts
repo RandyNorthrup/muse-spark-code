@@ -31,6 +31,7 @@ import {
 
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
+import { layOutAcpNativeSources } from '../unit/helpers/acpPackageSources'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 import { buildCreatedHelper } from './createdHelperFixture'
 import {
@@ -181,7 +182,6 @@ function packagingFixture() {
     'dist',
     'dist/webview',
     'dist/meta',
-    'native/windows',
     'dist/native/darwin',
     'l10n',
     'docs/schemas',
@@ -307,26 +307,7 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     path.join(BUILD_ROOT, 'dist/providerCatalog.js'),
     path.join(dir, 'dist/providerCatalog.js'),
   )
-  for (const file of [
-    'MuseSparkJob.cs',
-    'MuseSparkMcpJob.cs',
-    'MuseSparkMcpLauncher.cs',
-    'MuseSparkScreenRecord.cs',
-    'MuseSparkVault.cs',
-    'MuseSparkVaultCng.cs',
-    'MuseSparkVaultHello.cs',
-    'MuseSparkVaultLock.cs',
-  ]) {
-    writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
-  }
-  mkdirSync(path.join(dir, 'native', 'darwin'), { recursive: true })
-  writeFileSync(path.join(dir, 'native', 'darwin', 'muse-dictate'), 'test-owned inert helper')
-  for (const arch of ['x64', 'arm64']) {
-    const native = path.join(dir, 'native', 'linux', arch)
-    mkdirSync(native, { recursive: true })
-    // This fixture checks packaging only; it never executes these native bytes.
-    writeFileSync(path.join(native, 'muse-created'), 'test-owned inert Linux helper\n')
-  }
+  layOutAcpNativeSources(dir, ROOT)
   cpSync(path.join(ROOT, 'media'), path.join(dir, 'media'), { recursive: true })
   cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
   mkdirSync(path.join(dir, 'src/core/judge'), { recursive: true })
@@ -351,7 +332,6 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     path.join(BUILD_ROOT, 'dist/meta/usageWebview.json'),
     path.join(dir, 'dist/meta/usageWebview.json'),
   )
-  cpSync(path.join(ROOT, 'native/runner'), path.join(dir, 'native/runner'), { recursive: true })
   // M114 F: the packager stages the committed font manifest beside the
   // runtime-only installer bundle; the fixture carries the real file, as
   // it does the schemas, so a missing manifest still fails packaging.
