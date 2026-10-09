@@ -31,8 +31,8 @@ try {
   # Only packaged public source precedes readiness; private input follows verification.
   $reader = [IO.StreamReader]::new([Console]::OpenStandardInput(), [Text.Encoding]::UTF8, $false, 1, $true)
   try { $source = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($reader.ReadLine())) } finally { $reader.Dispose() }
-  $provider = New-Object Microsoft.CSharp.CSharpCodeProvider
-  $parameters = New-Object CodeDom.Compiler.CompilerParameters
+  $provider = [Microsoft.CSharp.CSharpCodeProvider]::new()
+  $parameters = [CodeDom.Compiler.CompilerParameters]::new()
   $parameters.GenerateInMemory = $true
   [void]$parameters.ReferencedAssemblies.Add('System.dll')
   [void]$parameters.ReferencedAssemblies.Add('System.Core.dll')
