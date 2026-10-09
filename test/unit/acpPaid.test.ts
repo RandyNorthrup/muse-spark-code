@@ -248,19 +248,21 @@ describe('AcpPaidUse', () => {
     expect(paid.isRemembered(FOLDER, 'webSearch')).toBe(false)
   })
 
-  it('lets an "always" it cannot keep go ahead once, and asks again next time', async () => {
+  it('refuses an "always" it cannot keep, and asks again next time', async () => {
     const grants = memoryPaidGrants()
     vi.spyOn(grants, 'add').mockRejectedValue(new Error('read-only data folder'))
     const log = logger()
     const paid = new AcpPaidUse({ flagged: ['webSearch'], canRemember: () => true, grants, log })
     const asker = vi.fn(() => Promise.resolve('always' as const))
     paid.attach(asker)
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(true)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(false)
     expect(log.warn).toHaveBeenCalledWith(
-      'Paid use of webSearch: "always" could not be kept, so it is allowed once: read-only data folder',
+      'Paid use of webSearch: "always" could not be kept, so it is refused: read-only data folder',
     )
-    expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(true)
+    expect(log.info).toHaveBeenLastCalledWith(
+      'Paid use of webSearch: "always" was not kept, so it is refused',
+    )
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(false)
     expect(asker).toHaveBeenCalledTimes(2)
   })
 

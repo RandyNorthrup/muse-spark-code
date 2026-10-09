@@ -15,7 +15,7 @@ describe('interactive paid policy apart from ACP flags', () => {
   })
 
   it('revokes Tab once on OFF while retaining it across another feature’s toggle', async () => {
-    const { paid, ask } = setup()
+    const { paid, ask } = setup(undefined, undefined, { confirm: () => Promise.resolve(true) })
     const request = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 } as const
     const composition = paid.composition('/ws', 'window')
     expect(await composition.consent.allows(request)).toBe(true)
@@ -23,6 +23,9 @@ describe('interactive paid policy apart from ACP flags', () => {
     expect(await composition.consent.allows(request)).toBe(true)
     expect(ask).toHaveBeenCalledOnce()
     await composition.gate.turnOff('tab')
+    expect(await composition.consent.allows(request)).toBe(false)
+    expect(ask).toHaveBeenCalledOnce()
+    expect(await composition.gate.turnOn('tab')).toBe(true)
     expect(await composition.consent.allows(request)).toBe(true)
     expect(ask).toHaveBeenCalledTimes(2)
     await paid.dispose()

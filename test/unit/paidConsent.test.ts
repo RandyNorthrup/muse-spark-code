@@ -38,7 +38,7 @@ function consentWith(
 const SEARCH: PaidUseRequest = { feature: 'webSearch' }
 
 describe('PaidUseConsent (M58)', () => {
-  it('lets an "always" it cannot keep go ahead once, and says so', async () => {
+  it('refuses an "always" it cannot keep, and says so', async () => {
     const log = new FakeLogOutputChannel()
     const consent = new PaidUseConsent({
       isOn: () => true,
@@ -48,11 +48,13 @@ describe('PaidUseConsent (M58)', () => {
       ask: () => Promise.resolve('always'),
       log,
     })
-    await expect(consent.allows(SEARCH)).resolves.toBe(true)
+    await expect(consent.allows(SEARCH)).resolves.toBe(false)
     expect(log.warn).toHaveBeenCalledWith(
-      'Paid use of webSearch: "always" could not be kept, so it is allowed once: storage is full',
+      'Paid use of webSearch: "always" could not be kept, so it is refused: storage is full',
     )
-    expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
+    expect(log.info).toHaveBeenLastCalledWith(
+      'Paid use of webSearch: "always" was not kept, so it is refused',
+    )
   })
 
   it('refuses a feature that is off without asking', async () => {

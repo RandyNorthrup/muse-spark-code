@@ -235,7 +235,7 @@ export class PaidUseConsent {
       return true
     } catch (error: unknown) {
       this.deps.log.warn(
-        `Paid use of ${feature}: "always" could not be kept, so it is allowed once: ${error instanceof Error ? error.message : String(error)}`,
+        `Paid use of ${feature}: "always" could not be kept, so it is refused: ${error instanceof Error ? error.message : String(error)}`,
       )
       return false
     }

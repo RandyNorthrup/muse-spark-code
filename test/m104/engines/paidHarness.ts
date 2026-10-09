@@ -33,6 +33,8 @@ export function paidHarness(
   gateOverrides: Partial<PaidFeatureGateDeps> = {},
 ) {
   const state = { isOn: true, isAvailable: true, isCurrent: true, canRemember: true }
+  const settings = new Map<PaidFeature, boolean>()
+  const accepted = new Set<PaidFeature>(PAID_FEATURES)
   const granted = new Map<string, Set<PaidFeature>>()
   const grants: RuntimePaidGrantStore = {
     read: (root) => granted.get(root) ?? new Set(),
@@ -52,12 +54,19 @@ export function paidHarness(
   }
   const log = new FakeLogOutputChannel()
   const gate = new PaidFeatureGate({
-    isSettingOn: (feature) => state.isOn && features.includes(feature),
+    isSettingOn: (feature) => (settings.get(feature) ?? state.isOn) && features.includes(feature),
     isAvailable: () => state.isAvailable,
     isDefaultOn: () => true,
-    setSetting: () => Promise.resolve(),
-    readAccepted: () => new Set(PAID_FEATURES),
-    writeAccepted: () => Promise.resolve(),
+    setSetting: (feature, isOn) => {
+      settings.set(feature, isOn)
+      return Promise.resolve()
+    },
+    readAccepted: () => new Set(accepted),
+    writeAccepted: (next) => {
+      accepted.clear()
+      for (const feature of next) accepted.add(feature)
+      return Promise.resolve()
+    },
     confirm: () => Promise.resolve(false),
     isWindowFocused: () => true,
     log,
@@ -68,7 +77,7 @@ export function paidHarness(
     gate,
     usage,
     grants,
-    isSettingOn: (feature) => state.isOn && features.includes(feature),
+    isSettingOn: (feature) => (settings.get(feature) ?? state.isOn) && features.includes(feature),
     canRemember: () => state.canRemember,
     isCurrent: () => state.isCurrent,
     log,
