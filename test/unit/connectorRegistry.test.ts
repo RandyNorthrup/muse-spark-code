@@ -690,6 +690,21 @@ function stdio(h: Harness) {
   }
 }
 
+/**
+ * A prompt read held at `hold` past its deadline (fake timers): it has
+ * answered `unavailable`. Returns the answer as it is now.
+ */
+async function heldPastDeadline(h: Harness, hold: string) {
+  h.state.holds.add(hold)
+  let answer: Record<string, unknown> | undefined
+  void h.call('muse_prompt_get', { promptId: 'p1' }).then((value) => {
+    answer = value
+  })
+  await vi.advanceTimersByTimeAsync(CONNECTOR_LIMITS.requestDeadlineMs + 1)
+  expect(answer).toMatchObject({ status: 'refused', reason: 'unavailable' })
+  return () => answer
+}
+
 async function approveFirst(h: Harness): Promise<void> {
   const [intent] = h.registry.pending()
   expect(h.registry.decide(intent?.intentId ?? '', intent?.digest ?? '', true)).toBe(true)
@@ -829,13 +844,7 @@ describe('M124 review fixes (RVM124)', () => {
     const h = await harness()
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     try {
-      h.state.holds.add('list')
-      let answer: Record<string, unknown> | undefined
-      void h.call('muse_prompt_get', { promptId: 'p1' }).then((value) => {
-        answer = value
-      })
-      await vi.advanceTimersByTimeAsync(CONNECTOR_LIMITS.requestDeadlineMs + 1)
-      expect(answer).toMatchObject({ status: 'refused', reason: 'unavailable' })
+      const answer = await heldPastDeadline(h, 'list')
       // The stalled read no longer holds one of the four read slots.
       h.state.holds.clear()
       const reads = await Promise.all(
@@ -848,7 +857,7 @@ describe('M124 review fixes (RVM124)', () => {
       )
       release(h)
       await vi.advanceTimersByTimeAsync(0)
-      expect(answer).toMatchObject({ status: 'refused', reason: 'unavailable' })
+      expect(answer()).toMatchObject({ status: 'refused', reason: 'unavailable' })
     } finally {
       vi.useRealTimers()
     }
@@ -1038,6 +1047,26 @@ describe('M124 one state machine, one authority (RVM124B)', () => {
       await pipe.served
     })
 
+  it('starts no approved write when the policy changes while the target is re-read: the final gate itself (P1)', async () => {
+    const h = await harness()
+    const pipe = stdio(h)
+    pipe.call(1, 'muse_prompt_save', WORKSPACE_SAVE)
+    expect(await pipe.reply(1)).toMatchObject({ status: 'awaitingApproval' })
+    // Held after the dispatch receipt and the authority's re-read: the live target read.
+    h.state.holds.add('list')
+    await approveFirst(h)
+    await vi.waitFor(() => {
+      expect(h.state.held).toHaveLength(1)
+    })
+    h.state.confidential = true
+    release(h)
+    await flush()
+    expect(h.state.writes).toEqual([])
+    expect(cancelCauses(h)).toEqual(['revoked'])
+    pipe.input.end()
+    await pipe.served
+  })
+
   it('starts no approved write after the client disconnects during the dispatch receipt wait, over stdio (P1)', async () => {
     const h = await harness()
     const pipe = await approvedAndHeld(h)
@@ -1080,13 +1109,7 @@ describe('M124 one state machine, one authority (RVM124B)', () => {
     const h = await harness()
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     try {
-      h.state.holds.add('grant')
-      let answer: Record<string, unknown> | undefined
-      void h.call('muse_prompt_get', { promptId: 'p1' }).then((value) => {
-        answer = value
-      })
-      await vi.advanceTimersByTimeAsync(CONNECTOR_LIMITS.requestDeadlineMs + 1)
-      expect(answer).toMatchObject({ status: 'refused', reason: 'unavailable' })
+      await heldPastDeadline(h, 'grant')
       h.state.holds.add('list')
       release(h, 'grant')
       await vi.advanceTimersByTimeAsync(0)

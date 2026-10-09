@@ -36,6 +36,10 @@ vi.mock('node:fs/promises', async (importOriginal) => {
       await fsHooks.hold?.('link', args)
       await real.link(...args)
     },
+    readdir: async (...args: Parameters<typeof real.readdir>) => {
+      await fsHooks.hold?.('readdir', args)
+      return await real.readdir(...args)
+    },
   }
 })
 
@@ -104,6 +108,26 @@ const removalOf = (lock: string) => (op: string, args: readonly unknown[]) =>
 const isPublish = (op: string, args: readonly unknown[]) =>
   (op === 'rename' || op === 'link') && String(args[0]).endsWith('.tmp')
 
+/**
+ * A holder paused at its publish while `waiters` servers take their turns
+ * (the first takes over once the holder's lease has passed); then it
+ * resumes. Answers each take (the holder's last) and the tokens spent.
+ */
+async function lostHolder(waiters: number) {
+  const { server, spent } = await setup()
+  const publish = holdFirst(isPublish)
+  fsHooks.hold = publish.hold
+  const paused = server().take()
+  await vi.waitFor(() => {
+    expect(publish.gate.release).toBeDefined()
+  })
+  const admitted: boolean[] = []
+  for (let index = 0; index < waiters; index += 1) admitted.push(await server().take())
+  publish.gate.release?.()
+  admitted.push(await paused)
+  return { admitted, spent: await spent() }
+}
+
 describe('M124 limits lock (RVM124B P2-3)', () => {
   it('never removes a live owner’s lock for its age', async () => {
     const { lock, server, plant } = await setup()
@@ -162,19 +186,33 @@ describe('M124 limits lock (RVM124B P2-3)', () => {
   })
 
   it('lands nothing from a holder that lost its lock while paused (the generation fence)', async () => {
-    const { server, spent } = await setup()
-    const publish = holdFirst(isPublish)
-    fsHooks.hold = publish.hold
-    const paused = server().take()
-    await vi.waitFor(() => {
-      expect(publish.gate.release).toBeDefined()
-    })
     // Past the holder's lease, a waiter takes over and spends a token.
-    expect(await server().take()).toBe(true)
-    publish.gate.release?.()
-    const admitted = [true, await paused].filter(Boolean).length
+    const { admitted, spent } = await lostHolder(1)
+    expect(admitted.slice(0, 1)).toEqual([true])
     // Every admitted call spent exactly one token: no debit was lost.
-    expect(await spent()).toBe(admitted)
+    expect(spent).toBe(admitted.filter(Boolean).length)
+  })
+
+  it('lands nothing from a lost holder whose generation was already pruned (newest check)', async () => {
+    // Two waiters in turn: the second publishes the next generation and prunes the first,
+    // so the paused holder's generation name is free again when it resumes.
+    const { admitted, spent } = await lostHolder(2)
+    expect(admitted.slice(0, 2)).toEqual([true, true])
+    expect(spent).toBe(admitted.filter(Boolean).length)
+  })
+
+  it('refuses to publish once its own lease has ended, even uncontended', async () => {
+    const { server } = await setup()
+    // Held at its first look at the folder, inside the lock, past its own lease.
+    const look = holdFirst((op) => op === 'readdir')
+    fsHooks.hold = look.hold
+    const late = server().take()
+    await vi.waitFor(() => {
+      expect(look.gate.release).toBeDefined()
+    })
+    await sleep(CONNECTOR_LIMITS.lockLeaseMs + 100)
+    look.gate.release?.()
+    expect(await late).toBe(false)
   })
 
   it('takes over at once a lock whose owner is provably gone', async () => {

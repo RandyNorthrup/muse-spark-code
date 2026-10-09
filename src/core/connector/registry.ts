@@ -352,16 +352,49 @@ export class ConnectorRegistry implements ConnectorServer {
       input['scope'] === 'user' || (workspaceId === undefined && USER_LIBRARY_TOOLS.has(name))
         ? { userLibrary: true }
         : { workspaceId }
+    const bound = this.bind(operation, tool, scope)
+    if (isRefusal(bound)) return bound
+    if (!(await operation.writeAhead('admitted'))) return operation.refuse(auditUnavailable())
+    if (!operation.gate(['received'])) return operation.final()
+    operation.move('admitted', true)
+    return { input: parsed.data, grant: bound.grant, workspace: bound.workspace }
+  }
+
+  /** The grant's answer for `scope`; admitted, the operation is bound to that grant and scope. */
+  private bind(
+    operation: Operation,
+    tool: ConnectorToolSpec,
+    scope: OperationScope,
+  ):
+    | Refusal
+    | { readonly grant: ConnectorGrant; readonly workspace: ConnectorWorkspaceGrant | undefined } {
     const { grant } = this.view
     const admission = admit(grant, tool, scope, this.deps.confidential)
     if (isRefusal(admission)) return operation.refuse(admission)
     if (grant === undefined) return operation.refuse(forbidden(CONNECTOR_MODEL_TEXT.noGrant))
     operation.grantGeneration = grant.generation
     operation.scope = scope
-    if (!(await operation.writeAhead('admitted'))) return operation.refuse(auditUnavailable())
-    if (!operation.gate(['received'])) return operation.final()
-    operation.move('admitted', true)
-    return { input: parsed.data, grant, workspace: admission.workspace }
+    return { grant, workspace: admission.workspace }
+  }
+
+  /**
+   * A lease of `kind` for `operation`; taking it is an effect, so it is called
+   * right after a passed gate. It is freed as soon as the operation leaves
+   * `states`, even when that happened before the lease was recorded.
+   */
+  private lease(
+    operation: Operation,
+    kind: 'read' | 'pending',
+    ttlMs: number,
+    states: readonly ConnectorCallState[],
+  ): Promise<boolean> {
+    const entering = this.limits.enter(kind, operation.id, ttlMs)
+    operation.holdWhile(states, () => {
+      void entering.then(async (isHeld) => {
+        if (isHeld) await this.limits.leave(operation.id)
+      })
+    })
+    return entering
   }
 
   /** The call's work; an owner's failure ends it as failed, with fixed words. */
@@ -408,14 +441,11 @@ export class ConnectorRegistry implements ConnectorServer {
       )
     // A read: its lease is an effect too, gated like the rest.
     if (!operation.gate(['admitted'])) return operation.final()
-    const entering = this.limits.enter('read', operation.id, CONNECTOR_LIMITS.requestDeadlineMs)
-    // Freed when the call ends, even when it ended before the lease was recorded.
-    operation.holdWhile(['admitted', 'dispatching'], () => {
-      void entering.then(async (isHeld) => {
-        if (isHeld) await this.limits.leave(operation.id)
-      })
-    })
-    if (!(await entering)) return operation.refuse(rateLimited())
+    const leasing = this.lease(operation, 'read', CONNECTOR_LIMITS.requestDeadlineMs, [
+      'admitted',
+      'dispatching',
+    ])
+    if (!(await leasing)) return operation.refuse(rateLimited())
     if (!operation.gate(['admitted'])) return operation.final()
     operation.move('dispatching')
     const outcome = await this.read(
@@ -667,13 +697,11 @@ export class ConnectorRegistry implements ConnectorServer {
     if (!(await operation.writeAhead('awaitingApproval')))
       return operation.refuse(auditUnavailable())
     if (!operation.gate(['admitted'])) return operation.final()
-    const entering = this.limits.enter('pending', operation.id, CONNECTOR_LIMITS.approvalLeaseMs)
-    operation.holdWhile(['admitted', 'awaitingApproval'], () => {
-      void entering.then(async (isHeld) => {
-        if (isHeld) await this.limits.leave(operation.id)
-      })
-    })
-    if (!(await entering)) return operation.refuse(rateLimited())
+    const leasing = this.lease(operation, 'pending', CONNECTOR_LIMITS.approvalLeaseMs, [
+      'admitted',
+      'awaitingApproval',
+    ])
+    if (!(await leasing)) return operation.refuse(rateLimited())
     if (!operation.gate(['admitted'])) return operation.final()
     // Paid authority is zero in the local phase (Q-M124.4); this tool is free.
     const binding: ApprovalBinding = {
@@ -774,15 +802,11 @@ export class ConnectorRegistry implements ConnectorServer {
     tool: ConnectorToolSpec,
     scope: OperationScope,
   ): Refusal | { readonly workspace: ConnectorWorkspaceGrant | undefined } {
-    const { grant } = this.view
-    const admission = admit(grant, tool, scope, this.deps.confidential)
-    if (isRefusal(admission)) return operation.refuse(admission)
-    if (grant === undefined) return operation.refuse(forbidden(CONNECTOR_MODEL_TEXT.noGrant))
-    operation.grantGeneration = grant.generation
-    operation.scope = scope
+    const bound = this.bind(operation, tool, scope)
+    if (isRefusal(bound)) return bound
     // Best effort: a failed journal never holds Stop back.
     operation.move('admitted')
-    return admission
+    return bound
   }
 
   /**
