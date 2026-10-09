@@ -452,6 +452,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         break
       }
       case 'providers/edit': {
+        if (state.drafts.edits[message.providerId] !== undefined) break
         const entry = await entryOf(message.providerId)
         const draft = {
           ...newDraft(providers.preset(entry.preset)),

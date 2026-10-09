@@ -182,6 +182,22 @@ After fix: `providerWiring`, `modelsPanel`, `providersFlow` pass at repository
 deadlines. Help's provider detail names the existing localized no-retention
 policy under an explicit OpenRouter/ZDR condition; generated reference updated.
 
+### F6 — Replacement key belongs to the edit draft
+
+Cause: opening Edit always recreated the draft and reloaded the stored key,
+overwriting Change key's in-memory replacement. Opening an existing edit
+draft now reuses it. The change is one guard in the panel handler; no bridge,
+credential record or provider schema changes.
+
+Two production-facade tests drive Change key -> native password box -> Edit
+-> Test over the captured OpenRouter key/list receipts. Every pinned request
+uses the replacement. It is not stored before Save; Save persists it and
+drops the draft, while Cancel drops the draft and leaves the original stored
+credential. Neither synthetic credential appears in any panel message.
+Failing first: both tests send the original credential (2 failed).
+`providerWiring`, `modelsPanel`, `providerCredentialRecords` then pass at the
+repository deadlines. Replay makes **0 model attempts**.
+
 ### Red drills (byte-exact restoration)
 
 Every drill runs a whole owning test file at repository deadlines, records
@@ -198,3 +214,4 @@ exit 1, restores the original bytes in `finally`, and compares SHA-256.
 | F4      | Also list after a separate identity origin               | HF key-test count/path test fails                             | `4cdc0eff6a5de9ba9239be94481cb6163e6240be05ae96dcec3c535d45b5fd25` |
 | F4      | Refuse the captured identity path instead of other paths | HF key test fails                                             | `3fd26e9d63f0bf6e1ee6d588213fda8df41df2bc107effd616bfb74c285058a5` |
 | F5      | Restore no-training as the panel default                 | Fresh wizard default test fails                               | `dd2bcf0a0b5d3331ac08d3f92b1c6bbb5f50f3163dac9e18e3a72daeddf3bc3c` |
+| F6      | Recreate an existing edit draft                          | Both replacement-key save/cancel tests fail                   | `579c1d1ff2ea7669953872bb76166998e85fab89cf0a9536ef548cae7a7de7da` |

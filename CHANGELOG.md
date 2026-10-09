@@ -20,6 +20,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Change key in Models & Agents keeps the replacement when Edit opens.
+  Test uses that draft key; Save keeps it, and Cancel leaves the stored key.
 - OpenRouter's key test checks its key endpoint before saying the key works.
   The panel and CLI share the same free-check contract, so a successful public
   model list cannot stand in for a credential check.
