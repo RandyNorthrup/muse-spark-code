@@ -15,12 +15,20 @@ import { spawn } from 'node:child_process'
 import { withoutCredentials, withoutKeyringRoutes } from '../../src/runtime/credentialVariables'
 import { RUNTIME_MAKER_LAUNCH_CODE_MS } from '../../src/shared/constants'
 import { companionLaunchSchema } from '../../src/shared/companionProtocol'
+import { createRuntimeMakerService } from '../../src/runtime/maker/service'
+import type { ApprovalRequest } from '../../src/shared/makerProtocol'
+import { fakeMachineServer, makerLimits } from './helpers/fakeMakerMachine'
 
 vi.mock('node:crypto', async (importOriginal) => {
   const actual = await importOriginal<typeof crypto>()
   return { ...actual, timingSafeEqual: vi.fn(actual.timingSafeEqual) }
 })
 
+const secrets = {
+  get: () => Promise.resolve(undefined),
+  store: () => Promise.resolve(),
+  delete: () => Promise.resolve(),
+}
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0).toReversed()) await cleanup()
@@ -33,11 +41,7 @@ async function companion(bind?: string) {
   const host = await RuntimeMakerHost.create({
     dataDirectory: path.join(directory, 'data'),
     workspace,
-    secrets: {
-      get: () => Promise.resolve(undefined),
-      store: () => Promise.resolve(),
-      delete: () => Promise.resolve(),
-    },
+    secrets,
     trusted: () => true,
     flagged: () => true,
     presence: { check: vi.fn().mockResolvedValue('approved') },
@@ -94,7 +98,7 @@ async function status(...args: Parameters<typeof http>) {
   const reply = await http(...args)
   return reply.status
 }
-async function session(server: Awaited<ReturnType<typeof companion>>) {
+async function session(server: { readonly url: string; readonly launch: string }) {
   const reply = await http(
     server.url,
     '/launch',
@@ -286,6 +290,137 @@ describe('companion boundary', () => {
       await pending
     }
   })
+  it.each(['reviewed', 'incomplete', 'other digest', 'other target', 'unreviewed'] as const)(
+    'companion approval through the real service dispatches only after an exact review: %s',
+    async (variant) => {
+      const machine = await fakeMachineServer()
+      cleanups.push(() => machine.close())
+      const directory = await mkdtemp(path.join(tmpdir(), 'maker-review-'))
+      cleanups.push(() => rm(directory, { recursive: true, force: true }))
+      const workspace = path.join(directory, 'repo')
+      await mkdir(workspace)
+      const service = await createRuntimeMakerService({
+        dataDirectory: path.join(directory, 'data'),
+        workspace,
+        lan: { classify: () => 'private', resolve: () => Promise.resolve(['127.0.0.1']) },
+        trusted: () => true,
+        flagged: () => true,
+        presence: { check: vi.fn().mockResolvedValue('approved') },
+        interactive: () => true,
+        secrets,
+        native: { platform: process.platform, env: {}, packageRoot: path.resolve('.') },
+      })
+      cleanups.push(() => service.close())
+      await service.host.setHardware(true, 'fake supervised printer')
+      await service.registry.register({
+        id: 'printer',
+        name: 'Bench printer',
+        kind: 'moonraker',
+        category: 'printer',
+        endpoint: machine.endpoint,
+        limits: makerLimits,
+        allowPlainHttp: true,
+      })
+      const companionServer = await startCompanion({
+        host: service.host,
+        dispatch: service.dispatch,
+        tools: service.tools,
+        assets: new Map([['/', { body: '<html></html>', type: 'text/html' }]]),
+      })
+      cleanups.push(() => companionServer.close())
+      await companionServer.open()
+      const delivery = await http(
+        companionServer.url,
+        '/launch-code',
+        { Origin: companionServer.url },
+        '',
+      )
+      const launch = companionLaunchSchema.parse(JSON.parse(delivery.text)).launch
+      const headers = {
+        Cookie: await session({ ...companionServer, launch }),
+        Origin: companionServer.url,
+      }
+      const approval = Promise.withResolvers<ApprovalRequest>()
+      const off = service.host.subscribe((message) => {
+        if (message.type === 'makerApproval') approval.resolve(message.request)
+      })
+      cleanups.push(() => {
+        off()
+        return Promise.resolve()
+      })
+      const sending = http(
+        companionServer.url,
+        '/message',
+        headers,
+        JSON.stringify({
+          v: 1,
+          type: 'makerSend',
+          id: randomUUID(),
+          machineId: 'printer',
+          payload: 'M104 S100',
+        }),
+      )
+      const request = await approval.promise
+      if (variant !== 'unreviewed') {
+        const review = await http(
+          companionServer.url,
+          '/message',
+          headers,
+          JSON.stringify({
+            v: 1,
+            type: 'makerPayloadReviewed',
+            id: request.id,
+            digest: variant === 'other digest' ? 'b'.repeat(64) : request.digest,
+            isComplete: variant !== 'incomplete',
+          }),
+        )
+        expect(review).toMatchObject({
+          status: 200,
+          text: String(variant === 'reviewed' || variant === 'other target'),
+        })
+      }
+      const answer = (decision: string) =>
+        JSON.stringify({
+          v: 1,
+          type: 'makerAnswer',
+          answer: {
+            id: request.id,
+            digest: request.digest,
+            target:
+              variant === 'other target' && request.target.kind === 'machine'
+                ? { ...request.target, name: 'Other printer' }
+                : request.target,
+            decision,
+          },
+        })
+      const presence = await http(companionServer.url, '/presence', headers, answer('allow_once'))
+      expect(presence.status).toBe(variant === 'other target' ? 403 : 200)
+      if (presence.status === 200) {
+        const grant = z.object({ grant: z.string() }).parse(JSON.parse(presence.text)).grant
+        expect(
+          await status(
+            companionServer.url,
+            '/answer',
+            { ...headers, 'X-Maker-Approval': grant },
+            answer('allow_once'),
+          ),
+        ).toBe(204)
+      } else
+        expect(await status(companionServer.url, '/answer', headers, answer('reject_once'))).toBe(
+          204,
+        )
+      const sent = await sending
+      const scripts = machine.requests.filter(({ path }) => path === '/printer/gcode/script')
+      if (variant === 'reviewed') {
+        expect(sent.status).toBe(200)
+        expect(JSON.parse(sent.text)).toMatchObject({ type: 'makerResult', outcome: 'sent' })
+        expect(scripts).toHaveLength(1)
+      } else {
+        expect(sent.status).toBe(400)
+        expect(scripts).toEqual([])
+      }
+    },
+  )
   it('Stop bypasses disabled admission; malformed messages and large bodies refuse', async () => {
     const server = await companion()
     const Cookie = await session(server)

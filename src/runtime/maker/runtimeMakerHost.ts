@@ -15,6 +15,7 @@ import {
   type MakerMachineSummary,
   type MakerNotice,
   type MakerPreview,
+  type MakerSurfaceMessage,
   type MakerTarget,
 } from '../../shared/makerProtocol'
 import {
@@ -81,6 +82,7 @@ export class RuntimeMakerHost implements MakerHost {
     {
       request: ApprovalRequest
       resolve: (answer: unknown) => void
+      review: (raw: unknown) => boolean
       grant?: { value: string; expires: number }
     }
   >()
@@ -94,6 +96,17 @@ export class RuntimeMakerHost implements MakerHost {
   ) {
     this.secrets = deps.secrets
     if (deps.serialProvider !== undefined) this.serialProvider = deps.serialProvider
+  }
+  private state() {
+    return {
+      v: 1,
+      type: 'makerState',
+      isTrusted: this.isTrusted(),
+      hardwareEnabled: this.hardwareEnabled(),
+      isInteractive: this.isInteractive(),
+      machines: this.machines,
+      ports: this.ports,
+    }
   }
   private emit(raw: unknown): void {
     const message = makerHostMessageSchema.parse(raw)
@@ -164,22 +177,16 @@ export class RuntimeMakerHost implements MakerHost {
     this.listeners.add(listener)
     for (const { request } of this.pending.values())
       listener({ v: 1, type: 'makerApproval', request })
-    listener(
-      makerHostMessageSchema.parse({
-        v: 1,
-        type: 'makerState',
-        isTrusted: this.isTrusted(),
-        hardwareEnabled: this.hardwareEnabled(),
-        isInteractive: this.isInteractive(),
-        machines: this.machines,
-        ports: this.ports,
-      }),
-    )
+    listener(makerHostMessageSchema.parse(this.state()))
     return () => {
       this.listeners.delete(listener)
     }
   }
-  async confirm(raw: ApprovalRequest): Promise<unknown> {
+  /** Without the engine's review callback no payload review can succeed, so allow_once refuses. */
+  async confirm(
+    raw: ApprovalRequest,
+    didReview: (raw: unknown) => boolean = () => false,
+  ): Promise<unknown> {
     const request = makerApprovalRequestSchema.parse(raw)
     if (
       !this.isTrusted() ||
@@ -198,7 +205,7 @@ export class RuntimeMakerHost implements MakerHost {
     let timer: ReturnType<typeof setTimeout> | undefined
     try {
       const pending = new Promise<unknown>((resolve) => {
-        this.pending.set(request.id, { request, resolve })
+        this.pending.set(request.id, { request, resolve, review: didReview })
         timer = setTimeout(
           () => {
             resolve(reject)
@@ -297,6 +304,10 @@ export class RuntimeMakerHost implements MakerHost {
     held.grant = { value, expires: performance.now() + MAKER_PRESENCE_GRANT_MS }
     return value
   }
+  /** The surface's payload review reaches only the pending request's own MakerApproval check. */
+  review(message: Extract<MakerSurfaceMessage, { type: 'makerPayloadReviewed' }>): boolean {
+    return this.pending.get(message.id)?.review(message) ?? false
+  }
   answer(raw: unknown, grant?: string): boolean {
     const parsed = makerApprovalAnswerSchema.safeParse(raw)
     const correlation = z.object({ id: z.uuid() }).safeParse(raw)
@@ -334,15 +345,7 @@ export class RuntimeMakerHost implements MakerHost {
   }
   stopControls(machines: readonly MakerMachineSummary[]): void {
     this.machines = structuredClone(machines)
-    this.emit({
-      v: 1,
-      type: 'makerState',
-      isTrusted: this.isTrusted(),
-      hardwareEnabled: this.hardwareEnabled(),
-      isInteractive: this.isInteractive(),
-      machines,
-      ports: this.ports,
-    })
+    this.emit(this.state())
   }
   updatePorts(ports: readonly Extract<MakerTarget, { kind: 'serial' }>[]): void {
     this.ports = structuredClone(ports)

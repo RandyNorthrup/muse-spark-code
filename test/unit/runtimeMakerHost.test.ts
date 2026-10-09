@@ -52,7 +52,22 @@ async function confirming() {
   await host.setHardware(true, 'bench')
   const snapshot = request()
   const engine = new MakerApproval(snapshot, () => host.hardwareEnabled())
-  return { host, snapshot, engine, pending: host.confirm(snapshot) }
+  const pending = host.confirm(snapshot, (raw) => engine.review(raw))
+  const didReview = () =>
+    host.review({
+      v: 1,
+      type: 'makerPayloadReviewed',
+      id: snapshot.id,
+      digest: snapshot.digest,
+      isComplete: true,
+    })
+  const answer = {
+    id: snapshot.id,
+    digest: snapshot.digest,
+    target: snapshot.target,
+    decision: 'allow_once',
+  }
+  return { host, snapshot, engine, pending, didReview, answer }
 }
 function grantFile(host: RuntimeMakerHost): string {
   return path.join(
@@ -117,13 +132,8 @@ describe('runtime maker host', () => {
     expect(await host.confirm({ ...request(), expiresAt: Date.now() - 1 })).toBeUndefined()
   })
   it('presence for payload A cannot approve payload B or a changed target', async () => {
-    const { host, snapshot, engine, pending } = await confirming()
-    const answer = {
-      id: snapshot.id,
-      digest: snapshot.digest,
-      target: snapshot.target,
-      decision: 'allow_once',
-    }
+    const { host, engine, pending, didReview, answer } = await confirming()
+    expect(didReview()).toBe(true)
     const grant = await host.authorize(answer)
     expect(grant).toBeDefined()
     expect(host.answer({ ...answer, digest: '0'.repeat(64) }, grant)).toBe(false)
@@ -157,13 +167,8 @@ describe('runtime maker host', () => {
     expect(host.answer({ ...snapshot, decision: 'allow_once' })).toBe(false)
   })
   it('passes a presence-approved once answer and consumes only the live target', async () => {
-    const { host, snapshot, engine, pending } = await confirming()
-    const answer = {
-      id: snapshot.id,
-      digest: snapshot.digest,
-      target: snapshot.target,
-      decision: 'allow_once',
-    }
+    const { host, snapshot, engine, pending, didReview, answer } = await confirming()
+    expect(didReview()).toBe(true)
     expect(host.answer(answer)).toBe(false)
     const grant = await host.authorize(answer)
     expect(host.answer(answer, grant)).toBe(true)
@@ -241,6 +246,28 @@ describe('runtime maker host', () => {
     expect(replay).toBeUndefined()
     expect(host.answer(answer, grant)).toBe(true)
     await pending
+  })
+  it('forwards a payload review only to the pending request it names', async () => {
+    const { host } = await fixture()
+    await host.setHardware(true, 'bench')
+    const snapshot = request()
+    const didReview = vi.fn<(raw: unknown) => boolean>().mockReturnValue(true)
+    const pending = host.confirm(snapshot, didReview)
+    const review = {
+      v: 1 as const,
+      type: 'makerPayloadReviewed' as const,
+      id: snapshot.id,
+      digest: snapshot.digest,
+      isComplete: true,
+    }
+    expect(host.review({ ...review, id: randomUUID() })).toBe(false)
+    expect(didReview).not.toHaveBeenCalled()
+    expect(host.review(review)).toBe(true)
+    expect(didReview).toHaveBeenCalledExactlyOnceWith(review)
+    host.cancelApprovals()
+    await pending
+    expect(host.review(review)).toBe(false)
+    expect(didReview).toHaveBeenCalledOnce()
   })
   it('hardware disable during OS authentication revokes the pending enable', async () => {
     const presence = { check: vi.fn().mockResolvedValue('approved') }

@@ -218,6 +218,14 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
       id,
     )
   }
+  /** The surface and the model tool report Stop the same way. */
+  async function stopped(id?: string) {
+    const result = await stop(id)
+    return {
+      outcome: result.physicalStopRequired.length === 0 ? 'stopped' : 'physicalStopRequired',
+      message: stopResultText(result),
+    }
+  }
   async function send(
     id: string,
     payload: string,
@@ -293,19 +301,15 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
   }
   async function dispatch(raw: MakerSurfaceMessage, signal: AbortSignal): Promise<unknown> {
     const message = makerSurfaceMessageSchema.parse(raw)
-    if (message.type === 'makerStop') {
-      const result = await stop(message.machineId)
-      return {
-        outcome: result.physicalStopRequired.length === 0 ? 'stopped' : 'physicalStopRequired',
-        message: stopResultText(result),
-      }
-    }
+    if (message.type === 'makerStop') return await stopped(message.machineId)
     if (message.type === 'makerAnswer') return false
     if (message.type === 'makerHardware') {
       await host.setHardware(message.enabled, message.reason)
       return await state()
     }
     if (message.type === 'makerReady') return await state()
+    // MakerApproval itself checks admission, id, digest and completeness.
+    if (message.type === 'makerPayloadReviewed') return host.review(message)
     await host.refresh()
     if (!host.isTrusted()) throw new Error(UI_TEXT.makerTrustRequired)
     if (!host.hardwareEnabled()) throw new Error(UI_TEXT.makerHardwareDisabled)
@@ -431,12 +435,7 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
         description: RUNTIME_MAKER_MODEL_TEXT.runtimeMakerStop,
         inputSchema: schema,
         call: async (raw) => {
-          const args = toolArgs.parse(raw)
-          const result = await stop(args.machineId)
-          return JSON.stringify({
-            outcome: result.physicalStopRequired.length === 0 ? 'stopped' : 'physicalStopRequired',
-            message: stopResultText(result),
-          })
+          return JSON.stringify(await stopped(toolArgs.parse(raw).machineId))
         },
       },
       {
