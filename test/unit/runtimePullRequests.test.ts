@@ -10,6 +10,7 @@ import {
   type RuntimePullRequestDeps,
 } from '../../src/runtime/panel/pullRequests/pullRequests'
 import type { CoreLogger } from '../../src/core/logging'
+import type { PullRequestLinkStore } from '../../src/core/git/runtimeGit'
 import { fakeGitHub } from './helpers/fakeGitHub'
 import { CAPTURED_PULL_OWN } from './helpers/githubCapture'
 import { fakeRuntimeGitDeps, fakeTokenSource } from './helpers/github/fakes'
@@ -34,10 +35,14 @@ function setup(
     readonly signedIn?: boolean
     readonly trusted?: boolean
     readonly confirm?: boolean
+    readonly links?: PullRequestLinkStore
   } = {},
 ) {
   const github = fakeGitHub()
-  const { deps, calls } = fakeRuntimeGitDeps('/repo')
+  const { deps, calls } = fakeRuntimeGitDeps(
+    '/repo',
+    options.links === undefined ? {} : { links: options.links },
+  )
   const log = recordingLogger()
   const confirms: { readonly message: string; readonly detail: string; readonly action: string }[] =
     []
@@ -236,6 +241,37 @@ describe('runtime pull requests (M123 lane P)', () => {
       head: 'Piangpi1997:android-termux-p0-tests',
       draft: false,
     })
+  })
+
+  it('keeps the created pull request when the link store fails', async () => {
+    const rejecting: PullRequestLinkStore = {
+      get: () => Promise.resolve(undefined),
+      set: () => Promise.reject(new Error('link store unavailable')),
+    }
+    const { github, service, log } = setup({ links: rejecting })
+    github.answer('GET', PULLS_PATH, { status: 200, body: [] })
+    const prepared = await service.prepare({
+      repository: OWN,
+      head: 'docs/how-its-built',
+      remote: 'origin',
+      remoteUrl: OWN_URL,
+    })
+    if (!prepared.ok) {
+      throw new Error('prepare failed')
+    }
+    const created = await service.create({
+      destination: prepared.destination,
+      title: 'A draft',
+      body: 'What and why.',
+      base: 'main',
+      isDraft: true,
+      sessionId: 'session',
+    })
+    // The POST succeeded, so the pull request goes back, not a failure
+    // inviting a duplicate: exactly one POST, with its number and URL.
+    expect(created).toMatchObject({ ok: true, number: CAPTURED_PULL_OWN.number })
+    expect(github.requests.filter((request) => request.method === 'POST')).toHaveLength(1)
+    expect(log.lines.some((line) => line.includes('link could not be kept'))).toBe(true)
   })
 
   it('posts nothing without an explicit confirm', async () => {

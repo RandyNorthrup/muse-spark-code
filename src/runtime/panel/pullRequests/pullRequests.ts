@@ -216,13 +216,23 @@ export class RuntimePullRequests {
     } catch {
       return
     }
-    await this.deps.links.set(this.deps.repositoryRoot, sessionId, {
-      repository,
-      number: pullRequest.number,
-      url: pullRequest.url,
-      title: pullRequest.title,
-      linkedAt: this.deps.now(),
-    })
+    try {
+      await this.deps.links.set(this.deps.repositoryRoot, sessionId, {
+        repository,
+        number: pullRequest.number,
+        url: pullRequest.url,
+        title: pullRequest.title,
+        linkedAt: this.deps.now(),
+      })
+    } catch (error: unknown) {
+      // The pull request exists: a full or unavailable store must not turn
+      // its creation into an apparent failure and a retried duplicate. The
+      // number and URL go back with the success; only the log names the
+      // missing link.
+      this.deps.log.warn(
+        `The pull request link could not be kept: ${redactSecrets(error instanceof Error ? error.message : String(error))}`,
+      )
+    }
   }
 
   /** What stops a pull request before anything is asked, or undefined. */
