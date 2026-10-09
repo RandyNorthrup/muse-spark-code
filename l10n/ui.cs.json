@@ -826,6 +826,7 @@
     "contributorWarning": "Modely Contributor mohou tato média použít k trénování.",
     "contributorQuestion": "Odeslat {name} modelu Contributor? Může být použit k trénování.",
     "contributorDeclined": "{name} nebyl připojen.",
+    "audioWillTranscribe": "{model} neslyší zvuk, proto ho Muse Voice před odesláním přepíše. Přepis je placený doplněk a nejdřív se zeptá.",
     "useStandardThenAttach": "Přepni na {model} a pak {name} připoj znovu.",
     "uploadUnavailable": "Tato relace nemá službu pro nahrávání souborů, takže video a zvuk nelze odeslat. Použij backend Model API s klíčem Meta.",
     "recordingWarning": "Tento záznam zahrnuje vše, co bylo na obrazovce.",

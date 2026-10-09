@@ -826,6 +826,7 @@
     "contributorWarning": "Модели Contributor могут использовать это медиа для обучения.",
     "contributorQuestion": "Отправить {name} модели Contributor? Файл может использоваться для обучения.",
     "contributorDeclined": "Файл {name} не прикреплён.",
+    "audioWillTranscribe": "{model} не слышит звук, поэтому Muse Voice расшифрует его перед отправкой. Расшифровка — платная функция, она сначала спросит.",
     "useStandardThenAttach": "Переключитесь на {model}, затем прикрепите {name} снова.",
     "uploadUnavailable": "В этом сеансе нет службы загрузки файлов, поэтому видео и звук отправить нельзя. Используйте бэкенд Model API с ключом Meta.",
     "recordingWarning": "Эта запись содержит всё, что было на вашем экране.",

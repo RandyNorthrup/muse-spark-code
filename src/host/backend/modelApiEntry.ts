@@ -150,8 +150,7 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   const mediaAccountId = mediaDirectory === undefined ? undefined : await hostDeps.getAccountId()
   // One production media service per session, built by one factory in its
   // own deferred bundle (dist/productionMedia.js, D85.13): the Model API
-  // bundle never carries it. Attaching video or audio and transcription
-  // stay unbound until lane V supplies their seams; no port is installed.
+  // bundle never carries it, nor transcription or conversion.
   const productionMedia =
     mediaDirectory !== undefined && filesClient !== undefined && mediaAccountId !== undefined
       ? await import('./productionMediaEntry.js')
@@ -163,6 +162,19 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   const attached = hostDeps.attachedMedia
   const host = new ModelApiHost({
     ...hostDeps,
+    // The one audio path (lane V seam 3B): a turn with attached sound loads
+    // dist/productionAudio.js and transcribes over the Meta client's narrow
+    // POST, under the hosts' paid consent and ledgers; any other turn
+    // loads nothing and is byte-identical.
+    ...(productionMedia !== undefined &&
+      attached !== undefined &&
+      mediaAccountId !== undefined && {
+        prepareAudioMessage: async (request) => {
+          if (request.parts.every((part) => part.type !== 'media')) return
+          const audio = await import('./productionAudioEntry.js')
+          return await audio.productionAudioFor(deps, hostDeps, client, mediaAccountId)?.(request)
+        },
+      }),
     ...(productionMedia !== undefined &&
       filesClient !== undefined &&
       mediaAccountId !== undefined &&

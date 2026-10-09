@@ -16,6 +16,7 @@ import type { SessionBudgetClaim } from '../core/backends/modelapi/sessionBudget
 import type { ResponseObject } from '../core/backends/modelapi/schemas'
 import {
   EXEC_USD_DECIMALS,
+  MEDIA_CONVERTER_PATH_MAX_CHARS,
   PAID_DAILY_BUDGET,
   RUNTIME_SETTINGS_FILE,
   SETTING_DEFAULTS,
@@ -32,6 +33,8 @@ const settingsSchema = z.strictObject({
       .number()
       .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
   ),
+  // M105 lane V: the converter path shares this machine file (runtimeConverterPath.ts).
+  mediaConverterPath: z.optional(z.string().check(z.maxLength(MEDIA_CONVERTER_PATH_MAX_CHARS))),
 })
 const ceilUsd = (cost: UsdAmount) => Usd.from(cost).ceiling(EXEC_USD_DECIMALS).toAmount()
 

@@ -1,4 +1,5 @@
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
+import { runtimeConverterPath } from './runtimeConverterPath'
 import { Usd } from '../shared/usd'
 import { loadLegalScanner } from './legal/legalScanner'
 import { ModelApiClient } from '../core/backends/modelapi/client'
@@ -459,6 +460,9 @@ function modelApiManager(
       const budget = await dailyBudget()
       return await budget.reserve(PAID_PRICES_USD.imageGeneration, signal)
     },
+    // The machine's converter path (lane V seam 3B): the agent data folder's
+    // settings.json, never a workspace file or environment variable.
+    mediaConverterPath: () => runtimeConverterPath(agentDataFolder(deps)),
     // D78's exact reservation for Muse Voice's batch transcription (lane V
     // seam 4): the runtime's own daily ledger, a hard cap in every editor.
     reservePaidExtra: async (costUsd, signal) => {

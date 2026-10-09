@@ -814,6 +814,7 @@
     "contributorWarning": "Contributor 모델은 이 미디어를 학습에 사용할 수 있습니다.",
     "contributorQuestion": "{name}을(를) Contributor 모델에 전송할까요? 학습에 사용될 수 있습니다.",
     "contributorDeclined": "{name}은(는) 첨부되지 않았습니다.",
+    "audioWillTranscribe": "{model}은(는) 오디오를 듣지 못하므로 보내기 전에 Muse Voice가 전사합니다. 전사는 유료 추가 기능이며 먼저 묻습니다.",
     "useStandardThenAttach": "{model}(으)로 전환한 다음 {name}을(를) 다시 첨부하세요.",
     "uploadUnavailable": "이 세션에는 파일 업로드 서비스가 없어 동영상과 오디오를 보낼 수 없습니다. Meta 키로 Model API 백엔드를 사용하세요.",
     "recordingWarning": "이 녹화에는 화면에 있던 모든 내용이 포함됩니다.",

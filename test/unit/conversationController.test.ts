@@ -15,6 +15,7 @@ import * as gitEntry from '../../src/host/git/conversationGitEntry'
 import { Usd } from '../../src/shared/usd'
 import { MspError } from '@muse-code/sdk'
 import { createMediaAttachments } from '../../src/host/media/mediaAttach'
+import { MediaContributorConsent } from '../../src/core/media/contributorConsent'
 import { videoFixture, wavFixture, ebmlFixture } from './helpers/media/fixtures'
 import { mediaModel } from './helpers/media/replay'
 import { Buffer } from 'node:buffer'
@@ -17381,6 +17382,7 @@ function mediaRig(bytes = videoFixture(), backendKind: 'museCode' | 'modelApi' =
   const close = vi.fn(() => Promise.resolve())
   const bind = vi.fn(bindSyntheticMediaPart)
   const askContributor = vi.fn(() => Promise.resolve('send' as const))
+  const consent = new MediaContributorConsent(askContributor)
   let token = 0
   const port = createMediaAttachments({
     newToken: () => `host-token-${String(++token)}`,
@@ -17389,7 +17391,7 @@ function mediaRig(bytes = videoFixture(), backendKind: 'museCode' | 'modelApi' =
     limits: () => ({}),
     bind,
     // D85.7: the editor's modal, answered Send (lane V seam 1).
-    askContributor,
+    chooseContributor: (request) => consent.choose(request),
   })
   const load = vi.fn(() => Promise.resolve(port))
   const files = {

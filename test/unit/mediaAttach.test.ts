@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createMediaAttachments, type MediaAttachDeps } from '../../src/host/media/mediaAttach'
 import { MEDIA_SNIFF_MAX_BYTES, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
+import { MediaContributorConsent } from '../../src/core/media/contributorConsent'
 import { ebmlFixture, videoFixture, wavFixture } from './helpers/media/fixtures'
 import { mediaModel } from './helpers/media/replay'
 
@@ -13,7 +14,16 @@ function bindPart() {
   return testPart
 }
 
-function rig(bytes = videoFixture(), overrides: Partial<MediaAttachDeps> = {}) {
+function rig(
+  bytes = videoFixture(),
+  options: Partial<MediaAttachDeps> & {
+    readonly askContributor?: ConstructorParameters<typeof MediaContributorConsent>[0]
+  } = {},
+) {
+  // The host builds one consent per port over its modal (mediaProviders).
+  const { askContributor, ...overrides } = options
+  const consent =
+    askContributor === undefined ? undefined : new MediaContributorConsent(askContributor)
   let next = 0
   const read = vi.fn((offset: number, length: number) =>
     Promise.resolve(bytes.subarray(offset, offset + length)),
@@ -27,6 +37,10 @@ function rig(bytes = videoFixture(), overrides: Partial<MediaAttachDeps> = {}) {
     capabilities: mediaModel,
     limits: () => ({}),
     bind,
+    ...(consent !== undefined && {
+      chooseContributor: (request: Parameters<MediaContributorConsent['choose']>[0]) =>
+        consent.choose(request),
+    }),
     ...overrides,
   }
   const port = createMediaAttachments(deps)
@@ -187,6 +201,36 @@ describe('M105 E1 host-token attachments', () => {
     )
     expect(mismatch.bind).not.toHaveBeenCalled()
     expect(mismatch.close).toHaveBeenCalledOnce()
+  })
+})
+
+describe('attached sound Muse Voice transcribes (M105 lane V seam 3B)', () => {
+  it('admits audio the model does not hear when the host transcribes it, and says so', async () => {
+    const transcribesSound = vi.fn(() => true)
+    const t = rig(wavFixture(), { transcribesSound })
+    const admitted = await t.port.prepare(t.token, 'modelApi', 'muse-spark-1.3')
+    expect(admitted).toMatchObject({
+      ok: true,
+      soundtrackWarning: fill(UI_TEXT.media.audioWillTranscribe, { model: 'muse-spark-1.3' }),
+    })
+    expect(transcribesSound).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'audio', mediaType: 'audio/wav' }),
+      'muse-spark-1.3',
+    )
+    if (!admitted.ok) throw new Error('expected admission')
+    // The chip's own recheck reaches the same answer.
+    expect(admitted.attachment.store.check(admitted.attachment.info)).toMatchObject({ ok: true })
+    expect(t.bind).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the gate refusal when the host does not transcribe', async () => {
+    for (const overrides of [{}, { transcribesSound: () => false }]) {
+      const t = rig(wavFixture(), overrides)
+      expect(await t.port.prepare(t.token, 'modelApi', 'muse-spark-1.3')).toMatchObject({
+        ok: false,
+      })
+      expect(t.bind).not.toHaveBeenCalled()
+    }
   })
 })
 

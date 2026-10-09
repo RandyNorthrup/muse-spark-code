@@ -163,6 +163,20 @@ export const DEFERRED = [
     ],
   },
   {
+    // M105 lane V seam 3B: Muse Voice's batch transcription, its paid seams
+    // and the trusted converter, loaded on the first turn with attached sound.
+    output: 'dist/productionAudio.js',
+    metafile: 'dist/meta/productionAudio.json',
+    files: [
+      'src/host/backend/productionAudioEntry.ts',
+      'src/core/voice/productionAudio.ts',
+      'src/core/voice/voiceBatchSeams.ts',
+      'src/core/voice/transcribeBatchHttp.ts',
+      'src/core/voice/audioMessagePreparation.ts',
+      'src/runtime/converterTrust.ts',
+    ],
+  },
+  {
     output: 'dist/modelApiMcp.js',
     metafile: 'dist/meta/modelApiMcp.json',
     files: [
@@ -913,6 +927,7 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/web/webFetchEntry.ts'), 'dist/webFetch.js'],
   [path.resolve('src/core/backends/modelapi/pluginHooksEntry.ts'), 'dist/pluginHooks.js'],
   [path.resolve('src/host/backend/productionMediaEntry.ts'), 'dist/productionMedia.js'],
+  [path.resolve('src/host/backend/productionAudioEntry.ts'), 'dist/productionAudio.js'],
 ])
 /** @type {import('esbuild').Plugin} */
 export const deferredCohort = {
@@ -936,7 +951,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|productionMediaEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|productionMediaEntry|productionAudioEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

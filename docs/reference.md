@@ -346,7 +346,7 @@ Attach files by selecting or dropping them, and paste images into the composer. 
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.attachScreenRecording`, `museSpark.attachLatestScreenRecording`, `museSpark.deleteUploadedFiles`. Settings: `museSpark.mediaMaxUploadMiB`, `museSpark.mediaUploadExpiryDays`, `museSpark.screenRecordingMaxSeconds`, `museSpark.mediaAudioAction`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
+Commands: `museSpark.attachScreenRecording`, `museSpark.attachLatestScreenRecording`, `museSpark.deleteUploadedFiles`. Settings: `museSpark.mediaMaxUploadMiB`, `museSpark.mediaUploadExpiryDays`, `museSpark.screenRecordingMaxSeconds`, `museSpark.mediaAudioAction`, `museSpark.mediaConverterPath`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
 
 ### museSpark.modelApiStrictTools
 
@@ -3422,6 +3422,20 @@ Type: `"string"`. Default: `"transcribe"`. Scope: `machine`.
 
 - `"transcribe"`:
 - `"sendAudio"`:
+
+### museSpark.mediaConverterPath
+
+Absolute path to the ffmpeg this machine uses to convert attached audio and video for transcription. Empty by default: only documented install locations are used (Program Files and winget on Windows, Homebrew and MacPorts on macOS, /usr/bin and /usr/local/bin on Linux), never PATH. A path set here is the only candidate: it must pass the trusted-path check, or conversion is refused with the reason. Launcher shims are refused. Only this machine’s setting is used.
+
+Type: `"string"`. Default: `""`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "default": "",
+  "maxLength": 4096
+}
+```
 
 ### museSpark.accountSwap
 

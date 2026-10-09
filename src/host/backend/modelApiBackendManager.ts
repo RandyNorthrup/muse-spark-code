@@ -107,6 +107,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly attachedMedia?: ModelApiHostDeps['attachedMedia']
   /** D78's exact daily reservation for a paid extra outside a request (lane V seam 4). */
   readonly reservePaidExtra?: ModelApiHostDeps['reservePaidExtra']
+  /** The machine-scoped converter path, read per use (lane V seam 3B). */
+  readonly mediaConverterPath?: ModelApiHostDeps['mediaConverterPath']
   /** The git facts for the prompt's environment section (D15). */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   /** The same facts for a best-of-N worktree (M77): an attempt's own branch. */
@@ -365,6 +367,9 @@ export class ModelApiBackendManager {
         ...(this.deps.attachedMedia !== undefined && { attachedMedia: this.deps.attachedMedia }),
         ...(this.deps.reservePaidExtra !== undefined && {
           reservePaidExtra: this.deps.reservePaidExtra,
+        }),
+        ...(this.deps.mediaConverterPath !== undefined && {
+          mediaConverterPath: this.deps.mediaConverterPath,
         }),
         getAccountId: async () => {
           if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()

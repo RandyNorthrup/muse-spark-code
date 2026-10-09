@@ -814,6 +814,7 @@
     "contributorWarning": "Contributor 模型可能使用此媒體進行訓練。",
     "contributorQuestion": "將 {name} 傳送給 Contributor 模型？它可能用於訓練。",
     "contributorDeclined": "未附加 {name}。",
+    "audioWillTranscribe": "{model} 聽不到音訊，因此 Muse Voice 會在傳送前將其轉寫。轉寫是付費附加功能，會先詢問。",
     "useStandardThenAttach": "切換到 {model}，然後重新附加 {name}。",
     "uploadUnavailable": "此工作階段沒有檔案上傳服務，因此無法傳送影片和音訊。請使用帶 Meta 金鑰的 Model API 後端。",
     "recordingWarning": "此錄製內容包含當時螢幕上顯示的所有內容。",

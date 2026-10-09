@@ -5,7 +5,7 @@
 // seeded upper bound; an unknown rate refuses only under a cap; and an inline
 // visual is never registered for upload. Each case names the review finding
 // it regresses (RVMONEY017D on c2689e116, RVMEDIAW on 27d8f1327).
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
@@ -125,6 +125,8 @@ async function factory(options: {
   readonly strayHost?: Readonly<Record<string, unknown>>
   /** The window's attached-media registry (lane V seam 1). */
   readonly attachedMedia?: AttachedMedia
+  /** Muse Voice's batch endpoint (U18), answering each multipart POST. */
+  readonly asr?: (body: string) => Response
 }): Promise<Rig> {
   const api = options.api ?? fakeModelApi()
   const files = fakeFilesApi(api.fetch)
@@ -134,7 +136,20 @@ async function factory(options: {
   io.binaries.set('/ws/report.pdf', new Uint8Array(PDF))
   if (options.readMedia !== undefined) Object.assign(io, { readMedia: options.readMedia })
   const store = options.store ?? memorySessionStore()
-  const transport = { ...api, fetch: files.fetch }
+  const { asr } = options
+  const transport = {
+    ...api,
+    fetch:
+      asr === undefined
+        ? files.fetch
+        : async (input: string | URL | Request, init?: RequestInit) => {
+            const url = new URL(input instanceof Request ? input.url : input)
+            if (!url.pathname.endsWith('/asr/transcribe')) return await files.fetch(input, init)
+            const body = await new Response(init?.body).text()
+            api.requests.push({ path: '/asr/transcribe', method: 'POST', headers: {}, body })
+            return asr(body)
+          },
+  }
   const capped =
     options.capUsd === undefined
       ? {}
@@ -474,11 +489,11 @@ describe('one production media service per session (M105 W redesign)', () => {
     expect(delta.compare(tokens(IMAGE_BOUND + 64))).toBeLessThanOrEqual(0)
   })
 
-  it('refuses an MP3 read honestly: production binds no transcription port', async () => {
-    // Lane V's seams (attach tokens, the transcription POST, the converter
-    // binding, consent/reserve adapters, ACP media) are not bound, so the
-    // product installs no audio port. A read MP3 is named as not taken by
-    // the model; nothing uploads and no transcription request is made.
+  it('refuses an MP3 read honestly: a tool read is never transcribed', async () => {
+    // Muse Voice transcribes only what the user attached (lane V seam 3B),
+    // after its paid question; a file the model reads is never sent there.
+    // A read MP3 is named as not taken by the model; nothing uploads and no
+    // transcription request is made.
     const bytes = new Uint8Array(4096).fill(7)
     const sha256 = createHash('sha256').update(bytes).digest('hex')
     const chunk = Promise.resolve(bytes)
@@ -519,7 +534,12 @@ describe('one production media service per session (M105 W redesign)', () => {
 })
 
 /** An attached mp4 registered as the attach port does: metadata, digest, a reopening source. */
-function attachedVideo(registry: AttachedMedia, token: string, bytes = videoFixture()) {
+// No soundtrack: these cases pin upload and replay, never Muse Voice (seam 3B).
+function attachedVideo(
+  registry: AttachedMedia,
+  token: string,
+  bytes = videoFixture({ soundtrack: false }),
+) {
   const info = sniffMediaBytes(bytes)
   if (info === undefined) throw new Error('fixture must sniff')
   const reads = { count: 0 }
@@ -588,7 +608,7 @@ describe('attached video through the session media service (M105 lane V seam 1)'
 
   it('refuses an attached video whose bytes changed since it was attached', async () => {
     const registry = new AttachedMedia()
-    const original = videoFixture()
+    const original = videoFixture({ soundtrack: false })
     const info = sniffMediaBytes(original)
     if (info === undefined) throw new Error('fixture must sniff')
     const changed = new Uint8Array(original)
@@ -647,6 +667,180 @@ describe('attached video through the session media service (M105 lane V seam 1)'
         fill(UI_TEXT.media.videoUnknown, { model: STANDARD }),
       )
       expect(rig.files.uploads).toHaveLength(0)
+    } finally {
+      await rig.host.close()
+    }
+  })
+})
+
+/** Two seconds of 16 kHz mono 16-bit PCM: the batch contract, so nothing converts. */
+function contractWav(): Uint8Array {
+  const data = 16_000 * 2 * 2
+  const wav = Buffer.alloc(44 + data)
+  wav.write('RIFF', 0)
+  wav.writeUInt32LE(36 + data, 4)
+  wav.write('WAVEfmt ', 8)
+  wav.writeUInt32LE(16, 16)
+  wav.writeUInt16LE(1, 20)
+  wav.writeUInt16LE(1, 22)
+  wav.writeUInt32LE(16_000, 24)
+  wav.writeUInt32LE(32_000, 28)
+  wav.writeUInt16LE(2, 32)
+  wav.writeUInt16LE(16, 34)
+  wav.write('data', 36)
+  wav.writeUInt32LE(data, 40)
+  return new Uint8Array(wav)
+}
+
+/** An attached WAV on disk, registered as the attach port does. */
+function attachedWav(registry: AttachedMedia, token: string) {
+  const bytes = contractWav()
+  const file = path.join(scratchDir(), 'note.wav')
+  writeFileSync(file, bytes)
+  const info = sniffMediaBytes(bytes)
+  if (info === undefined) throw new Error('fixture must sniff')
+  const chunk = Promise.resolve(bytes)
+  return registry.register(
+    token,
+    { name: 'note.wav', info, sha256: createHash('sha256').update(bytes).digest('hex') },
+    {
+      read: async function* () {
+        yield await chunk
+      },
+      path: () => Promise.resolve(file),
+    },
+  )
+}
+
+/** A D78 ledger double recording exact reservations and settlements. */
+function dailyLedger() {
+  const reserved: UsdAmount[] = []
+  const settled: { readonly amount: UsdAmount; readonly unknown: boolean | undefined }[] = []
+  return {
+    reserved,
+    settled,
+    reservePaidExtra: (costUsd: UsdAmount) => {
+      reserved.push(costUsd)
+      return Promise.resolve({
+        reservedUsd: costUsd,
+        check: () => undefined,
+        settle: (amount: UsdAmount, hasUnknownCost?: boolean) => {
+          settled.push({ amount, unknown: hasUnknownCost })
+          return Promise.resolve()
+        },
+      })
+    },
+  }
+}
+
+const TRANSCRIPT = 'The Blue Llama.'
+
+describe('attached sound through Muse Voice (M105 lane V seam 3B)', () => {
+  it('transcribes an attached WAV once, under the daily ledger and the tally', async () => {
+    const registry = new AttachedMedia()
+    const part = attachedWav(registry, 'sound-1')
+    const ledger = dailyLedger()
+    const notePaidUse = vi.fn()
+    const rig = await factory({
+      attachedMedia: registry,
+      asr: () => Response.json({ transcript: TRANSCRIPT, audioDurationMs: 2080 }),
+      strayHost: {
+        reservePaidExtra: ledger.reservePaidExtra,
+        notePaidUse,
+        allowsPaidUse: () => Promise.resolve(true),
+      },
+    })
+    try {
+      const h = await start(rig, CONTRIBUTOR)
+      rig.api.script({ text: 'A llama.' })
+      expect(await turn(h, [{ type: 'text', text: 'What is said?' }, part])).toBeUndefined()
+      expect(terminal(h.events)).toMatchObject({ terminal: 'completed' })
+      const posts = rig.api.requests.filter((request) => request.path === '/asr/transcribe')
+      expect(posts).toHaveLength(1)
+      expect(String(posts[0]?.body)).toContain('PUSH_TO_TALK')
+      const body = JSON.stringify(rig.api.responseBodies()[0])
+      expect(body).toContain(TRANSCRIPT)
+      expect(body).not.toContain('input_audio')
+      expect(rig.files.uploads).toHaveLength(0)
+      // Two billed seconds at $0.18 per hour, reserved and settled exactly.
+      expect(ledger.reserved).toEqual(['0.0001'])
+      expect(ledger.settled).toEqual([{ amount: '0.0001', unknown: false }])
+      expect(notePaidUse).toHaveBeenCalledWith('voice', 2)
+    } finally {
+      await rig.host.close()
+    }
+  })
+
+  it('leaves a turn without attached sound byte-identical, with no transcription request', async () => {
+    const bodyOf = async (attachedMedia?: AttachedMedia) => {
+      const rig = await factory({
+        ...(attachedMedia !== undefined && { attachedMedia }),
+        asr: () => Response.json({ transcript: 'unused', audioDurationMs: 1000 }),
+      })
+      try {
+        const h = await start(rig, CONTRIBUTOR)
+        rig.api.script({ text: 'Hi.' })
+        expect(await turn(h, [{ type: 'text', text: 'Hello' }])).toBeUndefined()
+        expect(rig.api.requests.some((request) => request.path === '/asr/transcribe')).toBe(false)
+        return JSON.stringify(rig.api.responseBodies()[0])
+      } finally {
+        await rig.host.close()
+      }
+    }
+    expect(await bodyOf(new AttachedMedia())).toBe(await bodyOf())
+  })
+
+  it('refuses attached audio when Muse Voice is off, posting and reserving nothing', async () => {
+    const registry = new AttachedMedia()
+    const part = attachedWav(registry, 'sound-2')
+    const ledger = dailyLedger()
+    const rig = await factory({
+      attachedMedia: registry,
+      asr: () => Response.json({ transcript: TRANSCRIPT, audioDurationMs: 2080 }),
+      strayHost: {
+        isPaidFeatureOn: (feature: string) => feature !== 'voice',
+        reservePaidExtra: ledger.reservePaidExtra,
+        allowsPaidUse: () => Promise.resolve(true),
+      },
+    })
+    try {
+      const h = await start(rig, CONTRIBUTOR)
+      const refusal = await turn(h, [{ type: 'text', text: 'Listen' }, part])
+      expect(refusal ?? JSON.stringify(h.events)).toContain(
+        fill(UI_TEXT.media.audioUnsupported, { model: CONTRIBUTOR }),
+      )
+      expect(rig.api.requests.some((request) => request.path === '/asr/transcribe')).toBe(false)
+      expect(ledger.reserved).toHaveLength(0)
+      expect(rig.api.responseBodies()).toHaveLength(0)
+    } finally {
+      await rig.host.close()
+    }
+  })
+
+  it('shows the server refusal as sent and settles nothing billed', async () => {
+    const registry = new AttachedMedia()
+    const part = attachedWav(registry, 'sound-3')
+    const ledger = dailyLedger()
+    const refusalText = "The 'audio' part must be a mono 16-bit PCM WAV at 16 or 24 kHz"
+    const rig = await factory({
+      attachedMedia: registry,
+      asr: () =>
+        Response.json(
+          { error: { message: refusalText, param: 'audio', type: 'invalid_request_error' } },
+          { status: 400 },
+        ),
+      strayHost: {
+        reservePaidExtra: ledger.reservePaidExtra,
+        allowsPaidUse: () => Promise.resolve(true),
+      },
+    })
+    try {
+      const h = await start(rig, CONTRIBUTOR)
+      const refusal = await turn(h, [{ type: 'text', text: 'Listen' }, part])
+      expect(refusal ?? JSON.stringify(h.events)).toContain(refusalText)
+      expect(rig.api.responseBodies()).toHaveLength(0)
+      // Sent but unbilled: the reservation stays as uncertain liability.
+      expect(ledger.settled).toEqual([{ amount: '0.0001', unknown: true }])
     } finally {
       await rig.host.close()
     }

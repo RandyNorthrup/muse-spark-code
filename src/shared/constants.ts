@@ -657,6 +657,7 @@ export const SETTING_DEFAULTS = {
   mediaUploadExpiryDays: 7,
   screenRecordingMaxSeconds: 120,
   mediaAudioAction: 'transcribe',
+  mediaConverterPath: '',
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): in Auto on the Muse
   // Code backend, an approval Muse Code raises goes to one short turn of a
   // hidden side session before the user. On until turned off; machine scoped,
@@ -808,6 +809,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'mediaUploadExpiryDays',
   'screenRecordingMaxSeconds',
   'mediaAudioAction',
+  // M105 lane V: the converter the product launches is the machine's choice.
+  'mediaConverterPath',
   // M109 (PLAN.md D89): the vault's protection, fence and locks, all
   // machine-scoped, so no workspace can change them.
   'vault.enabled',
@@ -1307,6 +1310,8 @@ export const MEDIA_CONVERTER_PROBE_TIMEOUT_MS = 2000
 /** One Windows ACL query per path component (PowerShell start included). */
 export const MEDIA_CONVERTER_TRUST_TIMEOUT_MS = 15_000
 export const MEDIA_CONVERTER_PROBE_MAX_BYTES = 16 * 1024
+/** The machine's configured converter path (`museSpark.mediaConverterPath`), at most this long. */
+export const MEDIA_CONVERTER_PATH_MAX_CHARS = 4096
 /** An attached file's digest and upload reread, one bounded chunk at a time. */
 export const MEDIA_ATTACHED_READ_CHUNK_BYTES = 1024 * 1024
 export const MEDIA_CONVERSION_MAX_RSS_BYTES = 512 * 1024 * 1024
@@ -5831,6 +5836,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/modelApiHooks.js',
   'dist/modelApiMcp.js',
   'dist/productionMedia.js',
+  'dist/productionAudio.js',
 ])
 // One window journals at most this many failures in REPORT_RECORD_WINDOW_MS
 // (M93): a render or reconnect loop cannot turn every frame into a disk

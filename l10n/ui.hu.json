@@ -818,6 +818,7 @@
     "contributorWarning": "A Contributor modellek tanításhoz használhatják ezt a médiát.",
     "contributorQuestion": "Elküldi a(z) {name} fájlt egy Contributor modellnek? Tanításhoz használhatják.",
     "contributorDeclined": "A(z) {name} nem lett csatolva.",
+    "audioWillTranscribe": "A(z) {model} nem hallja a hangot, ezért a Muse Voice küldés előtt átírja. Az átírás fizetős extra, és előbb rákérdez.",
     "useStandardThenAttach": "Válts a(z) {model} modellre, majd csatold újra a(z) {name} fájlt.",
     "uploadUnavailable": "Ennek a munkamenetnek nincs fájlfeltöltő szolgáltatása, ezért videó és hang nem küldhető. Használd a Model API háttérrendszert egy Meta-kulccsal.",
     "recordingWarning": "Ez a felvétel mindent tartalmaz, ami a képernyőjén volt.",

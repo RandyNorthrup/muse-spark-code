@@ -791,6 +791,12 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
    * absent, such an extra refuses.
    */
   readonly reservePaidExtra?: ReservePaidExtra | undefined
+  /**
+   * The machine-scoped converter path (`museSpark.mediaConverterPath`, the
+   * runtime's `--media-converter`), read per use; never a workspace value.
+   * Empty or absent: documented installs only (lane V seam 3B).
+   */
+  readonly mediaConverterPath?: (() => string | undefined) | undefined
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
   readonly scheduleStore?: ScheduleStore | undefined
   /** SHA-256 digest of the current SecretStorage key, never its plaintext. */

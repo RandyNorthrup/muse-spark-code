@@ -14,6 +14,7 @@ import {
 } from '../../src/core/voice/transcribeBatchHttp'
 import type { AudioSource } from '../../src/core/voice/transcribeBatch'
 import type { TurnPart } from '../../src/core/agent/agentBackend'
+import { UI_TEXT } from '../../src/shared/constants'
 
 const MP3_FIXTURE = 'test/fixtures/voice/tone-2s.mp3'
 const MARKER = 'attached-audio-stands-here'
@@ -69,7 +70,7 @@ interface Rig {
   readonly voiceSeconds: () => number
 }
 
-function rig(options?: { readonly voiceOn?: boolean }): Rig {
+function rig(options?: { readonly voiceOn?: boolean; readonly isAllowed?: boolean }): Rig {
   const posted: Rig['posted'] = []
   const paths = new Map<string, string>()
   const settled: (string | undefined)[] = []
@@ -135,7 +136,7 @@ function rig(options?: { readonly voiceOn?: boolean }): Rig {
       return part.text === VIDEO_MARKER ? videoSource : undefined
     },
     assertCurrent: () => undefined,
-    consent: { allows: () => Promise.resolve(true) },
+    consent: { allows: () => Promise.resolve(options?.isAllowed ?? true) },
     reserve: () => {
       return Promise.resolve({
         admitSend: () => undefined,
@@ -215,6 +216,26 @@ describe('Model API factory audio preparation (MEDIAW finding 7)', () => {
     })
     expect(prepared).toBeUndefined()
     expect(r.posted).toHaveLength(0)
+  })
+
+  it('sends a video without its sound when transcription is declined; declined audio refuses (lane V)', async () => {
+    // D85.5's Send without sound: the paid question's No is not a failed turn.
+    const r = rig({ isAllowed: false })
+    r.paths.set(videoSource.pathToken, path.resolve(MP3_FIXTURE))
+    const videoPart: TurnPart = { type: 'text', text: VIDEO_MARKER }
+    const request = {
+      sessionId: 'session-1',
+      turnId: 'turn-1',
+      modelId: 'muse-spark-1.3-contributor',
+      signal: new AbortController().signal,
+    }
+    expect(await r.prepare({ ...request, parts: [videoPart] })).toBeUndefined()
+    expect(r.posted).toHaveLength(0)
+    r.paths.set(mp3Source.pathToken, path.resolve(MP3_FIXTURE))
+    await expect(
+      r.prepare({ ...request, parts: [{ type: 'text', text: MARKER }] }),
+    ).rejects.toThrow(UI_TEXT.museVoiceRefused)
+    expect(r.settled).toHaveLength(0)
   })
 
   it('leaves the turn untouched when the voice feature is off, like an absent port', async () => {

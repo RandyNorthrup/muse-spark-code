@@ -6,6 +6,7 @@
 // host-owned transcription POST, converter presence and the paid seams,
 // and supplies no port until then. A turn with nothing
 // transcribable resolves undefined, byte-identical to an absent port.
+import { UI_TEXT } from '../../shared/constants'
 import type { TurnPart } from '../agent/agentBackend'
 import type { PaidFeatureGate, PaidUsage } from '../paid/paidFeatures'
 import type { PaidUseConsent } from '../paid/paidConsent'
@@ -85,21 +86,37 @@ export function createPrepareAudioMessage(deps: AudioMessagePreparationDeps) {
         prepared.push(part)
         continue
       }
-      const attachment = await prepareAudioAttachment(
-        source,
-        action,
-        {
-          context,
-          assertCurrent: deps.assertCurrent,
-          converter: deps.conversion,
-          batch: deps.batch,
-          gate: deps.gate,
-          consent: deps.consent,
-          reserve: deps.reserve,
-          usage: deps.usage,
-        },
-        request.signal,
-      )
+      let attachment: Awaited<ReturnType<typeof prepareAudioAttachment>>
+      try {
+        attachment = await prepareAudioAttachment(
+          source,
+          action,
+          {
+            context,
+            assertCurrent: deps.assertCurrent,
+            converter: deps.conversion,
+            batch: deps.batch,
+            gate: deps.gate,
+            consent: deps.consent,
+            reserve: deps.reserve,
+            usage: deps.usage,
+          },
+          request.signal,
+        )
+      } catch (error: unknown) {
+        // D85.5's "Send without sound": a video whose transcription was
+        // declined (or yielded nothing) still goes as itself, as its attach
+        // warning said. Standalone audio has nothing else to send.
+        if (
+          source.info.kind !== 'video' ||
+          request.signal.aborted ||
+          !(error instanceof Error) ||
+          error.message !== UI_TEXT.museVoiceRefused
+        )
+          throw error
+        prepared.push(part)
+        continue
+      }
       deps.assertCurrent()
       if (attachment.transcript === undefined) {
         if (attachment.dispose !== undefined) await attachment.dispose()

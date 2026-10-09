@@ -818,6 +818,7 @@
     "contributorWarning": "Contributor-Modelle können diese Medien zum Training verwenden.",
     "contributorQuestion": "{name} an ein Contributor-Modell senden? Die Datei kann zum Training verwendet werden.",
     "contributorDeclined": "{name} wurde nicht angehängt.",
+    "audioWillTranscribe": "{model} hört kein Audio, daher transkribiert Muse Voice es vor dem Senden. Die Transkription ist ein kostenpflichtiges Extra und fragt vorher.",
     "useStandardThenAttach": "Wechsle zu {model} und hänge {name} dann erneut an.",
     "uploadUnavailable": "Diese Sitzung hat keinen Datei-Upload-Dienst, daher können Video und Audio nicht gesendet werden. Verwende das Model-API-Backend mit einem Meta-Schlüssel.",
     "recordingWarning": "Diese Aufnahme enthält alles, was auf deinem Bildschirm zu sehen war.",

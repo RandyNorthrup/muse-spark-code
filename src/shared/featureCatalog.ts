@@ -443,6 +443,7 @@ export function featureCatalog(): readonly Feature[] {
         'mediaUploadExpiryDays',
         'screenRecordingMaxSeconds',
         'mediaAudioAction',
+        'mediaConverterPath',
       ],
       'the-panel',
     ),

@@ -822,6 +822,7 @@
     "contributorWarning": "I modelli Contributor possono usare questo contenuto multimediale per l’addestramento.",
     "contributorQuestion": "Inviare {name} a un modello Contributor? Potrebbe essere usato per l’addestramento.",
     "contributorDeclined": "{name} non è stato allegato.",
+    "audioWillTranscribe": "{model} non sente l’audio, quindi Muse Voice lo trascriverà prima dell’invio. La trascrizione è un extra a pagamento e chiede prima.",
     "useStandardThenAttach": "Passa a {model}, poi allega di nuovo {name}.",
     "uploadUnavailable": "Questa sessione non ha un servizio di caricamento file, quindi video e audio non possono essere inviati. Usa il backend Model API con una chiave Meta.",
     "recordingWarning": "Questa registrazione include tutto ciò che era sullo schermo.",

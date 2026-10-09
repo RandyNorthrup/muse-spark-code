@@ -11,7 +11,7 @@ import {
   type MediaSource,
 } from '../../core/media/limits'
 import { modalityGate, type MediaModelCapabilities } from '../../core/media/modalityGate'
-import { MediaContributorConsent } from '../../core/media/contributorConsent'
+import type { MediaContributorConsent } from '../../core/media/contributorConsent'
 import { sourceDigest } from '../../core/media/attachedMedia'
 import { CONTRIBUTOR_MODEL_SUFFIX, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -72,16 +72,40 @@ export interface MediaAttachDeps {
     sha256: string,
   ) => (summary: AttachmentSummary) => TurnPart
   /**
-   * D85.7: the editor's own modal. On a contributor model, video and audio
-   * ask once per conversation; a screen recording always asks. Absent there,
-   * the attachment is refused rather than sent unasked.
+   * D85.7: one `MediaContributorConsent` per port over the editor's own
+   * modal (built by the host, so this bundle stays small). On a contributor
+   * model, video and audio ask once per conversation; a screen recording
+   * always asks. Absent there, the attachment is refused rather than sent
+   * unasked.
    */
-  readonly askContributor?: ConstructorParameters<typeof MediaContributorConsent>[0]
+  readonly chooseContributor?: MediaContributorConsent['choose']
+  /**
+   * Lane V seam 3B: whether this host transcribes attached sound for the
+   * model (Muse Voice on, the Model API key's transcription POST). A
+   * standalone audio file the model does not hear is then admitted, and the
+   * caller says it will be transcribed; absent, the gate's refusal stands.
+   */
+  readonly transcribesSound?: (info: MediaFileInfo, modelId: string) => boolean
+}
+
+/** The model's own gate, or, for audio it does not hear, Muse Voice's transcription. */
+function admission(
+  info: MediaFileInfo,
+  model: MediaModelCapabilities,
+  transcribesSound: MediaAttachDeps['transcribesSound'],
+): ReturnType<typeof modalityGate> {
+  const gate = modalityGate(info, model)
+  return !gate.ok && info.kind === 'audio' && transcribesSound?.(info, model.modelId) === true
+    ? {
+        ok: true,
+        soundtrackWarning: fill(UI_TEXT.media.audioWillTranscribe, { model: model.modelName }),
+      }
+    : gate
 }
 
 /** D85.7's answer for one attachment: proceed, or the reason it was not attached. */
 async function contributorChoice(
-  consent: MediaContributorConsent | undefined,
+  choose: MediaAttachDeps['chooseContributor'],
   request: {
     readonly conversationId: string
     readonly name: string
@@ -93,9 +117,9 @@ async function contributorChoice(
 ): Promise<{ readonly ok: true } | { readonly ok: false; readonly reason: string }> {
   const isContributor = request.modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
   if (!isContributor && !request.isScreenRecording) return { ok: true }
-  if (consent === undefined)
+  if (choose === undefined)
     return { ok: false, reason: fill(UI_TEXT.media.contributorDeclined, { name: request.name }) }
-  const choice = await consent.choose({ ...request, contributor: isContributor })
+  const choice = await choose({ ...request, contributor: isContributor })
   if (choice === 'send') return { ok: true }
   if (choice === 'remove')
     return { ok: false, reason: fill(UI_TEXT.media.contributorDeclined, { name: request.name }) }
@@ -116,8 +140,6 @@ async function contributorChoice(
 export function createMediaAttachments(deps: MediaAttachDeps): MediaAttachmentPort {
   const files = new Map<string, PickedFile>()
   let generation = 0
-  const consent =
-    deps.askContributor === undefined ? undefined : new MediaContributorConsent(deps.askContributor)
   return {
     issue: (file) => {
       const token = deps.newToken()
@@ -149,13 +171,13 @@ export function createMediaAttachments(deps: MediaAttachDeps): MediaAttachmentPo
         if (!limits.ok) return limits
         const model = deps.capabilities(modelId)
         if (model.modelId !== modelId) throw new Error('Media capability model mismatch')
-        const gate = modalityGate(sniffed.info, model)
+        const gate = admission(sniffed.info, model, deps.transcribesSound)
         if (!gate.ok) return gate
         // The digest the upload ledger dedups by and every reopen must match.
         const sha256 = await sourceDigest(opened.source)
         if (epoch !== generation) return { ok: false, reason: UI_TEXT.attachmentUnreadable }
         const chosen = await contributorChoice(
-          consent,
+          deps.chooseContributor,
           {
             conversationId: String(epoch),
             name: file.name,
@@ -180,7 +202,7 @@ export function createMediaAttachments(deps: MediaAttachDeps): MediaAttachmentPo
               sniff: sniffMediaBytes,
               check: (info) =>
                 info === sniffed.info
-                  ? modalityGate(info, model)
+                  ? admission(info, model, deps.transcribesSound)
                   : { ok: false, reason: UI_TEXT.attachmentUnreadable },
               part: (summary, info) => {
                 if (info !== sniffed.info) throw new Error('Media source mismatch')

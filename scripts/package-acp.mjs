@@ -54,6 +54,7 @@ const BUNDLES = [
   'modelApiHooks.js',
   'modelApiMcp.js',
   'productionMedia.js',
+  'productionAudio.js',
   'runtimeAccounting.js',
   'providerPolicy.js',
   'runtimeEngine.js',

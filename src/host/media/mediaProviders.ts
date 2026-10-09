@@ -10,6 +10,7 @@ import { lstat, open, type FileHandle } from 'node:fs/promises'
 import { BYTES_PER_MIB, MAX_DOCUMENT_BYTES, MAX_IMAGE_BYTES } from '../../shared/constants'
 import type { MediaModelCapabilities } from '../../core/media/modalityGate'
 import { reopeningSource, type AttachedMedia } from '../../core/media/attachedMedia'
+import { MediaContributorConsent } from '../../core/media/contributorConsent'
 import type { MediaLimits } from '../../core/media/limits'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { isPrivateFileName } from '../../shared/privateFiles'
@@ -95,9 +96,16 @@ export function createMediaAttachDeps(
   open: MediaHostOpen['open'],
   binding: {
     readonly attached: Pick<AttachedMedia, 'register'>
-    readonly askContributor?: MediaAttachDeps['askContributor']
+    /** D85.7's question, as the editor's own modal. */
+    readonly askContributor?: ConstructorParameters<typeof MediaContributorConsent>[0]
+    readonly transcribesSound?: MediaAttachDeps['transcribesSound']
   },
 ): MediaAttachDeps {
+  // One consent per port: its conversation key is the port's generation.
+  const consent =
+    binding.askContributor === undefined
+      ? undefined
+      : new MediaContributorConsent(binding.askContributor)
   return {
     newToken: () => randomUUID(),
     open,
@@ -111,7 +119,10 @@ export function createMediaAttachDeps(
       )
       return () => part
     },
-    ...(binding.askContributor !== undefined && { askContributor: binding.askContributor }),
+    ...(consent !== undefined && {
+      chooseContributor: (request) => consent.choose(request),
+    }),
+    ...(binding.transcribesSound !== undefined && { transcribesSound: binding.transcribesSound }),
   }
 }
 

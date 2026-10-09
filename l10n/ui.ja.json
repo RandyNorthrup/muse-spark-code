@@ -814,6 +814,7 @@
     "contributorWarning": "Contributor モデルはこのメディアを学習に使用する場合があります。",
     "contributorQuestion": "{name} を Contributor モデルに送信しますか？学習に使用される場合があります。",
     "contributorDeclined": "{name} は添付されませんでした。",
+    "audioWillTranscribe": "{model} は音声を聞き取れないため、送信前に Muse Voice が文字起こしします。文字起こしは有料の追加機能で、先に確認します。",
     "useStandardThenAttach": "{model} に切り替えてから、{name} をもう一度添付してください。",
     "uploadUnavailable": "このセッションにはファイルのアップロード機能がないため、動画と音声は送信できません。Meta のキーで Model API バックエンドを使ってください。",
     "recordingWarning": "この録画には画面に表示されていたすべての内容が含まれます。",

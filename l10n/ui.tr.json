@@ -818,6 +818,7 @@
     "contributorWarning": "Contributor modelleri bu medyayı eğitim için kullanabilir.",
     "contributorQuestion": "{name}, bir Contributor modeline gönderilsin mi? Eğitim için kullanılabilir.",
     "contributorDeclined": "{name} eklenmedi.",
+    "audioWillTranscribe": "{model} sesi duymaz, bu yüzden Muse Voice göndermeden önce yazıya döker. Yazıya dökme ücretli bir ektir ve önce sorar.",
     "useStandardThenAttach": "{model} modeline geç, sonra {name} dosyasını yeniden ekle.",
     "uploadUnavailable": "Bu oturumda dosya yükleme hizmeti yok, bu yüzden video ve ses gönderilemez. Meta anahtarıyla Model API arka ucunu kullan.",
     "recordingWarning": "Bu kayıt ekranınızda görünen her şeyi içerir.",

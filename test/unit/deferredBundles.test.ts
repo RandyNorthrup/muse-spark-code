@@ -111,6 +111,7 @@ beforeAll(async () => {
       modelApiHooks: 'src/core/backends/modelapi/modelApiHooksEntry.ts',
       modelApiMcp: 'src/core/backends/modelapi/modelApiMcpEntry.ts',
       productionMedia: 'src/host/backend/productionMediaEntry.ts',
+      productionAudio: 'src/host/backend/productionAudioEntry.ts',
       runtimeAccounting: 'src/runtime/runtimeAccountingEntry.ts',
       legalScan: 'src/core/legal/entry.ts',
       imageResizeWorker: 'src/core/imageResizeWorker.ts',
@@ -504,6 +505,17 @@ describe('deferred cohort bundles', () => {
       'src/core/media/uploadLedger.ts',
       'src/host/backend/sessionUploads.ts',
     ]
+    // Lane V seam 3B: transcription, its paid seams and the trusted
+    // converter have their own sibling, loaded on the first turn with
+    // attached sound; neither a parent nor the media service carries them.
+    const audio = [
+      'src/core/voice/productionAudio.ts',
+      'src/core/voice/transcribeBatchHttp.ts',
+      'src/core/voice/audioMessagePreparation.ts',
+      'src/core/voice/voiceBatchSeams.ts',
+      'src/core/media/convert.ts',
+      'src/runtime/converterTrust.ts',
+    ]
     // The CLI/ACP runtime's backend (runtime/backends.ts) ships in
     // dist/runtimeEngine.js, which ACP loads on first use.
     const parents = ['extension', 'modelApi', 'acp', 'runtimeEngine']
@@ -511,11 +523,14 @@ describe('deferred cohort bundles', () => {
       expect(inputs('productionMedia')).toContain(source)
       for (const parent of parents) expect(inputs(parent)).not.toContain(source)
     }
+    for (const source of audio) {
+      expect(inputs('productionAudio')).toContain(source)
+      for (const parent of [...parents, 'productionMedia'])
+        expect(inputs(parent)).not.toContain(source)
+    }
     for (const parent of ['extension', 'modelApi', 'runtimeEngine'])
       expect(bundleText(parent)).toContain('import("./productionMedia.js")')
-    // No transcription port ships until lane V binds its seams.
-    for (const bundle of [...parents, 'productionMedia'])
-      expect(inputs(bundle)).not.toContain('src/core/voice/transcribeBatchHttp.ts')
+    expect(bundleText('modelApi')).toContain('import("./productionAudio.js")')
   })
 
   it('loads media inspection only on first use and rejects an ACP inline copy', async () => {

@@ -991,6 +991,8 @@ export const EN = {
     contributorWarning: 'Contributor models may use this media for training.',
     contributorQuestion: 'Send {name} to a Contributor model? It may be used for training.',
     contributorDeclined: '{name} was not attached.',
+    audioWillTranscribe:
+      '{model} does not hear audio, so Muse Voice will transcribe it before sending. Transcription is a paid extra and asks first.',
     useStandardThenAttach: 'Switch to {model}, then attach {name} again.',
     uploadUnavailable:
       'This session has no file upload service, so video and audio cannot be sent. Use the Model API backend with a Meta key.',

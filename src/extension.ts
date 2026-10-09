@@ -2514,6 +2514,8 @@ async function activateWindow(
   const attachedMedia = new AttachedMedia()
   const modelApi: ModelApiBackendManager = new ModelApiBackendManager({
     attachedMedia,
+    // Machine scope only (lane V seam 3B): a repository never picks the converter.
+    mediaConverterPath: () => currentSettings().mediaConverterPath,
     onServiceFailure: () => {
       notify(
         Array.from(controllers.values(), (controller) => () => {
@@ -3314,6 +3316,8 @@ async function activateWindow(
     canonicalRelativePath: (fsPath) => files.canonicalRelativePath(fsPath),
     recordingTempRoot,
   })
+  // U18: the batch endpoint takes contract WAV; MP3 converts first (T9).
+  const TRANSCRIBABLE_AUDIO: ReadonlySet<string> = new Set(['audio/wav', 'audio/mpeg'])
   // D85.7 in VS Code: a modal with Send, Use the Standard model and Remove;
   // dismissing it is Remove, so nothing is sent unasked.
   const askMediaContributor = async (question: {
@@ -3408,7 +3412,13 @@ async function activateWindow(
                     screenRecordingMaxSeconds: currentSettings().screenRecordingMaxSeconds,
                   }),
                   mediaOpen,
-                  { attached: attachedMedia, askContributor: askMediaContributor },
+                  {
+                    attached: attachedMedia,
+                    askContributor: askMediaContributor,
+                    // Seam 3B: Muse Voice transcribes WAV and MP3 when it is on.
+                    transcribesSound: (info) =>
+                      paid.gate.isOn('voice') && TRANSCRIBABLE_AUDIO.has(info.mediaType),
+                  },
                 ),
                 UI_TEXT,
                 uiLocale(),
