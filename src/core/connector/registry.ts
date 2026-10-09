@@ -11,6 +11,7 @@
 // the kill switch or audit failure. A tool without a backing owner answers
 // `unavailable`.
 import { randomBytes } from 'node:crypto'
+import { setTimeout as sleep } from 'node:timers/promises'
 import {
   CONNECTOR_LIMITS,
   CONNECTOR_MODEL_TEXT,
@@ -344,23 +345,14 @@ export class ConnectorRegistry implements ConnectorServer {
     for (const operation of this.live) operation.check()
   }
 
-  /** Reads the authority's sources again, then sweeps. */
+  /**
+   * Reads the authority's sources again, then sweeps. Before an effect it is
+   * the caller's last wait: the caller then runs the final gate (a plain
+   * synchronous call) and starts the effect in that same synchronous block.
+   */
   private async refresh(): Promise<void> {
     await this.deps.authority.refresh()
     this.sweep()
-  }
-
-  /**
-   * The final gate before an effect: the authority is read again as the last
-   * wait, then the gate reads it live; the caller starts the effect in this
-   * same tick.
-   */
-  private async isClear(
-    operation: Operation,
-    expected: readonly ConnectorCallState[],
-  ): Promise<boolean> {
-    await this.refresh()
-    return operation.gate(expected)
   }
 
   private open(tool: ConnectorToolSpec | undefined): Operation {
@@ -384,7 +376,8 @@ export class ConnectorRegistry implements ConnectorServer {
         readonly workspace: ConnectorWorkspaceGrant | undefined
       }
   > {
-    if (!(await this.isClear(operation, ['received']))) return operation.final()
+    await this.refresh()
+    if (!operation.gate(['received'])) return operation.final()
     if (name !== 'muse_operation_get' && this.deps.authority.current().killed)
       return operation.refuse(refusal('forbidden', CONNECTOR_MODEL_TEXT.killSwitch))
     if (!(await this.limits.take())) return operation.refuse(rateLimited())
@@ -424,22 +417,27 @@ export class ConnectorRegistry implements ConnectorServer {
 
   /**
    * A lease of `kind` for `operation`; taking it is an effect, so it is called
-   * right after a passed gate. It is freed as soon as the operation leaves
-   * `states`, even when that happened before the lease was recorded.
+   * right after a passed gate. It is freed once: by `release`, or as soon as
+   * the operation leaves `states`, even when that happened before the lease
+   * was recorded.
    */
   private lease(
     operation: Operation,
     kind: 'read' | 'pending',
     ttlMs: number,
     states: readonly ConnectorCallState[],
-  ): Promise<boolean> {
+  ): { readonly entering: Promise<boolean>; readonly release: () => void } {
     const entering = this.limits.enter(kind, operation.id, ttlMs)
-    operation.holdWhile(states, () => {
+    let isReleased = false
+    const release = () => {
+      if (isReleased) return
+      isReleased = true
       void entering.then(async (isHeld) => {
         if (isHeld) await this.limits.leave(operation.id)
       })
-    })
-    return entering
+    }
+    operation.holdWhile(states, release)
+    return { entering, release }
   }
 
   /** The call's work; an owner's failure ends it as failed, with fixed words. */
@@ -486,22 +484,31 @@ export class ConnectorRegistry implements ConnectorServer {
       )
     // A read: its lease is an effect too, gated like the rest.
     if (!operation.gate(['admitted'])) return operation.final()
-    const leasing = this.lease(operation, 'read', CONNECTOR_LIMITS.requestDeadlineMs, [
+    const lease = this.lease(operation, 'read', CONNECTOR_LIMITS.requestDeadlineMs, [
       'admitted',
       'dispatching',
     ])
-    if (!(await leasing)) return operation.refuse(rateLimited())
+    if (!(await lease.entering)) return operation.refuse(rateLimited())
     if (!(await operation.writeAhead('dispatching'))) return operation.refuse(auditUnavailable())
-    if (!(await this.isClear(operation, ['admitted']))) return operation.final()
-    operation.move('dispatching', true)
-    const outcome = await this.read(
-      name,
-      admitted.input,
-      admitted.grant,
-      admitted.workspace,
-      signal,
+    await this.refresh()
+    // The final gate, the move and the owner read's start: one synchronous block.
+    if (!operation.gate(['admitted']) || !operation.move('dispatching', true))
+      return operation.final()
+    // The slot is free once the owner read returns, whatever its delivery awaits.
+    const outcome = await this.whileHeld(
+      lease.release,
+      this.read(name, admitted.input, admitted.grant, admitted.workspace, signal),
     )
     return 'reason' in outcome ? operation.refuse(outcome) : outcome
+  }
+
+  /** The work's answer; `release` runs when it settles. */
+  private async whileHeld<T>(release: () => void, work: Promise<T>): Promise<T> {
+    try {
+      return await work
+    } finally {
+      release()
+    }
   }
 
   /** The owner ports; each starts in the same tick as the gate that admitted it. */
@@ -745,13 +752,14 @@ export class ConnectorRegistry implements ConnectorServer {
     if (!(await operation.writeAhead('awaitingApproval')))
       return operation.refuse(auditUnavailable())
     if (!operation.gate(['admitted'])) return operation.final()
-    const leasing = this.lease(operation, 'pending', CONNECTOR_LIMITS.approvalLeaseMs, [
+    const lease = this.lease(operation, 'pending', CONNECTOR_LIMITS.approvalLeaseMs, [
       'admitted',
       'awaitingApproval',
     ])
-    if (!(await leasing)) return operation.refuse(rateLimited())
-    // The final gate before the intent: nothing awaits between it and the page holding it.
-    if (!(await this.isClear(operation, ['admitted']))) return operation.final()
+    if (!(await lease.entering)) return operation.refuse(rateLimited())
+    await this.refresh()
+    // The final gate and the intent: one synchronous block.
+    if (!operation.gate(['admitted'])) return operation.final()
     // Paid authority is zero in the local phase (Q-M124.4); this tool is free.
     const binding: ApprovalBinding = {
       principal: `${this.deps.connectionId}/${this.principal}`,
@@ -825,8 +833,9 @@ export class ConnectorRegistry implements ConnectorServer {
         return
       }
       const live = libraryGeneration(await this.deps.prompts.list(plan.root, plan.draft.scope))
-      // The final gate: nothing awaits between here and the write's start.
-      if (!(await this.isClear(operation, ['approved']))) return
+      await this.refresh()
+      // The final gate, the approval's CAS, the move and the write's start: one synchronous block.
+      if (!operation.gate(['approved'])) return
       if (
         !this.ledger.consume(plan.intentId, {
           ...plan.binding,
@@ -837,7 +846,7 @@ export class ConnectorRegistry implements ConnectorServer {
         operation.cancel(this.ledger.stateOf(plan.intentId) === 'expired' ? 'expired' : 'stale')
         return
       }
-      operation.move('dispatching', true)
+      if (!operation.move('dispatching', true)) return
       const prompt = newPrompt(plan.draft, new Date(this.deps.now()).toISOString())
       await this.deps.prompts.write(plan.root, prompt)
       operation.result = this.deps.scrub.leaves({
@@ -993,19 +1002,35 @@ export class ConnectorRegistry implements ConnectorServer {
   }
 
   /**
-   * The call's answer the moment its operation ends or the client goes,
-   * whatever its work still awaits (a lookup, an owner port, a page). A
-   * settled operation answers with its work's result.
+   * The call's answer the moment its operation ends, its signal aborts (a
+   * cancellation, the deadline) or the client goes, whatever its work still
+   * awaits (a lookup, an owner port, a page, a committed result's receipt,
+   * which finishes on its own). A settled operation answers its work's
+   * result.
    */
   private async stopped(
     operation: Operation,
     work: Promise<ConnectorCallResult>,
+    signal: AbortSignal,
     protocolVersion: string,
   ): Promise<ConnectorCallResult> {
-    await Promise.race([operation.ended, this.closed])
-    return operation.state === 'settled'
-      ? await work
-      : this.render(operation.id, operation.final(), protocolVersion).result
+    const aborted = new Promise<void>((resolve) => {
+      signal.addEventListener(
+        'abort',
+        () => {
+          resolve()
+        },
+        { once: true },
+      )
+    })
+    await Promise.race([operation.ended, this.closed, aborted])
+    if (operation.state === 'settled') return await work
+    // A committed result is still live: the caller gets what stopped it.
+    const cause = signal.reason === DEADLINE ? 'deadline' : 'client'
+    const refusal = operation.isLive
+      ? this.refusalOf(this.isClosed ? 'disconnect' : cause)
+      : operation.final()
+    return this.render(operation.id, refusal, protocolVersion).result
   }
 
   /**
@@ -1038,10 +1063,9 @@ export class ConnectorRegistry implements ConnectorServer {
     if ('reason' in outcome || !operation.isLive)
       return this.render(id, operation.final(), protocolVersion).result
     const isStop = operation.tool?.toolClass === 'stop'
-    const isClear = isStop
-      ? operation.gate(['dispatching'])
-      : await this.isClear(operation, ['dispatching'])
-    if (!isClear) return this.render(id, operation.final(), protocolVersion).result
+    if (!isStop) await this.refresh()
+    if (!operation.gate(['dispatching']))
+      return this.render(id, operation.final(), protocolVersion).result
     const rendered = this.render(id, outcome, protocolVersion)
     if (rendered.refusal !== undefined) {
       operation.refuse(rendered.refusal)
@@ -1132,7 +1156,7 @@ export class ConnectorRegistry implements ConnectorServer {
     try {
       // Every wait of the call, delivery's included, races the operation's end and the client's.
       const work = this.answer(operation, tool, args, bound, protocolVersion)
-      return await Promise.race([work, this.stopped(operation, work, protocolVersion)])
+      return await Promise.race([work, this.stopped(operation, work, bound, protocolVersion)])
     } finally {
       clearTimeout(timer)
       operation.detach()
@@ -1146,6 +1170,22 @@ export class ConnectorRegistry implements ConnectorServer {
       rpcCode: code,
       reason: code === CONNECTOR_RPC_ERRORS.busy ? 'rate_limited' : 'invalid_input',
     })
+  }
+
+  /**
+   * Resolves once every operation has ended (a started write, a committed
+   * result's receipt), or after one call deadline, whichever is first.
+   */
+  public async drained(): Promise<void> {
+    const timer = new AbortController()
+    try {
+      await Promise.race([
+        Promise.all(Array.from(this.live, (operation) => operation.ended)),
+        sleep(CONNECTOR_LIMITS.requestDeadlineMs, undefined, { signal: timer.signal }),
+      ])
+    } finally {
+      timer.abort()
+    }
   }
 
   /**

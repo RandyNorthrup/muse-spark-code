@@ -49,6 +49,16 @@ function line(stream: Writable, text: string): void {
   stream.write(`${text}\n`)
 }
 
+/** Closes the approval page once its start-up has settled; a page that failed to start has nothing to close. */
+async function closePage(starting: Promise<ApprovalPage> | undefined): Promise<void> {
+  try {
+    const page = await starting
+    await page?.close()
+  } catch {
+    // It never started: no listener is left.
+  }
+}
+
 /** The process's exit code: 0 after a clean disconnect or a command that succeeded. */
 export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> {
   setUiText(deps.table, deps.locale)
@@ -95,6 +105,7 @@ export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> 
   const storeFor = (root: string | undefined) => new PromptStore(deps.dataFolder, root)
   let page: ApprovalPage | undefined
   let starting: Promise<ApprovalPage> | undefined
+  let isClosing = false
   const registry: ConnectorRegistry = new ConnectorRegistry(
     {
       connectionId: command.connectionId,
@@ -139,6 +150,8 @@ export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> 
                 registry.decide(intentId, digest, isApproved),
             })
             page = await starting
+            // A page that finished starting after the client left opens nothing.
+            if (isClosing) return false
             if (!page.isWatched()) await deps.openBrowser(page.launchUrl())
             return true
           } catch {
@@ -154,7 +167,10 @@ export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> 
     await serveStdio({ input: deps.stdin, output: deps.stdout }, new ConnectorProtocol(registry))
     return 0
   } finally {
+    // Done only once pending work and the page's own start-up have settled.
     registry.disconnect()
-    await page?.close()
+    isClosing = true
+    await registry.drained()
+    await closePage(starting)
   }
 }

@@ -146,8 +146,9 @@ grant: every server process started with that connection, in any editor
 window, shares them, and a restart keeps them (`connector/limits/`, one
 file per generation under a lock that is never taken from a live holder by
 its age). An operation may be polled every 2 seconds; a call has
-15 seconds, after which it answers `unavailable` and a late result is
-dropped; an approval lasts 120 seconds. One server works on at most 16
+15 seconds, after which it answers `unavailable` at once and a late result
+is dropped, even one whose last audit line is still being written; an
+approval lasts 120 seconds. One server works on at most 16
 requests at once and answers `Server busy` beyond that, keeping room for
 Stop; a client that leaves 1 MiB of replies unread, or closes either pipe,
 is disconnected, and its pending approvals are cancelled. Stop and schedule
@@ -176,7 +177,10 @@ These control lines are best effort: your own command never waits for the
 journal. Each step's line is written before the step happens; if the
 journal cannot be written, nothing starts and the call refuses with
 `audit_unavailable` (that refusal's own line may be missing too), and a read
-whose final line cannot be written is never answered `ok`. A journal that
+whose final line cannot be written is never answered `ok`. A read's result
+is sent only after its final line is written; if a cancellation, the
+deadline or a disconnect comes first, that is what your agent gets, at once,
+and the line is still written. A journal that
 does not answer within 5 seconds counts as failed until it does. Stop is
 the exception: it never waits for the journal. Nothing that reads your
 client's frames waits for it either: when 64 lines are being written at

@@ -289,19 +289,34 @@ effect start, is ordered after the effect.
 
 **One final gate** stands immediately before each effect: the rate token, a
 read or pending lease, the approval intent, the owner port, the write; and
-again before a read's result is delivered. It comes after every other wait
-of that step (receipts, the target re-read, the authority re-read), and
-nothing awaits between a passed gate and the start of its effect. A lease is
-released whenever its operation ends, including when it ended before the
-lease was recorded, so a settled call can never hold or acquire anything.
+again before a read's result is delivered. It is a plain synchronous call
+made by the effect's own caller after that caller's last wait (receipts,
+the target re-read, the authority re-read); in the same synchronous block
+the operation moves into `dispatching` (a failed move aborts the effect)
+and the effect starts. No await, promise continuation or async call sits
+between them (round 5: a test queues an observer right after the gate that
+cancels, revokes or kills, and sees the effect either already started or
+never started). A lease is released whenever its operation ends, including
+when it ended before the lease was recorded, so a settled call can never
+hold or acquire anything; a read's lease is released as soon as its owner
+read returns.
 
 **Every wait is raced.** A call's whole work, its delivery included, races
-its operation's end and the connection's close: cancellation and the
-15-second deadline answer it at once, and closing the transport never waits
-for it. A read's result is committed at its delivery gate: from then on it
-is not cancelled, and it is sent only once its settled receipt is durable
-(at most the journal's five-second timeout); a disconnect still answers the
-call at once.
+its operation's end, its own cancellation and deadline, and the
+connection's close: any of them answers the call at once, and closing the
+transport never waits for it. A read's result is committed at its delivery
+gate: its operation is no longer cancelled, and its settled receipt is
+written (bounded by the journal's five-second timeout); the result is sent
+only once that receipt is durable. If a cancellation, the deadline or a
+disconnect comes first, the caller is answered with that refusal at once,
+the result is never sent, and the receipt still finishes on its own and
+records the decided result.
+
+**Shutdown.** When the client goes, the runtime finishes only after every
+pending operation has ended (a started write, a committed receipt; at most
+one call deadline) and the approval page's start-up has settled; that page
+is then closed. A page that finishes starting after the client left opens
+no browser.
 
 **Receipts.** Every transition writes one receipt (`from` → `event`), so
 every call ends in exactly one terminal receipt that carries its reason.

@@ -10,6 +10,7 @@ import {
 } from '../../src/shared/constants'
 import {
   CONNECTOR_REASONS,
+  type ConnectorCallState,
   type ConnectorCancelCause,
   type ConnectorGrant,
 } from '../../src/shared/connector'
@@ -129,6 +130,10 @@ interface Harness {
     failEvents: Set<string>
     /** Owner reads started (prompt library lists). */
     reads: number
+    /** Writes started: counted the moment the owner port is called. */
+    writeStarts: number
+    /** The registry's own reaction to an authority change, as the store's watch calls it. */
+    notify: () => void
   }
   readonly limits: MemoryLimits
   call(name: string, args?: unknown): Promise<Record<string, unknown>>
@@ -160,6 +165,8 @@ async function harness(
     listFails: false,
     failEvents: new Set(),
     reads: 0,
+    writeStarts: 0,
+    notify: stopWatching,
   }
   const gate = (name: string) =>
     state.holds.has(name)
@@ -206,7 +213,10 @@ async function harness(
         await gate('grant')
         snapshot = { grant: state.grant, killed: state.killed }
       },
-      watch: () => stopWatching,
+      watch: (changed) => {
+        state.notify = changed
+        return stopWatching
+      },
     },
     confidential: () => state.confidential,
     audit: new ConnectorAudit(port, 'codex', now, scrub.text),
@@ -227,6 +237,7 @@ async function harness(
         return state.prompts.filter((candidate) => candidate.scope === scope)
       },
       write: async (_root, saved) => {
+        state.writeStarts += 1
         await gate('write')
         state.writes.push(saved)
         state.prompts.push(saved)
@@ -1658,6 +1669,142 @@ describe('M124 round 4: receipts, races and the live gate (RVM124R3)', () => {
       'received>cancelled',
     ])
     expect(h.state.reads).toBe(0)
+  })
+})
+
+/** An authority change applied the way the store's watch applies it, or a client's cancellation. */
+const FLIPS: readonly (readonly [string, (h: Harness, id: number) => void])[] = [
+  [
+    'a client cancellation',
+    (h, id) => {
+      void h.protocol.handle(cancelFrame(id))
+    },
+  ],
+  [
+    'a revocation',
+    (h) => {
+      revoke(h)
+      h.state.notify()
+    },
+  ],
+  [
+    'the kill switch',
+    (h) => {
+      h.state.killed = true
+      h.state.notify()
+    },
+  ],
+]
+
+/**
+ * Observes the final gate: right after the first passed `gate(expected)`
+ * once `isArmed()` holds, a microtask counts the effects started so far and
+ * applies `flip`. An effect started in the gate's own synchronous block is
+ * already counted; any await between them would start it after the flip.
+ */
+function observeFinalGate(
+  expected: ConnectorCallState,
+  isArmed: () => boolean,
+  flip: () => void,
+  count: () => number,
+) {
+  const original = Operation.prototype.gate
+  const seen: { atFlip?: number } = {}
+  const spy = vi.spyOn(Operation.prototype, 'gate').mockImplementation(function (
+    this: Operation,
+    states: readonly ConnectorCallState[],
+  ) {
+    const isOpen = original.call(this, states)
+    if (isOpen && states.includes(expected) && seen.atFlip === undefined && isArmed()) {
+      seen.atFlip = -1
+      queueMicrotask(() => {
+        seen.atFlip = count()
+        flip()
+      })
+    }
+    return isOpen
+  })
+  return {
+    seen,
+    restore: () => {
+      spy.mockRestore()
+    },
+  }
+}
+
+const receiptOf = (h: Harness, event: string, tool: string) => () =>
+  events(h).some((record) => record.event === event && record.tool === tool)
+
+describe('M124 round 5: the gate in its effect’s own block (RVM124R4)', () => {
+  for (const [label, flip] of FLIPS)
+    it(`starts the owner read in the final gate’s synchronous block: ${label} right after it (P2-1)`, async () => {
+      const h = await harness()
+      const observer = observeFinalGate(
+        'admitted',
+        receiptOf(h, 'dispatching', 'muse_prompt_list'),
+        () => {
+          flip(h, 41)
+        },
+        () => h.state.reads,
+      )
+      try {
+        await h.protocol.handle(callFrame(41, 'muse_prompt_list', { scope: 'user' }))
+        await flush()
+      } finally {
+        observer.restore()
+      }
+      expect(observer.seen.atFlip).toBeGreaterThanOrEqual(0)
+      // Already started when the observer ran, or never: no read starts after the flip.
+      expect(h.state.reads).toBe(observer.seen.atFlip)
+    })
+
+  it('starts the write in the final gate’s synchronous block: the kill switch right after it (P2-1)', async () => {
+    const h = await harness()
+    await h.call('muse_prompt_save', SAVE)
+    const observer = observeFinalGate(
+      'approved',
+      receiptOf(h, 'dispatching', 'muse_prompt_save'),
+      () => {
+        h.state.killed = true
+        h.state.notify()
+      },
+      () => h.state.writeStarts,
+    )
+    try {
+      await approveFirst(h)
+      await flush()
+    } finally {
+      observer.restore()
+    }
+    expect(observer.seen.atFlip).toBeGreaterThanOrEqual(0)
+    expect(h.state.writeStarts).toBe(observer.seen.atFlip)
+  })
+
+  it('answers a committed read at its deadline while its receipt is held, its slot already free (P2-2)', async () => {
+    const h = await harness()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    let answer: Record<string, unknown> | undefined
+    try {
+      h.state.holds.add('settled')
+      void h.call('muse_prompt_list', { scope: 'user' }).then((value) => {
+        answer = value
+      })
+      await vi.waitFor(() => {
+        expect(h.state.held).toHaveLength(1)
+      })
+      // The owner read returned: its slot is free while the receipt is written.
+      expect(h.limits.leases('read')).toBe(0)
+      await vi.advanceTimersByTimeAsync(CONNECTOR_LIMITS.requestDeadlineMs + 1)
+      expect(answer).toMatchObject({ status: 'refused', reason: 'unavailable' })
+    } finally {
+      release(h)
+      vi.useRealTimers()
+    }
+    await flush()
+    // The committed outcome keeps its receipt, written once the journal answered.
+    expect(events(h).filter((record) => TERMINAL.has(record.event))).toEqual([
+      expect.objectContaining({ event: 'settled', tool: 'muse_prompt_list' }),
+    ])
   })
 })
 
