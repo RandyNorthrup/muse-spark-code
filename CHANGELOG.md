@@ -20,6 +20,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Editing an OpenRouter provider or changing its key preserves its saved
+  privacy, provider order and fallback choice through Test and Save, including
+  Change key followed by Edit. New providers still default to no data retention.
 - A failed model scan stops showing Scanning and offers Refresh with a clear
   reason. Previous model rows remain available; cancelled scans keep their
   existing behavior.

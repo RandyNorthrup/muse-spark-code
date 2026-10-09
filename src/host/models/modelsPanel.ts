@@ -78,20 +78,20 @@ function modelPriceNote(model: ProviderModelRow): ModelRow['priceNote'] {
   }
 }
 
-function newDraft(preset?: PresetInfo): PanelDraft {
+function newDraft(preset?: PresetInfo, entry?: ProviderEntry): PanelDraft {
   return {
     step: preset === undefined ? 'pick-provider' : 'configure',
     presetId: preset?.id,
-    address: preset?.origin,
+    address: entry?.address ?? preset?.origin,
     auth: preset?.auth ?? 'apiKey',
     keyPresent: false,
     keyShapeOk: false,
     connected: false,
     costAccepted: false,
-    models: [],
-    privacy: 'zdr',
-    providerOrder: [],
-    allowFallbacks: false,
+    models: [...(entry?.models ?? [])],
+    privacy: entry?.routing?.privacy ?? 'zdr',
+    providerOrder: [...(entry?.routing?.order ?? [])],
+    allowFallbacks: entry?.routing?.allowFallbacks ?? false,
     privateConfirmed: false,
     privateAsked: false,
     errors: [],
@@ -466,11 +466,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       case 'providers/edit': {
         if (state.drafts.edits[message.providerId] !== undefined) break
         const entry = await entryOf(message.providerId)
-        const draft = {
-          ...newDraft(providers.preset(entry.preset)),
-          address: entry.address,
-          models: [...entry.models],
-        }
+        const draft = newDraft(providers.preset(entry.preset), entry)
         let secret: string | undefined
         try {
           secret = await providers.storedCredential(entry)
@@ -512,11 +508,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         const id = message.providerId
         if (id !== undefined && state.drafts.edits[id] === undefined) {
           const entry = await entryOf(id)
-          state.drafts.edits[id] = {
-            ...newDraft(providers.preset(entry.preset)),
-            address: entry.address,
-            models: [...entry.models],
-          }
+          state.drafts.edits[id] = newDraft(providers.preset(entry.preset), entry)
         }
         const draft = draftOf(id)
         const entry = draftEntry(draft, id)

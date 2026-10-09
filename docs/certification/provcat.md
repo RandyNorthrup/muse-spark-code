@@ -291,3 +291,65 @@ exit 1, restores the original bytes in `finally`, and compares SHA-256.
 | F7      | Hide failed scans in Models                                     | Failure/retry surface test fails                              | `716a7a279c823a5f5ae1fb0868fb56e639df030d57414a380b0144a7ebfab77e` |
 | F3      | Restore raw unsorted upstream metadata in the price fingerprint | HF latency/order stability test fails                         | `c447df2e615e9e8f25b74f3f9c9f52be44bf220e66e2a1babc5797f667408cd9` |
 | F7      | Remove the shared failed-status renderer                        | Both Models and Providers failure/retry tests fail            | `1b53d4964d4838ac2eae529478d3ae25abe34cde38442fbc9c7cb360013117ec` |
+
+### Round 2 — Preserve saved OpenRouter routing (RVPROVWIREG finding 1, P2)
+
+2026-10-09, macmini, branch `fix/provider-wiring`, round-2 base `73a396b27`.
+Edit and Change key previously copied only address/models into a wizard-default
+draft. Save then replaced the saved routing with ZDR, no order and disabled
+fallbacks. `newDraft` now accepts the saved entry and copies its privacy,
+provider order and fallback choice alongside address/models. Both saved-entry
+creation paths use it; Change key followed by Edit still reuses the same draft
+and replacement credential. Save projects routing from that seeded draft.
+The order is copied into a new array. New providers retain the ZDR default.
+No new command, setting, feature, translation, wire shape or dependency.
+
+The production-facade `providerWiring.test.ts` regression covers Edit,
+Change key, and Change key → Edit → Test → Save with privacy `any`, ordered
+providers and enabled fallbacks; each flow also covers `no-training` and
+disabled fallbacks. It asserts the draft, the persisted file routing, the
+credential used on every pinned test/scan request and the stored replacement
+key. All three flows retain Cancel coverage: neither the saved routing nor
+the original key changes. Synthetic credentials never appear in panel messages.
+The existing fresh-provider test still asserts ZDR on creation and Save.
+Captured responses: `openrouter/01-models-list.json` and `02-key-usage.json`
+under the M95 captures above; no live provider contact, **0 model attempts**.
+This repairs the existing shared panel flow; CLI/ACP routing remains unchanged.
+
+Failing first: all six initial save regressions failed against the round-2
+base with wizard defaults in the draft. Combining them with the existing
+key-change/Cancel cases removes one duplicated test block without dropping
+an assertion; the complete focused file then passes **26 tests** at repository
+deadlines.
+
+Each drill runs the complete `providerWiring.test.ts` file with
+`npx vitest run test/unit/providerWiring.test.ts --maxWorkers=3`, no name filter
+or timeout override, observes exit 1, restores the original bytes in `finally`
+and compares SHA-256. All four before/after hashes are identical:
+`556e28524b7d125fc96432c3ddd76d080fde21d82d5ac3d1eb4d1bc72f256ffa`.
+Local logs/receipts: `temp/provwire-r2-{privacy,order,fallbacks,save}-drill.*`.
+
+| Deliberate break                                 | Red result                     | Restoration        |
+| ------------------------------------------------ | ------------------------------ | ------------------ |
+| Seed privacy from ZDR instead of the saved entry | 9 routing cases fail           | Byte-exact SHA-256 |
+| Seed an empty order instead of the saved order   | 9 routing cases fail           | Byte-exact SHA-256 |
+| Seed false instead of the saved fallback choice  | 6 fallback-enabled cases fail  | Byte-exact SHA-256 |
+| Project ZDR instead of draft privacy on Save     | 6 persisted-routing cases fail | Byte-exact SHA-256 |
+
+Round-2 qualification runs directly on macmini: **44 complete provider/models
+files, 746 passed tests**, 15 sequential batches at repository deadlines and
+at most three files/workers per run. The owning file is rerun after the lint
+cleanup: **26 passed**. All five `npm run typecheck` projects, changed-file
+ESLint/prettier, localization (**14 UI tables, 0 problems**), reference
+(current), host API (**0 problems**), plain Knip and duplication (**0 clones**)
+pass. No lint rule, timeout, threshold, ignore or budget changes.
+
+The production build passes the existing size/split/global/notices gates:
+extension **509.5/600 KiB**, Model API **488.7/525 KiB**, providers
+**134.0/150 KiB**, configured providers **27.1/50 KiB**, Models panel
+**92.3/125 KiB**; every other existing budget also passes. Test/check logs and
+the batch result JSON are under `temp/provwire-r2-*` (untracked).
+
+Aggregate quality, hosted CI and installed-editor/live qualification remain
+lead-owned under the brief/common rules. No review finding is deferred; no
+merge, rebase, push, installation, live provider contact or paid/model call.

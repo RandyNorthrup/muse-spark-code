@@ -263,61 +263,89 @@ describe('PROVWIRE production provider wiring', () => {
     expect(f.warnings).toEqual([])
     f.controller.dispose()
   })
-  it.each(['save', 'cancel'])('F6: Change key survives Edit and Test until %s', async (finish) => {
-    const f = await fixture('openrouter', '01-models-list.json')
-    const entry = {
-      ...f.entry,
-      address: f.entry.address ?? '',
-      models: ['inclusionai/ling-3.1-flash'],
-    }
-    await f.seam.store.restore(entry)
-    const replacement = 'sk-or-synthetic-replacement-test-key'
-    window.showInputBox.mockResolvedValue(replacement)
-    await message(
-      f.panel,
-      { type: 'providers/enterKey', providerId: 'openrouter', mode: 'change' },
-      () => {
-        expect(latestState(f.panel).drafts.edits['openrouter']?.keyPresent).toBe(true)
+  describe.each(['Edit', 'Change key', 'Change key → Edit'])('F6: saved routing via %s', (flow) => {
+    it.each([
+      { privacy: 'any', allowFallbacks: true, finish: 'save' },
+      { privacy: 'no-training', allowFallbacks: false, finish: 'save' },
+      { privacy: 'any', allowFallbacks: true, finish: 'cancel' },
+    ] as const)(
+      '$finish preserves $privacy and fallbacks=$allowFallbacks',
+      async ({ finish, ...choices }) => {
+        const f = await fixture('openrouter', '01-models-list.json')
+        const routing = { ...choices, order: ['Anthropic', 'Google'] }
+        const entry = {
+          ...f.entry,
+          address: f.entry.address ?? '',
+          models: ['inclusionai/ling-3.1-flash'],
+          routing,
+        }
+        await f.seam.store.restore(entry)
+        const replacement = 'sk-or-synthetic-routing-replacement-key'
+        const isKeyChanged = flow !== 'Edit'
+        if (isKeyChanged) {
+          window.showInputBox.mockResolvedValue(replacement)
+          await message(
+            f.panel,
+            { type: 'providers/enterKey', providerId: 'openrouter', mode: 'change' },
+            () => {
+              expect(latestState(f.panel).drafts.edits['openrouter']?.keyPresent).toBe(true)
+            },
+          )
+        }
+        if (flow !== 'Change key') {
+          await message(f.panel, { type: 'providers/edit', providerId: 'openrouter' }, () => {
+            expect(latestState(f.panel).drafts.edits['openrouter']?.keyPresent).toBe(true)
+          })
+        }
+        expect(await f.providers.storedCredential(entry)).toBe('synthetic-stored-key')
+        const existing = await f.seam.store.list()
+        expect(existing[0]?.routing).toEqual(routing)
+        expect(latestState(f.panel).drafts.edits['openrouter']).toMatchObject({
+          privacy: routing.privacy,
+          providerOrder: routing.order,
+          allowFallbacks: routing.allowFallbacks,
+        })
+        await message(
+          f.panel,
+          { type: 'providers/test', providerId: 'openrouter', acceptCost: false },
+          () => {
+            expect(latestState(f.panel).drafts.edits['openrouter']?.test?.status).toBe('ok')
+            expect(latestState(f.panel).scans['openrouter']?.status).toBe('done')
+          },
+        )
+        const expectedKey = isKeyChanged ? replacement : 'synthetic-stored-key'
+        expect(
+          f.calls.every((call) => call.headers['authorization'] === `Bearer ${expectedKey}`),
+        ).toBe(true)
+        if (finish === 'save') {
+          await message(
+            f.panel,
+            { type: 'providers/save', providerId: 'openrouter', useNow: false },
+            () => {
+              expect(latestState(f.panel).drafts.edits['openrouter']).toBeUndefined()
+            },
+          )
+          expect(await f.providers.storedCredential(entry)).toBe(expectedKey)
+        } else {
+          await message(
+            f.panel,
+            { type: 'providers/wizard', providerId: 'openrouter', event: 'cancel' },
+            () => {
+              expect(latestState(f.panel).drafts.edits['openrouter']).toBeUndefined()
+            },
+          )
+          expect(await f.providers.storedCredential(entry)).toBe('synthetic-stored-key')
+        }
+        const saved = await f.seam.store.list()
+        expect(saved[0]?.routing).toEqual(routing)
+        expect(JSON.stringify(f.panel.webview.postMessage.mock.calls)).not.toContain(replacement)
+        expect(JSON.stringify(f.panel.webview.postMessage.mock.calls)).not.toContain(
+          'synthetic-stored-key',
+        )
+        expect(f.warnings).toEqual([])
+        f.controller.dispose()
       },
     )
-    await message(f.panel, { type: 'providers/edit', providerId: 'openrouter' }, () => {
-      expect(latestState(f.panel).drafts.edits['openrouter']?.keyPresent).toBe(true)
-    })
-    expect(await f.providers.storedCredential(entry)).toBe('synthetic-stored-key')
-    await message(
-      f.panel,
-      { type: 'providers/test', providerId: 'openrouter', acceptCost: false },
-      () => {
-        expect(latestState(f.panel).scans['openrouter']?.status).toBe('done')
-      },
-    )
-    expect(f.calls.every((call) => call.headers['authorization'] === `Bearer ${replacement}`)).toBe(
-      true,
-    )
-    if (finish === 'save') {
-      await message(
-        f.panel,
-        { type: 'providers/save', providerId: 'openrouter', useNow: false },
-        () => {
-          expect(latestState(f.panel).drafts.edits['openrouter']).toBeUndefined()
-        },
-      )
-      expect(await f.providers.storedCredential(entry)).toBe(replacement)
-    } else {
-      await message(
-        f.panel,
-        { type: 'providers/wizard', providerId: 'openrouter', event: 'cancel' },
-        () => {
-          expect(latestState(f.panel).drafts.edits['openrouter']).toBeUndefined()
-        },
-      )
-      expect(await f.providers.storedCredential(entry)).toBe('synthetic-stored-key')
-    }
-    expect(JSON.stringify(f.panel.webview.postMessage.mock.calls)).not.toContain(replacement)
-    expect(JSON.stringify(f.panel.webview.postMessage.mock.calls)).not.toContain(
-      'synthetic-stored-key',
-    )
-    f.controller.dispose()
   })
   it('F5: a fresh OpenRouter wizard defaults to ZDR and saves that routing choice', async () => {
     const f = await fixture('openrouter', '01-models-list.json', false)
