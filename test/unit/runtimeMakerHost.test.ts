@@ -5,6 +5,8 @@ import path from 'node:path'
 import { randomUUID, createHash } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RuntimeMakerHost } from '../../src/runtime/maker/runtimeMakerHost'
+import { createRuntimeMakerService } from '../../src/runtime/maker/service'
+import { createMakerStore } from '../../src/webview/maker/store'
 import { MakerApproval } from '../../src/core/maker/ports'
 import { askMakerPermission, makerPermissionOptions } from '../../src/acp/maker'
 import type { ApprovalRequest } from '../../src/shared/makerProtocol'
@@ -268,6 +270,69 @@ describe('runtime maker host', () => {
     await pending
     expect(host.review(review)).toBe(false)
     expect(didReview).toHaveBeenCalledOnce()
+  })
+  it.each([false, true])(
+    'RVM103W P2 a later document makerReady revokes the earlier review (reviewed again: %s)',
+    async (isReviewedAgain) => {
+      const { deps } = await fixture()
+      const service = await createRuntimeMakerService({
+        ...deps,
+        native: { platform: process.platform, env: {}, packageRoot: path.resolve('.') },
+      })
+      const signal = new AbortController().signal
+      try {
+        await service.host.setHardware(true, 'bench')
+        const snapshot = { ...request(), expiresAt: Date.now() + 30_000 }
+        const engine = new MakerApproval(snapshot, () => service.host.hardwareEnabled())
+        const pending = service.host.confirm(snapshot, (raw) => engine.review(raw))
+        const review = {
+          v: 1 as const,
+          type: 'makerPayloadReviewed' as const,
+          id: snapshot.id,
+          digest: snapshot.digest,
+          isComplete: true,
+        }
+        const answer = {
+          id: snapshot.id,
+          digest: snapshot.digest,
+          target: snapshot.target,
+          decision: 'allow_once',
+        }
+        expect(await service.dispatch(review, signal)).toBe(true)
+        await service.dispatch({ v: 1, type: 'makerReady' }, signal)
+        if (isReviewedAgain) expect(await service.dispatch(review, signal)).toBe(true)
+        const grant = await service.host.authorize(answer)
+        expect(service.host.answer(answer, grant)).toBe(true)
+        expect(engine.answer(await pending) !== undefined).toBe(isReviewedAgain)
+      } finally {
+        await service.close()
+      }
+    },
+  )
+  it('a fresh document is admitted before the pending request it replays', async () => {
+    const { host } = await fixture()
+    await host.setHardware(true, 'bench')
+    const snapshot = { ...request(), expiresAt: Date.now() + 30_000 }
+    const pending = host.confirm(snapshot)
+    const post = vi.fn()
+    const store = createMakerStore({
+      post,
+      messages: new EventTarget(),
+      savedState: () => undefined,
+      saveState: () => undefined,
+    })
+    const unsubscribe = host.subscribe((message) => {
+      store.receive(message)
+    })
+    try {
+      expect(store.getState().approvals).toHaveLength(1)
+      expect(post).not.toHaveBeenCalled()
+    } finally {
+      unsubscribe()
+      store.dispose(false)
+      host.cancelApprovals()
+      await pending
+    }
   })
   it('hardware disable during OS authentication revokes the pending enable', async () => {
     const presence = { check: vi.fn().mockResolvedValue('approved') }

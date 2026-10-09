@@ -175,9 +175,10 @@ export class RuntimeMakerHost implements MakerHost {
   }
   subscribe(listener: (message: MakerHostMessage) => void): () => void {
     this.listeners.add(listener)
+    // Admission first: a fresh document rejects a request it sees before it is admitted.
+    listener(makerHostMessageSchema.parse(this.state()))
     for (const { request } of this.pending.values())
       listener({ v: 1, type: 'makerApproval', request })
-    listener(makerHostMessageSchema.parse(this.state()))
     return () => {
       this.listeners.delete(listener)
     }
@@ -312,6 +313,10 @@ export class RuntimeMakerHost implements MakerHost {
     const value = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
     held.grant = { value, expires: performance.now() + MAKER_PRESENCE_GRANT_MS }
     return value
+  }
+  /** A document's makerReady revokes every earlier review; MakerApproval.review clears on any other frame. */
+  reopen(): void {
+    for (const { review } of this.pending.values()) review({ v: 1, type: 'makerReady' })
   }
   /** The surface's payload review reaches only the pending request's own MakerApproval check. */
   review(message: Extract<MakerSurfaceMessage, { type: 'makerPayloadReviewed' }>): boolean {

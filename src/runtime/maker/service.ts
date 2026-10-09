@@ -307,7 +307,10 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
       await host.setHardware(message.enabled, message.reason)
       return await state()
     }
-    if (message.type === 'makerReady') return await state()
+    if (message.type === 'makerReady') {
+      host.reopen()
+      return await state()
+    }
     // MakerApproval itself checks admission, id, digest and completeness.
     if (message.type === 'makerPayloadReviewed') return host.review(message)
     await host.refresh()
