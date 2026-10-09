@@ -36,6 +36,7 @@ import {
 } from '../../src/runtime/exec/execProtocol'
 
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
+import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 import { buildProductionPackage, packageImagePreload } from '../unit/helpers/productionPackage'
 
@@ -424,28 +425,16 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
           readFileSync(path.join(ROOT, 'docs', 'schemas', schema), 'utf8'),
         )
       }
-      const tables = z
-        .object({
-          keys: z.array(z.string()),
-          locales: z.array(z.string()),
-          values: z.array(z.array(z.unknown())),
-        })
-        .parse(
-          JSON.parse(
-            brotliDecompressSync(readFileSync(path.join(stage, 'l10n/ui.tables.json.br'))).toString(
-              'utf8',
-            ),
-          ),
-        )
+      const archived = brotliDecompressSync(
+        readFileSync(path.join(stage, 'l10n/ui.tables.json.br')),
+      ).toString('utf8')
+      const tables = z.object({ locales: z.array(z.string()) }).parse(JSON.parse(archived))
       // The package ships every table, independently of the process locale.
-      // Inspect German explicitly; the old assertion belonged to a tiny fixture
-      // that TRAIN15E replaced with the production tables.
+      // Inspect German explicitly through the installed reader: the archive is
+      // the packed (format 1) matrix, restored in English key order.
       expect(tables.locales).toEqual(TABLE_LOCALES.toSorted((a, b) => a.localeCompare(b, 'en')))
-      const expected = z
-        .record(z.string(), z.unknown())
-        .parse(JSON.parse(readFileSync(path.join(dir, 'l10n/ui.de.json'), 'utf8')))
-      expect(tables.values[tables.locales.indexOf('de')]).toEqual(
-        tables.keys.map((key) => expected[key]),
+      expect(readArchivedUiTable(archived, 'de')).toBe(
+        JSON.stringify(JSON.parse(readFileSync(path.join(dir, 'l10n/ui.de.json'), 'utf8'))),
       )
       const manifest: unknown = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
       expect(manifest).toMatchObject({ bin: { 'muse-spark-code-acp': 'dist/acp.js' } })
