@@ -12,6 +12,10 @@ Users see each release in What's New (PLAN.md D79, M99): after an update the
 extension opens a page built from `CHANGELOG.md` at build time. The newest
 release stays full; older notes ship in full, as Highlights with a full-notes
 link, or are omitted, according to the final decoded and encoded budgets.
+Only a typed size overflow permits a smaller plan. Any other encoder or
+schema failure stops the build, naming the candidate releases and the cause;
+fix that failure rather than trimming notes. HTTP/HTTPS link schemes are
+normalized to lowercase for the artifact; the rest of each URL is preserved.
 Before the release PR bumps
 `package.json`:
 

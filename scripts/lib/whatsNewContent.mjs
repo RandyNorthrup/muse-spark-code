@@ -82,15 +82,16 @@ function textOf(node) {
 }
 
 function resolveHref(url, repository) {
-  if (WEB_LINK.test(url)) {
-    return url
-  }
-  if (ANY_SCHEME.test(url)) {
+  if (ANY_SCHEME.test(url) && !WEB_LINK.test(url)) {
     return
   }
-  return url.startsWith('#')
-    ? `${repository}/blob/${BRANCH}/CHANGELOG.md${url}`
-    : `${repository}/blob/${BRANCH}/${url.replace(/^\.\//, '')}`
+  let href = url
+  if (!WEB_LINK.test(url)) {
+    href = url.startsWith('#')
+      ? `${repository}/blob/${BRANCH}/CHANGELOG.md${url}`
+      : `${repository}/blob/${BRANCH}/${url.replace(/^\.\//, '')}`
+  }
+  return WEB_LINK.test(href) ? href.replace(WEB_LINK, (scheme) => scheme.toLowerCase()) : undefined
 }
 
 function inlines(nodes, repository) {
@@ -486,10 +487,12 @@ export function selectWhatsNewReleases(
     const text = contentEnvelope(releases, shortened)
     if (Buffer.byteLength(text) > maxDecodeBytes) return
     try {
-      encodeWhatsNewContent(text)
-    } catch {
-      // A decoded fit can still exceed the encoded artifact budget.
-      return
+      if (encodeWhatsNewContent(text).kind === 'over-budget') return
+    } catch (error) {
+      throw new Error(
+        `CHANGELOG.md ${releases.map((release) => release.version).join(', ')}: What's New artifact encoding failed: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
+      )
     }
     best ??= { releases, shortened, plan }
   }
@@ -543,7 +546,12 @@ export function writeWhatsNewContent(root = '.') {
   const repository = repositoryUrl(manifest)
   const allReleases = parseChangelog(changelog, contributedIds(manifest), repository)
   const { releases, shortened } = selectWhatsNewReleases(allReleases, repository)
-  const text = encodeWhatsNewContent(contentEnvelope(releases, shortened))
+  const encoded = encodeWhatsNewContent(contentEnvelope(releases, shortened))
+  if (encoded.kind === 'over-budget')
+    throw new Error(
+      `CHANGELOG.md ${releases.map((release) => release.version).join(', ')}: What's New artifact is ${String(encoded.bytes)} bytes, over its bound of ${String(encoded.maxBytes)} bytes; trim the notes (docs/RELEASING.md)`,
+    )
+  const text = encoded.text
   const target = path.join(root, CONTENT_FILE)
   mkdirSync(path.dirname(target), { recursive: true })
   writeFileSync(target, text)

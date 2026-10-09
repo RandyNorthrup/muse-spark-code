@@ -109,6 +109,14 @@ function envelopeBytes(releases: readonly ReleaseNotes[], isShortened: boolean):
   )
 }
 
+/** Successful fixtures must encode, then be read through the production schema. */
+function encodedText(text: string): string {
+  const result = encodeWhatsNewContent(text)
+  expect(result.kind).toBe('encoded')
+  if (result.kind === 'over-budget') throw new Error('expected encodable fixture content')
+  return result.text
+}
+
 const withFallback = (pad: string) =>
   `## [1.0.4] - 2026-10-05\n\n### Fixed\n\n- Current fix.\n\n` +
   `## [1.0.3] - 2026-10-04\n\n### Fixed\n\n- Previous fix ${pad}.\n\n` +
@@ -256,6 +264,23 @@ describe('parseChangelog', () => {
     expect(fixed).toContain('{"t":"del","c":[{"t":"text","v":"strike"}]}')
   })
 
+  it.each([
+    ['hTtPs://example.com/CaseSensitive', REPOSITORY, 'https://example.com/CaseSensitive'],
+    ['docs/acp.md', 'HTTPS://github.com/example/repo', `${REPOSITORY}/blob/main/docs/acp.md`],
+    ['#top', 'HTTPS://github.com/example/repo', `${REPOSITORY}/blob/main/CHANGELOG.md#top`],
+    ['FTP://example.com/x', REPOSITORY, undefined],
+    ['docs/acp.md', 'ftp://example.com/repo', undefined],
+  ] as const)(
+    'emits only schema-compatible link schemes for %s via %s',
+    (url, repository, expected) => {
+      const parsed = parseChangelog(withTry(`[docs](${url})`), ALLOWED, repository)
+      const text = JSON.stringify({ schema: 1, releases: parsed })
+      if (expected === undefined) expect(text).not.toContain('"href":')
+      else expect(text).toContain(JSON.stringify(expected))
+      expect(parseWhatsNewContent(text).releases).toEqual(parsed)
+    },
+  )
+
   it('fails on a Try it the manifest does not contribute, or a malformed one', () => {
     expect(() =>
       parseChangelog(withTry('<!-- try: command museSpark.notACommand -->'), ALLOWED, REPOSITORY),
@@ -362,6 +387,23 @@ describe('highlightsProblem (the changelog guard)', () => {
 })
 
 describe('selectWhatsNewReleases (the budget-aware writer)', () => {
+  const fallbackSections = [
+    {
+      heading: '',
+      blocks: [
+        {
+          t: 'p',
+          c: [
+            {
+              t: 'link',
+              href: `${REPOSITORY}/blob/main/CHANGELOG.md`,
+              c: [{ t: 'text', v: 'Full notes for 1.0.2' }],
+            },
+          ],
+        },
+      ],
+    },
+  ]
   const filler = 'x'.repeat(2000)
   const budgeted = `## [2.0.0] - 2026-10-09
 
@@ -384,6 +426,50 @@ describe('selectWhatsNewReleases (the budget-aware writer)', () => {
 - Older detail ${filler}.
 `
   const parsed = () => parseChangelog(budgeted, ALLOWED, REPOSITORY)
+
+  it.each([
+    ['newest Highlights', 'Shiny.'],
+    ['predecessor Highlights', 'Stable.'],
+    ['predecessor Added', 'Older detail'],
+  ])('normalizes uppercase HTTPS in %s without dropping fitting notes', (_location, original) => {
+    const changelog = budgeted.replace(
+      original,
+      'See [docs](HTTPS://example.com/CaseSensitive?Key=Value#Anchor).',
+    )
+    const releases = parseChangelog(changelog, ALLOWED, REPOSITORY)
+    const selection = selectWhatsNewReleases(releases, REPOSITORY)
+    expect(selection.plan).toEqual([
+      { version: '2.0.0', full: true },
+      { version: '1.9.0', full: true },
+    ])
+    expect(selection.shortened).toBe(false)
+    const plain = JSON.stringify({ schema: 1, releases: selection.releases })
+    expect(plain).toContain('https://example.com/CaseSensitive?Key=Value#Anchor')
+    expect(parseWhatsNewContent(plain).releases).toEqual(releases)
+  })
+
+  it.each([0, 1])(
+    'stops on a non-size schema failure in release %i, preserving its cause',
+    (index) => {
+      const releases = parsed().map((release, position) =>
+        position === index ? { ...release, date: 'not-a-date' } : release,
+      )
+      let failure: unknown
+      try {
+        selectWhatsNewReleases(releases, REPOSITORY)
+      } catch (error) {
+        failure = error
+      }
+      expect(failure).toBeInstanceOf(Error)
+      if (!(failure instanceof Error)) throw new Error('expected a named encoding failure')
+      expect(failure.message).toContain(
+        "CHANGELOG.md 2.0.0, 1.9.0: What's New artifact encoding failed:",
+      )
+      expect(failure.message).toContain('"date"')
+      expect(failure.message).not.toContain('trim the notes')
+      expect(failure.cause).toBeInstanceOf(Error)
+    },
+  )
 
   it('ships both releases in full while the decoded total fits', () => {
     const selection = selectWhatsNewReleases(parsed(), REPOSITORY, 100_000)
@@ -486,23 +572,7 @@ describe('selectWhatsNewReleases (the budget-aware writer)', () => {
       { version: '1.0.3', full: true },
       { version: '1.0.2', full: false },
     ])
-    expect(kept.releases[2]?.sections).toEqual([
-      {
-        heading: '',
-        blocks: [
-          {
-            t: 'p',
-            c: [
-              {
-                t: 'link',
-                href: `${REPOSITORY}/blob/main/CHANGELOG.md`,
-                c: [{ t: 'text', v: 'Full notes for 1.0.2' }],
-              },
-            ],
-          },
-        ],
-      },
-    ])
+    expect(kept.releases[2]?.sections).toEqual(fallbackSections)
     expect(kept.shortened).toBe(false)
     const skipped = selectWhatsNewReleases(parse(), REPOSITORY, 600)
     expect(skipped.releases.map((release) => release.version)).toEqual(['1.0.4', '1.0.3'])
@@ -581,23 +651,7 @@ describe('selectWhatsNewReleases (the budget-aware writer)', () => {
       '1.0.2',
     ])
     expect(selection.releases[2]?.highlights).toHaveLength(1)
-    expect(selection.releases[2]?.sections).toEqual([
-      {
-        heading: '',
-        blocks: [
-          {
-            t: 'p',
-            c: [
-              {
-                t: 'link',
-                href: `${REPOSITORY}/blob/main/CHANGELOG.md`,
-                c: [{ t: 'text', v: 'Full notes for 1.0.2' }],
-              },
-            ],
-          },
-        ],
-      },
-    ])
+    expect(selection.releases[2]?.sections).toEqual(fallbackSections)
   })
 
   it('keeps fitting earlier Highlights at the exact bound instead of reserving the flag', () => {
@@ -652,7 +706,7 @@ describe('selectWhatsNewReleases (the budget-aware writer)', () => {
     expect(selection.shortened).toBe(true)
     const plain = JSON.stringify({ schema: 1, releases: selection.releases, shortened: true })
     expect(Buffer.byteLength(plain)).toBeLessThan(bound)
-    expect(parseWhatsNewContent(encodeWhatsNewContent(plain)).releases).toEqual(selection.releases)
+    expect(parseWhatsNewContent(encodedText(plain)).releases).toEqual(selection.releases)
   })
 
   it('rejects decoded fits that the real encoder cannot ship, with a named newest-only refusal', () => {
@@ -667,7 +721,11 @@ describe('selectWhatsNewReleases (the budget-aware writer)', () => {
     )
     const plain = JSON.stringify({ schema: 1, releases: all })
     expect(Buffer.byteLength(plain)).toBeLessThan(WHATS_NEW_CONTENT_DECODE_MAX_BYTES)
-    expect(() => encodeWhatsNewContent(plain)).toThrow(UI_TEXT.actionFailed)
+    const encoded = encodeWhatsNewContent(plain)
+    expect(encoded.kind).toBe('over-budget')
+    if (encoded.kind !== 'over-budget') throw new Error('expected encoded-size overflow')
+    expect(encoded.bytes).toBeGreaterThan(WHATS_NEW_CONTENT_MAX_BYTES)
+    expect(encoded.maxBytes).toBe(WHATS_NEW_CONTENT_MAX_BYTES)
     const selection = selectWhatsNewReleases(all, REPOSITORY)
     expect(selection.plan).toEqual([
       { version: '1.0.4', full: true },
@@ -739,14 +797,15 @@ describe('selectWhatsNewReleases (the budget-aware writer)', () => {
       for (const bound of bounds) {
         const best = ranked.find((candidate) => {
           if (envelopeBytes(candidate.releases, candidate.shortened) > bound) return false
-          encodeWhatsNewContent(
-            JSON.stringify(
-              candidate.shortened
-                ? { schema: 1, releases: candidate.releases, shortened: true }
-                : { schema: 1, releases: candidate.releases },
-            ),
+          return (
+            encodeWhatsNewContent(
+              JSON.stringify(
+                candidate.shortened
+                  ? { schema: 1, releases: candidate.releases, shortened: true }
+                  : { schema: 1, releases: candidate.releases },
+              ),
+            ).kind === 'encoded'
           )
-          return true
         })
         if (best === undefined) {
           expect(() => selectWhatsNewReleases(all, REPOSITORY, bound)).toThrow(
@@ -892,6 +951,24 @@ describe('bounded lossless What’s New artifact', () => {
     realReleases = parseChangelog(changelog, contributedIds(manifest), repositoryUrl(manifest))
   })
 
+  it('reports decoded size overflow as a typed result, including the exact bytes and bound', () => {
+    const plain = JSON.stringify({ schema: 1, releases: [] }).padEnd(
+      WHATS_NEW_CONTENT_DECODE_MAX_BYTES + 1,
+    )
+    expect(encodeWhatsNewContent(plain)).toEqual({
+      kind: 'over-budget',
+      bytes: WHATS_NEW_CONTENT_DECODE_MAX_BYTES + 1,
+      maxBytes: WHATS_NEW_CONTENT_DECODE_MAX_BYTES,
+    })
+  })
+
+  it('returns small content as a typed success and keeps non-size failures as errors', () => {
+    const plain = JSON.stringify({ schema: 1, releases: [] })
+    expect(encodeWhatsNewContent(plain)).toEqual({ kind: 'encoded', text: plain })
+    expect(() => encodeWhatsNewContent('{')).toThrow(SyntaxError)
+    expect(() => encodeWhatsNewContent('{"schema":2,"releases":[]}')).toThrow()
+  })
+
   it('ships the same releases as today for the real CHANGELOG', () => {
     const selection = selectWhatsNewReleases(realReleases, repositoryUrl(manifest))
     expect(selection.releases.map((release) => release.version)).toEqual(
@@ -912,7 +989,7 @@ describe('bounded lossless What’s New artifact', () => {
     () => {
       const releases = realReleases.slice(0, 2)
       const plain = JSON.stringify({ schema: 1, releases })
-      const encoded = encodeWhatsNewContent(plain)
+      const encoded = encodedText(plain)
       expect(Buffer.byteLength(encoded)).toBeLessThanOrEqual(40 * 1024)
       // Small notes ship as written; only notes over the cap are packed.
       if (Buffer.byteLength(plain) > 40 * 1024) {
@@ -947,7 +1024,7 @@ describe('bounded lossless What’s New artifact', () => {
     }
     expect(Buffer.byteLength(plain)).toBeGreaterThan(40 * 1024)
     expect(Buffer.byteLength(plain)).toBeLessThanOrEqual(WHATS_NEW_CONTENT_DECODE_MAX_BYTES)
-    const encoded = encodeWhatsNewContent(plain)
+    const encoded = encodedText(plain)
     expect(JSON.parse(encoded)).toHaveProperty('encoding', 'br')
     expect(Buffer.byteLength(encoded)).toBeLessThanOrEqual(40 * 1024)
     expect(parseWhatsNewContent(encoded)).toEqual(JSON.parse(plain))

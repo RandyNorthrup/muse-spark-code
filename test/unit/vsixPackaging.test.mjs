@@ -715,6 +715,34 @@ describe('VSIX packaging', () => {
     expect(withoutSecond).toContain('## [2.0.0]')
     expect(withoutSecond).not.toContain('1.9.0')
   })
+  it.each(['newest', 'predecessor'])(
+    'keeps both fitting releases in the package with uppercase HTTPS in %s Highlights',
+    (location) => {
+      const repository = 'https://github.com/example/repo'
+      const highlight = 'See [docs](HTTPS://example.com/CaseSensitive).'
+      const changelog =
+        '## [1.0.4] - 2026-10-05\n\n### Highlights\n\n' +
+        `- **New.** ${location === 'newest' ? highlight : 'Current.'}\n\n` +
+        '## [1.0.3] - 2026-10-04\n\n### Highlights\n\n' +
+        `- **Old.** ${location === 'predecessor' ? highlight : 'Previous.'}\n\n` +
+        '### Added\n\n- Older detail stays.\n'
+      const parsed = parseChangelog(
+        changelog,
+        { commands: new Set(), settings: new Set() },
+        repository,
+      )
+      const selection = selectWhatsNewReleases(parsed, repository)
+      expect(selection.plan).toEqual([
+        { version: '1.0.4', full: true },
+        { version: '1.0.3', full: true },
+      ])
+      expect(selection.shortened).toBe(false)
+      const packaged = packagedChangelog(changelog, parsed, selection.plan, repository)
+      expect(packaged).toContain(changelog.trimEnd())
+      expect(packaged).toContain(highlight)
+      expect(packaged).toContain('Older detail stays.')
+    },
+  )
   it('ships a shortened release without Highlights as its full-notes link, as the page shows it', () => {
     const repository = 'https://github.com/example/repo'
     const pad = 'y'.repeat(2000)

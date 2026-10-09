@@ -82,6 +82,9 @@ happened, not what was planned; superseded entries are kept.
   notes are trimmed instead. Packaging uses the parser's heading and body
   spans; release headings require ATX `## [version] - YYYY-MM-DD` with LF or
   CRLF endings. CR-only files and Setext release headings fail by name.
+  Only size overflow permits reducing notes: other encoding or schema
+  failures stop the build with the releases and cause. HTTP/HTTPS schemes
+  are normalized to lowercase, so uppercase links cannot drop fitting notes.
 
 ### Fixed
 

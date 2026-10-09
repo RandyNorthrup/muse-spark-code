@@ -293,3 +293,85 @@ The saved staged patch and committed patch compared byte-for-byte equal;
 both source SHA-256 values above remained unchanged. The staged and
 committed diffs were re-read, and the worktree was clean afterward. This
 final record is committed separately with the same installed hooks.
+
+## Round 5 plan (2026-10-09, linuxlt)
+
+1. Complete: round-4 regression run failed nine tests (seven content,
+   two packaging). Uppercase HTTPS in newest Highlights refused as size;
+   predecessor Highlights were omitted; predecessor Added notes were
+   shortened. Invalid newest content was mislabeled as size; invalid
+   predecessor content was silently omitted. Typed-result tests also failed.
+2. Complete: encoder returns `encoded` with text, or `over-budget` with
+   actual bytes and bound, for decoded/encoded overflow only. JSON, schema
+   and compression exceptions propagate to selection's named failure,
+   listing candidate releases and preserving the original error as `cause`.
+   Selection stops immediately; it cannot discard those candidates or ask
+   to trim notes. The writer handles the same typed result.
+   Normalize HTTP/HTTPS schemes only, preserving path/query/fragment case.
+   Absolute, relative and anchor links share that normalization and
+   allowlist; unsupported schemes remain text, matching the artifact schema.
+3. Complete: seven deliberate guard mutations failed their owning file,
+   at repository timeouts with no test filters; every restore was byte-exact.
+4. Complete: final owning suites, scoped static/build gates and exact
+   built-artifact/package parity checks pass.
+5. Pending: installed-hook commit and staged/committed diff verification.
+
+No new runtime surface, command, setting, dependency, cap or gate. Aggregate
+quality and universal release qualification remain lead-owned under the
+rig/common rules; this brief prohibits merge, push and rebase.
+
+### Round 5 red drills
+
+Backups, full logs and result JSON: `$TMPDIR/wnbudget-r5/`. Every run was
+`npx vitest run test/unit/whatsNewContent.test.ts --maxWorkers=3`, all
+48 tests, without timeout overrides or filters. Each mutation was restored
+in `finally`; both source files were compared by SHA-256 after every drill.
+
+| Guard             | Mutation                                        | Observed failures                                                        |
+| ----------------- | ----------------------------------------------- | ------------------------------------------------------------------------ |
+| URL normalization | Return the original scheme                      | 6: uppercase fitting plans and relative/anchor/mixed-case links          |
+| URL allowlist     | Allow a resolved non-HTTP/HTTPS repository link | 1: emitted-link schema compatibility                                     |
+| Fatal errors      | Swallow encoder exceptions                      | 2: newest/predecessor schema failures                                    |
+| Decoded overflow  | Ignore the decoded bound                        | 1: typed decoded-size result                                             |
+| Encoded overflow  | Ignore the encoded bound                        | 1: high-entropy typed encoded-size result                                |
+| Size admission    | Admit the encoder's overflow result             | 1: full high-entropy predecessor wrongly retained                        |
+| Schema validation | Parse JSON without validating content           | 3: named newest/predecessor failures and direct invalid-schema rejection |
+
+Restored writer SHA-256:
+`47c2a8c4ab3a94ca023305cbc166e4602042743fa1832ff378c0b5c1011b03ef`.
+Restored encoder SHA-256:
+`a52ae3465c3c18e3eae913b09d24b5715dbc99ddeb33471a7dc0deb61f072689`.
+
+The shared duplication gate initially found a pre-existing 65-token clone
+between the owning content file's two expected fallback-link assertions.
+Both complete assertions now share one static expected fixture; no assertion
+or threshold changed. The final `npx jscpd` passes with zero clones.
+
+### Round 5 final gates (linuxlt)
+
+- Repository timeouts, no overrides, at most three files per run:
+  `whatsNewContent.test.ts` 48, `whatsNewHtml.test.ts` 13,
+  `whatsNewPanel.test.ts` 10, `vsixPackaging.test.mjs` 91 and
+  `changelogVersion.test.ts` 2: **164 passed**. Content replay after the
+  fixture consolidation: all 48 passed again. Full command logs use
+  `npx vitest run <files> --maxWorkers=3` in `$TMPDIR/wnbudget-r5/`.
+- One `npm run typecheck:unit` project: pass. Changed-file ESLint
+  `--max-warnings=0`, Prettier and `git diff --check`: pass.
+- `node scripts/check-l10n.mjs`: 0 problems. `check:reference`,
+  `check:roadmap` and `check:host-api`: current, 0 host API problems.
+  `npm run deadcode`: pass; final `npx jscpd`: 0 clones.
+- `npm run build`: pass, including tokens, artifact writing, bundle
+  sizes/splits, host globals and notices; no cap changed. What's New host:
+  21,552 / 51,200 bytes; browser entry: 713 bytes, with static imports
+  1.3 / 25 KiB. Content: 25,347 / 40,960 encoded bytes and
+  68,401 / 76,800 decoded bytes.
+- Built decoded artifact equals the selected envelope exactly; production
+  encoder validates and reproduces the artifact bytes. Real releases
+  0.17.0 and 0.16.0 stay full, flag absent. Packaged notes equal the legacy
+  slice byte-for-byte, SHA-256
+  `80884cbd6619f27d7da8dedf8b777570494ab8c186894f8037f98c978b2547fd`.
+
+Next: lead reviews/integrates this fix and runs aggregate quality and
+universal VSIX qualification. No remaining code blocker in the scoped
+checks. Those broader gates remain lead-owned; no merge, push, rebase,
+hook/threshold relaxation, credential read or paid/live model call.

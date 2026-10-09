@@ -10093,6 +10093,18 @@ we make". His standing ruling: enhancements are on by default.
   spans only; it has no heading regex or newline search. Exhaustive small
   random-size oracle, all three reviews' regressions and byte-exact red
   drills are recorded in `docs/certification/wnbudget.md`.
+  WNBUDGET round 5 (RVWNBUDGET4G, 2026-10-09): the encoder reports
+  decoded or encoded size overflow as a typed result; only that result
+  permits trying a smaller plan. Any other encoder or schema error stops
+  selection, naming the candidate releases and preserving the cause,
+  without asking to trim notes. Normalize HTTP/HTTPS schemes to lowercase
+  while preserving the rest of each URL, matching the artifact schema.
+  Regress uppercase HTTPS in newest and predecessor Highlights, invalid
+  candidate content, and real encoded overflow; prove guards with byte-exact
+  restoration drills and rerun the owned suites and scoped gates.
+  The duplication gate found a pre-existing repeated fallback-link fixture
+  in the owning content tests; share that expected value, keeping both
+  complete assertions and the gate unchanged.
 - **Security.** Strict CSP (`default-src 'none'`, the stylesheet from the
   webview origin, one script by nonce, no inline style); every piece of text
   escaped on the host; links carry their address for keyboards and screen
