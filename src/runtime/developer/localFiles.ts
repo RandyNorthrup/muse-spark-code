@@ -40,13 +40,20 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
     this.root = path.resolve(root)
   }
 
+  /** Where `target` must resolve. The root may sit below links the OS or the
+   * user chose (macOS /var, a relocated or redirected profile, a Windows short
+   * name); only a link at or below the root is refused. */
+  private async anchored(target: string): Promise<string> {
+    return normalized(path.join(await realpath(this.root), path.relative(this.root, target)))
+  }
+
   private async directory(target: string): Promise<void> {
     await mkdir(target, { recursive: true, mode: DEVELOPER_DIRECTORY_MODE })
     const info = await lstat(target)
     if (
       !info.isDirectory() ||
       info.isSymbolicLink() ||
-      normalized(await realpath(target)) !== normalized(target)
+      normalized(await realpath(target)) !== (await this.anchored(target))
     )
       throw new Error(UI_TEXT.developer.unavailable)
     await chmod(target, DEVELOPER_DIRECTORY_MODE)
@@ -205,7 +212,7 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
       if (
         !parentInfo.isDirectory() ||
         parentInfo.isSymbolicLink() ||
-        normalized(await realpath(parent)) !== normalized(parent)
+        normalized(await realpath(parent)) !== (await this.anchored(parent))
       )
         throw new Error(UI_TEXT.developer.unavailable)
       const target = path.join(parent, id)

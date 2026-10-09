@@ -209,6 +209,24 @@ describe('private local Developer state and audit files', () => {
     expect(await readFile(payload, 'utf8')).toBe(JSON.stringify(state))
   })
 
+  it('keeps a storage root that sits below a linked ancestor', async () => {
+    // macOS's temp is /var -> /private/var; profiles may be relocated or
+    // redirected. Links above the root are the OS's or the user's choice.
+    const h = await files()
+    const real = path.join(h.root, 'real')
+    await mkdir(real)
+    const alias = path.join(h.root, 'alias')
+    await symlink(real, alias, process.platform === 'win32' ? 'junction' : 'dir')
+    const store = new DeveloperLocalFiles(path.join(alias, 'developer'))
+    await store.commit(state, audit)
+    expect(await store.read()).toEqual(state)
+    expect(await readdir(path.join(real, 'developer'))).toContain(DEVELOPER_FILES.state)
+    const profile = await store.prepare('profile-one')
+    expect(path.relative(alias, profile)).toBe(path.join('developer', 'profiles', 'profile-one'))
+    await store.remove('profile-one')
+    expect(await readdir(path.join(real, 'developer', 'profiles'))).toEqual([])
+  })
+
   it('refuses a symlinked storage root before publishing anything', async () => {
     const h = await files()
     const outside = path.join(h.root, 'outside')
