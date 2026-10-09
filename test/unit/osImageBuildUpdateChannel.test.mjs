@@ -1,9 +1,10 @@
+import { Buffer } from 'node:buffer'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 const channel = fileURLToPath(new URL('../../os/update/channel.py', import.meta.url))
 const interpreter = process.platform === 'win32' ? 'python' : 'python3'
@@ -283,5 +284,59 @@ describe('M110-OS2 signed update channel (single key)', () => {
     const argv = JSON.parse(argvLine.slice('ARGV:'.length))
     expect(argv).not.toContain(meta)
     expect(argv).toContain(`${meta}.sig`)
+  })
+})
+
+describe('M110-OS2 signed update channel: machine-code contract for damaged input', () => {
+  let keys
+  let dir
+  beforeAll(() => {
+    dir = mkdtempSync(path.join(process.env.TMPDIR ?? os.tmpdir(), 'm110-os2-channel-keys-'))
+    keys = keypair(dir)
+  })
+  afterAll(() => rmSync(dir, { recursive: true, force: true }))
+
+  it.each([
+    ['negative', '-1'],
+    ['signed', '+7'],
+    ['non-ASCII digit', '²'],
+    ['over-long', '1'.repeat(4400)],
+  ])('refuses a %s installed counter, never lowering the replay barrier', (_label, counter) => {
+    const work = directory()
+    // Same version, older still-signed counter 1: only a corrupt installed
+    // counter below 1 would let it through.
+    const doc = metadata(work, 'meta.json', { metadata_version: 1 })
+    sign(keys.key, doc)
+    const result = check(doc, state(work, '1.2.3', counter), keys.pub)
+    expect(result.stdout.trim()).toBe('CHANNEL_STATE_INVALID')
+    expect(result.status).toBe(5)
+    expect(result.stderr).not.toContain('Traceback')
+  })
+
+  it('refuses installed state that is not valid UTF-8 with its code', () => {
+    const work = directory()
+    const doc = metadata(work, 'meta.json', { version: '1.2.4', metadata_version: 8 })
+    sign(keys.key, doc)
+    const stateDir = state(work, '1.2.3', 7)
+    writeFileSync(path.join(stateDir, 'version'), Buffer.from([0x31, 0x2e, 0xff, 0xfe, 0x0a]))
+    const result = check(doc, stateDir, keys.pub)
+    expect(result.stdout.trim()).toBe('CHANNEL_STATE_INVALID')
+    expect(result.status).toBe(5)
+    expect(result.stderr).not.toContain('Traceback')
+  })
+
+  it.each([
+    ['a non-ASCII digit in the version', { version: '1.².3' }],
+    ['an over-long version component', { version: `1.${'2'.repeat(4400)}.3` }],
+    ['an expiry that overflows in UTC', { expires: '0001-01-01T00:00:00+01:00' }],
+    ['a naive expiry', { expires: '2030-01-01T00:00:00' }],
+  ])('refuses metadata with %s as CHANNEL_MALFORMED, never a traceback', (_label, over) => {
+    const work = directory()
+    const doc = metadata(work, 'meta.json', over)
+    sign(keys.key, doc)
+    const result = check(doc, state(work, '1.2.3', 6), keys.pub)
+    expect(result.stdout.trim()).toBe('CHANNEL_MALFORMED')
+    expect(result.status).toBe(6)
+    expect(result.stderr).not.toContain('Traceback')
   })
 })

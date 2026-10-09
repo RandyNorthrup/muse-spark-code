@@ -37,8 +37,10 @@ Prints one machine-readable code on stdout; exit 0 only for CHANNEL_OK:
   CHANNEL_OK, CHANNEL_DOWNGRADE, CHANNEL_EXPIRED, CHANNEL_METADATA_STALE,
   CHANNEL_BAD_SIGNATURE, CHANNEL_STATE_INVALID, CHANNEL_MALFORMED,
   CHANNEL_NO_VERIFY_TOOL.
-Every field is type-validated before use: wrongly typed JSON never raises,
-it refuses with CHANNEL_MALFORMED.
+Every field is type-validated before use: wrongly typed JSON, non-ASCII
+digits, over-long numbers and out-of-range dates never raise, they refuse
+with CHANNEL_MALFORMED; damaged installed state (including invalid UTF-8,
+a negative or signed counter) refuses with CHANNEL_STATE_INVALID.
 Equal versions are accepted (a re-published channel for the same image
 still carries a higher metadata version); anything lower is a downgrade.
 Missing openssl, a missing key/signature, or a failed
@@ -56,6 +58,16 @@ from pathlib import Path
 
 KEY_DEFAULT = "/etc/muse/update-channel.pem"
 STATE_DEFAULT = "/var/lib/muse-update"
+# Longest accepted decimal field: far beyond any real version or counter,
+# far below Python's int-conversion limit, so parsing can never raise.
+MAX_DIGITS = 18
+
+
+def plain_number(text):
+    """Return the int of an ASCII-only, nonnegative decimal, else None."""
+    if not text.isascii() or not text.isdigit() or len(text) > MAX_DIGITS:
+        return None
+    return int(text)
 
 
 def code(name, status):
@@ -69,42 +81,45 @@ def parse_version(text):
         return None
     numbers = []
     for part in parts:
-        if not part.isdigit() or (len(part) > 1 and part.startswith("0")):
+        number = plain_number(part)
+        if number is None or (len(part) > 1 and part.startswith("0")):
             return None
-        numbers.append(int(part))
+        numbers.append(number)
     return tuple(numbers)
 
 
 def parse_expiry(text):
     try:
         moment = datetime.fromisoformat(text.replace("Z", "+00:00"))
-    except ValueError:
+        if moment.tzinfo is None:
+            return None
+        # An offset can push year 1 or 9999 out of range: OverflowError.
+        return moment.astimezone(timezone.utc).timestamp()
+    except (ValueError, OverflowError):
         return None
-    if moment.tzinfo is None:
-        return None
-    return moment.astimezone(timezone.utc).timestamp()
 
 
 def read_installed_state(state_dir, first_boot):
     """Return (version_tuple, metadata_version) or None when invalid.
 
-    Any missing, corrupt or unreadable state is invalid: only an explicit
-    first-boot seed initialises it as 0.0.0/0.
+    Any missing, corrupt (including invalid UTF-8) or unreadable state is
+    invalid, and so is a counter that is not a plain nonnegative decimal:
+    a negative counter would lower the replay barrier. Only an explicit
+    first-boot seed initialises missing state as 0.0.0/0.
     """
     state = Path(state_dir)
     try:
-        version_text = (state / "version").read_text().strip()
-        meta_text = (state / "metadata_version").read_text().strip()
+        version_text = (state / "version").read_text(encoding="utf-8").strip()
+        meta_text = (state / "metadata_version").read_text(encoding="utf-8").strip()
+    except UnicodeDecodeError:
+        return None
     except OSError:
         if first_boot and not (state / "version").exists() and not (state / "metadata_version").exists():
             return ((0,), 0)
         return None
     installed_version = parse_version(version_text)
-    try:
-        installed_meta = int(meta_text)
-    except ValueError:
-        return None
-    if installed_version is None or isinstance(installed_meta, bool):
+    installed_meta = plain_number(meta_text)
+    if installed_version is None or installed_meta is None:
         return None
     return (installed_version, installed_meta)
 
