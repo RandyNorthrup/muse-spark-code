@@ -25,7 +25,8 @@ export async function darwinProcessHelper(): Promise<{
       filter: (source) => !BUILT.test(source),
     })
     await mkdir(path.join(folder, 'l10n'))
-    for (const file of await readdir('l10n'))
+    const tables = await readdir('l10n')
+    for (const file of tables)
       if (/^ui\.[a-z-]+\.json$/u.test(file))
         await copyFile(path.resolve('l10n', file), path.join(folder, 'l10n', file))
     await copyFile(path.resolve('package.json'), path.join(folder, 'package.json'))
