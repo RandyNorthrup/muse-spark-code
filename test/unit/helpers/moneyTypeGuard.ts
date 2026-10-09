@@ -25,6 +25,14 @@ interface MoneyTypeFindings {
   readonly files: number
 }
 
+/** A callable's members (`length`, `bind`) are not money. */
+function isCallable(checker: ts.TypeChecker, type: ts.Type): boolean {
+  return (
+    checker.getSignaturesOfType(type, ts.SignatureKind.Call).length > 0 ||
+    checker.getSignaturesOfType(type, ts.SignatureKind.Construct).length > 0
+  )
+}
+
 /** Does this type hold a JavaScript number anywhere a value can sit? */
 function hasNumber(checker: ts.TypeChecker, type: ts.Type, seen: Set<ts.Type>): boolean {
   if (seen.has(type)) return false
@@ -47,7 +55,20 @@ function hasNumber(checker: ts.TypeChecker, type: ts.Type, seen: Set<ts.Type>): 
     const value = checker.getTypeArguments(type as ts.TypeReference).at(-1)
     return value !== undefined && hasNumber(checker, value, seen)
   }
-  return checker.getIndexInfosOfType(type).some((info) => hasNumber(checker, info.type, seen))
+  if (checker.getIndexInfosOfType(type).some((info) => hasNumber(checker, info.type, seen)))
+    return true
+  // Finite-key records and mapped types expose money as named properties,
+  // not index signatures: judge each property's type (P3-3). Encapsulated
+  // `#private` state is not a declared money holding: skipping it keeps exact
+  // `Usd` instances (whose only number is the private places count) unflagged.
+  if ((type.flags & ts.TypeFlags.Object) !== 0) {
+    for (const property of type.getProperties()) {
+      if (property.getName().startsWith('#')) continue
+      const propertyType = checker.getTypeOfSymbol(property)
+      if (!isCallable(checker, propertyType) && hasNumber(checker, propertyType, seen)) return true
+    }
+  }
+  return false
 }
 
 function keyOf(checker: ts.TypeChecker, name: ts.Node): string | undefined {
@@ -90,6 +111,34 @@ function declarationName(checker: ts.TypeChecker, node: ts.Node): ts.Node | unde
   return
 }
 
+/**
+ * A mapped type's properties are synthesized: no property declaration exists
+ * for the visitor, so judge the resolved alias target's properties here
+ * (P3-3: `{ [K in 'fooUsd']: number }`).
+ */
+function checkAlias(
+  checker: ts.TypeChecker,
+  node: ts.TypeAliasDeclaration,
+  file: string,
+  flagged: Set<string>,
+  numeric: Set<string>,
+): void {
+  const target = checker.getTypeFromTypeNode(node.type)
+  const alias = node.name.text
+  if (MONEY_HINT.test(alias) && hasNumber(checker, target, new Set())) {
+    numeric.add(`${file}:${alias}`)
+    if (MONEY_KEY.test(alias)) flagged.add(`${file}:${alias}`)
+  }
+  for (const property of target.getProperties()) {
+    const key = property.getName()
+    if (key.startsWith('#') || !MONEY_HINT.test(key)) continue
+    const propertyType = checker.getTypeOfSymbol(property)
+    if (isCallable(checker, propertyType) || !hasNumber(checker, propertyType, new Set())) continue
+    numeric.add(`${file}:${key}`)
+    if (MONEY_KEY.test(key)) flagged.add(`${file}:${key}`)
+  }
+}
+
 /** Walk every declaration of the given source files. */
 function analyzeProgram(
   program: ts.Program,
@@ -105,6 +154,7 @@ function analyzeProgram(
     files += 1
     const file = label(source.fileName)
     const visit = (node: ts.Node): void => {
+      if (ts.isTypeAliasDeclaration(node)) checkAlias(checker, node, file, flagged, numeric)
       const name = declarationName(checker, node)
       const key = name === undefined ? undefined : keyOf(checker, name)
       if (name !== undefined && key !== undefined && MONEY_HINT.test(key)) {

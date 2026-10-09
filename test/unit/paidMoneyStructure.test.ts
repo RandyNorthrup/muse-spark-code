@@ -102,6 +102,34 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   'core/team/preview.ts:usdPerMTokOutput': { category: 'sanctioned', reason: RATE },
   'core/team/preview.ts:usdPerMTokCachedInput': { category: 'sanctioned', reason: RATE },
   'shared/estimate.ts:hourlyUsd': { category: 'sanctioned', reason: RATE },
+  'shared/estimate.ts:CatalogPrice': {
+    category: 'sanctioned',
+    reason: 'Hourly catalog rate, display and comparison only (PLAN.md:20258).',
+  },
+  'shared/estimate.ts:catalogPriceSchema': {
+    category: 'sanctioned',
+    reason: 'Hourly catalog rate, display and comparison only (PLAN.md:20258).',
+  },
+  'shared/estimate.ts:accountUsdPerHour': {
+    category: 'sanctioned',
+    reason: 'Estimator USD/hour demand forecast, scheduling math (PLAN.md:20265).',
+  },
+  'core/estimator/schedule.ts:usd': {
+    category: 'sanctioned',
+    reason: 'Estimator USD/hour demand forecast, scheduling math (PLAN.md:20265).',
+  },
+  'core/providers/providersFile.ts:UserPriceCard': {
+    category: 'sanctioned',
+    reason: 'User-entered USD-per-token price card (PLAN.md:20258).',
+  },
+  'core/providers/providersFile.ts:userPriceCardSchema': {
+    category: 'sanctioned',
+    reason: 'User-entered USD-per-token price card (PLAN.md:20258).',
+  },
+  'core/backends/modelapi/codecs/responses.ts:settledCostSchema': {
+    category: 'sanctioned',
+    reason: 'Vendor wire unit captured as sent, converted exactly at the boundary (PLAN.md:20260).',
+  },
   // --- sanctioned: vendor wire units (xAI ticks of 1e-10 USD).
   'core/backends/modelapi/codecs/responses.ts:cost_in_usd_ticks': {
     category: 'sanctioned',
@@ -166,6 +194,10 @@ export const computed = z.object({ [key]: z.number() })`,
   'interfaceRecord.ts': `export interface Totals {
   fooUsd: Record<string, number>
 }`,
+  'finiteRecord.ts': `export interface Totals {
+  fooUsd: Record<'openai' | 'meta', number>
+}`,
+  'mappedMoney.ts': `export type Totals = { [K in 'fooUsd']: number }`,
   'pipeAlias.ts': `import * as z from 'zod/mini'
 const amount = z.pipe(z.number(), z.number())
 export const schema = z.object({ nested: z.object({ fooUsd: amount }) })`,
@@ -255,6 +287,11 @@ describe('exact-money type guard', () => {
 
   it('flags a plain interface Record<string, number>', () => {
     expect(probe('interfaceRecord.ts')).toEqual(['interfaceRecord.ts:fooUsd'])
+  })
+
+  it('flags a finite-key record and a mapped money property (RVM121A P3-3)', () => {
+    expect(probe('finiteRecord.ts')).toEqual(['finiteRecord.ts:fooUsd'])
+    expect(probe('mappedMoney.ts')).toEqual(['mappedMoney.ts:fooUsd'])
   })
 
   it('flags numeric pipe aliases, imported schemas and numeric constants', () => {

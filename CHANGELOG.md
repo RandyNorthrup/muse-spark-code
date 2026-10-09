@@ -81,6 +81,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Exact money keeps every promise on every Node version (M121A fix round).
+  Version 1 journals and schedules read dollars through a small JSON parse
+  that keeps each number's written digits, so a literal a double cannot
+  carry is refused on Node 20 exactly as on newer runtimes instead of being
+  rounded into the record. Usage charts label the original amount in every
+  status line, data table and previous-period figure; only the plotted
+  geometry stays approximate, so a single xAI tick no longer reads as ten
+  times its charge. The exact-money type guard now also sees through
+  finite-key records and mapped types.
 - Schedule runtime tests cover Linux, Windows and macOS rearm ownership
   explicitly; macOS wake shutdown retains its independent after-exit helper.
 

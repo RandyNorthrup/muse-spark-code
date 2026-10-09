@@ -20220,7 +20220,7 @@ fresh-clone receipts and lead-owned integrated gates are in that record.
 
 ### M121 — Exact money everywhere (current money ports) (2026-10-08)
 
-**Status 2026-10-08 (lead decision): planned.** PORTS017D's honest guard
+**Status 2026-10-08 (lead decision, superseded by M121A): planned.** PORTS017D's honest guard
 (`test/unit/paidMoneyStructure.test.ts`) inventories every remaining numeric
 money field as `trackedDebt`: the usage journal and usage page, `usage.ts`,
 the models panel (including its spread-copies), `accountUsage` internals, the
@@ -20253,7 +20253,7 @@ all of them; the `trackedDebt` category is the complete inventory it found.
 
 **Sanctioned numeric money (M121 decision, 2026-10-09).** The type-checker
 guard reads all of `src` (host, runtime, ACP and webview too), so it judges
-more than the 0.17 inventory. Three kinds of number stay numeric, each listed
+more than the 0.17 inventory. Four kinds of number stay numeric, each listed
 in the guard's `sanctioned` category with this paragraph as its citation:
 (1) per-unit rates — USD per million tokens, per token or per hour on a price
 card or catalog row, display and comparison only, settled through `Usd`;
@@ -20261,7 +20261,12 @@ card or catalog row, display and comparison only, settled through `Usd`;
 exactly at the named boundary; (3) VS Code number settings and their declared
 defaults/limits (`paidDailyBudgetUsd`, `tabDailyBudgetUsd`,
 `modelApiSessionBudgetUsd`, `PAID_DAILY_BUDGET` limits), which VS Code stores
-as JSON numbers and every reader converts with `Usd.from` on read. Everything
+as JSON numbers and every reader converts with `Usd.from` on read; (4) the
+estimator's demand quantities (RVM121A P3-3, 2026-10-09: `accountUsdPerHour`
+and the `usd` rate read from it), USD/hour forecasts compared as numbers
+inside scheduling math beside requests/tokens/percent per hour through the
+shared number-based `Quantity` machinery — converting one unit would fracture
+it, so conversion waits for estimator-milestone work. Everything
 else is converted to `UsdAmount`; old persisted numbers are read through a
 versioned schema whose number member pipes straight to the canonical string.
 
