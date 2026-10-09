@@ -120,17 +120,17 @@ async function checkoutSetup(
     options.failures,
     options.addOwnWorktree,
   )
-  const records = createMemoryWorktreeRecordStore('linux')
+  const records = createMemoryWorktreeRecordStore(process.platform)
   const heldRoots = [
-    heldWorktreesRoot(storageRoot, 'linux'),
-    heldWorktreesRoot(dataFolder, 'linux'),
+    heldWorktreesRoot(storageRoot, process.platform),
+    heldWorktreesRoot(dataFolder, process.platform),
   ]
   const checkout = new RuntimePullRequestCheckout({
     ...deps,
     repositoryRoot,
     dataFolder,
     tokenSources: options.noSources === true ? [] : [source],
-    platform: 'linux',
+    platform: process.platform,
     now: options.now ?? (() => 2000),
     confirm: (message, detail, action) => {
       confirms.push({ message, detail, action })
@@ -210,9 +210,9 @@ describe('runtime pull request checkout (M123 lane P)', () => {
     expect(result.held).toBe(false)
     expect(result.number).toBe(56)
     expect(result.folder).toBe(
-      path.posix.join(
-        path.posix.dirname(repositoryRoot),
-        `${path.posix.basename(repositoryRoot)}.worktrees`,
+      path.join(
+        path.dirname(repositoryRoot),
+        `${path.basename(repositoryRoot)}.worktrees`,
         'pr-56',
       ),
     )
@@ -352,9 +352,9 @@ describe('runtime pull request checkout (M123 lane P)', () => {
 
   it('never opens a folder it did not check out', async () => {
     const setup = await checkoutSetup()
-    const folder = path.posix.join(
-      path.posix.dirname(setup.repositoryRoot),
-      `${path.posix.basename(setup.repositoryRoot)}.worktrees`,
+    const folder = path.join(
+      path.dirname(setup.repositoryRoot),
+      `${path.basename(setup.repositoryRoot)}.worktrees`,
       'pr-56',
     )
     await mkdir(folder, { recursive: true })
@@ -374,7 +374,7 @@ describe('runtime pull request checkout (M123 lane P)', () => {
       throw new Error('checkout failed')
     }
     const records = await setup.records.list()
-    expect(holdForRoots([result.folder], setup.heldRoots, records, 'linux')?.folder).toBe(
+    expect(holdForRoots([result.folder], setup.heldRoots, records, process.platform)?.folder).toBe(
       result.folder,
     )
     // Both roots are consulted: a worktree the other editor made holds too.
@@ -400,12 +400,13 @@ describe('runtime pull request checkout (M123 lane P)', () => {
       isCheckoutPending: true,
     })
     expect(
-      holdForRoots([vscodeFolder], setup.heldRoots, await setup.records.list(), 'linux')?.folder,
+      holdForRoots([vscodeFolder], setup.heldRoots, await setup.records.list(), process.platform)
+        ?.folder,
     ).toBe(vscodeFolder)
     const released = await setup.checkout.releaseHold(result.folder)
     expect(released).toEqual({ ok: true })
     expect(
-      holdForRoots([result.folder], setup.heldRoots, await setup.records.list(), 'linux'),
+      holdForRoots([result.folder], setup.heldRoots, await setup.records.list(), process.platform),
     ).toBeUndefined()
     const unknown = await setup.checkout.releaseHold(`${result.folder}-missing`)
     expect(unknown.ok).toBe(false)
@@ -438,7 +439,7 @@ describe('pull request git environments (M123 lane P)', () => {
 
 describe('worktree record store (M123 lane P)', () => {
   it('completes, removes and releases records', async () => {
-    const store = createMemoryWorktreeRecordStore('linux')
+    const store = createMemoryWorktreeRecordStore(process.platform)
     const record = {
       folder: '/data/pr-worktrees/51-abcdef12',
       repositoryRoot: '/repo',
@@ -469,6 +470,33 @@ describe('worktree record store (M123 lane P)', () => {
     expect(await store.release(`${record.folder}-missing`, 3000)).toBeUndefined()
   })
 
+  it('names one checkout through either separator and any case on Windows', async () => {
+    const store = createMemoryWorktreeRecordStore('win32')
+    const record = {
+      folder: String.raw`C:\data\pr-worktrees\51-abcdef12`,
+      repositoryRoot: String.raw`C:\repo`,
+      createdAt: 1000,
+      pullRequest: {
+        repository: 'RandyNorthrup/muse-spark-code',
+        number: 51,
+        url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/51',
+        title: 'A foreign pull request',
+        author: 'Piangpi1997',
+        headSha: CAPTURED_PULL_FORK.head.sha,
+        isAuthoredByUser: false,
+      },
+      isHeld: true,
+      isCheckoutPending: true,
+    } as const
+    await store.put({ ...record })
+    // The store keeps `/` separators; either spelling still finds it.
+    expect(await store.recordFor('C:/data/pr-worktrees/51-abcdef12')).toEqual({
+      ...record,
+      folder: 'C:/data/pr-worktrees/51-abcdef12',
+    })
+    expect(await store.recordFor(String.raw`c:\DATA\PR-WORKTREES\51-ABCDEF12`)).toBeDefined()
+  })
+
   it('never lets a stale window’s read restore trust or drop records', async () => {
     const dataFolder = await mkdtemp(path.join(tmpdir(), 'm123p-records-'))
     const log = recordingLogger()
@@ -484,7 +512,10 @@ describe('worktree record store (M123 lane P)', () => {
       isAuthoredByUser: false,
     } as const
     // Window A caches a trusted checkout of the worktree.
-    const windowA = createFileWorktreeRecordStore(dataFolder, 'linux', log)
+    // The store keeps folders with `/` separators, which git accepts on
+    // Windows too, so the records compare on either platform.
+    const key = folder.replaceAll('\\', '/')
+    const windowA = createFileWorktreeRecordStore(dataFolder, process.platform, log)
     await windowA.put({
       folder,
       repositoryRoot: '/repo',
@@ -496,9 +527,9 @@ describe('worktree record store (M123 lane P)', () => {
     // The worktree is removed; window B checks out the updated pull
     // request at the same folder, held without confirmation, and records
     // an unrelated checkout too.
-    const windowB = createFileWorktreeRecordStore(dataFolder, 'linux', log)
+    const windowB = createFileWorktreeRecordStore(dataFolder, process.platform, log)
     const held = {
-      folder,
+      folder: key,
       repositoryRoot: '/repo',
       createdAt: 2000,
       pullRequest: { ...origin },
@@ -518,22 +549,34 @@ describe('worktree record store (M123 lane P)', () => {
     // A subsequent read in the stale window must see the new record, and
     // — reads never write — must not put the old trust back.
     expect(await windowA.recordFor(folder)).toEqual({ ...held })
-    const fresh = createFileWorktreeRecordStore(dataFolder, 'linux', log)
+    const fresh = createFileWorktreeRecordStore(dataFolder, process.platform, log)
     expect(await fresh.recordFor(folder)).toEqual({ ...held })
     expect(await fresh.recordFor(otherFolder)).toBeDefined()
-    expect(holdForRoots([folder], [heldRoot], await fresh.list(), 'linux')?.folder).toBe(folder)
+    expect(holdForRoots([folder], [heldRoot], await fresh.list(), process.platform)?.folder).toBe(
+      key,
+    )
   })
 })
 
 describe('runtime pull request checkout on the fixture repositories (M123 lane P)', () => {
   let fixtures: FixtureRepositories
+  let gitPath: string
 
   beforeAll(async () => {
     fixtures = createFixtureRepositories(await mkdtemp(path.join(tmpdir(), 'm123p-fixtures-')))
+    const resolved = resolveExecutable('git', {
+      platform: process.platform,
+      pathVariable: process.env['PATH'],
+      fileExists: existsSync,
+    })
+    if (resolved === undefined) {
+      throw new Error('git is not on PATH')
+    }
+    gitPath = resolved
   })
 
   function git(cwd: string, ...args: string[]): string {
-    return execFileSync('git', args, { cwd, env: fixtures.environment, encoding: 'utf8' }).trim()
+    return execFileSync(gitPath, args, { cwd, env: fixtures.environment, encoding: 'utf8' }).trim()
   }
 
   async function fixtureSetup(kind: 'own' | 'held'): Promise<{
@@ -562,7 +605,6 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
     const opened: string[] = []
     const dataFolder = await mkdtemp(path.join(tmpdir(), 'm123p-held-'))
     const storageRoot = await mkdtemp(path.join(tmpdir(), 'm123p-vsc-'))
-    const which = execFileSync('which', ['git'], { encoding: 'utf8' }).trim()
     const checkout = new RuntimePullRequestCheckout({
       ...deps,
       repositoryRoot,
@@ -570,7 +612,7 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
       tokenSources: [
         fakeTokenSource('deviceFlow', { bearer: CANARY, isSignedIn: true, fetch: github.fetch }),
       ],
-      platform: 'linux',
+      platform: process.platform,
       now: () => 2000,
       confirm: () => Promise.resolve(true),
       openFolder: (folder) => {
@@ -579,13 +621,16 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
       },
       baseUrl: 'https://api.github.test',
       log,
-      records: createMemoryWorktreeRecordStore('linux'),
-      heldRoots: [heldWorktreesRoot(storageRoot, 'linux'), heldWorktreesRoot(dataFolder, 'linux')],
+      records: createMemoryWorktreeRecordStore(process.platform),
+      heldRoots: [
+        heldWorktreesRoot(storageRoot, process.platform),
+        heldWorktreesRoot(dataFolder, process.platform),
+      ],
       git: createNodePullRequestCheckoutGit({
-        gitPath: which,
+        gitPath,
         userEnv: pullRequestFetchEnvironment({ ...fixtures.environment }),
         quietEnv: quietPullRequestEnvironment({ ...fixtures.environment }),
-        platform: 'linux',
+        platform: process.platform,
         signal: deps.signal,
         log,
       }),
@@ -608,14 +653,6 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
   })
 
   it('stops the fetch and the held batch on cancel instead of hanging', async () => {
-    const gitPath = resolveExecutable('git', {
-      platform: process.platform,
-      pathVariable: process.env['PATH'],
-      fileExists: existsSync,
-    })
-    if (gitPath === undefined) {
-      throw new Error('git is not on PATH')
-    }
     const log = recordingLogger()
     const runner = createNodePullRequestCheckoutGit({
       gitPath,
@@ -647,10 +684,11 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
       return
     }
     expect(result.held).toBe(true)
-    expect(result.folder.startsWith(`${dataFolder}/pr-worktrees/51-`)).toBe(true)
+    expect(result.folder.startsWith(path.join(dataFolder, 'pr-worktrees', '51-'))).toBe(true)
     expect(git(result.folder, 'rev-parse', 'HEAD')).toBe(sha)
     const worktree = git(fixtures.fork, 'worktree', 'list', '--porcelain')
-    expect(worktree).toContain(result.folder)
+    // Git spells worktree folders with `/` separators; compare slashed.
+    expect(worktree.replaceAll('\\', '/')).toContain(result.folder.replaceAll('\\', '/'))
     const expected = await readFile(path.join(fixtures.fork, 'README.md'), 'utf8')
     expect(await readFile(path.join(result.folder, 'README.md'), 'utf8')).toBe(expected)
     expect(opened).toEqual([result.folder])
