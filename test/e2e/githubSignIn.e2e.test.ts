@@ -28,6 +28,7 @@ import {
   GH_AUTH_TOKEN_ARGS,
   GITHUB_AUTHORIZED_APP_URL,
   GITHUB_DEVICE_FLOW_SECRET_KEY,
+  GITHUB_DEVICE_FLOW_SIGN_OUT_KEY,
   GITHUB_DEVICE_POLL_INTERVAL_S,
   GITHUB_DEVICE_SLOW_DOWN_STEP_S,
   GITHUB_DEVICE_VERIFICATION_URL,
@@ -122,6 +123,8 @@ async function failureOf(work: Promise<unknown>): Promise<string> {
 
 const tokenPolls = (server: FakeGitHubServer) =>
   server.deviceRequests.filter((request) => request.path === TOKEN_PATH)
+const refreshes = (server: FakeGitHubServer) =>
+  server.deviceRequests.filter((request) => request.params['grant_type'] === 'refresh_token')
 
 function signIn(test: Rig, signal = new AbortController().signal) {
   return signInWithDeviceFlow(test.deps, ['repo'], test.present, signal)
@@ -313,11 +316,11 @@ describe('the device-flow client (D104 source b)', () => {
   })
 })
 
-function sourceFor(test: Rig, store = memorySecrets()) {
+function sourceFor(test: Rig, store = memorySecrets(), flow: DeviceFlowDeps = test.deps) {
   const opened: string[] = []
   const source = deviceFlowSource({
     store,
-    flow: test.deps,
+    flow,
     present: test.present,
     openExternal: (url) => {
       opened.push(url)
@@ -403,7 +406,10 @@ describe('the device-flow source', () => {
   it('signs out by deleting the token and opening the app’s page on GitHub', async () => {
     const { source, store, opened } = await signedIn()
     await source.signOut()
-    expect(store.values.size).toBe(0)
+    expect(store.values.has(GITHUB_DEVICE_FLOW_SECRET_KEY)).toBe(false)
+    // Only Sign out's mark is left, and it holds no secret.
+    expect(store.values.size).toBe(1)
+    expect(store.values.has(GITHUB_DEVICE_FLOW_SIGN_OUT_KEY)).toBe(true)
     expect(opened).toEqual([GITHUB_AUTHORIZED_APP_URL])
     expect(new URL(GITHUB_AUTHORIZED_APP_URL).origin).toBe('https://github.com')
     expect(await source.isSignedIn()).toBe(false)
@@ -415,6 +421,248 @@ describe('the device-flow source', () => {
     store.values.set(GITHUB_DEVICE_FLOW_SECRET_KEY, '{"v":1,"accessToken":""}')
     expect(await source.credential('silent', signal)).toBeUndefined()
     expect(await source.isSignedIn()).toBe(false)
+  })
+})
+
+// RVM123A: a second window sharing the store, callers that cancel, an
+// outage answered in JSON, and a wait that ends late.
+describe('the device-flow source across windows, cancels and outages', () => {
+  const signal = new AbortController().signal
+
+  it('does not store a sign-in that finishes after another window signed out', async () => {
+    const test = await rig()
+    const { source: other, store } = sourceFor(test)
+    const { source } = sourceFor(test, store, {
+      ...test.deps,
+      sleep: async (ms, wait) => {
+        await test.deps.sleep(ms, wait)
+        test.server.approve()
+        await other.signOut()
+      },
+    })
+    expect(await source.credential('ask', signal)).toBeUndefined()
+    expect(test.server.issuedTokens).toHaveLength(1)
+    expect(store.values.has(GITHUB_DEVICE_FLOW_SECRET_KEY)).toBe(false)
+    expect(await source.isSignedIn()).toBe(false)
+    expect(await other.isSignedIn()).toBe(false)
+  })
+
+  it('does not store a refresh that finishes after another window signed out', async () => {
+    const { test, store, first } = await signedIn({ expiringTokens: true })
+    const { source: other } = sourceFor(test, store)
+    const { source } = sourceFor(test, store, {
+      ...test.deps,
+      fetch: async (...request) => {
+        const answer = await test.deps.fetch(...request)
+        await other.signOut()
+        return answer
+      },
+    })
+    test.clock = first.expiresAt!
+    expect(await source.credential('silent', signal)).toBeUndefined()
+    expect(refreshes(test.server)).toHaveLength(1)
+    expect(store.values.has(GITHUB_DEVICE_FLOW_SECRET_KEY)).toBe(false)
+  })
+
+  it('refreshes once for concurrent callers of one source', async () => {
+    const { test, source, first } = await signedIn({ expiringTokens: true })
+    test.clock = first.expiresAt!
+    const [one, two] = await Promise.all([
+      source.credential('silent', signal),
+      source.credential('silent', signal),
+    ])
+    expect(refreshes(test.server)).toHaveLength(1)
+    expect(one?.bearer).toBe(two?.bearer)
+    expect(one?.bearer).not.toBe(first.bearer)
+  })
+
+  it('keeps the pair another window rotated in when its own refresh is refused', async () => {
+    const { test, store, first } = await signedIn({ expiringTokens: true })
+    const aServed = Promise.withResolvers<undefined>()
+    const bServed = Promise.withResolvers<undefined>()
+    const releaseA = Promise.withResolvers<undefined>()
+    const releaseB = Promise.withResolvers<undefined>()
+    const a = sourceFor(test, store, {
+      ...test.deps,
+      fetch: async (...request) => {
+        const answer = await test.deps.fetch(...request)
+        aServed.resolve(undefined)
+        await releaseA.promise
+        return answer
+      },
+    }).source
+    const b = sourceFor(test, store, {
+      ...test.deps,
+      fetch: async (...request) => {
+        await aServed.promise
+        const answer = await test.deps.fetch(...request)
+        bServed.resolve(undefined)
+        await releaseB.promise
+        return answer
+      },
+    }).source
+    test.clock = first.expiresAt!
+    const fromA = a.credential('silent', signal)
+    const fromB = b.credential('silent', signal)
+    await bServed.promise
+    releaseA.resolve(undefined)
+    const rotated = await fromA
+    expect(rotated?.bearer).not.toBe(first.bearer)
+    releaseB.resolve(undefined)
+    const kept = await fromB
+    expect(kept?.bearer).toBe(rotated?.bearer)
+    expect(refreshes(test.server)).toHaveLength(2)
+    expect(JSON.parse(store.values.get(GITHUB_DEVICE_FLOW_SECRET_KEY)!)).toMatchObject({
+      accessToken: rotated?.bearer,
+    })
+  })
+
+  it('ends only a joined caller’s wait when that caller cancels', async () => {
+    const test = await rig()
+    const { source } = sourceFor(test)
+    const joined = new AbortController()
+    test.onSleep = () => {
+      joined.abort()
+      test.server.approve()
+    }
+    const [first, second] = await Promise.allSettled([
+      source.credential('ask', new AbortController().signal),
+      source.credential('ask', joined.signal),
+    ])
+    expect(first.status === 'fulfilled' && first.value?.bearer).toBe(test.server.issuedTokens[0])
+    expect(second.status).toBe('rejected')
+    expect(test.server.deviceRequests.filter((r) => r.path === CODE_PATH)).toHaveLength(1)
+  })
+
+  it('keeps signing in for a joined caller when the first caller cancels', async () => {
+    const test = await rig()
+    const { source } = sourceFor(test)
+    const starter = new AbortController()
+    test.onSleep = () => {
+      starter.abort()
+      test.server.approve()
+    }
+    const [first, second] = await Promise.allSettled([
+      source.credential('ask', starter.signal),
+      source.credential('ask', new AbortController().signal),
+    ])
+    expect(first.status).toBe('rejected')
+    expect(second.status === 'fulfilled' && second.value?.bearer).toBe(test.server.issuedTokens[0])
+  })
+
+  it('stops polling once every caller has cancelled', async () => {
+    const test = await rig()
+    const waits: AbortSignal[] = []
+    const { source } = sourceFor(test, memorySecrets(), {
+      ...test.deps,
+      sleep: (ms, wait) => {
+        waits.push(wait)
+        return test.deps.sleep(ms, wait)
+      },
+    })
+    const one = new AbortController()
+    const two = new AbortController()
+    test.onSleep = (index) => {
+      if (index === 1) {
+        one.abort()
+      } else if (index === 2) {
+        two.abort()
+      }
+    }
+    const results = await Promise.allSettled([
+      source.credential('ask', one.signal),
+      source.credential('ask', two.signal),
+    ])
+    expect(results.map((result) => result.status)).toEqual(['rejected', 'rejected'])
+    expect(waits.at(-1)?.aborted).toBe(true)
+    expect(tokenPolls(test.server)).toHaveLength(2)
+  })
+
+  it.each([
+    [
+      'a 503 with a JSON body',
+      () => Response.json({ message: 'Service Unavailable' }, { status: 503 }),
+    ],
+    ['a JSON temporarily_unavailable', () => Response.json({ error: 'temporarily_unavailable' })],
+  ])('keeps the pair, and serves the live token, on %s', async (_name, outage) => {
+    const { test, store, first } = await signedIn({ expiringTokens: true })
+    const { source } = sourceFor(test, store, {
+      ...test.deps,
+      fetch: () => Promise.resolve(outage()),
+    })
+    test.clock = first.expiresAt! - 30 * SECOND
+    const live = await source.credential('silent', signal)
+    expect(live?.bearer).toBe(first.bearer)
+    test.clock = first.expiresAt!
+    await expect(source.credential('silent', signal)).rejects.toBeInstanceOf(DeviceFlowFailure)
+    expect(JSON.parse(store.values.get(GITHUB_DEVICE_FLOW_SECRET_KEY)!)).toMatchObject({
+      accessToken: first.bearer,
+    })
+  })
+
+  it('names a 5xx reply a network failure, whatever its body', async () => {
+    const test = await rig()
+    const deps = {
+      ...test.deps,
+      fetch: () => Promise.resolve(Response.json({ error: 'bad_refresh_token' }, { status: 502 })),
+    }
+    expect(await failureOf(refreshDeviceFlowToken(deps, 'refresh', signal))).toBe('network')
+  })
+
+  it('does not poll when a wait ends after the code expired', async () => {
+    const test = await rig({ expiresInS: 60 })
+    const deps: DeviceFlowDeps = {
+      ...test.deps,
+      sleep: (_ms, wait) => {
+        test.clock += 120 * SECOND
+        wait.throwIfAborted()
+        return Promise.resolve()
+      },
+    }
+    const work = signInWithDeviceFlow(deps, ['repo'], test.present, signal)
+    expect(await failureOf(work)).toBe('expired')
+    expect(tokenPolls(test.server)).toEqual([])
+  })
+
+  it('sends no poll when Cancel lands as a wait ends', async () => {
+    const test = await rig()
+    const controller = new AbortController()
+    const sent: string[] = []
+    const deps: DeviceFlowDeps = {
+      ...test.deps,
+      fetch: (input, init) => {
+        sent.push(typeof input === 'string' ? input : 'not a string')
+        return test.deps.fetch(input, init)
+      },
+      sleep: () => {
+        controller.abort()
+        return Promise.resolve()
+      },
+    }
+    const work = signInWithDeviceFlow(deps, ['repo'], test.present, controller.signal)
+    await expect(work).rejects.toThrow()
+    expect(sent).toEqual([test.server.deviceCodeUrl])
+  })
+
+  it('takes a sign-in back when another window signs out as it is stored', async () => {
+    const test = await rig()
+    const shared = memorySecrets()
+    const { source: other } = sourceFor(test, shared)
+    const store = {
+      ...shared,
+      store: async (key: string, value: string) => {
+        // The other window's whole sign-out lands between this window's
+        // check of the mark and its write.
+        if (key === GITHUB_DEVICE_FLOW_SECRET_KEY) await other.signOut()
+        await shared.store(key, value)
+      },
+    }
+    test.onSleep = () => {
+      test.server.approve()
+    }
+    const { source } = sourceFor(test, store)
+    expect(await source.credential('ask', signal)).toBeUndefined()
+    expect(shared.values.has(GITHUB_DEVICE_FLOW_SECRET_KEY)).toBe(false)
   })
 })
 

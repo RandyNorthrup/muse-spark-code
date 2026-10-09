@@ -5,13 +5,28 @@
 // a file of ours, a log, MHP, an argument or an environment.
 //
 // - `silent` reads the stored token; an expiring one is refreshed first
-//   (both tokens rotate), and a refresh GitHub refuses drops the item.
+//   (both tokens rotate), and a refresh GitHub refuses drops the item. A
+//   refresh that fails otherwise keeps it, and the access token serves while
+//   it lasts.
 // - `ask` also runs the device flow, one at a time, showing the code only
 //   through `present` (the panel's card, the ACP notice or the CLI's text).
 // - A 401 (`rejected`) and Sign out delete the item; Sign out then opens the
 //   app's page on GitHub, where the grant is revoked (a public client cannot
 //   call the revocation endpoint: it needs the client secret).
 // - Every token read or issued is registered with the redactor.
+//
+// Windows and processes share the item, and a keychain has no
+// compare-and-swap, so every write is conditional:
+// - Sign out first writes a fresh random mark beside the item, then deletes
+//   it. A sign-in or refresh reads the mark when it starts, and after
+//   storing reads it again: a changed mark means a sign-out ran meanwhile,
+//   and the write is taken back. (Sign out's write comes before its delete,
+//   so a store that lands after the delete always sees the new mark.)
+// - A refused refresh deletes only the pair it spent: a pair another
+//   window rotated in meanwhile is kept and used.
+// - In one source, concurrent callers share one refresh and one sign-in.
+//   Each caller's signal ends only its own wait; the shared run is aborted
+//   when every caller has gone.
 
 import type { SecretStore } from '../../host/auth/credentialStore'
 import { registerSecretValue } from '../../core/redact'
@@ -24,11 +39,13 @@ import {
   type DeviceFlowTokens,
 } from '../../core/git/deviceFlow'
 import type { GitHubCredential, GitHubTokenSource } from '../../core/git/tokenSource'
+import { randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
   GITHUB_AUTH_SCOPES,
   GITHUB_AUTHORIZED_APP_URL,
   GITHUB_DEVICE_FLOW_SECRET_KEY,
+  GITHUB_DEVICE_FLOW_SIGN_OUT_KEY,
   GITHUB_STORED_TOKEN_VERSION,
   GITHUB_TOKEN_REFRESH_MARGIN_MS,
 } from '../../shared/constants'
@@ -79,9 +96,66 @@ export interface DeviceFlowSource extends GitHubTokenSource {
   isSignedIn(): Promise<boolean>
 }
 
+/** `work` until `signal` aborts; the abort rejects with its reason. */
+async function untilAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  const done = new AbortController()
+  const aborted = new Promise<never>((_resolve, reject) => {
+    signal.addEventListener(
+      'abort',
+      () => {
+        reject(signal.reason instanceof Error ? signal.reason : new Error('aborted'))
+      },
+      { once: true, signal: done.signal },
+    )
+  })
+  try {
+    return await Promise.race([work, aborted])
+  } finally {
+    done.abort()
+  }
+}
+
+/**
+ * One run of `work` at a time, joined by every caller while it lasts. The
+ * run owns its own signal: a caller's abort ends that caller's wait only,
+ * and the run is aborted once no caller is left waiting for it.
+ */
+function shared<T>(work: (signal: AbortSignal) => Promise<T>): (signal: AbortSignal) => Promise<T> {
+  let run:
+    { readonly result: Promise<T>; readonly owner: AbortController; callers: number } | undefined
+  const end = (owner: AbortController): void => {
+    if (run?.owner === owner) run = undefined
+  }
+  return async (signal) => {
+    signal.throwIfAborted()
+    if (run === undefined) {
+      const owner = new AbortController()
+      // Every caller's race reads the result, so an abandoned run's failure is handled.
+      const result = (async () => {
+        try {
+          return await work(owner.signal)
+        } finally {
+          end(owner)
+        }
+      })()
+      run = { result, owner, callers: 0 }
+    }
+    const current = run
+    current.callers += 1
+    try {
+      return await untilAborted(current.result, signal)
+    } finally {
+      current.callers -= 1
+      if (current.callers === 0 && signal.aborted) {
+        current.owner.abort(signal.reason)
+        end(current.owner)
+      }
+    }
+  }
+}
+
 export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
   const releases = new Map<string, () => void>()
-  let signingIn: Promise<StoredTokens> | undefined
 
   const remember = (stored: StoredTokens): StoredTokens => {
     for (const value of [stored.accessToken, stored.refreshToken]) {
@@ -89,14 +163,28 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
     }
     return stored
   }
-  const forget = async (): Promise<void> => {
+  const read = async (): Promise<string | undefined> =>
+    await deps.store.get(GITHUB_DEVICE_FLOW_SECRET_KEY)
+  const signOutMark = async (): Promise<string | undefined> =>
+    await deps.store.get(GITHUB_DEVICE_FLOW_SIGN_OUT_KEY)
+  /** Delete the item if it still holds `text`; whether it did. */
+  const didForget = async (text: string | undefined): Promise<boolean> => {
+    if ((await read()) !== text) return false
     await deps.store.delete(GITHUB_DEVICE_FLOW_SECRET_KEY)
     // The redactor keeps the values: a line already queued may still name one.
+    return true
   }
-  const save = async (tokens: DeviceFlowTokens): Promise<StoredTokens> => {
+  /** Store `tokens` unless Sign out ran since `mark` was read; undefined when it did. */
+  const saveUnlessSignedOut = async (
+    tokens: DeviceFlowTokens,
+    mark: string | undefined,
+  ): Promise<StoredTokens | undefined> => {
     const stored = remember(storedOf(tokens))
-    await deps.store.store(GITHUB_DEVICE_FLOW_SECRET_KEY, JSON.stringify(stored))
-    return stored
+    const text = JSON.stringify(stored)
+    await deps.store.store(GITHUB_DEVICE_FLOW_SECRET_KEY, text)
+    if ((await signOutMark()) === mark) return stored
+    await didForget(text)
+    return
   }
   const credentialOf = (stored: StoredTokens): GitHubCredential => ({
     source: 'deviceFlow',
@@ -104,34 +192,49 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
     fetch: deps.fetch,
     expiresAt: stored.expiresAt ?? undefined,
   })
+  const isFresh = (stored: StoredTokens): boolean =>
+    stored.expiresAt === null || deps.flow.now() + GITHUB_TOKEN_REFRESH_MARGIN_MS < stored.expiresAt
 
   /** The stored pair, refreshed when it is about to expire; undefined when none is usable. */
-  const usable = async (signal: AbortSignal): Promise<StoredTokens | undefined> => {
-    const stored = parseStored(await deps.store.get(GITHUB_DEVICE_FLOW_SECRET_KEY))
+  const usable = shared(async (signal): Promise<StoredTokens | undefined> => {
+    const mark = await signOutMark()
+    const text = await read()
+    const stored = parseStored(text)
     if (stored === undefined) return
     remember(stored)
-    const now = deps.flow.now()
-    if (stored.expiresAt === null || now + GITHUB_TOKEN_REFRESH_MARGIN_MS < stored.expiresAt) {
-      return stored
-    }
+    if (isFresh(stored)) return stored
     if (
       stored.refreshToken === null ||
-      (stored.refreshExpiresAt !== null && now >= stored.refreshExpiresAt)
+      (stored.refreshExpiresAt !== null && deps.flow.now() >= stored.refreshExpiresAt)
     ) {
-      await forget()
+      await didForget(text)
       return
     }
+    let tokens: DeviceFlowTokens
     try {
-      return await save(await refreshDeviceFlowToken(deps.flow, stored.refreshToken, signal))
+      tokens = await refreshDeviceFlowToken(deps.flow, stored.refreshToken, signal)
     } catch (error: unknown) {
       signal.throwIfAborted()
-      // A lost network keeps the pair for the next try; anything else means
-      // GitHub did not take it, so the user signs in again.
-      if (error instanceof DeviceFlowFailure && error.reason === 'network') throw error
-      await forget()
-      return
+      if (!(error instanceof DeviceFlowFailure) || error.reason !== 'refreshRefused') {
+        // An outage or an unreadable reply: GitHub did not refuse the pair,
+        // so it stays, and its access token serves while it lasts.
+        if (stored.expiresAt !== null && deps.flow.now() < stored.expiresAt) return stored
+        throw error
+      }
+      // Another window may have spent the refresh token first and stored
+      // its new pair: only the refused pair is dropped.
+      if (await didForget(text)) return
+      const current = parseStored(await read())
+      return current !== undefined && isFresh(current) ? remember(current) : undefined
     }
-  }
+    return await saveUnlessSignedOut(tokens, mark)
+  })
+
+  const signIn = shared(async (signal): Promise<StoredTokens | undefined> => {
+    const mark = await signOutMark()
+    const tokens = await signInWithDeviceFlow(deps.flow, GITHUB_AUTH_SCOPES, deps.present, signal)
+    return await saveUnlessSignedOut(tokens, mark)
+  })
 
   return {
     kind: 'deviceFlow',
@@ -139,27 +242,21 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
       const stored = await usable(signal)
       if (stored !== undefined) return credentialOf(stored)
       if (mode === 'silent') return
-      signingIn ??= (async () => {
-        try {
-          return await save(
-            await signInWithDeviceFlow(deps.flow, GITHUB_AUTH_SCOPES, deps.present, signal),
-          )
-        } finally {
-          signingIn = undefined
-        }
-      })()
-      return credentialOf(await signingIn)
+      const signedIn = await signIn(signal)
+      return signedIn === undefined ? undefined : credentialOf(signedIn)
     },
     async rejected(credential) {
-      const stored = parseStored(await deps.store.get(GITHUB_DEVICE_FLOW_SECRET_KEY))
-      if (stored?.accessToken === credential.bearer) await forget()
+      const text = await read()
+      if (parseStored(text)?.accessToken === credential.bearer) await didForget(text)
     },
     async signOut() {
-      await forget()
+      // The mark goes first: see the note at the top.
+      await deps.store.store(GITHUB_DEVICE_FLOW_SIGN_OUT_KEY, randomUUID())
+      await deps.store.delete(GITHUB_DEVICE_FLOW_SECRET_KEY)
       await deps.openExternal(GITHUB_AUTHORIZED_APP_URL)
     },
     async isSignedIn() {
-      return parseStored(await deps.store.get(GITHUB_DEVICE_FLOW_SECRET_KEY)) !== undefined
+      return parseStored(await read()) !== undefined
     },
   }
 }

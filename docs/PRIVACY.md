@@ -561,7 +561,9 @@ does not yet execute them in this build. When that lane lands, a local
   the account `museSpark.github.deviceFlow` (the M109 vault once its broker
   binds); never in a file, a setting, a log, a child process's arguments or
   environment, or anything sent to a model. `auth github logout` deletes
-  it; revoke the grant itself on GitHub's page for the app
+  it and leaves a random mark (no secret) under
+  `museSpark.github.deviceFlow.signedOut`, so a sign-in still finishing in
+  another window does not store a token again; revoke the grant itself on GitHub's page for the app
   (`https://github.com/settings/connections/applications/Ov23liXlNSPBbFyJ0A1z`).
   Your `gh` login is read (`gh auth token`) only when you turn on
   `museSpark.github.useGhLogin` in user or machine settings, held for one

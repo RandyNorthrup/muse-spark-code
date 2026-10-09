@@ -7,9 +7,12 @@
 //   that shows them. A reply naming any other address is refused.
 // - The token endpoint is polled no faster than `interval`; `slow_down`
 //   adds five seconds (or GitHub's new interval, whichever is longer), and
-//   polling stops at `expires_in` or when the signal aborts.
+//   polling stops at `expires_in` or when the signal aborts, both checked
+//   again after `present` and each wait, just before the poll goes out.
 // - With expiring user tokens on, the refresh token is returned beside the
 //   access token, and `refreshDeviceFlowToken` swaps both for new ones.
+//   Only `bad_refresh_token` is a refusal of the pair; a 5xx or 429 reply
+//   (whatever its body) is `network`, as a lost connection is.
 //
 // The reply shapes are GitHub's documented examples (not a capture; see
 // docs/certification/m123.md). Fields GitHub adds are let through, unread.
@@ -27,6 +30,7 @@ import {
   GITHUB_REFRESH_GRANT_TYPE,
   GITHUB_REQUEST_TIMEOUT_MS,
   GITHUB_USER_CODE_PATTERN,
+  HTTP_TOO_MANY_REQUESTS,
   MILLISECONDS_PER_SECOND,
 } from '../../shared/constants'
 import { assertPermittedScopes, requireOAuthClientId } from './tokenSource'
@@ -107,6 +111,11 @@ const errorReplySchema = z.looseObject({
   interval: z.optional(seconds),
 })
 
+const HTTP_SERVER_ERROR = 500
+// GitHub's word for a refresh token it no longer takes ("Refreshing user
+// access tokens"); any other refresh error leaves the pair as it is.
+const BAD_REFRESH_TOKEN = 'bad_refresh_token'
+
 const ERROR_REASONS: Readonly<Record<string, DeviceFlowFailureReason>> = {
   expired_token: 'expired',
   access_denied: 'denied',
@@ -137,6 +146,10 @@ async function post(
   } catch (error: unknown) {
     signal.throwIfAborted()
     throw new DeviceFlowFailure('network', { cause: error })
+  }
+  // An outage or a proxy, not GitHub's answer: its body is not read.
+  if (response.status >= HTTP_SERVER_ERROR || response.status === HTTP_TOO_MANY_REQUESTS) {
+    throw new DeviceFlowFailure('network')
   }
   try {
     return await response.json()
@@ -195,6 +208,9 @@ export async function signInWithDeviceFlow(
     if (deps.now() + intervalS * MILLISECONDS_PER_SECOND >= expiresAt)
       throw new DeviceFlowFailure('expired')
     await deps.sleep(intervalS * MILLISECONDS_PER_SECOND, signal)
+    // A sleeping laptop or a late timer can wake past the deadline.
+    signal.throwIfAborted()
+    if (deps.now() >= expiresAt) throw new DeviceFlowFailure('expired')
     const reply = await post(
       deps,
       deps.tokenUrl ?? GITHUB_DEVICE_TOKEN_URL,
@@ -228,7 +244,14 @@ export async function refreshDeviceFlowToken(
     { client_id: clientId, grant_type: GITHUB_REFRESH_GRANT_TYPE, refresh_token: refreshToken },
     signal,
   )
-  if (errorReplySchema.safeParse(reply).success) throw new DeviceFlowFailure('refreshRefused')
+  const error = errorReplySchema.safeParse(reply)
+  if (error.success) {
+    throw new DeviceFlowFailure(
+      error.data.error === BAD_REFRESH_TOKEN
+        ? 'refreshRefused'
+        : (ERROR_REASONS[error.data.error] ?? 'reply'),
+    )
+  }
   const tokens = tokenReplySchema.safeParse(reply)
   if (!tokens.success) throw new DeviceFlowFailure('reply')
   return tokensOf(tokens.data, deps.now())
