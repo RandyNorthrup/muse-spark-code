@@ -27699,6 +27699,19 @@ the configured client rethrows the typed `ChatCodecError` instead of
 the generic unavailable error. Production-path regression tests,
 red drills and gate receipts: `docs/certification/m95-h.md`.
 
+**Lane DSTHINK3 (2026-10-09, kubuntu).** Round 3 after RVDSTHINK (3 P2)
+and RVDSTHINK2 (2 P2): one pure resolver, `resolveReasoning` in
+`src/shared/effort.ts`, maps a requested setting per selected model and
+its capability record (levels, `canDisable`) plus the preset's declared
+off switch to a listed effort, the model's off switch, nothing, or the
+typed refusal `unsupported_reasoning_effort`. `effortForPolicy`, the
+configured client and the Chat codec all use it. Without a declared
+switch (every preset but DeepSeek, and Meta) the base mapping is kept
+exactly, proven by a table over every preset model × every setting
+against a golden generated on 01ee6233b. Open for the owner: on a model
+without a switch an unlisted on-level still goes as `none`, kept for
+byte identity. Evidence: `docs/certification/m95-h.md`.
+
 | Finding                                                                                                                                                                                                                                                                                                                                                                   | Owner                                                             |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | Record shape, resolver, parsers keeping native records, custom overrides (F12); reasoning modes per model incl. Haiku 4.5 manual thinking in the Anthropic encoder and Gemini level/budget mapping (F3); effort levels from the catalogue's `reasoning_options` (research BYO 10); image/PDF limits into the record and the media budget (F4 media part; research BYO 15) | **M95 lane N (CAPREC)**                                           |

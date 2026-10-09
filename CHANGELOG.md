@@ -135,6 +135,15 @@ happened, not what was planned; superseded entries are kept.
   silently disabling thinking; the off switch also sends for toggle-only
   models with no effort list; and the typed refusal now reaches the caller
   instead of the generic unavailable error.
+- Reasoning effort and Thinking off now go through one resolver per
+  selected model and its capability record. DeepSeek: an unlisted
+  Thinking-on level moves to the nearest level the model lists (for
+  example `medium` sends `high`), never to Thinking off; Thinking off is
+  sent only where the model can disable thinking, otherwise it is refused
+  with a translated "Thinking cannot be turned off for the selected
+  model."; a model without effort levels gets no effort field. Every
+  other provider's requests are back to byte-identical with 0.17.0,
+  which also restores short Claude Haiku replies at the default effort.
 
 ### Security
 
