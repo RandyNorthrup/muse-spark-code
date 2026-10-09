@@ -231,3 +231,218 @@ restored byte-exact.
   `dist/connector.js` 88,324 → 92,519 bytes (90.4 KiB of its 100 KiB
   budget, no cap raised); `dist/acp.js` 242,254 → 242,286 (the report
   subject mapping).
+
+## M124R3: one state machine, one authority (RVM124B, 2026-10-09)
+
+Branch `feature/m124-r3` from `2fa594639`: the redesign in `8bc6cc2c7`;
+three more tests (found needed by drills R1, L7 and L8) and the removal of
+four clones the duplication gate found in this lane's own code (`bind` and
+`lease` in the registry, two test helpers) in `6480a8811`; this record and
+the docs in the commit after it. Lane host Windows 11; vitest ran on the
+Kubuntu rig through `rig-test.sh` (repository default timeouts, no
+`--testTimeout`, complete owning files), the store-sensitive files natively
+on Windows, and the suites once more on the Mac mini. No model call, key,
+network request, MCP client installation or client configuration change;
+**zero model attempts**.
+
+The second review (`RVM124B.report.md`: 1 P1, 4 P2) was the third round on
+this module. Under the project's rule that means a redesign, not a fourth
+patch: each finding was a check made before an `await` and trusted after
+it. Design §3a has the full table and the rules; in short:
+
+- **One state machine** (`src/core/connector/operations.ts`): received →
+  admitted → (awaitingApproval → approved →) dispatching → settled, or
+  refused, cancelled or failed. Terminal states have no exits; a started
+  write is never cancelled. Every transition writes one receipt, so every
+  call ends in exactly one terminal receipt.
+- **One authority** (`ConnectorRegistry.stopCause`, synchronous): the
+  call's cancellation and deadline, disconnect, the kill switch, and the
+  grant it was admitted under (generation, scopes, workspace or user
+  library, confidential policy, through the same `admit`). `refresh` reads
+  the grant and kill switch again after every wait that precedes an effect
+  and applies them to every live operation at once.
+- **One final gate** (`Operation.gate`) immediately before each effect (rate
+  token, read and pending leases, the intent, owner ports, the write) and
+  before a read's result is delivered. No await sits between a passed gate
+  and its effect. The write's dispatch receipt is written ahead, then the
+  authority and target are read again, then the gate and the one-use
+  approval's compare-and-swap pass in the same tick as the write.
+- **The limits lock** follows the M123 `storeLock` protocol (read at
+  `c212d38cf` on `m123/p4`), kept small in `store.ts` until a shared module
+  is extracted, plus its generation fence. No child process is started:
+  where a process's start time cannot be read without one (macOS,
+  Windows), a live process id never counts as proof that the owner is gone.
+
+### Found on the way: inode reuse
+
+The two-contender lock regression first failed on Kubuntu with the
+redesigned store: ext4 gave the crashed lock's freed inode number to the
+next lock created, so a delayed waiter's identity check judged the new
+holder's live lock to be the crashed instance (an ABA). The generation fence
+still refused the stale write, so no debit was lost, but the takeover was
+wrong. The move-aside check now compares the note's random id as well as
+the native identity (drill L3). `storeLock` on `m123/p4` compares identity
+alone; its generations fence the same way, but the M123 owner should know.
+
+### Closure, both reports
+
+"Closed in `6c0b13853`" means the RVM124 fix lane closed it and RVM124B's
+closure table agreed; its regression test fails on `20a67df05` and still
+passes here.
+
+| Finding                                                | Sev | Status                                                                                                                                                                              | Regression test (fails on `2fa594639` unless noted)                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------ | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RVM124 1: report bodies without content grant          | P1  | Closed in `6c0b13853`; unchanged                                                                                                                                                    | `returns report bodies only with the content grant…` (fails on `20a67df05`)                                                                                                                                                                                                                                                |
+| RVM124 2: Stop vs dispatch                             | P2  | Closed in `6c0b13853`; now the state machine's write-ahead and final gate                                                                                                           | `never writes after Stop cancels…`, `reports stopRequested…` (fail on `20a67df05`)                                                                                                                                                                                                                                         |
+| RVM124 3: cancelled/disconnected calls                 | P2  | Partial there; **closed here** with RVM124B 1 and 2                                                                                                                                 | RVM124B P1 disconnect and P2-2 rows below                                                                                                                                                                                                                                                                                  |
+| RVM124 4: closing stdout                               | P2  | Closed in `6c0b13853`; unchanged                                                                                                                                                    | `closes the connector when stdout closes…` (fails on `20a67df05`)                                                                                                                                                                                                                                                          |
+| RVM124 5: task and output bounds                       | P2  | Closed in `6c0b13853`; the receipts backlog bound added here                                                                                                                        | `answers busy beyond the task bound…`; here `reads no further frame while the journal holds its backlog of receipts`                                                                                                                                                                                                       |
+| RVM124 6: settled intents kept payloads                | P2  | Closed in `6c0b13853`; unchanged                                                                                                                                                    | `drops payloads at settlement…` (fails on `20a67df05`)                                                                                                                                                                                                                                                                     |
+| RVM124 7: limits per process                           | P2  | Partial there; **closed here** with RVM124B 3                                                                                                                                       | RVM124B P2-3 rows below                                                                                                                                                                                                                                                                                                    |
+| RVM124 8: deadline and late success                    | P2  | Partial there; **closed here** with RVM124B 2                                                                                                                                       | `lets a call past its deadline take no lease and start no owner read`                                                                                                                                                                                                                                                      |
+| RVM124 9: complete result over 64 KiB                  | P2  | Closed in `6c0b13853`; its refusal now ends the call with its receipt (RVM124B 4)                                                                                                   | `bounds the complete MCP result…` (fails on `20a67df05`); here `records a final result refused for its size…`                                                                                                                                                                                                              |
+| RVM124 10: calls and refusals without receipts         | P2  | Partial there; **closed here** with RVM124B 4                                                                                                                                       | RVM124B P2-4 rows below                                                                                                                                                                                                                                                                                                    |
+| RVM124 11: report kinds through the real adapter       | P2  | Closed in `6c0b13853`; unchanged                                                                                                                                                    | e2e `generates every offered report kind…` (fails on `20a67df05`)                                                                                                                                                                                                                                                          |
+| RVM124 12: user-library-only grant could not Stop      | P2  | Partial there; **closed here** with RVM124B 5                                                                                                                                       | `lets the user-library grant stop a user-library save that named a workspace, over stdio (P2-5)`                                                                                                                                                                                                                           |
+| RVM124 13: owner read failure stranded operations      | P2  | Closed in `6c0b13853`; every failure is now a transition to `failed`                                                                                                                | `settles the operation when an owner read fails…` (fails on `20a67df05`)                                                                                                                                                                                                                                                   |
+| RVM124 14: retries misreported terminal work           | P2  | Closed in `6c0b13853`; a retry is a status read of the kept operation                                                                                                               | `answers a retry with the real state…` (fails on `20a67df05`)                                                                                                                                                                                                                                                              |
+| RVM124 15: grant/key storage ownership, Windows DACL   | P2  | **Open**: needs a verified owner-storage boundary (owner, mode, link checks) and Windows DACL qualification on a Windows rig; outside this lane's redesign brief                    | None yet                                                                                                                                                                                                                                                                                                                   |
+| RVM124 16: setup docs, `status \| revoke …` block      | P3  | **Closed here**: README shows each control command on its own line; README, `docs/mcp.md` and CHANGELOG say the client recipes have not been run; the rule-10 gap is recorded below | None: documentation only (no runtime behaviour to test)                                                                                                                                                                                                                                                                    |
+| RVM124B 1: approved write after revoke/kill/disconnect | P1  | **Closed**: write-ahead dispatch receipt, authority read again, final gate and CAS in the write's tick                                                                              | `starts no approved write after revocation / the kill switch / a confidential policy / the client disconnects during the dispatch receipt wait, over stdio`; `…when the policy changes while the target is re-read`                                                                                                        |
+| RVM124B 2: aborted calls acquired leases               | P2  | **Closed**: abort cancels at once; every effect behind the gate; leases freed whenever the call ends; delivery gate                                                                 | `lets no cancelled call take a read lease…, over stdio`; `lets a call past its deadline…`; `frees a lease recorded after its call was cancelled…`; `withholds a read result when the grant is revoked…`                                                                                                                    |
+| RVM124B 3: stale-lock recovery by age                  | P2  | **Closed**: storeLock protocol and generation fence; age never counts                                                                                                               | lock file: `never removes a live owner’s lock for its age`; `keeps both debits when two servers recover one crashed owner’s lock`; `keeps both debits when the wall clock steps…`                                                                                                                                          |
+| RVM124B 4: receipts missing                            | P2  | **Closed**: one receipt per transition; final-result, protocol and transport refusals; settled reads; control receipts                                                              | `records a final result refused for its size…`; `leaves one transport receipt for every frame refused…, over stdio`; `walks a read and an approved write…`; `ends every call on every tool, for every refusal kind…`; runtime `parses only its own words…` (control receipts); e2e `speaks only MCP…` (transport receipts) |
+| RVM124B 5: user-library save with workspace context    | P2  | **Closed**: an operation's scope is its admitted scope; Stop's authority follows it                                                                                                 | `lets the user-library grant stop a user-library save that named a workspace, over stdio (P2-5)`                                                                                                                                                                                                                           |
+
+The tool-table walk calls every tool of `CONNECTOR_TOOLS` (and an unknown
+name) with unknown fields and with a grant lacking its scopes, then every
+other refusal path: kill switch, rate limit, a failed admitted receipt,
+not found, stale, unavailable lanes, stale and unshowable writes, a denied
+and an expired approval, Stop of an ended operation. Every answered call
+ends in exactly one terminal receipt carrying its reason; every receipt is
+an edge of the table; the reasons seen are every `CONNECTOR_REASONS` value
+but `budget_exceeded`, which no backed tool can produce while paid
+authority is zero.
+
+### Tests
+
+At `6480a8811` (the record's commit changes no code):
+
+| File                                    | Cases | Kubuntu | Mac mini | Windows (native) | On `2fa594639` (new tests overlaid, Kubuntu) |
+| --------------------------------------- | ----: | ------- | -------- | ---------------- | -------------------------------------------- |
+| `test/unit/connectorRegistry.test.ts`   |    46 | pass    | pass     | —                | 19 fail (every new case), 27 pass            |
+| `test/unit/connectorRuntime.test.ts`    |    12 | pass    | pass     | pass             | 1 fail (control receipts), 11 pass           |
+| `test/unit/connectorLimitsLock.test.ts` |     8 | pass    | pass     | pass             | 8 fail                                       |
+| `test/e2e/connectorStdio.e2e.test.ts`   |     3 | pass    | pass     | —                | 1 fail (transport receipts), 2 pass          |
+
+29 cases fail on `2fa594639`, each on its finding's own assertion (an
+approved prompt written; four owner reads started; a live lock deleted and
+a debit lost; receipts absent; Stop `forbidden`); the 40 cases that predate
+this lane (38 unit, 2 e2e) pass there. The old-tree runs used a snapshot of `2fa594639`'s
+tree with only the four test files overlaid (temporary index; no worktree
+touched). One existing test (`never writes after Stop cancels…`) now holds
+the dispatch receipt under both its new and old names, so it means the same
+on both trees. The pre-existing two-store limits test now uses a fixed
+clock: with the wall clock, a token refilled while twenty updates took
+turns at the lock (seen once on Kubuntu); its assertions are unchanged.
+
+### Red drills
+
+A driver applied one exact mutation (asserting a single match), ran the
+complete owning file on Kubuntu through `rig-test.sh`, wrote the original
+bytes back and checked them against the HEAD blob (SHA-256 and `git diff
+--quiet`). The first pass ran at `8bc6cc2c7`: R1 stayed green there (the
+`refresh` sweep just before the final gate already cancels an operation it
+stops, so the gate's own check was masked), and L7 and L8 had no test of
+their own. Those three got their own cases in `6480a8811`, and all 26
+drills were run again at `6480a8811`: all 26 turned their tests red (exit
+
+1. and all 26 restored byte-exact. The table is that second pass.
+
+| #   | Guard                                            | Mutation                                            | Failing test(s)                                                                                         |
+| --- | ------------------------------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| R1  | Final gate checks the authority (P1)             | the write's gate checks only `state === 'approved'` | `starts no approved write when the policy changes while the target is re-read…`                         |
+| R2  | Authority read again after the receipt wait (P1) | drop the dispatch's `refresh()`                     | P1 revocation and kill switch; `cancels on denial, expiry, a changed grant or the kill switch`          |
+| R3  | Kill switch in the authority (P1)                | `return 'killSwitch'` → `return undefined`          | P1 kill switch; `cancels on denial…`                                                                    |
+| R4  | Disconnect in the authority (P1)                 | drop `if (this.isClosed) return 'disconnect'`       | P1 disconnect; `opens no approvable write after the client disconnects over stdio (P2-3)`               |
+| R5  | Grant, scope, confidential policy (P1, P2-2)     | `: 'revoked'` → `: undefined`                       | P1 revocation, confidential policy and final gate; `withholds a read result when the grant is revoked…` |
+| R6  | The gate itself                                  | `Operation.gate` returns `true`                     | 7 cases: both P2-3 cancellation cases, all four P2-2 cases, the gate unit test                          |
+| R7  | A lease recorded after its call ended is freed   | release a read lease only after `settled`           | `frees a lease recorded after its call was cancelled…`; `settles every read at the deadline…`           |
+| R8  | Authority read again before delivery (P2-2)      | drop the delivery `refresh()`                       | `withholds a read result when the grant is revoked…`                                                    |
+| R9  | Refusal at delivery ends the call refused (P2-4) | always `move('settled')`                            | `records a final result refused for its size…`                                                          |
+| R10 | Stop follows the operation's scope (P2-5)        | Stop admits with the named workspace only           | `lets the user-library grant stop a user-library save that named a workspace…`                          |
+| R11 | Transport receipt (P2-4)                         | drop `this.server.transport(code)`                  | `leaves one transport receipt…`; `reads no further frame…`                                              |
+| R12 | Receipts backlog (P2-4)                          | drop `await protocol.ready()`                       | `reads no further frame…`; `leaves one transport receipt…`                                              |
+| R13 | A hung journal counts as failed                  | drop `if (this.hung > 0) return false`              | `counts a hung journal as failed…`                                                                      |
+| R14 | A started write is never cancelled               | `isStartedWrite = false`                            | `reports stopRequested…`; `takes only the table’s edges…`                                               |
+| R15 | Terminal states have no exits                    | `settled: ['cancelled']`                            | `takes only the table’s edges…`                                                                         |
+| R16 | Kill switch control receipt (P2-4)               | drop the `kill` control receipt                     | runtime `parses only its own words and needs a terminal confirmation…`                                  |
+| R17 | A signal aborted before attaching cancels        | drop `if (signal.aborted) this.check()`             | `stops at its gate… even for a signal that aborted before attaching`                                    |
+| R18 | A late hold runs at once                         | drop `else release()`                               | `runs a hold when the operation leaves its states, or at once…`                                         |
+| L1  | No age: the watched lease (P2-3)                 | every observed lock counts as expired               | `never removes a live owner’s lock for its age`; both "keeps both debits" cases                         |
+| L2  | Takeover moves only the judged instance (P2-3)   | any moved instance counts                           | `keeps both debits when two servers recover one crashed owner’s lock`                                   |
+| L3  | Note id as well as identity (inode reuse)        | compare native identity only                        | same                                                                                                    |
+| L4  | Owner provably gone (pid, start time)            | `isGone: false`                                     | `takes over at once a lock whose owner is provably gone`; the two-contender case                        |
+| L5  | Torn note watched briefly                        | a torn note never expires                           | `takes over a torn lock…`                                                                               |
+| L6  | Fence: exclusive link of the next generation     | `link` → `rename` (overwrite)                       | `lands nothing from a holder that lost its lock while paused…`                                          |
+| L7  | Fence: ours must be the newest                   | newest check → `< 0`                                | `lands nothing from a lost holder whose generation was already pruned…`                                 |
+| L8  | A holder never publishes past its own lease      | drop the `isHeld()` check                           | `refuses to publish once its own lease has ended…`                                                      |
+
+Restored SHA-256 (HEAD blobs at `6480a8811`; only `registry.ts` differs
+from `8bc6cc2c7`, where it was `4515446124f0a759…`):
+
+| File                               | SHA-256                                                            |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| `src/core/connector/registry.ts`   | `93351b8098adee32b43f0533dc3b47383852cf6d70abee9355646ccf2c64480e` |
+| `src/core/connector/operations.ts` | `03fbcea17aa0465641767c5c39cad115d5f02003c6427d24feb3f30ddf7acd78` |
+| `src/core/connector/protocol.ts`   | `8759c67a9a18d818a87a68024ce3dea6b4977541b299610975b09c41e6d20737` |
+| `src/runtime/connector/stdio.ts`   | `715ced45a7a51afeacc594070f8a698d394dcada32c703146da6a57f8efdbba5` |
+| `src/core/connector/audit.ts`      | `8c3e998dac39c1019d0e919ae345a0c5d7efe03fe981aae11e81b001ba9a7539` |
+| `src/runtime/connector/command.ts` | `8fa174b4be846820ae37a5597815334b4e3f2a1b7feadcd7c48534b0be4432c9` |
+| `src/runtime/connector/store.ts`   | `968f232e45af976e0b20d98d31c3b79ddaa60dfc839482b49383c36f598a3281` |
+
+### Gates and sizes
+
+- `npx tsc -p .` (host), webview, unit and integration projects: exit 0.
+  The e2e project keeps only the two pre-existing `test/e2e/acpFixture.ts`
+  TS2345 errors recorded above (failing identically on `d0b88d09a`).
+- ESLint `--max-warnings=0` and Prettier on every changed file: clean (and
+  again in the pre-commit hook, which changed nothing; gitleaks: no
+  leaks). `npx knip`: exit 0 (the two pre-existing configuration hints).
+  `npm run cycles`: no circular dependency. `npm run duplication`: the two
+  clones that exist on `2fa594639` (`connectorStdio.e2e`/`schedulesStdio.e2e`,
+  `windowsTrustedPath`; exit 1 there too, checked on the rig), none added:
+  the four this lane first added were removed in `6480a8811`.
+  `check:badges`: exit 0.
+- `check:l10n` 0 problems (only `CONNECTOR_MODEL_TEXT` changed: English by
+  D6), `check:host-api` (record regenerated: `node:events` −1, `node:os`
+  +1, `node:timers/promises` +1), `check:reference` current, `check:plan`
+  0 drift, `check:roadmap` current.
+- `npm run build` on Kubuntu at `6480a8811`: exit 0, every budget check `ok`.
+
+  | Bundle                  | `2fa594639` |   After | Budget  |
+  | ----------------------- | ----------: | ------: | ------- |
+  | `dist/extension.js`     |     563,348 | 563,348 | 600 KiB |
+  | `dist/connector.js`     |      92,519 |  99,825 | 100 KiB |
+  | `dist/acp.js`           |     242,286 | 242,286 | 850 KiB |
+  | `dist/uiText.js`        |      95,226 |  95,226 | 125 KiB |
+  | `dist/uiTextRuntime.js` |       5,550 |   5,550 | 25 KiB  |
+
+  `dist/extension.js` SHA-256 `34b93af4902136c711cf93d1dc7ad2e96fdf4ef3802756154f355235381e371a`,
+  identical to the base. `dist/connector.js` is at 97.5 KiB of its 100 KiB
+  budget (no cap raised); the next connector feature needs room made first.
+
+- Not run here: the aggregate `npm run quality` and the whole unit suite
+  (hosted CI is the merge gate).
+
+### Rule 10 and open items
+
+- AGENTS rule 10 (every README command run successfully) is still unmet for
+  the three client commands (`codex mcp add`, `claude mcp add`, `gemini mcp
+add`) and the configuration snippets: running them writes the owner's
+  global client configuration. The README and `docs/mcp.md` now say so. The
+  connector's own commands (`mcp grant`, `status`, `revoke`, `kill`,
+  `resume`) were run as recorded above; `grant` and `resume` with a typed
+  `y` ran through the interactive port, not a real terminal.
+- RVM124 finding 15 (storage ownership, Windows DACL) stays open.
+- The open items of the local phase above are unchanged.

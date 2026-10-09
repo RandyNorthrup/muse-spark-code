@@ -227,6 +227,86 @@ Reads cause only internal audit bookkeeping. Report/prompt/share content
 returns to the calling platform and may enter its retained conversation;
 the initial disclosure UI must say this explicitly.
 
+### 3a. One state machine and one authority for every call (M124R3, 2026-10-09)
+
+The third review round (RVM124B) found an approved write that still started
+after revocation, the kill switch or a disconnect, reads that took leases
+after their call had ended, and refusals without receipts. Each was a check
+placed before an `await` and trusted after it. The local phase therefore
+runs every call, read, write or Stop, as one **operation** walking one
+transition table (`src/core/connector/operations.ts`), under one authority:
+
+| From               | To                 | When                                                                                                                                                                                |
+| ------------------ | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `received`         | `admitted`         | Kill switch off, a rate token, strict input, the grant admits the tool, scope and workspace or user library, the workspace is not confidential, and the admitted receipt is durable |
+| `received`         | `refused`          | Unknown or unavailable tool, kill switch, rate limit, invalid input, grant refusal, or the admitted receipt could not be written                                                    |
+| `received`         | `cancelled`        | The authority stopped it before admission (client cancellation, deadline, disconnect)                                                                                               |
+| `admitted`         | `dispatching`      | A read, retry, status or Stop: the gate passed and its lease or owner port starts in the same tick                                                                                  |
+| `admitted`         | `awaitingApproval` | A write: the intent receipt is durable, the pending lease is held, and our page holds the exact intent                                                                              |
+| `admitted`         | `refused`          | Request id reused with other bytes, table full, stale target, no pending room, or the intent receipt failed                                                                         |
+| `admitted`         | `cancelled`        | The authority stopped it (any cause below)                                                                                                                                          |
+| `admitted`         | `failed`           | An owner read failed                                                                                                                                                                |
+| `awaitingApproval` | `approved`         | Our page approved the shown digest                                                                                                                                                  |
+| `awaitingApproval` | `cancelled`        | Denied, expired, Stop, disconnect, revocation, the kill switch, or the client cancelled before the reply                                                                            |
+| `awaitingApproval` | `refused`          | No approval surface could be shown                                                                                                                                                  |
+| `awaitingApproval` | `failed`           | An owner failure                                                                                                                                                                    |
+| `approved`         | `dispatching`      | The dispatch receipt was written ahead, the authority and target were read again, and the final gate and the one-use approval's compare-and-swap passed; the write starts now       |
+| `approved`         | `cancelled`        | The final gate refused (Stop, revocation, kill switch, disconnect, confidential policy, expiry, changed target)                                                                     |
+| `approved`         | `failed`           | The dispatch receipt or the re-read failed                                                                                                                                          |
+| `dispatching`      | `settled`          | The effect returned, and for a read the delivery gate passed (authority read again)                                                                                                 |
+| `dispatching`      | `refused`          | A read's result is refused at delivery: over 64 KiB, or withheld by the final scrub                                                                                                 |
+| `dispatching`      | `cancelled`        | A read only: the delivery gate refused (client gone, deadline, revocation, kill switch); a started write is never cancelled                                                         |
+| `dispatching`      | `failed`           | The owner port failed                                                                                                                                                               |
+
+`settled`, `refused`, `cancelled` and `failed` are terminal: no edge leaves
+them, so a call ends exactly once. `muse_operation_get` shows a projection:
+`received`/`admitted`/`awaitingApproval` → `awaitingApproval`;
+`approved`/`dispatching` → `running`; `settled` → `completed`;
+`refused`/`failed` → `failed`; `cancelled` → `cancelled`, or `expired` for
+an approval that expired.
+
+**The authority** is one synchronous function: the call's cancellation and
+deadline, the connection's disconnect, the kill switch, and the grant the
+operation was admitted under (same generation, the tool's scopes, its
+workspace or the user library, and the workspace's confidential policy,
+through the same `admit` as admission). Its inputs are read again (`refresh`)
+after every wait that precedes an effect, and every such read is applied to
+every live operation at once, so a pending approval leaves the page the
+moment a revocation or the kill switch is seen. Stop is exempt from the kill
+switch, never from the grant.
+
+**One final gate** stands immediately before each effect: the rate token, a
+read or pending lease, the approval intent, the owner port, the write; and
+again before a read's result is delivered. Nothing awaits between a passed
+gate and the start of its effect. A lease is released whenever its
+operation ends, including when it ended before the lease was recorded, so a
+settled call can never hold or acquire anything.
+
+**Receipts.** Every transition writes one receipt (`from` → `event`), so
+every call ends in exactly one terminal receipt that carries its reason. The
+admitted, intent and dispatch receipts are written ahead and must be durable
+before their effect (fail closed); Stop's are best effort. A frame refused
+before any call exists (parse error, invalid request or params, unknown
+method, over the frame bound, busy) gets one `transport` receipt with its
+JSON-RPC code only. The owner's `grant`, `revoke`, `kill` and `resume` leave
+`control` receipts. The transport reads no further frame while 64 receipts
+are being written, and a journal whose append outlives five seconds counts
+as failed until it answers.
+
+**Stop's authority follows the operation's own scope.** A call admitted to
+the user library belongs to the user library whatever workspace it named, so
+a user-library grant stops it; a workspace operation is stopped under its own
+workspace.
+
+**The limits file's lock** follows the M123 PR store's `storeLock` protocol
+(owner note with host, process id and start time, random id and lease;
+monotonic waits; takeover only of an instance watched unchanged for the
+holder's lease, or whose owner is provably gone; rename-aside takeover and
+release checked by native identity and note id), with its generation fence:
+every write is the exclusive link of the next generation, checked to be the
+newest, so a holder that lost the lock lands nothing. A shared module is to
+be extracted later.
+
 ## 4. Our approval bridge and editor parity
 
 Linking authenticates an identity and grants a maximum scope. A tool request

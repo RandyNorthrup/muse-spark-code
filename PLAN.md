@@ -20298,6 +20298,40 @@ state. Open: finding 15 (grant/key storage ownership, Windows DACL) and
 finding 16 (setup-doc wording). `dist/connector.js` 92,519 bytes of 100
 KiB; `dist/extension.js` unchanged.
 
+**M124R3 redesign (2026-10-09, branch `feature/m124-r3`).** The second
+review (RVM124B: 1 P1, 4 P2) was the third round on this module, so the
+registry was redesigned rather than patched (design §3a). Every call is one
+operation on one transition table under one synchronous authority (the
+call's cancellation and deadline, disconnect, the kill switch, and the
+grant's generation, scopes, workspace or user library and confidential
+policy), checked by one gate immediately before each effect and again before
+a result is delivered, with no await between gate and effect; every
+transition writes one receipt. Closed: the P1 (an approved write after
+revocation, kill or disconnect during the dispatch receipt wait), P2-2
+(leases after cancellation), P2-3 (the limits lock now follows M123's
+`storeLock` protocol with a generation fence; age never counts), P2-4 (one
+receipt for every refusal, transport and control receipts) and P2-5 (Stop
+follows the operation's scope), plus RVM124 finding 16 (setup docs). 29
+regression cases fail on `2fa594639`; 26 red drills. Open: RVM124 finding 15
+(storage ownership, Windows DACL). `dist/connector.js` 99,825 bytes of 100
+KiB; `dist/extension.js` unchanged. Record:
+[`docs/certification/m124-local.md`](docs/certification/m124-local.md).
+
+| From → to                                                      | When                                                                                                                  |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `received` → `admitted` / `refused` / `cancelled`              | Admission (kill switch, rate token, strict input, grant, scope, confidential policy, durable admitted receipt) or not |
+| `admitted` → `dispatching`                                     | A read, retry, status or Stop: the gate passed; its lease or owner port starts in that tick                           |
+| `admitted` → `awaitingApproval`                                | A write: durable intent receipt, pending lease, our page holds the exact intent                                       |
+| `admitted` → `refused` / `cancelled` / `failed`                | Reused request id, stale target, no room, receipt failure / the authority stopped it / an owner read failed           |
+| `awaitingApproval` → `approved`                                | Our page approved the shown digest                                                                                    |
+| `awaitingApproval` → `cancelled` / `refused` / `failed`        | Denied, expired, Stop, disconnect, revocation, kill switch, client cancel / no approval surface / owner failure       |
+| `approved` → `dispatching`                                     | Dispatch receipt written ahead, authority and target read again, final gate and the approval's CAS: the write starts  |
+| `approved` → `cancelled` / `failed`                            | The final gate refused / the receipt or re-read failed                                                                |
+| `dispatching` → `settled` / `refused` / `cancelled` / `failed` | Done (reads past the delivery gate) / result over 64 KiB or withheld / a read's delivery gate refused / owner failure |
+
+`settled`, `refused`, `cancelled` and `failed` are terminal; a started write
+is never cancelled (Stop answers `stopRequested`).
+
 - **Goal.** Other agents can inspect the user's fleet and evidence, request
   bounded orchestration, ask for deterministic advice/reports, and manage
   schedules/prompts/shares through one connector. Every effect goes through

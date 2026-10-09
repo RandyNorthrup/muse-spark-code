@@ -34,8 +34,10 @@ them.
 | `muse_share_publish`                                           | write | `unavailable`: release waits for M104's final-action share UI                                                                                                      |
 
 A report body is content: without the content grant `muse_report` answers
-its kind and format only. `muse_stop` needs a workspace only for an
-operation in that workspace; one in your user library stops without it.
+its kind and format only. `muse_stop` follows the operation's own scope: an
+operation in your user library (a `scope: "user"` save, whatever workspace
+it named) stops with the user-library grant; one in a workspace stops under
+that workspace's grant.
 Only available tools your grant allows are listed. Calling an unavailable
 one answers `unavailable` with its reason, never an empty success.
 
@@ -61,6 +63,10 @@ one answers `unavailable` with its reason, never an empty success.
    client.
 
 2. **Add it to your agent.** No environment variable, header or key.
+   These recipes follow each vendor's documentation (read 2026-10-09) and
+   **have not been run against a real client**: running them writes your
+   global client configuration, which this project's checks never do. No
+   client is qualified against this server yet.
 
    **Codex** (CLI, IDE extension and desktop app share `~/.codex/config.toml`):
 
@@ -137,8 +143,9 @@ Frames and complete results (text and structured copy together) are capped
 at 64 KiB; 60 calls a minute with a burst of 10, at most 4 reads at once and
 2 pending approvals per connection. These limits belong to the connection's
 grant: every server process started with that connection, in any editor
-window, shares them, and a restart keeps them (a locked file in
-`connector/limits/`). An operation may be polled every 2 seconds; a call has
+window, shares them, and a restart keeps them (`connector/limits/`, one
+file per generation under a lock that is never taken from a live holder by
+its age). An operation may be polled every 2 seconds; a call has
 15 seconds, after which it answers `unavailable` and a late result is
 dropped; an approval lasts 120 seconds. One server works on at most 16
 requests at once and answers `Server busy` beyond that, keeping room for
@@ -146,14 +153,29 @@ Stop; a client that leaves 1 MiB of replies unread, or closes either pipe,
 is disconnected, and its pending approvals are cancelled. Stop and schedule
 cancel never meet these limits, the kill switch or an audit failure.
 
+Revoking a grant, switching the connector off or disconnecting stops every
+call that has not started its effect, at once: an approved save whose write
+has not begun is cancelled, a read in progress is not answered, and no call
+takes a slot after it ended. A write already under way finishes (Stop then
+answers `stopRequested`).
+
 ## What it records and returns
 
-Every call, refusal (unknown or unavailable tool, kill switch, limits,
-invalid or stale input), decision and outcome leaves one line in
-`connector/audit/<connection>.jsonl` in the agent's data folder: times,
-tool, workspace id, outcome and a keyed digest of the payload, never the
-text itself. The live file rotates at 10 MiB; the older segment is removed
-after 30 days. Results pass the shared redactor (registered credentials,
+Every call leaves one line per step in `connector/audit/<connection>.jsonl`
+in the agent's data folder (admitted, awaiting approval, approved,
+dispatching, settled) and ends in exactly one line that says how it ended:
+`settled`, or `refused`, `cancelled` or `failed` with the reason. Times,
+tool, workspace id and a keyed digest of the payload, never the text
+itself. A frame refused before any call exists (unreadable, too large, an
+unknown method, busy) leaves one `transport` line with its JSON-RPC code
+only. Your `mcp grant` and `mcp revoke` leave a `control` line in that
+connection's file; `mcp kill` and `mcp resume` in `connector/audit/_owner.jsonl`.
+These control lines are best effort: your own command never waits for the
+journal. If the journal cannot be written, calls refuse with
+`audit_unavailable` (and that refusal's own line may be missing too); a
+journal that does not answer within 5 seconds counts as failed until it
+does. Stop is the exception: it never waits for the journal. The live file
+rotates at 10 MiB; the older segment is removed after 30 days. Results pass the shared redactor (registered credentials,
 known key patterns, your home folder and other absolute paths) and a final
 whole-result scrub; a result that still changes there is withheld. Prompt
 bodies and previews you allow are returned to the calling agent and may

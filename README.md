@@ -783,17 +783,29 @@ approve it. Stop never asks. Fleet status, agent outcomes, lanes, teams and
 new schedules answer `unavailable` until their owners expose them. The
 hosted connector for ChatGPT and claude.ai is not built.
 
+Grant a connection in your own terminal, and control it from there:
+
 ```sh
-muse-spark-code-acp mcp grant --workspace ~/code/my-project   # in your own terminal
+muse-spark-code-acp mcp grant --workspace ~/code/my-project
+muse-spark-code-acp mcp status
+muse-spark-code-acp mcp revoke
+muse-spark-code-acp mcp kill
+muse-spark-code-acp mcp resume
+```
+
+Then add it to your agent. These client commands follow each vendor's
+documentation (read 2026-10-09) and **have not been run against a real
+client**: they write your global client configuration, which this project's
+checks never do, and no client is qualified against this server yet.
+
+```sh
 codex mcp add muse-spark-code -- muse-spark-code-acp mcp
 claude mcp add --transport stdio --scope user muse-spark-code -- muse-spark-code-acp mcp
 gemini mcp add -s user muse-spark-code muse-spark-code-acp mcp
-muse-spark-code-acp mcp status | revoke | kill | resume
 ```
 
 [docs/mcp.md](docs/mcp.md) has every tool and its availability, the grant
-families, the client configuration (checked against each vendor's docs on
-2026-10-09), the limits and what is recorded.
+families, the client configuration, the limits and what is recorded.
 
 ## Subscriptions
 
