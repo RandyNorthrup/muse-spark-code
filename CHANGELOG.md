@@ -29,6 +29,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- OS1 Pi staging now follows the real apt chain (signed InRelease listing
+  index files, pinned Packages index digest, per-.deb stanza Filename,
+  SHA-256 and Size), copies trees through descriptor-anchored handles with
+  absolute link targets refused and missing sources an error, admits `.deb`
+  members incrementally through the shared bounded reader with in-process
+  stdlib zstd decoding, locks the initrd bind-ro enablement line, sizes the
+  Node skip ceiling from the pinned tarball's 5,774 members, and requires
+  the exact mkosi version token with a successful probe.
 - Home-node WebSocket upgrades accept the browser's `websocket` Fetch
   Metadata destination while HTTP requests keep `empty`; both transports
   continue to reject foreign origins and sites.

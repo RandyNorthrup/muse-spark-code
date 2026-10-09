@@ -158,18 +158,28 @@ live `gpgv` proof against a throwaway key (recipe follows), never a guess.
 ### P2-1 Pi packages (H17, H10/H11): signed index enforced, .debs admitted
 
 `os/pi/compose.py:prepare()` now consumes `archiveSigningFingerprint`,
-`packagesIndexSha256` and the new `packagesIndexUrl` from
-`os/pi/manifest.json` and stages in this order: download the InRelease
-(digest-bound by `download()`), verify its clearsign signature with `gpgv`
+`packagesIndex`, `packagesIndexSha256` and `packagesIndexUrl` from
+`os/pi/manifest.json` and stages the real apt chain in this order:
+download the InRelease unsigned (it is the trust root; `download()` still
+bounds the fetch), verify its clearsign signature with `gpgv`
 `--status-fd` against the operator-supplied keyring, requiring a `VALIDSIG`
-from the pinned fingerprint; parse the payload; take each .deb's SHA-256
-from the verified index (the manifest pin must agree via
-`verify_pi_index`); download each .deb against the index hash; extract
-through member admission. `os/check.py` refuses a manifest whose
-fingerprint or index SHA-256 is missing or malformed, whose index/package
-URLs are not `https`, or whose package pins are absent; `verify_pi_index`
-(refused pins: disagreeing, missing, ambiguous or malformed index entries)
-runs at build time and is unit-tested directly.
+from the pinned fingerprint; parse the Release SHA256 listing (index files
+such as `main/binary-arm64/Packages.gz`, never .debs) and require the
+manifest-pinned index path and digest to appear in it; download that
+Packages index against the pinned digest; parse its stanzas and require
+each manifest .deb to match exactly one stanza on Package name and
+Version, arm64/all architecture, stanza Filename and stanza SHA256;
+download each .deb against the stanza hash and check its stanza Size; only
+then extract through member admission. `packagesIndexSha256` pins the
+Packages index file, never the InRelease (the round-1 meaning was wrong;
+the manifest and `check.py` now encode the corrected meaning).
+`os/check.py` refuses a manifest whose fingerprint, index path or index
+SHA-256 is missing or malformed, whose index/package URLs are not `https`,
+or whose package pins are absent; `parse_release_hashes` /
+`verify_pi_packages` (refused: index digest disagreement, absent index
+entry, stanza disagreement, missing or ambiguous stanza, filename or
+architecture mismatch, malformed entry, empty listing) run at build time
+and are unit-tested directly, including against a real rig InRelease.
 
 The archive keyring is build-time transport, like the ACP runtime tarball:
 Pi builds take `--pi-keyring` with `--pi-keyring-sha256` (both required
@@ -181,20 +191,37 @@ repository. `README.md` documents the invocation.
 
 `.deb` handling: the ar container is parsed in stdlib (exactly one
 `data.tar.*`, `debian-binary` must read `2.0`, control member never
-extracted so maintainer scripts cannot run). stdlib-readable data members
-(gz/xz/bz2/plain) go through lexical pre-admission (ACP rules: no `..`, no
-absolute paths, no backslashes, no hardlinks/devices; symlinks only when
-contained) into a disposable quarantine; zstd members go through host
-`dpkg-deb --extract` into the same quarantine. Either way the quarantine
-tree is admitted without following symlinks (escaping links, hardlinks and
-special files refused; setuid/setgid stripped at copy) before anything
-reaches the overlay. The three `shutil.copytree` calls in `prepare()` and
-the `vmlinuz` copy became never-follow copies (`copy_tree`,
-`copy_regular`; `O_NOFOLLOW` where the platform has it). One test-caught
-bug is recorded honestly: the first symlink containment used
-`normpath`-then-compare, which silently absorbs `..` above root and admitted
-`/../evil`; the hostile-`.deb` test failed, and containment is now an
-explicit component stack that refuses any `..` popping above the root.
+extracted so maintainer scripts cannot run). Every data member is admitted
+incrementally, one header at a time, through the shared `BoundedArchive`
+reader (every decoded byte, PAX record and seek counts against its stream
+limit while streaming, never after a full listing): directories and links
+count toward the member budget with files, and per-file and total
+expansion are checked as each header arrives. Wanted regular files stream
+out as they arrive with per-file bytes counted. zstd members decode with
+Python 3.14's `compression.zstd` in-process; hosts whose stdlib lacks it
+refuse with `OS1 Pi .deb compression unavailable` (fail closed) and
+unknown compressions with `OS1 Pi .deb compression`. No host extractor is
+invoked: the `dpkg-deb --extract` fallback is gone. Absolute symlink
+targets are refused outright; relative ones only when contained (an
+explicit component stack that refuses any `..` popping above the root).
+Either way the quarantine tree is admitted without following symlinks
+(escaping links, hardlinks and special files refused; setuid/setgid
+stripped at copy) before anything reaches the overlay. The three
+`shutil.copytree` calls in `prepare()` and the `vmlinuz` copy became
+descriptor-anchored copies: every stat/open/mkdir/chmod goes through a
+directory handle opened `O_DIRECTORY | O_NOFOLLOW` from an lstat-validated
+base, descending one component at a time, with the workspace as the trust
+root for overlay-subtree sources — so a symlink root, a symlink ancestor
+an earlier package planted, or a planted destination component refuses
+instead of redirecting the read or write. A missing expected source (the
+firmware dir) is `OS1 Pi missing source`, never a silent success. Where
+the platform cannot anchor (`os.open` outside `os.supports_dir_fd`), the
+same checks run over joined paths: static planted links are still refused
+and unexpected errors fail closed; only a concurrent host swap mid-copy is
+out of cover, and Pi staging is qualified on Linux. One test-caught bug is
+recorded honestly: the first symlink containment used `normpath`-then-
+compare, which silently absorbs `..` above root and admitted `/../evil`;
+the hostile-`.deb` test failed, and containment is now the explicit stack.
 
 ### P2-2 installer read-only /usr (H11): installer profile locked
 
@@ -208,18 +235,24 @@ locked. Missing sections/keys fail closed with the policy reason instead of
 
 ### P3s fixed in this lane's files
 
-- mkosi pin: `stage()` runs `<mkosi> --version` and refuses unless the
-  output contains the `os/pins.json` pin (exact-version pinning; the recipe
+- mkosi pin: `stage()` runs `<mkosi> --version` and `check_mkosi_version`
+  requires exit status 0 with the full version token exactly equal to the
+  `os/pins.json` pin (`mkosi 27.10` and `mkosi 127.1` refuse; the recipe
   floor `MinimumVersion=27.1` remains). The source-tarball digest is still
   not re-verified: residual below.
 - Debian keyring: `check.py` locks `Repositories=main non-free-firmware`
   (no silent third-party repository). Fingerprint-pinning the keyring is the
   residual below.
-- Node `.tar.xz`: `stage()` reads `bin/node` and `LICENSE` through the new
+- Node `.tar.xz`: `stage()` reads `bin/node` and `LICENSE` through
   `extract_selected()` over the same `BoundedArchive` reader as `extract()`
-  (xz magic added); unselected members including npm's symlinks are never
-  validated or written, wanted members face full admission and must be
-  regular files.
+  (xz magic added); unselected members including npm's symlinks are skipped
+  by streaming without extraction under their own evidence-sized ceiling
+  `NODE_SKIP_LIMIT = 8192` (pinned Node 24.18.0 linux-x64 carries 5,774
+  members: 4,703 regular, 1,068 directories, 3 symlinks; digest verified
+  against `os/pins.json` before counting on 2026-10-08, ceiling = count +
+  2,418 headroom). Wanted members keep the strict limits and must be
+  regular files. A 1,100-unwanted-member fixture (past the old 1,024
+  ceiling) stages; past 8,192 the reader still refuses.
 - ESP size: `os/repart/00-esp.conf` is now `260M`/`260M`, matching the
   recorded GPT layouts and this text; `check.py` locks both values.
 
@@ -262,6 +295,12 @@ secret even for a destroyed throwaway key:
 | 7   | mkosi version lock removed (`os/build.py`)                       | validates the mkosi input and its staging boundary                 |
 | 8   | index-agreement lock removed (`os/check.py`)                     | index disagree/missing/ambiguous rows                              |
 | 9   | `KernelCommandLine` changed (`os/mkosi.profiles/installer.conf`) | `python3 os/check.py` exits 1 (`installer volatile overlay`)       |
+| 10  | stanza SHA check neutered (`os/check.py`)                        | real index chain (disagree) + hostile staging (index-disagrees)    |
+| 11  | resolve-level link check neutered (`os/pi/compose.py`)           | symlink roots/planted ancestors test                               |
+| 12  | streaming member budget neutered (`os/pi/compose.py`)            | bounds .deb members while streaming                                |
+| 13  | bind-ro `ln` lock neutered (`os/check.py`)                       | weakened postinst guard (bind-ro enablement row only)              |
+| 14  | skip ceiling back to 1024 (`os/build.py`)                        | upstream Node members under the evidence ceiling                   |
+| 15  | substring version check restored (`os/build.py`)                 | exact mkosi token (27.10, 127.1, failed probes refuse)             |
 
 Restored SHA-256 (before = after every drill): `os/check.py`
 `08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83`,
@@ -273,6 +312,14 @@ Restored SHA-256 (before = after every drill): `os/check.py`
 `41c2b5c8641c3c2c9a06b65cd88b8ca78197607f509b89a68276c24cd8b9c480`,
 `os/mkosi.profiles/installer.conf`
 `54110936edec3be93a793937ca6a9acf10d8c7d0461b270e6c760855a5e2bba1`.
+
+Round-2 drills 10–15 restored byte-exact to the post-fix tree:
+`os/check.py`
+`2fc2029979db7692d3c025125d34d90bc847f0ccde114040cd5c42155dd65faa`,
+`os/build.py`
+`0540f93f2f43afbb3c97f01c588fee6ff5981c7f45faeac30dad66ea0969848c`,
+`os/pi/compose.py`
+`992e19c96c69d4bfd86cc78da9e0e5adabe2ad9269d56f639badffc8f57109b1`.
 
 ### Named residuals (what, why safe, follow-up)
 
@@ -286,13 +333,29 @@ Restored SHA-256 (before = after every drill): `os/check.py`
   `main non-free-firmware` with no unsigned fallback. Safe for now: snapshot
   date pinned, packages come from Debian's own archive. Follow-up: OS6 pins
   the keyring by fingerprint (PLAN.md §9).
-- **FIXM110OS1-zstd-path.** Real Pi .debs are expected to be zstd-compressed
-  (stdlib cannot decode them); that branch runs host `dpkg-deb` into a
-  quarantine and shares the tested tree admission, and its wiring is proven
-  by a stub-runner test — but no real zstd .deb passed through it in this
-  offline lane. Safe for now: disposable quarantine, no maintainer scripts,
-  full tree admission before the overlay. Follow-up: qualify with a real Pi
-  .deb on the next networked Pi build (PLAN.md §9).
+- **FIXM110OS1B-zstd-host.** zstd data members decode with the stdlib
+  `compression.zstd` reader (proven by a real zstd `.deb` staged with no
+  host tool; the `dpkg-deb` fallback is gone). A build host whose Python
+  predates 3.14 refuses with the named `OS1 Pi .deb compression
+unavailable` code (fail closed) instead of reaching any host extractor.
+  Safe for now: the refusal is named and tested on both sides. Follow-up:
+  none in code — build hosts run Python 3.14+ (README, PLAN.md §9).
+- **FIXM110OS1B-pi-pin-rotation.** The Raspberry Pi archive rotates its
+  Packages index on every publish: `packagesIndexSha256` in
+  `os/pi/manifest.json` names one observed index
+  (`81158a38dbb347200ac3222c4183d1297b6f7c3bf39cda642355ddd3e66b1b3c`,
+  490,710 bytes, InRelease dated 2026-10-08T19:48:32Z). A later build
+  fails closed at the index-digest step and needs refreshed pins; the
+  .deb pins stay valid while their stanzas remain published. Safe for
+  now: fail-closed with a named reason, never silent acceptance.
+  Follow-up: OS6 owns pin refresh alongside publishing (PLAN.md §9).
+- **FIXM110OS1B-non-anchoring-hosts.** Tree copies anchor with directory
+  descriptors only where `os.open` supports `dir_fd`; elsewhere the same
+  checks run over joined paths (static planted links still refused,
+  unexpected errors fail closed). A concurrent host swap mid-copy is out
+  of cover there. Safe for now: Pi staging is qualified on Linux, where
+  anchoring is complete. Follow-up: none unless staging targets another
+  host OS.
 - **FIXM110OS1-pi-keyring-supply.** The real archive keyring travels outside
   the repository via `--pi-keyring`; only a key matching the manifest
   fingerprint can stage. Follow-up: none in code — operator procedure in
@@ -301,9 +364,57 @@ Restored SHA-256 (before = after every drill): `os/check.py`
   4 MiB repart-grain question is closed by pinning the recorded value, not
   by explaining the rounding.
 
+### Final fix round FIXM110OS1B (2026-10-08, review RVF110OS1)
+
+Worktree `/home/randy/lanes/FIXM110OS1B`, branch `m110/os1-fix2`. No
+`build.py` run of a full image, no mkosi, no qemu, no sudo. Two narrow
+network reads only: the Raspberry Pi `trixie` InRelease once (54,861
+bytes) plus its referenced `main/binary-arm64/Packages.gz` (490,710
+bytes) to confirm the field layout, and the pinned Node 24.18.0
+linux-x64 tarball once for the member-count evidence. No large captured
+file is committed; scratch downloads stayed in the lane's private temp
+dir and were removed.
+
+Live apt evidence (2026-10-08): the InRelease SHA256 section lists index
+files (`main/binary-arm64/Packages` and `Packages.gz`, 1,684,276 /
+490,710 bytes), never .debs; the downloaded Packages.gz hashes to
+`81158a38dbb347200ac3222c4183d1297b6f7c3bf39cda642355ddd3e66b1b3c`,
+exactly the InRelease entry, and all three manifest .deb pins agree with
+its live stanzas (Filename basename, SHA256, Size for raspi-firmware
+`56b6f87…`, both 6.18.50 kernels `41a73543…` / `8d44827f…`). The shipped
+`parse_release_hashes` / `verify_pi_packages` chain was run against this
+capture: 133 release entries, all three packages resolved. The manifest
+now records this index (`packagesIndex`,
+`packagesIndexSha256 = 81158a38…`, `releaseDate 2026-10-08T19:48:32Z`).
+
+Minted-key proof: the rig sandbox blocks `gpg-agent` sockets, so `gpg`
+cannot mint keys here (same wall as round 1). The committed test mints a
+throwaway RSA-2048 key at test time with `node:crypto`, frames the
+OpenPGP keyring and clearsign signature by hand (modulus-first MPI
+order; text-mode hash omits the trailing CRLF — both verified against
+the real `gpgv` 2.4.8 binary, which reports `GOODSIG`/`VALIDSIG`), stages
+a real-format Release + Packages.gz through `prepare()` with the real
+`gpgv` path, and refuses a wrong keyring before any staging. No key
+material is committed. A rig-apt-cache parser test proves the real
+Release shape parses (`/var/lib/apt/lists/*InRelease`, read-only;
+named skips where `gpgv` or the cache is absent, following the
+repository's bun precedent).
+
+Node evidence: `node-v24.18.0-linux-x64.tar.xz` downloads to SHA-256
+`55aa7153f9d88f28d765fcdad5ae6945b5c0f98a36881703817e4c450fa76742`
+(the `pins.json` x86-64 pin) and carries 5,774 members (4,703 regular,
+1,068 directories, 3 symlinks); `NODE_SKIP_LIMIT = 8192` is that count
+plus 2,418 headroom, and the real tarball stages through
+`extract_selected()`.
+
+Drill honesty note: the first attempt at drill 11 neutered the base
+anchor check and the test still passed — the per-level resolve check
+fired first. That is defense in depth working, not a weak test; the
+recorded drill neuters the resolve-level check itself.
+
 `black` formats the three Python files single-file here (its multi-file
 run needs a socket this sandbox denies); `eslint`, `prettier`, `check:l10n`
-and the 106-test suite are recorded below. No gate weakened, no dependency
+and the 130-test suite are recorded below. No gate weakened, no dependency
 added, no file lane OS2 owns touched.
 
 ## Build host tools and cleanup
