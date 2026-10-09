@@ -14,11 +14,17 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { listFiles } from '@vscode/vsce/out/package.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { webviewDeferredBudgetGroups } from '../../scripts/lib/webviewBundles.mjs'
+import {
+  webviewDeferredBudgetGroups,
+  webviewStartupOutputs,
+} from '../../scripts/lib/webviewBundles.mjs'
 import { buildProductionPackage } from './helpers/productionPackage'
 
 const ENTRY = 'dist/webview/main.js'
 const SIZE_GATE = path.resolve('scripts/check-bundle-size.mjs')
+// A fresh Node running the whole bundle-split gate: it loads TypeScript and
+// reads every production metafile (2.4 s on Linux, over 5 s on hosted macOS).
+const SPLIT_GATE_TIMEOUT_MS = 20_000
 const built = { outputs: {}, fixture: '', production: '' }
 const outputFile = (file) => path.join(built.production, file)
 
@@ -431,49 +437,57 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(initialOutputs().has(owners[0][0])).toBe(true)
   })
 
-  it('refuses resource policy leaking into activation’s emitted inputs', () => {
-    const file = outputFile('dist/meta/extension.json')
-    const original = readFileSync(file)
-    try {
-      const meta = JSON.parse(original.toString('utf8'))
-      const output = Object.entries(meta.outputs).find(
-        ([file]) => file.replaceAll('\\', '/') === 'dist/extension.js',
-      )?.[1]
-      if (output === undefined) throw new Error('Missing activation output')
-      output.inputs['src/core/resources/governor.ts'] = { bytesInOutput: 1 }
-      writeFileSync(file, JSON.stringify(meta))
+  it(
+    'refuses resource policy leaking into activation’s emitted inputs',
+    { timeout: SPLIT_GATE_TIMEOUT_MS },
+    () => {
+      const file = outputFile('dist/meta/extension.json')
+      const original = readFileSync(file)
+      try {
+        const meta = JSON.parse(original.toString('utf8'))
+        const output = Object.entries(meta.outputs).find(
+          ([file]) => file.replaceAll('\\', '/') === 'dist/extension.js',
+        )?.[1]
+        if (output === undefined) throw new Error('Missing activation output')
+        output.inputs['src/core/resources/governor.ts'] = { bytesInOutput: 1 }
+        writeFileSync(file, JSON.stringify(meta))
+        const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
+          cwd: built.production,
+          encoding: 'utf8',
+        })
+        expect(result.status).toBe(1)
+        expect(result.stderr).toContain(
+          'dist/extension.js carries resource policy src/core/resources/governor.ts outside the lazy governor',
+        )
+      } finally {
+        writeFileSync(file, original)
+      }
+      expect(readFileSync(file).equals(original)).toBe(true)
+    },
+  )
+
+  it(
+    'keeps provider pacing in its lazy Model API inventory',
+    { timeout: SPLIT_GATE_TIMEOUT_MS },
+    () => {
       const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
         cwd: built.production,
         encoding: 'utf8',
       })
-      expect(result.status).toBe(1)
-      expect(result.stderr).toContain(
-        'dist/extension.js carries resource policy src/core/resources/governor.ts outside the lazy governor',
-      )
-    } finally {
-      writeFileSync(file, original)
-    }
-    expect(readFileSync(file).equals(original)).toBe(true)
-  })
-
-  it('keeps provider pacing in its lazy Model API inventory', () => {
-    const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
-      cwd: built.production,
-      encoding: 'utf8',
-    })
-    expect(result.status, result.stdout + result.stderr).toBe(0)
-    const source = 'src/core/backends/modelapi/pacing.ts'
-    for (const [meta, present] of [
-      ['dist/meta/modelApi.json', true],
-      ['dist/meta/extension.json', false],
-      ['dist/meta-acp/acp.json', false],
-    ]) {
-      const inputs = Object.keys(JSON.parse(readFileSync(outputFile(meta), 'utf8')).inputs).map(
-        (file) => file.replaceAll('\\', '/'),
-      )
-      expect(inputs.includes(source)).toBe(present)
-    }
-  })
+      expect(result.status, result.stdout + result.stderr).toBe(0)
+      const source = 'src/core/backends/modelapi/pacing.ts'
+      for (const [meta, present] of [
+        ['dist/meta/modelApi.json', true],
+        ['dist/meta/extension.json', false],
+        ['dist/meta-acp/acp.json', false],
+      ]) {
+        const inputs = Object.keys(JSON.parse(readFileSync(outputFile(meta), 'utf8')).inputs).map(
+          (file) => file.replaceAll('\\', '/'),
+        )
+        expect(inputs.includes(source)).toBe(present)
+      }
+    },
+  )
 
   it('shares production libraries between chat and Models without importing either app', () => {
     const models = JSON.parse(readFileSync(outputFile('dist/meta/modelsWebview.json'), 'utf8'))
@@ -616,6 +630,37 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(result.stderr).toContain('ENOENT')
     expect(result.stderr).toContain('stat ')
     expect(result.stderr.replaceAll('\\', '/')).toContain('dist/webview/shared.js')
+  })
+
+  // Moved from slashCommandsBundle.test.mjs, whose own full production build
+  // outlasted its 10 s hook on macOS: this suite's build serves both.
+  it('certifies lazy slash-command registration without increasing activation bytes', () => {
+    const source = 'src/shared/slashCommands.ts'
+    const startup = new Set(webviewStartupOutputs({ outputs: built.outputs }))
+    const owners = Object.entries(built.outputs).filter(([, output]) =>
+      Object.keys(output.inputs).includes(source),
+    )
+    expect(owners).toHaveLength(1)
+    expect(startup.has(owners[0][0])).toBe(false)
+    // a704f711c: the "/" list is no surface of its own; it loads with the
+    // palette registry, whose deferred import App already makes.
+    const registry = 'src/shared/paletteRegistry.ts'
+    const entry = Object.entries(built.outputs).find(([, output]) => output.entryPoint === registry)
+    expect(entry).toBeDefined()
+    expect(startup.has(entry[0])).toBe(false)
+    // It loads with the registry: in its entry chunk or a chunk that entry
+    // imports statically (a chunk esbuild shares with another lazy surface).
+    const withRegistry = new Set()
+    const queue = [entry[0]]
+    while (queue.length > 0) {
+      const file = queue.pop()
+      if (withRegistry.has(file)) continue
+      withRegistry.add(file)
+      const imports = built.outputs[file]?.imports ?? []
+      for (const edge of imports) if (edge.kind === 'import-statement') queue.push(edge.path)
+    }
+    expect(withRegistry.has(owners[0][0])).toBe(true)
+    expect(statSync(outputFile('dist/extension.js')).size).toBeLessThanOrEqual(587_451)
   })
 })
 
