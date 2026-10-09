@@ -2,8 +2,7 @@ import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { rename } from 'node:fs/promises'
-import { createServer } from 'node:http'
-import type { AddressInfo } from 'node:net'
+import { fakeStopServer, stopUnconfirmedNotice } from './helpers/fakeMakerMachine'
 import { tmpdir } from 'node:os'
 import { setTimeout as delay } from 'node:timers/promises'
 import path from 'node:path'
@@ -835,16 +834,7 @@ describe('M103-G hardware dispatch boundary', () => {
   ] as const)(
     'RVM103W2 P2 a loopback Stop answered %i is %s through the real curl transport',
     async (status, rowStatus) => {
-      const requests: string[] = []
-      const server = createServer((request, response) => {
-        requests.push(`${String(request.method)} ${String(request.url)}`)
-        response
-          .writeHead(status, status === 302 ? { Location: '/login' } : {})
-          .end(status === 204 ? undefined : 'fake body')
-      })
-      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-      const { port } = server.address() as AddressInfo
-      const address = `http://127.0.0.1:${String(port)}`
+      const { address, requests, close } = await fakeStopServer(status)
       try {
         const t = setup({
           hardwareContext: () => ({
@@ -873,15 +863,10 @@ describe('M103-G hardware dispatch boundary', () => {
             item: expect.objectContaining({ status: rowStatus }),
           }),
         )
-        const notice = {
-          type: 'backendNotice',
-          level: 'error',
-          text: UI_TEXT.hardwareStopUnconfirmed,
-        }
-        if (status === 204) expect(events).not.toContainEqual(notice)
-        else expect(events).toContainEqual(notice)
+        if (status === 204) expect(events).not.toContainEqual(stopUnconfirmedNotice)
+        else expect(events).toContainEqual(stopUnconfirmedNotice)
       } finally {
-        await new Promise((resolve) => server.close(resolve))
+        await close()
       }
     },
   )

@@ -1,7 +1,6 @@
 import * as childProcess from 'node:child_process'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { createServer } from 'node:http'
-import type { AddressInfo } from 'node:net'
+import { fakeStopServer, stopUnconfirmedNotice } from './helpers/fakeMakerMachine'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -262,16 +261,7 @@ describe('Design 5 guard4 regressions', () => {
   it.each([302, 500, 204])(
     'RVM103W2 P2 the Muse Code adapter confirms a loopback Stop answered %i only on 2xx',
     async (status) => {
-      const requests: string[] = []
-      const server = createServer((request, response) => {
-        requests.push(`${String(request.method)} ${String(request.url)}`)
-        response
-          .writeHead(status, status === 302 ? { Location: '/login' } : {})
-          .end(status === 204 ? undefined : 'fake body')
-      })
-      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-      const { port } = server.address() as AddressInfo
-      const address = `http://127.0.0.1:${String(port)}`
+      const { address, requests, close } = await fakeStopServer(status)
       const runner = createHardwareStopRunner({
         platform: process.platform,
         systemRoot: process.env['SystemRoot'],
@@ -298,16 +288,11 @@ describe('Design 5 guard4 regressions', () => {
           expect(h.server.requestsFor('approval/decide')[0]?.params?.['choiceId']).toBe('abort')
         })
         expect(requests).toEqual(['POST /printer/emergency_stop'])
-        const notice = {
-          type: 'backendNotice',
-          level: 'error',
-          text: UI_TEXT.hardwareStopUnconfirmed,
-        }
-        if (status === 204) expect(events).not.toContainEqual(notice)
-        else expect(events).toContainEqual(notice)
+        if (status === 204) expect(events).not.toContainEqual(stopUnconfirmedNotice)
+        else expect(events).toContainEqual(stopUnconfirmedNotice)
       } finally {
         await h.owner.close()
-        await new Promise((resolve) => server.close(resolve))
+        await close()
       }
     },
   )
