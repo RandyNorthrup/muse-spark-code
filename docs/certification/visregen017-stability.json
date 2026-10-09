@@ -1,0 +1,4240 @@
+{
+  "kind": "quote-menu-root-cause-diagnostic-not-full-visual-certification",
+  "base": "8f0a75ea1",
+  "fix": "7aeadf624102fdd47df12100844dc52c04172396",
+  "browser": "Google Chrome 153.0.8010.52",
+  "policy": {
+    "threshold": 0.1,
+    "includeAA": false,
+    "maxChangedPixelRatio": 0.0001,
+    "maxChangedPixels": 12
+  },
+  "input": "Exact production browser graph only; full build and What's New fixture preparation are held by the existing decoded-content cap. Diagnostic driver uses real capture functions with measurement callbacks and a controlled QuestionUi request delay; it does not update goldens.",
+  "cause": "The persisted question from questions-open has a 25 px busy placeholder and a 39 px settled row. Original readiness checks only data-deferred-loading, so the passage moves 14 px after its synthetic context click.",
+  "coldIsolated": [
+    {
+      "captureGroup": "one-dark-pro/320/default",
+      "runs": 10,
+      "hashes": [
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d"
+      ],
+      "menuOrigins": [166]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/disabled",
+      "runs": 10,
+      "hashes": [
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8"
+      ],
+      "menuOrigins": [166]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/focus-visible",
+      "runs": 10,
+      "hashes": [
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d"
+      ],
+      "menuOrigins": [166]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/hover",
+      "runs": 10,
+      "hashes": [
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d",
+        "1624948994d6dd871ce3240d54040fdd16711dcfe06a671df67d953eed47d58d"
+      ],
+      "menuOrigins": [166]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/pressed",
+      "runs": 10,
+      "hashes": [
+        "e3a54a18a3bcb01b9b3c18beae96c621990a2588b76529d349a4116aa199e252",
+        "e3a54a18a3bcb01b9b3c18beae96c621990a2588b76529d349a4116aa199e252",
+        "e3a54a18a3bcb01b9b3c18beae96c621990a2588b76529d349a4116aa199e252",
+        "e3a54a18a3bcb01b9b3c18beae96c621990a2588b76529d349a4116aa199e252",
+        "e3a54a18a3bcb01b9b3c18beae96c621990a2588b76529d349a4116aa199e252",
+        "e3a54a18a3bcb01b9b3c18beae96c621990a2588b76529d349a4116aa199e252",
+        "e3a54a18a3bcb01b9b3c18beae96c621990a2588b76529d349a4116aa199e252",
+        "e3a54a18a3bcb01b9b3c18beae96c621990a2588b76529d349a4116aa199e252",
+        "e3a54a18a3bcb01b9b3c18beae96c621990a2588b76529d349a4116aa199e252",
+        "e3a54a18a3bcb01b9b3c18beae96c621990a2588b76529d349a4116aa199e252"
+      ],
+      "menuOrigins": [166]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/selected",
+      "runs": 10,
+      "hashes": [
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8",
+        "5df6a6a30418322363e02ddd641e6615306699d6f9be8fad430edca6e607c9d8"
+      ],
+      "menuOrigins": [166]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/default",
+      "runs": 10,
+      "hashes": [
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048"
+      ],
+      "menuOrigins": [146]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/disabled",
+      "runs": 10,
+      "hashes": [
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910"
+      ],
+      "menuOrigins": [146]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/focus-visible",
+      "runs": 10,
+      "hashes": [
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048"
+      ],
+      "menuOrigins": [146]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/hover",
+      "runs": 10,
+      "hashes": [
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048",
+        "836e631bb2eb37d3459d22a5e4fbc1e126b482243838a13c3c631d86556d1048"
+      ],
+      "menuOrigins": [146]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/pressed",
+      "runs": 10,
+      "hashes": [
+        "bca0dec3415095e347294c15254d8d95f24a67d7522ca59832c6aa5de5203e4e",
+        "bca0dec3415095e347294c15254d8d95f24a67d7522ca59832c6aa5de5203e4e",
+        "bca0dec3415095e347294c15254d8d95f24a67d7522ca59832c6aa5de5203e4e",
+        "bca0dec3415095e347294c15254d8d95f24a67d7522ca59832c6aa5de5203e4e",
+        "bca0dec3415095e347294c15254d8d95f24a67d7522ca59832c6aa5de5203e4e",
+        "bca0dec3415095e347294c15254d8d95f24a67d7522ca59832c6aa5de5203e4e",
+        "bca0dec3415095e347294c15254d8d95f24a67d7522ca59832c6aa5de5203e4e",
+        "bca0dec3415095e347294c15254d8d95f24a67d7522ca59832c6aa5de5203e4e",
+        "bca0dec3415095e347294c15254d8d95f24a67d7522ca59832c6aa5de5203e4e",
+        "bca0dec3415095e347294c15254d8d95f24a67d7522ca59832c6aa5de5203e4e"
+      ],
+      "menuOrigins": [146]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/selected",
+      "runs": 10,
+      "hashes": [
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910",
+        "35c304b90a845eb0a9abf01bf703d5c8260c5ef8fa2d5fe1df67574a69a30910"
+      ],
+      "menuOrigins": [146]
+    }
+  ],
+  "controlledBefore": [
+    {
+      "captureGroup": "one-dark-pro/320/default",
+      "runs": 10,
+      "hashes": [
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507"
+      ],
+      "menuOrigins": [207]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/disabled",
+      "runs": 10,
+      "hashes": [
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d"
+      ],
+      "menuOrigins": [207]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/focus-visible",
+      "runs": 10,
+      "hashes": [
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507"
+      ],
+      "menuOrigins": [207]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/hover",
+      "runs": 10,
+      "hashes": [
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507",
+        "bab0ed39d460b8448499e1cf8634dea71a95f13693b47d2758270d91bbb35507"
+      ],
+      "menuOrigins": [207]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/pressed",
+      "runs": 10,
+      "hashes": [
+        "ea0351d872c094d513d4c2d92d305b911f920e8d2de38c631828fa5083e139ee",
+        "ea0351d872c094d513d4c2d92d305b911f920e8d2de38c631828fa5083e139ee",
+        "ea0351d872c094d513d4c2d92d305b911f920e8d2de38c631828fa5083e139ee",
+        "ea0351d872c094d513d4c2d92d305b911f920e8d2de38c631828fa5083e139ee",
+        "ea0351d872c094d513d4c2d92d305b911f920e8d2de38c631828fa5083e139ee",
+        "ea0351d872c094d513d4c2d92d305b911f920e8d2de38c631828fa5083e139ee",
+        "ea0351d872c094d513d4c2d92d305b911f920e8d2de38c631828fa5083e139ee",
+        "ea0351d872c094d513d4c2d92d305b911f920e8d2de38c631828fa5083e139ee",
+        "ea0351d872c094d513d4c2d92d305b911f920e8d2de38c631828fa5083e139ee",
+        "ea0351d872c094d513d4c2d92d305b911f920e8d2de38c631828fa5083e139ee"
+      ],
+      "menuOrigins": [207]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/selected",
+      "runs": 10,
+      "hashes": [
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d",
+        "680c2382c6e3d4751d4d35bb6b74a7b3cedd571da68e26875f279f2a4e636f6d"
+      ],
+      "menuOrigins": [207]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/default",
+      "runs": 10,
+      "hashes": [
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09"
+      ],
+      "menuOrigins": [187]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/disabled",
+      "runs": 10,
+      "hashes": [
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c"
+      ],
+      "menuOrigins": [187]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/focus-visible",
+      "runs": 10,
+      "hashes": [
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09"
+      ],
+      "menuOrigins": [187]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/hover",
+      "runs": 10,
+      "hashes": [
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09",
+        "313dfaf7000cd607c48df636333b10f24eaa5c4bbeeeeaa9a30c992e28013a09"
+      ],
+      "menuOrigins": [187]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/pressed",
+      "runs": 10,
+      "hashes": [
+        "2b27c62cf5b7f7fb7db03c5251d63c2a5aa53da7357448899f108d580126addd",
+        "2b27c62cf5b7f7fb7db03c5251d63c2a5aa53da7357448899f108d580126addd",
+        "2b27c62cf5b7f7fb7db03c5251d63c2a5aa53da7357448899f108d580126addd",
+        "2b27c62cf5b7f7fb7db03c5251d63c2a5aa53da7357448899f108d580126addd",
+        "2b27c62cf5b7f7fb7db03c5251d63c2a5aa53da7357448899f108d580126addd",
+        "2b27c62cf5b7f7fb7db03c5251d63c2a5aa53da7357448899f108d580126addd",
+        "2b27c62cf5b7f7fb7db03c5251d63c2a5aa53da7357448899f108d580126addd",
+        "2b27c62cf5b7f7fb7db03c5251d63c2a5aa53da7357448899f108d580126addd",
+        "2b27c62cf5b7f7fb7db03c5251d63c2a5aa53da7357448899f108d580126addd",
+        "2b27c62cf5b7f7fb7db03c5251d63c2a5aa53da7357448899f108d580126addd"
+      ],
+      "menuOrigins": [187]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/selected",
+      "runs": 10,
+      "hashes": [
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c",
+        "e37efce1ac057b1204df9fe4d706d3e8104bccd198ab4eeee29ddd787b46058c"
+      ],
+      "menuOrigins": [187]
+    }
+  ],
+  "controlledAfter": [
+    {
+      "captureGroup": "one-dark-pro/320/default",
+      "runs": 10,
+      "hashes": [
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6"
+      ],
+      "menuOrigins": [221]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/disabled",
+      "runs": 10,
+      "hashes": [
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e"
+      ],
+      "menuOrigins": [221]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/focus-visible",
+      "runs": 10,
+      "hashes": [
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6"
+      ],
+      "menuOrigins": [221]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/hover",
+      "runs": 10,
+      "hashes": [
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6",
+        "4107688215a1545a4da466b6948261d4dd0b1bf7108a00fa1a50c64b609bd9f6"
+      ],
+      "menuOrigins": [221]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/pressed",
+      "runs": 10,
+      "hashes": [
+        "325de3c5d61b34f7806ebf932dcb70ba04145d5ebed7a7fa98cd76ffa2da728c",
+        "325de3c5d61b34f7806ebf932dcb70ba04145d5ebed7a7fa98cd76ffa2da728c",
+        "325de3c5d61b34f7806ebf932dcb70ba04145d5ebed7a7fa98cd76ffa2da728c",
+        "325de3c5d61b34f7806ebf932dcb70ba04145d5ebed7a7fa98cd76ffa2da728c",
+        "325de3c5d61b34f7806ebf932dcb70ba04145d5ebed7a7fa98cd76ffa2da728c",
+        "325de3c5d61b34f7806ebf932dcb70ba04145d5ebed7a7fa98cd76ffa2da728c",
+        "325de3c5d61b34f7806ebf932dcb70ba04145d5ebed7a7fa98cd76ffa2da728c",
+        "325de3c5d61b34f7806ebf932dcb70ba04145d5ebed7a7fa98cd76ffa2da728c",
+        "325de3c5d61b34f7806ebf932dcb70ba04145d5ebed7a7fa98cd76ffa2da728c",
+        "325de3c5d61b34f7806ebf932dcb70ba04145d5ebed7a7fa98cd76ffa2da728c"
+      ],
+      "menuOrigins": [221]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/selected",
+      "runs": 10,
+      "hashes": [
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e",
+        "ee0d0e06aba5e9ac7cab82436f211c663f0a9f2089e2aeb2fafa12e041d1370e"
+      ],
+      "menuOrigins": [221]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/default",
+      "runs": 10,
+      "hashes": [
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34"
+      ],
+      "menuOrigins": [201]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/disabled",
+      "runs": 10,
+      "hashes": [
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb"
+      ],
+      "menuOrigins": [201]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/focus-visible",
+      "runs": 10,
+      "hashes": [
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34"
+      ],
+      "menuOrigins": [201]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/hover",
+      "runs": 10,
+      "hashes": [
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34",
+        "6e2f6ec6fa7def15297ee1be2c49c61522d5f5982e124a9dc4914e3f6b7ece34"
+      ],
+      "menuOrigins": [201]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/pressed",
+      "runs": 10,
+      "hashes": [
+        "92e01c311ca944eba6077e3c90ed1f6e68a010f8c6a97824b4e4c22d9ab6ce6d",
+        "92e01c311ca944eba6077e3c90ed1f6e68a010f8c6a97824b4e4c22d9ab6ce6d",
+        "92e01c311ca944eba6077e3c90ed1f6e68a010f8c6a97824b4e4c22d9ab6ce6d",
+        "92e01c311ca944eba6077e3c90ed1f6e68a010f8c6a97824b4e4c22d9ab6ce6d",
+        "92e01c311ca944eba6077e3c90ed1f6e68a010f8c6a97824b4e4c22d9ab6ce6d",
+        "92e01c311ca944eba6077e3c90ed1f6e68a010f8c6a97824b4e4c22d9ab6ce6d",
+        "92e01c311ca944eba6077e3c90ed1f6e68a010f8c6a97824b4e4c22d9ab6ce6d",
+        "92e01c311ca944eba6077e3c90ed1f6e68a010f8c6a97824b4e4c22d9ab6ce6d",
+        "92e01c311ca944eba6077e3c90ed1f6e68a010f8c6a97824b4e4c22d9ab6ce6d",
+        "92e01c311ca944eba6077e3c90ed1f6e68a010f8c6a97824b4e4c22d9ab6ce6d"
+      ],
+      "menuOrigins": [201]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/selected",
+      "runs": 10,
+      "hashes": [
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb",
+        "bd9eb60ff9e60fecb3733c4289d5283b123cf8f4098bc34d3cb16dfb721196fb"
+      ],
+      "menuOrigins": [201]
+    }
+  ],
+  "measurements": {
+    "before": [
+      {
+        "event": "contextmenu",
+        "pointY": 212,
+        "menuY": null,
+        "bodyWidth": 320,
+        "htmlWidth": 320,
+        "fontStatus": "loaded",
+        "fontCount": 0,
+        "passageWidth": 272,
+        "passageHeight": 39
+      },
+      {
+        "event": "before-replay",
+        "pointY": 207,
+        "menuY": 212,
+        "questionHeight": 25,
+        "busy": "true",
+        "bodyWidth": 320,
+        "htmlWidth": 320,
+        "fontStatus": "loaded",
+        "fontCount": 0,
+        "passageWidth": 272,
+        "passageHeight": 39
+      },
+      {
+        "event": "contextmenu",
+        "pointY": 207,
+        "menuY": 212,
+        "questionHeight": 25,
+        "busy": "true",
+        "bodyWidth": 320,
+        "htmlWidth": 320,
+        "fontStatus": "loaded",
+        "fontCount": 0,
+        "passageWidth": 272,
+        "passageHeight": 39
+      },
+      {
+        "event": "after-replay",
+        "pointY": 207,
+        "menuY": 207,
+        "questionHeight": 25,
+        "busy": "true",
+        "bodyWidth": 320,
+        "htmlWidth": 320,
+        "fontStatus": "loaded",
+        "fontCount": 0,
+        "passageWidth": 272,
+        "passageHeight": 39
+      },
+      {
+        "event": "after-held-question",
+        "pointY": 221,
+        "menuY": 207,
+        "questionHeight": 39,
+        "busy": null,
+        "bodyWidth": 320,
+        "htmlWidth": 320,
+        "fontStatus": "loaded",
+        "fontCount": 0,
+        "passageWidth": 272,
+        "passageHeight": 39
+      },
+      {
+        "event": "captured",
+        "pointY": 221,
+        "menuY": 207,
+        "questionHeight": 39,
+        "busy": null,
+        "bodyWidth": 320,
+        "htmlWidth": 320,
+        "fontStatus": "loaded",
+        "fontCount": 0,
+        "passageWidth": 272,
+        "passageHeight": 39
+      }
+    ],
+    "after": [
+      {
+        "event": "contextmenu",
+        "pointY": 207,
+        "menuY": null,
+        "questionHeight": 25,
+        "busy": "true",
+        "bodyWidth": 320,
+        "htmlWidth": 320,
+        "fontStatus": "loaded",
+        "fontCount": 0,
+        "passageWidth": 272,
+        "passageHeight": 39
+      },
+      {
+        "event": "before-replay",
+        "pointY": 221,
+        "menuY": 207,
+        "questionHeight": 39,
+        "busy": null,
+        "bodyWidth": 320,
+        "htmlWidth": 320,
+        "fontStatus": "loaded",
+        "fontCount": 0,
+        "passageWidth": 272,
+        "passageHeight": 39
+      },
+      {
+        "event": "contextmenu",
+        "pointY": 221,
+        "menuY": 207,
+        "questionHeight": 39,
+        "busy": null,
+        "bodyWidth": 320,
+        "htmlWidth": 320,
+        "fontStatus": "loaded",
+        "fontCount": 0,
+        "passageWidth": 272,
+        "passageHeight": 39
+      },
+      {
+        "event": "after-replay",
+        "pointY": 221,
+        "menuY": 221,
+        "questionHeight": 39,
+        "busy": null,
+        "bodyWidth": 320,
+        "htmlWidth": 320,
+        "fontStatus": "loaded",
+        "fontCount": 0,
+        "passageWidth": 272,
+        "passageHeight": 39
+      },
+      {
+        "event": "captured",
+        "pointY": 221,
+        "menuY": 221,
+        "questionHeight": 39,
+        "busy": null,
+        "bodyWidth": 320,
+        "htmlWidth": 320,
+        "fontStatus": "loaded",
+        "fontCount": 0,
+        "passageWidth": 272,
+        "passageHeight": 39
+      }
+    ]
+  },
+  "displaced": [
+    {
+      "captureGroup": "320/default",
+      "failure": "Visual regression: 9603 changed pixel(s), allowance 12"
+    },
+    {
+      "captureGroup": "320/hover",
+      "failure": "Visual regression: 9603 changed pixel(s), allowance 12"
+    },
+    {
+      "captureGroup": "320/focus-visible",
+      "failure": "Visual regression: 9603 changed pixel(s), allowance 12"
+    },
+    {
+      "captureGroup": "320/pressed",
+      "failure": "Visual regression: 9533 changed pixel(s), allowance 12"
+    },
+    {
+      "captureGroup": "320/disabled",
+      "failure": "Visual regression: 9600 changed pixel(s), allowance 12"
+    },
+    {
+      "captureGroup": "320/selected",
+      "failure": "Visual regression: 9600 changed pixel(s), allowance 12"
+    },
+    {
+      "captureGroup": "690/default",
+      "failure": "Visual regression: 9589 changed pixel(s), allowance 12"
+    },
+    {
+      "captureGroup": "690/hover",
+      "failure": "Visual regression: 9589 changed pixel(s), allowance 12"
+    },
+    {
+      "captureGroup": "690/focus-visible",
+      "failure": "Visual regression: 9589 changed pixel(s), allowance 12"
+    },
+    {
+      "captureGroup": "690/pressed",
+      "failure": "Visual regression: 9682 changed pixel(s), allowance 12"
+    },
+    {
+      "captureGroup": "690/disabled",
+      "failure": "Visual regression: 9586 changed pixel(s), allowance 12"
+    },
+    {
+      "captureGroup": "690/selected",
+      "failure": "Visual regression: 9586 changed pixel(s), allowance 12"
+    }
+  ],
+  "broad": [
+    {
+      "captureGroup": "light/320/default",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "light/320/hover",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "light/320/focus-visible",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "light/320/pressed",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "light/320/disabled",
+      "runs": 10,
+      "uniqueHashes": 2,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "light/320/selected",
+      "runs": 10,
+      "uniqueHashes": 2,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "light/690/default",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "light/690/hover",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "light/690/focus-visible",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "light/690/pressed",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "light/690/disabled",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "light/690/selected",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dark/320/default",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dark/320/hover",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dark/320/focus-visible",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dark/320/pressed",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dark/320/disabled",
+      "runs": 10,
+      "uniqueHashes": 2,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dark/320/selected",
+      "runs": 10,
+      "uniqueHashes": 2,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dark/690/default",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dark/690/hover",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dark/690/focus-visible",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dark/690/pressed",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dark/690/disabled",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dark/690/selected",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-dark/320/default",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-dark/320/hover",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-dark/320/focus-visible",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-dark/320/pressed",
+      "runs": 10,
+      "uniqueHashes": 2,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-dark/320/disabled",
+      "runs": 10,
+      "uniqueHashes": 3,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-dark/320/selected",
+      "runs": 10,
+      "uniqueHashes": 3,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-dark/690/default",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-dark/690/hover",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-dark/690/focus-visible",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-dark/690/pressed",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-dark/690/disabled",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-dark/690/selected",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-light/320/default",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-light/320/hover",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-light/320/focus-visible",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-light/320/pressed",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-light/320/disabled",
+      "runs": 10,
+      "uniqueHashes": 2,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-light/320/selected",
+      "runs": 10,
+      "uniqueHashes": 2,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-light/690/default",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-light/690/hover",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-light/690/focus-visible",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-light/690/pressed",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-light/690/disabled",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "hc-light/690/selected",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/default",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/hover",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/focus-visible",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/pressed",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/disabled",
+      "runs": 10,
+      "uniqueHashes": 2,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "one-dark-pro/320/selected",
+      "runs": 10,
+      "uniqueHashes": 2,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/default",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/hover",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/focus-visible",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/pressed",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/disabled",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "one-dark-pro/690/selected",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dracula/320/default",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dracula/320/hover",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dracula/320/focus-visible",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dracula/320/pressed",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dracula/320/disabled",
+      "runs": 10,
+      "uniqueHashes": 2,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dracula/320/selected",
+      "runs": 10,
+      "uniqueHashes": 2,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dracula/690/default",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dracula/690/hover",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dracula/690/focus-visible",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dracula/690/pressed",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dracula/690/disabled",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    },
+    {
+      "captureGroup": "dracula/690/selected",
+      "runs": 10,
+      "uniqueHashes": 1,
+      "comparisons": [
+        {
+          "run": 0,
+          "changedPixels": 0
+        },
+        {
+          "run": 1,
+          "changedPixels": 0
+        },
+        {
+          "run": 2,
+          "changedPixels": 0
+        },
+        {
+          "run": 3,
+          "changedPixels": 0
+        },
+        {
+          "run": 4,
+          "changedPixels": 0
+        },
+        {
+          "run": 5,
+          "changedPixels": 0
+        },
+        {
+          "run": 6,
+          "changedPixels": 0
+        },
+        {
+          "run": 7,
+          "changedPixels": 0
+        },
+        {
+          "run": 8,
+          "changedPixels": 0
+        },
+        {
+          "run": 9,
+          "changedPixels": 0
+        }
+      ]
+    }
+  ],
+  "receiptDigests": [
+    {
+      "file": "temp/visregen2-probe.json",
+      "sha256": "e0932c7a79ec231d0619bfe8615954ec8339290a1b66307319bda3d188429aca"
+    },
+    {
+      "file": "temp/visregen2-held-question.json",
+      "sha256": "81eb3002c11a3bb4d4f84f0791c4091f089e3b2e797c0fa13776fc14c6ae6111"
+    },
+    {
+      "file": "temp/visregen2-fixed-question.json",
+      "sha256": "1e662f10656c209fa5cb1a2317a3d7155d8d67a9578cbd8152c33411e8492bd9"
+    },
+    {
+      "file": "temp/visregen2-fixed-all-themes.json",
+      "sha256": "794f752aff7cca386e44dcc0e0823b581877112e0763d1993a986f806fe55424"
+    }
+  ],
+  "archives": [
+    "/var/tmp/l-VISREGEN2/visregen2-probe",
+    "/var/tmp/l-VISREGEN2/visregen2-prefix",
+    "/var/tmp/l-VISREGEN2/visregen2-held-question",
+    "/var/tmp/l-VISREGEN2/visregen2-fixed-question",
+    "/var/tmp/l-VISREGEN2/visregen2-fixed-all-themes"
+  ]
+}
