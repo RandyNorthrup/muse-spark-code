@@ -399,6 +399,10 @@ for (const file of [
   ])
     if (inputs.has(file)) problems.push(`${output} eagerly carries first-use shell module ${file}`)
 }
+// FIXM103DIET: the shell reads hasHardwareEvidence only; the shared constants
+// reach it through hardwareContext's detection code and must stay out.
+for (const file of ['src/shared/constants.ts', 'src/shared/browserCheckConstants.ts'])
+  if (hardwareShell.has(file)) problems.push(`${HARDWARE_SHELL.output} carries unused ${file}`)
 const REVIEW = { output: 'dist/review.js', metafile: 'dist/meta/review.json' }
 // The English fallback is shared; installed-language state stays in each bundle.
 const UI_TEXT = { output: 'dist/uiText.js', metafile: 'dist/meta/uiText.json' }

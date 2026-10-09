@@ -103,9 +103,21 @@ export const hardwareShellSplit = guardSplit(
   false,
 )
 
+// The shared declaration files: only `export` declarations, no statement with
+// an effect. FIXM103DIET: esbuild keeps unused `64 * 1024` declarations, so
+// hasHardwareEvidence's import put all of constants.ts into the shell bundle.
+const DECLARATION_FILES = new Set(
+  [
+    'src/shared/constants.ts',
+    'src/shared/browserCheckConstants.ts',
+    'src/shared/makerPreviewConstants.ts',
+  ].map((file) => path.resolve(file)),
+)
+
 // Constant-table Set constructors have no effects beyond building their own
 // table. Mark only this immutable declarations file in the lazy guard build;
 // used tables remain, unused tables do not consume the new bundle's budget.
+// Integer-literal products are folded to the same number for the same reason.
 export const hardwareConstantTables = {
   name: 'hardware-constant-tables',
   setup(build) {
@@ -115,11 +127,24 @@ export const hardwareConstantTables = {
         ? { path: path.resolve('src/core/maker/guardSecrets.ts') }
         : undefined
     })
+    build.onResolve(
+      { filter: /\/(?:constants|browserCheckConstants|makerPreviewConstants)(?:\.[jt]s)?$/ },
+      (args) => {
+        const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+        return DECLARATION_FILES.has(source) ? { path: source, sideEffects: false } : undefined
+      },
+    )
     build.onLoad({ filter: /[\\/]shared[\\/]constants\.ts$/ }, (args) => ({
-      contents: readFileSync(args.path, 'utf8').replaceAll(
-        /\bnew Set\(/g,
-        '/* @__PURE__ */ new Set(',
-      ),
+      contents: readFileSync(args.path, 'utf8')
+        .replaceAll(/\bnew Set\(/g, '/* @__PURE__ */ new Set(')
+        .replaceAll(
+          /^(export const \w+ = )(\d[\d_]*(?: \* \d[\d_]*)+)(?=\r?$)/gm,
+          (_, declaration, product) =>
+            declaration +
+            product
+              .split(' * ')
+              .reduce((value, factor) => value * Number(factor.replaceAll('_', '')), 1),
+        ),
       loader: 'ts',
       resolveDir: path.dirname(args.path),
     }))
