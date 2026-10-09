@@ -41843,10 +41843,13 @@ estimated 10–15 minutes; Windows quality alone took 38m23s in run 37211362498.
 
 - the static gates on all three OSes;
 - coverage shards merged per OS before the unchanged 90/85/90/90
-  thresholds apply: four on Ubuntu and macOS, five on Windows (lead
+  thresholds apply: four on Ubuntu and macOS, six on Windows (lead
   decision, 2026-10-09, on CITIME017's estimate: four Windows shards
   ≈ 18.3/14.2/20.0/18.0 min against the 20-minute job limit, five
-  ≤ 15.5 min; `docs/certification/citime017.md`);
+  ≤ 15.5 min; `docs/certification/citime017.md`. CIFIX017W2: in the first
+  hosted run of five, 37980345168, shard 1 hit the limit after 19.1 min of
+  tests with 26 files left; six project to ≤ 16.2 min,
+  `docs/certification/cifix017w.md`);
 - the a11y harness once, on Ubuntu;
 - integration on Linux and Windows;
 - the macOS helper and the universal packages.
