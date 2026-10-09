@@ -3,10 +3,14 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { compressedReference } from '../../scripts/lib/compressedReference.mjs'
+import { compressedReference } from '../../scripts/lib/uiTextRegions.mjs'
 
+// The production Node build packs the reference with uiTextRegions.mjs's
+// plugin. The generator keeps the validation schema in
+// referenceSchema.generated.ts, which the packed factory reads.
 const require = createRequire(import.meta.url)
-const source = readFileSync('src/shared/reference/reference.generated.ts', 'utf8')
+const entry = 'src/shared/reference/reference.generated.ts'
+const source = readFileSync(entry, 'utf8')
 const document = readFileSync('src/shared/reference/reference.generated.json', 'utf8')
 const fixture = { folder: undefined }
 beforeAll(() => {
@@ -17,26 +21,26 @@ beforeAll(() => {
 afterAll(() => rmSync(fixture.folder, { recursive: true, force: true }))
 
 it('round trips the exact generated reference and retains its runtime schema in the real Node artifact', async () => {
-  writeFileSync(path.join(fixture.folder, 'reference.generated.ts'), source)
   const file = path.join(fixture.folder, 'reference.cjs')
   await build({
-    entryPoints: [path.join(fixture.folder, 'reference.generated.ts')],
+    entryPoints: [entry],
     outfile: file,
     bundle: true,
     platform: 'node',
     format: 'cjs',
-    plugins: [compressedReference],
+    plugins: [compressedReference(true)],
     logLevel: 'silent',
   })
+  expect(readFileSync(file, 'utf8')).toContain('brotliDecompressSync')
   const actual = require(file)
   expect(actual.referenceModel()).toEqual(JSON.parse(document))
   expect(() => actual.parseReferenceModel({})).toThrow()
 })
 
-it('refuses a generated reference whose validation schema marker disappeared', async () => {
+it('refuses a generated reference whose factory disappeared', async () => {
   writeFileSync(
     path.join(fixture.folder, 'reference.generated.ts'),
-    source.replace('const plainTextSchema =', 'const renamedTextSchema ='),
+    source.replace('export function referenceModel()', 'export function renamedModel()'),
   )
   await expect(
     build({
@@ -45,8 +49,8 @@ it('refuses a generated reference whose validation schema marker disappeared', a
       bundle: true,
       platform: 'node',
       format: 'cjs',
-      plugins: [compressedReference],
+      plugins: [compressedReference(true)],
       logLevel: 'silent',
     }),
-  ).rejects.toThrow('Reference schema disappeared')
+  ).rejects.toThrow('Missing generated reference factory')
 })
