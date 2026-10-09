@@ -1,0 +1,347 @@
+#!/bin/sh
+# RAUC custom bootloader backend for Raspberry Pi A/B tryboot (OS2, M110).
+#
+# It owns the `autoboot.txt` contract on the boot FAT: `[all]` carries the
+# stable selection (`tryboot_a_b=1`, `boot_partition=`) and this lane's trial
+# bookkeeping; the `[tryboot]` section names the one-shot trial partition.
+# A crash or reset during a trial falls back to the stable slot by itself:
+# that one-shot property belongs to the Pi firmware, which consumes the
+# tryboot request at boot. Requesting the tryboot at reboot time (the
+# firmware's reboot-reason handshake) is the update agent's job and is
+# qualified on hardware outside the sandbox (Q-M110-OS2-RAUC); this backend
+# never reboots.
+#
+# Slot names are RAUC bootnames: partition 1 is A, partition 2 is B, matching
+# OS1's repart order (`muse-pi-boot-a` first) and OS1's initial file, which
+# selects A with B as the dormant `[tryboot]` standby:
+#   [all] tryboot_a_b=1 boot_partition=1 [tryboot] boot_partition=2
+#
+# Accepted file vocabulary (anything else is refused, never guessed):
+#   sections [all] and [tryboot] only;
+#   [all]: tryboot_a_b (=1), boot_partition (1|2), muse_trial (none|A|B),
+#          muse_state_a and muse_state_b (good|bad);
+#   [tryboot]: boot_partition (1|2).
+# No comments, no carriage returns, no padded whitespace, no duplicate keys,
+# no missing required key. Unknown content fails every command (fail closed).
+#
+# RAUC interface: get-primary, set-primary <A|B>, get-state <A|B>,
+# set-state <A|B> <good|bad|active>, get-current; plus the `get-trial`
+# extension (prints A|B|none) that the mark-good path uses. RAUC only calls
+# the first five; the extra command is ignored by RAUC, not by the tests.
+#
+# State rules:
+#  - get-primary prints the stable [all] selection, never the trial target.
+#  - set-primary <S> switches stably now: [all]=S, [tryboot]=other, trial off.
+#  - set-state <S> active arms a one-shot trial: S must be the standby slot;
+#    [tryboot]=S and the trial marker is set. The stable selection is kept.
+#  - set-state <S> good records good; it promotes ([all]=S, trial off) only
+#    when a trial targets S and this boot runs S (the mark-good context).
+#    Any other good marking only records, so an install-time marking can
+#    never promote an untried slot.
+#  - set-state <S> bad records bad; a targeted trial is disarmed and the
+#    machine falls back to the untouched stable selection by itself.
+#  - get-state prints the record, defaulting to good for the running primary
+#    and bad for a slot with no record (an unbooted slot is never called
+#    good). Whether RAUC core accepts a bad standby as an install target is
+#    qualified with real slots outside the sandbox (Q-M110-OS2-RAUC).
+#  - get-current reads MUSE_PI_CURRENT_SLOT (A|B) in tests, else the
+#    partition number behind MUSE_PI_BOOT_DIR via findmnt.
+#
+# Writes go to a temp file in the same directory, are fsynced with
+# `sync <file>`, renamed over autoboot.txt, and the directory is synced.
+# FAT honesty (H15): FAT has no journal and rename is not atomic across
+# power loss; the temp name (`autoboot.txt.muse-tmp-*`) is never read back,
+# so a torn write leaves either the previous complete file or a stray temp
+# file, never a half-parsed selection. A stray temp file is removed on the
+# next successful write and reported on stderr.
+#
+# Environment: MUSE_PI_BOOT_DIR (default /boot/firmware),
+# MUSE_PI_CURRENT_SLOT (test seam for get-current only).
+
+set -u
+
+BOOT_DIR="${MUSE_PI_BOOT_DIR:-/boot/firmware}"
+FILE="$BOOT_DIR/autoboot.txt"
+
+err() {
+    echo "pi-tryboot-backend: PI_TRYBOOT_$1" >&2
+    exit "${2:-3}"
+}
+
+to_num() {
+    case "$1" in
+        A) echo 1 ;;
+        B) echo 2 ;;
+        *) err "UNKNOWN_SLOT slot=$1" 2 ;;
+    esac
+}
+
+to_slot() {
+    case "$1" in
+        1) echo A ;;
+        2) echo B ;;
+        *) err "MALFORMED boot_partition=$1" ;;
+    esac
+}
+
+other() {
+    case "$1" in
+        A) echo B ;;
+        B) echo A ;;
+        *) err "UNKNOWN_SLOT slot=$1" 2 ;;
+    esac
+}
+
+check_slot() {
+    case "$1" in
+        A | B) ;;
+        *) err "UNKNOWN_SLOT slot=$1" 2 ;;
+    esac
+}
+
+# read_state sets P_ALL, P_TRY, TRIAL, ST_A, ST_B or refuses.
+read_state() {
+    if [ ! -f "$FILE" ] || [ -L "$FILE" ]; then
+        err "NO_BOOT_DIR file=$FILE"
+    fi
+    CR=$(printf '\r')
+    section=""
+    P_ALL=""
+    P_TRY=""
+    TRIAL="none"
+    ST_A=""
+    ST_B=""
+    seen_flag=0
+    seen_all_part=0
+    seen_try_part=0
+    seen_trial=0
+    seen_sa=0
+    seen_sb=0
+    seen_section_all=0
+    seen_section_try=0
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in
+            *"$CR"*) err "MALFORMED cr" ;;
+            "") continue ;;
+            "[all]")
+                section="all"
+                seen_section_all=1
+                continue
+                ;;
+            "[tryboot]")
+                section="try"
+                seen_section_try=1
+                continue
+                ;;
+            "[ "* | "["*"]"* | "\["*) err "MALFORMED section=$line" ;;
+        esac
+        case "$line" in
+            \#* | \;*) err "MALFORMED comment" ;;
+            *=*) ;;
+            *) err "MALFORMED line=$line" ;;
+        esac
+        if [ -z "$section" ]; then
+            err "MALFORMED outside-section"
+        fi
+        name=${line%%=*}
+        value=${line#*=}
+        case "$name" in
+            *"$CR"* | *\ * | *"$(
+                printf '\t'
+            )"* | "") err "MALFORMED key=$name" ;;
+        esac
+        if [ "$section" = "all" ]; then
+            case "$name" in
+                tryboot_a_b)
+                    [ "$seen_flag" = "0" ] || err "MALFORMED duplicate=$name"
+                    seen_flag=1
+                    [ "$value" = "1" ] || err "MALFORMED tryboot_a_b=$value"
+                    ;;
+                boot_partition)
+                    [ "$seen_all_part" = "0" ] || err "MALFORMED duplicate=$name"
+                    seen_all_part=1
+                    case "$value" in
+                        1 | 2) P_ALL=$(to_slot "$value") ;;
+                        *) err "MALFORMED boot_partition=$value" ;;
+                    esac
+                    ;;
+                muse_trial)
+                    [ "$seen_trial" = "0" ] || err "MALFORMED duplicate=$name"
+                    seen_trial=1
+                    case "$value" in
+                        none | A | B) TRIAL="$value" ;;
+                        *) err "MALFORMED muse_trial=$value" ;;
+                    esac
+                    ;;
+                muse_state_a)
+                    [ "$seen_sa" = "0" ] || err "MALFORMED duplicate=$name"
+                    seen_sa=1
+                    case "$value" in
+                        good | bad) ST_A="$value" ;;
+                        *) err "MALFORMED muse_state_a=$value" ;;
+                    esac
+                    ;;
+                muse_state_b)
+                    [ "$seen_sb" = "0" ] || err "MALFORMED duplicate=$name"
+                    seen_sb=1
+                    case "$value" in
+                        good | bad) ST_B="$value" ;;
+                        *) err "MALFORMED muse_state_b=$value" ;;
+                    esac
+                    ;;
+                *) err "MALFORMED key=$name" ;;
+            esac
+        else
+            case "$name" in
+                boot_partition)
+                    [ "$seen_try_part" = "0" ] || err "MALFORMED duplicate=$name"
+                    seen_try_part=1
+                    case "$value" in
+                        1 | 2) P_TRY=$(to_slot "$value") ;;
+                        *) err "MALFORMED boot_partition=$value" ;;
+                    esac
+                    ;;
+                *) err "MALFORMED key=$name" ;;
+            esac
+        fi
+    done <"$FILE"
+    if [ "$seen_section_all" = "0" ] || [ "$seen_section_try" = "0" ]; then
+        err "MALFORMED missing-section"
+    fi
+    if [ "$seen_flag" = "0" ] || [ "$seen_all_part" = "0" ] || [ "$seen_try_part" = "0" ]; then
+        err "MALFORMED missing-key"
+    fi
+    if [ -z "$ST_A" ]; then
+        if [ "$P_ALL" = "A" ]; then ST_A="good"; else ST_A="bad"; fi
+    fi
+    if [ -z "$ST_B" ]; then
+        if [ "$P_ALL" = "B" ]; then ST_B="good"; else ST_B="bad"; fi
+    fi
+}
+
+# write_state <primary> <tryboot> <trial> <state_a> <state_b>
+write_state() {
+    w_all="$1"
+    w_try="$2"
+    w_trial="$3"
+    w_sa="$4"
+    w_sb="$5"
+    tmp=$(mktemp "$FILE.muse-tmp-XXXXXX") || err "NO_BOOT_DIR mktemp"
+    {
+        printf '[all]\ntryboot_a_b=1\nboot_partition=%s\nmuse_trial=%s\nmuse_state_a=%s\nmuse_state_b=%s\n[tryboot]\nboot_partition=%s\n' \
+            "$(to_num "$w_all")" "$w_trial" "$w_sa" "$w_sb" "$(to_num "$w_try")"
+    } >"$tmp" || {
+        rm -f "$tmp"
+        err "NO_BOOT_DIR write"
+    }
+    # Remove strays from a torn earlier write; they are never read back.
+    for stray in "$FILE".muse-tmp-*; do
+        if [ "$stray" != "$tmp" ] && [ -f "$stray" ]; then
+            rm -f "$stray"
+            echo "pi-tryboot-backend: PI_TRYBOOT_STRAY removed=$stray" >&2
+        fi
+    done
+    sync "$tmp" || {
+        rm -f "$tmp"
+        err "NO_BOOT_DIR fsync"
+    }
+    mv -f "$tmp" "$FILE" || {
+        rm -f "$tmp"
+        err "NO_BOOT_DIR rename"
+    }
+    sync "$BOOT_DIR" || err "NO_BOOT_DIR dirsync"
+}
+
+current_slot() {
+    if [ -n "${MUSE_PI_CURRENT_SLOT:-}" ]; then
+        case "$MUSE_PI_CURRENT_SLOT" in
+            A | B) echo "$MUSE_PI_CURRENT_SLOT" ;;
+            *) err "MALFORMED MUSE_PI_CURRENT_SLOT=$MUSE_PI_CURRENT_SLOT" ;;
+        esac
+        return
+    fi
+    if ! command -v findmnt >/dev/null 2>&1; then
+        err "NO_CURRENT no-findmnt"
+    fi
+    src=$(findmnt -n -o SOURCE --target "$BOOT_DIR" 2>/dev/null) || err "NO_CURRENT findmnt"
+    num=$(printf '%s' "$src" | sed 's/^.*[^0-9]\([0-9][0-9]*\)$/\1/')
+    case "$num" in
+        1) echo A ;;
+        2) echo B ;;
+        *) err "NO_CURRENT source=$src" ;;
+    esac
+}
+
+cmd="${1:-}"
+case "$cmd" in
+    get-primary)
+        [ "$#" = "1" ] || err "USAGE get-primary" 2
+        read_state
+        echo "$P_ALL"
+        ;;
+    get-trial)
+        [ "$#" = "1" ] || err "USAGE get-trial" 2
+        read_state
+        echo "$TRIAL"
+        ;;
+    get-current)
+        [ "$#" = "1" ] || err "USAGE get-current" 2
+        read_state
+        current_slot
+        ;;
+    set-primary)
+        [ "$#" = "2" ] || err "USAGE set-primary" 2
+        check_slot "$2"
+        read_state
+        if [ "$2" = "A" ]; then
+            write_state "A" "B" "none" "$ST_A" "$ST_B"
+        else
+            write_state "B" "A" "none" "$ST_A" "$ST_B"
+        fi
+        ;;
+    get-state)
+        [ "$#" = "2" ] || err "USAGE get-state" 2
+        check_slot "$2"
+        read_state
+        if [ "$2" = "A" ]; then echo "$ST_A"; else echo "$ST_B"; fi
+        ;;
+    set-state)
+        [ "$#" = "3" ] || err "USAGE set-state" 2
+        check_slot "$2"
+        case "$3" in
+            good | bad | active) ;;
+            *) err "BAD_STATE state=$3" 2 ;;
+        esac
+        read_state
+        if [ "$3" = "active" ]; then
+            [ "$2" != "$P_ALL" ] || err "NOT_STANDBY slot=$2"
+            if [ "$2" = "A" ]; then
+                write_state "$P_ALL" "A" "A" "$ST_A" "$ST_B"
+            else
+                write_state "$P_ALL" "B" "B" "$ST_A" "$ST_B"
+            fi
+        elif [ "$3" = "good" ]; then
+            if [ "$2" = "A" ]; then n_sa="good"; n_sb="$ST_B"; else n_sa="$ST_A"; n_sb="good"; fi
+            # Trial passed while running the trial slot: promote. An unknown
+            # current slot never promotes (fail closed); it only records.
+            now=$(current_slot 2>/dev/null) || now=""
+            if [ -n "$now" ] && [ "$TRIAL" = "$2" ] && [ "$now" = "$2" ]; then
+                if [ "$2" = "A" ]; then
+                    write_state "A" "B" "none" "$n_sa" "$n_sb"
+                else
+                    write_state "B" "A" "none" "$n_sa" "$n_sb"
+                fi
+            else
+                write_state "$P_ALL" "$P_TRY" "$TRIAL" "$n_sa" "$n_sb"
+            fi
+        else
+            if [ "$2" = "A" ]; then n_sa="bad"; n_sb="$ST_B"; else n_sa="$ST_A"; n_sb="bad"; fi
+            if [ "$TRIAL" = "$2" ]; then
+                write_state "$P_ALL" "$P_ALL" "none" "$n_sa" "$n_sb"
+            else
+                write_state "$P_ALL" "$P_TRY" "$TRIAL" "$n_sa" "$n_sb"
+            fi
+        fi
+        ;;
+    *) err "USAGE cmd=$cmd" 2 ;;
+esac
