@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises'
+import { cp, mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -21,7 +21,22 @@ async function noticeFixture() {
   // Retain the captured legacy inventory so its omission fails on the shared
   // chunk's notice, rather than on an unrelated missing fixture metafile.
   for (const name of ['acp', 'headless', 'exec', 'acpQuestions', 'runtimeQuestions'])
-    await write(`dist/meta-acp/${name}.json`, JSON.stringify({ outputs: {} }))
+    await write(`dist/meta-acp/${name}.json`, JSON.stringify({ inputs: {}, outputs: {} }))
+  // The optional font pack (fonts lane): its installer stays out of ACP
+  // startup, and its notices come from the real verified pack.
+  await write(
+    'dist/meta-acp/fontsInstall.json',
+    JSON.stringify({
+      inputs: Object.fromEntries(
+        ['install', 'manifest', 'nodeInstall', 'preferences', 'fontsEntry'].map((name) => [
+          `src/runtime/fonts/${name}.ts`,
+          { bytes: 1 },
+        ]),
+      ),
+      outputs: {},
+    }),
+  )
+  await cp(path.resolve('design/fonts'), path.join(root, 'design/fonts'), { recursive: true })
   for (const name of [
     'runtimeEngine',
     'runtimeAccounting',
@@ -102,6 +117,7 @@ it('notices physically staged shared-chunk dependencies and excludes extension-o
   expect(text).toContain('micromark (MIT)')
   expect(text).not.toContain('extension-only (MIT)')
   expect(text).toContain('Fixture licence text')
+  expect(text).toContain('(optional subset font pack)')
 })
 
 it('refuses ACP notice generation without its bundle stage', async () => {
