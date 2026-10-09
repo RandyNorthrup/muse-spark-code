@@ -508,3 +508,142 @@ all drills, at repository deadlines. Changed-file ESLint passes.
 The shared webview changes remain behind the existing host bridge; persisted
 custom limits are read by ACP through the same production provider schema.
 Native-editor rendering and installation are not claimed by these tests.
+
+## P2-1 and P2-2: edited-only compare-and-set, provider-first saves
+
+Suggestions tracks an edit separately from its displayed prefill. Untouched
+inputs follow refreshed state and Continue posts only `next`; an edit sends
+its original prefill with its exact amount. The host retains both through
+confirmation. Both save paths complete the production provider transaction
+before the shared budget writer re-reads the effective setting. A mismatch
+shows the new current limit and the retained requested limit. The panel
+requires another Save; the quick pick asks a second native confirmation and
+rechecks after it. Accepting a quick-pick prefill unchanged carries no edit.
+
+A provider failure never reaches the budget write. A later budget failure
+says `Provider saved; the spending limit was not changed: <reason>` and
+reports no full setup success. The panel retains its draft and treats its
+next save as an edit of the already saved entry, preventing duplicate-add
+failure. The two new messages have real translations in all 14 UI tables.
+The provider feature reference now includes the spending-limit setting.
+
+Regressions in `wizardSessionBudget` use the actual host/save transaction,
+credential adapter, production provider file/schema and production settings
+writer. VS Code, credentials and service answers are synthetic; no paid/live
+request is made. Provider, credential, default and composer failures are
+injected at their actual persistence/selection boundaries in both paths.
+Additional cases cover untouched concurrent changes, a setting change during
+the provider transaction, panel confirmation and retry, quick-pick accept and
+deny, a quick-pick limit-write failure, and a missing prefill. The existing
+`modelsPanelEntry` test now combines the real production provider file with
+the real VS Code settings adapter (captured numeric update).
+
+Before repair the twelve newly added host/save assertions failed for the
+reported behavior. The two webview refresh/edit assertions also failed on
+round 3. After repair and all restored drills, `wizardSessionBudget` (33),
+`modelsPanelSections` (32), and `modelsQuickPick` (8) pass 73 tests at the
+repository's default deadlines.
+
+| Deliberate break                                 | Failures | Original and restored SHA-256                                      |
+| ------------------------------------------------ | -------- | ------------------------------------------------------------------ |
+| Remove compare-and-set before the write          | 3/33     | `350ad5a7da4b0ebc7407a83b464c105ab1835232127ab3c03bbc456de846bbcb` |
+| Remove the missing-prefill guard                 | 1/33     | `350ad5a7da4b0ebc7407a83b464c105ab1835232127ab3c03bbc456de846bbcb` |
+| Continue proposes an untouched field             | 1/32     | `87d37949cd26bf7f4332deec24190b377865c2b28e8316988038e0266e2f8cbe` |
+| Quick pick proposes its unchanged prefill        | 2/33     | `31fe723d5a29c589d40661ef846ae8c7d379fde442a1590bb036edf2710cd625` |
+| Panel writes the limit before provider save      | 6/33     | `45b3b32240259b43efe0097257bca01f0beb436466928b200ebadc13cd497112` |
+| Quick pick writes the limit before provider save | 7/33     | `31fe723d5a29c589d40661ef846ae8c7d379fde442a1590bb036edf2710cd625` |
+| Panel retries a partial save as a duplicate add  | 2/33     | `45b3b32240259b43efe0097257bca01f0beb436466928b200ebadc13cd497112` |
+| Quick pick silently confirms a concurrent edit   | 2/33     | `31fe723d5a29c589d40661ef846ae8c7d379fde442a1590bb036edf2710cd625` |
+
+Commit review caught an orchestration error: editing translations while the
+second commit hook was running added those otherwise unstaged files to that
+commit. The committed diff was compared with the saved staged diff and every
+added translation reviewed; implementation changes matched the staged diff.
+G66 in `docs/orchestration-gotchas.md` records the rule to freeze all edits
+until the hook finishes. Hooks and history were not changed. Final static,
+localization and build checks include those committed translations.
+
+## Final complete-suite verification (macmini)
+
+All runs use the repository timeout, `--maxWorkers=3`, complete files and no
+per-run timeout override. Nine batches passed 27 distinct files, 504 tests:
+
+| Files (`test/unit/`)                                               | Tests | Exit |
+| ------------------------------------------------------------------ | ----: | ---: |
+| modelsPanel, wizardSessionBudget, modelsPanelSections              |    92 |    0 |
+| modelsQuickPick, modelsPanelEntry, modelsPanelBundle               |    19 |    0 |
+| modelsPanelSchemas, modelsPanelReducer, providerWizardSave         |    27 |    0 |
+| modelsApp, modelsWebviewEntry, modelsComponents                    |    23 |    0 |
+| modelsSections, modelsActivationBudget, providersL10n              |    22 |    0 |
+| planKeyPresets, providerPanelSeam, providerProvidersHost           |    20 |    0 |
+| providerModelScans, subscriptionIntegration, configuredProviders   |    40 |    0 |
+| modelApiGoldenRequests, metaRequestGoldens, modelApiShellDirectory |   176 |    0 |
+| paidConsent, teamSingleModel, manifest                             |    85 |    0 |
+
+Duplication check: a read-only snapshot of the starting `bfbdf3c35` fails
+with 25 clones (321 duplicated lines, 2,275 tokens). The first round-4 run
+found 34. Removing the new repetitions uses the existing draft factory,
+shared draft assertions, a two-case refresh regression and fixture-owned
+cleanup; the resulting 24 clones (312 lines, 2,206 tokens) all correspond
+to the prior-round set. The unchanged zero-clone gate still exits 1. This
+inherited hold is recorded in PLAN §7 for the lead; no new ignore, threshold,
+assertion or timeout is used. The temporary baseline snapshot was removed.
+The cleanup's first navigation run caught a misapplied test-helper call;
+correcting the arguments restored every original assertion, and the complete
+batch passed at repository deadlines.
+
+Plain knip initially found three inherited unused exported type aliases in
+`modelsPanel.ts`; all three declarations were removed, with no schema change.
+Knip then exits 0 (two existing configuration hints remain). The host API
+record was stale for round 3's native settings adapter: it was regenerated
+and reviewed, adding its configuration target/read/inspect/update entries;
+the host API gate now reports 0 problems.
+
+The final implementation repeats fourteen distinct guard breaks after the
+scoped cleanup. Both saved-entry seed paths now share the existing draft
+factory, so dropping that seed fails both entry tests in one drill. The Edit
+fields' ids are scoped separately from an open wizard; its hide-fields drill
+was repeated after that change. Every break restored the implementation file
+byte-exact; the final original/restored hashes are:
+
+| File                                    | SHA-256                                                            |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| src/host/models/sessionBudget.ts        | `350ad5a7da4b0ebc7407a83b464c105ab1835232127ab3c03bbc456de846bbcb` |
+| src/host/models/modelsPanel.ts          | `229bf0e078174d457d3ce04da869d058e6d4fa5958758cccab1ac2eda394a199` |
+| src/host/models/modelsQuickPick.ts      | `31fe723d5a29c589d40661ef846ae8c7d379fde442a1590bb036edf2710cd625` |
+| src/webview/models/Wizard.tsx           | `87d37949cd26bf7f4332deec24190b377865c2b28e8316988038e0266e2f8cbe` |
+| src/webview/models/ProvidersSection.tsx | `c55734c2fec96854c551bc04ff0a7e24afb5a3f8746a10074f6ff41e7a329d07` |
+
+| Final break                                                | Failures |
+| ---------------------------------------------------------- | -------: |
+| Write string instead of native number                      |     5/39 |
+| Remove numeric round-trip guard                            |     2/33 |
+| Drop persisted custom limits from the shared draft factory |     2/27 |
+| Hide saved custom limits in Edit                           |     1/32 |
+| Reapply custom-limit blockers on earlier steps             |     1/27 |
+| Remove final Save's blocker guard                          |     1/27 |
+| Remove compare-and-set                                     |     3/33 |
+| Remove missing-prefill guard                               |     1/33 |
+| Commit an untouched webview field                          |     1/32 |
+| Treat unchanged quick-pick prefill as edited               |     2/33 |
+| Write panel limit before provider save                     |     6/33 |
+| Write quick-pick limit before provider save                |     7/33 |
+| Retry a partial panel save as a duplicate add              |     2/33 |
+| Automatically confirm a concurrent quick-pick edit         |     2/33 |
+
+The complete 27-file batch passed after the restored implementation; the
+32-test fields suite also passed after its final hide/restore drill. Final
+five-project `npm run typecheck`, changed-file ESLint, localization (14 UI and
+14 usage tables, 0 problems), generated reference, plain knip and host API
+checks exit 0. The production build, split checks, host globals and notices
+exit 0. Exact primary bytes / unchanged cap: extension 521707/614400;
+providers 134609/153600; Models host 104453/128000; shared Node English
+83695/128000. Models startup with static imports is 326.5 KiB/500 KiB,
+lazy body 61.9 KiB/75 KiB, and shared surface English remains inside its
+25 KiB cap. No budget or gate changed.
+
+No aggregate quality pass, coverage pass, package/installed-editor check,
+real-browser accessibility or live sign-in is claimed. The explicit brief
+reserves full quality for the lead, and the inherited duplication hold above
+remains. No credentials were inspected, no dependency installed, no model
+call made, and no push, merge or rebase performed.

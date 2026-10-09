@@ -93,6 +93,7 @@ export function createSessionBudgetConfig(
 export type SessionBudgetApplyOutcome =
   | { readonly status: 'unchanged' }
   | { readonly status: 'written'; readonly scope: SessionBudgetScope }
+  | { readonly status: 'conflict'; readonly effectiveUsd: UsdAmount; readonly error: string }
   | { readonly status: 'failed'; readonly error: string }
 
 function failureDetail(error: unknown): string {
@@ -104,11 +105,13 @@ function failureDetail(error: unknown): string {
  * `undefined` (untouched) and a value equal to the effective one write
  * nothing. Anything else is validated with the setting's own schema and
  * written at the scope it is effective from; a failed write reports the
- * specific reason and the caller must not report setup success.
+ * specific reason. Call only after provider save succeeds. A concurrent
+ * setting change requires explicit confirmation before replacing it.
  */
 export async function applyWizardSessionBudget(
   budget: UsdAmount | undefined,
   config: SessionBudgetConfig,
+  expectedUsd: UsdAmount | undefined,
 ): Promise<SessionBudgetApplyOutcome> {
   if (budget === undefined) {
     return { status: 'unchanged' }
@@ -118,16 +121,32 @@ export async function applyWizardSessionBudget(
   if (!parsed.success) {
     return { status: 'failed', error: UI_TEXT.wizardSessionBudgetInvalid }
   }
+  if (expectedUsd === undefined) {
+    return { status: 'failed', error: UI_TEXT.wizardSessionBudgetInvalid }
+  }
   const current = config.read()
   if (Usd.from(parsed.data).compare(Usd.from(current.effectiveUsd)) === 0) {
     return { status: 'unchanged' }
+  }
+  // Read and compare immediately before dispatching the settings write;
+  // the provider transaction has already completed, so changes during it
+  // cannot be overwritten with the wizard's old prefill.
+  if (Usd.from(expectedUsd).compare(Usd.from(current.effectiveUsd)) !== 0) {
+    return {
+      status: 'conflict',
+      effectiveUsd: current.effectiveUsd,
+      error: fill(UI_TEXT.sessionBudgetConflict, {
+        amount: formatUsd(current.effectiveUsd),
+        requested: formatUsd(parsed.data),
+      }),
+    }
   }
   try {
     await config.write(parsed.data, current.scope)
   } catch (error) {
     return {
       status: 'failed',
-      error: fill(UI_TEXT.sessionBudgetWriteFailed, { detail: failureDetail(error) }),
+      error: failureDetail(error),
     }
   }
   // The write resolved but the setting still reads the old value (a more
@@ -136,9 +155,7 @@ export async function applyWizardSessionBudget(
   if (Usd.from(reread).compare(Usd.from(parsed.data)) !== 0) {
     return {
       status: 'failed',
-      error: fill(UI_TEXT.sessionBudgetWriteFailed, {
-        detail: fill(UI_TEXT.sessionBudgetStillEffective, { amount: formatUsd(reread) }),
-      }),
+      error: fill(UI_TEXT.sessionBudgetStillEffective, { amount: formatUsd(reread) }),
     }
   }
   return { status: 'written', scope: current.scope }

@@ -150,7 +150,7 @@ function EditForm({
           <div key={modelId}>
             <p>{modelId}</p>
             <ModelLimitsFields
-              id={`${editId}/${modelId}`}
+              id={`edit/${editId}/${modelId}`}
               modelId={modelId}
               draft={draft}
               onPrefill={onPrefill}

@@ -20,6 +20,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The provider wizard leaves an untouched spending limit alone and compares
+  an edited limit with its prefill at write time. Concurrent changes are shown
+  with a confirmation request. Provider save finishes before the limit write;
+  a later limit failure says the provider was saved and gives the reason,
+  without claiming full success. The panel retains the edit for a safe retry.
+
 - Editing or changing the key of a saved custom provider keeps its model
   limits, exposes them for editing, and saves them back. Back from incomplete
   custom limits keeps the typed values and allows returning to Models;

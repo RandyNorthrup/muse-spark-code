@@ -51,7 +51,7 @@
         "museSpark.connectChatGpt",
         "museSpark.connectCopilot"
       ],
-      "settings": ["museSpark.suggestedProvider"],
+      "settings": ["museSpark.suggestedProvider", "museSpark.modelApiSessionBudgetUsd"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#backends",
       "backends": ["museCode", "modelApi"],
       "paid": false,

@@ -688,6 +688,14 @@ confirmed import requires credentials to be entered again, clears credentials
 for imported and removed ids, and replaces providers and the validated default
 model together. Cancelled or invalid imports leave configuration and keys intact.
 
+The provider wizard's spending limit is the setting for every conversation.
+Leaving the prefilled value alone keeps the current setting. If you edit it
+and the setting changes meanwhile, the wizard shows the new current limit and
+asks you to confirm yours. The provider is saved first; a later limit failure
+explicitly says the provider was saved and why the limit was not changed.
+Saved custom providers keep their editable per-model limits, and Back keeps
+incomplete limits so you can return to Models and finish them.
+
 ## Questions
 
 The integrated question paths, fake-only checks and the 2026-10-06 live checks

@@ -1,4 +1,4 @@
-import { usdInputSchema, type UsdAmount } from '../../shared/usd'
+import { Usd, usdInputSchema, type UsdAmount } from '../../shared/usd'
 // The quick-pick fast path (M95 lane K, PLAN.md D74, M95 step 8): **Muse
 // Spark: Add Model Provider…** runs the same flow as the panel wizard
 // without the panel: pick a provider, enter or connect the credential,
@@ -346,7 +346,8 @@ export async function runAddProviderQuickPick(
       ui.showError(UI_TEXT.wizardSessionBudgetInvalid)
       continue
     }
-    sessionBudgetUsd = parsed
+    sessionBudgetUsd =
+      Usd.from(parsed).compare(Usd.from(budgetState.effectiveUsd)) === 0 ? undefined : parsed
     break
   }
   const modelRef = `${providerId}/${defaultModel}`
@@ -363,15 +364,6 @@ export async function runAddProviderQuickPick(
   if (!isConfirmed) {
     return undefined
   }
-  // The wizard's number IS the conversation spending limit: a change
-  // reaches the setting enforcement reads, before the provider is saved. A
-  // failed write shows its specific error and reports no setup success, so
-  // nothing is written and running the flow again retries cleanly.
-  const budget = await applyWizardSessionBudget(sessionBudgetUsd, deps.sessionBudget)
-  if (budget.status === 'failed') {
-    ui.showError(budget.error)
-    return undefined
-  }
   const outcome = await providers.saveDraft({
     provider: {
       ...entry,
@@ -384,6 +376,24 @@ export async function runAddProviderQuickPick(
     sessionBudgetUsd,
     useNow: true,
   })
+  let expectedUsd = budgetState.effectiveUsd
+  for (;;) {
+    const budget = await applyWizardSessionBudget(sessionBudgetUsd, deps.sessionBudget, expectedUsd)
+    if (budget.status === 'conflict') {
+      const isConfirmed = await ui.confirmSave(UI_TEXT.wizardSessionBudget, budget.error)
+      if (isConfirmed) {
+        expectedUsd = budget.effectiveUsd
+        continue
+      }
+      ui.showError(fill(UI_TEXT.sessionBudgetPartialSave, { detail: budget.error }))
+      return undefined
+    }
+    if (budget.status === 'failed') {
+      ui.showError(fill(UI_TEXT.sessionBudgetPartialSave, { detail: budget.error }))
+      return undefined
+    }
+    break
+  }
   if (outcome.composerSet) {
     ui.showNotice(fill(UI_TEXT.setupComplete, { provider: preset.name, model: outcome.modelRef }))
   }

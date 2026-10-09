@@ -6,7 +6,12 @@ import { window } from 'vscode'
 import { window as fakeWindow, FakeUri } from './mocks/vscode'
 import { createModelsPanelSeam } from '../../src/core/providers/panelSeam'
 import { createModelsPanel, type ModelsPanelDeps } from '../../src/host/models/modelsPanel'
-import { parseHostToPanelMessage, type ModelsPanelState } from '../../src/shared/modelsPanel'
+import {
+  parseHostToPanelMessage,
+  type ModelsPanelState,
+  type PanelDraft,
+} from '../../src/shared/modelsPanel'
+import type { ProvidersStore } from '../../src/host/providers/providerPorts'
 import { EN } from '../../src/shared/l10n/en'
 import { UI_TEXT } from '../../src/shared/constants'
 import { TEST_ENTRY, testProvidersHost, testRow } from './helpers/m95kFixtures'
@@ -65,6 +70,15 @@ function latestState(panel: FakeWebviewPanel): ModelsPanelState {
 async function send(panel: FakeWebviewPanel, message: unknown, done: () => void): Promise<void> {
   panel.webview.messages.fire(message)
   await vi.waitFor(done)
+}
+async function sendDraft(
+  panel: FakeWebviewPanel,
+  message: unknown,
+  expected: Partial<PanelDraft>,
+): Promise<void> {
+  await send(panel, message, () => {
+    expect(latestState(panel).drafts.wizard).toMatchObject(expected)
+  })
 }
 async function chooseOpenRouter(panel: FakeWebviewPanel): Promise<void> {
   await send(panel, { type: 'providers/select', presetId: 'openrouter' }, () => {
@@ -242,7 +256,10 @@ describe('Models host contract', () => {
 // The fixture catalogue above has two presets; the shipped one is the
 // contract. A card the shared schema refuses once emptied the whole dropdown
 // (0.16.0: Mistral's plan key carried a category the panel did not know).
-function realCatalogue(store = memoryProvidersStore(), loopbackFetch?: typeof fetch) {
+function realCatalogue(
+  store: ProvidersStore = memoryProvidersStore(),
+  loopbackFetch?: typeof fetch,
+) {
   const seam = createModelsPanelSeam({
     configFile: path.join(tmpdir(), 'models-panel-unused', 'providers.json'),
     subscriptionModels: () => Promise.resolve([]),
@@ -267,7 +284,8 @@ function answeringFetch(ports: readonly number[]): typeof fetch {
 }
 describe('Models panel over the shipped preset catalogue', () => {
   it('lists every preset under its filter chip and opens each one', async () => {
-    const { ids, providers, store } = realCatalogue()
+    const store = memoryProvidersStore()
+    const { ids, providers } = realCatalogue(store)
     const subscribe = (id: string, address: string) =>
       vi.fn(() => {
         store.current.push({ id, preset: id, address, auth: 'subscription', models: [] })
@@ -481,13 +499,7 @@ describe('PROVWIZ2 round 2 regressions', () => {
     async (type) => {
       const { folder, seam } = await productionSeam()
       try {
-        const { providers } = testProvidersHost({
-          deps: {
-            store: seam.store,
-            catalog: seam.catalog,
-            fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
-          },
-        })
+        const { providers } = realCatalogue(seam.store)
         await providers.saveDraft({
           provider: {
             id: 'custom',
@@ -573,10 +585,12 @@ describe('PROVWIZ2 round 2 regressions', () => {
       const { panel } = setup({ providers })
       const saveDraft = vi.spyOn(providers, 'saveDraft')
       vi.mocked(window.showInputBox).mockResolvedValue('synthetic-key')
-      await send(panel, { type: 'providers/select', presetId: 'custom' }, () => {
-        expect(latestState(panel).drafts.wizard?.presetId).toBe('custom')
-      })
-      await send(
+      await sendDraft(
+        panel,
+        { type: 'providers/select', presetId: 'custom' },
+        { presetId: 'custom' },
+      )
+      await sendDraft(
         panel,
         {
           type: 'providers/prefill',
@@ -585,39 +599,29 @@ describe('PROVWIZ2 round 2 regressions', () => {
             modelLimits: { m1: { contextTokens: 128_000 } },
           },
         },
-        () => {
-          expect(latestState(panel).drafts.wizard?.address).toBe('https://llm.example')
-        },
+        { address: 'https://llm.example' },
       )
-      await send(
+      await sendDraft(
         panel,
         { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'custom/m1', ticked: true },
-        () => {
-          expect(latestState(panel).drafts.wizard?.models).toEqual(['m1'])
-        },
+        { models: ['m1'] },
       )
-      await send(panel, { type: 'providers/enterKey', mode: 'new' }, () => {
-        expect(latestState(panel).drafts.wizard?.keyPresent).toBe(true)
-      })
-      await send(panel, { type: 'providers/test', acceptCost: false }, () => {
-        expect(latestState(panel).drafts.wizard?.test?.status).toBe('ok')
-      })
-      for (const step of ['credential', 'test', 'models']) {
-        await send(panel, { type: 'providers/wizard', event: 'next' }, () => {
-          expect(latestState(panel).drafts.wizard?.step).toBe(step)
-        })
+      await sendDraft(panel, { type: 'providers/enterKey', mode: 'new' }, { keyPresent: true })
+      await sendDraft(
+        panel,
+        { type: 'providers/test', acceptCost: false },
+        { test: { status: 'ok' } },
+      )
+      for (const step of ['credential', 'test', 'models'] as const) {
+        await sendDraft(panel, { type: 'providers/wizard', event: 'next' }, { step })
       }
       expect(latestState(panel).drafts.wizard?.blockers).toEqual([UI_TEXT.customLimitsMissing])
-      await send(panel, { type: 'providers/wizard', event: 'back' }, () => {
-        expect(latestState(panel).drafts.wizard?.step).toBe('test')
-      })
+      await sendDraft(panel, { type: 'providers/wizard', event: 'back' }, { step: 'test' })
       expect(latestState(panel).drafts.wizard?.blockers).toEqual([])
       expect(latestState(panel).drafts.wizard?.modelLimits).toEqual({
         m1: { contextTokens: 128_000 },
       })
-      await send(panel, { type: 'providers/wizard', event: 'next' }, () => {
-        expect(latestState(panel).drafts.wizard?.step).toBe('models')
-      })
+      await sendDraft(panel, { type: 'providers/wizard', event: 'next' }, { step: 'models' })
       expect(latestState(panel).drafts.wizard?.blockers).toEqual([UI_TEXT.customLimitsMissing])
       await send(panel, { type: 'providers/save', useNow: false }, () => {
         expect(latestState(panel).notice).toBe(UI_TEXT.actionFailed)

@@ -44691,6 +44691,14 @@ for the lead. Run complete owned suites at the repository's default timeout
 and all prescribed individual gates here; do not weaken any gate. Full
 quality, coverage and installed-editor qualification remain with the lead.
 Evidence and deliberate byte-exact drills: `docs/certification/provcat.md`.
+Duplication is an inherited lane hold: a read-only source snapshot of
+`bfbdf3c35` fails the unchanged zero-clone gate with 25 clones (321 lines,
+2,275 tokens). Round 4 removes all newly introduced clones; its scoped
+cleanup reduces the inherited set to 24 (312 lines, 2,206 tokens). The
+remaining prior-round test setup/interaction and wizard-footer duplication
+is deferred to the lead's broader quality cleanup, outside these five fixes.
+No ignore, threshold, assertion or check is changed; do not claim quality
+green. G66 records freezing worktree edits during hook execution.
 
 **FIX0160W2 scoped Windows qualification (2026-10-07).** The named lane
 brief and shared common rules prohibit aggregate quality and delegate it to

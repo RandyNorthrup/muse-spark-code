@@ -292,7 +292,7 @@ export function featureCatalog(): readonly Feature[] {
       ],
       // Saved custom-provider limits use the same fields as the wizard;
       // earlier steps remain navigable while final Save validates them.
-      ['suggestedProvider'],
+      ['suggestedProvider', 'modelApiSessionBudgetUsd'],
       'backends',
       ['museCode', 'modelApi'],
       false,

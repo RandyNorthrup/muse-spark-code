@@ -520,6 +520,7 @@ describe('ProvidersSection', () => {
       type: 'suggestions/change',
       kind: 'sessionBudget',
       usd: Usd.from(5).toAmount(),
+      expectedUsd: '0',
     })
     expect(post).toHaveBeenCalledWith({ type: 'providers/wizard', event: 'next' })
   })
@@ -709,8 +710,47 @@ describe('Wizard', () => {
       type: 'suggestions/change',
       kind: 'sessionBudget',
       usd: '2',
+      expectedUsd: '5',
     })
     expect(post).toHaveBeenNthCalledWith(2, { type: 'providers/wizard', event: 'next' })
+  })
+
+  it.each([
+    { initial: 0, edited: undefined },
+    { initial: 5, edited: '0' },
+  ])('retains the edit and prefill only when edited (initial=$initial)', ({ initial, edited }) => {
+    const post = vi.fn()
+    const draft = makeDraft({ step: 'suggestions', presetId: 'openrouter', blockers: [] })
+    const view = (effective: number) => (
+      <Wizard
+        panelState={makeState({
+          sessionBudget: { effectiveUsd: Usd.from(effective).toAmount(), nowLine: '' },
+        })}
+        draft={draft}
+        post={post}
+        onNavigateModels={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+    const { rerender } = render(view(initial))
+    if (edited !== undefined) {
+      fireEvent.change(screen.getByLabelText(UI_TEXT.wizardSessionBudget), {
+        target: { value: edited },
+      })
+    }
+    rerender(view(2))
+    expect(screen.getByLabelText(UI_TEXT.wizardSessionBudget)).toHaveProperty(
+      'value',
+      edited ?? '2',
+    )
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardContinue }))
+    if (edited === undefined) {
+      expect(post.mock.calls).toEqual([[{ type: 'providers/wizard', event: 'next' }]])
+    } else {
+      expect(post.mock.calls[0]).toEqual([
+        { type: 'suggestions/change', kind: 'sessionBudget', usd: edited, expectedUsd: '5' },
+      ])
+    }
   })
 
   it('disables Continue while the spending limit is not a non-negative amount', () => {

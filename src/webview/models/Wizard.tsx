@@ -6,7 +6,7 @@
 // provider in `providers.json`, no secret in SecretStorage.
 
 import { useState } from 'react'
-import { usdInputSchema } from '../../shared/usd'
+import { usdInputSchema, type UsdAmount } from '../../shared/usd'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 import type {
@@ -697,22 +697,29 @@ function PrivacyStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'on
 
 function SuggestionsStep({ panelState, draft, post, onClose, onNavigateModels }: WizardProps) {
   // The spending limit IS the conversation spending limit setting: the
-  // field starts with its effective value, and the typed number counts on
-  // Continue and on Save. There is no separate Change button to press.
+  // Untouched fields follow the effective setting. An edit retains its
+  // prefill for the host's compare-and-set after provider persistence.
   // An unparseable number disables Continue (nothing is saved until the
   // field holds a non-negative dollar amount); the wording of the failure
   // stays host-side with the write, so this lazy bundle carries no error
   // string for the field.
-  const [budgetText, setBudgetText] = useState<string>(
-    draft.sessionBudgetUsd ?? panelState.sessionBudget.effectiveUsd,
-  )
+  const [budgetEdit, setBudgetEdit] = useState<{ text: string; expectedUsd: UsdAmount }>()
+  const budgetText =
+    budgetEdit?.text ?? draft.sessionBudgetUsd ?? panelState.sessionBudget.effectiveUsd
   const ticked = draft.models
   const budgetParsed = usdInputSchema.safeParse(budgetText.trim().replace(',', '.'))
   const commitAndNext = (): void => {
     if (!budgetParsed.success) {
       return
     }
-    post({ type: 'suggestions/change', kind: 'sessionBudget', usd: budgetParsed.data })
+    if (budgetEdit !== undefined) {
+      post({
+        type: 'suggestions/change',
+        kind: 'sessionBudget',
+        usd: budgetParsed.data,
+        expectedUsd: budgetEdit.expectedUsd,
+      })
+    }
     post({ type: 'providers/wizard', event: 'next' })
   }
   return (
@@ -770,7 +777,13 @@ function SuggestionsStep({ panelState, draft, post, onClose, onNavigateModels }:
           min={0}
           value={budgetText}
           onChange={(event) => {
-            setBudgetText(event.target.value)
+            setBudgetEdit({
+              text: event.target.value,
+              expectedUsd:
+                budgetEdit?.expectedUsd ??
+                draft.sessionBudgetExpectedUsd ??
+                panelState.sessionBudget.effectiveUsd,
+            })
           }}
         />
       </label>

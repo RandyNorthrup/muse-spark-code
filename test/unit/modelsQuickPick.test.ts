@@ -116,7 +116,7 @@ describe('runAddProviderQuickPick', () => {
     expect(outcome).toEqual({
       providerId: 'openrouter',
       modelRef: 'openrouter/m1',
-      sessionBudgetUsd: '0',
+      sessionBudgetUsd: undefined,
     })
     expect(composed).toEqual(['openrouter/m1'])
     expect(ui.notices.at(-1)).toContain('openrouter/m1')
@@ -154,7 +154,7 @@ describe('runAddProviderQuickPick', () => {
     expect(outcome).toEqual({
       providerId: 'openrouter',
       modelRef: 'openrouter/m1',
-      sessionBudgetUsd: '0',
+      sessionBudgetUsd: undefined,
     })
   })
 
@@ -181,7 +181,7 @@ describe('runAddProviderQuickPick', () => {
     expect(outcome).toEqual({
       providerId: 'openrouter',
       modelRef: 'openrouter/m1',
-      sessionBudgetUsd: '0',
+      sessionBudgetUsd: undefined,
     })
   })
 
@@ -299,7 +299,11 @@ describe('runAddProviderQuickPick', () => {
       ui,
       sessionBudget: memorySessionBudgetConfig(),
     })
-    expect(outcome).toEqual({ providerId: 'custom', modelRef: 'custom/m1', sessionBudgetUsd: '0' })
+    expect(outcome).toEqual({
+      providerId: 'custom',
+      modelRef: 'custom/m1',
+      sessionBudgetUsd: undefined,
+    })
     expect(await providers.providers()).toEqual([
       {
         id: 'custom',

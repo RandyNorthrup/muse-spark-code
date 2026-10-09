@@ -275,7 +275,6 @@ export const draftModelLimitsSchema = z.record(
     outputTokens: z.optional(z.number()),
   }),
 )
-export type DraftModelLimits = z.infer<typeof draftModelLimitsSchema>
 
 export const panelDraftSchema = z.strictObject({
   ...endpointFields,
@@ -299,6 +298,8 @@ export const panelDraftSchema = z.strictObject({
   privateAsked: z.boolean(),
   defaultModel: z.optional(z.string()),
   sessionBudgetUsd: z.optional(legacyUsdSchema),
+  /** The setting value shown before the user edited the limit. */
+  sessionBudgetExpectedUsd: z.optional(legacyUsdSchema),
   /** The confirm step's summary: what is saved, and who receives the code. */
   summary: z.optional(z.strictObject({ origin: z.string(), lines: z.array(z.string()) })),
   errors: z.array(z.string()),
@@ -316,7 +317,6 @@ export const localScanHitSchema = z.strictObject({
   label: z.string(),
   port: z.number(),
 })
-export type LocalScanHit = z.infer<typeof localScanHitSchema>
 
 export const localScanResultSchema = z.strictObject({
   /** One row per local preset that answered (chosen rows open its wizard). */
@@ -324,7 +324,6 @@ export const localScanResultSchema = z.strictObject({
   /** One row per local preset that was checked, with its usual port. */
   checked: z.array(localScanHitSchema),
 })
-export type LocalScanResult = z.infer<typeof localScanResultSchema>
 
 /** A removal waiting behind Undo before its secret is deleted. */
 export const pendingRemovalSchema = z.strictObject({
@@ -515,6 +514,7 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
     kind: suggestionKindSchema,
     modelRef: z.optional(z.string()),
     usd: z.optional(legacyUsdSchema),
+    expectedUsd: z.optional(legacyUsdSchema),
   }),
 ])
 export type PanelToHostMessage = z.infer<typeof panelToHostMessageSchema>

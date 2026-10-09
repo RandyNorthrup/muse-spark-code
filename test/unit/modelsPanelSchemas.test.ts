@@ -76,7 +76,12 @@ const messages: readonly PanelToHostMessage[] = [
   { type: 'suggestions/accept', kind: 'defaultModel' },
   { type: 'suggestions/accept', kind: 'sessionBudget' },
   { type: 'suggestions/change', kind: 'defaultModel', modelRef: 'ollama/qwen3:8b' },
-  { type: 'suggestions/change', kind: 'sessionBudget', usd: Usd.from(2.5).toAmount() },
+  {
+    type: 'suggestions/change',
+    kind: 'sessionBudget',
+    usd: Usd.from(2.5).toAmount(),
+    expectedUsd: Usd.from(0).toAmount(),
+  },
 ]
 
 const hostMessages: readonly HostToPanelMessage[] = [

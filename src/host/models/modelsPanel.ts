@@ -89,24 +89,28 @@ function modelPriceNote(model: ProviderModelRow): ModelRow['priceNote'] {
   }
 }
 
-function newDraft(preset?: PresetInfo): PanelDraft {
+function newDraft(preset?: PresetInfo, entry?: ProviderEntry): PanelDraft {
   // A local preset starts on its usual port (its own probe data), so the
   // configure step's **Local port** field is filled from the start.
   const loopbackProbe = preset?.kind === 'local' ? preset.localProbes[0] : undefined
+  const format = customFormatSchema.safeParse(entry?.format)
   return {
     step: preset === undefined ? 'pick-provider' : 'configure',
     presetId: preset?.id,
     address:
-      loopbackProbe === undefined
+      entry?.address ??
+      (loopbackProbe === undefined
         ? preset?.origin
-        : `http://${loopbackProbe.host}:${String(loopbackProbe.port)}`,
+        : `http://${loopbackProbe.host}:${String(loopbackProbe.port)}`),
     ...(loopbackProbe !== undefined && { loopbackPort: loopbackProbe.port }),
     auth: preset?.auth ?? 'apiKey',
     keyPresent: false,
     keyShapeOk: false,
     connected: false,
     costAccepted: false,
-    models: [],
+    models: [...(entry?.models ?? [])],
+    ...(entry?.modelLimits !== undefined && { modelLimits: entry.modelLimits }),
+    ...(format.success && { customFormat: format.data }),
     privacy: 'no-training',
     providerOrder: [],
     allowFallbacks: false,
@@ -156,6 +160,9 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const credentials = new Map<string, { secret: string; origin: string }>()
   const rows = new Map<string, readonly ProviderModelRow[]>()
   const newModels = new Set<string>()
+  // A failed limit write can leave a saved provider. Retrying that draft
+  // replaces its saved entry rather than attempting a duplicate add.
+  const savedDrafts = new WeakSet<PanelDraft>()
   let isDisposed = false
   let navigation: ModelsPanelNavigate | undefined
   let operations = Promise.resolve()
@@ -608,14 +615,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }
       case 'providers/edit': {
         const entry = await entryOf(message.providerId)
-        const format = customFormatSchema.safeParse(entry.format)
-        const draft = {
-          ...newDraft(providers.preset(entry.preset)),
-          address: entry.address,
-          models: [...entry.models],
-          ...(entry.modelLimits !== undefined && { modelLimits: entry.modelLimits }),
-          ...(format.success && { customFormat: format.data }),
-        }
+        const draft = newDraft(providers.preset(entry.preset), entry)
         let secret: string | undefined
         try {
           secret = await providers.storedCredential(entry)
@@ -660,14 +660,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         const id = message.providerId
         if (id !== undefined && state.drafts.edits[id] === undefined) {
           const entry = await entryOf(id)
-          const format = customFormatSchema.safeParse(entry.format)
-          state.drafts.edits[id] = {
-            ...newDraft(providers.preset(entry.preset)),
-            address: entry.address,
-            models: [...entry.models],
-            ...(entry.modelLimits !== undefined && { modelLimits: entry.modelLimits }),
-            ...(format.success && { customFormat: format.data }),
-          }
+          state.drafts.edits[id] = newDraft(providers.preset(entry.preset), entry)
         }
         const draft = draftOf(id)
         const entry = draftEntry(draft, id)
@@ -784,16 +777,6 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (verdict.kind === 'refused') {
           throw new Error(UI_TEXT.actionFailed)
         }
-        // The wizard's number IS the conversation spending limit: a change
-        // reaches the setting enforcement reads, before the provider is
-        // saved. A failed write keeps the draft (and its typed value) with
-        // the specific error, and setup success is not reported; nothing
-        // is written, so saving again retries cleanly.
-        const budget = await applyWizardSessionBudget(draft.sessionBudgetUsd, deps.sessionBudget)
-        if (budget.status === 'failed') {
-          draft.errors = [...draft.errors, budget.error]
-          break
-        }
         const outcome = await providers.saveDraft({
           provider: { ...entry, privateNetwork: verdict.kind === 'private' },
           credential: draftSecret(entry, message.providerId),
@@ -801,8 +784,25 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           defaultModel: draft.defaultModel ?? `${entry.id}/${entry.models[0] ?? ''}`,
           sessionBudgetUsd: draft.sessionBudgetUsd,
           useNow: message.useNow,
-          editing: message.providerId !== undefined,
+          editing: message.providerId !== undefined || savedDrafts.has(draft),
         })
+        savedDrafts.add(draft)
+        // Provider/credential/default/composer rollback must finish before
+        // any limit write. A later failure is explicitly a partial save.
+        const budget = await applyWizardSessionBudget(
+          draft.sessionBudgetUsd,
+          deps.sessionBudget,
+          draft.sessionBudgetExpectedUsd,
+        )
+        if (budget.status === 'conflict') {
+          draft.sessionBudgetExpectedUsd = budget.effectiveUsd
+          draft.errors = [fill(UI_TEXT.sessionBudgetPartialSave, { detail: budget.error })]
+          break
+        }
+        if (budget.status === 'failed') {
+          draft.errors = [fill(UI_TEXT.sessionBudgetPartialSave, { detail: budget.error })]
+          break
+        }
         credentials.delete(message.providerId ?? 'wizard')
         if (message.providerId === undefined) {
           state.drafts.wizard = undefined
@@ -953,8 +953,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           // number directly: no suggestion card has to be accepted first.
           if (message.type === 'suggestions/change' && message.usd !== undefined) {
             draft.sessionBudgetUsd = message.usd
+            draft.sessionBudgetExpectedUsd = message.expectedUsd
           } else if (suggestion?.kind === 'sessionBudget') {
             draft.sessionBudgetUsd = suggestion.usd
+            draft.sessionBudgetExpectedUsd = state.sessionBudget.effectiveUsd
           }
         } else if (suggestion?.kind === 'defaultModel') {
           draft.defaultModel =

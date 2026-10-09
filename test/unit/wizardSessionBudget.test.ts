@@ -5,7 +5,11 @@
 // its specific error and reports no setup success. Admission then reads
 // the new cap through the real settings reader.
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { createModelsPanelSeam } from '../../src/core/providers/panelSeam'
+import { beforeEach, onTestFinished, describe, expect, it, vi } from 'vitest'
 import { window } from 'vscode'
 import { window as fakeWindow, FakeUri } from './mocks/vscode'
 import {
@@ -91,11 +95,11 @@ async function send(panel: FakeWebviewPanel, message: unknown, done: () => void)
   await vi.waitFor(done)
 }
 
-/** Drives the openrouter wizard to a saved draft, with the budget committed. */
-async function saveOpenRouter(
+/** Prepares the host-owned draft before Save. */
+async function prepareOpenRouter(
   panel: FakeWebviewPanel,
-  budget: string,
-  shouldUseNow = true,
+  budget: string | undefined,
+  expected = '0',
 ): Promise<void> {
   await send(panel, { type: 'providers/select', presetId: 'openrouter' }, () => {
     expect(latestState(panel).drafts.wizard?.presetId).toBe('openrouter')
@@ -113,13 +117,27 @@ async function saveOpenRouter(
       expect(latestState(panel).drafts.wizard?.models).toEqual(['m1'])
     },
   )
+  if (budget === undefined) return
   await send(
     panel,
-    { type: 'suggestions/change', kind: 'sessionBudget', usd: Usd.from(budget).toAmount() },
+    {
+      type: 'suggestions/change',
+      kind: 'sessionBudget',
+      usd: Usd.from(budget).toAmount(),
+      expectedUsd: Usd.from(expected).toAmount(),
+    },
     () => {
       expect(latestState(panel).drafts.wizard?.sessionBudgetUsd).toBe(Usd.from(budget).toAmount())
     },
   )
+}
+
+async function saveOpenRouter(
+  panel: FakeWebviewPanel,
+  budget: string,
+  shouldUseNow = true,
+): Promise<void> {
+  await prepareOpenRouter(panel, budget)
   await send(panel, { type: 'providers/save', useNow: shouldUseNow }, () => {
     expect(latestState(panel).drafts.wizard).toBeUndefined()
   })
@@ -172,6 +190,13 @@ beforeEach(() => {
 })
 
 describe('applyWizardSessionBudget (the one shared function)', () => {
+  it('refuses an edited limit without its prefill and never writes it', async () => {
+    const budget = memorySessionBudgetConfig()
+    const outcome = await applyWizardSessionBudget(Usd.from(2).toAmount(), budget, undefined)
+    expect(outcome).toEqual({ status: 'failed', error: UI_TEXT.wizardSessionBudgetInvalid })
+    expect(budget.writes).toEqual([])
+  })
+
   it('writes the contributed numeric type through the production settings writer', async () => {
     let effective: unknown = 0
     const update = vi.fn((_section: string, value: unknown) => {
@@ -182,7 +207,13 @@ describe('applyWizardSessionBudget (the one shared function)', () => {
       { get: () => effective, inspect: () => undefined, update },
       { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     )
-    expect(await applyWizardSessionBudget(Usd.from('2.05').toAmount(), config)).toEqual({
+    expect(
+      await applyWizardSessionBudget(
+        Usd.from('2.05').toAmount(),
+        config,
+        config.read().effectiveUsd,
+      ),
+    ).toEqual({
       status: 'written',
       scope: 'global',
     })
@@ -194,7 +225,11 @@ describe('applyWizardSessionBudget (the one shared function)', () => {
     'refuses a limit the contributed number cannot store exactly: %s',
     async (value) => {
       const budget = memorySessionBudgetConfig()
-      const outcome = await applyWizardSessionBudget(Usd.from(value).toAmount(), budget)
+      const outcome = await applyWizardSessionBudget(
+        Usd.from(value).toAmount(),
+        budget,
+        budget.read().effectiveUsd,
+      )
       expect(outcome.status).toBe('failed')
       expect(budget.writes).toEqual([])
     },
@@ -202,13 +237,17 @@ describe('applyWizardSessionBudget (the one shared function)', () => {
 
   it('writes nothing when the wizard value is untouched', async () => {
     const budget = memorySessionBudgetConfig()
-    expect(await applyWizardSessionBudget(undefined, budget)).toEqual({ status: 'unchanged' })
+    expect(await applyWizardSessionBudget(undefined, budget, budget.read().effectiveUsd)).toEqual({
+      status: 'unchanged',
+    })
     expect(budget.writes).toEqual([])
   })
 
   it('writes nothing when the typed number equals the effective value', async () => {
     const budget = memorySessionBudgetConfig({ effective: '2' })
-    expect(await applyWizardSessionBudget(Usd.from(2).toAmount(), budget)).toEqual({
+    expect(
+      await applyWizardSessionBudget(Usd.from(2).toAmount(), budget, budget.read().effectiveUsd),
+    ).toEqual({
       status: 'unchanged',
     })
     expect(budget.writes).toEqual([])
@@ -216,7 +255,9 @@ describe('applyWizardSessionBudget (the one shared function)', () => {
 
   it('writes a changed number at the global scope it is effective from', async () => {
     const budget = memorySessionBudgetConfig()
-    expect(await applyWizardSessionBudget(Usd.from(2).toAmount(), budget)).toEqual({
+    expect(
+      await applyWizardSessionBudget(Usd.from(2).toAmount(), budget, budget.read().effectiveUsd),
+    ).toEqual({
       status: 'written',
       scope: 'global',
     })
@@ -226,7 +267,9 @@ describe('applyWizardSessionBudget (the one shared function)', () => {
 
   it('respects an existing workspace value and writes at the workspace scope', async () => {
     const budget = memorySessionBudgetConfig({ effective: '5', scope: 'workspace' })
-    expect(await applyWizardSessionBudget(Usd.from(2).toAmount(), budget)).toEqual({
+    expect(
+      await applyWizardSessionBudget(Usd.from(2).toAmount(), budget, budget.read().effectiveUsd),
+    ).toEqual({
       status: 'written',
       scope: 'workspace',
     })
@@ -235,19 +278,25 @@ describe('applyWizardSessionBudget (the one shared function)', () => {
 
   it('rejects a negative amount with the setting schema error and writes nothing', async () => {
     const budget = memorySessionBudgetConfig()
-    const outcome = await applyWizardSessionBudget(Usd.from(-1).toAmount(), budget)
+    const outcome = await applyWizardSessionBudget(
+      Usd.from(-1).toAmount(),
+      budget,
+      budget.read().effectiveUsd,
+    )
     expect(outcome).toEqual({ status: 'failed', error: UI_TEXT.wizardSessionBudgetInvalid })
     expect(budget.writes).toEqual([])
   })
 
   it('reports a failed write with the specific error', async () => {
     const budget = memorySessionBudgetConfig({ failWrite: true })
-    const outcome = await applyWizardSessionBudget(Usd.from(2).toAmount(), budget)
+    const outcome = await applyWizardSessionBudget(
+      Usd.from(2).toAmount(),
+      budget,
+      budget.read().effectiveUsd,
+    )
     expect(outcome).toEqual({
       status: 'failed',
-      error: fill(UI_TEXT.sessionBudgetWriteFailed, {
-        detail: 'settings are read-only in this test',
-      }),
+      error: 'settings are read-only in this test',
     })
     expect(budget.read().effectiveUsd).toBe('0')
   })
@@ -336,12 +385,17 @@ describe('panel save path', () => {
     )
     await send(
       panel,
-      { type: 'suggestions/change', kind: 'sessionBudget', usd: Usd.from(2).toAmount() },
+      {
+        type: 'suggestions/change',
+        kind: 'sessionBudget',
+        usd: Usd.from(2).toAmount(),
+        expectedUsd: Usd.from(0).toAmount(),
+      },
       () => {
         expect(latestState(panel).drafts.wizard?.sessionBudgetUsd).toBe('2')
       },
     )
-    const expected = fill(UI_TEXT.sessionBudgetWriteFailed, {
+    const expected = fill(UI_TEXT.sessionBudgetPartialSave, {
       detail: 'settings are read-only in this test',
     })
     await send(panel, { type: 'providers/save', useNow: true }, () => {
@@ -418,12 +472,12 @@ describe('quick pick save path', () => {
       ui,
       sessionBudget: budget,
     })
-    expect(outcome?.sessionBudgetUsd).toBe('2')
+    expect(outcome?.sessionBudgetUsd).toBeUndefined()
     expect(budget.writes).toEqual([])
     expect(ui.notices.at(-1)).toContain('openrouter/m1')
   })
 
-  it('a failed write shows the error and no success banner, and saves nothing', async () => {
+  it('a failed write reports provider saved and shows no success banner', async () => {
     const { providers } = quickPickProviders()
     const budget = memorySessionBudgetConfig({ failWrite: true })
     vi.mocked(window.showInputBox).mockResolvedValue('sk-or-test-key')
@@ -441,12 +495,12 @@ describe('quick pick save path', () => {
     })
     expect(outcome).toBeUndefined()
     expect(ui.errors).toEqual([
-      fill(UI_TEXT.sessionBudgetWriteFailed, { detail: 'settings are read-only in this test' }),
+      fill(UI_TEXT.sessionBudgetPartialSave, { detail: 'settings are read-only in this test' }),
     ])
     // No setup-success banner: the key-test progress notice may stand, but
     // nothing names the saved provider and model.
     expect(ui.notices.some((notice) => notice.includes('openrouter/m1'))).toBe(false)
-    expect(await providers.providers()).toEqual([])
+    expect(await providers.providers()).toHaveLength(1)
   })
 
   it('an invalid answer is refused and asked again, never saved silently', async () => {
@@ -469,4 +523,249 @@ describe('quick pick save path', () => {
     expect(ui.errors).toEqual([UI_TEXT.wizardSessionBudgetInvalid])
     expect(budget.writes).toEqual([{ value: '2', scope: 'global' }])
   })
+})
+
+/** Real file validation, credential transaction and settings writer; synthetic VS Code/service boundaries. */
+async function productionBudgetFixture(failure?: string) {
+  const folder = await mkdtemp(path.join(tmpdir(), 'provider-wizard-review-'))
+  onTestFinished(() => rm(folder, { recursive: true, force: true }))
+  vi.mocked(window.showInputBox).mockResolvedValue('sk-or-synthetic')
+  const seam = createModelsPanelSeam({
+    configFile: path.join(folder, 'providers.json'),
+    subscriptionModels: () => Promise.resolve([]),
+  })
+  const controls = { effective: 5, failWrite: false }
+  const write = vi.fn((_section: string, value: unknown) => {
+    if (controls.failWrite) return Promise.reject(new Error('settings are read-only'))
+    if (typeof value !== 'number') throw new Error('Expected contributed numeric setting')
+    controls.effective = value
+    return Promise.resolve()
+  })
+  const budget = createSessionBudgetConfig(
+    { get: () => controls.effective, inspect: () => undefined, update: write },
+    { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  )
+  const { providers, secrets } = testProvidersHost({
+    deps: {
+      store: seam.store,
+      catalog: seam.catalog,
+      ...scannedTwoModels(),
+      setComposerModel: () =>
+        failure === 'composer' ? Promise.reject(new Error('composer refused')) : Promise.resolve(),
+    },
+  })
+  switch (failure) {
+    case 'provider': {
+      vi.spyOn(seam.store, 'add').mockRejectedValueOnce(new Error('provider persistence refused'))
+      break
+    }
+    case 'credential': {
+      vi.spyOn(secrets, 'store').mockRejectedValueOnce(new Error('credential persistence refused'))
+      break
+    }
+    case 'default': {
+      vi.spyOn(seam.store, 'setDefaultModel').mockRejectedValueOnce(
+        new Error('default persistence refused'),
+      )
+      break
+    }
+  }
+  return { folder, providers, store: seam.store, controls, budget, write }
+}
+
+describe('RVPROVWIZ2 production save paths', () => {
+  it.each(
+    ['provider', 'credential', 'default', 'composer'].flatMap((failure) =>
+      ['panel', 'quick pick'].map((mode) => ({ failure, mode })),
+    ),
+  )('keeps the prior limit after $failure failure in the $mode', async ({ failure, mode }) => {
+    const f = await productionBudgetFixture(failure)
+    if (mode === 'panel') {
+      const { panel, saved } = panelSetup({ providers: f.providers, sessionBudget: f.budget })
+      await prepareOpenRouter(panel, '0', '5')
+      await send(panel, { type: 'providers/save', useNow: true }, () => {
+        expect(latestState(panel).notice).toBe(UI_TEXT.actionFailed)
+      })
+      await send(panel, { type: 'providers/wizard', event: 'cancel' }, () => {
+        expect(latestState(panel).drafts.wizard).toBeUndefined()
+      })
+      expect(saved).not.toHaveBeenCalled()
+    } else {
+      const ui = scriptedUi({
+        pickOne: ['openrouter', 'paste', 'accept'],
+        pickMany: [['m1']],
+        inputText: ['0'],
+        confirmSave: [true],
+      })
+      await expect(
+        runAddProviderQuickPick({
+          providers: f.providers,
+          sessionBudget: f.budget,
+          ui,
+          isRemote: false,
+        }),
+      ).rejects.toThrow()
+      expect(ui.notices.some((notice) => notice.includes('openrouter/m1'))).toBe(false)
+    }
+    expect(f.write).not.toHaveBeenCalled()
+    expect(f.controls.effective).toBe(5)
+    expect(await f.store.list()).toEqual([])
+  })
+
+  it('preserves a concurrent setting change when the panel limit was untouched', async () => {
+    const f = await productionBudgetFixture()
+    const { panel, saved } = panelSetup({ providers: f.providers, sessionBudget: f.budget })
+    await prepareOpenRouter(panel, undefined)
+    f.controls.effective = 2
+    await send(panel, { type: 'providers/save', useNow: true }, () => {
+      expect(saved).toHaveBeenCalledOnce()
+    })
+    expect(f.controls.effective).toBe(2)
+    expect(f.write).not.toHaveBeenCalled()
+    expect(await f.store.list()).toHaveLength(1)
+  })
+
+  it('shows the concurrent current limit and waits for another Save to confirm the panel edit', async () => {
+    const f = await productionBudgetFixture()
+    const { panel, saved } = panelSetup({ providers: f.providers, sessionBudget: f.budget })
+    await prepareOpenRouter(panel, '0', '5')
+    // A change during the real provider transaction must be checked
+    // after it completes, immediately before the setting write.
+    const saveDraft = f.providers.saveDraft
+    vi.spyOn(f.providers, 'saveDraft').mockImplementation(async (draft) => {
+      const outcome = await saveDraft(draft)
+      f.controls.effective = 2
+      return outcome
+    })
+    await send(panel, { type: 'providers/save', useNow: true }, () => {
+      expect(latestState(panel).providers).toHaveLength(1)
+    })
+    expect(f.write).not.toHaveBeenCalled()
+    expect(latestState(panel).sessionBudget.effectiveUsd).toBe('2')
+    expect(latestState(panel).drafts.wizard).toMatchObject({ sessionBudgetUsd: '0' })
+    expect(latestState(panel).drafts.wizard?.errors.join(' ')).toContain('confirm')
+    expect(saved).not.toHaveBeenCalled()
+    await send(panel, { type: 'providers/save', useNow: true }, () => {
+      expect(saved).toHaveBeenCalledOnce()
+    })
+    expect(f.write).toHaveBeenCalledWith('modelApiSessionBudgetUsd', 0, 'global')
+    expect(await f.store.list()).toHaveLength(1)
+  })
+
+  it('keeps a concurrent quick-pick limit when the prefilled number was accepted unchanged', async () => {
+    const f = await productionBudgetFixture()
+    const base = scriptedUi({
+      pickOne: ['openrouter', 'paste', 'accept'],
+      pickMany: [['m1']],
+      inputText: ['5'],
+      confirmSave: [true],
+    })
+    const ui = {
+      ...base,
+      confirmSave: (title: string, detail: string) => {
+        f.controls.effective = 2
+        return base.confirmSave(title, detail)
+      },
+    }
+    const outcome = await runAddProviderQuickPick({
+      providers: f.providers,
+      sessionBudget: f.budget,
+      ui,
+      isRemote: false,
+    })
+    expect(outcome?.sessionBudgetUsd).toBeUndefined()
+    expect(outcome?.modelRef).toBe('openrouter/m1')
+    expect(ui.errors).toEqual([])
+    expect(f.controls.effective).toBe(2)
+    expect(f.write).not.toHaveBeenCalled()
+    expect(await f.store.list()).toHaveLength(1)
+  })
+
+  it('reports a failed quick-pick limit write after the production provider was saved', async () => {
+    const f = await productionBudgetFixture()
+    f.controls.failWrite = true
+    const ui = scriptedUi({
+      pickOne: ['openrouter', 'paste', 'accept'],
+      pickMany: [['m1']],
+      inputText: ['0'],
+      confirmSave: [true],
+    })
+    expect(
+      await runAddProviderQuickPick({
+        providers: f.providers,
+        sessionBudget: f.budget,
+        ui,
+        isRemote: false,
+      }),
+    ).toBeUndefined()
+    expect(ui.errors).toEqual([
+      fill(UI_TEXT.sessionBudgetPartialSave, { detail: 'settings are read-only' }),
+    ])
+    expect(ui.notices.some((notice) => notice.includes('openrouter/m1'))).toBe(false)
+    expect(f.controls.effective).toBe(5)
+    expect(await f.store.list()).toHaveLength(1)
+  })
+
+  it('reports provider saved on a limit-write failure and retries without a duplicate provider', async () => {
+    const f = await productionBudgetFixture()
+    f.controls.failWrite = true
+    const { panel, saved } = panelSetup({ providers: f.providers, sessionBudget: f.budget })
+    await prepareOpenRouter(panel, '0', '5')
+    await send(panel, { type: 'providers/save', useNow: true }, () => {
+      expect(latestState(panel).drafts.wizard?.errors.length).toBe(1)
+    })
+    expect(await f.store.list()).toHaveLength(1)
+    expect(latestState(panel).drafts.wizard?.errors).toEqual([
+      'Provider saved; the spending limit was not changed: settings are read-only',
+    ])
+    expect(f.controls.effective).toBe(5)
+    expect(saved).not.toHaveBeenCalled()
+    f.controls.failWrite = false
+    await send(panel, { type: 'providers/save', useNow: true }, () => {
+      expect(saved).toHaveBeenCalledOnce()
+    })
+    expect(await f.store.list()).toHaveLength(1)
+    expect(f.controls.effective).toBe(0)
+  })
+
+  it.each([false, true])(
+    'requires confirmation of a concurrent quick-pick limit (confirm=%s)',
+    async (confirm) => {
+      const f = await productionBudgetFixture()
+      const base = scriptedUi({
+        pickOne: ['openrouter', 'paste', 'accept'],
+        pickMany: [['m1']],
+        inputText: ['0'],
+        confirmSave: [true, confirm],
+      })
+      const confirmations: string[] = []
+      const ui = {
+        ...base,
+        confirmSave: (title: string, detail: string) => {
+          confirmations.push(detail)
+          if (confirmations.length === 1) f.controls.effective = 2
+          return base.confirmSave(title, detail)
+        },
+      }
+      const outcome = await runAddProviderQuickPick({
+        providers: f.providers,
+        sessionBudget: f.budget,
+        ui,
+        isRemote: false,
+      })
+      expect(confirmations).toHaveLength(2)
+      expect(confirmations[1]).toContain(formatUsd('2'))
+      expect(confirmations[1]).toContain(formatUsd('0'))
+      expect(await f.store.list()).toHaveLength(1)
+      if (confirm) {
+        expect(f.controls.effective).toBe(0)
+        expect(outcome?.modelRef).toBe('openrouter/m1')
+      } else {
+        expect(f.controls.effective).toBe(2)
+        expect(f.write).not.toHaveBeenCalled()
+        expect(outcome).toBeUndefined()
+        expect(ui.errors.join(' ')).toContain('Provider saved;')
+      }
+    },
+  )
 })

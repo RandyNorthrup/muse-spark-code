@@ -37,7 +37,7 @@ openRouterServices=absent: OpenRouter account connection and key usage are not a
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.startWithOwnModel`, `museSpark.modelsAndAgents`, `museSpark.addModelProvider`, `museSpark.connectChatGpt`, `museSpark.connectCopilot`. Settings: `museSpark.suggestedProvider`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#backends)
+Commands: `museSpark.startWithOwnModel`, `museSpark.modelsAndAgents`, `museSpark.addModelProvider`, `museSpark.connectChatGpt`, `museSpark.connectCopilot`. Settings: `museSpark.suggestedProvider`, `museSpark.modelApiSessionBudgetUsd`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#backends)
 
 ### Prompt library
 
