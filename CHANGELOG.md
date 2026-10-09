@@ -111,6 +111,11 @@ happened, not what was planned; superseded entries are kept.
 - When a Windows job helper fails to compile, the log names the compiler's
   errors and exit code again, not only "Bootstrap command failed".
 
+- Native schedules and helpers no longer refuse a Windows profile folder
+  that is a junction or redirected to another drive. Paths are now checked
+  from the folder the extension owns: links above it are accepted by their
+  resolved identity, and a link below it is still refused.
+
 - Scheduled prompts spend about half the time on their store per fire: the
   store keeps one journal per workspace, so its validated snapshot and deltas
   are reused between calls, and a read copies the folded state once instead
