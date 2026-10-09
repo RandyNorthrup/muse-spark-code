@@ -270,6 +270,9 @@ describe('shared token file', () => {
   it('uses the bounded Windows launcher with encoded paths and no bearer in arguments or environment', async () => {
     vi.stubEnv('M104_C_TEST_API_KEY', 'synthetic-private-value')
     vi.stubEnv('DBUS_SESSION_BUS_ADDRESS', 'synthetic-private-route')
+    // SECWINPATH2: the launcher comes from Windows' own SystemRoot, on any
+    // drive, never a guessed C:. POSIX runners have none, so give one.
+    vi.stubEnv('SystemRoot', String.raw`D:\Windows`)
     const run = vi.spyOn(programs, 'runProgram').mockResolvedValue(JSON.stringify(receipt))
     vi.stubGlobal('process', {
       ...process,
@@ -283,6 +286,7 @@ describe('shared token file', () => {
     expect(JSON.stringify(run.mock.calls).includes(token.token)).toBe(false)
     for (const [executable, args, env] of run.mock.calls) {
       expect(executable).toMatch(/powershell\.exe$/)
+      expect(executable.startsWith('D:\\Windows\\')).toBe(true)
       expect(args.slice(0, -1)).toEqual([
         '-NoLogo',
         '-NoProfile',
