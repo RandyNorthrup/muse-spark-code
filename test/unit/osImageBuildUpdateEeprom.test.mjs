@@ -50,14 +50,16 @@ function fixture(dir, name, body, isExecutable = false) {
 const cpuinfo = (model, revision) =>
   `processor\t: 0\nModel\t\t: ${model}\nRevision\t: ${revision}\nSerial\t\t: 10000000\n`
 const vc = (firstLine) => `#!/bin/sh\necho "${firstLine}"\necho "version abc (release)"\n`
+const eeprom = (lines) => `#!/bin/sh\n${lines.map((line) => `echo "${line}"`).join('\n')}\n`
 
-function run(revisionFile, vcCmd) {
+function run(revisionFile, vcCmd, eepromCmd) {
   return spawnSync(shell, [posixPath(check)], {
     encoding: 'utf8',
     env: {
       ...process.env,
       MUSE_PI_REVISION_FILE: posixPath(revisionFile),
       MUSE_VCGENCMD: posixPath(vcCmd),
+      MUSE_RPI_EEPROM_CMD: posixPath(eepromCmd),
     },
   })
 }
@@ -66,14 +68,38 @@ describe('M110-OS2 Pi EEPROM checks', () => {
   it('requires a writable EEPROM on Pi 4 rev 1.0 and 1.1', () => {
     const dir = directory()
     const fakeVc = fixture(dir, 'vc', vc('2025/03/10 12:00:00'), true)
+    const locked = fixture(dir, 'eeprom-locked', eeprom(['EEPROM write protect: enabled']), true)
     for (const [rev, code] of [
       ['Raspberry Pi 4 Model B Rev 1.0', 'b03110'],
       ['Raspberry Pi 4 Model B Rev 1.1', 'b03111'],
     ]) {
       const cpu = fixture(dir, `cpu-${code}`, cpuinfo(rev, code))
-      const result = run(cpu, fakeVc)
+      const result = run(cpu, fakeVc, locked)
       expect(result.stdout.trim()).toBe('PI4_EEPROM_WRITE_REQUIRED')
       expect(result.status).toBe(3)
+    }
+  })
+
+  it('passes an early Pi 4 whose EEPROM reports writable', () => {
+    const dir = directory()
+    const fakeVc = fixture(dir, 'vc', vc('2025/03/10 12:00:00'), true)
+    const open = fixture(dir, 'eeprom-open', eeprom(['EEPROM write protect: disabled']), true)
+    const cpu = fixture(dir, 'cpu', cpuinfo('Raspberry Pi 4 Model B Rev 1.1', 'b03111'))
+    const result = run(cpu, fakeVc, open)
+    expect(result.stdout.trim()).toBe('OK')
+    expect(result.status).toBe(0)
+  })
+
+  it('fails closed when the early-board write-protect state is unknown', () => {
+    const dir = directory()
+    const fakeVc = fixture(dir, 'vc', vc('2025/03/10 12:00:00'), true)
+    const cpu = fixture(dir, 'cpu', cpuinfo('Raspberry Pi 4 Model B Rev 1.1', 'b03111'))
+    const quiet = fixture(dir, 'eeprom-quiet', eeprom(['BOOTLOADER: up to date']), true)
+    for (const tool of [path.join(dir, 'no-rpi-eeprom'), quiet]) {
+      const result = run(cpu, fakeVc, tool)
+      expect(result.stdout.trim()).toBe('CANNOT_DETERMINE')
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('remedy=')
     }
   })
 
@@ -81,7 +107,7 @@ describe('M110-OS2 Pi EEPROM checks', () => {
     const dir = directory()
     const cpu = fixture(dir, 'cpu', cpuinfo('Raspberry Pi 4 Model B Rev 1.2', 'b03112'))
     const missing = path.join(dir, 'no-vcgencmd')
-    const result = run(cpu, missing)
+    const result = run(cpu, missing, missing)
     expect(result.stdout.trim()).toBe('OK')
     expect(result.status).toBe(0)
   })
@@ -89,17 +115,33 @@ describe('M110-OS2 Pi EEPROM checks', () => {
   it('reads the Pi 4 revision from hex when the Model line is absent', () => {
     const dir = directory()
     const early = fixture(dir, 'early', 'processor\t: 0\nRevision\t: b03111\n')
-    const result = run(early, path.join(dir, 'no-vcgencmd'))
+    const locked = fixture(dir, 'eeprom-locked', eeprom(['EEPROM write protect: enabled']), true)
+    const result = run(early, path.join(dir, 'no-vcgencmd'), locked)
     expect(result.stdout.trim()).toBe('PI4_EEPROM_WRITE_REQUIRED')
     expect(result.status).toBe(3)
+  })
+
+  it.each([
+    ['arithmetic', 'b03111+1'],
+    ['trailing garbage', 'b03111x'],
+    ['non-hex', 'zzzzzz'],
+  ])('refuses a non-hex revision (%s) before arithmetic', (_label, revision) => {
+    const dir = directory()
+    const cpu = fixture(dir, 'cpu', cpuinfo('Raspberry Pi 4 Model B Rev 1.1', revision))
+    const fakeVc = fixture(dir, 'vc', vc('2025/03/10 12:00:00'), true)
+    const open = fixture(dir, 'eeprom-open', eeprom(['EEPROM write protect: disabled']), true)
+    const result = run(cpu, fakeVc, open)
+    expect(result.stdout.trim()).toBe('CANNOT_DETERMINE')
+    expect(result.status).toBe(2)
   })
 
   it('passes a Pi 5 with a bootloader dated 2025-03-10 or later', () => {
     const dir = directory()
     const cpu = fixture(dir, 'cpu', cpuinfo('Raspberry Pi 5 Model B Rev 1.0', 'c04170'))
+    const missing = path.join(dir, 'no-rpi-eeprom')
     for (const date of ['2025/03/10 12:00:00', '2025-03-11 12:00:00', '2026/01/05 00:00:00']) {
       const fakeVc = fixture(dir, `vc-${date.slice(0, 4)}`, vc(date), true)
-      const result = run(cpu, fakeVc)
+      const result = run(cpu, fakeVc, missing)
       expect(result.stdout.trim()).toBe('OK')
       expect(result.status).toBe(0)
     }
@@ -109,7 +151,7 @@ describe('M110-OS2 Pi EEPROM checks', () => {
     const dir = directory()
     const cpu = fixture(dir, 'cpu', cpuinfo('Raspberry Pi 5 Model B Rev 1.0', 'c04170'))
     const fakeVc = fixture(dir, 'vc', vc('2024/09/23 14:00:00'), true)
-    const result = run(cpu, fakeVc)
+    const result = run(cpu, fakeVc, path.join(dir, 'no-rpi-eeprom'))
     expect(result.stdout.trim()).toBe('PI5_BOOTLOADER_TOO_OLD')
     expect(result.status).toBe(4)
   })
@@ -124,7 +166,7 @@ describe('M110-OS2 Pi EEPROM checks', () => {
         ? path.join(dir, 'no-such-file')
         : fixture(dir, 'cpu', cpuinfo('Raspberry Pi 5 Model B Rev 1.0', 'c04170'))
     const fakeVc = fixture(dir, 'vc', vc(vcDate), true)
-    const result = run(cpu, fakeVc)
+    const result = run(cpu, fakeVc, path.join(dir, 'no-rpi-eeprom'))
     expect(result.stdout.trim()).toBe('CANNOT_DETERMINE')
     expect(result.status).toBe(2)
   })
@@ -132,7 +174,7 @@ describe('M110-OS2 Pi EEPROM checks', () => {
   it('fails closed on old-style revision codes', () => {
     const dir = directory()
     const cpu = fixture(dir, 'cpu', 'processor\t: 0\nRevision\t: 0002\n')
-    const result = run(cpu, path.join(dir, 'no-vcgencmd'))
+    const result = run(cpu, path.join(dir, 'no-vcgencmd'), path.join(dir, 'no-rpi-eeprom'))
     expect(result.stdout.trim()).toBe('CANNOT_DETERMINE')
     expect(result.status).toBe(2)
   })
@@ -141,7 +183,8 @@ describe('M110-OS2 Pi EEPROM checks', () => {
     const dir = directory()
     const cpu = fixture(dir, 'cpu', cpuinfo('Raspberry Pi 4 Model B Rev 1.1', 'b03111'))
     const fakeVc = fixture(dir, 'vc', vc('2025/03/10 12:00:00'), true)
-    const result = run(cpu, fakeVc)
+    const locked = fixture(dir, 'eeprom-locked', eeprom(['EEPROM write protect: enabled']), true)
+    const result = run(cpu, fakeVc, locked)
     expect(result.stdout.trim()).toMatch(/^[A-Z0-9_]+$/)
     expect(result.stdout.trim()).not.toContain(' ')
   })

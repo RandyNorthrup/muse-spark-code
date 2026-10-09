@@ -21,23 +21,51 @@
 #    its `Model : Raspberry Pi <4|5> ... Rev <x.y>` line when present;
 #    otherwise the new-style `Revision :` hex is decoded (bit 23 set;
 #    type 0x11 is Pi 4, 0x17 is Pi 5; the low nibble 0/1 means PCB 1.0/1.1).
-#    Old-style revision codes and unknown types fail closed.
+#    Old-style revision codes and unknown types fail closed. The whole
+#    revision must be hex before any arithmetic: a first-character check
+#    lets `b03111+1` through to the arithmetic evaluator.
 #  - MUSE_VCGENCMD (default vcgencmd): `bootloader_version` output whose
 #    first YYYY/MM/DD or YYYY-MM-DD date is compared against 2025-03-10
 #    (numeric tuple compare, so no calendar library is needed).
-# The EEPROM-writability requirement for early Pi 4 boards is a board
-# property, not a probed state: those boards always report
-# PI4_EEPROM_WRITE_REQUIRED so first boot says what to do.
+#  - MUSE_RPI_EEPROM_CMD (default rpi-eeprom-update, status mode, read-only):
+#    early Pi 4 boards (PCB 1.0/1.1) report PI4_EEPROM_WRITE_REQUIRED only
+#    when this tool shows the EEPROM write protection enabled, and OK when it
+#    shows it disabled; a missing tool, a failed call, or output that says
+#    nothing determinate about write protection fails closed with
+#    CANNOT_DETERMINE and the remediation text. The accepted status tokens
+#    are provisional until an on-device capture names the exact wording
+#    (gap Q-M110-OS2-EEPROM in the certification).
 
 set -u
 
 REV_FILE="${MUSE_PI_REVISION_FILE:-/proc/cpuinfo}"
 VCGENCMD="${MUSE_VCGENCMD:-vcgencmd}"
+EEPROM_CMD="${MUSE_RPI_EEPROM_CMD:-rpi-eeprom-update}"
 
 fail_closed() {
     echo "CANNOT_DETERMINE"
     echo "pi-eeprom-check: PI_EEPROM_CANNOT_DETERMINE $1" >&2
     exit 2
+}
+
+# eeprom_wp_state prints `protected` or `writable` for an early Pi 4 board by
+# reading the rpi-eeprom status output, and returns nonzero when the state
+# cannot be determined. Only an explicit write-protection line with a known
+# state word counts; anything else fails closed at the caller.
+eeprom_wp_state() {
+    if ! command -v "$EEPROM_CMD" >/dev/null 2>&1 && [ ! -x "$EEPROM_CMD" ]; then
+        return 1
+    fi
+    out=$("$EEPROM_CMD" 2>/dev/null) || return 1
+    if printf '%s' "$out" | grep -i -E -q 'write[-_ ]prot[a-z]*[^a-z0-9_].*\b(enabled|protected|locked|on)\b'; then
+        echo "protected"
+        return 0
+    fi
+    if printf '%s' "$out" | grep -i -E -q 'write[-_ ]prot[a-z]*[^a-z0-9_].*\b(disabled|unprotected|unlocked|off)\b'; then
+        echo "writable"
+        return 0
+    fi
+    return 1
 }
 
 if [ ! -f "$REV_FILE" ] || [ -L "$REV_FILE" ]; then
@@ -48,6 +76,10 @@ model=$(grep -m 1 '^Model[[:space:]]*:' "$REV_FILE" 2>/dev/null | sed 's/^Model[
 revision=$(grep -m 1 '^Revision[[:space:]]*:' "$REV_FILE" 2>/dev/null | sed 's/^Revision[[:space:]]*:[[:space:]]*//' | tr -d ' \t') || revision=""
 revision=${revision#0x}
 revision=${revision#0X}
+case "$revision" in
+    '') ;;
+    *[!0-9a-fA-F]*) fail_closed "revision=$revision" ;;
+esac
 
 board=""
 pcb=""
@@ -98,9 +130,23 @@ fi
 if [ "$board" = "pi4" ]; then
     case "$pcb" in
         1.0 | 1.1)
-            echo "PI4_EEPROM_WRITE_REQUIRED"
-            echo "pi-eeprom-check: PI_EEPROM_EARLY_PI4 pcb=$pcb" >&2
-            exit 3
+            # Early boards need a writable EEPROM: read the real
+            # write-protect state instead of refusing unconditionally.
+            if wp=$(eeprom_wp_state 2>/dev/null); then
+                case "$wp" in
+                    writable)
+                        echo "OK"
+                        exit 0
+                        ;;
+                    protected)
+                        echo "PI4_EEPROM_WRITE_REQUIRED"
+                        echo "pi-eeprom-check: PI_EEPROM_EARLY_PI4 pcb=$pcb" >&2
+                        exit 3
+                        ;;
+                    *) fail_closed "eeprom-state=$wp" ;;
+                esac
+            fi
+            fail_closed "early-pi4-pcb=$pcb remedy=inspect-write-protect-with-rpi-eeprom-update-make-writable-then-retry"
             ;;
         later) ;;
         *) fail_closed "pcb=$pcb" ;;

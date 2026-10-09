@@ -68,13 +68,44 @@ function state(dir, version, meta) {
   return stateDir
 }
 
-function check(meta, stateDir, pub) {
-  return spawnSync(interpreter, [channel, 'check', meta, '--state-dir', stateDir, '--key', pub], {
+function check(meta, stateDir, pub, extraArgs = []) {
+  return spawnSync(
+    interpreter,
+    [channel, 'check', meta, '--state-dir', stateDir, '--key', pub, ...extraArgs],
+    {
+      encoding: 'utf8',
+    },
+  )
+}
+
+// Drive channel.check in-process with a stubbed subprocess.run: the stub
+// records the exact argv and stdin the verifier would receive. Paths travel
+// through argv (never embedded in source) so the probe is portable.
+function verifyBinding(meta, stateDir, pub, outBin) {
+  const driver = [
+    'import importlib.util, json, shutil, subprocess, sys',
+    'spec = importlib.util.spec_from_file_location("channel", sys.argv[1])',
+    'm = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)',
+    'captured = {}',
+    'def fake_run(cmd, **kw):',
+    '    captured["argv"] = cmd',
+    '    captured["input"] = kw.get("input")',
+    '    class R: returncode = 0',
+    '    return R()',
+    'subprocess.run = fake_run',
+    'shutil.which = lambda name: "/usr/bin/openssl"',
+    'm.check(sys.argv[2], sys.argv[3], sys.argv[4])',
+    'print("ARGV:" + json.dumps(captured.get("argv") or []))',
+    'fed = captured.get("input") or b""',
+    'print("INPUTLEN:" + str(len(fed)))',
+    'open(sys.argv[5], "wb").write(fed)',
+  ].join('\n')
+  return spawnSync(interpreter, ['-c', driver, channel, meta, stateDir, pub, outBin], {
     encoding: 'utf8',
   })
 }
 
-describe('M110-OS2 update channel (TUF rules)', () => {
+describe('M110-OS2 signed update channel (single key)', () => {
   it('accepts a signed, fresh, unexpired channel', () => {
     const dir = directory()
     const { key, pub } = keypair(dir)
@@ -176,5 +207,81 @@ describe('M110-OS2 update channel (TUF rules)', () => {
     const result = check(meta, state(dir, '1.2.3', 7), pub)
     expect(result.stdout.trim()).toBe('CHANNEL_MALFORMED')
     expect(result.status).not.toBe(0)
+  })
+
+  it.each([
+    ['numeric version', { version: 123 }],
+    ['null expiry', { expires: null }],
+    ['numeric expiry', { expires: 20_300_101 }],
+    ['null bundle', { bundle: null }],
+  ])('refuses wrongly typed JSON (%s) with a code, never a traceback', (_label, over) => {
+    const dir = directory()
+    const { pub } = keypair(dir)
+    const meta = metadata(dir, 'meta.json', over)
+    const result = check(meta, state(dir, '1.2.3', 7), pub)
+    expect(result.stdout.trim()).toBe('CHANNEL_MALFORMED')
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).not.toContain('Traceback')
+  })
+
+  it.each([
+    ['missing version file', 'version', '1.2.3\n', null],
+    ['missing counter file', 'metadata_version', null, '7\n'],
+    ['malformed version', 'version', 'oops\n', '7\n'],
+    ['malformed counter', 'metadata_version', '1.2.3\n', 'oops\n'],
+    ['unreadable version', 'version', null, '7\n'],
+  ])(
+    'refuses damaged installed state (%s) instead of seeding zeros',
+    (_label, name, version, meta) => {
+      const dir = directory()
+      const { key, pub } = keypair(dir)
+      const doc = metadata(dir, 'meta.json', { version: '1.2.4', metadata_version: 8 })
+      sign(key, doc)
+      const stateDir = path.join(dir, 'state')
+      mkdirSync(stateDir, { recursive: true })
+      if (name === 'unreadable version') {
+        mkdirSync(path.join(stateDir, 'version'))
+        writeFileSync(path.join(stateDir, 'metadata_version'), meta)
+      } else {
+        if (version !== null) writeFileSync(path.join(stateDir, 'version'), version)
+        if (meta !== null) writeFileSync(path.join(stateDir, 'metadata_version'), meta)
+      }
+      const result = check(doc, stateDir, pub)
+      expect(result.stdout.trim()).toBe('CHANNEL_STATE_INVALID')
+      expect(result.status).not.toBe(0)
+    },
+  )
+
+  it('seeds a missing state only with the explicit first-boot flag', () => {
+    const dir = directory()
+    const { key, pub } = keypair(dir)
+    const meta = metadata(dir, 'meta.json')
+    sign(key, meta)
+    const missing = path.join(dir, 'no-state-dir')
+    const refused = check(meta, missing, pub)
+    expect(refused.stdout.trim()).toBe('CHANNEL_STATE_INVALID')
+    expect(refused.status).not.toBe(0)
+    const seeded = check(meta, missing, pub, ['--first-boot'])
+    expect(seeded.stdout.trim()).toBe('CHANNEL_OK')
+    expect(seeded.status).toBe(0)
+  })
+
+  it('verifies the same bytes the policy parsed, never a reopened path', () => {
+    const dir = directory()
+    const { key, pub } = keypair(dir)
+    const meta = metadata(dir, 'meta.json', { version: '1.2.4', metadata_version: 8 })
+    sign(key, meta)
+    const outBin = path.join(dir, 'fed.bin')
+    const result = verifyBinding(meta, state(dir, '1.2.3', 7), pub, outBin)
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('CHANNEL_OK')
+    // The verifier's stdin is byte-identical to the parsed document.
+    expect(readFileSync(outBin).equals(readFileSync(meta))).toBe(true)
+    // The metadata pathname itself is never an operand: only the .sig file
+    // beside it is named, so a swapped pathname cannot be verified instead.
+    const argvLine = result.stdout.split('\n').find((line) => line.startsWith('ARGV:'))
+    const argv = JSON.parse(argvLine.slice('ARGV:'.length))
+    expect(argv).not.toContain(meta)
+    expect(argv).toContain(`${meta}.sig`)
   })
 })
