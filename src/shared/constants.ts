@@ -1746,9 +1746,21 @@ export const HELD_FILE_MODE = 0o666
 export const HELD_EXECUTABLE_MODE = 0o777
 // The conversations whose pull request is remembered, newest first.
 export const PULL_REQUEST_LINKS_KEPT = 200
-// A file worktree-record save whose file another window rewrote first is
-// read again and retried this many times before the last write wins (M123).
+// A file worktree-record save whose file changed underneath is read again
+// and merged again this many times; then the mutation fails loudly, never
+// overwriting what it did not read (M123).
 export const WORKTREE_RECORD_SAVE_ATTEMPTS = 3
+// One file backs every window's worktree records; a mutation holds this
+// lock folder while it validates the fresh registry and persists it, so
+// two windows never interleave a read-modify-write (M123). A waiter takes
+// over a lock older than the stale bound (its holder crashed) and fails
+// loudly past the timeout instead of writing uncoordinated.
+export const WORKTREE_RECORD_LOCK_TIMEOUT_MS = 10_000
+export const WORKTREE_RECORD_LOCK_POLL_MS = 10
+export const WORKTREE_RECORD_LOCK_STALE_MS = 30_000
+// A killed batch child is observed this long before the checkout settles
+// anyway: a helper holding the pipes cannot keep it pending (M123).
+export const GIT_BATCH_KILL_GRACE_MS = 1000
 // --- Review (M70, PLAN.md D49) ---
 
 // `/review …` in the prompt. The command and its keywords are commands, like

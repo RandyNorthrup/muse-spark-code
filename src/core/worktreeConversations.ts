@@ -62,6 +62,13 @@ const worktreeRecordSchema = z.object({
    * finished: its folder is never offered as a checkout, even after a crash.
    */
   isCheckoutPending: z.optional(z.boolean()),
+  /**
+   * The per-folder mutation counter (M123, PLAN.md D104): every record
+   * mutation bumps it, so a writer holding an older copy detects it lost
+   * and re-reads instead of overwriting. Absent on records an earlier
+   * version wrote; those read as revision 0.
+   */
+  revision: z.optional(z.number()),
 })
 
 export type WorktreeRecord = z.infer<typeof worktreeRecordSchema>
