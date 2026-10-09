@@ -7,13 +7,13 @@ import path from 'node:path'
 import { constants as osConstants } from 'node:os'
 import type { Readable, Writable } from 'node:stream'
 import type { ResourceTicket } from '../../shared/resources'
-import { RUNTIME_STOP, LSP_LIMITS } from '../../shared/constants'
+import { RUNTIME_STOP, RUNTIME_STOP_SOCKET_BYTES, LSP_LIMITS } from '../../shared/constants'
 import { workspaceKey } from '../dataFolder'
 import { withoutCredentials } from '../credentialVariables'
 import { isProcessAlive } from '../../host/checkpoints/windowPresence'
 import { privateDirectory, openPrivateRecord, writePrivateRecord } from './registry'
 import type { StopBinding, StopReceipt, StopOwner } from './stopReceipt'
-import { stablePrivateRoot, trustedPrivateRoots } from '../privateDirectory'
+import { stablePrivateRoot, trustedPrivateRoot, trustedPrivateRoots } from '../privateDirectory'
 
 async function readStopRecord(file: string): Promise<unknown> {
   const handle = await openPrivateRecord(file)
@@ -78,6 +78,7 @@ export async function stopRuntime(
     [...roots].map((root) => path.join(root, `muse-runtime-${workspaceKey(home)}`)),
     cwd,
     packageRoot,
+    diagnostic,
   )
 }
 
@@ -109,16 +110,22 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
   const { processAuthority } = await import('./processAuthority')
   const authority = await processAuthority(deps.packageRoot, deps.registry)
   const directory = path.join(
-    path.dirname(deps.registry),
+    // Registries/workspaces can be deeply nested. Only the verified platform
+    // runtime root hosts the socket; its record still binds the registry root.
+    await trustedPrivateRoot(deps.packageRoot),
     `ms-${randomBytes(LSP_LIMITS.socketNameBytes).toString('hex')}`,
   )
-  const created = await privateDirectory(directory, true)
-  if (!created.isNew) throw new Error('ELSP_PRIVATE')
   const token = randomBytes(RUNTIME_STOP.tokenBytes).toString('hex')
   const pipe =
     process.platform === 'win32'
       ? String.raw`\\.\pipe\muse-stop-${randomUUID()}`
       : path.join(directory, 'control')
+  // Darwin's sockaddr_un has 104 bytes including the terminator. Refuse an
+  // oversized pathname before it can become an unusable control address.
+  if (process.platform !== 'win32' && Buffer.byteLength(pipe) > RUNTIME_STOP_SOCKET_BYTES)
+    throw new Error('ESTOP_SOCKET_PATH')
+  const created = await privateDirectory(directory, true)
+  if (!created.isNew) throw new Error('ELSP_PRIVATE')
   const ownerId = randomUUID()
   const generation = randomBytes(RUNTIME_STOP.generationBytes).toString('hex')
   const record = path.join(deps.registry, `${workspaceKey(deps.cwd)}-${ownerId}.json`)

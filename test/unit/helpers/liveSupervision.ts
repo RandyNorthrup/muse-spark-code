@@ -3,12 +3,17 @@
 // process listing fail every supervised fixture with a timeout; fail fast
 // with the named block instead. Outside such a sandbox the probes pass and
 // every gated test runs its full lifecycle.
-import { spawnSync, type ChildProcess } from 'node:child_process'
+import { execFile, spawnSync, type ChildProcess } from 'node:child_process'
 import { readdirSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { promisify } from 'node:util'
+import { killTree } from '../../../src/host/processTree'
+
+// Root-selection tests temporarily replace process.platform; cleanup uses the host.
+const hostPlatform = process.platform
 
 const state: { verdict?: { ok: true } | { ok: false; reason: string } } = {}
 
@@ -56,41 +61,128 @@ function probeTable(): string | undefined {
   }
 }
 
+async function fixtureProcessTable() {
+  const result = await promisify(execFile)('/bin/ps', ['-axo', 'pid=,ppid=,lstart='], {
+    env: { LC_ALL: 'C' },
+  })
+  return result.stdout
+    .trim()
+    .split('\n')
+    .map((line) => {
+      const match = /^\s*(\d+)\s+(\d+)\s+(.+)$/.exec(line)
+      if (match === null) throw new Error('invalid fixture process row')
+      return { pid: Number(match[1]), parent: Number(match[2]), birth: match[3] ?? '' }
+    })
+}
+
 /** Every fixture process a suite starts. A failed assertion or a timeout still
  * reaps the whole tree instead of leaking supervised pairs that burn CPU. */
 export function trackFixtureTree() {
   const live = new Set<ChildProcess>()
+  const known = new Map<number, string>()
+  let timer: ReturnType<typeof setInterval> | undefined
+  let sampling: Promise<{ pid: number; parent: number; birth: string }[]> | undefined
+  const read = async () => {
+    if (hostPlatform === 'win32') return []
+    const rows = await fixtureProcessTable()
+    for (const child of live) {
+      if (child.exitCode !== null || child.signalCode !== null) continue
+      const row = rows.find((entry) => entry.pid === child.pid)
+      if (row !== undefined && !known.has(row.pid)) known.set(row.pid, row.birth)
+    }
+    let hasGrown = true
+    while (hasGrown) {
+      hasGrown = false
+      for (const row of rows) {
+        if (known.has(row.pid)) continue
+        const parent = rows.find((entry) => entry.pid === row.parent)
+        if (parent === undefined || known.get(parent.pid) !== parent.birth) continue
+        known.set(row.pid, row.birth)
+        hasGrown = true
+      }
+    }
+    return rows.filter((row) => known.get(row.pid) === row.birth)
+  }
+  const sample = async () => {
+    const pending = (sampling ??= read())
+    try {
+      return await pending
+    } finally {
+      if (sampling === pending) sampling = undefined
+    }
+  }
+  let samplingError: Error | undefined
   const track = (child: ChildProcess): ChildProcess => {
     live.add(child)
-    child.once('exit', () => {
-      live.delete(child)
-    })
+    // Keep observed ancestry after parent exit, including setsid descendants.
+    timer ??= setInterval(() => {
+      void sample().catch((error: unknown) => {
+        samplingError =
+          error instanceof Error ? error : new Error('fixture table failed', { cause: error })
+      })
+    }, 100)
+    timer.unref()
     return child
   }
   const reap = async (): Promise<void> => {
-    for (const child of live) {
+    clearInterval(timer)
+    timer = undefined
+    const rows = await sample()
+    for (const row of rows.toReversed()) {
       try {
-        child.kill('SIGKILL')
+        process.kill(row.pid, 'SIGKILL')
       } catch {
-        /* Already gone; the sweep below confirms it. */
+        /* The next table confirms departure. */
       }
     }
+    for (const child of live) {
+      if (hostPlatform === 'win32')
+        await killTree(
+          child,
+          {
+            platform: hostPlatform,
+            systemRoot: process.env['SystemRoot'],
+            log: () => {
+              /* The survivor assertion reports failed fixture cleanup. */
+            },
+          },
+          0,
+        )
+      else child.kill('SIGKILL')
+    }
     const deadline = Date.now() + 4000
-    while (live.size > 0 && Date.now() < deadline)
+    let survivors = rows.map((row) => row.pid)
+    while (Date.now() < deadline) {
+      const current = await sample()
+      survivors = current.map((row) => row.pid)
+      if (
+        survivors.length === 0 &&
+        [...live].every(
+          (child) =>
+            child.exitCode !== null || child.signalCode !== null || child.pid === undefined,
+        )
+      )
+        break
       await new Promise<void>((resolve) => {
         setTimeout(resolve, 25)
       })
-    const survivors: number[] = []
+    }
     for (const child of live) {
       if (child.pid === undefined) continue
       try {
         process.kill(child.pid, 0)
         survivors.push(child.pid)
       } catch {
-        live.delete(child)
+        /* Direct child has also been reaped. */
       }
     }
     live.clear()
+    known.clear()
+    if (samplingError !== undefined) {
+      const error = samplingError
+      samplingError = undefined
+      throw error
+    }
     if (survivors.length > 0) throw new Error(`leaked fixture processes: ${survivors.join(', ')}`)
   }
   return { track, reap }

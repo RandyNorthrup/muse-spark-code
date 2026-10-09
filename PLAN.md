@@ -19787,9 +19787,10 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
-**FIXM104L8 macOS lifecycle repair (2026-10-08, in progress).** Reproduce
+**FIXM104L8 macOS lifecycle repair (2026-10-08, complete on macOS).** Reproduce
 the supervisor/watchdog/trusted-path failures on the unsandboxed MacBook;
-repair recursion, Stop preflight and native process lifecycle causes without
+repair recursion, Stop preflight (including forwarding skipped-record diagnostics)
+and native process lifecycle causes without
 widening trust or changing `verifyTrustedPath`'s exported API. Keep default
 test deadlines and every platform guard. Track and reap complete fixture
 trees even on failure, repeat the three owning suites plus related runtime
@@ -21564,6 +21565,18 @@ no production import or host API. W owns the generated file; after integration
 run `npm run check:host-api -- --write`, review those four rows and rerun the
 gate. This is the named existing snapshot deferral, not an unfixed review
 finding or a green host-API claim. See `docs/certification/m107-t.md`.
+
+**FIXM104L8 bounded macOS repair (2026-10-08).** The complete
+supervisor/watchdog/trusted-path suites pass five consecutive direct MacBook
+runs (81 passed, two existing platform skips per run); related owning files
+pass too. Seven byte-exact controls fire. Scoped typechecks, lint/format,
+localization, reference, deadcode, duplication and production build pass.
+The host-API snapshot deferral remains: the full accepted base `5fb288553`
+produces byte-identical failing output, including existing Node import-count
+drift; no Node import is added here. The lead/W lane owns regeneration and
+review at integration. No aggregate quality/full coverage, native Windows/Linux
+or GUI qualification is claimed; M104 and its controller/containment questions
+remain open as documented. Receipts: `docs/certification/m104-l.md`.
 
 **M104L bounded-lane gates (2026-10-05).** The explicit rig/common brief
 reserves aggregate `npm run quality`, full coverage and live/provider drills

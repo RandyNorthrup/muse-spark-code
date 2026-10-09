@@ -37,9 +37,7 @@ vi.mock('../../src/host/processTree', async (original) => ({
 const privateRoots = await vi.importActual<typeof privateDirectories>(
   '../../src/runtime/privateDirectory',
 )
-const folder = await realpath(
-  await mkdtemp(path.join(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'mw-')),
-)
+const folder = await realpath(await mkdtemp(path.join(tmpdir(), 'mw-')))
 const parentFile = path.join(folder, 'parent.js')
 const { installLspNativeFixture, buildLspProcess } = await import('./helpers/lspNativeFixture')
 afterAll(await installLspNativeFixture(folder))
@@ -77,7 +75,16 @@ async function waitExited(pid: number) {
 }
 
 const { track, reap } = trackFixtureTree()
-afterEach(reap)
+const hostPlatform = Object.getOwnPropertyDescriptor(process, 'platform')
+if (hostPlatform === undefined) throw new Error('fixture platform')
+afterEach(async () => {
+  Object.defineProperty(process, 'platform', hostPlatform)
+  vi.unstubAllEnvs()
+  vi.restoreAllMocks()
+  await reap()
+})
+afterAll(reap)
+const discoveryTrees = trackFixtureTree()
 
 function runGuardian(label: string) {
   const registry = path.join(folder, label)
@@ -135,7 +142,7 @@ async function prepareDiscovery(selector: string) {
   }
   const registry = path.join(root, `muse-runtime-${workspaceKey(home)}`)
   const file = path.join(home, 'run.json')
-  const parent = track(
+  const parent = discoveryTrees.track(
     spawn(process.execPath, [parentFile, registry, home, watchdogFile, file, locatorDirectory], {
       stdio: 'ignore',
     }),
@@ -157,16 +164,7 @@ describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian'
     for (const selector of selectors) discovery.set(selector, await prepareDiscovery(selector))
   })
   afterAll(async () => {
-    for (const run of discovery.values()) {
-      try {
-        await stopWorkspace(run.registry, run.home, folder)
-      } catch {
-        // A failed Stop still leaves a tree to reap below.
-      }
-      run.parent.kill('SIGKILL')
-      await waitExited(run.owned.root)
-      await waitExited(run.owned.detached)
-    }
+    await discoveryTrees.reap()
   })
 
   it.each(selectors)(
@@ -262,13 +260,20 @@ describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian'
         vi.stubEnv('XDG_STATE_HOME', secondRoot)
         vi.stubEnv('XDG_CACHE_HOME', '')
         Object.defineProperty(process, 'platform', { value: 'linux' })
-        const stopping = stopRuntime(home, folder, home, () => undefined)
+        const diagnostics: string[] = []
+        const stopping = stopRuntime(home, folder, home, (message) => {
+          diagnostics.push(message)
+        })
         if (fault === 'untrusted-forgery' || fault === 'separators')
           await expect(stopping).resolves.toBeUndefined()
         else {
           await expect(stopping).rejects.toThrow(
-            fault === 'duplicate' ? 'ESTOP_AMBIGUOUS' : 'ESTOP_UNVERIFIED',
+            fault === 'duplicate' ? 'ESTOP_AMBIGUOUS' : 'ESTOP_NO_RUN',
           )
+          if (fault === 'wrong-root')
+            expect(diagnostics.some((message) => message.startsWith('ESTOP_RECORD_FOREIGN:'))).toBe(
+              true,
+            )
           expect(isProcessAlive(owned.root)).toBe(true)
           expect(isProcessAlive(owned.detached)).toBe(true)
           expect(await readdir(firstRegistry)).toContain(ownerFile)

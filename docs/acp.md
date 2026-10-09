@@ -255,9 +255,11 @@ the guardian's completed receipt for all observed descendants. Otherwise it
 exits 1, reports that processes may still be running with observed PIDs, and
 retains ownership records for a later verified Stop.
 
-Private IPC lives under the per-user runtime/cache root (Linux XDG runtime
-or cache, macOS Library/Caches, Windows LocalAppData), with owner/write/ACL
-checks through every ancestor. Records are exclusive and no-follow, and
+Private IPC lives under a verified platform root (Linux XDG runtime/state/cache
+or the home state fallback; macOS per-user temporary directory or Application
+Support; Windows LocalAppData), with owner/write/ACL checks through every
+ancestor. POSIX Stop socket addresses are bounded independently of registry
+depth; oversized addresses refuse before control state or child launch. Records are exclusive and no-follow, and
 held-file permissions/ACLs and directory identity are verified before the
 first content write.
 

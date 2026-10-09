@@ -509,9 +509,12 @@ Support, or `~/AppData/Local/Muse Spark` on Windows. No control token is in a
 locator. Independent Stop searches every verified platform candidate in the
 order above, then previously selected roots from those locators, verifying each
 again. It finds runs even after XDG/TMPDIR changes or an earlier refused root
-becomes trusted. Each owner record names its canonical trust root; a mismatch
-or a duplicate owner UUID/generation across roots refuses before any signal,
-retaining ownership. No matching run exits 1 with `ESTOP_NO_RUN`; ambiguous
+becomes trusted. Each owner record names its canonical trust root. Unusable
+records and trust-root mismatches are reported and skipped without signalling;
+duplicate well-formed owner UUID/generations refuse before any signal, retaining
+ownership. POSIX Stop sockets use the verified platform runtime root even when
+a registry is deeply nested. An address beyond the portable OS limit refuses
+startup with `ESTOP_SOCKET_PATH` before control state or child launch. No matching run exits 1 with `ESTOP_NO_RUN`; ambiguous
 ownership exits 1 with `ESTOP_AMBIGUOUS`. Normal completion removes its locator;
 uncertain cleanup retains it. Verification walks the whole real path to the filesystem/volume root.
 POSIX ancestors must be root/user-owned. Group write is allowed only for

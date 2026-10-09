@@ -3,6 +3,9 @@ import type { ResourceTicket } from '../../src/shared/resources'
 import type { ResourceSignal } from '../../src/core/resources/trees/actions'
 import { processAuthority } from '../../src/runtime/lsp/processAuthority'
 import { ResourceTreeRegistry } from '../../src/core/resources/trees/registry'
+import * as privateDirectories from '../../src/runtime/privateDirectory'
+import { RUNTIME_STOP_SOCKET_BYTES } from '../../src/shared/constants'
+import { ownerSchema } from '../../src/runtime/lsp/stopReceipt'
 import { mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import * as fs from 'node:fs/promises'
 import * as childProcess from 'node:child_process'
@@ -10,7 +13,7 @@ import { createConnection } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
-import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   superviseRuntime,
   stopWorkspace,
@@ -71,12 +74,24 @@ async function writeOwnerRecord(registry: string, name: string, owner: unknown) 
 /** Every fixture process this file starts, so a failed assertion or a timeout
  * still reaps the whole tree instead of leaking supervisors and workloads. */
 const { track, reap } = trackFixtureTree()
-afterEach(reap)
+const nativeChildProcess = await vi.importActual<typeof childProcess>('node:child_process')
+const nativeKill = ResourceTreeRegistry.prototype.kill
+beforeEach(() => {
+  vi.spyOn(childProcess, 'spawn').mockImplementation((...args) =>
+    track(nativeChildProcess.spawn(...args)),
+  )
+})
+afterEach(async () => {
+  // A timed-out test still restores its spies before another case captures them.
+  vi.restoreAllMocks()
+  await reap()
+  await removeFolder(path.join(directory, 'owners'))
+})
+afterAll(reap)
 
 function captureWorkload(receive: (child: childProcess.ChildProcess) => void) {
-  const nativeSpawn = childProcess.spawn
   return vi.spyOn(childProcess, 'spawn').mockImplementation((...args) => {
-    const child = track(nativeSpawn(...args))
+    const child = track(nativeChildProcess.spawn(...args))
     if (Array.isArray(args[1]) && args[1].includes('-e')) receive(child)
     return child
   })
@@ -107,6 +122,120 @@ function start(cwd: string, source: string, args: readonly string[] = [], guardi
 }
 
 describe('M104H2 runtime supervision', () => {
+  it.runIf(process.platform !== 'win32')(
+    'keeps Stop sockets within the OS limit even with deeply nested registries',
+    async () => {
+      const parent = path.join(directory, 'long-registry-'.repeat(10))
+      await fs.mkdir(parent, { mode: 0o700 })
+      const registry = path.join(parent, 'owners')
+      const ready = path.join(directory, 'long-registry.ready')
+      const run = superviseRuntime({
+        registry,
+        cwd: directory,
+        file: process.execPath,
+        args: [
+          '-e',
+          `require('node:fs').writeFileSync(process.argv[1],'ready');setInterval(()=>{},1000)`,
+          ready,
+        ],
+        env: process.env,
+        packageRoot: directory,
+        watchdogFile,
+        stdin: new PassThrough(),
+        stdout: new PassThrough(),
+      })
+      void run.catch(() => undefined)
+      try {
+        await waitFor(ready)
+        const owners = await readdir(registry)
+        const ownerFile = owners.find((file) => file.endsWith('.json'))
+        if (ownerFile === undefined) throw new Error('missing owner')
+        const owner = ownerSchema.parse(
+          JSON.parse(await readFile(path.join(registry, ownerFile), 'utf8')),
+        )
+        expect(Buffer.byteLength(owner.pipe)).toBeLessThanOrEqual(RUNTIME_STOP_SOCKET_BYTES)
+        expect(owner.trustRoot).toBe(await fs.realpath(parent))
+        await stopWorkspace(registry, directory, directory)
+        expect(await run).toBe(0)
+      } finally {
+        await stopWorkspace(registry, directory, directory)
+        await run
+      }
+    },
+  )
+
+  it.runIf(process.platform !== 'win32')(
+    'refuses an oversized runtime socket root before creating control state or children',
+    async () => {
+      const root = vi
+        .spyOn(privateDirectories, 'trustedPrivateRoot')
+        .mockResolvedValue(path.join(directory, 'oversized-'.repeat(20)))
+      const creating = vi.spyOn(fs, 'mkdir')
+      const spawning = vi.mocked(childProcess.spawn)
+      try {
+        await expect(start(directory, 'process.exit(0)').done).rejects.toThrow('ESTOP_SOCKET_PATH')
+        expect(spawning.mock.calls.some(([file]) => file === process.execPath)).toBe(false)
+        expect(creating.mock.calls.every(([file]) => !String(file).includes('oversized-'))).toBe(
+          true,
+        )
+        expect(await readdir(path.join(directory, 'owners'))).toEqual([])
+      } finally {
+        root.mockRestore()
+        creating.mockRestore()
+      }
+    },
+  )
+
+  it.runIf(process.platform !== 'win32')(
+    'teardown reaps a detached fixture after parent exit and an assertion failure',
+    async () => {
+      const fixtures = trackFixtureTree()
+      const file = path.join(directory, 'teardown-tree.json')
+      const parent = fixtures.track(
+        nativeChildProcess.spawn(
+          process.execPath,
+          [
+            '-e',
+            `
+          const child = require('node:child_process').spawn(process.execPath,
+            ['-e', 'setInterval(()=>{},1000)'], { detached: true, stdio: 'ignore' });
+          require('node:fs').writeFileSync(process.argv[1], JSON.stringify(child.pid));
+          setInterval(()=>{},1000);
+        `,
+            file,
+          ],
+          { stdio: 'ignore' },
+        ),
+      )
+      const detached: unknown = JSON.parse(await waitFor(file))
+      if (typeof detached !== 'number') throw new Error('invalid detached fixture PID')
+      try {
+        await pause(100)
+        const closed = new Promise<void>((resolve) => {
+          parent.once('close', () => {
+            resolve()
+          })
+        })
+        parent.kill('SIGKILL')
+        await closed
+        try {
+          expect('fixture failure').toBe('fixture success')
+        } catch {
+          await fixtures.reap()
+        }
+        expect(() => process.kill(detached, 0)).toThrow()
+      } finally {
+        // Even the teardown red drill cannot leak this explicitly receipted PID.
+        try {
+          process.kill(detached, 'SIGKILL')
+        } catch {
+          /* Already reaped. */
+        }
+        await fixtures.reap()
+      }
+    },
+  )
+
   it('accepts a disappearing owner record but preserves other open failures', async () => {
     const registry = path.join(directory, 'race-owners')
     await fs.mkdir(registry, { mode: 0o700 })
@@ -519,7 +648,6 @@ describe('M104H2 runtime supervision', () => {
       )
         throw new Error('invalid owner')
       const controlFolder = path.dirname(owner.pipe)
-      const actualKill = ResourceTreeRegistry.prototype.kill
       class RefusedCleanupRegistry extends ResourceTreeRegistry {
         override async kill(ticket: ResourceTicket, signal?: ResourceSignal) {
           if (ticket.root.pid === workload?.pid)
@@ -527,7 +655,7 @@ describe('M104H2 runtime supervision', () => {
               status: 'refused' as const,
               members: [{ identity: ticket.root, result: 'refused' as const }],
             }
-          return await actualKill.call(this, ticket, signal)
+          return await nativeKill.call(this, ticket, signal)
         }
       }
       const refusing = vi
@@ -567,11 +695,13 @@ describe('M104H2 runtime supervision', () => {
         [ready],
       )
       await waitFor(ready)
-      const actualKill = ResourceTreeRegistry.prototype.kill
       let isGroupReleased = false
+      // A previous instrumented action may already be spied on. The delegate
+      // must remain the actual method, never the spy about to be overwritten.
+      vi.spyOn(ResourceTreeRegistry.prototype, 'kill').mockImplementation(nativeKill)
       class HeldExitRegistry extends ResourceTreeRegistry {
         override async kill(ticket: ResourceTicket, signal?: ResourceSignal) {
-          const result = await actualKill.call(this, ticket, signal)
+          const result = await nativeKill.call(this, ticket, signal)
           return !isGroupReleased && result.status === 'gone'
             ? {
                 status: 'done' as const,

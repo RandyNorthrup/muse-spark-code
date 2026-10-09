@@ -5318,6 +5318,9 @@ export const RUNTIME_STOP = {
   owners: 8,
 } as const
 
+/** Portable POSIX sun_path capacity, reserving Darwin's terminating byte. */
+export const RUNTIME_STOP_SOCKET_BYTES = 103
+
 // Conversation-only prompts: first chat surface, never activation.
 export const CONVERSATION_MODEL_TEXT = {
   replyContextLead:

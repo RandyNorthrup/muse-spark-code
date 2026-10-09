@@ -37,6 +37,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Independent POSIX Stop sockets use a verified runtime root even when owner
+  registries are deeply nested, and reject oversized addresses before launch.
+  Runtime tests retain and reap detached fixture descendants after parent exit,
+  restore spies/platform state on failure, and use async process-table sampling
+  so cleanup cannot block the event loop past the unchanged test deadline.
+  Independent Stop forwards per-record skip diagnostics through its root search.
+
 - Darwin process accounting accepts the OS's unknown/exiting `?Es` state,
   so an unrelated exiting process cannot make every supervised Stop lose its
   tree proof. Native birth, group, ancestry and per-member signal checks remain.
