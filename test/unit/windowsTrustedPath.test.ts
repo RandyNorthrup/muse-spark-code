@@ -1,4 +1,6 @@
+import { execFile } from 'node:child_process'
 import { readFile, mkdtemp, mkdir, rm, writeFile, symlink } from 'node:fs/promises'
+import { promisify } from 'node:util'
 import path from 'node:path'
 import os from 'node:os'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
@@ -39,6 +41,23 @@ const vectors = z
     JSON.parse(await readFile(path.resolve('test/fixtures/trusted-path-vectors.json'), 'utf8')),
   )
 const run = backgroundProcessRunner({ SystemRoot: process.env['SystemRoot'] })
+
+/** A protected DACL: only the current user, SYSTEM and Administrators. */
+async function ownerOnly(directory: string): Promise<void> {
+  const system32 = path.join(process.env['SystemRoot'] ?? String.raw`C:\Windows`, 'System32')
+  const exec = promisify(execFile)
+  const { stdout } = await exec(path.join(system32, 'whoami.exe'), ['/user', '/fo', 'csv', '/nh'])
+  const sid = /"(S-1-[\d-]+)"/u.exec(stdout)?.[1]
+  if (sid === undefined) throw new Error('Current user SID unavailable')
+  await exec(path.join(system32, 'icacls.exe'), [
+    directory,
+    '/inheritance:r',
+    '/grant:r',
+    `*${sid}:(OI)(CI)F`,
+    '*S-1-5-18:(OI)(CI)F',
+    '*S-1-5-32-544:(OI)(CI)F',
+  ])
+}
 const verdicts: boolean[] = []
 const taskVectors = [
   {
@@ -139,6 +158,11 @@ describe('shared Windows trusted-path vectors', () => {
     if (process.platform !== 'win32') return
     const directory = await mkdtemp(path.join(os.tmpdir(), 'm115-shared-trust-'))
     try {
+      // The fixture inherits %TEMP%'s ACL, which on a machine with other local
+      // accounts grants them Modify: the verifier then (rightly) refuses the
+      // leaf first and never reaches the component under test. Owner-only, as
+      // on hosted runners, the fixture is about the component and the junction.
+      await ownerOnly(directory)
       const nested = path.join(directory, 'nested')
       await mkdir(nested)
       const leaf = path.join(nested, 'agent.js')
