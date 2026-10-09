@@ -2516,6 +2516,8 @@ async function activateWindow(
     attachedMedia,
     // Machine scope only (lane V seam 3B): a repository never picks the converter.
     mediaConverterPath: () => currentSettings().mediaConverterPath,
+    // Windows: the converter runs in M50's job under a kernel memory cap (VB).
+    ...(windowsMcpJob !== undefined && { mediaJobExecutable: windowsMcpJob }),
     onServiceFailure: () => {
       notify(
         Array.from(controllers.values(), (controller) => () => {

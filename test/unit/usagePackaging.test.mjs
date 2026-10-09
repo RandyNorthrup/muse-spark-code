@@ -103,6 +103,8 @@ function fixture() {
   for (const file of [
     'MuseSparkJob',
     'MuseSparkMcpJob',
+    // M105 lanes V and VB: the converter's job launcher on Windows.
+    'MuseSparkMcpLauncher',
     'MuseSparkScreenRecord',
     'MuseSparkVault',
     'MuseSparkVaultCng',
@@ -215,6 +217,14 @@ describe('usage assets in the ACP package', () => {
         expect(archived[file.slice('usage.'.length, -'.json'.length)]).toEqual(
           JSON.parse(readFileSync(path.join(f.root, 'l10n', file), 'utf8')),
         )
+    // M105 lanes V and VB: the runtime's media bundles and the converter's
+    // Windows job launcher ship, or Windows conversion would refuse there.
+    for (const file of [
+      'dist/runtimeMedia.js',
+      'dist/productionAudio.js',
+      'native/windows/MuseSparkMcpLauncher.cs',
+    ])
+      expect(files).toContain(`package/${file}`)
     expect(files).not.toContain('package/dist/webview/main.js')
     expect(files).not.toContain('package/dist/webview/usage.js.map')
     expect(files).not.toContain('package/l10n/untranslated.json')

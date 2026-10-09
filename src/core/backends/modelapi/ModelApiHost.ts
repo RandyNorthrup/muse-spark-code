@@ -797,6 +797,12 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
    * Empty or absent: documented installs only (lane V seam 3B).
    */
   readonly mediaConverterPath?: (() => string | undefined) | undefined
+  /**
+   * Windows: M50's kill-on-close job launcher, prepared on first use, that
+   * runs the converter under a kernel memory cap (lanes V and VB). Absent or
+   * undefined, Windows conversion refuses; never an unbounded launch.
+   */
+  readonly mediaJobExecutable?: (() => Promise<string | undefined>) | undefined
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
   readonly scheduleStore?: ScheduleStore | undefined
   /** SHA-256 digest of the current SecretStorage key, never its plaintext. */

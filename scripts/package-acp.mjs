@@ -98,9 +98,10 @@ const BUNDLES = [
 ]
 // The C# of the shell tool's Windows job (M27), compiled on first use, as
 // the extension ships it (PLAN.md D6): its own file and the half it shares.
-// No MuseSparkMcpLauncher.cs: ACP forwards MCP servers to Muse Code's own
-// process (src/acp/agent.ts forwardedMcp); its Model API backend runs none.
-// src/runtime/backends.ts composes only shellJobAssembly, never mcpJobExecutable.
+// MuseSparkMcpLauncher.cs (M50's kill-on-close launcher) ships for one use:
+// the media converter's kernel memory cap on Windows (M105 lanes V and VB),
+// composed by src/runtime/backends.ts as mcpJobExecutable. ACP still forwards
+// MCP servers to Muse Code's own process; its Model API backend runs none.
 const JOB_SOURCES = [
   'native/windows/MuseSparkVault.cs',
   'native/windows/MuseSparkVaultCng.cs',
@@ -108,6 +109,7 @@ const JOB_SOURCES = [
   'native/windows/MuseSparkVaultLock.cs',
   path.join('native', 'windows', 'MuseSparkJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
+  path.join('native', 'windows', 'MuseSparkMcpLauncher.cs'),
   path.join('native', 'windows', 'MuseSparkScreenRecord.cs'),
 ]
 const DARWIN_HELPER = path.join('native', 'darwin', 'muse-dictate')

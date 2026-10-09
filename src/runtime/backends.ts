@@ -48,6 +48,7 @@ import { createMemoryIo, systemPath } from '../host/backend/memoryIo'
 import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
 import { MuseCodeBackendManager, type ProxySettings } from '../host/backend/museCodeBackendManager'
 import { shellJobAssembly } from '../host/backend/shellJob'
+import { mcpJobExecutable } from '../host/backend/mcpJobExecutable'
 import { createToolIo } from '../host/backend/toolIo'
 import type { ToolIo } from '../core/backends/modelapi/tools'
 import type { AcpMediaFactory } from '../acp/media'
@@ -380,8 +381,21 @@ function modelApiManager(
             await store.save(copy)
           },
         }
+  // Lanes V and VB: Windows conversion runs in M50's kill-on-close job under
+  // a kernel memory cap; its launcher compiles on first use from the C#
+  // shipped beside dist/ (scripts/package-acp.mjs JOB_SOURCES).
+  const mediaJobExecutable =
+    platform === 'win32' && systemRoot !== undefined
+      ? mcpJobExecutable({
+          storageDir: agentDataFolder(dataInput),
+          systemRoot,
+          readJobSource: jobSourceReader(path.dirname(deps.distDir)),
+          log: warn,
+        })
+      : undefined
   return new ModelApiBackendManager({
     log,
+    ...(mediaJobExecutable !== undefined && { mediaJobExecutable }),
     // Lane V seam 1/5: attached video and audio from ACP and exec resolve here.
     attachedMedia: media.attached,
     usageRecording: deps.usageRecording,

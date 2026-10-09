@@ -162,7 +162,7 @@ describe('jobMemoryLimitedRun', () => {
   it.each([
     ['before it is prepared', 0],
     ['while the launcher is prepared', 1],
-  ] as const)('refuses a conversion cancelled %s, never starting it', async (moment, prepared) => {
+  ] as const)('refuses a conversion cancelled %s, never starting it', async (_moment, prepared) => {
     const where = await workspace()
     const spawnJob = directLauncher()
     const stop = new AbortController()

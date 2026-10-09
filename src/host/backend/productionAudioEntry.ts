@@ -5,10 +5,35 @@
 // activation, nor with a text-only session. Its one export builds the host's
 // audio port from the deps the bundle factory already holds.
 import type { ProviderClient } from '../../core/backends/modelapi/client'
+import type { MediaConversionOptions } from '../../core/media/convert'
 import { createProductionAudio } from '../../core/voice/productionAudio'
+import { createPrivateDirectory } from '../../runtime/privateDirectory'
+import { jobMemoryLimitedRun } from './mediaJobRun'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
+
+/**
+ * Lane VB's platform bindings for each conversion: an owner-only folder
+ * everywhere; on Windows the kernel job's memory cap (no RSS sampler, so
+ * the kernel path is taken); Linux keeps its `/proc` sampler. macOS's `ps`
+ * sampler (`core/media/macRss.ts`) reads through M107's resource-policy
+ * modules, which only the governor's bundle may carry, so it is not bound
+ * here yet and macOS conversion refuses (a named gap). A missing launcher
+ * refuses, never runs unbounded.
+ */
+export function conversionBindings(
+  jobExecutable: (() => Promise<string | undefined>) | undefined,
+): MediaConversionOptions {
+  return {
+    createPrivateDirectory: () => createPrivateDirectory(),
+    ...(process.platform === 'win32' && {
+      memoryLimitedRun: jobMemoryLimitedRun({
+        jobExecutable: jobExecutable ?? (() => Promise.resolve(undefined)),
+      }),
+    }),
+  }
+}
 
 /** The host's one `prepareAudioMessage`, or none without a registry or the transcription POST. */
 export function productionAudioFor(
@@ -30,6 +55,7 @@ export function productionAudioFor(
     attached,
     postTranscription: (post) => transcription(post.route, post.signal, post, accountId),
     converterPath: () => host.mediaConverterPath?.(),
+    conversionOptions: () => conversionBindings(host.mediaJobExecutable),
     session: {
       capUsd: host.sessionBudgetUsd,
       journal: host.store?.budget,

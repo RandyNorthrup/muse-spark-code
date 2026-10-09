@@ -109,6 +109,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly reservePaidExtra?: ModelApiHostDeps['reservePaidExtra']
   /** The machine-scoped converter path, read per use (lane V seam 3B). */
   readonly mediaConverterPath?: ModelApiHostDeps['mediaConverterPath']
+  /** Windows: the converter's job launcher (lanes V and VB). */
+  readonly mediaJobExecutable?: ModelApiHostDeps['mediaJobExecutable']
   /** The git facts for the prompt's environment section (D15). */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   /** The same facts for a best-of-N worktree (M77): an attempt's own branch. */
@@ -370,6 +372,9 @@ export class ModelApiBackendManager {
         }),
         ...(this.deps.mediaConverterPath !== undefined && {
           mediaConverterPath: this.deps.mediaConverterPath,
+        }),
+        ...(this.deps.mediaJobExecutable !== undefined && {
+          mediaJobExecutable: this.deps.mediaJobExecutable,
         }),
         getAccountId: async () => {
           if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()

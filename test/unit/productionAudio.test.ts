@@ -7,8 +7,9 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { createProductionAudio } from '../../src/core/voice/productionAudio'
+import { conversionBindings } from '../../src/host/backend/productionAudioEntry'
 import type { AudioSource } from '../../src/core/voice/transcribeBatch'
 import type { TurnPart } from '../../src/core/agent/agentBackend'
 import { runtimeConverterPath } from '../../src/runtime/runtimeConverterPath'
@@ -135,6 +136,50 @@ describe('production audio binding (M105 lane V seam 3B)', () => {
     expect(t.locateConverter).toHaveBeenCalledWith(
       expect.objectContaining({ configuredConverters: [] }),
     )
+  })
+})
+
+describe('lane VB platform bindings for each conversion', () => {
+  const platform = Object.getOwnPropertyDescriptor(process, 'platform')
+  afterEach(() => {
+    if (platform !== undefined) Object.defineProperty(process, 'platform', platform)
+  })
+  const as = (value: NodeJS.Platform) => {
+    Object.defineProperty(process, 'platform', { value, configurable: true })
+  }
+
+  it('runs Windows conversion in the job under a kernel cap, never sampling RSS', async () => {
+    as('win32')
+    const jobExecutable = vi.fn(() => Promise.resolve(undefined))
+    const options = conversionBindings(jobExecutable)
+    expect(options.readRssBytes).toBeUndefined()
+    expect(options.createPrivateDirectory).toBeTypeOf('function')
+    // No launcher: a refusal before anything starts, never an unbounded run.
+    await expect(
+      options.memoryLimitedRun?.(path.join(root, 'ffmpeg.exe'), [], {
+        cwd: root,
+        env: {},
+        timeoutMs: 1000,
+        outputPath: path.join(root, 'out.wav'),
+        maxOutputBytes: 1024,
+        maxRssBytes: 1024 * 1024,
+      }),
+    ).rejects.toMatchObject({ code: 'EMEDIA_JOB_FAILED' })
+    expect(jobExecutable).toHaveBeenCalled()
+    // Without a host launcher the same refusal stands.
+    expect(conversionBindings(undefined).memoryLimitedRun).toBeTypeOf('function')
+  })
+
+  it('binds no macOS sampler yet (conversion refuses there), and leaves Linux on /proc', () => {
+    as('darwin')
+    const mac = conversionBindings(undefined)
+    expect(mac.readRssBytes).toBeUndefined()
+    expect(mac.memoryLimitedRun).toBeUndefined()
+    as('linux')
+    const linux = conversionBindings(undefined)
+    expect(linux.readRssBytes).toBeUndefined()
+    expect(linux.memoryLimitedRun).toBeUndefined()
+    expect(linux.createPrivateDirectory).toBeTypeOf('function')
   })
 })
 
