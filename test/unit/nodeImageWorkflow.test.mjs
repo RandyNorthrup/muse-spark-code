@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -17,10 +17,67 @@ const registryVersion = (id, tags) => ({
   created_at: '2026-10-05T00:00:00Z',
   metadata: { container: { tags } },
 })
+const dockerStubBody = () => String.raw`#!${process.execPath}
+const fs = require('node:fs')
+const args = process.argv.slice(2)
+const state = JSON.parse(fs.readFileSync(process.env.FAKE_STATE, 'utf8'))
+if (args[2] === 'inspect') {
+  if (process.env.FAKE_DOCKER_UNAVAILABLE === '1') {
+    process.stderr.write('registry unavailable\n')
+    process.exit(1)
+  }
+  const tag = args.at(-1).split(':').at(-1)
+  if (!state[tag]) {
+    if (process.env.FAKE_AMBIGUOUS_INSPECT === '1') {
+      process.stderr.write('unexpected status: 401 Unauthorized\n')
+    } else {
+      process.stderr.write('ERROR: ' + process.env.IMAGE + ':' + tag + ': not found\n')
+    }
+    process.exit(1)
+  }
+  process.stdout.write(JSON.stringify({ digest: state[tag] }))
+} else if (args[2] === 'create') {
+  if (process.env.FAKE_DOCKER_UNAVAILABLE === '1') {
+    process.stderr.write('registry unavailable\n')
+    process.exit(1)
+  }
+  for (let index = 0; index < args.length; index++) {
+    if (args[index] === '--tag') state[args[index + 1].split(':').at(-1)] = args.at(-1).split('@').at(-1)
+  }
+  fs.writeFileSync(process.env.FAKE_STATE, JSON.stringify(state))
+} else process.exit(1)
+`
+const plantDockerStub = (directory, platform = process.platform) => {
+  if (platform === 'win32') {
+    // Windows spawn resolves only PATHEXT names, and an extensionless file
+    // would shadow the shim while failing to execute, so only the .cmd exists.
+    writeFileSync(path.join(directory, 'docker-impl.cjs'), dockerStubBody())
+    writeFileSync(
+      path.join(directory, 'docker.cmd'),
+      '@echo off\r\nnode "%~dp0docker-impl.cjs" %*\r\n',
+    )
+  } else {
+    writeFileSync(path.join(directory, 'docker'), dockerStubBody(), { mode: 0o755 })
+  }
+}
+const resolveWindowsCommand = (directory, command) => {
+  const names = readdirSync(directory)
+  const lower = new Map(names.map((name) => [name.toLowerCase(), name]))
+  const candidates = [command, '.COM', '.EXE', '.BAT', '.CMD'].map((suffix) =>
+    suffix.startsWith('.') ? `${command}${suffix}` : suffix,
+  )
+  return candidates.map((candidate) => lower.get(candidate.toLowerCase())).find(Boolean)
+}
 const promote = (
   tag,
   current,
-  { pages, registryFailure = false, changedDigest = false, isDockerUnavailable = false } = {},
+  {
+    pages,
+    registryFailure = false,
+    changedDigest = false,
+    isDockerUnavailable = false,
+    ambiguousInspect = false,
+  } = {},
 ) => {
   mkdirSync('temp', { recursive: true })
   const directory = mkdtempSync(path.resolve('temp/m110-c-channel-'))
@@ -40,32 +97,7 @@ const promote = (
     snapshot,
     JSON.stringify(pages ?? [current ? [registryVersion(1, [channel, current])] : []]),
   )
-  writeFileSync(
-    path.join(directory, 'docker'),
-    String.raw`#!${process.execPath}
-const fs = require('node:fs')
-const args = process.argv.slice(2)
-const state = JSON.parse(fs.readFileSync(process.env.FAKE_STATE, 'utf8'))
-if (args[2] === 'inspect') {
-  if (process.env.FAKE_DOCKER_UNAVAILABLE === '1') {
-    process.stderr.write('registry unavailable\n')
-    process.exit(1)
-  }
-  const tag = args.at(-1).split(':').at(-1)
-  if (!state[tag]) {
-    process.stderr.write('ERROR: ' + process.env.IMAGE + ':' + tag + ': not found\n')
-    process.exit(1)
-  }
-  process.stdout.write(JSON.stringify({ digest: state[tag] }))
-} else if (args[2] === 'create') {
-  for (let index = 0; index < args.length; index++) {
-    if (args[index] === '--tag') state[args[index + 1].split(':').at(-1)] = args.at(-1).split('@').at(-1)
-  }
-  fs.writeFileSync(process.env.FAKE_STATE, JSON.stringify(state))
-} else process.exit(1)
-`,
-    { mode: 0o755 },
-  )
+  plantDockerStub(directory)
   writeFileSync(
     path.join(directory, 'gh'),
     `#!${process.execPath}
@@ -89,6 +121,7 @@ process.stdout.write(require('node:fs').readFileSync(process.env.FAKE_SNAPSHOT, 
         FAKE_SNAPSHOT: snapshot,
         FAKE_REGISTRY_FAILURE: registryFailure ? '1' : '0',
         FAKE_DOCKER_UNAVAILABLE: isDockerUnavailable ? '1' : '0',
+        FAKE_AMBIGUOUS_INSPECT: ambiguousInspect ? '1' : '0',
         IMAGE: image,
         REFERENCE: `${image}@${candidateDigest}`,
         GITHUB_REF_NAME: tag,
@@ -217,8 +250,84 @@ describe('node image release admission', () => {
     { pages: [[{ metadata: { container: { tags: ['stable', 'v0.15.0'] } } }]] },
   ])('refuses publication when current channel state is unavailable or invalid: %j', (options) => {
     const { result, tags } = promote('v0.14.0', 'v0.15.0', options)
-    expect(result.status).not.toBe(0)
-    expect(tags['v0.14.0']).toBeUndefined()
+    expect(result.status, result.stderr).not.toBe(0)
+    if (options.registryFailure || options.isDockerUnavailable) {
+      // The version write itself never ran: the listing fetch failed, or
+      // docker could not create the tag either.
+      expect(tags['v0.14.0']).toBeUndefined()
+    } else {
+      // Only the channel lookup was ambiguous: the verified version tag is
+      // still written, the channel is left alone, and the step fails loudly.
+      expect(tags['v0.14.0']).toBe(candidateDigest)
+      // changedDigest starts with the channel already pointing at the
+      // candidate; every other case must leave the channel untouched.
+      expect(tags.stable).toBe(options.changedDigest ? candidateDigest : currentDigest)
+    }
+  })
+  it('writes the version tag but refuses the channel when first-time inspection is ambiguous', () => {
+    const { result, tags } = promote('v0.15.0-beta.1', undefined, {
+      pages: [[]],
+      ambiguousInspect: true,
+    })
+    expect(result.status, result.stderr).not.toBe(0)
+    expect(tags['v0.15.0-beta.1']).toBe(candidateDigest)
+    expect(tags.preview).toBeUndefined()
+  })
+  it('refuses every tag write when the candidate is not a release version', () => {
+    const { result, tags } = promote('notaversion', 'v0.15.0')
+    expect(result.status, result.stderr).not.toBe(0)
+    expect(tags.notaversion).toBeUndefined()
+    expect(tags.stable).toBe(currentDigest)
+  })
+  it('resolves the docker stub through Windows PATHEXT rules without shadowing', () => {
+    mkdirSync('temp', { recursive: true })
+    const directory = mkdtempSync(path.resolve('temp/m110-c-win32-'))
+    try {
+      plantDockerStub(directory, 'win32')
+      // Windows tries the bare name first, then each PATHEXT extension in
+      // order; the shim must win and no extensionless file may shadow it.
+      expect(resolveWindowsCommand(directory, 'docker')).toBe('docker.cmd')
+      const stateFile = path.join(directory, 'state.json')
+      writeFileSync(stateFile, JSON.stringify({ stable: currentDigest }))
+      const inspect = spawnSync(
+        process.execPath,
+        [
+          path.join(directory, 'docker-impl.cjs'),
+          'buildx',
+          'imagetools',
+          'inspect',
+          '--format',
+          '{{json .Manifest}}',
+          `${image}:stable`,
+        ],
+        {
+          encoding: 'utf8',
+          env: { ...process.env, FAKE_STATE: stateFile, IMAGE: image },
+        },
+      )
+      expect(inspect.status).toBe(0)
+      expect(inspect.stdout).toBe(JSON.stringify({ digest: currentDigest }))
+      const missing = spawnSync(
+        process.execPath,
+        [
+          path.join(directory, 'docker-impl.cjs'),
+          'buildx',
+          'imagetools',
+          'inspect',
+          '--format',
+          '{{json .Manifest}}',
+          `${image}:preview`,
+        ],
+        {
+          encoding: 'utf8',
+          env: { ...process.env, FAKE_STATE: stateFile, IMAGE: image },
+        },
+      )
+      expect(missing.status).toBe(1)
+      expect(missing.stderr).toBe(`ERROR: ${image}:preview: not found\n`)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
   })
   it('refuses to initialize a channel when registry inspection is unavailable', () => {
     const { result, tags } = promote('v0.14.0', undefined, { isDockerUnavailable: true })

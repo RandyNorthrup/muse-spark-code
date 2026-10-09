@@ -63,6 +63,10 @@ function atLeast(candidate, current) {
   return candidate.pre.length >= current.pre.length
 }
 
+export function assertNodeImageTag(tag) {
+  releaseVersion(tag)
+}
+
 export function nodeImageChannel(tag, pages, execute = execFileSync) {
   const candidate = releaseVersion(tag)
   const channel = candidate.pre.length === 0 ? 'stable' : 'preview'
