@@ -370,7 +370,7 @@
                   }
                 },
                 "skillIds": {
-                  "maxItems": 256,
+                  "maxItems": 4096,
                   "type": "array",
                   "items": { "type": "string", "maxLength": 40, "pattern": "^maker_[a-z0-9_]+$" }
                 },
@@ -538,7 +538,7 @@
               }
             },
             "skillIds": {
-              "maxItems": 256,
+              "maxItems": 4096,
               "type": "array",
               "items": { "type": "string", "maxLength": 40, "pattern": "^maker_[a-z0-9_]+$" }
             },
