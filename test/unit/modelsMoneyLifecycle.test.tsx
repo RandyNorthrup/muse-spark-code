@@ -78,7 +78,15 @@ async function costState(): Promise<ModelsPanelState> {
 async function release(): Promise<void> {
   await act(async () => {
     chunk.gate.resolve(undefined)
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    // Wait for the document's one money load (started by the mounted panel)
+    // to settle, not for a fixed tick: on a loaded runner resolving the
+    // chunk's imports outlasts a tick and the alert's default 1 s wait.
+    const { loadMoneyDisplay } = await import('../../src/webview/money')
+    try {
+      await loadMoneyDisplay()
+    } catch {
+      // The failure case asserts the panel's alert.
+    }
   })
 }
 
