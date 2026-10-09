@@ -147,16 +147,29 @@ const batchResultSchema = z.strictObject({
   billedSeconds: z.optional(z.number().check(z.gte(0))),
 })
 
+/**
+ * Permission and dispatch are separate states (RVMEDIAV 3): a refusal before
+ * `dispatch` (no key, another account, the endpoint check) is a non-send that
+ * refunds and counts nothing; only `dispatch` carries liability.
+ */
+export interface BatchAdmission {
+  /** Permission only: gate, claim, model and Stop now. Nothing is owed. */
+  readonly check: () => void
+  /** The transport's last synchronous step before its fetch, after the key
+   * and endpoint: the final admission, then the observed dispatch. */
+  readonly dispatch: () => void
+}
+
 export interface BatchTranscriptionPort {
   /** Evidence-backed billing bound, including any provider rounding. Unknown
    * refuses admission; sniffed duration alone is not a billing receipt. */
   readonly billableSecondsUpperBound: (source: AudioSource) => number | undefined
-  /** Streams a confined source; calls admitSend before EACH charged attempt,
-   * after retrieving the stored key. Stop/close aborts the supplied signal. */
+  /** Streams a confined source; the transport calls `admission.dispatch`
+   * immediately before EACH charged attempt. Stop/close aborts the signal. */
   readonly transcribe: (
     source: AudioSource,
     signal: AbortSignal,
-    admitSend: () => void,
+    admission: BatchAdmission,
   ) => Promise<z.infer<typeof batchResultSchema>>
 }
 
@@ -313,14 +326,19 @@ export async function prepareAudioAttachment(
     const admittedClaim = await deps.reserve(batchCost(upperSeconds), signal)
     claim = admittedClaim
     check(deps, signal)
+    const admit = () => {
+      check(deps, signal)
+      if (accounting.hasSent || !deps.gate.isOn('voice')) throw new Error(UI_TEXT.museVoiceRefused)
+      admittedClaim.admitSend()
+    }
     const result = batchResultSchema.parse(
-      await deps.batch.transcribe(converted?.source ?? source, signal, () => {
-        check(deps, signal)
-        if (accounting.hasSent || !deps.gate.isOn('voice'))
-          throw new Error(UI_TEXT.museVoiceRefused)
-        admittedClaim.admitSend()
-        accounting.hasSent = true
-        accounting.settledCost = undefined
+      await deps.batch.transcribe(converted?.source ?? source, signal, {
+        check: admit,
+        dispatch: () => {
+          admit()
+          accounting.hasSent = true
+          accounting.settledCost = undefined
+        },
       }),
     )
     if (!accounting.hasSent) throw new Error(UI_TEXT.museVoiceRefused)

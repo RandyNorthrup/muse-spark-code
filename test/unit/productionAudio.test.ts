@@ -4,11 +4,17 @@
 // a configured path), never silently dropped; and the runtime's converter
 // path is a machine setting in the agent data folder that the daily ledger
 // still reads.
+import { Buffer } from 'node:buffer'
+import { createHash } from 'node:crypto'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { open } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { createProductionAudio } from '../../src/core/voice/productionAudio'
+import { AttachedMedia, reopeningSource } from '../../src/core/media/attachedMedia'
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import { fakeModelApiClientSettings } from './helpers/fakeModelApi'
 import { voiceSeamDeps } from './helpers/voiceSeams'
 import { conversionBindings, privateRootFor } from '../../src/host/backend/productionAudioEntry'
 import * as privateDirectory from '../../src/runtime/privateDirectory'
@@ -88,6 +94,9 @@ function audio(options: {
           ? options.sources.find((source) => source.pathToken === part.token)
           : undefined,
       path: () => Promise.resolve(undefined),
+      read: () => {
+        throw new Error('must not read')
+      },
     },
     postTranscription,
     converterPath: () => options.converterPath,
@@ -145,6 +154,219 @@ describe('production audio binding (M105 lane V seam 3B)', () => {
     expect(t.locateConverter).toHaveBeenCalledWith(
       expect.objectContaining({ configuredConverters: [] }),
     )
+  })
+})
+
+/** A 16 kHz mono 16-bit PCM WAV of `seconds`: the batch contract, as attached. */
+function contractWav(seconds: number): Uint8Array {
+  const data = seconds * 32_000
+  const bytes = new Uint8Array(44 + data)
+  const view = new DataView(bytes.buffer)
+  const ascii = (offset: number, text: string) => {
+    bytes.set(new TextEncoder().encode(text), offset)
+  }
+  ascii(0, 'RIFF')
+  view.setUint32(4, 36 + data, true)
+  ascii(8, 'WAVE')
+  ascii(12, 'fmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, 1, true)
+  view.setUint32(24, 16_000, true)
+  view.setUint32(28, 32_000, true)
+  view.setUint16(32, 2, true)
+  view.setUint16(34, 16, true)
+  ascii(36, 'data')
+  view.setUint32(40, data, true)
+  return bytes
+}
+
+/**
+ * The reviewer's probes as tests: the real registry, production audio and
+ * Meta client; only the file, the HTTP, the key and the ledgers are fakes.
+ * A two-second contract WAV is attached from a real file.
+ */
+function probe(options: {
+  readonly apiKey?: () => Promise<string | undefined>
+  readonly isVoiceOn?: () => boolean
+  readonly allowsPaidUse?: () => Promise<boolean>
+  readonly assertCurrent?: () => void
+  readonly isDailyOpen?: () => boolean
+}) {
+  const file = path.join(mkdtempSync(path.join(root, 'attached-')), 'clip.wav')
+  const attachedBytes = contractWav(2)
+  writeFileSync(file, attachedBytes)
+  const registry = new AttachedMedia()
+  const part = registry.register(
+    'clip-token',
+    {
+      name: 'clip.wav',
+      info: {
+        kind: 'audio',
+        mediaType: 'audio/wav',
+        sizeBytes: attachedBytes.length,
+        durationSeconds: 2,
+      },
+      sha256: createHash('sha256').update(attachedBytes).digest('hex'),
+    },
+    reopeningSource(async () => {
+      const handle = await open(file, 'r')
+      const { size } = await handle.stat()
+      return {
+        source: {
+          sizeBytes: size,
+          read: async (offset, length) => {
+            const chunk = Buffer.alloc(length)
+            const { bytesRead } = await handle.read(chunk, 0, length, offset)
+            return new Uint8Array(chunk.subarray(0, bytesRead))
+          },
+        },
+        path: file,
+        close: () => handle.close(),
+      }
+    }),
+  )
+  const fetches = vi.fn<typeof fetch>(() =>
+    Promise.resolve(Response.json({ transcript: 'Hello there.', audioDurationMs: 60_000 })),
+  )
+  const client = new ModelApiClient({
+    ...fakeModelApiClientSettings({ info: vi.fn(), warn: vi.fn(), trace: vi.fn(), error: vi.fn() }),
+    fetch: fetches,
+    apiKey: options.apiKey ?? (() => Promise.resolve('fixture-transcription-key')),
+  })
+  const reserved: string[] = []
+  const settled: string[] = []
+  const notePaidUse = vi.fn()
+  const prepare = createProductionAudio({
+    ...voiceSeamDeps({
+      notePaidUse,
+      isPaidFeatureOn: options.isVoiceOn ?? (() => true),
+      allowsPaidUse: options.allowsPaidUse ?? (() => Promise.resolve(true)),
+      reservePaidExtra: (amount) => {
+        reserved.push(amount)
+        return Promise.resolve({
+          reservedUsd: amount,
+          check: () => {
+            if (options.isDailyOpen?.() === false) throw new Error('Daily budget revoked')
+          },
+          settle: (actual) => {
+            settled.push(actual)
+            return Promise.resolve()
+          },
+        })
+      },
+    }),
+    attached: registry,
+    postTranscription: (post) =>
+      client.requestTranscription(post.route, post.signal, post, undefined, post.dispatch),
+    converterPath: () => undefined,
+    locateConverter: () =>
+      Promise.resolve({ ok: false as const, reason: UI_TEXT.media.converterUnavailable }),
+  })
+  return {
+    file,
+    fetches,
+    reserved,
+    settled,
+    notePaidUse,
+    run: () =>
+      prepare({
+        sessionId: 'session',
+        turnId: 'turn',
+        modelId: 'muse-spark-1.3-contributor',
+        parts: [part],
+        signal: new AbortController().signal,
+        ...(options.assertCurrent !== undefined && { assertCurrent: options.assertCurrent }),
+      }),
+  }
+}
+
+describe('RVMEDIAV probes over the real registry, production audio and Meta client', () => {
+  it('transcribes the attached bytes, reserved and settled on their duration', async () => {
+    const t = probe({})
+    t.fetches.mockResolvedValueOnce(
+      Response.json({ transcript: 'Hello there.', audioDurationMs: 2000 }),
+    )
+    const prepared = await t.run()
+    expect(prepared?.parts).toEqual([expect.objectContaining({ type: 'textFile' })])
+    expect(t.fetches).toHaveBeenCalledOnce()
+    expect(t.reserved).toEqual(['0.0001'])
+    expect(t.settled).toEqual(['0.0001'])
+    expect(t.notePaidUse).toHaveBeenCalledExactlyOnceWith('voice', 2)
+  })
+
+  it.each([
+    ['sixty seconds', () => contractWav(60)],
+    ['other bytes of the same length', () => contractWav(2).fill(7, 44)],
+  ])(
+    'refuses replaced bytes (%s) before any send: no POST, the reserve refunded (finding 1)',
+    async (_case, replacement) => {
+      const t = probe({})
+      // Two seconds approved; something else on disk when the turn is sent.
+      writeFileSync(t.file, replacement())
+      await expect(t.run()).rejects.toThrow(fill(UI_TEXT.media.sourceChanged, { name: 'clip.wav' }))
+      expect(t.fetches).not.toHaveBeenCalled()
+      expect(t.settled).toEqual(['0'])
+      expect(t.notePaidUse).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['Muse Voice switched off', 'daily admission revoked'])(
+    'admits at the dispatch itself: %s during the key read sends nothing (finding 2)',
+    async (revocation) => {
+      const state = { isVoiceOn: true, isDailyOpen: true }
+      const t = probe({
+        isVoiceOn: () => state.isVoiceOn,
+        isDailyOpen: () => state.isDailyOpen,
+        apiKey: () => {
+          if (revocation === 'daily admission revoked') state.isDailyOpen = false
+          else state.isVoiceOn = false
+          return Promise.resolve('fixture-transcription-key')
+        },
+      })
+      await expect(t.run()).rejects.toThrow()
+      expect(t.fetches).not.toHaveBeenCalled()
+      expect(t.settled).toEqual(['0'])
+      expect(t.notePaidUse).not.toHaveBeenCalled()
+    },
+  )
+
+  it('abandons preparation when Muse Voice is switched off during consent, before reserving (finding 2)', async () => {
+    const state = { isVoiceOn: true }
+    const t = probe({
+      isVoiceOn: () => state.isVoiceOn,
+      allowsPaidUse: () => {
+        state.isVoiceOn = false
+        return Promise.resolve(true)
+      },
+    })
+    await expect(t.run()).rejects.toThrow(UI_TEXT.museVoiceRefused)
+    expect(t.reserved).toEqual([])
+    expect(t.fetches).not.toHaveBeenCalled()
+  })
+
+  it('refunds a known local non-send and counts no usage: no key stored (finding 3)', async () => {
+    const t = probe({ apiKey: () => Promise.resolve(undefined) })
+    await expect(t.run()).rejects.toThrow()
+    expect(t.fetches).not.toHaveBeenCalled()
+    expect(t.settled).toEqual(['0'])
+    expect(t.notePaidUse).not.toHaveBeenCalled()
+  })
+
+  it('checks the host model revision before dispatch: a change during consent spends nothing (finding 4)', async () => {
+    let revision = 1
+    const t = probe({
+      allowsPaidUse: () => {
+        revision = 2
+        return Promise.resolve(true)
+      },
+      assertCurrent: () => {
+        if (revision !== 1) throw new Error('model changed')
+      },
+    })
+    await expect(t.run()).rejects.toThrow('model changed')
+    expect(t.fetches).not.toHaveBeenCalled()
+    expect(t.notePaidUse).not.toHaveBeenCalled()
   })
 })
 

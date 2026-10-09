@@ -31,7 +31,7 @@ import {
 import { voiceBatchSeams, type VoiceBatchSeamDeps } from './voiceBatchSeams'
 
 export interface ProductionAudioDeps extends Omit<VoiceBatchSeamDeps, 'sessionId'> {
-  readonly attached: Pick<AttachedMediaPort, 'audio' | 'path'>
+  readonly attached: Pick<AttachedMediaPort, 'audio' | 'path' | 'read'>
   /** Seam 2's transcription POST on the session's Meta client. */
   readonly postTranscription: TranscriptionPostDeps['postTranscription']
   /** The machine-scoped converter path; empty or absent: documented installs. */
@@ -68,7 +68,7 @@ function assertConvertible(
   }
 }
 
-/** A confined, bounded read of an attached or converted file. */
+/** A bounded read of a file the converter rendered; attachments stream verified. */
 async function readAudioBytes(absolutePath: string, signal: AbortSignal): Promise<Uint8Array> {
   signal.throwIfAborted()
   const info = await lstat(absolutePath)
@@ -91,6 +91,8 @@ export function createProductionAudio(deps: ProductionAudioDeps) {
     readonly modelId: string
     readonly parts: readonly TurnPart[]
     readonly signal: AbortSignal
+    /** The host's own currency (its model revision), checked with every step. */
+    readonly assertCurrent?: () => void
   }) => {
     const sources = request.parts.flatMap((part) => deps.attached.audio(part) ?? [])
     // Nothing attached to hear: no converter probe, no port, no bytes changed.
@@ -112,6 +114,7 @@ export function createProductionAudio(deps: ProductionAudioDeps) {
     const ports = createTranscriptionPorts({
       postTranscription: deps.postTranscription,
       readAudioBytes,
+      readSource: (source, signal) => deps.attached.read(source.pathToken, signal),
       resolveSourcePath: (source) => deps.attached.path(source.pathToken),
       locateConverter: () => Promise.resolve(located),
       conversionOptions,
@@ -123,8 +126,13 @@ export function createProductionAudio(deps: ProductionAudioDeps) {
       ...ports,
       ...seams,
       resolveSource: (part) => deps.attached.audio(part),
+      // Stop, the host's model revision and the Muse Voice setting, after
+      // every await and at the dispatch itself: a change abandons the
+      // preparation before anything is spent (RVMEDIAV 2, 4).
       assertCurrent: () => {
         request.signal.throwIfAborted()
+        request.assertCurrent?.()
+        if (deps.isPaidFeatureOn('voice') !== isVoiceOn) throw new Error(UI_TEXT.museVoiceRefused)
       },
     })(request)
   }

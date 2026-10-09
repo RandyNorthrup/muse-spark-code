@@ -3,6 +3,7 @@
 // redirect and hands the adapter the raw (bounded, redacted) refusal body
 // instead of throwing, so the captured 400 reaches the user verbatim.
 import { mkdtempSync } from 'node:fs'
+import { Readable } from 'node:stream'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -16,6 +17,8 @@ import { mediaInfoSchema } from '../../src/shared/media'
 import { FAKE_MODEL_API_BASE_URL, fakeModelApiClientSettings } from './helpers/fakeModelApi'
 
 const KEY = 'fixture-transcription-key'
+/** The paid admission a test does not exercise: it admits. */
+const admitted = () => undefined
 const ROUTE = '/asr/transcribe?sessionId=0f8fad5b-d9cb-469f-a165-70867728950e'
 // Round 3's captured refusal for a container sent as is (U18 T4).
 const REFUSAL = {
@@ -83,6 +86,8 @@ describe('the transcription transport (seam 2)', () => {
       ROUTE,
       new AbortController().signal,
       body,
+      undefined,
+      admitted,
     )
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual(REFUSAL)
@@ -101,6 +106,8 @@ describe('the transcription transport (seam 2)', () => {
       ROUTE,
       new AbortController().signal,
       multipart(),
+      undefined,
+      admitted,
     )
     expect(response.status).toBe(503)
     expect(sent).toHaveBeenCalledOnce()
@@ -119,7 +126,13 @@ describe('the transcription transport (seam 2)', () => {
     const apiKey = vi.fn(() => Promise.resolve(KEY))
     const transport = client(sent, apiKey)
     await expect(
-      transport.requestTranscription(route, new AbortController().signal, multipart()),
+      transport.requestTranscription(
+        route,
+        new AbortController().signal,
+        multipart(),
+        undefined,
+        admitted,
+      ),
     ).rejects.toThrow('Invalid transcription route')
     expect(apiKey).not.toHaveBeenCalled()
     expect(sent).not.toHaveBeenCalled()
@@ -128,10 +141,16 @@ describe('the transcription transport (seam 2)', () => {
   it('refuses a body that is not the adapter multipart', async () => {
     const sent = vi.fn<typeof fetch>()
     await expect(
-      client(sent).requestTranscription(ROUTE, new AbortController().signal, {
-        ...multipart(),
-        contentType: 'application/json',
-      }),
+      client(sent).requestTranscription(
+        ROUTE,
+        new AbortController().signal,
+        {
+          ...multipart(),
+          contentType: 'application/json',
+        },
+        undefined,
+        admitted,
+      ),
     ).rejects.toThrow('Invalid transcription route')
     expect(sent).not.toHaveBeenCalled()
   })
@@ -144,8 +163,38 @@ describe('the transcription transport (seam 2)', () => {
       ROUTE,
       new AbortController().signal,
       multipart(),
+      undefined,
+      admitted,
     )
     expect(await response.text()).not.toContain(KEY)
+  })
+
+  it('admits immediately before the fetch, after the key; a revoked admission sends nothing (RVMEDIAV 2)', async () => {
+    const sent = vi.fn<typeof fetch>(() => Promise.resolve(Response.json(REFUSAL, { status: 400 })))
+    const key = Promise.withResolvers<string | undefined>()
+    const order: string[] = []
+    const transport = client(sent, async () => {
+      order.push('key')
+      return await key.promise
+    })
+    let isAdmitted = true
+    const posting = transport.requestTranscription(
+      ROUTE,
+      new AbortController().signal,
+      multipart(),
+      undefined,
+      () => {
+        order.push('admit')
+        if (!isAdmitted) throw new Error('Muse Voice is off')
+      },
+    )
+    // Muse Voice is switched off (or the daily admission revoked) while the
+    // key read is still pending.
+    isAdmitted = false
+    key.resolve(KEY)
+    await expect(posting).rejects.toThrow('Muse Voice is off')
+    expect(order).toEqual(['key', 'admit'])
+    expect(sent).not.toHaveBeenCalled()
   })
 
   it('checks the account digest after reading the key and before dispatch', async () => {
@@ -156,6 +205,7 @@ describe('the transcription transport (seam 2)', () => {
         new AbortController().signal,
         multipart(),
         'another-account',
+        admitted,
       ),
     ).rejects.toThrow()
     expect(sent).not.toHaveBeenCalled()
@@ -173,6 +223,8 @@ describe('the transcription transport (seam 2)', () => {
       ROUTE,
       new AbortController().signal,
       multipart(),
+      undefined,
+      admitted,
     )
     expect(response?.status).toBe(400)
   })
@@ -182,9 +234,10 @@ describe('the transcription transport (seam 2)', () => {
     const transport = client(sent)
     const wav = contractWav(16_000)
     const ports = createTranscriptionPorts({
-      postTranscription: ({ route, body, contentType, signal }) =>
-        transport.requestTranscription(route, signal, { body, contentType }),
-      readAudioBytes: () => Promise.resolve(wav),
+      postTranscription: ({ route, body, contentType, signal, dispatch }) =>
+        transport.requestTranscription(route, signal, { body, contentType }, undefined, dispatch),
+      readAudioBytes: () => Promise.reject(new Error('an attachment never reads by path')),
+      readSource: () => Readable.from([wav]),
       resolveSourcePath: () => Promise.resolve('/fixture/clip.wav'),
     })
     const info = mediaInfoSchema.parse({
@@ -198,7 +251,7 @@ describe('the transcription transport (seam 2)', () => {
       ports.batch.transcribe(
         { name: 'clip.wav', pathToken: 'token', info },
         new AbortController().signal,
-        () => undefined,
+        { check: admitted, dispatch: admitted },
       ),
     ).rejects.toThrow(REFUSAL.error.message)
     expect(sent).toHaveBeenCalledOnce()

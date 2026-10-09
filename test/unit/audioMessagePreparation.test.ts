@@ -79,7 +79,13 @@ function rig(options?: { readonly voiceOn?: boolean; readonly isAllowed?: boolea
   const ports = createTranscriptionPorts({
     resolveSourcePath: (source) => Promise.resolve(paths.get(source.pathToken)),
     readAudioBytes: async (absolutePath) => new Uint8Array(await readFile(absolutePath)),
+    readSource: async function* (source) {
+      const file = paths.get(source.pathToken)
+      if (file === undefined) throw new Error('not attached')
+      yield new Uint8Array(await readFile(file))
+    },
     postTranscription: async (request) => {
+      request.dispatch()
       const chunks: Uint8Array[] = []
       const reader = request.body.getReader()
       for (;;) {

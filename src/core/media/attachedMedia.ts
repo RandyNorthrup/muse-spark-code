@@ -90,6 +90,13 @@ export class AttachedMedia {
       : undefined
   }
 
+  /** The approved bytes behind a token, digest-verified as they stream. */
+  public read(token: string, signal: AbortSignal): AsyncIterable<Uint8Array> {
+    const entry = this.entries.get(token)
+    if (entry === undefined) throw new Error(UI_TEXT.attachmentUnreadable)
+    return verified(entry.source.read(signal), entry.media)
+  }
+
   /** The confined path behind a token, rechecked by the host on every call. */
   public async path(token: string): Promise<string | undefined> {
     return await this.entries.get(token)?.source.path()
@@ -121,7 +128,10 @@ export class AttachedMedia {
 }
 
 /** What the session's media service and audio seam read; the attach port writes. */
-export type AttachedMediaPort = Pick<AttachedMedia, 'resolve' | 'source' | 'audio' | 'path'>
+export type AttachedMediaPort = Pick<
+  AttachedMedia,
+  'resolve' | 'source' | 'audio' | 'path' | 'read'
+>
 
 /**
  * An attached source over a host open hook that rechecks confinement and

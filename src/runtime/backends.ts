@@ -626,6 +626,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     source: (media) => registry?.source(media),
     audio: (part) => registry?.audio(part),
     path: async (token) => await registry?.path(token),
+    read: (token, signal) => {
+      if (registry === undefined) throw new Error(UI_TEXT.attachmentUnreadable)
+      return registry.read(token, signal)
+    },
   }
   const mediaIo = new Map<string, ToolIo>()
   const credentials = new CredentialStore(

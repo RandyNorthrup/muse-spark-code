@@ -13,6 +13,7 @@ import {
   createModelApiAudioContext,
   createTranscriptionPorts,
   type TranscriptionConversionDeps,
+  type TranscriptionPostDeps,
 } from '../../src/core/voice/transcribeBatchHttp'
 import {
   audioRouteOptions,
@@ -27,6 +28,7 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import { readWavFormat } from '../../src/core/media/sniff/riff'
+import { fill } from '../../src/shared/l10n/text'
 import { fakeConversionOptions } from './helpers/media/conversion'
 import type { Usd } from '../../src/shared/usd'
 
@@ -107,8 +109,10 @@ function rig(options?: {
   readonly locate?: TranscriptionConversionDeps['locateConverter']
   readonly encoderWav?: Uint8Array
   readonly respond?: () => Response
-  /** Replaces the confined byte read (the converted output's reread included). */
+  /** Replaces the converted output's byte read (attachments stream from `paths`). */
   readonly read?: (absolutePath: string) => Promise<Uint8Array>
+  /** Replaces the attachment's verified stream. */
+  readonly readSource?: TranscriptionPostDeps['readSource']
 }) {
   const stubWav = options?.encoderWav
   const posted: Posted[] = []
@@ -124,7 +128,16 @@ function rig(options?: {
       options?.read === undefined
         ? new Uint8Array(await readFile(absolutePath))
         : await options.read(absolutePath),
+    readSource:
+      options?.readSource ??
+      async function* (source) {
+        const file = paths.get(source.pathToken)
+        if (file === undefined) throw new Error('not attached')
+        yield new Uint8Array(await readFile(file))
+      },
     postTranscription: async (request) => {
+      // The transport's final admission, immediately before its fetch.
+      request.dispatch()
       const chunks: Uint8Array[] = []
       const reader = request.body.getReader()
       for (;;) {
@@ -313,6 +326,32 @@ describe('U18 WAV conversion before the batch send', () => {
     } finally {
       await rm(root, { recursive: true, force: true })
     }
+  })
+
+  it('refuses a converted WAV longer than the approved duration before admission (RVMEDIAV 1)', async () => {
+    // The file changed between the verification and the encoder's read: the
+    // rendered bytes measure sixty seconds against a two-second reservation.
+    const r = rig({ encoderWav: synthWav(60) })
+    r.paths.set(mp3Source.pathToken, path.resolve(MP3_FIXTURE))
+    await expect(r.prepare(mp3Source)).rejects.toThrow(
+      fill(UI_TEXT.media.sourceChanged, { name: 'speech.wav' }),
+    )
+    expect(r.posted).toHaveLength(0)
+    expect(r.settled).toEqual(['0'])
+    expect(r.voiceSeconds).toBe(0)
+  })
+
+  it('verifies the attachment before the converter reads it (RVMEDIAV 1)', async () => {
+    const changed = fill(UI_TEXT.media.sourceChanged, { name: mp3Source.name })
+    const r = rig({
+      encoderWav: synthWav(2),
+      readSource: () => {
+        throw new Error(changed)
+      },
+    })
+    r.paths.set(mp3Source.pathToken, path.resolve(MP3_FIXTURE))
+    await expect(r.prepare(mp3Source)).rejects.toThrow(changed)
+    expect([r.runs, r.posted.length, r.reserved.length]).toEqual([0, 0, 0])
   })
 
   it('refuses container bytes at the last mile before any HTTP', async () => {

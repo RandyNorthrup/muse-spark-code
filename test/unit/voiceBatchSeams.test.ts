@@ -104,8 +104,8 @@ function transcribe(seams: ReturnType<typeof voiceBatchSeams>, billedSeconds = 2
         assertCurrent: () => undefined,
         batch: {
           billableSecondsUpperBound: (source) => source.info.durationSeconds ?? undefined,
-          transcribe: (_source, _signal, admitSend) => {
-            admitSend()
+          transcribe: (_source, _signal, admission) => {
+            admission.dispatch()
             send()
             return Promise.resolve({ text: 'Hello there.', billedSeconds })
           },

@@ -94,7 +94,7 @@ function rig() {
   }
   const reserve = vi.fn<AudioPreparationDeps['reserve']>(() => Promise.resolve(claim))
   const transcribe = vi.fn<BatchTranscriptionPort['transcribe']>((source, _signal, admit) => {
-    admit()
+    admit.dispatch()
     return Promise.resolve({
       text: 'Soundtrack transcript canary',
       billedSeconds: source.info.durationSeconds ?? 0,
@@ -522,7 +522,7 @@ describe('batch preparation and accounting', () => {
     const r = rig()
     r.transcribe.mockImplementationOnce((_source, _signal, admit) => {
       r.state.isOn = false
-      admit()
+      admit.dispatch()
       return Promise.resolve({ text: 'should not arrive' })
     })
     await expect(r.prepare()).rejects.toThrow()
@@ -534,8 +534,8 @@ describe('batch preparation and accounting', () => {
     })
     await expect(r.prepare()).rejects.toThrow('daily budget reached')
     r.transcribe.mockImplementationOnce((_source, _signal, admit) => {
-      admit()
-      admit()
+      admit.dispatch()
+      admit.dispatch()
       return Promise.resolve({ text: 'retry' })
     })
     await expect(r.prepare()).rejects.toThrow()
@@ -545,7 +545,7 @@ describe('batch preparation and accounting', () => {
   it('retains uncertain liability and tally on failure, missing receipts and Stop, while cleaning', async () => {
     const r = rig()
     r.transcribe.mockImplementationOnce((_source, _signal, admit) => {
-      admit()
+      admit.dispatch()
       throw new Error('connection lost')
     })
     await expect(
@@ -554,14 +554,14 @@ describe('batch preparation and accounting', () => {
     expect(r.claim.settle).toHaveBeenLastCalledWith(undefined)
     expect(r.dispose).toHaveBeenCalledOnce()
     r.transcribe.mockImplementationOnce((_source, _signal, admit) => {
-      admit()
+      admit.dispatch()
       return Promise.resolve({ text: 'no receipt' })
     })
     await r.prepare(wav)
     expect(r.claim.settle).toHaveBeenLastCalledWith(undefined)
     const abort = new AbortController()
     r.transcribe.mockImplementationOnce((_source, signal, admit) => {
-      admit()
+      admit.dispatch()
       abort.abort()
       signal.throwIfAborted()
       return Promise.reject(new Error('unreachable'))
@@ -576,7 +576,7 @@ describe('batch preparation and accounting', () => {
     async (text) => {
       const r = rig()
       r.transcribe.mockImplementationOnce((_source, _signal, admit) => {
-        admit()
+        admit.dispatch()
         return Promise.resolve({ text })
       })
       await expect(r.prepare(wav)).rejects.toThrow()
@@ -592,7 +592,7 @@ describe('batch preparation and accounting', () => {
   ])('settles a known bill exactly once even when transcript text is rejected', async (text) => {
     const r = rig()
     r.transcribe.mockImplementationOnce((_source, _signal, admit) => {
-      admit()
+      admit.dispatch()
       return Promise.resolve({ text, billedSeconds: 1 })
     })
     await expect(r.prepare(wav)).rejects.toThrow()
@@ -612,6 +612,21 @@ describe('batch preparation and accounting', () => {
     expect(r.claim.settle.mock.calls[0]?.[0]?.toAmount()).toBe('0.0030125')
     expect(r.claim.settle).toHaveBeenCalledOnce()
     expect(r.dispose).toHaveBeenCalledOnce()
+  })
+
+  it('refunds and counts nothing when the transport refuses locally after permission (RVMEDIAV 3)', async () => {
+    const r = rig()
+    // Permission admitted, then the key read (or the account or endpoint
+    // check) refuses before any fetch: nothing left the machine.
+    r.transcribe.mockImplementationOnce((_source, _signal, admit) => {
+      admit.check()
+      return Promise.reject(new Error('No Model API key is stored'))
+    })
+    await expect(r.prepare(wav)).rejects.toThrow('No Model API key is stored')
+    expect(r.claim.admitSend).toHaveBeenCalledOnce()
+    expect(r.claim.settle).toHaveBeenCalledOnce()
+    expect(r.claim.settle.mock.calls[0]?.[0]?.toAmount()).toBe('0')
+    expect(r.usage.current.voiceSeconds).toBe(0)
   })
 
   it('does not accept a success from an adapter that bypasses final admission', async () => {
@@ -638,7 +653,7 @@ describe('batch preparation and accounting', () => {
   it('settles an over-bound receipt honestly and refuses its transcript', async () => {
     const r = rig()
     r.transcribe.mockImplementationOnce((_source, _signal, admit) => {
-      admit()
+      admit.dispatch()
       return Promise.resolve({ text: 'overspend', billedSeconds: 100 })
     })
     await expect(r.prepare(wav)).rejects.toThrow()

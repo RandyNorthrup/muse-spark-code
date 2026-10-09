@@ -58,6 +58,16 @@ function expectFailedWithoutDispatch(r: Awaited<ReturnType<typeof setup>>): void
   })
 }
 
+/** Whether a preparation's currency guard still holds. */
+function isCurrent(assertCurrent: () => void): boolean {
+  try {
+    assertCurrent()
+    return true
+  } catch {
+    return false
+  }
+}
+
 describe('M105-A per-message Model API audio preparation port', () => {
   it('uses 1.2 for the entire message and returns to 1.3 for the next turn', async () => {
     let isFirst = true
@@ -164,6 +174,32 @@ describe('M105-A per-message Model API audio preparation port', () => {
       await r.session.setModel('muse-spark-1.3')
       released.resolve(undefined)
       await r.turnDone()
+      expectFailedWithoutDispatch(r)
+    } finally {
+      released.resolve(undefined)
+      await r.host.close()
+    }
+  })
+
+  it('hands preparation the model-revision guard, before any paid dispatch (RVMEDIAV 4)', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const released = Promise.withResolvers<undefined>()
+    const checks: boolean[] = []
+    const r = await setup(async ({ parts, modelId, assertCurrent }) => {
+      checks.push(isCurrent(assertCurrent))
+      entered.resolve(undefined)
+      // Consent is waiting: the model changes before transcription spends.
+      await released.promise
+      checks.push(isCurrent(assertCurrent))
+      return { modelId, parts, assertCurrent: () => undefined }
+    })
+    try {
+      await r.session.sendTurn([{ type: 'text', text: 'with audio' }])
+      await entered.promise
+      await r.session.setModel('muse-spark-1.2')
+      released.resolve(undefined)
+      await r.turnDone()
+      expect(checks).toEqual([true, false])
       expectFailedWithoutDispatch(r)
     } finally {
       released.resolve(undefined)

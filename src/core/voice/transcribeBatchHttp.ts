@@ -27,6 +27,7 @@ import {
   TRANSCRIBE_WAV_SAMPLE_RATES,
   UI_TEXT,
 } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import { sniffMediaBytes } from '../media/limits'
 import { readWavFormat } from '../media/sniff/riff'
 import {
@@ -86,9 +87,15 @@ export interface TranscriptionPostDeps {
     readonly body: ReadableStream<Uint8Array>
     readonly contentType: string
     readonly signal: AbortSignal
+    /** Called synchronously immediately before the fetch, after the key and
+     * endpoint are ready; a throw refuses the POST (RVMEDIAV 2). */
+    readonly dispatch: () => void
   }) => Promise<Response>
-  /** Confined byte read of an adapter-resolved absolute path. */
+  /** Bounded read of a converted file this adapter rendered. */
   readonly readAudioBytes: (absolutePath: string, signal: AbortSignal) => Promise<Uint8Array>
+  /** The approved attachment's digest-verified stream (the registry's):
+   * a changed size or digest throws before its last chunk (RVMEDIAV 1). */
+  readonly readSource: (source: AudioSource, signal: AbortSignal) => AsyncIterable<Uint8Array>
 }
 
 export interface TranscriptionConversionDeps {
@@ -144,6 +151,33 @@ function transcriptionBody(
       },
     }),
     contentType: `multipart/form-data; boundary=${boundary}`,
+  }
+}
+
+/** The approved attachment's bytes, whole only when they are the ones attached. */
+async function verifiedBytes(chunks: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
+  const parts: Uint8Array[] = []
+  let size = 0
+  for await (const chunk of chunks) {
+    parts.push(chunk)
+    size += chunk.byteLength
+  }
+  const bytes = new Uint8Array(size)
+  let offset = 0
+  for (const part of parts) {
+    bytes.set(part, offset)
+    offset += part.byteLength
+  }
+  return bytes
+}
+
+/** Reads a verified stream to its end without keeping it: the digest check alone. */
+async function verifyThrough(chunks: AsyncIterable<Uint8Array>): Promise<void> {
+  const reader = chunks[Symbol.asyncIterator]()
+  let isDone = false
+  while (!isDone) {
+    const next = await reader.next()
+    isDone = next.done === true
   }
 }
 
@@ -213,6 +247,10 @@ export function createTranscriptionPorts(
       signal.throwIfAborted()
       if (mode !== 'extractWav') throw new Error(UI_TEXT.media.converterUnavailable)
       const inputPath = await resolveAbsolutePath(source)
+      // The converter reads by path: the attachment is verified against its
+      // approved digest first, so a replaced file refuses before encoding.
+      const isOriginal = !converted.has(source.pathToken)
+      if (isOriginal) await verifyThrough(deps.readSource(source, signal))
       signal.throwIfAborted()
       const located = await (deps.locateConverter ?? locateMediaConverter)()
       if (!located.ok) throw new Error(located.reason)
@@ -221,6 +259,14 @@ export function createTranscriptionPorts(
         signal,
       })
       if (!rendered.ok) throw new Error(rendered.reason)
+      if (isOriginal) {
+        try {
+          await verifyThrough(deps.readSource(source, signal))
+        } catch (error: unknown) {
+          await rendered.dispose()
+          throw error
+        }
+      }
       const token = mintToken()
       converted.set(token, { path: rendered.path, kind: source.info.kind })
       const dispose = async () => {
@@ -241,10 +287,15 @@ export function createTranscriptionPorts(
   const batch: BatchTranscriptionPort = {
     billableSecondsUpperBound: (source) =>
       source.info.durationSeconds === null ? undefined : Math.ceil(source.info.durationSeconds),
-    transcribe: async (source, signal, admitSend) => {
+    transcribe: async (source, signal, admission) => {
       signal.throwIfAborted()
-      const absolutePath = await resolveAbsolutePath(source)
-      let wav = await deps.readAudioBytes(absolutePath, signal)
+      // An attachment is read through its digest-verified stream; only a
+      // file this adapter rendered is read by path.
+      const renderedPath = converted.get(source.pathToken)?.path
+      let wav =
+        renderedPath === undefined
+          ? await verifiedBytes(deps.readSource(source, signal))
+          : await deps.readAudioBytes(renderedPath, signal)
       const sniffed = sniffMediaBytes(wav)
       if (sniffed?.kind !== 'audio' || sniffed.mediaType !== 'audio/wav')
         throw new Error(UI_TEXT.media.converterUnavailable)
@@ -263,7 +314,18 @@ export function createTranscriptionPorts(
           name = rendered.source.name
           if (!isBatchContractWav(wav)) throw new Error(UI_TEXT.media.converterUnavailable)
         }
-        admitSend()
+        // The bytes' own duration is bound to the reservation: what the
+        // receipt can bill never exceeds the approved attachment's bound.
+        const measured = sniffMediaBytes(wav)?.durationSeconds
+        const upper = batch.billableSecondsUpperBound(source)
+        if (
+          measured === undefined ||
+          measured === null ||
+          upper === undefined ||
+          Math.floor(measured) > upper
+        )
+          throw new Error(fill(UI_TEXT.media.sourceChanged, { name: source.name }))
+        admission.check()
         // The mode follows the original attachment, not the converted bytes:
         // a video soundtrack is diarized, standalone audio uses push-to-talk.
         const origin = converted.get(source.pathToken)?.kind ?? source.info.kind
@@ -274,6 +336,7 @@ export function createTranscriptionPorts(
           body,
           contentType,
           signal,
+          dispatch: admission.dispatch,
         })
         let raw: unknown
         try {

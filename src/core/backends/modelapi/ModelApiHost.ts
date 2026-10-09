@@ -608,6 +608,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
     readonly modelId: string
     readonly parts: readonly TurnPart[]
     readonly signal: AbortSignal
+    /** The model revision the turn began on; checked before any paid dispatch. */
+    readonly assertCurrent: () => void
   }) => Promise<PreparedAudioMessage | undefined>
   /** Trusted context adapters (issues, external agents, devices), never tool trust claims. */
   readonly vaultContextProvenance?: (sessionId: string) => VaultTaint
@@ -13890,6 +13892,11 @@ export class ModelApiSession implements ScheduledAgentSession {
           modelId: this.modelId,
           parts,
           signal: turn.abort.signal,
+          // A model change during consent or conversion refuses before the
+          // transcription spends, not after (RVMEDIAV 4).
+          assertCurrent: () => {
+            if (revision !== this.modelRevision) throw new AbortedError()
+          },
         })
         turn.abort.signal.throwIfAborted()
         if (revision !== this.modelRevision) throw new AbortedError()

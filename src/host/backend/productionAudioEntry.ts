@@ -87,7 +87,8 @@ export function productionAudioFor(
     notePaidUse: host.notePaidUse,
     reservePaidExtra: host.reservePaidExtra,
     attached,
-    postTranscription: (post) => transcription(post.route, post.signal, post, accountId),
+    postTranscription: (post) =>
+      transcription(post.route, post.signal, post, accountId, post.dispatch),
     converterPath: () => host.mediaConverterPath?.(),
     conversionOptions: () => conversionBindings(host.mediaJobExecutable, privateRoot),
     session: {
