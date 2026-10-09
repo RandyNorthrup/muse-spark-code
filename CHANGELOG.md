@@ -55,6 +55,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- The README's Resources screenshot is retaken with the rest of the set (the
+  same Linux Chrome build and fonts); the other 18 screenshots still match the
+  current UI and are unchanged.
 - Preserve exact decimal USD across schedule authorization, consent and agent caps,
   rental cost estimates, reporting facts, account totals and voice consent. Read
   historical numeric records at validated boundaries; saved reports verify their

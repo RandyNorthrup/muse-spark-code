@@ -64,7 +64,7 @@ timing.
 | vault/channel                                                                               | win      | b          | File-wide beforeAll compiled peer.c with /usr/bin/cc.                                                                                              | `9f3648dfb`. Win11, Kubuntu pass.                                                                                          |
 | nativeScheduleBackground (drop-in)                                                          | lin      | c          | Hosted node lives in world-writable /opt/hostedtoolcache.                                                                                          | `0a2950ef5` (private node copy). Kubuntu pass.                                                                             |
 | treesMacNative, treesLifecycleNative                                                        | mac      | b          | Fixture copied 4 files; build.sh now needs the whole folder, l10n tables and node.                                                                 | `95467436b`+`b3faeb8a5`. Hosted macOS to confirm.                                                                          |
-| readmeShots (pixel-input digest)                                                            | all      | **open**   | Pixel inputs changed after the last recapture (and harnessServer.mjs again here).                                                                  | Release-prep: `npm run harness:shots`, review, refresh the digest.                                                         |
+| readmeShots (pixel-input digest)                                                            | all      | b          | Pixel inputs changed after the last recapture (and harnessServer.mjs again here).                                                                  | UIHOOK017 below: recaptured and reviewed; resources.png replaced, digest refreshed.                                        |
 | resourceHistoryDisposal                                                                     | —        | c          | Load-sensitive 3 s wait (lead's note).                                                                                                             | Kubuntu pass (4.9 s run); not changed.                                                                                     |
 | visualStability                                                                             | lin, mac | c          | Capture hook over 10 s on hosted runners.                                                                                                          | Not changed.                                                                                                               |
 | nativeScheduleBackground (timeout), scheduleFs, judgeWindow, vault/execFence, reportHistory | win      | c          | Hosted Windows timing (PowerShell cold start, 15/30 s deadlines), Windows rename locking; judgeWindow and execFence pass on Win11.                 | Not changed; hosted Windows to confirm.                                                                                    |
@@ -159,7 +159,8 @@ installs the hooks with the real installer into a throwaway repository under
 of Git's stderr, writes again and exits 1 must leave no commit and a non-zero
 exit; a passing hook commits; the repository's own `.husky/pre-commit` under
 husky's bare stub is refused with the `npm run prepare` message. 3/3 on the
-host (2.7 s).
+host (2.7 s), on Kubuntu (585 ms) and on the Win11 VM (slowest case 2.5 s,
+under the 15 s Windows deadline).
 
 | Red drill                                         | Result                                                                    |
 | ------------------------------------------------- | ------------------------------------------------------------------------- |
@@ -209,6 +210,37 @@ unchanged.
 (72 ms, opacity 0.80) fails exactly the hosted case, `light dialog at
 320px`, `color-contrast` on `a` (1 failed, 33 passed). Restored: 34/34
 (32.5 s) on this Windows host.
+
+## UIHOOK017 — README screenshots (readmeShots digest)
+
+The committed set was reviewed as a Linux render (LEFT017, headless Chrome
+153.0.8010.52; `int0170-combined.md`). A capture on this Windows host
+changed all 19 images (Segoe UI instead of the set's fonts), so it was used
+for nothing. The capture of record ran the one-command script on the Linux
+laptop rig, which has that same Chrome 153.0.8010.52: `git archive` of
+`abc82f12f`, the gate base for this lockfile (`a8920e925b0d831f`)
+hard-linked, `npm run build:dev`, then
+`node scripts/readme-shots.mjs --out temp/readme-linux`. Each image was
+compared with the committed one by decoded pixels, and every changed region
+was viewed side by side, zoomed.
+
+| Image                                                                                     | Result                                                                                                                                                                                          | Kept         |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| help, history, languages, modes, paid, paid-always, palette, slash-commands, usage, voice | byte-identical                                                                                                                                                                                  | committed    |
+| agents, approval, turn                                                                    | 163–170 px in the animated heartbeat trace (its faded tail); capture-frame timing                                                                                                               | committed    |
+| open-question                                                                             | 229 px: the heartbeat caught at a flat frame; the committed frame shows the waveform                                                                                                            | committed    |
+| question                                                                                  | heartbeat frame plus two anti-aliasing pixels on the card's accent bar                                                                                                                          | committed    |
+| quote, rewind                                                                             | the message time is the capture's clock (6:19 AM / 6:20 AM against 10:42 PM)                                                                                                                    | committed    |
+| deterministic-report                                                                      | only the printed report SHA-256 differs                                                                                                                                                         | committed    |
+| resources                                                                                 | the committed image was the set's only Windows capture (`fe34f6509`, Segoe UI, a dot where the turn spinner goes); same content, labels and values; now in the set's fonts and with the spinner | **replaced** |
+
+`resources.png`: 27,518 → 37,156 bytes, SHA-256
+`5c5349ab54c88873cfc0c2d8696742f501232b9fd6c97378197faed60f47a765`.
+Curated media total 1,176,937 / 2,097,152 bytes. No other image changed.
+None of the token, stylesheet or harness changes since the last recapture
+shows in a README scene. The pixel-input digest is refreshed to
+`b1d68ff977e7e661bb2609e5839840d5e308a163ed5ea02bf306dc5f616d5b62`;
+`test/unit/readmeShots.test.mjs` 17/17.
 
 ## Needs the hosted run
 
