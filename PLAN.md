@@ -33041,6 +33041,23 @@ before a repaired one loads (2026-09-30).
   permission prompt or the companion surface, so every path now has a
   review route. Installed-editor and physical receipts remain the lead's
   gates. Receipts: `docs/certification/m103.md` FIXM103W5.
+  FIXM103W7 (2026-10-09) closes RVM103W. Runtime `makerReady` now calls
+  `RuntimeMakerHost.reopen`, which hands every pending MakerApproval the
+  `makerReady` frame, so a replacement companion document needs a fresh
+  complete review before an allow binds. `subscribe` sends `makerState`
+  before replaying pending approvals, so a fresh shared-panel store is
+  admitted before it sees them (previously it answered `reject_once`). The
+  companion bridge resumes a reload through cookie-authenticated
+  same-origin `POST /session` (same bootstrap as `/launch`, no new cookie)
+  and spends the one-shot launch code only on a first load. Hardware Stop
+  is bounded by `MAKER_STOP_DEADLINE_MS` (5 s): serial open/write/close
+  races it and reports timed out (unconfirmed) past it, while a late port
+  still writes Stop and closes; HTTP Stop's curl uses the same deadline
+  instead of the 120 s shell default. Stop stays independent of turn
+  cancellation. The maker host schema is regenerated for the 4096 detection
+  bound. Still open: installed-editor/browser reload qualification and
+  physical receipts (the lead's gates). Receipts: `docs/certification/m103.md`
+  FIXM103W7.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

@@ -59,6 +59,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Hardware Stop has its own 5-second delivery deadline. A serial port that
+  never opens or drains, or an HTTP Stop that never answers, now reports Stop
+  unconfirmed instead of leaving the caller waiting; a late serial port still
+  receives Stop and is closed.
+
+- A maker companion document that reloads or is replaced no longer inherits
+  the earlier document's payload review: its `makerReady` revokes it, so
+  Send once needs a fresh review. A reloaded companion resumes its cookie
+  session instead of failing on the spent launch code, and sees its admission
+  before pending approvals, so they are no longer rejected on arrival.
+
 - Serial Stop ignores only proven dead or retired lease generations after
   dispatching directly to current endpoints, so abandoned indexes cannot
   spoil a successful Stop. Retirement retries marker and Stop-index cleanup
