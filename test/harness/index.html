@@ -6323,6 +6323,7 @@
               document.querySelector('.status-line .resource-chip') === null ||
               window.harnessDocumentNonce === undefined
             )
+              // kept-timing: bounded readiness polling retries until the deferred chip renders and the host has issued its document nonce, which no selector shows.
               readinessLater(FIND_INTERVAL_MS, openWhenMounted)
             else send({ type: 'resourceOpen', seq: 1, nonce: window.harnessDocumentNonce })
           }
