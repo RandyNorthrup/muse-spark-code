@@ -11,7 +11,7 @@
 // credential file as the panel reads it (D26, PR #49).
 
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Writable } from 'node:stream'
@@ -22,6 +22,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { createRuntimeBackend } from '../../src/runtime/backends'
+import { agentDataFolder } from '../../src/runtime/dataFolder'
 import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { webReadable } from '../../src/runtime/webStreams'
 import { ACP_AGENT_NAME, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
@@ -80,6 +81,17 @@ const dataHome = mkdtempSync(path.join(tmpdir(), 'acp-e2e-data-'))
 const children: ChildProcessWithoutNullStreams[] = []
 
 beforeAll(async () => {
+  // Ubuntu's default umask (002) leaves the agent's data folder group-writable;
+  // the governor's private creation registry must not depend on its mode.
+  if (process.platform !== 'win32') {
+    const machine = agentDataFolder({
+      platform: process.platform,
+      env: { XDG_DATA_HOME: dataHome },
+      homeDir: dataHome,
+    })
+    mkdirSync(machine, { recursive: true })
+    chmodSync(machine, 0o775)
+  }
   if (INSTALLED !== undefined) {
     return
   }
