@@ -2,7 +2,8 @@
 // governor's own process-table read (`trees/posixTable.ts`'s absolute
 // /bin/ps, numeric columns and parser, as `trees/mac.ts` reads the table),
 // asked for one PID. This is `convert.ts`'s `readRssBytes` port (M105 lane
-// VB): a bounded sampler that throws when no reading exists, never 0.
+// VB): a bounded sampler bound to one encoder's child handle, which throws
+// when no reading exists, never 0.
 
 import {
   MEDIA_RSS_SAMPLE_INTERVAL_MS,
@@ -21,6 +22,14 @@ export class RssSampleRefused extends Error {
   }
 }
 
+/** The encoder's handle as conversion holds it (a `ChildProcess`): its PID and its exit. */
+export interface EncoderChild {
+  readonly pid?: number | undefined
+  readonly exitCode: number | null
+  readonly signalCode: NodeJS.Signals | null
+  once(event: 'exit', listener: () => void): unknown
+}
+
 export interface MacRssSamplerDeps {
   /** The ps runner (tests); production bounds one run's time and output. */
   readonly run?: ResourceTreeRun
@@ -29,45 +38,60 @@ export interface MacRssSamplerDeps {
   readonly parentPid?: number
 }
 
-interface PidState {
-  reading?: { readonly bytes: number; readonly at: number }
-  pending?: Promise<void>
-  hasFailed: boolean
-  readAt: number
-}
-
 /**
- * `readRssBytes(pid)` over /bin/ps. Conversion asks every few milliseconds;
- * ps runs at most once per `MEDIA_RSS_SAMPLE_INTERVAL_MS` per PID, the next
- * run starts while the last reading is still fresh, and no reading older
- * than `MEDIA_RSS_SAMPLE_MAX_AGE_MS` is returned: past it the call waits
- * for the run, which the caller's own sample deadline bounds. The PID must
- * be a live, non-zombie child of `parentPid` (a reaped PID that the OS
- * reused is someone else's). One failure is final for that PID.
+ * `readRssBytes(pid)` for one encoder, over /bin/ps. Conversion asks every
+ * few milliseconds; ps runs at most once per `MEDIA_RSS_SAMPLE_INTERVAL_MS`,
+ * the next run starts while the last reading is still fresh, and no reading
+ * older than `MEDIA_RSS_SAMPLE_MAX_AGE_MS` is returned: past it the call
+ * waits for the run, which the caller's own sample deadline bounds.
+ *
+ * A reading belongs to one live child identity. Every ps run checks the PID,
+ * that its parent is `parentPid`, that it is not a zombie and that its start
+ * time is the first run's (a reused PID is someone else). Between runs the
+ * child handle vouches for it: its exit drops the reading, and from then on
+ * every call refuses, as does a run that finishes after the exit. One
+ * failure is final.
  */
-export function macRssSampler(deps: MacRssSamplerDeps = {}): (pid: number) => Promise<number> {
+export function macRssSampler(
+  child: EncoderChild,
+  deps: MacRssSamplerDeps = {},
+): (pid: number) => Promise<number> {
   const run =
     deps.run ?? boundedTreeProgram(MEDIA_RSS_SAMPLE_RUN_TIMEOUT_MS, MEDIA_RSS_SAMPLE_MAX_BYTES)
   const now = deps.now ?? Date.now
   const parentPid = deps.parentPid ?? process.pid
-  const states = new Map<number, PidState>()
+  const state: {
+    hasExited: boolean
+    hasFailed: boolean
+    started?: string
+    reading?: { readonly bytes: number; readonly at: number }
+    pending?: Promise<void>
+  } = { hasExited: child.exitCode !== null || child.signalCode !== null, hasFailed: false }
+  child.once('exit', () => {
+    state.hasExited = true
+    delete state.reading
+  })
+  /** Read through a call: an await can change it between two checks. */
+  const isUnusable = () => state.hasExited || state.hasFailed
 
   const sample = async (pid: number): Promise<number> => {
-    const rows = await readMacProcess(pid, run)
-    const row = rows?.length === 1 ? rows[0] : undefined
+    const found = await readMacProcess(pid, run)
     if (
-      row?.pid !== pid ||
-      row.parent !== parentPid ||
-      row.exited ||
-      !Number.isSafeInteger(row.residentBytes) ||
-      row.residentBytes <= 0
+      found?.row.pid !== pid ||
+      found.row.parent !== parentPid ||
+      found.row.exited ||
+      !Number.isSafeInteger(found.row.residentBytes) ||
+      found.row.residentBytes <= 0 ||
+      (state.started !== undefined && found.started !== state.started)
     )
       throw new RssSampleRefused()
-    return row.residentBytes
+    state.started ??= found.started
+    return found.row.residentBytes
   }
 
-  // One run per PID at a time; a failure also drops the last reading.
-  const refresh = (pid: number, state: PidState): Promise<void> => {
+  // One run at a time; a failure drops the reading. A run that ends after the
+  // exit never answers: every call checks the exit again after its await.
+  const refresh = (pid: number): Promise<void> => {
     if (state.pending !== undefined) return state.pending
     const startedAt = now()
     const pending = (async () => {
@@ -84,27 +108,16 @@ export function macRssSampler(deps: MacRssSamplerDeps = {}): (pid: number) => Pr
     return pending
   }
 
-  const forgetIdle = (time: number) => {
-    for (const [pid, state] of states)
-      if (state.pending === undefined && time - state.readAt > MEDIA_RSS_SAMPLE_MAX_AGE_MS)
-        states.delete(pid)
-  }
-
   return async (pid) => {
-    if (!Number.isSafeInteger(pid) || pid <= 0) throw new RssSampleRefused()
-    const time = now()
-    forgetIdle(time)
-    const state = states.get(pid) ?? { hasFailed: false, readAt: time }
-    states.set(pid, state)
-    state.readAt = time
-    if (state.hasFailed) throw new RssSampleRefused()
-    const age = state.reading === undefined ? Infinity : time - state.reading.at
+    if (pid !== child.pid || pid <= 0 || !Number.isSafeInteger(pid) || isUnusable())
+      throw new RssSampleRefused()
+    const age = state.reading === undefined ? Infinity : now() - state.reading.at
     if (age >= MEDIA_RSS_SAMPLE_INTERVAL_MS) {
-      const pending = refresh(pid, state)
+      const pending = refresh(pid)
       if (age >= MEDIA_RSS_SAMPLE_MAX_AGE_MS) await pending
     }
     const { reading } = state
-    if (reading === undefined || now() - reading.at >= MEDIA_RSS_SAMPLE_MAX_AGE_MS)
+    if (reading === undefined || isUnusable() || now() - reading.at >= MEDIA_RSS_SAMPLE_MAX_AGE_MS)
       throw new RssSampleRefused()
     return reading.bytes
   }

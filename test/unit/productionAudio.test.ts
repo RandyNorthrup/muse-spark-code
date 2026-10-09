@@ -10,7 +10,23 @@ import path from 'node:path'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { createProductionAudio } from '../../src/core/voice/productionAudio'
 import { voiceSeamDeps } from './helpers/voiceSeams'
-import { conversionBindings } from '../../src/host/backend/productionAudioEntry'
+import { conversionBindings, privateRootFor } from '../../src/host/backend/productionAudioEntry'
+import * as privateDirectory from '../../src/runtime/privateDirectory'
+import type { PrivateRoot } from '../../src/runtime/privateDirectory'
+
+vi.mock('../../src/runtime/privateDirectory', async (original) => ({
+  ...(await original<typeof privateDirectory>()),
+  openPrivateRoot: vi.fn((directory: string) =>
+    Promise.resolve({ path: directory, identity: { dev: 1n, ino: 1n } } as unknown as PrivateRoot),
+  ),
+  createPrivateDirectory: vi.fn((root: PrivateRoot) =>
+    Promise.resolve(path.join(root.path, 'muse-media-fixture')),
+  ),
+}))
+const macSampler = vi.fn(() => Promise.resolve(4096))
+vi.mock('../../src/core/resources/resourceGovernorEntry', () => ({
+  macRssSampler: vi.fn(() => macSampler),
+}))
 import type { AudioSource } from '../../src/core/voice/transcribeBatch'
 import type { TurnPart } from '../../src/core/agent/agentBackend'
 import { runtimeConverterPath } from '../../src/runtime/runtimeConverterPath'
@@ -144,8 +160,9 @@ describe('lane VB platform bindings for each conversion', () => {
   it('runs Windows conversion in the job under a kernel cap, never sampling RSS', async () => {
     as('win32')
     const jobExecutable = vi.fn(() => Promise.resolve(undefined))
-    const options = conversionBindings(jobExecutable)
+    const options = await conversionBindings(jobExecutable, undefined)
     expect(options.readRssBytes).toBeUndefined()
+    expect(options.readRssBytesFor).toBeUndefined()
     expect(options.createPrivateDirectory).toBeTypeOf('function')
     // No launcher: a refusal before anything starts, never an unbounded run.
     await expect(
@@ -160,19 +177,41 @@ describe('lane VB platform bindings for each conversion', () => {
     ).rejects.toMatchObject({ code: 'EMEDIA_JOB_FAILED' })
     expect(jobExecutable).toHaveBeenCalled()
     // Without a host launcher the same refusal stands.
-    expect(conversionBindings(undefined).memoryLimitedRun).toBeTypeOf('function')
+    const unbound = await conversionBindings(undefined, undefined)
+    expect(unbound.memoryLimitedRun).toBeTypeOf('function')
   })
 
-  it('binds no macOS sampler yet (conversion refuses there), and leaves Linux on /proc', () => {
+  it('samples macOS RSS per encoder child through the governor bundle, Linux on /proc', async () => {
     as('darwin')
-    const mac = conversionBindings(undefined)
+    const mac = await conversionBindings(undefined, undefined)
     expect(mac.readRssBytes).toBeUndefined()
     expect(mac.memoryLimitedRun).toBeUndefined()
+    const child = { pid: 42, exitCode: null, signalCode: null, once: vi.fn() }
+    const governor = await import('../../src/core/resources/resourceGovernorEntry')
+    const sampler = mac.readRssBytesFor?.(child as never)
+    expect(governor.macRssSampler).toHaveBeenCalledWith(child)
+    expect(await sampler?.(42)).toBe(4096)
     as('linux')
-    const linux = conversionBindings(undefined)
+    const linux = await conversionBindings(undefined, undefined)
     expect(linux.readRssBytes).toBeUndefined()
+    expect(linux.readRssBytesFor).toBeUndefined()
     expect(linux.memoryLimitedRun).toBeUndefined()
-    expect(linux.createPrivateDirectory).toBeTypeOf('function')
+  })
+
+  it('makes each folder inside the host private root, opened once; no root refuses', async () => {
+    const directory = path.join(root, 'media')
+    const options = await conversionBindings(undefined, privateRootFor(directory))
+    expect(await options.createPrivateDirectory?.()).toBe(
+      path.join(directory, 'muse-media-fixture'),
+    )
+    await options.createPrivateDirectory?.()
+    const again = await conversionBindings(undefined, privateRootFor(directory))
+    await again.createPrivateDirectory?.()
+    expect(privateDirectory.openPrivateRoot).toHaveBeenCalledOnce()
+    expect(privateDirectory.createPrivateDirectory).toHaveBeenCalledTimes(3)
+    // Never a temporary folder: without a root there is no folder at all.
+    const rootless = await conversionBindings(undefined, undefined)
+    await expect(rootless.createPrivateDirectory?.()).rejects.toThrow('No private media root')
   })
 })
 

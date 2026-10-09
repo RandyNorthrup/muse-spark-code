@@ -7,30 +7,62 @@
 import type { ProviderClient } from '../../core/backends/modelapi/client'
 import type { MediaConversionOptions } from '../../core/media/convert'
 import { createProductionAudio } from '../../core/voice/productionAudio'
-import { createPrivateDirectory } from '../../runtime/privateDirectory'
+import {
+  createPrivateDirectory,
+  openPrivateRoot,
+  type PrivateRoot,
+} from '../../runtime/privateDirectory'
 import { jobMemoryLimitedRun } from './mediaJobRun'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
 
+/** Each host's private media root, opened (and verified) once per process. */
+const privateRoots = new Map<string, Promise<PrivateRoot>>()
+
+/** The host's root, opened once; a refused root is refused again, never retried quietly. */
+export function privateRootFor(directory: string): () => Promise<PrivateRoot> {
+  return async () => {
+    let root = privateRoots.get(directory)
+    if (root === undefined) {
+      root = openPrivateRoot(directory)
+      privateRoots.set(directory, root)
+    }
+    return await root
+  }
+}
+
 /**
- * Lane VB's platform bindings for each conversion: an owner-only folder
- * everywhere; on Windows the kernel job's memory cap (no RSS sampler, so
- * the kernel path is taken); Linux keeps its `/proc` sampler. macOS's `ps`
- * sampler (`core/media/macRss.ts`) reads through M107's resource-policy
- * modules, which only the governor's bundle may carry, so it is not bound
- * here yet and macOS conversion refuses (a named gap). A missing launcher
- * refuses, never runs unbounded.
+ * Lane VB's platform bindings for each conversion:
+ * - a fresh owner-only folder inside the host's verified private root (its
+ *   own storage, never a shared temporary folder);
+ * - Windows: the kernel job's memory cap, no RSS sampler, so the kernel
+ *   path is taken; a missing launcher refuses, never runs unbounded;
+ * - macOS: a `ps` sampler fenced to each encoder child, loaded from the
+ *   resource governor's bundle, which alone carries M107's policy modules;
+ * - Linux keeps its `/proc` sampler.
  */
-export function conversionBindings(
+export async function conversionBindings(
   jobExecutable: (() => Promise<string | undefined>) | undefined,
-): MediaConversionOptions {
+  privateRoot: (() => Promise<PrivateRoot>) | undefined,
+): Promise<MediaConversionOptions> {
+  const darwin =
+    process.platform === 'darwin'
+      ? await import('../../core/resources/resourceGovernorEntry')
+      : undefined
   return {
-    createPrivateDirectory: () => createPrivateDirectory(),
+    // No root, no folder: conversion refuses rather than use a temporary one.
+    createPrivateDirectory: async () => {
+      if (privateRoot === undefined) throw new Error('No private media root')
+      return await createPrivateDirectory(await privateRoot())
+    },
     ...(process.platform === 'win32' && {
       memoryLimitedRun: jobMemoryLimitedRun({
         jobExecutable: jobExecutable ?? (() => Promise.resolve(undefined)),
       }),
+    }),
+    ...(darwin !== undefined && {
+      readRssBytesFor: (child) => darwin.macRssSampler(child),
     }),
   }
 }
@@ -47,6 +79,8 @@ export function productionAudioFor(
   const transcription =
     'requestTranscription' in client ? client.requestTranscription.bind(client) : undefined
   if (attached === undefined || transcription === undefined) return
+  const privateRoot =
+    host.mediaPrivateRoot === undefined ? undefined : privateRootFor(host.mediaPrivateRoot)
   return createProductionAudio({
     isPaidFeatureOn: host.isPaidFeatureOn,
     allowsPaidUse: host.allowsPaidUse,
@@ -55,7 +89,7 @@ export function productionAudioFor(
     attached,
     postTranscription: (post) => transcription(post.route, post.signal, post, accountId),
     converterPath: () => host.mediaConverterPath?.(),
-    conversionOptions: () => conversionBindings(host.mediaJobExecutable),
+    conversionOptions: () => conversionBindings(host.mediaJobExecutable, privateRoot),
     session: {
       capUsd: host.sessionBudgetUsd,
       journal: host.store?.budget,

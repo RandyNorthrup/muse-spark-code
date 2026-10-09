@@ -803,6 +803,12 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
    * undefined, Windows conversion refuses; never an unbounded launch.
    */
   readonly mediaJobExecutable?: (() => Promise<string | undefined>) | undefined
+  /**
+   * The host's private media root in its own storage (lane VB): opened and
+   * verified once, each conversion's owner-only folder made inside it.
+   * Absent, conversion refuses; never a shared temporary folder.
+   */
+  readonly mediaPrivateRoot?: string | undefined
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
   readonly scheduleStore?: ScheduleStore | undefined
   /** SHA-256 digest of the current SecretStorage key, never its plaintext. */

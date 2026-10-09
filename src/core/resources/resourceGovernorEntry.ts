@@ -23,6 +23,9 @@ import { createMachineResourceSampler } from './sampler/system'
 import { LinuxResourceTreeReader } from './trees/linux'
 import { WindowsResourceTreeReader } from './trees/windows'
 export { createResources } from '../../runtime/resources/entry'
+// M105 lanes V and VB: the converter's macOS RSS sampler reads through this
+// bundle's policy modules, so it ships here and loads with it.
+export { macRssSampler } from '../media/macRss'
 import { runTreeProgram } from './trees/run'
 import { powerShellQuoted } from '../shellQuote'
 import {

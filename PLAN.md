@@ -43441,13 +43441,21 @@ FIXM107DK4 qualification below supersedes that earlier claim.
      (M91b's `jobMemoryLimit`): no sampler and no per-launch PowerShell. The
      kernel bounds memory, so no final RSS sample is owed (RVM105M12); the
      final output sample still is.
-  2. macOS: `macRssSampler` (`core/media/macRss.ts`) is the `readRssBytes`
-     port. It reads the governor's `posixTable` reader (absolute `/bin/ps`,
-     numeric columns), for one PID that must be this process's live child.
-  3. A private folder per conversion: `createPrivateDirectory`
-     (`runtime/privateDirectory.ts`) over `secureOwnerOnly`, which is the
-     token file's owner-only routine made reusable. It converges with M100's
-     `secureFresh`.
+  2. macOS: `macRssSampler(child)` (`core/media/macRss.ts`) is the
+     `readRssBytes` port for one encoder child. It reads the governor's
+     `posixTable` reader (absolute `/bin/ps`, numeric columns, `lstart`).
+     Every run checks PID, parent and start time, and the child's exit ends
+     its readings (RVMEDIAVB 4).
+  3. A private folder per conversion: `createPrivateDirectory(root)`
+     (`runtime/privateDirectory.ts`), only inside a root that
+     `openPrivateRoot` verified once in the host's own storage, never a
+     temporary folder (RVMEDIAVB 1). It sits over `secureOwnerOnly`, which
+     is the token file's owner-only routine made reusable, and converges with
+     M100's `secureFresh`.
+
+  RVMEDIAVB 2 and 3 also hold. The runner bounds every output check, and
+  the shared job helper creates its child inside the job
+  (`PROC_THREAD_ATTRIBUTE_JOB_LIST`) for every caller.
 
   Open items:
   - M109's attested RESULT record must reach `conversionJobFailure`, the
@@ -43456,6 +43464,8 @@ FIXM107DK4 qualification below supersedes that earlier claim.
     `MuseSparkMcpLauncher.cs`, and `runtime/backends.ts` prepares only the
     shell job. Lane V ships and prepares the launcher, or Windows conversion
     in the runtime refuses. (Done by lane V: see the next item.)
+  - Lane V's darwin option becomes per child, and each host opens its
+    private root once. (Done by lane V.)
   - The darwin private group stays with M104's signed helper.
 
 - **M105-V-production-binding (lane V, 2026-10-08; lead decisions).**

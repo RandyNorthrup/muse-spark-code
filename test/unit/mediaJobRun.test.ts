@@ -9,6 +9,7 @@ import {
   conversionJobFailure,
   jobMemoryLimitedRun,
   type JobEncoderRunOptions,
+  type OutputStat,
 } from '../../src/host/backend/mediaJobRun'
 import { fixtureJobLifecycle } from './helpers/mcpFixtures'
 import { expectEnded, isRunning, markedPid } from './helpers/processes'
@@ -82,6 +83,13 @@ function encoder(
       end,
     ].join('\n'),
   ]
+}
+
+/** An output stat on a stalled share: it never answers. */
+function stalled(): Promise<OutputStat> {
+  return new Promise<OutputStat>(() => {
+    // Never settles.
+  })
 }
 
 /** The launcher's stand-in: the encoder itself, with no job, recording each launch. */
@@ -181,6 +189,23 @@ describe('jobMemoryLimitedRun', () => {
     expect(jobExecutable).toHaveBeenCalledTimes(prepared)
     expect(spawnJob).not.toHaveBeenCalled()
   })
+
+  it.each([
+    ['a running encoder', 'hang'],
+    ['an encoder that exits cleanly', 'exit0'],
+  ] as const)(
+    'settles %s whose output stat never answers (a stalled share)',
+    async (_label, ending) => {
+      const where = await workspace()
+      const running = jobMemoryLimitedRun({
+        jobExecutable: () => Promise.resolve(EXECUTABLE),
+        spawnJob: directLauncher(),
+        statOutput: stalled,
+      })(process.execPath, encoder(where, KIB, ending), options(where))
+      await expect(running).rejects.toMatchObject(FAILED)
+      await expectEnded(await markedPid(where.marker))
+    },
+  )
 
   it('fails a launcher that cannot start, or one that throws', async () => {
     const where = await workspace()

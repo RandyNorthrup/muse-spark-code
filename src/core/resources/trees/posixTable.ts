@@ -76,12 +76,27 @@ export function parseCpuTime(text: string): number | null {
 export const MAC_PS = '/bin/ps'
 export const MAC_PROCESS_COLUMNS = 'pid=,ppid=,pgid=,state=,time=,rss='
 
-/** One process's row: the table's ps columns and parser, for one PID (M105 RSS). */
+/** `ps -o lstart=` in the C locale, as macOS and procps print it: `Thu Oct  8 21:01:05 2026`. */
+const MAC_START_TIME = /^[A-Z][a-z]{2} [A-Z][a-z]{2} [ \d]\d \d{2}:\d{2}:\d{2} \d{4}$/
+/** The table's numeric columns, then the start time (which has spaces of its own). */
+const MAC_PROCESS_WITH_START = /^(\s*\d+\s+\d+\s+\d+\s+\S+\s+\S+\s+\d+)\s+(\S.*\S)\s*$/
+
+/**
+ * One process's row and start time: the table's ps columns and parser, for
+ * one PID, plus `lstart` so a reused PID is told apart (M105 RSS). Null for
+ * anything but exactly one well-formed row.
+ */
 export async function readMacProcess(
   pid: number,
   run: ResourceTreeRun,
-): Promise<ReturnType<typeof parseMacProcessTable>> {
-  return parseMacProcessTable(await run(MAC_PS, ['-o', MAC_PROCESS_COLUMNS, '-p', String(pid)]))
+): Promise<{ readonly row: Omit<ProcessSample, 'startTime'>; readonly started: string } | null> {
+  const text = await run(MAC_PS, ['-o', `${MAC_PROCESS_COLUMNS},lstart=`, '-p', String(pid)])
+  const lines = text.trim().split(/\r?\n/)
+  const match = lines.length === 1 ? MAC_PROCESS_WITH_START.exec(lines[0] ?? '') : null
+  const [, columns = '', started = ''] = match ?? []
+  const rows = match === null ? null : parseMacProcessTable(columns)
+  const row = rows?.length === 1 ? rows[0] : undefined
+  return row === undefined || !MAC_START_TIME.test(started) ? null : { row, started }
 }
 
 /** Only numerical columns: no command, name, arguments, paths or environment. */

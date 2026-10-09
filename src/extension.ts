@@ -55,6 +55,7 @@ import {
   EXTENSION_HOOKS_BUNDLE_FILE,
   MODEL_API_SCHEDULES_DIR,
   MODEL_API_UPLOADS_DIR,
+  MEDIA_PRIVATE_ROOT_DIR,
   CHECKPOINTS_DIR,
   TURN_CHECKPOINTS_SETTING,
   MODEL_API_SESSIONS_DIR,
@@ -2518,6 +2519,8 @@ async function activateWindow(
     mediaConverterPath: () => currentSettings().mediaConverterPath,
     // Windows: the converter runs in M50's job under a kernel memory cap (VB).
     ...(windowsMcpJob !== undefined && { mediaJobExecutable: windowsMcpJob }),
+    // Each conversion's owner-only folder sits in this private root (VB).
+    mediaPrivateRoot: path.join(storageRoot, MEDIA_PRIVATE_ROOT_DIR),
     onServiceFailure: () => {
       notify(
         Array.from(controllers.values(), (controller) => () => {

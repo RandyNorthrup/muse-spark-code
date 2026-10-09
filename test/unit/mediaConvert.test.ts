@@ -89,7 +89,9 @@ function convertToMp4(
     trustedPath: { verify: (file: string) => Promise.resolve({ ok: true as const, path: file }) },
     probeVersion: () =>
       Promise.resolve(converter.kind === 'ffmpeg' ? FFMPEG_BANNER : 'avconvert version 1.0.0'),
-    ...(process.platform !== 'linux' && { readRssBytes: () => Promise.resolve(0) }),
+    // A per-child sampler under test replaces the default fixed one.
+    ...(process.platform !== 'linux' &&
+      options.readRssBytesFor === undefined && { readRssBytes: () => Promise.resolve(0) }),
     ...(process.platform === 'win32' && {
       createPrivateDirectory: () => mkdtemp(path.join(tmpdir(), 'm105-private-fake-')),
     }),
@@ -640,6 +642,17 @@ describe('M105 private local conversion', () => {
     const result = await convertToMp4(fixture.input, fake, { readRssBytes })
     expect(result.ok).toBe(true)
     expect(readRssBytes).toHaveBeenCalled()
+    if (result.ok) await result.dispose()
+  })
+
+  it('binds a per-child sampler to the spawned encoder itself (lane VB macOS)', async () => {
+    const held = await realEncoder(120)
+    const sampler = vi.fn(() => Promise.resolve(1024))
+    const readRssBytesFor = vi.fn(() => sampler)
+    const result = await convertToMp4(fixture.input, fake, { readRssBytesFor })
+    expect(result.ok).toBe(true)
+    expect(readRssBytesFor).toHaveBeenCalledExactlyOnceWith(held.encoder)
+    expect(sampler).toHaveBeenCalled()
     if (result.ok) await result.dispose()
   })
 

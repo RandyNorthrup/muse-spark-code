@@ -68,6 +68,7 @@ import {
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
   MODEL_API_UPLOADS_DIR,
+  MEDIA_PRIVATE_ROOT_DIR,
   PAGE_WORKER_FILE,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
@@ -396,6 +397,8 @@ function modelApiManager(
   return new ModelApiBackendManager({
     log,
     ...(mediaJobExecutable !== undefined && { mediaJobExecutable }),
+    // Each conversion's owner-only folder sits in this private root (VB).
+    mediaPrivateRoot: path.join(agentDataFolder(deps), MEDIA_PRIVATE_ROOT_DIR),
     // Lane V seam 1/5: attached video and audio from ACP and exec resolve here.
     attachedMedia: media.attached,
     usageRecording: deps.usageRecording,

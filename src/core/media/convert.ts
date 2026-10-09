@@ -286,6 +286,8 @@ export interface LimitedRunOptions {
 
 interface ConversionRunOptions extends LimitedRunOptions {
   readonly readRssBytes: (pid: number) => Promise<number>
+  /** A sampler bound to the spawned encoder itself (macOS), preferred when given. */
+  readonly readRssBytesFor?: ((child: ChildProcess) => (pid: number) => Promise<number>) | undefined
 }
 
 export interface MediaConversionOptions extends ConverterVerification {
@@ -295,6 +297,12 @@ export interface MediaConversionOptions extends ConverterVerification {
   /** Native/kernel sampler for the encoder PID. Off Linux, encoding requires
    * either this bounded sampler or `memoryLimitedRun`; neither refuses. */
   readonly readRssBytes?: (pid: number) => Promise<number>
+  /**
+   * A sampler made for each spawned encoder (lane VB's macOS `ps` reader),
+   * fenced to that child's PID, parent and start time; used when no fixed
+   * sampler is given.
+   */
+  readonly readRssBytesFor?: (child: ChildProcess) => (pid: number) => Promise<number>
   /**
    * A process boundary whose memory cap the kernel enforces (the Windows job's
    * JOB_OBJECT_LIMIT_JOB_MEMORY), used when no sampler is bound. It applies
@@ -355,6 +363,7 @@ function runConverter(
       stdio: 'ignore',
       windowsHide: true,
     })
+    const readRssBytes = options.readRssBytesFor?.(child) ?? options.readRssBytes
     let hasFailed = false
     let hasClosed = false
     // Node reaps the child before 'exit': from then on its PID is no
@@ -380,7 +389,7 @@ function runConverter(
           stop()
           return
         }
-        const rss = await options.readRssBytes(child.pid)
+        const rss = await readRssBytes(child.pid)
         if (!Number.isSafeInteger(rss) || rss < 0 || rss > options.maxRssBytes) stop()
       } catch {
         // A live child's unavailable sample refuses. A sample that lost the
@@ -456,7 +465,11 @@ function isAborted(signal: AbortSignal | undefined): boolean {
 }
 
 type MemoryWatch =
-  | { readonly kind: 'sampler'; readonly readRssBytes: (pid: number) => Promise<number> }
+  | {
+      readonly kind: 'sampler'
+      readonly readRssBytes: (pid: number) => Promise<number>
+      readonly readRssBytesFor?: MediaConversionOptions['readRssBytesFor']
+    }
   | {
       readonly kind: 'kernel'
       readonly run: NonNullable<MediaConversionOptions['memoryLimitedRun']>
@@ -466,6 +479,13 @@ type MemoryWatch =
 async function memoryWatch(options: MediaConversionOptions): Promise<MemoryWatch | undefined> {
   if (options.readRssBytes !== undefined)
     return { kind: 'sampler', readRssBytes: options.readRssBytes }
+  if (options.readRssBytesFor !== undefined)
+    return {
+      kind: 'sampler',
+      // Never consulted: each spawned encoder gets its own fenced sampler.
+      readRssBytes: () => Promise.reject(new Error('RSS unavailable')),
+      readRssBytesFor: options.readRssBytesFor,
+    }
   if (options.memoryLimitedRun !== undefined)
     return { kind: 'kernel', run: options.memoryLimitedRun }
   if (process.platform !== 'linux') return undefined
@@ -482,7 +502,11 @@ function encode(
 ): Promise<void> {
   return watch.kind === 'kernel'
     ? watch.run(command, args, limits)
-    : (run ?? runConverter)(command, args, { ...limits, readRssBytes: watch.readRssBytes })
+    : (run ?? runConverter)(command, args, {
+        ...limits,
+        readRssBytes: watch.readRssBytes,
+        readRssBytesFor: watch.readRssBytesFor,
+      })
 }
 
 /** The kernel's memory cap stopped the encoder: said as such, never guessed. */

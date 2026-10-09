@@ -37,7 +37,7 @@ export interface ProductionAudioDeps extends Omit<VoiceBatchSeamDeps, 'sessionId
   /** The machine-scoped converter path; empty or absent: documented installs. */
   readonly converterPath: () => string | undefined
   /** The platform's encoder bindings (owner-only folder, memory watch); the trusted-path port is added here. */
-  readonly conversionOptions?: () => MediaConversionOptions
+  readonly conversionOptions?: () => MediaConversionOptions | Promise<MediaConversionOptions>
   /** Discovery itself; tests inject it, production uses `locateMediaConverter`. */
   readonly locateConverter?: typeof locateMediaConverter
 }
@@ -96,7 +96,7 @@ export function createProductionAudio(deps: ProductionAudioDeps) {
     // Nothing attached to hear: no converter probe, no port, no bytes changed.
     if (sources.length === 0) return
     const conversionOptions: MediaConversionOptions = {
-      ...deps.conversionOptions?.(),
+      ...(await deps.conversionOptions?.()),
       trustedPath: converterTrustedPath(),
     }
     const configuredConverters = configured(deps.converterPath())

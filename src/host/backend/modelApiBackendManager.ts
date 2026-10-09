@@ -111,6 +111,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly mediaConverterPath?: ModelApiHostDeps['mediaConverterPath']
   /** Windows: the converter's job launcher (lanes V and VB). */
   readonly mediaJobExecutable?: ModelApiHostDeps['mediaJobExecutable']
+  /** The host's private media root (lane VB). */
+  readonly mediaPrivateRoot?: ModelApiHostDeps['mediaPrivateRoot']
   /** The git facts for the prompt's environment section (D15). */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   /** The same facts for a best-of-N worktree (M77): an attempt's own branch. */
@@ -375,6 +377,9 @@ export class ModelApiBackendManager {
         }),
         ...(this.deps.mediaJobExecutable !== undefined && {
           mediaJobExecutable: this.deps.mediaJobExecutable,
+        }),
+        ...(this.deps.mediaPrivateRoot !== undefined && {
+          mediaPrivateRoot: this.deps.mediaPrivateRoot,
         }),
         getAccountId: async () => {
           if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()
