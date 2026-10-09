@@ -19085,6 +19085,40 @@ the slow one.
   Claude, with the saved diff). Its gotchas go into
   `docs/orchestration-gotchas.md`.
 
+### D104 — Windows trusted paths: a trusted root, links above it by identity (TRUSTROOT, 2026-10-09)
+
+**Owner rule (2026-10-08, "Windows paths: any drive").** Profile folders may
+be junctions or symlinks, or redirected to another drive; never assume `C:`.
+Links above a trusted root are normal and are accepted by comparing resolved
+identity; links inside the trusted tree that escape it are refused at the
+first escaping component.
+
+**Decision (lead, 2026-10-09).** `windowsTrustedPathVerifier` used OpenSSH
+`safe_path` over the whole path: every component up to the drive root was
+ACL-checked and any reparse point anywhere was refused, so native schedules
+and helpers refused a relocated profile. It now verifies against a trusted
+root, the folder the caller owns (`TrustedPathVerifier.verify` takes
+`root`; omitted, it is the file's own folder, or the folder itself):
+
+- At and above the root, links and redirection are accepted. The root is
+  resolved once and trusted by identity (volume serial and file id, any
+  drive letter), never by a string prefix.
+- Below the root every component must be a plain file or folder. A link,
+  junction or other reparse point is refused at the first such component,
+  including one whose target stays inside the tree (today's policy kept).
+  The resolved leaf must also be the resolved root's own descendant by
+  identity.
+- Owner and ACL checks (`Test-TrustedAcl`) apply to the resolved root and
+  every component below it; nothing above the root is checked beyond what
+  the OS enforces.
+
+Native schedule callers pass no root: each launcher, script, record and
+definition is trusted from its own folder (the record's folder is the
+schedule data directory). Evidence: `test/unit/windowsTrustedPath.test.ts`
+(profile junction above the root, the root itself a junction, escaping and
+in-tree junctions below it, drive-letter spelling) and
+`docs/certification/trustroot.md`.
+
 ## 3. Open questions (need the owner)
 
 - **Q-CIFIXM-HOSTED-ERRORS (2026-10-09, macbook):** log downloads for

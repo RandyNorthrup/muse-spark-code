@@ -154,39 +154,44 @@ describe('shared Windows trusted-path vectors', () => {
       path: 'C:\\',
     })
   })
-  it('checks every intermediate directory and rejects a native junction', async () => {
+  it('checks the trusted root and every component below it, root first', async () => {
     if (process.platform !== 'win32') return
     const directory = await mkdtemp(path.join(os.tmpdir(), 'm115-shared-trust-'))
     try {
-      // The fixture inherits %TEMP%'s ACL, which on a machine with other local
-      // accounts grants them Modify: the verifier then (rightly) refuses the
-      // leaf first and never reaches the component under test. Owner-only, as
-      // on hosted runners, the fixture is about the component and the junction.
+      // Owner-only, as on hosted runners: this machine's %TEMP% may grant other
+      // accounts Modify, which is above the root and so never checked here.
       await ownerOnly(directory)
       const nested = path.join(directory, 'nested')
       await mkdir(nested)
       const leaf = path.join(nested, 'agent.js')
       await writeFile(leaf, 'fixture')
-      const calls: string[] = []
-      const verifier = windowsTrustedPathVerifier(async (file, args) => {
-        const script = Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le')
-        calls.push(script)
-        return script.includes(`Get-Acl -LiteralPath '${nested.replaceAll("'", "''")}'`)
-          ? { exitCode: 0, stdout: 'false' }
-          : await run(file, args)
-      })
-      expect(await verifier.verify(leaf, { leafKind: 'file' })).toMatchObject({
+      const refusing = (refused: string) => {
+        const calls: string[] = []
+        const verifier = windowsTrustedPathVerifier(async (file, args) => {
+          const script = Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le')
+          calls.push(script)
+          return script.includes(`Get-Acl -LiteralPath '${refused.replaceAll("'", "''")}'`)
+            ? { exitCode: 0, stdout: 'false' }
+            : await run(file, args)
+        })
+        return { calls, verifier }
+      }
+      // The default root is the file's own folder: refused there, nothing else asked.
+      const atRoot = refusing(nested)
+      expect(await atRoot.verifier.verify(leaf, { leafKind: 'file' })).toMatchObject({
         refused: true,
         component: nested,
       })
-      expect(calls).toHaveLength(2)
-      const junction = path.join(directory, 'junction')
-      await symlink(nested, junction, 'junction')
+      expect(atRoot.calls).toHaveLength(1)
+      // An explicit root: the root passes, the component below it is refused.
+      const belowRoot = refusing(nested)
       expect(
-        await windowsTrustedPathVerifier(run).verify(path.join(junction, 'agent.js'), {
-          leafKind: 'file',
-        }),
-      ).toMatchObject({ refused: true, component: junction })
+        await belowRoot.verifier.verify(leaf, { leafKind: 'file', root: directory }),
+      ).toMatchObject({ refused: true, component: nested })
+      expect(belowRoot.calls).toHaveLength(2)
+      expect(
+        await windowsTrustedPathVerifier(run).verify(leaf, { leafKind: 'file', root: directory }),
+      ).toEqual({ ok: true, path: leaf })
       // Fake the reparse metadata: no security settings or persistent junctions change.
       const io = {
         realpath: vi.fn().mockResolvedValue(leaf),
@@ -199,6 +204,79 @@ describe('shared Windows trusted-path vectors', () => {
       expect(
         await windowsTrustedPathVerifier(run, io).verify(leaf, { leafKind: 'file' }),
       ).toMatchObject({ refused: true, component: leaf })
+    } finally {
+      expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  // Owner rule 2026-10-08 (PLAN "Windows paths: any drive"): links at or above
+  // the trusted root are normal and trusted by resolved identity; a link below
+  // it is refused at the first such component, even one that stays inside.
+  it('accepts junctions at and above the trusted root and refuses one below it', async () => {
+    if (process.platform !== 'win32') return
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'm115-trust-root-'))
+    try {
+      await ownerOnly(directory)
+      const real = path.join(directory, 'real-profile')
+      const data = path.join(real, 'data')
+      await mkdir(data, { recursive: true })
+      const leaf = path.join(data, 'agent.js')
+      await writeFile(leaf, 'fixture')
+      const verifier = windowsTrustedPathVerifier(run)
+
+      // A relocated profile: a junction above the root.
+      const profile = path.join(directory, 'profile')
+      await symlink(real, profile, 'junction')
+      const viaProfile = path.join(profile, 'data', 'agent.js')
+      expect(
+        await verifier.verify(viaProfile, { leafKind: 'file', root: path.join(profile, 'data') }),
+      ).toEqual({ ok: true, path: leaf })
+
+      // The root itself a junction to an owner-only folder elsewhere.
+      const rootLink = path.join(directory, 'root-link')
+      await symlink(data, rootLink, 'junction')
+      expect(
+        await verifier.verify(path.join(rootLink, 'agent.js'), {
+          leafKind: 'file',
+          root: rootLink,
+        }),
+      ).toEqual({ ok: true, path: leaf })
+      // Without an explicit root a file's own folder is its root: also a link, also accepted.
+      expect(await verifier.verify(path.join(rootLink, 'agent.js'), { leafKind: 'file' })).toEqual({
+        ok: true,
+        path: leaf,
+      })
+
+      // Below the root: a junction escaping the tree, and one staying inside it.
+      const tree = path.join(directory, 'tree')
+      const outside = path.join(directory, 'outside')
+      await mkdir(path.join(tree, 'inner'), { recursive: true })
+      await mkdir(outside)
+      await writeFile(path.join(outside, 'agent.js'), 'fixture')
+      await writeFile(path.join(tree, 'inner', 'agent.js'), 'fixture')
+      const escape = path.join(tree, 'escape')
+      await symlink(outside, escape, 'junction')
+      expect(
+        await verifier.verify(path.join(escape, 'agent.js'), { leafKind: 'file', root: tree }),
+      ).toMatchObject({ refused: true, component: escape, reason: 'link below the trusted root' })
+      const inside = path.join(tree, 'alias')
+      await symlink(path.join(tree, 'inner'), inside, 'junction')
+      expect(
+        await verifier.verify(path.join(inside, 'agent.js'), { leafKind: 'file', root: tree }),
+      ).toMatchObject({ refused: true, component: inside, reason: 'link below the trusted root' })
+
+      // Outside the named root, by path.
+      expect(
+        await verifier.verify(path.join(outside, 'agent.js'), { leafKind: 'file', root: tree }),
+      ).toMatchObject({ refused: true, reason: 'outside its trusted root' })
+
+      // Drive-letter spelling differs between the leaf and its root: same folder, accepted.
+      const lower = `${leaf.slice(0, 1).toLowerCase()}${leaf.slice(1)}`
+      const upperRoot = `${data.slice(0, 1).toUpperCase()}${data.slice(1)}`
+      expect(await verifier.verify(lower, { leafKind: 'file', root: upperRoot })).toMatchObject({
+        ok: true,
+      })
     } finally {
       expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
       await rm(directory, { recursive: true, force: true })

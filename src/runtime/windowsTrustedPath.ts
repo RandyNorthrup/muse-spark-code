@@ -1,7 +1,8 @@
 import { lstat, realpath } from 'node:fs/promises'
-import type { Stats } from 'node:fs'
+import type { BigIntStats, Stats } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { sameFile, statIdentity } from '../core/fs/fileIdentity'
 import type { TrustedPathVerifier } from './trustedPathPort'
 
 /** OpenSSH safe_path/StrictModes, with Windows replacement rights and SID owners.
@@ -24,65 +25,117 @@ export const WINDOWS_TRUSTED_ACL_SCRIPT = `function Test-TrustedAcl($acl, [bool]
   return $true
 }`
 
-function* components(file: string): Generator<string> {
-  let component = file
-  for (;;) {
-    yield component
-    const parent = path.win32.dirname(component)
-    if (parent === component) return
-    component = parent
-  }
+interface Refusal {
+  readonly refused: true
+  readonly component: string
+  readonly reason: string
 }
 
+/** The components below `root` down to `file`, in order; undefined when `file` is not under it. */
+function stepsBelow(root: string, file: string): string[] | undefined {
+  const relative = path.win32.relative(root, file)
+  if (relative === '') return []
+  if (relative.startsWith('..') || path.win32.isAbsolute(relative)) return
+  return relative.split('\\')
+}
+
+/**
+ * Windows trusted-path verification against a trusted root (owner rule,
+ * 2026-10-08: profile folders may be junctions, symlinks or redirected to
+ * another drive). The root is the folder the caller owns; without one it is
+ * the leaf's own folder (a file) or the leaf itself (a directory).
+ * - At and above the root, links and redirection are normal: the root is
+ *   resolved once and accepted by its resolved identity (volume serial and
+ *   file id), never by a string prefix, on any drive.
+ * - Below the root, every component must be a real file or folder: a link,
+ *   junction or other reparse point is refused at the first such component,
+ *   whether or not its target stays inside the tree (today's policy).
+ * - Owner and ACL checks apply to the resolved root and everything below it;
+ *   nothing above the root is checked beyond what the OS enforces.
+ */
 export function windowsTrustedPathVerifier(
   run: (file: string, args: readonly string[]) => Promise<{ exitCode: number; stdout: string }>,
   io?: {
     realpath: (file: string) => Promise<string>
     lstat: (file: string) => Promise<Pick<Stats, 'isFile' | 'isDirectory' | 'isSymbolicLink'>>
+    stat?: (file: string) => Promise<Pick<BigIntStats, 'dev' | 'ino'>>
   },
 ): TrustedPathVerifier {
-  const files = io ?? { lstat, realpath }
+  const files = { lstat, realpath, stat: statIdentity, ...io }
+  const isTrustedAcl = async (component: string, isDirectory: boolean) => {
+    const literal = component.replaceAll("'", "''")
+    const isDriveRoot = path.win32.dirname(component) === component
+    const script = `$ErrorActionPreference = 'Stop'; ${WINDOWS_TRUSTED_ACL_SCRIPT}; $item = Get-Item -Force -LiteralPath '${literal}'; $safe = (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) -and (Test-TrustedAcl (Get-Acl -LiteralPath '${literal}') $${String(isDriveRoot)} $${String(isDirectory)}); ConvertTo-Json -Compress -InputObject ([bool]$safe)`
+    const result = await run('powershell.exe', [
+      '-NoProfile',
+      '-NonInteractive',
+      '-EncodedCommand',
+      Buffer.from(script, 'utf16le').toString('base64'),
+    ])
+    return result.exitCode === 0 && z.boolean().parse(JSON.parse(result.stdout))
+  }
   return {
-    async verify(file, { leafKind }) {
+    async verify(file, { leafKind, root: requestedRoot }) {
       let component = file
+      const refuse = (reason: string): Refusal => ({ refused: true, component, reason })
       try {
         if (!path.win32.isAbsolute(file) || /\p{Cc}/u.test(file))
-          return { refused: true, component, reason: 'absolute path required' }
-        const canonical = await files.realpath(file)
-        const checked = new Set<string>()
-        for (const initial of [path.win32.normalize(file), path.win32.normalize(canonical)]) {
-          for (const candidate of components(initial)) {
-            component = candidate
-            const key = component.replaceAll('\\', '/').toLowerCase()
-            if (checked.has(key)) continue
-            checked.add(key)
-            const info = await files.lstat(component)
-            const isLeaf = component === initial
-            if (
-              info.isSymbolicLink() ||
-              (isLeaf && leafKind === 'file' ? !info.isFile() : !info.isDirectory())
-            )
-              return { refused: true, component, reason: 'file kind or reparse point' }
-            const literal = component.replaceAll("'", "''")
-            const isRoot = path.win32.dirname(component) === component
-            const script = `$ErrorActionPreference = 'Stop'; ${WINDOWS_TRUSTED_ACL_SCRIPT}; $item = Get-Item -Force -LiteralPath '${literal}'; $safe = (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) -and (Test-TrustedAcl (Get-Acl -LiteralPath '${literal}') $${String(isRoot)} $${String(info.isDirectory())}); ConvertTo-Json -Compress -InputObject ([bool]$safe)`
-            const result = await run('powershell.exe', [
-              '-NoProfile',
-              '-NonInteractive',
-              '-EncodedCommand',
-              Buffer.from(script, 'utf16le').toString('base64'),
-            ])
-            if (result.exitCode !== 0 || !z.boolean().parse(JSON.parse(result.stdout)))
-              return {
-                refused: true,
-                component,
-                reason: 'owner, replacement rights or reparse point',
-              }
-          }
+          return refuse('absolute path required')
+        const leaf = path.win32.normalize(file)
+        let root = leaf
+        if (requestedRoot !== undefined) root = path.win32.normalize(requestedRoot)
+        else if (leafKind === 'file') root = path.win32.dirname(leaf)
+        if (!path.win32.isAbsolute(root) || /\p{Cc}/u.test(root)) {
+          component = root
+          return refuse('absolute root required')
         }
-        return { ok: true, path: canonical }
+        const steps = stepsBelow(root, leaf)
+        if (steps === undefined) return refuse('outside its trusted root')
+        // Below the root, on the path as named: no links, and the leaf's kind.
+        let below = root
+        for (const [index, step] of steps.entries()) {
+          below = path.win32.join(below, step)
+          component = below
+          const info = await files.lstat(below)
+          if (info.isSymbolicLink()) return refuse('link below the trusted root')
+          const isDirectory = index < steps.length - 1 || leafKind === 'directory'
+          if (isDirectory ? !info.isDirectory() : !info.isFile()) return refuse('file kind')
+        }
+        // At the root: links at or above it are normal. What is trusted is the
+        // folder it resolves to, by identity (volume serial and file id).
+        component = root
+        const resolvedRoot = path.win32.normalize(await files.realpath(root))
+        if (!sameFile(await files.stat(root), await files.stat(resolvedRoot)))
+          return refuse('root identity changed')
+        const resolvedKind = await files.lstat(resolvedRoot)
+        const isRootDirectory = steps.length > 0 || leafKind === 'directory'
+        if (
+          resolvedKind.isSymbolicLink() ||
+          (isRootDirectory ? !resolvedKind.isDirectory() : !resolvedKind.isFile())
+        )
+          return refuse('file kind')
+        // With no link below it, the leaf is the resolved root's own descendant.
+        const expected = path.win32.join(resolvedRoot, ...steps)
+        component = leaf
+        if (!sameFile(await files.stat(expected), await files.stat(leaf)))
+          return refuse('outside its trusted root')
+        // Owner and ACL: the resolved root, then each component below it.
+        let named = root
+        let resolved = resolvedRoot
+        for (let index = 0; index <= steps.length; index += 1) {
+          if (index > 0) {
+            const step = steps[index - 1] ?? ''
+            named = path.win32.join(named, step)
+            resolved = path.win32.join(resolved, step)
+          }
+          component = named
+          const isDirectory = index < steps.length || leafKind === 'directory'
+          if (!(await isTrustedAcl(resolved, isDirectory)))
+            return refuse('owner, replacement rights or reparse point')
+        }
+        return { ok: true, path: expected }
       } catch {
-        return { refused: true, component, reason: 'path or security query failed' }
+        return refuse('path or security query failed')
       }
     },
   }
