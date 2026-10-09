@@ -1039,13 +1039,24 @@ attestedJob, mcpJobExecutable and resourceLaunchHost; shared test helpers
 remove them, and only the four inherited clones remain (acp agent,
 exactUsd/text, queuedAnswerBackend/modelApiElicitation, paidDailyBudget).
 dpdm: the same four cycles as `a729dba8a` (all through `admission.ts`'s lazy
-governor import; one now names `bootstrapCommand.ts`), none new.
+governor import; one now names `bootstrapCommand.ts`), none new. Kubuntu
+rig gate (`npm run quality`, label spawn5gate1, `518d7a0ae`): format:check,
+lint (ESLint over the whole repository, stylelint, PSScriptAnalyzer), all
+five typechecks, check:badges and check:tokens pass; it then stops at
+check:visual, "Missing component coverage: panel/agents-details/default/
+light/320", which reproduces on this host and touches no file this round
+changed (no webview or visual file differs from `a729dba8a`). The win11 rig
+also passes attestedJob 10, mcpJobExecutable 4 and spawnProfiles 15 (+1
+POSIX skip) on the final tree.
 
 Not fixed here, same root-cause class as finding 8 but other lanes'
 assertions: windowsVaultTransport's three compiler cases assert the
 pre-bootstrap `execFile` compiler, and nativeScheduleBackground's two cases
 run OS helpers without configured admission ("Resource admission
-unavailable"). Both are unchanged from `a729dba8a`.
+unavailable"); on Windows, windowsTrustedPath's setup fails the same way
+(its native ACL table runs through the schedule runner). All are unchanged
+from `a729dba8a`; `nodeBackgroundIo.ts` is not touched here and the vault
+compiler changed only its import paths.
 
 ### Hooks, hangs and cleanup
 
