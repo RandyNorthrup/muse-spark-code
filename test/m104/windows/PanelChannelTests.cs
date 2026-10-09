@@ -117,30 +117,7 @@ namespace MuseSpark.VisualStudio.Test
       }
     }
 
-    [TestMethod]
-    public async Task RefusesOutOfOrderWrongDirectionAndUnreadyDelivery()
-    {
-      using (var output = new StringWriter())
-      using (var peer = new MhpPeer(SchemaContract.Load(), new Host(), output))
-      {
-        await ReadyAsync(peer, output);
-        using (var channel = new PanelChannel(peer, SchemaContract.Load(), "surface", "session", "chat"))
-        {
-          await channel.OpenAsync();
-          var calls = 0; channel.MessageReceived += (sender, payload) => calls++;
-          await Assert.ThrowsExceptionAsync<MhpException>(() => peer.ReceiveAsync(Envelope(1).ToString(Formatting.None)));
-          await channel.PostAsync(new JObject { ["type"] = "ready" }, CancellationToken.None);
-          await Assert.ThrowsExceptionAsync<MhpException>(() => peer.ReceiveAsync(Envelope(2).ToString(Formatting.None)));
-          var wrong = Envelope(1, direction: "toHost"); wrong["payload"] = new JObject { ["type"] = "ready" };
-          await Assert.ThrowsExceptionAsync<MhpException>(() => peer.ReceiveAsync(wrong.ToString(Formatting.None)));
-          await peer.ReceiveAsync(Envelope(1, "another").ToString(Formatting.None));
-          Assert.AreEqual(0, calls);
-          await peer.ReceiveAsync(Envelope(1).ToString(Formatting.None));
-          await Assert.ThrowsExceptionAsync<MhpException>(() => peer.ReceiveAsync(Envelope(1).ToString(Formatting.None)));
-          Assert.AreEqual(1, calls);
-        }
-      }
-    }
+    // Out-of-order, wrong-direction, unready and unknown-surface frames: PanelProtocolFaultTests (each closes its channel).
 
     [TestMethod]
     public async Task RejectsCrossSurfacePayloadsMalformedJsonAndCancelledPosts()

@@ -9,7 +9,7 @@ using Newtonsoft.Json.Linq;
 namespace MuseSpark.VisualStudio.Panel
 {
   // The reviewed MHP envelope is the only relay; native validation uses its frozen export.
-  public sealed class PanelChannel : IPanelChannel
+  public sealed class PanelChannel : IPanelChannel, IPanelEndpoint
   {
     private readonly MhpPeer peer;
     private readonly SchemaContract contract;
@@ -25,6 +25,9 @@ namespace MuseSpark.VisualStudio.Panel
     public string SurfaceKind => binding.Value<string>("surfaceKind") ?? throw Invalid();
     private string ReadyType => SurfaceKind == "tasks" ? "tasksReady" : SchemaContract.IsPresentationSurface(SurfaceKind) ? "presentationReady" : SurfaceKind == "usage" ? "readUsage" : "ready";
     public event EventHandler<JToken>? MessageReceived;
+    // Raised once when a protocol error closed this channel, with the frozen panelError code.
+    public event EventHandler<string>? Faulted;
+    public string? FaultCode { get; private set; }
 
     public const string Bootstrap = @"(() => {
       const listeners = new Set();
@@ -49,7 +52,7 @@ namespace MuseSpark.VisualStudio.Panel
       binding = new JObject { ["surface"] = surface, ["sessionId"] = session, ["surfaceKind"] = kind };
       contract.ValidatePanel(binding, "binding");
       themeScript = theme == null ? "" : ThemeBootstrap(contract, theme);
-      peer.PanelReceived += Receive;
+      peer.AttachPanel(this);
     }
 
     public static string ThemeBootstrap(SchemaContract contract, JObject theme)
@@ -130,17 +133,43 @@ namespace MuseSpark.VisualStudio.Panel
       finally { sending.Release(); }
     }
 
-    private void Receive(object sender, JObject frame)
+    // The peer has validated the envelope. Each refusal names its frozen panelError code; nothing advances on refusal.
+    public void Receive(JObject frame)
     {
-      if (disposed || frame.Value<string>("surface") != SurfaceId) return;
-      if (frame.Value<string>("kind") == "panelError") throw new MhpException("invalidRequest", frame.Value<string>("code") ?? "MHP_PANEL_INVALID_ENVELOPE");
-      if (frame.Value<string>("kind") != "panel") return;
-      contract.ValidatePanel(frame, "envelope");
+      if (disposed || frame.Value<string>("surface") != SurfaceId) throw Refused("MHP_PANEL_UNKNOWN_SURFACE");
+      if (frame.Value<string>("kind") != "panel") throw Refused("MHP_PANEL_INVALID_ENVELOPE");
+      if (frame.Value<string>("direction") != "toPanel") throw Refused("MHP_PANEL_WRONG_DIRECTION");
+      if (frame.Value<long>("seq") != incoming + 1) throw Refused("MHP_PANEL_OUT_OF_ORDER");
       // Replies already in flight may enter the bounded inbox during reload.
-      if (!hasBeenReady || frame.Value<string>("direction") != "toPanel" || frame.Value<long>("seq") != incoming + 1) throw Invalid();
-      var payload = ParseRuntimeMessage(frame["payload"] ?? throw Invalid());
+      if (!hasBeenReady) throw Refused("MHP_PANEL_NOT_READY");
+      JToken payload;
+      try { payload = ParseRuntimeMessage(frame["payload"] ?? throw Invalid()); }
+      catch (MhpException) { throw Refused("MHP_PANEL_INVALID_PAYLOAD"); }
       incoming++;
       MessageReceived?.Invoke(this, payload);
+    }
+
+    public async Task FaultAsync(string code)
+    {
+      // Stop delivery at once; later frames for this surface are answered as unknown.
+      peer.DetachPanel(this);
+      await sending.WaitAsync().ConfigureAwait(false);
+      var closing = !disposed;
+      try
+      {
+        if (!closing) return;
+        disposed = true;
+        ready = false;
+        FaultCode = code;
+        var frame = LifecycleFrame("closed"); frame["droppedMessages"] = 0;
+        await peer.PostPanelAsync(frame).ConfigureAwait(false);
+      }
+      finally
+      {
+        sending.Release();
+        // Outside the send lock: a subscriber may dispose the view, and with it this channel.
+        if (closing) Faulted?.Invoke(this, code);
+      }
     }
 
     private JObject LifecycleFrame(string value)
@@ -157,13 +186,14 @@ namespace MuseSpark.VisualStudio.Panel
       {
         if (disposed) return;
         disposed = true;
-        peer.PanelReceived -= Receive;
+        peer.DetachPanel(this);
         var frame = LifecycleFrame("closed"); frame["droppedMessages"] = 0;
         await peer.PostPanelAsync(frame).ConfigureAwait(false);
       }
       finally { sending.Release(); }
     }
-    public void Dispose() { disposed = true; peer.PanelReceived -= Receive; }
+    public void Dispose() { disposed = true; peer.DetachPanel(this); }
     private static MhpException Invalid() => new MhpException("invalidParams", "MHP_PANEL_INVALID_PAYLOAD");
+    private static MhpException Refused(string code) => new MhpException("invalidRequest", code);
   }
 }

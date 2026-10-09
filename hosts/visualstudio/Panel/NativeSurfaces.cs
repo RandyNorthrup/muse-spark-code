@@ -18,7 +18,8 @@ namespace MuseSpark.VisualStudio.Panel
       public PanelChannel Channel { get; }
       public PanelView View { get; }
       public IVsWindowFrame Frame { get; }
-      public Surface(PanelChannel channel, PanelView view, IVsWindowFrame frame) { Channel = channel; View = view; Frame = frame; }
+      public MuseToolWindow Window { get; }
+      public Surface(PanelChannel channel, PanelView view, IVsWindowFrame frame, MuseToolWindow window) { Channel = channel; View = view; Frame = frame; Window = window; }
     }
     private readonly AsyncPackage package;
     private readonly string assets;
@@ -46,6 +47,7 @@ namespace MuseSpark.VisualStudio.Panel
         var frame = window.Frame as IVsWindowFrame ?? throw Invalid();
         var channel = new PanelChannel(Peer ?? throw Invalid(), SchemaContract.Load(), id, session, kind, Theme ?? throw Invalid());
         var view = new PanelView(channel, package.JoinableTaskFactory);
+        channel.Faulted += (sender, code) => package.JoinableTaskFactory.RunAsync(() => FaultedAsync(id, channel, code)).FileAndForget("MuseSpark/PanelFaulted");
         try
         {
           await channel.OpenAsync();
@@ -56,8 +58,8 @@ namespace MuseSpark.VisualStudio.Panel
           window.Content = container;
           await view.InitializeAsync(assets, text, kind);
           cancellation.ThrowIfCancellationRequested();
-          if (disposed) throw new OperationCanceledException();
-          surfaces.Add(id, new Surface(channel, view, frame));
+          if (disposed || channel.FaultCode != null) throw new OperationCanceledException();
+          surfaces.Add(id, new Surface(channel, view, frame, window));
           return new JObject { ["surfaceId"] = id };
         }
         catch { view.Dispose(); frame.Hide(); throw; }
@@ -75,6 +77,16 @@ namespace MuseSpark.VisualStudio.Panel
         case "surfaces/state": return new JObject { ["visible"] = held.Frame.IsVisible() == Microsoft.VisualStudio.VSConstants.S_OK, ["focused"] = held.View.IsKeyboardFocusWithin };
         default: throw Invalid();
       }
+    }
+
+    // The channel already sent `closed`; the window shows the fixed identifier instead of a desynchronized page.
+    private async Task FaultedAsync(string id, PanelChannel channel, string code)
+    {
+      await package.JoinableTaskFactory.SwitchToMainThreadAsync();
+      if (!surfaces.TryGetValue(id, out var held) || !ReferenceEquals(held.Channel, channel)) return;
+      surfaces.Remove(id);
+      held.View.Dispose();
+      held.Window.Content = new TextBlock { Text = text["crashTitle"] + Environment.NewLine + code, TextWrapping = TextWrapping.Wrap };
     }
 
     public void Dispose()

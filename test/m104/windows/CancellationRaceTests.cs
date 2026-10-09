@@ -22,12 +22,18 @@ namespace MuseSpark.VisualStudio.Test
     }
     private sealed class HeldCancelWriter : StringWriter
     {
+      private int completions;
       public AsyncManualResetEvent CancelStarted { get; } = new AsyncManualResetEvent();
       public AsyncManualResetEvent Release { get; } = new AsyncManualResetEvent();
+      // The unrelated request queues behind the held cancellation write; its frame lands only after release.
+      public AsyncManualResetEvent SecondRequestWritten { get; } = new AsyncManualResetEvent();
+      public JToken? SecondRequestId { get; private set; }
       public override async Task WriteLineAsync(string value)
       {
         base.WriteLine(value);
-        if (SchemaContract.ParseObject(value).Value<string>("method") != "$/cancelRequest") return;
+        var frame = SchemaContract.ParseObject(value);
+        if (frame.Value<string>("method") == "tab/complete" && Interlocked.Increment(ref completions) == 2) { SecondRequestId = frame["id"]; SecondRequestWritten.Set(); }
+        if (frame.Value<string>("method") != "$/cancelRequest") return;
         CancelStarted.Set(); await Release.WaitAsync().ConfigureAwait(false);
       }
     }
@@ -71,7 +77,8 @@ namespace MuseSpark.VisualStudio.Test
         finally { output.Release.Set(); }
         try { await request; Assert.Fail("M104_CANCELLED_REQUEST_SUCCEEDED"); }
         catch (TaskCanceledException) { }
-        var otherId = Last(output)["id"] ?? throw new InvalidOperationException();
+        await output.SecondRequestWritten.WaitAsync().ConfigureAwait(false);
+        var otherId = output.SecondRequestId ?? throw new InvalidOperationException();
         await peer.ReceiveAsync(Reply(otherId).ToString(Formatting.None));
         Assert.AreEqual(0, ((JArray)await unrelated).Count);
         await Assert.ThrowsExceptionAsync<MhpException>(() => peer.ReceiveAsync(Reply(id).ToString(Formatting.None)));

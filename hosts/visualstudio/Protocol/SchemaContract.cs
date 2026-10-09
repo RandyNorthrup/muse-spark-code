@@ -69,7 +69,14 @@ namespace MuseSpark.VisualStudio.Protocol
 
     public static bool IsPresentationSurface(string kind) => kind == "plans" || kind == "manager" || kind == "roles" || kind == "traffic" || kind == "diff" || kind == "walkthrough";
 
-    public static void Validate(JToken value, JToken schema) { Check(value, schema, schema); }
+    public static void Validate(JToken value, JToken schema)
+    {
+      try { Check(value, schema, schema); }
+      // A keyword of an unexpected JSON type (a cast, a format or a regex timeout) refuses the value; it never escapes as a crash.
+      catch (Exception error) when (IsValidationFault(error)) { throw Invalid(); }
+    }
+
+    private static bool IsValidationFault(Exception error) => !(error is MhpException) && !(error is OutOfMemoryException) && !(error is System.Threading.ThreadAbortException);
 
     private static void Check(JToken value, JToken schema, JToken root)
     {
@@ -87,8 +94,7 @@ namespace MuseSpark.VisualStudio.Protocol
       if (rules["oneOf"] is JArray exclusive && exclusive.Count(s => Matches(value, s, root)) != 1) throw Invalid();
       if (rules["const"] is JToken constant && !Equal(value, constant)) throw Invalid();
       if (rules["enum"] is JArray values && !values.Any(v => Equal(value, v))) throw Invalid();
-      var type = rules.Value<string>("type");
-      if (type != null && !IsType(value, type)) throw Invalid();
+      if (rules["type"] is JToken type && !HasType(value, type)) throw Invalid();
       if (value is JObject obj) CheckObject(obj, rules, root);
       if (value is JArray array) CheckArray(array, rules, root);
       if (value.Type == JTokenType.String)
@@ -135,6 +141,18 @@ namespace MuseSpark.VisualStudio.Protocol
     {
       try { Check(value, schema, root); return true; }
       catch (MhpException) { return false; }
+      // Any other failure inside one alternative is that alternative's refusal, never the validator's exit.
+      catch (Exception error) when (IsValidationFault(error)) { return false; }
+    }
+
+    // JSON Schema 2020-12 §6.1.1: `type` is one name or a non-empty array of unique names (the frozen
+    // export uses ["string","null"] for ui/input's result and ["string","number","boolean"] for an elicitation default).
+    private static bool HasType(JToken value, JToken type)
+    {
+      if (type.Type == JTokenType.String) return IsType(value, type.Value<string>() ?? throw Invalid());
+      if (!(type is JArray names) || names.Count == 0 || names.Any(name => name.Type != JTokenType.String)) throw Invalid();
+      if (names.Select(name => name.Value<string>()).Distinct(StringComparer.Ordinal).Count() != names.Count) throw Invalid();
+      return names.Any(name => IsType(value, name.Value<string>() ?? throw Invalid()));
     }
 
     private static bool Equal(JToken left, JToken right)

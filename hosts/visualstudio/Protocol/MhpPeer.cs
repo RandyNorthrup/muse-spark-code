@@ -16,10 +16,27 @@ namespace MuseSpark.VisualStudio.Protocol
     Task<JToken> InvokeAsync(string method, JObject parameters, CancellationToken cancellation);
   }
 
+  // One bound surface. The peer validates the envelope; the endpoint owns binding, direction, readiness and sequence.
+  public interface IPanelEndpoint
+  {
+    string SurfaceId { get; }
+    // Throws MhpException named by a frozen panelError code when the frame breaks this channel's protocol.
+    void Receive(JObject frame);
+    // Close after a protocol error; idempotent. The channel's sequence is no longer shared with the runtime.
+    Task FaultAsync(string code);
+  }
+
   // Bidirectional NDJSON, correlated ids, sparse capabilities and cancellation.
   public sealed class MhpPeer : IDisposable
   {
     private const int MaximumRequestIds = 100000;
+    // Completed inbound ids remembered for replay refusal. In-flight ids are always refused.
+    internal const int DefaultRecentRequestIds = 4096;
+    private const string PanelInvalidEnvelope = "MHP_PANEL_INVALID_ENVELOPE";
+    private const string PanelInvalidPayload = "MHP_PANEL_INVALID_PAYLOAD";
+    private const string PanelUnknownSurface = "MHP_PANEL_UNKNOWN_SURFACE";
+    private const string PanelInvalidLifecycle = "MHP_PANEL_INVALID_LIFECYCLE";
+    private static readonly string[] PanelEnvelopeFields = { "mhp", "kind", "surface", "direction", "seq", "payload" };
     private readonly SchemaContract contract;
     private readonly IHostServices services;
     private readonly TextWriter writer;
@@ -28,7 +45,11 @@ namespace MuseSpark.VisualStudio.Protocol
     private readonly Dictionary<string, Pending> pending = new Dictionary<string, Pending>(StringComparer.Ordinal);
     private readonly Dictionary<string, string> cancelledRequests = new Dictionary<string, string>(StringComparer.Ordinal);
     private readonly Dictionary<string, CancellationTokenSource> active = new Dictionary<string, CancellationTokenSource>(StringComparer.Ordinal);
-    private readonly HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
+    private readonly HashSet<string> recent = new HashSet<string>(StringComparer.Ordinal);
+    private readonly Queue<string> recentOrder = new Queue<string>();
+    private readonly int recentLimit;
+    private readonly int activeLimit;
+    private readonly Dictionary<string, IPanelEndpoint> panels = new Dictionary<string, IPanelEndpoint>(StringComparer.Ordinal);
     private readonly HashSet<string> negotiated = new HashSet<string>(StringComparer.Ordinal);
     private readonly List<TaskCompletionSource<bool>> readyWaiters = new List<TaskCompletionSource<bool>>();
     private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
@@ -36,7 +57,8 @@ namespace MuseSpark.VisualStudio.Protocol
     private bool initialized;
     private bool initializing;
     private bool stopped;
-    public event EventHandler<JObject>? PanelReceived;
+    // Fixed identifiers only: no frame content, path or account reaches the log.
+    public Action<string>? Log { private get; set; }
 
     private sealed class Pending
     {
@@ -46,12 +68,32 @@ namespace MuseSpark.VisualStudio.Protocol
       public Pending(string method, TaskCompletionSource<JToken> completion) { Method = method; Completion = completion; }
     }
 
-    public MhpPeer(SchemaContract contract, IHostServices services, TextWriter writer)
+    public MhpPeer(SchemaContract contract, IHostServices services, TextWriter writer) : this(contract, services, writer, DefaultRecentRequestIds) { }
+
+    internal MhpPeer(SchemaContract contract, IHostServices services, TextWriter writer, int recentRequestIds)
     {
+      if (recentRequestIds < 1) throw new ArgumentOutOfRangeException(nameof(recentRequestIds));
       this.contract = contract;
       this.services = services;
       this.writer = writer;
+      recentLimit = recentRequestIds;
+      // The runtime holds at most this many requests in flight (frozen panel.limits); more is a flood, not a session.
+      activeLimit = contract.Export["panel"]?["limits"]?.Value<int?>("maximumQueuedMessages") ?? throw new MhpException("internalError", "MHP_CONTRACT_ERROR");
       if (!services.Capabilities.Contains("lifecycle")) throw new ArgumentException("MHP_LIFECYCLE_REQUIRED", nameof(services));
+    }
+
+    public void AttachPanel(IPanelEndpoint endpoint)
+    {
+      lock (stateLock)
+      {
+        if (panels.ContainsKey(endpoint.SurfaceId)) throw new MhpException("invalidParams", "MHP_PANEL_BINDING_MISMATCH");
+        panels.Add(endpoint.SurfaceId, endpoint);
+      }
+    }
+
+    public void DetachPanel(IPanelEndpoint endpoint)
+    {
+      lock (stateLock) { if (panels.TryGetValue(endpoint.SurfaceId, out var held) && ReferenceEquals(held, endpoint)) panels.Remove(endpoint.SurfaceId); }
     }
 
     public async Task RunAsync(TextReader reader)
@@ -95,14 +137,7 @@ namespace MuseSpark.VisualStudio.Protocol
       catch (Exception error) when (error is JsonException || error is MhpException)
       { await FailAsync(JValue.CreateNull(), new MhpException("parseError", "MHP_PARSE_ERROR")).ConfigureAwait(false); return; }
 
-      if (frame["mhp"] != null)
-      {
-        RequireReady("lifecycle");
-        var kind = frame.Value<string>("kind");
-        contract.ValidatePanel(frame, kind == "panel" ? "envelope" : kind == "panelError" ? "error" : "lifecycle");
-        PanelReceived?.Invoke(this, frame);
-        return;
-      }
+      if (frame["mhp"] != null) { await ReceivePanelAsync(frame).ConfigureAwait(false); return; }
       if (frame["method"] == null) { ReceiveResult(frame); return; }
       var id = frame["id"] ?? JValue.CreateNull();
       try { SchemaContract.Validate(id, contract.Export["failure"]?["properties"]?["id"] ?? throw new MhpException("internalError", "MHP_CONTRACT_ERROR")); }
@@ -130,7 +165,9 @@ namespace MuseSpark.VisualStudio.Protocol
         }
         lock (stateLock)
         {
-          if (seen.Count >= MaximumRequestIds || !seen.Add(key)) throw new MhpException("invalidRequest", "MHP_DUPLICATE_ID");
+          // A live id is a duplicate; a recently completed one is a replay. Older ids leave the bounded window.
+          if (active.ContainsKey(key) || recent.Contains(key)) throw new MhpException("invalidRequest", "MHP_DUPLICATE_ID");
+          if (active.Count >= activeLimit) throw new MhpException("internalError", "MHP_BACKPRESSURE");
           cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
           active.Add(key, cancellation);
         }
@@ -149,8 +186,103 @@ namespace MuseSpark.VisualStudio.Protocol
       catch (Exception) { await FailAsync(id, new MhpException("internalError", "MHP_HOST_FAILED")).ConfigureAwait(false); }
       finally
       {
-        if (cancellation != null) { lock (stateLock) { active.Remove(key); } cancellation.Dispose(); }
+        if (cancellation != null) { lock (stateLock) { active.Remove(key); Remember(key); } cancellation.Dispose(); }
       }
+    }
+
+    private void Remember(string key)
+    {
+      if (!recent.Add(key)) return;
+      recentOrder.Enqueue(key);
+      while (recentOrder.Count > recentLimit) recent.Remove(recentOrder.Dequeue());
+    }
+
+    // Each panel frame is validated alone. A failure closes only the channel it names, with a frozen
+    // panelError code, and is logged; it never faults the receive loop or leaves a sequence half-advanced.
+    private async Task ReceivePanelAsync(JObject frame)
+    {
+      try { RequireReady("lifecycle"); }
+      catch (MhpException error) { Report(error.Message); return; }
+      var surface = frame["surface"] is JValue { Type: JTokenType.String } name && name.Value<string>() is string id && id.Length != 0 ? id : null;
+      IPanelEndpoint? endpoint = null;
+      if (surface != null) lock (stateLock) { panels.TryGetValue(surface, out endpoint); }
+      string code;
+      try
+      {
+        switch (frame["kind"] is JValue { Type: JTokenType.String } kind ? kind.Value<string>() : null)
+        {
+          case "panel":
+            if (!Valid(frame, "envelope")) { code = HasPanelHeader(frame) ? PanelInvalidPayload : PanelInvalidEnvelope; break; }
+            if (endpoint == null) { code = PanelUnknownSurface; break; }
+            endpoint.Receive(frame);
+            return;
+          case "panelError":
+            if (!Valid(frame, "error")) { code = PanelInvalidEnvelope; break; }
+            // The runtime refused one of this channel's frames: the sequences no longer agree. Never echo it back.
+            code = frame.Value<string>("code") ?? PanelInvalidEnvelope;
+            Report(code);
+            if (endpoint == null) return;
+            try { await endpoint.FaultAsync(code).ConfigureAwait(false); }
+            catch (Exception failure) when (failure is MhpException || failure is IOException || failure is ObjectDisposedException) { Report("MHP_PANEL_CLOSE_UNSENT"); }
+            return;
+          case "surface":
+            // Lifecycle frames travel editor-to-runtime only; one arriving here cannot be applied to a binding.
+            code = PanelInvalidLifecycle;
+            break;
+          default:
+            code = PanelInvalidEnvelope;
+            break;
+        }
+      }
+      catch (MhpException error) when (error.Message.StartsWith("MHP_PANEL_", StringComparison.Ordinal)) { code = error.Message; }
+      catch (Exception error) when (!(error is OutOfMemoryException))
+      {
+        // Delivery failed after the frame was admitted; the channel cannot vouch for its next frame.
+        Report("MHP_PANEL_DELIVERY_FAILED");
+        code = PanelInvalidPayload;
+      }
+      await FaultPanelAsync(surface, frame["seq"], code, endpoint).ConfigureAwait(false);
+    }
+
+    private bool Valid(JObject frame, string kind)
+    {
+      try { contract.ValidatePanel(frame, kind); return true; }
+      catch (MhpException) { return false; }
+    }
+
+    // The header the runtime admits before the payload (shared/hostApi/panel.ts): its failure is an envelope error.
+    private static bool HasPanelHeader(JObject frame) =>
+      frame.Count == PanelEnvelopeFields.Length && PanelEnvelopeFields.All(field => frame.Property(field, StringComparison.Ordinal) != null)
+      && frame.Value<string>("mhp") == "1.3" && frame["surface"]?.Type == JTokenType.String
+      && (frame.Value<string>("direction") == "toHost" || frame.Value<string>("direction") == "toPanel")
+      && frame["seq"]?.Type == JTokenType.Integer && frame.Value<long>("seq") >= 0;
+
+    private async Task FaultPanelAsync(string? surface, JToken? seq, string code, IPanelEndpoint? endpoint)
+    {
+      Report(code);
+      try
+      {
+        var error = new JObject
+        {
+          ["mhp"] = "1.3",
+          ["kind"] = "panelError",
+          ["surface"] = surface,
+          ["seq"] = seq is JValue { Type: JTokenType.Integer } number && number.Value<long>() >= 0 ? number : JValue.CreateNull(),
+          ["code"] = code
+        };
+        if (!Valid(error, "error")) error["seq"] = JValue.CreateNull();
+        await PostPanelAsync(error).ConfigureAwait(false);
+      }
+      catch (Exception failure) when (failure is MhpException || failure is IOException || failure is ObjectDisposedException) { Report("MHP_PANEL_ERROR_UNSENT"); }
+      if (endpoint == null) return;
+      try { await endpoint.FaultAsync(code).ConfigureAwait(false); }
+      catch (Exception failure) when (failure is MhpException || failure is IOException || failure is ObjectDisposedException) { Report("MHP_PANEL_CLOSE_UNSENT"); }
+    }
+
+    private void Report(string identifier)
+    {
+      try { Log?.Invoke(identifier); }
+      catch (Exception error) when (!(error is OutOfMemoryException)) { /* A failing log sink must not stop the protocol. */ }
     }
 
     public async Task InitializeAsync(JObject parameters, CancellationToken cancellation)
@@ -278,7 +410,8 @@ namespace MuseSpark.VisualStudio.Protocol
     public Task PostPanelAsync(JObject frame)
     {
       RequireReady("lifecycle");
-      contract.ValidatePanel(frame, frame.Value<string>("kind") == "panel" ? "envelope" : "lifecycle");
+      var kind = frame.Value<string>("kind");
+      contract.ValidatePanel(frame, kind == "panel" ? "envelope" : kind == "panelError" ? "error" : "lifecycle");
       return WriteAsync(frame);
     }
 

@@ -62,13 +62,15 @@ namespace MuseSpark.VisualStudio
           throw new InvalidOperationException("MHP_EDITOR_SERVICE_UNAVAILABLE");
         completion = components.GetService<TabCompletion>() ?? throw new InvalidOperationException("MHP_TAB_SERVICE_UNAVAILABLE");
         var errorList = await GetServiceAsync(typeof(SVsErrorList)) as IVsTaskList;
-        ui = new NativeUi(JoinableTaskFactory, text, identifier => ActivityLog.LogError("Muse Spark Code (Unofficial)", identifier));
+        Action<string> log = identifier => ActivityLog.LogError("Muse Spark Code (Unofficial)", identifier);
+        ui = new NativeUi(JoinableTaskFactory, text, log);
         surfaces = new NativeSurfaces(this, assets, text, ui);
         host = new VisualStudioHost(this, components, rdt, textManager, completion, errorList, surfaces, ui);
         var workspace = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MuseSparkCode", "VisualStudio", "scratch");
         if (await GetServiceAsync(typeof(SVsSolution)) is IVsSolution solution && solution.GetSolutionInfo(out var directory, out _, out _) == VSConstants.S_OK && !string.IsNullOrEmpty(directory)) workspace = directory;
         Directory.CreateDirectory(workspace);
         runtime = new RuntimeProcess(Path.Combine(assets, "runtime", "node.exe"), Path.Combine(assets, "runtime", "dist", "acp.js"), workspace, host, JoinableTaskFactory);
+        runtime.Peer.Log = log;
         host.Peer = runtime.Peer;
         surfaces.Peer = runtime.Peer;
         ui.Peer = runtime.Peer;
