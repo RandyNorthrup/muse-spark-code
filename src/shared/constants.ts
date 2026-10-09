@@ -7226,7 +7226,8 @@ export const TEAM_INTENSITY_ORDER = ['minimal', 'light', 'balanced', 'heavy', 'm
 export const TEAM_LEARNED_MIN_TASKS = 5
 export const TEAM_MINUTES_PER_HOUR = 60
 export const TEAM_TOKENS_PER_MTOK = 1_000_000
-export const TEAM_PREVIEW_OUTPUT_SHARE = 0.3
+// The output share of a preview step's tokens, in whole percent (exact money, M121).
+export const TEAM_PREVIEW_OUTPUT_PERCENT = 30
 export const TEAM_PREVIEW_USD_FRACTION_DIGITS = 4
 export const TEAM_EXPORT_FORMAT = 'muse-spark-team'
 export const TEAM_EXPORT_VERSION = 1

@@ -127,8 +127,6 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   'core/backends/modelapi/ModelApiHost.ts:capUsd': { category: 'trackedDebt', reason: DEBT },
   'core/backends/modelapi/ModelApiHost.ts:spentUsd': { category: 'trackedDebt', reason: DEBT },
   'core/backends/modelapi/ModelApiHost.ts:uncertainUsd': { category: 'trackedDebt', reason: DEBT },
-  'core/team/preview.ts:usdHigh': { category: 'trackedDebt', reason: DEBT },
-  'core/team/preview.ts:usdLow': { category: 'trackedDebt', reason: DEBT },
   'core/team/teamPool.ts:costUsd': { category: 'trackedDebt', reason: DEBT },
   'core/team/trafficMetrics.ts:estimatedCostUsd': { category: 'trackedDebt', reason: DEBT },
   'core/team/trafficMetrics.ts:reportedCostUsd': { category: 'trackedDebt', reason: DEBT },
