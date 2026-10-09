@@ -56,6 +56,7 @@ happened, not what was planned; superseded entries are kept.
 ### Changed
 
 - README and `docs/acp.md` name all four places the project ships from (VS Code Marketplace, Open VSX, npm, GitHub Releases), add an npm version badge, and install the ACP agent with `npm install -g muse-spark-code-acp` first, the release `.tgz` second.
+- README adds a total downloads badge (all channels) and a GitHub app installs badge, both served by the project's Cloudflare Worker, now kept in `infra/marketplace-hook` (counters only; not part of any package).
 - README notes the project's unofficial GitHub OAuth app for M123 sign-in and that its GitHub Marketplace listing awaits GitHub's review; the privacy notice adds the app's device flow, `repo` scope, keychain or vault storage and revocation.
 - Preserve exact decimal USD across schedule authorization, consent and agent caps,
   rental cost estimates, reporting facts, account totals and voice consent. Read

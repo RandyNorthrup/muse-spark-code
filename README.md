@@ -9,6 +9,8 @@
   <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX downloads" src="https://badgen.net/open-vsx/d/RandyNorthrup/muse-spark-code?label=Open%20VSX%20downloads&color=3b6cf6"></a>
   <a href="https://www.npmjs.com/package/muse-spark-code-acp"><img alt="ACP agent: npm version" src="https://badgen.net/npm/v/muse-spark-code-acp?label=ACP%20agent%20(npm)&color=3b6cf6"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/releases/latest"><img alt="ACP agent: GitHub Release" src="https://badgen.net/github/release/RandyNorthrup/muse-spark-code?label=ACP%20agent%20(GitHub)&color=3b6cf6"></a>
+  <a href="#install-in-your-editor"><img alt="Total downloads (all channels)" src="https://badgen.net/https/muse-marketplace-hook.objectipy.workers.dev/badgen/downloads"></a>
+  <a href="#git-and-pull-requests"><img alt="GitHub app installs" src="https://badgen.net/https/muse-marketplace-hook.objectipy.workers.dev/badgen/app-installs"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg"></a>
   <a href="#install-in-your-editor"><img alt="Editors: VS Code-based (engine 1.99 or newer) and ACP" src="https://img.shields.io/badge/editors-VS%20Code--based%20%C2%B7%20ACP-2b7de9"></a>
   <img alt="WCAG 2.2 AA checked" src="https://img.shields.io/badge/WCAG%202.2-AA%20checked-2b7de9">
@@ -5246,6 +5248,12 @@ After every complete four-channel release, the workflow runs
 image-proxy copies. It needs no secret; stale caches or network failures warn
 without failing publication. See [release CI](docs/ci.md#release-publication-and-readme-badges)
 for propagation bounds and verification limits.
+
+The **downloads** and **GitHub app installs** badges read counters from the
+project's own Cloudflare Worker ([`infra/marketplace-hook`](infra/marketplace-hook/README.md)):
+total downloads across the VS Code Marketplace, Open VSX, npm, GitHub Release
+assets and GitHub app installs, refreshed at most hourly, and current app
+installs from the GitHub Marketplace webhook. It stores counters only.
 
 Marketplace/Open VSX and npm package READMEs receive static version badges from
 `package.json` during packaging; this GitHub README keeps dynamic versions.
