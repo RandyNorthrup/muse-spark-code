@@ -190,6 +190,11 @@ backend refuses it with `PI_TRYBOOT_BAD_STATE`.
 
 RAUC call → backend action → autoboot.txt state (stable A, installing B):
 
+SUPERSEDED in FIXM110OS3 (F1): the `boot_partition=1/2` bytes in the table
+below predate the controller-first map. The controller is partition 1, A is
+2, B is 3 (backend `PART_CONTROLLER=1 PART_A=2 PART_B=3`; §3) — read every
+`boot_partition=1` below as `2` and every `boot_partition=2` below as `3`.
+
 | RAUC call                                      | Backend action                               | autoboot.txt after                                                    |
 | ---------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------- |
 | install → `set-primary B`                      | ARM one-shot trial of B; stable untouched    | `[all] boot_partition=1 muse_trial=B` `[tryboot] boot_partition=2`    |
@@ -470,9 +475,79 @@ Boot (OS4/OS6). Physical boot receipts stay with Q.
 - Path compares normalise to `/` before comparing; tests hand POSIX sh
   forward-slash paths on Windows and fail loudly when no shell or no
   openssl exists. `flock` is required (fail closed `PI_TRYBOOT_NO_LOCK`
-  without it); no `timeout(1)` dependency remains (§5).
+  without it); SUPERSEDED in FIXM110OS3 (F3): `timeout(1)` IS required — the
+  per-call bound is `timeout -k` with KILL escalation and a group sweep
+  (§5), and a missing timeout(1) refuses `no-timeout` before anything runs.
 - Shell arithmetic inputs are validated as digits/hex before evaluation in
   both scripts (dash octal and expression-injection pitfalls).
-- Deviations from the brief, both with sandbox evidence: per-call bound is
-  a shell watchdog rather than timeout(1) (§5); EEPROM status tokens are
-  provisional pending hardware capture (§8).
+- Deviations from the brief, both with sandbox evidence: SUPERSEDED in
+  FIXM110OS3 (F3) for the per-call bound, which is `timeout(1)` rather than
+  the earlier shell watchdog (§5); EEPROM status tokens are provisional
+  pending hardware capture (§8).
+
+## Round 4: FIXM110OS4 against RVM110OS3 (2 P2, 1 P3)
+
+Lane FIXM110OS4, worktree `/Users/randy/lanes/FIXM110OS4`, branch
+`m110/os4-fix` from `09aed9554`, on the macmini rig. No image build, no
+boot, no RAUC binary, no network, no paid call. Tests run under `dash`
+at the repository default timeout, at most 3 files per run; no
+`--testTimeout` was used.
+
+| Commit      | Finding | What                                                                             |
+| ----------- | ------- | -------------------------------------------------------------------------------- |
+| `522348b5d` | R1 (P2) | Refused EFI mark-bad keeps the marker and exits 1; the next run retries the mark |
+| `2e7fd5dba` | R2 (P2) | Incoming and installed counters share one bound (`MAX_COUNTER`, 2^63-1)          |
+| (this)      | R3 (P3) | Stale §1 partition bytes and final portability notes marked SUPERSEDED in place  |
+
+Files after round 4 (`pi-tryboot-backend`, `pi-eeprom-check`,
+`muse-mark-good.service`, RAUC configs unchanged from round 3):
+
+| File         | SHA-256                                                            |
+| ------------ | ------------------------------------------------------------------ |
+| `mark-good`  | `00ec6a582180e5a706c5016617202b3e4d28fd58d453fab6f28a566d76b5e237` |
+| `channel.py` | `31f63ce39f06749ffb9fc9e38f33d84ce03aa3c60594e1997029dd870c933729` |
+
+- R1: both EFI refusal branches (fallen-back and probe-failed) keep
+  `MUSE_EFI_TRIAL_FILE`, log `keeping-trial-marker for-retry`, and exit 1
+  via `fail "rauc-bad slot=..."` — never the handled 3. The probe-failed
+  refusal relies on the unit's `FailureAction=reboot` to leave the failed
+  trial (documented in the script header). Tests: a refusing-RAUC fake
+  yields marker kept + exit 1 on both branches, and the next run with a
+  working RAUC retries the mark (second `status mark-bad usr.1`, marker
+  cleared, exit 3, reboot requested).
+- R2: `valid_counter` (0..2^63-1, bool refused) guards the incoming JSON
+  integer; `parse_counter` (ASCII digits, at most 19, then `valid_counter`)
+  reads the installed-state file. Test: incoming 2^63-1 accepted
+  (`CHANNEL_OK`), persisted verbatim, read back (`CHANNEL_METADATA_STALE`,
+  never `CHANNEL_STATE_INVALID`); 2^63 refused as `CHANNEL_MALFORMED` on
+  the wire and `CHANNEL_STATE_INVALID` in state.
+- R3: the §1 action table carries a SUPERSEDED note (1/2 bytes predate the
+  controller-first map; read 1 as 2, 2 as 3) and the final portability
+  notes mark the timeout/watchdog passages SUPERSEDED, pointing at the
+  round-3 contract (`timeout -k` required).
+
+### Round-4 red drills (break, named test fails, restore byte-exact)
+
+| Guard           | Break                                            | Named failure                                       | Restored SHA-256      |
+| --------------- | ------------------------------------------------ | --------------------------------------------------- | --------------------- |
+| R1 kept marker  | both `fail "rauc-bad ..."` replaced by `handled` | MarkGood: 2 refusal tests failed (exit 3, not 1)    | `00ec6a58…5e237` OK   |
+| R2 shared bound | `valid_counter` upper bound removed              | Channel: round-trip test failed (OK, not MALFORMED) | `31f63ce3…c933729` OK |
+
+### Round-4 verification (macmini rig, repository default timeout)
+
+- `npx vitest run` MarkGood + Channel + Eeprom (`--maxWorkers=3`): 3
+  files passed, **57 passed, 21 skipped, 0 failed** — Channel 30/30
+  (including the round-trip test), Eeprom 19/19, MarkGood EFI 7/7 plus the
+  unit test (including the 2 new refusal tests). The 21 skips are the Pi
+  suites, which require `flock(1)` (absent on macOS) and skip under their
+  named reasons; the EFI suites ran under `dash` here.
+- `dash -n` on all three shell scripts OK; `python3 -B
+os/update/check-rauc-conf.py` both `RAUC_CONF_OK`; `python3 -B
+os/check.py` 0 problems.
+- Rig environment, disclosed: stock macOS ships no `timeout(1)` and this
+  rig's Homebrew cannot install coreutils (Cellar unwritable), so
+  timeout-dependent suites ran with a private `timeout -k` replacement
+  (real TERM-then-KILL process-group escalation, in `$TMPDIR`, never
+  shipped or committed). Pi-backend suites requiring `flock(1)` skip under
+  their named reasons here; CI must re-run the full files with coreutils
+  and util-linux (kubuntu/Windows).
