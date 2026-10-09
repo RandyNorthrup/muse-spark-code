@@ -7,8 +7,9 @@
 #
 # It prints exactly one machine-readable code on stdout and nothing else:
 #   OK                        ready for tryboot updates (exit 0)
-#   PI4_EEPROM_WRITE_REQUIRED Pi 4 rev 1.0/1.1: the EEPROM must be made
-#                             writable before A/B updates (exit 3)
+#   PI4_EEPROM_WRITE_REQUIRED Pi 4 rev 1.0/1.1 whose bootloader is not up
+#                             to date: the EEPROM must be made writable and
+#                             updated before A/B updates (exit 3)
 #   PI5_BOOTLOADER_TOO_OLD    Pi 5 bootloader predates 2025-03-10 (exit 4)
 #   CANNOT_DETERMINE          revision or bootloader date missing or
 #                             unparseable; fail closed (exit 2)
@@ -28,13 +29,22 @@
 #    first YYYY/MM/DD or YYYY-MM-DD date is compared against 2025-03-10
 #    (numeric tuple compare, so no calendar library is needed).
 #  - MUSE_RPI_EEPROM_CMD (default rpi-eeprom-update, status mode, read-only):
-#    early Pi 4 boards (PCB 1.0/1.1) report PI4_EEPROM_WRITE_REQUIRED only
-#    when this tool shows the EEPROM write protection enabled, and OK when it
-#    shows it disabled; a missing tool, a failed call, or output that says
-#    nothing determinate about write protection fails closed with
-#    CANNOT_DETERMINE and the remediation text. The accepted status tokens
-#    are provisional until an on-device capture names the exact wording
-#    (gap Q-M110-OS2-EEPROM in the certification).
+#    for early Pi 4 boards (PCB 1.0/1.1). Upstream rpi-eeprom-update
+#    (raspberrypi/rpi-eeprom, `printVersions`) prints NO write-protect state
+#    in status mode, so writability itself is not observable from it and is
+#    never guessed here. What it does print is the bootloader update state,
+#    as exactly one line `BOOTLOADER: up to date` or
+#    `BOOTLOADER: update available` (followed by CURRENT/LATEST/RELEASE and
+#    the VL805 lines, which are ignored). An up-to-date bootloader is the
+#    observable result of a writable, updated EEPROM, so: up to date -> OK;
+#    update available -> PI4_EEPROM_WRITE_REQUIRED (remedy: make the EEPROM
+#    writable, apply `rpi-eeprom-update -a`, reboot, retry; it then prints
+#    up to date and passes). Upstream exits 0, or 1 when an update is
+#    available, in status mode; any other exit, a missing tool, no BOOTLOADER
+#    line, both lines, or any other wording fails closed with
+#    CANNOT_DETERMINE. An on-device capture of this output is still the
+#    hardware receipt Q-M110-OS2-EEPROM; a write-protected but up-to-date
+#    board passing is the recorded residual (protection is not observable).
 
 set -u
 
@@ -48,21 +58,27 @@ fail_closed() {
     exit 2
 }
 
-# eeprom_wp_state prints `protected` or `writable` for an early Pi 4 board by
-# reading the rpi-eeprom status output, and returns nonzero when the state
-# cannot be determined. Only an explicit write-protection line with a known
-# state word counts; anything else fails closed at the caller.
-eeprom_wp_state() {
+# eeprom_update_state prints `current` or `stale` from the upstream status
+# line, and returns nonzero when the state cannot be determined.
+eeprom_update_state() {
     if ! command -v "$EEPROM_CMD" >/dev/null 2>&1 && [ ! -x "$EEPROM_CMD" ]; then
         return 1
     fi
-    out=$("$EEPROM_CMD" 2>/dev/null) || return 1
-    if printf '%s' "$out" | grep -i -E -q 'write[-_ ]prot[a-z]*[^a-z0-9_].*\b(enabled|protected|locked|on)\b'; then
-        echo "protected"
+    out=$("$EEPROM_CMD" 2>/dev/null)
+    case "$?" in
+        0 | 1) ;;
+        *) return 1 ;;
+    esac
+    lines=$(printf '%s\n' "$out" | grep -c '^BOOTLOADER:') || return 1
+    if [ "$lines" != "1" ]; then
+        return 1
+    fi
+    if printf '%s\n' "$out" | grep -q -x 'BOOTLOADER: up to date'; then
+        echo "current"
         return 0
     fi
-    if printf '%s' "$out" | grep -i -E -q 'write[-_ ]prot[a-z]*[^a-z0-9_].*\b(disabled|unprotected|unlocked|off)\b'; then
-        echo "writable"
+    if printf '%s\n' "$out" | grep -q -x 'BOOTLOADER: update available'; then
+        echo "stale"
         return 0
     fi
     return 1
@@ -130,23 +146,23 @@ fi
 if [ "$board" = "pi4" ]; then
     case "$pcb" in
         1.0 | 1.1)
-            # Early boards need a writable EEPROM: read the real
-            # write-protect state instead of refusing unconditionally.
-            if wp=$(eeprom_wp_state 2>/dev/null); then
-                case "$wp" in
-                    writable)
+            # Early boards need a writable, updated EEPROM: read the real
+            # upstream update state instead of refusing unconditionally.
+            if state=$(eeprom_update_state 2>/dev/null); then
+                case "$state" in
+                    current)
                         echo "OK"
                         exit 0
                         ;;
-                    protected)
+                    stale)
                         echo "PI4_EEPROM_WRITE_REQUIRED"
-                        echo "pi-eeprom-check: PI_EEPROM_EARLY_PI4 pcb=$pcb" >&2
+                        echo "pi-eeprom-check: PI_EEPROM_EARLY_PI4 pcb=$pcb remedy=make-eeprom-writable-run-rpi-eeprom-update-a-reboot-retry" >&2
                         exit 3
                         ;;
-                    *) fail_closed "eeprom-state=$wp" ;;
+                    *) fail_closed "eeprom-state=$state" ;;
                 esac
             fi
-            fail_closed "early-pi4-pcb=$pcb remedy=inspect-write-protect-with-rpi-eeprom-update-make-writable-then-retry"
+            fail_closed "early-pi4-pcb=$pcb remedy=run-rpi-eeprom-update-status-make-eeprom-writable-update-then-retry"
             ;;
         later) ;;
         *) fail_closed "pcb=$pcb" ;;

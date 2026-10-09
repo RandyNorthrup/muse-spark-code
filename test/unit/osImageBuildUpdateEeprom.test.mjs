@@ -51,6 +51,22 @@ const cpuinfo = (model, revision) =>
   `processor\t: 0\nModel\t\t: ${model}\nRevision\t: ${revision}\nSerial\t\t: 10000000\n`
 const vc = (firstLine) => `#!/bin/sh\necho "${firstLine}"\necho "version abc (release)"\n`
 const eeprom = (lines) => `#!/bin/sh\n${lines.map((line) => `echo "${line}"`).join('\n')}\n`
+// Status-mode output in upstream rpi-eeprom-update's printVersions shape
+// (raspberrypi/rpi-eeprom): one BOOTLOADER line, CURRENT/LATEST/RELEASE,
+// then the VL805 block. It carries no write-protect line.
+const upstreamStatus = (state, exitCode) =>
+  `${eeprom([
+    `BOOTLOADER: ${state}`,
+    '   CURRENT: Thu 18 Jan 13:59:23 UTC 2024 (1705586363)',
+    '    LATEST: Thu 18 Jan 13:59:23 UTC 2024 (1705586363)',
+    '   RELEASE: default (/lib/firmware/raspberrypi/bootloader-2711/default)',
+    '            Use raspi-config to change the release.',
+    '',
+    '  VL805_FW: Using bootloader EEPROM',
+    '     VL805: up to date',
+    '   CURRENT: 000138c0',
+    '    LATEST: 000138c0',
+  ])}exit ${exitCode}\n`
 
 function run(revisionFile, vcCmd, eepromCmd) {
   return spawnSync(shell, [posixPath(check)], {
@@ -65,42 +81,51 @@ function run(revisionFile, vcCmd, eepromCmd) {
 }
 
 describe('M110-OS2 Pi EEPROM checks', () => {
-  it('requires a writable EEPROM on Pi 4 rev 1.0 and 1.1', () => {
+  it('requires a writable, updated EEPROM on Pi 4 rev 1.0 and 1.1 with an update available', () => {
     const dir = directory()
     const fakeVc = fixture(dir, 'vc', vc('2025/03/10 12:00:00'), true)
-    const locked = fixture(dir, 'eeprom-locked', eeprom(['EEPROM write protect: enabled']), true)
+    const stale = fixture(dir, 'eeprom-stale', upstreamStatus('update available', 1), true)
     for (const [rev, code] of [
       ['Raspberry Pi 4 Model B Rev 1.0', 'b03110'],
       ['Raspberry Pi 4 Model B Rev 1.1', 'b03111'],
     ]) {
       const cpu = fixture(dir, `cpu-${code}`, cpuinfo(rev, code))
-      const result = run(cpu, fakeVc, locked)
+      const result = run(cpu, fakeVc, stale)
       expect(result.stdout.trim()).toBe('PI4_EEPROM_WRITE_REQUIRED')
       expect(result.status).toBe(3)
+      expect(result.stderr).toContain(
+        'remedy=make-eeprom-writable-run-rpi-eeprom-update-a-reboot-retry',
+      )
     }
   })
 
-  it('passes an early Pi 4 whose EEPROM reports writable', () => {
+  it('passes an early Pi 4 once upstream status reports the bootloader up to date', () => {
     const dir = directory()
     const fakeVc = fixture(dir, 'vc', vc('2025/03/10 12:00:00'), true)
-    const open = fixture(dir, 'eeprom-open', eeprom(['EEPROM write protect: disabled']), true)
+    const current = fixture(dir, 'eeprom-current', upstreamStatus('up to date', 0), true)
     const cpu = fixture(dir, 'cpu', cpuinfo('Raspberry Pi 4 Model B Rev 1.1', 'b03111'))
-    const result = run(cpu, fakeVc, open)
+    const result = run(cpu, fakeVc, current)
     expect(result.stdout.trim()).toBe('OK')
     expect(result.status).toBe(0)
   })
 
-  it('fails closed when the early-board write-protect state is unknown', () => {
+  it.each([
+    ['a missing tool', null],
+    ['invented write-protect lines', eeprom(['EEPROM write protect: disabled'])],
+    ['no BOOTLOADER line', eeprom(['   CURRENT: Thu 18 Jan 13:59:23 UTC 2024 (1705586363)'])],
+    ['both BOOTLOADER lines', eeprom(['BOOTLOADER: up to date', 'BOOTLOADER: update available'])],
+    ['unknown wording', eeprom(['BOOTLOADER: frozen'])],
+    ['a failed status call', upstreamStatus('up to date', 2)],
+  ])('fails closed on an early Pi 4 with %s', (_label, body) => {
     const dir = directory()
     const fakeVc = fixture(dir, 'vc', vc('2025/03/10 12:00:00'), true)
     const cpu = fixture(dir, 'cpu', cpuinfo('Raspberry Pi 4 Model B Rev 1.1', 'b03111'))
-    const quiet = fixture(dir, 'eeprom-quiet', eeprom(['BOOTLOADER: up to date']), true)
-    for (const tool of [path.join(dir, 'no-rpi-eeprom'), quiet]) {
-      const result = run(cpu, fakeVc, tool)
-      expect(result.stdout.trim()).toBe('CANNOT_DETERMINE')
-      expect(result.status).toBe(2)
-      expect(result.stderr).toContain('remedy=')
-    }
+    const tool =
+      body === null ? path.join(dir, 'no-rpi-eeprom') : fixture(dir, 'eeprom', body, true)
+    const result = run(cpu, fakeVc, tool)
+    expect(result.stdout.trim()).toBe('CANNOT_DETERMINE')
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('remedy=')
   })
 
   it('passes a later Pi 4 without reading the bootloader', () => {
@@ -115,7 +140,7 @@ describe('M110-OS2 Pi EEPROM checks', () => {
   it('reads the Pi 4 revision from hex when the Model line is absent', () => {
     const dir = directory()
     const early = fixture(dir, 'early', 'processor\t: 0\nRevision\t: b03111\n')
-    const locked = fixture(dir, 'eeprom-locked', eeprom(['EEPROM write protect: enabled']), true)
+    const locked = fixture(dir, 'eeprom-stale', upstreamStatus('update available', 1), true)
     const result = run(early, path.join(dir, 'no-vcgencmd'), locked)
     expect(result.stdout.trim()).toBe('PI4_EEPROM_WRITE_REQUIRED')
     expect(result.status).toBe(3)
@@ -129,7 +154,7 @@ describe('M110-OS2 Pi EEPROM checks', () => {
     const dir = directory()
     const cpu = fixture(dir, 'cpu', cpuinfo('Raspberry Pi 4 Model B Rev 1.1', revision))
     const fakeVc = fixture(dir, 'vc', vc('2025/03/10 12:00:00'), true)
-    const open = fixture(dir, 'eeprom-open', eeprom(['EEPROM write protect: disabled']), true)
+    const open = fixture(dir, 'eeprom-current', upstreamStatus('up to date', 0), true)
     const result = run(cpu, fakeVc, open)
     expect(result.stdout.trim()).toBe('CANNOT_DETERMINE')
     expect(result.status).toBe(2)
@@ -183,7 +208,7 @@ describe('M110-OS2 Pi EEPROM checks', () => {
     const dir = directory()
     const cpu = fixture(dir, 'cpu', cpuinfo('Raspberry Pi 4 Model B Rev 1.1', 'b03111'))
     const fakeVc = fixture(dir, 'vc', vc('2025/03/10 12:00:00'), true)
-    const locked = fixture(dir, 'eeprom-locked', eeprom(['EEPROM write protect: enabled']), true)
+    const locked = fixture(dir, 'eeprom-stale', upstreamStatus('update available', 1), true)
     const result = run(cpu, fakeVc, locked)
     expect(result.stdout.trim()).toMatch(/^[A-Z0-9_]+$/)
     expect(result.stdout.trim()).not.toContain(' ')
