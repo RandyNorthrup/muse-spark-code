@@ -24,6 +24,8 @@ export type PlanModeRestore =
   | { readonly ok: false; readonly isAfterTurn: boolean; readonly error: unknown }
 
 export interface PlanModeHoldDeps {
+  /** Immutable portable profile/session ownership, checked before every mode mutation. */
+  readonly isCurrent?: () => boolean
   /** MSP's Plan mode. */
   readonly planMode: string
   /** The mode to put back, asked when the turn ends (a revoked Bypass is not put back). */
@@ -46,6 +48,7 @@ export class PlanModeHold {
   public constructor(private readonly deps: PlanModeHoldDeps) {}
 
   private async setMode(session: PlanModeSession, mode: string): Promise<void> {
+    if (this.deps.isCurrent?.() === false) throw new Error(UI_TEXT.reviewCancelled)
     const changing = session.setApprovalMode(mode)
     this.modeChange = changing
     try {
@@ -145,6 +148,7 @@ export class PlanModeHold {
     displayText: string,
     isCurrent: () => boolean,
   ): Promise<TurnSubmission> {
+    if (this.hasBeenReleased() || !isCurrent()) throw new Error(UI_TEXT.reviewCancelled)
     this.session = session
     await this.setMode(session, this.deps.planMode)
     let submission: TurnSubmission

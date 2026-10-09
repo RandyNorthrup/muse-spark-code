@@ -60,6 +60,7 @@ import {
   UI_TEXT_REGIONS,
   regionalUiText,
   compressedEnglish,
+  compactBrowserEnglish,
   compactBrowserUiText,
 } from './lib/uiTextRegions.mjs'
 
@@ -71,6 +72,7 @@ import { copyCatalogToDist } from './sync-provider-catalog.mjs'
 import { sharedHighlightGrammar } from './lib/highlightGrammar.mjs'
 import { deferredTeamView } from './lib/deferredTeamView.mjs'
 import { HOST_PLUGINS } from './lib/hostPlugins.mjs'
+import { writePortableManifest } from './lib/portableModules.mjs'
 import {
   sharedUiText,
   sharedValidation,
@@ -109,7 +111,7 @@ const CONVERSATION_OUTFILE = 'dist/conversation.js'
 // mutable installed-language state. The browser keeps its fallback bundled.
 const SHARING_RUNTIME_ENTRY = 'src/runtime/sharing/sharingEntry.ts'
 const SHARING_RUNTIME_OUTFILE = 'dist/sharingRuntime.js'
-const PROMPTS_ENTRY = 'src/host/prompts/promptEntry.ts'
+const PROMPTS_ENTRY = 'src/host/vscode/prompts/promptEntry.ts'
 const PROMPTS_OUTFILE = 'dist/prompts.js'
 const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
 const TAB_OUTFILE = 'dist/tab.js'
@@ -199,18 +201,18 @@ const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
-const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
+const MODELS_PANEL_ENTRY = 'src/host/vscode/models/modelsPanelEntry.ts'
 const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
 const USAGE_SERVICE_ENTRY = 'src/runtime/usage/usageServiceEntry.ts'
 const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
-const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
+const USAGE_PANEL_ENTRY = 'src/host/vscode/usage/usagePanelEntry.ts'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
 // M109 lane W: the vault's window (the panel host and the native editor),
 // loaded on the first vault command. `vscode` stays external, provided by
 // the host, as for the import. The broker client joins it once the
 // broker-backed service lands (docs/certification/m109.md).
-const VAULT_ENTRY = 'src/host/vault/vaultPanelEntry.ts'
+const VAULT_ENTRY = 'src/host/vscode/vault/vaultPanelEntry.ts'
 const VAULT_OUTFILE = 'dist/vault.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
@@ -232,11 +234,19 @@ const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 // The Models & Agents panel's own app (M95 lane M), beside the chat.
 const MODELS_WEBVIEW_ENTRY = 'src/webview/models/models.tsx'
 const USAGE_WEBVIEW_ENTRY = 'src/webview/usage/usage.tsx'
+const FALLBACKS_ENTRY = 'src/webview/fallbacks/index.ts'
+const BRIDGE_ENTRY = 'src/webview/bridges/select.ts'
 const WEBVIEW_OUTDIR = 'dist/webview'
+const PORTABLE_ENTRY = 'src/webview/portable.tsx'
+const PORTABLE_OUTDIR = 'dist/webview/portable'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const FONT_INSTALL_ENTRY = 'src/runtime/fonts/fontsEntry.ts'
 const FONT_INSTALL_OUTFILE = 'dist/fontsInstall.js'
+const RUNTIME_PANEL_PORTS_ENTRY = 'src/runtime/panel/runtimeFeaturesEntry.ts'
+const RUNTIME_PANEL_PORTS_OUTFILE = 'dist/runtimePanelPorts.js'
+const RUNTIME_PANEL_ENTRY = 'src/runtime/panel/panelEntry.ts'
+const RUNTIME_PANEL_OUTFILE = 'dist/runtimePanel.js'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
 const SCHEDULE_BACKGROUND_ENTRY = 'src/runtime/schedules/backgroundEntry.ts'
@@ -363,7 +373,7 @@ const reportingDestinationsOptions = {
 const reportingPanelOptions = {
   ...hostOptions,
   plugins: [sharedUiText, sharedValidation, sharedWire, sharedRedaction],
-  entryPoints: ['src/host/reporting/reportPanelEntry.ts'],
+  entryPoints: ['src/host/vscode/reporting/reportPanelEntry.ts'],
   outfile: 'dist/reportingPanel.js',
 }
 
@@ -959,6 +969,20 @@ const runtimeAccountsOptions = {
   outfile: RUNTIME_ACCOUNTS_OUTFILE,
 }
 
+/** @type {import('esbuild').BuildOptions} */
+const runtimePanelOptions = {
+  ...acpOptions,
+  entryPoints: [RUNTIME_PANEL_ENTRY],
+  outfile: RUNTIME_PANEL_OUTFILE,
+  banner: {},
+}
+
+const runtimePanelPortsOptions = {
+  ...runtimePanelOptions,
+  entryPoints: [RUNTIME_PANEL_PORTS_ENTRY],
+  outfile: RUNTIME_PANEL_PORTS_OUTFILE,
+}
+
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
 const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
@@ -1096,6 +1120,69 @@ const webviewOptions = {
   jsx: 'automatic',
 }
 
+// Native hosts and the companion load this independent graph. No portable
+// bridge or fallback can share a static chunk with VS Code's chat entry.
+const portableOptions = {
+  ...webviewOptions,
+  metafile: true,
+  entryPoints: {
+    main: PORTABLE_ENTRY,
+    whatsNew: 'src/webview/whatsNew/portable.ts',
+    fallbacks: FALLBACKS_ENTRY,
+    bridge: BRIDGE_ENTRY,
+  },
+  outdir: PORTABLE_OUTDIR,
+}
+
+async function buildPortable() {
+  const [graph, loader] = await Promise.all([
+    esbuild.build(portableOptions),
+    esbuild.build({
+      ...common,
+      entryPoints: ['src/webview/bridges/moduleLoader.ts'],
+      outfile: `${PORTABLE_OUTDIR}/loader.js`,
+      metafile: true,
+      plugins: isProduction ? [compactBrowserEnglish] : [],
+      charset: 'utf8',
+      platform: 'browser',
+      format: 'iife',
+      target: BROWSER_TARGET,
+    }),
+  ])
+  writePortableManifest(graph.metafile, PORTABLE_OUTDIR)
+  return {
+    metafile: {
+      inputs: { ...graph.metafile.inputs, ...loader.metafile.inputs },
+      outputs: { ...graph.metafile.outputs, ...loader.metafile.outputs },
+    },
+  }
+}
+
+const portableWatchOptions = {
+  ...portableOptions,
+  plugins: [
+    ...(portableOptions.plugins ?? []),
+    {
+      name: 'portable-manifest',
+      setup(build) {
+        build.onEnd((result) => {
+          if (result.errors.length === 0) writePortableManifest(result.metafile, PORTABLE_OUTDIR)
+        })
+      },
+    },
+  ],
+}
+const portableLoaderOptions = {
+  ...common,
+  plugins: isProduction ? [compactBrowserEnglish] : [],
+  charset: 'utf8',
+  entryPoints: ['src/webview/bridges/moduleLoader.ts'],
+  outfile: `${PORTABLE_OUTDIR}/loader.js`,
+  platform: 'browser',
+  format: 'iife',
+  target: BROWSER_TARGET,
+}
+
 function writeWebviewMetafiles(metafile) {
   const pages = {
     webview: 'dist/webview/main.js',
@@ -1151,6 +1238,17 @@ writeFileSync(
   `module.exports=JSON.parse(${JSON.stringify(readFileSync(PROVIDER_CATALOG_OUTFILE, 'utf8'))});\n`,
 )
 // Content-hashed chunks from an earlier build must never enter a package.
+rmSync(PORTABLE_OUTDIR, { recursive: true, force: true })
+// These entries belonged to the earlier combined graph; never package them.
+for (const file of [
+  'bridge.js',
+  'fallbacks.js',
+  'fallbacks.css',
+  'bridge.js.map',
+  'fallbacks.js.map',
+  'fallbacks.css.map',
+])
+  rmSync(path.join(WEBVIEW_OUTDIR, file), { force: true })
 const whatsNewContent = writeWhatsNewContent()
 console.log(
   `What's New: ${String(whatsNewContent.releases)} releases from CHANGELOG.md into ${WHATS_NEW_CONTENT_OUTFILE}`,
@@ -1178,6 +1276,8 @@ if (isWatch) {
     esbuild.context(reportingPanelOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
+    esbuild.context(runtimePanelOptions),
+    esbuild.context(runtimePanelPortsOptions),
     esbuild.context(tabOptions),
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
@@ -1273,6 +1373,8 @@ if (isWatch) {
     esbuild.context(imageResizeWorkerOptions),
     esbuild.context(webviewOptions),
     esbuild.context(fontInstallOptions),
+    esbuild.context(portableWatchOptions),
+    esbuild.context(portableLoaderOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -1288,6 +1390,8 @@ if (isWatch) {
     structuredSchema: esbuild.build(structuredSchemaOptions),
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
+    runtimePanel: esbuild.build(runtimePanelOptions),
+    runtimePanelPorts: esbuild.build(runtimePanelPortsOptions),
     tab: esbuild.build(tabOptions),
     prompts: esbuild.build(promptsOptions),
     sharingRuntime: esbuild.build(sharingRuntimeOptions),
@@ -1383,6 +1487,7 @@ if (isWatch) {
     pageWorker: esbuild.build(pageWorkerOptions),
     imageResizeWorker: esbuild.build(imageResizeWorkerOptions),
     webview: esbuild.build(webviewOptions),
+    portable: await buildPortable(),
   }
   const acp = esbuild.build(acpOptions)
   const headless = esbuild.build(headlessOptions)
@@ -1450,6 +1555,8 @@ if (isWatch) {
   reportSize(PLAYBOOK_OUTFILE)
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
+  reportSize(RUNTIME_PANEL_OUTFILE)
+  reportSize(RUNTIME_PANEL_PORTS_OUTFILE)
   reportSize(TAB_OUTFILE)
   reportSize(PROMPTS_OUTFILE)
   reportSize(SHARING_RUNTIME_OUTFILE)
@@ -1511,6 +1618,8 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, 'usage.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'usage.css'))
   reportSize(PROVIDER_CATALOG_OUTFILE)
+  reportSize(path.join(PORTABLE_OUTDIR, 'main.js'))
+  reportSize(path.join(PORTABLE_OUTDIR, 'main.css'))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)

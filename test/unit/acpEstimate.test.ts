@@ -1,3 +1,4 @@
+import { fakeAcpComposition } from './helpers/acpComposition'
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { createAcpEstimate, type AcpEstimatePort } from '../../src/acp/estimate'
@@ -16,6 +17,7 @@ function harness(estimate?: AcpEstimatePort) {
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const updates: acp.SessionUpdate[] = []
   const deps: AcpAgentDeps = {
+    createConversation: fakeAcpComposition,
     ...testAgentBase(host),
     signIn: { id: 'test', name: 'Test', description: '', args: [], command: 'test' },
     questions: 'decline',

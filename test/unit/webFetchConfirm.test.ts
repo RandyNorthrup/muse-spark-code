@@ -1,6 +1,6 @@
 import { window } from 'vscode'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { isWebFetchAllowed } from '../../src/host/web/webFetchConfirm'
+import { isWebFetchAllowed } from '../../src/host/vscode/web/webFetchConfirm'
 import { UI_TEXT } from '../../src/shared/constants'
 
 afterEach(() => {

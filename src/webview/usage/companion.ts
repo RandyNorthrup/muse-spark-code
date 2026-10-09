@@ -18,7 +18,7 @@ export function companionUsagePort(): HttpUsagePort {
   )
   const send = async (message: unknown): Promise<void> => {
     const checked = usageCompanionRequestSchema.parse(message)
-    const response = await window.fetch('/post', {
+    const response = await window.fetch('/panel/message', {
       method: 'POST',
       credentials: 'omit',
       signal: ending.signal,
@@ -51,7 +51,7 @@ export function companionUsagePort(): HttpUsagePort {
   }
   const streamReady = Promise.withResolvers<undefined>()
   const stream = async (): Promise<void> => {
-    const response = await window.fetch('/events', {
+    const response = await window.fetch('/panel/events', {
       method: 'POST',
       credentials: 'omit',
       signal: ending.signal,
@@ -72,8 +72,10 @@ export function companionUsagePort(): HttpUsagePort {
         while (boundary !== -1) {
           const frame = pending.slice(0, boundary)
           pending = pending.slice(boundary + 2)
-          if (frame.startsWith('data: ')) {
-            const input: unknown = JSON.parse(frame.slice('data: '.length))
+          // MHP frames carry `event: mhp` and an optional `id:` line before the data.
+          const data = frame.split('\n').find((line) => line.startsWith('data: '))
+          if (data !== undefined) {
+            const input: unknown = JSON.parse(data.slice('data: '.length))
             await event(usageCompanionEventSchema.parse(input))
           }
           boundary = pending.indexOf('\n\n')

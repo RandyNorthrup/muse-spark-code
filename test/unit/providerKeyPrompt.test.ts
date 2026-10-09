@@ -3,7 +3,10 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { window } from 'vscode'
-import { promptForProviderKey, type ProviderKeyPrompt } from '../../src/host/providers/keyPrompt'
+import {
+  promptForProviderKey,
+  type ProviderKeyPrompt,
+} from '../../src/host/vscode/providers/keyPrompt'
 
 const PROMPT: ProviderKeyPrompt = {
   providerName: 'OpenRouter',

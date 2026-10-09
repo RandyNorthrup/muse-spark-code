@@ -5,7 +5,7 @@ import {
   connectCopilotFromClick,
   type CopilotClientDeps,
   type CopilotPort,
-} from '../../src/host/providers/copilotClient'
+} from '../../src/host/vscode/providers/copilotClient'
 import {
   streamEventSchema,
   type CreateResponseBody,

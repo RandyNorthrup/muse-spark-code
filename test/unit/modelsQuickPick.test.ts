@@ -8,7 +8,7 @@ import {
   runAddProviderQuickPick,
   type ProviderQuickPickUi,
 } from '../../src/host/models/modelsQuickPick'
-import type { ProvidersHost } from '../../src/host/providers/providersHost'
+import type { ProvidersHost } from '../../src/host/vscode/providers/providersHost'
 import type { ProviderEntry } from '../../src/host/providers/providerPorts'
 import { scannedTwoModels, TEST_ENTRY, testProvidersHost, testRow } from './helpers/m95kFixtures'
 import { memoryProvidersStore } from './helpers/fakes'

@@ -31,6 +31,7 @@ import { reportCommandArguments } from '../reporting/reportCommand'
 import type { EstimateSection } from '../../shared/estimate'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
+import { isPdf } from '../../core/pdf'
 import { AttachmentStore } from '../../core/attachments'
 import type { MediaAttachmentPort } from '../media/mediaAttach'
 import type { RecordingCommandDeps } from '../media/screenRecordBundle'
@@ -427,6 +428,12 @@ export interface ConversationDeps {
   readonly usageRecording?: UsageRecording | undefined
   /** Local reports: native hosts inject the same operation; absent means unavailable. */
   readonly showDeterministicReport?: (argumentsText: string) => Promise<void>
+  /** Internal selected-model catalog supplied by portable provider adapters (D84). */
+  readonly modelAllowsFeature?: (modelId: string, feature: string) => Promise<boolean>
+  /** Portable carriers retire the previous immutable binding before any new-session output. */
+  readonly onSessionAttached?: (session: AgentSession) => Promise<void>
+  /** ACP owns permission/questions; this controller still owns session state and submissions. */
+  readonly arePermissionsExternal?: boolean
   readonly surface: ChatSurface
   readonly auth: AuthPort
   readonly ensureHost: () => Promise<AgentHost>
@@ -2415,16 +2422,17 @@ export class ConversationController {
         }
         // The tool, never its input (M39).
         this.deps.log.info(`Approval ${event.approvalId} asked for ${event.toolName}`)
-        const choice = this.autoApprovalChoice(event)
+        const choice =
+          this.deps.arePermissionsExternal === true ? undefined : this.autoApprovalChoice(event)
         if (choice !== undefined) {
           void this.autoApprove(event, choice)
           return
         }
-        if (this.isReviewerApproval(event)) {
+        if (this.deps.arePermissionsExternal !== true && this.isReviewerApproval(event)) {
           this.holdForReview(event)
           return
         }
-        this.watchJudgeCard(event)
+        if (this.deps.arePermissionsExternal !== true) this.watchJudgeCard(event)
         break
       }
       case 'approvalUpdated': {
@@ -3883,6 +3891,11 @@ export class ConversationController {
       throw error
     }
     const generation = this.attachmentGeneration
+    if (this.deps.onSessionAttached !== undefined) await this.deps.onSessionAttached(session)
+    if (generation !== this.attachmentGeneration) {
+      session.dispose()
+      return
+    }
     if (origin === 'started' && this.deps.surface.isSideChat === true) {
       this.sideSessionIds.add(session.sessionId)
     }
@@ -3938,10 +3951,14 @@ export class ConversationController {
     this.postSessionInfo(this.modelId)
     this.noteActivity()
     this.git.sessionChanged(session.sessionId)
-    await this.applyEffort(session, {
-      effort: this.effort,
-      isThinkingEnabled: this.isThinkingEnabled,
-    })
+    if (
+      this.deps.modelAllowsFeature === undefined ||
+      (await this.deps.modelAllowsFeature(this.modelId, 'reasoningEffort'))
+    )
+      await this.applyEffort(session, {
+        effort: this.effort,
+        isThinkingEnabled: this.isThinkingEnabled,
+      })
     if (this.session !== session || this.attachmentGeneration !== generation || this.isDisposed) {
       return
     }
@@ -4749,6 +4766,11 @@ export class ConversationController {
       this.importedSessionIds.add(loaded.session.sessionId)
       this.permissionMode = untrustedStartMode(this.permissionMode, this.deps.initialPermissionMode)
       this.postComposerState()
+    }
+    if (this.deps.onSessionAttached !== undefined) await this.deps.onSessionAttached(loaded.session)
+    if (generation !== this.sendInvalidationEpoch) {
+      loaded.session.dispose()
+      return false
     }
     this.postHistory(loaded.session.sessionId, loaded.history, loaded.activeTurnId)
     this.setTitle(loaded.history.name)
@@ -5742,7 +5764,12 @@ export class ConversationController {
       if (!this.canDistilHandoff(pending)) {
         return false
       }
-      if (host.info.kind !== 'modelApi') {
+      const canHandoff =
+        this.deps.modelAllowsFeature === undefined
+          ? host.info.kind === 'modelApi'
+          : await this.deps.modelAllowsFeature(this.modelId, 'handoff')
+      if (!this.canDistilHandoff(pending)) return false
+      if (!canHandoff) {
         this.notice('info', UI_TEXT.handoffUnavailable)
         return false
       }
@@ -6261,7 +6288,7 @@ export class ConversationController {
       dispatchState?.(state)
     }
     try {
-      const submitted = await this.submitParts(
+      const submitted = await this.deliverParts(
         session,
         notes?.text ? [{ type: 'text', text: notes.text }, ...parts] : parts,
         displayText,
@@ -6279,7 +6306,7 @@ export class ConversationController {
     }
   }
 
-  private async submitParts(
+  private async deliverParts(
     session: AgentSession,
     parts: readonly TurnPart[],
     displayText: string | undefined,
@@ -8217,6 +8244,13 @@ export class ConversationController {
   }
 
   private async updateEffort(effort: EffortLevel, isThinkingEnabled: boolean): Promise<void> {
+    if (this.deps.modelAllowsFeature !== undefined) {
+      const modelId = this.modelId
+      const generation = this.sendInvalidationEpoch
+      const isAllowed = await this.deps.modelAllowsFeature(modelId, 'reasoningEffort')
+      if (modelId !== this.modelId || generation !== this.sendInvalidationEpoch) return
+      if (!isAllowed) throw new Error('MHP_MODEL_FEATURE_UNAVAILABLE')
+    }
     const previous = { effort: this.effort, isThinkingEnabled: this.isThinkingEnabled }
     this.effort = effort
     this.isThinkingEnabled = isThinkingEnabled
@@ -8430,6 +8464,11 @@ export class ConversationController {
     if (!this.isCurrentSessionAction(session, generation)) {
       return
     }
+    if (this.deps.modelAllowsFeature !== undefined) {
+      const isAllowed = await this.deps.modelAllowsFeature(this.modelId, 'compaction')
+      if (!this.isCurrentSessionAction(session, generation)) return
+      if (!isAllowed) throw new Error('MHP_MODEL_FEATURE_UNAVAILABLE')
+    }
     try {
       const outcome = await session.compact()
       if (!this.isCurrentSessionAction(session, generation)) {
@@ -8529,7 +8568,25 @@ export class ConversationController {
     ) {
       return
     }
-    const result = this.attachments.add(name, bytes, host.info.kind === 'modelApi', canAcceptText)
+    let canAcceptDocuments = host.info.kind === 'modelApi'
+    if (this.deps.modelAllowsFeature !== undefined) {
+      let feature: string | undefined = 'vision'
+      if (isPdf(bytes)) feature = 'pdf'
+      else if (canAcceptText && TEXT_ATTACHMENT_EXTENSIONS.has(path.extname(name).toLowerCase()))
+        feature = undefined
+      if (feature !== undefined && !(await this.deps.modelAllowsFeature(this.modelId, feature))) {
+        this.post({
+          type: 'attachmentRejected',
+          name,
+          reason: UI_TEXT.attachmentUnreadable,
+          requestId,
+        })
+        return
+      }
+      canAcceptDocuments = await this.deps.modelAllowsFeature(this.modelId, 'pdf')
+      if (!this.isCurrentAttachmentGeneration(generation)) return
+    }
+    const result = this.attachments.add(name, bytes, canAcceptDocuments, canAcceptText)
     if (result.ok) {
       this.post({
         type: 'attachmentAdded',
@@ -10506,8 +10563,46 @@ export class ConversationController {
     void this.checkpoints.refresh()
   }
 
+  /** Rich ACP parts have already crossed its validated ContentBlock translator. */
+  public async submitParts(
+    parts: readonly TurnPart[],
+    displayText?: string,
+  ): Promise<TurnSubmission> {
+    const session = this.session
+    if (session === undefined || this.isDisposed) throw new Error(UI_TEXT.turnStoppedByRestart)
+    const generation = this.sendInvalidationEpoch
+    return await this.submit(
+      session,
+      parts,
+      displayText,
+      true,
+      () =>
+        !this.isDisposed && this.session === session && this.sendInvalidationEpoch === generation,
+    )
+  }
+
+  public useExternalPermissionMode(mode: PermissionMode): void {
+    this.permissionMode = mode
+    this.postComposerState()
+  }
+
   public checkpointAvailabilityChanged(): void {
     this.checkpoints.postState()
+  }
+
+  /** A new portable view uses the same restoration bookkeeping as a live gap reload. */
+  public replayHistory(history: SessionHistoryOutcome): void {
+    if (this.isDisposed || this.session === undefined) return
+    this.postHistory(this.session.sessionId, history, this.activeTurnId)
+  }
+  public get selectedModelId(): string {
+    return this.modelId
+  }
+
+  /** Clear opens a new opaque session before a replacement portable surface is published. */
+  public async startFreshSession(): Promise<void> {
+    if (this.isDisposed || this.deps.workspaceRoot === undefined) return
+    await this.ensureSession(this.deps.workspaceRoot)
   }
 
   public surfaceReady(attachmentEpoch?: number): void {

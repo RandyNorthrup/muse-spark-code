@@ -1,3 +1,4 @@
+import { fakeAcpComposition } from './helpers/acpComposition'
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
@@ -16,6 +17,7 @@ function acpHarness(sharing?: AcpSharingPort) {
   const updates: acp.SessionUpdate[] = []
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const deps: AcpAgentDeps = {
+    createConversation: fakeAcpComposition,
     questions: 'decline',
     backend: {
       kind: 'museCode',

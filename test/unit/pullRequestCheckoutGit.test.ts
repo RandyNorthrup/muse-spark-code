@@ -20,7 +20,7 @@ import {
 import { worktreeAddDetachedArgs } from '../../src/core/worktrees'
 import { posixQuoted } from '../../src/core/shellQuote'
 import { processGitProcess, processGitRunner } from '../../src/host/git'
-import { captureGitOwner, type GitRepository } from '../../src/host/git/gitExtension'
+import { captureGitOwner, type GitRepository } from '../../src/host/vscode/git/gitExtension'
 import { createHeldCheckout } from '../../src/host/git/heldCheckout'
 import { openPullRequestInConversation } from '../../src/host/git/pullRequestCheckout'
 import { untrustedGitRunner } from '../../src/host/git/untrustedGit'

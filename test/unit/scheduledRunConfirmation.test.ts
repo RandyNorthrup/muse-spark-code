@@ -1,6 +1,6 @@
 import { window } from 'vscode'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { askPaidUse } from '../../src/host/paid/paidHost'
+import { askPaidUse } from '../../src/host/vscode/paid/paidHost'
 import { UI_TEXT } from '../../src/shared/constants'
 import { scheduledRunPrice } from '../../src/shared/paid'
 

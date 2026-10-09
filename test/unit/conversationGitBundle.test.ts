@@ -10,7 +10,7 @@ import {
   isConversationGitBundle,
   openPullRequestInConversation,
 } from '../../src/host/git/conversationGitBundle'
-import type { GitFeaturesDeps, GitWindowFeatures } from '../../src/host/git/gitWindow'
+import type { GitFeaturesDeps, GitWindowFeatures } from '../../src/host/vscode/git/gitWindow'
 import { WindowHold, WorktreeRegistry } from '../../src/host/git/worktreeRegistry'
 import {
   CONVERSATION_GIT_BUNDLE_FILE,
@@ -19,7 +19,7 @@ import {
 } from '../../src/shared/constants'
 import { uiLocale } from '../../src/shared/l10n/text'
 import { GitHubError } from '../../src/core/git/github'
-import { GitUnavailableError } from '../../src/host/git/gitExtension'
+import { GitUnavailableError } from '../../src/host/vscode/git/gitExtension'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import { fakeGitWindow, memoryMemento } from './helpers/fakeGit'
 import { FakeLogOutputChannel } from './helpers/fakes'

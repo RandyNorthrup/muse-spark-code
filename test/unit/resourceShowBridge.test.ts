@@ -9,10 +9,10 @@ import {
   createResourceWindow,
   type ResourceWindowDeps,
 } from '../../src/host/resources/resourceWindow'
-import { openChatPanel } from '../../src/host/views/chatPanel'
+import { openChatPanel } from '../../src/host/vscode/views/chatPanel'
 import type { ChatSurface } from '../../src/host/views/chatSurface'
-import { ChatViewProvider, SIDEBAR_SURFACE_ID } from '../../src/host/views/ChatViewProvider'
-import { SurfaceRegistry } from '../../src/host/views/surfaceRegistry'
+import { ChatViewProvider, SIDEBAR_SURFACE_ID } from '../../src/host/vscode/views/ChatViewProvider'
+import { SurfaceRegistry } from '../../src/host/vscode/views/surfaceRegistry'
 import { UI_TEXT, VSCODE_COMMANDS, WEBVIEW_DOCUMENT_ATTRIBUTE } from '../../src/shared/constants'
 import { parseHostToWebviewMessage } from '../../src/shared/protocol'
 import type { ResourceStatus } from '../../src/shared/resources'

@@ -935,7 +935,7 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
       const run = start([...execArgs(), ...(mode === 'stdin' ? ['--key-stdin'] : [])], mode)
       if (mode === 'stdin') run.child.stdin.end(`${KEY}\n`)
       const output = await run.closed
-      expect(output.code, output.stderr).toBe(0)
+      expect(output.code, `${output.stderr}\n${JSON.stringify(result(output.stdout))}`).toBe(0)
       expect(result(output.stdout)).toMatchObject({
         status: 'completed',
         finalMessage: 'ok',

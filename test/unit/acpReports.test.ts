@@ -1,3 +1,4 @@
+import { fakeAcpComposition } from './helpers/acpComposition'
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
@@ -22,6 +23,7 @@ function reportsAgent(port?: AcpReportsPort) {
     canRemember: () => true,
   })
   const agent = createAcpAgent({
+    createConversation: fakeAcpComposition,
     version: '0.0.0-report-test',
     defaultCwd: cwd,
     backend: {

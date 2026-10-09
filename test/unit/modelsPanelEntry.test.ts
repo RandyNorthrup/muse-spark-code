@@ -12,7 +12,7 @@ import {
   setComposerModelConfirmed,
   type ModelsPanelHostDeps,
   type ModelsPanelSeam,
-} from '../../src/host/models/modelsPanelEntry'
+} from '../../src/host/vscode/models/modelsPanelEntry'
 import { readProviderCredential } from '../../src/host/providers/credentialRecords'
 import { EN } from '../../src/shared/l10n/en'
 import { scannedTwoModels, seamBase } from './helpers/m95kFixtures'

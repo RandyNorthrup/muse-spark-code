@@ -12,6 +12,7 @@ import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // its flag, and each use asks in the editor first, naming its price (M58,
 // paid.ts). Every update of a turn goes out before the turn's response.
 
+import { ControllerRegistry, type ControllerClaim } from '../runtime/panel/controllerRegistry'
 import { randomUUID } from 'node:crypto'
 import type { UsageAdapter } from '../runtime/usage/usageAdapter'
 import { agentListingText, listedAgents, listedAgentId } from '../core/agent/agentListing'
@@ -51,6 +52,7 @@ import {
   type SessionMcpServer,
   type SkillSummary,
   type TurnPart,
+  type TurnSubmission,
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
@@ -123,6 +125,16 @@ import { acpReportArguments, runAcpReport, type AcpReportsPort } from './reports
 import { type AcpVault, vaultPermissionAnswer, vaultPermissionOptions, vaultSlash } from './vault'
 import { type VaultApprovalRequest, type VaultApprovalAnswer } from '../shared/vault'
 import type { AcpEstimatePort } from './estimate'
+import type { ConversationController } from '../host/conversation/conversationController'
+
+/** The composed controller an ACP session submits through (M104). */
+export interface AcpConversation {
+  readonly controller: ConversationController | undefined
+  submit(parts: readonly TurnPart[], displayText: string): Promise<TurnSubmission>
+  permissionModeChanged(mode: PermissionMode): void
+  hostExited(description: string): void
+  release(): Promise<void>
+}
 
 // Muse Code runs a session's MCP servers only with this grant (M63c).
 const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -171,6 +183,14 @@ export interface SignInMethod {
 }
 
 export interface AcpAgentDeps {
+  readonly createConversation: (
+    session: AgentSession,
+    host: AgentHost,
+    cwd: string,
+    mode: PermissionMode,
+  ) => Promise<AcpConversation>
+  /** An embedding runtime supplies its registry so other views can find the same sessions. */
+  readonly controllers?: ControllerRegistry<AcpController>
   readonly legalScan?:
     | ((
         cwd: string,
@@ -274,11 +294,6 @@ interface PreparingPrompt {
   readonly reportAbort?: AbortController
 }
 
-/** Identity of the latest load or resume; kept while earlier releases finish. */
-interface SessionClaim {
-  readonly sessionId: string
-}
-
 const CANCELLED_TERMINAL = 'cancelled'
 const FAILED_TERMINAL = 'failed'
 // Turns that finished before `sendTurn` answered with their id; a few suffice.
@@ -312,6 +327,7 @@ function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
 
 /** One ACP session over one AgentSession. */
 class AcpSession {
+  private conversation: AcpConversation | undefined
   private readonly questionRegistry: AcpQuestionRegistry | undefined
   private questions: AcpQuestionDeferral | undefined
   private readonly questionBundle: () => AcpQuestionBundle
@@ -1281,6 +1297,23 @@ class AcpSession {
     return true
   }
 
+  public get controller(): ConversationController | undefined {
+    return this.conversation?.controller
+  }
+
+  /** The composed controller this view submits through; released if the view already was. */
+  public async prepareConversation(): Promise<void> {
+    // Closed during adoption (a late schedule lease): release() already let the session go.
+    if (this.isReleased) return
+    this.conversation = await this.deps.createConversation(
+      this.session,
+      this.host,
+      this.cwd,
+      this.mode,
+    )
+    if (this.isDisposed) await this.conversation.release()
+  }
+
   public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
     const pending = this.pending
     const preparing = this.preparing
@@ -1490,6 +1523,7 @@ class AcpSession {
     this.ensureHeld()
     await this.session.setApprovalMode(approvalModeFor(mode, true))
     this.mode = mode
+    this.conversation?.permissionModeChanged(mode)
   }
 
   public async setConfigOption(configId: string, value: unknown): Promise<void> {
@@ -1912,8 +1946,11 @@ class AcpSession {
         const outcome = await this.session.compact()
         this.finishCompaction(outcome.status)
       } else {
+        // Every turn goes through the composed controller (M104), as the panel's do.
+        if (this.conversation === undefined)
+          throw RequestError.internalError(undefined, 'ACP_CONTROLLER_UNAVAILABLE')
         const mediaQueued = [...this.attachments]
-        const starting = this.session.sendTurn(
+        const starting = this.conversation.submit(
           [
             ...(pending.answerLease?.parts ?? []),
             ...this.withSkill([
@@ -2008,6 +2045,7 @@ class AcpSession {
 
   /** The backend went away: the running prompt ends with its reason. */
   public hostExited(description: string): void {
+    this.conversation?.hostExited(description)
     const error = RequestError.internalError(undefined, description)
     if (this.preparing !== undefined) {
       this.preparing.error = error
@@ -2084,7 +2122,8 @@ class AcpSession {
         await this.cancelTurn()
       }
       await releasingAnswers
-      this.session.dispose()
+      if (this.conversation === undefined) this.session.dispose()
+      else await this.conversation.release()
     })()
     let deadline: ReturnType<typeof setTimeout> | undefined
     const cleanup = (async () => {
@@ -2117,17 +2156,14 @@ class AcpSession {
 
 /** The agent's state across the connection: the client's capabilities and the live sessions. */
 class AgentState {
-  private readonly sessions = new Map<string, AcpSession>()
-  /** Sessions being set up (`adopt`), by id: a newer load or a close lets them go too. */
-  private readonly adopting = new Map<string, AcpSession>()
-  private readonly claims = new Map<string, SessionClaim>()
-  /** Remains visible even when the session is no longer available for requests. */
-  private readonly releasing = new Map<string, Promise<unknown>>()
-  private readonly watchedHosts = new WeakSet<AgentHost>()
-  private readonly exitedHosts = new WeakSet<AgentHost>()
+  private readonly registry: ControllerRegistry<AcpSession>
   private clientCapabilities: ClientCapabilities = {}
 
-  public constructor(private readonly deps: AcpAgentDeps) {}
+  public constructor(private readonly deps: AcpAgentDeps) {
+    this.registry =
+      deps.controllers ??
+      new ControllerRegistry(deps.log, (id) => RequestError.resourceNotFound(id))
+  }
 
   /**
    * The sign-in: run by the client in a terminal where it can (the spec
@@ -2165,7 +2201,7 @@ class AgentState {
     }
     await this.requireReady()
     const host = await this.deps.backend.hostFor(cwd)
-    this.watch(host)
+    this.registry.watch(host)
     const listed = await host.listModels()
     const models = this.deps.options.allowsContributorModels
       ? listed
@@ -2178,6 +2214,8 @@ class AgentState {
    * once `prepare` has set what the editor is shown: until then no request
    * finds it, and if anything fails the backend session is let go and the
    * request fails, so no session outlives a request that returned no id.
+   * The shared registry (M104) owns the claim, the release barrier and the
+   * host watch; a session loaded again replaces the one held.
    */
   private async adopt(
     host: AgentHost,
@@ -2185,123 +2223,38 @@ class AgentState {
     cwd: string,
     client: AgentContext,
     models: readonly ModelSummary[],
-    claim: SessionClaim,
+    claim: ControllerClaim,
     prepare: (acp: AcpSession) => Promise<void>,
     isImported = false,
     activeTurnId?: string,
   ): Promise<AcpSession> {
-    // A session loaded again replaces the one held, and one still being set
-    // up by an earlier load, before anything runs on it: both hosts hand
-    // back a session they hold, retained, so they would share it. Those stop
-    // following it and answering at once (`release`); if this load then
-    // fails, nothing is held for that id and the editor loads it again.
-    const { sessionId } = session
-    let acp: AcpSession | undefined
-    try {
-      this.ensureClaim(claim, host)
-      // One shared barrier survives removal from the request maps. The
-      // latest request alone can attach after the old turn is stopped.
-      await this.releaseAll(sessionId)
-      this.ensureClaim(claim, host)
-      acp = new AcpSession(
-        session,
-        host,
-        cwd,
-        client,
-        this.clientCapabilities,
-        models,
-        this.deps,
-        isImported
-          ? untrustedStartMode(this.deps.options.initialMode, this.deps.options.initialMode)
-          : this.deps.options.initialMode,
-        session.modelId,
-        activeTurnId,
-      )
-      this.adopting.set(sessionId, acp)
-      await acp.loadQuestions()
-      await acp.holdSchedules()
-      await prepare(acp)
-      await acp.startAccounts()
-      this.ensureClaim(claim, host)
-      if (acp.isReleased) {
-        // A newer load of this session, or a close, let it go meanwhile.
-        throw RequestError.resourceNotFound(sessionId)
-      }
-    } catch (error: unknown) {
-      if (acp === undefined) {
-        session.dispose()
-      } else {
-        await acp.release()
-      }
-      if (this.claims.get(sessionId) === claim) {
-        this.claims.delete(sessionId)
-      }
-      throw error
-    } finally {
-      if (this.adopting.get(sessionId) === acp) {
-        this.adopting.delete(sessionId)
-      }
-    }
-    this.sessions.set(sessionId, acp)
-    return acp
-  }
-
-  private claimSession(sessionId: string): SessionClaim {
-    const claim = { sessionId }
-    this.claims.set(sessionId, claim)
-    return claim
-  }
-
-  private ensureClaim(claim: SessionClaim, host: AgentHost): void {
-    if (this.claims.get(claim.sessionId) !== claim || this.exitedHosts.has(host)) {
-      throw RequestError.resourceNotFound(claim.sessionId)
-    }
-  }
-
-  /**
-   * Lets go of the session held for `sessionId` and one being set up, so no
-   * request finds either; resolves once each has stopped its turn and let
-   * its backend session go. False when there was neither.
-   */
-  private async releaseAll(sessionId: string): Promise<boolean> {
-    const found = [this.sessions.get(sessionId), this.adopting.get(sessionId)].filter(
-      (acp) => acp !== undefined,
+    return await this.registry.adopt(
+      host,
+      session,
+      claim,
+      () =>
+        new AcpSession(
+          session,
+          host,
+          cwd,
+          client,
+          this.clientCapabilities,
+          models,
+          this.deps,
+          isImported
+            ? untrustedStartMode(this.deps.options.initialMode, this.deps.options.initialMode)
+            : this.deps.options.initialMode,
+          session.modelId,
+          activeTurnId,
+        ),
+      async (acp) => {
+        await acp.loadQuestions()
+        await acp.holdSchedules()
+        await acp.prepareConversation()
+        await prepare(acp)
+        await acp.startAccounts()
+      },
     )
-    this.sessions.delete(sessionId)
-    this.adopting.delete(sessionId)
-    const previous = this.releasing.get(sessionId)
-    if (previous === undefined && found.length === 0) {
-      return false
-    }
-    const released = Promise.all([previous, ...found.map((acp) => acp.release())])
-    this.releasing.set(sessionId, released)
-    try {
-      await released
-    } finally {
-      if (this.releasing.get(sessionId) === released) {
-        this.releasing.delete(sessionId)
-      }
-    }
-    return true
-  }
-
-  private watch(host: AgentHost): void {
-    if (this.watchedHosts.has(host)) {
-      return
-    }
-    this.watchedHosts.add(host)
-    host.onExit((exit) => {
-      this.exitedHosts.add(host)
-      this.deps.log.warn(`The ${host.info.kind} backend stopped: ${exit.description}`)
-      for (const [sessionId, acp] of [...this.sessions, ...this.adopting]) {
-        if (acp.host !== host) {
-          continue
-        }
-        acp.hostExited(exit.description)
-        this.claims.delete(sessionId)
-        void this.releaseAll(sessionId)
-      }
-    })
   }
 
   /**
@@ -2385,7 +2338,7 @@ class AgentState {
       ...(mcpServers !== undefined && { mcpServers }),
     })
     // The mode and model went with the start; the effort is set here.
-    const claim = this.claimSession(session.sessionId)
+    const claim = this.registry.claimSession(session.sessionId)
     const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
       started.applyEffort(DEFAULT_EFFORT),
     )
@@ -2401,10 +2354,10 @@ class AgentState {
   ) {
     // Claimed before backend I/O: a slow older resume cannot replace a
     // newer request, and a close can invalidate one still loading.
-    const claim = this.claimSession(sessionId)
+    const claim = this.registry.claimSession(sessionId)
     try {
       const { host, models } = await this.openHost(cwd)
-      this.ensureClaim(claim, host)
+      this.registry.ensureClaim(claim, host)
       const loaded = await host.resumeSession(
         sessionId,
         startingModel(models),
@@ -2435,9 +2388,7 @@ class AgentState {
       )
       return { modes: acp.modes(), configOptions: acp.configOptions() }
     } catch (error: unknown) {
-      if (this.claims.get(sessionId) === claim) {
-        this.claims.delete(sessionId)
-      }
+      this.registry.abandonClaim(claim)
       throw error
     }
   }
@@ -2474,16 +2425,12 @@ class AgentState {
 
   /** The session held under this id, if any (none while it is being set up). */
   public held(sessionId: string): AcpSession | undefined {
-    return this.sessions.get(sessionId)
+    return this.registry.held(sessionId)
   }
 
   /** The editor closes a session: the one held, or one still being set up. */
   public async closeSession(sessionId: string): Promise<void> {
-    const wasClaimed = this.claims.delete(sessionId)
-    const wasReleased = await this.releaseAll(sessionId)
-    if (!wasClaimed && !wasReleased) {
-      throw RequestError.resourceNotFound(sessionId)
-    }
+    await this.registry.closeSession(sessionId)
   }
 
   /** A paid use asked in the session it is for; one the agent does not hold is denied (M58). */
@@ -2492,7 +2439,7 @@ class AgentState {
     request: PaidUseRequest,
     canRemember: boolean,
   ): Promise<PaidUseAnswer> {
-    const acp = this.sessions.get(sessionId)
+    const acp = this.registry.held(sessionId)
     if (acp === undefined) {
       this.deps.log.warn(
         `Paid use of ${request.feature}: no editor session ${sessionId} to ask in, so it is denied`,
@@ -2506,12 +2453,15 @@ class AgentState {
     sessionId: string,
     request: VaultApprovalRequest,
   ): Promise<VaultApprovalAnswer> {
-    const session = this.sessions.get(sessionId)
+    const session = this.registry.held(sessionId)
     return session === undefined
       ? { requestId: request.id, digest: request.digest, decision: 'deny' }
       : await session.askVaultUse(request)
   }
 }
+
+/** The ACP view held by an embedding runtime's shared registry. */
+export type AcpController = AcpSession
 
 /** The agent: register it on a stream with `connect`. */
 export function createAcpAgent(deps: AcpAgentDeps): AgentApp {

@@ -4,7 +4,7 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { cpSync, mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { build } from 'esbuild'
+import { build, type BuildOptions, type Plugin } from 'esbuild'
 import { JOB_SOURCE_FILES } from '../../src/host/backend/jobSource'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 
@@ -12,19 +12,23 @@ export async function buildAcpFixture(
   root: string,
   packageRoot: string,
   version: string,
+  // A test that must not reach the rig's real credential store replaces the
+  // native keyring binding of acp.js with a fake (acpStdio.e2e.test.ts).
+  agentPlugins: readonly Plugin[] = [],
 ): Promise<void> {
   const agent = path.join(packageRoot, 'dist', 'acp.js')
   mkdirSync(path.dirname(agent), { recursive: true })
-  const options = {
+  const options: BuildOptions = {
     bundle: true,
     platform: 'node',
     format: 'cjs',
     target: 'node22',
     external: ['@napi-rs/keyring'],
     logLevel: 'silent',
-  } as const
+  }
   await build({
     ...options,
+    ...(agentPlugins.length > 0 && { external: [], plugins: [...agentPlugins] }),
     entryPoints: [path.join(root, 'src', 'runtime', 'main.ts')],
     outfile: agent,
   })

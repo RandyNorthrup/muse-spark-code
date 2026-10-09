@@ -17,8 +17,8 @@ import {
   evaluateAccountThresholds,
 } from '../../src/core/accounts/thresholds'
 import { FakeAccountJournal } from './helpers/accounts/fakes'
-import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
-import { createPaidFeatures } from '../../src/host/paid/paidHost'
+import { createPaidDailyBudget } from '../../src/host/vscode/paid/paidDailyBudget'
+import { createPaidFeatures } from '../../src/host/vscode/paid/paidHost'
 import * as atomicFiles from '../../src/host/fsAtomic'
 import { PAID_DAILY_BUDGET, UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'

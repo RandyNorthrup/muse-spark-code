@@ -1,3 +1,4 @@
+import { fakeAcpComposition } from './helpers/acpComposition'
 import * as acp from '@agentclientprotocol/sdk'
 import { randomUUID } from 'node:crypto'
 import { mkdtempSync, readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
@@ -129,6 +130,7 @@ function setup(
   })
   const agent = createAcpAgent({
     questions: 'decline',
+    createConversation: fakeAcpComposition,
     backend: runtime.backend,
     version: '0.0.0-test',
     options: {

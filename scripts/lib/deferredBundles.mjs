@@ -265,9 +265,9 @@ export const DEFERRED = [
     output: 'dist/usagePanel.js',
     metafile: 'dist/meta/usagePanel.json',
     files: [
-      'src/host/usage/usagePanelEntry.ts',
-      'src/host/usage/usagePanel.ts',
-      'src/host/paid/paidDailyBudget.ts',
+      'src/host/vscode/usage/usagePanelEntry.ts',
+      'src/host/vscode/usage/usagePanel.ts',
+      'src/host/vscode/paid/paidDailyBudget.ts',
     ],
   },
   {
@@ -298,6 +298,27 @@ export const DEFERRED = [
       'src/runtime/schedules/nodeBackgroundIo.ts',
       'src/runtime/schedules/effectiveDefinition.ts',
       'src/runtime/windowsTrustedPath.ts',
+    ],
+  },
+  {
+    output: 'dist/runtimePanelPorts.js',
+    metafile: 'dist/meta/runtimePanelPorts.json',
+    use: 'runtime panel feature composition',
+    files: ['src/runtime/panel/runtimeFeatures.ts', 'src/runtime/panel/runtimeFeaturesEntry.ts'],
+  },
+  {
+    output: 'dist/runtimePanel.js',
+    metafile: 'dist/meta/runtimePanel.json',
+    use: 'the runtime panel command',
+    files: [
+      'src/runtime/panel/panelEntry.ts',
+      'src/runtime/panel/runPanel.ts',
+      'src/runtime/panel/connection.ts',
+      'src/runtime/panel/delivery.ts',
+      'src/runtime/panel/surfaces.ts',
+      'src/runtime/panel/runtimeController.ts',
+      'src/runtime/companion/server.ts',
+      'src/runtime/companion/events.ts',
     ],
   },
   {
@@ -482,7 +503,10 @@ export const ON_FIRST_USE = [
     metafile: 'dist/meta/reportingPanel.json',
     use: 'the first report tab',
     parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
-    files: ['src/host/reporting/reportPanelEntry.ts', 'src/host/reporting/reportPanel.ts'],
+    files: [
+      'src/host/vscode/reporting/reportPanelEntry.ts',
+      'src/host/vscode/reporting/reportPanel.ts',
+    ],
   },
   {
     output: 'dist/media.js',
@@ -586,8 +610,8 @@ export const ON_FIRST_USE = [
     use: 'the first Tab request or menu',
     files: [
       'src/host/tab/tabEntry.ts',
-      'src/host/tab/tabProvider.ts',
-      'src/host/tab/tabStatus.ts',
+      'src/host/vscode/tab/tabProvider.ts',
+      'src/host/vscode/tab/tabStatus.ts',
       'src/host/tab/tabLedger.ts',
       'src/host/tab/tabSpendGate.ts',
       'src/core/tab/tabCache.ts',
@@ -708,7 +732,7 @@ export const ON_FIRST_USE = [
     use: 'the first What’s New page or notice',
     files: [
       'src/host/whatsNew/whatsNewEntry.ts',
-      'src/host/whatsNew/whatsNewPanel.ts',
+      'src/host/vscode/whatsNew/whatsNewPanel.ts',
       'src/host/whatsNew/whatsNewHtml.ts',
       'src/core/whatsNew/whatsNewContent.ts',
       'src/shared/whatsNewMessages.ts',

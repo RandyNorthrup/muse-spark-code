@@ -67,3 +67,14 @@ export async function buildModelApiBundle(folder: string): Promise<string> {
   })
   return file
 }
+
+/** The real controller and runtime ports beside the Model API backend. */
+export async function buildRuntimeConversationBundles(folder: string): Promise<void> {
+  await buildModelApiBundle(folder)
+  await buildHostBundles(folder, {
+    runtimePanel: path.resolve('src/runtime/panel/panelEntry.ts'),
+    runtimePanelPorts: path.resolve('src/runtime/panel/runtimeFeaturesEntry.ts'),
+    conversation: path.resolve('src/host/conversation/conversationEntry.ts'),
+    sessionBoard: path.resolve('src/host/sessionBoardEntry.ts'),
+  })
+}

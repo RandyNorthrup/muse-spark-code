@@ -1048,6 +1048,8 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Webview Tasks import closure             | ≤ 25 KiB                            |
 | Webview team UI import closure           | ≤ 25 KiB                            |
 | `.vsix`                                  | ≤ 2775 KiB                          |
+| `dist/runtimePanel.js`                   | ≤ 100 KiB                           |
+| `dist/runtimePanelPorts.js`              | ≤ 75 KiB                            |
 | `dist/acp.js`                            | ≤ 850 KiB                           |
 | `dist/planMarkdown.js`                   | ≤ 150 KiB                           |
 | `dist/checkpointStore.js`                | ≤ 225 KiB                           |
@@ -1119,6 +1121,10 @@ properties, and retain all existing caps. No new artifact or dependency.
 **Webview team UI import closure budget rationale.** (M96: exclusive deferred TeamUi closure, 16,132 bytes in the composed graph; existing incoming cap)
 
 **`.vsix` budget rationale.** compressed (TRAIN15G lead decision, 2026-10-06: universal 2,688,776 bytes +5%, rounded up to 25 KiB = 2,841,600 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job)
+
+**`dist/runtimePanel.js` budget rationale.** (M104 B2 carrier, 72.4 KiB measured; lazy command only)
+
+**`dist/runtimePanelPorts.js` budget rationale.** (M104 B2 feature ports, 53.6 KiB measured; lazy initialization only)
 
 **`dist/acp.js` budget rationale.** (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)
 
@@ -1195,6 +1201,16 @@ properties, and retain all existing caps. No new artifact or dependency.
 **Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB on 2026-10-06 by the same rule; separate from the unchanged unclassified deferred group)
 
 **`dist/reference.js` budget rationale.** (M117: the generated help reference; the estimator feature, command and settings rows bring it to 100.7 KiB on 2026-10-07, plus 15%, rounded up to 25 KiB)
+
+**M104D continuation (2026-10-05):** `dist/webview/portable/main.js`,
+`whatsNew.js`, `bridge.js`, `fallbacks.js` and every JavaScript chunk in that independent
+graph share one new **1100 KiB** cap. Measured 974,922 bytes; the existing
+D6 rule gives `25 × ceil(1.15 × (974922 / 1024) / 25) = 1100 KiB`.
+VS Code's existing startup and deferred budgets are unchanged. Its eager
+chat is 898,666 bytes, below the 898,682-byte pre-lane baseline, and its
+deferred graph is 40,898 bytes, below 51,200. The portable artifacts are
+outside the VSIX's explicit allowlist; native/companion packaging belongs
+to their carriers.
 
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
@@ -10528,6 +10544,79 @@ have equivalent functionality even if we need to develop it ourselves".
   qualification (M104g). The research is
   `docs/certification/m104-research.md` (this file, moved in).
 
+- **M104 E3 (2026-10-05), native closure.** Qualify JCEF resource delivery and
+  the shared renderer in the IDE framework under Xvfb, including send,
+  approval and Stop; provide a browser companion when JCEF is unavailable.
+  Restore native inline Tab using the public platform API and frozen
+  `tab/*` methods, retaining the runtime's spend/budget admission. Verify the
+  declared build range against the two latest installed IDEA releases;
+  remove unstable SDK calls rather than suppress their verifier findings.
+  The native browser uses the public IDE HTML loader with the shared built
+  entries folded into nonce-authorized inline assets: intercepted HTTPS and
+  loopback network loading stalled independently on the rig. Construction
+  failure or a readiness deadline selects the existing companion CLI mode;
+  frozen `ui/openExternal` opens its fresh runtime URL. The certification
+  records the stopped approaches; no new companion carrier method is invented.
+- **Native JCEF startup budget (FIXM104E).** `renderPages` checks the actual
+  shipped `main.inline.js` against 950 KiB, the sum of D6's existing shared
+  startup 900 KiB and deferred 50 KiB caps. JCEF eagerly folds both; the
+  shared 900 KiB gate remains unchanged. `whatsNew.inline.js` keeps 25 KiB.
+  The new native checks run before localized pages or the ZIP can be built,
+  and are Gradle inputs. No existing budget is raised.
+- **FIXM104E review closure (2026-10-05).** Fix RVM104E's six findings
+  inside the JetBrains lane: retain bounded cancelled-request correlation;
+  resolve opt-in metadata outside the connection monitor with a deadline and
+  shutdown precedence; dispose the native session, Tab binding and process
+  tree together on transport failure; use the IDE's VS Code-compatible glob
+  matcher for root/nested inclusions and exclusions; add real daemon
+  diagnostics/get and diagnostics/didChange tests; count the shipped inline
+  startup script in a native build gate. Keep existing caps and frozen wire
+  bytes. Each finding gets a regression and byte-exact red drill in
+  `docs/certification/m104-e3.md`. Regression qualification also exposed
+  nullable JSON Schema `type` arrays in the frozen contract: validate those
+  exact declared unions and reject every undeclared type; no wire change.
+  The platform's minimatch brace expansion is a stub, so expand alternatives
+  locally with the shared glob limits (256 characters/alternatives) before
+  invoking that existing matcher. No new dependencies or live calls.
+- **REDM104E lifecycle redesign (2026-10-05).** Replace split host/pipe
+  lifetime management with one generation-scoped connection actor owning the
+  runtime, bounded transport and MHP session. Callers enqueue work only;
+  stream pumps are private supervised I/O tasks, never host-owned. Admission
+  overflow, write timeout, invalid wire data and the metadata deadline fail
+  the entire generation with a fixed diagnostic. Closing marks the generation
+  unavailable immediately, cancels work, requests bounded stream closure and
+  terminates its process containment before bounded worker joins. POSIX
+  process groups and Windows jobs survive parent-first exit; refuse launch
+  if containment cannot be established. Replies and UI callbacks carry the
+  originating generation. Validate integer conversion before narrowing and
+  expose only fixed failure words to Tab/IDE logging. Existing round-one
+  regressions stay; one native stress suite adds all six round-two cases,
+  reconnect/project lifetime coverage and byte-exact red drills. Run strict
+  Plugin Verifier against all three declared IDEA releases. No shared wire,
+  paid behavior, other editor or gate threshold changes; no IDE agreement.
+  The JVM shutdown path also retains an eagerly prepared containment handle
+  and force-kills without stream I/O: daemon cleanup alone can be abandoned
+  when the IDE exits. Separate-JVM fake tests cover an attached runtime and a
+  parent-first worker; the shutdown hook is removed after normal cleanup.
+- **FIXM104E3 / RVM104E3 (2026-10-05).** Close both P2 lifecycle gaps
+  inside the JetBrains lane. Retain descendant handles and start instants while
+  the runtime is alive, snapshot before signalling, first let the runtime stop
+  its supervised children, then force remaining verified identities, including
+  separate POSIX sessions and JVM exit. Fence editor requests against their
+  originating connection epoch synchronously at every native mutation and
+  inside document write actions. Add regressions, byte-exact red drills and
+  repeat strict Plugin Verifier on the three declared IDEA releases. Keep
+  frozen wire, dependencies, shared runtime and gates unchanged.
+- **MHP 1.2 adoption (M104PA, 2026-10-06).** The lead drops the earlier
+  runtime-initiated `hostMetadata` and `surfaceHtml` proposals. Only 1.2 is
+  supported: the editor initiates initialize and provides its metadata,
+  locale, theme, folders, trust and capability groups; the runtime returns
+  1.2 and its capabilities. Both legacy-named native snapshot inputs and locks
+  are explicitly adopted as 1.2 through `mhp-schema.mjs --adopt-version`;
+  their filenames preserve build references, not older validators. Frozen
+  payload drift and repeated current-version adoption still fail. The native
+  owners adopt this shared contract and qualify their assembled services.
+
 ### D73 — Inline completions (Tab), billed to the Model API key (M94, 2026-10-04)
 
 The owner, 2026-10-04: "yes plan and build the feature". Inline code
@@ -19250,6 +19339,66 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
   Default: retain production behavior, reduce only the test fixture and prove
   exact bounds/cursor identity; leave the original hosted trigger unconfirmed
   until its receipt is available. Evidence: `docs/certification/deflake3.md`.
+
+- **M104 B composition boundary (2026-10-05; A prerequisite resolved):**
+  the authorized A extraction provides `composeConversationDeps` in
+  `src/host/compose/conversationDeps.ts`, using frozen `HostServices` and explicit
+  feature/state ports. Its conformance test loads a real controller while any
+  `vscode` import throws. B still must supply runtime ports, integrate D's browser
+  bridges, align C's endpoints with frozen MHP 1.1 and wire the registry and panel
+  commands. B and M110a0 remain incomplete until that continuation qualifies;
+  `docs/certification/m104-a.md` names the exact caller contract. No reduced
+  panel is advertised.
+
+- **M104 B2 continuation boundaries (2026-10-05):** the experimental native
+  and authenticated HTTP/SSE carriers now instantiate A's shared composition
+  on a real registered backend session. What public rich-parts admission API
+  lets ACP retain ContentBlock/TurnPart translation while becoming a view of
+  that same controller? What owning native broker supplies editor/UI services
+  to D's browser bridge, whose frozen HTTP routes carry only panel traffic?
+  Until those integrations and the runtime feature adapters in
+  `docs/certification/m104-b2.md` qualify, M104 and M110a0 stay incomplete.
+  Default: keep ACP behavior and refuse unavailable ports; M104PA now
+  transfers panel sessions through fresh immutable bindings,
+  expose neither secrets nor an unqualified equivalent-editor claim.
+- **M104INT boundaries (2026-10-06):** ACP rich parts now enter the
+  composed controller, and companion UI RPC has its own authenticated MHP
+  channel. The frozen native initialize direction/metadata mismatch still
+  prevented assembled bootstrap at that integration; M104PA replaces it
+  with the lead-approved editor-initiated 1.2 contract. Auxiliary
+  Tasks/What's New views, feature ports and native editor qualification remain
+  prerequisites in `docs/certification/m104-int.md` for M110a0. No registry
+  status is promoted or approved exception inferred.
+- **M104D integration prerequisites (2026-10-05).** The frozen native
+  `MuseEmbeddedHost` API carries only shared chat/Tasks/What's New payloads;
+  the carrier must provide the route for MHP `ui/*` requests/results to the
+  lazy browser adapter. Lane C's memory-only bearer closure authenticates
+  fetch, but script/module chunk requests cannot attach it; the companion
+  needs an authenticated lazy-module loader compatible with its nonce CSP.
+  Lane D's separate portable build resolves the previous bundle rejection
+  without raising the VS Code caps. The shared-rule feature
+  catalog, reference generator/check and `plan/m105-m107` ref are absent
+  from this rig's base. The lead must supply the current integration
+  contracts/plan and resolve these acceptance prerequisites.
+
+**Dropped HTML/bootstrap proposal (M104PA lead ruling, 2026-10-06).**
+The runtime-initiated initialize/hostContext and surfaceHtml/renderHtml proposal
+is withdrawn. MHP 1.2 has editor-initiated initialize, current shared payloads
+and reviewed snapshots; native carriers adopt those inputs in D/E/F. No
+opposite-direction metadata or HTML-render RPC is introduced.
+
+- **M104 E02 / bootstrap (resolved by the lead):** MHP 1.2 replaces 1.1;
+  the editor initiates initialize. The earlier HTML/bootstrap additions are
+  dropped. D/E/F adopt the reviewed snapshots and qualify their native carriers.
+
+- **M104X integration dependencies:** this lane's base (`da79fd51`) lacks
+  `panel --companion`, MHP runtime/UI composition and the shared Tab endpoint.
+  Lane B/D must confirm the launch-line convention and whether `/post` admits
+  existing UI payloads or requires the MHP envelope before Xcode qualifies.
+  The help-reference files named by common.md (`src/shared/featureCatalog.ts`
+  and `scripts/gen-reference.mjs`) are absent here; the lead/help-reference
+  lane must incorporate the five native commands from `hosts/xcode/README.md`.
+  No replacement global catalog is invented by this native-only lane.
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
@@ -37712,6 +37861,213 @@ logged.
 
 **Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
 
+**FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
+P3 evidence error inside B's paid engines and their shared guards. One
+serialized runtime owner tracks gate/grant mutations, advances its generation
+at disposal and checks it before each subsequent write; a remembered answer
+adds only its authorized feature, never other grants from a stale snapshot.
+Cancellation releases
+unanswered confirmations while accepted store writes drain. Keep interactive
+Tab's Allow once in memory for its declared surface/window, with independent
+windows and revocation; ordinary ACP/headless consent is unchanged. Expose
+the existing Tab scheduler's pending cancellation through the engine so owner
+shutdown clears its timer and settles an unsent trigger without aborting sent
+usage. Sum and compare journal amounts as exact nano-USD through
+`src/shared/usd.ts`, conservatively rounding liability up and caps down, and
+use integer subtraction for the portable remaining budget. Correct the
+historical owned-suite subtotal to 205. Each fix gets regression failures and
+byte-exact red drills in `docs/certification/m104-pb.md`; no new dependency,
+guard widening, support promotion or live/paid call. The lane runs bounded
+rig checks; the lead retains aggregate quality and integration qualification.
+
+**FIXM104PA2 / RVM104PA2 (2026-10-06).** Consume the engine's contributed
+`ensureHost` in the real portable controller, including refusal and selected
+host delegation. Keep the existing one-time session adoption and registry/ACP
+binding fences. Test injected admission through `RuntimeConversation.prepare`,
+login model warm-up and the absent-contribution refusal. Record a failing
+control and byte-exact restoration in `docs/certification/m104-pa.md`.
+Run scoped sequential checks directly on macmini at repository deadlines;
+no new dependency, guard widening, merge, push or live/paid call.
+
+**FIXM104PA review repair (2026-10-06).** Close RVM104PA's two P2 and
+two P3 findings in lane A's files. Publish settings and revoke Bypass using
+each held conversation's own live settings; republish only effective changes.
+Extend the existing typed engine contribution with paid policy/accounting,
+Model API budget/edit/attempt-host and authentication/account ports, preserving
+existing contract names and explicit refusals when an adapter is absent.
+Qualify the companion Chrome fixture with the repository's default test
+timeouts, and correct the replacement guide: MHP 1.2 replaces 1.1 and both
+legacy snapshot filenames now carry 1.2. The default-timeout audit also
+exposed the existing carrier asset/security fixtures: share Chrome startup,
+split independent integrity scenarios and wait on explicit panel readiness,
+retaining every assertion and deadline. Graceful Chrome shutdown also hangs
+past the default hook deadline; the fixtures own a loopback-only Playwright
+BrowserServer and use its public process-kill cleanup. All four findings are
+fixed: 931 unique tests in 28 files pass at default deadlines, the reviewer's
+18-test batch passes, and 14 failing controls restore byte-exact. See
+`docs/certification/m104-pa.md` and its review receipts. Scoped gates run
+directly on macmini, no aggregate quality, merge, dependency or live/paid call;
+no RVM104PA residual remains and no unsupported adapter is promoted.
+
+**M104PA parity lane A (2026-10-06, lead decisions).** First close the
+integration review's preparation/release barrier, method-aware bounded late
+reply correlation and same-record storage publication races. Storage uses a
+process-wide resolved-path queue and versioned compare-and-swap under an
+exclusive per-record publication lock; stale snapshots retry from the current
+revision. Activity/restoration updates keep the greatest `at`, with revision
+order breaking equal timestamps. Then implement fresh immutable carrier bindings
+for new/fork/switch/worktree sessions, coherent live settings/provider/model
+state, external permission/trust transitions and rich/restored turns. Bind
+portable feature exports from lanes B/C or freeze their typed composition
+contract in `docs/certification/m104-pa.md` before implementation.
+
+**Protocol ruling superseding the earlier 1.2 proposals below and under D84:**
+MHP 1.2 replaces 1.1; no native plugin has shipped. The editor spawns the
+runtime and initiates `initialize` with host metadata, locale, theme, folders,
+trust and capabilities; the runtime replies with its version/capabilities.
+Only 1.2 is selected; incompatible offers receive `MHP_INCOMPATIBLE_VERSION`.
+Regenerate snapshots and locks as an explicit reviewed version change with
+`scripts/mhp-schema.mjs`, update compatibility fixtures, and give native
+adoption to the owning D/E/F lanes. Runtime-initiated metadata/HTML proposals
+are dropped. Lane F owns the README carrier status correction (finding 5).
+This lane runs the brief's scoped gates, never aggregate quality, and makes
+no live/paid calls or support promotion. Worktrees own separate records and
+controllers on the active profile; workspace-only profile changes explicitly
+refuse until B supplies profile construction. B/C lazy typed factories own
+feature ports/actions and awaited cleanup, including auxiliary-view work.
+Selected catalog records gate compaction/handoff/effort/media admission.
+Companion session retirement revokes old browser contexts and their streams.
+
+**M104INT integration (2026-10-06, authorized rig brief).** Merge lanes D,
+E redesign, G repair, F, I, Xcode and H repair in that order with merge
+commits and unchanged cap measurements. Do not merge the LSP supervision
+redesign. Serve the independent portable chat/Tasks/What's New assets from
+the runtime carrier; chat has a bound controller, and auxiliary view ports
+remain explicit qualification work. Authenticated module loading fetches only the packaged
+manifest's assets through C's memory bearer, preserves static and lazy
+imports using nonce-authorized modules, and keeps C's request/CSP guards.
+Route the six React UI fallbacks as correlated, schema-validated MHP calls;
+native stdio uses HostServices, and companion views own their UI. Browser RPC has a separate authenticated
+transport from the frozen panel payload/lifecycle vocabulary, with window-bound
+requests, cancellation and bounded delivery. No new model wire shape or
+MHP 1.2 proposal is activated.
+ACP adopts the shared ConversationController through composeConversationDeps,
+with rich TurnPart admission preserving images/resources/skills. ACP keeps its
+translation, permissions and paid prompts, while the controller owns submissions
+and session state. ACP contributor-model adoption honors the
+existing explicit `--allow-contributor-models` flag; it cannot ask an unavailable
+panel UI during headless preparation. Interactive panels retain their native
+contributor confirmation, and the controller's confidential-workspace check
+still runs before dispatch. Preserve headless policy and fake-only isolation. Record
+all 56 runtime/companion/native statuses and platform/distribution blockers in
+docs/certification/m104-int.md; integration alone does not certify parity or
+unblock M110a0. The frozen initialize direction/metadata mismatch blocks
+native assembly; no 1.2 hostMetadata/surfaceHtml proposal is silently enabled.
+Controller teardown drains admitted atomic state writes. The portable loader's constants import initially
+retains an unused second English table. Mark only the fresh descriptor clone
+and canonical build-only unpack call as pure, so esbuild can discard that
+unused fallback; readers keep the complete table and installed language state.
+The loader uses the browser's lossless encoding and stays inside the original
+complete-portable-graph cap. The rig brief explicitly substitutes scoped sequential checks
+for aggregate quality and authorizes the composition beyond the common line cap.
+
+**Lane B2 continuation (2026-10-05).** The rig brief authorizes the larger
+runtime composition after A's factory landed. Implement the frozen 1.1
+carrier with correlated editor-service requests, immutable registered
+surfaces, bounded ordered queues, reload replay and close/drop accounting.
+Align companion endpoints and SSE while retaining C's per-window bearer and
+all origin/metadata/header guards. Wire runtime settings/storage and backend
+ports through `composeConversationDeps`; keep ACP translation and permission
+prompts in its view. Verify with fake-only panel processes and ACP regression
+suites. D's browser bridge and the distribution lane must integrate their
+owned files; absent browser files receive a concrete handoff. Record every
+unavailable feature and its dependency before claiming editor parity or
+unblocking M110a0. Scoped rig checks replace aggregate quality in this lane;
+no gate or size cap changes.
+The first inline build measures ACP at 895.0 KiB against its unchanged
+850 KiB cap. Follow the shared lane rule's lazy-bundle remedy: a checked
+`dist/runtimePanel.js` loads only for `panel`, uses the existing conversation
+factory bundle, installs the caller's language table, and is included in the
+ACP package and notices. Existing caps remain unchanged; the new carrier
+bundle is bounded at 100 KiB using D6's measured-size/headroom convention.
+The carrier first measures 103.5 KiB against its new 100 KiB cap. Keep that
+cap too: load the feature-port composition on first initialization from a
+separately checked `dist/runtimePanelPorts.js` (75 KiB initial budget); it
+installs the caller's language table before constructing any ports.
+The registry's protocol error factory is injected by ACP, keeping the
+portable registry independent of the ACP SDK.
+
+**B2 implementation status:** both experimental commands carry real shared
+controller text turns on either backend; native editor requests and paired
+HTTP/SSE clients are tested with isolated fake credentials/backends. No live
+wire shapes were added. Frozen MHP 1.1 remains unchanged. D's renderer/bridge
+is absent, ACP still needs full controller composition, and the runtime ports
+do not implement every VS Code feature. The certification's explicit parity
+table and native/broker handoff are required integration work, not accepted
+feature removal. M104 and M110a0 remain incomplete.
+
+**Lane A implementation (2026-10-05).** The required release/0.14.1 merge
+brings the current activation and 30 host modules importing `vscode`
+(the planning count was 24). Move all 30 with history into `src/host/vscode/`.
+Extract the full conversation dependency composition into `src/host/compose/`
+using frozen `HostServices` and explicit backend, feature and editor-state
+ports. VS Code invokes the same factory the runtime panel will use. Sync
+editor/trust/document snapshots remain explicit ports: MHP requests are async.
+No runtime panel command or adapter is implemented in A. The release sections
+of CHANGELOG remain byte-identical to release/0.14.1. The lane brief reserves
+aggregate quality for the lead; A runs scoped tests and all specified gates.
+
+Lane B partial implementation (2026-10-05): the runtime registry now owns
+ACP session lifecycle and can be supplied by an embedding runtime. Bounded,
+atomic settings/storage records share the existing setting schemas. They are
+not wired into a panel command. ACP still uses its ACP view rather than the
+full shared conversation controller. `panel --stdio`, `--companion`, MHP 1.1
+delivery and editor parity are unfinished; B does not unblock M110a0.
+The larger composition path stopped under the common lane rule (§3).
+Evidence, remaining work and integration regions are in
+`docs/certification/m104-b.md`.
+The source-layout ACP process fixture must bundle an empty fake keyring and
+verify its marker before starting any process: its signed-out Model API test
+must not probe the rig owner's real credential store. Installed-artifact
+certification remains separate.
+
+**FIXM104G review repair (2026-10-05).** Fix RVM104G findings 1–9 in
+`hosts/eclipse`: bounded pipe close and owner shutdown, retained descendant
+cleanup, bounded cancelled-request correlation, script-safe asset URLs,
+standard language IDs, widget/model completion coordinates, recursive glob
+root matches and retained browser deliveries across reload. Each fix requires
+a named native regression and a byte-exact red drill in `m104-g.md`. The
+packaged UI gets the native API/message-event adapter its existing entry
+requires. The frozen exports remain unchanged; E02 and bootstrap metadata need an exact
+MHP 1.2 proposal under D84 and capability-checked native support. B/C/D/H/I
+shared integration remains owned by those lanes; do not invent a controller
+or widen the Eclipse capability advertisement.
+
+**Lane 0 status: MHP 1.1.0 adds the panel carrier (lead decision; E01).**
+The frozen `mhp/1.0.0` editor-service table, errors and snapshot remain
+unchanged. The additive `mhp/1.1.0` contract reuses the shared chat, Tasks
+and What's New payload schemas, binds opaque surfaces to sessions, defines
+ordered bounded delivery and lifecycle notifications, and exports the
+`window.museHost` and multiplexed NDJSON/HTTP/SSE contracts. Its supported
+minor range is `mhp/1.0.0..1.1.x`; panel traffic requires negotiated 1.1.0.
+Lane 0 owns contract/schema tests and red drills only; B owns runtime
+delivery and C/D/native lanes own HTTP/SSE and browser implementations.
+Certification: `docs/certification/m104-0.md`, section "1.1.0".
+
+**M104X native host (2026-10-05).** Lane X owns `hosts/xcode/**` and
+`test/hosts/xcode/**`: a macOS 14 SwiftUI/WKWebView companion container,
+XcodeKit commands, authenticated in-memory loopback callbacks, a bounded
+credential-scrubbed runtime process group, approved snapshot-checked buffer
+edits, XCTest and a locally signed app archive. Native copy and tunables are
+generated from the shared tables/constants, rather than duplicated in Swift.
+The brief permits ad-hoc signing until an Xcode-selected personal team exists.
+The base has lane C but no `panel` CLI, MHP implementation or Tab endpoint;
+qualification must identify these integration dependencies, never substitute
+a production fake or claim complete editor parity. The panel launcher uses
+the lane H `panel --companion` launch-link convention, with no invented Muse
+Code or Model API frame. Native command traffic is a private app/extension
+contract, not a replacement MHP vocabulary. Evidence: `docs/certification/m104-h.md`.
+
 Lane C review remediation (FIXM104C, 2026-10-05): replace host-wide cookies
 with one-use fragment launch codes exchanged for independent per-window
 bearers held only in page memory. Every privileged request, including the
@@ -37722,9 +38078,44 @@ two windows have independent streams, two runtimes cannot overwrite credentials,
 and rejected launches show localized accessible reopen guidance. Evidence and
 byte-exact red drills belong in `docs/certification/m104-c.md`.
 
+Lane D continuation decision (2026-10-05): VS Code builds only its native
+bridge and chat/Tasks/What's New entries. Its eager chat JavaScript must not
+grow from the 898,682-byte pre-lane baseline, and its existing deferred group
+must stay under 51,200 bytes. Build the portable panel separately under
+`dist/webview/portable/`, with native/companion bridges and all React
+fallbacks. Budget the entire new JavaScript artifact, including eager and lazy
+chunks, from its measured size plus 15%, rounded up to 25 KiB; no existing cap
+changes. Preserve the three-bridge behavior suites, 2,520 fallback scans,
+chat accessibility gate and zero-pixel comparison. Lane B (`m104/b2`) owns
+native fallback RPC routing and authenticated companion module delivery;
+lane D supplies the exact entries and contract in its certification handoff.
+
+Lane D implementation (2026-10-05, not qualified for integration): the CSS prefix is `--ms-*`, per the
+lead's ruling and the existing stylelint gate; the lane table's `--muse-*`
+wording is corrected below. MHP's frozen theme vocabulary is translated at
+the UI boundary. Chat, Tasks and What's New select VS Code, native
+`window.museHost`, or companion fetch/SSE bridges. Host fallbacks and manager
+pages are exported through a lazy browser module, with the same React components and localized
+labels in every host. Native fallback RPC routing and authenticated companion module loading
+remain integration prerequisites in §3; these components do not qualify a new editor.
+Transport and keyboard/component tests, deliberate
+failures, four-theme accessibility, narrow panels and measured startup bytes
+are recorded in `docs/certification/m104-d.md`. No live model calls.
+
 **M104 is split** because it is large: a foundation and seven parallel
 parts. All of them build against the MHP v1 contract frozen at the end of
 lane A's first step.
+
+**H review repair (FIXM104H, 2026-10-05):** repair launch ownership across
+Qt async lookup, isolate Stop failures, preserve failed termination handles,
+report browser failures without private output, support explicit Node/ACP
+argv prefixes, remove Neovim launch URLs from command history, isolate
+Sublime unload failures, draft the Zed upstream request, and format both
+Sublime configuration files. Each repair gets a failing regression and
+byte-exact red drill in `docs/certification/m104-h.md`. H retains ownership
+of the unfinished MHP shim adapters, LSP broker/server and Zed completion
+endpoint; they require a separate M104e implementation after B/C composition
+and are not transferred or accepted as complete by these launcher repairs.
 
 | Milestone | Delivers                                                                                                                                  | Depends on                                   |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
@@ -37758,19 +38149,19 @@ lane A's first step.
   Lane 0 lands the contract skeleton (one day). Then lanes A–J run in
   parallel, and the lead integrates.
 
-| Lane     | Items                                                                                                                                                                                                                                                                            | Files it owns                                                                                                                                                     | Its regions in shared files                                                      | Starts                      |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------- |
-| 0 (lead) | MHP v1 skeleton: method table, zod schemas, capability names, error codes, version range; feature registry skeleton (F1–F56)                                                                                                                                                     | `src/shared/hostApi/**`, `src/shared/hostApi/features.ts`                                                                                                         | `src/shared/constants.ts` (MHP block)                                            | day 0                       |
-| A        | VS Code adapter: `HostServices` implemented with `vscode`; `extension.ts` composes from it; the 24 `vscode` files moved to `src/host/vscode/**`; behaviour unchanged                                                                                                             | `src/host/vscode/**`, `src/host/compose/**`, `src/extension.ts`                                                                                                   | `scripts/check-host-api.mjs` (new allowed roots)                                 | after 0                     |
-| B        | Runtime panel: `panel --stdio` and `--companion`; controller registry; ACP sessions on the controller (re-basing `src/acp/agent.ts` on the registry); settings and storage stores                                                                                                | `src/runtime/panel/**`, `src/runtime/settingsStore.ts`, `src/acp/**`                                                                                              | `src/runtime/main.ts`, `src/runtime/cliArgs.ts` (the `panel` and `lsp` commands) | after 0                     |
-| C        | Companion server: launch code, memory bearer, Host/Origin/Fetch-Metadata guard, SSE, CSP, static assets, idle exit; shared token-file module                                                                                                                                     | `src/runtime/companion/**`, `src/runtime/tokenFile.ts` (moved from `judge/`, coordinated with the M98 owner)                                                      | —                                                                                | after 0                     |
-| D        | UI: the three bridges; `main.tsx`, Tasks and What's New on the bridge; `--muse-*` tokens (M61.3); React fallbacks (Confirm, Picker, Input, Toasts, StatusStrip, SettingsPage, Walkthrough, DiffPage, TerminalOutput); manager pages for skills, MCP, hooks, memory and worktrees | `src/webview/bridges/**`, `src/webview/fallbacks/**`, `src/webview/main.tsx`, `src/webview/whatsNew/main.ts`, `src/webview/tokens.css`, `src/host/ui/pageHtml.ts` | `src/webview/styles.css` (variables only), `l10n/*` (new keys, all 15 tables)    | after 0                     |
-| E        | JetBrains plugin (M104b)                                                                                                                                                                                                                                                         | `hosts/jetbrains/**`                                                                                                                                              | —                                                                                | after the contract freeze   |
-| F        | Visual Studio extension (M104c)                                                                                                                                                                                                                                                  | `hosts/visualstudio/**`                                                                                                                                           | —                                                                                | after the contract freeze   |
-| G        | Eclipse plugin (M104d)                                                                                                                                                                                                                                                           | `hosts/eclipse/**`                                                                                                                                                | —                                                                                | after the contract freeze   |
-| H        | Shims and editor routes (M104e): Zed extension, Xcode app and XcodeKit, Qt Creator Lua, `muse.nvim`, `muse-spark.el`, Sublime package; the LSP broker and the `lsp` server; the Zed completions endpoint                                                                         | `hosts/{zed,xcode,qtcreator,neovim,emacs,sublime}/**`, `src/runtime/lsp/**`, `src/runtime/tabServe.ts`                                                            | —                                                                                | after lane C's first commit |
-| I        | Distribution and CI (M104f): `hosts-native.yml` (path-filtered on PRs, weekly full), release jobs per channel, packaging scripts, the Node runtime pin manifest, the conformance runner                                                                                          | `.github/workflows/hosts-native.yml`, `scripts/package-hosts/**`, `src/runtime/nodeRuntime.json`, `test/hostApi/**`                                               | `.github/workflows/release.yml` (new jobs after `npm`), `package.json` scripts   | after 0                     |
-| J        | Docs (M104h): README "Every editor", `docs/ide-compatibility/{hosts,matrix,host-api-v1}.md`, `docs/acp.md`, CONTRIBUTING, AGENTS.md rule 14, CHANGELOG, PLAN, certification                                                                                                      | `docs/ide-compatibility/**`, `docs/certification/m104*.md`                                                                                                        | README, AGENTS.md, CHANGELOG, PLAN (M104 and D84 only)                           | throughout                  |
+| Lane     | Items                                                                                                                                                                                                                                                                          | Files it owns                                                                                                                                                     | Its regions in shared files                                                      | Starts                      |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------- |
+| 0 (lead) | MHP v1 skeleton: method table, zod schemas, capability names, error codes, version range; feature registry skeleton (F1–F56)                                                                                                                                                   | `src/shared/hostApi/**`, `src/shared/hostApi/features.ts`                                                                                                         | `src/shared/constants.ts` (MHP block)                                            | day 0                       |
+| A        | VS Code adapter: `HostServices` implemented with `vscode`; `extension.ts` composes from it; the 24 `vscode` files moved to `src/host/vscode/**`; behaviour unchanged                                                                                                           | `src/host/vscode/**`, `src/host/compose/**`, `src/extension.ts`                                                                                                   | `scripts/check-host-api.mjs` (new allowed roots)                                 | after 0                     |
+| B        | Runtime panel: `panel --stdio` and `--companion`; controller registry; ACP sessions on the controller (re-basing `src/acp/agent.ts` on the registry); settings and storage stores                                                                                              | `src/runtime/panel/**`, `src/runtime/settingsStore.ts`, `src/acp/**`                                                                                              | `src/runtime/main.ts`, `src/runtime/cliArgs.ts` (the `panel` and `lsp` commands) | after 0                     |
+| C        | Companion server: launch code, memory bearer, Host/Origin/Fetch-Metadata guard, SSE, CSP, static assets, idle exit; shared token-file module                                                                                                                                   | `src/runtime/companion/**`, `src/runtime/tokenFile.ts` (moved from `judge/`, coordinated with the M98 owner)                                                      | —                                                                                | after 0                     |
+| D        | UI: the three bridges; `main.tsx`, Tasks and What's New on the bridge; `--ms-*` tokens (M61.3); React fallbacks (Confirm, Picker, Input, Toasts, StatusStrip, SettingsPage, Walkthrough, DiffPage, TerminalOutput); manager pages for skills, MCP, hooks, memory and worktrees | `src/webview/bridges/**`, `src/webview/fallbacks/**`, `src/webview/main.tsx`, `src/webview/whatsNew/main.ts`, `src/webview/tokens.css`, `src/host/ui/pageHtml.ts` | `src/webview/styles.css` (variables only), `l10n/*` (new keys, all 15 tables)    | after 0                     |
+| E        | JetBrains plugin (M104b)                                                                                                                                                                                                                                                       | `hosts/jetbrains/**`                                                                                                                                              | —                                                                                | after the contract freeze   |
+| F        | Visual Studio extension (M104c)                                                                                                                                                                                                                                                | `hosts/visualstudio/**`                                                                                                                                           | —                                                                                | after the contract freeze   |
+| G        | Eclipse plugin (M104d)                                                                                                                                                                                                                                                         | `hosts/eclipse/**`                                                                                                                                                | —                                                                                | after the contract freeze   |
+| H        | Shims and editor routes (M104e): Zed extension, Xcode app and XcodeKit, Qt Creator Lua, `muse.nvim`, `muse-spark.el`, Sublime package; the LSP broker and the `lsp` server; the Zed completions endpoint                                                                       | `hosts/{zed,xcode,qtcreator,neovim,emacs,sublime}/**`, `src/runtime/lsp/**`, `src/runtime/tabServe.ts`                                                            | —                                                                                | after lane C's first commit |
+| I        | Distribution and CI (M104f): `hosts-native.yml` (path-filtered on PRs, weekly full), release jobs per channel, packaging scripts, the Node runtime pin manifest, the conformance runner                                                                                        | `.github/workflows/hosts-native.yml`, `scripts/package-hosts/**`, `src/runtime/nodeRuntime.json`, `test/hostApi/**`                                               | `.github/workflows/release.yml` (new jobs after `npm`), `package.json` scripts   | after 0                     |
+| J        | Docs (M104h): README "Every editor", `docs/ide-compatibility/{hosts,matrix,host-api-v1}.md`, `docs/acp.md`, CONTRIBUTING, AGENTS.md rule 14, CHANGELOG, PLAN, certification                                                                                                    | `docs/ide-compatibility/**`, `docs/certification/m104*.md`                                                                                                        | README, AGENTS.md, CHANGELOG, PLAN (M104 and D84 only)                           | throughout                  |
 
 - **Acceptance (all with fakes, no model calls).** Fakes: the fake Muse Code
   CLI and the fake Model API server.
@@ -37877,8 +38268,9 @@ lane A's first step.
     With 8–10 lanes in parallel, the critical path is lane A plus one plugin
     (M104b).
 - **Certification checklist** (§6.0, plus):
-  - [ ] Lane 0's contract is frozen and versioned (`mhp/1.0.0`), with a
-        schema snapshot committed.
+  - [x] Lane 0's contract is frozen and versioned (`mhp/1.0.0`), with the
+        additive `mhp/1.1.0` panel carrier (lead decision; E01), both schema
+        snapshots and locks, and certification in `m104-0.md` section 1.1.0.
   - [ ] VS Code is pixel-identical (harness) and every integration test
         passes.
   - [ ] Conformance is green per adapter, with a receipt per editor and
@@ -37900,6 +38292,53 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**FIXM104PB bounded review repair (2026-10-06, Kubuntu).** The lane brief
+overrides the aggregate quality/merge instructions: no full quality, full
+suite, merge, push or rebase. Use the repository's unchanged test deadlines,
+at most three named files and three workers per run, all compiler projects,
+scoped lint/format, plain Knip, duplication, localization, host API and the
+production build. B's test namespace still needs A's central discovery/lazy
+wiring; its supplemental test config adds discovery only. The existing
+generated host inventory remains F's integration responsibility. These gate
+deferrals apply only to the unshipped component lane; the lead must clear
+them and run aggregate quality before integration/support certification.
+Actual exits and unchanged size caps are recorded in `m104-pb.md`.
+
+**M104INT bounded integration (2026-10-06, macmini).** The explicit rig
+brief forbids aggregate quality and full test runs; commits use the owning
+three-file/three-worker suites, scoped lint/format, all compiler projects,
+localization, regenerated host inventory, cycles, plain knip, duplication
+and unchanged production budgets. The lead retains full integrated quality,
+coverage and installed-editor qualification. `check:mhp` exits 1 at the
+frozen 1.1 wire lock: the current shared chat payloads differ from the old
+snapshot. An isolated unchanged `35ce56f8` source archive produces the same
+failure and digest (`ffe801752a24baa897efbd819fc289fe1ea6b7a21e765e18924bb5d45d49fa93`).
+The four frozen snapshots/locks and C's guard remain byte-identical. Do not
+rewrite the lock or silently activate a 1.2 proposal; the protocol owner must
+resolve this inherited versioning blocker before integrated quality can pass.
+Native bootstrap ownership, signing and unavailable platform/editor matrices
+are recorded with the 56-feature inventory in `docs/certification/m104-int.md`.
+No parity, aggregate-green or supported M110a0 claim is made.
+
+**M104 A (2026-10-05, macmini).** The rig/common brief forbids aggregate
+`npm run quality`; the lead owns integrated quality, coverage and editor
+qualification. A runs all project typechecks, scoped lint/format, owning unit
+and fake-process suites, host inventory, localization, plain knip, cycles,
+duplication and production builds with unchanged caps. Real extension-host
+integration is unavailable here: there is no worktree VS Code test cache or
+installed stable VS Code executable, and public network is forbidden by the
+shared brief. Record this limit rather than filter or weaken integration tests.
+The required release merge and mechanical move preserve all released changelog
+sections byte-exact; every production JavaScript bundle is byte-identical after
+the move. Extraction/adapter and screenshot outcomes are in
+`docs/certification/m104-a.md`. No model or paid calls.
+The original raw screenshot zero-difference item remains unqualified: 69 of
+154 PNGs differ in time-dependent caret/animation/clock/scroll state despite
+byte-identical webview assets. Controlled paired renders match all 154 after
+two pair retries, but do not waive that original requirement. The lead must
+qualify the stable original capture alongside real extension-host integration;
+no renderer, threshold, test or cap was weakened.
 
 **CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting
 journals/cache/engine, schedule-runtime and M114 panel/conversation failures
@@ -41145,6 +41584,102 @@ lane does not run it or weaken any gate. The generic delivery validator's
 ledger-format check remains deferred for this established plan format.
 Current receipts: `docs/certification/star-line.md`.
 
+**M104 B2 (2026-10-05/06, macmini; experimental carriers, incomplete parity).**
+The rig brief explicitly forbids aggregate quality in this lane. All five
+typechecks, scoped lint/formatting, localization, host inventory, cycles,
+plain Knip, duplication and production build/split/globals/caps pass. Native,
+companion and ACP process suites use isolated fake keyrings/backends; no live
+or paid calls or credential-store reads. Thirty-two deliberately broken
+runtime/transport/bundle guards fail and restore byte-exact with SHA-256
+receipts. The local offline ACP package includes the three lazy panel and
+conversation bundles. ACP full controller composition, D renderer/native
+broker and all 56 editor-feature qualification rows remain required; M104
+and M110a0 are not complete. Detailed results, parity/dependency list, factory
+handoff and remaining work: `docs/certification/m104-b2.md`. Existing caps,
+thresholds and gate levels are unchanged; full quality stays with the lead.
+
+**M104 B (2026-10-05, macmini; incomplete lane).** The rig/common brief
+reserves full quality and aggregate coverage/editor qualification for the
+lead. All five typechecks, scoped lint/formatting, deadcode, duplication,
+localization, cycles, host API and production build/caps pass for the delivered
+registry/store work. The stale generated host inventory was regenerated and
+checked; only six Node import counts changed. The owned regression/unit/process
+files pass, with byte-exact guard drills in `docs/certification/m104-b.md`.
+Panel process tests cannot certify commands that are not implemented; they,
+full controller composition, editor parity and M110a0 remain required.
+No threshold, cap, assertion, timeout or rule is weakened.
+**M104D (2026-10-05, Windows 11 rig).** The rig brief reserves aggregate
+`npm run quality` and full-suite coverage for the lead. This lane runs
+the five typechecks, changed-file lint/format/style checks, dead code,
+duplication, localization, host API, owning suites, all 564 chat accessibility
+pages and 2,520 fallback scans. The continuation's production build passes:
+898,666 eager chat bytes (16 below the 898,682-byte baseline), 40,898 deferred
+VS Code bytes against the unchanged 50 KiB cap, and 974,922 total portable
+JavaScript bytes against its new measured-plus-15%-rounded 1100 KiB cap.
+No existing cap, gate, threshold, skip or timeout is relaxed. The private
+lane commits are review material, not a merge proposal or a support claim.
+Native fallback routing, companion authenticated module loading, the absent
+M110a0 plan ref and feature-reference tooling also remain open in §3.
+Exact receipts, byte-exact deliberate failures and touched regions are in
+`docs/certification/m104-d.md`.
+
+**M104X (2026-10-05).** The rig brief and shared lane resource rule prohibit
+aggregate quality/coverage runs and integration merges in this worktree.
+Local commits therefore carry scoped XCTest, UI, JS/static/type/build receipts;
+the lead must run `npm run quality` before integration. SwiftLint is absent on
+this rig; Xcode's Swift compiler treats warnings as errors and the installed
+`swift-format` checks native source. No existing gate is lowered or ignored.
+Its strict naming lint reports the required `UI_TEXT` identifier as a camel-case
+violation. Keep AGENTS rule 5's name and record that single justified style
+deferral; add no ignore or configuration relaxation. Other reported Swift
+format/style issues are fixed. The formatter and warning-as-error compiler
+still run.
+`check:host-api` reports inherited lane-C Node import-count drift in the
+generated inventory (buffer, crypto, fs, fs/promises, http and path). Lane J
+owns that record; this lane neither regenerates it nor suppresses the gate.
+Its otherwise unchanged VS Code API/theme counts are recorded in certification.
+Native installation and full feature-matrix qualification remain open until
+the missing runtime/UI/Tab foundation and the owner's extension enablement
+are available. Certification: `docs/certification/m104-h.md`.
+
+**FIXM104C (2026-10-05).** The lane brief/common resource rule reserves full
+`npm run quality` and aggregate coverage/editor certification for the lead.
+This lane runs all five typechecks, scoped ESLint/Prettier, dead-code,
+duplication, localization, host API and production build checks, plus every
+owning transport/token test file and byte-exact red drills on rigs. The
+pre-existing generated host inventory is lane J's write; an inventory mismatch
+remains open rather than ignored or weakened. Receipts and exact outcomes are
+in `docs/certification/m104-c.md`. No full-quality success is claimed here.
+
+**FIXM104E3 (2026-10-05, Kubuntu).** Follow RVM104E3's scoped rig brief:
+all owned native regressions and deliberate failures, native lint, scoped
+repository checks, production build and strict Plugin Verifier on the three
+pinned IDEA releases. The shared rules explicitly prohibit full `npm run quality`
+and aggregate unit coverage here; those remain the lead's integration gate.
+No merge/push, dependency, threshold, suppression or installed-IDE agreement
+change is authorized. Exact results and the named tree-discovery residual are
+in `docs/certification/m104-e-redesign.md`.
+
+**REDM104E (2026-10-05, Kubuntu).** The explicit rig/common brief requires
+owned JVM tests, scoped repository gates and the three declared IDEA verifier
+releases. Full `npm run quality`, aggregate coverage and unrelated editor
+qualification remain with the lead; running them here is explicitly prohibited.
+No merge is listed by this redesign brief; the rig's no-merge override applies.
+No agreement, paid/live call, dependency, gate cap or severity change is allowed.
+The existing absence of the feature-reference catalog at this branch remains
+as recorded below. Lifecycle evidence goes in `docs/certification/m104-e-redesign.md`.
+
+**M104 E3 (2026-10-05, Kubuntu).** The rig brief requires scoped repository
+checks and the owned JVM suite, with full quality and aggregate repository
+tests left to the lead. No threshold, timeout, rule or test filter is weakened.
+The common feature-reference instruction names `src/shared/featureCatalog.ts`,
+`scripts/gen-reference.mjs` and `check:reference`; none exists at this branch's
+base. Native behavior is therefore documented in the JetBrains guide and D84,
+with reference adoption left to the lane that introduces that catalog. The
+fresh standalone IDEA profile awaits the owner's User Agreement approval;
+framework JCEF screenshots and UI receipts are recorded independently in
+`docs/certification/m104-e3.md`.
+
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
 120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
@@ -42422,6 +42957,12 @@ threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
 
+| M104 B2 location                     | Escape hatch                                       | Reason                                                                                                                                                                                                         |
+| ------------------------------------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/runtime/main.ts`, panel command | `eslint-disable-next-line unicorn/no-process-exit` | The standalone carrier exits after owned backend cleanup and bounded stdout/stderr flushing; expired/dead SDK request timers must not keep a closed carrier alive.                                             |
+| `src/runtime/panel/panelLoader.ts`   | Factory signature predicates                       | Same-build packaged exports are trusted only after structural callable guards; factories install the caller's language table. Missing/wrong factories throw, including the ACP conversation factory (M104INT). |
+| `src/runtime/panel/connection.ts`    | Method kind predicates                             | Validated own keys from the frozen method table and their checked request/notification kind determine the mapped union; no foreign method or prototype key is admitted.                                        |
+
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `test/unit/helpers/malformedUsd.ts`: `input as unknown as UsdAmount`                      | Existing negative, NaN, infinity and overflow probes deliberately violate the typed port so their runtime refusals still execute.                                                                                               |
@@ -42579,6 +43120,13 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | `TAB_DAILY_BUDGET_DEFAULT_USD`, `TAB_DAILY_BUDGET_MIN_USD`, `TAB_DAILY_BUDGET_MAX_USD`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | L                                                                 | Remove after ledger/budget readers merge and W verifies production use.                                                                                                                                                                                                                                   |
 | `TAB_FILE_MAX_BYTES`, `TAB_SNOOZE_SHORT_MINUTES`, `TAB_SNOOZE_LONG_MINUTES`, `TAB_TRIGGER_MODES`, `TabTrigger`, `TAB_WITH_COPILOT_MODES`, `TabWithCopilot`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | H                                                                 | Remove after provider/status/settings consumers merge and W verifies production use.                                                                                                                                                                                                                      |
 | `TAB_HOOK_TIMEOUT_MS`, `TAB_HOOK_VERDICT_CACHE`, `TAB_EDIT_HOOK_QUEUE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | K                                                                 | Remove after the two Tab hooks merge and W verifies production use. No Knip configuration exception is added.                                                                                                                                                                                             |
+
+| M104X location                                                            | Escape hatch                            | Reason                                                                                                                                                                | Date       |
+| ------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `hosts/xcode/Extension/SourceEditorExtension.swift`, `commandDefinitions` | Swift `Any` dictionary                  | Required XcodeKit Objective-C interface; values are fixed string identifiers and runtime-localized labels.                                                            | 2026-10-05 |
+| `hosts/xcode/Shared/NativeChannel.swift`, `NativeFrame.decode`            | Foundation `Any` JSON objects           | Needed to reject unknown keys before strict Codable value/type validation. Every conditional cast is compiler-verified narrowing; no opaque object reaches an action. | 2026-10-05 |
+| `hosts/xcode/Shared/NativeText.swift`                                     | `try?` table reads                      | A missing selected-language resource tries the packaged English fallback; missing fallback returns an explicit diagnostic code, never empty success.                  | 2026-10-05 |
+| `hosts/xcode/Shared/RuntimeLauncher.swift`, `stop`/reader cleanup         | `try?` closing an already-closed handle | Stop/reaping still owns group TERM/KILL; cleanup failure cannot permit another operation or expose output.                                                            | 2026-10-05 |
 
 | M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
 | ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -42766,6 +43314,21 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM104PB review closure (2026-10-06).** All four RVM104PB P2 findings
+  and its P3 subtotal error are repaired; no numbered review finding is
+  deferred. **M104PB-discovery** remains an inherited integration prerequisite:
+  plain Knip reports 44 files and the checkpoint factory export because A's
+  owned test/lazy discovery is absent (the new certification test adds one
+  file); supplemental discovery passes without an ignore. Safe only for the
+  unshipped component lane, whose ordinary unavailable bindings still refuse.
+  Follow-up: A wires/discovers the owned factories and suites, then runs the
+  actual gate. **M104PB-host-inventory** is F's stale generated Node import
+  inventory; the portable value/type graph passes. Safe only while the actual
+  gate continues to block aggregate certification. Follow-up: F regenerates
+  and reviews that inventory on the assembled tree. Native prompt cancellation,
+  provider/editor qualification and existing missing services remain the
+  recorded M104 prerequisites; these fixes promote no support status.
 
 - **M107-D100-native-birth-enforcement (FIXM107W; qualification blocker).**
   G13 now stops only the offending registered job after more than 128 observed
@@ -45273,6 +45836,113 @@ review findings and terminal settlement-pricing failure.
   allowance. Follow-up: W/I defer the image client/transport, classify
   `authSource.ts`, `ndjson.ts`, `providerClient.ts` and `transport.ts`, then
   prove absence from the activation metafile and run the production gate.
+
+- **M104-C companion boundary (FIXM104C, 2026-10-05):** other local users
+  and services on other loopback ports are in scope. Per-window bearers never
+  become cookies, URL parameters, persistent browser storage or asset content;
+  exact Host/Origin/Fetch-Metadata checks and no CORS remain required.
+  Packaged assets also require the bearer. Same-user processes remain outside
+  the boundary because they can inspect process memory and read owner-only
+  token files. Follow-up: the lead qualifies the composed runtime and editor
+  routes; lane transport evidence does not establish editor support.
+
+- **FIXM104E3 / RVM104E3 finding 2:** editor request dispatch and native
+  mutation methods synchronously check the captured lifetime/owner and its
+  atomic open flag on the EDT. Document write actions and each edit repeat
+  that check. Actor-delayed cancellation and reply suppression no longer
+  authorize retired native effects. Queued native Tab/command/document
+  regressions and reentrant command/document retirement tests are recorded
+  in `docs/certification/m104-e-redesign.md`; no residual is retained for
+  this finding.
+
+- **FIXM104E3 / RVM104E3 — R3-tree-discovery-window:** retained descendant
+  identities fix cleanup of observed separate-session workers after parent-first
+  exit and JVM shutdown. Detached descendants outside observed ancestry can
+  remain unseen, for example after creation/reparenting between the 10-ms
+  observations. ProcessHandle cannot reconstruct an exited parent's ancestry.
+  Cooperative runtime supervision and process-group/Windows-job containment
+  remain, but no unconditional whole-tree claim is made. Safe for the existing
+  development-only qualification; follow-up is supervisor integration and an OS
+  containment design before product support. Exact regression/drill and strict
+  verifier receipts are in `docs/certification/m104-e-redesign.md`.
+
+- **REDM104E / RVM104E2 (2026-10-05):** the generation owner replaces the
+  first-round split lifecycle. Native stress tests cover blocked process
+  stdin, output flooding, parent-first death, shutdown hangs, late cancellation,
+  overflowing coordinates, fixed Tab failures, metadata handoff/deadline,
+  mailbox admission, project teardown and reconnect. Separate-JVM tests cover
+  whole-IDE exit, including a reparented worker. Same-group POSIX containment is proved
+  on Kubuntu; Windows job and macOS execution still require their rigs.
+  Private I/O pumps belong to the actor; no IDE callback closes a process
+  stream synchronously. Installed-IDE qualification remains blocked by the
+  owner's User Agreement, and companion/controller assembly remains an
+  integration item. This does not promote product support or parity status.
+  The final ZIP, strict three-release verifier receipts and byte-exact drills
+  are recorded in `docs/certification/m104-e-redesign.md`.
+
+- **FIXM104E / RVM104E (2026-10-05, first-round record):** all six numbered review findings
+  are fixed in the JetBrains lane; no P1/P2/P3 finding is retained as a
+  residual. Cancelled outbound requests retain only their existing bounded
+  pending slots until a validated reply or connection close; an unresponsive
+  peer gets ordinary backpressure, never unbounded tombstones or a widened
+  correlation guard. Metadata has a two-second deadline; the IDE-thread
+  handoff may finish later on a daemon worker, but shutdown never waits for it
+  and closed connections discard completion. Native startup counts the actual
+  folded entry under the existing shared eager/deferred allowance; the shared
+  startup cap is unchanged. Test names, restoration hashes and scoped receipts
+  are in `docs/certification/m104-e3.md`. The existing standalone IDE agreement
+  and runtime/controller assembly qualification remain deferred to the owner
+  and integration lanes; no supported-product claim is added.
+
+- **M104-E02-BOOTSTRAP (frozen-contract integration, FIXM104G):** D84 names
+  the exact proposed MHP 1.2 `surfaceHtml`/`hostContext` additions. Eclipse
+  implements the native renderer lifecycle and authoritative metadata behind
+  an injected, version-and-capability-checked port, with native fake-only
+  receipts for rendering, click indices, reload, cancellation and disposal.
+  The frozen 1.1 peer cannot negotiate that port; `surfaces` remains absent
+  from its advertisement, and an absent/older port refuses What's New.
+  This is safe pending approval because unsupported native HTML is never
+  offered. Follow-up: lane 0 exports the approved schemas and B/D wire the
+  renderer/bootstrap and integrated feature conformance. This is a contract
+  gate, not an exception to the all-editor parity requirement or a supported
+  product claim.
+
+- **RVM104H-EDITOR-SERVICES (P2, 2026-10-05):** the five H shims launch
+  panels/ACP but do not implement MHP selection, versioned dirty-buffer
+  edits, diagnostics or completion services, the runtime LSP broker/server,
+  or Zed's completion endpoint. Implementing the negotiated bidirectional
+  transport and native adapters is a redesign beyond the bounded repair
+  lane. H retains this work under M104e, dependent on B/C composition; J/I
+  must keep all corresponding matrix rows unqualified. Safe only as an
+  unqualified prototype: no dirty-buffer safety or full parity is claimed,
+  and the composed runtime must refuse unsafe disk fallback before release.
+  Follow-up: implement the adapters/broker and run the dirty-buffer,
+  selection, diagnostics, completion and same-session conformance scenarios
+  in all five editors before promotion.
+
+- **RVM104H-STOP-TREE (P2 acceptance residual, 2026-10-05):** the repaired
+  Stop paths use native process control outside the runtime request queue
+  and isolate cancellation failures. Qt's native Process stops the root
+  with TERM then KILL after 500 ms; Neovim and Sublime currently send TERM,
+  Emacs deletes its process, and Zed delegates to terminal cancellation.
+  These do not establish bounded process-tree cleanup for every shim/OS,
+  including TERM-ignoring runtimes, descendants and independently owned ACP
+  clients. Reliable cross-platform tree ownership needs runtime/native
+  process-group/job supervision and editor integration, beyond isolated
+  launcher repairs. Safe only while these are unqualified prototypes (this
+  baseline rejects `panel --companion`); it is a release blocker, not an
+  accepted process leak. H/B/I follow up with supervised process ownership
+  and real busy/hung-root-and-grandchild Stop drills in all five editors
+  and OSes before B/C composition is promoted.
+
+- **RVM104H-ZED-TASK-QUOTING (unconfirmed P2, 2026-10-05):** direct ACP
+  and bootstrap argv execution is tested, but Zed's native task shell
+  construction has not been exercised with spaces/metacharacters in paths.
+  The generated task remains unqualified; no shell-safety claim is made
+  from dictionary tests. H/I must capture the supported Zed task runner,
+  test literal paths in its native terminal, and fix quoting if needed
+  before promotion. Safe for now only as documented manual prototype setup;
+  do not use untrusted task paths.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through

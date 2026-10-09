@@ -15,7 +15,7 @@ import {
   type WhatsNewDeps,
   whatsNewLoader,
 } from '../../src/host/whatsNew/whatsNew'
-import type { WhatsNewPages } from '../../src/host/whatsNew/whatsNewPanel'
+import type { WhatsNewPages } from '../../src/host/vscode/whatsNew/whatsNewPanel'
 import {
   UI_TEXT,
   WHATS_NEW_IDLE_POLL_MS,

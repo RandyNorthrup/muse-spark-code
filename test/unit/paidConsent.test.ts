@@ -3,6 +3,7 @@ import { freezePaidQuote, type PaidUseRequest } from '../../src/shared/paid'
 import { Usd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  PaidOwnerReplacedError,
   PaidUseConsent,
   paidUseQuestion,
   type PaidUseAnswer,
@@ -265,6 +266,60 @@ describe('PaidUseConsent (M58)', () => {
       'already stopped',
     )
     expect(t.ask).not.toHaveBeenCalled()
+  })
+
+  it('refuses an "always" revoked while the popup was open, and asks again next time', async () => {
+    const log = new FakeLogOutputChannel()
+    const ask = vi.fn(() => Promise.resolve<PaidUseAnswer>('always'))
+    const consent = new PaidUseConsent({
+      isOn: () => true,
+      canRemember: () => true,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.reject(new PaidOwnerReplacedError()),
+      ask,
+      log,
+    })
+    await expect(consent.allows(SEARCH)).resolves.toBeUndefined()
+    expect(log.warn).toHaveBeenCalledWith(
+      'Paid use of webSearch: "always" was revoked before it could be kept, so it is refused',
+    )
+    expect(log.info).toHaveBeenLastCalledWith(
+      'Paid use of webSearch: "always" was not kept, so it is refused',
+    )
+    await expect(consent.allows(SEARCH)).resolves.toBeUndefined()
+    expect(ask).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses a feature "always" revoked while the popup was open', async () => {
+    const log = new FakeLogOutputChannel()
+    const consent = new PaidUseConsent({
+      isOn: () => true,
+      canRemember: () => true,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.reject(new PaidOwnerReplacedError()),
+      ask: () => Promise.resolve('always'),
+      log,
+    })
+    await expect(consent.allows(VOICE)).resolves.toBe(false)
+    expect(log.info).toHaveBeenLastCalledWith(
+      'Paid use of voice: "always" was not kept, so it is refused',
+    )
+  })
+
+  it('treats a same-text plain error as a storage failure, never a revocation', async () => {
+    const log = new FakeLogOutputChannel()
+    const consent = new PaidUseConsent({
+      isOn: () => true,
+      canRemember: () => true,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.reject(new Error('MHP_PAID_OWNER_REPLACED')),
+      ask: () => Promise.resolve('always'),
+      log,
+    })
+    await expect(consent.allows(SEARCH)).resolves.toMatchObject({ feature: 'webSearch' })
+    expect(log.warn).toHaveBeenCalledWith(
+      'Paid use of webSearch: "always" could not be kept, so it is allowed once: MHP_PAID_OWNER_REPLACED',
+    )
   })
 
   it('refuses a feature that is off without asking', async () => {

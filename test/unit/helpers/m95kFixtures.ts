@@ -8,7 +8,7 @@ import {
   createProvidersHost,
   type ProvidersHost,
   type ProvidersHostDeps,
-} from '../../../src/host/providers/providersHost'
+} from '../../../src/host/vscode/providers/providersHost'
 import type {
   AddressPolicy,
   CodeExchanger,

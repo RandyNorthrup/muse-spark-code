@@ -28,6 +28,8 @@ export interface JudgeAdvisory {
 }
 
 export interface JudgeUseDeps {
+  /** Own preparation waits without blocking an approval fence. */
+  readonly onTask?: ((work: Promise<void>) => void) | undefined
   /** Reads the current mode/source policy. Off must not create a runner. */
   readonly isOn: (action: JudgeEntryParts) => boolean
   /** Lazily creates S's source, with its transport admitted by lane A. */
@@ -154,10 +156,15 @@ export class JudgeUse implements JudgeAdvisory {
       onCaution: undefined,
     }
     this.live.set(handle, live)
-    void this.run(handle, live, stateText).catch((error: unknown) => {
-      this.entries.settle(handle, 'failed')
-      this.deps.onError(error)
-    })
+    const work = (async () => {
+      try {
+        await this.run(handle, live, stateText)
+      } catch (error: unknown) {
+        this.entries.settle(handle, 'failed')
+        this.deps.onError(error)
+      }
+    })()
+    this.deps.onTask?.(work)
     return this.fence(handle)
   }
 

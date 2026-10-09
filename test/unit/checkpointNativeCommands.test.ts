@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { openMuseTerminal } from '../../src/host/commands/openInTerminal'
 import { SandboxSetup } from '../../src/host/backend/sandboxSetup'
-import { createCliFeatures } from '../../src/host/cliFeatures'
+import { createCliFeatures } from '../../src/host/vscode/cliFeatures'
 import { createRulesFile } from '../../src/host/commands/createRulesFile'
 import type { MuseCodeBackendManager } from '../../src/host/backend/museCodeBackendManager'
 import type { ProcessResult } from '../../src/host/backend/sandboxSetup'

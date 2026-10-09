@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
-import { githubTokenReader } from '../../src/host/git/githubSession'
+import { githubTokenReader } from '../../src/host/vscode/git/githubSession'
 import { FAKE_GITHUB_TOKEN } from './helpers/fakeGitHub'
 import { FakeLogOutputChannel } from './helpers/fakes'
 

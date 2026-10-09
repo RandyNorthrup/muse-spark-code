@@ -34,7 +34,7 @@ import {
   openOwnedRepository,
   type CaptureGitOwner,
   type GitRepository,
-} from './gitExtension'
+} from '../vscode/git/gitExtension'
 import type { HeldCheckout } from './heldCheckout'
 import type { WindowHold, WorktreeRegistry } from './worktreeRegistry'
 

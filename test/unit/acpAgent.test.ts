@@ -1,5 +1,6 @@
 import { Usd } from '../../src/shared/usd'
 import { fill } from '../../src/shared/l10n/text'
+import { fakeAcpComposition } from './helpers/acpComposition'
 import type { PlaybookSurfacePort } from '../../src/runtime/playbook/command'
 import { surfacePort } from './playbookSurfaceFixtures'
 import type { AcpSchedulePort } from '../../src/acp/schedules'
@@ -8,10 +9,12 @@ import { MspError } from '@muse-code/sdk'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import {
   type AcpAgentDeps,
+  type AcpController,
   type BackendReadiness,
   createAcpAgent,
   type SignInMethod,
 } from '../../src/acp/agent'
+import { ControllerRegistry } from '../../src/runtime/panel/controllerRegistry'
 import * as questionFactories from '../../src/acp/questionDeferralEntry'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from '../../src/acp/media'
 import { AcpPaidUse } from '../../src/acp/paid'
@@ -80,6 +83,7 @@ type PermissionAnswer = (
 ) => acp.RequestPermissionResponse | Promise<acp.RequestPermissionResponse>
 
 interface Harness {
+  readonly controllers: ControllerRegistry<AcpController>
   readonly host: FakeAgentHost
   /** What each readiness question asked: a recheck (authenticate) or not. */
   readonly rechecks: boolean[]
@@ -127,6 +131,9 @@ function harness(options: HarnessOptions = {}): Harness {
   const permissions: acp.RequestPermissionRequest[] = []
   const elicitations: acp.CreateElicitationRequest[] = []
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  const controllers = new ControllerRegistry<AcpController>(log, (id) =>
+    acp.RequestError.resourceNotFound(id),
+  )
   const grants = memoryPaidGrants()
   const rechecks: boolean[] = []
   const paid = new AcpPaidUse({
@@ -142,6 +149,8 @@ function harness(options: HarnessOptions = {}): Harness {
       playbookBundle: () => ({ parsePlaybookCommand, runPlaybookCommand }),
     }),
     ...(options.schedules !== undefined && { schedules: options.schedules }),
+    createConversation: fakeAcpComposition,
+    controllers,
     backend: {
       kind,
       readiness: (isRecheck) => {
@@ -194,6 +203,7 @@ function harness(options: HarnessOptions = {}): Harness {
         : (options.elicitation ?? { action: 'cancel' })
     })
   return {
+    controllers,
     host,
     rechecks,
     paid,
@@ -722,6 +732,15 @@ describe('the ACP agent (M63)', () => {
     expect(messages).toContain('Final message')
   })
 
+  it('publishes and closes its actual session through the caller’s shared registry', async () => {
+    const h = harness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      expect(h.controllers.held(sessionId)?.session).toBe(h.host.sessions[0])
+      await client.request('session/close', { sessionId })
+      expect(h.controllers.held(sessionId)).toBeUndefined()
+    })
+  })
   it('initializes with its capabilities, and a terminal sign-in only for a client that runs one', async () => {
     const h = harness()
     const [plain, terminal] = await h.run(async (client) => [
@@ -2279,7 +2298,7 @@ describe('the ACP agent (M63)', () => {
         return await response
       }),
     ).rejects.toThrow(/killed by signal 9/)
-    expect(h.log.warn).toHaveBeenCalledWith('The museCode backend stopped: killed by signal 9')
+    expect(h.log.warn).toHaveBeenCalledWith('MHP_BACKEND_STOPPED museCode')
   })
 })
 

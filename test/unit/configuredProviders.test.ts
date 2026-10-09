@@ -13,7 +13,7 @@ import {
   type ConfiguredProviderOptions,
 } from '../../src/core/providers/configured'
 import * as configuredEntry from '../../src/host/backend/configuredProvidersEntry'
-import { createSubscriptionFeatures } from '../../src/host/providers/subscriptionFeatures'
+import { createSubscriptionFeatures } from '../../src/host/vscode/providers/subscriptionFeatures'
 import { runtimeSubscriptionClient } from '../../src/runtime/chatGptProviderCommands'
 import { formatStoredProviderSecret } from '../../src/runtime/keyStore'
 import {

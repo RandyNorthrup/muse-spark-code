@@ -6,7 +6,7 @@ vi.mock('node:fs', () => ({ existsSync: vi.fn(), readFileSync: vi.fn(), statSync
 const CONTENT_FILE = 'dist/whatsNew.json'
 const CONTENT_BUDGET_BYTES = 40 * 1024
 
-function mockWebviewMeta(meta, models, whatsNew) {
+function mockWebviewMeta(meta, models, whatsNew, portable) {
   let modelsMeta =
     models ??
     (meta.outputs['dist/webview/models.js'] === undefined
@@ -36,6 +36,9 @@ function mockWebviewMeta(meta, models, whatsNew) {
     'dist/meta/whatsNewPage.json': whatsNew ?? {
       outputs: { 'dist/webview/whatsNew.js': { imports: [] } },
     },
+    'dist/meta/portable.json': portable ?? {
+      outputs: { 'dist/webview/portable/main.js': { imports: [] } },
+    },
   }
   readFileSync.mockImplementation((file) => JSON.stringify(pageMetafiles[file] ?? meta))
 }
@@ -51,6 +54,63 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(vi.fn())
   vi.spyOn(process, 'exit').mockImplementation((code) => {
     throw new Error(`exit ${code}`)
+  })
+})
+
+describe('independent portable artifact budget', () => {
+  const portable = 'dist/webview/portable/main.js'
+  const chunk = 'dist/webview/portable/chunks/lazy.js'
+  const bridge = 'dist/webview/portable/bridge.js'
+  const budget = 1100 * 1024
+  beforeEach(() => {
+    mockWebviewMeta(
+      { outputs: { 'dist/webview/main.js': { imports: [] } } },
+      undefined,
+      undefined,
+      {
+        outputs: {
+          [portable]: { imports: [] },
+          [chunk]: { imports: [] },
+          [bridge]: { imports: [] },
+        },
+      },
+    )
+  })
+  it('admits the exact aggregate cap, including lazy chunks and bridge entry', async () => {
+    statSync.mockImplementation((file) => ({
+      size: file === portable ? budget - 2 : Number(file === chunk || file === bridge),
+    }))
+    await import('../../scripts/check-bundle-size.mjs')
+    expect(process.exit).not.toHaveBeenCalled()
+  })
+  it.each([chunk, bridge])('rejects one byte over the total in %s', async (extra) => {
+    statSync.mockImplementation((file) => ({
+      size: file === portable ? budget : Number(file === extra),
+    }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith(
+      'OVER dist/webview/portable/main.js: 1100.0 KiB (budget 1100 KiB)',
+    )
+  })
+  it('rejects a missing lazy portable chunk', async () => {
+    existsSync.mockImplementation((file) => file !== chunk)
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith(`MISS ${portable}: missing chunks ${chunk}`)
+  })
+  it('retains the existing deferred VS Code cap', async () => {
+    mockWebviewMeta({
+      outputs: {
+        'dist/webview/main.js': { imports: [] },
+        'dist/webview/chunks/lazy.js': { imports: [] },
+      },
+    })
+    statSync.mockImplementation((file) => ({
+      size: file === 'dist/webview/chunks/lazy.js' ? 50 * 1024 + 1 : 0,
+    }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith(
+      'OVER dist/webview deferred JS: 50.0 KiB (budget 50 KiB)',
+    )
   })
 })
 

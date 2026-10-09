@@ -17,7 +17,7 @@ import path from 'node:path'
 import { Writable } from 'node:stream'
 import * as acp from '@agentclientprotocol/sdk'
 import { EXPECTED_SCHEMA_FINGERPRINT } from '@muse-code/sdk'
-import { build } from 'esbuild'
+import { build, type Plugin } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import type { AgentEvent } from '../../src/shared/agentEvents'
@@ -31,7 +31,7 @@ import { unpackUiTable } from '../../src/shared/l10n/packed'
 import { DEVICE_LOGIN_FILE, LOGOUT_SHELL } from '../unit/helpers/credentialShapes'
 import { memorySecrets } from '../unit/helpers/fakes'
 import { fakeModelApi } from '../unit/helpers/fakeModelApi'
-import { buildModelApiBundle } from '../unit/helpers/modelApiBundle'
+import { buildHostBundles, buildModelApiBundle } from '../unit/helpers/modelApiBundle'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 import { buildAcpFixture, removeAcpFixture } from './acpFixture'
 import {
@@ -43,9 +43,9 @@ import {
 
 const TEST_TIMEOUT_MS = 30_000
 const ROOT = path.resolve(import.meta.dirname, '..', '..')
-// An installed package brings its own native keyring binding. One laid out
-// here as npm installs it takes the binding from this repository's
-// node_modules (NODE_PATH), as an installed package finds its dependency.
+// Installed-artifact checks use the package's binding on their isolated hosts.
+// The source-layout fake process suite bundles an empty test keyring instead:
+// its signed-out check must never inspect this rig's real credential store.
 const INSTALLED = process.env['MUSE_ACP_PACKAGE_DIR']
 const PACKAGE = INSTALLED ?? mkdtempSync(path.join(tmpdir(), 'acp-package-'))
 const AGENT = path.join(PACKAGE, 'dist', 'acp.js')
@@ -79,11 +79,30 @@ const workspace = mkdtempSync(path.join(tmpdir(), 'acp-e2e-ws-'))
 const dataHome = mkdtempSync(path.join(tmpdir(), 'acp-e2e-data-'))
 const children: ChildProcessWithoutNullStreams[] = []
 
+const FAKE_ONLY_KEYRING: Plugin = {
+  name: 'fake-only-keyring',
+  setup(builder) {
+    builder.onResolve({ filter: /^@napi-rs\/keyring$/ }, () => ({
+      path: 'keyring',
+      namespace: 'fake-only-keyring',
+    }))
+    builder.onLoad({ filter: /.*/, namespace: 'fake-only-keyring' }, () => ({
+      loader: 'js',
+      contents: `export class AsyncEntry {
+            static FAKE_ONLY_KEYRING = true;
+            getPassword() { return Promise.resolve(null); }
+            setPassword() { return Promise.reject(new Error('Fake keyring refuses writes')); }
+            deletePassword() { return Promise.reject(new Error('Fake keyring refuses deletion')); }
+          }`,
+    }))
+  },
+}
+
 beforeAll(async () => {
   if (INSTALLED !== undefined) {
     return
   }
-  await buildAcpFixture(ROOT, PACKAGE, LAID_OUT_VERSION)
+  await buildAcpFixture(ROOT, PACKAGE, LAID_OUT_VERSION, [FAKE_ONLY_KEYRING])
   await build({
     entryPoints: [path.join(ROOT, 'src', 'runtime', 'sharing', 'sharingEntry.ts')],
     outfile: path.join(path.dirname(AGENT), 'sharingRuntime.js'),
@@ -93,6 +112,8 @@ beforeAll(async () => {
     target: 'node22',
     logLevel: 'silent',
   })
+  if (!readFileSync(AGENT, 'utf8').includes('FAKE_ONLY_KEYRING'))
+    throw new Error('The source-layout process fixture must use its fake keyring')
   await buildModelApiBundle(path.dirname(AGENT))
   for (const [entry, file] of [
     ['src/acp/questionDeferralEntry.ts', 'acpQuestions.js'],
@@ -113,6 +134,12 @@ beforeAll(async () => {
       logLevel: 'silent',
     })
   }
+  await buildHostBundles(path.dirname(AGENT), {
+    runtimePanel: path.join(ROOT, 'src/runtime/panel/panelEntry.ts'),
+    runtimePanelPorts: path.join(ROOT, 'src/runtime/panel/runtimeFeaturesEntry.ts'),
+    conversation: path.join(ROOT, 'src/host/conversation/conversationEntry.ts'),
+    sessionBoard: path.join(ROOT, 'src/host/sessionBoardEntry.ts'),
+  })
 })
 
 afterAll(async () => {

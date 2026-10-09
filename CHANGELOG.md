@@ -53,6 +53,56 @@ happened, not what was planned; superseded entries are kept.
   Every version with only a preparation record is listed under its own
   _In the next release_ section, never as shipped.
 
+- Experimental standalone `panel --stdio` and `panel --companion` carriers
+  negotiate frozen MHP 1.1, correlate editor services, bind registered
+  surfaces, bound delivery and replay current conversation history on reload.
+  Both use the portable conversation factory and persistent runtime stores.
+  The authenticated companion now renders the shared React panel; ACP submits
+  rich parts through the composed shared controller while retaining its own
+  translation and permissions. Complete editor parity remains open.
+- The standalone companion now admits MHP 1.1 panel/lifecycle messages at
+  `/panel/message` and `/panel/surface`, returns empty 204 admissions and
+  typed errors, and streams ordered `event: mhp` frames with sequence IDs
+  at `/panel/events`. Existing per-window authentication guards remain.
+- VS Code adapter modules now live under `src/host/vscode/`; the host API
+  gate enforces this boundary while preserving the existing panel behavior.
+- Portable conversation composition now shares backend, paid-use, review,
+  checkpoint and session-board wiring between VS Code and future runtime
+  callers. Its frozen HostServices adapter validates in-process calls and
+  editor versions; standalone panel and ACP carriers now use that composition.
+- Standalone session controller registry now owns ACP adoption, reload stop
+  barriers and host-exit cleanup; the existing ACP wire behavior is preserved.
+  Embedding runtimes can supply the registry and discover those ACP sessions.
+- Internal runtime settings/storage records share the existing setting schemas,
+  preserve workspace precedence and serialize atomic writes with bounded reads
+  and credential refusal. Panel command integration uses those records.
+- M104's shared browser UI foundation: VS Code, native `window.museHost`
+  and companion fetch/SSE bridges for chat, Tasks and What's New; portable
+  `--ms-*` theme tokens; a lazy React host-service adapter and settings,
+  walkthrough, diff, terminal and five manager page components. This lane
+  now routes companion UI RPC on a separate authenticated MHP channel and
+  verifies packaged static/deferred modules before nonce-authorized loading.
+  Native bootstrap and all-editor conformance remain open.
+- JetBrains development plugin: render the shared panel through JCEF's public
+  HTML loader with packaged inline assets; add native inline Tab completion
+  over MHP, preserve numeric completion IDs, and adopt the editor-initiated MHP 1.2
+  initialization contract in its owning parity lane. Replace experimental/default-method API calls and
+  bound compatibility to IDEA 2025.3–2026.2. Fake-runtime qualification and
+  remaining runtime integration are recorded in `docs/certification/m104-e3.md`.
+- MHP 1.1.0 panel carrier contract: validated shared payloads, ordered
+  session-bound surface envelopes and lifecycle, the `window.museHost`
+  API, and multiplexed NDJSON/companion HTTP/SSE framing. Native consumers
+  get a versioned schema export and lock; frozen v1 editor services remain
+  unchanged. Runtime and browser implementations remain pending in M104.
+- **Xcode native-host prototype (M104X, awaiting integration).** A macOS 14+
+  SwiftUI/WKWebView app and XcodeKit extension, authenticated ephemeral
+  selection callbacks, explicit buffer-edit approval with stale-buffer and
+  selection checks, credential-free runtime launch, and out-of-band Stop.
+  Selected folders/project bundles must exist before launch; invalid startup
+  workspace arguments show the localized error.
+  Shared runtime panel/Tab endpoints and installation qualification remain
+  required; the packaged local build does not claim full feature parity.
+
 ### Changed
 
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
@@ -111,6 +161,32 @@ happened, not what was planned; superseded entries are kept.
 - The Model API backend's session store loads with that backend instead of
   at activation (its own `dist/modelApiSessions.js`), taking 24.5 KB off the
   activation bundle; sessions are kept and read as before (ACTBUD017).
+
+- Portable paid state serializes and drains gate/grant mutations at shutdown;
+  stale confirmations cannot enable features after their owner closes. Tab's
+  Allow once covers its window, and rate-limited unsent completions release
+  immediately on shutdown. Shared budget journals sum and compare exact
+  nano-USD, admitting an exactly affordable request without a float tolerance.
+- Portable controllers honor contributed host readiness and host selection
+  during restore and login model warm-up, preserving session ownership fences
+  and refusing late admission after release.
+- Portable settings updates publish each conversation's own effective values;
+  root changes preserve worktree overrides, and worktree changes revoke Bypass
+  against that conversation's current permission setting.
+- Runtime engine contributions can own paid policy and accounting, Model API
+  budget/edit/attempt-host services, authentication and account facts.
+  Missing contribution groups retain the existing explicit refusals.
+- The replacement guide now states that both legacy-named MHP snapshots carry
+  1.2. Companion browser certification uses shared, owned Chrome fixtures,
+  explicit readiness and separate integrity scenarios at default deadlines.
+- Portable panels publish live runtime-owned settings, replace backend profiles, report failed profile construction, follow editor trust grants and revocations, and retain separate worktree stores. Selected-model records gate compaction, handoff, vision, PDFs and reasoning when supplied by a provider adapter.
+- Browser session retirement revokes old launch codes and bearers, stops their event streams and closes cancelled HTTP calls.
+- Portable attachment picking uses the shared host picker and confined reads; restored handoff dialogs and text-file parts survive reload. Typed engine/presentation factories own their actions, auxiliary views and awaited cleanup.
+- Portable panels retire old surface bindings on new, fork and switch, and retain active turns, imported restrictions and rich history on reload. Browser launches keep an immutable session context.
+- MHP 1.2 replaces the unshipped 1.1 contract. Editors initiate initialization with host metadata, locale, theme and capabilities; incompatible versions are refused by name.
+- Standalone settings and session activity records coordinate independent writers with versioned atomic publication; older activity cannot replace the newest restore target.
+- Native panel requests retain bounded, method-validated late-reply correlation after cancellation or timeout so unrelated requests keep working.
+- Runtime panel and ACP teardown waits for suspended controller preparation and admitted work before draining storage; concurrent releases share the same completion.
 
 ### Fixed
 
@@ -334,6 +410,48 @@ happened, not what was planned; superseded entries are kept.
   using the same governed MCP process boundary. New media, vault helper,
   reporting and schedule read processes use resource admission and tree
   containment; absent native launch services refuse before spawning.
+
+- Runtime controller cleanup waits for every admitted atomic storage write, even
+  when one publication fails, before reporting the error.
+- ACP controller adoption honors the explicit contributor-model flag, including
+  headless runs, while preserving interactive panel confirmation and
+  confidential-workspace checks.
+- Integrated companion pages receive the validated initial settings snapshot
+  before history replay, so the shared UI leaves its connecting state. Xcode
+  selection dispatch uses the shared sequenced bridge and the frozen 204 panel
+  admission route. Eclipse asset freshness checks inspect actual filename case
+  on macOS, and merged language tables drop two retired import labels.
+- Source-layout ACP process tests use a fake credential-store binding and
+  refuse to start children if its marker is absent, avoiding native credential
+  reads during fake-only regression runs.
+- **Separate portable UI build (M104 lane D).** Native/companion bridges and
+  React host-service fallbacks now have an independent webview entry and a
+  measured 1,100 KiB aggregate JavaScript budget. VS Code's chat ships none
+  of them, stays below its pre-lane startup size, and passes the unchanged
+  deferred-chunk cap.
+- **Companion transport authentication (M104 lane C, awaiting integration).**
+  Per-window memory bearers replace host-wide cookies, preventing credential
+  leakage across loopback ports and isolating tabs and concurrent runtimes.
+  Rejected launches show localized, accessible instructions to reopen the
+  panel from the editor.
+- JetBrains development plugin: fence queued native editor requests against
+  their originating lifetime and connection before they mutate replacement
+  state. Recheck document edits inside the write command and before each edit,
+  including retirement during native command/document callbacks.
+- JetBrains development plugin: retain observed runtime descendants by PID and
+  start instant so separate POSIX sessions are cleaned up after parent-first
+  exit and JVM shutdown. Give the runtime the first bounded stop opportunity
+  before forcing remaining verified children.
+- JetBrains development plugin: give each runtime a connection actor and epoch;
+  bound writes, metadata collection and cleanup; terminate contained workers
+  after parent-first crashes. Reconnect drops old work, overflowing edit
+  positions are refused before narrowing, and Tab failures expose fixed words.
+  Native stress and compatibility receipts are in `docs/certification/m104-e-redesign.md`.
+- JetBrains development plugin: isolate cancelled Tab responses, bound the
+  metadata handshake without blocking shutdown, and dispose the native session
+  and runtime process tree on transport failure. Workspace globs include root
+  files and apply exclusions at every depth. Add settled diagnostics regressions
+  and size accounting for the actual shipped inline startup scripts.
 
 ### Security
 

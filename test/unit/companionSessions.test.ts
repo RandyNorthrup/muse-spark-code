@@ -54,3 +54,23 @@ describe('companion launch codes', () => {
     expect(sessions.get(session.id)).toBeUndefined()
   })
 })
+
+it('binds each one-use launch to its immutable session context even when exchanged out of order', () => {
+  const sessions = new CompanionSessions(1000, 2000, 2)
+  const old = sessions.issue('old-session')
+  const fresh = sessions.issue('fresh-session')
+  expect(sessions.exchange(fresh)?.context).toBe('fresh-session')
+  expect(sessions.exchange(old)?.context).toBe('old-session')
+})
+
+it('retires one session context and its unexchanged launches, freeing capacity without revoking another view', () => {
+  const sessions = new CompanionSessions(1000, 2000, 3)
+  const old = sessions.exchange(sessions.issue('old'))!
+  const pending = sessions.issue('old')
+  const other = sessions.exchange(sessions.issue('other'))!
+  expect(sessions.retireContext('old')).toEqual([old.id])
+  expect(sessions.get(old.id)).toBeUndefined()
+  expect(sessions.exchange(pending)).toBeUndefined()
+  expect(sessions.get(other.id)).toBe(other)
+  expect(sessions.exchange(sessions.issue('fresh'))?.context).toBe('fresh')
+})

@@ -1,0 +1,544 @@
+[
+  {
+    "name": "prepare-fence",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release fences suspended composition and concurrent callers await the final drain 66ms"
+    ],
+    "restoredSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf"
+  },
+  {
+    "name": "late-controller-disposal",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf",
+    "exitCode": 1,
+    "failedAssertions": ["\u00d7 disposes a controller created during a reentrant release 40ms"],
+    "restoredSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf"
+  },
+  {
+    "name": "release-shared-completion",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release fences suspended composition and concurrent callers await the final drain 21ms"
+    ],
+    "restoredSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf"
+  },
+  {
+    "name": "release-inflight-drain",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf",
+    "exitCode": 0,
+    "failedAssertions": [],
+    "restoredSha256": "6b5c80318730bef9f50cf1110cba51c289d00a774a91ea8b53a7b8782ff570cf"
+  },
+  {
+    "name": "prepare-fence",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release fences suspended composition and concurrent callers await the final drain 91ms"
+    ],
+    "restoredSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5"
+  },
+  {
+    "name": "late-controller-disposal",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5",
+    "exitCode": 1,
+    "failedAssertions": ["\u00d7 disposes a controller created during a reentrant release 55ms"],
+    "restoredSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5"
+  },
+  {
+    "name": "release-shared-completion",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release fences suspended composition and concurrent callers await the final drain 31ms"
+    ],
+    "restoredSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5"
+  },
+  {
+    "name": "release-inflight-drain",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release waits for an admitted replay before the final storage drain 86ms"
+    ],
+    "restoredSha256": "f94d93075e0c0678111f6e6469b5f71ac4ce0078a7e2d8841f1b134292e31bb5"
+  },
+  {
+    "name": "prepare-fence",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release fences suspended composition and concurrent callers await the final drain 62ms"
+    ],
+    "restoredSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6"
+  },
+  {
+    "name": "late-controller-disposal",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6",
+    "exitCode": 1,
+    "failedAssertions": ["\u00d7 disposes a controller created during a reentrant release 39ms"],
+    "restoredSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6"
+  },
+  {
+    "name": "release-shared-completion",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release fences suspended composition and concurrent callers await the final drain 19ms"
+    ],
+    "restoredSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6"
+  },
+  {
+    "name": "release-inflight-drain",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 release waits for an admitted replay before the final storage drain 61ms"
+    ],
+    "restoredSha256": "bcf8d22e98c601f602be5c300ee6877f41f9d99f9b8f995b82e7d62b4add06e6"
+  },
+  {
+    "name": "late-reply-retention",
+    "file": "src/runtime/panel/connection.ts",
+    "beforeSha256": "5ca3efeb15559d3635420b7896ca6dfb4de46222547a25aebdee7018176949c5",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 consumes a valid late success reply after abort without disturbing another request 18ms",
+      "\u00d7 consumes a valid late cancelled reply after abort without disturbing another request 3ms",
+      "\u00d7 consumes a valid late reply after a timeout 3ms",
+      "\u00d7 bounds retired ids by refusing new requests until a retained reply is consumed 30037ms"
+    ],
+    "restoredSha256": "5ca3efeb15559d3635420b7896ca6dfb4de46222547a25aebdee7018176949c5"
+  },
+  {
+    "name": "late-reply-once",
+    "file": "src/runtime/panel/connection.ts",
+    "beforeSha256": "5ca3efeb15559d3635420b7896ca6dfb4de46222547a25aebdee7018176949c5",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 still rejects a duplicate reply 7ms",
+      "\u00d7 bounds retired ids by refusing new requests until a retained reply is consumed 58ms"
+    ],
+    "restoredSha256": "5ca3efeb15559d3635420b7896ca6dfb4de46222547a25aebdee7018176949c5"
+  },
+  {
+    "name": "late-reply-method-validation",
+    "file": "src/runtime/panel/connection.ts",
+    "beforeSha256": "5ca3efeb15559d3635420b7896ca6dfb4de46222547a25aebdee7018176949c5",
+    "exitCode": 1,
+    "failedAssertions": ["\u00d7 still rejects a malformed reply 8ms"],
+    "restoredSha256": "5ca3efeb15559d3635420b7896ca6dfb4de46222547a25aebdee7018176949c5"
+  },
+  {
+    "name": "state-shared-queue",
+    "file": "src/runtime/settingsStore.ts",
+    "beforeSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 serializes the same resolved record across independent store instances 143ms"
+    ],
+    "restoredSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9"
+  },
+  {
+    "name": "state-cas-compare",
+    "file": "src/runtime/settingsStore.ts",
+    "beforeSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 refuses a stale revision and retries from the newer record before publication 63ms"
+    ],
+    "restoredSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9"
+  },
+  {
+    "name": "state-newest-activity",
+    "file": "src/runtime/settingsStore.ts",
+    "beforeSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 migrates legacy activity records without overwriting a newer observation 61ms",
+      "\u00d7 keeps newest activity even when an older observation arrives later, with revision breaking ties 57ms"
+    ],
+    "restoredSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9"
+  },
+  {
+    "name": "state-exclusive-publication",
+    "file": "src/runtime/settingsStore.ts",
+    "beforeSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 serializes the same resolved record across independent store instances 137ms",
+      "\u00d7 refuses a stale revision and retries from the newer record before publication 49ms",
+      "\u00d7 refuses an owned or abandoned lock at the fixed deadline without stealing it 50ms"
+    ],
+    "restoredSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9"
+  },
+  {
+    "name": "mhp-only-reviewed-version",
+    "file": "src/shared/hostApi/capabilities.ts",
+    "beforeSha256": "1ed9a46d68a7e691622349378604993096096107950e96972c26648286bcb5dd",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 refuses unsupported version mhp/1.0.0 with the named negotiation error 6ms",
+      "\u00d7 refuses unsupported version mhp/1.1.0 with the named negotiation error 1ms",
+      "\u00d7 refuses unsupported version mhp/1.3.0 with the named negotiation error 3ms",
+      "\u00d7 refuses unsupported version mhp/2.0.0 with the named negotiation error 1ms",
+      "\u00d7 selects only an implemented version in [mhp/1.0.0, mhp/1.1.0) 6ms",
+      "\u00d7 selects only an implemented version in [mhp/1.1.0, mhp/1.2.0) 1ms",
+      "\u00d7 selects only an implemented version in [mhp/1.2.1, mhp/1.3.0) 1ms",
+      "\u00d7 selects only an implemented version in [mhp/2.0.0, mhp/3.0.0) 1ms",
+      "\u00d7 selects only an implemented version in [mhp/01.0.0, mhp/2.0.0) 1ms"
+    ],
+    "restoredSha256": "1ed9a46d68a7e691622349378604993096096107950e96972c26648286bcb5dd"
+  },
+  {
+    "name": "mhp-editor-init-direction",
+    "file": "src/shared/hostApi/methods.ts",
+    "beforeSha256": "cd6b767b74d1477542ffa89b47ef6a623c031c8017dcb2306afb93dc0cdb0fbd",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 round trips initialization and a versioned atomic edit with one undo label 7ms",
+      "\u00d7 exports current JSON Schemas for the native plugins 306ms"
+    ],
+    "restoredSha256": "cd6b767b74d1477542ffa89b47ef6a623c031c8017dcb2306afb93dc0cdb0fbd"
+  },
+  {
+    "name": "mhp-no-silent-readoption",
+    "file": "scripts/mhp-schema.mjs",
+    "beforeSha256": "7423eda3a9d56d81e6a788fae296a72c91744421fca675a79a9c1b3db78c0f15",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 refuses silent re-adoption of the frozen version and preserves all snapshot bytes 877ms"
+    ],
+    "restoredSha256": "7423eda3a9d56d81e6a788fae296a72c91744421fca675a79a9c1b3db78c0f15"
+  },
+  {
+    "name": "session-transfer-hook",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "f6f68588614a75a610155fbf3873f74d5feaa1b8d52736cfc8b8c136989c4c53",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: new, fork and switch transfer ownership before new-session output 121ms",
+      "\u00d7 modelApi: new, fork and switch transfer ownership before new-session output 106ms"
+    ],
+    "restoredSha256": "f6f68588614a75a610155fbf3873f74d5feaa1b8d52736cfc8b8c136989c4c53"
+  },
+  {
+    "name": "restored-controller-history",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "f6f68588614a75a610155fbf3873f74d5feaa1b8d52736cfc8b8c136989c4c53",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: replay retains rich history, the active turn and imported restrictions 60ms",
+      "\u00d7 modelApi: replay retains rich history, the active turn and imported restrictions 47ms"
+    ],
+    "restoredSha256": "f6f68588614a75a610155fbf3873f74d5feaa1b8d52736cfc8b8c136989c4c53"
+  },
+  {
+    "name": "retire-session-bindings",
+    "file": "src/runtime/panel/surfaces.ts",
+    "beforeSha256": "1c2114ddb985020e8b68620175be82d6aa2eb13f7aa06b6e6433ed96fd4af32c",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 retires every old session binding and drops queued output before a replacement can subscribe 7ms"
+    ],
+    "restoredSha256": "1c2114ddb985020e8b68620175be82d6aa2eb13f7aa06b6e6433ed96fd4af32c"
+  },
+  {
+    "name": "companion-launch-context",
+    "file": "src/runtime/companion/sessions.ts",
+    "beforeSha256": "6b9d92a7f912643ede1dabcc7a65d9cf520afb9cbb5d6140a5d053a7f6b41db8",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 binds each one-use launch to its immutable session context even when exchanged out of order 5ms"
+    ],
+    "restoredSha256": "6b9d92a7f912643ede1dabcc7a65d9cf520afb9cbb5d6140a5d053a7f6b41db8"
+  },
+  {
+    "name": "runtime-settings-authority",
+    "file": "src/runtime/panel/connection.ts",
+    "beforeSha256": "a46522651f732bb48ff66cc516108e940278c3db69ff319c64422bf1a1ebf322",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 keeps bidirectional settings authoritative in the runtime even when the host offers them 106ms"
+    ],
+    "restoredSha256": "a46522651f732bb48ff66cc516108e940278c3db69ff319c64422bf1a1ebf322"
+  },
+  {
+    "name": "cancelled-adapter-drain",
+    "file": "src/runtime/panel/connection.ts",
+    "beforeSha256": "a46522651f732bb48ff66cc516108e940278c3db69ff319c64422bf1a1ebf322",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 drains actual cancelled adapter work before reporting settlement 5ms"
+    ],
+    "restoredSha256": "a46522651f732bb48ff66cc516108e940278c3db69ff319c64422bf1a1ebf322"
+  },
+  {
+    "name": "cancelled-adapter-bound",
+    "file": "src/runtime/panel/connection.ts",
+    "beforeSha256": "a46522651f732bb48ff66cc516108e940278c3db69ff319c64422bf1a1ebf322",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 bounds cancelled adapter work until its actual completion, even with shared promises 43ms"
+    ],
+    "restoredSha256": "a46522651f732bb48ff66cc516108e940278c3db69ff319c64422bf1a1ebf322"
+  },
+  {
+    "name": "native-trust-live-options",
+    "file": "src/runtime/panel/runPanel.ts",
+    "beforeSha256": "d454eb1bbe072913a5e0506d65447d9614b4912734c9c8bd2c7bdaa427265be0",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: runtime settings stay authoritative, publish to views and replace backend profiles 151ms",
+      "\u00d7 museCode: host trust grant and revocation recreate sessions, and worktrees get their own store 10124ms",
+      "\u00d7 modelApi: runtime settings stay authoritative, publish to views and replace backend profiles 64ms",
+      "\u00d7 modelApi: host trust grant and revocation recreate sessions, and worktrees get their own store 10149ms"
+    ],
+    "restoredSha256": "d454eb1bbe072913a5e0506d65447d9614b4912734c9c8bd2c7bdaa427265be0"
+  },
+  {
+    "name": "selected-model-compaction",
+    "file": "src/host/conversation/conversationController.ts",
+    "beforeSha256": "69e59b845eb90cd4c0a6d3abf01306da3ed91b2779e9c027679abc8bc741f9ec",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: selected-model capabilities gate compaction without a provider-name shortcut 48ms",
+      "\u00d7 modelApi: selected-model capabilities gate compaction without a provider-name shortcut 39ms"
+    ],
+    "restoredSha256": "69e59b845eb90cd4c0a6d3abf01306da3ed91b2779e9c027679abc8bc741f9ec"
+  },
+  {
+    "name": "confined-text-path",
+    "file": "src/runtime/panel/runtimeFeatures.ts",
+    "beforeSha256": "1e1ebddcd5769c767b2ac6e5c84e7c24f63657cb94fa1087ae675c8228602606",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 picks only indexed workspace files through the shared host picker and retains the resulting text part 40ms"
+    ],
+    "restoredSha256": "1e1ebddcd5769c767b2ac6e5c84e7c24f63657cb94fa1087ae675c8228602606"
+  },
+  {
+    "name": "factory-action-composition",
+    "file": "src/runtime/panel/runtimeFeatures.ts",
+    "beforeSha256": "1e1ebddcd5769c767b2ac6e5c84e7c24f63657cb94fa1087ae675c8228602606",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 consumes typed engine/presentation actions and awaits their cleanup before the final drain 43ms",
+      "\u00d7 refuses conflicting action ownership and missing capability records without success placeholders 44ms"
+    ],
+    "restoredSha256": "1e1ebddcd5769c767b2ac6e5c84e7c24f63657cb94fa1087ae675c8228602606"
+  },
+  {
+    "name": "cli-sandbox-precedence",
+    "file": "src/runtime/panel/runPanel.ts",
+    "beforeSha256": "a5a689aa4670928ccbac9cf5c416657a370c1f928e624e299c0ad3a76c304d08",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: runtime settings stay authoritative, publish to views and replace backend profiles 147ms",
+      "\u00d7 modelApi: runtime settings stay authoritative, publish to views and replace backend profiles 54ms"
+    ],
+    "restoredSha256": "a5a689aa4670928ccbac9cf5c416657a370c1f928e624e299c0ad3a76c304d08"
+  },
+  {
+    "name": "selected-model-identity",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: selected-model capabilities gate compaction without a provider-name shortcut 39ms",
+      "\u00d7 modelApi: selected-model capabilities gate compaction without a provider-name shortcut 36ms"
+    ],
+    "restoredSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16"
+  },
+  {
+    "name": "selected-model-reasoning",
+    "file": "src/host/conversation/conversationController.ts",
+    "beforeSha256": "24082d19ce2474cdc28206ba3d795c9b6686d8bdfcb89509bb4d8537fc13562f",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: selected-model capabilities gate compaction without a provider-name shortcut 39ms",
+      "\u00d7 modelApi: selected-model capabilities gate compaction without a provider-name shortcut 35ms"
+    ],
+    "restoredSha256": "24082d19ce2474cdc28206ba3d795c9b6686d8bdfcb89509bb4d8537fc13562f"
+  },
+  {
+    "name": "selected-model-handoff",
+    "file": "src/host/conversation/conversationController.ts",
+    "beforeSha256": "24082d19ce2474cdc28206ba3d795c9b6686d8bdfcb89509bb4d8537fc13562f",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: a pending handoff survives portable reload until the user confirms a fresh-session transfer 63ms",
+      "\u00d7 modelApi: a pending handoff survives portable reload until the user confirms a fresh-session transfer 59ms"
+    ],
+    "restoredSha256": "24082d19ce2474cdc28206ba3d795c9b6686d8bdfcb89509bb4d8537fc13562f"
+  },
+  {
+    "name": "selected-model-media",
+    "file": "src/host/conversation/conversationController.ts",
+    "beforeSha256": "24082d19ce2474cdc28206ba3d795c9b6686d8bdfcb89509bb4d8537fc13562f",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: vision and PDF admission use the selected capability record 37ms",
+      "\u00d7 modelApi: vision and PDF admission use the selected capability record 35ms"
+    ],
+    "restoredSha256": "24082d19ce2474cdc28206ba3d795c9b6686d8bdfcb89509bb4d8537fc13562f"
+  },
+  {
+    "name": "side-chat-surface-marker",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: a portable side-chat surface retains Plan-only admission 42ms"
+    ],
+    "restoredSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16"
+  },
+  {
+    "name": "auxiliary-binding",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 auxiliary views share the conversation release barrier and reject stale bindings 46ms"
+    ],
+    "restoredSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16"
+  },
+  {
+    "name": "auxiliary-work-drain",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 auxiliary views share the conversation release barrier and reject stale bindings 46ms"
+    ],
+    "restoredSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16"
+  },
+  {
+    "name": "factory-cleanup-drain",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 consumes typed engine/presentation actions and awaits their cleanup before the final drain 42ms"
+    ],
+    "restoredSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16"
+  },
+  {
+    "name": "factory-cleanup-error",
+    "file": "src/runtime/panel/runtimeController.ts",
+    "beforeSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 drains every factory cleanup and the store before reporting a synchronous cleanup failure 38ms"
+    ],
+    "restoredSha256": "ab5eb396d64dc578328c7ced762eb8931929d1c4bfbd4d12915a5f6fe4947f16"
+  },
+  {
+    "name": "companion-context-revoke",
+    "file": "src/runtime/companion/sessions.ts",
+    "beforeSha256": "1381cb119fee4fc071b3fd569d2d41d3f4bd41b5a01676b64ed0c07fe6adeb99",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 retires only the superseded context, revokes its bearer and unexchanged launch, and admits its fresh replacement 11ms"
+    ],
+    "restoredSha256": "1381cb119fee4fc071b3fd569d2d41d3f4bd41b5a01676b64ed0c07fe6adeb99"
+  },
+  {
+    "name": "companion-context-abort",
+    "file": "src/runtime/companion/server.ts",
+    "beforeSha256": "ee8151bf7075839c5267b6e97b1d6b4c0e0e92d9e5089d79e8f3a4fc5c28a951",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 aborts admitted calls for a retired context and closes their HTTP responses 27ms"
+    ],
+    "restoredSha256": "ee8151bf7075839c5267b6e97b1d6b4c0e0e92d9e5089d79e8f3a4fc5c28a951"
+  },
+  {
+    "name": "companion-abort-response",
+    "file": "src/runtime/companion/server.ts",
+    "beforeSha256": "ee8151bf7075839c5267b6e97b1d6b4c0e0e92d9e5089d79e8f3a4fc5c28a951",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 aborts admitted calls for a retired context and closes their HTTP responses 1031ms"
+    ],
+    "restoredSha256": "ee8151bf7075839c5267b6e97b1d6b4c0e0e92d9e5089d79e8f3a4fc5c28a951"
+  },
+  {
+    "name": "companion-stream-retirement",
+    "file": "src/runtime/companion/events.ts",
+    "beforeSha256": "228ca72238c25eecb45aae879718de3c7c24ddbc182a2dd702fc07fd3dfada78",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 retires one bearer stream immediately and ignores emissions after its binding changes 8ms"
+    ],
+    "restoredSha256": "228ca72238c25eecb45aae879718de3c7c24ddbc182a2dd702fc07fd3dfada78"
+  },
+  {
+    "name": "worktree-profile-refusal",
+    "file": "src/runtime/panel/runPanel.ts",
+    "beforeSha256": "a5a689aa4670928ccbac9cf5c416657a370c1f928e624e299c0ad3a76c304d08",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: host trust grant and revocation recreate sessions, and worktrees get their own store 226ms",
+      "\u00d7 modelApi: host trust grant and revocation recreate sessions, and worktrees get their own store 199ms"
+    ],
+    "restoredSha256": "a5a689aa4670928ccbac9cf5c416657a370c1f928e624e299c0ad3a76c304d08"
+  },
+  {
+    "name": "untrusted-header-only-read",
+    "file": "src/runtime/panel/runtimeFeatures.ts",
+    "beforeSha256": "4cdd322ffb73b208063467e0a1b3343af34ee357ebc1b2f0a89c801d24e7555a",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 keeps an untrusted text selection as a path mention and rejects picker IDs outside the index 46ms"
+    ],
+    "restoredSha256": "4cdd322ffb73b208063467e0a1b3343af34ee357ebc1b2f0a89c801d24e7555a"
+  },
+  {
+    "name": "indexed-file-picker",
+    "file": "src/runtime/panel/runtimeFeatures.ts",
+    "beforeSha256": "4cdd322ffb73b208063467e0a1b3343af34ee357ebc1b2f0a89c801d24e7555a",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 picks only indexed workspace files through the shared host picker and retains the resulting text part 44ms",
+      "\u00d7 keeps an untrusted text selection as a path mention and rejects picker IDs outside the index 39ms"
+    ],
+    "restoredSha256": "4cdd322ffb73b208063467e0a1b3343af34ee357ebc1b2f0a89c801d24e7555a"
+  },
+  {
+    "name": "profile-error-acknowledgement",
+    "file": "src/runtime/panel/runPanel.ts",
+    "beforeSha256": "9af6fd6fdf74bb12c75373eee325e2ec04e687a32cc256ece556ee67ee8a7b8d",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: profile failures return a named error and a later valid change recovers a fresh root conversation 169ms",
+      "\u00d7 modelApi: profile failures return a named error and a later valid change recovers a fresh root conversation 106ms"
+    ],
+    "restoredSha256": "9af6fd6fdf74bb12c75373eee325e2ec04e687a32cc256ece556ee67ee8a7b8d"
+  },
+  {
+    "name": "profile-empty-registry-recovery",
+    "file": "src/runtime/panel/runPanel.ts",
+    "beforeSha256": "9af6fd6fdf74bb12c75373eee325e2ec04e687a32cc256ece556ee67ee8a7b8d",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 museCode: profile failures return a named error and a later valid change recovers a fresh root conversation 276ms",
+      "\u00d7 modelApi: profile failures return a named error and a later valid change recovers a fresh root conversation 159ms"
+    ],
+    "restoredSha256": "9af6fd6fdf74bb12c75373eee325e2ec04e687a32cc256ece556ee67ee8a7b8d"
+  }
+]

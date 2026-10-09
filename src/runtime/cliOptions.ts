@@ -70,6 +70,12 @@ const SERVE_OPTIONS = {
   'max-budget-usd': { type: 'string' },
 } as const satisfies CliParserOptions
 
+// `panel --stdio|--companion` (M104): its transport, beside the serve flags.
+const PANEL_OPTIONS = {
+  stdio: { type: 'boolean' },
+  companion: { type: 'boolean' },
+} as const satisfies CliParserOptions
+
 const EXEC_OPTIONS = {
   provider: { type: 'string' },
 
@@ -152,6 +158,7 @@ export const CLI_OPTION_REGISTRY = {
     },
   },
   serve: { options: SERVE_OPTIONS },
+  panel: { options: PANEL_OPTIONS, text: { stdio: 'panel-stdio', companion: 'panel-companion' } },
   login: { options: COMMON_OPTIONS },
   setup: { options: COMMON_OPTIONS },
   authSet: { options: COMMON_OPTIONS },
@@ -182,6 +189,7 @@ export const CLI_OPTION_TEXT = {
 
   csv: 'csv',
   stdio: 'stdio',
+  companion: 'panel-companion',
   registry: 'registry',
   backend: 'backend',
   'no-auto-compaction': 'no-auto-compaction',
@@ -233,6 +241,7 @@ export const CLI_OPTION_TEXT = {
   Record<
     | keyof typeof COMMON_OPTIONS
     | keyof typeof SERVE_OPTIONS
+    | keyof typeof PANEL_OPTIONS
     | keyof typeof EXEC_OPTIONS
     | keyof typeof SCAN_OPTIONS
     | keyof typeof REPORT_OPTIONS

@@ -130,7 +130,13 @@ export interface ModelApiClientDeps {
   ) => boolean
   /** The host presents a 5xx banner with this public link; no response text crosses this port. */
   readonly onServiceFailure?: (status: number, statusUrl: string) => void
-  /** Interactive VS Code extras only; ACP/headless clients omit this port. */
+  /** Verified historical request tariff; an absent receipt retains the original claim's liability. */
+  readonly paidResponseCost?: (
+    body: CreateResponseBody,
+    feature: PaidFeature,
+    usage: BillableUsage,
+  ) => number | undefined
+  /** Interactive paid services; ACP/headless clients omit this port. */
   readonly reservePaidRequest?: (
     body: CreateResponseBody | CreateImageBody,
     feature: PaidFeature,
@@ -258,6 +264,23 @@ export class ModelApiClient implements TransportProviderClient {
         await paid.claim.settle(Usd.from(0).toAmount())
       }
     }
+  }
+
+  /**
+   * A response's token cost: the injected verified tariff when bound (absent
+   * for an unpriced receipt), else the published Meta rates.
+   */
+  private responseCostUsd(
+    body: CreateResponseBody,
+    feature: PaidFeature | undefined,
+    usage: BillableUsage,
+  ): UsdAmount | undefined {
+    if (feature === undefined || this.deps.paidResponseCost === undefined)
+      return estimateCostUsd(usage, body.model)
+    const cost = this.deps.paidResponseCost(body, feature, usage)
+    return cost === undefined || !Number.isFinite(cost) || cost < 0
+      ? undefined
+      : Usd.from(cost).toAmount()
   }
 
   private searchTokenCostUsd(
@@ -682,18 +705,16 @@ export class ModelApiClient implements TransportProviderClient {
                   outputTokens: usage.output_tokens,
                   cachedTokens: cached,
                 }
-                await claim.settle(
-                  sumUsd(
-                    hasSearch
-                      ? this.searchTokenCostUsd(
-                          billable,
-                          body.model,
-                          returnedLiability(claim.reservedUsd, false),
-                        )
-                      : estimateCostUsd(billable, body.model),
-                    returnedFees(),
-                  ),
-                )
+                const tokenCostUsd = hasSearch
+                  ? this.searchTokenCostUsd(
+                      billable,
+                      body.model,
+                      returnedLiability(claim.reservedUsd, false),
+                    )
+                  : this.responseCostUsd(body, feature, billable)
+                // An unverified receipt retains the claim's full liability, marked unknown.
+                if (tokenCostUsd === undefined) await claim.settle(claim.reservedUsd, true)
+                else await claim.settle(sumUsd(tokenCostUsd, returnedFees()))
               } else if (
                 claim !== undefined &&
                 media === undefined &&

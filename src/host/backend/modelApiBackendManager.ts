@@ -64,6 +64,7 @@ import {
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly paidAuthority?: ModelApiClientDeps['paidAuthority']
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
+  readonly paidResponseCost?: ModelApiClientDeps['paidResponseCost']
   readonly judge?: ModelApiHostDeps['judge']
   readonly createProviderClient?: ModelApiBundleDeps['createProviderClient']
   readonly getProviderAccountId?: () => Promise<string | undefined>
@@ -313,6 +314,9 @@ export class ModelApiBackendManager {
         ...(this.deps.paidAuthority !== undefined && { paidAuthority: this.deps.paidAuthority }),
         ...(this.deps.reservePaidRequest !== undefined && {
           reservePaidRequest: this.deps.reservePaidRequest,
+        }),
+        ...(this.deps.paidResponseCost !== undefined && {
+          paidResponseCost: this.deps.paidResponseCost,
         }),
         pacingOwner: this.deps.pacingOwner ?? this,
         ...(this.deps.isRetryableFailure !== undefined && {

@@ -15,7 +15,8 @@ import { homedir, hostname, tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { Writable } from 'node:stream'
-import type { SignInMethod } from '../acp/agent'
+import type { AcpController, SignInMethod } from '../acp/agent'
+import { ControllerRegistry } from './panel/controllerRegistry'
 import { runtimeQuestionsLoader } from './questions/questionRegistryBundle'
 import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
@@ -47,6 +48,9 @@ import {
   REFERENCE_BUNDLE_FILE,
   SESSION_EXPORT_MAX_BYTES,
   REPORT_SOURCE_TIMEOUT_MS,
+  RUNTIME_PANEL_BUNDLE_FILE,
+  RUNTIME_PANEL,
+  CONVERSATION_BUNDLE_FILE,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
@@ -120,6 +124,7 @@ import { museSettingsPath } from '../host/backend/museSettings'
 import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
+import { panelLoader } from './panel/panelLoader'
 import { reportsLoader } from './reporting/reportsLoader'
 import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding } from './schedules/binding'
@@ -727,7 +732,33 @@ async function serve(
       log,
     })
     const reports = runtimeReports(log)
+    // ACP is a view: the shared registry and the composed controller own each
+    // session (M104), as the portable panel's do.
+    const controllers = new ControllerRegistry<AcpController>(log, (id) =>
+      engine.RequestError.resourceNotFound(id),
+    )
     const agent = engine.createAcpAgent({
+      controllers,
+      createConversation: panelLoader({
+        bundlePath: path.join(distDir, RUNTIME_PANEL_BUNDLE_FILE),
+        log,
+      })().createAcpConversations(
+        {
+          runtime,
+          options,
+          dataRoot: agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+          }),
+          conversationBundle: path.join(distDir, CONVERSATION_BUNDLE_FILE),
+          runGit: processGitRunner(),
+          log,
+          controllers,
+        },
+        UI_TEXT,
+        uiLocale(),
+      ),
       schedules: {
         async holdWorkspace(cwd) {
           loadedSchedules ??= await loadSchedules()
@@ -856,25 +887,29 @@ async function serve(
     try {
       await connection.closed
     } finally {
-      await Promise.allSettled(
-        registries.map((registry) => {
-          registry.dispose()
-          return registry.flush()
-        }),
-      )
       try {
-        await loadedSchedules?.close()
+        await controllers.close()
       } finally {
+        await Promise.allSettled(
+          registries.map((registry) => {
+            registry.dispose()
+            return registry.flush()
+          }),
+        )
         try {
-          await usage.dispose()
+          await loadedSchedules?.close()
         } finally {
           try {
-            resources.dispose()
+            await usage.dispose()
           } finally {
             try {
-              await runtime.close()
+              resources.dispose()
             } finally {
-              await journal.shutdown()
+              try {
+                await runtime.close()
+              } finally {
+                await journal.shutdown()
+              }
             }
           }
         }
@@ -926,7 +961,7 @@ function sharingPorts(
 }
 
 function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
-  if (command.command !== 'serve') {
+  if (command.command !== 'serve' && command.command !== 'panel') {
     return 'warn'
   }
   return command.options.isVerbose ? 'trace' : 'info'
@@ -1329,6 +1364,57 @@ async function main(): Promise<number> {
     }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
+    }
+    case 'panel': {
+      const runtime = await runtimeFor(command.options, log)
+      await runtime.forgetUnflaggedGrants()
+      const result = await panelLoader({
+        bundlePath: path.join(distDir, RUNTIME_PANEL_BUNDLE_FILE),
+        log,
+      })().runRuntimePanel(
+        {
+          options: command.options,
+          transport: command.transport,
+          runtime,
+          configureRuntime: (options) => runtimeFor(options, log),
+          loadLanguage: (language) =>
+            loadUiTable({
+              language,
+              readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+              log,
+            }),
+          dataRoot: agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+          }),
+          conversationBundle: path.join(distDir, CONVERSATION_BUNDLE_FILE),
+          defaultCwd: process.cwd(),
+          input: process.stdin,
+          output: process.stdout,
+          runGit: processGitRunner(),
+          log,
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+      // This standalone carrier owns its process. Its backend cleanup has
+      // completed; stop stale SDK request timers after bounded pipe flushing.
+      const flush = (stream: NodeJS.WriteStream) =>
+        new Promise<void>((resolve) => {
+          if (stream.destroyed) {
+            resolve()
+            return
+          }
+          const timer = setTimeout(resolve, RUNTIME_PANEL.closeTimeoutMs)
+          stream.write('', () => {
+            clearTimeout(timer)
+            resolve()
+          })
+        })
+      await Promise.all([flush(process.stdout), flush(process.stderr)])
+      // eslint-disable-next-line unicorn/no-process-exit -- panel owns its standalone process; awaited backend cleanup and bounded pipe flush precede exit (PLAN §8).
+      return process.exit(result)
     }
     case 'chatGptProvider': {
       const providers = await chatGptDeps()

@@ -27,7 +27,7 @@ import {
 } from '../../src/core/paid/paidConsent'
 import { paidCostUsd, paidTallySchema } from '../../src/shared/paid'
 import { parseExec } from '../../src/runtime/exec/execArgs'
-import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
+import { createPaidDailyBudget } from '../../src/host/vscode/paid/paidDailyBudget'
 import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'

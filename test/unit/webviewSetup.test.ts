@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ChatSurface } from '../../src/host/views/chatSurface'
-import { configureWebview } from '../../src/host/views/webviewSetup'
+import { configureWebview } from '../../src/host/vscode/views/webviewSetup'
 import { WEBVIEW_DOCUMENT_ATTRIBUTE, WEBVIEW_L10N_ELEMENT_ID } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { FakeWebview, fakeHostContext, testSettings } from './helpers/fakes'

@@ -1,3 +1,4 @@
+import { fakeAcpComposition } from './helpers/acpComposition'
 import path from 'node:path'
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
@@ -472,6 +473,7 @@ function agentHarness(
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const questionBundle = vi.fn(() => questionFactories)
   const agent = createAcpAgent({
+    createConversation: fakeAcpComposition,
     backend: museCodeTestBackend(host),
     version: 'test',
     options: {

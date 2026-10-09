@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { window } from 'vscode'
 import { window as fakeWindow, FakeUri } from './mocks/vscode'
-import { createModelsPanel, type ModelsPanelDeps } from '../../src/host/models/modelsPanel'
+import { createModelsPanel, type ModelsPanelDeps } from '../../src/host/vscode/models/modelsPanel'
 import { parseHostToPanelMessage, type ModelsPanelState } from '../../src/shared/modelsPanel'
 import { EN } from '../../src/shared/l10n/en'
 import { TEST_ENTRY, testProvidersHost, testRow } from './helpers/m95kFixtures'

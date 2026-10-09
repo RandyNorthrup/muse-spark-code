@@ -83,6 +83,9 @@ export const ViewColumn = {
 
 export const window = {
   state: { focused: true },
+  get activeTextEditor(): vscode.TextEditor | undefined {
+    return undefined
+  },
   createWebviewPanel: vi.fn<typeof vscode.window.createWebviewPanel>(),
   // Tab's status bar item (M94): the last one created, for assertions.
   createStatusBarItem: vi.fn<typeof vscode.window.createStatusBarItem>(),
@@ -114,6 +117,10 @@ export class TabInputText implements vscode.TabInputText {
 
 export const workspace = {
   isTrusted: true,
+  get textDocuments(): readonly vscode.TextDocument[] {
+    return []
+  },
+  saveAll: vi.fn<typeof vscode.workspace.saveAll>(),
   // The folders an export redacts (M84); none unless a test sets them.
   workspaceFolders: undefined as readonly vscode.WorkspaceFolder[] | undefined,
   // The folder VS Code attributes a file to (M94): none unless a test sets it.
@@ -195,6 +202,8 @@ export const InlineCompletionTriggerKind = {
 } as const
 
 export const EndOfLine = { LF: 1, CRLF: 2 } as const
+
+export const DiagnosticSeverity = { Error: 0, Warning: 1, Information: 2, Hint: 3 } as const
 
 export const ProgressLocation = { SourceControl: 1, Window: 10, Notification: 15 } as const
 
@@ -324,6 +333,22 @@ export class Range {
     }
     const change = startOrChange
     return new Range(change?.start ?? this.start, change?.end ?? this.end)
+  }
+}
+
+/** Directional selection, including the active caret of a reversed selection. */
+export class Selection extends Range implements vscode.Selection {
+  public constructor(
+    public readonly anchor: vscode.Position,
+    public readonly active: vscode.Position,
+  ) {
+    super(
+      anchor.isBeforeOrEqual(active) ? anchor : active,
+      anchor.isBeforeOrEqual(active) ? active : anchor,
+    )
+  }
+  public get isReversed(): boolean {
+    return this.active.isBefore(this.anchor)
   }
 }
 

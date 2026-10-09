@@ -34,6 +34,9 @@ import { packRuntimeArchive } from './lib/packageArchive.mjs'
 const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
+  'runtimePanel.js',
+  'runtimePanelPorts.js',
+  'conversation.js',
   'estimator.js',
   'headless.js',
   'sharingRuntime.js',
@@ -216,6 +219,7 @@ for (const bundle of BUNDLES) {
   copyFileSync(path.join('dist', bundle), path.join(STAGE, 'dist', bundle))
 }
 cpSync('dist/legal-data', path.join(STAGE, 'dist', 'legal-data'), { recursive: true })
+cpSync('dist/webview/portable', path.join(STAGE, 'dist/webview/portable'), { recursive: true })
 for (const source of pageAssets) {
   const target = path.join(STAGE, source)
   mkdirSync(path.dirname(target), { recursive: true })

@@ -16,12 +16,10 @@ import {
   POSIX_TERMINAL_SHELL,
   TERMINAL_ENV_KEYS,
   TERMINAL_ENV_SECTION,
-  HAS_APPROVAL_UI,
   CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
   COMMAND_IDS,
   CONTEXT_KEYS,
-  DEFAULT_MODEL_ID,
   EXTENSION_NAME,
   DICTATION_HELPER_DIR,
   FIND_FILES_GLOB,
@@ -107,8 +105,10 @@ import { agentDataFolder } from './runtime/dataFolder'
 import { requireFile } from './host/lazyBundle'
 import { isJudgeEngineOn } from './core/judge/engine'
 import { promptBundleLoader } from './host/prompts/promptBundle'
-import type { createPromptHost } from './host/prompts/promptEntry'
+import type { createPromptHost } from './host/vscode/prompts/promptEntry'
 import { judgeWindowPort } from './host/judge/judgeBundle'
+import { composeConversationDeps } from './host/compose/conversationDeps'
+import { createVscodeHostServices } from './host/vscode/hostServices'
 import { storeErrorCode } from './host/backend/storeErrors'
 
 import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
@@ -116,7 +116,7 @@ import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
 import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
 import { reportingCheckJournal } from './host/reporting/reportCheckBundle'
 import { reportPanelLoader } from './host/reporting/reportPanelBundle'
-import type { ReportPanel } from './host/reporting/reportPanel'
+import type { ReportPanel } from './host/vscode/reporting/reportPanel'
 
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
@@ -124,7 +124,7 @@ import type { ReportPanel } from './host/reporting/reportPanel'
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
 import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
-import type { UsagePanel } from './host/usage/usagePanel'
+import type { UsagePanel } from './host/vscode/usage/usagePanel'
 
 import path from 'node:path'
 import * as vscode from 'vscode'
@@ -132,8 +132,6 @@ import * as z from 'zod/mini'
 import type { AgentHost, BackendKind } from './core/agent/agentBackend'
 import { environmentValue, terminalEnvironment } from './core/backends/musecode/launch'
 import { confineWorkspacePath, resolveWorkspacePath } from './core/workspacePath'
-import { isProtectedPath } from './core/protectedPaths'
-import type { EditedFile } from './core/verify/diagnosticsReport'
 import { readBackendChoice } from './core/backendSelection'
 import { personalAgentsRoot } from './core/context/customAgents'
 import {
@@ -195,8 +193,8 @@ import {
 import { pluginContainment } from './host/backend/pluginContainment'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { createRevertIo } from './host/editor/revertIo'
-import { createVerifyEditor } from './host/editor/verifyEditor'
-import { verifyGuidance } from './core/verify/checkCommands'
+import { createVerifyEditor } from './host/vscode/editor/verifyEditor'
+import { questionsDeferAfterSeconds } from './host/vscode/questions/questionStore'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
 import { createRulesFile } from './host/commands/createRulesFile'
 import { insertMentionReference } from './host/commands/insertMention'
@@ -215,17 +213,16 @@ import { restartConversationBackends } from './host/conversation/conversationBac
 import { BackgroundNotifier } from './host/conversation/turnNotifications'
 import type { ReportDataSource } from './host/conversation/reportProblemHandler'
 import { canonicalPath } from './host/canonicalPath'
-import { loadToolImage } from './core/toolImages'
 import { modelApiClientLoader } from './host/backend/modelApiBundle'
 import { ideImageTools } from './host/ide/imageTools'
 import { ideWebFetchTools, isIdeWebFetchOffered, oneQuestionPerUrl } from './host/ide/webFetchTool'
-import { isWebFetchAllowed } from './host/web/webFetchConfirm'
+import { isWebFetchAllowed } from './host/vscode/web/webFetchConfirm'
 import { pageConverter } from './host/web/pageConverter'
 import { lazyPageUrlCheck, lazyWebFetcher, webFetchLoader } from './host/web/webFetchBundle'
 import { BrowserChecks } from './host/browser/browserChecks'
-import { isBrowserCheckAllowed } from './host/browser/browserCheckConfirm'
-import { downloadBrowserRuntime } from './host/browser/runtimeCommand'
-import { runtimeConsent } from './host/browser/runtimeConsent'
+import { isBrowserCheckAllowed } from './host/vscode/browser/browserCheckConfirm'
+import { downloadBrowserRuntime } from './host/vscode/browser/runtimeCommand'
+import { runtimeConsent } from './host/vscode/browser/runtimeConsent'
 import { ideBrowserCheckTools } from './host/ide/browserCheckTool'
 import { type BrowserCheckHost, browserScopeKey } from './core/browser/browserTool'
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
@@ -234,8 +231,7 @@ import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTo
 
 import { fill as fillLegalNotice, fill, plural, uiLocale } from './shared/l10n/text'
 import { legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBundle'
-import { vscodeLanguageServices } from './host/codeIntel/languageServices'
-import { usablePaidFeatures } from './shared/paid'
+import { vscodeLanguageServices } from './host/vscode/codeIntel/languageServices'
 import { agentImportLoader } from './host/agentImportBundle'
 import {
   TAB_BUNDLE_FILE,
@@ -245,8 +241,8 @@ import {
   createTabActivation,
   tabTextChangeEvent,
   deferredRefresh,
-} from './host/tab/tabBundle'
-import { createCliFeatures } from './host/cliFeatures'
+} from './host/vscode/tab/tabBundle'
+import { createCliFeatures } from './host/vscode/cliFeatures'
 import {
   bundledSkillsLoader,
   createBundledSkillsOffer,
@@ -255,8 +251,8 @@ import {
   type BundledSkillsCommandDeps,
 } from './host/skills/bundledSkills'
 import { hasClaimedVersion, createWhatsNew } from './host/whatsNew/whatsNew'
-import { createSessionTransferFiles } from './host/conversation/transferDialogs'
-import { createWorktreeFeatures } from './host/worktreeFeatures'
+import { createSessionTransferFiles } from './host/vscode/conversation/transferDialogs'
+import { createWorktreeFeatures } from './host/vscode/worktreeFeatures'
 import { heldWorktreesRoot, holdFor } from './core/worktreeConversations'
 import {
   conversationGitFactory,
@@ -268,14 +264,14 @@ import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
 import { lazyEstimator } from './host/estimator/estimatorBundle'
 import { estimatorSourcePorts } from './host/estimator/localFleet'
-import { PendingPrompts, type BoardSession } from './core/sessionBoard'
+import { PendingPrompts } from './core/sessionBoard'
 import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
-import { createMemoryFeatures } from './host/memoryFeatures'
+import { createMemoryFeatures } from './host/vscode/memoryFeatures'
 import { createPlanFiles, createPlanIo } from './host/planFeatures'
 import { planMarkdownLoader } from './host/planMarkdownBundle'
 import { extensionHooksBundle, type ExtensionHooksModule } from './host/extensionHooksBundle'
 import type { ExtensionHookRunner } from './host/extensionHooksEntry'
-import { showPickOne } from './host/quickPick'
+import { showPickOne } from './host/vscode/quickPick'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
 import {
   configureResources,
@@ -296,7 +292,7 @@ import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/
 import { isProcessAlive } from './host/checkpoints/windowPresence'
 import { ReportRecorder } from './host/support/reportRecorder'
 import type * as RecorderBundle from './host/support/recorderEntry'
-import { vscodeReportEditorIo } from './host/support/reportEditorIo'
+import { vscodeReportEditorIo } from './host/vscode/support/reportEditorIo'
 import {
   changedSettingNames,
   extensionReportFacts,
@@ -311,19 +307,19 @@ import {
   readProxySettings,
 } from './host/networkPosture'
 import { OutputDocumentStore } from './host/outputDocuments'
-import { loggedPopups } from './host/popups'
-import { pickMentionFile } from './host/mention/mentionQuickPick'
+import { loggedPopups } from './host/vscode/popups'
+import { pickMentionFile } from './host/vscode/mention/mentionQuickPick'
 import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspaceFiles'
 import { permissionSettingsOf, readSettings, toSettingsSnapshot } from './host/settings'
-import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
-import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
-import { TasksPanel } from './host/views/tasksPanel'
-import { SurfaceRegistry } from './host/views/surfaceRegistry'
+import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/vscode/views/ChatViewProvider'
+import { openChatPanel, restoreChatPanel } from './host/vscode/views/chatPanel'
+import { TasksPanel } from './host/vscode/views/tasksPanel'
+import { SurfaceRegistry } from './host/vscode/views/surfaceRegistry'
 import type { ChatSurface } from './host/views/chatSurface'
-import type { WebviewHostContext } from './host/views/webviewSetup'
+import type { WebviewHostContext } from './host/vscode/views/webviewSetup'
 import { loadUiTable, readUiTableFile } from './host/l10n'
 import type { InsightsReader } from './runtime/usage/traceLogs'
-import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
+import { createDictationSetup, createMuseVoiceSetup } from './host/vscode/voice/dictationHost'
 import { voiceLoader } from './host/voice/voiceBundle'
 import {
   createMediaAttachDeps,
@@ -335,17 +331,17 @@ import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRe
 import { createLinuxLatestPort } from './host/media/recordingLatest'
 import { latestLinuxRecording } from './core/media/record/linux'
 import type { ScreenRecordingPreview } from './core/media/record/driver'
-import { loadVaultControls, registerVaultCommands } from './host/vault/vaultPanelBundle'
+import { loadVaultControls, registerVaultCommands } from './host/vscode/vault/vaultPanelBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
-import { createPaidFeatures } from './host/paid/paidHost'
+import { createPaidFeatures } from './host/vscode/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
 import {
   modelsPanelLoader,
   providerCredentials,
   recoverProviderRemovals,
 } from './host/models/modelsPanelBundle'
-import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
-import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
+import type { ModelsPanelFeatures } from './host/vscode/models/modelsPanelEntry'
+import type { createPaidDailyBudget } from './host/vscode/paid/paidDailyBudget'
 
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 
@@ -3251,6 +3247,7 @@ async function activateWindow(
     return outcome
   }
 
+  const hostServices = createVscodeHostServices(context)
   const loadConversation = conversationLoader({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CONVERSATION_BUNDLE_FILE).fsPath,
     log,
@@ -3328,392 +3325,251 @@ async function activateWindow(
       )
       tasksTabs.set(surface.id, tasksTab)
       controller = factory.createConversation(
-        {
-          usageRecording,
-          runManualHook: runManualHookByName,
-          rewriteMessage: async (text) => {
-            const runner = areHooksArmed() ? await hookRunnerFor(false) : undefined
-            return await runner?.rewriteMessage(text)
-          },
-          surface,
-          questions: factory.questionsForHost(questionsStore),
-          showDeterministicReport: (argumentsText) =>
-            showDeterministicReport(surface, argumentsText),
-          tasksTab,
-          auth,
-          ensureHost: ensureSelectedHost,
-          workspaceRoot,
-          modelId: DEFAULT_MODEL_ID,
-          initialPermissionMode: currentSettings().initialPermissionMode,
-          hasApprovalUi: HAS_APPROVAL_UI,
-          openExternal: (url) => {
-            void vscode.env.openExternal(vscode.Uri.parse(url))
-          },
-          openSideChat: (sessionId) => {
-            openChatPanel(hostContext, registry, {
-              sessionId,
-              isSideChat: true,
-              onDisposed: () => {
+        composeConversationDeps(hostServices, {
+          features: {
+            usageRecording,
+            runManualHook: runManualHookByName,
+            rewriteMessage: async (text) => {
+              const runner = areHooksArmed() ? await hookRunnerFor(false) : undefined
+              return await runner?.rewriteMessage(text)
+            },
+            surface,
+            questions: factory.questionsForHost(questionsStore, questionsDeferAfterSeconds),
+            showDeterministicReport: (argumentsText) =>
+              showDeterministicReport(surface, argumentsText),
+            tasksTab,
+            auth,
+            ensureHost: ensureSelectedHost,
+            workspaceRoot,
+            openSideChat: (sessionId) => {
+              openChatPanel(hostContext, registry, {
+                sessionId,
+                isSideChat: true,
+                onDisposed: () => {
+                  if (registry.has(surface)) {
+                    surface.reveal()
+                  }
+                },
+              })
+            },
+            mentions: {
+              search: (query, limit) => mentions.search(query, limit),
+              contains: (relativePath) => mentions.contains(relativePath),
+            },
+            files,
+            // M105 W (E1-media-host-binding): the lazy attach port. Settings
+            // supply limits, the selected model its capabilities; the M2 bind
+            // refuses until the upload lifecycle lands (U6c, lead-owned).
+            mediaAttachments: () =>
+              Promise.resolve(
+                loadMedia().createMediaAttachments(
+                  createMediaAttachDeps(
+                    () => ({
+                      mediaMaxUploadMiB: currentSettings().mediaMaxUploadMiB,
+                      screenRecordingMaxSeconds: currentSettings().screenRecordingMaxSeconds,
+                    }),
+                    mediaOpen,
+                  ),
+                  UI_TEXT,
+                  uiLocale(),
+                ),
+              ),
+            // M105 W (E1-recording-host-binding): the recording command's deps.
+            // No native driver binds in this round: macOS needs its signed
+            // helper, Windows direct capture is unavailable here, and Linux
+            // needs a D-Bus portal transport (lead-owned; see m105.md). The
+            // absent driver refuses explicitly; latest-file discovery works
+            // on Linux. The conversation overrides attach with admission.
+            recordingCommandDeps: () =>
+              Promise.resolve({
+                l10n: { table: UI_TEXT, locale: uiLocale() },
+                log,
+                isRemote: vscode.env.remoteName !== undefined,
+                // No driver key: unbound this round (see above); absence refuses.
+                maxSeconds: currentSettings().screenRecordingMaxSeconds,
+                latest: latestScreenRecording,
+                attach: () => Promise.resolve(false),
+              }),
+            isRemoteWindow: vscode.env.remoteName !== undefined,
+            confirmContributor: isContributorModelAllowed,
+            runHostAction,
+            notifyAttention: (notice) => {
+              backgroundNotifier.notify(notice, () => {
                 if (registry.has(surface)) {
                   surface.reveal()
                 }
-              },
-            })
-          },
-          mentions: {
-            search: (query, limit) => mentions.search(query, limit),
-            contains: (relativePath) => mentions.contains(relativePath),
-          },
-          files,
-          // M105 W (E1-media-host-binding): the lazy attach port. Settings
-          // supply limits, the selected model its capabilities; the M2 bind
-          // refuses until the upload lifecycle lands (U6c, lead-owned).
-          mediaAttachments: () =>
-            Promise.resolve(
-              loadMedia().createMediaAttachments(
-                createMediaAttachDeps(
-                  () => ({
-                    mediaMaxUploadMiB: currentSettings().mediaMaxUploadMiB,
-                    screenRecordingMaxSeconds: currentSettings().screenRecordingMaxSeconds,
-                  }),
-                  mediaOpen,
-                ),
-                UI_TEXT,
-                uiLocale(),
-              ),
-            ),
-          // M105 W (E1-recording-host-binding): the recording command's deps.
-          // No native driver binds in this round: macOS needs its signed
-          // helper, Windows direct capture is unavailable here, and Linux
-          // needs a D-Bus portal transport (lead-owned; see m105.md). The
-          // absent driver refuses explicitly; latest-file discovery works
-          // on Linux. The conversation overrides attach with admission.
-          recordingCommandDeps: () =>
-            Promise.resolve({
-              l10n: { table: UI_TEXT, locale: uiLocale() },
-              log,
-              isRemote: vscode.env.remoteName !== undefined,
-              // No driver key: unbound this round (see above); absence refuses.
-              maxSeconds: currentSettings().screenRecordingMaxSeconds,
-              latest: latestScreenRecording,
-              attach: () => Promise.resolve(false),
-            }),
-          isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
-          isRemoteWindow: vscode.env.remoteName !== undefined,
-          confirmRemoteBypass: async () =>
-            (await vscode.window.showWarningMessage(
-              UI_TEXT.bypassRemoteTitle,
-              { modal: true, detail: UI_TEXT.bypassRemoteDetail },
-              UI_TEXT.bypassRemoteConfirm,
-            )) === UI_TEXT.bypassRemoteConfirm,
-          isConfidentialWorkspace: () => currentSettings().confidentialWorkspace,
-          // One explicit yes per conversation before the model switches; the
-          // Model API backend asks the same question for a custom agent's model.
-          confirmContributor: isContributorModelAllowed,
-          runHostAction,
-          // A turn needs the user while the VS Code window is unfocused
-          // (M82); the notice's button brings this surface into view, while
-          // it is still open.
-          notifyAttention: (notice) => {
-            backgroundNotifier.notify(notice, () => {
-              if (registry.has(surface)) {
-                surface.reveal()
-              }
-            })
-          },
-          museCodeReviewer,
-          judge,
-          copyText: async (text) => {
-            await vscode.env.clipboard.writeText(text)
-          },
-          insertCode: async (text) => {
-            const editor = vscode.window.activeTextEditor
-            if (editor === undefined) {
-              return false
-            }
-            return await editor.edit((builder) => {
-              builder.insert(editor.selection.active, text)
-            })
-          },
-          onSandboxUnavailable: () => {
-            void sandbox.offerIfNeeded('failure').catch(logRejection(log, 'sandbox offer'))
-          },
-          platform: process.platform,
-          shellSandbox: () => backend.shellSandboxPosture(),
-          shouldWarnSandboxOff,
-          editorContext: () => editorContext.active,
-          isAutosaveEnabled: () => currentSettings().autosave,
-          saveAll: async () => {
-            await vscode.workspace.saveAll(false)
-          },
-          // Workspace files open with unsaved changes (PLAN.md D27).
-          unsavedFiles: () =>
-            vscode.workspace.textDocuments
-              .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
-              .map((document) => vscode.workspace.asRelativePath(document.uri, false)),
-          // Code block "Apply": the block replaces the selection (or lands at
-          // the caret); false when no text editor is active.
-          applyCode: async (text) => {
-            const editor = vscode.window.activeTextEditor
-            if (editor === undefined) {
-              return false
-            }
-            const isApplied = await editor.edit((builder) => {
-              builder.replace(editor.selection, text)
-            })
-            if (isApplied) {
-              editor.revealRange(editor.selection)
-            }
-            return isApplied
-          },
-          editReview: review.editReview,
-          review,
-          estimator,
-          openDocument,
-          openFile,
-          readToolImage: async (imagePath) =>
-            await loadToolImage(
-              imagePath,
-              workspaceRoot,
-              process.platform,
-              toolImagePreviewIo(toolIo, async (fsPath) => {
-                const stat = await vscode.workspace.fs.stat(vscode.Uri.file(fsPath))
-                return stat.size
-              }),
-            ),
-          // A server that failed to start is started again, and the session
-          // that asked waits for it, so it gets the tool too (D25).
-          ideMcpEndpoint: async () => {
-            if (ideServer.current === undefined) {
-              await startIdeServer()
-            }
-            return ideServer.current
-          },
-          newAttachmentId: () => crypto.randomUUID(),
-          sessions,
-          // The usage modal's Account section and insights (M14).
-          readServiceStatus: () =>
-            keyClient().readServiceStatus(AbortSignal.timeout(MODEL_API_STATUS_READ_TIMEOUT_MS)),
-          accountFacts: async (kind) => {
-            const resolution = backend.resolveLaunch()
-            const isCliSession = await hasCliSession()
-            const hasKey = (await credentials.getApiKey()) !== undefined
-            const signInMethod = signInMethodFor(kind, isCliSession, hasKey)
-            const cliVersion = resolution.ok
-              ? backend.installedVersion(resolution.launch.installDir)
-              : undefined
-            return {
-              signInMethod,
-              ...(cliVersion !== undefined && { cliVersion }),
-              ...(kind === 'museCode' && {
-                delegationMode: delegationMode(),
-                workflowTriggerMode: workflowTriggerMode(),
-              }),
-            }
-          },
-          usageInsights: () => insights.read(),
-          // Only the sidebar reopens on its last session; a tab is a new
-          // conversation by construction (M6).
-          isRestorable: surface.id === SIDEBAR_SURFACE_ID,
-          dictation,
-          // Muse Voice on the Model API backend, and on Muse Code with a stored key (M44).
-          museVoice: () => {
-            if (
-              !paid.gate.isOn('voice') ||
-              !usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')
-            )
-              return
-            if (auth.current.backend === 'modelApi') {
-              return currentSettings().dictationEngine === 'system'
-                ? undefined
-                : { isAvailable: false, reason: UI_TEXT.sessionBudgetVoiceUnavailable }
-            }
-            return museVoiceSetup
-          },
-          modelApiSessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
-          voiceAccountId: () => modelApi.accountId(),
-          ownedVoiceBudgetScope: async (sessionId) => {
-            if (auth.current.backend !== 'modelApi') {
-              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-            }
-            const host = await modelApi.ensureHost()
-            return await host.getOwnedBudgetScope(sessionId)
-          },
-          exports: cliFeatures.exports,
-          transferFiles: createSessionTransferFiles(),
-          reports: conversationReports,
-          plans,
-          // The palette's paid-feature toggles (M33): on goes through the price confirmation.
-          setPaidFeature: async (feature, isOn) => {
-            if (isOn) {
-              await paid.gate.turnOn(feature)
-            } else {
-              await paid.gate.turnOff(feature)
-            }
-          },
-          // VS Code's trust and the hold apart (M71), so a refusal says which;
-          // the controller asks both before any git (Best-of-N, board, review).
-          isWorkspaceTrusted: () => vscode.workspace.isTrusted,
-          isWorktreeHeld: () => windowHold.isHeld,
-          createGit: conversationGitFactory(conversationGit, gitFeatures),
-          onForegroundTasksChanged: refreshTaskContext,
-          schedulesBridge: createSchedulesBridge({
-            distDir: vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
-            log,
-            isEnabled: () => currentSettings().schedules,
-            defaultDelivery: () => currentSettings().scheduleDefaultDelivery,
-          }),
-          isScheduledPaidOn: () => paid.gate.isOn('scheduledPrompts'),
-          confirmScheduledRun: async (job, modelId) =>
-            await paid.consent.allows({ feature: 'scheduledPrompts', prompt: job.prompt, modelId }),
-          allowsPaidUse: async (request) => await paid.consent.allows(request),
-          forgetPaidUse: async () => {
-            await paid.consent.forget()
-          },
-          checkpoints,
-          // Text files and notebooks open with unsaved changes, by absolute path (M72).
-          unsavedPaths: () =>
-            [...vscode.workspace.textDocuments, ...vscode.workspace.notebookDocuments]
-              .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
-              .map((document) => document.uri.fsPath),
-          confirmFileAction: async (title, detail, action) =>
-            (await vscode.window.showWarningMessage(title, { modal: true, detail }, action)) ===
-            action,
-          // Muse Code checks its own edits (M68): its checks run through its own
-          // shell, so none are named while Restricted Mode runs no shell (D13).
-          // The diagnostics sentence only for a session that has the ide server.
-          verifyGuidance: (hasIdeServer) => {
-            const settings = currentSettings()
-            return verifyGuidance(
-              settings.diagnosticsAfterEdits && hasIdeServer,
-              isProjectTrusted() ? settings.checkCommands : [],
-            )
-          },
-          bundledSkillsOffer: () => bundledSkillsOffer.next(),
-          // The session board's pending prompts, shared by every surface (M77).
-          pendingPrompts: boardPrompts,
-          boardSessions: () => {
-            const sessions: BoardSession[] = []
-            for (const active of controllers.values()) {
-              const session = active.boardSession()
-              if (session !== undefined) sessions.push(session)
-            }
-            return sessions
-          },
-          focusBoardSession: (sessionId, backendKind) => {
-            for (const active of controllers.values()) {
-              if (active.revealBoardSession(sessionId, backendKind)) return true
-            }
-            return false
-          },
-          // The deterministic legal scan (M97, PLAN.md D76): dist/legalScan.js
-          // (D6) on the first scan; the Plan hold stays in the host review bundle.
-          legalScan: runLegalScan,
-          legalExplanation: async (report, signal) => {
-            if (!isKeyStored) throw new Error(UI_TEXT.legalExplainUnavailable)
-            return await paidLegalExplanation(
-              report,
-              {
-                gate: paid.gate,
-                consent: paid.consent,
-                reserve: dailyPaid.reserve,
-                capUsd: dailyPaid.capUsd,
-                keyDigest: () => modelApi.accountId(),
-                usage: paid.usage,
-                stream: (body, active, guard) =>
-                  modelApi.streamLegalExplanation(body, active, guard),
-              },
-              signal,
-            )
-          },
-          legalMarkdown: (report) => {
-            const render = legalScanBundle().renderLegalMarkdown
-            if (render === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
-            return render(report)
-          },
-          legalFixApplier: createLegalFixApplier({
-            prepare: async (findings) => {
-              if (workspaceRoot === undefined || !vscode.workspace.isTrusted) return []
-              const prepare = legalScanBundle().prepareLegalFixes
-              if (prepare === undefined) throw new Error(UI_TEXT.legalFixRefusedUnavailable)
-              return await prepare(workspaceRoot, findings)
+              })
             },
-            ...legalFixFileEdits({
-              workspaceRoot,
-              platform: process.platform,
-              io: toolIo,
-              withAdmission: async (check, canPublish) => {
-                const workspaceCheck = backend.workspaceActionGuard(nativeStarts.signal)
-                const assertCanWrite = () => {
-                  workspaceCheck()
-                  check()
-                }
-                return await withCheckpointEdit(
-                  checkpoints,
-                  log,
-                  assertCanWrite,
-                  async () => await canPublish(assertCanWrite),
-                )
-              },
-            }),
-            approveOwnership: async (paths) =>
-              (await vscode.window.showWarningMessage(
-                fill(UI_TEXT.legalFixOwnership, { paths: paths.join(', ') }),
-                { modal: true },
-                UI_TEXT.legalFixApply,
-              )) === UI_TEXT.legalFixApply,
-          }),
-          createLegalHold: (holdDeps) => review.createHold(holdDeps),
-          bestOfNCoordinator,
-          bestOfNWorkspaceEdits: (session) => {
-            const owner =
-              session === undefined ? undefined : modelApi.captureExternalEditOwner(session)
-            return async (root, paths) => {
-              const files: EditedFile[] = []
-              for (const file of paths) {
-                const checked = await confineWorkspacePath(root, file, process.platform, {
-                  realPath: canonicalPath,
-                })
-                if (
-                  !checked.ok ||
-                  isProtectedPath(checked.relative) ||
-                  isProtectedPath(checked.canonical) ||
-                  checked.relative !== checked.canonical
-                ) {
-                  throw new Error(UI_TEXT.bestOfNTargetChanged)
-                }
-                files.push({ relative: checked.canonical, absolute: checked.checkedAbsolute })
+            museCodeReviewer,
+            judge,
+            insertCode: async (text) => {
+              const editor = vscode.window.activeTextEditor
+              if (editor === undefined) {
+                return false
               }
-              return modelApi.beginExternalEdit(owner, files)
-            }
+              return await editor.edit((builder) => {
+                builder.insert(editor.selection.active, text)
+              })
+            },
+            onSandboxUnavailable: () => {
+              void sandbox.offerIfNeeded('failure').catch(logRejection(log, 'sandbox offer'))
+            },
+            platform: process.platform,
+            shellSandbox: () => backend.shellSandboxPosture(),
+            shouldWarnSandboxOff,
+            editorContext: () => editorContext.active,
+            isAutosaveEnabled: () => currentSettings().autosave,
+            unsavedFiles: () =>
+              vscode.workspace.textDocuments
+                .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
+                .map((document) => vscode.workspace.asRelativePath(document.uri, false)),
+            applyCode: async (text) => {
+              const editor = vscode.window.activeTextEditor
+              if (editor === undefined) {
+                return false
+              }
+              const isApplied = await editor.edit((builder) => {
+                builder.replace(editor.selection, text)
+              })
+              if (isApplied) {
+                editor.revealRange(editor.selection)
+              }
+              return isApplied
+            },
+            editReview: review.editReview,
+            review,
+            estimator,
+            openDocument,
+            openFile,
+            ideMcpEndpoint: async () => {
+              if (ideServer.current === undefined) {
+                await startIdeServer()
+              }
+              return ideServer.current
+            },
+            newAttachmentId: () => crypto.randomUUID(),
+            sessions,
+            // The usage modal's Account section and insights (M14).
+            readServiceStatus: () =>
+              keyClient().readServiceStatus(AbortSignal.timeout(MODEL_API_STATUS_READ_TIMEOUT_MS)),
+            accountFacts: async (kind) => {
+              const resolution = backend.resolveLaunch()
+              const isCliSession = await hasCliSession()
+              const hasKey = (await credentials.getApiKey()) !== undefined
+              const signInMethod = signInMethodFor(kind, isCliSession, hasKey)
+              const cliVersion = resolution.ok
+                ? backend.installedVersion(resolution.launch.installDir)
+                : undefined
+              return {
+                signInMethod,
+                ...(cliVersion !== undefined && { cliVersion }),
+                ...(kind === 'museCode' && {
+                  delegationMode: delegationMode(),
+                  workflowTriggerMode: workflowTriggerMode(),
+                }),
+              }
+            },
+            usageInsights: () => insights.read(),
+            isRestorable: surface.id === SIDEBAR_SURFACE_ID,
+            dictation,
+            exports: cliFeatures.exports,
+            transferFiles: createSessionTransferFiles(),
+            reports: conversationReports,
+            plans,
+            isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+            isWorktreeHeld: () => windowHold.isHeld,
+            createGit: conversationGitFactory(conversationGit, gitFeatures),
+            onForegroundTasksChanged: refreshTaskContext,
+            schedulesBridge: createSchedulesBridge({
+              distDir: vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
+              log,
+              isEnabled: () => currentSettings().schedules,
+              defaultDelivery: () => currentSettings().scheduleDefaultDelivery,
+            }),
+            checkpoints,
+            unsavedPaths: () =>
+              [...vscode.workspace.textDocuments, ...vscode.workspace.notebookDocuments]
+                .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
+                .map((document) => document.uri.fsPath),
+            bundledSkillsOffer: () => bundledSkillsOffer.next(),
+            pendingPrompts: boardPrompts,
+            // The deterministic legal scan (M97, PLAN.md D76): dist/legalScan.js
+            // (D6) on the first scan; the Plan hold stays in the host review bundle.
+            legalScan: runLegalScan,
+            legalExplanation: async (report, signal) => {
+              if (!isKeyStored) throw new Error(UI_TEXT.legalExplainUnavailable)
+              return await paidLegalExplanation(
+                report,
+                {
+                  gate: paid.gate,
+                  consent: paid.consent,
+                  reserve: dailyPaid.reserve,
+                  capUsd: dailyPaid.capUsd,
+                  keyDigest: () => modelApi.accountId(),
+                  usage: paid.usage,
+                  stream: (body, active, guard) =>
+                    modelApi.streamLegalExplanation(body, active, guard),
+                },
+                signal,
+              )
+            },
+            legalMarkdown: (report) => {
+              const render = legalScanBundle().renderLegalMarkdown
+              if (render === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
+              return render(report)
+            },
+            legalFixApplier: createLegalFixApplier({
+              prepare: async (findings) => {
+                if (workspaceRoot === undefined || !vscode.workspace.isTrusted) return []
+                const prepare = legalScanBundle().prepareLegalFixes
+                if (prepare === undefined) throw new Error(UI_TEXT.legalFixRefusedUnavailable)
+                return await prepare(workspaceRoot, findings)
+              },
+              ...legalFixFileEdits({
+                workspaceRoot,
+                platform: process.platform,
+                io: toolIo,
+                withAdmission: async (check, canPublish) => {
+                  const workspaceCheck = backend.workspaceActionGuard(nativeStarts.signal)
+                  const assertCanWrite = () => {
+                    workspaceCheck()
+                    check()
+                  }
+                  return await withCheckpointEdit(
+                    checkpoints,
+                    log,
+                    assertCanWrite,
+                    async () => await canPublish(assertCanWrite),
+                  )
+                },
+              }),
+              approveOwnership: async (paths) =>
+                (await vscode.window.showWarningMessage(
+                  fill(UI_TEXT.legalFixOwnership, { paths: paths.join(', ') }),
+                  { modal: true },
+                  UI_TEXT.legalFixApply,
+                )) === UI_TEXT.legalFixApply,
+            }),
+            createLegalHold: (holdDeps) => review.createHold(holdDeps),
+            bestOfNCoordinator,
+            runGit,
+            runBestOfNGit,
+            realPath: canonicalPath,
+            now: () => Date.now(),
+            log,
           },
-          modelApiAccountId: () => modelApi.accountId(),
-          noteBestOfNRequest: () => {
-            paid.usage.addBestOfNRequest()
-          },
-          noteBestOfNUsage: (modelId, usage) => {
-            paid.usage.addBestOfNUsage(modelId, usage)
-          },
-          bestOfNBudgetScope: (sessionId) => modelApi.bestOfNBudgetScope(sessionId),
-          openBestOfNWorktree: async (absolutePath) => {
-            await vscode.commands.executeCommand(
-              VSCODE_COMMANDS.openFolder,
-              vscode.Uri.file(absolutePath),
-              { forceNewWindow: true },
-            )
-          },
-          runGit,
-          runBestOfNGit,
-          isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
-          notePaidUse: (feature, units, searchPriceUsd) => {
-            paid.usage.add(feature, units, searchPriceUsd)
-          },
-          buildAttemptHost: (worktreeRoot, admitRequest, noteUsage, budgetScope) =>
-            modelApi.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),
-          realPath: canonicalPath,
-          now: () => Date.now(),
-          log,
-        },
+          settings: currentSettings,
+          paid,
+          modelApi,
+          isKeyStored: () => isKeyStored,
+          museVoiceSetup,
+          controllers: () => controllers.values(),
+          isProjectTrusted,
+          toolImageIo: toolImagePreviewIo(toolIo, async (fsPath) => {
+            const stat = await vscode.workspace.fs.stat(vscode.Uri.file(fsPath))
+            return stat.size
+          }),
+        }),
         UI_TEXT,
         uiLocale(),
       )

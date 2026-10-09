@@ -1,6 +1,6 @@
 import { Usd } from '../../src/shared/usd'
 import type { AgentSession } from '../../src/core/agent/agentBackend'
-import * as copilotAdapter from '../../src/host/providers/copilotClient'
+import * as copilotAdapter from '../../src/host/vscode/providers/copilotClient'
 import { fakeCopilotPort } from './helpers/fakeCopilotPort'
 import { HOOK_EVENTS, parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import { mkdtemp, readFile, rename, rm } from 'node:fs/promises'
@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import { describe, expect, it, vi } from 'vitest'
-import { createSubscriptionFeatures } from '../../src/host/providers/subscriptionFeatures'
+import { createSubscriptionFeatures } from '../../src/host/vscode/providers/subscriptionFeatures'
 import {
   providersFileSchema,
   readProvidersFile,

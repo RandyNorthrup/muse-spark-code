@@ -1,3 +1,4 @@
+import { fakeAcpComposition } from './helpers/acpComposition'
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -22,6 +23,7 @@ function harness(
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const openPage = vi.fn().mockResolvedValue(`http://127.0.0.1:1234/#${'a'.repeat(64)}`)
   const app = createAcpAgent({
+    createConversation: fakeAcpComposition,
     backend: {
       kind: 'museCode',
       readiness: () => Promise.resolve({ state: 'ready' }),

@@ -1,3 +1,4 @@
+import { fakeAcpComposition } from './helpers/acpComposition'
 import type { VaultApprovalAnswer } from '../../src/shared/vault'
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
@@ -67,6 +68,7 @@ function harness(mode: 'manual' | 'bypassPermissions' = 'manual', hasVault = tru
   const grants = memoryPaidGrants()
   const paid = new AcpPaidUse({ flagged: [], canRemember: () => true, grants, log })
   const app = createAcpAgent({
+    createConversation: fakeAcpComposition,
     backend: museCodeTestBackend(host),
     version: 'test',
     options: { canBypass: true, allowsContributorModels: false, initialMode: mode },

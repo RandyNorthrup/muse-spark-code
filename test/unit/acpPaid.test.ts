@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AcpPaidUse, paidUseAnswer, paidUseOptions } from '../../src/acp/paid'
+import { PaidOwnerReplacedError } from '../../src/core/paid/paidConsent'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { memoryPaidGrants } from './helpers/paidGrants'
@@ -302,6 +303,25 @@ describe('AcpPaidUse', () => {
     )
     expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
     expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
+    expect(asker).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses an "always" revoked while the popup was open, and asks again next time', async () => {
+    const grants = memoryPaidGrants()
+    // Search keeps its "always" as a quote grant (0.17); a revoked write refuses.
+    vi.spyOn(grants, 'writeQuote').mockRejectedValue(new PaidOwnerReplacedError())
+    const log = logger()
+    const paid = new AcpPaidUse({ flagged: ['webSearch'], canRemember: () => true, grants, log })
+    const asker = vi.fn(() => Promise.resolve('always' as const))
+    paid.attach(asker)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBeFalsy()
+    expect(log.warn).toHaveBeenCalledWith(
+      'Paid search quote could not be kept: MHP_PAID_OWNER_REPLACED',
+    )
+    expect(log.info).toHaveBeenLastCalledWith(
+      'Paid use of webSearch: "always" was not kept, so it is refused',
+    )
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBeFalsy()
     expect(asker).toHaveBeenCalledTimes(2)
   })
 

@@ -4,7 +4,7 @@ import { memento } from './helpers/memento'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
 import type { PaidUseAnswer } from '../../src/core/paid/paidConsent'
-import { askPaidUse, createPaidFeatures } from '../../src/host/paid/paidHost'
+import { askPaidUse, createPaidFeatures } from '../../src/host/vscode/paid/paidHost'
 import {
   GLOBAL_STATE_KEYS,
   SUBAGENT_PRICE_ACCEPTANCE_VERSION,

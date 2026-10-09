@@ -25,8 +25,9 @@ function transport(reply: unknown, shouldConfirm = false) {
   }
   const requests: ReturnType<typeof usageCompanionRequestSchema.parse>[] = []
   const fetch = vi.fn<typeof window.fetch>((input, init) => {
-    if (input === '/events') return Promise.resolve(new Response(stream))
-    if (input !== '/post' || typeof init?.body !== 'string') throw new Error('unexpected endpoint')
+    if (input === '/panel/events') return Promise.resolve(new Response(stream))
+    if (input !== '/panel/message' || typeof init?.body !== 'string')
+      throw new Error('unexpected endpoint')
     const raw: unknown = JSON.parse(init.body)
     const request = usageCompanionRequestSchema.parse(raw)
     requests.push(request)
@@ -50,7 +51,7 @@ describe('usage fetch-stream bridge', () => {
     const t = transport({ type: 'reply', id: '1', messages })
     const port = companionUsagePort()
     expect(await port.request({ type: 'usage/ready' })).toEqual(messages)
-    expect(t.fetch.mock.calls.map(([url]) => url)).toEqual(['/events', '/post'])
+    expect(t.fetch.mock.calls.map(([url]) => url)).toEqual(['/panel/events', '/panel/message'])
     for (const [, init] of t.fetch.mock.calls) {
       expect(init?.credentials).toBe('omit')
       expect(init?.headers).toEqual({ 'Content-Type': 'application/json', 'X-Muse-Panel': '1' })

@@ -3728,6 +3728,8 @@ These are defaults; editor customizations take precedence.
 - `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --scheduled-prompts`: --scheduled-prompts Offer paid scheduled prompts (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD"}`
+- `panel: --stdio`: panel --stdio: Serve the portable panel over standard input and standard output `{"type":"boolean","repeatable":false,"route":"usage serve","protocol":"usageCompanion","default":false}`
+- `panel: --companion`: panel --companion: Serve the portable panel as a loopback browser companion `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
 - `login: --as <value>`: --as: Provider `{"type":"string","repeatable":false,"refused":true}`
 - `login: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`

@@ -64,6 +64,7 @@
     {
       "files": [
         "src/webview/tokens.css",
+        "src/webview/portableTokens.css",
         "design/tokens/generated/muse.css",
         "design/tokens/generated/host-roles.css"
       ],

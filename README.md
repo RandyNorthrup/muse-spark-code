@@ -37,6 +37,11 @@ key to the CLI.
 The [roadmap](ROADMAP.md) shows what is in the next release, what is being
 built, what is planned and what each release shipped.
 
+The [Xcode native-host prototype](hosts/xcode/README.md) pairs a macOS app
+with Xcode Source Editor commands. Its authenticated container and approved
+buffer-edit path are tested with fakes; the shared runtime panel and Tab
+integration are still required before it can be offered as a supported host.
+
 **Contents:** [What's new](#whats-new-in-0170) · [Roadmap](ROADMAP.md) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
@@ -678,6 +683,23 @@ Get it from the
 | **JetBrains IDEs** (IntelliJ IDEA, PyCharm, WebStorm, …) | Install the ACP agent (below), then add it to AI Assistant (below). Not yet tested here                                                                                                                                                            |
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
 | **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
+
+**Standalone panel carriers (M104, experimental):** `muse-spark-code-acp
+panel --stdio` speaks negotiated MHP 1.2 NDJSON to a native editor host;
+`muse-spark-code-acp panel --companion` opens the authenticated loopback
+carrier through that host's `ui/openExternal` service. Exactly one transport
+is required. Both accept the agent's existing backend, trust and paid-use
+flags; the Model API key stays in the OS credential store. The native host
+must offer lifecycle plus surfaces (stdio) or UI (companion), and answer
+correlated service requests. These commands stream the shared conversation;
+the browser renderer/bridge and full editor parity are pending. See
+[the tested features and integration handoff](docs/certification/m104-b2.md).
+
+Portable session changes retire previous surface IDs and open fresh bindings.
+Settings and storage are owned by the runtime; initialization selects the
+editor's language. CLI trust never overrides an editor's restricted workspace.
+Runtime parity receipts and the owning feature-factory contracts are in
+[the lane A record](docs/certification/m104-pa.md).
 
 **The ACP agent** needs Node.js 22 or later. Install it from npm:
 
@@ -5273,6 +5295,41 @@ skips only requests, for example:
 BADGE_CHECK_SKIP_NETWORK='offline local verification' npm run check:badges
 ```
 
+M104's portable panel foundation is under development. VS Code builds only
+its own bridge, with chat/Tasks in `dist/webview/main.js` and What's New in
+`dist/webview/whatsNew.js`. Native and companion hosts use the separate
+`dist/webview/portable/main.js`, `whatsNew.js`, `bridge.js`, `fallbacks.js` and their shared
+chunks; common React host-service fallbacks and manager pages load through
+`PanelBridge.loadFallbacks()`. The portable budget counts every JavaScript
+entry and chunk, independently of the unchanged VS Code budgets. Native
+UI requests on native stdio use the correlated MHP host-service channel.
+Companion windows receive the six React UI requests on authenticated
+`POST /host/events` and return method-validated replies to `POST /host/message`,
+separately from panel payloads. Their packaged `modules.json` lets a nonce
+loader fetch and verify both static and deferred modules through the window's
+private bearer closure. The ACP package includes that portable graph. ACP now
+submits rich parts through the same composed conversation controller; its
+translation and permission prompts remain in the ACP view.
+The [integration record](docs/certification/m104-int.md) lists all 56 features
+and the remaining native bootstrap, auxiliary-view and editor conformance
+work. These development artifacts do not qualify a new editor as supported.
+
+The replacement MHP 1.2.0 panel contract for native and companion adapters is
+[documented here](docs/ide-compatibility/host-api-panel-1.1.md). The editor initiates
+`initialize` with its metadata, locale, theme and capabilities; the runtime
+answers with its capabilities. Only 1.2 is supported. `node scripts/mhp-schema.mjs
+--adopt-version=mhp/1.2.0` performed the reviewed version adoption; repeating
+adoption of the current version refuses. `npm run check:mhp` checks the frozen
+snapshots and locks. Their legacy filenames remain native build inputs.
+MHP 1.2 replaces 1.1; both legacy-named snapshots carry the current 1.2 schemas
+and reuse the shared panel payload validators.
+Regenerate with `node scripts/mhp-schema.mjs`; verify both version locks and
+snapshots with `node scripts/mhp-schema.mjs --check`. Runtime and native
+bridge implementation and editor qualification remain in M104's other lanes. The
+[JetBrains development plugin](hosts/jetbrains/README.md) has native fake-runtime
+panel and Tab qualification; its [follow-up record](docs/certification/m104-e3.md)
+lists the compatibility matrix and remaining assembled-runtime work.
+
 ```bash
 git clone https://github.com/RandyNorthrup/muse-spark-code.git
 cd muse-spark-code
@@ -5335,7 +5392,7 @@ the checkout) load from `dist/conversationGit.js` with the first
 conversation or "Open a pull request in a conversation…" command.
 The importer loads its UI adapter only on the first import. Node bundles
 require the shared English fallback (`dist/uiText.js`), and each keeps
-its own installed-language state. The webview is React 19 bundled to one IIFE with
+its own installed-language state. The webview is React 19 bundled as ES modules with
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
 
@@ -5472,8 +5529,9 @@ Model API backend's own bundle, 225 KiB for the checkpoint store, 150 KiB for
 the conversation's Git bundle, 125 KiB for
 the shared English fallback (`dist/uiText.js`, also in the ACP package), 50 KiB for
 the search worker, 300 KiB for
-web fetch's page converter worker, 900 KiB for the webview's entry and all
-static JavaScript imports, and 850 KiB for
+web fetch's page converter worker, 900 KiB for webview startup plus 50 KiB
+for its deferred JavaScript, 1100 KiB for the independent portable webview
+including every JavaScript entry and chunk, and 850 KiB for
 the ACP agent (`dist/acp.js`).
 
 The webview's Git panel loads when it has state to show; Account & usage

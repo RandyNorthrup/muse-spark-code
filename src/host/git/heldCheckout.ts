@@ -36,7 +36,7 @@ import { canonicalPath } from '../canonicalPath'
 import { createFileExclusively } from '../fsAtomic'
 import { type GitProcess, quietGitEnvironment } from '../git'
 import type { Logger } from '../logger'
-import { GitUnavailableError } from './gitExtension'
+import { GitUnavailableError } from '../vscode/git/gitExtension'
 import { UNTRUSTED_CHECKOUT_OPTIONS } from './untrustedGit'
 
 export interface HeldCheckoutDeps {

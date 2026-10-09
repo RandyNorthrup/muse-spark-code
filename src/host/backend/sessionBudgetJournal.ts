@@ -22,7 +22,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { Usd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
+import { Usd, maxUsd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
 import { writeFileAtomically } from '../fsAtomic'
 import { storeErrorCode } from './storeErrors'
 
@@ -499,11 +499,12 @@ export function createSessionBudgetJournal(
           Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
           total.spent.compare(Usd.from(capUsd)) > 0
         ) {
+          const previous = total.spent.subtract(Usd.from(created.reservedUsd))
           throw new Error(
             fill(UI_TEXT.sessionBudgetStopped, {
               estimate: formatUsd(Usd.from(created.reservedUsd).toAmount()),
               cap: formatUsd(capUsd),
-              spent: formatUsd(total.spent.subtract(Usd.from(created.reservedUsd)).toAmount()),
+              spent: formatUsd(maxUsd(previous.toAmount(), Usd.from(0).toAmount())),
             }),
           )
         }

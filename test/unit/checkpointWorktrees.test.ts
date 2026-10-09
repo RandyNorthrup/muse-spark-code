@@ -8,7 +8,7 @@ import type { MuseCodeBackendManager } from '../../src/host/backend/museCodeBack
 import * as memoryIo from '../../src/host/backend/memoryIo'
 import { processGitRunner } from '../../src/host/git'
 import { WorktreeRegistry } from '../../src/host/git/worktreeRegistry'
-import { createWorktreeFeatures } from '../../src/host/worktreeFeatures'
+import { createWorktreeFeatures } from '../../src/host/vscode/worktreeFeatures'
 import { UI_TEXT } from '../../src/shared/constants'
 import { posixQuoted } from '../../src/core/shellQuote'
 import {

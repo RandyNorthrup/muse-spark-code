@@ -145,6 +145,38 @@ export const EN = {
   paletteUsagePage: 'Track cost, tokens and limits across editors.',
   openUsagePage: 'Open usage page',
   acpUsageDescription: 'Show usage and cost across models, or open the usage page.',
+  // M104 PA: React fallbacks for portable panels, and the Xcode companion.
+  fallbackContinue: 'Continue',
+  fallbackNoMatches: 'No matching items',
+  fallbackNotifications: 'Notifications',
+  fallbackStatus: 'Status',
+  fallbackSettings: 'Settings',
+  fallbackTerminal: 'Terminal output',
+  fallbackBefore: 'Before',
+  fallbackAfter: 'After',
+  fallbackEmpty: 'No entries',
+  fallbackWorktrees: 'Worktrees',
+  fallbackActionFailed: 'The action failed. Try again.',
+
+  xcodeTitle: 'Xcode companion — Muse Spark Code (Unofficial)',
+  xcodeOpenWorkspace: 'Open workspace',
+  xcodeRuntime: 'Runtime executable',
+  xcodeOpenPanel: 'Open panel',
+  xcodeAsk: 'Ask Muse about selection',
+  xcodeExplain: 'Explain selection',
+  xcodeFix: 'Fix selection',
+  xcodeTab: 'Insert Tab completion',
+  xcodeApprove: 'Approve buffer edit',
+  xcodeReplacement: 'Proposed replacement (paste code from the panel)',
+  xcodeUnavailable: 'This runtime does not provide this command yet.',
+  xcodeStartFailed:
+    'Could not start the companion panel. Check the runtime and reopen the workspace.',
+  xcodeEditRefused: 'The buffer changed or the selection is invalid. No edit was applied.',
+  xcodeRuntimeNeeded: 'Choose a runtime that supports panel --companion.',
+  xcodeOpenFile: 'Open in Xcode',
+  xcodeWorkspaceRequired: 'Open an Xcode project or workspace folder first.',
+  xcodeChooseRuntime: 'Choose runtime',
+  xcodeDenied: 'Edit denied.',
   companionLaunchFailed:
     'Could not open the panel. Return to your editor and open Muse Spark Code again to get a fresh launch link.',
   // M118: prompt library and local sharing; read UI_TEXT at use time.
@@ -367,6 +399,10 @@ export const EN = {
     json: '--json: Versioned JSON',
     csv: '--csv: Summary CSV',
     stdio: 'usage serve --stdio: Serve usage over standard input and standard output',
+    'panel-stdio':
+      'panel --stdio: Serve the portable panel over standard input and standard output',
+    'panel-companion':
+      'panel --companion: Serve the portable panel as a loopback browser companion',
     registry:
       '--registry: Before the first lookup: {hosts}. Only package names and versions are sent over HTTPS; no source, paths or lockfile contents are uploaded. Turn off Legal Registry Lookups for offline scans.',
     backend:
@@ -4114,6 +4150,7 @@ export const EN = {
   acpFontsUsage: 'Usage: {command} fonts install [--from <directory>]',
   acpUsage: [
     'Usage:',
+    '  {command} panel --stdio|--companion [options]',
     '  {command} [options]              Serve the Agent Client Protocol on stdin and stdout',
     '  {command} [options] login        Sign in to Muse Code in this terminal',
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',

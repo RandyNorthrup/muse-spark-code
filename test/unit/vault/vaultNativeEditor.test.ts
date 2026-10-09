@@ -2,12 +2,12 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { randomBytes } from 'node:crypto'
 import { window, commands, env } from 'vscode'
 import { editVaultItem, type VaultNativeInput } from '../../../src/host/vault/vaultNativeEditor'
-import { createVaultPanelHost } from '../../../src/host/vault/vaultPanelEntry'
+import { createVaultPanelHost } from '../../../src/host/vscode/vault/vaultPanelEntry'
 import {
   VAULT_COMMANDS,
   VAULT_LOCK_KEYBINDING,
   registerVaultCommands,
-} from '../../../src/host/vault/vaultPanelBundle'
+} from '../../../src/host/vscode/vault/vaultPanelBundle'
 import { UI_TEXT } from '../../../src/shared/constants'
 import { EN } from '../../../src/shared/l10n/en'
 import { metadata, panel } from '../helpers/vault/fixtures'

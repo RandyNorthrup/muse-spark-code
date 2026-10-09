@@ -2,6 +2,7 @@
 // the ACP agent's BYO model options and the backend readiness. The turn
 // itself is lane T/I's seam; these tests prove everything up to it.
 
+import { fakeAcpComposition } from './helpers/acpComposition'
 import * as acp from '@agentclientprotocol/sdk'
 import { PassThrough, Readable } from 'node:stream'
 import { describe, expect, it, vi } from 'vitest'
@@ -474,6 +475,7 @@ describe('runExec --provider seam', () => {
 function agentFor(host: FakeAgentHost) {
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const agent = createAcpAgent({
+    createConversation: fakeAcpComposition,
     questions: 'decline',
     backend: {
       kind: 'modelApi',

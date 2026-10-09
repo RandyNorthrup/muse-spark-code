@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { openRecordingPreview, runScreenRecordingCommand } from '../../src/host/media/previewPanel'
+import {
+  openRecordingPreview,
+  runScreenRecordingCommand,
+} from '../../src/host/vscode/media/previewPanel'
 import {
   screenRecordLoader,
   type RecordingCommandDeps,

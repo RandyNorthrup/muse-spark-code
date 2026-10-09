@@ -1,8 +1,70 @@
 import { Buffer } from 'node:buffer'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { call, headers, login, trackedPanels } from './helpers/companion'
 const panel = trackedPanels()
 describe('companion HTTP server', () => {
+  it('aborts admitted calls for a retired context and closes their HTTP responses', async () => {
+    const value = await panel()
+    const code = new URLSearchParams(new URL(value.launchUrl('old')).hash.slice(1)).get('k')
+    const reply = await call(value, '/session', 'POST', JSON.stringify({ code }))
+    const token = reply.headers.authorization?.slice('Bearer '.length)
+    const entered = Promise.withResolvers<AbortSignal>()
+    value.handler.post.mockImplementationOnce(
+      (_message, _id, signal) =>
+        new Promise((resolve) => {
+          entered.resolve(signal)
+          signal.addEventListener(
+            'abort',
+            () => {
+              resolve()
+            },
+            { once: true },
+          )
+        }),
+    )
+    let status = 'pending'
+    const pending = (async () => {
+      try {
+        await call(value, '/panel/message', 'POST', '{"kind":"ping"}', headers(value, token))
+        status = 'completed'
+      } catch {
+        status = 'closed'
+      }
+    })()
+    const signal = await entered.promise
+    try {
+      value.retireContext('old')
+      expect(signal.aborted).toBe(true)
+      await vi.waitFor(() => {
+        expect(status).toBe('closed')
+      })
+    } finally {
+      await value.close()
+      await pending
+    }
+  })
+  it('retires only the superseded context, revokes its bearer and unexchanged launch, and admits its fresh replacement', async () => {
+    const value = await panel({ maxSessions: 3 })
+    const oldLaunch = value.launchUrl('old')
+    const code = new URLSearchParams(new URL(oldLaunch).hash.slice(1)).get('k')
+    const reply = await call(value, '/session', 'POST', JSON.stringify({ code }))
+    const token = reply.headers.authorization?.slice('Bearer '.length)
+    const unused = new URLSearchParams(new URL(value.launchUrl('old')).hash.slice(1)).get('k')
+    const retained = await login(value)
+    value.retireContext('old')
+    expect(
+      await call(value, '/assets/client.js', 'GET', undefined, headers(value, token)),
+    ).toHaveProperty('status', 401)
+    expect(await call(value, '/session', 'POST', JSON.stringify({ code: unused }))).toHaveProperty(
+      'status',
+      403,
+    )
+    expect(await call(value, '/', 'GET', undefined, headers(value, retained))).toHaveProperty(
+      'status',
+      200,
+    )
+    expect(value.launchUrl('fresh')).toContain('/#k=')
+  })
   it('serves only the launch bootstrap anonymously, then the injected UI and exact packaged asset', async () => {
     const value = await panel()
     const anonymous = await call(value, '/')
@@ -61,19 +123,24 @@ describe('companion HTTP server', () => {
     const value = await panel()
     const token = await login(value)
     expect(
-      await call(value, '/post', 'POST', '{"kind":"ping"}', headers(value, token)),
-    ).toHaveProperty('status', 202)
+      await call(value, '/panel/message', 'POST', '{"kind":"ping"}', headers(value, token)),
+    ).toHaveProperty('status', 204)
     expect(value.handler.post).toHaveBeenCalledTimes(1)
     expect(value.handler.post.mock.calls[0]?.[0]).toEqual({ kind: 'ping' })
     for (const body of ['{}', '{"kind":"ping","apiKey":"synthetic-private"}', '{']) {
-      expect(await call(value, '/post', 'POST', body, headers(value, token))).toHaveProperty(
-        'status',
-        400,
-      )
+      expect(
+        await call(value, '/panel/message', 'POST', body, headers(value, token)),
+      ).toHaveProperty('status', 400)
     }
     expect(value.handler.post).toHaveBeenCalledTimes(1)
     value.handler.post.mockRejectedValueOnce(new Error('synthetic private account or path'))
-    const failed = await call(value, '/post', 'POST', '{"kind":"ping"}', headers(value, token))
+    const failed = await call(
+      value,
+      '/panel/message',
+      'POST',
+      '{"kind":"ping"}',
+      headers(value, token),
+    )
     expect(failed.status).toBe(500)
     expect(failed.body).toBe('{"error":"EPANEL_HANDLER"}')
   })
@@ -102,7 +169,7 @@ describe('companion HTTP server', () => {
     const token = await login(value)
     const result = await call(
       value,
-      '/post',
+      '/panel/message',
       'POST',
       '{"kind":"ping"}',
       mutate(headers(value, token)),
@@ -123,38 +190,43 @@ describe('companion HTTP server', () => {
       [...headers(value), 'Authorization', 'Bearer synthetic-token'],
     ]
     for (const supplied of cases)
-      expect(await call(value, '/post', 'POST', '{"kind":"ping"}', supplied)).toHaveProperty(
-        'status',
-        401,
-      )
+      expect(
+        await call(value, '/panel/message', 'POST', '{"kind":"ping"}', supplied),
+      ).toHaveProperty('status', 401)
     expect(value.handler.post).not.toHaveBeenCalled()
-    expect(await call(value, `/post?token=${token}`, 'POST', '{"kind":"ping"}')).toHaveProperty(
-      'status',
-      401,
-    )
+    expect(
+      await call(value, `/panel/message?token=${token}`, 'POST', '{"kind":"ping"}'),
+    ).toHaveProperty('status', 401)
   })
   it('caps declared and chunked bodies, refuses forms and invalid UTF-8 before dispatch', async () => {
     const value = await panel()
     const token = await login(value)
     const normal = headers(value, token)
     expect(
-      await call(value, '/post', 'POST', ' '.repeat(257), [...normal, 'Content-Length', '257']),
-    ).toHaveProperty('status', 400)
+      await call(value, '/panel/message', 'POST', ' '.repeat(257), [
+        ...normal,
+        'Content-Length',
+        '257',
+      ]),
+    ).toHaveProperty('status', 413)
     expect(
-      await call(value, '/post', 'POST', ' '.repeat(257), [
+      await call(value, '/panel/message', 'POST', ' '.repeat(257), [
         ...normal,
         'Transfer-Encoding',
         'chunked',
       ]),
-    ).toHaveProperty('status', 400)
-    expect(await call(value, '/post', 'POST', Buffer.from([0xff]), normal)).toHaveProperty(
+    ).toHaveProperty('status', 413)
+    expect(await call(value, '/panel/message', 'POST', Buffer.from([0xff]), normal)).toHaveProperty(
       'status',
       400,
     )
     const form = normal.map((part) =>
       part === 'application/json' ? 'application/x-www-form-urlencoded' : part,
     )
-    expect(await call(value, '/post', 'POST', 'kind=ping', form)).toHaveProperty('status', 400)
+    expect(await call(value, '/panel/message', 'POST', 'kind=ping', form)).toHaveProperty(
+      'status',
+      400,
+    )
     expect(value.handler.post).not.toHaveBeenCalled()
   })
   it('refuses preflight and wrong methods and emits no CORS headers on success or refusal', async () => {
@@ -162,12 +234,12 @@ describe('companion HTTP server', () => {
     const token = await login(value)
     const results = [
       await call(value, '/'),
-      await call(value, '/post', 'POST', '{"kind":"ping"}', headers(value, token)),
-      await call(value, '/post', 'OPTIONS'),
+      await call(value, '/panel/message', 'POST', '{"kind":"ping"}', headers(value, token)),
+      await call(value, '/panel/message', 'OPTIONS'),
       await call(value, '/session', 'DELETE'),
       await call(value, '/missing', 'GET', undefined, headers(value, token)),
     ]
-    expect(results.map((result) => result.status)).toEqual([200, 202, 405, 405, 404])
+    expect(results.map((result) => result.status)).toEqual([200, 204, 405, 405, 404])
     for (const result of results) {
       expect(
         Object.keys(result.headers).some((name) => name.startsWith('access-control-allow-')),

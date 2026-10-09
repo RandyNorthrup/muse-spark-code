@@ -1,3 +1,4 @@
+import { fakeAcpComposition } from './helpers/acpComposition'
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { usdInputSchema } from '../../src/shared/usdSchema'
@@ -21,6 +22,7 @@ function connectedAccounts(isBound = true) {
   const updates: acp.SessionUpdate[] = []
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const deps: AcpAgentDeps = {
+    createConversation: fakeAcpComposition,
     ...(isBound && { accounts: h.port }),
     // M112 made the question binding required; these rigs never ask one.
     questions: 'decline',

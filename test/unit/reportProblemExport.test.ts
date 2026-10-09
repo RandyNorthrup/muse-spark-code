@@ -19,7 +19,7 @@ import {
   openProblemReportIssue,
   saveProblemReport,
 } from '../../src/host/support/reportProblem'
-import { vscodeReportEditorIo as io } from '../../src/host/support/reportEditorIo'
+import { vscodeReportEditorIo as io } from '../../src/host/vscode/support/reportEditorIo'
 
 const FACTS = {
   extensionVersion: '0.12.1',

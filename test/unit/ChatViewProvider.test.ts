@@ -1,7 +1,7 @@
 import { questionFixture } from './helpers/questions/fixtures'
 import { describe, expect, it } from 'vitest'
-import { ChatViewProvider, SIDEBAR_SURFACE_ID } from '../../src/host/views/ChatViewProvider'
-import { SurfaceRegistry } from '../../src/host/views/surfaceRegistry'
+import { ChatViewProvider, SIDEBAR_SURFACE_ID } from '../../src/host/vscode/views/ChatViewProvider'
+import { SurfaceRegistry } from '../../src/host/vscode/views/surfaceRegistry'
 import { FakeWebviewView, fakeHostContext, fakeSurface } from './helpers/fakes'
 
 function resolve() {

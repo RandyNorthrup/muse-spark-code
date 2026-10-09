@@ -1,0 +1,14 @@
+<idea-plugin>
+  <id>io.github.randynorthrup.musespark</id>
+  <name>Muse Spark Code (Unofficial)</name>
+  <vendor url="https://github.com/RandyNorthrup/muse-spark-code">RandyNorthrup</vendor>
+  <description>A shared Muse Spark Code panel for IntelliJ-based editors. Unofficial; not endorsed by Meta.</description>
+  <depends>com.intellij.modules.platform</depends>
+  <extensions defaultExtensionNs="com.intellij">
+    <inline.completion.provider implementation="io.github.randynorthrup.musespark.MuseInlineCompletionProvider" />
+    <fileEditorProvider implementation="io.github.randynorthrup.musespark.PanelFileEditorProvider" />
+    <notificationGroup id="Muse Spark Code (Unofficial)" displayType="BALLOON"/>
+    <toolWindow id="Muse Spark Code (Unofficial)" anchor="right"
+                factoryClass="io.github.randynorthrup.musespark.MuseToolWindowFactory"/>
+  </extensions>
+</idea-plugin>

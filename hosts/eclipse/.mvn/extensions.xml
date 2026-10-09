@@ -1,0 +1,1 @@
+<extensions><extension><groupId>org.eclipse.tycho</groupId><artifactId>tycho-build</artifactId><version>5.0.4</version></extension></extensions>

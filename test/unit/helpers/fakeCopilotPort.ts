@@ -1,6 +1,6 @@
 import type * as vscode from 'vscode'
 import { vi } from 'vitest'
-import type { CopilotPort } from '../../../src/host/providers/copilotClient'
+import type { CopilotPort } from '../../../src/host/vscode/providers/copilotClient'
 
 /** Stable VS Code LM objects, entirely synthetic; selection sends no request. */
 export function fakeCopilotPort() {

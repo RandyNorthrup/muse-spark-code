@@ -1,0 +1,121 @@
+;;; muse-spark-test.el --- Offline shim tests -*- lexical-binding: t; -*-
+(require 'ert)
+(require 'muse-spark)
+
+(ert-deftest muse-fragment-launch-only ()
+  (should (muse-spark--valid-url-p "http://127.0.0.1:41234/#k=test-launch"))
+  (should (muse-spark--valid-url-p "http://[::1]:41234/#k=test-launch"))
+  (dolist (url '("https://127.0.0.1:41234/#k=test-launch"
+                 "http://localhost:41234/#k=test-launch"
+                 "http://127.0.0.1.evil:41234/#k=test-launch"
+                 "http://127.0.0.1:0/#k=test-launch"
+                 "http://127.0.0.1:65536/#k=test-launch"
+                 "http://127.0.0.1:41234/?k=test-launch"
+                 "http://127.0.0.1:41234/#k=test-launch&token=value"
+                 "http://127.0.0.1:41234/#k=test-launch\n"))
+    (should-not (muse-spark--valid-url-p url))
+    (cl-letf (((symbol-function 'browse-url) #'ignore)
+              ((symbol-function 'xwidget-webkit-browse-url) #'ignore))
+      (should-error (muse-spark-panel url)))))
+
+(ert-deftest muse-environment-removes-credentials ()
+  (let ((process-environment '("PATH=/bin" "M104_API_KEY=test-sentinel"
+                                "m104_api_key=test-sentinel" "OPENAI_KEY=test-sentinel"
+                                "AWS_SESSION_TOKEN=test-sentinel")))
+    (should (equal (muse-spark--environment) '("PATH=/bin")))
+    (should (= (length process-environment) 5))))
+
+(ert-deftest muse-prefers-xwidget-with-browser-fallback ()
+  (let ((url "http://127.0.0.1:41234/#k=test-launch") called
+        (process-environment '("PATH=/bin" "M104_API_KEY=test-sentinel")))
+    (cl-letf (((symbol-function 'featurep) (lambda (_feature) t))
+              ((symbol-function 'xwidget-webkit-browse-url)
+               (lambda (value) (setq called (list 'xwidget value (getenv "M104_API_KEY")))))
+              ((symbol-function 'browse-url) (lambda (_url) (ert-fail "browser used"))))
+      (muse-spark-panel url)
+      (should (equal called (list 'xwidget url nil))))
+    (cl-letf (((symbol-function 'featurep) (lambda (_feature) nil))
+              ((symbol-function 'browse-url)
+               (lambda (value) (setq called (list 'browser value (getenv "M104_API_KEY"))))))
+      (muse-spark-panel url)
+      (should (equal called (list 'browser url nil))))))
+
+(ert-deftest muse-agent-shell-client-sanitized-at-creation ()
+  (let ((process-environment '("PATH=/bin" "M104_API_KEY=test-sentinel")) maker started)
+    (cl-letf (((symbol-function 'require) (lambda (&rest _args) t))
+              ((symbol-function 'agent-shell-make-agent-config)
+               (lambda (&rest args) (setq maker (plist-get args :client-maker)) args))
+              ((symbol-function 'agent-shell-start)
+               (lambda (&rest _args) (setq started (getenv "M104_API_KEY")))))
+      (muse-spark-start)
+      (should-not started))
+    ;; Reconnect after the outer process-environment binding has gone.
+    (cl-letf (((symbol-function 'acp-make-client)
+               (lambda (&rest args)
+                 (should-not (getenv "M104_API_KEY"))
+                 (should (equal (plist-get args :command) "muse-spark-code-acp"))
+                 (should (bufferp (plist-get args :context-buffer))))))
+      (with-temp-buffer
+        (funcall maker (current-buffer))
+        (should muse-spark--owned-shell)))))
+
+(ert-deftest muse-stop-cancels-agent-shell ()
+  (let ((muse-spark--process nil) (muse-spark--owned-shell t) stopped)
+    (cl-letf (((symbol-function 'derived-mode-p) (lambda (&rest _modes) t))
+              ((symbol-function 'agent-shell-interrupt) (lambda () (setq stopped t))))
+      (muse-spark-stop)
+      (should stopped))))
+
+(ert-deftest muse-stop-preserves-other-agent-shells ()
+  (let ((muse-spark--process nil) (muse-spark--owned-shell nil) stopped)
+    (cl-letf (((symbol-function 'derived-mode-p) (lambda (&rest _modes) t))
+              ((symbol-function 'agent-shell-interrupt) (lambda () (setq stopped t))))
+      (muse-spark-stop)
+      (should-not stopped))))
+
+(ert-deftest muse-stop-isolates-cancellation-and-retains-failed-child ()
+  (let ((muse-spark--process 'owned-child) (muse-spark--owned-shell t)
+        deleted failed-delete messages)
+    (cl-letf (((symbol-function 'derived-mode-p) (lambda (&rest _modes) t))
+              ((symbol-function 'agent-shell-interrupt)
+               (lambda () (error "private cancellation detail")))
+              ((symbol-function 'process-live-p) (lambda (_child) t))
+              ((symbol-function 'delete-process)
+               (lambda (child)
+                 (if failed-delete (error "private profile path")
+                   (setq deleted child))))
+              ((symbol-function 'message)
+               (lambda (text &rest _args) (push text messages))))
+      (muse-spark-stop)
+      (should (eq deleted 'owned-child))
+      (should-not muse-spark--process)
+      (should (equal messages '("EPANEL_STOP")))
+      (setq muse-spark--process 'retry-child failed-delete t)
+      (muse-spark-stop)
+      (should (eq muse-spark--process 'retry-child))
+      (setq failed-delete nil)
+      (muse-spark-stop)
+      (should (eq deleted 'retry-child))
+      (should-not muse-spark--process))))
+
+(ert-deftest muse-real-child-cleanup-and-duplicate-refusal ()
+  (let ((muse-spark-command '("/bin/cat"))
+        (muse-spark--process nil)
+        (process-environment (cons "M104_API_KEY=test-sentinel" process-environment)))
+    ;; cat rejects panel flags and exits; a real process exercises the sentinel.
+    (muse-spark-panel)
+    (let ((child muse-spark--process))
+      (should (processp child))
+      (should-error (muse-spark-panel))
+      (muse-spark-stop)
+      (should-not (process-live-p child))
+      (accept-process-output nil 0.05)
+      (should-not muse-spark--process)
+      (should-not (process-live-p (get-process "muse-spark-stderr"))))))
+
+(ert-deftest muse-spawn-failure-releases-stderr ()
+  (let ((muse-spark--process nil))
+    (cl-letf (((symbol-function 'make-process)
+               (lambda (&rest _args) (error "private profile path"))))
+      (should-error (muse-spark-panel))
+      (should-not (process-live-p (get-process "muse-spark-stderr"))))))

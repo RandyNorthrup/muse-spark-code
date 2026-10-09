@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { env, Uri, window, workspace } from 'vscode'
-import { createMemoryFeatures } from '../../src/host/memoryFeatures'
+import { createMemoryFeatures } from '../../src/host/vscode/memoryFeatures'
 import { memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { confirmModal, pickOne, resetMemoryViewMocks } from './helpers/vscodeViews'

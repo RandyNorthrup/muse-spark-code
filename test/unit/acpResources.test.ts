@@ -1,3 +1,4 @@
+import { fakeAcpComposition } from './helpers/acpComposition'
 import * as acp from '@agentclientprotocol/sdk'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
@@ -36,6 +37,7 @@ async function scene() {
   }))
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const agent = createAcpAgent({
+    createConversation: fakeAcpComposition,
     backend: {
       kind: 'museCode',
       hostFor: () => Promise.resolve(backend),

@@ -141,6 +141,11 @@ export type RuntimeCommand =
   | { readonly command: 'fontsInstall'; readonly sourceDirectory: string | undefined }
   | { readonly command: 'playbook'; readonly argv: readonly string[] }
   | { readonly command: 'estimate'; readonly argv: readonly string[] }
+  | {
+      readonly command: 'panel'
+      readonly options: ServeOptions
+      readonly transport: 'stdio' | 'companion'
+    }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | {
@@ -386,6 +391,12 @@ export function parseCommandLine<T>(
   const [first, second, ...rest] = positionals
   if (values.account !== undefined && (first !== 'auth' || second !== 'set' || rest.length > 0))
     return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+  if (first === 'panel' && second === undefined) {
+    if ((values.stdio === true) === (values.companion === true))
+      return invalid('panel (--stdio | --companion)')
+    return { command: 'panel', options, transport: values.stdio === true ? 'stdio' : 'companion' }
+  }
+  if (values.stdio === true || values.companion === true) return invalid('--stdio | --companion')
   if (first === 'setup' && second === undefined) {
     if (values.provider !== undefined) return invalid('setup')
     return options.trustWorkspace
@@ -798,7 +809,8 @@ function parseCommandLineStrictly(argv: readonly string[]) {
     args: [...argv],
     allowPositionals: true,
     strict: true,
-    options: CLI_OPTION_REGISTRY.serve.options,
+    // `panel` shares the serve flags and adds its transport choice (M104).
+    options: { ...CLI_OPTION_REGISTRY.serve.options, ...CLI_OPTION_REGISTRY.panel.options },
   })
 }
 

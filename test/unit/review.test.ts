@@ -451,7 +451,7 @@ describe('PlanModeHold', () => {
     const stale = holdSession()
     await expect(hold([]).send(stale.session, parts, '/review', () => false)).rejects.toThrow()
     expect(stale.session.sendTurn).not.toHaveBeenCalled()
-    expect(stale.modes).toEqual(['denyUnmatched', 'promptUnmatched'])
+    expect(stale.modes).toEqual([])
   })
 
   it('reports a refused restore, and puts nothing back once released', async () => {

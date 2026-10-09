@@ -198,7 +198,7 @@ export class FakeAgentHost implements AgentHost {
     return Promise.reject(new Error('not used'))
   }
 
-  public forkSession(): Promise<never> {
+  public forkSession(): ReturnType<AgentHost['forkSession']> {
     return Promise.reject(new Error('not used'))
   }
 

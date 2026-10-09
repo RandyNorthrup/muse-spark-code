@@ -34,7 +34,7 @@ describe('M118 integration artifacts', () => {
       manifest.contributes.configuration.properties['museSpark.syncPromptsAndBookmarks']
     expect(setting?.scope).toBe('machine')
     expect(setting?.default).toBe(false)
-    for (const file of ['src/host/prompts/promptEntry.ts']) {
+    for (const file of ['src/host/vscode/prompts/promptEntry.ts']) {
       const source = await readFile(file, 'utf8')
       expect(source).toMatch(/inspect<boolean>\(PROMPT_SYNC_SETTING\)\s*\?\.globalValue/)
       expect(source).not.toContain('get<boolean>(PROMPT_SYNC_SETTING)')

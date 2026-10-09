@@ -6,7 +6,10 @@ import path from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 import * as vscode from 'vscode'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createChatGptSignIn, startChatGptCallback } from '../../src/host/providers/chatgptSignIn'
+import {
+  createChatGptSignIn,
+  startChatGptCallback,
+} from '../../src/host/vscode/providers/chatgptSignIn'
 import { chatGptRecordSchema } from '../../src/core/providers/subscriptions/chatgpt'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
@@ -520,7 +523,7 @@ describe('VS Code subscription ports', () => {
 
   it('has no dependency on other applications credential storage, children, logs or UI bridges', async () => {
     const source = await readFile(
-      new URL('../../src/host/providers/chatgptSignIn.ts', import.meta.url),
+      new URL('../../src/host/vscode/providers/chatgptSignIn.ts', import.meta.url),
       'utf8',
     )
     expect(source).not.toMatch(

@@ -1056,6 +1056,27 @@ export const HOOK_THOUGHT_MAX_CHARS = 2048
 export const HOOK_DISPLAY_MESSAGE_MAX_CHARS = 4096
 export const HOOK_EXPANSION_MAX_CHARS = 2048
 
+// M104X: emitted into the native host by hosts/xcode/Scripts/generate.mjs.
+export const XCODE_HOST = {
+  maxFrameBytes: 1_048_576,
+  maxLaunchBytes: 512,
+  commandTimeoutSeconds: 180,
+  launchTimeoutSeconds: 15,
+  stopGraceSeconds: 2,
+  bearerBytes: 32,
+  maxPort: 65_535,
+  maxConnections: 8,
+  windowWidth: 1100,
+  windowHeight: 760,
+} as const
+
+// M104X: only the native table generator reads this block; no JavaScript bundle carries it.
+export const XCODE_MODEL_TEXT = {
+  explainSelection: 'Explain the selected code, including its behavior and any relevant risks.',
+  fixSelection:
+    'Propose a corrected replacement for the selected code. Return the replacement in a code block for review. Do not write files; the user will approve the replacement in the Xcode companion app.',
+} as const
+
 // --- Paid features on the Model API backend (M33–M35, PLAN.md D30) ---
 
 // Each is off by default, confirmed with its price when turned on, named in
@@ -4378,6 +4399,9 @@ export const HEARTBEAT_BEAM_LINE_WIDTH_PX = 1.5
 // dropped so a stalled frame never replays its debt as a burst.
 export const HEARTBEAT_BEAM_MAX_TICKS_PER_FRAME = 8
 export const MILLISECONDS_PER_SECOND = 1000
+// Integer USD accounting precision; conversion to a number is for the public display only.
+export const NANO_USD_DECIMALS = 9
+export const NANO_USD_UNITS = 1_000_000_000
 export const SECONDS_PER_MINUTE = 60
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 
@@ -4883,6 +4907,7 @@ export const JSON_RPC_ERRORS = {
 export const HTTP_STATUS = {
   ok: 200,
   accepted: 202,
+  noContent: 204,
   /** A 2xx answer ends below this (M95 lane K: the local probe). */
   multipleChoices: 300,
   badRequest: 400,
@@ -4890,6 +4915,9 @@ export const HTTP_STATUS = {
   forbidden: 403,
   notFound: 404,
   methodNotAllowed: 405,
+  conflict: 409,
+  payloadTooLarge: 413,
+  tooManyRequests: 429,
   internalServerError: 500,
 } as const
 
@@ -7454,6 +7482,86 @@ export const TEAM_EFFORT_LADDER: readonly string[] = [
 ]
 
 export const TEAM_DEFAULT_ROLE_EFFORT = 'medium'
+
+// Muse Host Protocol v1 (D84, M104 lane 0). This block is shared by the
+// in-process adapter and the stdio hosts; no credential is a protocol value.
+export const MHP_ZERO_VERSION_COMPONENT = 0n
+export const MHP = {
+  version: 'mhp/1.2.0',
+  minimumVersion: 'mhp/1.2.0',
+  maximumVersionExclusive: 'mhp/1.3.0',
+  jsonRpcVersion: '2.0',
+  maximumInteger: Number.MAX_SAFE_INTEGER,
+  maximumSelectionChars: 16_384,
+  featureCount: 56,
+} as const
+export const MHP_ERROR_CODES = {
+  parseError: -32_700,
+  invalidRequest: -32_600,
+  methodNotFound: -32_601,
+  invalidParams: -32_602,
+  internalError: -32_603,
+  incompatibleVersion: -32_001,
+  unsupportedCapability: -32_002,
+  versionConflict: -32_003,
+  dirtyBuffer: -32_004,
+  untrustedWorkspace: -32_005,
+  cancelled: -32_800,
+  permissionDenied: -32_006,
+} as const
+
+// MHP 1.2 is the sole supported contract; editor hosts initiate initialization.
+export const MHP_PANEL = {
+  version: 'mhp/1.2.0',
+  wireVersion: '1.2',
+  minimumVersion: 'mhp/1.2.0',
+  maximumVersionExclusive: 'mhp/1.3.0',
+  maximumEnvelopeBytes: 16_777_216,
+  maximumQueuedBytes: 33_554_432,
+  maximumQueuedMessages: 128,
+} as const
+
+// Runtime panel carrier bounds; credential lifetime remains in the backend.
+export const RUNTIME_PANEL_PORTS_BUNDLE_FILE = 'runtimePanelPorts.js'
+export const RUNTIME_PANEL_BUNDLE_FILE = 'runtimePanel.js'
+const RUNTIME_PANEL_RECONFIGURE_SETTINGS: readonly string[] = [
+  'museSpark.backend',
+  'museSpark.museBinaryPath',
+  'museSpark.shellSandbox',
+  'museSpark.environmentVariables',
+  'museSpark.shell.passEnvironmentVariables',
+  'museSpark.sandboxNetwork',
+  'museSpark.confidentialWorkspace',
+  'museSpark.modelApiHooks',
+  'museSpark.modelApiCommandRules',
+  'museSpark.modelApiPermissionProfiles',
+  'museSpark.modelApiPermissionProfile',
+  'museSpark.modelApiRepositoryRules',
+  'museSpark.modelApiRepoMap',
+  'museSpark.modelApiObservationPacking',
+]
+export const RUNTIME_PANEL = {
+  reconfigureSettings: RUNTIME_PANEL_RECONFIGURE_SETTINGS,
+  requestTimeoutMs: 30_000,
+  closeTimeoutMs: 5000,
+  idleTimeoutMs: 600_000,
+  launchCodeTtlMs: 60_000,
+  sessionTtlMs: 86_400_000,
+  maximumWindows: 16,
+} as const
+
+// Credential-free per-key runtime settings and storage (M104 B).
+export const RUNTIME_STATE = {
+  maximumRecordBytes: 1_048_576,
+  maximumKeyChars: 1024,
+  directoryMode: 0o700,
+  fileMode: 0o600,
+  version: 2,
+  lockTimeoutMs: 5000,
+  lockRetryMs: 25,
+  casAttempts: 8,
+  folder: 'panel-state',
+} as const
 // Conversation-only prompts: first chat surface, never activation.
 export const CONVERSATION_MODEL_TEXT = {
   replyContextLead:

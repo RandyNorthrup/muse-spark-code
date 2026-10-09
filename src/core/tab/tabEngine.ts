@@ -67,6 +67,7 @@ export type TabStream = (
   body: CreateResponseBody,
   signal: AbortSignal,
   budget: RetryBudget,
+  trigger?: TabEngineRequest,
 ) => AsyncIterable<StreamEvent>
 
 export interface TabEngineDeps {
@@ -104,7 +105,10 @@ function asError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error))
 }
 
-export function createTabEngine(deps: TabEngineDeps): TabEngine {
+export function createTabEngine(deps: TabEngineDeps): TabEngine & {
+  /** Settle an unsent trigger and clear its timer; sent usage continues draining. */
+  cancelPending(): void
+} {
   const cache = new TabCache()
   const scheduler = new TabScheduler(deps.now === undefined ? {} : { now: deps.now })
   // The trigger the scheduler holds unsent: a newer one replaces it there,
@@ -191,7 +195,7 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
         // One HTTP attempt: the reservation prices one, so the client's
         // retries are spent before the first try (RVM94LC).
         const budget: RetryBudget = { retriesUsed: MODEL_API_MAX_RETRIES }
-        for await (const event of deps.stream(body, timeout.signal, budget)) {
+        for await (const event of deps.stream(body, timeout.signal, budget, request)) {
           if (shouldStopAt(event)) {
             break
           }
@@ -228,6 +232,11 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
   }
 
   return {
+    cancelPending: () => {
+      scheduler.cancelPending()
+      dropWaiting?.()
+      dropWaiting = undefined
+    },
     complete: (request) => {
       const cached = cache.lookup(request.absolutePath, request.prefix, request.suffix)
       if (cached !== undefined) {

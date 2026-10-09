@@ -30,8 +30,8 @@ import {
   type TabServices,
   type TabServicesDeps,
   type TabUseConsent,
-} from '../../src/host/tab/tabBundle'
-import { createTabSnooze } from '../../src/host/tab/tabBundle'
+} from '../../src/host/vscode/tab/tabBundle'
+import { createTabSnooze } from '../../src/host/vscode/tab/tabBundle'
 import {
   createTabServices as entryServices,
   createTabProvider as entryProvider,

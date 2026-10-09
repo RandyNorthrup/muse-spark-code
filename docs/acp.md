@@ -936,3 +936,22 @@ repository README's vault section. Companion and native bridges share the
 same public panel handler; M104 must bind authenticated connections and honor
 its cancellation signal before committing effects. Add/edit opens the host's
 terminal. No value is accepted or returned in panel messages.
+
+## Experimental MHP panel commands
+
+`muse-spark-code-acp panel --stdio` and
+`muse-spark-code-acp panel --companion` use MHP 1.2 rather than ACP.
+Exactly one transport is required. Backend, workspace-trust, sandbox and
+paid flags retain ACP defaults. A native host negotiates a
+`minimum: mhp/1.2.0`, `maximumExclusive: mhp/1.3.0` range, mandatory
+lifecycle and the service groups it implements. The runtime requests a
+registered chat surface (stdio) or a launch URL opened through UI (companion).
+Surface `opened` and `ready` precede shared `ready`; sequence numbers start
+at one independently in each direction and survive reload.
+
+Companion requests use C's one-use fragment launch code and per-window
+memory bearer, same-origin metadata and `X-Muse-Panel: 1`. Admission is
+204 at `/panel/message` and `/panel/surface`; `/panel/events` returns named
+MHP SSE frames. This base does not yet ship D's browser renderer/bridge.
+See [B2 certification and parity gaps](certification/m104-b2.md) before
+using these experimental carriers in an editor. Existing ACP is unchanged.

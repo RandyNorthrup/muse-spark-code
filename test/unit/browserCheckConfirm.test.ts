@@ -3,7 +3,7 @@
 // loopback, and allowing the one check only for Allow once.
 import { window } from 'vscode'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { isBrowserCheckAllowed } from '../../src/host/browser/browserCheckConfirm'
+import { isBrowserCheckAllowed } from '../../src/host/vscode/browser/browserCheckConfirm'
 import { UI_TEXT } from '../../src/shared/constants'
 
 afterEach(() => {

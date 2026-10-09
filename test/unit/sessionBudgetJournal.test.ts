@@ -1,5 +1,5 @@
 import { Usd, multiplyUsd } from '../../src/shared/usd'
-import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
+import { createPaidDailyBudget } from '../../src/host/vscode/paid/paidDailyBudget'
 import { PaidUsage } from '../../src/core/paid/paidFeatures'
 import { paidCostUsd, freezePaidQuote, searchSettlement } from '../../src/shared/paid'
 import { mkdtempSync, realpathSync } from 'node:fs'

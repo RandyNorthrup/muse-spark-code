@@ -56,6 +56,9 @@ const BUDGETS = [
   { path: 'docs/schemas/exec-event-v2.schema.json', budgetKiB: 50 },
   // ACTDIET: first chat surface; 216.0 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/conversation.js', budgetKiB: 250 },
+  // M104 B2: carrier/runtime ports on the panel command; existing ACP cap stays 850.
+  { path: 'dist/runtimePanel.js', budgetKiB: 100 },
+  { path: 'dist/runtimePanelPorts.js', budgetKiB: 75 },
   // M94: provider, engine and ledger on first Tab use (PLAN.md D6).
   { path: 'dist/tab.js', budgetKiB: 75 },
   // M118: portable stores, native/panel adapters and chat renderer: 163.4 KiB + 15%, rounded to 25 KiB.
@@ -254,6 +257,9 @@ const BUDGETS = [
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.
   { path: 'dist/pageWorker.js', budgetKiB: 300 },
   { path: 'dist/webview/main.js', budgetKiB: 900 },
+  // M104D: independent native/companion panel, every eager and lazy JS output
+  // included: 974,922 bytes + 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/webview/portable/main.js', budgetKiB: 1100 },
   // What's New's page script (M99): it only passes clicks back to the host.
   // 0.7 KiB when made, plus 15%, rounded up to 25 KiB.
   { path: 'dist/webview/whatsNew.js', budgetKiB: 25 },
@@ -319,9 +325,20 @@ for (const { path, budgetKiB } of BUDGETS) {
     'dist/webview/usage.js': 'dist/meta/usageWebview.json',
     'dist/webview/whatsNew.js': 'dist/meta/whatsNewPage.json',
   }[path]
-  const files = pageMetafile
+  let files = pageMetafile
     ? webviewStartupOutputs(JSON.parse(readFileSync(pageMetafile, 'utf8')), path)
     : [path]
+  // M104D: the portable panel's cap charges every JS output, eager and lazy.
+  if (path === 'dist/webview/portable/main.js')
+    files = Object.keys(JSON.parse(readFileSync('dist/meta/portable.json', 'utf8')).outputs).filter(
+      (file) => file.endsWith('.js'),
+    )
+  const missing = files.filter((file) => !existsSync(file))
+  if (missing.length > 0) {
+    hasFailure = true
+    console.log(`MISS ${path}: missing chunks ${missing.join(', ')}`)
+    continue
+  }
   const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   const status = sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'
   if (sizeKiB > budgetKiB) {

@@ -3,13 +3,13 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { fingerprintUntracked, untrackedDiff } from '../../src/host/git/gitWindow'
+import { fingerprintUntracked, untrackedDiff } from '../../src/host/vscode/git/gitWindow'
 import { ConversationGit } from '../../src/host/git/conversationGit'
 import {
   captureGitOwner,
   isRepositoryRoot,
   openOwnedRepository,
-} from '../../src/host/git/gitExtension'
+} from '../../src/host/vscode/git/gitExtension'
 import { systemPath } from '../../src/host/backend/memoryIo'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
 import {

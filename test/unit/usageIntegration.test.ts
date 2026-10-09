@@ -312,7 +312,7 @@ describe('M102 integrated surfaces', () => {
         decodeURIComponent(module).includes('export const vendor = "shared"'),
       )
       expect(vendorCopies).toHaveLength(1)
-      const stream = await fetch(new URL('/events', panel.url), {
+      const stream = await fetch(new URL('/panel/events', panel.url), {
         method: 'POST',
         signal: controller.signal,
         headers: {
@@ -329,12 +329,12 @@ describe('M102 integrated surfaces', () => {
       expect(
         await call(
           panel,
-          '/post',
+          '/panel/message',
           'POST',
           JSON.stringify({ type: 'request', id: '1', message: { type: 'usage/query', query } }),
           headers(panel, token),
         ),
-      ).toHaveProperty('status', 202)
+      ).toHaveProperty('status', 204)
       const message = await reply
       if (message.type !== 'reply') throw new Error('missing service reply')
       const streamed = message.messages.find((item) => item.type === 'usage/state')
@@ -344,7 +344,7 @@ describe('M102 integrated surfaces', () => {
       const downloaded = event(reader)
       await call(
         panel,
-        '/post',
+        '/panel/message',
         'POST',
         JSON.stringify({
           type: 'request',
@@ -369,7 +369,7 @@ describe('M102 integrated surfaces', () => {
         const confirmation = event(reader)
         const deleting = call(
           panel,
-          '/post',
+          '/panel/message',
           'POST',
           JSON.stringify({
             type: 'request',
@@ -389,12 +389,18 @@ describe('M102 integrated surfaces', () => {
           approved: isApproved,
         }
         expect(
-          await call(panel, '/post', 'POST', JSON.stringify(answer), headers(panel, otherToken)),
+          await call(
+            panel,
+            '/panel/message',
+            'POST',
+            JSON.stringify(answer),
+            headers(panel, otherToken),
+          ),
         ).toHaveProperty('status', 500)
         expect(
           await call(
             panel,
-            '/post',
+            '/panel/message',
             'POST',
             JSON.stringify({ ...answer, count: 2 }),
             headers(panel, token),
@@ -402,9 +408,15 @@ describe('M102 integrated surfaces', () => {
         ).toHaveProperty('status', 500)
         const result = event(reader)
         expect(
-          await call(panel, '/post', 'POST', JSON.stringify(answer), headers(panel, token)),
-        ).toHaveProperty('status', 202)
-        expect(await deleting).toHaveProperty('status', 202)
+          await call(
+            panel,
+            '/panel/message',
+            'POST',
+            JSON.stringify(answer),
+            headers(panel, token),
+          ),
+        ).toHaveProperty('status', 204)
+        expect(await deleting).toHaveProperty('status', 204)
         const completed = await result
         if (completed.type !== 'reply') throw new Error('missing delete result')
         expect(completed.messages).toContainEqual({

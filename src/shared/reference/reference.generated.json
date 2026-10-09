@@ -5314,6 +5314,26 @@
       }
     },
     {
+      "route": "panel",
+      "name": "panel: --stdio",
+      "description": "panel --stdio: Serve the portable panel over standard input and standard output",
+      "text": { "cli": "panel-stdio" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "route": "usage serve",
+        "protocol": "usageCompanion",
+        "default": false
+      }
+    },
+    {
+      "route": "panel",
+      "name": "panel: --companion",
+      "description": "panel --companion: Serve the portable panel as a loopback browser companion",
+      "text": { "cli": "panel-companion" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
       "route": "login",
       "name": "login: --preset <value>",
       "description": "--preset: Provider",

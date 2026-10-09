@@ -11,8 +11,8 @@ import { scanLegal } from '../../src/core/legal/scan'
 import { PaidFeatureGate, PaidUsage } from '../../src/core/paid/paidFeatures'
 import { PaidUseConsent, type PaidUseAnswer } from '../../src/core/paid/paidConsent'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
-import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
-import { createPaidFeatures } from '../../src/host/paid/paidHost'
+import { createPaidDailyBudget } from '../../src/host/vscode/paid/paidDailyBudget'
+import { createPaidFeatures } from '../../src/host/vscode/paid/paidHost'
 import {
   DEFAULT_MODEL_ID,
   LEGAL_EXPLANATION_MAX_OUTPUT_TOKENS,

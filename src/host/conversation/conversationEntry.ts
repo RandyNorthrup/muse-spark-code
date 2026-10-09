@@ -5,14 +5,17 @@ import { ConversationController, type ConversationDeps } from './conversationCon
 export { questionAnswerText } from '../../core/questions/lateAnswer'
 export { createHostQuestionStore } from '../questions/questionStorage'
 import { questionAnswerText } from '../../core/questions/lateAnswer'
-import { questionClock, questionsDeferAfterSeconds } from '../questions/questionStore'
+import { questionClock } from '../questions/questionStorage'
 import type { QuestionStore } from '../../shared/questions'
 
-export function questionsForHost(store: QuestionStore): NonNullable<ConversationDeps['questions']> {
+export function questionsForHost(
+  store: QuestionStore,
+  deferAfterSeconds: () => number,
+): NonNullable<ConversationDeps['questions']> {
   return {
     store,
     clock: questionClock(),
-    deferAfterSeconds: questionsDeferAfterSeconds,
+    deferAfterSeconds,
     formatAnswer: questionAnswerText,
   }
 }

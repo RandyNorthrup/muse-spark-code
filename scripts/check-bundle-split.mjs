@@ -307,10 +307,10 @@ for (const source of [
 }
 const promptInputs = inputsOf(PROMPTS)
 for (const source of [
-  'src/host/prompts/promptEntry.ts',
+  'src/host/vscode/prompts/promptEntry.ts',
   'src/core/prompts/promptStore.ts',
   'src/core/sharing/chatShare.ts',
-  'src/host/prompts/chatSharing.ts',
+  'src/host/vscode/prompts/chatSharing.ts',
 ]) {
   if (!promptInputs.has(source)) problems.push(`${PROMPTS.output} no longer carries ${source}`)
   for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
@@ -667,7 +667,7 @@ for (const file of REVIEW_ONLY) {
 // (vaultPanelBundle.ts) stay at activation.
 const VAULT = { output: 'dist/vault.js', metafile: 'dist/meta/vault.json' }
 const VAULT_ONLY = [
-  'src/host/vault/vaultPanelEntry.ts',
+  'src/host/vscode/vault/vaultPanelEntry.ts',
   'src/host/vault/vaultPanelHost.ts',
   'src/host/vault/vaultNativeEditor.ts',
 ]
@@ -685,7 +685,7 @@ for (const file of VAULT_ONLY) {
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',
-  'src/host/agentImportHost.ts',
+  'src/host/vscode/agentImportHost.ts',
   'src/host/commands/agentImportCommands.ts',
   'src/host/importIo.ts',
   'src/core/import/agentImport.ts',
@@ -733,9 +733,9 @@ for (const prefix of IMPORT_ONLY) {
 const GIT_ONLY = [
   'src/host/git/conversationGit.ts',
   'src/host/git/conversationGitEntry.ts',
-  'src/host/git/gitWindow.ts',
-  'src/host/git/gitExtension.ts',
-  'src/host/git/githubSession.ts',
+  'src/host/vscode/git/gitWindow.ts',
+  'src/host/vscode/git/gitExtension.ts',
+  'src/host/vscode/git/githubSession.ts',
   'src/host/git/heldCheckout.ts',
   'src/host/git/pullRequestCheckout.ts',
   'src/host/git/pullRequestLinks.ts',
@@ -995,6 +995,7 @@ function shippedBundles() {
                   'dist/webview/models.js',
                   'dist/webview/usage.js',
                   'dist/webview/whatsNew.js',
+                  'dist/webview/portable/main.js',
                 ].includes(output)),
           )
           .map((output) => ({ output, metafile }))
@@ -1003,20 +1004,42 @@ function shippedBundles() {
 }
 const SHIPPED = shippedBundles()
 problems.push(...checkResourceBundles(inputsOf, SHIPPED))
-// The chat ESM graph carries the review template in a shared chunk. Models
-// is a separate graph and may also use constants, but never this template.
-// textOf(main) checks every chunk in its graph; require its actual reader.
+// The authenticated classic bootstrap is compiled independently of either
+// ESM graph. It validates the manifest before those graphs can execute.
+const PORTABLE_LOADER = {
+  output: 'dist/webview/portable/loader.js',
+  metafile: 'dist/meta/portable.json',
+}
+const loaderInputs = inputsOf(PORTABLE_LOADER)
+for (const source of [
+  'src/webview/bridges/moduleLoader.ts',
+  'src/shared/hostApi/portableAssets.ts',
+]) {
+  if (!loaderInputs.has(source))
+    problems.push(`${PORTABLE_LOADER.output} no longer carries ${source}`)
+}
+if (loaderInputs.has(ENGLISH_TABLE))
+  problems.push(`${PORTABLE_LOADER.output} carries an unused English fallback`)
+// The chat ESM graphs (VS Code's and the portable one) carry the review
+// template in a shared chunk. Models is a separate graph and may also use
+// constants, but never this template. textOf(main) checks every chunk in its
+// graph; require each graph's actual reader.
 const webviewReview = SHIPPED.filter(
   ({ output, metafile }) =>
     output.startsWith('dist/webview/') &&
     (metafile !== 'dist/meta/webview.json' || output === 'dist/webview/main.js') &&
+    (metafile !== 'dist/meta/portable.json' || output === 'dist/webview/portable/main.js') &&
     Object.hasOwn(
       JSON.parse(readFileSync(metafile, 'utf8')).inputs,
       'src/webview/components/ReviewPane.tsx',
     ),
 )
-if (webviewReview.length !== 1) {
-  problems.push('exactly one webview graph must carry ReviewPane')
+for (const isPortable of [false, true]) {
+  const carrying = webviewReview.filter(
+    ({ output }) => output.startsWith('dist/webview/portable/') === isPortable,
+  )
+  if (carrying.length !== 1)
+    problems.push('each chat webview graph must carry ReviewPane in exactly one page')
 }
 /** The shipped bundle that `output` names; a missing one is a problem. */
 function shipped(output) {
@@ -1209,6 +1232,7 @@ function textOf(output) {
       'dist/webview/models.js': 'dist/meta/modelsWebview.json',
       'dist/webview/usage.js': 'dist/meta/usageWebview.json',
       'dist/webview/whatsNew.js': 'dist/meta/whatsNewPage.json',
+      'dist/webview/portable/main.js': 'dist/meta/portable.json',
     }[output]
     const files = metafile
       ? Object.keys(JSON.parse(readFileSync(metafile, 'utf8')).outputs).filter((file) =>
@@ -1242,7 +1266,25 @@ for (const { block, sentinels, readers, others } of TEXT_BLOCKS) {
 }
 // Every model text block beside MODEL_TEXT is guarded: a new one needs an
 // entry above (or is FILE_REFUSAL_MODEL_TEXT, pinned below).
-const guarded = new Set([...TEXT_BLOCKS.map(({ block }) => block), FILE_REFUSAL.block])
+// The Xcode host is packaged independently. Its generator carries the whole native
+// block; it must never ride into any JavaScript bundle shipped by this build.
+const nativeModelBlock = 'XCODE_MODEL_TEXT'
+const nativeReader = 'hosts/xcode/Scripts/nativeTables.ts'
+if (!readFileSync(nativeReader, 'utf8').includes(nativeModelBlock)) {
+  problems.push(`${nativeReader} no longer reads ${nativeModelBlock}`)
+}
+for (const key of blockKeys(nativeModelBlock)) {
+  for (const { output } of SHIPPED) {
+    if (new RegExp(`[{,]${key}:`).test(textOf(output))) {
+      problems.push(`${output} carries ${nativeModelBlock}, which only ${nativeReader} reads`)
+    }
+  }
+}
+const guarded = new Set([
+  ...TEXT_BLOCKS.map(({ block }) => block),
+  FILE_REFUSAL.block,
+  nativeModelBlock,
+])
 for (const [, block] of constantsSource.matchAll(/^export const (\w+_MODEL_TEXT) = \{/gm)) {
   if (!guarded.has(block)) {
     problems.push(
@@ -1309,23 +1351,30 @@ for (const key of modelTextKeys) {
 
 // All optional surfaces must remain behind dynamic imports. Every
 // emitted JS chunk must be reachable and packaged; stale output is refused.
-const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
-webviewMeta.outputs = Object.fromEntries(
-  Object.entries(webviewMeta.outputs).map(([file, output]) => [
-    file.replaceAll('\\', '/'),
-    {
-      ...output,
-      entryPoint: output.entryPoint?.replaceAll('\\', '/'),
-      inputs: Object.fromEntries(
-        Object.entries(output.inputs).map(([source, details]) => [
-          source.replaceAll('\\', '/'),
-          details,
-        ]),
-      ),
-      imports: output.imports.map((item) => ({ ...item, path: item.path.replaceAll('\\', '/') })),
-    },
-  ]),
-)
+/** A webview metafile with forward-slash output, entry, input and import paths. */
+function normalWebviewMeta(meta) {
+  meta.outputs = Object.fromEntries(
+    Object.entries(meta.outputs).map(([file, output]) => [
+      file.replaceAll('\\', '/'),
+      {
+        ...output,
+        entryPoint: output.entryPoint?.replaceAll('\\', '/'),
+        inputs: Object.fromEntries(
+          Object.entries(output.inputs).map(([source, details]) => [
+            source.replaceAll('\\', '/'),
+            details,
+          ]),
+        ),
+        imports: output.imports.map((item) => ({
+          ...item,
+          path: item.path.replaceAll('\\', '/'),
+        })),
+      },
+    ]),
+  )
+  return meta
+}
+const webviewMeta = normalWebviewMeta(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')))
 const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
 for (const file of eagerWebview) {
   const sources = Object.keys(webviewMeta.outputs[file].inputs)
@@ -1445,6 +1494,112 @@ for (const file of webviewStartupOutputs(webviewMeta)) {
     problems.push('Reference page or data entered chat startup')
 }
 
+// M104D: native hosts and the companion load an independent graph from
+// dist/webview/portable. VS Code's graph never carries its bridges or
+// fallbacks; the portable graph keeps the chat's deferred surfaces deferred,
+// and every chunk it emits is reachable and packaged. The reporting pages are
+// VS Code-only entries, never part of the chat graph.
+const BRIDGE_ENTRIES = new Set([
+  'src/webview/bridges/moduleLoader.ts',
+  'src/webview/bridges/companionUi.ts',
+  'src/webview/whatsNew/portable.ts',
+  'src/webview/whatsNew/whatsNewPage.ts',
+  'src/webview/bridges/native.ts',
+  'src/webview/bridges/companion.ts',
+  'src/webview/bridges/select.ts',
+  'src/webview/fallbacks/index.ts',
+  'src/webview/TasksApp.tsx',
+  'src/shared/tasksProtocol.ts',
+  'src/shared/whatsNewMessages.ts',
+  'src/shared/hostApi/panel.ts',
+])
+const FALLBACK_COMPONENTS = [
+  'Confirm',
+  'Picker',
+  'Input',
+  'Dialog',
+  'Toasts',
+  'StatusStrip',
+  'SettingsPage',
+  'Walkthrough',
+  'DiffPage',
+  'TerminalOutput',
+  'ManagerPage',
+  'services',
+]
+const VSCODE_ONLY_WEBVIEW_SOURCES = new Set([
+  'src/webview/reporting/main.tsx',
+  'src/webview/reporting/destinations/DestinationPicker.tsx',
+])
+// The usage page's resource history: every editor gets it from the usage
+// companion, which serves dist/webview/usage.js, never the portable chat graph.
+const USAGE_PAGE_WEBVIEW_SOURCES = new Set(['src/webview/usage/ResourcesSection.tsx'])
+for (const source of Object.keys(webviewMeta.inputs)) {
+  const normal = source.replaceAll('\\', '/')
+  if (normal.startsWith('src/webview/bridges/') || normal.startsWith('src/webview/fallbacks/'))
+    problems.push(`VS Code's webview carries portable-only source ${normal}`)
+}
+const portableMeta = normalWebviewMeta(JSON.parse(readFileSync('dist/meta/portable.json', 'utf8')))
+const eagerPortable = new Set(webviewStartupOutputs(portableMeta, 'dist/webview/portable/main.js'))
+for (const file of eagerPortable) {
+  const sources = Object.keys(portableMeta.outputs[file].inputs)
+  for (const source of sources) {
+    if (source.startsWith('node_modules/highlight.js/'))
+      problems.push(`highlight.js must stay deferred: ${source}`)
+  }
+}
+const reachablePortable = new Set()
+const visitPortable = (file) => {
+  if (reachablePortable.has(file)) return
+  reachablePortable.add(file)
+  const output = portableMeta.outputs[file]
+  if (!output) {
+    problems.push(`Missing portable webview chunk ${file}`)
+    return
+  }
+  for (const imported of output.imports) if (!imported.external) visitPortable(imported.path)
+}
+for (const entry of [
+  'dist/webview/portable/main.js',
+  'dist/webview/portable/whatsNew.js',
+  'dist/webview/portable/loader.js',
+])
+  visitPortable(entry)
+const portableDeferredSources = [
+  ...deferredWebviewSources.filter(
+    (source) => !VSCODE_ONLY_WEBVIEW_SOURCES.has(source) && !USAGE_PAGE_WEBVIEW_SOURCES.has(source),
+  ),
+  ...FALLBACK_COMPONENTS.map((component) => `src/webview/fallbacks/${component}.tsx`),
+  'src/webview/bridges/native.ts',
+  'src/webview/bridges/companion.ts',
+]
+for (const source of portableDeferredSources) {
+  const outputs = Object.entries(portableMeta.outputs).filter(([, output]) =>
+    Object.hasOwn(output.inputs, source),
+  )
+  if (outputs.length !== 1 || eagerPortable.has(outputs[0]?.[0])) {
+    problems.push(`${source} must occur in exactly one deferred portable webview chunk`)
+  }
+}
+for (const [file, output] of Object.entries(portableMeta.outputs)) {
+  if (!file.endsWith('.js')) continue
+  if (!reachablePortable.has(file) || !existsSync(file))
+    problems.push(`Unreachable or missing portable webview chunk ${file}`)
+  if (
+    output.entryPoint &&
+    output.entryPoint !== 'src/webview/portable.tsx' &&
+    !BRIDGE_ENTRIES.has(output.entryPoint) &&
+    !portableDeferredSources.includes(output.entryPoint)
+  ) {
+    problems.push(`Unlisted deferred portable webview surface ${output.entryPoint}`)
+  }
+}
+const portableChunks = 'dist/webview/portable/chunks'
+for (const file of readdirSync(portableChunks)) {
+  if (file.endsWith('.js') && !reachablePortable.has(`${portableChunks}/${file}`))
+    problems.push(`Stale portable webview chunk ${file}`)
+}
+
 // TRAIN13B: Node consumers share exactly the mini-parser API they read.
 const validationMeta = JSON.parse(readFileSync('dist/meta/validation.json', 'utf8'))
 const validationExports = new Set(
@@ -1456,6 +1611,7 @@ const nodeMetafiles = readdirSync('dist/meta')
       ![
         'validation.json',
         'webview.json',
+        'portable.json',
         'whatsNewPage.json',
         'referencePage.json',
         'modelsWebview.json',

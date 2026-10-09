@@ -12,7 +12,7 @@ import {
   type VaultBundle,
   type VaultControlsDeps,
   type VaultWindowControls,
-} from '../../../src/host/vault/vaultPanelBundle'
+} from '../../../src/host/vscode/vault/vaultPanelBundle'
 import type { VaultPanelService } from '../../../src/host/vault/vaultPanelHost'
 import { UI_TEXT } from '../../../src/shared/constants'
 import { uiLocale } from '../../../src/shared/l10n/text'

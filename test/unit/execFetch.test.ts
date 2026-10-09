@@ -17,7 +17,7 @@ import {
   type ScriptedReply,
 } from './helpers/fakeModelApi'
 import { memorySecrets } from './helpers/fakes'
-import { buildModelApiBundle } from './helpers/modelApiBundle'
+import { buildRuntimeConversationBundles } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const model = 'muse-spark-1.3-contributor'
@@ -38,7 +38,7 @@ function folder() {
 }
 const dist = folder()
 beforeAll(async () => {
-  await buildModelApiBundle(dist)
+  await buildRuntimeConversationBundles(dist)
 })
 afterAll(async () => {
   await Promise.all(folders.map((created) => removeFolder(created)))

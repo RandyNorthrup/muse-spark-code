@@ -9,7 +9,7 @@ import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 import type { PickItem } from '../commands/pickItem'
 import type { PresetInfo, ProviderEntry, ProviderModelRow } from '../providers/providerPorts'
-import type { ProvidersHost } from '../providers/providersHost'
+import type { ProvidersHost } from '../vscode/providers/providersHost'
 import type { WizardDraft } from '../providers/wizardSave'
 
 export interface ProviderQuickPickUi {

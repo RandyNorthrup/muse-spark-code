@@ -3,7 +3,7 @@ import {
   ReportPanel,
   type ReportPanelDeps,
   type ReportPanelEngine,
-} from '../../src/host/reporting/reportPanel'
+} from '../../src/host/vscode/reporting/reportPanel'
 import { reportEngineLoader } from '../../src/host/reporting/reportEngineBundle'
 import { reportPanelLoader } from '../../src/host/reporting/reportPanelBundle'
 import { reportScrubber } from '../../src/core/reporting/render/redaction'

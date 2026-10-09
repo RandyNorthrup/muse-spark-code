@@ -6,13 +6,17 @@ import type { HookLoadDeps } from './hooks'
  * file, which is the settingsPath (`<config>/muse/settings.json`), and the
  * project's under `.muse`.
  */
-export function sparkHooksFiles(deps: Pick<HookLoadDeps, 'settingsPath' | 'workspaceRoot'>): {
+export function sparkHooksFiles(
+  deps: Pick<HookLoadDeps, 'settingsPath' | 'workspaceRoot'> &
+    Partial<Pick<HookLoadDeps, 'platform'>>,
+): {
   readonly user: string
   readonly project: string
 } {
+  const paths = (deps.platform ?? process.platform) === 'win32' ? path.win32 : path.posix
   return {
-    user: path.join(path.dirname(deps.settingsPath), SPARK_HOOKS_SEGMENTS.user[1]),
-    project: path.join(deps.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project),
+    user: paths.join(paths.dirname(deps.settingsPath), SPARK_HOOKS_SEGMENTS.user[1]),
+    project: paths.join(deps.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project),
   }
 }
 

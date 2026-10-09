@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { TasksPanel } from '../../src/host/views/tasksPanel'
+import { TasksPanel } from '../../src/host/vscode/views/tasksPanel'
 import { TASKS_MOVE_TO_WINDOW_COMMAND } from '../../src/shared/constants'
 import { FakeWebviewPanel, fakeHostContext } from './helpers/fakes'
 import { commands, window as fakeWindow } from './mocks/vscode'

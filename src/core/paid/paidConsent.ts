@@ -437,6 +437,25 @@ export interface PaidUseConsentDeps {
   readonly log: CoreLogger
 }
 
+/**
+ * The workspace's grants moved on under a queued write (Ask again revoked
+ * them while the popup was open): the write must not land, and the use it
+ * would have covered is refused. Thrown with this class (never a plain
+ * Error carrying the code as text) so `remember` can tell revocation apart
+ * from a storage failure without matching message text.
+ */
+export class PaidOwnerReplacedError extends Error {
+  public constructor() {
+    super('MHP_PAID_OWNER_REPLACED')
+    this.name = 'PaidOwnerReplacedError'
+  }
+}
+
+/** Whether the grant write lost its generation (never a storage failure). */
+export function isPaidOwnerReplaced(error: unknown): boolean {
+  return error instanceof PaidOwnerReplacedError
+}
+
 export class PaidUseConsent {
   private revocation = 0
   private readonly listeners = new Set<() => void>()
@@ -487,21 +506,28 @@ export class PaidUseConsent {
   }
 
   /**
-   * Keeps "always" for the feature. A store that cannot be written is
-   * logged and leaves this use allowed once, so the next one asks again
-   * instead of this one failing.
+   * Keeps "always" for the feature. A revoked write refuses this use
+   * outright (fail closed). A store that cannot be written is logged and
+   * leaves this use allowed once, so the next one asks again instead of
+   * this one failing (M58).
    */
-  private async remember(feature: PaidFeature): Promise<boolean> {
+  private async remember(feature: PaidFeature): Promise<'kept' | 'revoked' | 'unstored'> {
     try {
       if (this.deps.rememberGrant === undefined)
         await this.deps.writeGrants(new Set([...this.deps.readGrants(), feature]))
       else await this.deps.rememberGrant(feature)
-      return true
+      return 'kept'
     } catch (error: unknown) {
+      if (isPaidOwnerReplaced(error)) {
+        this.deps.log.warn(
+          `Paid use of ${feature}: "always" was revoked before it could be kept, so it is refused`,
+        )
+        return 'revoked'
+      }
       this.deps.log.warn(
         `Paid use of ${feature}: "always" could not be kept, so it is allowed once: ${error instanceof Error ? error.message : String(error)}`,
       )
-      return false
+      return 'unstored'
     }
   }
 
@@ -555,14 +581,21 @@ export class PaidUseConsent {
       (!(await this.deps.acceptJudgePrice()) || !this.isEnabled(feature))
     )
       return false
-    if (
-      answer === 'always' &&
-      canRemember &&
-      this.deps.canRemember() &&
-      (await this.remember(feature))
-    ) {
-      this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
-      this.notify()
+    if (answer === 'always' && canRemember && this.deps.canRemember()) {
+      // Fail closed on revocation only: an "always" whose grant write lost
+      // its generation authorizes nothing. A plain storage failure still
+      // honors the user's answer once, and the next use asks again (M58).
+      const kept = await this.remember(feature)
+      if (kept === 'revoked') {
+        this.deps.log.info(`Paid use of ${feature}: "always" was not kept, so it is refused`)
+        return false
+      }
+      if (kept === 'kept') {
+        this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
+        this.notify()
+      } else {
+        this.deps.log.info(`Paid use of ${feature}: allowed once`)
+      }
     } else if (answer === 'once' && this.isWindowOnceFeature(feature)) {
       this.windowOnce.set(feature, this.deps.windowOnceGeneration?.(feature))
       this.deps.log.info(`Paid use of ${feature}: allowed once in this window`)
@@ -684,17 +717,28 @@ export class PaidUseConsent {
       if (effect.type !== 'save') continue
       tag = effect.grant
       let isOk = false
+      let isRevoked = false
       try {
-        if (this.deps.writeQuoteGrant === undefined) isOk = await this.remember('webSearch')
-        else {
+        if (this.deps.writeQuoteGrant === undefined) {
+          const kept = await this.remember('webSearch')
+          isOk = kept === 'kept'
+          isRevoked = kept === 'revoked'
+        } else {
           await this.deps.writeQuoteGrant({ ...effect.grant, generation: storedGeneration })
           isOk = true
         }
       } catch (error: unknown) {
+        isRevoked = isPaidOwnerReplaced(error)
         this.warnQuoteNotKept(error)
       }
       if (!isCurrent()) return undefined
       this.authority.dispatch({ type: 'saved', grant: effect.grant, ok: isOk })
+      if (isRevoked) {
+        // Fail closed on revocation only (M58): a lost generation authorizes nothing.
+        this.authority.dispatch({ type: 'invalidate', grant: effect.grant })
+        this.deps.log.info('Paid use of webSearch: "always" was not kept, so it is refused')
+        return undefined
+      }
       if (isOk) this.notify()
     }
     this.deps.log.info('Paid use of webSearch: allowed once')

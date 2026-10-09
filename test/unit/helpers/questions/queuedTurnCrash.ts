@@ -1,5 +1,6 @@
 // Child process owns a real ACP prompt queued behind a held fake-HTTP turn.
 // Parent kills it without release/cleanup, then reopens the durable answer queue.
+import { fakeAcpComposition } from '../acpComposition'
 import * as acp from '@agentclientprotocol/sdk'
 import type { AgentSession } from '../../../../src/core/agent/agentBackend'
 import { createAcpAgent } from '../../../../src/acp/agent'
@@ -35,6 +36,7 @@ async function main() {
   const registries: ReturnType<typeof createRuntimeQuestionRegistry>[] = []
   const updates: acp.SessionUpdate[] = []
   const agent = createAcpAgent({
+    createConversation: fakeAcpComposition,
     backend: {
       kind: 'modelApi',
       readiness: () => Promise.resolve({ state: 'ready' }),

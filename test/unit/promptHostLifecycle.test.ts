@@ -8,8 +8,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as constants from '../../src/shared/constants'
 import * as vscode from 'vscode'
 import type * as VSCode from 'vscode'
-import { createPromptHost, type PromptActivationPorts } from '../../src/host/prompts/promptEntry'
-import { SurfaceRegistry } from '../../src/host/views/surfaceRegistry'
+import {
+  createPromptHost,
+  type PromptActivationPorts,
+} from '../../src/host/vscode/prompts/promptEntry'
+import { SurfaceRegistry } from '../../src/host/vscode/views/surfaceRegistry'
 import { PromptStore } from '../../src/core/prompts/promptStore'
 import { EN } from '../../src/shared/l10n/en'
 import { PROMPT_SYNC_KEY, PROMPT_SYNC_SETTING, SETTINGS_SECTION } from '../../src/shared/constants'

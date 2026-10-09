@@ -12,7 +12,7 @@ import {
   type ScheduleConsent,
 } from '../../src/core/paid/paidConsent'
 import type { ModelApiClient, ResponseAttemptGuard } from '../../src/core/backends/modelapi/client'
-import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
+import { createPaidDailyBudget } from '../../src/host/vscode/paid/paidDailyBudget'
 import { schedulePaidConsentSchema, scheduleV2Schema } from '../../src/shared/scheduleV2'
 import { unattendedRun } from './helpers/schedules/unattended'
 import { fakeSchedule, fakeRunContext } from './helpers/schedules/fixtures'

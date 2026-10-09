@@ -34,7 +34,7 @@ import {
 } from '../../src/shared/protocol'
 import { reportWebviewErrorMessage } from '../../src/webview/errorReport'
 import type { Logger } from '../../src/host/logger'
-import { vscodeReportEditorIo } from '../../src/host/support/reportEditorIo'
+import { vscodeReportEditorIo } from '../../src/host/vscode/support/reportEditorIo'
 import { REPORT_FACTS } from './helpers/reportFacts'
 
 const FACTS = REPORT_FACTS
