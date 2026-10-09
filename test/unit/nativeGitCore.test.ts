@@ -59,7 +59,36 @@ describe('parseStatusV2', () => {
       staged: ['staged.txt'],
       unstaged: ['unstaged.txt'],
       untracked: ['new.txt'],
+      records: [
+        '1 M. N... 100644 100644 100644 abc0001 abc0002 staged.txt',
+        '1 .M N... 100644 100644 100644 abc0001 abc0002 unstaged.txt',
+        '? new.txt',
+      ],
     })
+  })
+
+  it('reads an unmerged record past its three stages, to the path alone', () => {
+    // `u XY sub m1 m2 m3 mW h1 h2 h3 path`: ten fields before the path.
+    const snapshot = parseStatusV2(
+      [
+        '# branch.oid abc0001',
+        '# branch.head main',
+        'u UU N... 100644 100644 100644 100644 h1aaaaa h2bbbbb h3ccccc conflict file.txt',
+      ].join(NUL),
+    )
+    expect(snapshot.staged).toEqual(['conflict file.txt'])
+    expect(snapshot.unstaged).toEqual(['conflict file.txt'])
+  })
+
+  it('keeps the staged object name in the records, so other bytes under one name differ', () => {
+    const before = parseStatusV2(
+      ['# branch.head main', '1 M. N... 100644 100644 100644 abc0001 abc0002 a.txt'].join(NUL),
+    )
+    const after = parseStatusV2(
+      ['# branch.head main', '1 M. N... 100644 100644 100644 abc0001 abc0003 a.txt'].join(NUL),
+    )
+    expect(after.staged).toEqual(before.staged)
+    expect(after.records).not.toEqual(before.records)
   })
 
   it('reads a detached HEAD as no branch', () => {
@@ -266,6 +295,31 @@ describe('native Git against the fixture repositories', () => {
     const { snapshot } = await readNativeStatus(runner(), contextFor(repos(), repos().behind))
     expect(snapshot.branch).toBe('main')
     expect((snapshot.behind ?? 0) > 0).toBe(true)
+  })
+
+  it('names a real merge conflict by its path alone', async () => {
+    const direct = mkdtempSync(path.join(tmpdir(), 'm123-native-conflict-'))
+    try {
+      const environment = repos().environment
+      const git = (...args: string[]) =>
+        execFileSync('git', args, { cwd: direct, env: environment, stdio: 'pipe' })
+      git('init', '-q', '-b', 'main')
+      writeFileSync(path.join(direct, 'conflict.txt'), 'base\n')
+      git('add', 'conflict.txt')
+      git('commit', '-q', '-m', 'Base')
+      git('checkout', '-q', '-b', 'other')
+      writeFileSync(path.join(direct, 'conflict.txt'), 'other\n')
+      git('commit', '-q', '-am', 'Other')
+      git('checkout', '-q', 'main')
+      writeFileSync(path.join(direct, 'conflict.txt'), 'main\n')
+      git('commit', '-q', '-am', 'Main')
+      expect(() => git('merge', '-q', 'other')).toThrow()
+      const { snapshot } = await readNativeStatus(runner(), contextFor(repos(), direct))
+      expect(snapshot.unstaged).toEqual(['conflict.txt'])
+      expect(snapshot.records.some((record) => record.startsWith('u '))).toBe(true)
+    } finally {
+      rmSync(direct, { recursive: true, force: true })
+    }
   })
 
   it('reads the detached fixture with no branch', async () => {

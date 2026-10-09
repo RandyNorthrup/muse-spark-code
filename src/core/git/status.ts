@@ -68,27 +68,59 @@ export interface NativeStatusSnapshot {
   readonly staged: readonly string[]
   readonly unstaged: readonly string[]
   readonly untracked: readonly string[]
+  /**
+   * Every change record as git wrote it: the modes and the HEAD and index
+   * object names beside each path, so a form's stamp changes when different
+   * bytes are staged under the same name (the working tree's bytes are
+   * fingerprinted by the service, which reads them confined).
+   */
+  readonly records: readonly string[]
 }
 
 const DETACHED_HEAD = '('
 const UNTRACKED_MARK = '?'
 const UNMODIFIED_MARK = '.'
-/** Leading fields before the path in an ordinary (`1`/`u`) status record. */
+/** Leading fields before the path in an ordinary (`1`) status record. */
 const ORDINARY_PATH_FIELD = 8
 /** Leading fields before the path in a renamed (`2`) status record. */
 const RENAMED_PATH_FIELD = 9
+/**
+ * Leading fields before the path in an unmerged (`u`) status record:
+ * `u XY sub m1 m2 m3 mW h1 h2 h3 path` (git-status(1), porcelain v2).
+ */
+const UNMERGED_PATH_FIELD = 10
 
 function branchOf(head: string): string | undefined {
   return head === '' || head.startsWith(DETACHED_HEAD) ? undefined : head
 }
 
+/** How many fields precede the path in a tracked change of this kind (`1`, `2` or `u`). */
+function pathFieldOf(kind: string): number {
+  if (kind === 'u') {
+    return UNMERGED_PATH_FIELD
+  }
+  return kind === '2' ? RENAMED_PATH_FIELD : ORDINARY_PATH_FIELD
+}
+
+/** A tracked change's path and marks, from the fields before its path. */
+function trackedChange(record: string, pathField: number): { file: string; marks: string } {
+  const fields = record.split(' ')
+  const marks = fields[1] ?? ''
+  const file = fields.slice(pathField).join(' ')
+  if (file === '' || marks.length !== 2) {
+    throw new Error(`Unexpected git status record: ${record}`)
+  }
+  return { file, marks }
+}
+
 /**
  * `git status --porcelain=v2 -z`: NUL-separated records, `?` for a new
  * file, `1`/`2`/`u` for a tracked change (staged when the first status
- * letter moves, unstaged when the second does). A `2` record's renamed
- * path follows as its own record and is skipped there. Anything else is
- * refused: the caller runs a fixed command, so an unknown record means
- * git's words changed, not user text.
+ * letter moves, unstaged when the second does). A `u` record (a merge
+ * conflict) has ten fields before its path, the three stages' object
+ * names among them. A `2` record's renamed path follows as its own record
+ * and is skipped there. Anything else is refused: the caller runs a fixed
+ * command, so an unknown record means git's words changed, not user text.
  */
 export function parseStatusV2(output: string): NativeStatusSnapshot {
   let branch: string | undefined
@@ -99,11 +131,15 @@ export function parseStatusV2(output: string): NativeStatusSnapshot {
   const staged: string[] = []
   const unstaged: string[] = []
   const untracked: string[] = []
+  const changeRecords: string[] = []
   const records = output.split('\0')
   for (let index = 0; index < records.length; index += 1) {
     const record = records[index] ?? ''
     if (record === '') {
       continue
+    }
+    if (!record.startsWith('# ')) {
+      changeRecords.push(record)
     }
     if (record.startsWith('# branch.head ')) {
       branch = branchOf(record.slice('# branch.head '.length))
@@ -122,29 +158,14 @@ export function parseStatusV2(output: string): NativeStatusSnapshot {
       // Another header git added: not needed here, and never a file.
     } else if (record.startsWith(`${UNTRACKED_MARK} `)) {
       untracked.push(record.slice(2))
-    } else if (record.startsWith('1 ') || record.startsWith('u ')) {
-      const fields = record.split(' ')
-      const marks = fields[1] ?? ''
-      const file = fields.slice(ORDINARY_PATH_FIELD).join(' ')
-      if (file === '' || marks.length !== 2) {
-        throw new Error(`Unexpected git status record: ${record}`)
+    } else if (record.startsWith('1 ') || record.startsWith('2 ') || record.startsWith('u ')) {
+      const { file, marks } = trackedChange(record, pathFieldOf(record.charAt(0)))
+      if (record.startsWith('2 ')) {
+        // The renamed-from path is the next record; it names no change
+        // itself, but it belongs to this change's stamp.
+        index += 1
+        changeRecords.push(records[index] ?? '')
       }
-      const [indexMark, worktreeMark] = marks
-      if (indexMark !== UNMODIFIED_MARK) {
-        staged.push(file)
-      }
-      if (worktreeMark !== UNMODIFIED_MARK) {
-        unstaged.push(file)
-      }
-    } else if (record.startsWith('2 ')) {
-      const fields = record.split(' ')
-      const marks = fields[1] ?? ''
-      const file = fields.slice(RENAMED_PATH_FIELD).join(' ')
-      if (file === '' || marks.length !== 2) {
-        throw new Error(`Unexpected git status record: ${record}`)
-      }
-      // The renamed-from path is the next record; it names no change itself.
-      index += 1
       const [indexMark, worktreeMark] = marks
       if (indexMark !== UNMODIFIED_MARK) {
         staged.push(file)
@@ -156,7 +177,17 @@ export function parseStatusV2(output: string): NativeStatusSnapshot {
       throw new Error(`Unexpected git status record: ${record}`)
     }
   }
-  return { branch, upstream, ahead, behind, headOid, staged, unstaged, untracked }
+  return {
+    branch,
+    upstream,
+    ahead,
+    behind,
+    headOid,
+    staged,
+    unstaged,
+    untracked,
+    records: changeRecords,
+  }
 }
 
 /**
