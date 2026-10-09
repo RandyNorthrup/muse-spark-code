@@ -22,8 +22,7 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
-import { existsSync } from 'node:fs'
-import { mkdir, rm } from 'node:fs/promises'
+import { mkdir, rename, rm, rmdir } from 'node:fs/promises'
 import path from 'node:path'
 import {
   GIT_BATCH_KILL_GRACE_MS,
@@ -36,6 +35,7 @@ import {
   HELD_EXECUTABLE_MODE,
   HELD_FILE_MODE,
   HELD_WRITER_DRAIN_GRACE_MS,
+  PENDING_CHECKOUT_RECOVERY_MS,
   UI_TEXT,
   UNTRUSTED_CHECKOUT_MIN_GIT_MINOR,
   WORKTREE_RECORD_SAVE_ATTEMPTS,
@@ -53,7 +53,14 @@ import {
 import { isPlainRefName } from '../../../core/git/pushPlan'
 import { isSamePath } from '../../../core/paths'
 import { withoutCredentials } from '../../../core/credentialEnvironment'
-import { fileIdentityKey, statIdentity } from '../../../core/fs/fileIdentity'
+import {
+  fileIdentityKey,
+  identityOf,
+  lstatIdentity,
+  sameFile,
+  statIdentity,
+  type FileIdentity,
+} from '../../../core/fs/fileIdentity'
 import { heldWorktreeFolder, type WorktreeRecord } from '../../../core/worktreeConversations'
 import {
   worktreeAddDetachedArgs,
@@ -77,9 +84,13 @@ import {
   type TrustTicket,
   type WorktreeRecordStore,
 } from './records'
-import { currentProcessOwner, isProcessOwnerGone } from './storeLock'
+import { currentProcessOwner, isProcessOwnerGone } from './processOwner'
 
 const COMMIT_PEEL = '^{commit}'
+// A held folder made under a private name beside its place, and one moved
+// aside to be removed: both under the held root, so held like the rest.
+const HELD_FOLDER_STAGING_SUFFIX = '.claiming'
+const HELD_FOLDER_REMOVING_SUFFIX = '.removing'
 const OWN_FOLDER_PREFIX = 'pr-'
 const FETCH_HEAD = 'FETCH_HEAD'
 
@@ -673,13 +684,15 @@ export function createNodePullRequestCheckoutGit(
       }
       const overrides = await hookOverrides(git, cwd, check)
       check()
-      // The reservation makes the folder this checkout's; one there already
-      // is someone else's, never added over and never cleaned up.
-      if (existsSync(folder)) {
-        throw new PullRequestServiceError(`${UI_TEXT.worktreeFolderExists} ${folder}`)
-      }
+      // The folder is made by this checkout alone, and its identity is the
+      // proof every cleanup checks: one there already is someone else's,
+      // never added over and never cleaned up.
+      const created = await claimHeldFolder(folder)
+      let hasAdded = false
       try {
+        check()
         await git.text([...overrides, ...worktreeAddHeldArgs(folder, sha)], cwd, git.quietEnv)
+        hasAdded = true
         // In the worktree, so named hooks its own configuration defines are found and switched off.
         const worktreeOverrides = await hookOverrides(git, folder, check)
         check()
@@ -708,28 +721,116 @@ export function createNodePullRequestCheckoutGit(
         }
       } catch (error: unknown) {
         // Cleanup runs after Cancel too: Cancel must never leave the pull
-        // request's files behind. Only once no writer is in flight.
+        // request's files behind. Only once no writer is in flight, and only
+        // ever the folder this checkout made.
+        const leftovers: HeldLeftovers = { git, folder, cwd, created, hasAdded }
         if (error instanceof CleanupPendingError) {
           throw new CleanupPendingError(
             error.failure,
-            removeHeldLeftoversAfter(error.settled, git, folder, cwd),
+            removeHeldLeftoversAfter(error.settled, leftovers),
           )
         }
-        await removeHeldLeftovers(git, folder, cwd)
+        await removeHeldLeftovers(leftovers)
         throw error
       }
     },
   }
 }
 
+/** The held folder was there already, or appeared: this checkout made nothing. */
+export class HeldFolderTakenError extends PullRequestServiceError {
+  public constructor(folder: string) {
+    super(`${UI_TEXT.worktreeFolderExists} ${folder}`)
+    this.name = 'HeldFolderTakenError'
+  }
+}
+
+async function isPresent(target: string): Promise<boolean> {
+  try {
+    await lstatIdentity(target)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /**
- * A failed held checkout's leftovers: its worktree removed through git
- * (no hooks, no filters, quiet; bounded by its own timeout, not the
- * owner's signal, so Cancel still cleans up), then whatever git left of
- * the folder, which is the runtime's own. Never throws: the caller decides
- * from whether the folder is gone.
+ * Makes the held folder for this checkout alone: an empty folder under a
+ * private random name beside it (so its identity can only be this
+ * checkout's), renamed into place, which fails while anything is at the
+ * name. Git adds the worktree into that empty folder, keeping its identity.
+ * Returns the identity every cleanup checks first.
  */
-async function removeHeldLeftovers(git: NodeGitRunner, folder: string, cwd: string): Promise<void> {
+async function claimHeldFolder(folder: string): Promise<FileIdentity> {
+  const parent = path.dirname(folder)
+  await mkdir(parent, { recursive: true })
+  const staging = path.join(
+    parent,
+    `.${path.basename(folder)}.${randomUUID()}${HELD_FOLDER_STAGING_SUFFIX}`,
+  )
+  await mkdir(staging)
+  let created: FileIdentity
+  try {
+    created = identityOf(await lstatIdentity(staging))
+    if (await isPresent(folder)) {
+      throw new HeldFolderTakenError(folder)
+    }
+    await rename(staging, folder)
+  } catch (error: unknown) {
+    try {
+      // Still ours under its private name: empty, so never more than it.
+      await rmdir(staging)
+    } catch {
+      // Renamed into place already, or gone.
+    }
+    if (error instanceof HeldFolderTakenError || (await isPresent(folder))) {
+      throw new HeldFolderTakenError(folder)
+    }
+    throw error
+  }
+  return created
+}
+
+interface HeldLeftovers {
+  readonly git: NodeGitRunner
+  readonly folder: string
+  readonly cwd: string
+  /** The folder this checkout made: nothing else is ever removed. */
+  readonly created: FileIdentity
+  /** Git added the worktree, so what is inside is git's and this checkout's. */
+  readonly hasAdded: boolean
+}
+
+/** The folder at `target` is the very one this checkout made (not a link to it). */
+async function isOwnFolder(target: string, created: FileIdentity): Promise<boolean> {
+  try {
+    const seen = await lstatIdentity(target)
+    return seen.isDirectory() && sameFile(seen, created)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * A failed held checkout's leftovers, and only the folder this checkout
+ * made: anything else at the name (a folder another process put there, a
+ * replacement made while this one ran) is left alone. Its worktree is
+ * removed through git (no hooks, no filters, quiet; git refuses a folder
+ * that is not this repository's worktree; bounded by its own timeout, not
+ * the owner's signal, so Cancel still cleans up). Whatever git left is
+ * moved aside under a private name, checked to be that very folder, then
+ * removed: whole once git had added the worktree, else only while empty
+ * (anything in it then is not this checkout's). Never throws: the caller
+ * decides from whether the folder is gone.
+ */
+async function removeHeldLeftovers(leftovers: HeldLeftovers): Promise<void> {
+  const { git, folder, cwd, created, hasAdded } = leftovers
+  if (!(await isOwnFolder(folder, created))) {
+    if (await isPresent(folder)) {
+      git.log.warn(`A held checkout left a folder it did not make alone: ${folder}`)
+    }
+    return
+  }
   try {
     // --force: without it git first runs `git status` in the worktree,
     // through the filters this checkout never ran.
@@ -743,9 +844,36 @@ async function removeHeldLeftovers(git: NodeGitRunner, folder: string, cwd: stri
   } catch (error: unknown) {
     git.log.warn(`A held checkout's worktree was not removed by git: ${failureText(error)}`)
   }
+  if (!(await isPresent(folder))) {
+    return
+  }
+  const aside = path.join(
+    path.dirname(folder),
+    `.${path.basename(folder)}.${randomUUID()}${HELD_FOLDER_REMOVING_SUFFIX}`,
+  )
   try {
-    await rm(folder, { recursive: true, force: true, maxRetries: HELD_CLEANUP_REMOVE_RETRIES })
+    await rename(folder, aside)
   } catch (error: unknown) {
+    git.log.warn(`A held checkout's folder was left after it failed: ${failureText(error)}`)
+    return
+  }
+  const isThatFolder = await isOwnFolder(aside, created)
+  try {
+    if (!isThatFolder) {
+      throw new Error('another folder took its place')
+    }
+    await (hasAdded
+      ? rm(aside, { recursive: true, force: true, maxRetries: HELD_CLEANUP_REMOVE_RETRIES })
+      : rmdir(aside))
+  } catch (error: unknown) {
+    // Not this checkout's to remove: back under its name while that is free.
+    if (!(await isPresent(folder))) {
+      try {
+        await rename(aside, folder)
+      } catch {
+        // Left under its private name, held like the rest of the held root.
+      }
+    }
     git.log.warn(`A held checkout's folder was left after it failed: ${failureText(error)}`)
   }
 }
@@ -753,12 +881,10 @@ async function removeHeldLeftovers(git: NodeGitRunner, folder: string, cwd: stri
 /** The same, once the writer still in flight has stopped (`drained` never rejects). */
 async function removeHeldLeftoversAfter(
   drained: Promise<void>,
-  git: NodeGitRunner,
-  folder: string,
-  cwd: string,
+  leftovers: HeldLeftovers,
 ): Promise<void> {
   await drained
-  await removeHeldLeftovers(git, folder, cwd)
+  await removeHeldLeftovers(leftovers)
 }
 
 /** The folder's native identity (`dev:ino`, links resolved); undefined when it is not one. */
@@ -976,13 +1102,14 @@ export class RuntimePullRequestCheckout {
     pullRequest: PullRequest,
     isOwn: boolean,
   ): Promise<OpenPullRequestResult> {
+    const owner = await currentProcessOwner()
     const makeRecord = (): WorktreeRecord => ({
       // Recorded before the folder exists, so no window ever sees it unrecorded.
       folder,
       repositoryRoot: this.deps.repositoryRoot,
       createdAt: this.deps.now(),
       checkoutId: randomUUID(),
-      pendingOwner: currentProcessOwner(),
+      pendingOwner: owner,
       pullRequest: {
         repository: repositoryLabel(remote.repository),
         number,
@@ -1006,7 +1133,7 @@ export class RuntimePullRequestCheckout {
           if (current.isCheckoutPending !== true && this.deps.pathExists(folder)) {
             return await this.offerExistingCheckout(folder, number, current)
           }
-          if (!this.mayTakeOver(folder, current)) {
+          if (!(await this.mayTakeOver(folder, current))) {
             // Another checkout owns this folder right now.
             return changed
           }
@@ -1027,13 +1154,20 @@ export class RuntimePullRequestCheckout {
 
   /**
    * Whether a new checkout may replace `current`: its folder is gone, and
-   * it finished, or its checkout's process is gone too (a crash).
+   * it finished; or it is pending and its process is provably gone (no
+   * such process, or its id now names a process that started at another
+   * time); or it has been pending, its folder never made, longer than any
+   * step before the folder takes (a crash whose id was reused by a process
+   * whose start time cannot be read). Taking over never touches a folder:
+   * the held folder is claimed exclusively, so a stale owner coming back
+   * finds it taken.
    */
-  private mayTakeOver(folder: string, current: WorktreeRecord): boolean {
+  private async mayTakeOver(folder: string, current: WorktreeRecord): Promise<boolean> {
     return (
       !this.deps.pathExists(folder) &&
       (current.isCheckoutPending !== true ||
-        (current.pendingOwner !== undefined && isProcessOwnerGone(current.pendingOwner)))
+        this.deps.now() - current.createdAt > PENDING_CHECKOUT_RECOVERY_MS ||
+        (current.pendingOwner !== undefined && (await isProcessOwnerGone(current.pendingOwner))))
     )
   }
 
@@ -1061,6 +1195,10 @@ export class RuntimePullRequestCheckout {
         // never offered or trusted) until its cleanup has run.
         this.deps.log.warn(`A failed checkout is still writing; it stays held: ${folder}`)
         void this.discardAfter(error.settled, folder, version)
+      } else if (error instanceof HeldFolderTakenError) {
+        // Nothing of this checkout's was ever made there: its reservation
+        // goes, and the folder (someone else's) stays held by location.
+        await this.discardReservation(folder, version)
       } else {
         await this.discardIfGone(folder, version)
       }
@@ -1089,6 +1227,11 @@ export class RuntimePullRequestCheckout {
       this.deps.log.warn(`A failed checkout left its folder; it stays held: ${folder}`)
       return
     }
+    await this.discardReservation(folder, version)
+  }
+
+  /** pending → absent for exactly this checkout's version. Never throws. */
+  private async discardReservation(folder: string, version: RecordVersion): Promise<void> {
     try {
       await this.deps.records.discard(folder, version)
     } catch {

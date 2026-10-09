@@ -150,18 +150,24 @@ async function isInEffect(
 }
 
 /**
- * Writes `records` as the generation after `head`: `written` only when it
- * took that number and is in effect; `lost` when another writer took it
- * (re-read and apply again), or when `canPublish` says the lock is no
- * longer this writer's.
+ * What a write came to: `written` when it took the next number and is in
+ * effect; `lost` when it published nothing (another writer took the
+ * number, `canPublish` said the lock is no longer this writer's, or its
+ * stage was swept): read again and apply again; `unverified` when it took
+ * the number but its place in history can no longer be proven (its
+ * successor was swept meanwhile, or it took a number the sweep had freed):
+ * the caller reconciles against the head before applying again.
  */
+export type GenerationWrite = 'written' | 'lost' | 'unverified'
+
+/** Writes `records` as the generation after `head`. */
 export async function writeNextGeneration(
   fs: RecordStoreFs,
   folder: string,
   head: RecordHead,
   records: readonly WorktreeRecord[],
   canPublish: () => Promise<boolean>,
-): Promise<'written' | 'lost'> {
+): Promise<GenerationWrite> {
   const generation = head.generation + 1
   const writeId = randomUUID()
   const stage = path.join(folder, `${STAGE_PREFIX}${randomUUID()}${ATOMIC_TEMPORARY_SUFFIX}`)
@@ -176,7 +182,10 @@ export async function writeNextGeneration(
     try {
       await fs.link(stage, path.join(folder, generationName(generation)))
     } catch (error: unknown) {
-      if (errorCode(error) === 'EEXIST') {
+      // EEXIST: the number is taken. ENOENT: the stage was swept under a
+      // delayed writer. Either way nothing was published.
+      const code = errorCode(error)
+      if (code === 'EEXIST' || code === 'ENOENT') {
         return 'lost'
       }
       throw error
@@ -188,7 +197,7 @@ export async function writeNextGeneration(
       // Swept later.
     }
   }
-  return (await isInEffect(fs, folder, generation, writeId)) ? 'written' : 'lost'
+  return (await isInEffect(fs, folder, generation, writeId)) ? 'written' : 'unverified'
 }
 
 /**

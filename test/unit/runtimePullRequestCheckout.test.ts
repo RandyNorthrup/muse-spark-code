@@ -5,7 +5,14 @@
 // with the real git runner.
 
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { hostname as hostnameOf, tmpdir } from 'node:os'
 import path from 'node:path'
@@ -19,10 +26,11 @@ import {
   type WorktreeRecord,
 } from '../../src/core/worktreeConversations'
 import { createFileExclusively } from '../../src/host/fsAtomic'
-import { UI_TEXT } from '../../src/shared/constants'
+import { PENDING_CHECKOUT_RECOVERY_MS, UI_TEXT } from '../../src/shared/constants'
 import {
   CleanupPendingError,
   createNodePullRequestCheckoutGit,
+  HeldFolderTakenError,
   HeldWriters,
   pullRequestFetchEnvironment,
   quietPullRequestEnvironment,
@@ -39,7 +47,7 @@ import {
   versionOf,
   type TrustTicket,
 } from '../../src/runtime/panel/pullRequests/records'
-import { currentProcessOwner } from '../../src/runtime/panel/pullRequests/storeLock'
+import { currentProcessOwner } from '../../src/runtime/panel/pullRequests/processOwner'
 import type { CoreLogger } from '../../src/core/logging'
 import { fakeGitHub } from './helpers/fakeGitHub'
 import { CAPTURED_PULL_FORK, CAPTURED_PULL_OWN } from './helpers/githubCapture'
@@ -50,6 +58,19 @@ const CANARY = 'm123p-checkout-canary'
 const OWN = { owner: 'RandyNorthrup', name: 'muse-spark-code' }
 const OWN_PULLS = '/repos/RandyNorthrup/muse-spark-code/pulls/56'
 const FORK_PULLS = '/repos/RandyNorthrup/muse-spark-code/pulls/51'
+const FOREIGN_TEXT = 'not this checkout’s'
+
+/** A held destination under a fresh data folder, and a foreign file's place in it. */
+async function raceFolder(): Promise<{ readonly folder: string; readonly foreign: string }> {
+  const dataFolder = await mkdtemp(path.join(tmpdir(), 'm123p-own-'))
+  const folder = path.join(dataFolder, 'pr-worktrees', '51-race')
+  return { folder, foreign: path.join(folder, 'foreign.txt') }
+}
+
+// The held checkout asks its owner check twice per hook listing (once after
+// git's version, cached after the first) and once before each git step:
+// listing, check, ls-tree, listing, check, then the worktree is added.
+const LAST_CHECK_BEFORE_ADD = 6
 const CAPTURED_ORIGIN = {
   repository: 'RandyNorthrup/muse-spark-code',
   number: 51,
@@ -834,7 +855,7 @@ describe('runtime pull request checkout (M123 lane P)', () => {
       repositoryRoot: setup.repositoryRoot,
       createdAt: 1000,
       checkoutId: 'live-checkout',
-      pendingOwner: currentProcessOwner(),
+      pendingOwner: await currentProcessOwner(),
       pullRequest: CAPTURED_ORIGIN,
       isHeld: true,
       isCheckoutPending: true,
@@ -845,6 +866,78 @@ describe('runtime pull request checkout (M123 lane P)', () => {
       reason: UI_TEXT.gitOperationChanged,
     })
     expect(setup.git.calls.checkedOutHeld).toHaveLength(0)
+  })
+
+  it('takes over a pending checkout whose process id now names another process', async () => {
+    // RVM123P4 finding 4: the checkout crashed before its folder existed and
+    // the system gave its id to a live, unrelated process.
+    const setup = await checkoutSetup({ headSha: CAPTURED_PULL_FORK.head.sha })
+    const folder = heldFolderOf(setup.dataFolder, 51)
+    const live = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], {
+      windowsHide: true,
+    })
+    const exited = new Promise((resolve) => {
+      live.once('exit', resolve)
+    })
+    try {
+      const stranded = await setup.records.reserve({
+        folder,
+        repositoryRoot: setup.repositoryRoot,
+        createdAt: 1000,
+        checkoutId: 'crashed-checkout',
+        pendingOwner: { host: hostnameOf(), pid: live.pid ?? 0, processStart: Date.now() - 60_000 },
+        pullRequest: CAPTURED_ORIGIN,
+        isHeld: true,
+        isCheckoutPending: true,
+      })
+      expect(stranded.ok).toBe(true)
+      const result = await setup.checkout.open('51', OWN_REMOTES, 'origin')
+      expect(result.ok).toBe(true)
+      const record = await setup.records.recordFor(folder)
+      expect(record?.checkoutId).not.toBe('crashed-checkout')
+      expect(record?.isCheckoutPending).toBeUndefined()
+    } finally {
+      live.kill('SIGKILL')
+      await exited
+    }
+  })
+
+  it('recovers a pending checkout whose folder never appeared within the bound', async () => {
+    // RVM123P4 finding 4's bound: however alive its process id looks, a
+    // checkout pending this long without its folder crashed long ago.
+    const setup = await checkoutSetup({ headSha: CAPTURED_PULL_FORK.head.sha })
+    const folder = heldFolderOf(setup.dataFolder, 51)
+    const stranded = await setup.records.reserve({
+      folder,
+      repositoryRoot: setup.repositoryRoot,
+      createdAt: 2000 - PENDING_CHECKOUT_RECOVERY_MS - 1,
+      checkoutId: 'stranded-checkout',
+      pendingOwner: await currentProcessOwner(),
+      pullRequest: CAPTURED_ORIGIN,
+      isHeld: true,
+      isCheckoutPending: true,
+    })
+    expect(stranded.ok).toBe(true)
+    const result = await setup.checkout.open('51', OWN_REMOTES, 'origin')
+    expect(result.ok).toBe(true)
+    const record = await setup.records.recordFor(folder)
+    expect(record?.checkoutId).not.toBe('stranded-checkout')
+  })
+
+  it('drops its reservation when the held folder was someone else’s all along', async () => {
+    const setup = await checkoutSetup({
+      headSha: CAPTURED_PULL_FORK.head.sha,
+      checkOutHeld: async (folder) => {
+        await mkdir(folder, { recursive: true })
+        throw new HeldFolderTakenError(folder)
+      },
+    })
+    const result = await setup.checkout.open('51', OWN_REMOTES, 'origin')
+    expect(result.ok).toBe(false)
+    const folder = setup.git.calls.checkedOutHeld[0]?.folder ?? ''
+    // Nothing of this checkout's is there: no pending record strands it.
+    expect(await setup.records.recordFor(folder)).toBeUndefined()
+    expect(existsSync(folder)).toBe(true)
   })
 
   it('keeps the bearer out of every result and log', async () => {
@@ -1579,6 +1672,133 @@ describe('runtime pull request checkout on the fixture repositories (M123 lane P
     expect(existsSync(result.folder)).toBe(true)
     expect(git(result.folder, 'rev-parse', 'HEAD')).toBe(sha)
     expect(opened).toEqual([result.folder])
+  })
+
+  function heldRunner(): PullRequestCheckoutGit {
+    return createNodePullRequestCheckoutGit({
+      gitPath,
+      userEnv: pullRequestFetchEnvironment({ ...fixtures.environment }),
+      quietEnv: quietPullRequestEnvironment({ ...fixtures.environment }),
+      platform: process.platform,
+      signal: new AbortController().signal,
+      log: recordingLogger(),
+    })
+  }
+
+  it('never deletes a folder another process puts at the destination before git adds it', async () => {
+    // RVM123P4 finding 1: the destination is free when the checkout looks,
+    // another process puts a populated folder there, and git refuses to
+    // add over it. The cleanup must not delete what this checkout never made.
+    const { folder, foreign } = await raceFolder()
+    const sha = git(fixtures.fork, 'rev-parse', 'HEAD')
+    let calls = 0
+    const check = () => {
+      calls += 1
+      // The last owner check before the worktree is added (two per hook
+      // listing, one before the tree listing): the other process's folder
+      // lands right after it, before git looks.
+      if (calls === LAST_CHECK_BEFORE_ADD) {
+        queueMicrotask(() => {
+          mkdirSync(folder, { recursive: true })
+          writeFileSync(foreign, FOREIGN_TEXT)
+        })
+      }
+    }
+    await expect(heldRunner().checkOutHeld(folder, sha, fixtures.fork, check)).rejects.toThrow()
+    expect(readFileSync(foreign, 'utf8')).toBe(FOREIGN_TEXT)
+    const worktrees = git(fixtures.fork, 'worktree', 'list', '--porcelain')
+    expect(worktrees.replaceAll('\\', '/')).not.toContain(slashedPath(folder))
+  })
+
+  it('never deletes a folder put in place of the worktree while the checkout ran', async () => {
+    // RVM123P4 finding 1, the replacement case: the worktree is moved away
+    // and another folder put at its name before the checkout fails.
+    const { folder, foreign } = await raceFolder()
+    const sha = git(fixtures.fork, 'rev-parse', 'HEAD')
+    let isSwapped = false
+    const check = () => {
+      if (isSwapped || !existsSync(path.join(folder, '.git'))) {
+        return
+      }
+      isSwapped = true
+      renameSync(folder, `${folder}-moved`)
+      mkdirSync(folder)
+      writeFileSync(foreign, FOREIGN_TEXT)
+      throw new Error('cancelled while the folder was replaced')
+    }
+    await expect(heldRunner().checkOutHeld(folder, sha, fixtures.fork, check)).rejects.toThrow(
+      /cancelled/u,
+    )
+    expect(readFileSync(foreign, 'utf8')).toBe(FOREIGN_TEXT)
+  })
+
+  it('never deletes what another process drops into the claimed folder before git adds it', async () => {
+    // RVM123P4 finding 1, inside the claim: the folder is this checkout's,
+    // but git refuses it once another process wrote into it. Only an empty
+    // folder of this checkout's own is ever removed when git added nothing.
+    const { folder, foreign } = await raceFolder()
+    const sha = git(fixtures.fork, 'rev-parse', 'HEAD')
+    let calls = 0
+    const check = () => {
+      calls += 1
+      if (calls === LAST_CHECK_BEFORE_ADD + 1) {
+        writeFileSync(foreign, FOREIGN_TEXT)
+      }
+    }
+    await expect(heldRunner().checkOutHeld(folder, sha, fixtures.fork, check)).rejects.toThrow()
+    expect(readFileSync(foreign, 'utf8')).toBe(FOREIGN_TEXT)
+    const worktrees = git(fixtures.fork, 'worktree', 'list', '--porcelain')
+    expect(worktrees.replaceAll('\\', '/')).not.toContain(slashedPath(folder))
+  })
+
+  it('removes a claimed folder git never used when the checkout is cancelled', async () => {
+    const { folder } = await raceFolder()
+    const sha = git(fixtures.fork, 'rev-parse', 'HEAD')
+    let calls = 0
+    const check = () => {
+      calls += 1
+      if (calls === LAST_CHECK_BEFORE_ADD + 1) {
+        throw new Error('cancelled before git added the worktree')
+      }
+    }
+    await expect(heldRunner().checkOutHeld(folder, sha, fixtures.fork, check)).rejects.toThrow(
+      /cancelled/u,
+    )
+    expect(existsSync(folder)).toBe(false)
+    expect(readdirSync(path.dirname(folder))).toEqual([])
+  })
+
+  it('leaves a folder already at the destination alone', async () => {
+    const { folder, foreign } = await raceFolder()
+    mkdirSync(folder, { recursive: true })
+    writeFileSync(foreign, FOREIGN_TEXT)
+    const sha = git(fixtures.fork, 'rev-parse', 'HEAD')
+    await expect(
+      heldRunner().checkOutHeld(folder, sha, fixtures.fork, uncancelledCheck),
+    ).rejects.toBeInstanceOf(HeldFolderTakenError)
+    expect(readFileSync(foreign, 'utf8')).toBe(FOREIGN_TEXT)
+    const worktrees = git(fixtures.fork, 'worktree', 'list', '--porcelain')
+    expect(worktrees.replaceAll('\\', '/')).not.toContain(slashedPath(folder))
+  })
+
+  it('removes its own failed held checkout whole, and nothing beside it', async () => {
+    const { folder } = await raceFolder()
+    const sibling = path.join(path.dirname(folder), '52-sibling')
+    mkdirSync(sibling, { recursive: true })
+    writeFileSync(path.join(sibling, 'kept.txt'), FOREIGN_TEXT)
+    const sha = git(fixtures.fork, 'rev-parse', 'HEAD')
+    const check = () => {
+      if (!existsSync(path.join(folder, '.git'))) {
+        return
+      }
+      throw new Error('cancelled after the worktree was added')
+    }
+    await expect(heldRunner().checkOutHeld(folder, sha, fixtures.fork, check)).rejects.toThrow(
+      /cancelled/u,
+    )
+    expect(existsSync(folder)).toBe(false)
+    expect(readdirSync(path.dirname(folder))).toEqual(['52-sibling'])
+    expect(readFileSync(path.join(sibling, 'kept.txt'), 'utf8')).toBe(FOREIGN_TEXT)
   })
 
   it('stops the fetch and the held batch on cancel instead of hanging', async () => {

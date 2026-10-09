@@ -1751,18 +1751,28 @@ export const PULL_REQUEST_LINKS_KEPT = 200
 // then it fails loudly, never writing over what it did not read (M123).
 export const WORKTREE_RECORD_SAVE_ATTEMPTS = 3
 // The worktree records' cross-process lock (M123, PLAN.md M123's lock
-// protocol): a waiter gives up loudly past the timeout; an owner's lease
-// ends this long after its lock file was written, whatever its note says;
-// a lock whose owner note is missing or torn (a crash between create and
-// write) expires this long after its file was last written.
+// protocol), every duration on the monotonic clock: a waiter gives up
+// loudly past the timeout; a holder holds for its lease, and a waiter takes
+// over an instance it has itself watched unchanged for that lease (never
+// more than the lease below, whatever a note asks); an instance whose
+// owner note is missing or torn (a crash between create and write) is
+// taken over once watched for the unreadable bound.
 export const WORKTREE_RECORD_LOCK_TIMEOUT_MS = 10_000
 export const WORKTREE_RECORD_LOCK_POLL_MS = 10
 export const WORKTREE_RECORD_LOCK_LEASE_MS = 30_000
 export const WORKTREE_RECORD_LOCK_UNREADABLE_MS = 2000
-// Two samples of one process's start time (uptime arithmetic) agree within
-// this; a recorded owner with this process's id but a start time further
-// off was an earlier process that had the same id, so it is gone.
+// Two readings of one process's start time agree within this; a live
+// process id whose start time is further off belongs to another process.
 export const PROCESS_START_TOLERANCE_MS = 1000
+// Reading another process's start time (Windows PowerShell, macOS `ps`)
+// gives up after this; Linux's `/proc/<pid>/stat` counts in these ticks.
+export const PROCESS_START_QUERY_TIMEOUT_MS = 10_000
+export const LINUX_CLOCK_TICKS_PER_SECOND = 100
+// A pending checkout whose folder never appeared is someone's crash after
+// this long, even while its process id looks alive (a reused id whose
+// start time cannot be read): every step before the folder exists is
+// bounded far below it (M123).
+export const PENDING_CHECKOUT_RECOVERY_MS = 60 * 60 * 1000
 // The newest record generations kept; older ones, and stage or retired-lock
 // files older than the sweep age (a crash's leftovers), are removed.
 export const WORKTREE_RECORD_GENERATIONS_KEPT = 8

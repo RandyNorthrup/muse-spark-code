@@ -7,13 +7,18 @@
 //
 // - Acquire: one lock file, created exclusively (O_EXCL), holding its
 //   owner's note: the host, the process id and start time, a random id,
-//   and a lease.
-// - Expired: the lease ran out (never later than the lease after the
-//   file was last written, whatever the note claims); or the owner is gone
-//   (on this host: no such process, or this process's id with another
-//   start time); or the note is missing or torn and the file was last
-//   written longer ago than a short bound (a crash between create and
-//   write).
+//   and the lease its holder keeps.
+// - Time: every wait and every lease is measured on this process's
+//   monotonic clock, never the wall clock, so a clock step can neither
+//   extend nor cut a lease or a wait. The holder holds for its lease from
+//   just before it created the file. A waiter takes over only an instance
+//   it has itself watched, unchanged, for that holder's lease (never more
+//   than the longest lease it honors), so it never acts before the
+//   holder's own lease has ended.
+// - Expired early: the owner is provably gone (on this host: no process
+//   has its id, or the one that has it started at another time); or the
+//   note is missing or torn (a crash between create and write) and the
+//   waiter has watched the instance for a short bound.
 // - Takeover and release move the exact instance aside with one atomic
 //   rename, then compare the moved file's native identity with the one
 //   judged expired (or owned). A newer lock moved by mistake is linked
@@ -22,81 +27,38 @@
 //   another window's fresh lock.
 
 import { randomUUID } from 'node:crypto'
-import { hostname } from 'node:os'
 import * as z from 'zod/mini'
 import { identityOf, sameFile, type FileIdentity } from '../../../core/fs/fileIdentity'
-import {
-  MILLISECONDS_PER_SECOND,
-  PROCESS_START_TOLERANCE_MS,
-  WORKTREE_RECORD_LOCK_POLL_MS,
-  WORKTREE_RECORD_LOCK_UNREADABLE_MS,
-} from '../../../shared/constants'
+import { WORKTREE_RECORD_LOCK_POLL_MS } from '../../../shared/constants'
+import { processOwnerSchema, type ProcessOwner } from './processOwner'
 import { errorCode, isBusy, RETIRED_LOCK_SUFFIX, type RecordStoreFs } from './recordStoreFs'
-
-const NO_SUCH_PROCESS = 'ESRCH'
-
-const processOwnerSchema = z.object({
-  host: z.string(),
-  pid: z.number(),
-  processStart: z.number(),
-})
-
-/** A process, as a lock or a pending checkout names its owner. */
-export type ProcessOwner = z.infer<typeof processOwnerSchema>
 
 const lockNoteSchema = z.object({
   owner: processOwnerSchema,
   id: z.string(),
+  /** Wall-clock epoch ms, for people reading the file: never judged. */
   acquiredAt: z.number(),
-  leaseUntil: z.number(),
+  /** How long the holder holds, on its own monotonic clock. */
+  leaseMs: z.number(),
 })
 
 type LockNote = z.infer<typeof lockNoteSchema>
 
-// Sampled once: the uptime arithmetic moves by a few milliseconds per call.
-const PROCESS_START = Math.round(Date.now() - process.uptime() * MILLISECONDS_PER_SECOND)
-
-/** This process: its host, its id and its start time. */
-export function currentProcessOwner(): ProcessOwner {
-  return { host: hostname(), pid: process.pid, processStart: PROCESS_START }
-}
-
-/** Whether a process with this id exists (one we may not signal still does). */
-function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error: unknown) {
-    return errorCode(error) !== NO_SUCH_PROCESS
-  }
-}
-
-/**
- * Whether `owner` is provably gone: on this host, no process has its id,
- * or this process has its id with another start time (an earlier process
- * the system reused the id from). Another host's process, or a live id
- * (possibly reused), is never provably gone: its lease decides.
- */
-export function isProcessOwnerGone(
-  owner: ProcessOwner,
-  self: ProcessOwner = currentProcessOwner(),
-  isAlive: (pid: number) => boolean = isProcessAlive,
-): boolean {
-  if (owner.host !== self.host) {
-    return false
-  }
-  return owner.pid === self.pid
-    ? Math.abs(owner.processStart - self.processStart) > PROCESS_START_TOLERANCE_MS
-    : !isAlive(owner.pid)
-}
-
 export interface StoreLockEnv {
   readonly fs: RecordStoreFs
+  /** The wall clock: only written into the note for people reading it. */
   readonly now: () => number
+  /** Milliseconds on a clock that never steps: every wait and lease. */
+  readonly monotonic: () => number
   readonly sleep: (ms: number) => Promise<void>
   readonly owner: ProcessOwner
-  readonly isOwnerGone: (owner: ProcessOwner) => boolean
+  readonly isOwnerGone: (owner: ProcessOwner) => Promise<boolean>
+  /** How long this window holds the lock. */
   readonly leaseMs: number
+  /** The longest lease of another window this one waits out. */
+  readonly honoredLeaseMs: number
+  /** How long an instance without a readable note is watched before it is a crash's. */
+  readonly unreadableMs: number
   readonly timeoutMs: number
 }
 
@@ -122,10 +84,16 @@ type Observation =
   | {
       readonly kind: 'seen'
       readonly identity: FileIdentity
-      /** The file's last write, epoch ms. */
-      readonly writtenAt: number
       readonly note: LockNote | undefined
     }
+
+/** One instance this waiter watches: since when, on its monotonic clock. */
+interface Watch {
+  readonly identity: FileIdentity
+  readonly noteId: string | undefined
+  readonly since: number
+  readonly isOwnerGone: boolean
+}
 
 function parseNote(bytes: Buffer): LockNote | undefined {
   try {
@@ -142,20 +110,14 @@ async function observe(fs: RecordStoreFs, lockPath: string): Promise<Observation
     const before = await fs.lstat(lockPath)
     const bytes = await fs.readFile(lockPath)
     const after = await fs.lstat(lockPath)
-    if (
-      !sameFile(before, after) ||
-      before.mtimeNs !== after.mtimeNs ||
-      before.size !== after.size ||
-      !after.isFile()
-    ) {
-      return { kind: 'changing' }
-    }
-    return {
-      kind: 'seen',
-      identity: identityOf(after),
-      writtenAt: Number(after.mtimeMs),
-      note: parseNote(bytes),
-    }
+    const isSteady =
+      sameFile(before, after) &&
+      before.mtimeNs === after.mtimeNs &&
+      before.size === after.size &&
+      after.isFile()
+    return isSteady
+      ? { kind: 'seen', identity: identityOf(after), note: parseNote(bytes) }
+      : { kind: 'changing' }
   } catch (error: unknown) {
     if (errorCode(error) === 'ENOENT') {
       return { kind: 'gone' }
@@ -164,20 +126,18 @@ async function observe(fs: RecordStoreFs, lockPath: string): Promise<Observation
   }
 }
 
-/** Whether the instance seen may be taken over. */
+/** Whether the watched instance may be taken over now. */
 function isExpired(
-  seen: Extract<Observation, { kind: 'seen' }>,
-  env: Pick<StoreLockEnv, 'now' | 'isOwnerGone' | 'leaseMs'>,
+  watch: Watch,
+  note: LockNote | undefined,
+  env: Pick<StoreLockEnv, 'monotonic' | 'honoredLeaseMs' | 'unreadableMs'>,
 ): boolean {
-  const now = env.now()
-  if (seen.note === undefined) {
-    // Missing or torn: its writer died between create and write, or wrote
-    // something no version reads. Live writers finish in microseconds.
-    return now - seen.writtenAt > WORKTREE_RECORD_LOCK_UNREADABLE_MS
-  }
-  // No note pins the lock past the lease after its file was last written.
-  const until = Math.min(seen.note.leaseUntil, seen.writtenAt + env.leaseMs)
-  return now >= until || env.isOwnerGone(seen.note.owner)
+  const watchedFor = env.monotonic() - watch.since
+  // Missing or torn: its writer died between create and write, or wrote
+  // something no version reads. Live writers finish in microseconds.
+  return note === undefined
+    ? watchedFor >= env.unreadableMs
+    : watch.isOwnerGone || watchedFor >= Math.min(note.leaseMs, env.honoredLeaseMs)
 }
 
 /**
@@ -229,31 +189,30 @@ async function hasRetiredInstance(
 }
 
 function lease(
-  fs: RecordStoreFs,
+  env: StoreLockEnv,
   lockPath: string,
   identity: FileIdentity,
   note: LockNote,
-  now: () => number,
+  heldSince: number,
 ): StoreLease {
   let isReleased = false
-  const isHeld = async (): Promise<boolean> => {
-    if (isReleased || now() >= note.leaseUntil) {
-      return false
-    }
-    const seen = await observe(fs, lockPath)
-    return seen.kind === 'seen' && sameFile(seen.identity, identity) && seen.note?.id === note.id
-  }
   return {
-    isHeld,
+    isHeld: async () => {
+      if (isReleased || env.monotonic() - heldSince >= env.leaseMs) {
+        return false
+      }
+      const seen = await observe(env.fs, lockPath)
+      return seen.kind === 'seen' && sameFile(seen.identity, identity) && seen.note?.id === note.id
+    },
     release: async () => {
       if (isReleased) {
         return
       }
       try {
-        const seen = await observe(fs, lockPath)
+        const seen = await observe(env.fs, lockPath)
         isReleased = true
         if (seen.kind === 'seen' && sameFile(seen.identity, identity)) {
-          await hasRetiredInstance(fs, lockPath, identity)
+          await hasRetiredInstance(env.fs, lockPath, identity)
         }
       } catch {
         // Unreleased, it expires with its lease; nothing else depends on it.
@@ -269,14 +228,17 @@ function lease(
  * `StoreBusyError` past the wait, never writing uncoordinated.
  */
 export async function acquireStoreLock(lockPath: string, env: StoreLockEnv): Promise<StoreLease> {
-  const deadline = env.now() + env.timeoutMs
+  const deadline = env.monotonic() + env.timeoutMs
+  let watch: Watch | undefined
   for (;;) {
-    const acquiredAt = env.now()
+    // Before the create: the holder's lease never outlasts what a waiter,
+    // who can only see the file after it exists, waits out.
+    const heldSince = env.monotonic()
     const note: LockNote = {
       owner: env.owner,
       id: randomUUID(),
-      acquiredAt,
-      leaseUntil: acquiredAt + env.leaseMs,
+      acquiredAt: env.now(),
+      leaseMs: env.leaseMs,
     }
     let isCreated = false
     try {
@@ -289,20 +251,33 @@ export async function acquireStoreLock(lockPath: string, env: StoreLockEnv): Pro
     }
     const seen = await observe(env.fs, lockPath)
     if (isCreated && seen.kind === 'seen' && seen.note?.id === note.id) {
-      return lease(env.fs, lockPath, seen.identity, note, env.now)
+      return lease(env, lockPath, seen.identity, note, heldSince)
     }
     if (seen.kind === 'gone') {
       continue
     }
-    if (
-      !isCreated &&
-      seen.kind === 'seen' &&
-      isExpired(seen, env) &&
-      (await hasRetiredInstance(env.fs, lockPath, seen.identity))
-    ) {
-      continue
+    if (!isCreated && seen.kind === 'seen') {
+      if (
+        watch === undefined ||
+        !sameFile(watch.identity, seen.identity) ||
+        watch.noteId !== seen.note?.id
+      ) {
+        watch = {
+          identity: seen.identity,
+          noteId: seen.note?.id,
+          since: env.monotonic(),
+          isOwnerGone: seen.note !== undefined && (await env.isOwnerGone(seen.note.owner)),
+        }
+      }
+      if (
+        isExpired(watch, seen.note, env) &&
+        (await hasRetiredInstance(env.fs, lockPath, seen.identity))
+      ) {
+        watch = undefined
+        continue
+      }
     }
-    if (env.now() >= deadline) {
+    if (env.monotonic() >= deadline) {
       throw new StoreBusyError()
     }
     await env.sleep(WORKTREE_RECORD_LOCK_POLL_MS)
