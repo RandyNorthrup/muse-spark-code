@@ -28942,6 +28942,16 @@ repository deadlines; four additional byte-exact red/restored drills and
 scoped checks are recorded in `docs/certification/m94kr3.md`. Aggregate
 quality remains with the lead.
 
+**RVM94KR4G Help correction (2026-10-09, kubuntu).** The remaining
+`referenceTab` description in English and all 14 translations is corrected,
+and the reference is regenerated. A legacy Allow always grant asks a migration question; only
+Allow always in this workspace saves the model and price. Allow once saves
+nothing, covers this window, and every new window asks again. Existing runtime
+behavior and gates are retained; wording, generated-reference freshness,
+182 passing tests and a byte-exact restored drift drill are certified in
+`docs/certification/m94kr3.md`. The inherited E2E typecheck and duplication
+deferrals remain in §7; aggregate quality stays with the lead.
+
 **M94KR3 handoff qualification (2026-10-09, kubuntu).** The inherited
 round-3 implementation was critically reviewed against every RVM94KR2
 reproduction before retaining it. Request-only grants now bind revocation;

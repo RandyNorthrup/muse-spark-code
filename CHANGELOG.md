@@ -129,6 +129,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Tab's Help description and all 14 translations now explain that only
+  **Allow always in this workspace** saves the model and price; **Allow once**
+  saves nothing, covers this window, and each new window asks again. The
+  generated reference no longer promises one extra question for legacy consent
+  (RVM94KR4G).
 - Tab consent review RVM94KR3G: accepting image generation's price or turning
   voice off preserves Tab's **Allow once**, including requests waiting to
   send. Revocation is per feature; **Ask again** and Tab's own price acceptance

@@ -1366,7 +1366,7 @@ Commands: —. Settings: `museSpark.paidDailyBudgetUsd`. [Documentation](https:/
 
 ### Tab Menu
 
-Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic. Consent covers the model and price shown; changing either asks again. Allow once stays in this window. Allow always from an earlier version asks once more.
+Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic. Consent covers the model and price shown; changing either asks again. A legacy Allow always grant asks a migration question. Only Allow always in this workspace saves the model and price; Allow once saves nothing, stays in this window, and each new window asks again.
 
 ```json
 {
