@@ -801,7 +801,7 @@
     {
       "id": "M108",
       "title": "Several accounts per provider",
-      "summary": "Keep several labelled accounts with one provider, each with its own use thresholds, see which one is in use and pin a headless run to one, so a vendor limit blocks only the affected account.",
+      "summary": "Keep labelled provider accounts with use thresholds and headless pinning, plus paid consent revoked across windows, preserved for user-owned budget changes and re-asked for repository budgets.",
       "area": "models-providers",
       "release": "0.17.0"
     },

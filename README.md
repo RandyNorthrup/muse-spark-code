@@ -918,7 +918,16 @@ and in ACP editors, a paid use billed to the default account keeps this
 workspace's consent, unchanged; another account's first paid use asks for
 that account, naming its price and the shared daily budget
 (`museSpark.paidDailyBudgetUsd`, or the agent's own), and its **Allow always**
-lapses with **Ask again** or the feature's price. Only headless `exec
+lapses with **Ask again** or the feature's price. Revocation in another
+window also ends **Allow once** and refuses an open question's old answer;
+ACP revokes account approval when another agent drops the feature's flag.
+User/machine budget changes keep **Allow always**; the user's daily cap
+still binds. A budget supplied by the repository re-asks with the new amount
+before the next first charge. The VS Code setting is machine-scoped, so a
+normal repository setting cannot change it; the agent's own setting is
+user-owned. The account adapter also checks workspace/folder and language
+override provenance for hosts that expose a repository budget.
+Only headless `exec
 --account` bills another account today, and it keeps its explicit paid flags
 and hard budget.
 

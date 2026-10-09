@@ -331,6 +331,7 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
           billing: accountPaid.billing,
           folder: accountPaid.folder,
           globalState: deps.globalState,
+          configuration: vscode.workspace.getConfiguration(SETTINGS_SECTION),
           dailyBudgetUsd: sharedDailyBudget,
           ask: askPaidUse,
         })

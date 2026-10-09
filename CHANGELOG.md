@@ -85,6 +85,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Account-bound paid consent checks shared revocation and price generations
+  on every use. **Ask again** from another window ends an account's **Allow
+  once** even when that window never loaded account consent; delayed **Allow
+  always** answers after revocation are refused and never saved. ACP's
+  unflagged-feature revocation follows the same rule.
+- Account consent uses the same budget rule in memory and on disk:
+  user/machine ceiling changes keep **Allow always**, while a
+  repository-supplied ceiling re-asks with the new budget before spending.
 - Account-bound paid consent closes the 0.17 consent review's three
   prerequisites (RVCONSENT017D) before any caller binds it. Each question keeps
   the revocation epoch it was asked under, so a forced or concurrent question

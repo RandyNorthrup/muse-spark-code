@@ -21,7 +21,7 @@ import {
   scheduledRunPrice,
   type PaidUseRequest,
 } from '../../shared/paid'
-import { Usd, type UsdAmount } from '../../shared/usd'
+import type { UsdAmount } from '../../shared/usd'
 import type { PaidUseAnswer, PaidUseConsentDeps } from '../../core/paid/paidConsent'
 import {
   AccountPaidUseConsent,
@@ -67,6 +67,8 @@ export interface AccountPaidServiceDeps {
   readonly featureGeneration: (feature: PaidFeature) => string
   /** The shared daily budget the question names (museSpark.paidDailyBudgetUsd). */
   readonly dailyBudgetUsd: (feature: PaidFeature) => UsdAmount
+  /** User/machine ceilings keep consent; repository ceilings must be quoted anew. */
+  readonly isRepositoryBudget?: () => boolean
   readonly ask: AccountPaidHostAsk
   /** Waits between rename attempts; injectable so tests do not sleep. */
   readonly sleep?: (ms: number) => Promise<void>
@@ -153,24 +155,25 @@ export function createAccountPaidService(
       price,
       tariff,
       dailyBudgetUsd: deps.dailyBudgetUsd(request.feature),
+      ...(deps.isRepositoryBudget?.() === true && { repositoryBudget: true }),
     }
   }
-  /** One consent per account, tariff and quoted budget: a new budget quotes anew. */
+  /** Memory and persistence use one key: only repository budget changes re-quote. */
   const consentFor = (billing: PaidBilling, request: PaidUseRequest) => {
     const binding = bindingFor(billing, request)
-    const key = JSON.stringify([accountBindingKey(binding), binding.dailyBudgetUsd])
+    const key = accountBindingKey(binding)
     const held = consents.get(key)
     if (held !== undefined) return held
-    const { feature } = request
     const { base } = deps
     const store = accountPaidFiles(
       {
         folder: deps.folder,
-        featureGeneration: deps.featureGeneration,
+        featureGeneration: (feature) =>
+          JSON.stringify([base.quoteGeneration?.() ?? 'initial', deps.featureGeneration(feature)]),
         sleep: deps.sleep ?? delay,
         log: base.log,
       },
-      accountBindingKey(binding),
+      key,
     )
     const consent = new AccountPaidUseConsent(
       {
@@ -185,18 +188,19 @@ export function createAccountPaidService(
           prepareQuoteGeneration: base.prepareQuoteGeneration,
         }),
         quoteGeneration: () => base.quoteGeneration?.() ?? 'initial',
-        // The account, its tariff and the budget the question named are all
-        // still the ones that bill; anything else refuses and asks anew.
+        featureGeneration: deps.featureGeneration,
+        // User-owned ceilings can change without ending approval. Repository
+        // ceilings are part of the key and must still be the quoted amount.
         isCurrent: (current) => {
           const now = deps.billing()
           return (
             now?.provider === billing.provider &&
             now.account === billing.account &&
-            Usd.from(current.dailyBudgetUsd).compare(Usd.from(deps.dailyBudgetUsd(feature))) === 0
+            accountBindingKey(current) === accountBindingKey(bindingFor(now, request))
           )
         },
-        ask: (asked, current, canRemember) =>
-          deps.ask(asked, canRemember, paidAccountQuestion(current)),
+        ask: (asked, _current, canRemember) =>
+          deps.ask(asked, canRemember, paidAccountQuestion(bindingFor(billing, asked))),
         log: base.log,
       },
       binding,
@@ -211,7 +215,8 @@ export function createAccountPaidService(
         requiresAsking,
         ask === undefined
           ? undefined
-          : (asked, current, canRemember) => ask(asked, canRemember, paidAccountQuestion(current)),
+          : (asked, _current, canRemember) =>
+              ask(asked, canRemember, paidAccountQuestion(bindingFor(billing, asked))),
       ),
     revokeAll: async () => {
       const revoking = Array.from(consents.values(), (consent) => consent.revoke())
@@ -228,6 +233,19 @@ export interface VsCodeAccountPaidDeps extends Pick<
 > {
   /** The extension's global state, where the subagent price acceptance version lives. */
   readonly globalState: { get(key: string): unknown }
+  /** Read lazily: the machine setting normally has no effective repository scope. */
+  readonly configuration:
+    | {
+        readonly inspect: (key: string) =>
+          | {
+              readonly workspaceValue?: unknown
+              readonly workspaceFolderValue?: unknown
+              readonly workspaceLanguageValue?: unknown
+              readonly workspaceFolderLanguageValue?: unknown
+            }
+          | undefined
+      }
+    | undefined
   /** askPaidUse: the use's modal, with the account's line and no separate budget line. */
   readonly ask: (
     request: PaidUseRequest,
@@ -253,6 +271,15 @@ export function vsCodeAccountPaid(
     billing: deps.billing,
     folder: deps.folder,
     dailyBudgetUsd: deps.dailyBudgetUsd,
+    isRepositoryBudget: () => {
+      const setting = deps.configuration?.inspect('paidDailyBudgetUsd')
+      return [
+        setting?.workspaceValue,
+        setting?.workspaceFolderValue,
+        setting?.workspaceLanguageValue,
+        setting?.workspaceFolderLanguageValue,
+      ].some((value) => value !== undefined)
+    },
     featureGeneration: (feature) =>
       JSON.stringify([
         base.windowOnceGeneration?.(feature) ?? 0,

@@ -35,6 +35,7 @@ function rig() {
   const state = {
     billing: WORK as PaidBilling | undefined,
     budget: Usd.from(5).toAmount(),
+    repositoryBudget: false,
     canRemember: true,
     generation: 'g1',
     on: new Set<PaidFeature>(['voice', 'webSearch', 'imageGeneration']),
@@ -52,10 +53,19 @@ function rig() {
       folder,
       featureGeneration: () => state.generation,
       dailyBudgetUsd: () => state.budget,
+      isRepositoryBudget: () => state.repositoryBudget,
       ask,
       sleep: () => Promise.resolve(),
     })
   return { folder, state, ask, create, service: create() }
+}
+
+/** A revoked binding must ask in the current service and after reopening its files. */
+async function expectRefusedAcrossRestart(t: ReturnType<typeof rig>): Promise<void> {
+  t.ask.mockResolvedValue('deny')
+  expect(await t.service.decide(WORK, VOICE, false)).toBe(false)
+  expect(await t.create().decide(WORK, VOICE, false)).toBe(false)
+  expect(t.ask).toHaveBeenCalledTimes(3)
 }
 
 describe('M108 lane P account paid service', () => {
@@ -107,13 +117,48 @@ describe('M108 lane P account paid service', () => {
     expect(t.ask.mock.calls[1]?.[2]).toContain('meta · personal')
   })
 
-  it('names the new shared budget when it changes before the next question', async () => {
+  it('keeps user-owned Once when its shared budget changes and names the current budget on a forced question', async () => {
     const t = rig()
     expect(await t.service.decide(WORK, VOICE, false)).toBe(true)
     t.state.budget = Usd.from(7).toAmount()
     expect(await t.service.decide(WORK, VOICE, false)).toBe(true)
+    expect(t.ask).toHaveBeenCalledOnce()
+    expect(await t.service.decide(WORK, VOICE, true)).toBe(true)
     expect(t.ask).toHaveBeenCalledTimes(2)
     expect(t.ask.mock.calls[1]?.[2]).toContain('Shared daily budget: $7.00')
+  })
+
+  it('keeps user-owned Always after a budget change in memory and after restart', async () => {
+    const t = rig()
+    t.ask.mockResolvedValue('always')
+    expect(await t.service.decide(WORK, VOICE, false)).toBe(true)
+    t.state.budget = Usd.from(7).toAmount()
+    t.ask.mockResolvedValue('deny')
+    expect(await t.service.decide(WORK, VOICE, false)).toBe(true)
+    expect(await t.create().decide(WORK, VOICE, false)).toBe(true)
+    expect(t.ask).toHaveBeenCalledOnce()
+  })
+
+  it.each(['once', 'always'] as const)(
+    're-quotes repository-owned %s after a budget change in memory and after restart',
+    async (answer) => {
+      const t = rig()
+      t.state.repositoryBudget = true
+      t.ask.mockResolvedValue(answer)
+      expect(await t.service.decide(WORK, VOICE, false)).toBe(true)
+      t.state.budget = Usd.from(7).toAmount()
+      await expectRefusedAcrossRestart(t)
+      expect(t.ask.mock.calls[1]?.[2]).toContain('Shared daily budget: $7.00')
+      expect(t.ask.mock.calls[2]?.[2]).toContain('Shared daily budget: $7.00')
+    },
+  )
+
+  it('re-asks when a user-owned budget becomes repository-owned at the same amount', async () => {
+    const t = rig()
+    t.ask.mockResolvedValue('always')
+    expect(await t.service.decide(WORK, VOICE, false)).toBe(true)
+    t.state.repositoryBudget = true
+    await expectRefusedAcrossRestart(t)
   })
 
   it('refuses a use whose account stopped billing while the question was open', async () => {
@@ -146,10 +191,7 @@ describe('M108 lane P account paid service', () => {
     t.ask.mockResolvedValue('always')
     expect(await t.service.decide(WORK, VOICE, false)).toBe(true)
     await t.service.revokeAll()
-    t.ask.mockResolvedValue('deny')
-    expect(await t.service.decide(WORK, VOICE, false)).toBe(false)
-    expect(await t.create().decide(WORK, VOICE, false)).toBe(false)
-    expect(t.ask).toHaveBeenCalledTimes(3)
+    await expectRefusedAcrossRestart(t)
   })
 
   it('returns the frozen quote for an account search and keeps its Always by quote', async () => {

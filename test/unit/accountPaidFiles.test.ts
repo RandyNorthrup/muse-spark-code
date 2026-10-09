@@ -7,6 +7,7 @@ import {
   StaleEpochError,
   accountBindingKey,
   type PaidAccountBinding,
+  type AccountBindingGrants,
 } from '../../src/core/paid/accountPaidConsent'
 import { ACCOUNT_QUOTE_GRANT_VERSION, type PaidFeature } from '../../src/shared/constants'
 import type { PaidGrant } from '../../src/core/paid/paidAuthority'
@@ -57,9 +58,17 @@ function quoteGrant(epoch: number, model = 'model-a', order = 1): PaidGrant {
   }
 }
 
+function bindingGrants(epoch: number, features: readonly PaidFeature[]): AccountBindingGrants {
+  return {
+    epoch,
+    features: new Set(features),
+    generations: new Map(features.map((feature) => [feature, 'g1'])),
+  }
+}
+
 /** Keeps voice under epoch 0, then revokes to epoch 1; returns the binding's folder. */
 async function voiceThenAdvanced(t: ReturnType<typeof rig>): Promise<string> {
-  await t.store.saveGrantIf(KEY, 0, { epoch: 0, features: new Set(['voice']) })
+  await t.store.saveGrantIf(KEY, 0, bindingGrants(0, ['voice']))
   await t.store.advanceEpoch(KEY, 0)
   const [binding] = readdirSync(t.folder)
   return path.join(t.folder, binding ?? '')
@@ -102,20 +111,20 @@ describe('M108 lane P account consent store', () => {
 
   it('reads only grants approved under the current epoch', async () => {
     const t = rig()
-    await t.store.saveGrantIf(KEY, 0, { epoch: 0, features: new Set(['voice']) })
-    expect(t.open().readGrants(KEY)).toEqual({ epoch: 0, features: new Set(['voice']) })
+    await t.store.saveGrantIf(KEY, 0, bindingGrants(0, ['voice']))
+    expect(t.open().readGrants(KEY)).toEqual(bindingGrants(0, ['voice']))
     await t.store.advanceEpoch(KEY, 0)
     expect(t.store.readGrants(KEY)).toBeUndefined()
-    await t.store.saveGrantIf(KEY, 1, { epoch: 1, features: new Set(['judge']) })
-    expect(t.open().readGrants(KEY)).toEqual({ epoch: 1, features: new Set(['judge']) })
+    await t.store.saveGrantIf(KEY, 1, bindingGrants(1, ['judge']))
+    expect(t.open().readGrants(KEY)).toEqual(bindingGrants(1, ['judge']))
   })
 
   it('refuses a save under an epoch that is no longer current, storing nothing current', async () => {
     const t = rig()
     await t.store.advanceEpoch(KEY, 0)
-    await expect(
-      t.store.saveGrantIf(KEY, 0, { epoch: 0, features: new Set(['voice']) }),
-    ).rejects.toBeInstanceOf(StaleEpochError)
+    await expect(t.store.saveGrantIf(KEY, 0, bindingGrants(0, ['voice']))).rejects.toBeInstanceOf(
+      StaleEpochError,
+    )
     await expect(t.store.saveQuoteGrantIf(KEY, 0, quoteGrant(0))).rejects.toBeInstanceOf(
       StaleEpochError,
     )
@@ -137,34 +146,51 @@ describe('M108 lane P account consent store', () => {
 
   it('clears only grants and quotes approved before the cutoff', async () => {
     const t = rig()
-    await t.store.saveGrantIf(KEY, 0, { epoch: 0, features: new Set(['voice']) })
+    await t.store.saveGrantIf(KEY, 0, bindingGrants(0, ['voice']))
     await t.store.saveQuoteGrantIf(KEY, 0, quoteGrant(0))
     await t.store.advanceEpoch(KEY, 0)
     // Approved after the advance, before the older revoke's clears ran.
-    await t.store.saveGrantIf(KEY, 1, { epoch: 1, features: new Set(['judge']) })
+    await t.store.saveGrantIf(KEY, 1, bindingGrants(1, ['judge']))
     await t.store.saveQuoteGrantIf(KEY, 1, quoteGrant(1))
     await t.store.clearGrantsBefore(KEY, 1)
     await t.store.revokeQuoteGrants(KEY, 1)
     expect(records(t.folder).every((name) => /^(grant|quote)-1-/u.test(name))).toBe(true)
     expect(records(t.folder)).toHaveLength(2)
-    expect(t.open().readGrants(KEY)).toEqual({ epoch: 1, features: new Set(['judge']) })
+    expect(t.open().readGrants(KEY)).toEqual(bindingGrants(1, ['judge']))
     expect(t.open().readQuoteGrant(quoteGrant(1).quote)).toEqual(quoteGrant(1))
   })
 
   it('keeps each feature in its own record, so two windows never overwrite each other', async () => {
     const t = rig()
     await Promise.all([
-      t.store.saveGrantIf(KEY, 0, { epoch: 0, features: new Set(['voice']) }),
-      t.open().saveGrantIf(KEY, 0, { epoch: 0, features: new Set(['judge']) }),
+      t.store.saveGrantIf(KEY, 0, bindingGrants(0, ['voice'])),
+      t.open().saveGrantIf(KEY, 0, bindingGrants(0, ['judge'])),
     ])
     expect(t.open().readGrants(KEY)?.features).toEqual(new Set(['voice', 'judge']))
   })
 
   it('lapses a kept grant when its feature’s price acceptance changes', async () => {
     const t = rig()
-    await t.store.saveGrantIf(KEY, 0, { epoch: 0, features: new Set(['voice', 'judge']) })
+    await t.store.saveGrantIf(KEY, 0, bindingGrants(0, ['voice', 'judge']))
     t.generations.set('voice', 'g2')
-    expect(t.store.readGrants(KEY)).toEqual({ epoch: 0, features: new Set(['judge']) })
+    expect(t.store.readGrants(KEY)).toEqual(bindingGrants(0, ['judge']))
+  })
+
+  it('refuses a captured grant after host revocation instead of stamping the new generation', async () => {
+    const t = rig()
+    const captured = bindingGrants(0, ['voice'])
+    t.generations.set('voice', 'g2')
+    await expect(t.store.saveGrantIf(KEY, 0, captured)).rejects.toBeInstanceOf(StaleEpochError)
+    expect(t.store.readGrants(KEY)).toBeUndefined()
+    expect(readdirSync(t.folder)).toEqual([])
+  })
+
+  it('refuses a grant without its question’s captured generations', async () => {
+    const t = rig()
+    await expect(
+      t.store.saveGrantIf(KEY, 0, { ...bindingGrants(0, ['voice']), generations: new Map() }),
+    ).rejects.toBeInstanceOf(StaleEpochError)
+    expect(readdirSync(t.folder)).toEqual([])
   })
 
   it('returns the latest kept quote for the same feature, provider and model only', async () => {
@@ -186,7 +212,7 @@ describe('M108 lane P account consent store', () => {
 
   it('ignores a damaged record and says so, granting nothing', async () => {
     const t = rig()
-    await t.store.saveGrantIf(KEY, 0, { epoch: 0, features: new Set(['voice']) })
+    await t.store.saveGrantIf(KEY, 0, bindingGrants(0, ['voice']))
     const [binding] = readdirSync(t.folder)
     writeFileSync(path.join(t.folder, binding ?? '', 'grant-0-voice.json'), 'not json')
     expect(t.store.readGrants(KEY)).toBeUndefined()

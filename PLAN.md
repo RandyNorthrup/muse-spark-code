@@ -32617,6 +32617,26 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**M108P2 review repair (2026-10-09).** RVM108P's two P2 findings are in
+scope before non-default billing is enabled. Each question captures the
+binding's durable epoch, shared feature/quote revocation generation and
+price-acceptance generation when asked. Held answers, Once, window grants
+and persisted Always must match all captures at use; persistence never
+samples replacement generations at write time. This includes Forget from
+a window that never loaded account consent and ACP `forgetUnflagged()`.
+User/machine budget changes retain Always: the user's ceiling still binds.
+A repository-supplied budget changes both memory and persisted consent
+keys and re-asks before the next first charge, naming the new amount.
+`museSpark.paidDailyBudgetUsd` is declared `machine`; the VS Code reader uses
+merged `get`, so the lazy adapter also checks workspace/folder (including
+language override) provenance. ACP's own data-folder setting is user-owned.
+Caller regressions, byte-exact red drills and scoped gates are recorded in
+`docs/certification/m108.md`; aggregate quality remains the lead's gate.
+Final scoped tests: 797 passed across 19 complete files, default timeouts.
+The fix adds 48 B at activation (564,340 B); lane K's guard is 2,988/3,072 B.
+`accountPaid` measures 43,763 B within its unchanged 50 KiB cap. Default
+consent emitted code and Model API/ACP/headless bytes match the base.
+
 **M108P paid consent per account (2026-10-09, `m108/p` from 0.17.0's
 `8f0a75ea1`).** Lane P closes RVCONSENT017D's three prerequisites (§9) and
 binds `AccountPaidUseConsent` into the production callers: VS Code's paid
@@ -32633,9 +32653,10 @@ account its key reads through. Choices where this plan left one open:
   cutoff (`clearGrantsBefore`, `revokeQuoteGrants(binding, before)`), rather
   than a store-owned advance-plus-clear transaction, so a failed clear still
   rejects honestly with every leftover stale.
-- **Prerequisite 3:** window-once authority is the durable epoch, so any
-  instance's revocation ends it, and a held answer from a revoked question is
-  refused for every use that shared it.
+- **Prerequisite 3:** window-once authority includes the durable epoch and
+  every shared feature/quote and price generation, so revocation from even
+  an unloaded window ends it. A held answer from a revoked question is
+  refused for every use that shared it and never persisted under new generations.
 - **Routing:** the provider's default account keeps the workspace consent
   exactly as before (a single-account user's popup, grants and stores are
   unchanged, and `dist/accountPaid.js` never loads); any other billing
@@ -32643,7 +32664,10 @@ account its key reads through. Choices where this plan left one open:
   (`accounts.paidConsent`: provider · account, price, shared daily budget).
 - **Binding:** grants are keyed by language-neutral tariff data
   (`PaidAccountBinding.tariff`), so a display-language change never asks
-  again; a changed shared budget re-quotes the next first-charge question;
+  again; user/machine shared-budget changes keep Always because the user's
+  ceiling still binds; a repository-supplied budget is part of both memory
+  and persisted keys and re-quotes the next first-charge question with its
+  new amount;
   an account's Always lapses with the feature's price acceptance and with
   Account & usage's **Ask again**. Team Always is not offered for another
   account until account-scoped team grants exist.
@@ -32658,7 +32682,7 @@ account its key reads through. Choices where this plan left one open:
   to another account; activation and the ACP engine carry only the shared
   route (`core/paid/accountPaidRoute.ts`). The seam adds 944 B to
   `dist/extension.js` (563,348 to 564,292 B of the unchanged 600 KiB cap; lane
-  K's pre-K activation guard reads 2,940 of its 3,072 B). `dist/modelApi.js`,
+  K's pre-K activation guard read 2,940 of its 3,072 B before M108P2). `dist/modelApi.js`,
   `dist/acp.js` and `dist/headless.js` are byte-identical in size.
 
 Still open, named: no interactive surface bills a non-default account yet.
@@ -39289,6 +39313,20 @@ run directly on Kubuntu with repository timeouts and at most three files and
 workers. Scoped static/build checks and normal hooks certify local commits;
 W retains full integrated quality, coverage, installed editor and packaging
 checks. No threshold or gate is weakened.
+
+**M108P2 bounded-lane certification (2026-10-09).** The fix-round rig brief
+prohibits aggregate `quality` and assigns it to the lead. This lane runs
+complete scoped paid/account/default-consent and bundle tests, typecheck,
+changed-file ESLint/Prettier, l10n/plan/reference/roadmap checks, deadcode,
+duplication, host-API and the unmodified production build. The inherited
+What's New decoded-content failure remains release-lead owned; comparable
+in-memory production builds measure sizes without changing the script or
+cap. Its two released notes are 79,510 decoded bytes on base and head, over
+76,800 B. `jscpd` retains only the inherited `windowsTrustedPath.test.ts`
+clone (that file is byte-identical to `cd362298e`); the lane's test clones
+were removed. Neither gate was relaxed. These two inherited failures are
+deferred to the release lead outside this bounded repair.
+`docs/certification/m108.md` records results and byte-exact red drills.
 
 **FIXM108P / FIXM108P2 bounded-lane certification (2026-10-06).** The rig brief and
 shared rules prohibit aggregate quality/full unit runs, merges and network

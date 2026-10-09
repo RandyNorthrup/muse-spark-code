@@ -398,7 +398,7 @@ export interface PaidUseConsentDeps {
    * generation it was given under is current, so a price withdrawn and
    * accepted again in another window makes this window ask again.
    */
-  readonly windowOnceGeneration?: (feature: PaidFeature) => number
+  readonly windowOnceGeneration?: (feature: PaidFeature) => number | string
   /** Judge defaults on; its first actual paid use accepts price in this same popup. */
   readonly isJudgeEnabled?: (() => boolean) | undefined
   readonly acceptJudgePrice?: (() => Promise<boolean>) | undefined
@@ -458,7 +458,7 @@ export class PaidUseConsent {
    * Window-once grants this instance gave, each with the price-acceptance
    * generation it was given under: memory only, never stored.
    */
-  private readonly windowOnce = new Map<PaidFeature, number | undefined>()
+  private readonly windowOnce = new Map<PaidFeature, number | string | undefined>()
   /**
    * A window-once feature's first question while it is open: ordinary uses
    * that arrive meanwhile share it and its answer instead of asking again.

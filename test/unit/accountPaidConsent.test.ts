@@ -416,7 +416,7 @@ describe('M108 account-bound paid use consent', () => {
     const request = quotedSearch('0.0025', 'model-a')
     t.deps.ask.mockResolvedValue('always')
     // Search Always grants persist their quote ceiling, not a legacy feature bit.
-    t.grants.set('legacy', { epoch: 0, features: new Set(['webSearch']) })
+    t.grants.set('legacy', { epoch: 0, features: new Set(['webSearch']), generations: new Map() })
     expect(await t.create().allows(request)).toBe(true)
     expect(await t.create().allows(request)).toBe(true)
     expect(t.deps.ask).toHaveBeenCalledTimes(1)
@@ -435,7 +435,11 @@ describe('M108 account-bound paid use consent', () => {
   it('holds Always across instances and restarts through the account quote store', async () => {
     const t = rig()
     t.deps.ask.mockResolvedValue('always')
-    t.grants.set('legacy', { epoch: 0, features: new Set(['webSearch', 'voice']) })
+    t.grants.set('legacy', {
+      epoch: 0,
+      features: new Set(['webSearch', 'voice']),
+      generations: new Map(),
+    })
     const search = quotedSearch('0.0025', 'model-a')
     const a = t.create()
     expect(await a.allows(search)).toBe(true)

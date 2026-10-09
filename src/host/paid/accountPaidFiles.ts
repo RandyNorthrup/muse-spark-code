@@ -43,7 +43,7 @@ import { writeFileAtomically } from '../fsAtomic'
 export interface AccountPaidFilesDeps {
   /** This workspace's folder of account bindings; created owner-only on first write. */
   readonly folder: string
-  /** The feature's current price-acceptance generation: a grant kept under another lapses. */
+  /** Current shared feature/quote and price generations: a grant under another lapses. */
   readonly featureGeneration: (feature: PaidFeature) => string
   /** Waits between rename attempts (fsAtomic); injectable so tests do not sleep. */
   readonly sleep: (ms: number) => Promise<void>
@@ -175,24 +175,31 @@ export function accountPaidFiles(deps: AccountPaidFilesDeps, bindingKey: string)
       assertKey(key)
       const current = epoch()
       const features = new Set<PaidFeature>()
+      const generations = new Map<PaidFeature, string>()
       const files = matching(GRANT_FILE, (fileEpoch) => fileEpoch === current)
       for (const { name, match } of files) {
         const feature = match[2] ?? ''
         if (!isPaidFeature(feature)) continue
-        if (readRecord(name, grantRecordSchema)?.generation === deps.featureGeneration(feature))
-          features.add(feature)
+        const record = readRecord(name, grantRecordSchema)
+        if (record?.generation !== deps.featureGeneration(feature)) continue
+        features.add(feature)
+        generations.set(feature, record.generation)
       }
-      return features.size === 0 ? undefined : { epoch: current, features }
+      return features.size === 0 ? undefined : { epoch: current, features, generations }
     },
     saveGrantIf: async (key, grantEpoch, grants) => {
       assertKey(key)
       if (grants.epoch !== grantEpoch) throw new StaleEpochError(key)
-      for (const feature of grants.features)
+      for (const feature of grants.features) {
+        const generation = grants.generations.get(feature)
+        if (generation === undefined || generation !== deps.featureGeneration(feature))
+          throw new StaleEpochError(key)
         await writeUnder(
           grantEpoch,
           `grant-${String(grantEpoch)}-${feature}.json`,
-          JSON.stringify({ generation: deps.featureGeneration(feature) }),
+          JSON.stringify({ generation }),
         )
+      }
     },
     clearGrantsBefore: async (key, before) => {
       assertKey(key)

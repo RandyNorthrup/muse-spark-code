@@ -967,7 +967,8 @@
       "settings": [
         "museSpark.accountSwap",
         "museSpark.accountParallel",
-        "museSpark.accounts.severalOnThisDevice"
+        "museSpark.accounts.severalOnThisDevice",
+        "museSpark.paidDailyBudgetUsd"
       ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider",
       "backends": ["museCode", "modelApi"],

@@ -10,9 +10,9 @@
 // never carry it.
 //
 // Grant authority is bound to a durable revocation epoch persisted per
-// account binding (RVCONSENT017C/D). Every question captures the epoch it was
-// asked under, for that question alone; an answer is honoured, cached or kept
-// only while that epoch is still the durable one. A revocation advances the
+// account binding (RVCONSENT017C/D). Every question captures its durable epoch
+// and host feature/quote and price generations; an answer is honoured, cached
+// or kept only while all still match. A revocation advances the
 // epoch with an atomic compare-and-set first, then clears only what was
 // approved under older epochs, so an older revoke never purges a grant given
 // after it (RVCONSENT017D's three prerequisites).
@@ -46,11 +46,15 @@ export interface PaidAccountBinding {
    */
   readonly tariff?: string
   readonly dailyBudgetUsd: UsdAmount
+  /** A repository can set this ceiling: approval is specific to its quoted amount. */
+  readonly repositoryBudget?: boolean
 }
 /** An account binding's kept features with the revocation epoch approved under. */
 export interface AccountBindingGrants {
   readonly epoch: number
   readonly features: ReadonlySet<PaidFeature>
+  /** Each feature's host/price generations captured when its question was asked. */
+  readonly generations: ReadonlyMap<PaidFeature, string>
 }
 
 /**
@@ -149,6 +153,8 @@ export interface AccountPaidUseConsentDeps extends Omit<
    */
   readonly saveQuoteGrantIf: (bindingKey: string, epoch: number, grant: PaidGrant) => Promise<void>
   readonly quoteGeneration: () => string
+  /** Shared feature revocation and price acceptance, including ACP's unflagged revocation. */
+  readonly featureGeneration?: (feature: PaidFeature) => string
   /**
    * The revocation's quote clear, fenced like `clearGrantsBefore`: removes
    * only this account's quote grants approved under an epoch below `before`
@@ -169,7 +175,12 @@ export function paidAccountQuestion(binding: PaidAccountBinding): string {
 
 /** The key one account/tariff's grants are stored under; never a credential. */
 export function accountBindingKey(binding: PaidAccountBinding): string {
-  return JSON.stringify([binding.provider, binding.account, binding.tariff ?? binding.price])
+  return JSON.stringify([
+    binding.provider,
+    binding.account,
+    binding.tariff ?? binding.price,
+    ...(binding.repositoryBudget === true ? [binding.dailyBudgetUsd] : []),
+  ])
 }
 
 /**
@@ -219,13 +230,16 @@ export class AccountPaidUseConsent {
   private isRevoking = false
   private revocations = 0
   /**
-   * The durable epoch each question was asked under, keyed by that
+   * The durable epoch and host generations each question was asked under, keyed by that
    * question's own request object: `decision()` hands the inner consent a
    * fresh copy per use, so a forced question, a concurrent one or a later one
    * for the same feature never shares, overwrites or consumes another's
    * capture. A question without one is never honoured.
    */
-  private readonly questionEpochs = new WeakMap<PaidUseRequest, number>()
+  private readonly questionEpochs = new WeakMap<
+    PaidUseRequest,
+    { readonly epoch: number; readonly generation: string }
+  >()
   private writes: Promise<void> = Promise.resolve()
   private consent: PaidUseConsent
 
@@ -265,6 +279,18 @@ export class AccountPaidUseConsent {
     return this.deps.readRevocationEpoch(this.key) ?? 0
   }
 
+  /** Every host generation that can end approval, sampled at ask and at use. */
+  private featureGeneration(feature: PaidFeature): string {
+    return JSON.stringify([
+      this.deps.quoteGeneration(),
+      this.deps.featureGeneration?.(feature) ?? 'initial',
+    ])
+  }
+
+  private useGeneration(feature: PaidFeature): string {
+    return JSON.stringify([this.durableEpoch(), this.featureGeneration(feature)])
+  }
+
   private isCurrent(generation: number): boolean {
     return !this.isRevoking && generation === this.generation && this.deps.isCurrent(this.binding)
   }
@@ -273,13 +299,23 @@ export class AccountPaidUseConsent {
   private bindingGrants(generation: number): ReadonlySet<PaidFeature> {
     if (!this.isCurrent(generation)) return new Set()
     const stored = this.deps.readGrants(this.key)
-    return stored?.epoch === this.durableEpoch() ? stored.features : new Set()
+    return stored?.epoch === this.durableEpoch()
+      ? new Set(
+          [...stored.features].filter(
+            (feature) => stored.generations.get(feature) === this.featureGeneration(feature),
+          ),
+        )
+      : new Set()
   }
 
-  /** Whether the answer to `question` may still be honoured: its own capture, still durable. */
+  /** Whether the answer's own epoch and every host generation are still current. */
   private isAnswerCurrent(question: PaidUseRequest, generation: number): boolean {
-    const epoch = this.questionEpochs.get(question)
-    return epoch !== undefined && epoch === this.durableEpoch() && this.isCurrent(generation)
+    const capture = this.questionEpochs.get(question)
+    return (
+      capture?.epoch === this.durableEpoch() &&
+      capture.generation === this.featureGeneration(question.feature) &&
+      this.isCurrent(generation)
+    )
   }
 
   /**
@@ -292,17 +328,26 @@ export class AccountPaidUseConsent {
   private async keepBindingFeature(
     feature: PaidFeature,
     generation: number,
-    epoch: number,
+    capture: { readonly epoch: number; readonly generation: string },
   ): Promise<void> {
     await this.write(async () => {
       if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
+      const { epoch } = capture
+      if (capture.generation !== this.featureGeneration(feature))
+        throw new StaleEpochError(this.key)
       const stored = this.deps.readGrants(this.key)
       const base = stored?.epoch === epoch ? stored.features : new Set<PaidFeature>()
       await this.deps.saveGrantIf(this.key, epoch, {
         epoch,
         features: new Set([...base, feature]),
+        generations: new Map([
+          ...(stored?.epoch === epoch ? stored.generations : []),
+          [feature, capture.generation],
+        ]),
       })
       if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
+      if (capture.generation !== this.featureGeneration(feature))
+        throw new StaleEpochError(this.key)
     })
   }
 
@@ -326,7 +371,10 @@ export class AccountPaidUseConsent {
   /** The popup with this binding, capturing the durable epoch for this question alone. */
   private wrapAsk(ask: AccountPaidAsk): PaidUseConsentDeps['ask'] {
     return async (request, canRemember) => {
-      this.questionEpochs.set(request, this.durableEpoch())
+      this.questionEpochs.set(request, {
+        epoch: this.durableEpoch(),
+        generation: this.featureGeneration(request.feature),
+      })
       return await ask(request, this.binding, canRemember)
     }
   }
@@ -344,7 +392,7 @@ export class AccountPaidUseConsent {
       JSON.stringify({
         v: ACCOUNT_QUOTE_GRANT_VERSION,
         epoch: this.durableEpoch(),
-        hostGeneration: deps.quoteGeneration(),
+        hostGeneration: this.featureGeneration('webSearch'),
       })
     return new PaidUseConsent({
       isOn: (feature) => isCurrent() && deps.isOn(feature),
@@ -358,8 +406,8 @@ export class AccountPaidUseConsent {
       log: deps.log,
       // Owner ruling: ask once before the first charge; Always remains workspace-scoped.
       windowOnceFeatures: new Set(PAID_FEATURES),
-      // A durable revocation from any instance ends this window's once.
-      windowOnceGeneration: () => this.durableEpoch(),
+      // A durable or host revocation or price change ends this window's once.
+      windowOnceGeneration: (feature) => this.useGeneration(feature),
       readGrants: () => this.bindingGrants(generation),
       // Account approval is kept only by its question (`rememberGrant`); the
       // inner workspace write is never an account path.
@@ -367,19 +415,11 @@ export class AccountPaidUseConsent {
       rememberGrant: async (feature, question) => {
         // The epoch this answer's own popup was asked under. No capture, no
         // grant: never the epoch found now (RVCONSENT017D prerequisite 1).
-        const epoch = this.questionEpochs.get(question)
-        if (epoch === undefined) throw new StaleEpochError(this.key)
-        await this.keepBindingFeature(feature, generation, epoch)
+        const capture = this.questionEpochs.get(question)
+        if (capture === undefined) throw new StaleEpochError(this.key)
+        await this.keepBindingFeature(feature, generation, capture)
       },
       isAnswerCurrent: (question) => this.isAnswerCurrent(question, generation),
-      // A host without a preparation step keeps the synchronous capture, so
-      // concurrent first questions still share one popup.
-      ...(deps.prepareQuoteGeneration !== undefined && {
-        prepareQuoteGeneration: async () => {
-          await deps.prepareQuoteGeneration?.()
-          return composedGeneration()
-        },
-      }),
       quoteGeneration: composedGeneration,
       readQuoteGrant: deps.readQuoteGrant,
       writeQuoteGrant: async (grant) => {
@@ -402,7 +442,19 @@ export class AccountPaidUseConsent {
     if (this.isRevoking || !this.deps.isCurrent(this.binding)) return refusal(request)
     const consent = this.consent
     const generation = this.generation
-    const epoch = this.durableEpoch()
+    // Initialize the host's first search generation before capturing it.
+    // A revoke during initialization still refuses under the original epoch.
+    if (request.feature === 'webSearch' && this.deps.prepareQuoteGeneration !== undefined) {
+      const epoch = this.durableEpoch()
+      const prepared = await this.deps.prepareQuoteGeneration()
+      if (
+        !this.isCurrent(generation) ||
+        epoch !== this.durableEpoch() ||
+        prepared !== this.deps.quoteGeneration()
+      )
+        return refusal(request)
+    }
+    const captured = this.useGeneration(request.feature)
     // A fresh request object per use: its question carries its own capture.
     const question: PaidUseRequest = { ...request }
     const decision = await consent.allows(
@@ -412,10 +464,10 @@ export class AccountPaidUseConsent {
     )
     if (decision === undefined || decision === false || !this.isCurrent(generation))
       return refusal(request)
-    // Fence the final decision against the epoch captured when this use
+    // Fence the final decision against every generation captured when this use
     // began: when a revocation landed meanwhile, the conditional save already
     // refused to store, and a downgraded Allow-once must not approve either.
-    return this.durableEpoch() === epoch ? decision : refusal(request)
+    return this.useGeneration(request.feature) === captured ? decision : refusal(request)
   }
 
   public async allows(request: PaidUseRequest, requiresAsking = false): Promise<boolean> {

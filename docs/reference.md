@@ -705,7 +705,7 @@ Show or unlock machine-local developer options. Profile operations require a con
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.accountSwap`, `museSpark.accountParallel`, `museSpark.accounts.severalOnThisDevice`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider)
+Commands: —. Settings: `museSpark.accountSwap`, `museSpark.accountParallel`, `museSpark.accounts.severalOnThisDevice`, `museSpark.paidDailyBudgetUsd`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider)
 
 ### Permission mode
 
