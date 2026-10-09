@@ -255,6 +255,9 @@ describe('M110-OS2 trial-boot mark-good', () => {
     const pass = runMarkGood(h, { MUSE_READYZ_PROBE: probe, MUSE_REBOOT_CMD: reboot })
     expect(pass.status).toBe(0)
     expect(backendRun(h, ['get-primary']).stdout.trim()).toBe('B')
+    // The passing run consumed the trial (promoted B): arm a fresh trial of
+    // B for the failing run, or it would see no trial and exit 0.
+    armTrialB(h)
     const probeBad = fakeExecutable(spaced, 'probe bad.sh', 'exit 1')
     const fail = runMarkGood(h, { MUSE_READYZ_PROBE: probeBad, MUSE_REBOOT_CMD: reboot })
     expect(fail.status).not.toBe(0)

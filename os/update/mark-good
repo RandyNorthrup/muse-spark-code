@@ -284,9 +284,12 @@ if [ -f "${MUSE_PI_BOOT_DIR:-/boot/firmware}/autoboot.txt" ]; then
     log "probe-failed trial=$trial"
     mark_bad_and_fall_back pi "$trial" "$slot"
 else
-    trial=""
-    if ! trial=$(efi_trial_slot 2>/dev/null); then
-        code=$?
+    # NOTE: no `if ! trial=$(...)` here: after a negated condition `$?` is
+    # the negated status (always 0 inside the branch), so the code must be
+    # captured from the plain substitution.
+    trial=$(efi_trial_slot 2>/dev/null)
+    code=$?
+    if [ "$code" != "0" ]; then
         if [ "$code" = "1" ]; then
             # Ordinary or first boot: never mark anything, even on failure.
             exit 0
