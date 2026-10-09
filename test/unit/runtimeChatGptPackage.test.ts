@@ -112,6 +112,7 @@ function fixture() {
   for (const name of [
     'MuseSparkJob.cs',
     'MuseSparkMcpJob.cs',
+    'MuseSparkMcpLauncher.cs',
     'MuseSparkScreenRecord.cs',
     'MuseSparkVault.cs',
     'MuseSparkVaultCng.cs',

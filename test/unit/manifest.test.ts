@@ -672,18 +672,18 @@ describe('tiered CI (CIFLOW)', () => {
     expect(job('visual')).toContain('needs: visual-shards')
   })
 
-  it('collects every shard per OS (five on Windows) and gates merged coverage with unchanged thresholds', () => {
-    expect(job('unit')).toContain("shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5]') }}")
+  it('collects every shard per OS (six on Windows) and gates merged coverage with unchanged thresholds', () => {
+    expect(job('unit')).toContain("shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6]') }}")
     expect(job('unit')).toContain(
-      `exclude: \${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"macos-latest","shard":5}]') }}`,
+      `exclude: \${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"macos-latest","shard":5},{"os":"macos-latest","shard":6}]') }}`,
     )
-    expect(job('unit')).toContain("SHARDS: ${{ matrix.os == 'windows-latest' && 5 || 4 }}")
+    expect(job('unit')).toContain("SHARDS: ${{ matrix.os == 'windows-latest' && 6 || 4 }}")
     expect(job('unit')).toContain('--shard="$SHARD/$SHARDS" --reporter=default --reporter=blob')
     expect(job('unit')).toContain('--outputFile="blob-reports/shard-$SHARD.json"')
     expect(job('coverage')).toContain('os: [ubuntu-latest, windows-latest, macos-latest]')
     expect(job('coverage')).toContain('pattern: coverage-${{ matrix.os }}-*')
     expect(job('coverage')).toContain('merge-multiple: true')
-    expect(job('coverage')).toContain("SHARDS: ${{ matrix.os == 'windows-latest' && 5 || 4 }}")
+    expect(job('coverage')).toContain("SHARDS: ${{ matrix.os == 'windows-latest' && 6 || 4 }}")
     expect(job('coverage')).toContain('for shard in $(seq 1 "$SHARDS"); do')
     expect(job('coverage')).toContain('test -s "blob-reports/shard-$shard.json"')
     expect(job('coverage')).toContain('npx vitest run --merge-reports=blob-reports --coverage')
@@ -869,5 +869,34 @@ describe('toolchain pins (AGENTS.md)', () => {
     expect(dependabot).toMatch(
       /^ {6}- dependency-name: typescript\n {8}update-types: \['version-update:semver-major'\]$/m,
     )
+  })
+})
+
+// cmd.exe reads at most 8,191 characters per command line. npm on Windows runs
+// a script as `%ComSpec% /d /s /c "<script>"`, and a tool from node_modules/.bin
+// is npm's .cmd shim, which re-expands every argument into one line of its own
+// (CMD_SHIM_LINE). Measured on Windows 11 (CIFIX017W2): through dpdm's shim in a
+// 51-character .bin folder, an 8,035-character script ran and 8,036 failed
+// with "The syntax of the command is incorrect." (exit 255), as the 8,070-
+// character `cycles` script did on the hosted runner. Each path in those lines
+// may be up to MAX_PATH long, wherever the repository is checked out.
+const CMD_LINE_MAX = 8191
+const MAX_PATH = 260
+const CMD_SHIM_LINE = String.raw`endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\..\%tool%" %*`
+
+describe('npm scripts on Windows (CIFIX017W2)', () => {
+  it('fit cmd.exe’s command line as npm runs them and as a node_modules/.bin shim expands them', () => {
+    const longestPath = 'p'.repeat(MAX_PATH)
+    const lines = (script: string) => [
+      `${longestPath} /d /s /c "${script}"`,
+      CMD_SHIM_LINE.replaceAll(/%(?:COMSPEC|_prog|dp0|tool)%/g, () => longestPath).replace(
+        '%*',
+        () => script,
+      ),
+    ]
+    const tooLong = Object.entries(manifest.scripts).filter(([, script]) =>
+      lines(script).some((line) => line.length > CMD_LINE_MAX),
+    )
+    expect(tooLong.map(([name, script]) => `${name}: ${String(script.length)}`)).toEqual([])
   })
 })

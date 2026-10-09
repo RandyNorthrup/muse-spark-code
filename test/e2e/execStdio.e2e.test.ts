@@ -310,6 +310,7 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
   for (const file of [
     'MuseSparkJob.cs',
     'MuseSparkMcpJob.cs',
+    'MuseSparkMcpLauncher.cs',
     'MuseSparkScreenRecord.cs',
     'MuseSparkVault.cs',
     'MuseSparkVaultCng.cs',
