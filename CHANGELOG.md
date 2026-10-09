@@ -11,11 +11,19 @@ happened, not what was planned; superseded entries are kept.
 
 - Chat startup no longer carries exact money arithmetic: `Usd`, paid tariffs
   and usage estimates load with a lazy money chunk after first paint
-  (STARTUP017). Feature names, badges, buttons and tooltips paint at once;
-  exact prices fill in exactly, never guessed, with existing loading and
-  failure states on every lazy surface. The `/schedule` prompt mapping also
-  loads on first submit. Startup is 760,051 B against the 751,411 B ratchet;
-  the measured first-paint remainder stays for the lead's decision.
+  (STARTUP017). Feature names, badges and tooltips paint at once; exact
+  prices fill in exactly, never guessed. A failed money load says "Prices
+  could not load." with Try again, which rebuilds the panel so every price
+  comes back; a paid check's Accept and the suggested session budget's
+  Accept wait until their amount is shown, and stay unavailable if it cannot
+  load. A budget change still waiting when the wizard is cancelled or its
+  draft replaced is dropped. The `/schedule` prompt mapping loads on first
+  submit: a failed load puts the command back in an empty composer with the
+  warning, and a command whose schedule surface, session or conversation
+  ended first opens and stashes nothing. Restored schedule rows paint from a
+  small `scheduleSettlement` group, and the rest of the schedule English
+  loads with the schedule surfaces. The measured first-paint remainder over
+  the 751,411 B ratchet stays for the lead's decision.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.

@@ -247,7 +247,7 @@ export function MoneyUnavailable({
     return null
   }
   return (
-    <div role="alert" className="money-unavailable" inert={isInert}>
+    <div role="alert" inert={isInert}>
       <p>{UI_TEXT.moneyLoadFailed}</p>
       <button type="button" className={buttonClassName} onClick={onRetry}>
         {UI_TEXT.surfaceLoadRetry}

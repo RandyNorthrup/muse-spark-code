@@ -41,6 +41,19 @@ function gatedLoad(gate: { promise: Promise<MoneyDisplay> }): () => Promise<Mone
   }
 }
 
+/** A hook over a held money chunk: absent first, then given the real one. */
+async function afterGatedLoad<T>(
+  hook: (load: () => Promise<MoneyDisplay>) => T,
+): Promise<{ readonly current: T }> {
+  const gate = deferred<MoneyDisplay>()
+  const { result } = renderHook(({ load }) => hook(load), {
+    initialProps: { load: gatedLoad(gate) },
+  })
+  expect(result.current).toBeUndefined()
+  gate.resolve(await loadMoneyDisplay())
+  return result
+}
+
 describe('loadMoneyDisplay', () => {
   it('shares one load per document, and a failure stays said rather than retried in place', async () => {
     const first = deferred<MoneyDisplay>()
@@ -106,12 +119,7 @@ describe('money hooks', () => {
 
   it('states the reply usage line exactly once loaded', async () => {
     const cost = Usd.from('0.000123').toAmount()
-    const gate = deferred<MoneyDisplay>()
-    const { result } = renderHook(({ load }) => useReplyUsageText(12_345, 678, cost, load), {
-      initialProps: { load: gatedLoad(gate) },
-    })
-    expect(result.current).toBeUndefined()
-    gate.resolve(await loadMoneyDisplay())
+    const result = await afterGatedLoad((load) => useReplyUsageText(12_345, 678, cost, load))
     await waitFor(() => {
       expect(result.current).toBe(
         fill(UI_TEXT.replyUsage, {
@@ -124,12 +132,7 @@ describe('money hooks', () => {
   })
 
   it('formats amounts with the stated precision once loaded', async () => {
-    const gate = deferred<MoneyDisplay>()
-    const { result } = renderHook(({ load }) => useFormatUsd('1.25', 2, load), {
-      initialProps: { load: gatedLoad(gate) },
-    })
-    expect(result.current).toBeUndefined()
-    gate.resolve(await loadMoneyDisplay())
+    const result = await afterGatedLoad((load) => useFormatUsd('1.25', 2, load))
     await waitFor(() => {
       expect(result.current).toBe(formatExactUsd('1.25', 2))
     })

@@ -20,6 +20,7 @@ import { ModelsSection } from '../../src/webview/models/ModelsSection'
 import { ProvidersSection } from '../../src/webview/models/ProvidersSection'
 import type { SectionProps } from '../../src/webview/models/sections'
 import { Wizard } from '../../src/webview/models/Wizard'
+import { loadMoneyDisplay } from '../../src/webview/money'
 import {
   makeDraft,
   makeKeyUsage,
@@ -246,6 +247,7 @@ describe('ProvidersSection', () => {
     )
     // Accept waits for the stated cost (STARTUP017): the money chunk is lazy.
     const accept = screen.getByRole('button', { name: UI_TEXT.suggestionAccept })
+    await loadMoneyDisplay()
     await waitFor(() => {
       expect(accept).toBeEnabled()
     })
@@ -310,6 +312,7 @@ describe('ProvidersSection', () => {
     const changeButtons = screen.getAllByRole('button', { name: UI_TEXT.suggestionChange })
     fireEvent.click(changeButtons[1] ?? fail('budget change missing'))
     // The positivity check waits for the lazy money chunk (STARTUP017).
+    await loadMoneyDisplay()
     await waitFor(() => {
       expect(post).toHaveBeenCalledWith({
         type: 'suggestions/change',

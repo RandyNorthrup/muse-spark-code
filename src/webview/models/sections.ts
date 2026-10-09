@@ -55,9 +55,6 @@ function reduceProviders(state: PanelUiState, action: PanelUiAction): PanelUiSta
     case 'close-wizard': {
       return { ...state, wizardOpen: false, wizardHasDraft: false }
     }
-    case 'replace-wizard-draft': {
-      return { ...state, wizardGeneration: state.wizardGeneration + 1 }
-    }
     case 'toggle-import': {
       return { ...state, importOpen: !state.importOpen }
     }

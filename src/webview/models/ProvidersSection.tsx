@@ -412,11 +412,12 @@ export function ProvidersSection(props: SectionProps) {
   // `providers/select`, or while the wizard just opened) the panel shows
   // the pick step from this draft, which carries nothing to save.
   const wizard: PanelDraft = panelState.drafts.wizard ?? PICK_DRAFT
-  // Picking a provider or saving ends this draft: work still pending for
-  // it (a budget change waiting for the money chunk) is dropped.
+  // Picking a provider or saving ends this draft: the wizard stays open on
+  // a new generation, and work still pending for the old draft (a budget
+  // change waiting for the money chunk) is dropped.
   const wizardPost = (message: PanelToHostMessage): void => {
     if (message.type === 'providers/select' || message.type === 'providers/save') {
-      dispatch({ type: 'replace-wizard-draft' })
+      dispatch({ type: 'open-wizard' })
     }
     post(message)
   }

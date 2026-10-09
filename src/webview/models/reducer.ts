@@ -17,10 +17,10 @@ export interface PanelUiState {
   /** The host has sent a wizard draft since the wizard opened. */
   readonly wizardHasDraft: boolean
   /**
-   * The wizard draft's generation (STARTUP017): each open, provider pick or
-   * save starts a new one, and a closed wizard has none current, so work
-   * begun for one draft (a budget change waiting for the money chunk)
-   * never lands on another.
+   * The wizard draft's generation (STARTUP017): each open starts a new one
+   * (a provider pick or a save opens the wizard on a new draft), and a
+   * closed wizard has none current, so work begun for one draft (a budget
+   * change waiting for the money chunk) never lands on another.
    */
   readonly wizardGeneration: number
   readonly importOpen: boolean
@@ -31,7 +31,6 @@ export type PanelUiAction =
   | { readonly type: 'navigate'; readonly section: ModelsPanelSection }
   | { readonly type: 'open-wizard' }
   | { readonly type: 'close-wizard' }
-  | { readonly type: 'replace-wizard-draft' }
   | { readonly type: 'toggle-import' }
   | { readonly type: 'host-state'; readonly state: ModelsPanelState }
   | {

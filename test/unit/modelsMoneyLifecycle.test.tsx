@@ -136,13 +136,19 @@ describe('wizard budget change against a held money chunk', () => {
   })
 })
 
+/** The paid check's Accept, unavailable: pressing it posts no consent. */
+function expectNoConsent(post: ReturnType<typeof vi.fn>, label: string): HTMLElement {
+  const accept = screen.getByRole('button', { name: label })
+  expect(accept).toBeDisabled()
+  fireEvent.click(accept)
+  expect(post).not.toHaveBeenCalledWith({ type: 'providers/test', acceptCost: true })
+  return accept
+}
+
 describe('paid check consent against the money chunk', () => {
   it('offers Accept only once the cost is stated', async () => {
     const { post, UI_TEXT } = await mountPanel(await costState())
-    const accept = screen.getByRole('button', { name: UI_TEXT.suggestionAccept })
-    expect(accept).toBeDisabled()
-    fireEvent.click(accept)
-    expect(post).not.toHaveBeenCalledWith({ type: 'providers/test', acceptCost: true })
+    const accept = expectNoConsent(post, UI_TEXT.suggestionAccept)
     await release()
     await waitFor(() => {
       expect(accept).toBeEnabled()
@@ -157,9 +163,6 @@ describe('paid check consent against the money chunk', () => {
     const { post, UI_TEXT } = await mountPanel(await costState())
     await release()
     expect(await screen.findByRole('alert')).toHaveTextContent(UI_TEXT.moneyLoadFailed)
-    const accept = screen.getByRole('button', { name: UI_TEXT.suggestionAccept })
-    expect(accept).toBeDisabled()
-    fireEvent.click(accept)
-    expect(post).not.toHaveBeenCalledWith({ type: 'providers/test', acceptCost: true })
+    expectNoConsent(post, UI_TEXT.suggestionAccept)
   })
 })
