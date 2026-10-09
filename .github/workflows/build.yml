@@ -570,6 +570,7 @@ jobs:
             package/native/darwin/muse-dictate \
             package/native/linux/x64/muse-created package/native/linux/arm64/muse-created \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
+            package/native/windows/MuseSparkMcpLauncher.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
             package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json \
             package/schemas/exec-result-v2.schema.json package/schemas/exec-event-v2.schema.json \
