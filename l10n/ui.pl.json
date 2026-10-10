@@ -4290,6 +4290,13 @@
   "startWithOwnModelDetail": "Dodaj dostawcę modeli z kluczem API i wybierz model.",
   "setupComplete": "Gotowe z {provider} · {model}",
   "manageProviders": "Zarządzaj dostawcami",
+  "outputCapBelowMinimum": {
+    "one": "Limit wyjścia musi wynosić co najmniej {count} token.",
+    "other": "Limit wyjścia musi wynosić co najmniej {count} tokena.",
+    "few": "Limit wyjścia musi wynosić co najmniej {count} tokeny.",
+    "many": "Limit wyjścia musi wynosić co najmniej {count} tokenów."
+  },
+  "referenceOutputCapMinimum": "Limity wyjścia poniżej znanego minimum dostawcy są odrzucane przy zapisie i przed wysłaniem. Meta wymaga co najmniej 16 tokenów.",
   "modelsPanelTitle": "Modele i agenci",
   "modelsPanelUnavailable": "Modele i agenci nie są dostępni w tej kompilacji.",
   "providersSectionTitle": "Dostawcy",

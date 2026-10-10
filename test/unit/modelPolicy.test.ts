@@ -232,3 +232,18 @@ describe('resolved model policy', () => {
     ).toBe(Usd.from(0.06).toAmount())
   })
 })
+
+it('rejects a configured cap or provider ceiling below the selected minimum', () => {
+  for (const cap of [1, 15])
+    expect(() => outputLimitFor(modelPolicyFor('muse-spark-1.3'), cap)).toThrow(
+      'Output cap must be at least 16 tokens.',
+    )
+  expect(() =>
+    outputLimitFor(modelPolicyFor(ref, { minOutputTokens: 32, maxOutputTokens: 31 }), 100),
+  ).toThrow('Output cap must be at least 32 tokens.')
+  expect(outputLimitFor(modelPolicyFor('muse-spark-1.3'), 16)).toBe(16)
+  expect(outputLimitFor(modelPolicyFor(ref), 1)).toBe(1)
+  expect(() => outputLimitFor(modelPolicyFor(ref), 0)).toThrow(
+    'Output cap must be at least 1 token.',
+  )
+})

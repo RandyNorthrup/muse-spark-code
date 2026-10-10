@@ -4948,6 +4948,12 @@ export const EN = {
   setupComplete: 'You’re set up with {provider} · {model}',
   manageProviders: 'Manage providers',
   // The Models & Agents panel's framework: its sections, filters and wizard.
+  outputCapBelowMinimum: forms({
+    one: 'Output cap must be at least {count} token.',
+    other: 'Output cap must be at least {count} tokens.',
+  }),
+  referenceOutputCapMinimum:
+    'Output caps below the provider’s known minimum are refused when saved and before sending. Meta requires at least 16 tokens.',
   modelsPanelTitle: 'Models & Agents',
   // Shown when the panel's bundle cannot load: an explicit error, never an
   // empty panel.

@@ -4074,6 +4074,11 @@
   "startWithOwnModelDetail": "Fügen Sie einen Modellanbieter mit einem API-Schlüssel hinzu und wählen Sie ein Modell.",
   "setupComplete": "Sie sind eingerichtet mit {provider} · {model}",
   "manageProviders": "Anbieter verwalten",
+  "outputCapBelowMinimum": {
+    "one": "Die Ausgabegrenze muss mindestens {count} Token betragen.",
+    "other": "Die Ausgabegrenze muss mindestens {count} Token betragen."
+  },
+  "referenceOutputCapMinimum": "Ausgabegrenzen unter dem bekannten Minimum des Anbieters werden beim Speichern und vor dem Senden abgelehnt. Meta verlangt mindestens 16 Token.",
   "modelsPanelTitle": "Modelle & Agenten",
   "modelsPanelUnavailable": "Modelle & Agenten ist in diesem Build nicht verfügbar.",
   "providersSectionTitle": "Anbieter",

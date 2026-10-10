@@ -4182,6 +4182,12 @@
   "startWithOwnModelDetail": "Ajoutez un fournisseur de modèles avec une clé API et choisissez un modèle.",
   "setupComplete": "Vous êtes prêt avec {provider} · {model}",
   "manageProviders": "Gérer les fournisseurs",
+  "outputCapBelowMinimum": {
+    "one": "La limite de sortie doit être d’au moins {count} jeton.",
+    "other": "La limite de sortie doit être d’au moins {count} jetons.",
+    "many": "La limite de sortie doit être d’au moins {count} jetons."
+  },
+  "referenceOutputCapMinimum": "Les limites de sortie inférieures au minimum connu du fournisseur sont refusées à l’enregistrement et avant l’envoi. Meta exige au moins 16 jetons.",
   "modelsPanelTitle": "Modèles et agents",
   "modelsPanelUnavailable": "Modèles et agents n’est pas disponible dans ce build.",
   "providersSectionTitle": "Fournisseurs",

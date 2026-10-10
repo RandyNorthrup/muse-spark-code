@@ -3966,6 +3966,10 @@
   "startWithOwnModelDetail": "使用 API 密钥添加模型提供方并选择模型。",
   "setupComplete": "已就绪：{provider} · {model}",
   "manageProviders": "管理提供方",
+  "outputCapBelowMinimum": {
+    "other": "输出上限必须至少为 {count} 个令牌。"
+  },
+  "referenceOutputCapMinimum": "低于提供方已知最小值的输出上限会在保存时和发送前被拒绝。Meta 要求至少 16 个令牌。",
   "modelsPanelTitle": "模型与智能体",
   "modelsPanelUnavailable": "此构建中没有“模型与智能体”。",
   "providersSectionTitle": "提供方",

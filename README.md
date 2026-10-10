@@ -4031,6 +4031,15 @@ individual model limits separately from limits consumed by newer media.
 Final provider dispatch remains an integration milestone; this core change is
 not a claim that every listed vendor is supported in the installed extension.
 
+An output cap below a provider's known minimum is refused when saved and
+before sending, including an older stored value. The message names the minimum;
+the cap is never silently increased. Meta's captured minimum is 16 tokens.
+Custom provider entries can declare `modelCapabilities.<model>.output.minTokens`;
+both `output.maxTokens` and `modelLimits.<model>.outputTokens` must meet it.
+Providers without a known minimum retain a one-token minimum. Editor settings,
+ACP configuration and CLI/exec flags currently expose no separate output-token
+cap; they share the provider entry and request validation.
+
 Custom models can declare `modelCapabilities` in their user-level
 `providers.json` entry, keyed by native model id. For example:
 

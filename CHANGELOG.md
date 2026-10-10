@@ -74,6 +74,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Static output caps below the selected provider's known minimum are refused
+  when saved and before sending, with the same translated message naming the
+  minimum (16 tokens for Meta). Older stored caps are refused without a request
+  or a silent increase.
+
 - A nearly spent session budget now stops the turn with the budget message
   instead of a Meta error.
 

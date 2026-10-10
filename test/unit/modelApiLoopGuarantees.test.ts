@@ -385,6 +385,27 @@ describe('M106 loop guarantees', () => {
     await rig.host.close()
   })
 
+  it('refuses stored Meta output caps below sixteen before dispatch', async () => {
+    for (const cap of [0, 1, 15]) {
+      const rig = await setup({ modelOutputMaxTokens: () => cap })
+      rig.api.script({ text: 'Never requested.' })
+      await send(rig)
+      expect(rig.api.responseBodies()).toHaveLength(0)
+      expect(rig.events).toContainEqual(
+        expect.objectContaining({
+          type: 'turnCompleted',
+          reason: expect.stringContaining('Output cap must be at least 16 tokens.'),
+        }),
+      )
+      await rig.host.close()
+    }
+    const rig = await setup({ modelOutputMaxTokens: () => 16 })
+    rig.api.script({ text: 'Accepted.' })
+    await send(rig)
+    expect(rig.api.responseBodies().at(-1)?.['max_output_tokens']).toBe(16)
+    await rig.host.close()
+  })
+
   it('refuses invalid model output records before dispatch', async () => {
     for (const cap of [0, -1, 1.5, Infinity, NaN]) {
       const rig = await setup({ modelOutputMaxTokens: () => cap })
@@ -394,7 +415,12 @@ describe('M106 loop guarantees', () => {
       expect(
         rig.events.some(
           (event) =>
-            event.type === 'turnCompleted' && event.reason?.includes('invalid output.maxTokens'),
+            event.type === 'turnCompleted' &&
+            event.reason?.includes(
+              Number.isSafeInteger(cap)
+                ? 'Output cap must be at least 16 tokens.'
+                : 'invalid output.maxTokens',
+            ),
         ),
       ).toBe(true)
       await rig.host.close()
