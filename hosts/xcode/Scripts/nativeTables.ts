@@ -8,6 +8,7 @@ import {
   XCODE_MODEL_TEXT,
 } from '../../../src/shared/constants'
 import { EN } from '../../../src/shared/l10n/en'
+export { escapeHtml } from '../../../src/host/whatsNew/whatsNewHtml'
 
 export const nativeTables = {
   limits: { ...XCODE_HOST, companionCodeBytes: IDE_MCP_TOKEN_BYTES },

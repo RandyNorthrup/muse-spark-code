@@ -211,6 +211,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Portable panels serialize HTML attributes, translated errors and JSON data in
+  their proper contexts and refuse malformed CSP nonces. Xcode's generated
+  property lists escape product, version and command labels.
 - Portable controllers preserve host readiness, restored selection and session
   ownership. Paid engine policy and accounting follow the owning runtime; effective
   settings remain specific to each conversation and worktree.

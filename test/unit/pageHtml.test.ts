@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { buildPageHtml } from '../../src/host/ui/pageHtml'
@@ -29,6 +30,51 @@ describe('portable page HTML', () => {
     })
     expect(html).not.toContain('</script><img')
     expect(html).toContain(String.raw`\u003c/script>`)
+  })
+  it.each(['&quot;', '" onload="attacker()', '<script>', '</script>', "' onclick='attacker()"])(
+    'preserves %s as attribute data without creating markup',
+    (hostile) => {
+      const document = new DOMParser().parseFromString(
+        buildPageHtml({ ...options, scriptUri: hostile, styleUri: hostile }),
+        'text/html',
+      )
+      expect(document.querySelector('script[src]')?.getAttribute('src')).toBe(hostile)
+      expect(document.querySelector('link')?.getAttribute('href')).toBe(hostile)
+      expect(document.querySelectorAll('[onload], [onclick]')).toHaveLength(0)
+      expect(document.querySelectorAll('script')).toHaveLength(3)
+    },
+  )
+  it.each([
+    ['&', '&amp;'],
+    ['"', '&quot;'],
+    ['<', '&lt;'],
+    ['>', '&gt;'],
+  ])('encodes the attribute metacharacter %s once', (value, encoded) => {
+    const html = buildPageHtml({ ...options, scriptUri: value, styleUri: value })
+    expect(html).toContain(`src="${encoded}"`)
+    expect(html).toContain(`href="${encoded}"`)
+  })
+  it.each(['nonce" onload="attacker()', "nonce' 'unsafe-inline", 'nonce; script-src *'])(
+    'refuses a nonce that could change markup or CSP: %s',
+    (nonce) => {
+      expect(() => buildPageHtml({ ...options, nonce })).toThrow('MHP_INVALID_NONCE')
+    },
+  )
+  it('round-trips hostile binding data and line separators in a single inert element', () => {
+    const binding = {
+      ...options.binding,
+      surface: '</ScRiPt><script>attacker()</script><!--\u{2028}\u{2029}',
+      sessionId: '"&<tag>\'session',
+    }
+    const document = new DOMParser().parseFromString(
+      buildPageHtml({ ...options, binding }),
+      'text/html',
+    )
+    const text = document.querySelector('#muse-panel')?.textContent
+    expect(text).toBeDefined()
+    expect(text).not.toMatch(/[<\u{2028}\u{2029}]/u)
+    expect(JSON.parse(text ?? '')).toEqual(binding)
+    expect(document.querySelectorAll('script')).toHaveLength(3)
   })
   it.each(['red; color:blue', '</style><script>', 'url(https://attacker.invalid)', '@import'])(
     'rejects theme injection %s',

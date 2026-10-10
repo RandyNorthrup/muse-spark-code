@@ -1,6 +1,8 @@
 import { readFile, readdir, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { buildPageHtml } from '../../host/ui/pageHtml'
+import { scriptSafeJson } from '../../host/html'
+import { escapeHtml } from '../../host/whatsNew/whatsNewHtml'
 import { portableManifestSchema } from '../../shared/hostApi/portableAssets'
 import type { MhpPanelBinding } from '../../shared/hostApi/panel'
 import type { MhpParams } from '../../shared/hostApi/methods'
@@ -69,7 +71,7 @@ export async function portablePage(directory: string, theme: MhpParams<'initiali
       styleUri: `/assets/portable/${entry}.css`,
       l10n: { locale: uiLocale(), table: UI_TEXT },
     })
-    const manifestData = JSON.stringify(manifest).replaceAll('<', String.raw`\u003c`)
+    const manifestData = scriptSafeJson(manifest)
     return html
       .replace(
         '</head>',
@@ -78,13 +80,9 @@ export async function portablePage(directory: string, theme: MhpParams<'initiali
       .replace(
         '</body>',
         () =>
-          `<p id="launch-error" role="alert" tabindex="-1" hidden>${UI_TEXT.companionLaunchFailed.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p><script nonce="${nonce}" src="/assets/portable/loader.js"></script></body>`,
+          `<p id="launch-error" role="alert" tabindex="-1" hidden>${escapeHtml(UI_TEXT.companionLaunchFailed)}</p><script nonce="${escapeHtml(nonce)}" src="/assets/portable/loader.js"></script></body>`,
       )
-      .replace(
-        '<body ',
-        () =>
-          `<body data-session-id="${binding.sessionId.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}" `,
-      )
+      .replace('<body ', () => `<body data-session-id="${escapeHtml(binding.sessionId)}" `)
   }
   return {
     assets,

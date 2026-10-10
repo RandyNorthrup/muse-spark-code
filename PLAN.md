@@ -38963,6 +38963,17 @@ one default rule timeout in ModelApiHost's express-SSRF analysis. No rule,
 exclude, deadline or dependency is changed. These results block main integration
 alongside the portable cap, duplication, ACP and native qualification failures.
 
+**M104 F2 SAST boundary repair (2026-10-09, before implementation).** Repair
+the sixteen findings in those six owners with explicit executable argument
+lists, the existing contextual HTML/JSON serializers, XML-safe generated
+labels, fixed nonce-bearing bridge markup and a finite reviewed schema-pattern
+allowlist. No suppression, dependency, rule, exclusion or deadline changes.
+Add hostile-input regressions for every finding and byte-exact red drills in
+`docs/certification/m104.md`; run only the touched suites, scoped format/lint
+and all compiler projects on this rig. The lane brief substitutes these checks
+for aggregate quality; native contracts, ACP fixtures, portable budgets and
+duplication remain with their separate owners. No merge, push or live call.
+
 **M104INT aggregate formatting cleanup (2026-10-09).** The single final
 quality attempt stops at formatting because native test runs left ignored
 Gradle/Tycho/private IDE outputs under the checkout, including truncated

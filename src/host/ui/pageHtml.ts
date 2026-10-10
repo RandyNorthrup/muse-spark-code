@@ -1,19 +1,10 @@
 import type { UiTable } from '../l10n'
-import { buildWebviewHtml } from '../html'
+import { buildWebviewHtml, scriptSafeJson } from '../html'
+import { escapeHtml } from '../whatsNew/whatsNewHtml'
 import { panelBindingSchema, type MhpPanelBinding } from '../../shared/hostApi/panel'
 import { themeSchema } from '../../shared/hostApi/data'
 import type * as z from 'zod/mini'
 
-function attribute(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('"', '&quot;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-}
-function data(value: unknown): string {
-  return JSON.stringify(value).replaceAll('<', String.raw`\u003c`)
-}
 const THEME_KINDS = {
   light: 'light',
   dark: 'dark',
@@ -34,6 +25,9 @@ export function buildPageHtml(options: {
 }): string {
   const binding = panelBindingSchema.parse(options.binding)
   const theme = themeSchema.parse(options.theme)
+  // Nonces are CSP source expressions as well as attributes. HTML escaping
+  // alone cannot stop a quote from introducing another CSP source.
+  if (!/^[\w-]+$/u.test(options.nonce)) throw new TypeError('MHP_INVALID_NONCE')
   const declarations = Object.entries(theme.tokens)
     .map(([name, value]) => {
       // A theme value is one CSS value, never a rule, URL or markup. The frozen
@@ -47,10 +41,10 @@ export function buildPageHtml(options: {
     })
     .join(';')
   const html = buildWebviewHtml({
-    scriptUri: attribute(options.scriptUri),
-    styleUri: attribute(options.styleUri),
-    nonce: attribute(options.nonce),
-    cspSource: attribute(options.assetOrigin),
+    scriptUri: escapeHtml(options.scriptUri),
+    styleUri: escapeHtml(options.styleUri),
+    nonce: escapeHtml(options.nonce),
+    cspSource: escapeHtml(options.assetOrigin),
     l10n: options.l10n,
   })
   return html
@@ -62,11 +56,12 @@ export function buildPageHtml(options: {
     .replace(
       '</head>',
       () =>
-        `<style nonce="${attribute(options.nonce)}">:root[data-theme]{${declarations}}</style></head>`,
+        `<style nonce="${escapeHtml(options.nonce)}">:root[data-theme]{${declarations}}</style></head>`,
     )
     .replace(
       '</body>',
-      () => `<script type="application/json" id="muse-panel">${data(binding)}</script></body>`,
+      () =>
+        `<script type="application/json" id="muse-panel">${scriptSafeJson(binding)}</script></body>`,
     )
     .replace(
       "default-src 'none';",
