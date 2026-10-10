@@ -15,6 +15,7 @@ import type * as PlanSnapshotSource from './planSnapshotSource'
 
 type SnapshotSource = typeof PlanSnapshotSource.createPlanSnapshotSource
 type SnapshotTextInstaller = typeof PlanSnapshotSource.installPlanSnapshotText
+type CheckSource = typeof PlanSnapshotSource.createPlanCheckSource
 
 /** Whether a required module is the snapshot bundle (PLAN.md §8). */
 export function isPlanSnapshotBundle(value: unknown): value is {
@@ -26,6 +27,21 @@ export function isPlanSnapshotBundle(value: unknown): value is {
     value !== null &&
     'createPlanSnapshotSource' in value &&
     typeof value.createPlanSnapshotSource === 'function' &&
+    'installPlanSnapshotText' in value &&
+    typeof value.installPlanSnapshotText === 'function'
+  )
+}
+
+/** Whether a required module is the plan-check bundle (PLAN.md §8). */
+export function isPlanCheckBundle(value: unknown): value is {
+  readonly createPlanCheckSource: CheckSource
+  readonly installPlanSnapshotText: SnapshotTextInstaller
+} {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'createPlanCheckSource' in value &&
+    typeof value.createPlanCheckSource === 'function' &&
     'installPlanSnapshotText' in value &&
     typeof value.installPlanSnapshotText === 'function'
   )
@@ -84,5 +100,40 @@ export function planSnapshotLoader(
       })
     }
     return await source(goal, asOf, signal)
+  }
+}
+
+/**
+ * Every estimator plan problem in the loader's root, the bundle required
+ * the first time it is asked for and kept from then on. Evidence-free: no
+ * git, no `gh`, no network. Empty means every goal is forecastable.
+ */
+export function planCheckLoader(
+  deps: PlanSnapshotLoaderDeps,
+): (signal?: AbortSignal) => Promise<string[]> {
+  let check: ((signal?: AbortSignal) => Promise<string[]>) | undefined
+  return async (signal) => {
+    if (check === undefined) {
+      const { bundlePath, loadBundle = requireFile } = deps
+      let bundle: unknown
+      try {
+        bundle = loadBundle(bundlePath)
+      } catch (error: unknown) {
+        deps.log.error(`The plan snapshot ${bundlePath} could not be loaded: ${describe(error)}`)
+        throw new Error(UI_TEXT.estimateUnavailable, { cause: error })
+      }
+      if (!isPlanCheckBundle(bundle)) {
+        deps.log.error(`${bundlePath} does not export the plan check`)
+        if (deps.loadBundle === undefined) {
+          forgetFile(bundlePath)
+        }
+        throw new Error(UI_TEXT.estimateUnavailable)
+      }
+      // Each bundle keeps its own language state: the snapshot bundle gets
+      // the caller's table before it reads anything.
+      bundle.installPlanSnapshotText(UI_TEXT, uiLocale())
+      check = bundle.createPlanCheckSource({ root: deps.root })
+    }
+    return await check(signal)
   }
 }
