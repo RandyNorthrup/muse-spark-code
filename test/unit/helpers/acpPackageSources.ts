@@ -8,6 +8,7 @@
 import { cpSync, mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
+  CI_LAUNCHER_SOURCES,
   DARWIN_HELPER,
   JOB_SOURCES,
   LINUX_HELPERS,
@@ -22,7 +23,8 @@ export const ACP_NATIVE_FILES: readonly string[] = [...JOB_SOURCES, DARWIN_HELPE
 /**
  * Lays out the packager's native inputs under `root`: inert test-owned bytes
  * for each file (packaging never executes them), the repository's runner
- * helpers, and the list module the copied packager imports.
+ * helpers, the Action scripts the package ships as its CI launcher, and the
+ * list module the copied packager imports.
  */
 export function layOutAcpNativeSources(root: string, repository: string): void {
   for (const file of ACP_NATIVE_FILES) {
@@ -33,6 +35,9 @@ export function layOutAcpNativeSources(root: string, repository: string): void {
   cpSync(path.join(repository, RUNNER_HELPERS), path.join(root, RUNNER_HELPERS), {
     recursive: true,
   })
+  for (const source of CI_LAUNCHER_SOURCES) {
+    cpSync(path.join(repository, source), path.join(root, source), { recursive: true })
+  }
   mkdirSync(path.join(root, path.dirname(SOURCES_MODULE)), { recursive: true })
   cpSync(path.join(repository, SOURCES_MODULE), path.join(root, SOURCES_MODULE))
 }

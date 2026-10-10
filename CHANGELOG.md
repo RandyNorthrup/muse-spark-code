@@ -31,14 +31,22 @@ happened, not what was planned; superseded entries are kept.
   ACP and terminals keep `/resources` and `resources status|resume`.
 
 - **Headless runs on GitLab CI, Azure Pipelines, Jenkins and Bitbucket
-  Pipelines** (CM80CI). One template per system under `ci-templates/`,
-  all calling the shared dependency-free `muse-spark-run.mjs` runner with
-  the GitHub Action's inputs (plan or fix mode, budget cap, model), the key
-  from that system's secret store into the run step only, fork and
-  untrusted-run refusal before anything is spent, and the Action's exit
-  codes; none comments or pushes. Validators plus end-to-end runs against
-  a fake agent pass here; no live run on these systems exists yet, so this
-  is not certified (see `docs/ci-other-systems.md`).
+  Pipelines** (CM80CI, CM80CI-R2). One thin template per system under
+  `ci-templates/` runs the GitHub Action's own launcher, which the
+  `muse-spark-code-acp` package now carries as `ci/` (`action/lib/ci-run.mjs`
+  with a per-system adapter, `ci-adapters.mjs`). The template checks the
+  pinned tarball's SHA-256 before anything of it runs; the launcher installs
+  it with lifecycle scripts off and checks its identity, makes its own
+  checkout from the system's clone, sends the generated diff (cut to
+  `max-diff-bytes`) and a prompt file, validates the result against the
+  Action's schema, forwards cancellation to the agent and drains every
+  pipe. The key comes from the system's secret store into the one
+  credential step that each system's own mechanism keeps untrusted runs
+  away from, leaves the environment under every name it travels by, and
+  reaches the agent over stdin only. Nothing comments or pushes. Tested
+  with fakes only; no live run and no release carrying `ci/` yet, so not
+  certified (see `docs/ci-other-systems.md`). `yaml` 2.9.1, already in the
+  lock, is now a declared development dependency for the template tests.
 
 ### Changed
 

@@ -23315,25 +23315,36 @@ the obsolete bootstrap/reservation/paid policy wording below with v4's policy.
 - **Size:** L. Existing bundle caps remain unchanged; final integrated-tree
   sizes and package/workflow hashes belong to the lead's closing receipt.
 
-**Lane CM80CI, 2026-10-10 (other CI systems; status: built, not certified).**
-M80's headless CLI runs anywhere, so this lane makes GitLab CI, Azure
-Pipelines, Jenkins and Bitbucket Pipelines first-class, tested paths:
-one template per system under `ci-templates/` plus the shared
-dependency-free runner `ci-templates/muse-spark-run.mjs`, equivalent to the
-GitHub Action's documented inputs (plan/review mode, fix-mode limits,
-budget cap, model, the key from that system's secret store, no comment or
-push, the same refusals and exit codes). Secrets reach only the run step
-over private stdin and never echo; fork/untrusted runs are refused before
-anything is spent through each system's own mechanism (protected
-variables, IsFork, CHANGE_FORK, PR-build marking). Docs:
+**Lanes CM80CI and CM80CI-R2, 2026-10-10 (other CI systems; status: built,
+not certified).** M80's headless run also runs on GitLab CI, Azure
+Pipelines, Jenkins and Bitbucket Pipelines. Review RVCM80CI (3 P1, 10 P2,
+1 P3) found that the first lane's second launcher
+(`ci-templates/muse-spark-run.mjs`) re-implemented the Action badly; lead
+ruling R2: one launcher. The GitHub Action's own scripts are the launcher
+for every system: `action/lib/ci-run.mjs` composes the Action's input
+grammar, installer, sanitized Git, owner, diff, prompt file, exec, result
+extraction, patch and scanner, and `action/lib/ci-adapters.mjs` reads each
+system's event and trust facts. The `muse-spark-code-acp` package carries
+`action/lib` and `action/prompts` as `ci/`. Each template under
+`ci-templates/` is a thin wrapper: unset the secret variable first, download
+the pinned release, check its SHA-256 before anything of it runs, unpack it
+outside the checkout and exec the launcher with the key in one variable.
+Trust uses each system's own mechanism (GitLab Protected variable plus
+`rules:`; Azure's fork secret policy, step-scoped secret and job condition;
+Jenkins `withCredentials` only inside a stage whose `when` excludes
+`CHANGE_FORK` and untrusted change requests; Bitbucket Secured variable and
+a step listed only under branches and custom), and the launcher refuses
+again from the system's variables. The GitHub Action's own steps and
+behaviour are unchanged (two helpers are now exported). Docs:
 `docs/ci-other-systems.md`, README's Other CI systems, Help reference
-`ci-other-systems`; tests: per-system structural validators plus
-end-to-end runs of the exact template command against a fake agent with
-the same outputs and exit codes. Evidence and red drills:
-[cm80ci.md](docs/certification/cm80ci.md). No live run on these systems
-exists yet and the registry install path still waits on LR, so this lane
-claims nothing certified. No new dependency, no escape hatch (§8
-unchanged), no bundle change.
+`ci-other-systems`, the M80 roadmap entry. Evidence and red drills for all
+fourteen findings: [cm80ci.md](docs/certification/cm80ci.md). No live run
+on these systems and no release carrying `ci/` yet, and the registry path
+still waits on LR, so nothing here is certified. Dependency (AGENTS rule
+9): `yaml` 2.9.1 becomes a declared development dependency for the
+template validators; it was already in the lock as a development
+dependency of knip, vite and eslint-plugin-unicorn (no new download, no
+peer dependencies). No escape hatch (§8 unchanged), no bundle change.
 
 ### M81 — Browser check (D49)
 

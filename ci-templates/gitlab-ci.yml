@@ -1,62 +1,79 @@
-# Muse Spark Code (Unofficial): GitLab CI template (lane CM80CI, PLAN.md M80/D65).
+# Muse Spark Code (Unofficial): GitLab CI template (PLAN.md M80/D65, lane CM80CI-R2).
+# Not endorsed by Meta. Guide: docs/ci-other-systems.md.
 #
-# Copy this job into your .gitlab-ci.yml next to a vendored copy of
-# ci-templates/muse-spark-run.mjs, or `include:` this file from the release
-# tag. It runs one headless Model API review (or fix) through the same
-# runner, inputs and exit codes as the GitHub Action (action/action.yml).
+# One job runs the GitHub Action's own launcher, shipped in the
+# muse-spark-code-acp package (ci/lib/ci-run.mjs): the script downloads the
+# pinned package, checks its SHA-256 with sha256sum before anything of it
+# runs, unpacks it outside the workspace and execs the launcher, which
+# installs the same tarball with lifecycle scripts off, checks its identity,
+# reviews (or proposes a fix for) the change and writes muse-spark-out/.
+# It never comments and never pushes.
 #
-# Secret setup (Settings > CI/CD > Variables), exactly one variable:
-#   MUSE_MODEL_API_KEY = <Meta Model API key>, flags: Masked AND Protected.
-# Masked keeps the value out of job logs; Protected withholds it from
-# unprotected branches and tags. Fork merge requests run without it: the
-# rules below mark them untrusted and the runner refuses (exit 0, nothing
-# runs, nothing is spent) before any key is read. Only the run script line
-# receives MUSE_SPARK_MODEL_API_KEY, scoped to that one command.
+# Secret (Settings > CI/CD > Variables): MUSE_MODEL_API_KEY, Protected and
+# Masked (and Hidden). GitLab gives a Protected variable only to pipelines
+# of protected branches and tags, so a fork's or an unprotected branch's
+# pipeline never has it. The rules below also keep this job, the only one
+# that reads the variable, out of fork merge requests, merge requests from
+# unprotected source branches, merge requests unless
+# MUSE_INPUT_TRUST_PULL_REQUESTS is true, unprotected refs and tags. The
+# script hands the key to the launcher alone: it unsets the variable before
+# any other command and passes the value only on the exec line.
 #
-# Fork rule: same-project pipelines are trusted (only writers can change
-# this file, the same trust the Action places in OWNER/MEMBER/COLLABORATOR).
-# A fork MR has a different CI_MERGE_REQUEST_SOURCE_PROJECT_PATH and is
-# refused. To also run same-project MRs only on protected branches, add a
-# rule matching $CI_MERGE_REQUEST_SOURCE_BRANCH_PROTECTED == "false".
-#
-# This template never comments on the MR and never pushes: artifacts only.
+# Pin MUSE_AGENT_VERSION to a release that carries ci/ (the first release
+# after 0.17.0) and MUSE_INPUT_AGENT_PACKAGE_SHA256 to that tarball's SHA-256.
 
 variables:
-  MUSE_MODE: 'review' # review (plan, no edits) or fix (accept edits in the workspace).
-  MUSE_MAX_BUDGET_USD: '2.00' # Required: hard USD cap, more than 0, at most 20, six decimals max.
-  MUSE_MAX_REQUESTS: '30' # Billable HTTP attempts allowed, retries included (1-500).
-  MUSE_TIMEOUT_MINUTES: '20' # Run deadline in minutes (1-360); the job timeout adds a margin.
-  MUSE_MODEL: '' # Model API model id; empty uses the agent default.
-  MUSE_EFFORT: '' # Reasoning effort (minimal|low|medium|high|xhigh|max); empty uses the default.
-  MUSE_IMAGE_GENERATION: 'false' # true only with MUSE_MODE=fix, inside the budget.
-  MUSE_ALLOW_CONTRIBUTOR_MODELS: 'false' # true opts into a contributor model (training-eligible).
-  MUSE_MAX_DIFF_BYTES: '262144' # Untrusted-file bound mirror (1-1048576).
-  MUSE_PROMPT: 'Review the latest changes in this workspace and report findings.' # Or set MUSE_PROMPT_FILE.
-  MUSE_PROMPT_FILE: ''
-  MUSE_EXTRA_INSTRUCTIONS: '' # Trusted author instructions appended to the prompt (4000 chars max).
-  MUSE_AGENT_VERSION: '0.17.0' # Exact registry pin, or MUSE_AGENT_TARBALL plus MUSE_AGENT_TARBALL_SHA256.
-  MUSE_AGENT_TARBALL: ''
-  MUSE_AGENT_TARBALL_SHA256: ''
-  MUSE_OUT_DIR: 'muse-spark-out'
+  MUSE_AGENT_VERSION: '' # Exact release, x.y.z.
+  MUSE_INPUT_AGENT_PACKAGE_SHA256: '' # SHA-256 of that release's tarball, 64 lowercase hex digits.
+  MUSE_INPUT_MODE: 'review' # review (plan mode, no edits) or fix (a patch is proposed).
+  MUSE_INPUT_MAX_BUDGET_USD: '2.00' # Hard USD cap: more than 0, at most 20, up to six decimals.
+  MUSE_INPUT_MAX_REQUESTS: '30' # Billable HTTP attempts, retries included (1-500).
+  MUSE_INPUT_TIMEOUT_MINUTES: '20' # The run's deadline (1-360); the job timeout must cover it.
+  MUSE_INPUT_MODEL: '' # Model API model id; empty uses the agent's default.
+  MUSE_INPUT_EFFORT: '' # Reasoning effort; empty uses the model's default.
+  MUSE_INPUT_ALLOW_CONTRIBUTOR_MODELS: 'false' # true allows a contributor model (training-eligible).
+  MUSE_INPUT_IMAGE_GENERATION: 'false' # true allows paid images in fix mode, within the budget.
+  MUSE_INPUT_MAX_DIFF_BYTES: '262144' # The diff given to the model is cut to this (1-1048576).
+  MUSE_INPUT_EXTRA_INSTRUCTIONS: '' # Trusted instructions from the pipeline author.
+  MUSE_INPUT_TRUST_PULL_REQUESTS: 'false' # true reviews same-project merge requests from protected branches.
+  MUSE_INPUT_HTTPS_PROXY: ''
+  MUSE_INPUT_NO_PROXY: ''
+  MUSE_INPUT_EXTRA_CA_CERTS: '' # A CA file outside the checkout.
 
-muse-spark-review:
+muse-spark:
   image: node:22
-  timeout: 25m # MUSE_TIMEOUT_MINUTES plus the runner's one-minute overhead and install margin.
+  # The launcher refuses a timeout-minutes this job timeout (CI_JOB_TIMEOUT) cannot cover.
+  timeout: 35m
+  variables:
+    GIT_DEPTH: '0' # The base commit must be in the clone.
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_PROJECT_PATH != $CI_PROJECT_PATH
-      variables:
-        MUSE_UNTRUSTED: 'fork-merge-request'
-      when: on_success
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_PROJECT_ID != $CI_PROJECT_ID
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $MUSE_INPUT_TRUST_PULL_REQUESTS != "true"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_BRANCH_PROTECTED != "true"
+      when: never
+    - if: $CI_PIPELINE_SOURCE != "merge_request_event" && $CI_COMMIT_REF_PROTECTED != "true"
+      when: never
+    - if: $CI_COMMIT_TAG
+      when: never
     - when: on_success
-      variables:
-        MUSE_UNTRUSTED: 'false'
   script:
-    # No secret in this step: install first, exactly like the Action.
-    - node ci-templates/muse-spark-run.mjs --install-only
-    # Only this command receives the key, piped over private stdin by the runner. Never echo it.
-    - MUSE_SPARK_MODEL_API_KEY="$MUSE_MODEL_API_KEY" node ci-templates/muse-spark-run.mjs
+    - |
+      set +x
+      set -eu
+      muse_key="${MUSE_MODEL_API_KEY:-}"
+      unset MUSE_MODEL_API_KEY
+      if [ -z "${MUSE_AGENT_VERSION:-}" ] || [ -z "${MUSE_INPUT_AGENT_PACKAGE_SHA256:-}" ]; then echo 'muse-spark: pin MUSE_AGENT_VERSION and MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+      muse_dir="$(mktemp -d)"
+      curl --fail --silent --show-error --location --max-time 120 --output "$muse_dir/agent.tgz" "${MUSE_AGENT_URL:-https://registry.npmjs.org/muse-spark-code-acp/-/muse-spark-code-acp-$MUSE_AGENT_VERSION.tgz}"
+      muse_sum="$(sha256sum "$muse_dir/agent.tgz")"
+      if [ "${muse_sum%% *}" != "$MUSE_INPUT_AGENT_PACKAGE_SHA256" ]; then echo 'muse-spark: the agent package does not match MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+      mkdir "$muse_dir/launcher"
+      tar -xzf "$muse_dir/agent.tgz" -C "$muse_dir/launcher" --no-same-owner
+      MUSE_SPARK_MODEL_API_KEY="$muse_key" MUSE_CI_TEMP="$muse_dir" MUSE_INPUT_AGENT_PACKAGE="$muse_dir/agent.tgz" exec node "$muse_dir/launcher/package/ci/lib/ci-run.mjs" gitlab
   artifacts:
     when: always
     paths:
-      - $MUSE_OUT_DIR/
+      - muse-spark-out/
     expire_in: 1 week
