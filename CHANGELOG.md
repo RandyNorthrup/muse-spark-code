@@ -12,6 +12,8 @@ happened, not what was planned; superseded entries are kept.
 - Visual baseline reconstruction accepts the recorded sentence-case account
   and vault labels alongside 0.17.1's Title Case labels. Pixel, coverage and
   readiness checks retain their existing limits.
+- The visual harness supplies the canonical conversation budget required by
+  the provider panel, so wizard scenes render through its strict message schema.
 
 ### Pending
 

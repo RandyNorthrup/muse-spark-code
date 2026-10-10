@@ -38353,6 +38353,18 @@ The initial reconstruction fails at `paid-always/light/320`: the current
 driver waits for Title Case `Auth Method` in the historical sentence-case
 source. Make the exact account-label and vault-action selectors accept both
 capitalizations, with browser regressions; preserve their readiness checks.
+The compatibility repair is committed as `7c8338ac5`; the new regressions
+first fail on both historical labels and then all seven readiness tests pass
+at repository deadlines. Five typechecks, changed-file lint/format, plain
+knip, localization, host API, reference, tokens, plan and roadmap pass.
+The unchanged duplication gate reports 21 inherited provider-wizard/test
+clones, none in lane-edited files; leave their repair with the lead rather
+than weakening the zero-clone threshold or expanding this visual lane.
+The complete historical capture succeeds, but two candidate attempts reject
+the fake Models state at `models-configure`: its required `sessionBudget`
+is absent. PROVWIZ9 already documents this stale harness contract. Add the
+canonical `modelsPanelFixtures.makeState().sessionBudget` to the fake host
+and a strict production-schema regression; never relax the message schema.
 
 - [ ] Full comparison, classification and changed-frame review.
 - [ ] Reviewed baseline and complete README refresh with freshness tests.

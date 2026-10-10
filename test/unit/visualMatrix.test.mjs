@@ -1,6 +1,9 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { createHash } from 'node:crypto'
+import { runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
+import { modelsPanelStateSchema } from '../../src/shared/modelsPanel'
+import { makeState } from './modelsPanelFixtures'
 import { collectThemeVariables } from '../../scripts/lib/themeInventory.mjs'
 import { contrastRatio } from '../../scripts/check-tokens.mjs'
 
@@ -56,6 +59,19 @@ const colour = (value) => {
 }
 
 describe('M114 lane 0 visual contract', () => {
+  it('keeps the Models fake host compatible with the strict production state and canonical budget', () => {
+    const harness = readFileSync('test/harness/index.html', 'utf8')
+    const start = harness.indexOf('const modelsBase =')
+    const end = harness.indexOf('const modelsWizardDraft =', start)
+    expect(start).toBeGreaterThan(-1)
+    expect(end).toBeGreaterThan(start)
+    const base = runInNewContext(`${harness.slice(start, end)}; modelsBase`, {
+      modelsPresets: [],
+    })
+    const state = modelsPanelStateSchema.parse({ ...base, models: [] })
+    expect(state.sessionBudget).toEqual(makeState().sessionBudget)
+  })
+
   it('covers every React component and the separate What’s New surface for A’s audit', () => {
     const components = readdirSync('src/webview', { recursive: true })
       .filter((name) => name.endsWith('.tsx'))
