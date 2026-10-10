@@ -18,6 +18,7 @@ import {
   fakeModelApi,
   fakeModelApiClient,
   streamFor,
+  type FakeModelApi,
 } from './helpers/fakeModelApi'
 import { createProviderRegistry } from '../../src/core/providers/providerRegistry'
 import { memoryContextIo } from './helpers/fakeContextIo'
@@ -40,19 +41,7 @@ it('loads the provider factory only on first BYO resolution and reuses it', asyn
   const provider = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const ref = 'team/small'
-  const registry = createProviderRegistry({
-    models: () =>
-      Promise.resolve([
-        {
-          ref,
-          origin: 'https://example.test',
-          pricing: { kind: 'local' },
-          evidence: { capabilities: { toolCalling: true } },
-        },
-      ]),
-    createClient: () => Promise.resolve(fakeModelApiClient(provider, log)),
-    isCurrent: () => true,
-  })
+  const registry = byoRegistry(ref, provider, log, { capabilities: { toolCalling: true } })
   const createProviders = vi.fn(() => Promise.resolve(registry))
   const manager = new ModelApiBackendManager(
     fakeManagerDeps(meta, log, {
@@ -86,23 +75,46 @@ it('loads the provider factory only on first BYO resolution and reuses it', asyn
   }
 })
 
+/** A BYO registry with one local model, for production-path binding tests. */
+function byoRegistry(
+  ref: string,
+  provider: FakeModelApi,
+  log: FakeLogOutputChannel,
+  evidence: {
+    readonly capabilities: { readonly toolCalling: true }
+    readonly maxOutputTokens?: number
+  },
+) {
+  return createProviderRegistry({
+    models: () =>
+      Promise.resolve([
+        {
+          ref,
+          origin: 'https://example.test',
+          pricing: { kind: 'local' },
+          evidence,
+        },
+      ]),
+    createClient: () => Promise.resolve(fakeModelApiClient(provider, log)),
+    isCurrent: () => true,
+  })
+}
+
+/** One read_file call ending in done text, scripted on the serving fake. */
+function scriptReadDone(target: FakeModelApi) {
+  target.script(
+    { calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'c1' }] },
+    { text: 'done' },
+  )
+}
+
 /** A manager on the fake API with no waits, over the given root and store. */
 function managerOn(
   workspaceRoot: string | undefined,
   store: ModelApiBackendManagerDeps['store'],
   log = new FakeLogOutputChannel(),
   hooks?: HookFixture,
-  extra: Partial<
-    Pick<
-      ModelApiBackendManagerDeps,
-      | 'createMcpServers'
-      | 'ideTools'
-      | 'isObservationPackingOn'
-      | 'newId'
-      | 'browserCheck'
-      | 'legalScan'
-    >
-  > = {},
+  extra: Partial<ModelApiBackendManagerDeps> = {},
 ) {
   const api = fakeModelApi()
   return {
@@ -205,16 +217,9 @@ describe('ModelApiBackendManager', () => {
   it('binds the selected record through the unmanaged production path', async () => {
     // No caller supplies preview or cap deps: the bundle entry installs the
     // Meta defaults, so this turn runs the same path VS Code, ACP and exec use.
-    const api = fakeModelApi()
-    const manager = new ModelApiBackendManager(
-      fakeManagerDeps(api, new FakeLogOutputChannel(), {
-        workspaceRoot: '/ws',
-        store: undefined,
-        bundlePath: 'src/host/backend/modelApiEntry.ts',
-        loadBundle: () => modelApiEntry,
-        confirmContributorModel: () => Promise.resolve(true),
-      }),
-    )
+    const { api, manager } = managerOn('/ws', undefined, new FakeLogOutputChannel(), undefined, {
+      confirmContributorModel: () => Promise.resolve(true),
+    })
     try {
       const host = await manager.ensureHost()
       for (const [modelId, wantPreview, wantCap] of [
@@ -229,10 +234,7 @@ describe('ModelApiBackendManager', () => {
         })
         const watched = watchSessionTurns(session)
         const before = api.responseBodies().length
-        api.script(
-          { calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'c1' }] },
-          { text: 'done' },
-        )
+        scriptReadDone(api)
         await session.sendTurn([{ type: 'text', text: 'read it' }])
         await watched.turnDone()
         const previews = watched.events.filter((event) => event.type === 'toolArgumentPreview')
@@ -260,35 +262,16 @@ describe('ModelApiBackendManager', () => {
     // the legacy 32768. No caller supplies preview or cap deps: the entry
     // binds the registry record the host resolves for the selected model.
     // Without a streaming-argument capture the turn stays preview-free.
-    const api = fakeModelApi()
     const provider = fakeModelApi()
     const log = new FakeLogOutputChannel()
     const ref = 'team/small'
-    const registry = createProviderRegistry({
-      models: () =>
-        Promise.resolve([
-          {
-            ref,
-            origin: 'https://example.test',
-            pricing: { kind: 'local' },
-            evidence: {
-              capabilities: { toolCalling: true },
-              maxOutputTokens: 65_536,
-            },
-          },
-        ]),
-      createClient: () => Promise.resolve(fakeModelApiClient(provider, log)),
-      isCurrent: () => true,
+    const registry = byoRegistry(ref, provider, log, {
+      capabilities: { toolCalling: true },
+      maxOutputTokens: 65_536,
     })
-    const manager = new ModelApiBackendManager(
-      fakeManagerDeps(api, log, {
-        workspaceRoot: '/ws',
-        store: undefined,
-        bundlePath: 'src/host/backend/modelApiEntry.ts',
-        loadBundle: () => modelApiEntry,
-        createProviders: () => Promise.resolve(registry),
-      }),
-    )
+    const { manager } = managerOn('/ws', undefined, log, undefined, {
+      createProviders: () => Promise.resolve(registry),
+    })
     try {
       const host = await manager.ensureHost()
       const session = await host.startSession({
@@ -298,10 +281,7 @@ describe('ModelApiBackendManager', () => {
       })
       await session.setModel(ref)
       const watched = watchSessionTurns(session)
-      provider.script(
-        { calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'c1' }] },
-        { text: 'done' },
-      )
+      scriptReadDone(provider)
       await session.sendTurn([{ type: 'text', text: 'read it' }])
       await watched.turnDone()
       expect(watched.events.filter((event) => event.type === 'toolArgumentPreview')).toEqual([])
@@ -357,16 +337,9 @@ describe('ModelApiBackendManager', () => {
     )
     expect(wire.match(/^event: response\.function_call_arguments\.delta$/gm)).toHaveLength(2)
     expect(wire).toContain(JSON.stringify(capturedArguments).slice(1, -1))
-    const api = fakeModelApi()
-    const manager = new ModelApiBackendManager(
-      fakeManagerDeps(api, new FakeLogOutputChannel(), {
-        workspaceRoot: '/ws',
-        store: undefined,
-        bundlePath: 'src/host/backend/modelApiEntry.ts',
-        loadBundle: () => modelApiEntry,
-        confirmContributorModel: () => Promise.resolve(true),
-      }),
-    )
+    const { api, manager } = managerOn('/ws', undefined, new FakeLogOutputChannel(), undefined, {
+      confirmContributorModel: () => Promise.resolve(true),
+    })
     try {
       const host = await manager.ensureHost()
       const session = await host.startSession({
@@ -403,19 +376,12 @@ describe('ModelApiBackendManager', () => {
 
   it('keeps a caller-supplied selected record ahead of the Meta default', async () => {
     const create = vi.spyOn(modelApiEntry, 'createModelApiHost')
-    const api = fakeModelApi()
     const previews = vi.fn(() => undefined)
     const cap = vi.fn(() => 4096)
-    const manager = new ModelApiBackendManager(
-      fakeManagerDeps(api, new FakeLogOutputChannel(), {
-        workspaceRoot: '/ws',
-        store: undefined,
-        bundlePath: 'src/host/backend/modelApiEntry.ts',
-        loadBundle: () => modelApiEntry,
-        argumentPreviewCapabilities: previews,
-        modelOutputMaxTokens: cap,
-      }),
-    )
+    const { manager } = managerOn('/ws', undefined, new FakeLogOutputChannel(), undefined, {
+      argumentPreviewCapabilities: previews,
+      modelOutputMaxTokens: cap,
+    })
     try {
       await manager.ensureHost()
       const host = create.mock.calls.at(-1)?.[0]?.host
