@@ -266,3 +266,60 @@ unsandboxed `test/harness/usage-check.mjs`, `usage-accounts.mjs`,
 `usage-companion.mjs`, `usage-resource-scenes.mjs` and
 `test/unit/companionThemedBrowser.test.mjs` (touched predicate files:
 `test/harness/index.html`, `scripts/lib/harnessServer.mjs`).
+
+## Round 5 — RVCM1141D P2 + P3: the http harness mounts, and no bare marker wait certifies a post-load failure
+
+P2 (harness honesty): the harness Usage page (`test/harness/usage.html`)
+carried no `data-theme-nonce`, so `bridge=http` threw `Missing companion
+theme nonce` (`src/webview/usage/usage.tsx`) before `UsageApp` mounted and
+the whole `http` matrix timed out on the ready marker (88 failures in
+`usage-check`, 8 in `usage-accounts`). Fix: the harness page carries a
+harness-only fake nonce on `#root`, mirroring the served companion document
+(`renderCompanionPage` in `src/runtime/companion/page.ts:63`). Swept: only
+`usageHost.mjs` mounts `dist/webview/usage.js`, so this is the single
+sibling; product code is unchanged (the missing-nonce throw still guards a
+tampered page). `usage-contrast.mjs` is a static `setContent` paint with no
+live wait and stays untouched.
+
+P3 (failure-path honesty, whole class): a post-load `usage/error` keeps the
+ready marker under the alert (`UsageApp.tsx` never clears `state`), so every
+bare `waitForUsageReady` success wait would pass a failed refresh. Fix: all
+seven now assert content — `usage-check.mjs` re-query, custom-date,
+range-return and refresh waits assert the nine-providers content;
+`usage-companion.mjs` initial and post-filter loads assert the empty content
+with the companion's own editor host line (new optional `hostLine`
+parameter; `state.history.host` is `deps.host`, e.g. `History is stored on
+JetBrains.`, not the fixture machine); `usage-resource-scenes.mjs`
+history/empty scenes assert the one-provider content, and the `unavailable`
+scene asserts the marker plus the section's own invalid-history alert
+through the new `assertUsageResourceInvalid` helper (that alert is the
+expected scene content, so the page-level content assertion would wrongly
+refuse it). The explicit native-transport error path is unchanged. No bare
+`waitForUsageReady` remains in any of the four scripts; the shared helper
+alone defines the waits.
+
+Regression (`test/unit/usageBrowserReadiness.test.mjs`, now 12 cases): the
+8 round-4 cases plus the nonce pin (root carries a nonce matching the
+companion pattern), the no-bare-wait sweep (none of the four scripts
+contains `waitForUsageReady(`), the resource-invalid helper (marker plus
+section alert passes, wrong text and missing marker fail, and the
+page-level assertion refuses the section alert), and the companion host-line
+override.
+
+Red drills (all restored byte-exact, `sha256sum -c` OK on all four files):
+removed the nonce — the nonce case failed; reintroduced one bare
+`waitForUsageReady(page)` in `usage-companion.mjs` — the sweep case failed;
+weakened `assertUsageResourceInvalid` to skip the text check — the resource
+case failed. Pre-drill hashes: `usage.html` `5f6e2e45…`,
+`usage-companion.mjs` `6e56b6dc…`, `usageReadiness.mjs` `eb0a27dc…`.
+
+Verification (repository timeouts, no `--testTimeout`): the regression
+12/12 pass on this rig; neighbours `usageReadyMarker` + `UsageApp` +
+`companionThemedPage` 45/45 pass. `npm run typecheck` clean; eslint
+`--max-warnings=0` and prettier clean on all touched files; `check-l10n` 0
+problems (no user-visible string); `npm run build` passes with its bundle
+gates. Blocked in this sandbox (2026-10-08 rule, no workaround built):
+never launched a browser here, so the lead runs unsandboxed
+`test/harness/usage-check.mjs`, `usage-accounts.mjs`,
+`usage-companion.mjs`, `usage-resource-scenes.mjs` and
+`test/unit/companionThemedBrowser.test.mjs`.
