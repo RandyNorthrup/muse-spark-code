@@ -9,6 +9,7 @@ import {
   webviewPacingOutputs,
   webviewStartupOutputs,
   webviewPanelOutputs,
+  portableWebviewBudgetGroups,
 } from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
@@ -262,9 +263,6 @@ const BUDGETS = [
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.
   { path: 'dist/pageWorker.js', budgetKiB: 300 },
   { path: 'dist/webview/main.js', budgetKiB: 900 },
-  // M104D: independent native/companion panel, every eager and lazy JS output
-  // included: 974,922 bytes + 15%, rounded up to 25 KiB (PLAN.md D6).
-  { path: 'dist/webview/portable/main.js', budgetKiB: 1100 },
   // What's New's page script (M99): it only passes clicks back to the host.
   // 0.7 KiB when made, plus 15%, rounded up to 25 KiB.
   { path: 'dist/webview/whatsNew.js', budgetKiB: 25 },
@@ -335,22 +333,9 @@ for (const { path, budgetKiB } of BUDGETS) {
     'dist/webview/usage.js': 'dist/meta/usageWebview.json',
     'dist/webview/whatsNew.js': 'dist/meta/whatsNewPage.json',
   }[path]
-  let files = pageMetafile
+  const files = pageMetafile
     ? webviewStartupOutputs(JSON.parse(readFileSync(pageMetafile, 'utf8')), path)
     : [path]
-  // M104D: the portable panel's cap charges every JS output, eager and lazy.
-  if (path === 'dist/webview/portable/main.js')
-    files = Object.keys(JSON.parse(readFileSync('dist/meta/portable.json', 'utf8')).outputs).filter(
-      (file) => file.endsWith('.js'),
-    )
-  const missing = files.filter((file) => !existsSync(file))
-  // Preserve stat's original refusal for missing static dependencies. The
-  // complete portable inventory also names absent lazy/bridge outputs here.
-  if (path === 'dist/webview/portable/main.js' && missing.length > 0) {
-    hasFailure = true
-    console.log(`MISS ${path}: missing chunks ${missing.join(', ')}`)
-    continue
-  }
   const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   const status = sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'
   if (sizeKiB > budgetKiB) {
@@ -358,6 +343,23 @@ for (const { path, budgetKiB } of BUDGETS) {
   }
   const label = pageMetafile ? `${path} + static imports` : path
   console.log(`${status} ${label}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
+}
+
+// M104 F4: independent startup/delivery caps and their dated measurement
+// evidence are shared with the split check in lib/webviewBundles.mjs.
+const portableMeta = JSON.parse(readFileSync('dist/meta/portable.json', 'utf8'))
+for (const { name, budgetKiB, outputs } of portableWebviewBudgetGroups(portableMeta)) {
+  const missing = outputs.filter((file) => !existsSync(file))
+  if (missing.length > 0) {
+    hasFailure = true
+    console.log(`MISS portable ${name}: missing chunks ${missing.join(', ')}`)
+    continue
+  }
+  const bytes = outputs.reduce((sum, file) => sum + statSync(file).size, 0)
+  if (bytes > budgetKiB * BYTES_PER_KIB) hasFailure = true
+  console.log(
+    `${bytes <= budgetKiB * BYTES_PER_KIB ? 'ok  ' : 'OVER'} portable ${name}: ${(bytes / BYTES_PER_KIB).toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+  )
 }
 
 // TRAIN15C: provider usage loads only for a nonempty provider report; its
@@ -417,11 +419,7 @@ if (hasFailure) {
   process.exit(1)
 }
 
-const portableGroups = webviewDeferredBudgetGroups(
-  JSON.parse(readFileSync('dist/meta/portable.json', 'utf8')),
-  QUESTION_UI_BUDGET_KIB,
-  true,
-)
+const portableGroups = webviewDeferredBudgetGroups(portableMeta, QUESTION_UI_BUDGET_KIB, true)
 for (const group of portableGroups) {
   if (['deferred JS', 'code highlighting', 'action dialogs', 'tasks tab'].includes(group.name))
     continue

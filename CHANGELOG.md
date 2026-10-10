@@ -126,10 +126,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
-- Portable-panel certification records the complete graph's forty largest
-  contributors, existing lazy-feature budgets and dependency copies. Its
-  unchanged 1,100 KiB cap still refuses 1,292.3 KiB; optional panels and bridges
-  are already deferred, so size qualification remains open.
+- Contributor bundle gates now check portable startup and total delivery
+  separately. Startup keeps its 1,100 KiB cap and counts the authenticated
+  loader; total delivery counts every eager and lazy JavaScript output under
+  the lead-approved 1,486 KiB cap (1,323,336 measured bytes plus 15%, rounded
+  down to a whole KiB). Size and split checks enforce both caps, while existing
+  optional-feature deferral and VS Code budgets remain unchanged.
+- Round-one portable-panel certification recorded the complete graph's forty
+  largest contributors, existing lazy-feature budgets and dependency copies.
+  Its original 1,100 KiB total cap refused 1,292.3 KiB despite deferred optional
+  panels and bridges. That receipt informed the lead's separate-cap decision.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did

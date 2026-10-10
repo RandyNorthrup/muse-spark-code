@@ -14,7 +14,10 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { listFiles } from '@vscode/vsce/out/package.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { webviewDeferredBudgetGroups } from '../../scripts/lib/webviewBundles.mjs'
+import {
+  webviewDeferredBudgetGroups,
+  webviewStartupOutputs,
+} from '../../scripts/lib/webviewBundles.mjs'
 import { buildProductionPackage } from './helpers/productionPackage'
 
 const ENTRY = 'dist/webview/main.js'
@@ -265,6 +268,37 @@ describe('the production webview chunks (FIX78W)', () => {
     ).toBe(false)
     for (const source of ['src/shared/resources.ts', 'src/shared/hostApi/panel.ts'])
       expect(Object.hasOwn(portable.inputs, source)).toBe(true)
+  })
+
+  it.each([
+    ['startup JS', 1100, 'dist/webview/portable/loader.js'],
+    ['total JS', 1486, 'dist/webview/portable/whatsNew.js'],
+  ])('the split check rejects a one-byte portable %s overflow', (name, cap, target) => {
+    const meta = JSON.parse(readFileSync(outputFile('dist/meta/portable.json'), 'utf8'))
+    const startup = new Set(
+      ['dist/webview/portable/main.js', 'dist/webview/portable/loader.js'].flatMap((root) =>
+        webviewStartupOutputs(meta, root),
+      ),
+    )
+    const outputs = Object.keys(meta.outputs)
+      .map((file) => file.replaceAll('\\', '/'))
+      .filter((file) => file.endsWith('.js') && (name === 'total JS' || startup.has(file)))
+    const bytes = outputs.reduce((sum, file) => sum + statSync(outputFile(file)).size, 0)
+    const file = outputFile(target)
+    const original = readFileSync(file)
+    try {
+      writeFileSync(file, Buffer.concat([original, Buffer.alloc(cap * 1024 - bytes + 1, ' ')]))
+      const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
+        cwd: built.production,
+        encoding: 'utf8',
+      })
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain(`portable ${name} exceeds ${cap} KiB`)
+      if (name === 'total JS') expect(result.stderr).not.toContain('portable startup JS exceeds')
+    } finally {
+      writeFileSync(file, original)
+    }
+    expect(readFileSync(file).equals(original)).toBe(true)
   })
 
   it('keeps usage, action dialogs and estimator within their existing closure caps', () => {

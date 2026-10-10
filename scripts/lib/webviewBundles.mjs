@@ -74,6 +74,33 @@ export function webviewStartupOutputs(meta, entry = 'dist/webview/main.js') {
   return staticOutputs(meta, [entry])
 }
 
+// M104 F4, lead decision (2026-10-09): startup keeps 1,100 KiB; the
+// complete graph at 036b42ec4 measured 1,323,336 bytes. Measured +15%,
+// rounded down to a whole KiB: floor(1,323,336 * 1.15 / 1024) = 1,486.
+// Evidence: docs/certification/m104-f4-portable-size.json.
+const PORTABLE_STARTUP_BUDGET_KIB = 1100
+const PORTABLE_TOTAL_BUDGET_KIB = 1486
+
+// The classic authenticated loader runs before chat. Count both static
+// closures once at startup, and every emitted JS output in the delivery total.
+export function portableWebviewBudgetGroups(meta) {
+  return [
+    {
+      name: 'startup JS',
+      budgetKiB: PORTABLE_STARTUP_BUDGET_KIB,
+      outputs: staticOutputs(meta, [
+        'dist/webview/portable/main.js',
+        'dist/webview/portable/loader.js',
+      ]).filter((file) => file.endsWith('.js')),
+    },
+    {
+      name: 'total JS',
+      budgetKiB: PORTABLE_TOTAL_BUDGET_KIB,
+      outputs: Object.keys(normalOutputs(meta)).filter((file) => file.endsWith('.js')),
+    },
+  ]
+}
+
 // Optional panel bodies charge all static dependencies outside their page's bootstrap.
 export function webviewPanelOutputs(meta, entry, source) {
   const eager = new Set(webviewStartupOutputs(meta, entry))

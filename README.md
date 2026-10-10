@@ -5416,8 +5416,11 @@ its own bridge, with chat/Tasks in `dist/webview/main.js` and What's New in
 `dist/webview/whatsNew.js`. Native and companion hosts use the separate
 `dist/webview/portable/main.js`, `whatsNew.js`, `bridge.js`, `fallbacks.js` and their shared
 chunks; common React host-service fallbacks and manager pages load through
-`PanelBridge.loadFallbacks()`. The portable budget counts every JavaScript
-entry and chunk, independently of the unchanged VS Code budgets. Native
+`PanelBridge.loadFallbacks()`. Portable JavaScript has two independent caps:
+1,100 KiB for chat's static startup closure plus its authenticated loader,
+and 1,486 KiB for every delivered entry and chunk, including lazy features.
+Shared outputs count once per graph; optional features must remain deferred.
+The VS Code budgets are unchanged. Native
 UI requests on native stdio use the correlated MHP host-service channel.
 Companion windows receive correlated React UI requests on authenticated
 `POST /host/events` and return method-validated replies to `POST /host/message`,
@@ -5676,8 +5679,9 @@ the conversation's Git bundle, 125 KiB for
 the shared English fallback (`dist/uiText.js`, also in the ACP package), 50 KiB for
 the search worker, 300 KiB for
 web fetch's page converter worker, 900 KiB for webview startup plus 50 KiB
-for its deferred JavaScript, 1100 KiB for the independent portable webview
-including every JavaScript entry and chunk, and 850 KiB for
+for its deferred JavaScript, 1100 KiB for the portable startup graph
+including its authenticated loader, 1486 KiB for the complete portable graph
+including every lazy JavaScript entry and chunk, and 850 KiB for
 the ACP agent (`dist/acp.js`).
 
 The webview's Git panel loads when it has state to show; Account & usage

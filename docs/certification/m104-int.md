@@ -311,6 +311,10 @@ path 88→90; the 349 VS Code APIs, 32 importers, 25 built-ins and 61 tokens
 remain unchanged. No dependency, cap, threshold, rule level or hook changes.
 Knip retains its two pre-existing configuration hints; they are not failures.
 
+These are this earlier integration's measurements. Current portable startup
+and delivery sizes and the lead-approved independent caps are recorded in
+[m104.md, F4 round 2](m104.md#m104-f4-round-2--independent-portable-startup-and-total-caps-kubuntu-2026-10-09).
+
 | Production artifact                               |    KiB | Existing cap, KiB |
 | ------------------------------------------------- | -----: | ----------------: |
 | Extension                                         |  458.7 |               600 |

@@ -573,6 +573,21 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**M104 F4 round 2 (2026-10-09, lead decision).** Separate the portable
+startup and total JavaScript caps in both size and split checks. Startup
+retains **1,100 KiB** and charges chat's static import closure plus the
+authenticated loader's static closure, deduplicated. The measured startup is
+**777,108 bytes** (757,722 chat + 19,386 loader), below 1,126,400 bytes.
+The complete graph still charges every emitted JavaScript entry and lazy
+chunk. Its new independent cap is **1,486 KiB / 1,521,664 bytes**:
+`floor(1,323,336 * 1.15 / 1024)`, using the composition receipt at
+`036b42ec4` in `docs/certification/m104-f4-portable-size.json`.
+The lead identifies the total growth as phase-2 functionality and authorizes
+this measured-plus-15% total cap; no other cap changes. Optional-feature
+eager-import guards remain. This resolves Q-M104F4-PAYLOAD-DIET without an
+implementation diet or excluding lazy bytes. Full quality and native/editor
+qualification remain lead-owned under the lane brief.
+
 **INT0170 (2026-10-08, kubuntu).** Three lane merges broke the Node bundles
 under unchanged caps; each is fixed at the root and held by the split check.
 Activation took classic zod through `paidConsent.ts` (1,033,339 B, two
@@ -1222,7 +1237,8 @@ properties, and retain all existing caps. No new artifact or dependency.
 
 **M104D continuation (2026-10-05):** `dist/webview/portable/main.js`,
 `whatsNew.js`, `bridge.js`, `fallbacks.js` and every JavaScript chunk in that independent
-graph share one new **1100 KiB** cap. Measured 974,922 bytes; the existing
+graph originally shared one new **1100 KiB** cap (superseded by M104 F4
+round 2 above: 1100 KiB startup / 1486 KiB total). Measured 974,922 bytes; the existing
 D6 rule gives `25 × ceil(1.15 × (974922 / 1024) / 25) = 1100 KiB`.
 VS Code's existing startup and deferred budgets are unchanged. Its eager
 chat is 898,666 bytes, below the 898,682-byte pre-lane baseline, and its
@@ -19227,17 +19243,6 @@ in-tree junctions below it, drive-letter spelling) and
 `docs/certification/trustroot.md`.
 
 ## 3. Open questions (need the owner)
-
-- **Q-M104F4-PAYLOAD-DIET (2026-10-09).** The complete portable graph is
-  1,323,336 bytes against its unchanged 1,126,400-byte cap. Optional panels,
-  presentation pages, estimator, reports, media and native/companion bridges
-  are already lazy; all ten duplicated loader-parser sources together account
-  for only 17,014 bytes. Which implementation diet should the next lane own:
-  renderer/dependency changes or shared application consolidation? Lazy edge
-  changes alone leave all output payloads charged to the complete graph.
-  Default: keep the cap, features and trust boundaries, preserve build exit 1,
-  and apply the shared brief's bounded-repair stop rule. Composition, current
-  first-use budgets and byte-exact split drills: certification `m104.md`, F4.
 
 - **Q-M104L-POSIX-CONTAINMENT (updated 2026-10-06).** The shared exact
   registry and independent EOF guardian reap observed detached children,
@@ -37918,6 +37923,18 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104 F4 round 2 — independent portable caps (2026-10-09, lead decision).**
+Size and split gates enforce D6's separate 1,100 KiB startup and 1,486 KiB
+total caps. They count all static startup imports and the authenticated
+loader once and retain every lazy JavaScript output in the total. Scoped
+certification passes 146 tests at repository deadlines, including exact caps,
+one-byte overruns, Windows paths and an optional feature imported eagerly.
+Six deliberate red drills restore byte-exact. Contributor documentation,
+the composition size table and roadmap are updated.
+The measured startup is below its unchanged cap, so the brief's stop condition
+does not apply. No paid/live calls, merge or push; full quality stays with
+the lead. Receipts: `docs/certification/m104.md`, F4 round 2.
+
 **M104 F4 portable-size audit (2026-10-09, kubuntu; before changes).**
 Keep the complete portable JavaScript graph's 1,100 KiB cap and every existing
 startup/deferred cap. Measure the production metafile's forty largest source
@@ -38899,7 +38916,15 @@ so each test fits the unchanged deadline. Preserve every locale-specific
 plural form when ordering source tables. No assertions, contrasts, caps or
 platform guards are relaxed; failing receipts remain blockers until corrected.
 
-**M104 F4 bounded split audit (2026-10-09, kubuntu).** The production
+**M104 F4 round-2 qualification (2026-10-09, lead decision).** The startup
+and complete-delivery graphs now have separate D6 caps in both gates, with
+one shared definition. The original payload-diet question is resolved by the
+lead's measured total plus 15% rule. Round-one composition and boundary receipts
+below remain historical evidence; all full-quality and native/editor blockers
+remain lead-owned. Final round-two measurements, regressions and byte-exact
+red drills are recorded in `docs/certification/m104.md`.
+
+**M104 F4 bounded split audit (2026-10-09, kubuntu; round-one record).** The production
 metafile audit records the forty largest contributors by feature and every
 portable output's measured bytes/hash. Chat startup is 757,722 B (58 outputs);
 the other 119 JavaScript outputs cost 565,614 B. Named optional UI and editor
