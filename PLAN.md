@@ -37462,6 +37462,31 @@ push, new dependency or live/paid call; aggregate quality stays lead-owned.
 - [x] Commit with installed hooks and reread committed diff (all nine file
       hashes unchanged by hooks; implementation `e45c046f4`).
 
+**M120CAP round 4 (RVM120CAP3, 2026-10-10): namespace ownership.**
+Classify every team metafile input by esbuild namespace before applying
+filesystem rules. Only file inputs resolved inside the repository can be
+shared under `src/shared/` or treated as installed dependencies. Reject
+outside-repository files and symlink aliases into shared source. Other
+namespaces belong to one reaching entry; multiple readers require an exact
+ID allowlist beside the generating build plugins (empty for today's build).
+This applies to graph inputs even when tree-shaken from every output or
+reached through a real installed dependency.
+Production metafiles use relative file IDs; reject ambiguous drive-prefixed
+IDs, which a single-letter plugin namespace can also create.
+Cover shared/dependency-prefix impersonation, data URLs, file aliases and
+all six ownership directions with regressions and byte-exact red drills.
+Keep caps, production bytes, dependencies and runtime behavior unchanged.
+No merge, push, live/paid calls or aggregate quality; lead owns integration.
+
+- [x] Add namespace and canonical-file classification; sweep sibling bypasses.
+- [x] Prove regressions fail on the reviewed guard and in deliberate drills
+      (26 reviewed-guard failures; CAP6: 16 red, CAP7: six red, CAP8: one,
+      CAP9: 12, CAP10/CAP11: one each; byte-exact restore).
+- [x] Run scoped gates and record unchanged artifacts and inherited encoder
+      blocker (670 tests in 15 complete files; five typechecks plus final unit
+      recheck; production bytes and all three 76,800 B caps unchanged).
+- [ ] Commit with installed hooks and reread staged and committed diffs.
+
 - **Goal:** D103 across every balancing surface.
 - **Order:** after the Wednesday set, and before the M110/M111 resume.
   M110's node orchestrator uses it.
@@ -38152,6 +38177,15 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**M120CAP round 4 qualification (2026-10-10, linuxlt).** Namespace and
+real-file ownership regressions, byte-exact drills and scoped gates are
+certified in `docs/certification/m120-s.md`. The accepted base's full build
+still fails at the What's New content decode bound before aggregate emission;
+the encoder and its cap are outside this lane's authorized files. Independent
+production team builds match the prior bytes and hashes within all original
+caps. Aggregate quality/build/package qualification remains lead-owned under
+the rig/common brief; no gate or threshold is waived.
 
 **CIFIX017W inherited production-build blocker (2026-10-09, win11).** The
 release head's two full What's New releases serialize to 79,510 bytes,

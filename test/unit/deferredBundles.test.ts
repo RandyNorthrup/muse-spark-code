@@ -2,7 +2,7 @@
 // Each drill changes its own metafile copy, never shared dist/ files.
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
@@ -93,6 +93,8 @@ function expectUnchangedMeta(
 
 const fixtures = new Map<string, { bytes: Buffer; meta: z.infer<typeof metafileSchema> }>()
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'muse-deferred-bundles-'))
+mkdirSync(path.join(process.cwd(), 'temp'), { recursive: true })
+const sourceRoot = mkdtempSync(path.join(process.cwd(), 'temp', 'm120cap-paths-'))
 const bundleTexts = new Map<string, string>()
 const inputMaps = new Map<string, ReadonlyMap<string, number>>()
 const supportModules = new Map<string, unknown>()
@@ -327,7 +329,10 @@ afterAll(() => {
   }
 })
 
-afterAll(() => removeFolder(fixtureRoot))
+afterAll(async () => {
+  await removeFolder(fixtureRoot)
+  await removeFolder(sourceRoot)
+})
 
 function bundleFile(name: string) {
   return path.join(fixtureRoot, 'dist', `${name}.js`)
@@ -465,17 +470,21 @@ function inputs(name: string): string[] {
   return Object.keys(output.inputs).map((file) => file.replaceAll('\\', '/'))
 }
 
+// Namespace IDs are opaque: only real file paths change separator style.
+const windowsPath = (file: string) =>
+  file.includes(':') || file.startsWith('<') ? file : file.replaceAll('/', '\\')
+
 function windowsGraph(meta: z.infer<typeof metafileSchema>) {
   return {
     ...meta,
     inputs: Object.fromEntries(
       Object.entries(meta.inputs).map(([file, details]) => [
-        file.replaceAll('/', '\\'),
+        windowsPath(file),
         {
           ...details,
           imports: details.imports.map((imported) => ({
             ...imported,
-            path: imported.path.replaceAll('/', '\\'),
+            path: windowsPath(imported.path),
           })),
         },
       ]),
@@ -523,6 +532,15 @@ describe('deferred cohort bundles', () => {
     ['teamRunners', 'team', 'src/host/team/checkSlots.ts', 'CheckSlots'],
     ['teamRunners', 'teamScheduler', 'src/host/team/checkSlots.ts', 'requestCheckSlot'],
   ] as const
+  function checkTeamBuild(meta: z.infer<typeof metafileSchema>, graph = meta) {
+    return checkDeferredBundles(
+      (bundle) =>
+        Object.hasOwn(teamEntries, path.basename(bundle.output, '.js'))
+          ? outputInputs(meta, bundle.output)
+          : bundleInputs(bundle),
+      () => graph,
+    )
+  }
   it.each(
     directions.flatMap(([owner, destination, source]) =>
       [false, true].map((isWindows) => ({ owner, destination, source, isWindows })),
@@ -572,15 +590,7 @@ describe('deferred cohort bundles', () => {
       })
       const meta = metafileSchema.parse(metafile)
       expect(outputInputs(meta, `dist/${destination}.js`).get(source)).toBeGreaterThan(0)
-      expect(
-        checkDeferredBundles(
-          (bundle) =>
-            Object.hasOwn(teamEntries, path.basename(bundle.output, '.js'))
-              ? outputInputs(meta, bundle.output)
-              : bundleInputs(bundle),
-          () => meta,
-        ),
-      ).toContain(
+      expect(checkTeamBuild(meta)).toContain(
         `dist/${destination}.js carries shared implementation ${source}; shared source modules belong under src/shared/`,
       )
     },
@@ -621,11 +631,23 @@ describe('deferred cohort bundles', () => {
       ).toContain(`dist/team.js carries ${source}, which belongs in dist/teamScheduler.js`)
     },
   )
-  it.each(['borrow', 'sameModel'])(
-    'rejects renamed %s implementation behind its zero-byte re-export',
-    async (helper) => {
+  it.each([
+    { helper: 'borrow', namespace: 'file', modulePath: 'borrowRenamedPolicy' },
+    { helper: 'sameModel', namespace: 'file', modulePath: 'sameModelRenamedPolicy' },
+    { helper: 'borrow', namespace: 'generated', modulePath: 'loanPolicy' },
+    { helper: 'borrow', namespace: 'src/shared/generated', modulePath: 'loanPolicy' },
+    { helper: 'sameModel', namespace: 'node_modules/generated', modulePath: 'sameModel' },
+    {
+      helper: 'borrow',
+      namespace: 'C',
+      modulePath: path.resolve('src/shared/constants.ts').replace(/^[a-z]:/i, ''),
+    },
+  ])(
+    'rejects renamed $helper implementation in $namespace behind its zero-byte re-export',
+    async ({ helper, namespace, modulePath }) => {
       const original = `src/core/team/${helper}.ts`
-      const renamed = `src/core/team/${helper}RenamedPolicy.ts`
+      const renamed =
+        namespace === 'file' ? `src/core/team/${modulePath}.ts` : `${namespace}:${modulePath}`
       const symbol = helper === 'borrow' ? 'decideBorrow' : 'isSameTeamModel'
       const { metafile } = await build({
         ...graphBuildOptions,
@@ -635,8 +657,18 @@ describe('deferred cohort bundles', () => {
             name: 'renamed-team-implementation',
             setup(build) {
               build.onResolve({ filter: /RenamedPolicy$/ }, (args) => ({
-                path: path.resolve(args.resolveDir, `${args.path}.ts`),
+                path:
+                  namespace === 'file'
+                    ? path.resolve(args.resolveDir, `${args.path}.ts`)
+                    : modulePath,
+                namespace,
               }))
+              if (namespace !== 'file')
+                build.onLoad({ filter: /.*/, namespace }, () => ({
+                  loader: 'ts',
+                  contents: readFileSync(original, 'utf8'),
+                  resolveDir: path.dirname(path.resolve(original)),
+                }))
               build.onLoad({ filter: /\.ts$/ }, (args) => {
                 if (path.resolve(args.path) === path.resolve(original))
                   return { loader: 'ts', contents: `export * from './${helper}RenamedPolicy'` }
@@ -658,20 +690,175 @@ describe('deferred cohort bundles', () => {
       for (const destination of ['team', 'teamScheduler']) {
         expect(outputInputs(meta, `dist/${destination}.js`).get(renamed)).toBeGreaterThan(0)
         for (const isWindows of [false, true])
-          expect(
-            checkDeferredBundles(
-              (bundle) =>
-                Object.hasOwn(teamEntries, path.basename(bundle.output, '.js'))
-                  ? outputInputs(meta, bundle.output)
-                  : bundleInputs(bundle),
-              () => (isWindows ? windowsGraph(meta) : meta),
-            ),
-          ).toContain(
-            `dist/${destination}.js carries shared implementation ${renamed}; shared source modules belong under src/shared/`,
+          expect(checkTeamBuild(meta, isWindows ? windowsGraph(meta) : meta)).toContain(
+            namespace === 'file'
+              ? `dist/${destination}.js carries shared implementation ${renamed}; shared source modules belong under src/shared/`
+              : `dist/${destination}.js carries shared non-file module ${renamed}; only explicitly allowlisted plugin IDs may be shared`,
           )
       }
     },
   )
+  function checkTeamInput(
+    source: string,
+    readers: readonly (keyof typeof teamEntries)[],
+    emittedReaders = readers,
+  ) {
+    const meta = structuredClone(bundleMeta({ metafile: 'dist/meta/team.json' }))
+    meta.inputs[source] = { bytes: 1, imports: [] }
+    for (const reader of readers) {
+      const entry = meta.inputs[teamEntries[reader]]
+      if (entry === undefined) throw new Error(`Missing graph entry: ${reader}`)
+      entry.imports.push({ path: source, kind: 'import-statement' })
+    }
+    return checkDeferredBundles(
+      (bundle) =>
+        emittedReaders.some((reader) => bundle.output === `dist/${reader}.js`)
+          ? new Map([...bundleInputs(bundle), [source, 1]])
+          : bundleInputs(bundle),
+      () => meta,
+    )
+  }
+  it.each(directions)('rejects shared data URLs %s → %s', async (owner, destination) => {
+    const url = 'data:text/javascript,export const policy = 1'
+    const { metafile } = await build({
+      ...graphBuildOptions,
+      plugins: [
+        ...graphBuildOptions.plugins,
+        {
+          name: 'team-data-url-contamination',
+          setup(build) {
+            build.onLoad({ filter: /Entry\.ts$/ }, (args) => {
+              if (
+                [teamEntries[owner], teamEntries[destination]].every(
+                  (entry) => path.resolve(entry) !== args.path,
+                )
+              )
+                return
+              return {
+                loader: 'ts',
+                contents: `${readFileSync(args.path, 'utf8')}\nexport { policy } from '${url}'`,
+              }
+            })
+          },
+        },
+      ],
+    })
+    const meta = metafileSchema.parse(metafile)
+    const source = `<${url}>`
+    expect(outputInputs(meta, `dist/${destination}.js`).get(source)).toBeGreaterThan(0)
+    expect(checkTeamBuild(meta)).toContain(
+      `dist/${destination}.js carries shared non-file module ${source}; only explicitly allowlisted plugin IDs may be shared`,
+    )
+  })
+  it.each([
+    'src/shared/generated:loanPolicy',
+    'node_modules/generated:sameModel',
+    '<data:text/javascript,export default 1>',
+  ])('allows single-entry non-file module %s', (source) => {
+    expect(checkTeamInput(source, ['teamScheduler'])).toEqual([])
+  })
+  it('rejects an ambiguous drive-prefixed ID with one graph owner', () => {
+    const source = `C:${path.resolve('src/shared/constants.ts').replace(/^[a-z]:/i, '')}`
+    expect(checkTeamInput(source, ['teamScheduler'])).toContain(
+      `dist/teamScheduler.js has invalid file input ${source}: ambiguous drive-prefixed metafile ID`,
+    )
+  })
+  it('rejects shared non-file graph inputs even when neither output emits them', () => {
+    const source = 'src/shared/generated:loanPolicy'
+    expect(checkTeamInput(source, ['team', 'teamScheduler'], [])).toContain(
+      `dist/team.js carries shared non-file module ${source}; only explicitly allowlisted plugin IDs may be shared`,
+    )
+  })
+  it('rejects shared non-file graph inputs reached through a real dependency', () => {
+    const meta = structuredClone(bundleMeta({ metafile: 'dist/meta/team.json' }))
+    const source = 'node_modules/generated:sameModel'
+    const dependency = 'node_modules/esbuild/lib/main.js'
+    meta.inputs[dependency] = { bytes: 1, imports: [{ path: source, kind: 'import-statement' }] }
+    meta.inputs[source] = { bytes: 1, imports: [] }
+    for (const reader of ['team', 'teamScheduler'] as const) {
+      const entry = meta.inputs[teamEntries[reader]]
+      if (entry === undefined) throw new Error(`Missing graph entry: ${reader}`)
+      entry.imports.push({ path: dependency, kind: 'import-statement' })
+    }
+    expect(checkDeferredBundles(bundleInputs, () => meta)).toContain(
+      `dist/team.js carries shared non-file module ${source}; only explicitly allowlisted plugin IDs may be shared`,
+    )
+  })
+  it.each(directions)(
+    'rejects dependency-prefix virtual contamination %s → %s',
+    (owner, destination) => {
+      const source = 'node_modules/generated:sameModel'
+      expect(checkTeamInput(source, [owner], [destination])).toContain(
+        `dist/${destination}.js carries ${source}, which belongs in dist/${owner}.js`,
+      )
+    },
+  )
+  it.each(['./src/shared/../core/team/borrow.ts', path.resolve('src/core/team/borrow.ts')])(
+    'rejects cross-entry file sharing through canonical alias %s',
+    (source) => {
+      expect(checkTeamInput(source, ['team', 'teamScheduler'])).toContain(
+        source.includes(':')
+          ? `dist/team.js has invalid file input ${source}: ambiguous drive-prefixed metafile ID`
+          : `dist/team.js carries shared implementation ${source}; shared source modules belong under src/shared/`,
+      )
+    },
+  )
+  it('matches file output keys across case and separator spellings', () => {
+    expect(
+      checkDeferredBundles((bundle) =>
+        Object.hasOwn(teamEntries, path.basename(bundle.output, '.js'))
+          ? new Map([
+              ...bundleInputs(bundle),
+              ...[...bundleInputs(bundle)].map(([file, bytes]): [string, number] => [
+                file.toUpperCase().replaceAll('/', '\\'),
+                bytes,
+              ]),
+            ])
+          : bundleInputs(bundle),
+      ),
+    ).toEqual([])
+  })
+  it.each(['src/shared/not-on-disk.ts', 'src/shared/'])(
+    'rejects a file-namespace input without a real file: %s',
+    (source) => {
+      expect(checkTeamInput(source, ['teamScheduler'])).toContain(
+        `dist/teamScheduler.js has invalid file input ${source}: does not resolve to a real repository file`,
+      )
+    },
+  )
+  it.each(['src/shared/', 'node_modules/'])(
+    'rejects file-namespace paths escaping the repository through %s',
+    (prefix) => {
+      const outsideFile = path.join(fixtureRoot, 'outside.ts')
+      const relative = path.relative(path.resolve(prefix), outsideFile).replaceAll('\\', '/')
+      const source = path.isAbsolute(relative) ? relative : `${prefix}${relative}`
+      writeFileSync(outsideFile, 'export const policy = 1')
+      expect(checkTeamInput(source, ['teamScheduler'])).toContain(
+        `dist/teamScheduler.js has invalid file input ${source}: ${path.isAbsolute(relative) && source.includes(':') ? 'ambiguous drive-prefixed metafile ID' : 'resolves outside the repository'}`,
+      )
+    },
+  )
+  it('rejects a file-namespace symlink into shared source', () => {
+    const alias = path.join(sourceRoot, 'shared-alias')
+    symlinkSync(path.resolve('src/shared'), alias, 'junction')
+    const source = path
+      .relative(process.cwd(), path.join(alias, 'constants.ts'))
+      .replaceAll('\\', '/')
+    expect(checkTeamInput(source, ['teamScheduler'])).toContain(
+      `dist/teamScheduler.js has invalid file input ${source}: symlink alias into src/shared/`,
+    )
+  })
+  it('rejects a file-namespace symlink out of the repository', () => {
+    const alias = path.join(sourceRoot, 'outside-alias')
+    symlinkSync(fixtureRoot, alias, 'junction')
+    writeFileSync(path.join(fixtureRoot, 'outside.ts'), 'export const policy = 1')
+    const source = path
+      .relative(process.cwd(), path.join(alias, 'outside.ts'))
+      .replaceAll('\\', '/')
+    expect(checkTeamInput(source, ['teamScheduler'])).toContain(
+      `dist/teamScheduler.js has invalid file input ${source}: resolves outside the repository`,
+    )
+  })
   it('rejects emitted source missing from every entry graph, including a zero-byte shim', () => {
     const source = 'futureTeamPolicy/shim.ts'
     expect(

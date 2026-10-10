@@ -46,6 +46,11 @@ happened, not what was planned; superseded entries are kept.
   their module graphs and rejects implementation leaks in every direction,
   including renamed helpers behind re-export shims. Shared source modules
   belong under `src/shared/`; all three bundles keep their original caps.
+  Namespace IDs cannot impersonate shared source or installed dependencies.
+  File ownership checks real repository paths and rejects outside files and
+  symlink aliases into shared source; non-file modules need one entry owner
+  or an exact plugin ID exception (none is needed by the production build),
+  including tree-shaken inputs and virtual modules behind real dependencies.
 
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
