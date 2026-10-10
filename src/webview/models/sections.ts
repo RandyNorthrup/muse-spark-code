@@ -6,12 +6,19 @@
 
 import type { ComponentType } from 'react'
 import { UI_TEXT } from '../../shared/constants'
-import { loadDeferredEnglish } from '../../shared/l10n/deferredEnglish'
 import type {
   ModelsPanelSection,
   ModelsPanelState,
   PanelToHostMessage,
 } from '../../shared/modelsPanel'
+
+async function loadTeamEnglish(): Promise<void> {
+  // The hidden team English travels with its readers, never with the
+  // panel's first paint. A dynamic import keeps this loader out of the
+  // panel body; in source and tests the module installs nothing.
+  const deferred = await import('../../shared/l10n/deferredEnglish')
+  await deferred.loadDeferredEnglish()
+}
 import { CodeIcon, PlusIcon } from '../components/icons'
 import { deferred } from '../components/DeferredSurface'
 import { ModelsSection } from './ModelsSection'
@@ -80,14 +87,12 @@ function reduceModels(state: PanelUiState, _action: PanelUiAction): PanelUiState
 }
 
 const RolesSection = deferred(async () => {
-  // The hidden team English travels with its readers, never with the
-  // panel's first paint (in source and tests this installs nothing).
-  await loadDeferredEnglish()
+  await loadTeamEnglish()
   const module = await import('./sections/roles/RolesSection')
   return { default: module.RolesSection }
 })
 const AgentsSection = deferred(async () => {
-  await loadDeferredEnglish()
+  await loadTeamEnglish()
   const module = await import('./sections/agents/AgentsSection')
   return { default: module.AgentsSection }
 })
