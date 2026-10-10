@@ -4,7 +4,9 @@ Status: design, 2026-10-09, revised the same day after the owner's
 correction (section 1) and again after the second review (`RVJUDGEFAST2`,
 section 15); revised on 2026-10-10 after the third review
 (`RVJUDGEFAST3`) and the owner's answer to Q-D107 (variant B, section 9),
-and again after the fourth review (`RVJUDGEFAST4`): B2 is now Linux-only.
+again after the fourth review (`RVJUDGEFAST4`): B2 is now Linux-only; and
+after the fifth (`RVJUDGEFAST5`): lane F splits into F1 (B1) and F2 (B2,
+redesigned as default-deny).
 Nothing here is built. PLAN.md D107 is the decision of record and M125 the
 milestone; this file holds the reasoning, the catalogue and the numbers
 behind them.
@@ -982,18 +984,22 @@ answers waits for the answer within those 5 s; no answer by 5 s is a veto.
 the run's end and 5 s; that wording was a relay error, corrected by the
 lead the same day.)
 
-Lane F builds this; it is planned work, no longer conditional. The rest of
-this section is how it is built so that the three conditions mean what
-they say: the floor and the classes are enforced by the operating system
-while the command runs, not only by reading its command line, and a class
-is off on any platform that cannot give it that enforcement (9.2).
+Lane F builds this; it is planned work, no longer conditional. By the
+lead's ruling of 2026-10-10 (after the fifth review) it is two lanes:
+**F1** builds B1 (9.4) and ships when its own review is clean; **F2**
+builds B2 (9.5) as a default-deny redesign and never blocks F1. The owner's
+B stands for both. The rest of this section is how they are built so that
+the three conditions mean what they say: the floor and the classes are
+enforced by the operating system while the command runs, not only by
+reading its command line, and a class is off on any platform that cannot
+give it that enforcement (9.2).
 
 ### 9.2 Where B runs
 
-| Class            | Linux                                                                                                                               | macOS                                                                         | Windows | Muse Code (any OS) | Extension running as root |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------- | ------------------ | ------------------------- |
-| B1 inspect       | Landlock (ABI 3 or later) through lane F's confinement helper, after the self-test                                                  | Seatbelt through `/usr/bin/sandbox-exec`, after the capture and the self-test | Off     | Off                | Off                       |
-| B2 check scripts | bubblewrap 0.11.0 or later, not setuid: namespaces, an overlay at the workspace's own path and a socket filter, after the self-test | Off: nothing on macOS owns the lifetime of every descendant (9.5)             | Off     | Off                | Off                       |
+| Class            | Linux                                                                                                                                                                                                      | macOS                                                                                  | Windows | Muse Code (any OS) | Extension running as root |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------- | ------------------ | ------------------------- |
+| B1 inspect       | Lane F1: Landlock (ABI 3 or later) through the confinement helper, after the self-test                                                                                                                     | Lane F1: Seatbelt through `/usr/bin/sandbox-exec`, after the capture and the self-test | Off     | Off                | Off                       |
+| B2 check scripts | Lane F2: bubblewrap 0.11.0 or later, not setuid, with its own init as PID 1, a frozen snapshot under an overlay at the workspace's path, and a system-call allow-list, after the capture and the self-test | Off: nothing on macOS owns the lifetime of every descendant (9.5)                      | Off     | Off                | Off                       |
 
 - **Muse Code.** The CLI runs an approved command itself, through its own
   shell, `PATH` and environment; the extension only answers the approval.
@@ -1111,8 +1117,9 @@ remains. The ship rule counts both the time saved and those tokens
   and no shell, so what was checked is what runs. The `PATH` the agent or
   its shell sees plays no part.
 - **A neutral environment, not the inherited one.** The child gets exactly
-  `PATH=/usr/bin:/bin`, `LC_ALL=C` and `HOME` set to an empty private
-  folder, and nothing else: no `LD_PRELOAD`, `LD_LIBRARY_PATH`, `DYLD_*`,
+  `PATH=/usr/bin:/bin`, `LC_ALL=C`, `TZ=UTC0` (a rule, so no time-zone
+  file is read) and `HOME` set to an empty private folder, and nothing
+  else: no `LD_PRELOAD`, `LD_LIBRARY_PATH`, `DYLD_*`,
   `GREP_OPTIONS`, `POSIXLY_CORRECT` or any other variable. Standard input
   is `/dev/null`, there is no terminal (so no pager or editor), no
   descriptor but the three standard ones is inherited, the working
@@ -1141,7 +1148,7 @@ And the claim that the admitted recursive forms never follow links was
 wrong: GNU grep follows a symbolic link named on its command line. B1
 therefore confines the read set at the moment of each open, in the kernel.
 
-**The operands, opened without following links.** Lane F's confinement
+**The operands, opened without following links.** Lane F1's confinement
 helper (`MuseSparkConfine`, native C built for Linux and macOS like
 `muse-created`) opens the workspace root once and checks its identity
 (device and inode) against the workspace's resolved root; links above the
@@ -1166,8 +1173,10 @@ FIFO or socket. What remains is the allowed set: a list of the regular
 files the walk opened, and of the folders it walked.
 
 **What B1 guarantees, and what it does not.** The privacy boundary is file
-contents: B1's program reads the bytes of no file outside the allowed set.
-Names and metadata are a narrower matter, per platform:
+contents: B1's program reads the bytes of no file outside the allowed set
+and the few public system files it needs to start, which are listed per
+platform below and are part of the set. Names and metadata are a narrower
+matter, per platform:
 
 - **Linux** grants listing a folder only as a hierarchy (a Landlock rule on
   a folder covers everything below it, and no rule can take a protected
@@ -1187,12 +1196,22 @@ ruleset that handles every file-system right of the running ABI (at least
 3, which adds truncation; on ABI 4 or later it also refuses TCP bind and
 connect). It grants **read-file on each allowed regular file by itself**,
 from the descriptor the walk opened, and never on a folder; read-directory
-on the operand folders; read and execute on the verified program and the
-loader's library folders; read on `/etc/ld.so.cache`, `/etc/nsswitch.conf`,
-`/etc/passwd`, `/etc/group` and `/etc/localtime` (names and times for
-`ls -l`); and nothing else. A seccomp filter refuses sockets other than
-`AF_UNIX`, `ptrace`, and every way of creating a process (B1's programs
-never start one, so none can outlive the run). The helper closes every
+on the operand folders; and, for the program to start, **read and execute
+on exact files only**: the verified program, its dynamic loader and each
+shared library it needs, which the helper resolves from the program's own
+dependency list and opens by descriptor, plus read on `/etc/ld.so.cache`;
+never a library folder and nothing else under `/etc`. A Landlock rule
+cannot tell the loader's open from the program's, so these few files are
+the only system files in B1's read set, and a swapped operand can reach
+nothing beyond them (the third finding of the fifth review; drill B1-14).
+They are public system files, the same on every machine with that
+release. No user or group database is granted, so `ls -l`, `stat` and
+`find` print numeric owners, and times print in UTC. A seccomp filter
+refuses every socket call, `io_uring`, the key-management calls,
+`ptrace`, and every way of creating a process (B1's programs never start
+one, so none can outlive the run); B1 runs fixed, verified system programs
+with a positive option grammar, not repository code, so this filter only
+narrows what those programs could be steered into. The helper closes every
 descriptor but the three standard ones and calls `execve` on the verified
 program. Landlock checks each open against the file the path actually
 reaches: an ancestor or leaf swapped for a link after the rules were made
@@ -1210,11 +1229,13 @@ like the programs) with a profile it writes for this run: deny by default;
 execute only the verified program, and no `process-fork`; read data only
 at the literal paths of the allowed files, and list only the walked
 folders; read the system part (the dynamic loader and its shared cache,
-captured on the Mac mini and committed); deny data and metadata reads of
-any path under the workspace that matches a protected or private pattern;
-no network; service lookups limited to the captured minimum (directory
-services for user names). Seatbelt checks the path an open resolves to, so
-a swapped link resolves to a path with no allow and is refused, and a new
+captured on the Mac mini and committed as literal paths, which are B1's
+only system files on macOS and part of its stated read set); deny data and
+metadata reads of any path under the workspace that matches a protected or
+private pattern; no network; service lookups limited to the captured
+minimum (directory services for user names). Seatbelt checks the path an
+open resolves to, so a swapped link resolves to a path with no allow and
+is refused, and a new
 path that appears after the walk has none either. Seatbelt's rules are
 paths, not files, so an allowed path that is **replaced** after the walk
 (its file removed and a hard link to another file put in its place) would
@@ -1245,30 +1266,32 @@ made, must not appear in the output; and the helper confirms, after
 applying its filter or profile, that creating a process fails. Any failure
 turns B1 off, with the reason.
 
-**What the agent sees.** The program's output, as today. An excluded entry
+**What the agent sees.** The program's output, as today, except that on
+Linux owners show as numbers and times in UTC. An excluded entry
 shows as the program's own "Permission denied" line, and the transcript
 row counts the entries not read. An output with a secret match is withheld
 and the action goes to the reviewer; B1 has no side effect, so nothing
 else needs undoing.
 
-**Red drills (lane F),** each expected to go to the reviewer or to return
+**Red drills (lane F1),** each expected to go to the reviewer or to return
 no byte of the forbidden file:
 
-| Drill                      | Case                                                                                                                                                                                                                          | Expected                                                                                                                             |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| B1-1 ancestor swap         | `cat src/a.ts`; `src` replaced by a link to another project's `src` before the helper opens it, and again after the rules are made                                                                                            | Before: refused by the no-follow open (reviewer). After: the open fails. No byte of the other project                                |
-| B1-2 leaf swap             | The same, with `src/a.ts` replaced by a link to an outside canary                                                                                                                                                             | As B1-1                                                                                                                              |
-| B1-3 protected descendants | `grep -r -e url .` over `.git/config`, a nested `pkg/.git/config`, `.claude/settings.json`, `.env`, `config/.env.production`, `certs/dev.pem` and `AGENTS.md`, each holding the pattern                                       | None of their bytes; each counted as not read                                                                                        |
-| B1-4 hard link             | `notes.txt` a hard link to an outside canary, as an operand and inside a recursive walk                                                                                                                                       | Operand: reviewer. Walk: not read                                                                                                    |
-| B1-5 command-line link     | `grep -r x linkdir`, `linkdir` a link to outside                                                                                                                                                                              | Reviewer (GNU grep would follow it)                                                                                                  |
-| B1-6 link in recursion     | `ls -R`, `find .` and `grep -r` over a tree with a link to outside and one to a protected folder                                                                                                                              | Not read                                                                                                                             |
-| B1-7 mount                 | A mount inside the workspace (where the rig allows one; otherwise a fake device id in unit tests)                                                                                                                             | Not read                                                                                                                             |
-| B1-8 live session process  | A background job, and a detached child of a finished foreground command that the registry tracks, alive                                                                                                                       | Reviewer                                                                                                                             |
-| B1-9 no confinement        | Landlock below ABI 3 or not enabled; `sandbox-exec` missing; a self-test canary read; process creation not refused                                                                                                            | B1 off, with the reason                                                                                                              |
-| B1-10 inherited descriptor | A descriptor to an outside canary open in the parent                                                                                                                                                                          | Not inherited; not read                                                                                                              |
-| B1-11 secret in output     | A workspace file with a secret-shaped line                                                                                                                                                                                    | Output withheld; reviewer                                                                                                            |
-| B1-12 post-walk insertion  | An untracked, detached helper waits for the rules, then hard-links an outside canary into a walked folder, renames a protected file into it, and replaces an allowed file with a hard link to a protected one; `grep -r` runs | Linux: none of their bytes. macOS: the new paths are refused; the replaced path is the named residual                                |
-| B1-13 names and metadata   | `find . -name '*.pem' -size +1 -print` and `ls -R .` over `.git` and `certs/dev.pem`                                                                                                                                          | No contents. Linux lists the names and sizes (outside the guarantee, as stated); macOS shows only `.git` and `certs/dev.pem` by name |
+| Drill                       | Case                                                                                                                                                                                                                          | Expected                                                                                                                                                                                                                                                                                                 |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B1-1 ancestor swap          | `cat src/a.ts`; `src` replaced by a link to another project's `src` before the helper opens it, and again after the rules are made                                                                                            | Before: refused by the no-follow open (reviewer). After: the open fails. No byte of the other project                                                                                                                                                                                                    |
+| B1-2 leaf swap              | The same, with `src/a.ts` replaced by a link to an outside canary                                                                                                                                                             | As B1-1                                                                                                                                                                                                                                                                                                  |
+| B1-3 protected descendants  | `grep -r -e url .` over `.git/config`, a nested `pkg/.git/config`, `.claude/settings.json`, `.env`, `config/.env.production`, `certs/dev.pem` and `AGENTS.md`, each holding the pattern                                       | None of their bytes; each counted as not read                                                                                                                                                                                                                                                            |
+| B1-4 hard link              | `notes.txt` a hard link to an outside canary, as an operand and inside a recursive walk                                                                                                                                       | Operand: reviewer. Walk: not read                                                                                                                                                                                                                                                                        |
+| B1-5 command-line link      | `grep -r x linkdir`, `linkdir` a link to outside                                                                                                                                                                              | Reviewer (GNU grep would follow it)                                                                                                                                                                                                                                                                      |
+| B1-6 link in recursion      | `ls -R`, `find .` and `grep -r` over a tree with a link to outside and one to a protected folder                                                                                                                              | Not read                                                                                                                                                                                                                                                                                                 |
+| B1-7 mount                  | A mount inside the workspace (where the rig allows one; otherwise a fake device id in unit tests)                                                                                                                             | Not read                                                                                                                                                                                                                                                                                                 |
+| B1-8 live session process   | A background job, and a detached child of a finished foreground command that the registry tracks, alive                                                                                                                       | Reviewer                                                                                                                                                                                                                                                                                                 |
+| B1-9 no confinement         | Landlock below ABI 3 or not enabled; `sandbox-exec` missing; a self-test canary read; process creation not refused                                                                                                            | B1 off, with the reason                                                                                                                                                                                                                                                                                  |
+| B1-10 inherited descriptor  | A descriptor to an outside canary open in the parent                                                                                                                                                                          | Not inherited; not read                                                                                                                                                                                                                                                                                  |
+| B1-11 secret in output      | A workspace file with a secret-shaped line                                                                                                                                                                                    | Output withheld; reviewer                                                                                                                                                                                                                                                                                |
+| B1-12 post-walk insertion   | An untracked, detached helper waits for the rules, then hard-links an outside canary into a walked folder, renames a protected file into it, and replaces an allowed file with a hard link to a protected one; `grep -r` runs | Linux: none of their bytes. macOS: the new paths are refused; the replaced path is the named residual                                                                                                                                                                                                    |
+| B1-13 names and metadata    | `find . -name '*.pem' -size +1 -print` and `ls -R .` over `.git` and `certs/dev.pem`                                                                                                                                          | No contents. Linux lists the names and sizes (outside the guarantee, as stated); macOS shows only `.git` and `certs/dev.pem` by name                                                                                                                                                                     |
+| B1-14 swap to a system file | After the walk, `src/a.ts` is replaced by a link to `/etc/passwd`, to a file under a library folder the program does not use, to the program's own `libc`, and to `/etc/ld.so.cache`                                          | Linux: the first two are refused (no rule); the last two are the only system files that can be read, and they are in the stated read set. macOS: `/etc/passwd` and the unused library are refused; the loader and its shared cache, the captured system part, can be read and are in the stated read set |
 
 The second review's drills stay: a workspace `bin/cat` first on `PATH`; a
 `cat` reached through a link into a user-writable folder; a user-writable
@@ -1277,19 +1300,24 @@ copy in `/usr/local/bin`; `LD_PRELOAD`, `GREP_OPTIONS` and
 writing `not_match` example (the `find` actions, `tail -f`); any `git` or
 `rg` command; root; a Windows host; a Muse Code approval.
 
-### 9.5 B2, check scripts: a contained, discardable run (Linux only)
+### 9.5 B2, check scripts: lane F2, a default-deny contained run (Linux only)
 
 **Why a hash is not enough, and what is.** A check script runs repository
 code: the tests, the sources they import, setup files, dependencies in
 `node_modules`. The agent may have edited any of it. Pinning the script's
 definition establishes only that the _command_ is the owner's own; it says
 nothing about what the code does. B2's safety therefore comes from
-containment: the run cannot reach the network or any socket, cannot write
-anything that survives it, cannot read the user's secrets outside the
-workspace, and leaves no process behind. Its result is delivered only when
-the run stayed a pure check; otherwise it is thrown away and the reviewer
-decides as today. That containment exists on Linux only (macOS and Windows
-below), so B2 is Linux-only.
+containment, and its correctness from evidence that the containment did
+not change the result.
+
+**Default-deny, not a growing deny-list (the lead's ruling, 2026-10-10).**
+Each review so far found one more route out of a run that was told what it
+may not do: a pathname socket, then a socket pair and `io_uring`, then the
+inherited kernel keyring. F2 is therefore built the other way round: the
+run gets only the system calls, files and environment a check needs, from
+a frozen copy of the workspace, under an init that owns every process, and
+its result is delivered only with evidence that nothing was refused. B2 is
+lane F2. Lane F1 (B1) does not wait for it.
 
 **What qualifies.**
 
@@ -1304,10 +1332,24 @@ below), so B2 is Linux-only.
   `plugins` bodies `.yarnrc.yml` names, the release `yarnPath` names,
   Plug'n'Play's `.pnp.cjs` loader), so a Yarn repository (a `yarn.lock`, a
   `.yarnrc` or a `.yarnrc.yml`) is not B2. Nor is a repository with a
-  `.pnpmfile.cjs`, or whose `.npmrc` names a pnpmfile.
+  `.pnpmfile.cjs`.
+- **Every effective configuration source holds only safe keys.** npm and
+  pnpm read settings that start code before a script runs (`node-options`
+  and pnpm's `nodeOptions`, `script-shell` and `scriptShell`, `shell`,
+  `pnpmfile`, `shellEmulator`) from several places, YAML included (fifth
+  review). Each source the run would read must contain only keys from
+  `JUDGE_FAST_B2_CONFIG_KEYS`, keys that name no program, file or code
+  (`engine-strict`, `save-exact`, `save-prefix`, `fund`, `audit`,
+  `legacy-peer-deps`, `strict-peer-dependencies`, `auto-install-peers`,
+  `package-lock`, and pnpm's `packages` list in `pnpm-workspace.yaml`):
+  the workspace's `.npmrc`; `pnpm-workspace.yaml`; the `pnpm` field of
+  `package.json`; the global `npmrc` in the bound `node` install and npm's
+  built-in `npmrc`. A key outside the list in any of them means not B2;
+  the repository is excluded rather than its named bodies pinned. The
+  user's own configuration in the home folder is not read (the run has no
+  home folder), and inherited `npm_config_*` variables are cleared.
 - The package manager is resolved from the extension host's `PATH` with
-  every folder inside the workspace removed. Its identity is recorded;
-  containment, not identity, is what bounds it. Changing the toolchain
+  every folder inside the workspace removed. Changing the toolchain
   itself, outside the workspace, already takes a reviewed action.
 - **The definition is the owner's.** Every part of the command's
   definition closure is byte-identical to the owner's baseline:
@@ -1322,16 +1364,10 @@ below), so B2 is Linux-only.
     a command that selects other packages (`--workspace`, `--workspaces`,
     `-w`, `--filter`, `-r`, `--recursive`, `--prefix`, `-C`, `--dir`) or
     runs any other package-manager subcommand means not B2;
-  - in `package.json`, those `scripts` entries, the `packageManager` field
-    and the `workspaces` field (which selects packages);
-  - `.npmrc`, every key of which must be in `JUDGE_FAST_B2_NPMRC_KEYS`,
-    keys that name no program, file or code (`engine-strict`,
-    `save-exact`, `save-prefix`, `fund`, `audit`, `legacy-peer-deps`,
-    `strict-peer-dependencies`, `auto-install-peers`, `package-lock`); a
-    key outside the list (`script-shell`, `node-options`, `shell`, a
-    pnpmfile) means not B2; and `pnpm-workspace.yaml`;
-  - every workspace file a reached script names (`scripts/check.js`,
-    `vitest.config.ts`).
+  - in `package.json`, those `scripts` entries, the `packageManager`,
+    `workspaces` and `pnpm` fields;
+  - the configuration files above, and every workspace file a reached
+    script names (`scripts/check.js`, `vitest.config.ts`).
 
   The closure makes the command, and everything that selects or
   bootstraps it, the owner's. What those named files import, the tests,
@@ -1343,58 +1379,144 @@ below), so B2 is Linux-only.
   checkout), read by the harness from git's object store with no filter,
   hook or text conversion; on first use, HEAD at the start of the first
   turn in which the closure has no uncommitted change. A HEAD that moves
-  during a turn is attributed to the agent (it may have run `git commit`
-  through an approved command) and never becomes the baseline. No git
-  repository, or no baseline, means not B2. An agent that edits
-  `scripts/check.js`, `package.json`, `.npmrc` or a script another script
-  calls, committed or not, takes the command out of B2 until the user
-  commits.
+  during a turn is attributed to the agent and never becomes the baseline.
+  No git repository, or no baseline, means not B2.
 
-**The containment.** The system's bubblewrap, 0.11.0 or later (the
-release that added overlay mounts; they are not available to a setuid
-install), verified like B1's programs (a root-owned file under root-owned
-system folders), runs the command with `--unshare-all` (its own user, PID,
-network, IPC, UTS and cgroup namespaces), `--die-with-parent`,
-`--new-session` and `--clearenv`:
+**1. A frozen snapshot, never the live workspace.** Before the run, the
+helper copies the workspace, without `.git` and without any FIFO, socket
+or device, into a private folder in the extension's storage on the same
+file system: by reflink (`FICLONE`) where the file system has it (Btrfs,
+XFS, bcachefs), by plain copy elsewhere, within
+`JUDGE_FAST_B2_SNAPSHOT_MAX_MS` = 3,000 ms and
+`JUDGE_FAST_B2_SNAPSHOT_MAX_MIB` = 4,096 (past either, the run is
+abandoned, the reviewer decides, and the workspace is recorded as too large
+for F2 on that file system until its size changes). The folder is made
+read-only and nothing else writes it. **The closure is validated against
+the snapshot**, not the live workspace, so what runs is exactly what was
+admitted: a save in the editor while the run is set up or running changes
+the live workspace, never the run (fifth review: an overlay over the live
+workspace is undefined when the workspace changes underneath it). The
+snapshot is the overlay's lower layer; the overlay is mounted at the
+workspace's own path, so paths in the output are the workspace's. On a
+file system without reflink the copy costs time in proportion to the
+tree, `node_modules` included, which is why F2 may only pay off there for
+small workspaces; the ship rule decides per machine.
+
+**2. A real init that owns every process.** The system's bubblewrap,
+0.11.0 or later (the release that added overlay mounts; they are not
+available to a setuid install), verified like B1's programs, starts lane
+F2's init (the confinement helper in its init mode) as the first process
+of the run's own PID namespace, with `--as-pid-1`, `--unshare-all` (its own
+user, PID, network, IPC, UTS and cgroup namespaces), `--die-with-parent`,
+`--new-session` and `--clearenv`. The init:
+
+- joins a fresh, empty session keyring, so the editor's inherited session
+  keyring and every key it holds are no longer possessed by anything in
+  the run (fifth review: namespaces and a cleared environment leave that
+  keyring in place); the key-management calls are also outside the
+  allow-list below, and `/proc/keys` and `/proc/key-users` are masked;
+- starts the check as its child; the child sets `no_new_privs`, installs
+  the system-call allow-list below with a user-notification listener,
+  hands the listener to the init, and `execve`s the package manager;
+- answers every notification: it records the call's number and refuses
+  it, and, since any refusal discards the run (5), stops the run at the
+  first one;
+- when the check exits, or the user presses Stop, or the tool's timeout
+  fires, kills every process left in the namespace, waits until none is
+  left, and only then writes the check's exit status, the record of
+  refused calls and "drained" to its status pipe, and exits.
+
+The harness reads nothing from the run until bubblewrap itself has exited,
+which happens only after the init has been reaped; the kernel completes
+that only once every process of the namespace has ended. Only then are the
+writes compared and anything delivered (fifth review: bubblewrap's default
+reaper reports the check's exit while its descendants may still run).
+
+**3. The system-call allow-list.** Everything a check may call is listed;
+every other call is reported to the init and refused, and **any refused
+call discards the run** (5). The list is derived from the calls Node 22
+(libuv and V8), `/bin/sh`, npm, pnpm and the native tools common checks
+start (esbuild's Go runtime) make, and is confirmed by a capture before F2
+relies on it: `strace -f` over fixture checks (`npm test` with Vitest and
+with Jest, `eslint .`, `tsc --noEmit`, `prettier --check .`, `pnpm test`)
+on x86_64 and arm64 on a Linux rig (free, local). A call the capture finds
+missing is added by name, with its reason in the certification record;
+because a missing entry is refused and discards the run, an incomplete list
+fails closed. The derived list has **188 calls on x86_64**; arm64 lacks 28
+of their legacy forms (`open`, `stat`, `fork`, `poll` and the like), so 160
+there:
+
+```
+files      read write readv writev pread64 pwrite64 preadv pwritev preadv2
+           pwritev2 open openat openat2 creat close close_range lseek stat
+           fstat lstat newfstatat statx statfs fstatfs access faccessat
+           faccessat2 readlink readlinkat getdents64 mkdir mkdirat rmdir
+           unlink unlinkat rename renameat renameat2 link linkat symlink
+           symlinkat chmod fchmod fchmodat fchmodat2 chown fchown fchownat
+           lchown utimensat truncate ftruncate fallocate fadvise64 fsync
+           fdatasync flock fcntl dup dup2 dup3 pipe pipe2 ioctl* getcwd
+           chdir fchdir umask copy_file_range sendfile splice memfd_create
+           inotify_init1 inotify_add_watch inotify_rm_watch getxattr
+           lgetxattr fgetxattr listxattr llistxattr flistxattr
+memory     mmap munmap mprotect mremap madvise brk msync mincore membarrier
+           pkey_alloc pkey_free pkey_mprotect
+processes  clone* fork vfork execve execveat exit exit_group wait4 waitid
+           kill tkill tgkill pidfd_open pidfd_send_signal getpid getppid
+           gettid getpgid getpgrp setpgid getsid setsid getuid geteuid
+           getgid getegid getresuid getresgid getgroups capget
+           set_tid_address set_robust_list get_robust_list rseq futex
+           sched_yield sched_getaffinity sched_setaffinity sched_getparam
+           sched_getscheduler sched_get_priority_max sched_get_priority_min
+           getpriority setpriority prctl* arch_prctl prlimit64 getrlimit
+           setrlimit getrusage times sysinfo uname
+signals    rt_sigaction rt_sigprocmask rt_sigreturn rt_sigsuspend
+           rt_sigtimedwait sigaltstack alarm setitimer getitimer
+time       clock_gettime clock_getres clock_nanosleep nanosleep
+           gettimeofday time timerfd_create timerfd_settime timerfd_gettime
+events     epoll_create epoll_create1 epoll_ctl epoll_wait epoll_pwait
+           epoll_pwait2 poll ppoll select pselect6 eventfd eventfd2
+pairs      socketpair* sendmsg recvmsg sendto* recvfrom shutdown
+           getsockopt setsockopt getsockname getpeername
+random     getrandom
+```
+
+\* Allowed only with checked arguments: `clone` without any namespace
+flag; `socketpair` only as `AF_UNIX` with `SOCK_STREAM` (and the
+close-on-exec and non-blocking flags); `sendto` only with no destination
+address; `ioctl` only for `TCGETS`, `TIOCGWINSZ`, `FIONBIO`, `FIONREAD`,
+`FIOCLEX`, `FIONCLEX` and `FICLONE`; `prctl` only for the few options the
+capture shows (naming a thread, the parent-death signal, `no_new_privs`,
+naming a memory area). `clone3` and the three `io_uring` calls answer
+"not supported", which libc and libuv already handle by falling back, so
+they are neither run nor counted as refusals.
+
+Outside the list, among others: `socket` in every family, `connect`,
+`bind`, `listen`, `accept`, `accept4`, `sendmmsg`, `recvmmsg`, `keyctl`,
+`add_key`, `request_key`, `bpf`, `perf_event_open`, `ptrace`,
+`process_vm_readv` and `process_vm_writev`, every mount call old and new,
+`unshare`, `setns`, `chroot`, `pivot_root`, `userfaultfd`, the `fanotify`
+calls, `name_to_handle_at`, `open_by_handle_at`, `mknod` and `mknodat`,
+the extended-attribute setters, `personality`, `seccomp` and the Landlock
+calls. With `socket` refused, the only sockets in the run are connected
+stream pairs it made itself; a stream socket refuses a destination address
+(`EISCONN`) on `sendmsg`, and the filter refuses one on `sendto`, so the
+socket-pair-and-datagram route of the fifth review, and the `io_uring`
+socket route, do not exist.
+
+**4. The rest of the sandbox.**
 
 - **The file system holds only what the run needs.** Read-only: `/usr`
   (with the system's `/bin`, `/sbin` and `/lib*`, which on most systems
   are links into it); from `/etc` only the loader cache, `passwd`,
   `group`, `nsswitch.conf`, `hosts` and `localtime`; the resolved install
-  folders of `node` and the package manager, each bound by its own path
-  and not its parent's. Fresh and empty: `/tmp`, `/var/tmp`, `/run` (and
-  so `/var/run`), and the home folder. New: `--proc` and `--dev`. The
-  workspace, through an overlay at its own path (`--overlay-src` the
-  workspace, `--overlay` with its upper and work folders in the
-  extension's storage), so paths in the output are the workspace's.
-  Nothing else exists inside the run: not the rest of `/var`, `/opt`,
-  `/srv`, `/mnt`, `/media` or other users' homes; no `~/.ssh`, `~/.aws`,
-  `~/.config`, `~/.npmrc` or `~/.gitconfig`; no keyring, secret service,
-  ssh or gpg agent, D-Bus, Docker or other service socket. The
-  workspace's own files, `.env` and other private files included, **are**
-  readable: a check may need them.
-- **No socket outside the run.** The network namespace has only its own
-  loopback, so neither the outside network nor the host's loopback
-  services are reachable, and abstract Unix sockets are scoped to it. A
-  pathname Unix socket, though, is reached through the file system, not
-  the network namespace, and a read-only mount does not stop a connect
-  (fourth review). So a seccomp filter, passed to bubblewrap with
-  `--seccomp`, refuses `socket()` for `AF_UNIX` altogether: no pathname or
-  abstract Unix socket can be opened, whether in a bound folder, the
-  workspace or anywhere else. `socketpair()` stays allowed, because Node,
-  the test runners and esbuild talk to their own children through
-  connected pairs that reach nothing outside. No package manager needs a
-  Unix socket to run a script; a check that opens one fails with a marker,
-  is discarded, and the reviewer decides.
-- **No write survives.** Every write lands in the overlay's upper folder,
-  which lists exactly what the run wrote, deletions included. The helper
-  reads it, then removes it; nothing is copied back, caches included,
-  because a cache can hold code that a later run would execute outside the
-  sandbox.
-- **No process outlives it.** The run is the first process of its own PID
-  namespace: when it ends, or the user presses Stop, the kernel ends every
-  process in that namespace, detached, double-forked or not. This is the
-  property that macOS lacks.
+  folders of `node` and the package manager, each bound by its own path.
+  Fresh and empty: `/tmp`, `/var/tmp`, `/run` (and so `/var/run`), and the
+  home folder. New: `--proc` (with the key files masked) and `--dev`. The
+  workspace, through the overlay on the snapshot. Nothing else exists
+  inside the run: not the rest of `/var`, `/opt`, `/srv`, `/mnt`, `/media`
+  or other users' homes; no `~/.ssh`, `~/.aws`, `~/.config`, `~/.npmrc` or
+  `~/.gitconfig`; no service socket. The workspace's own files, `.env` and
+  other private files included, **are** readable: a check may need them.
 - **A fixed environment.** Cleared, then `PATH` (the install folders and
   `/usr/bin`), `HOME` (an empty private folder), `TMPDIR` (the fresh
   `/tmp`), `LANG=C.UTF-8` and `CI=1`, with no terminal. No inherited
@@ -1403,133 +1525,131 @@ network, IPC, UTS and cgroup namespaces), `--die-with-parent`,
   (`SHELL_DEFAULT_TIMEOUT_MS`, `SHELL_MAX_TIMEOUT_MS`,
   `SHELL_OUTPUT_MAX_CHARS`); the upper folder within
   `JUDGE_FAST_B2_SCRATCH_MAX_MIB` = 2,048 (polled; past it the run is
-  killed and discarded); bubblewrap's start within
-  `JUDGE_FAST_B2_SETUP_MAX_MS` = 2,000 ms (past it, the run is abandoned
-  and the reviewer decides). CPU and memory are bounded no more than a
-  reviewer-approved run's are today.
+  stopped and discarded); bubblewrap's start within
+  `JUDGE_FAST_B2_SETUP_MAX_MS` = 2,000 ms. CPU and memory are bounded no
+  more than a reviewer-approved run's are today.
 - **Undo.** The step's checkpoint is taken as for any action (M72's turn
-  checkpoint, as M86 rebuilt it), so the model's own file edits stay
-  restorable as today. B2 adds nothing to undo, because its writes never
-  reach the workspace. It never runs in place relying on a checkpoint
-  instead: M86 records that a command ran but does not undo its writes
-  (M86's acceptance; `docs/PRIVACY.md`), so where no overlay is possible,
-  B2 is off.
+  checkpoint, as M86 rebuilt it). B2 adds nothing to undo: its writes
+  never reach the workspace. It never runs in place relying on a
+  checkpoint instead (M86 does not undo command writes), so where no
+  overlay or snapshot is possible, B2 is off.
 
-This needs unprivileged user namespaces (some distributions restrict them;
-Ubuntu has done so through AppArmor since 23.10) and overlayfs inside a
-user namespace (Linux 5.11 or later). A workspace on a file system that an
-overlay cannot use as its lower layer is not B2. The probe and the
-self-test decide, and the Judge section names what is missing ("B2 needs
-bubblewrap 0.11 or later; this system has 0.9.0"). The self-test runs a
-canary check that must fail to open a Unix socket in a bound folder, to
-see a host file outside the binds, and to leave a detached grandchild
-alive; any failure turns B2 off, with the reason.
+**5. Evidence, then delivery.** After the drain, the harness has three
+records it trusts because the run could not write them: the init's record
+of refused calls, the overlay's upper folder over a frozen lower, and the
+check's exit status. **The write evidence is the net difference from the
+snapshot**: every path in the upper folder is compared by content with the
+snapshot, and whiteouts and opaque folders count as deletions. Because the
+snapshot is private and frozen, this is the run's exact net effect on the
+workspace. It is not a history: a file the run creates, uses and deletes
+leaves no net effect (fifth review). That is the intended criterion. A
+real run in place would leave the same workspace and reach the same
+verdict, so such a file is not a write the agent could be misled by; what
+B2 must not deliver is a result whose effect the agent would expect to
+find and will not. The result goes to the agent as the command's result,
+passing or failing, only when all of these hold:
 
-**Delivery.** After the run, its result goes to the agent as the command's
-result, passing or failing, only when all of these hold:
-
-- no write outside `JUDGE_FAST_B2_CACHE_PATHS` (`node_modules/.cache/`,
-  `node_modules/.vite/`, `node_modules/.vitest/`, `*.tsbuildinfo`,
-  `.eslintcache`, `coverage/`, `.nyc_output/`): a check that writes
-  elsewhere (a `lint` script running `eslint --fix`) is not a pure check,
-  and discarding its writes would leave the agent believing in a fix it
-  does not have;
-- no environment-failure marker in the output
-  (`JUDGE_FAST_B2_ENV_MARKERS`: name-resolution and unreachable-network
-  errors, a refused bind, connect or socket, `command not found` or exit
-  127, a permission or read-only error on a path), which would mean the
-  sandbox, not the code, failed the check;
-- no secret match in the output (`countSecretMatches`);
+- **no refused call**: the init's record is empty, so no refused system
+  call can have changed the result. A test that catches a refused
+  connection and fails quietly ("Expected true; received false") is
+  discarded here, whatever its output says (fifth review);
+- **the check is known to agree with an in-place run**: a check, by its
+  closure's digest in this workspace, becomes deliverable only after a
+  contained run's verdict class (pass or fail) matched the verdict of the
+  same command run in place after the reviewer allowed it. Until then its
+  contained runs are shadow runs: started beside the reviewer, compared
+  with the in-place result, never delivered. A disagreement seen at any
+  later in-place run takes the check out of B2 until its definition
+  changes;
+- **no net write** outside `JUDGE_FAST_B2_CACHE_PATHS`
+  (`node_modules/.cache/`, `node_modules/.vite/`, `node_modules/.vitest/`,
+  `*.tsbuildinfo`, `.eslintcache`, `coverage/`, `.nyc_output/`): a check
+  that changes the workspace (a `lint` script running `eslint --fix`) is
+  not a pure check;
+- **no environment-failure marker** in the output
+  (`JUDGE_FAST_B2_ENV_MARKERS`: name resolution, `command not found` or
+  exit 127, "not a git repository", a permission, read-only or not-found
+  error on a path outside the workspace), a second, heuristic signal;
+- **no secret** in the output (`countSecretMatches`);
 - the judge's non-veto arrived within its window (9.3), and the bounds
   held or the run timed out (a timeout is delivered as today's timeout
   result when nothing else above failed).
 
 Otherwise the run is discarded whole and the reviewer, which started when
-the action was held (9.3), decides exactly as today. A write or a marker
-also marks that script, by its closure's digest, "not B2 in this
-workspace", so it is not tried again until its definition changes. Because
-the reviewer runs alongside, a discarded run adds no wait to today's path;
-it costs only the CPU it used, which the ship rule counts (section 11), and
-the marking stops it repeating.
+the action was held (9.3), decides exactly as today. A refused call, a
+write or a marker also marks that check, by its closure's digest, "not B2
+in this workspace" until its definition changes. A discarded run adds no
+wait; it costs the CPU it used, which the ship rule counts (section 11).
 
 **macOS: off.** Seatbelt confines what a process may do, and every child
 inherits its profile, but nothing on macOS owns the lifetime of every
 descendant: there is no PID namespace, cgroup or job object for an
-unprivileged process. A child that starts a new session, and whose parent
-exits before the harness looks, is reparented and escapes both
-process-tree enumeration and process-group kills (`processTree.ts` states
-that no path there contains a child that deliberately detaches). So "no
-process outlives the run" cannot be guaranteed, and a surviving process
-could keep consuming resources, or hold the scratch folder, after Stop.
-The clone comparison the previous version used to find writes (type, size,
-modification time, mode) also missed a same-size rewrite with its time
-restored (fourth review). Rather than ship a best-effort check as a
-guarantee, B2 is off on macOS; held check scripts go to the reviewer
-exactly as today. B1 stays on macOS: its programs cannot create a process
-(9.4).
+unprivileged process, so a child that starts a new session and is
+reparented escapes enumeration and group kills (`processTree.ts` says so),
+and there is no overlay over a frozen copy to measure the net effect.
+Held check scripts go to the reviewer exactly as today.
 
 **Windows: off.** No mechanism an unprivileged process can use gives these
-properties without changing the user's files. An AppContainer reads and
-writes only objects whose access lists grant it, so the workspace copy,
-the toolchain under the user's profile and its caches would all need new
-access entries; loopback inside one needs a machine-wide exemption that
-takes administrator rights; there is no unprivileged overlay, and
-copy-on-write copies exist only on ReFS (a Dev Drive). Windows Sandbox
-needs Pro or Enterprise and virtualization, starts in seconds and has none
-of the user's toolchain. Held check scripts go to the reviewer exactly as
-today. B2 on Windows or macOS would be a milestone of its own; it is not
-planned.
+properties without changing the user's files: an AppContainer reaches only
+objects whose access lists grant it, loopback inside one needs an
+administrator's exemption, there is no unprivileged overlay, and
+copy-on-write copies exist only on ReFS (a Dev Drive); Windows Sandbox
+needs Pro or Enterprise and virtualization and has none of the user's
+toolchain. B2 on Windows or macOS would be a milestone of its own; it is
+not planned.
 
 **Risks that remain, each bounded or audited.**
 
-- **The workspace's own secrets are readable inside the run.** A test may
-  load `.env`. Nothing can leave by a network or a socket, so the only way
-  out is the check's output to the model. The output is scanned: a match
-  withholds it and sends the action to the reviewer. A secret the scanner
-  does not recognise can reach the model; that is the exposure a
-  reviewer-approved `npm test` has today, since the reviewer sees only the
-  command line.
-- **A named pipe in the workspace.** A FIFO is reached through the file
-  system like a socket, but opening one is not a socket call, so the
-  filter does not stop it. A FIFO in the workspace whose reader is a
-  process outside the run would receive what the run writes. Condition 3
-  refuses B2 while a process the session started is alive, as far as the
-  registry sees; a process that detached itself from the registry, or one
-  the user started, is the residual.
-- **CPU, memory and time.** Bounded as a reviewer-approved run is: the
-  tool's timeout, Stop and the scratch cap. A discarded run's CPU counts
-  against B2 in the ship rule.
-- **Correctness of a delivered result.** A sandbox-induced failure that
-  the markers miss reaches the agent as a failing check. It counts as harm
-  in the labelled set, which must stay at zero.
-- **Escaping the sandbox** needs a kernel or bubblewrap flaw. B2 uses the
-  system's bubblewrap, never runs as root, and the extension's helper only
-  builds its arguments and filter.
-- **Persistence.** None by construction: no write survives, caches
-  included; no process survives the namespace; nothing outside the scratch
-  area is written; no socket outside the run is reachable.
+- **A file the run cannot see.** The run has no home folder, no `.git` and
+  nothing outside its binds; a check that reads one gets "not found",
+  which no system-call record shows. A check that does this from the start
+  disagrees with its in-place run and never becomes deliverable. One whose
+  code changes after its agreement to depend on such a file, and that
+  hides the error, can deliver a sandbox-caused verdict. It counts as harm
+  in the labelled set, which must stay at zero for B2 to turn on.
+- **The workspace's own secrets are readable inside the run.** Nothing can
+  leave by a network, a socket or a key, so the only way out is the
+  check's output to the model, which is scanned; a secret the scanner does
+  not recognise can reach the model, as under a reviewer-approved
+  `npm test` today.
+- **A named pipe in a bound system or install folder** whose reader is a
+  process outside the run would receive what the run writes; the snapshot
+  copies no FIFO from the workspace, so only those folders remain.
+- **CPU, memory and time**, bounded as a reviewer-approved run's are, plus
+  the snapshot's cost, which the ship rule counts.
+- **Escaping the sandbox** needs a kernel or bubblewrap flaw in an allowed
+  call. The refused calls (sockets, keys, `io_uring`, `bpf`, mounts,
+  `ptrace`) are not reachable at all.
+- **Persistence.** None by construction: no write survives, no process
+  survives the namespace, no key is reachable, no socket outside the run
+  exists.
 
-**Red drills (lane F, on Linux):**
+**Red drills (lane F2, on Linux):**
 
-| Drill                    | Case                                                                                                                                                                                                                                                 | Expected                                                                                          |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| B2-1 script body         | The agent edits `scripts/check.js`, which the `test` script names; `package.json` unchanged                                                                                                                                                          | Reviewer                                                                                          |
-| B2-2 script line or hook | The agent edits `scripts.test`, or adds `pretest`                                                                                                                                                                                                    | Reviewer                                                                                          |
-| B2-3 manager config      | The agent writes `.npmrc` with `node-options=--require ./x.js`, or a `script-shell`, or any key outside the list                                                                                                                                     | Reviewer                                                                                          |
-| B2-4 agent commit        | The agent commits B2-1's change; HEAD moves during the turn                                                                                                                                                                                          | Reviewer (the baseline is unchanged)                                                              |
-| B2-5 extra option        | `npm test -- --globalSetup=./x.js`, `npm test -- -u`                                                                                                                                                                                                 | Reviewer                                                                                          |
-| B2-6 network and sockets | A test the agent edited fetches an outside address; connects to a loopback service the host runs; connects to a live pathname-socket canary inside a bound install folder and one inside the workspace; and to an abstract-socket canary on the host | Each fails inside; marker; discarded; reviewer; script marked; every canary records no connection |
-| B2-7 home secrets        | The test reads canaries at `~/.ssh/id_ed25519`, `~/.aws/credentials` and `~/.npmrc` and a file under `/opt`, and `GITHUB_TOKEN` set in the parent                                                                                                    | None present                                                                                      |
-| B2-8 workspace write     | The test rewrites `src/a.ts` with different bytes of the same length and restores its modification time, with no other change                                                                                                                        | Workspace byte-identical; the write found; discarded; reviewer                                    |
-| B2-9 write outside       | The test writes `~/x` and `/tmp/x`                                                                                                                                                                                                                   | Absent outside the run                                                                            |
-| B2-10 secret out         | The test prints the workspace's `.env`                                                                                                                                                                                                               | Output withheld; reviewer                                                                         |
-| B2-11 lingering process  | A Node helper starts a detached child in a new session that starts a grandchild, records the grandchild's PID in the scratch area, and exits before the next observation; checked after the run ends and after Stop                                  | The grandchild started (its PID recorded) and is gone in both cases                               |
-| B2-12 bounds             | Output over the cap; scratch writes over the cap; a run past its timeout                                                                                                                                                                             | Killed and discarded, or today's timeout result                                                   |
-| B2-13 no containment     | bubblewrap missing or 0.9, user namespaces refused, the socket filter not applied, a self-test canary leaked                                                                                                                                         | B2 off, with the reason; never run in place                                                       |
-| B2-14 elsewhere          | A macOS or Windows host, a Muse Code approval, root                                                                                                                                                                                                  | Reviewer                                                                                          |
-| B2-15 bootstrap code     | A Yarn repository whose `.yarnrc.yml` names `.yarn/plugins/check.cjs`, the plugin edited; a `.pnpmfile.cjs`                                                                                                                                          | Reviewer (not B2)                                                                                 |
-| B2-16 package selection  | The agent edits `package.json`'s `workspaces`; a script runs `npm run check --workspaces`                                                                                                                                                            | Reviewer                                                                                          |
-| B2-17 indirect script    | `check` runs `npm run lint`; the agent edits `scripts.lint`; and a script with a `;`, a pipe or a `$`                                                                                                                                                | Reviewer                                                                                          |
+| Drill                      | Case                                                                                                                                                                                                                                                            | Expected                                                                                                                       |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| B2-1 script body           | The agent edits `scripts/check.js`, which the `test` script names; `package.json` unchanged                                                                                                                                                                     | Reviewer                                                                                                                       |
+| B2-2 script line or hook   | The agent edits `scripts.test`, or adds `pretest`                                                                                                                                                                                                               | Reviewer                                                                                                                       |
+| B2-3 manager config        | `.npmrc` with `node-options=--require ./x.js`, a `script-shell`, or any key outside the list                                                                                                                                                                    | Reviewer                                                                                                                       |
+| B2-4 agent commit          | The agent commits B2-1's change; HEAD moves during the turn                                                                                                                                                                                                     | Reviewer (the baseline is unchanged)                                                                                           |
+| B2-5 extra option          | `npm test -- --globalSetup=./x.js`, `npm test -- -u`                                                                                                                                                                                                            | Reviewer                                                                                                                       |
+| B2-6 sockets, every route  | A test the agent edited calls `socket()` for `AF_INET` and `AF_UNIX`; makes an `AF_UNIX` `SOCK_DGRAM` pair and `sendto`s a live host datagram canary in a bound install folder; sends with a destination on a stream pair; submits an `io_uring` socket request | Each refused; the refusals recorded; discarded; reviewer; every canary records nothing                                         |
+| B2-7 home secrets          | The test reads canaries at `~/.ssh/id_ed25519`, `~/.aws/credentials` and `~/.npmrc` and a file under `/opt`, and `GITHUB_TOKEN` set in the parent                                                                                                               | None present                                                                                                                   |
+| B2-8 workspace write       | The test rewrites `src/a.ts` with different bytes of the same length and restores its modification time, with no other change                                                                                                                                   | Workspace byte-identical; the net write found by content; discarded; reviewer                                                  |
+| B2-9 write outside         | The test writes `~/x` and `/tmp/x`                                                                                                                                                                                                                              | Absent outside the run                                                                                                         |
+| B2-10 secret out           | The test prints the workspace's `.env`                                                                                                                                                                                                                          | Output withheld; reviewer                                                                                                      |
+| B2-11 lingering process    | A Node helper starts a detached child in a new session that starts a grandchild, records its PID and keeps writing a file in the overlay; the intermediate exits early; checked after the run and after Stop                                                    | The grandchild started and is gone; no status, diff or delivery happens before the drain; its late writes never reach the diff |
+| B2-12 bounds               | Output over the cap; scratch writes over the cap; a run past its timeout                                                                                                                                                                                        | Stopped and discarded, or today's timeout result                                                                               |
+| B2-13 no containment       | bubblewrap missing or 0.9, user namespaces refused, the allow-list not applied, a self-test canary leaked                                                                                                                                                       | B2 off, with the reason; never run in place                                                                                    |
+| B2-14 elsewhere            | A macOS or Windows host, a Muse Code approval, root                                                                                                                                                                                                             | Reviewer                                                                                                                       |
+| B2-15 bootstrap code       | A Yarn repository whose `.yarnrc.yml` names an edited plugin; a `.pnpmfile.cjs`                                                                                                                                                                                 | Reviewer (not B2)                                                                                                              |
+| B2-16 package selection    | The agent edits `package.json`'s `workspaces`; a script runs `npm run check --workspaces`                                                                                                                                                                       | Reviewer                                                                                                                       |
+| B2-17 indirect script      | `check` runs `npm run lint`; the agent edits `scripts.lint`; and a script with a `;`, a pipe or a `$`                                                                                                                                                           | Reviewer                                                                                                                       |
+| B2-18 kernel keyring       | The editor's session keyring holds a synthetic user key with possessor read and write; the test searches for it, reads it, updates it and revokes it, and reads `/proc/keys`                                                                                    | Not found; the key unchanged afterwards; the refusals recorded; discarded                                                      |
+| B2-19 configuration bodies | `pnpm-workspace.yaml` with `nodeOptions: --require ./hooks/preload.cjs` (the agent edits only that file), or a `scriptShell`; the same in `package.json`'s `pnpm` field                                                                                         | Reviewer (not B2)                                                                                                              |
+| B2-20 save during the run  | The user saves a changed `package.json` and script body while the snapshot is taken and while the check runs                                                                                                                                                    | The run executes the snapshot's validated definition; a save before the snapshot is validated against it                       |
+| B2-21 caught refusal       | A test catches a refused connection and fails with only "Expected true; received false"; another catches "not found" on a hidden home file                                                                                                                      | The first is discarded by its recorded refusal; the second is a shadow run whose disagreement marks the check                  |
+| B2-22 transient file       | The test creates `generated.json` outside the cache paths, uses it, and deletes it; another keeps it                                                                                                                                                            | The first has no net effect and may be delivered; the second is a net write, discarded                                         |
 
 ### 9.6 The safety envelope
 
@@ -1545,7 +1665,7 @@ planned.
   edits as today.
 - **Kill switches.** Per class in the Judge section, per session from the
   row ("Review these again"), and machine-wide.
-- **The design's invariants hold.** With lane F off, a class off, or the
+- **The design's invariants hold.** With lanes F1 and F2 off, a class off, or the
   judge not answering, nothing runs before the reviewer, and the reviewer
   fence's frames, tool outputs and model requests are byte-identical to
   today (goldens with F off and with the judge abstaining). Nothing already
@@ -1562,13 +1682,14 @@ planned.
   class, counted on each platform where it runs, because the confinement
   differs. Until then it is available and off, and the Judge section says
   why. Harm includes a forbidden byte read (B1), anything surviving a run,
-  a connection to a socket outside the run, and a sandbox-induced failure
-  delivered (B2).
+  a connection to a socket or a key outside the run, and a sandbox-induced
+  verdict delivered (B2).
 
 ### 9.7 What B costs, what it buys, and which engines can veto
 
-It costs lane F's confinement helper for Linux and macOS (native, per
-architecture), the Linux B2 runner and its socket filter, the
+It costs lane F1's confinement helper for Linux and macOS (native, per
+architecture); lane F2's init mode of that helper, its snapshot, its
+system-call allow-list and the shadow runs that establish agreement; the
 owner-baseline tracker, the per-platform captures and self-tests, the
 drills above, a fitted `risk.destructive` profile for an engine that
 answers within the 5 s window, the tokens of a reviewer request started
@@ -1767,7 +1888,7 @@ them through MHP like other panels.
   for any I or S decision, and one-question-per-call judging. The P-class
   chat-model fallback on Muse Code keeps D77's fresh session per batch
   unchanged (section 4.3); no reused judge session is introduced.
-- **New with lane F (section 9):** the approval fast path in the Model API
+- **New with lanes F1 and F2 (section 9):** the approval fast path in the Model API
   host's reviewer fence (M78) and M95's loop, the confinement helper, the
   B2 runners and the owner-baseline tracker. Phase 1's caution latch and
   M90's reviewer on Muse Code are unchanged.
@@ -1851,15 +1972,19 @@ them through MHP like other panels.
   B1 the floor, the verified executable, the fixed environment, the
   positive grammar and the kernel's confinement of every open limit it to
   reading the contents of allowed workspace files (on Linux, the very
-  files its walk opened); names and metadata inside its operand trees are
-  outside that guarantee on Linux, and a process already running with the
-  user's rights is the named residual (9.4). For B2 the owner's baseline
-  limits it to the owner's own npm or pnpm check command, and containment
-  limits what that command can do: no network, no socket outside the run,
-  no surviving write, no secrets outside the workspace, no surviving
-  process. What remains is in section 9.5: the workspace's own secrets in
-  the output, a named pipe in the workspace, a run's CPU, and a
-  sandbox-induced result. B2 exists on Linux only; neither class exists on
+  files its walk opened) and the few public system files it needs to
+  start; names and metadata inside its operand trees are outside that
+  guarantee on Linux, and a process already running with the user's
+  rights is the named residual (9.4). For B2 (lane F2) the owner's
+  baseline limits it to the owner's own npm or pnpm check command, and a
+  default-deny sandbox limits what that command can do: a frozen
+  snapshot, an init that owns every process, a system-call allow-list (no
+  socket, key, `io_uring` or mount call), no surviving write, no secrets
+  outside the workspace; and its result is delivered only with no refused
+  call and an established agreement with in-place runs. What remains is
+  in section 9.5: a file the run cannot see whose error a changed check
+  hides, the workspace's own secrets in the output, a named pipe in a
+  bound system folder, and a run's CPU. B2 exists on Linux only; neither class exists on
   Windows or Muse Code, or for git or `rg`. Both skip nothing until an
   engine within the 5 s veto window (Q-D107-VETO) has a fitted
   `risk.destructive` profile (9.7).
@@ -1893,6 +2018,14 @@ them through MHP like other panels.
   package-manager bootstrap and selection closure; the per-request
   uncached-input gate), addressed in sections 9.5 (findings 1, 2, 4 and
   6), 9.3 and 9.4 (3), 9.4 (5) and 11 (7).
+- The fifth review: `RVJUDGEFAST5` (socket pairs and `io_uring`; the
+  inherited session keyring; B1's system-read exceptions through a
+  swapped operand; teardown before the result is read; pnpm's YAML
+  bootstrap settings; the live workspace as the overlay's lower layer;
+  sandbox-caused results the output does not show; the upper folder as a
+  final state, not a history), and the lead's ruling to split lane F into
+  F1 and F2 and redesign F2 as default-deny, addressed in sections 9.1,
+  9.4 (finding 3) and 9.5 (findings 1, 2 and 4 to 8).
 - The owner's answer to Q-D107 (2026-10-10: B, with B1 and B2) and to
   Q-D107-VETO (2026-10-10: a veto window of up to 5 s for both classes),
   recorded in PLAN.md §3 and D107, and designed in section 9.
