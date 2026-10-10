@@ -86,25 +86,12 @@ export class MachineResourceSampler implements ResourceSampler {
   > {
     let total = counterReading(await unknownOnFailure(() => this.port.totalMemory()))
     if (total === 0) total = null
-    const isDarwin = this.port.platform === 'darwin'
-    const freeBefore = isDarwin
-      ? counterReading(await unknownOnFailure(() => this.port.freeMemory()))
-      : null
     const available = counterReading(await unknownOnFailure(() => this.port.availableMemory()))
-    const freePages = counterReading(await unknownOnFailure(() => this.port.freeMemory()))
     // Lane 0 measured free pages alone on Darwin; never substitute them for headroom.
-    // Darwin headroom is free + inactive + speculative pages, which availableMemory()
-    // reports from libuv 1.52 (Node 24). Under libuv 1.51 (Node 22, measured on the
-    // Mac mini) it returns freemem()'s free pages alone, which a busy 7 GB runner
-    // reads as critical, pausing every later spawn (CIFIX017R3). A figure no
-    // larger than the free pages around it is no headroom reading: unknown.
-    const isHeadroom =
-      available !== null &&
-      freeBefore !== null &&
-      freePages !== null &&
-      available > Math.max(freeBefore, freePages)
-    let free = freePages
-    if (isDarwin) free = isHeadroom ? available : null
+    const free =
+      this.port.platform === 'darwin'
+        ? available
+        : counterReading(await unknownOnFailure(() => this.port.freeMemory()))
     let usable = free === null ? null : Math.min(free, available ?? free)
     if (this.port.platform === 'linux') {
       const limit = await unknownOnFailure(() => linuxMemoryLimit(this.port.read))
