@@ -221,6 +221,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Portable startup measurement now refuses WebSockets, arbitrary data/blob
+  fetches and imports, EventSource, WebTransport and WebRTC data channels,
+  including caught failures in frames and workers. The authenticated loader's
+  exact module blobs remain admitted from already-counted built bytes; startup
+  and total delivery caps are unchanged.
 - Portable startup accounting now records every built resource served by the
   browser context, including dedicated-worker fetches, fonts and extensionless
   outputs. Unknown boot URLs and unroutable shared/service-worker boot activity

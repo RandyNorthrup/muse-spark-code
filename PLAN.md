@@ -573,6 +573,22 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**M104 F4 round 6 (2026-10-10, RVM104F4F; lead transport boundary).**
+Before the synchronous render mark, deny every non-HTTP transport and every
+non-built fetch/import, independently of application error handling. Cover
+WebSockets at context scope and all attached targets; explicitly refuse
+EventSource, WebTransport and WebRTC data channels. Data/blob activity is
+permitted only for authenticated-loader module blobs made from already-counted
+built bytes, with precise identity validation. Sweep page, frame and worker
+boot activity, add caught-error regressions, and record byte-exact red drills.
+Worker scripts and module dependencies receive a measurement-only constructor
+probe; worker refusals and queued CSP violations flush before termination.
+Nested-worker creation is explicitly refused as an unroutable target. Probe bytes are excluded like frame init scripts; output identities
+remain the original immutable built files.
+Startup remains 1,100 KiB and total JavaScript 1,486 KiB. No dependency,
+production module, support status or unrelated guard changes. Full quality
+remains lead-owned; scoped verification runs directly on Kubuntu.
+
 **M104 F4 round 5 (2026-10-10, RVM104F4E; lead measurement boundary).**
 Count at the source: context-level routes record every built resource answered
 for any supported target whose request started before the render marker,
@@ -37957,6 +37973,22 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104 F4 round 6 (2026-10-10, RVM104F4F; lead transport boundary).**
+Before the synchronous render mark, deny every non-HTTP transport and every
+non-built fetch/import, independently of application error handling. Cover
+WebSockets at context scope and all attached targets; explicitly refuse
+EventSource, WebTransport and WebRTC data channels. Data/blob activity is
+permitted only for authenticated-loader module blobs made from already-counted
+built bytes, with precise identity validation. Sweep page, frame and worker
+boot activity, add caught-error regressions, and record byte-exact red drills.
+Worker scripts and module dependencies receive a measurement-only constructor
+probe; worker refusals and queued CSP violations flush before termination.
+Nested-worker creation is explicitly refused as an unroutable target. Probe bytes are excluded like frame init scripts; output identities
+remain the original immutable built files.
+Startup remains 1,100 KiB and total JavaScript 1,486 KiB. No dependency,
+production module, support status or unrelated guard changes. Full quality
+remains lead-owned; scoped verification runs directly on Kubuntu.
+
 **M104 F4 round 5 (2026-10-10, RVM104F4E; lead measurement boundary).**
 Count at the source: context-level routes record every built resource answered
 for any supported target whose request started before the render marker,
@@ -38336,7 +38368,7 @@ keeping its detailed native qualification catalogue generated too.
 Installed VS Code on Win11, a real Visual Studio run and resource-chip parity
 in JetBrains/Visual Studio/Eclipse/companion remain open for their next lanes.
 
-**Status 2026-10-10: waiting.** All five phase-2 lanes are joined locally on Kubuntu. F4 round 5 measures separate startup/total caps by counting source-served resources across routed targets in both production native/companion boots through the first-render mark. SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane remain blockers. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Retained requirements and receipts follow.
+**Status 2026-10-10: waiting.** All five phase-2 lanes are joined locally on Kubuntu. F4 round 6 preserves separate startup/total caps, counts source-served resources through the first-render mark, and denies unsupported transports and non-loader data/blob activity across pages, frames and workers even when caught. SAST findings, native bridge contract checks, installed qualification and the next resource-chip parity lane remain blockers. M104 F3 repairs the four ACP resource fixtures and the twelve recorded duplication findings; their complete touched suites and the zero-clone gate pass. Retained requirements and receipts follow.
 
 **FIXM104PB / RVM104PB (2026-10-06).** Repair all four P2 findings and the
 P3 evidence error inside B's paid engines and their shared guards. One
@@ -38979,6 +39011,32 @@ and are not transferred or accepted as complete by these launcher repairs.
 ---
 
 ## 7. Gates
+
+**M104 F4 round-6 scoped qualification (2026-10-10).** All review-class
+regressions use the real authenticated loader and browser at repository body
+deadlines. Three earlier expanded production-preparation attempts hit the
+unchanged 120-second hook deadline; after two setup fixes that path was stopped
+under the shared lane rule. The final full production-suite rerun remains
+lead-owned, separately from the repaired transport finding. No timeout, cap,
+assertion or guard is weakened; aggregate quality is not claimed. See
+`docs/certification/m104.md`, F4 round 6, for assertions, deliberate failures,
+byte-exact restorations and the scoped final checks.
+
+**M104 F4 round 6 (2026-10-10, RVM104F4F; lead transport boundary).**
+Before the synchronous render mark, deny every non-HTTP transport and every
+non-built fetch/import, independently of application error handling. Cover
+WebSockets at context scope and all attached targets; explicitly refuse
+EventSource, WebTransport and WebRTC data channels. Data/blob activity is
+permitted only for authenticated-loader module blobs made from already-counted
+built bytes, with precise identity validation. Sweep page, frame and worker
+boot activity, add caught-error regressions, and record byte-exact red drills.
+Worker scripts and module dependencies receive a measurement-only constructor
+probe; worker refusals and queued CSP violations flush before termination.
+Nested-worker creation is explicitly refused as an unroutable target. Probe bytes are excluded like frame init scripts; output identities
+remain the original immutable built files.
+Startup remains 1,100 KiB and total JavaScript 1,486 KiB. No dependency,
+production module, support status or unrelated guard changes. Full quality
+remains lead-owned; scoped verification runs directly on Kubuntu.
 
 **M104 F4 round 5 (2026-10-10, RVM104F4E; lead measurement boundary).**
 Count at the source: context-level routes record every built resource answered

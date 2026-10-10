@@ -2,6 +2,7 @@ import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
+import { z } from 'zod'
 import { findChrome } from './chrome.mjs'
 import { portableManifest } from './portableModules.mjs'
 import { portableBridgeSetup } from '../../test/harness/portableBridgeSetup.mjs'
@@ -11,6 +12,59 @@ const ORIGIN = 'http://127.0.0.1'
 const ASSETS = '/assets/portable/'
 const CHAT_MOUNTED = 'muse:chat-mounted'
 const BOOT_TIMEOUT_MS = 5000
+const CSP_REPORT = '/portable-startup-csp-report'
+const BUILT_SOURCE = `${ORIGIN}${ASSETS}`
+const CSP = `default-src 'none'; script-src 'unsafe-inline' ${BUILT_SOURCE} blob:; style-src 'unsafe-inline' ${BUILT_SOURCE}; font-src ${BUILT_SOURCE}; img-src ${BUILT_SOURCE}; connect-src ${BUILT_SOURCE} blob:; worker-src ${BUILT_SOURCE}; frame-src ${BUILT_SOURCE}; report-uri ${CSP_REPORT}`
+const WORKER_CSP = `default-src 'none'; script-src ${BUILT_SOURCE}; connect-src ${BUILT_SOURCE}; worker-src ${BUILT_SOURCE}; report-uri ${CSP_REPORT}`
+const workerRefusalSchema = z
+  .object({
+    museStartupRefusal: z.enum([
+      'Worker',
+      'WebSocket',
+      'EventSource',
+      'WebTransport',
+      'worker CSP violation',
+      'worker nonbuilt request',
+    ]),
+  })
+  .strict()
+// Measurement instrumentation, like addInitScript in frames. Every HTTP worker
+// script (including module dependencies) runs it before its original built bytes.
+// The receipt still identifies/counts the immutable shipped output, not this probe.
+const WORKER_GUARD = `if (typeof globalThis.document === 'undefined' && !globalThis.museStartupGuard) {
+  globalThis.museStartupGuard = true;
+  globalThis.addEventListener('securitypolicyviolation', () => {
+    globalThis.postMessage({ museStartupRefusal: 'worker CSP violation' });
+  });
+  globalThis.addEventListener('message', event => {
+    if (event.data?.museStartupFlush === true) {
+      globalThis.postMessage({ museStartupFlushed: true });
+      event.stopImmediatePropagation();
+    }
+  });
+  for (const kind of ['Worker', 'WebSocket', 'EventSource', 'WebTransport']) {
+    globalThis[kind] = function () {
+      globalThis.postMessage({ museStartupRefusal: kind });
+      throw new Error(kind === 'Worker' ? 'PORTABLE_STARTUP_UNROUTABLE_TARGET: nested_worker' : 'PORTABLE_STARTUP_UNBUILT_REQUEST: ' + kind);
+    };
+  }
+  const refuse = () => {
+    globalThis.postMessage({ museStartupRefusal: 'worker nonbuilt request' });
+    throw new Error('PORTABLE_STARTUP_UNBUILT_REQUEST: worker nonbuilt request');
+  };
+  const fetch = globalThis.fetch.bind(globalThis);
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input, location.href);
+    if (!['http:', 'https:'].includes(url.protocol)) refuse();
+    return fetch(input, init);
+  };
+  const importScripts = globalThis.importScripts.bind(globalThis);
+  globalThis.importScripts = (...urls) => {
+    for (const url of urls) if (!['http:', 'https:'].includes(new URL(url, location.href).protocol)) refuse();
+    return importScripts(...urls);
+  };
+  URL.createObjectURL = refuse;
+}\n`
 const CONTENT_TYPES = {
   js: 'text/javascript',
   css: 'text/css',
@@ -52,11 +106,18 @@ export async function measurePortableStartup(
         .map(([file, output]) => [file.replaceAll('\\', '/'), output]),
     ),
   }
-  const manifest = portableManifest(graph, ROOT, (file) => {
-    const bytes = files.get(file.replaceAll('\\', '/'))
-    if (bytes === undefined) throw new Error(`Missing portable module: ${file}`)
-    return Buffer.from(bytes).toString('utf8')
-  })
+  let manifest
+  try {
+    manifest = portableManifest(graph, ROOT, (file) => {
+      const bytes = files.get(file.replaceAll('\\', '/'))
+      if (bytes === undefined) throw new Error(`Missing portable module: ${file}`)
+      return Buffer.from(bytes).toString('utf8')
+    })
+  } catch (error) {
+    if (error instanceof Error && error.message === 'MHP_MODULE_IMPORT_UNLISTED')
+      throw new Error('PORTABLE_STARTUP_UNBUILT_REQUEST: unlisted module import', { cause: error })
+    throw error
+  }
   const isOwnedBrowser = browser === undefined
   browser ??= await chromium.launch({
     executablePath: findChrome(),
@@ -71,6 +132,8 @@ export async function measurePortableStartup(
         const page = await context.newPage()
         const requests = []
         const errors = []
+        const moduleBlobs = new Map()
+        const blobRequests = []
         let failBoot
         const failed = new Promise((resolve) => {
           failBoot = (message) => {
@@ -78,6 +141,168 @@ export async function measurePortableStartup(
             resolve(new Error(`Portable ${variant} boot failed: ${message}`))
           }
         })
+        const refuseRequest = (detail) => {
+          failBoot(`PORTABLE_STARTUP_UNBUILT_REQUEST: ${detail}`)
+        }
+        // Routing covers page/frame sockets. Worker sockets are denied by the
+        // worker response's CSP; its report is routed even if the worker catches.
+        await context.routeWebSocket('**/*', async (socket) => {
+          refuseRequest('websocket')
+          await socket.close()
+        })
+        await context.exposeBinding('refusePortableStartupRequest', (_, detail) => {
+          refuseRequest(detail)
+        })
+        await context.exposeBinding('refusePortableStartupWorker', (_, message) => {
+          const parsed = workerRefusalSchema.safeParse(message)
+          if (parsed.success && parsed.data.museStartupRefusal === 'Worker')
+            failBoot('PORTABLE_STARTUP_UNROUTABLE_TARGET: nested_worker')
+          else
+            refuseRequest(parsed.success ? parsed.data.museStartupRefusal : 'invalid worker probe')
+        })
+        await context.exposeBinding('registerPortableStartupBlob', (_, { url, path }) => {
+          const file = resourcePaths.get(path)
+          if (requests.some((request) => request.file === file)) moduleBlobs.set(url, file)
+          else refuseRequest(`uncounted module blob: ${path} (${file})`)
+        })
+        context.on('request', (request) => {
+          if (request.url().startsWith('blob:')) blobRequests.push(request)
+          if (request.resourceType() === 'eventsource') refuseRequest('eventsource')
+        })
+        await context.addInitScript(
+          ({ loaderUrl, mark }) => {
+            const blobs = new WeakMap()
+            const materialized = new Map()
+            const admitted = new Set()
+            const sources = new Map()
+            let modules
+            const isBooting = () => globalThis.performance.getEntriesByName(mark).length === 0
+            const isFromLoader = () => {
+              const stack = new Error('loader provenance').stack
+              return stack?.includes(`at ${loaderUrl}:`) || stack?.includes(`(${loaderUrl}:`)
+            }
+            const refuse = (kind) => {
+              void globalThis.refusePortableStartupRequest(kind)
+              throw new Error(`PORTABLE_STARTUP_UNBUILT_REQUEST: ${kind}`)
+            }
+            // Only the loader's exact rewrite of an emitted module is admitted.
+            // Source equality plus dependency URL identities prevents a forged
+            // loader stack/sourceURL from authenticating arbitrary blob bytes.
+            Object.assign(globalThis, {
+              Blob: class extends globalThis.Blob {
+                constructor(parts, options) {
+                  super(parts, options)
+                  if (parts?.length === 1 && typeof parts[0] === 'string') blobs.set(this, parts[0])
+                }
+              },
+            })
+            const createObjectURL = URL.createObjectURL.bind(URL)
+            URL.createObjectURL = (blob) => {
+              if (!isBooting()) return createObjectURL(blob)
+              const source = blobs.get(blob)
+              if (typeof source !== 'string' || blob.type !== 'text/javascript' || !isFromLoader())
+                return refuse('non-loader blob')
+              modules ??= JSON.parse(
+                globalThis.document.querySelector('#muse-modules').textContent,
+              ).modules
+              const candidates = modules.filter((module) => {
+                const expected = sources.get(module.path)
+                if (expected === undefined) return false
+                const imports = module.imports.toSorted((a, b) => a.start - b.start)
+                let cursor = 0
+                let original = 0
+                for (const imported of imports) {
+                  const literal = expected.slice(original, imported.start)
+                  if (!source.startsWith(literal, cursor)) return false
+                  cursor += literal.length
+                  const end = source.indexOf('"', cursor + 1)
+                  const target = source.slice(cursor + 1, end)
+                  const replacement = imported.dynamic
+                    ? `window.museModules.import(${JSON.stringify(imported.target)})`
+                    : JSON.stringify(target)
+                  if (!source.startsWith(replacement, cursor)) return false
+                  if (!imported.dynamic && !materialized.get(imported.target)?.has(target))
+                    return false
+                  cursor += replacement.length
+                  original = imported.end
+                }
+                return source.slice(cursor) === expected.slice(original)
+              })
+              if (candidates.length === 0) return refuse('non-loader blob')
+              const url = createObjectURL(blob)
+              // Identical module contents can finish in either order. Retain
+              // every counted identity compatible with these exact bytes.
+              for (const module of candidates) {
+                const urls = materialized.get(module.path) ?? new Set()
+                urls.add(url)
+                materialized.set(module.path, urls)
+              }
+              admitted.add(url)
+              void globalThis.registerPortableStartupBlob({ url, path: candidates[0].path })
+              return url
+            }
+            const fetch = globalThis.fetch.bind(globalThis)
+            Object.assign(globalThis, {
+              fetch: async (input, init) => {
+                const url = new URL(
+                  input instanceof globalThis.Request ? input.url : input,
+                  globalThis.location.href,
+                )
+                if (
+                  isBooting() &&
+                  !['http:', 'https:'].includes(url.protocol) &&
+                  !admitted.has(url.href)
+                )
+                  refuse(url.protocol)
+                const isLoaderFetch = isFromLoader()
+                const response = await fetch(input, init)
+                if (isLoaderFetch && url.protocol === 'http:')
+                  sources.set(url.pathname, await response.clone().text())
+                return response
+              },
+            })
+            for (const kind of [
+              'EventSource',
+              'WebTransport',
+              'RTCPeerConnection',
+              'webkitRTCPeerConnection',
+            ])
+              Object.assign(globalThis, {
+                [kind]: function () {
+                  refuse(kind)
+                },
+              })
+            const Worker = globalThis.Worker
+            Object.assign(globalThis, {
+              Worker: class extends Worker {
+                constructor(...args) {
+                  super(...args)
+                  this.addEventListener('message', (event) => {
+                    if (event.data?.museStartupRefusal) {
+                      void globalThis.refusePortableStartupWorker(event.data)
+                      event.stopImmediatePropagation()
+                    } else if (event.data?.museStartupFlushed === true) {
+                      super.terminate()
+                      event.stopImmediatePropagation()
+                    }
+                  })
+                }
+                // Flush queued CSP violations before an application can erase
+                // them by terminating the worker immediately after its reply.
+                terminate() {
+                  this.postMessage({ museStartupFlush: true })
+                }
+              },
+            })
+            globalThis.document.addEventListener('securitypolicyviolation', (event) => {
+              if (isBooting()) void globalThis.refusePortableStartupRequest(event.violatedDirective)
+            })
+          },
+          {
+            loaderUrl: `${BUILT_SOURCE}loader.js`,
+            mark: CHAT_MOUNTED,
+          },
+        )
         // Chromium routes dedicated workers and frames at context scope, but
         // shared-worker targets and service-worker script loads are not covered.
         // Refuse their creation explicitly instead of admitting an incomplete boot.
@@ -114,8 +339,14 @@ export async function measurePortableStartup(
           ) {
             await route.fulfill({
               contentType: 'text/html',
+              headers: { 'Content-Security-Policy': CSP },
               body: `<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="${ASSETS}main.css"></head><body data-bridge="${variant}" data-surface="chat"><div id="root"></div><script type="application/json" id="muse-panel">{"surface":"startup","sessionId":"test","surfaceKind":"chat"}</script><script type="application/json" id="muse-modules">${JSON.stringify(manifest).replaceAll('<', String.raw`\u003c`)}</script><script>${portableBridgeSetup(variant, '1.4')}</script><script type="module" data-muse-entry="${ASSETS}main.js"></script><script src="${ASSETS}loader.js"></script></body></html>`,
             })
+            return
+          }
+          if (url.pathname === CSP_REPORT || request.resourceType() === 'eventsource') {
+            refuseRequest('unsupported transport/CSP violation')
+            await route.abort('blockedbyclient')
             return
           }
           const file = url.origin === ORIGIN ? resourcePaths.get(url.pathname) : undefined
@@ -130,7 +361,11 @@ export async function measurePortableStartup(
           requests.push({ file, request })
           await route.fulfill({
             contentType: CONTENT_TYPES[file.split('.').at(-1)] ?? 'application/octet-stream',
-            body: Buffer.from(bytes),
+            headers: { 'Content-Security-Policy': file.endsWith('.html') ? CSP : WORKER_CSP },
+            body:
+              request.resourceType() === 'script' && file.endsWith('.js')
+                ? Buffer.concat([Buffer.from(WORKER_GUARD), Buffer.from(bytes)])
+                : Buffer.from(bytes),
           })
         })
         await page.goto(ORIGIN, { waitUntil: 'domcontentloaded', timeout: BOOT_TIMEOUT_MS })
@@ -168,6 +403,11 @@ export async function measurePortableStartup(
             return { file, startedAt }
           }),
         )
+        for (const request of blobRequests) {
+          await request.response()
+          if (request.timing().startTime < boundary && !moduleBlobs.has(request.url()))
+            refuseRequest('unregistered blob')
+        }
         if (errors.length > 0)
           throw new Error(`Portable ${variant} boot failed: ${errors.join('; ')}`)
         const outputs = [

@@ -49,10 +49,7 @@ const NON_BUILT_REQUESTS = ['native', 'companion', 'worker'].flatMap((variant) =
   ['http://127.0.0.1/not-built', 'https://unbuilt.invalid/boot.js'].map((url) => [variant, url]),
 )
 const UNROUTABLE_TARGETS = [
-  [
-    'shared_worker',
-    `new SharedWorker(URL.createObjectURL(new Blob(['onconnect = () => {}'], {type:'text/javascript'})));`,
-  ],
+  ['shared_worker', `new SharedWorker('/assets/portable/main.js');`],
   ['service_worker', `await navigator.serviceWorker.register('/assets/portable/main.js');`],
 ]
 
@@ -321,8 +318,13 @@ beforeAll(async () => {
           const response = await fetch(url); if (!response.ok) throw new Error(url);
           await response.arrayBuffer();
         })).then(() => postMessage('ready'));`
+      const workerFile = root + 'boot-worker.js'
+      const workerBytes = Buffer.from(worker)
+      files.set(workerFile, workerBytes)
+      meta.outputs[workerFile] = { bytes: workerBytes.byteLength, inputs: {}, imports: [] }
+      required.push(workerFile)
       prefix = `await new Promise((resolve, reject) => {
-          const worker = new Worker(URL.createObjectURL(new Blob([${JSON.stringify(worker)}], {type:'text/javascript'})));
+          const worker = new Worker(${JSON.stringify(url(workerFile))});
           worker.onmessage = () => { worker.terminate(); resolve(); }; worker.onerror = reject;
         });`
     } else {
@@ -351,15 +353,22 @@ beforeAll(async () => {
       const worker = `fetch(${JSON.stringify(url)}).then(() => postMessage('ready'), () => postMessage('ready'));`
       const prefix =
         variant === 'worker'
-          ? `await new Promise(resolve => { const worker = new Worker(URL.createObjectURL(new Blob([${JSON.stringify(worker)}], {type:'text/javascript'}))); worker.onmessage = () => { worker.terminate(); resolve(); }; });`
+          ? `await new Promise(resolve => { const worker = new Worker('/assets/portable/negative-worker.js'); worker.onmessage = () => { worker.terminate(); resolve(); }; });`
           : `if (document.body.dataset.bridge === ${JSON.stringify(variant)}) await fetch(${JSON.stringify(url)});`
-      return [`${variant}:${url}`, prefix]
+      return [`${variant}:${url}`, prefix, variant === 'worker' ? worker : undefined]
     }),
     ...UNROUTABLE_TARGETS,
   ]
-  for (const [key, prefix] of cases) {
-    const { meta, files: baseline } = built.graphs.get('baseline')
+  for (const [key, prefix, worker] of cases) {
+    const { meta: baselineMeta, files: baseline } = built.graphs.get('baseline')
+    const meta = { ...baselineMeta, outputs: { ...baselineMeta.outputs } }
     const files = new Map(baseline)
+    if (worker !== undefined) {
+      const file = 'dist/webview/portable/negative-worker.js'
+      const bytes = Buffer.from(worker)
+      files.set(file, bytes)
+      meta.outputs[file] = { bytes: bytes.byteLength, inputs: {}, imports: [] }
+    }
     const main = 'dist/webview/portable/main.js'
     files.set(main, Buffer.concat([Buffer.from(prefix), files.get(main)]))
     try {

@@ -5424,9 +5424,18 @@ native/companion browser fakes and authenticated loader. They wait for the
 synchronous first-render `muse:chat-mounted` mark and count built resources
 whose requests started before it once per variant, by path, byte length and SHA-256.
 Context-level routes include dedicated workers, iframes, fonts and extensionless
-outputs. Unknown URLs fail with `PORTABLE_STARTUP_UNBUILT_REQUEST`; shared and
-service-worker boot activity is refused with `PORTABLE_STARTUP_UNROUTABLE_TARGET`
-because those targets cannot be fully routed by the measurement. Imports awaited
+outputs. Unknown URLs, WebSockets, arbitrary data/blob fetches or imports,
+EventSource, WebTransport and WebRTC data channels fail with
+`PORTABLE_STARTUP_UNBUILT_REQUEST`, even when application code catches the error.
+Only the authenticated loader's exact module blobs from already-counted built
+bytes are admitted. Worker CSP violations report through the same measurement
+boundary. A measurement-only worker preface refuses transport constructors and
+relays violations through the owning worker before termination. Its probe bytes,
+like frame init scripts and the synthetic main document, are excluded; each
+receipt identifies the original immutable built output. Shared and
+service-worker and nested-worker boot activity is refused with
+`PORTABLE_STARTUP_UNROUTABLE_TARGET` because those targets cannot be fully routed
+by the measurement. Imports awaited
 inside arguments or helpers are included; requests after the mark remain deferred. Chrome must be
 installed (`CHROME_PATH` can select it). Optional features must remain deferred.
 The VS Code budgets are unchanged. Native
