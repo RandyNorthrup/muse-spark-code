@@ -850,7 +850,7 @@
     {
       "id": "M115",
       "title": "Scheduled prompts v2",
-      "summary": "Schedule prompts to run once, repeatedly or on a cron expression, each with its own delivery mode and a hard budget cap, with fires running in live panel, terminal and ACP sessions while firing with all editors closed stays refused.",
+      "summary": "Schedule prompts to run once, repeatedly or on a cron expression, each with its own delivery mode and a hard budget cap, with fires running in live VS Code sessions while terminal and ACP fires stay refused at spend consent.",
       "area": "agents",
       "release": "0.17.0",
       "labels": ["not available yet"]
@@ -865,7 +865,7 @@
     {
       "id": "M117",
       "title": "Capacity estimator",
-      "summary": "Run /estimate on a goal to see when it can land with your current, minimum or optimum set of agents and machines without a model call, although real forecasts are not available yet.",
+      "summary": "Capacity estimation is in place and verified with test data, but /estimate waits on the plan-reader binding and real forecasts are not available yet.",
       "area": "agents",
       "release": "0.17.0",
       "labels": ["not available yet"]

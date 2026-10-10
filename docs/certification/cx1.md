@@ -61,22 +61,48 @@ branch `c/x-1`, base `82d50d5e4` (0.17.0 release merge, PR #145).
   updated with reason. Reference regenerated (`docs/reference.md`,
   `reference.generated.*`).
 
-## Deferred with reason (lead decision needed)
+## Follow-up (same lane, same day): schedules spend truth, M117, M92
 
-- **Schedules reference surfaces stay `vscode:modelApi`.** ACP `/schedule`
-  is wired (`src/acp/schedules.ts`, serve flags at
-  `src/runtime/main.ts:796-800`), but `scripts/lib/reference.mjs:1119-1126`
-  admits a paid feature on `acp:modelApi` only when its id is in
-  `ACP_PAID_FEATURES` (`src/shared/constants.ts:4015-4017`), and
-  `scheduledPrompts` is not a member (per-use ACP consent covers only
-  `webSearch`/`imageGeneration`; schedules authorize via serve flags plus
-  per-schedule consent and caps). Adding the surface trips
-  `ACP paid capability mismatch: schedules`; changing the check would be a
-  gate change, which this lane will not make unilaterally. Options for the
-  lead: (a) keep vscode-only until schedules join the ACP paid flow;
-  (b) rule flag-authorized paid surfaces in-scope and adjust the check with
-  a PLAN §8 row. The roadmap M115 summary already says fires run in live ACP
-  sessions, matching `docs/ide-compatibility/hosts.md:142`.
+Deeper tracing reversed the first pass's framing on one point: the
+reference's vscode-only schedules row is CORRECT, and the docs claiming ACP
+fires were wrong. Evidence chain (all read on this base):
+
+- Drafts admit on ACP with serve flags (`control.ts:102-113` `paidGate`;
+  flags flow `cliArgs.ts:381-386` → `main.ts:796-800` → `agent.ts:1789`).
+- But spend consent denies: `UnattendedRun.allowsPaid` needs
+  `paid.allows(feature)` (`unattended.ts:291-298`); on ACP that is
+  `AcpPaidUse.allows` (`backends.ts:509-510`), whose `isOn` is flag
+  membership (`paid.ts:151-154` ← `backends.ts:543-544` ← `cliArgs.ts:244`),
+  and `ACP_PAID_FEATURES` holds only `webSearch`/`imageGeneration`
+  (`constants.ts:4015-4017`, "the agent's paid features are its two flags
+  (D62)"). Off → deny without asking (`paidConsent.ts:764-766`).
+  Headless `exec` allows only `imageGeneration` (`runExec.ts:734-748`).
+- So paid drafts admit on ACP/terminal but every spending fire is refused;
+  the per-schedule consent scope independently requires
+  `isOn('scheduledPrompts')` (`paidConsent.ts:179-180`). This is exactly the
+  brief's "every fire is refused".
+- Resolution: NO gate change needed. `scripts/lib/reference.mjs:1119-1126`
+  was right to refuse the acp surface. Fixed the overclaiming docs instead:
+  entries.json M115 now says fires run in live VS Code sessions with
+  terminal/ACP fires refused at spend consent; `hosts.md:142` "each billed
+  run asks first" corrected to refused-at-spend-consent (denial is silent,
+  no asker is consulted); the Unreleased changelog entry updated to match.
+  Where this contradicts the brief's "ACP has them" premise, PLAN's
+  acceptance (label exactly as the code behaves) wins per the brief's own
+  conflict rule. Non-spend verbs (list/timeline/pause/remove) do work on
+  ACP; only spending fires refuse.
+
+- **M117 entry corrected.** Production `snapshot` throws
+  `Waiting for M117-W-M113-plan-reader` (`localFleet.ts:106-120`), so
+  `/estimate` on any goal refuses; the old summary ("Run /estimate ... to
+  see when it can land") overclaimed. New summary says estimation is in
+  place on test data with `/estimate` waiting on the binding.
+- **M92 `building` → `built`.** Every section checkbox is `[x]` and the
+  parts shipped in 0.13.0; the regenerated roadmap moves it to Shipped.
+- **M101 retained `built` (2026-10-06 sub-line) → `building`** with its own
+  listed remainders as the reason (acceptance: no built line contradicts
+  its checklist). M77/M110 stay `building`; M76 stays archived `built`;
+  M95b/M95c stay `planned` (nothing shipped).
 
 ## Gates (all run directly in this worktree, repo defaults)
 
@@ -89,6 +115,9 @@ slash, 257 CLI; current` (plus sharing-reference match)
 - `npm run typecheck:host` → clean; `npx eslint --max-warnings=0` on both
   changed `.ts` files → clean; `npx prettier --check` on all changed
   non-ignored files → clean (README/hosts tables re-padded by prettier)
+- Follow-up re-verification (same four gates after the M115/M117/M92/
+  hosts/changelog edits, regenerated roadmap): all green again, no new
+  roadmap notes.
 - Unit tests for the touched catalog/reference area (repo timeouts, max 3
   files per run, no `--testTimeout`):
   `test/unit/featureCatalogDetails.test.ts` → 4 pass;
