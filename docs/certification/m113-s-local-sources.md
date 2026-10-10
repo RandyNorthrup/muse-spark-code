@@ -275,3 +275,39 @@ stands, and dropping both fails. Restored production-file SHA-256:
 Drill driver `temp/cm1131-drill.mjs` (gitignored scratch) breaks/restores
 each guard and prints file hashes; `temp/cm1131-baseline.sha` holds the
 pre-drill hashes the restores were diffed against.
+
+### C-M113-1 review — 2026-10-10
+
+Codex review was requested (`codex review --commit 8c0e8b569` and
+`codex exec`, MacBook rig) but is environmentally blocked: this lane runs
+headless under an agent sandbox, and both commands fail before any model
+call with `failed to initialize in-process app-server client: Operation
+not permitted (os error 1)`. No credentials were read or touched, and no
+sandbox workaround was built; the lead should run the Codex review outside
+the sandbox or accept the substitute below.
+
+Substitute one-pass review by the lane (same four classes, same day):
+
+- Validation/security: the new comparators run only on scrubbed,
+  schema-parsed rows, so no raw secret reaches ordering; the discovery
+  guard strictly narrows selection; separator normalization is
+  comparison-only (reads were already normalized). No findings.
+- Failure paths and honesty: comparators cannot throw on schema-typed
+  fields (`directory: boolean` is required, so no undefined coercion);
+  partial/unavailable semantics are untouched — the discovery drill shows
+  the unguarded tree reports `partial` where the guarded one reports
+  `ok`. No findings.
+- Concurrency/lifecycle: comparators are pure, `toSorted` never mutates,
+  no shared state; permutation tests prove input-order independence at
+  repository timeouts. No findings.
+- Docs: the CHANGELOG entry and this record were checked against observed
+  outputs (37-test count, drill tallies, restored hashes). No findings.
+- Scope audit: the only remaining single-key record sort in reporting
+  sources is `changelog.ts:36` (versions), which is total because duplicate
+  versions are rejected as `invalid` just above it; it is outside this
+  lane's brief and needs no change.
+
+Re-verification after the review pass (tree unchanged): the three owned
+files pass together at repository timeouts, and typecheck, scoped ESLint,
+Prettier and `check:l10n` pass; results are tallied in the lane's final
+report.
