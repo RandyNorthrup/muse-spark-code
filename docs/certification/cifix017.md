@@ -463,3 +463,159 @@ of the shared `node_modules`); actionlint; `check:roadmap`; `deadcode`
 - `m114Panel`'s first case (5.0 s on hosted macOS): not reproduced.
 - In the 4-CPU emulation `playbookOutcomes.test.ts` failed eight cases in
   every run, outside this brief; it passed on hosted Ubuntu (43.9 s).
+
+## Round 3, ACP M118
+
+Authority: `/Users/randy/lanes/_ctx/ACPM118.rig.md` and shared
+`codex/common.md`; macmini, branch `rel017/acpm118`, starting revision
+`6597210bb`. No deadline, assertion, threshold, gate, hook or bundle cap is
+changed. Aggregate quality and the hosted replay remain lead-owned under the
+explicit rig brief. Zero model attempts, paid calls or credential-store writes.
+
+### Hosted evidence and local reproduction
+
+Read-only job metadata confirms that job `114030770563` failed at the
+installed-package stdio suite and job `114029428611` is the failed macOS
+shard 3 of run `37992331755`. The installed-package check annotation names
+M118's thirty-second timeout. Both requested `gh run view --log-failed`
+commands and the direct job-log endpoint return HTTP 403, "Must have admin
+rights to Repository". The hosted last-stage line was requested but has not
+been supplied; the matching local reproduction establishes the cause below,
+while attribution to those hosted jobs still needs their replay/logs.
+
+The Node 24.21.0/libuv 1.52.1 baseline passes 13/13 in 22.11 seconds. ACP plus
+its runtime/ACP sharing owners passes 47/47 in 22.17 seconds. CPU-only
+pressure with eight workers passes 13/13 in 37.96 seconds; twelve workers
+passes in 56.35 seconds. Twenty-four workers pass in 93.41 seconds, but that
+pressure ends before M118 completes, so this is not the decisive reproduction.
+All pressure workers are owned, bounded and terminated in their launcher's
+`finally`; no background work survives a launcher.
+
+Installed Node 22.23.3 as a private test tool under ignored `temp/node22/`,
+without changing repository dependencies or the machine's selected Node.
+The arm64 binary install correctly refused on this Intel rig; the x64
+binary is used. Node 22 alone passes 13/13 in 50.34 seconds, with a first
+question test taking 22.32 seconds. Runtime version, rather than merely CPU
+load, exposes the platform-memory difference.
+
+With Node 22, a held 1,342,177,280-byte buffer (1.25 GiB) and four CPU-pressure
+workers, the unchanged M118 requests reproduce the exact failure: **12
+passed, one failed**, 101.10 seconds. Fixed-word temporary timing diagnostics
+show initialize finishing at 569 ms, the first session finishing at 21,108
+ms, and the second session starting at 21,281 ms. The case fails at 30,037
+ms, printing `M118 ACP last awaited stage: session/new (second workspace)`;
+its pending operation eventually completes at 41,535 ms.
+
+During that run, the same machine reports:
+
+| Runtime      | libuv  |  Free bytes | Available bytes |
+| ------------ | ------ | ----------: | --------------: |
+| Node 22.23.3 | 1.51.0 | 618,786,816 |     618,786,816 |
+| Node 24.21.0 | 1.52.1 | 618,430,464 |  13,192,970,240 |
+
+Cause: [Node 22's bundled Darwin implementation](https://github.com/nodejs/node/blob/v22.23.3/deps/uv/src/unix/darwin.c)
+returns `uv_get_free_memory()` for available memory, counting free pages
+alone. [libuv 1.52's corrected implementation](https://github.com/libuv/libuv/blob/v1.52.0/src/unix/darwin.c)
+adds inactive and purgeable pages. The older API name masked an unusable
+headroom measurement. D87 interpreted 619 MB as critical memory on this
+32 GiB machine and delayed each foreground host admission for its existing
+twenty seconds. Two cold hosts exceed M118's unchanged thirty-second test
+deadline despite over 13 GB of reclaimable headroom.
+
+### Repair and regression proof
+
+At the shared OS sampler boundary, Darwin accepts available-memory readings
+only with libuv 1.52 or newer; an older/unparseable version or an absent API
+reports unknown headroom and memory-use percentage. No child probe or memory
+estimate is added. Other platforms retain their current readings; usable
+newer-Darwin readings retain their exact value. Admission, containment,
+critical thresholds and real low-headroom handling are unchanged. This
+portable sampler is shared by the extension, ACP and headless/runtime users.
+
+D87, README and the ACP guide record the runtime limit. The feature catalog
+marks memory thresholds as conditional on available headroom; the reference
+is regenerated. M107's public entry records the limit and ROADMAP is
+regenerated. The Unreleased changelog names the false pause repair.
+
+The new OS-adapter matrix covers libuv 1.51, its last minor-boundary patch,
+1.52.0, 1.52.1, a future major, an unparseable version, Linux and Windows;
+another test covers an absent API. The fixture isolates Linux cgroup discovery
+from the selected platform test; the complete existing sampler owner still
+covers its real cgroup boundary. Before the fix, exactly the three older or
+unparseable Darwin cases fail (three failed, ten passed).
+
+Deliberately invert the new version guard: **six failed, eight passed**.
+Restore `system.ts` byte-exact with `cmp` and SHA-256 before/after
+`54a1438f06d5fdf26ea8b19e038d67b0319149fd2f33e3b87a6ff65eed2cac30`.
+The complete sampler-system, sampler and runtime-resource owners then pass
+**51/51**, 7.15 seconds. The temporary ACP timing instrumentation is also
+restored byte-exact with `cmp` and SHA-256 before/after
+`361162afe8b1d48d155ffd605fbbe1aefa0d967ea5167ce12a941196e00c9d9c`.
+The ACP test has no committed diff.
+
+The repaired Node 22 complete stdio suite under the same bounded buffer/CPU
+workload passes **13/13**, 23.38 seconds; M118 takes **1,330 ms**. Free pages
+were higher at this replay's admission (3.35 GB initially rather than 1.76
+GB), so this is a workload replay, not an identical physical-memory state.
+The deterministic guard regression supplies the controlled boundary proof.
+
+Local receipts are in ignored `temp/`: `acp-baseline.log`, `acp-loaded.log`,
+`acp-pressure-before.log`, `acp-pressure12-before.log`,
+`acp-pressure24-diagnostic.log`, `acp-node22-before.log`,
+`acp-node22-memory-before.log`, `acp-node22-memory-after.log`, the matching
+pressure metadata and runtime-memory JSON captures, `sampler-before-red.log`,
+`sampler-guard-drill-red.log` and `sampler-final.log`.
+
+### Scoped gate receipts
+
+All five projects in `npm run typecheck` exit 0. Changed-file ESLint and
+Prettier exit 0; ESLint's preferred ordering of the pure guard operands is
+applied after the byte-exact drill. One initial lint invocation unintentionally
+overlapped the ending typecheck projects; subsequent test/build/gate commands
+run sequentially. No gate, hook or environment override was used to obtain a
+passing result.
+
+Every command in `temp/gate-results.tsv` exits 0: plain knip, jscpd (zero
+clones), localization (14 UI tables), host API (zero problems), reference,
+tokens, plan, roadmap, dependency cycles and production build. The build's
+size, split, host-global and notices gates pass. Existing budgets remain:
+extension **550.1/600 KiB**, Model API **515.8/525 KiB**, checkpoint store
+**87.3/225 KiB**, original deferred webview JavaScript **31.9/50 KiB**.
+Complete reference-generator, reference-entry and sampler-system owners pass
+**145/145**, 14.27 seconds (`reference-tests.log`).
+
+G93 records the runtime-semantic qualification in the orchestration gotchas;
+the original M107 platform capture links this follow-up. Node 22's private
+tool install was moved from ignored worktree temp to an owned OS temporary
+folder before the production-layout replay, following G30. Its path is
+recorded in ignored `temp/node22-tool-path.txt`; no shared install is edited.
+The standard `bash native/darwin/build.sh` exits 0 and builds the real universal
+Darwin helpers for that replay (`native-build.log`); only existing Swift
+Keychain deprecation warnings are printed. No helper permission mode is run.
+
+### Production-bundle stdio replay
+
+With `MUSE_ACP_PACKAGE_DIR` set to this worktree, the suite loads the standard
+production `dist` bundles and real standard-build universal Darwin helper,
+skipping its source-fixture bundling. On Node 22.23.3, with four CPU-pressure
+workers and a held **4 GiB** buffer, all **13/13** cases pass in **24.87 s**;
+M118 takes **1,500 ms**. The launcher caps its allocation at 4 GiB and records
+3.51 GB of free pages after allocation; it does not claim the host reached
+its requested lower-free-page target. Receipts:
+`acp-production-node22-loaded.log`, `acp-production-node22-meta.log`.
+This verifies production-bundle consumption, not an npm-installed tarball or
+hosted Actions result; universal package/release qualification remains with
+the lead.
+
+Final repository-default receipts (no test-name filter or timeout override):
+
+| Runtime / complete files                                      | Passed | Duration | Receipt                            |
+| ------------------------------------------------------------- | -----: | -------: | ---------------------------------- |
+| Node 24: ACP stdio, runtime sharing, ACP sharing              |     47 |  18.07 s | `acp-final.log`                    |
+| Node 22: sampler system, sampler, runtime resources           |     51 |   8.00 s | `sampler-node22-final.log`         |
+| Node 24: reference generator, reference entry, sampler system |    145 |  14.27 s | `reference-tests.log`              |
+| Node 22 production bundles / native helper, loaded: ACP stdio |     13 |  24.87 s | `acp-production-node22-loaded.log` |
+
+All 17 changed tracked files are staged explicitly for an installed-hooks
+commit; the original ACP stdio test remains byte-exact. Full hosted Actions,
+aggregate quality and an actual installed universal tarball remain lead-owned.

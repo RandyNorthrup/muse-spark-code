@@ -828,6 +828,10 @@ observe a separately running editor session's queue. Resume writes
 apply it on refresh without extending that deadline; explicit OFF stays off.
 Neither command signs in or makes a model call.
 
+On macOS with libuv older than 1.52 (including Node 22), memory headroom and
+memory use report unknown: that runtime counts only free pages, which can
+falsely pause session startup. Newer libuv versions include reclaimable pages.
+
 The shared session adapter registers `/resources`, `/resources resume` and
 `/usage resources`, delivers notices for affected work and validates deferred
 tool `_meta`. It needs the injected runtime resource port. `/usage resources`,

@@ -9,6 +9,8 @@ import type { BrowserRuntimeMode } from './browserCheckConstants'
 
 // M107 / D87: portable resource contracts. Nothing is sampled at module load.
 export const RESOURCE_SAMPLE_MS = 5000
+// libuv 1.52 adds inactive/purgeable pages to Darwin's available-memory reading.
+export const RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR = 52
 // D87.14: free-space policy and owned-tree retention.
 export const RESOURCE_DISK_SAMPLE_MS = 30_000
 export const RESOURCE_DISK_FAST_SAMPLE_MS = 5000

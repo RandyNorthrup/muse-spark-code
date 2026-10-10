@@ -3056,7 +3056,7 @@ Type: `"number"`. Default: `85`. Scope: `machine`.
 
 ### museSpark.resourceMemoryMaxPercent
 
-resourceThreshold: Throttle when memory in use stays above this percentage for two samples.
+resourceThreshold&memoryHeadroom=available: Throttle when memory in use stays above this percentage for two samples.
 
 Type: `"number"`. Default: `90`. Scope: `machine`.
 
@@ -3071,7 +3071,7 @@ Type: `"number"`. Default: `90`. Scope: `machine`.
 
 ### museSpark.resourceMemoryMinFreeGiB
 
-Minimum available memory in GiB, capped at 15% of this machine’s RAM.
+memoryHeadroom=available: Minimum available memory in GiB, capped at 15% of this machine’s RAM.
 
 Type: `"number"`. Default: `2`. Scope: `machine`.
 

@@ -793,7 +793,7 @@
     {
       "id": "M107",
       "title": "Resource limits for your machine",
-      "summary": "Set CPU, memory and disk limits so the extension holds back new background work while the machine is busy, first narrowing and then pausing it without stopping work already running; moving work to another device is not available yet.",
+      "summary": "CPU, memory and disk limits narrow then pause new background work without stopping running work; macOS headroom is unknown before libuv 1.52, and moving work to another device is unavailable.",
       "area": "platform",
       "release": "0.16.0",
       "labels": ["not available yet"]
