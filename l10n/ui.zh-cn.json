@@ -339,7 +339,8 @@
     "estimate-by": "--by <date>: 截止日期",
     "fleet": "--fleet current|minimum|optimum: 当前设备群 / 最小配置 / 最优配置",
     "estimate-format": "--format md|html|json|text: 输出格式",
-    "seed": "--seed <seed>: 模拟种子"
+    "seed": "--seed <seed>: 模拟种子",
+    "subscription": "--subscription                 使用 Muse Code 订阅而非密钥来驱动 Model API 后端（其调用计入套餐）"
   },
   "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
   "referenceVault": "从终端使用按用户 credential 保管库：状态、解锁、锁定、列表、添加、授权、审计、导入和监视。值永远不会打印；由代理持有。",
@@ -358,7 +359,7 @@
   "referenceBrowserDownload": "Chrome for Testing: 下载 (设置: museSpark.browserCheckRuntime).",
   "referenceRemoveSkills": "仅删除由扩展管理的 Muse Code 技能副本及其链接，保留其他技能。",
   "referenceInstallSkills": "将 project_setup、feature_delivery 和 quality_retrofit 复制到 Muse Code 配置中，并链接为技能。",
-  "referenceExecContract": "无界面运行不允许信任工作区或绕过权限。 无界面运行仅允许 plan 或 acceptEdits。 托管网页搜索没有可保证的费用上限，因此拒绝使用。 图像生成需要 acceptEdits。 请选择且仅选择一个提示来源。 提示和密钥不能同时使用 stdin。 Model API 需要 --max-budget-usd。 modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+  "referenceExecContract": "无界面运行不允许信任工作区或绕过权限。 无界面运行仅允许 plan 或 acceptEdits。 托管网页搜索没有可保证的费用上限，因此拒绝使用。 图像生成需要 acceptEdits。 请选择且仅选择一个提示来源。 提示和密钥不能同时使用 stdin。 Model API 需要 --max-budget-usd。 modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --subscription / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help --all: 命令、设置和功能，附有说明和文档。",
   "referenceKeyStdin": "auth set: 在终端中读取你的密钥，并将其保存在这台计算机的凭据存储中。对话费用计入该密钥。 exec / scan-secrets --key-stdin: 请从管道读取密钥，而非终端。 stdin → memory; prompt stdin + key stdin = 提示和密钥不能同时使用 stdin。",
   "referenceModalKeys": "关闭对话框或在其中移动焦点。",
@@ -3370,7 +3371,7 @@
   "acpFontIntegrity": "字体文件验证失败：{file}",
   "acpFontInstallFailed": "无法安装字体包。",
   "acpFontsUsage": "用法：{command} fonts install [--from <directory>]",
-  "acpUsage": "用法：\n  {command} [选项]              通过 stdin 和 stdout 提供 Agent Client Protocol\n  {command} [选项] login        在此终端中登录 Muse Code\n  {command} auth set|status|clear  存储、检查或移除 Meta Model API 密钥\n  {command} auth set|status|clear --provider <id>  存储、检查或移除提供方密钥（从 stdin 读取）\n  {command} providers list|add|test|remove  管理模型提供方\n  {command} exec [options] <prompt>  无界面运行一轮\n  {command} scan-secrets <file> [--key-stdin]  统计单个文件中疑似机密的数量（仅输出数量）\n  {command} report [options]  输出已清理的问题报告（不启动后端，不打开浏览器）\n  {command} legal [options]  运行只读法律扫描（无需后端、无需登录）\n选项：\n  --backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥\n  --trust-workspace                加载文件夹的规则、技能和记忆\n  --muse-binary <路径>             要运行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙盒\n  --questions-defer-after <seconds>  默认在60秒后暂缓问题；0表示从不暂缓，1–9按10处理，最大3600\n  --allow-dangerously-skip-permissions  提供“绕过权限”模式\n  --allow-contributor-models       列出贡献者级模型（Meta 可能使用其内容进行训练）\n  --web-search                     提供付费网页搜索（Model API 后端；会先询问价格）\n  --image-generation               提供付费图片生成（Model API 后端；会先询问价格）\n  --no-auto-compaction             禁用自动压缩\n  --verbose                        在 stderr 上记录所有细节\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  运行 Setup 钩子并退出",
+  "acpUsage": "用法：\n  {command} [选项]              通过 stdin 和 stdout 提供 Agent Client Protocol\n  {command} [选项] login        在此终端中登录 Muse Code\n  {command} auth set|status|clear  存储、检查或移除 Meta Model API 密钥\n  {command} auth set|status|clear --provider <id>  存储、检查或移除提供方密钥（从 stdin 读取）\n  {command} providers list|add|test|remove  管理模型提供方\n  {command} exec [options] <prompt>  无界面运行一轮\n  {command} scan-secrets <file> [--key-stdin]  统计单个文件中疑似机密的数量（仅输出数量）\n  {command} report [options]  输出已清理的问题报告（不启动后端，不打开浏览器）\n  {command} legal [options]  运行只读法律扫描（无需后端、无需登录）\n选项：\n  --backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥\n  --trust-workspace                加载文件夹的规则、技能和记忆\n  --muse-binary <路径>             要运行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙盒\n  --questions-defer-after <seconds>  默认在60秒后暂缓问题；0表示从不暂缓，1–9按10处理，最大3600\n  --allow-dangerously-skip-permissions  提供“绕过权限”模式\n  --allow-contributor-models       列出贡献者级模型（Meta 可能使用其内容进行训练）\n  --web-search                     提供付费网页搜索（Model API 后端；会先询问价格）\n  --image-generation               提供付费图片生成（Model API 后端；会先询问价格）\n  --subscription                   使用 Muse Code 订阅而非密钥来驱动 Model API 后端\n  --no-auto-compaction             禁用自动压缩\n  --verbose                        在 stderr 上记录所有细节\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  运行 Setup 钩子并退出",
   "reportUsage": "用法：\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  将已清理的问题报告输出到 stdout，或使用 --out 将其写入 <file>。\n  不启动后端，不登录任何位置，不打开浏览器。\n选项：\n  --out <file>         将报告写入文件而不是 stdout\n  --description <text>  用自己的话描述当时发生了什么\n  --no-facts           不包含支持信息\n  --no-events          不包含最近事件",
   "execBudgetRequired": "Model API 需要 --max-budget-usd。",
   "execNumberInvalid": "数字或限制无效；美元预算最多支持六位小数。",
@@ -5072,5 +5073,14 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  }
+  },
+  "subscriptionKey": {
+    "signInAgain": "已启用 Muse Code 订阅，但 Muse Code CLI 在此处没有订阅密钥。请重新登录（`muse login`，或使用订阅 API 密钥运行 `muse auth set`）后重试，或改用 Model API 密钥。",
+    "cannotRead": "已启用 Muse Code 订阅，但无法读取 Muse Code CLI 的登录文件。请重新登录 Muse Code CLI 后重试，或改用 Model API 密钥。",
+    "keychainBacked": "已启用 Muse Code 订阅，但此次登录保存在登录钥匙串中，此处无法读取。请改用 Model API 密钥。"
+  },
+  "acpSubscriptionNeedsModelApi": "{argument} 需要 --backend modelApi：Muse Code 订阅支付 Model API 调用费用。",
+  "execSubscriptionStdin": "--subscription 与 --key-stdin 不能组合使用：每次运行只能使用一个凭据。",
+  "referenceMuseCodeSubscriptionName": "Muse Code 订阅",
+  "referenceMuseCodeSubscriptionSummary": "使用 Muse Code CLI 持有的密钥，将 Model API 调用计入套餐。"
 }

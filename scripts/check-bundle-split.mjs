@@ -138,6 +138,15 @@ const ACTIVATION_ALLOWED = new Map([
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['sessionStore.ts', "the stored-session format the window's session store reads (D14)"],
   ['goalRecord.ts', "a stored session's goal (D14, M45)"],
+  // C-M95-SUB: the subscription key source. Activation reads it for the
+  // opt-in readiness gate; the runtime engine (serve) and the headless
+  // preflight read it for the --subscription opt-in; dist/modelApi.js never
+  // carries it (the manager receives the credential instead of importing
+  // the source).
+  [
+    'subscriptionKey.ts',
+    'the subscription key source activation reads for the opt-in readiness gate (C-M95-SUB)',
+  ],
 ])
 
 // The files that load only with the backend: the host, its tools, hooks,

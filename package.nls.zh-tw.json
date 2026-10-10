@@ -250,5 +250,6 @@
   "config.reports.network.enumDescriptions.always": "允許報告使用網路來源。",
   "config.reports.network.enumDescriptions.off": "僅讀取本機來源。",
   "config.reports.keepHistory.description": "在此電腦上保留每種類型最新的 50 份報告，供歷程記錄和比較使用。",
-  "config.reports.agentSources.description": "選擇讀取您自己的 Claude Code 或 Codex 用量和限制檔案。預設不啟用任何來源。絕不將對話本文與認證資料檔案作為報告來源讀取。"
+  "config.reports.agentSources.description": "選擇讀取您自己的 Claude Code 或 Codex 用量和限制檔案。預設不啟用任何來源。絕不將對話本文與認證資料檔案作為報告來源讀取。",
+  "config.useMuseCodeSubscription.description": "使用 Muse Code 訂閱而非按量付費金鑰來驅動 Model API 後端。呼叫計入 Muse Code 方案而非信用卡，使用登入後 Muse Code CLI 持有的訂閱金鑰。缺少或無法讀取 CLI 登入時，將停止 Model API 呼叫，而不是向已儲存的金鑰計費。"
 }

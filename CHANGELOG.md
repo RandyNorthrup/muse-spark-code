@@ -9,6 +9,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Model API on the Muse Code subscription** (C-M95-SUB). The Model API
+  backend can bill the Muse Code plan instead of a pay-as-you-go key: turn
+  on **Use Muse Code Subscription** (`museSpark.useMuseCodeSubscription`,
+  machine-scoped, off by default) and the extension reads the subscription
+  key the Muse Code CLI already holds after sign-in. Those calls count
+  against the plan, never the card; usage and cost surfaces record them as
+  **Plan** with no dollar price. While the setting is on, a missing or
+  unreadable CLI sign-in stops Model API calls with the fix instead of
+  billing a stored key. The key is held in memory only: never shown, logged,
+  copied into settings, or stored anywhere. Paid extras (web search, images,
+  voice) still bill a stored Model API key. Outside VS Code, `serve` and
+  `exec` take `--subscription` (Model API backend only); a macOS
+  Keychain-only sign-in cannot be read, so use a key there.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

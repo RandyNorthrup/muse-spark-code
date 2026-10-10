@@ -959,6 +959,21 @@
       "editors": ["vscode"]
     },
     {
+      "id": "muse-code-subscription",
+      "name": { "ui": "referenceMuseCodeSubscriptionName" },
+      "summary": { "ui": "referenceMuseCodeSubscriptionSummary" },
+      "description": { "ui": "referenceMuseCodeSubscriptionSummary" },
+      "commands": [],
+      "settings": ["museSpark.useMuseCodeSubscription"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#muse-code-subscription",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "accounts",
       "name": { "ui": "referenceAccountsTitle" },
       "summary": { "ui": "referenceAccounts" },
@@ -3282,6 +3297,17 @@
       "schema": { "type": "number", "minimum": 0, "default": 0 }
     },
     {
+      "id": "museSpark.useMuseCodeSubscription",
+      "name": "museSpark.useMuseCodeSubscription",
+      "description": "Drive the Model API backend with the Muse Code subscription instead of a pay-as-you-go key. Calls count against the Muse Code plan, not the card, using the subscription key the Muse Code CLI holds after sign-in. A missing or unreadable CLI sign-in stops Model API calls instead of billing a stored key.",
+      "descriptionKey": "config.useMuseCodeSubscription.description",
+      "type": "boolean",
+      "default": false,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": false }
+    },
+    {
       "id": "museSpark.modelApiRepoMap",
       "name": "museSpark.modelApiRepoMap",
       "description": "Add a repo map to the Model API backend's system prompt in a trusted workspace: the workspace's most used files and definitions, ranked with VS Code's language services, made once per conversation in about 1,000 tokens. Off by default: it adds those tokens to every request, billed to your Model API key. Either way, the repo_map tool makes a fresh map on request.",
@@ -4776,7 +4802,7 @@
     {
       "route": "exec",
       "name": "exec",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --subscription / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
       "text": { "ui": "referenceExecContract" }
     },
     {
@@ -5304,6 +5330,13 @@
       "name": "serve: --scheduled-prompts",
       "description": "--scheduled-prompts              Offer paid scheduled prompts (Model API backend; its price is asked first)",
       "text": { "cli": "scheduled-prompts" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --subscription",
+      "description": "--subscription                 Drive the Model API backend with the Muse Code subscription instead of a key (its calls count against the plan)",
+      "text": { "cli": "subscription" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }
     },
     {
@@ -6820,6 +6853,18 @@
     },
     {
       "route": "exec",
+      "name": "exec: --subscription",
+      "description": "--subscription                 Drive the Model API backend with the Muse Code subscription instead of a key (its calls count against the plan)",
+      "text": { "cli": "subscription" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "subscription"
+      }
+    },
+    {
+      "route": "exec",
       "name": "exec: --vault",
       "description": "--vault                          Allow headless exec to use vault items covered by unattended grants",
       "text": { "cli": "vault" },
@@ -6835,7 +6880,7 @@
     {
       "route": "exec",
       "name": "exec: --trust-workspace",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --subscription / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
       "text": { "ui": "referenceExecContract" },
       "contract": {
         "type": "boolean",
@@ -6848,7 +6893,7 @@
     {
       "route": "exec",
       "name": "exec: --allow-dangerously-skip-permissions",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --subscription / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
       "text": { "ui": "referenceExecContract" },
       "contract": {
         "type": "boolean",
@@ -6861,7 +6906,7 @@
     {
       "route": "exec",
       "name": "exec: --web-search",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --subscription / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
       "text": { "ui": "referenceExecContract" },
       "contract": {
         "type": "boolean",
@@ -7018,7 +7063,7 @@
     {
       "route": "exec",
       "name": "exec <prompt> | exec - | exec --prompt-file <file>",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --subscription / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
       "text": { "ui": "referenceExecContract" }
     },
     {

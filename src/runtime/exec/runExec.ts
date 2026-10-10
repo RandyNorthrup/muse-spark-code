@@ -286,7 +286,6 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   const mediaFactory = deps.media
   const cwd = path.resolve(deps.processCwd, options.cwd ?? deps.processCwd)
   const literals: string[] = []
-  let subscriptionSource: SubscriptionKeySource | undefined
   let isFinished = false
   let isFinishing = false
   const rawLog = createExecLogger({
@@ -639,14 +638,16 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       }
       // C-M95-SUB: the subscription key joins the scrubbed literals like a
       // pasted key; a missing sign-in refuses with its fix, like stdin's.
+      // The source retains nothing; the key lives in the literals the run
+      // already clears.
       if (providerRun === undefined && options.subscription && options.backend === 'modelApi') {
-        subscriptionSource = new SubscriptionKeySource({
+        const source = new SubscriptionKeySource({
           platform: deps.platform,
           homeDir: deps.homeDir,
           xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
         })
-        const read = await lifecycle.race(subscriptionSource.read())
-        if (read.status !== 'ready' || read.key === undefined) {
+        const read = await lifecycle.race(source.read())
+        if (read.status !== 'ready') {
           status = 'auth_required'
           error = subscriptionKeyRefusal(read.status)
           return await finish()
@@ -1247,8 +1248,6 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         // pre-empt cleanup, so stop late diagnostics and drop owned key refs now.
         isFinished = true
         memory?.clear()
-        subscriptionSource?.clear()
-        subscriptionSource = undefined
         literals.length = 0
       }
       try {
@@ -1299,8 +1298,6 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       restoreUsageRecording?.()
       isFinished = true
       memory?.clear()
-      subscriptionSource?.clear()
-      subscriptionSource = undefined
       literals.length = 0
     }
   }
