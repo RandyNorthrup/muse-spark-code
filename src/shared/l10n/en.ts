@@ -4978,6 +4978,14 @@ export const EN = {
   // {detail}: what the provider answered, in its words.
   providerTestFailed: 'Test failed: {detail}',
   scanFailed: 'Scan failed: {detail}',
+  // {build}: the server build the llama.cpp quirks were captured against.
+  llamacppScanMissingWindow:
+    'The llama.cpp model list reports no live context window (captured build {build}).',
+  // {model}: a local model saved without its server's reported window.
+  localModelWindowUnknown:
+    'Model {model} has no known context window. Rescan its provider and save it again.',
+  // {id}: the provider saved without its key.
+  providerNeedsKey: 'Provider {id} needs a key.',
   // The wizard's first step; the quick pick runs the same flow.
   wizardPickProvider: 'Pick a provider',
   providerFields: {

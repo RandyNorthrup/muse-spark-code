@@ -4206,6 +4206,9 @@
   "providerTestPaid": "Questo controllo invia un token e costa circa {cost}.",
   "providerTestFailed": "Controllo non riuscito: {detail}",
   "scanFailed": "Analisi non riuscita: {detail}",
+  "llamacppScanMissingWindow": "L’elenco modelli di llama.cpp non riporta alcuna finestra di contesto attiva (build acquisita {build}).",
+  "localModelWindowUnknown": "Il modello {model} non ha una finestra di contesto nota. Ripeti la scansione del provider e salvalo di nuovo.",
+  "providerNeedsKey": "Il provider {id} ha bisogno di una chiave.",
   "wizardPickProvider": "Scegli un provider",
   "providerFields": {
     "provider": "Provider",

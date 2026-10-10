@@ -4097,6 +4097,9 @@
   "providerTestPaid": "Diese Prüfung sendet einen Token und kostet etwa {cost}.",
   "providerTestFailed": "Prüfung fehlgeschlagen: {detail}",
   "scanFailed": "Suche fehlgeschlagen: {detail}",
+  "llamacppScanMissingWindow": "Die llama.cpp-Modellliste meldet kein aktives Kontextfenster (erfasster Build {build}).",
+  "localModelWindowUnknown": "Modell {model} hat kein bekanntes Kontextfenster. Scannen Sie seinen Anbieter erneut und speichern Sie ihn.",
+  "providerNeedsKey": "Anbieter {id} braucht einen Schlüssel.",
   "wizardPickProvider": "Wählen Sie einen Anbieter",
   "providerFields": {
     "provider": "Anbieter",

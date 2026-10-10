@@ -4097,6 +4097,9 @@
   "providerTestPaid": "Ez az ellenőrzés egy tokent küld, és körülbelül {cost} költséggel jár.",
   "providerTestFailed": "Az ellenőrzés sikertelen: {detail}",
   "scanFailed": "Az átvizsgálás sikertelen: {detail}",
+  "llamacppScanMissingWindow": "A llama.cpp modellista nem jelent élő környezetablakot (rögzített build {build}).",
+  "localModelWindowUnknown": "A(z) {model} modellnek nincs ismert környezetablaka. Vizsgálja át újra a szolgáltatót, és mentse ismét.",
+  "providerNeedsKey": "A(z) {id} szolgáltatóhoz kulcs szükséges.",
   "wizardPickProvider": "Válasszon szolgáltatót",
   "providerFields": {
     "provider": "Szolgáltató",

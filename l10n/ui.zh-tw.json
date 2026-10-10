@@ -3988,6 +3988,9 @@
   "providerTestPaid": "此檢查將傳送一個 token，大約花費 {cost}。",
   "providerTestFailed": "檢查失敗：{detail}",
   "scanFailed": "掃描失敗：{detail}",
+  "llamacppScanMissingWindow": "llama.cpp 模型清單未回報即時內容視窗（擷取的建置 {build}）。",
+  "localModelWindowUnknown": "模型 {model} 沒有已知的內容視窗。請重新掃描其提供者並再次儲存。",
+  "providerNeedsKey": "提供者 {id} 需要金鑰。",
   "wizardPickProvider": "選擇提供者",
   "providerFields": {
     "provider": "提供者",

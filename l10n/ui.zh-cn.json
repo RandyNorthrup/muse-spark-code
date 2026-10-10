@@ -3988,6 +3988,9 @@
   "providerTestPaid": "此检查将发送一个 token，大约花费 {cost}。",
   "providerTestFailed": "检查失败：{detail}",
   "scanFailed": "扫描失败：{detail}",
+  "llamacppScanMissingWindow": "llama.cpp 模型列表未报告实时上下文窗口（捕获的构建 {build}）。",
+  "localModelWindowUnknown": "模型 {model} 没有已知的上下文窗口。请重新扫描其提供方并再次保存。",
+  "providerNeedsKey": "提供方 {id} 需要密钥。",
   "wizardPickProvider": "选择提供方",
   "providerFields": {
     "provider": "提供方",

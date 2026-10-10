@@ -3988,6 +3988,9 @@
   "providerTestPaid": "この確認では 1 トークンを送信し、約 {cost} かかります。",
   "providerTestFailed": "確認に失敗しました: {detail}",
   "scanFailed": "スキャンに失敗しました: {detail}",
+  "llamacppScanMissingWindow": "llama.cpp のモデル一覧にライブコンテキストウィンドウが報告されていません（キャプチャ対象ビルド {build}）。",
+  "localModelWindowUnknown": "モデル {model} のコンテキストウィンドウが不明です。プロバイダーを再スキャンして保存し直してください。",
+  "providerNeedsKey": "プロバイダー {id} にはキーが必要です。",
   "wizardPickProvider": "プロバイダーを選択",
   "providerFields": {
     "provider": "プロバイダー",

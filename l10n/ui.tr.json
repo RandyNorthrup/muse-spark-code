@@ -4097,6 +4097,9 @@
   "providerTestPaid": "Bu denetim bir jeton gönderir ve yaklaşık {cost} tutar.",
   "providerTestFailed": "Denetim başarısız: {detail}",
   "scanFailed": "Tarama başarısız: {detail}",
+  "llamacppScanMissingWindow": "llama.cpp model listesi etkin bir bağlam penceresi bildirmiyor (yakalanan derleme {build}).",
+  "localModelWindowUnknown": "{model} modelinin bilinen bir bağlam penceresi yok. Sağlayıcısını yeniden tara ve tekrar kaydet.",
+  "providerNeedsKey": "{id} sağlayıcısı bir anahtar gerektiriyor.",
   "wizardPickProvider": "Bir sağlayıcı seçin",
   "providerFields": {
     "provider": "Sağlayıcı",
