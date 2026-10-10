@@ -899,6 +899,12 @@
       "note": "this roadmap's generator and gate (project documentation tooling)"
     },
     {
+      "id": "M125",
+      "title": "A faster, more accurate agent through a fast judge",
+      "summary": "A fast judge answers the agent's small decisions and checks its work while the model is busy, set up by a wizard that first scans whether your computer can run it.",
+      "area": "agents"
+    },
+    {
       "id": "BADGEFIX",
       "public": false,
       "note": "store badge accuracy"

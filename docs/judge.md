@@ -1,5 +1,12 @@
 # Muse Judge phase 1
 
+> **Redesign planned (D107).** PLAN.md D107 and milestone M125 plan to
+> turn the judge into our own Jev: a fast, batched, calibrated decision
+> engine that makes the agent quicker and checks its work, set up through a
+> Set Up Local Judge wizard that scans the machine first. The design is in
+> [design/judge-fast-path.md](design/judge-fast-path.md).
+> Nothing in it is built. This page describes phase 1 as it ships today.
+
 Muse Spark Code (Unofficial) uses the conversation's own model to advise on
 an action's risk. Judge cannot allow an action, write code, bypass a rule or
 answer the user. The Muse Code source uses the subscription; Model API dispatch uses D78’s
