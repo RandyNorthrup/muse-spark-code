@@ -20187,7 +20187,7 @@ grammar and inactive automatic-compaction option without altering parsers.
 No feature implementation, dependency, gate widening, merge, push or live call.
 
 Plan: [x] current surfaces and roadmap; [x] regression tests and byte-exact red
-drills for every finding and sibling class; [x] scoped rig gates; [ ] hooked
+drills for every finding and sibling class; [x] scoped rig gates; [x] hooked
 commits, committed-diff review and certification in `docs/certification/cx1.md`.
 
 ### M122 — Public roadmap (2026-10-08)
