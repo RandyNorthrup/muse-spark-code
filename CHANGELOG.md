@@ -39,6 +39,16 @@ happened, not what was planned; superseded entries are kept.
   on the driver that drives the production host. The two dependency-key
   test assertions are recorded in PLAN.md §8. No user-facing change;
   production stays off.
+- **Frozen-digest resolver redesign** (M101 CM1012R4, review RVCM1012C).
+  The frozen digest no longer walks imports with a pattern scanner or
+  hashes outside bindings by their current values: each arm root is
+  bundled by the real resolver (esbuild, already a build dependency) and
+  every input file it reports contributes its exact bytes, so accessor
+  implementations, comment-quoted edges, literal dynamic imports and
+  directory indexes are all covered exactly as the build resolves them.
+  A non-literal dynamic `import()` or `require()` fails the digest
+  instead of freezing around it, and canonical JSON keeps an own
+  `__proto__` field. No user-facing change; production stays off.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
