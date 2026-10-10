@@ -56,6 +56,14 @@ function latestState(panel: FakeWebviewPanel): ModelsPanelState {
   }
   throw new Error('No valid state')
 }
+function selectedProviders() {
+  return testProvidersHost({
+    deps: {
+      store: memoryProvidersStore([{ ...TEST_ENTRY, models: ['m1'] }]),
+      fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
+    },
+  })
+}
 async function send(panel: FakeWebviewPanel, message: unknown, done: () => void): Promise<void> {
   panel.webview.messages.fire(message)
   await vi.waitFor(done)
@@ -73,6 +81,40 @@ beforeEach(() => {
   vi.mocked(window.showInputBox).mockReset()
 })
 describe('Models host contract', () => {
+  it('sets editor-chat exposure idempotently and refuses references outside visible rows', async () => {
+    const { providers } = selectedProviders()
+    const selected = new Set<string>()
+    const toggle = vi.fn((ref: string) => {
+      if (selected.has(ref)) selected.delete(ref)
+      else selected.add(ref)
+      return Promise.resolve()
+    })
+    const { panel, warnings } = setup({
+      providers,
+      editorChat: { available: () => true, selected: (ref) => selected.has(ref), toggle },
+    })
+    await send(panel, { type: 'models/scan', providerId: TEST_ENTRY.id }, () => {
+      expect(latestState(panel).models[0]?.editorChat).toBe(false)
+    })
+    const message = {
+      type: 'models/tick',
+      scope: { scope: 'editorChat' },
+      ref: 'openrouter/m1',
+      ticked: true,
+    }
+    await send(panel, message, () => {
+      expect(latestState(panel).models[0]?.editorChat).toBe(true)
+    })
+    const before = panel.webview.postMessage.mock.calls.length
+    await send(panel, message, () => {
+      expect(panel.webview.postMessage.mock.calls.length).toBeGreaterThan(before)
+    })
+    expect(toggle).toHaveBeenCalledTimes(1)
+    await send(panel, { ...message, ref: 'outside/model' }, () => {
+      expect(warnings).toHaveLength(1)
+    })
+    expect(toggle).toHaveBeenCalledTimes(1)
+  })
   it('keeps an OAuth credential bound to its issuer after an edited draft address', async () => {
     const test = vi.fn(() => Promise.resolve({ kind: 'ok' as const, models: 1 }))
     const { providers } = testProvidersHost({
@@ -201,12 +243,7 @@ describe('Models host contract', () => {
     expect(await providers.providers()).toEqual([])
   })
   it('pins and ticks provider models through top-level messages', async () => {
-    const { providers } = testProvidersHost({
-      deps: {
-        store: memoryProvidersStore([{ ...TEST_ENTRY, models: ['m1'] }]),
-        fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
-      },
-    })
+    const { providers } = selectedProviders()
     const { panel } = setup({ providers })
     await send(panel, { type: 'models/scan', providerId: TEST_ENTRY.id }, () => {
       expect(latestState(panel).models).toHaveLength(1)

@@ -5378,5 +5378,13 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  }
+  },
+  "editorChatTitle": "Chat de l’éditeur",
+  "editorChatModel": "Proposer {model} au chat de l’éditeur",
+  "editorChatRefused": "Requête du chat de l’éditeur refusée. Vérifiez l’activation du modèle, les prix connus, les limites de jetons, la confiance dans l’espace de travail et le budget quotidien.",
+  "editorChatEnable": "Activer",
+  "editorChatBudgetPrompt": "Saisissez un budget quotidien positif en USD, partagé entre tous les modèles et fenêtres de l’éditeur.",
+  "editorChatRates": "{input} en entrée / {output} en sortie par million de jetons",
+  "editorChatConsent": "Proposer {model} au chat de l’éditeur ? {rates}. Toutes les extensions installées peuvent appeler ce modèle avec votre clé. Plafond quotidien partagé : {cap}. Les appels interrompus conservent leur réservation. L’abonnement ne paie rien de cela.",
+  "referenceEditorChat": "Activez les modèles choisis tarifés ou locaux dans le chat de VS Code avec un plafond quotidien partagé en USD ; les appels apparaissent dans Utilisation et coût. Nécessite VS Code 1.104+ et un espace de travail fiable et non confidentiel."
 }

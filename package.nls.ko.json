@@ -250,5 +250,7 @@
   "config.reports.network.enumDescriptions.always": "보고서의 네트워크 출처를 허용합니다.",
   "config.reports.network.enumDescriptions.off": "로컬 출처만 읽습니다.",
   "config.reports.keepHistory.description": "기록 및 비교를 위해 이 컴퓨터에 유형별로 최신 보고서 50개를 보관합니다.",
-  "config.reports.agentSources.description": "자신의 Claude Code 또는 Codex 사용량 및 한도 파일 읽기를 허용합니다. 기본값은 없음입니다. 대화 본문과 자격 증명 파일은 보고서 출처로 읽지 않습니다."
+  "config.reports.agentSources.description": "자신의 Claude Code 또는 Codex 사용량 및 한도 파일 읽기를 허용합니다. 기본값은 없음입니다. 대화 본문과 자격 증명 파일은 보고서 출처로 읽지 않습니다.",
+  "config.editorChatModels.description": "편집기 채팅에 명시적으로 제공하는 모델 참조입니다. 설치된 모든 확장 기능이 이 모델을 통해 제공자 키로 비용을 발생시킬 수 있습니다. 기본적으로 꺼져 있으며 알려진 가격 또는 로컬 모델과 양수의 일일 한도가 필요합니다. 모델 및 에이전트에서 설정하세요.",
+  "config.editorChatDailyBudgetUsd.description": "노출된 모델과 모든 편집기 창이 공유하는 일일 USD 한도입니다. 0은 요청을 비활성화합니다. 중단된 호출은 예약 비용을 유지합니다. 모델 및 에이전트에서 모델을 활성화할 때 설정하세요."
 }

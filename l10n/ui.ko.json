@@ -5072,5 +5072,13 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  }
+  },
+  "editorChatTitle": "편집기 채팅",
+  "editorChatModel": "편집기 채팅에 {model} 제공",
+  "editorChatRefused": "편집기 채팅 요청이 거부되었습니다. 모델 활성화, 알려진 가격, 토큰 제한, 작업 영역 신뢰 및 일일 예산을 확인하세요.",
+  "editorChatEnable": "활성화",
+  "editorChatBudgetPrompt": "모든 모델과 편집기 창이 공유할 양수의 일일 예산을 USD로 입력하세요.",
+  "editorChatRates": "토큰 백만 개당 입력 {input} / 출력 {output}",
+  "editorChatConsent": "편집기 채팅에 {model}을 제공할까요? {rates}. 설치된 모든 확장 기능이 사용자의 키로 이 모델을 호출할 수 있습니다. 공유 일일 한도: {cap}. 중단된 호출은 예약 금액을 유지합니다. 구독은 이 비용을 지불하지 않습니다.",
+  "referenceEditorChat": "가격이 알려진 모델 또는 로컬 모델을 공유 일일 USD 한도 아래에서 VS Code 채팅에 제공하세요. 호출은 사용량 및 비용에 표시됩니다. VS Code 1.104 이상과 신뢰할 수 있는 비기밀 작업 영역이 필요합니다."
 }

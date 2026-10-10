@@ -13,6 +13,9 @@ import { DataTable, type DataColumn } from './components/DataTable'
 import { FilterBar } from './components/FilterBar'
 import { ScanStatus } from './components/ScanStatus'
 import type { SectionProps } from './sections'
+import { deferred } from '../components/DeferredSurface'
+
+const EditorChatToggle = deferred(() => import('./EditorChatToggle'))
 
 function PriceNote({ priceNote }: { readonly priceNote: ModelPriceNote }) {
   switch (priceNote) {
@@ -146,6 +149,7 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
             >
               {row.label ?? row.modelId}
               <RowBadges row={row} />
+              {row.editorChat !== undefined && <EditorChatToggle row={row} post={post} />}
             </span>,
             <span key="context">{contextCell(row)}</span>,
             <span key="input">

@@ -33,6 +33,9 @@ export interface ModelsPanelMemento {
 }
 
 export interface ModelsPanelHostDeps {
+  readonly editorChat?:
+    | { available(): boolean; selected(ref: string): boolean; toggle(ref: string): Promise<void> }
+    | undefined
   readonly connectChatGpt?: () => Promise<void>
   readonly connectCopilot?: () => Promise<void>
   readonly removeSubscription?: (id: string) => Promise<void>
@@ -308,6 +311,7 @@ export function createModelsPanelFeatures(
         l10n: host.l10n,
         log: host.log,
         providers,
+        editorChat: host.editorChat,
         connectChatGpt: host.connectChatGpt,
         connectCopilot: host.connectCopilot,
         removeSubscription: host.removeSubscription,

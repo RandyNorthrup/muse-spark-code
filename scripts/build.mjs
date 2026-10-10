@@ -199,6 +199,8 @@ const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
+const EDITOR_CHAT_ENTRY = 'src/host/models/lmProviderEntry.ts'
+const EDITOR_CHAT_OUTFILE = 'dist/editorChat.js'
 const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
 const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
 const USAGE_SERVICE_ENTRY = 'src/runtime/usage/usageServiceEntry.ts'
@@ -679,6 +681,13 @@ const modelsPanelOptions = {
   external: ['vscode'],
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const editorChatOptions = {
+  ...modelsPanelOptions,
+  entryPoints: [EDITOR_CHAT_ENTRY],
+  outfile: EDITOR_CHAT_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1240,6 +1249,7 @@ if (isWatch) {
     esbuild.context(mcpVaultOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
+    esbuild.context(editorChatOptions),
     esbuild.context(usageServiceOptions),
     esbuild.context(headlessOptions),
     esbuild.context(usageCompanionOptions),
@@ -1354,6 +1364,7 @@ if (isWatch) {
     mcpVault: esbuild.build(mcpVaultOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     modelsPanel: esbuild.build(modelsPanelOptions),
+    editorChat: esbuild.build(editorChatOptions),
     usageService: esbuild.build(usageServiceOptions),
     usageCompanion: esbuild.build(usageCompanionOptions),
     usagePanel: esbuild.build(usagePanelOptions),

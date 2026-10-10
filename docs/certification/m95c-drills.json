@@ -1,0 +1,220 @@
+{
+  "date": "2026-10-10",
+  "rig": "win11",
+  "attempts": 0,
+  "paidCalls": 0,
+  "drills": [
+    {
+      "name": "engine-absent",
+      "file": "src/host/models/lmProvider.ts",
+      "sha256": "bb16b1f2dd34f061a3ea4e3838adf3754c9559e5e9a233cc649630068fff49c1",
+      "exit": 1,
+      "expected": "27 failed",
+      "byteExactRestored": true,
+      "witnesses": [
+        "Tests  27 failed (27)",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > uses the native Meta model reference and supported reasoning effort",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > keeps completed calls tallied when durable settlement throws",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > cancels an active caller on provider disposal without waiting for another chunk",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > honours a cap lowered while reservation is being written, before dispatch",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > reports provider-truncated completion as incomplete and settles its usage",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > withdraws and refuses unpriced models before dispatch",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > withdraws and refuses plan models before dispatch",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > refuses invalid selected before reserving or dispatching",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > refuses invalid cap before reserving or dispatching",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > refuses invalid allowed before reserving or dispatching",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > refuses invalid current before reserving or dispatching",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > refuses invalid limits before reserving or dispatching",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > offers only the chosen model with its own limits and capabilities, counts offline",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > streams text, settles actual usage, records exactly one vscodeChat call",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > blocks at the cap before sending, including concurrent windows",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > serves local models at zero cost with a positive configured cap",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > retains liability for interrupted or retrying dispatch and records failure once",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > fails closed on corrupt durable history",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > settles a pre-midnight reservation into its original day",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > cancels dispatched work, retains liability and removes listeners",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > rechecks opt-in at dispatch and rolls back an unsent reservation",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > converts tools, calls, results and image data through the captured transport seam",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > rejects unsupported message content before dispatch",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > rejects unsupported message content before dispatch",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > requires priced consent before persisting opt-in and asks for a missing cap",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > dismissed consent leaves the model off",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > keeps activation lazy, registers a fake vscode.lm caller only after opt-in"
+      ]
+    },
+    {
+      "name": "cap-bypass",
+      "file": "src/host/models/lmProvider.ts",
+      "sha256": "bb16b1f2dd34f061a3ea4e3838adf3754c9559e5e9a233cc649630068fff49c1",
+      "exit": 1,
+      "expected": "blocks at the cap before sending, including concurrent windows",
+      "byteExactRestored": true,
+      "witnesses": [
+        "Tests  2 failed | 25 passed (27)",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > honours a cap lowered while reservation is being written, before dispatch",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > blocks at the cap before sending, including concurrent windows"
+      ]
+    },
+    {
+      "name": "tally-omitted",
+      "file": "src/host/models/lmProvider.ts",
+      "sha256": "bb16b1f2dd34f061a3ea4e3838adf3754c9559e5e9a233cc649630068fff49c1",
+      "exit": 1,
+      "expected": "streams text, settles actual usage, records exactly one vscodeChat call",
+      "byteExactRestored": true,
+      "witnesses": [
+        "Tests  8 failed | 19 passed (27)",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > keeps completed calls tallied when durable settlement throws",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > cancels an active caller on provider disposal without waiting for another chunk",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > reports provider-truncated completion as incomplete and settles its usage",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > streams text, settles actual usage, records exactly one vscodeChat call",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > serves local models at zero cost with a positive configured cap",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > retains liability for interrupted or retrying dispatch and records failure once",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > cancels dispatched work, retains liability and removes listeners",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > keeps activation lazy, registers a fake vscode.lm caller only after opt-in"
+      ]
+    },
+    {
+      "name": "row-bypasses-price",
+      "file": "src/webview/models/EditorChatToggle.tsx",
+      "sha256": "2530a2230e53b2b3a8c7d117772369b69d8f2fa0ea3f58cbb0aebf70fa643856",
+      "exit": 1,
+      "expected": "disables editor-chat opt-in for unpriced or unselected models",
+      "byteExactRestored": true,
+      "witnesses": [
+        "Tests  1 failed | 21 passed (22)",
+        "FAIL  test/unit/modelsPanelSections.test.tsx > disables editor-chat opt-in for unpriced or unselected models"
+      ]
+    },
+    {
+      "name": "row-denies-revoke",
+      "file": "src/webview/models/EditorChatToggle.tsx",
+      "sha256": "2530a2230e53b2b3a8c7d117772369b69d8f2fa0ea3f58cbb0aebf70fa643856",
+      "exit": 1,
+      "expected": "keeps revocation available after an opted-in model is unselected or loses its price",
+      "byteExactRestored": true,
+      "witnesses": [
+        "Tests  2 failed | 20 passed (22)",
+        "FAIL  test/unit/modelsPanelSections.test.tsx > offers the editor-chat toggle only on hosts with the provider API and posts the model reference",
+        "FAIL  test/unit/modelsPanelSections.test.tsx > keeps revocation available after an opted-in model is unselected or loses its price"
+      ]
+    },
+    {
+      "name": "row-wrong-intent",
+      "file": "src/webview/models/EditorChatToggle.tsx",
+      "sha256": "2530a2230e53b2b3a8c7d117772369b69d8f2fa0ea3f58cbb0aebf70fa643856",
+      "exit": 1,
+      "expected": "offers the editor-chat toggle only on hosts with the provider API and posts the model reference",
+      "byteExactRestored": true,
+      "witnesses": [
+        "Tests  1 failed | 21 passed (22)",
+        "FAIL  test/unit/modelsPanelSections.test.tsx > offers the editor-chat toggle only on hosts with the provider API and posts the model reference"
+      ]
+    },
+    {
+      "name": "host-toggle-repeat",
+      "file": "src/host/models/modelsPanel.ts",
+      "sha256": "fd219b6a5be8c882e886e29a29aae5b0c00590e0feb7459b3e2f75a3f664215e",
+      "exit": 1,
+      "expected": "sets editor-chat exposure idempotently and refuses references outside visible rows",
+      "byteExactRestored": true,
+      "witnesses": [
+        "Tests  1 failed | 9 passed (10)",
+        "FAIL  test/unit/modelsPanel.test.ts > Models host contract > sets editor-chat exposure idempotently and refuses references outside visible rows"
+      ]
+    },
+    {
+      "name": "boundary-wrong-type",
+      "file": "src/shared/modelsPanel.ts",
+      "sha256": "2405a7eae6590fbc408756a6ad662318c6854505daca28af97fa488a3a619ec8",
+      "exit": 1,
+      "expected": "FAIL",
+      "byteExactRestored": true,
+      "witnesses": [
+        "Tests  1 failed | 11 passed (12)",
+        "FAIL  test/unit/modelsPanelSchemas.test.ts > modelsPanel schemas > parses every panel-to-host message"
+      ]
+    },
+    {
+      "name": "control-budget",
+      "file": "scripts/check-bundle-size.mjs",
+      "sha256": "ffd4cc74dd6fe565fe86b3652c9afe9b520ca1b8eacef24574492202e34970e2",
+      "exit": 1,
+      "expected": "OVER editor chat controls",
+      "byteExactRestored": true,
+      "witnesses": ["OVER editor chat controls: 0.6 KiB (budget 0 KiB)"]
+    },
+    {
+      "name": "engine-at-startup",
+      "file": "dist/meta/extension.json",
+      "sha256": "66587f883ddd0ebf148311b235079baf6caa19a906cade8c4ba0674c352dbb10",
+      "exit": 1,
+      "expected": "src/host/models/lmProvider.ts",
+      "byteExactRestored": true,
+      "witnesses": [
+        "dist/extension.js carries src/host/models/lmProvider.ts, which loads only on the first exposed editor model"
+      ]
+    },
+    {
+      "name": "usage-ledger-crossed",
+      "file": "src/host/usage/usagePanelEntry.ts",
+      "sha256": "863bfa22818281855ec13041200e382037dcfe428a560fc50e1078f5b039ee17",
+      "exit": 1,
+      "expected": "shows editor-chat retained liability and its independent cap even with history off",
+      "byteExactRestored": true,
+      "witnesses": [
+        "Tests  1 failed | 9 passed (10)",
+        "FAIL  test/unit/usagePanel.test.ts > UsagePanel > shows editor-chat retained liability and its independent cap even with history off"
+      ]
+    },
+    {
+      "name": "unpriced-exposed",
+      "file": "src/host/models/lmProvider.ts",
+      "sha256": "bb16b1f2dd34f061a3ea4e3838adf3754c9559e5e9a233cc649630068fff49c1",
+      "exit": 1,
+      "expected": "withdraws and refuses",
+      "byteExactRestored": true,
+      "witnesses": [
+        "Tests  2 failed | 25 passed (27)",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > withdraws and refuses unpriced models before dispatch",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > withdraws and refuses plan models before dispatch"
+      ]
+    },
+    {
+      "name": "zero-cap-exposed",
+      "file": "src/host/models/lmProviderBundle.ts",
+      "sha256": "3472e3d8068835357983dd61e1a9d4043c36b29e110818062b7fe5e79aac0fe4",
+      "exit": 1,
+      "expected": "keeps activation lazy, registers a fake vscode.lm caller only after opt-in",
+      "byteExactRestored": true,
+      "witnesses": [
+        "Tests  1 failed | 26 passed (27)",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > keeps activation lazy, registers a fake vscode.lm caller only after opt-in"
+      ]
+    },
+    {
+      "name": "cap-change-ignored",
+      "file": "src/host/models/lmProviderBundle.ts",
+      "sha256": "3472e3d8068835357983dd61e1a9d4043c36b29e110818062b7fe5e79aac0fe4",
+      "exit": 1,
+      "expected": "keeps activation lazy, registers a fake vscode.lm caller only after opt-in",
+      "byteExactRestored": true,
+      "witnesses": [
+        "Tests  1 failed | 26 passed (27)",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > keeps activation lazy, registers a fake vscode.lm caller only after opt-in"
+      ]
+    },
+    {
+      "name": "tool-schema-omitted",
+      "file": "src/host/models/lmProvider.ts",
+      "sha256": "e82e0fe2227b248cd32a3ce07d4934e210decebdc28905ba29b9d126f7ae2244",
+      "exit": 1,
+      "expected": "converts tools, calls, results and image data through the captured transport seam",
+      "byteExactRestored": true,
+      "witnesses": [
+        "Tests  1 failed | 26 passed (27)",
+        "FAIL  test/unit/lmProvider.test.ts > editor chat exposure and admission > converts tools, calls, results and image data through the captured transport seam"
+      ]
+    }
+  ]
+}

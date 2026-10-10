@@ -250,5 +250,7 @@
   "config.reports.network.enumDescriptions.always": "Permitir fontes de rede para relatórios.",
   "config.reports.network.enumDescriptions.off": "Ler apenas fontes locais.",
   "config.reports.keepHistory.description": "Manter os 50 relatórios mais recentes de cada tipo neste computador para histórico e comparação.",
-  "config.reports.agentSources.description": "Permitir a leitura dos seus próprios arquivos de uso e limites do Claude Code ou Codex. Padrão: nenhum. O texto das conversas e arquivos de credenciais nunca são lidos como fontes de relatórios."
+  "config.reports.agentSources.description": "Permitir a leitura dos seus próprios arquivos de uso e limites do Claude Code ou Codex. Padrão: nenhum. O texto das conversas e arquivos de credenciais nunca são lidos como fontes de relatórios.",
+  "config.editorChatModels.description": "Referências de modelos oferecidos explicitamente ao chat do editor. Qualquer extensão instalada pode gastar com sua chave do provedor por meio desses modelos. Desativado por padrão; requer preços conhecidos ou modelos locais e um limite diário positivo. Configure em Modelos e agentes.",
+  "config.editorChatDailyBudgetUsd.description": "Limite diário em USD compartilhado pelos modelos expostos e por todas as janelas do editor. Zero desativa solicitações. Chamadas interrompidas mantêm o custo reservado. Defina ao ativar um modelo em Modelos e agentes."
 }

@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Editor chat models** (M95c part 2). Explicitly offer priced or local models
+  to VS Code-family chat callers under a machine-scoped daily USD cap. The
+  Models section confirms rates and caller access before opt-in; durable
+  cross-window reservations, cancellation and M102 usage accounting share
+  the existing captured transports. Default off, lazy, and refused in
+  untrusted or confidential workspaces. Other editors remain C-M95c-8.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

@@ -250,5 +250,7 @@
   "config.reports.network.enumDescriptions.always": "Hálózati források engedélyezése a jelentésekhez.",
   "config.reports.network.enumDescriptions.off": "Csak helyi források olvasása.",
   "config.reports.keepHistory.description": "A legújabb 50 jelentés megőrzése típusonként ezen a gépen az előzményekhez és összevetéshez.",
-  "config.reports.agentSources.description": "Saját Claude Code vagy Codex használati és korlátfájlok olvasásának engedélyezése. Alapérték: nincs. Beszélgetésszöveget és hitelesítőadat-fájlokat soha nem olvas jelentésforrásként."
+  "config.reports.agentSources.description": "Saját Claude Code vagy Codex használati és korlátfájlok olvasásának engedélyezése. Alapérték: nincs. Beszélgetésszöveget és hitelesítőadat-fájlokat soha nem olvas jelentésforrásként.",
+  "config.editorChatModels.description": "A szerkesztői csevegésnek kifejezetten felkínált modellek hivatkozásai. Bármely telepített bővítmény költhet a szolgáltatói kulcsával ezen modelleken keresztül. Alapból kikapcsolva; ismert árak vagy helyi modellek és pozitív napi korlát szükséges. Beállítás a Modellek és ügynökök részben.",
+  "config.editorChatDailyBudgetUsd.description": "Napi USD-korlát a felkínált modellek és minden szerkesztőablak számára közösen. A nulla letiltja a kéréseket. A megszakított hívások megtartják a lefoglalt költséget. A modell engedélyezésekor állítsa be a Modellek és ügynökök részben."
 }

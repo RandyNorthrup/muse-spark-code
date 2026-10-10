@@ -5072,5 +5072,13 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  }
+  },
+  "editorChatTitle": "编辑器聊天",
+  "editorChatModel": "向编辑器聊天提供 {model}",
+  "editorChatRefused": "编辑器聊天请求被拒绝。请检查模型启用状态、已知价格、令牌限制、工作区信任和每日预算。",
+  "editorChatEnable": "启用",
+  "editorChatBudgetPrompt": "请输入所有模型和编辑器窗口共享的正数每日美元预算。",
+  "editorChatRates": "每百万令牌输入 {input} / 输出 {output}",
+  "editorChatConsent": "向编辑器聊天提供 {model}？{rates}。所有已安装的扩展都可使用您的密钥调用此模型。共享每日上限：{cap}。中断的调用保留预留金额。订阅不承担这些费用。",
+  "referenceEditorChat": "将选定的已定价或本地模型提供给 VS Code 聊天，并使用共享每日美元上限；调用会显示在使用量与费用中。需要 VS Code 1.104+ 以及受信任的非机密工作区。"
 }

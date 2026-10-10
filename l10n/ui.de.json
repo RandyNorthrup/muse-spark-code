@@ -5225,5 +5225,13 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  }
+  },
+  "editorChatTitle": "Editor-Chat",
+  "editorChatModel": "{model} im Editor-Chat anbieten",
+  "editorChatRefused": "Editor-Chat-Anfrage abgelehnt. Prüfen Sie Modellfreigabe, bekannte Preise, Tokenlimits, Arbeitsbereichsvertrauen und Tagesbudget.",
+  "editorChatEnable": "Aktivieren",
+  "editorChatBudgetPrompt": "Geben Sie ein positives Tagesbudget in USD für alle Modelle und Editorfenster ein.",
+  "editorChatRates": "{input} Eingabe / {output} Ausgabe pro Million Tokens",
+  "editorChatConsent": "{model} im Editor-Chat anbieten? {rates}. Alle installierten Erweiterungen können dieses Modell mit Ihrem Schlüssel aufrufen. Gemeinsames Tageslimit: {cap}. Unterbrochene Aufrufe behalten ihre Reservierung. Das Abonnement bezahlt nichts davon.",
+  "referenceEditorChat": "Gewählte bepreiste oder lokale Modelle für VS Code Chat mit gemeinsamem USD-Tageslimit freigeben; Aufrufe erscheinen unter Nutzung und Kosten. Erfordert VS Code 1.104+ und einen vertrauenswürdigen, nicht vertraulichen Arbeitsbereich."
 }

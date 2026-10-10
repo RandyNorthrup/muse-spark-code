@@ -250,5 +250,7 @@
   "config.reports.network.enumDescriptions.always": "允許報告使用網路來源。",
   "config.reports.network.enumDescriptions.off": "僅讀取本機來源。",
   "config.reports.keepHistory.description": "在此電腦上保留每種類型最新的 50 份報告，供歷程記錄和比較使用。",
-  "config.reports.agentSources.description": "選擇讀取您自己的 Claude Code 或 Codex 用量和限制檔案。預設不啟用任何來源。絕不將對話本文與認證資料檔案作為報告來源讀取。"
+  "config.reports.agentSources.description": "選擇讀取您自己的 Claude Code 或 Codex 用量和限制檔案。預設不啟用任何來源。絕不將對話本文與認證資料檔案作為報告來源讀取。",
+  "config.editorChatModels.description": "明確提供給編輯器聊天的模型參照。任何已安裝的擴充功能都可透過這些模型使用您的供應商金鑰產生費用。預設關閉；需要已知價格或本機模型以及正數每日上限。請在模型與代理程式中設定。",
+  "config.editorChatDailyBudgetUsd.description": "所提供模型及所有編輯器視窗共用的每日美元上限。零停用請求。中斷的呼叫保留預留費用。在模型與代理程式中啟用模型時設定此上限。"
 }

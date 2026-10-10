@@ -70,6 +70,21 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "editor-chat",
+      "name": { "ui": "editorChatTitle" },
+      "summary": { "ui": "referenceEditorChat" },
+      "description": { "ui": "referenceEditorChat" },
+      "commands": ["museSpark.modelsAndAgents"],
+      "settings": ["museSpark.editorChatModels", "museSpark.editorChatDailyBudgetUsd"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#editor-chat",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
       "id": "reports",
       "name": { "ui": "reportShowCommand" },
       "summary": { "ui": "reportSlashDescription" },
@@ -4383,6 +4398,33 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": false }
+    },
+    {
+      "id": "museSpark.editorChatModels",
+      "name": "museSpark.editorChatModels",
+      "description": "Model references explicitly offered to editor chat. Any installed extension can spend your provider key through these models. Off by default; requires known prices or local models and a positive daily cap. Configure from Models & Agents.",
+      "descriptionKey": "config.editorChatModels.description",
+      "type": "array",
+      "default": [],
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "array", "items": { "type": "string" }, "default": [] }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "editorChatCap", "text": { "setting": "editorChatDailyBudgetUsd" } }
+        ]
+      },
+      "id": "museSpark.editorChatDailyBudgetUsd",
+      "name": "museSpark.editorChatDailyBudgetUsd",
+      "description": "Daily USD cap shared by exposed models and all editor windows. Zero disables requests. Interrupted calls retain reserved cost. Set this cap when enabling a model in Models & Agents.",
+      "descriptionKey": "config.editorChatDailyBudgetUsd.description",
+      "type": "number",
+      "default": 0,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 0, "minimum": 0 }
     }
   ],
   "slash": [

@@ -74,27 +74,49 @@ export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsageP
           readBudgets: async () => {
             const budgets = (await deps.live?.readBudgets()) ?? []
             if (deps.budgetStorageFolder === undefined) return budgets
-            const ledger = createTabLedger({
-              directory: path.join(deps.budgetStorageFolder, 'tab-spend'),
-              windowId: 'usage-reader',
-              now: Date.now,
-              sleep: () => Promise.resolve(),
-              log: deps.log,
-            })
-            const total = await ledger.todayUsage()
-            if (!total.ok) throw new Error('usageTabLedgerUnavailable')
-            const capUsd = vscode.workspace
-              .getConfiguration(SETTINGS_SECTION)
-              .get<number>('tabDailyBudgetUsd', TAB_DAILY_BUDGET_DEFAULT_USD)
-            const resets = new Date()
-            resets.setHours(0, 0, 0, 0)
-            resets.setDate(resets.getDate() + 1)
-            return [
-              ...budgets,
+            const result = [...budgets]
+            const sources: readonly {
+              folder: string
+              setting: string
+              fallback: number
+              id: string
+              kind: 'tabDaily' | 'vscodeChatDaily'
+            }[] = [
               {
+                folder: 'tab-spend',
+                setting: 'tabDailyBudgetUsd',
+                fallback: TAB_DAILY_BUDGET_DEFAULT_USD,
+                id: 'tab-daily',
+                kind: 'tabDaily',
+              },
+              {
+                folder: 'editor-chat-spend',
+                setting: 'editorChatDailyBudgetUsd',
+                fallback: 0,
+                id: 'editor-chat-daily',
+                kind: 'vscodeChatDaily',
+              },
+            ]
+            for (const source of sources) {
+              const ledger = createTabLedger({
+                directory: path.join(deps.budgetStorageFolder, source.folder),
+                windowId: 'usage-reader',
+                now: Date.now,
+                sleep: () => Promise.resolve(),
+                log: deps.log,
+              })
+              const total = await ledger.todayUsage()
+              if (!total.ok) throw new Error('usageDailyLedgerUnavailable')
+              const capUsd = vscode.workspace
+                .getConfiguration(SETTINGS_SECTION)
+                .get<number>(source.setting, source.fallback)
+              const resets = new Date()
+              resets.setHours(0, 0, 0, 0)
+              resets.setDate(resets.getDate() + 1)
+              result.push({
                 budget: {
-                  id: 'tab-daily',
-                  kind: 'tabDaily' as const,
+                  id: source.id,
+                  kind: source.kind,
                   capUsd,
                   spentUsd: Number(total.totalUsd),
                   stopped: Usd.from(total.totalUsd).compare(Usd.from(capUsd)) >= 0,
@@ -103,8 +125,9 @@ export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsageP
                     uncertainUsd: Number(total.uncertainUsd),
                   }),
                 },
-              },
-            ]
+              })
+            }
+            return result
           },
         },
       }),

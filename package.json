@@ -1685,6 +1685,22 @@
           "default": false,
           "description": "%config.estimator.priceLookup.description%",
           "scope": "machine"
+        },
+        "museSpark.editorChatModels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "machine",
+          "markdownDescription": "%config.editorChatModels.description%"
+        },
+        "museSpark.editorChatDailyBudgetUsd": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "scope": "machine",
+          "markdownDescription": "%config.editorChatDailyBudgetUsd.description%"
         }
       }
     },
@@ -1749,6 +1765,12 @@
             ]
           }
         ]
+      }
+    ],
+    "languageModelChatProviders": [
+      {
+        "vendor": "muse-spark-code",
+        "displayName": "%displayName%"
       }
     ]
   },

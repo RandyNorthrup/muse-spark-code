@@ -49,6 +49,7 @@ const UI_CONDITIONS: Readonly<
   mcpRestartDetail: 'turnState',
 }
 const NLS_CONDITIONS: Readonly<Partial<Record<string, string>>> = {
+  'config.editorChatDailyBudgetUsd.description': 'editorChatCap',
   'config.reports.network.enumDescriptions.whenSignedIn': 'reportsNetwork&githubSignIn',
   'config.backend.enumDescriptions.auto': 'backendAvailability',
   'config.resourceRelocate.enumDescriptions.paired': 'resourceRelocation',
@@ -79,6 +80,7 @@ const SETTING_CONDITIONS: Readonly<
   sandboxNetwork: 'shellSandbox',
   browserCheckExtraHosts: 'browserNetworkAdmission',
   notifyOnBackgroundTurn: 'turnState&windowFocus',
+  editorChatDailyBudgetUsd: 'editorChatCap',
   modelApiSessionBudgetUsd: 'sessionBudget',
 
   modelApiObservationPacking: 'conversationStart',
@@ -317,6 +319,17 @@ export function featureCatalog(): readonly Feature[] {
       ['museCode', 'modelApi'],
       false,
       ['vscode', 'acp'],
+    ),
+    feature(
+      'editor-chat',
+      { ui: 'editorChatTitle' },
+      { ui: 'referenceEditorChat' },
+      ['modelsAndAgents'],
+      ['editorChatModels', 'editorChatDailyBudgetUsd'],
+      'editor-chat',
+      ['museCode', 'modelApi'],
+      true,
+      ['vscode'],
     ),
     feature(
       'reports',

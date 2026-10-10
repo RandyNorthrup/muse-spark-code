@@ -250,5 +250,7 @@
   "config.reports.network.enumDescriptions.always": "Povolit síťové zdroje zpráv.",
   "config.reports.network.enumDescriptions.off": "Číst pouze místní zdroje.",
   "config.reports.keepHistory.description": "Uchovávat na tomto počítači nejnovějších 50 zpráv každého druhu pro historii a porovnání.",
-  "config.reports.agentSources.description": "Volitelně číst vlastní soubory využití a limitů Claude Code nebo Codex. Výchozí: žádné. Text konverzací a soubory přihlašovacích údajů se nikdy nečtou jako zdroje zpráv."
+  "config.reports.agentSources.description": "Volitelně číst vlastní soubory využití a limitů Claude Code nebo Codex. Výchozí: žádné. Text konverzací a soubory přihlašovacích údajů se nikdy nečtou jako zdroje zpráv.",
+  "config.editorChatModels.description": "Reference modelů výslovně nabízených chatu editoru. Libovolné nainstalované rozšíření může přes tyto modely utrácet pomocí vašeho klíče poskytovatele. Ve výchozím stavu vypnuto; vyžaduje známé ceny nebo místní modely a kladný denní limit. Nastavte v Modelech a agentech.",
+  "config.editorChatDailyBudgetUsd.description": "Denní limit v USD společný pro nabízené modely a všechna okna editoru. Nula zakazuje požadavky. Přerušená volání ponechají rezervované náklady. Nastavte při povolování modelu v Modelech a agentech."
 }
