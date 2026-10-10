@@ -338,6 +338,102 @@ describe('each system’s own mechanism keeps untrusted runs from the credential
   })
 })
 
+describe('Azure expressions use only documented syntax (RVCM80CI4 P1)', () => {
+  // https://learn.microsoft.com/en-us/azure/devops/pipelines/process/expressions?view=azure-devops
+  // documents format()'s date specifiers (yyyy, yy, MM, M, dd, d, HH, H, m,
+  // mm, ss, s, f, ff, ffff, K) with the example
+  // format('{0:yyyyMMdd}', pipeline.startTime), where pipeline.startTime is
+  // "a special date time object variable" in UTC. Separators stay outside
+  // the {index:specifier} items; anything else inside one item (as in
+  // {0:yyyy-MM-ddTHH:mm:ss.fffZ}) is not a documented form and the pipeline
+  // rejects it, leaving the launcher without a vendor start.
+  const DOCUMENTED_SPECIFIERS = new Set([
+    'yyyy',
+    'ffff',
+    'yy',
+    'MM',
+    'dd',
+    'HH',
+    'mm',
+    'ss',
+    'ff',
+    'M',
+    'd',
+    'H',
+    'm',
+    's',
+    'f',
+    'K',
+  ])
+  // Every function and dotted variable the template's runtime ($[]) and
+  // condition expressions use, each documented on the same page.
+  const DOCUMENTED_EXPRESSION_WORDS = new Set([
+    'format',
+    'and',
+    'or',
+    'ne',
+    'eq',
+    'succeeded',
+    'always',
+    'variables',
+    'pipeline',
+    'startTime',
+  ])
+
+  it('the pipeline-start variable formats with documented specifiers only', () => {
+    const line = templateText('azure')
+      .split('\n')
+      .find((text) => text.includes('MUSE_CI_PIPELINE_STARTED_AT:'))
+    const expression = /\$\[(.*)\]/.exec(line ?? '')?.[1] ?? ''
+    expect(expression).toContain('pipeline.startTime')
+    const formatString = /format\('([^']*)'/.exec(expression)?.[1] ?? ''
+    expect(formatString).not.toBe('')
+    const items = formatString.match(/\{\d+:([^}]*)\}/g) ?? []
+    const specs = items.map((item) => {
+      const spec = /\{\d+:([^}]*)\}/.exec(item)?.[1]
+      if (spec === undefined) throw new Error('expected a format specifier')
+      return spec
+    })
+    expect(specs.length).toBeGreaterThan(0)
+    for (const spec of specs) expect(DOCUMENTED_SPECIFIERS, spec).toContain(spec)
+    // Only ISO separators live outside the items.
+    expect(formatString.replaceAll(/\{\d+:[^}]*\}/g, '')).toMatch(/^[-T:Z]+$/)
+    // The whole date and clock ship, so the launcher reads real vendor time.
+    for (const spec of ['yyyy', 'MM', 'dd', 'HH', 'mm', 'ss']) {
+      expect(specs, spec).toContain(spec)
+    }
+    // What the template emits parses as the launcher parses it.
+    const digits: Record<string, string> = {
+      yyyy: '2026',
+      MM: '10',
+      dd: '10',
+      HH: '07',
+      mm: '08',
+      ss: '09',
+    }
+    const sample = formatString.replaceAll(
+      /\{\d+:([^}]*)\}/g,
+      (_, spec: string) => digits[spec] ?? '',
+    )
+    expect(sample).toBe('2026-10-10T07:08:09Z')
+    expect(Number.isFinite(Date.parse(sample))).toBe(true)
+  })
+
+  it('every Azure runtime and condition expression uses documented words only', () => {
+    const text = templateText('azure')
+    const expressions = [
+      ...text.matchAll(/\$\[(.*?)\]/g),
+      ...text.matchAll(/^\s*condition:\s*(.+)$/gm),
+    ].map((match) => match[1] ?? '')
+    expect(expressions.length).toBeGreaterThan(0)
+    for (const expression of expressions) {
+      const words = expression.replaceAll(/'[^']*'/g, '').match(/[A-Za-z][A-Za-z0-9]*/g) ?? []
+      expect(words.length).toBeGreaterThan(0)
+      for (const word of words) expect(DOCUMENTED_EXPRESSION_WORDS, word).toContain(word)
+    }
+  })
+})
+
 describe('the launcher ships in the package', () => {
   it('package-acp.mjs copies action/lib and action/prompts into ci/ and lists it in files', () => {
     expect(CI_LAUNCHER_SOURCES).toEqual([
