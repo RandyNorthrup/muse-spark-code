@@ -4239,8 +4239,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const cached = this.outputCaps.get(this.modelId)
     if (cached !== undefined) return cached
     const requested = this.deps.modelOutputMaxTokens?.(this.modelId) ?? MODEL_API_MAX_OUTPUT_TOKENS
-    if (!Number.isSafeInteger(requested) || requested < 1)
-      throw new RangeError('invalid output.maxTokens')
+    if (!Number.isSafeInteger(requested)) throw new RangeError('invalid output.maxTokens')
     const cap = outputLimitFor(this.modelPolicy(), requested)
     if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
     this.outputCaps.set(this.modelId, cap)

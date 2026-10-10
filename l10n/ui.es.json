@@ -4182,6 +4182,12 @@
   "startWithOwnModelDetail": "Añada un proveedor de modelos con una clave API y elija un modelo.",
   "setupComplete": "Ya está listo con {provider} · {model}",
   "manageProviders": "Gestionar proveedores",
+  "outputCapBelowMinimum": {
+    "one": "El límite de salida debe ser de al menos {count} token.",
+    "other": "El límite de salida debe ser de al menos {count} tokens.",
+    "many": "El límite de salida debe ser de al menos {count} tokens."
+  },
+  "referenceOutputCapMinimum": "Los límites de salida inferiores al mínimo conocido del proveedor se rechazan al guardarlos y antes de enviar. Meta exige al menos 16 tokens.",
   "modelsPanelTitle": "Modelos y agentes",
   "modelsPanelUnavailable": "Modelos y agentes no está disponible en esta compilación.",
   "providersSectionTitle": "Proveedores",

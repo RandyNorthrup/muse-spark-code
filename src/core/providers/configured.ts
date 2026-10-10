@@ -25,6 +25,7 @@ import {
   recordPlanUsage,
   metaResolvedModel,
 } from '../../host/backend/providersEntry'
+import { outputTokenMinimumMessage, providerOutputMinimum } from '../../shared/providerRouting'
 import { pinnedHttpsRequest, pinnedPostRequest } from '../../host/backend/modelApiEntry'
 import type { PinnedResponse, PinnedTarget } from '../web/webFetch'
 import type { ProviderClient } from '../backends/modelapi/client'
@@ -157,7 +158,9 @@ export function createConfiguredProviderServices(
   const read = async () => {
     const result = await providersFile.readProvidersFile(options.configFile)
     if (!result.ok) {
-      return result.reason === 'missing' ? providersFile.emptyProvidersFile() : fail()
+      if (result.reason === 'missing') return providersFile.emptyProvidersFile()
+      if (result.reason === 'invalid') throw new RangeError(result.detail)
+      return fail()
     }
     revision = digest(JSON.stringify(result.file))
     return result.file
@@ -438,7 +441,12 @@ export function createConfiguredProviderServices(
             effortLevels: capabilities.capabilityEffortLevels(record),
             maxOutputTokens:
               entry.modelLimits?.[nativeModel]?.outputTokens ?? record.output.maxTokens,
-            minOutputTokens: record.output.minTokens,
+            minOutputTokens: providerOutputMinimum(
+              entry.address,
+              nativeModel,
+              record.output.minTokens ?? 1,
+              entry.format ?? preset.format,
+            ),
             canDisableReasoning: record.reasoning.canDisable.state === 'yes',
           },
           pricing,
@@ -679,6 +687,14 @@ export function createConfiguredProviderServices(
       // UTF-8 bytes bound text tokens conservatively and include tool schemas.
       countInputTokens: (body) => Promise.resolve(Buffer.byteLength(JSON.stringify(body))),
       streamResponse: async function* (body, signal, onRetry, budget, admitAttempt, confirmed) {
+        const minimum = providerOutputMinimum(
+          entry.address,
+          native,
+          record.output.minTokens ?? 1,
+          format,
+        )
+        if (body.max_output_tokens < minimum)
+          throw new RangeError(outputTokenMinimumMessage(minimum))
         let usage: Usage | undefined
         const dispatch = { attempts: 0 }
         const observe = Object.assign(
@@ -705,7 +721,8 @@ export function createConfiguredProviderServices(
             if ('response' in event && event.response.usage != null) usage = event.response.usage
             yield event
           }
-        } catch {
+        } catch (error: unknown) {
+          if (error instanceof RangeError) throw error
           return fail()
         } finally {
           if (presets.planKeyPresetById(entry.preset) !== undefined)

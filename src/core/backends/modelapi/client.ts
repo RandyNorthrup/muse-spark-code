@@ -41,6 +41,7 @@ import type { ModelResolver } from './modelPolicy'
 import {
   type PaidFeature,
   MODEL_API_BASE_URL,
+  MODEL_API_MIN_OUTPUT_TOKENS,
   IMAGE_REQUEST_TIMEOUT_MS,
   MODEL_API_REQUEST_TIMEOUT_MS,
   UI_TEXT,
@@ -77,6 +78,7 @@ interface PaidRequestClaim {
 
 import { redactSecrets } from '../../redact'
 import { fill } from '../../../shared/l10n/text'
+import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 
 import type { PacingProvider, RequestPacer } from './pacing'
 import { fanOutPacingClass } from './subagentTools'
@@ -448,6 +450,10 @@ export class ModelApiClient implements TransportProviderClient {
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
   ): AsyncGenerator<StreamEvent> {
+    if (body.max_output_tokens < MODEL_API_MIN_OUTPUT_TOKENS) {
+      await admitAttempt?.mediaAccounting?.finish()
+      throw new RangeError(outputTokenMinimumMessage(MODEL_API_MIN_OUTPUT_TOKENS))
+    }
     if (
       confirmed !== undefined &&
       (body.model !== confirmed.modelId || !confirmed.isStillAllowed())

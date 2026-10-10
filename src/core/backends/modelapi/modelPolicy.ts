@@ -18,6 +18,7 @@ import {
 import type { ModelCapabilities } from '../../providers/capabilities'
 import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
 
+import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 import { effortLevelsFor } from '../../../shared/effort'
 import { modelApiPaidTier } from '../../../shared/paid'
 
@@ -126,7 +127,10 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
 /** The harness ceiling is separate from an unknown provider output maximum. */
 export function outputLimitFor(policy: ModelPolicy, ceiling: number): number {
   const maximum = policy.output.maxTokens
-  return maximum === undefined ? ceiling : Math.min(ceiling, maximum)
+  const cap = maximum === undefined ? ceiling : Math.min(ceiling, maximum)
+  const minimum = minOutputTokensForPolicy(policy)
+  if (cap < minimum) throw new RangeError(outputTokenMinimumMessage(minimum))
+  return cap
 }
 
 /**

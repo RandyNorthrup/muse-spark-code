@@ -654,3 +654,12 @@ describe('record-driven media', () => {
     ).toMatchObject({ content: [{ type: 'input_text' }] })
   })
 })
+
+it('names the minimum when merged provider evidence has inconsistent output bounds', () => {
+  expect(() =>
+    resolveModelCapabilities(identity, [
+      { source: { kind: 'capture' }, fields: { output: { minTokens: 16 } } },
+      { source, fields: { output: { maxTokens: 15 } } },
+    ]),
+  ).toThrow('Output cap must be at least 16 tokens.')
+})

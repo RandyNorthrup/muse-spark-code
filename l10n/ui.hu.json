@@ -4074,6 +4074,11 @@
   "startWithOwnModelDetail": "Adjon hozzá egy modellszolgáltatót API-kulccsal, és válasszon modellt.",
   "setupComplete": "Elkészült: {provider} · {model}",
   "manageProviders": "Szolgáltatók kezelése",
+  "outputCapBelowMinimum": {
+    "one": "A kimeneti korlátnak legalább {count} tokennek kell lennie.",
+    "other": "A kimeneti korlátnak legalább {count} tokennek kell lennie."
+  },
+  "referenceOutputCapMinimum": "A szolgáltató ismert minimumánál kisebb kimeneti korlátokat mentéskor és küldés előtt elutasítjuk. A Meta legalább 16 tokent követel meg.",
   "modelsPanelTitle": "Modellek és ügynökök",
   "modelsPanelUnavailable": "A Modellek és ügynökök panel ebben a buildben nem érhető el.",
   "providersSectionTitle": "Szolgáltatók",
