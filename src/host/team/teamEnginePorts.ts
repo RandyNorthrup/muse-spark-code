@@ -7,6 +7,7 @@
 // Loads with dist/team.js; the host supplies the conversation and the paths.
 
 import { execFile } from 'node:child_process'
+import { mkdir, realpath } from 'node:fs/promises'
 import {
   BYTES_PER_MIB,
   TEAM_MODEL_TEXT,
@@ -160,6 +161,24 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
   readonly merges: TeamMergePort
 } {
   const runGit = deps.runGit ?? processTeamGit(deps.platform)
+  /**
+   * The storage root as the file system resolves it: a linked profile or a
+   * temporary folder behind a link (macOS's /var) is admitted by its real path,
+   * which the copies' fence compares against.
+   */
+  let canonical: Promise<string> | undefined
+  const storage = async (): Promise<string> => {
+    canonical ??= (async () => {
+      await mkdir(deps.storageRoot, { recursive: true })
+      return await realpath(deps.storageRoot)
+    })()
+    try {
+      return await canonical
+    } catch (error: unknown) {
+      canonical = undefined
+      throw error
+    }
+  }
   const limitedUntil = new Map<string, number>()
   const repository = (): string => {
     const root = deps.repositoryRoot()
@@ -180,7 +199,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
     const baseCommit = previous?.baseCommit ?? (await resolveBaseCommit(runGit, repositoryRoot))
     const workspace =
       previous?.folder === undefined
-        ? await startTeamWorkspace(runGit, deps.storageRoot, deps.platform, {
+        ? await startTeamWorkspace(runGit, await storage(), deps.platform, {
             repositoryRoot,
             role: spec.role.role,
             taskId: spec.taskId,
@@ -290,7 +309,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       const report = teamReport(result.report, result.outcome.ceilingReached)
       if (mode === 'read-only') {
         const breach = await scratchBreach(runGit, workspace.folder)
-        await removeTeamWorkspace(runGit, repositoryRoot, deps.storageRoot, workspace.folder)
+        await removeTeamWorkspace(runGit, repositoryRoot, await storage(), workspace.folder)
         return {
           report:
             breach.length === 0
@@ -347,7 +366,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
           await removeTeamWorkspace(
             runGit,
             repositoryRoot,
-            deps.storageRoot,
+            await storage(),
             workspace.folder,
             workspace.agentsRef,
           )
@@ -407,7 +426,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         await removeTeamWorkspace(
           runGit,
           repositoryRoot,
-          deps.storageRoot,
+          await storage(),
           outcome.folder,
           outcome.agentsRef,
         )
@@ -446,7 +465,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       await removeTeamWorkspace(
         runGit,
         repository(),
-        deps.storageRoot,
+        await storage(),
         folder,
         task.outcome?.agentsRef,
       )
