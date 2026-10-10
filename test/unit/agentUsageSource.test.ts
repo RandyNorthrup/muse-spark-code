@@ -9,17 +9,13 @@ import {
   isAgentUsagePath,
   type AgentUsageFile,
 } from '../../src/core/reporting/sources/agentUsage'
-import { createReportCollector } from '../../src/core/reporting/collect'
-import { finalizeReport } from '../../src/core/reporting/render/canonical'
-import { REPORT_EMPTY_HASH } from '../../src/shared/constants'
-import { RENDERERS, REPORT_THEME } from './reportRenderFixtures'
 import {
   availableSource,
   buildSourceSnapshot,
   reportOptions,
   REPORT_FIXTURE_AS_OF,
-  unavailableSource,
 } from './helpers/reporting/snapshot'
+import { renderAllFormats, renderTestCollector, threeIndexOrders } from './helpers/reporting/render'
 import type { LocalFileIo } from '../../src/core/reporting/sources/local'
 
 // Numeric projection of the 2026-10-06 win11 capture. Ids/models are fixture values.
@@ -320,28 +316,7 @@ describe('captured, opt-in external agent usage', () => {
     // keeps a distinct key) through the production collector, finalizer and
     // all four renderers, and proves a Windows-separator selection renders
     // exactly like its normalized order.
-    const orders = [
-      [0, 1, 2],
-      [0, 2, 1],
-      [1, 0, 2],
-      [1, 2, 0],
-      [2, 0, 1],
-      [2, 1, 0],
-    ]
     const names = ['a', 'm', 'z']
-    const collect = createReportCollector({
-      finalize: (draft) =>
-        finalizeReport({
-          ...draft,
-          header: { ...draft.header, contentHash: REPORT_EMPTY_HASH },
-        }),
-      nextStepLimit: 3,
-      selections: {
-        changes: () => unavailableSource('changesRange', 'No range evidence'),
-        changeBranches: () => unavailableSource('changeBranches', 'No branch ancestry evidence'),
-        risksSinceRelease: () => unavailableSource('risksSinceRelease', 'No revision evidence'),
-      },
-    })
     const options = reportOptions('usage')
     const renderFor = async (files: readonly AgentUsageFile[]) => {
       const agentUsage = await agentUsageSource(['claudeCode'], files, clean).read(context())
@@ -382,20 +357,15 @@ describe('captured, opt-in external agent usage', () => {
           limits: [],
         }),
       })
-      const document = collect(snapshot, options)
+      const document = renderTestCollector(snapshot, options)
       expect(document.header.contentHash).toMatch(/^[a-f0-9]{64}$/u)
       return {
         source: JSON.stringify(agentUsage),
-        renders: {
-          md: RENDERERS.md(document, 'en', REPORT_THEME),
-          html: RENDERERS.html(document, 'en', REPORT_THEME),
-          json: RENDERERS.json(document, 'en', REPORT_THEME),
-          text: RENDERERS.text(document, 'en', REPORT_THEME),
-        },
+        renders: renderAllFormats(document),
       }
     }
     let expected: Awaited<ReturnType<typeof renderFor>> | undefined
-    for (const order of orders) {
+    for (const order of threeIndexOrders) {
       const files = order.map((step) => {
         const source = file('claudeCode', JSON.stringify(claude()))
         return { ...source, file: `projects/fixture/${names[step] ?? 'a'}.jsonl` }
