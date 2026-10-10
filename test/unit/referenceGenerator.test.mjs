@@ -141,6 +141,22 @@ describe('the code-derived reference gate', () => {
       }),
     ).toThrow('Missing description: museSpark.openHelp')
   })
+  it('R5-P3: the other-CI help states the launcher system dimension (RVCM80CI4 P3)', () => {
+    // The invented ciVendor&artifactTransport&secretIsolation selector named
+    // nothing the product sets. The condition now names the system dimension
+    // (gitlab/azure/jenkins/bitbucket) the launcher branches on, whose
+    // per-system states the paragraph explains.
+    const model = build()
+    const feature = model.features.find((entry) => entry.id === 'ci-other-systems')
+    if (feature === undefined) throw new Error('missing ci-other-systems feature')
+    for (const ref of [feature.summary, feature.description]) {
+      expect(ref).toEqual({ conditions: [{ when: 'system', text: { ui: 'referenceCiOther' } }] })
+    }
+    const rendered = source.referenceText(feature.summary, model, nls, source.EN)
+    expect(rendered.startsWith('system: ')).toBe(true)
+    expect(rendered).not.toContain('ciVendor')
+    expect(referenceMarkdown(model, source, nls, manifest)).toContain('system: Digest-pinned')
+  })
   it('rejects a documentation anchor that does not exist', () => {
     const features = globalThis.structuredClone(source.featureCatalog())
     features[0].docs += '-missing'

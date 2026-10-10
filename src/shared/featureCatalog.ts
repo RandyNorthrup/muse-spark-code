@@ -23,11 +23,12 @@ export type ReferenceText =
     }
 
 // Conditional descriptions must opt into a typed field, never a content heuristic.
-// Other-CI details distinguish vendor transport/isolation qualification (M80 R4).
+// The other-CI paragraph explains the launcher's per-system states (M80 R5):
+// the condition names the system dimension the launcher branches on.
 const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
-  referenceCiOther: 'ciVendor&artifactTransport&secretIsolation',
+  referenceCiOther: 'system',
   referenceScreenRecording: 'nativeRecorder=absent',
   referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
