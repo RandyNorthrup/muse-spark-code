@@ -26,7 +26,7 @@ binding they draw, by canonical value — `src/core/eval/armSources.ts`
 walks the static import graph instead of a hand-kept list, and fails
 closed on anything it cannot cover):
 
-`8e4bdefa01d029ca999267ef970c6191528bdb86f3000981a5951f733c6c227c`
+`630ffa839f8b13c3adb48ac53480e63ead2679ee322ab33af02d629d18f4fc1f`
 
 `test/unit/eval/evalFrozen.test.ts` pins the arm list, the task list and
 the digest. Any arm or task change breaks it on purpose; re-freeze by
@@ -150,15 +150,15 @@ The redesign above replaces the scanner and the by-value path wholesale;
 the old R3 drills no longer apply (there is no clause pattern, no value
 table and no `resolveRelative` left to break). Each drill below broke the
 new guard, watched the named tests fail, and restored `armSources.ts`
-byte-exact (SHA-256 `afb3659f…2ae9df787` verified against the pre-drill
+byte-exact (SHA-256 `59d3671a…1484c16bbed` verified against the pre-drill
 value after every drill).
 
-| Drill | Deliberate break                                                 | Assertions that fire                                                                                                                                                                                                                                                                                            | Restored                           |
-| ----- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| R4-D1 | File contents neutered: digest hashes each path, not its bytes   | `covers an outside file by bytes`, `moves when the helper changes`, `comment-quote edge`, `literal dynamic import`: **4 expected failures**                                                                                                                                                                     | armSources.ts `afb3659f…2ae9df787` |
-| R4-D2 | Bundler neutered: `bundle: true` flipped to `false` (entry-only) | **15 failures**: every test that bundles fails closed — the build rejects `external` without `bundle`, so the directory-index test (finding 3 rides the same resolver) and the refusal tests (with the resolve error instead) fail too; only the missing-file, `__proto__` and unhashable assertions still pass | armSources.ts `afb3659f…2ae9df787` |
-| R4-D3 | Refusal neutered: `refuseDynamicLoads` returns at once           | `fails closed on a non-literal dynamic import`, `fails closed on a non-literal require`: **2 expected failures** (without the scan the hole is silent: bundling succeeds)                                                                                                                                       | armSources.ts `afb3659f…2ae9df787` |
-| R4-D4 | `__proto__` guard neutered: plain assignment instead of define   | `keeps an own __proto__ field through canonicalization`: **1 expected failure** (both values serialize as `{}`)                                                                                                                                                                                                 | armSources.ts `afb3659f…2ae9df787` |
+| Drill | Deliberate break                                                 | Assertions that fire                                                                                                                                                                                                                                                                                            | Restored                             |
+| ----- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| R4-D1 | File contents neutered: digest hashes each path, not its bytes   | `covers an outside file by bytes`, `moves when the helper changes`, `comment-quote edge`, `literal dynamic import`: **4 expected failures**                                                                                                                                                                     | armSources.ts `59d3671a…1484c16bbed` |
+| R4-D2 | Bundler neutered: `bundle: true` flipped to `false` (entry-only) | **15 failures**: every test that bundles fails closed — the build rejects `external` without `bundle`, so the directory-index test (finding 3 rides the same resolver) and the refusal tests (with the resolve error instead) fail too; only the missing-file, `__proto__` and unhashable assertions still pass | armSources.ts `59d3671a…1484c16bbed` |
+| R4-D3 | Refusal neutered: `refuseDynamicLoads` returns at once           | `fails closed on a non-literal dynamic import`, `fails closed on a non-literal require`: **2 expected failures** (without the scan the hole is silent: bundling succeeds)                                                                                                                                       | armSources.ts `59d3671a…1484c16bbed` |
+| R4-D4 | `__proto__` guard neutered: plain assignment instead of define   | `keeps an own __proto__ field through canonicalization`: **1 expected failure** (both values serialize as `{}`)                                                                                                                                                                                                 | armSources.ts `59d3671a…1484c16bbed` |
 
 Self-host note: the refusal scan initially flagged `armSources.ts`
 itself, because the scan patterns were regular-expression literals whose
