@@ -103,8 +103,7 @@ export const EN = {
     'Optional disk busy limit in percent. Unset means no disk probe.',
   resourceRelocateDescription:
     'Relocation requires a paired device or runner route. Work stays on this machine.',
-  resourceRelocatePairedDescription:
-    'Use an approved paired device with normal resource load once relocation is available.',
+  resourceRelocatePairedDescription: 'No paired-device route is bound. Work stays on this machine.',
   resourceRelocateAskDescription: 'Ask before moving queued work.',
   resourceRelocateOffDescription: 'Keep work on this machine.',
   // M106: loop previews, structured answers, health and explicit feedback.
@@ -435,8 +434,7 @@ export const EN = {
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
   referenceAccountsTitle: 'Several accounts per provider',
-  referenceAccounts:
-    'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.',
+  referenceAccounts: 'In progress.',
   referenceDeveloper:
     'Show or unlock machine-local developer options. Profile operations require a connected resource owner.',
   referenceTabLanguages: 'Choose a language to switch Tab suggestions on or off for it.',
@@ -4438,7 +4436,7 @@ export const EN = {
   paidTeamWorkersDetail:
     '{tasks}\n\nBilled to your API key for each task’s provider. Actual cost depends on tokens used. Allow once covers these tasks only.',
   paidConfirmTeamWorkers:
-    'Team tasks run on models billed to your Model API key. {price} The first delegate call that starts key tasks asks for approval in every permission mode, including Bypass, unless you allow team workers always in this workspace. Subscription and local tasks are not paid uses. Actual cost depends on tokens used; other paid tools cost extra.',
+    'Team workers are unavailable: no team runtime is bound, so no team task can start and nothing is billed.',
   usagePaidTeamTasks: forms({ one: '{count} team task', other: '{count} team tasks' }),
   // Team pool selection (M96 lane A, PLAN.md D75): the switch row and its
   // reasons, and the two refusals callers surface. {measure} and {window}

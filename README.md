@@ -828,17 +828,10 @@ conversations and the evaluation keep their immediate cancellation or
 clarification. Scheduled/unattended prompts defer at once and keep the
 question open, even when interactive deferral is disabled.
 
-## Several accounts per provider
-
-See [In progress](ROADMAP.md#in-progress).
-
 ## Developer options
 
 `muse-spark-code-acp developer` opens the terminal's machine-local Developer
-options after typed confirmation; `developer status` shows its state. The
-shared editor unlocks use seven clicks on the version within ten seconds or
-**Muse Spark: Developer options**, once their palette/About mounts land.
-Testing mode is badged and audited, expires, and Reset stops and removes only
+options after typed confirmation; `developer status` shows its state. Testing mode is badged and audited, expires, and Reset stops and removes only
 its recorded profiles. Profile start and cleanup report unavailable until their
 resource owner is bound; no successful cleanup is claimed in its absence.
 Revoking testing authority closes admission immediately and attempts to stop
@@ -1896,14 +1889,6 @@ or GitHub. Its GitHub Marketplace listing is awaiting GitHub's review.
 <!-- Marketplace listing (draft, pending GitHub review): https://github.com/marketplace/muse-spark-code-u
      Turn this into a link in the release that follows approval. -->
 
-<!-- reference: streamed-argument-previews -->
-
-## Streamed argument previews
-
-See [In progress](ROADMAP.md#in-progress).
-
-<!-- /reference: streamed-argument-previews -->
-
 ## Code intelligence
 
 The agent finds its way around code the way the editor does: from VS Code's
@@ -2030,10 +2015,6 @@ both backends, as Muse Code's `/goal` does.
   nothing runs: the backend never continues on its own and runs no check of
   its own, so your key pays for nothing you did not ask for. A token budget
   the agent gives a goal stops it once spent.
-
-## Estimates
-
-See [In progress](ROADMAP.md#in-progress).
 
 ## Review
 
@@ -2171,7 +2152,7 @@ ACP and headless Model API conversations enable the same packing and literal
 recall by default for tool-capable models. Every request of a Model API conversation carries the tool outputs before
 it. With packing on, a tool output over 8,000 characters is sent whole for
 its first two requests, then as a short placeholder: its id, its size, and
-its first and last lines. The placeholder is the same text on every later
+its first and last lines. The placeholder is the same cache-stable text on every later
 request, so the prompt cache breaks once per output. When the model needs
 more, it calls `recall_output` with the id and a character offset and reads
 the original back 4,000 characters at a time. It can also pass `search` to
@@ -4728,22 +4709,21 @@ reclaimable memory. Newer runtimes include inactive and purgeable pages.
 These settings are machine-scoped; workspace values are ignored. Settings
 names below start with `museSpark.`.
 
-| Setting                      | Default  | Range or meaning                                                                                       |
-| ---------------------------- | -------- | ------------------------------------------------------------------------------------------------------ |
-| `resourceGovernor`           | `true`   | Enable this machine's governor                                                                         |
-| `resourceCpuMaxPercent`      | `85`     | 30–100%; sustained for 30 seconds                                                                      |
-| `resourceMemoryMaxPercent`   | `90`     | 40–98% in use                                                                                          |
-| `resourceMemoryMinFreeGiB`   | `2`      | 0.5–64 GiB; effective floor at most 15% of RAM                                                         |
-| `resourceGpuMaxPercent`      | `null`   | 1–100%; no GPU probe until configured                                                                  |
-| `resourceDiskBusyMaxPercent` | `null`   | 1–100%; no disk-busy probe until configured                                                            |
-| `resourceDiskMinFreeGiB`     | `null`   | Adaptive floor: smaller of 10 GiB and 10% of the volume, at least 2 GiB; explicit floor at least 2 GiB |
-| `resourceRelocate`           | `paired` | `paired`, `ask` or `off`; needs a paired device or runner route, in progress                           |
+| Setting                      | Default | Range or meaning                                                                                       |
+| ---------------------------- | ------- | ------------------------------------------------------------------------------------------------------ |
+| `resourceGovernor`           | `true`  | Enable this machine's governor                                                                         |
+| `resourceCpuMaxPercent`      | `85`    | 30–100%; sustained for 30 seconds                                                                      |
+| `resourceMemoryMaxPercent`   | `90`    | 40–98% in use                                                                                          |
+| `resourceMemoryMinFreeGiB`   | `2`     | 0.5–64 GiB; effective floor at most 15% of RAM                                                         |
+| `resourceGpuMaxPercent`      | `null`  | 1–100%; no GPU probe until configured                                                                  |
+| `resourceDiskBusyMaxPercent` | `null`  | 1–100%; no disk-busy probe until configured                                                            |
+| `resourceDiskMinFreeGiB`     | `null`  | Adaptive floor: smaller of 10 GiB and 10% of the volume, at least 2 GiB; explicit floor at least 2 GiB |
 
 Levels are **normal**, **throttle**, **relocate** and **pause**. At throttle,
 background capacity narrows to one per kind; at pause, new background work
 waits. This release binds no paired-device or runner route, so sustained
 pressure goes from throttle to pause and never to relocate; resource status
-and the pause notice say relocation is in progress. Foreground work has a twenty-second maximum wait at pause. **Run now**
+and the pause notice show that work stays on this machine. Foreground work has a twenty-second maximum wait at pause. **Run now**
 releases that wait; **Resume now** overrides pressure for fifteen minutes,
 without turning on an explicitly disabled governor. Unknown readings are shown
 as unknown: they neither trip nor clear a level. Recovery has hysteresis and a
@@ -4789,7 +4769,7 @@ throttling or paused; at pause, one notice per conversation names
 the reading, its limit and what is waiting, with the same three actions.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/resources.png" alt="A running turn with the Resources: Throttling chip beside its heartbeat and the chip's popover open: CPU use 93% of 85%, memory in use 71% of 90%, available memory 4,939.2 MB against a 2,147.5 MB floor, relocation in progress, two background checks and one worker waiting, and Resume now, Open settings and Show resources on one row, with Close focused" width="60%"><br>
+  <img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/resources.png" alt="A running turn with the Resources: Throttling chip beside its heartbeat and the chip's popover open: CPU use 93% of 85%, memory in use 71% of 90%, available memory 4,939.2 MB against a 2,147.5 MB floor, relocation unavailable, two background checks and one worker waiting, and Resume now, Open settings and Show resources on one row, with Close focused" width="60%"><br>
   <sub>The <b>Resources</b> chip while throttling, opened by <b>Show resources</b></sub>
 </p>
 
@@ -4822,6 +4802,15 @@ headless relocation is refused. **Keep here** cancels before receiver admission.
 The [M107 integration record](docs/certification/m107.md) and
 [editor resource matrix](docs/ide-compatibility/resources.md) distinguish
 component receipts from installed-editor acceptance.
+
+## In progress
+
+Integration work is tracked in the [roadmap](ROADMAP.md#in-progress):
+
+- <a id="several-accounts-per-provider"></a>Several accounts per provider
+- <a id="streamed-argument-previews"></a>Tool argument previews
+- <a id="estimates"></a>Capacity estimates
+- <a id="the-vault"></a>Credential vault
 
 ## Development
 
@@ -4906,10 +4895,6 @@ Visual Studio, Eclipse, Zed, Xcode, Neovim/Emacs/Sublime, and the companion
 page wait for M104's bridge. The TUI waits for M110a0 lane T. The
 [certification](docs/certification/m118.md) names each pending binding; shared
 logic and fake adapter tests do not establish installed-editor parity.
-
-## The vault
-
-See [In progress](ROADMAP.md#in-progress).
 
 ## Development
 

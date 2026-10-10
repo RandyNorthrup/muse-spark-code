@@ -628,3 +628,71 @@ exits 1 and restores SHA-256 bytes exactly:
 
 Part 2 and final gates are recorded below when complete. Aggregate quality and
 hosted release checks remain lead-owned under the brief; no publication is claimed.
+
+## Part 2: F2–F7 truth sweep (continued from Codex's uncommitted work)
+
+Codex left Part 2 uncommitted: the F2 test update, F3/F5/F7 doc and manifest
+sweep, the `isAvailable` port fields and the `cx1r5Truth` matrix. The matrix
+failed on handoff: `agent.ts` never read `isAvailable`, and `main.ts` still
+supplied schedule/estimate/vault unconditionally. Muse finished it:
+
+- F6 runtime (`src/acp/agent.ts:574`, `:593`, `:625`; `src/runtime/main.ts:740`,
+  `:770`): `schedule`/`estimate` discovery entries and the schedule skill
+  mapping are skipped when the port reports `isAvailable: false`; `main.ts`
+  marks its schedules port unavailable and no longer injects `acpVault`, so
+  `/vault` refuses without a broker. Text-command parsing is unchanged.
+- F4 (`CHANGELOG.md:379`, `:707`): the 0.17.0 detailed accounts bullet is
+  archived with its marker, the working `auth set` stdin fact split into its
+  own published bullet, and the dated correction names Several accounts per
+  provider. The stale 0.16.0 relocation bullet is archived too.
+- F7 (`README.md:4811`, `:2155`): the In-progress list keeps anchors but its
+  previews entry no longer repeats the claim phrase; the packing section
+  states the placeholder is cache-stable.
+- L10n surfaces the matrix caught beyond the review: `resourceRelocatePairedDescription`
+  (`en.ts:106`, all 14 tables) promised relocation on availability — now "no
+  route is bound"; `referenceAccounts` (`en.ts:437`, all 14 tables) is now the
+  codebase's `In progress.` placeholder; `paidConfirmTeamWorkers` (`en.ts:4439`,
+  all 14 tables) no longer promises billable team tasks because no installed
+  code provides `isTeamAvailable` (`paidFeatures.ts:55,142`), so the gate is
+  always off. Translations reuse each table's own vetted vocabulary.
+- Test collateral: `test/unit/cx1r5Truth.test.ts` (58 tests) checks every
+  publication surface with files enumerated by glob; `scripts/check-badges.d.mts`
+  types the packaged-README renderer import (unit typecheck was red without
+  it); `test/unit/helpers/acpWaits.ts` gains `openHandshakeSession`, shared by
+  both CX1R5 suites. Drill B showed the F4 marker was not load-bearing, so the
+  matrix now also asserts the archived bullet never reaches decoded notes.
+
+Owning suites at repository timeouts, three workers, no override (kubuntu,
+this worktree): cx1r5Truth 58, cx1r5Session + featureCatalogDetails + cx1r4Truth
+34, acpAgent + acpSchedules + acpEstimate 152, acpVault + acpAccounts +
+paidConsent 85, paidFeatures + teamWorkersPaid + paletteRegistry 94,
+whatsNewContent + cx1r2Truth + estimateCommand 57, referenceGenerator +
+scheduleCommand + scheduleCommands 136, cx1r5Truth + cx1r5Session + acpAgent
+204 after the helper refactor. Gates: `npm run typecheck` clean (host, webview,
+unit, e2e, integration); eslint zero warnings on all changed sources; prettier
+clean; `check:l10n` 0 problems (14 UI, 14 usage, 252 manifest); `npm run build`
+exit 0 with no budget error; `check:reference` current (71/65/84/29/235);
+`check:roadmap` current (207); `check:host-api` 0 problems; knip clean.
+`npx jscpd` reports one clone pair left (cx1r2Truth 224-229 / cx1r4Truth
+140-145, 50 tokens): byte-identical at `3eeaee199`, pre-existing, out of lane
+scope. My own added clone was extracted into `openHandshakeSession`.
+
+Red drills, each failed the named test and restored SHA-256 byte-exact: (A)
+dropping the schedules `isAvailable` gate fails matrix discovery (58 skipped);
+(B) removing the F4 archive marker publishes `several-account storage` in
+current notes (caught only after strengthening the test — recorded above);
+(C) restoring `vault: acpVault` fails the policy test; (D) dropping `accounts`
+from `REFERENCE_IN_PROGRESS_FEATURES` fails the F2 contract test; (E)
+reintroducing `List provider accounts` into `package.nls.json` fails that
+surface. Hashes: `agent.ts` 74200625…, `main.ts` d01761c2…, `CHANGELOG.md`
+f366cac4…, `package.nls.json` 66077a2f…, `featureCatalog.ts` 18419457….
+Base check in a scratch worktree at `3eeaee199` (symlinked node_modules, lane
+helper copied): the matrix is red on base — discovery lists `schedule`, and
+with discovery canned the sweep assertions fail on README, acp.md, ci.md,
+marketplace-readme, rendered VSIX README, encoded notes and all 15 manifest
+tables. Worktree removed afterwards.
+
+Not run here (sandbox cannot start browsers, GUI apps or socket listeners;
+lead-owned): e2e/integration suites, browser-gated unit suites (harness
+screenshots, accessibility, visual regression), and aggregate `npm run
+quality`. No live/paid calls, no credentials touched, no push.

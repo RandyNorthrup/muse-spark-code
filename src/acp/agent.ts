@@ -571,7 +571,7 @@ class AcpSession {
                 input: { hint: 'status|record|settings' },
               },
             ]),
-        ...(this.deps.schedules === undefined
+        ...(this.deps.schedules === undefined || this.deps.schedules.isAvailable === false
           ? []
           : [
               {
@@ -590,7 +590,7 @@ class AcpSession {
               },
               { name: 'record', description: UI_TEXT.media.attachRecording, input: null },
             ]),
-        ...(this.deps.estimate === undefined
+        ...(this.deps.estimate === undefined || this.deps.estimate.isAvailable === false
           ? []
           : [
               {
@@ -622,7 +622,9 @@ class AcpSession {
               ((this.deps.usage === undefined && this.deps.resources === undefined) ||
                 skill.selector !== 'usage') &&
               (this.deps.playbookFor === undefined || skill.selector !== 'playbook') &&
-              (this.deps.schedules === undefined || skill.selector !== 'schedule'),
+              (this.deps.schedules === undefined ||
+                this.deps.schedules.isAvailable === false ||
+                skill.selector !== 'schedule'),
           )
           .map((skill) => ({
             name: skill.selector,

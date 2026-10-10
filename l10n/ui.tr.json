@@ -70,7 +70,7 @@
   "resourceGpuMaxPercentDescription": "Yüzde olarak isteğe bağlı GPU kullanım sınırı. Ayarlanmamışsa GPU ölçülmez.",
   "resourceDiskBusyMaxPercentDescription": "Yüzde olarak isteğe bağlı disk meşguliyet sınırı. Ayarlanmamışsa disk ölçülmez.",
   "resourceRelocateDescription": "Taşıma, eşleştirilmiş bir cihaz veya bir çalıştırma makinesine giden bir yol gerektirir. İş bu makinede kalır.",
-  "resourceRelocatePairedDescription": "Taşıma kullanılabilir olduğunda kaynak yükü normal olan, onaylanmış eşleştirilmiş bir cihazı kullanır.",
+  "resourceRelocatePairedDescription": "Eşleştirilmiş bir cihaza giden bağlı bir yol yok. İş bu makinede kalır.",
   "resourceRelocateAskDescription": "Kuyruktaki işi taşımadan önce sorar.",
   "resourceRelocateOffDescription": "İşi bu makinede tutar.",
   "toolArgumentPreviewLabel": "Bağımsız değişken önizlemesi",
@@ -349,7 +349,7 @@
   "referenceAuthClear": "Kayıtlı Model API anahtarını kaldırın.",
   "referenceAuthStatus": "Model API anahtarının kayıtlı olup olmadığını denetleyin.",
   "referenceAccountsTitle": "Several accounts per provider",
-  "referenceAccounts": "Bir sağlayıcının hesaplarını yönetir: listeleme, ekleme, kaldırma, sıralama ve eşikler. Kimlik bilgileri yalnızca standart girdiden gelir. Ücretli onay şimdilik çalışma alanı bazında kalır.",
+  "referenceAccounts": "Devam ediyor.",
   "referenceDeveloper": "Bu bilgisayardaki geliştirici seçeneklerini gösterir veya kilidini açar. Profil işlemleri bağlı bir kaynak yöneticisi gerektirir.",
   "referenceTabLanguages": "Tab önerilerini açıp kapatmak için bir dil seçin.",
   "referenceTabMenu": "Tab'i kapat; 15 dakika ertele; 1 saat ertele; Yeniden başlatmaya kadar ertele; Tab dilleri…; Çok satırlı kip…; Hesap ve kullanım. Tab Copilot’a öncelik verdiğinde menü geçerli dil için Copilot’ı kapatmayı veya ikisini çalıştırmayı da sunar.",
@@ -3677,7 +3677,7 @@
   "paidTeamWorkerBudget": "Paylaşılan günlük ekip bütçesi: {budget}.",
   "paidTeamWorkersTitle": "Ekibin ücretli görevlerini onaylıyor musunuz?",
   "paidTeamWorkersDetail": "{tasks}\n\nHer görevin sağlayıcısına ait API anahtarınız üzerinden faturalandırılır. Gerçek maliyet kullanılan tokenlara bağlıdır. Bir kez izin ver yalnızca bu görevleri kapsar.",
-  "paidConfirmTeamWorkers": "Ekip görevleri, Model API anahtarınıza ücretlendirilen modellerde çalışır. {price} Bu çalışma alanında ekip çalışanlarına her zaman izin vermediğiniz sürece, anahtar ücretli görevleri başlatan ilk temsilci çağrısı, İzinleri atla dahil her izin modunda onay ister. Abonelik ve yerel görevler ücretli kullanım değildir. Gerçek maliyet kullanılan token sayısına bağlıdır; diğer ücretli araçlar ek ücrete tabidir.",
+  "paidConfirmTeamWorkers": "Ekip çalışanları kullanılamıyor: bağlı bir ekip çalışma zamanı yok, bu nedenle hiçbir ekip görevi başlayamaz ve ücretlendirme yapılmaz.",
   "usagePaidTeamTasks": {
     "one": "{count} ekip görevi",
     "other": "{count} ekip görevi"

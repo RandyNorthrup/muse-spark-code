@@ -738,6 +738,7 @@ async function serve(
     }
     const agent = engine.createAcpAgent({
       schedules: {
+        isAvailable: false,
         async holdWorkspace(cwd) {
           loadedSchedules ??= await loadSchedules()
           return await loadedSchedules.holdWorkspace(cwd)
@@ -767,7 +768,6 @@ async function serve(
           uiLocale(),
         ),
       reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
-      vault: acpVault,
       ...(accounts !== undefined && { accounts }),
       legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
         const bundle = agentLegalBundle()

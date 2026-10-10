@@ -101,8 +101,9 @@ describe('CX1R4 F1: accounts claims are removed from current surfaces', () => {
     expect(featureCatalog().find((feature) => feature.id === 'accounts')?.surfaces).toEqual([])
   })
 
-  it('README keeps the anchor but no accounts instructions', () => {
-    expect(readme).toContain('## Several accounts per provider')
+  it('README removes the product section and keeps only the progress-list anchor', () => {
+    expect(readme).not.toContain('## Several accounts per provider')
+    expect(readme).toContain('<a id="several-accounts-per-provider"></a>')
     expect(readme).not.toMatch(
       /providers accounts list|exec --account|account-pool|\/accounts|account` picker|Several accounts per provider\.\* List provider/,
     )

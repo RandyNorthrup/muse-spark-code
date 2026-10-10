@@ -10,7 +10,7 @@ import { runtimeProvidersFile } from '../../src/runtime/providers/providersFileS
 import { AcpPaidUse } from '../../src/acp/paid'
 import { FakeAgentHost } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
-import { until } from './helpers/acpWaits'
+import { openHandshakeSession, until } from './helpers/acpWaits'
 
 const folders: string[] = []
 function fail(): never {
@@ -50,17 +50,13 @@ async function turnWith(accounts: AcpAgentDeps['accounts'], schedules?: AcpAgent
     updates.push(params.update)
   })
   await client.connectWith(agent, async (connection) => {
-    await connection.request('initialize', {
-      protocolVersion: acp.PROTOCOL_VERSION,
-      clientCapabilities: {},
-    })
-    const opened = await connection.request('session/new', { cwd: process.cwd(), mcpServers: [] })
-    expect(opened.sessionId).toBe('session-1')
+    const { sessionId } = await openHandshakeSession(connection, process.cwd())
+    expect(sessionId).toBe('session-1')
     const session = host.sessions[0]
     if (session === undefined) throw new Error('session missing')
     expect(session.dispose).not.toHaveBeenCalled()
     const response = connection.request('session/prompt', {
-      sessionId: opened.sessionId,
+      sessionId,
       prompt: [{ type: 'text', text: 'hello' }],
     })
     await until(() => session.sendTurn.mock.calls.length === 1)
