@@ -8,26 +8,24 @@
 // extraction, patch and scanner (inputs.mjs, run-exec.mjs, result.mjs). Only
 // the event and trust facts differ; ci-adapters.mjs reads them.
 //
-// Each template downloads the package, checks its SHA-256 with the system's
-// own tools, unpacks it outside the workspace and execs this file with the
-// key in MUSE_SPARK_MODEL_API_KEY only. The key is taken out of the
-// environment, under every name that carries it, before anything else runs;
-// it reaches exec and the patch scanner over private stdin and nothing else.
+// Each template's bootstrap unsets every known key name first, copies the
+// key into a private file (never an exported variable), downloads the
+// package, checks its SHA-256 with the system's own tools, unpacks it
+// outside the workspace and execs this file with the key file on stdin.
+// This file reads the key from stdin alone; the environment is still
+// scrubbed, under every name that carries the key, before anything else
+// runs. The key reaches exec and the patch scanner over private stdin and
+// nothing else.
 
 import { Buffer } from 'node:buffer'
 import { randomBytes } from 'node:crypto'
+import { existsSync, lstatSync, readFileSync, readSync, realpathSync } from 'node:fs'
 import {
-  constants,
-  copyFileSync,
-  existsSync,
-  lstatSync,
-  mkdirSync,
-  readFileSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
-import { mkdir, writeFile } from 'node:fs/promises'
+  copyFile as copyFileAsync,
+  mkdir as mkdirAsync,
+  rm as rmAsync,
+  writeFile as writeFileAsync,
+} from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -43,6 +41,7 @@ import {
   ACTION_GIT_MS,
   ACTION_INPUT_MS,
   ACTION_INSTALL_MS,
+  ACTION_KEY_MAX_BYTES,
   ACTION_KILL_AFTER_MS,
   ACTION_META_MAX_BYTES,
   ACTION_PUBLISH_MS,
@@ -52,10 +51,12 @@ import {
   childEnvironment,
   createLauncherOwner,
   isEntry,
+  withinBound,
 } from './lifecycle.mjs'
 import {
   exitCodeFor,
   INVALID_KEY_MESSAGE,
+  isValidModelApiKey,
   KEY_VARIABLE,
   outputsFor,
   revokeIfStopped,
@@ -78,9 +79,28 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 export const CI_TEMPLATES_DIR = path.join(HERE, '..', 'prompts', 'ci')
 // The package (or repository) root whose package.json names the agent version.
 export const LAUNCHER_ROOT = path.resolve(HERE, '..', '..')
-// The name each template gives the system's secret.
+// The name each template gives the system's secret (a value), and the
+// File-type variable GitLab uses instead (its value is a path: source
+// preparation and artifact upload see only the path, never the key).
 export const CI_SECRET_VARIABLE = 'MUSE_MODEL_API_KEY'
+export const CI_KEY_FILE_VARIABLE = 'MUSE_MODEL_API_KEY_FILE'
 export const CI_OUT_DIR = 'muse-spark-out'
+// Every file the publisher ever writes into the output directory: the run
+// outputs plus outputs.json, the publisher's manifest of what it published.
+// The templates archive only these names, never a glob over the directory.
+export const CI_PUBLISHED_FILES = Object.freeze([
+  'outputs.json',
+  'result.json',
+  'events.jsonl',
+  'fix.patch',
+  'manifest.json',
+])
+// The bootstrap's own start (milliseconds since the epoch), recorded by the
+// template before anything else can spend job time.
+export const CI_BOOTSTRAP_START_VARIABLE = 'MUSE_CI_BOOTSTRAP_START_MS'
+// A vendor-measured job start where one reaches the launcher as a plain
+// number (Jenkins: currentBuild.startTimeInMillis, set by the template).
+export const CI_JOB_START_VARIABLE = 'MUSE_CI_JOB_START_MS'
 // Before the launcher: the system's image and clone, then the template's
 // download (curl --max-time 120), digest check and unpacking.
 export const CI_SETUP_MS = 120_000
@@ -211,12 +231,64 @@ export function jobMinutes(env, system) {
   return Number(minutes)
 }
 
-/** Refuses a run the job would kill before its own deadline (RVCM80CI finding 12). */
-export function checkJobDeadline(env, system, inputs) {
-  const needed = requiredJobMinutes(inputs)
-  if (jobMinutes(env, system) < needed) {
+/**
+ * Milliseconds since the epoch when the template's bootstrap started. The
+ * templates always set it; without it the launcher cannot measure what the
+ * job already spent, so it refuses instead of admitting blind.
+ */
+export function bootstrapStartMs(env) {
+  const raw = env[CI_BOOTSTRAP_START_VARIABLE] ?? ''
+  if (!/^[1-9][0-9]{9,}$/.test(raw)) {
+    throw new InputError(`${CI_BOOTSTRAP_START_VARIABLE} is missing or malformed`)
+  }
+  return Number(raw)
+}
+
+/**
+ * Milliseconds since the epoch when the job started: the vendor's own start
+ * time where one reaches the launcher (GitLab's CI_JOB_STARTED_AT, the
+ * Jenkins template's currentBuild.startTimeInMillis), else the bootstrap's
+ * own start minus the worst-case setup bound (RVCM80CI2 finding 5).
+ */
+export function jobStartMs(env, system, nowMs = Date.now()) {
+  if (system === 'gitlab') {
+    const started = Date.parse(env.CI_JOB_STARTED_AT ?? '')
+    if (Number.isFinite(started) && started <= nowMs) return started
+  } else if (system === 'jenkins') {
+    const raw = env[CI_JOB_START_VARIABLE] ?? ''
+    if (/^[1-9][0-9]{9,}$/.test(raw)) {
+      const started = Number(raw)
+      if (started <= nowMs) return started
+    }
+  }
+  const bootstrap = bootstrapStartMs(env)
+  return Math.min(bootstrap, nowMs) - CI_SETUP_MS
+}
+
+/** The run's own tail after admission: stop grace, reaping, cleanup and the final writes. */
+export function requiredRunMs(inputs) {
+  return (
+    ownerTotalMs(inputs) +
+    ACTION_KILL_AFTER_MS +
+    ACTION_REAP_MS +
+    ACTION_CLEANUP_MS +
+    ACTION_PUBLISH_MS
+  )
+}
+
+/**
+ * Admits a run only on the time REMAINING: the job timeout minus what the
+ * job already spent, measured from the vendor's start where one exists
+ * (RVCM80CI2 finding 5). A run admitted this way still fits when the
+ * system's own preparation ate into the job.
+ */
+export function checkJobDeadline(env, system, inputs, nowMs = Date.now()) {
+  const need = requiredRunMs(inputs)
+  const remain =
+    jobMinutes(env, system) * MILLISECONDS_PER_MINUTE - (nowMs - jobStartMs(env, system, nowMs))
+  if (remain < need) {
     throw new InputError(
-      `timeout-minutes ${String(inputs.timeoutMinutes)} needs a job timeout of at least ${String(needed)} minutes`,
+      `timeout-minutes ${String(inputs.timeoutMinutes)} needs a job timeout of at least ${String(Math.ceil(need / MILLISECONDS_PER_MINUTE))} minutes, only ${String(Math.max(0, Math.floor(remain / MILLISECONDS_PER_MINUTE)))} of ${String(jobMinutes(env, system))} remain`,
     )
   }
 }
@@ -265,7 +337,7 @@ async function resolveCommit(run, revision, refusal) {
  * branch's tip, or the head's first parent.
  */
 export async function checkoutClone({ owner, git, paths, baseEnv, clone, facts }) {
-  await mkdir(paths.checkout, { mode: PRIVATE_DIR })
+  await mkdirAsync(paths.checkout, { mode: PRIVATE_DIR })
   const run = (args, isReadOnly = false) =>
     safeGit({
       owner,
@@ -339,8 +411,8 @@ export function changeResource(facts, shas) {
 /** pr.md and the staged trusted inputs the run reads, both private. */
 export async function stageCiInputs({ paths, inputs, facts, shas }) {
   const metadata = changeResource(facts, shas)
-  await writeFile(paths.meta, metadata.text, { flag: 'wx', mode: PRIVATE_FILE })
-  await writeFile(
+  await writeFileAsync(paths.meta, metadata.text, { flag: 'wx', mode: PRIVATE_FILE })
+  await writeFileAsync(
     paths.inputs,
     JSON.stringify({
       mode: inputs.mode,
@@ -357,14 +429,46 @@ export async function stageCiInputs({ paths, inputs, facts, shas }) {
 }
 
 /**
+ * Fail closed on a destination the publisher did not make: when anything
+ * (a planted directory, file or symlink) already sits where `muse-spark-out`
+ * goes, remove it without following it and refuse BEFORE any model call, so
+ * the system's always-upload finds nothing forged (RVCM80CI2 findings 3-4).
+ */
+export async function refuseExistingOutput(workspace, io = defaultPublishIo) {
+  const target = path.join(workspace, CI_OUT_DIR)
+  try {
+    lstatSync(target)
+  } catch {
+    return
+  }
+  try {
+    await io.rm(target, { recursive: true, force: true })
+  } catch {
+    // The refusal below still holds: nothing is published over it.
+  }
+  throw new InputError(
+    `${CI_OUT_DIR} already exists in the workspace; it was removed and the run is refused`,
+  )
+}
+
+const defaultPublishIo = Object.freeze({
+  mkdir: mkdirAsync,
+  copyFile: copyFileAsync,
+  writeFile: writeFileAsync,
+  rm: rmAsync,
+})
+
+/**
  * The published files and outputs.json in a new `muse-spark-out` folder of
  * the workspace, for the system's artifact upload. The folder must not
- * exist (a planted file or link refuses), and only what the run published
- * into out/ is copied.
+ * exist (refuseExistingOutput runs before any model call; mkdir fails
+ * closed if one appears later), and only the publisher's fixed file set is
+ * ever copied — never a glob over the workspace (RVCM80CI2 finding 3).
+ * Asynchronous so the caller's bound can stop a stalled copy (finding 7).
  */
-export function publishToWorkspace(workspace, paths, outputs) {
+export async function publishToWorkspace(workspace, paths, outputs, io = defaultPublishIo) {
   const target = path.join(workspace, CI_OUT_DIR)
-  mkdirSync(target)
+  await io.mkdir(target)
   const published = { ...outputs, 'out-dir': target }
   for (const [output, file] of [
     ['result-path', paths.result],
@@ -373,11 +477,13 @@ export function publishToWorkspace(workspace, paths, outputs) {
     ['', paths.manifest],
   ]) {
     if (!existsSync(file)) continue
-    const destination = path.join(target, path.basename(file))
-    copyFileSync(file, destination, constants.COPYFILE_EXCL)
+    const name = path.basename(file)
+    if (!CI_PUBLISHED_FILES.includes(name)) continue
+    const destination = path.join(target, name)
+    await io.copyFile(file, destination, 1 /* COPYFILE_EXCL */)
     if (output !== '' && published[output] !== '') published[output] = destination
   }
-  writeFileSync(path.join(target, 'outputs.json'), `${JSON.stringify(published)}\n`, {
+  await io.writeFile(path.join(target, 'outputs.json'), `${JSON.stringify(published)}\n`, {
     flag: 'wx',
   })
   return published
@@ -399,22 +505,53 @@ function messageOf(error, fallback) {
 }
 
 /**
- * One run on `system`: facts, inputs and the gate first (nothing installed,
- * no key used), then the job deadline, then under one owner the verified
- * install, the checkout, the staged inputs and the Action's run. Returns the
- * exit code; refusals and malformed facts throw an InputError.
+ * One run on `system`: the workspace and private temp first, then the
+ * output-destination refusal (before any model call), the inputs, the gate
+ * and the remaining-time deadline (nothing installed, no key used), then
+ * under one owner the verified install, the checkout, the staged inputs and
+ * the Action's run. Returns the exit code; refusals and malformed facts
+ * throw an InputError. The bootstrap's temp directory is removed on every
+ * path out (its trap owns the pre-exec paths); final publication and that
+ * cleanup each keep their own bound like the GitHub Action's final writes
+ * (RVCM80CI2 findings 6-7).
  */
 export async function runCi(input) {
   const { system, env, held, log } = input
+  const io = input.io ?? defaultPublishIo
+  const finalBounds = {
+    publishMs: ACTION_PUBLISH_MS,
+    cleanupMs: ACTION_CLEANUP_MS,
+    ...input.finalBounds,
+  }
   const platform = input.platform ?? process.platform
   const facts = ciFacts(system, env)
-  const inputs = parseCiInputs(env, system)
-  const decision = decideCi(facts, inputs)
-  if (!decision.allowed) throw new InputError(`the gate refused this run: ${decision.reason}`)
-  checkJobDeadline(env, system, inputs)
-  if (held.key === undefined) throw new InputError(INVALID_KEY_MESSAGE)
   const workspace = realpathSync.native(facts.workspace)
   const temp = privateTemp(env.MUSE_CI_TEMP, workspace, platform)
+  try {
+    await refuseExistingOutput(workspace, io)
+    const inputs = parseCiInputs(env, system)
+    const decision = decideCi(facts, inputs)
+    if (!decision.allowed) throw new InputError(`the gate refused this run: ${decision.reason}`)
+    checkJobDeadline(env, system, inputs)
+    if (held.key === undefined) throw new InputError(INVALID_KEY_MESSAGE)
+    return await runCiAdmitted({ input, io, finalBounds, platform, facts, inputs, workspace, temp })
+  } finally {
+    try {
+      await withinBound(
+        io.rm(temp, { recursive: true, force: true }),
+        finalBounds.cleanupMs,
+        'cleaning the run directory',
+      )
+    } catch (error) {
+      log(
+        `muse-spark: the run directory could not be cleaned (${error instanceof Error ? error.message : 'unknown error'})`,
+      )
+    }
+  }
+}
+
+async function runCiAdmitted({ input, io, finalBounds, platform, facts, inputs, workspace, temp }) {
+  const { system, env, held, log } = input
   const tools = resolveTools({
     env,
     platform,
@@ -497,19 +634,57 @@ export async function runCi(input) {
   const outputs = outputsFor(report, owner, paths)
   let code = exitCodeFor(report, owner)
   try {
-    const published = publishToWorkspace(workspace, paths, outputs)
+    const published = await withinBound(
+      publishToWorkspace(workspace, paths, outputs, io),
+      finalBounds.publishMs,
+      'publishing the run outputs',
+    )
     input.write(summaryFor(report, published))
   } catch {
     log(`muse-spark: the outputs could not be published into ${CI_OUT_DIR}`)
     if (code === 0) code = 1
   }
-  // The Action's tidy step, and out/ too: its files are in muse-spark-out now.
-  rmSync(paths.invocation, { recursive: true, force: true })
   return code
 }
 
+/**
+ * The key from standard input, which the template redirects from its
+ * private key file: one trailing LF is stripped and the value is validated
+ * exactly as the Action validates its environment key, without echoing
+ * anything. Oversize input is refused without reading it all.
+ */
+function readKeyStdin() {
+  const chunk = Buffer.alloc(4096)
+  const pieces = []
+  let total = 0
+  try {
+    for (;;) {
+      const count = readSync(0, chunk, 0, chunk.length, null)
+      if (count === 0) break
+      total += count
+      if (total > ACTION_KEY_MAX_BYTES + 1) return ''
+      pieces.push(chunk.subarray(0, count).toString('utf8'))
+    }
+  } catch {
+    return ''
+  }
+  const text = pieces.join('')
+  return text.endsWith('\n') ? text.slice(0, -1) : text
+}
+
+/**
+ * The key the template passes on stdin from its private file, validated
+ * exactly as the Action validates its environment key. The environment is
+ * scrubbed first and never read for the key.
+ */
+function takeStdinKey() {
+  takeCiKey(process.env)
+  const stdinKey = readKeyStdin()
+  return isValidModelApiKey(stdinKey) ? stdinKey : undefined
+}
+
 async function main() {
-  const held = { key: takeCiKey(process.env) }
+  const held = { key: takeStdinKey() }
   const system = process.argv[2] ?? ''
   try {
     if (!CI_SYSTEMS.includes(system)) {

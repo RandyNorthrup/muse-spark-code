@@ -281,17 +281,49 @@ declare module '*/action/lib/ci-run.mjs' {
   export const CI_TEMPLATES_DIR: string
   export const LAUNCHER_ROOT: string
   export const CI_SECRET_VARIABLE: string
+  export const CI_KEY_FILE_VARIABLE: string
   export const CI_OUT_DIR: string
+  export const CI_PUBLISHED_FILES: readonly string[]
+  export const CI_BOOTSTRAP_START_VARIABLE: string
+  export const CI_JOB_START_VARIABLE: string
   export function takeCiKey(env: Record<string, string | undefined>): string | undefined
   export function parseCiInputs(env: Record<string, string | undefined>, system: string): CiInputs
   export function ownerTotalMs(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number
   export function requiredJobMinutes(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number
+  export function requiredRunMs(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number
   export function jobMinutes(env: Record<string, string | undefined>, system: string): number
+  export function bootstrapStartMs(env: Record<string, string | undefined>): number
+  export function jobStartMs(
+    env: Record<string, string | undefined>,
+    system: string,
+    nowMs?: number,
+  ): number
   export function checkJobDeadline(
     env: Record<string, string | undefined>,
     system: string,
     inputs: Pick<ActionInputs, 'timeoutMinutes'>,
+    nowMs?: number,
   ): void
+  export function refuseExistingOutput(
+    workspace: string,
+    io?: {
+      mkdir: (...args: never[]) => Promise<unknown>
+      copyFile: (...args: never[]) => Promise<unknown>
+      writeFile: (...args: never[]) => Promise<unknown>
+      rm: (...args: never[]) => Promise<unknown>
+    },
+  ): Promise<void>
+  export function publishToWorkspace(
+    workspace: string,
+    paths: Record<string, string>,
+    outputs: Record<string, string>,
+    io?: {
+      mkdir: (...args: never[]) => Promise<unknown>
+      copyFile: (...args: never[]) => Promise<unknown>
+      writeFile: (...args: never[]) => Promise<unknown>
+      rm: (...args: never[]) => Promise<unknown>
+    },
+  ): Promise<Record<string, string>>
   export function privateTemp(
     value: string | undefined,
     workspace: string,
@@ -311,6 +343,13 @@ declare module '*/action/lib/ci-run.mjs' {
     execPath?: string
     launcherRoot?: string
     ownerOptions?: CiOwnerOptions
+    io?: {
+      mkdir: (...args: never[]) => Promise<unknown>
+      copyFile: (...args: never[]) => Promise<unknown>
+      writeFile: (...args: never[]) => Promise<unknown>
+      rm: (...args: never[]) => Promise<unknown>
+    }
+    finalBounds?: { publishMs?: number; cleanupMs?: number }
   }): Promise<number>
 }
 
@@ -519,6 +558,7 @@ declare module '*/action/lib/run-exec.mjs' {
   export const MODEL_API_KEY_PATTERN: RegExp
   export const KEY_VARIABLE: string
   export const INVALID_KEY_MESSAGE: string
+  export function isValidModelApiKey(value: unknown): boolean
   export function takeModelApiKey(env: Record<string, string | undefined>): string | undefined
   export function maskCommand(value: string): string
   export function execArguments(input: {

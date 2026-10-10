@@ -61,6 +61,20 @@ const PRIVATE_FILE = 0o600
 const NUMBER_TOKEN = /\d(?:[\d.,']|\s(?=\d))*/g
 
 /**
+ * True for a usable Model API key value: nonempty, single-line, within the
+ * byte bound and matching the key pattern. Never echoes the value.
+ */
+export function isValidModelApiKey(value) {
+  return (
+    typeof value === 'string' &&
+    value !== '' &&
+    !/[\r\n]/.test(value) &&
+    Buffer.byteLength(value) <= ACTION_KEY_MAX_BYTES &&
+    MODEL_API_KEY_PATTERN.test(value)
+  )
+}
+
+/**
  * The key from the run step's environment, which is deleted at once. One
  * trailing LF is stripped; empty, multi-line, oversize or malformed keys
  * are refused (undefined) without echoing anything.
@@ -70,12 +84,7 @@ export function takeModelApiKey(env) {
   Reflect.deleteProperty(env, KEY_VARIABLE)
   if (typeof raw !== 'string') return
   const key = raw.endsWith('\n') ? raw.slice(0, -1) : raw
-  const isValid =
-    key !== '' &&
-    !/[\r\n]/.test(key) &&
-    Buffer.byteLength(key) <= ACTION_KEY_MAX_BYTES &&
-    MODEL_API_KEY_PATTERN.test(key)
-  return isValid ? key : undefined
+  return isValidModelApiKey(key) ? key : undefined
 }
 
 /** The runner's mask command for one value: %, CR and LF escaped as workflow command data. */
