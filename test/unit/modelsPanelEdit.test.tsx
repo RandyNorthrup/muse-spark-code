@@ -579,6 +579,62 @@ describe('Saved custom provider Edit through the shared form and production stor
     host.dispose()
   })
 
+  it.each(['provider', 'credential', 'panel'] as const)(
+    'acknowledges the saved provider and retires the draft when the %s refresh fails',
+    async (source) => {
+      const { seam, providers, state, warnings, host } = await editSurface()
+      await changeReplyLimit()
+      const save = providers.saveDraft
+      vi.spyOn(providers, 'saveDraft').mockImplementationOnce(async (draft) => {
+        const outcome = await save(draft)
+        const error = new Error('refresh unavailable: synthetic-edit-key')
+        if (source === 'provider') {
+          vi.spyOn(providers, 'providers').mockRejectedValueOnce(error)
+        } else if (source === 'credential') {
+          vi.spyOn(providers, 'storedCredential').mockRejectedValueOnce(error)
+        } else {
+          vi.spyOn(providers, 'providerStates').mockRejectedValue(error)
+        }
+        return outcome
+      })
+      await saveEditSurface()
+      expect(await seam.store.list()).toMatchObject([
+        { modelLimits: { m1: { outputTokens: 8000 } } },
+      ])
+      expect(state().notice).toBe(UI_TEXT.providerSavedRefreshFailed)
+      expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.providerSavedRefreshFailed)
+      expect(JSON.stringify(state())).not.toContain('synthetic-edit-key')
+      expect(warnings.join(' ')).not.toContain('synthetic-edit-key')
+      host.dispose()
+    },
+  )
+
+  it('reports the spending-limit failure too when the saved snapshot cannot refresh', async () => {
+    const { seam, providers, post, state, sessionBudget, host } = await editSurface()
+    await changeReplyLimit()
+    post({
+      type: 'providers/prefill',
+      providerId: 'custom',
+      fields: { sessionBudgetUsd: Usd.from(2).toAmount() },
+    })
+    const save = providers.saveDraft
+    vi.spyOn(providers, 'saveDraft').mockImplementationOnce(async (draft) => {
+      const outcome = await save(draft)
+      vi.spyOn(providers, 'storedCredential').mockRejectedValueOnce(
+        new Error('refresh unavailable'),
+      )
+      return outcome
+    })
+    await saveEditSurface()
+    expect(state().notice).toContain(UI_TEXT.providerSavedRefreshFailed)
+    expect(state().notice).toContain(
+      fill(UI_TEXT.sessionBudgetPartialSave, { detail: UI_TEXT.wizardSessionBudgetInvalid }),
+    )
+    expect(await seam.store.list()).toMatchObject([{ modelLimits: { m1: { outputTokens: 8000 } } }])
+    expect(sessionBudget.read().effectiveUsd).toBe(Usd.from(0).toAmount())
+    host.dispose()
+  })
+
   it('keeps a credential rotated after preflight while the edited provider is written', async () => {
     const { seam, configFile, secrets, state, host } = await editSurface({ flow: 'Change key' })
     await changeReplyLimit()

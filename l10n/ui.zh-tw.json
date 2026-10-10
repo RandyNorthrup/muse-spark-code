@@ -3869,6 +3869,7 @@
   "providerSaveSecretFailed": "認證儲存區操作失敗。",
   "providerSaveWriteConflict": "無法寫入檔案，或檔案在儲存期間已變更，請重試。",
   "providerEditConflict": "你編輯的欄位已在其他地方變更。請重新載入表單後再儲存。",
+  "providerSavedRefreshFailed": "供應商已儲存；面板無法重新整理 — 請重新開啟",
   "providerSaveBusy": "另一個提供者更新正在進行，或無法取得鎖定，請重試。",
   "providerSaveRecoveryFailed": "儲存失敗，無法還原 {provider} 的認證。重試前請檢查 auth status，並重新輸入或清除金鑰。",
   "providerTestOkKey": "金鑰有效。",

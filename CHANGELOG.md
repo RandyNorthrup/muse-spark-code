@@ -20,6 +20,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- A successful provider Save followed by a panel-refresh failure now says the
+  provider was saved and asks you to reopen the panel. It retires the saved form
+  and still processes a submitted spending limit, reporting any limit failure.
+
 - Provider Save compares edited fields with the opening snapshot inside the
   stored update. Untouched keys retain later rotations or removals, and untouched
   provider fields retain changes made during private-network confirmation.

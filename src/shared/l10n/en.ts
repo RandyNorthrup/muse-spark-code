@@ -3367,6 +3367,7 @@ export const EN = {
   providerSaveSecretFailed: 'The credential store operation failed.',
   providerSaveWriteConflict: 'The file could not be written or changed during saving; retry.',
   providerEditConflict: 'A field you edited changed elsewhere. Reload the form before saving.',
+  providerSavedRefreshFailed: 'Provider saved; the panel could not refresh — reopen it',
   providerSaveBusy: 'Another provider update is running or its lock could not be acquired; retry.',
   providerSaveRecoveryFailed:
     'Saving failed and the {provider} credential could not be restored. Check auth status and re-enter or clear its key before retrying.',

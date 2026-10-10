@@ -4013,6 +4013,7 @@
   "providerSaveSecretFailed": "Der Vorgang im Anmeldedatenspeicher ist fehlgeschlagen.",
   "providerSaveWriteConflict": "Die Datei konnte nicht geschrieben werden oder wurde beim Speichern geändert; erneut versuchen.",
   "providerEditConflict": "Ein von Ihnen bearbeitetes Feld wurde anderswo geändert. Laden Sie das Formular vor dem Speichern neu.",
+  "providerSavedRefreshFailed": "Anbieter gespeichert; das Panel konnte nicht aktualisiert werden — öffnen Sie es erneut",
   "providerSaveBusy": "Eine andere Anbieteraktualisierung läuft oder die Sperre konnte nicht gesetzt werden; erneut versuchen.",
   "providerSaveRecoveryFailed": "Speichern fehlgeschlagen; die Anmeldedaten für {provider} konnten nicht wiederhergestellt werden. Vor dem Wiederholen auth status prüfen und den Schlüssel erneut eingeben oder löschen.",
   "providerTestOkKey": "Schlüssel funktioniert.",

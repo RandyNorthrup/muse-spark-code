@@ -19855,6 +19855,27 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### PROVWIZ8 — Save recovery and refresh honesty (2026-10-09)
+
+Repair RVPROVWIZ7C P2-4 and P2-3 on `5f09bc0e2`: a successful provider
+save followed by a snapshot-refresh failure says “Provider saved; the panel
+could not refresh — reopen it” in all 14 languages. Retire the saved draft so
+it cannot retry against an obsolete baseline; still apply a submitted spending
+limit and report its own partial outcome. Rollback applies only the inverse of
+this save's changed fields inside the existing store mutation, preserving
+unrelated providers and later field changes. Prove credential-write and composer
+refusal interleavings through the production store/shared form, with byte-exact
+red drills and complete provider/models suites at repository deadlines.
+
+The lead accepts RVPROVWIZ7C P2-1/P2-2 as a 0.17.1 residual; keep the current
+in-window comparison and add no second lock implementation. Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
+
+Run changed-file Prettier/ESLint, one tsc and localization; record receipts in
+`docs/certification/provcat.md`. Shared editor bridges receive the same form;
+ACP's provider schema is unchanged. No subagents, merge, rebase, push, live/paid
+calls, dependency, hook or gate changes. Full quality remains lead-owned under
+the explicit rig/common brief.
+
 ### PROVWIZ7 — Save compares changed fields with the edit snapshot (2026-10-09)
 
 Repair RVPROVWIZ6C's two P2 findings on `d32349de1`. A saved-provider draft
@@ -35273,6 +35294,9 @@ OpenCode plugin hooks").
 
 ### M95 — Bring-your-own model providers (D74)
 
+**Provider panel, 0.17.1 residual (PROVWIZ8, lead decision 2026-10-09).**
+Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
+
 **M95R5 integration (2026-10-05, Windows 11).** Merge lane T with
 `--no-ff`, then merge a single sanitized squash of X's net changes on its
 merge-base. Remove the scanner-flagged certification line unseen before
@@ -50164,6 +50188,10 @@ docs/certification/rel0160.md; a sequential warm-dist run cannot certify this
 dependency. No skip, timeout increase or gate exemption is added.
 
 ## 8. Escape hatches register
+
+| Location                                            | Residual / follow-up                                | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
+| --------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M95 provider panel: `panelSeam.ts`, `wizardSave.ts` | RVPROVWIZ7C P2-1/P2-2; PROVSTORE-LOCKLIB after M123 | Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main. |
 
 | Location                                               | Escape hatch                  | Reason                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | ------------------------------------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

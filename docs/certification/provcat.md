@@ -1422,3 +1422,54 @@ host tsc log). No finding in this review is deferred. Aggregate quality,
 coverage, hosted multi-OS, browser/installed-editor and live qualification remain
 with the lead as prescribed by the rig brief. No gate, deadline, dependency,
 paid policy, provider serializer or prompt prefix changes.
+
+# PROVWIZ8 — Save recovery and refresh honesty (RVPROVWIZ7C)
+
+2026-10-09, **macmini**, `/Users/randy/lanes/PROVWIZ6`, branch
+`fix/provider-panel`, base `5f09bc0e2`. Read the rig brief, shared common rules,
+RVPROVWIZ7C, AGENTS and applicable PLAN decisions/scope. PLAN §6 records this
+round before code. The rig brief overrides the generic merge/full-quality
+instructions: no subagents, merge, rebase, push, aggregate quality or live/paid
+calls. Existing hooks stay installed at `.husky/_`; fixtures use synthetic
+credentials in memory. No dependency or gate changes.
+
+## Lead-accepted cross-window residual for 0.17.1
+
+RVPROVWIZ7C P2-1/P2-2 require the shared LOCKLIB lease absent from this base.
+Today's store-instance queue and changed-field/key comparisons remain; no
+second lock implementation is added. **Two editor windows saving the same
+provider at the same moment: last writer wins for fields both changed; no
+secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and
+key rotation onto the shared lease after M123 lands on main.** This decision
+is also recorded at M95's provider panel scope and PLAN §8.
+
+## P2-4 — Saved provider, failed refresh
+
+The post-save snapshot refresh catches provider/credential read failures and
+retains the completed save outcome. The saved form is retired so its obsolete
+comparison baseline cannot be retried. A submitted spending limit is still
+processed; its own failure is reported alongside the refresh notice. A failure
+of the final panel-state refresh has the same honest notice. The host supplies
+“Provider saved; the panel could not refresh — reopen it” with translations in
+all 14 UI tables; the shared browser English closure gains no new key. Logs
+contain only fixed words. Secrets never enter published state or messages.
+Shared editor bridges receive the same React surface; the persisted schema
+and ACP readers are unchanged. Installed-editor qualification remains lead-owned.
+
+Four complete-form regressions fail before the production change:
+**4 failed / 29 passed**. They reject only the post-save provider read, stored
+credential read or final panel-state read, plus a refresh/limit-failure case.
+After repair, complete `modelsPanelEdit`, `modelsPanel` and
+`wizardSessionBudget` files pass **93 tests**, with the repository timeout and
+`--maxWorkers=3`. No skips, name filters or timeout overrides. Read failures
+never leak their synthetic key. Receipts are untracked
+`temp/provwiz8-refresh-{before,after}.log`. Remaining rollback qualification
+and final owning-suite receipts are appended below as this round completes.
+
+The `refresh-notice` red drill replaces both honest refresh notices with the
+plain generic failure: **4 failed / 33 total**, exit 1. The source is restored
+in `finally`; SHA-256 before and after is
+`c00bfd9b662b46cee720e044b008737aa0232ec03672d4c15a3e786ca69c28b9`.
+The restored complete three-file run passes **93 tests**. Changed-file ESLint,
+Prettier and localization pass; generated reference remains current. Hook
+output and untracked drill/hash receipts are `temp/provwiz8-*`.

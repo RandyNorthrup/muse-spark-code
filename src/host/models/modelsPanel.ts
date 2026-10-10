@@ -931,11 +931,19 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         }
         // A later budget failure keeps this draft. Its own successful writes
         // become the new comparison baseline for the provider-save retry.
+        let hasRefreshFailed = false
         if (snapshot !== undefined) {
-          snapshot.entry = structuredClone(await entryOf(entry.id))
-          snapshot.fields = structuredClone(draft)
-          snapshot.credential = await providers.storedCredential(snapshot.entry)
-          enteredCredentials.delete(draft)
+          try {
+            const savedEntry = structuredClone(await entryOf(entry.id))
+            const savedCredential = await providers.storedCredential(savedEntry)
+            snapshot.entry = savedEntry
+            snapshot.fields = structuredClone(draft)
+            snapshot.credential = savedCredential
+            enteredCredentials.delete(draft)
+          } catch {
+            hasRefreshFailed = true
+            log.warn('Models panel saved provider but could not refresh its snapshot')
+          }
         }
         savedDrafts.add(draft)
         // Provider/credential/default/composer rollback must finish before
@@ -945,15 +953,18 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           deps.sessionBudget,
           draft.sessionBudgetExpectedUsd,
         )
+        let budgetFailure: string | undefined
         if (budget.status === 'conflict') {
           draft.sessionBudgetExpectedUsd = budget.effectiveUsd
-          draft.errors = [fill(UI_TEXT.sessionBudgetPartialSave, { detail: budget.error })]
-          break
         }
-        if (budget.status === 'failed') {
-          draft.errors = [fill(UI_TEXT.sessionBudgetPartialSave, { detail: budget.error })]
-          break
+        if (budget.status === 'conflict' || budget.status === 'failed') {
+          budgetFailure = fill(UI_TEXT.sessionBudgetPartialSave, { detail: budget.error })
+          if (!hasRefreshFailed) {
+            draft.errors = [budgetFailure]
+            break
+          }
         }
+        // A saved draft without a fresh baseline must be reopened, not retried.
         credentials.delete(message.providerId ?? 'wizard')
         if (message.providerId === undefined) {
           state.drafts.wizard = undefined
@@ -962,14 +973,27 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             Object.entries(state.drafts.edits).filter(([id]) => id !== message.providerId),
           )
         }
-        state.notice = fill(UI_TEXT.setupComplete, {
-          provider: providers.preset(entry.preset)?.name ?? entry.id,
-          model: outcome.modelRef,
-        })
+        state.notice = hasRefreshFailed
+          ? UI_TEXT.providerSavedRefreshFailed
+          : fill(UI_TEXT.setupComplete, {
+              provider: providers.preset(entry.preset)?.name ?? entry.id,
+              model: outcome.modelRef,
+            })
         if (outcome.composerSet) {
           deps.onWizardSaved(outcome)
         }
-        break
+        try {
+          await refresh()
+        } catch {
+          state.notice = UI_TEXT.providerSavedRefreshFailed
+          log.warn('Models panel saved provider but could not refresh its state')
+        }
+        if (budgetFailure !== undefined) {
+          state.notice = [state.notice, budgetFailure].join(' ')
+        }
+        syncDraftBlockers()
+        publish()
+        return
       }
       case 'providers/remove': {
         const entry = await entryOf(message.providerId)

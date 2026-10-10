@@ -298,6 +298,9 @@ export function featureCatalog(): readonly Feature[] {
       // per draft, compares edited fields inside the stored mutation and offers
       // Reload on conflicts. Untouched fields and rotated/removed keys survive
       // consent waits; only an entered key replaces a stored credential.
+      // A failed refresh after Save acknowledges persistence and retires the
+      // form for reopening; the requested spending limit is still processed.
+      // Simultaneous cross-window saves remain last-writer-wins until LOCKLIB.
       // Earlier steps remain navigable while final Save validates limits.
       ['suggestedProvider', 'modelApiSessionBudgetUsd'],
       'backends',

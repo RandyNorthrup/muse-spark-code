@@ -703,6 +703,10 @@ enter one in this draft. If a field you edited also changed elsewhere, Save
 keeps the form open and offers **Reload** before you save again. Save disables
 its buttons while working and ignores repeated submissions. A refused
 private-network question keeps the form open and asks you to confirm access.
+If Save finishes but the panel cannot refresh, it says the provider was saved
+and asks you to reopen the panel; a submitted spending limit is still processed.
+Two editor windows saving the same provider at the same moment can overwrite
+fields both changed. Cross-window serialization is a planned follow-up.
 
 ## Questions
 

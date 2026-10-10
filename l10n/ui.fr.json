@@ -4157,6 +4157,7 @@
   "providerSaveSecretFailed": "L’opération du magasin d’identifiants a échoué.",
   "providerSaveWriteConflict": "Le fichier n’a pas pu être écrit ou a changé pendant l’enregistrement ; réessayez.",
   "providerEditConflict": "Un champ que vous avez modifié a changé ailleurs. Rechargez le formulaire avant de sauvegarder.",
+  "providerSavedRefreshFailed": "Fournisseur enregistré ; le panneau n’a pas pu être actualisé — rouvrez-le",
   "providerSaveBusy": "Une autre mise à jour des fournisseurs est en cours ou le verrou est indisponible ; réessayez.",
   "providerSaveRecoveryFailed": "L’enregistrement a échoué et l’identifiant de {provider} n’a pas pu être restauré. Vérifiez auth status puis saisissez à nouveau ou effacez sa clé avant de réessayer.",
   "providerTestOkKey": "La clé fonctionne.",
