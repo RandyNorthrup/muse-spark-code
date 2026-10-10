@@ -71,7 +71,7 @@ The VS Code adapter: 48 files. Everything else reaches VS Code only through them
 | `src/host/usage/usagePanel.ts`               | 40                |
 | `src/host/usage/usagePanelEntry.ts`          | 7                 |
 | `src/host/vault/vaultPanelBundle.ts`         | 1                 |
-| `src/host/vault/vaultPanelEntry.ts`          | 23                |
+| `src/host/vault/vaultPanelEntry.ts`          | 24                |
 | `src/host/views/ChatViewProvider.ts`         | 11                |
 | `src/host/views/chatPanel.ts`                | 11                |
 | `src/host/views/surfaceRegistry.ts`          | 1                 |
@@ -235,7 +235,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `Memento.update`                                                                     | `src/extension.ts`, `src/host/prompts/promptEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `MessageItem.isCloseAffordance`                                                      | `src/host/browser/browserCheckConfirm.ts`, `src/host/browser/runtimeConsent.ts`, `src/host/paid/paidDailyBudget.ts`, `src/host/paid/paidHost.ts`, `src/host/web/webFetchConfirm.ts`                                                                                                                                                                                                                                                                                                                                                                                           |
 | `MessageItem.title`                                                                  | `src/host/browser/browserCheckConfirm.ts`, `src/host/browser/runtimeConsent.ts`, `src/host/paid/paidDailyBudget.ts`, `src/host/paid/paidHost.ts`, `src/host/web/webFetchConfirm.ts`                                                                                                                                                                                                                                                                                                                                                                                           |
-| `MessageOptions.detail`                                                              | `src/extension.ts`, `src/host/browser/browserCheckConfirm.ts`, `src/host/browser/runtimeConsent.ts`, `src/host/cliFeatures.ts`, `src/host/conversation/transferDialogs.ts`, `src/host/git/gitWindow.ts`, `src/host/memoryFeatures.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/paid/paidDailyBudget.ts`, `src/host/paid/paidHost.ts`, `src/host/usage/usagePanel.ts`, `src/host/web/webFetchConfirm.ts`, `src/host/worktreeFeatures.ts`                                                                                                                              |
+| `MessageOptions.detail`                                                              | `src/extension.ts`, `src/host/browser/browserCheckConfirm.ts`, `src/host/browser/runtimeConsent.ts`, `src/host/cliFeatures.ts`, `src/host/conversation/transferDialogs.ts`, `src/host/git/gitWindow.ts`, `src/host/memoryFeatures.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/paid/paidDailyBudget.ts`, `src/host/paid/paidHost.ts`, `src/host/usage/usagePanel.ts`, `src/host/vault/vaultPanelEntry.ts`, `src/host/web/webFetchConfirm.ts`, `src/host/worktreeFeatures.ts`                                                                                         |
 | `MessageOptions.modal`                                                               | `src/extension.ts`, `src/host/browser/browserCheckConfirm.ts`, `src/host/browser/runtimeConsent.ts`, `src/host/cliFeatures.ts`, `src/host/conversation/transferDialogs.ts`, `src/host/git/gitWindow.ts`, `src/host/memoryFeatures.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/paid/paidDailyBudget.ts`, `src/host/paid/paidHost.ts`, `src/host/prompts/promptEntry.ts`, `src/host/usage/usagePanel.ts`, `src/host/vault/vaultPanelEntry.ts`, `src/host/web/webFetchConfirm.ts`, `src/host/worktreeFeatures.ts`                                                      |
 | `OpenDialogOptions.canSelectMany`                                                    | `src/extension.ts`, `src/host/conversation/transferDialogs.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/prompts/promptEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `OpenDialogOptions.filters`                                                          | `src/extension.ts`, `src/host/conversation/transferDialogs.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/prompts/promptEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -490,24 +490,24 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:async_hooks`       | 2     |
 | `node:buffer`            | 62    |
 | `node:child_process`     | 27    |
-| `node:crypto`            | 169   |
+| `node:crypto`            | 172   |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |
-| `node:events`            | 3     |
+| `node:events`            | 4     |
 | `node:fs`                | 70    |
 | `node:fs/promises`       | 109   |
 | `node:http`              | 15    |
 | `node:https`             | 2     |
 | `node:module`            | 2     |
 | `node:net`               | 20    |
-| `node:os`                | 34    |
+| `node:os`                | 35    |
 | `node:path`              | 194   |
 | `node:perf_hooks`        | 2     |
 | `node:process`           | 10    |
 | `node:readline`          | 1     |
 | `node:readline/promises` | 1     |
-| `node:stream`            | 17    |
+| `node:stream`            | 22    |
 | `node:stream/promises`   | 3     |
 | `node:string_decoder`    | 3     |
 | `node:timers/promises`   | 24    |

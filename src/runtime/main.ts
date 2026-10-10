@@ -137,7 +137,7 @@ import type {
 import { AcpVault } from '../acp/vault'
 import { runtimeVaultLoader } from './vault/vaultRuntime'
 import { runVaultCommand, vaultUsage } from './vault/vaultCommand'
-import { chooseVaultDecision, readVaultMaterial } from './vault/vaultInput'
+import { chooseVaultDecision, readVaultLine, readVaultMaterial } from './vault/vaultInput'
 
 const EXIT_FAILED = 1
 // Keep only presence for reports, before credential variables leave the process.
@@ -1311,6 +1311,9 @@ async function main(): Promise<number> {
         return await runVaultCommand(command.options, {
           open: openVaultCommands,
           readMaterial: (signal) => readVaultMaterial(process.stdin, process.stderr, signal),
+          readLine: (prompt, signal) =>
+            readVaultLine(process.stdin, process.stderr, prompt, signal),
+          isInteractive: process.stdin.isTTY,
           choose: (title, choices, signal) =>
             chooseVaultDecision(process.stdin, process.stderr, title, choices, signal),
           print: (text) => {

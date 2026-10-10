@@ -3679,7 +3679,7 @@ These are defaults; editor customizations take precedence.
 - `/share chat [--mode full|conversation] [--format md|html|json]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
 - `resources [status|history|resume] [--json]; usage resources [--json]`: Keep this machine responsive by slowing or deferring work started by the harness. On by default.
 - `--version / -v`: Print the installed agent version.
-- `vault`: Work with the per-user credential vault from a terminal: status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.
+- `vault`: Work with the per-user credential vault from a terminal: setup, recover, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.
 - `vault --help`: Show the per-user credential vault command usage.
 - `providersAdd: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false}`
 - `providersAdd: --as <value>`: --as: Provider `{"type":"string","repeatable":false}`

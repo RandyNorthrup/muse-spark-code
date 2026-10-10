@@ -7,6 +7,7 @@ import {
 } from '../../../src/host/vault/vaultPanelHost'
 import { type VaultItem, type VaultItemMetadata } from '../../../src/shared/vault'
 import { panel, item, metadata, approval, grant } from '../helpers/vault/fixtures'
+import { generatedSetup } from '../helpers/vault/runtime'
 
 function fixture() {
   const state = panel()
@@ -49,9 +50,13 @@ function fixture() {
       authorize()
       return Promise.resolve()
     }),
+    setup: vi.fn<VaultPanelService['setup']>(generatedSetup),
+    confirmSetup: vi.fn<VaultPanelService['confirmSetup']>(() => Promise.resolve()),
+    cancelSetup: vi.fn<VaultPanelService['cancelSetup']>(() => Promise.resolve()),
   }
   const deps = {
     service,
+    showRecoveryCode: vi.fn<VaultPanelHostDeps['showRecoveryCode']>(() => Promise.resolve(true)),
     now: () => 1000,
     editItem: vi.fn<VaultPanelHostDeps['editItem']>(() => Promise.resolve(null)),
     confirmRemove: vi.fn(() => Promise.resolve(true)),
@@ -464,5 +469,35 @@ describe('U authenticated panel host', () => {
     gate.resolve(undefined)
     await locking
     expect(f.deps.showError).not.toHaveBeenCalled()
+  })
+})
+
+describe('C-M109-1 Set Up Vault', () => {
+  it('shows the code once, confirms only on I Saved It, cancels otherwise, and erases the code', async () => {
+    const f = fixture()
+    f.state.status.state = 'uncreated'
+    const codes: Buffer[] = []
+    vi.mocked(f.service.setup).mockImplementation(() => {
+      const code = Buffer.from(randomBytes(20).toString('hex'), 'ascii')
+      codes.push(code)
+      return Promise.resolve({ setupId: 'a'.repeat(32), code })
+    })
+    await f.host.handle({ type: 'vaultSetup' })
+    expect(f.deps.showRecoveryCode).toHaveBeenCalledWith(
+      expect.stringMatching(/^[a-f0-9]{40}$/u),
+      expect.any(AbortSignal),
+    )
+    expect(f.service.confirmSetup).toHaveBeenCalledWith('a'.repeat(32))
+    f.deps.showRecoveryCode.mockResolvedValueOnce(false)
+    await f.host.handle({ type: 'vaultSetup' })
+    expect(f.service.cancelSetup).toHaveBeenCalledWith('a'.repeat(32))
+    expect(f.service.confirmSetup).toHaveBeenCalledOnce()
+    expect(codes.every((code) => code.every((byte) => byte === 0))).toBe(true)
+  })
+  it('refuses setup when a vault already exists', async () => {
+    const f = fixture()
+    await f.host.handle({ type: 'vaultSetup' })
+    expect(f.service.setup).not.toHaveBeenCalled()
+    expect(f.deps.showError).toHaveBeenCalled()
   })
 })

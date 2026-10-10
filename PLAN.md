@@ -33230,6 +33230,34 @@ The split:
   Linux slot.
 - **(c)**, Codex on the Win11 VM: the Windows natives.
 
+**C-M109-1 (a) status (2026-10-10, branch `c/m109-1`).** Built on fakes and
+certified in `docs/certification/m109.md` ("C-M109-1 part (a)"):
+
+- protocol v2 in the channel and the client (watch included);
+- store v2 grants;
+- `KeyringVaultAnchor`;
+- `VaultStoreRepository`, `VaultSlotUnlock` and `VaultManagement` (the setup
+  flow);
+- `VaultManageSession`;
+- `dist/vaultRuntime.js` (CLI `vault setup` / `vault recover`, ACP `/vault`,
+  headless `--vault`);
+- the VS Code bundle's broker-backed `VaultPanelService` and its native
+  recovery-code dialog;
+- **Set Up Vault** in the shared vault section;
+- strings in all 14 tables.
+
+The vault still refuses every use with `vault.brokerBlocked`, as 0.17.0
+does. Three things are open, and the vault goes live when all three land:
+
+1. `vaultClientPlatform` (`src/runtime/vault/clientPlatform.ts`) is bound by
+   lanes (b) and (c).
+2. The broker process composes these pieces.
+3. The Models & Agents panel mounts the vault section. It is not mounted in
+   0.17.0. Settings > Vault > Set Up Vault arrives with M126's settings
+   page.
+
+No checklist item above is ticked by this step.
+
 **FIXM109W integrated review repair (2026-10-07, Mac mini).** Verify every
 P1/P2 in `_ctx/codex/M109-findings.md` against integration `a1d2b73e7`,
 including already repaired U findings and the L certificate observation.

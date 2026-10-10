@@ -5168,21 +5168,22 @@ a file or the model's text.
 
 Settings (all machine-scoped, so no workspace can change them):
 `museSpark.vault.enabled` (on; an explicitly stored legacy `museSpark.vault`
-boolean remains effective until the new flag is explicitly configured), `museSpark.vault.protection` (`auto` is available
-hardware plus the OS store, with the recovery code offered at setup),
+boolean remains effective until the new flag is explicitly configured), `museSpark.vault.protection` (`auto`: the
+operating system's credential store, the same one every editor and the ACP
+agent use, plus a one-time recovery code shown at setup),
 `museSpark.vault.agentFence` (on), `museSpark.vault.lockAfterIdleMinutes`
-(240) and `museSpark.vault.lockOnScreenLock` (on). The Secure Enclave
-hardware and presence slots are offered where `SecureEnclave.isAvailable`,
-after the owner's Touch ID capture; the Keychain-biometry path stays off
-until an Apple Developer entitlement exists.
+(240) and `museSpark.vault.lockOnScreenLock` (on). On macOS the vault uses
+the login Keychain, and the Secure Enclave without biometry where
+`SecureEnclave.isAvailable`. Touch ID (Keychain biometry) unlock is not
+offered: it needs an Apple Developer ID this project does not have.
 
-The terminal/ACP/headless handlers are implemented against the shared vault
-contracts. This branch still needs the installed broker factory and panel
-bindings from M109 W/U/M104. It does not claim a working packaged vault:
-missing bindings report the broker installation failure and refuse access.
-No activation read or broker start is added.
+The terminal, ACP and headless commands load `dist/vaultRuntime.js` on the
+first vault need. Its broker process and per-OS connection are not installed
+in this build: until they are, every command reports the broker installation
+failure and refuses access. No activation read or broker start is added.
 
-The terminal grammar is `muse-spark-code-acp vault` followed by `status`,
+The terminal grammar is `muse-spark-code-acp vault` followed by `setup`,
+`recover`, `status`,
 `unlock [slot-id]`, `lock`, `list`, `add <metadata-json>`, `remove <item-id>`,
 `grant <grant-json>`, `revoke <grant-id>`, `audit`, `import <path>`,
 `public-key <item-id>` or `watch`. Every handler was run successfully against
@@ -5190,6 +5191,12 @@ an injected fake-only local port in the H certification; installed-command
 success remains the integration check. `audit` accepts `--item`, `--requester`,
 `--kind` and `--outcome`. IDs, metadata and grant JSON use the shared schemas.
 Keep secrets out of names, labels and command arguments.
+
+`setup` creates the vault: it prints the one-time recovery code and writes
+nothing until you answer that you saved it; cancelling leaves no vault.
+`recover` unlocks with that code, read from the terminal with echo off. Both
+refuse without an interactive terminal, so headless runs never set up or
+recover a vault.
 
 `add` reads private material as one bounded JSON line from standard input,
 with byte fields encoded as base64. Terminal echo stays off while reading;
