@@ -9,84 +9,6 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **Groundwork for Git and pull requests in every editor** (M123 lane 0,
-  PLAN.md D104). The shared contracts for the GitHub sign-in sources (the
-  editor's own sign-in by lease, Muse Spark's device-flow sign-in, and the
-  user's `gh` login), the runtime Git adapter's inputs and the pull request
-  link store, with fakes of GitHub, the device flow, `gh` and Git remotes
-  for the lanes that build on them. New setting
-  `museSpark.github.useGhLogin` (off, user settings only); nothing reads it
-  yet. The device-flow sign-in waits for the project's OAuth App (Q-M123).
-
-- **Native Git in editors built on VS Code without its Git extension**
-  (M123 lane G, PLAN.md D104). In a host that does not ship `vscode.git`
-  (Arduino IDE 2, some forks), the commit form, commit, push and
-  commit-message drafts now run through your own `git` on `PATH`, in the
-  conversation as before; VS Code and hosts with the Git extension are
-  unchanged. A push always asks first, naming the remote and every URL Git
-  will push it to (after any `insteadOf`/`pushInsteadOf` rewrite; user
-  names, passwords and query values masked), the branch, its target and
-  the commit count; with several remotes and no upstream you pick one.
-  Pushes plan with the same refusals as VS Code (never a force-push), run
-  hooks and signers as you configured them, and keep your own credential
-  helpers, SSH agent and GitHub token variables (`GH_TOKEN`,
-  `GITHUB_TOKEN` and their Enterprise forms); no other credential, model or
-  provider key reaches Git, and reads stay quiet. Just before Git starts,
-  after every wait, the push or commit is checked again against what you
-  confirmed (destination, branch commit, staged and working-tree bytes),
-  and anything changed is refused. A push Git itself rejects opens the
-  same command in a terminal, only in the same repository with the plan
-  unchanged; a refusal, Cancel or a lost trust never does. Cancel,
-  switching or closing the conversation stops pending Git. Commits and
-  pushes on one repository take turns across conversations and editor
-  windows. The native service binds to the folder it was given and
-  refuses a link or replacement it finds in its place; new files for a
-  draft are read only through real folders inside it. It does not defend
-  against another program of yours swapping folders while it works
-  (PLAN.md D104's threat boundary). Pull requests are not available on
-  this route yet (lane P), nor is a GitHub sign-in (lanes A and L). Other
-  editors (JetBrains, Visual Studio, Eclipse, Zed and the rest) get this
-  adapter when the shared panel route lands (M104, lane U); nothing there
-  is wired yet.
-
-- **Pull requests in the runtime, in every editor** (M123 lane P, PLAN.md
-  D104). Draft and open a pull request (draft or ready, a fork onto its
-  parent) after the user confirms what goes out, link it to the session
-  instead of opening a second one, read its status and checks, and check it
-  out into its own worktree (the user's own beside the repository as
-  `pr-<n>`, anyone else's held under the runtime data folder), all through
-  M71's REST client with a credential from lane 0's token-source port. The
-  held checkout refuses exactly as in VS Code, the hold spans VS Code's
-  storage and the runtime data folder, and the trust card releases it. The
-  bearer travels only in the `Authorization` header; credential-shaped
-  strings are masked, never sent. No new setting; the panel wiring follows
-  in lane U. The device-flow sign-in still waits for Q-M123. Windows share
-  the worktree records through one fenced lock (each hold gets a number no
-  other hold ever had) and numbered record generations, so a window that
-  lost the lock without knowing it never writes over another's, and a
-  delayed window can never bring back a trust confirmation; the trust card
-  confirms only the very checkout it showed, once. A checkout claims its
-  folder under the same lock that records the claim, starts each git only
-  while the project is still trusted, Cancel was not pressed and its claim
-  still stands, and when its claim was taken over removes exactly what it
-  made: at most one window ends up with the checkout, and a folder is
-  never left without its record (checked over every interleaving of two
-  and three windows). A cancelled or timed-out held checkout is cleaned up
-  (after any file write in flight has stopped), removing only the folder
-  it made itself, never one another program put there. A clock change
-  cannot stretch or cut the records lock, a waiting window takes over a
-  stuck lock only after watching it for its whole lease (and never removes
-  one it cannot prove is that one), and a checkout left behind by a crashed
-  window is taken over even when the system has reused that window's
-  process id. A record write that landed is never reported as failed
-  because of a later housekeeping step, and one whose landing cannot be
-  known is cleaned up by every number it may carry, so a failed listing
-  never leaves a checkout blocked; a lock renewal writes only the very
-  lock it holds, never one another window took over.
-  A failed sweep listing logs its operation and safe error code without
-  user paths, and uncertain record writes report their error in the
-  installed display language, including all fourteen translations.
-
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
@@ -274,20 +196,6 @@ happened, not what was planned; superseded entries are kept.
   out on every OS, and the hook asks for `npm run prepare` in a worktree
   that still has husky's own stubs.
 
-- **Git dispatch during lease renewal** (M123G4C, PLAN.md D104). A native
-  Git transaction keeps its lock while its own renewal is being written,
-  so an unchanged commit or push is no longer refused at that instant.
-  The shared lease still refuses a successor, an expired hold or a later
-  fence; a failed sample during renewal is rechecked when renewal settles.
-
-- **Native Git transaction leases** (M123G4, PLAN.md D104). A paused
-  transaction can no longer reclaim another window's lock after that
-  window renews it, or run another Git mutation with that lost lock. The
-  service uses the shared fenced lease, renews every third of its lease,
-  and never re-creates a removed lock. Acquisition no longer waits an
-  extra 250 ms. A Git child already running when the lock is removed or
-  expires can still overlap a successor; fencing refuses later mutations.
-
 - Packaged translation tables round-trip byte-exact again: every language
   table lists its keys in English's order, including the resource history
   and Windows path strings merged for 0.17.0.
@@ -388,6 +296,29 @@ happened, not what was planned; superseded entries are kept.
   vault MCP start.
 
 ### Pending
+
+- M123 (Git and pull requests in every editor, PLAN.md D104): lanes 0, G
+  and P are merged and switched off until the milestone is complete, so
+  nothing changes for users yet. No GitHub setting is offered, and an
+  editor built on VS Code without its Git extension (Arduino IDE 2, some
+  forks) keeps its earlier behaviour. Merged: the GitHub token-source
+  contracts with fakes of GitHub, the device flow, `gh` and Git remotes
+  (lane 0); the runtime's native Git service (status, the commit form,
+  commit, a push confirmed with every URL Git will use and the same
+  refusals as VS Code, never a force-push, commit-message drafts),
+  revalidated after every wait and serialized per repository across
+  windows by one fenced lease (LOCKLIB) that renews every third of its
+  30-second lease, is checked synchronously at each Git dispatch and is
+  never re-created once lost (lane G, with M123G4 and M123G4C); pull
+  requests in the runtime (draft, open and link, status and checks, a
+  fork onto its parent) and checkouts of other people's pull requests
+  held under the runtime data folder, whose records take that lease with
+  fenced compare-and-swap generations, so at most one window gets a
+  checkout and no folder is left without its record (lane P, with
+  M123P9's logged sweep failures and translated uncertain writes). Still
+  to land: the GitHub sign-in (lane A, accepted on its branch), the
+  editors' leases (lane L), the panel and its strings (lane U) and each
+  editor's qualification (lane Q).
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.

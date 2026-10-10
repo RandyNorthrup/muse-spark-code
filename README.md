@@ -4438,11 +4438,7 @@ stopped and the next message resumes the same session.
   checkpoints (**Restore files to here**), best-of-N (git 2.36 or newer) and
   the Model API prompt's git facts (optional; VS Code's file search is used
   without it). Commit and push use VS Code’s built-in Git extension, and pull
-  requests use VS Code’s GitHub sign-in. In an editor built on VS Code that
-  does not ship the Git extension (Arduino IDE 2, some forks), the commit
-  form, commit, push (after the same confirmation, with the remote pick)
-  and commit-message drafts run through that `git` directly instead; pull
-  requests there are not available yet. The extension runs git only in a trusted workspace and only
+  requests use VS Code’s GitHub sign-in. The extension runs git only in a trusted workspace and only
   from an absolute `PATH` entry, never a copy inside the workspace.
 - Python 3.12 or newer on `PATH`, only for the
   [bundled skills](#bundled-skills)' delivery helpers.

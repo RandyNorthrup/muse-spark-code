@@ -830,7 +830,7 @@ The structured answer could not be validated. Using the text fallback.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.newWorktree`, `museSpark.removeWorktree`, `museSpark.openPullRequestInConversation`. Settings: `museSpark.github.useGhLogin`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests)
+Commands: `museSpark.newWorktree`, `museSpark.removeWorktree`, `museSpark.openPullRequestInConversation`. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests)
 
 ### Background tasks
 
@@ -3466,19 +3466,6 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 ### museSpark.accounts.severalOnThisDevice
 
 Allow several accounts of one provider on this PC for testing, each in its own isolated local profile. Turning it on asks the provider’s vendor-terms confirmation first. Off by default; only this machine’s setting is used.
-
-Type: `"boolean"`. Default: `false`. Scope: `machine`.
-
-```json
-{
-  "type": "boolean",
-  "default": false
-}
-```
-
-### museSpark.github.useGhLogin
-
-Lets pull requests use your existing GitHub CLI sign-in (`gh auth token`), tried last, after the editor's own GitHub sign-in and Muse Spark's. The token is read for one request at a time and never stored. Off by default; user settings only, so a repository cannot turn it on.
 
 Type: `"boolean"`. Default: `false`. Scope: `machine`.
 
