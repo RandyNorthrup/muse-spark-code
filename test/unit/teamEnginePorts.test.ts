@@ -10,8 +10,14 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { resolveWorkerReport } from '../../src/core/team/workers/engineWorker'
 import { createEngineTeamPorts, processTeamGit } from '../../src/host/team/teamEnginePorts'
-import type { TeamTaskSpec, TeamTaskWorkspace } from '../../src/core/team/teamHostService'
+import type {
+  TeamTaskMeter,
+  TeamTaskSpec,
+  TeamTaskWorkspace,
+  TeamUsage,
+} from '../../src/core/team/teamHostService'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import type { SubagentUsage } from '../../src/shared/paid'
 import type { TeamPoolEntry, TeamRoleConfig } from '../../src/shared/team'
 import { FakeAgentSession } from './helpers/fakeAgent'
 import { cleanupTeamRoots, teamFixtureRepo, teamGitRunner, trackTeamRoot } from './helpers/teamGit'
@@ -42,6 +48,7 @@ async function setup(edit: (folder: string) => Promise<void>, message = REPORT) 
     folder: string
     approvalMode: string
     admit: (keyDigest: string | undefined) => void
+    noteUsage: (modelId: string, usage: SubagentUsage) => void
     fenceIo: (io: ToolIo) => ToolIo
   }[] = []
   const ports = createEngineTeamPorts({
@@ -50,8 +57,8 @@ async function setup(edit: (folder: string) => Promise<void>, message = REPORT) 
     platform: process.platform,
     isTrusted: () => true,
     listModels: () => Promise.resolve(['other-model', 'muse-spark-1.3']),
-    startWorker: ({ folder, modelId, approvalMode, admit, fenceIo }) => {
-      started.push({ folder, approvalMode, admit, fenceIo })
+    startWorker: ({ folder, modelId, approvalMode, admit, noteUsage, fenceIo }) => {
+      started.push({ folder, approvalMode, admit, noteUsage, fenceIo })
       const session = new FakeAgentSession(`worker-${String(started.length)}`, modelId)
       session.sendTurn.mockImplementation(async () => {
         await edit(folder)
@@ -275,6 +282,71 @@ describe('the engine worker port after the RVCM963 review', () => {
     await expect(fenced?.writeFile(path.join(folder, '.git', 'config'), 'x')).rejects.toThrow()
     await fenced?.writeFile(path.join(folder, 'tracked.txt'), 'y')
     expect(await readFile(path.join(folder, 'tracked.txt'), 'utf8')).toBe('y')
+  })
+
+  it('R4-2: the engine reserves each request maximum and settles its usage report', async () => {
+    const reserved: TeamUsage[] = []
+    const settled: { ordinal: number; usage: TeamUsage }[] = []
+    let ordinal = 0
+    const { ports, started } = await setup(() => Promise.resolve())
+    const meter: TeamTaskMeter = {
+      admitRequest: () => undefined,
+      reserveRequest: (maximum) => {
+        reserved.push(maximum)
+        ordinal += 1
+        return Promise.resolve(ordinal)
+      },
+      settleRequest: (requestOrdinal, usage) => {
+        settled.push({ ordinal: requestOrdinal, usage })
+        return Promise.resolve()
+      },
+      noteUsage: () => Promise.resolve(),
+      noteWorkspace: () => Promise.resolve(),
+    }
+    const outcome = await ports.workers.run(
+      spec(ENGINEERING, 'task1', { meter }),
+      new AbortController().signal,
+    )
+    expect(outcome.report.status).toBe('done')
+    const admit = started[0]?.admit as unknown as {
+      reserveUsage: (maximum: {
+        inputTokens: number
+        outputTokens: number
+        costUsd?: string | undefined
+      }) => Promise<void>
+    }
+    await admit.reserveUsage({ inputTokens: 80, outputTokens: 20, costUsd: '0.75' })
+    expect(reserved).toEqual([
+      {
+        input: 80,
+        cachedInput: 0,
+        output: 20,
+        reasoning: 0,
+        modelCalls: 1,
+        estimated: true,
+        costUsd: 0.75,
+      },
+    ])
+    started[0]?.noteUsage('agent-1', {
+      inputTokens: 80,
+      outputTokens: 20,
+      cachedTokens: 5,
+      costUsd: '0.30',
+    })
+    expect(settled).toEqual([
+      {
+        ordinal: 1,
+        usage: {
+          input: 80,
+          cachedInput: 5,
+          output: 20,
+          reasoning: 0,
+          modelCalls: 1,
+          estimated: false,
+          costUsd: 0.3,
+        },
+      },
+    ])
   })
 
   it('14: merges a protected path only with the approval the merge card gave', async () => {
