@@ -37907,6 +37907,8 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**JBDIAG (2026-10-09):** Repair native diagnostic fixtures to wait for the real daemon; 86/86 pass.
+
 **M104 F1 native contract and qualification repair (2026-10-09).** Repair the
 joined native blockers in this lane only. Preserve closed native payloads
 while exporting pre-normalization input: explicitly adopt MHP 1.5 through the
@@ -38884,6 +38886,12 @@ and are not transferred or accepted as complete by these launcher repairs.
 
 ## 7. Gates
 
+**JBDIAG scope (2026-10-09).** The rig/common brief reserves aggregate
+quality/coverage for the lead; this lane runs the complete offline native
+Gradle matrix and scoped repository gates. Production remains unchanged.
+The existing portable-webview build budget (1,321.5/1,100 KiB) remains a
+lead integration blocker; no size cap or assertion is weakened.
+
 **M104INT final-verification fixture repairs (2026-10-09).** Keep every
 changed lane file and bridge/companion suite in the default-deadline inventory.
 Private packages carry all joined factory/native/JSON members; fake crash
@@ -38954,7 +38962,8 @@ The rig's two-fix stop rule applies; ineffective changes were restored and the
 settlement, committed-document, version and scope checks remain intact. Eclipse's
 contract vocabulary repair removes its setup/teardown errors; both target
 matrices and native red drills are recorded in M104 F1's certification.
-These two diagnostic tests remain a main-integration blocker. Installed VS Code
+JBDIAG now clears these two diagnostic-test blockers: the visible-editor
+real-daemon harness passes all 86 native tests with production unchanged. Installed VS Code
 on Win11, real Visual Studio/Xcode qualification and resource-chip parity stay
 open. The C# endpoint change has a portable .NET 10 probe only; the Swift
 endpoint change awaits a native macOS run because this Linux rig has no Swift

@@ -1,13 +1,24 @@
 package io.github.randynorthrup.musespark
 
 import com.google.gson.JsonObject
+import com.intellij.codeHighlighting.Pass
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
+import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerEx
+import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerImpl
+import com.intellij.openapi.fileEditor.FileEditor
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.util.Disposer
+import com.intellij.psi.PsiDocumentManager
+import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import java.awt.GraphicsEnvironment
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicBoolean
+import javax.swing.JFrame
 
 class NativeHostServicesTest : BasePlatformTestCase() {
   override fun createTempDirTestFixture(): com.intellij.testFramework.fixtures.TempDirTestFixture =
@@ -68,10 +79,66 @@ class NativeHostServicesTest : BasePlatformTestCase() {
     }
   }
 
+  private fun showDiagnosticEditor() {
+    if (GraphicsEnvironment.isHeadless()) return
+    val editor = requireNotNull(FileEditorManager.getInstance(project).getSelectedEditor(myFixture.file.virtualFile))
+    // Native daemon passes apply and clear their scopes only on a showing editor.
+    val frame =
+      JFrame("Native diagnostics fixture").apply {
+        add(editor.component)
+        setSize(640, 480)
+        isVisible = true
+      }
+    Disposer.register(testRootDisposable) { frame.dispose() }
+    assertTrue(editor.component.isShowing)
+  }
+
+  private fun completeHighlighting() {
+    PsiDocumentManager.getInstance(project).commitAllDocuments()
+    val editor = requireNotNull(FileEditorManager.getInstance(project).getSelectedEditor(myFixture.file.virtualFile))
+    require(editor is TextEditor)
+    val version = editor.editor.document.modificationStamp
+    val completed = AtomicBoolean()
+    val connection = project.messageBus.connect()
+    connection.subscribe(
+      DaemonCodeAnalyzer.DAEMON_EVENT_TOPIC,
+      object : DaemonCodeAnalyzer.DaemonListener {
+        override fun daemonFinished(fileEditors: Collection<FileEditor>) {
+          if (editor in fileEditors && editor.editor.document.modificationStamp == version) {
+            completed.set(DaemonCodeAnalyzerEx.isHighlightingCompleted(editor, project))
+          }
+        }
+      },
+    )
+    val daemon = DaemonCodeAnalyzer.getInstance(project)
+    try {
+      if (GraphicsEnvironment.isHeadless()) {
+        // Headless unit tests have no active editor for the timer's editor tracker.
+        require(daemon is DaemonCodeAnalyzerImpl)
+        daemon.runPasses(myFixture.file, editor.editor.document, editor, intArrayOf(), false, null)
+      } else {
+        daemon.setUpdateByTimerEnabled(true)
+        daemon.restart(myFixture.file, "Native diagnostics fixture")
+      }
+      PlatformTestUtil.waitWithEventsDispatching(
+        "Diagnostic daemon did not finish",
+        { completed.get() },
+        DAEMON_WAIT_SECONDS,
+      )
+      assertEquals(version, myFixture.file.viewProvider.modificationStamp)
+      assertTrue(DaemonCodeAnalyzerEx.isHighlightingCompleted(editor, project))
+    } finally {
+      daemon.setUpdateByTimerEnabled(false)
+      connection.disconnect()
+    }
+  }
+
   private fun brokenXml(): NativeHostServices {
     val file = myFixture.addFileToProject("diagnostics.xml", "<root><child></root>").virtualFile
     PsiTestUtil.addContentRoot(module, file.parent)
     myFixture.configureFromExistingVirtualFile(file)
+    showDiagnosticEditor()
+    completeHighlighting()
     // Drain fixture/VFS events before the SDK's non-cancellable highlighting check.
     com.intellij.testFramework.PlatformTestUtil
       .dispatchAllEventsInIdeEventQueue()
@@ -188,7 +255,32 @@ class NativeHostServicesTest : BasePlatformTestCase() {
       "Committed PSI is still pending analysis",
       services.request("diagnostics/settled", params, RequestCancellation()).isJsonNull,
     )
-    myFixture.doHighlighting()
+    completeHighlighting()
+    val report = services.request("diagnostics/settled", params, RequestCancellation()).asJsonObject
+    assertEquals(version, report["version"].asLong)
+    assertTrue(report.getAsJsonArray("diagnostics").any { it.asJsonObject["severity"].asString == "error" })
+  }
+
+  fun testSettledDiagnosticsRefuseDirtyDiagnosticScopesEvenAtTheSameCommittedVersion() {
+    val services = brokenXml()
+    val document = myFixture.editor.document
+    val version = document.modificationStamp
+    val params = json("uri" to DocumentServices.uri(myFixture.file.virtualFile), "expectedVersion" to version)
+    assertFalse(services.request("diagnostics/settled", params, RequestCancellation()).isJsonNull)
+    val daemon = DaemonCodeAnalyzer.getInstance(project)
+    require(daemon is DaemonCodeAnalyzerImpl)
+    daemon.restart(myFixture.file, "Invalidate diagnostics without editing")
+    assertTrue(PsiDocumentManager.getInstance(project).isCommitted(document))
+    assertEquals(version, document.modificationStamp)
+    assertEquals(version, myFixture.file.viewProvider.modificationStamp)
+    for (pass in listOf(Pass.UPDATE_ALL, Pass.LOCAL_INSPECTIONS)) {
+      assertNotNull(daemon.fileStatusMap.getFileDirtyScope(document, myFixture.file, pass))
+    }
+    assertTrue(
+      "Cached errors at the same committed version cannot attest dirty diagnostic scopes",
+      services.request("diagnostics/settled", params, RequestCancellation()).isJsonNull,
+    )
+    completeHighlighting()
     val report = services.request("diagnostics/settled", params, RequestCancellation()).asJsonObject
     assertEquals(version, report["version"].asLong)
     assertTrue(report.getAsJsonArray("diagnostics").any { it.asJsonObject["severity"].asString == "error" })
@@ -264,5 +356,9 @@ class NativeHostServicesTest : BasePlatformTestCase() {
     val fixed = publish()
     assertEquals(broken["uri"], fixed["uri"])
     assertEquals(jsonValue(emptyList<String>()), fixed["diagnostics"])
+  }
+
+  companion object {
+    private const val DAEMON_WAIT_SECONDS = 5
   }
 }
