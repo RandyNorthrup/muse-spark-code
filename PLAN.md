@@ -19195,15 +19195,16 @@ in-tree junctions below it, drive-letter spelling) and
 
 ## 3. Open questions (need the owner)
 
-**Q-VIS0171-RELEASE-NOTES (2026-10-10, linuxlt).** The VIS0171 brief permits
-only Title Case, question spacing and provider-picker changes. The three
-What's New scenes replace 0.17.0's version, date and reporting content with
-0.17.1's provider/DeepSeek content: class (d), so the refresh is stopped.
-The lead must explicitly extend the review scope before these scenes can be
-approved. Preserve the manifest, README images, fingerprint and audit hashes
-until then; complete the remaining themes/shards and baseline revert drill
-after that decision. Evidence and the observed scene table are in
-`docs/certification/cifix017.md`, "0.17.1 visual refresh".
+**Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
+explicitly approves the 116 Title Case scenes, `models-errors` with the
+provider-picker repair, and the three What's New scenes as class (b'):
+the page renders 0.17.1's changed release notes. Inspect every changed frame
+before approving the refresh; verify release highlights, sentence case,
+unclipped controls and intact question spacing. Complete all six themes,
+the repository's reviewed baseline update, every curated README recapture,
+freshness records, the full zero-changed-scene replay and the SHA-256
+old-baseline drill. Evidence remains in `docs/certification/cifix017.md`,
+"0.17.1 visual refresh". Stop only for an incorrect frame.
 
 **Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
 change and Highlight while tightening only that release's wording below
@@ -38379,7 +38380,7 @@ and a strict production-schema regression; never relax the message schema.
 - [x] Repair and drill historical-label readiness and the strict provider-budget fixture.
 - [x] Reconstruct all 9,792 historical frames; compare all 1,632 light-theme candidate frames.
 - [x] Classify 120 observed changed scenes; stop on three class-(d) release-note scenes.
-- [ ] Complete remaining themes/shards and per-frame approval review (Q-VIS0171-RELEASE-NOTES).
+- [ ] Complete all themes/shards and per-frame approval review under the resolved round-2 authorization.
 - [ ] Refresh approved baselines, all README shots, fingerprint and current audit hashes; perform the old-baseline drill.
 - [x] Run owning suites and scoped gates; record the blocked outcome, source restoration drill and hooks-on repairs.
 
@@ -38394,6 +38395,15 @@ updated. The original manifest remains SHA-256
 Owning suites pass 136 of 138 cases; the two retained failures correctly name
 stale audit source hashes and the README input fingerprint. Q-VIS0171-RELEASE-NOTES
 and the inherited 21 duplication clones remain release holds.
+
+**Round 2 in progress.** The lead accepts both harness repairs and approves
+the 120 observed scenes, including 0.17.1's release-note content. The earlier
+stop is historical; Q-VIS0171-RELEASE-NOTES is resolved. Finish the complete
+six-theme comparison and per-frame inspection before the named reviewed
+update, then regenerate every README shot and freshness record. Require the
+full official replay and owning suites at repository timeouts, plus an
+old-baseline failure and byte-exact restoration. Aggregate quality and the
+inherited duplication repair remain lead-owned; no merge or push.
 
 **PROVWIZ10 scoped qualification (2026-10-09, complete).** Both RVPROVWIZ9C
 P2 repairs pass production/shared-form regressions, including genuine concurrent
