@@ -8,8 +8,9 @@
 > is a confined read-only inspect command (Linux and macOS), or the
 > workspace's own unchanged npm or pnpm check script run in a contained
 > sandbox (Linux only), may skip the slow reviewer when the judge does not
-> veto it within 5 seconds
-> (the reviewer still starts as it does today, so a veto adds no wait). The
+> veto it within 5 seconds of the hold, for both kinds (the reviewer still
+> starts as it does today, so a veto adds no wait, and a skip saves time
+> rather than the reviewer's tokens). The
 > design is in [design/judge-fast-path.md](design/judge-fast-path.md).
 > Nothing in it is built. This page describes phase 1 as it ships today.
 
