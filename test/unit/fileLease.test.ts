@@ -127,6 +127,19 @@ function reusingInodes(base: LeasePort): LeasePort {
     ...base,
     lstat: async (file) => reused(file, await base.lstat(file)),
     lstatSync: (file) => reused(file, base.lstatSync(file)),
+    rewriteOwn: (file, isOwn, content) =>
+      base.rewriteOwn(file, (opened, bytes) => isOwn(reused(file, opened), bytes), content),
+  }
+}
+
+/** Something to resolve from outside: a step a test waits for. */
+function deferred(): { readonly promise: Promise<undefined>; readonly resolve: () => void } {
+  const { promise, resolve } = Promise.withResolvers<undefined>()
+  return {
+    promise,
+    resolve: () => {
+      resolve(undefined)
+    },
   }
 }
 
@@ -387,6 +400,52 @@ describe('file lease: fences (M123 LOCKLIB)', () => {
   })
 })
 
+/**
+ * A holder whose renewal passed its own check and then waits, at the
+ * open, for the test; and a taker that, meanwhile, watches the holder's
+ * instance run out and takes the lock over with a fence of its own.
+ */
+async function renewalOvertaken(port: LeasePort) {
+  const { lockPath } = await lockFolder()
+  let elapsed = 0
+  const atOpen = deferred()
+  const goOn = deferred()
+  const holder = await acquireFileLease(
+    lockPath,
+    await leaseEnv({
+      port: {
+        ...port,
+        rewriteOwn: async (file, isOwn, content) => {
+          atOpen.resolve()
+          await goOn.promise
+          return await port.rewriteOwn(file, isOwn, content)
+        },
+      },
+      monotonic: () => elapsed,
+      leaseMs: 1000,
+      watches: new Map(),
+    }),
+  )
+  const renewing = holder.renew()
+  await atOpen.promise
+  const taker = await acquireFileLease(
+    lockPath,
+    await leaseEnv({
+      port,
+      monotonic: () => elapsed,
+      sleep: async () => {
+        elapsed += 200
+        await nextTurn()
+      },
+      timeoutMs: 10_000,
+      watches: new Map(),
+    }),
+  )
+  const takersNote = await readFile(lockPath, 'utf8')
+  goOn.resolve()
+  return { lockPath, holder, taker, takersNote, isRenewed: await renewing }
+}
+
 describe('file lease: renewal (M123 LOCKLIB)', () => {
   it('keeps a renewing holder against a waiter, and is taken over a lease after it stops', async () => {
     // Liveness by renewal (lane G's transaction lock moves onto this): the
@@ -431,6 +490,72 @@ describe('file lease: renewal (M123 LOCKLIB)', () => {
     await holder.release()
     expect(taken.isHeldSync()).toBe(true)
     await taken.release()
+  })
+
+  it('never renews over a taker’s lock that reuses its file id', async () => {
+    // RVM123P7 finding 2: the holder passed its check and paused before
+    // opening the file; its lease ran out and the taker's lock, with the
+    // same file id (Linux reuses one at once; this port reports one for
+    // every lock), stands at the name. The renewal reads the opened file's
+    // own birth and note and writes nothing.
+    const overtaken = await renewalOvertaken(reusingInodes(nodeLeasePort))
+    expect(overtaken.isRenewed).toBe(false)
+    expect(await readFile(overtaken.lockPath, 'utf8')).toBe(overtaken.takersNote)
+    expect(overtaken.taker.fence).toBeGreaterThan(overtaken.holder.fence)
+    expect(overtaken.taker.isHeldSync()).toBe(true)
+    expect(overtaken.holder.isHeldSync()).toBe(false)
+    await overtaken.taker.release()
+  })
+
+  it('never renews over a taker’s lock, natively', async () => {
+    // The same on this platform's own file system, whatever file id the
+    // taker's lock gets.
+    const overtaken = await renewalOvertaken(nodeLeasePort)
+    expect(overtaken.isRenewed).toBe(false)
+    expect(await readFile(overtaken.lockPath, 'utf8')).toBe(overtaken.takersNote)
+    expect(overtaken.taker.isHeldSync()).toBe(true)
+    await overtaken.taker.release()
+  })
+
+  it('reports a renewal lost when a later fence is the highest after it wrote', async () => {
+    const { lockPath } = await lockFolder()
+    const lease = await acquireFileLease(
+      lockPath,
+      await leaseEnv({
+        port: {
+          ...nodeLeasePort,
+          rewriteOwn: async (file, isOwn, content) => {
+            const isWritten = await nodeLeasePort.rewriteOwn(file, isOwn, content)
+            // A later hold's fence, taken while this one wrote.
+            await writeFile(
+              path.join(`${lockPath}.fences`, String(lease.fence + 1).padStart(16, '0')),
+              '',
+            )
+            return isWritten
+          },
+        },
+        watches: new Map(),
+      }),
+    )
+    expect(await lease.renew()).toBe(false)
+    expect(lease.isHeldSync()).toBe(false)
+  })
+
+  it('rewrites a file only while its owner check accepts the file opened', async () => {
+    const { folder } = await lockFolder()
+    const file = path.join(folder, 'note')
+    await writeFile(file, 'old')
+    expect(await nodeLeasePort.rewriteOwn(file, () => false, 'new')).toBe(false)
+    expect(await readFile(file, 'utf8')).toBe('old')
+    const seen: string[] = []
+    const isOwn = (_opened: unknown, bytes: Buffer) => {
+      seen.push(bytes.toString('utf8'))
+      return true
+    }
+    expect(await nodeLeasePort.rewriteOwn(file, isOwn, 'new')).toBe(true)
+    expect(seen).toEqual(['old'])
+    expect(await readFile(file, 'utf8')).toBe('new')
+    expect(await nodeLeasePort.rewriteOwn(path.join(folder, 'gone'), () => true, 'x')).toBe(false)
   })
 })
 

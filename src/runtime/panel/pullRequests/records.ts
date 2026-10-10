@@ -131,6 +131,31 @@ export type ClaimResult<T> =
   | { readonly status: 'refused'; readonly current: WorktreeRecord | undefined }
   /** Claimed, but `make` failed: `reservation` is the claimed one, to discard. */
   | { readonly status: 'failed'; readonly reservation: Reservation; readonly error: unknown }
+  /**
+   * Not known whether the claim landed (its write failed after it may
+   * have): nothing was made, and the record is one of `reservations` (the
+   * claimed ones, then the one claimed from), to discard.
+   */
+  | {
+      readonly status: 'unknown'
+      readonly reservations: readonly Reservation[]
+      readonly error: unknown
+    }
+
+/**
+ * A write whose landing is not known: it failed after its publish may
+ * have landed. `results` are what each such attempt would have written
+ * (a reservation among them), so the caller can drop it.
+ */
+export class UnknownWriteError<T> extends Error {
+  public constructor(
+    public readonly results: readonly T[],
+    cause: unknown,
+  ) {
+    super('The worktree records may have been written', { cause })
+    this.name = 'UnknownWriteError'
+  }
+}
 
 /** The revision a record carries; records an earlier version wrote read as 0. */
 export function recordRevision(record: WorktreeRecord): number {
@@ -461,32 +486,51 @@ export function createWorktreeRecordStore(
   }
   /**
    * Applies `change` under one hold; `whileHeld` runs under the same hold
-   * once the change is in effect (a refused change runs nothing).
+   * once the change is in effect (a refused change runs nothing). A
+   * failure after a publish may have landed throws `UnknownWriteError`
+   * with what such attempts would have written; a landed write is never
+   * reported as failed for anything after it.
    */
   const mutate = <T>(
     change: (records: readonly WorktreeRecord[], fence: number) => Mutation<T>,
     whileHeld?: (result: T) => Promise<void>,
   ): Promise<T> =>
     enqueue(async () => {
+      // What attempts whose landing is not known would have written.
+      const unknown: T[] = []
       for (let attempt = 1; ; attempt += 1) {
-        const settled = await registry.hold(async (hold) => {
-          const changed = change(hold.records, hold.fence)
-          if (changed.records === hold.records) {
-            // A refused transition: nothing to publish, nothing touched.
+        let settled: { readonly result: T } | undefined
+        try {
+          settled = await registry.hold(async (hold) => {
+            const changed = change(hold.records, hold.fence)
+            if (changed.records === hold.records) {
+              // A refused transition: nothing to publish, nothing touched.
+              return { result: changed.result }
+            }
+            unknown.push(changed.result)
+            const outcome = await hold.publish(changed.records)
+            // Published, and its place could not be proven (its successor
+            // swept, or the proof unreadable): in effect while the head
+            // still holds exactly what it wrote. Applying it again would
+            // refuse its own record.
+            const isInEffect =
+              outcome === 'written' ||
+              (outcome === 'unverified' && (await isInHead(changed.touched)))
+            // Known now: in effect, or not (lost, or no longer the head's).
+            unknown.pop()
+            if (!isInEffect) {
+              return
+            }
+            await whileHeld?.(changed.result)
             return { result: changed.result }
+          })
+        } catch (error: unknown) {
+          if (unknown.length > 0) {
+            log.warn('The worktree records may have been written; not known')
+            throw new UnknownWriteError(unknown, error)
           }
-          const outcome = await hold.publish(changed.records)
-          // Published, and its successor swept before it could be proven:
-          // in effect while the head still holds exactly what it wrote.
-          // Applying it again would refuse its own record.
-          const isInEffect =
-            outcome === 'written' || (outcome === 'unverified' && (await isInHead(changed.touched)))
-          if (!isInEffect) {
-            return
-          }
-          await whileHeld?.(changed.result)
-          return { result: changed.result }
-        })
+          throw error
+        }
         if (settled !== undefined) {
           return settled.result
         }
@@ -512,19 +556,36 @@ export function createWorktreeRecordStore(
     claim: async <T>(reservation: Reservation, make: () => Promise<T>): Promise<ClaimResult<T>> => {
       const wanted = { ...reservation, folder: slashed(reservation.folder) }
       const outcome: { made?: { readonly value: T }; error?: unknown } = {}
-      const claimed = await mutate(
-        (records, fence) => apply.claim(records, wanted, fence),
-        async (result) => {
-          if (!result.ok) {
-            return
-          }
-          try {
-            outcome.made = { value: await make() }
-          } catch (error: unknown) {
-            outcome.error = error
-          }
-        },
-      )
+      let claimed: Claimed
+      try {
+        claimed = await mutate(
+          (records, fence) => apply.claim(records, wanted, fence),
+          async (result) => {
+            if (!result.ok) {
+              return
+            }
+            try {
+              outcome.made = { value: await make() }
+            } catch (error: unknown) {
+              outcome.error = error
+            }
+          },
+        )
+      } catch (error: unknown) {
+        if (!(error instanceof UnknownWriteError)) {
+          throw error
+        }
+        // Not known whether it landed: the record is one of these.
+        const results = error.results as readonly Claimed[]
+        return {
+          status: 'unknown',
+          reservations: [
+            ...results.flatMap((result) => (result.ok ? [result.reservation] : [])),
+            wanted,
+          ],
+          error,
+        }
+      }
       if (!claimed.ok) {
         return { status: 'refused', current: claimed.current }
       }
@@ -705,7 +766,12 @@ export function createFileRecordRegistry(
               lease.isHeldSync(),
             )
             if (outcome === 'written') {
-              await sweepGenerations(fs, folder, read.generation + 1, now())
+              // Best effort, and never past the landed write it follows.
+              try {
+                await sweepGenerations(fs, folder, read.generation + 1, now())
+              } catch {
+                log.warn('The worktree records could not be swept; the next write tries again')
+              }
             }
             return outcome
           },

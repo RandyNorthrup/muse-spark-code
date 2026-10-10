@@ -47,7 +47,11 @@ happened, not what was planned; superseded entries are kept.
   stuck lock only after watching it for its whole lease (and never removes
   one it cannot prove is that one), and a checkout left behind by a crashed
   window is taken over even when the system has reused that window's
-  process id.
+  process id. A record write that landed is never reported as failed
+  because of a later housekeeping step, and one whose landing cannot be
+  known is cleaned up by every number it may carry, so a failed listing
+  never leaves a checkout blocked; a lock renewal writes only the very
+  lock it holds, never one another window took over.
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
