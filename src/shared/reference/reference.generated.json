@@ -3820,7 +3820,10 @@
     {
       "text": {
         "conditions": [
-          { "when": "resourceThreshold", "text": { "setting": "resourceMemoryMaxPercent" } }
+          {
+            "when": "resourceThreshold&memoryHeadroom=available",
+            "text": { "setting": "resourceMemoryMaxPercent" }
+          }
         ]
       },
       "id": "museSpark.resourceMemoryMaxPercent",
@@ -3834,6 +3837,11 @@
       "schema": { "type": "number", "default": 90, "minimum": 40, "maximum": 98 }
     },
     {
+      "text": {
+        "conditions": [
+          { "when": "memoryHeadroom=available", "text": { "setting": "resourceMemoryMinFreeGiB" } }
+        ]
+      },
       "id": "museSpark.resourceMemoryMinFreeGiB",
       "name": "museSpark.resourceMemoryMinFreeGiB",
       "description": "Minimum available memory in GiB, capped at 15% of this machine’s RAM.",

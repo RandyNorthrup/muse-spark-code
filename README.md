@@ -4959,6 +4959,11 @@ controls your own terminals, editor or other applications. Model requests,
 Tab, approvals, paid consent and Stop do not wait for it. It does not change
 provider capabilities, permissions, paid consent or budgets.
 
+On macOS, memory headroom is unknown when the runtime's libuv is older than
+1.52 (including Node 22), or its available-memory API is absent. Those older
+readings count only free pages and can falsely pause new ACP sessions despite
+reclaimable memory. Newer runtimes include inactive and purgeable pages.
+
 These settings are machine-scoped; workspace values are ignored. Settings
 names below start with `museSpark.`.
 

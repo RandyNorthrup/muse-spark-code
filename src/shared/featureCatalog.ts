@@ -30,7 +30,8 @@ const UI_CONDITIONS: Readonly<
   referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
-  resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold',
+  resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold&memoryHeadroom=available',
+  resourceMemoryMinFreeGiBDescription: 'memoryHeadroom=available',
   providerOpenRouterServices: 'openRouterServices=absent',
   referenceSandbox: 'platform=win32&shellSandbox',
   autoCompactionAwaitingEvaluation: 'autoCompactionEvaluation',
@@ -62,6 +63,7 @@ const SETTING_CONDITIONS: Readonly<
       | keyof typeof SETTING_DEFAULTS
       | 'resourceCpuMaxPercent'
       | 'resourceMemoryMaxPercent'
+      | 'resourceMemoryMinFreeGiB'
       | 'resourceGpuMaxPercent'
       | 'resourceDiskBusyMaxPercent'
       | 'resourceDiskMinFreeGiB'
@@ -91,7 +93,8 @@ const SETTING_CONDITIONS: Readonly<
   tabTrigger: 'tabTrigger',
   'shell.passEnvironmentVariables': 'backend=modelApi&shellOrigin=interactive',
   resourceCpuMaxPercent: 'resourceThreshold',
-  resourceMemoryMaxPercent: 'resourceThreshold',
+  resourceMemoryMaxPercent: 'resourceThreshold&memoryHeadroom=available',
+  resourceMemoryMinFreeGiB: 'memoryHeadroom=available',
   resourceGpuMaxPercent: 'resourceThreshold',
   resourceDiskBusyMaxPercent: 'resourceThreshold',
   resourceDiskMinFreeGiB: 'resourceDiskThreshold',

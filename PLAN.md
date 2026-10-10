@@ -1,5 +1,21 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**ACPM118 hosted macOS release repair (2026-10-09, macmini).** Diagnose the
+M118 real-stdio prompt/sharing timeout in runs 37992331755 and 37992331263.
+Reproduce under load before changing the responsible product or fixture;
+retain every request, assertion, repository deadline and gate. Add a failing
+regression and byte-exact restoration drill, then certify complete owning
+suites and scoped static/build gates in `docs/certification/cifix017.md`,
+Round 3, ACP M118. The rig/common brief leaves aggregate quality and hosted
+replay to the lead; no merge, push, rebase, subagents or paid/live calls.
+Node 22.23.3/libuv 1.51 reproduces the thirty-second failure under bounded
+memory/CPU load, waiting on the second workspace: two foreground launches
+each incur D87's twenty-second pause. Its Darwin available-memory API counts
+only free pages (619 MB here); libuv 1.52 includes reclaimable pages (13.2 GB
+on Node 24 here). Reject the older reading as unknown at the shared sampler
+boundary, preserving D87's limits, admission and containment. Certify the
+libuv boundary and unchanged real-stdio path on both runtime versions.
+
 **CIFIX017L2 Linux/macOS hosted-CI round 2 (2026-10-09).** Repair run
 37980345168 and agent-package run 37980344591 at their causes: shared native
 created-path fixtures, slow visual setup and resource-history disposal,
@@ -12180,9 +12196,11 @@ one governor for everything the harness starts.
        present;
      - memory from `os.freemem()` and `process.availableMemory()`, and inside
        a container from cgroup v2's `memory.max` and `memory.current`;
-     - on macOS, what lane 0 measures on the Mac mini: if `os.freemem()`
-       counts free pages only, `kern.memorystatus_level` instead, at a slower
-       cadence.
+     - on macOS, `process.availableMemory()` only with libuv 1.52 or newer,
+       which counts free, inactive and purgeable pages. Older versions count
+       free pages alone and report unknown headroom here; an absent API does
+       too. `kern.memorystatus_level` is not a byte reading. ACPM118's Node
+       22/24 capture and regressions certify this boundary (2026-10-09).
    - **The harness's own trees,** every `RESOURCE_TREE_SAMPLE_MS` (15
      seconds), only while governed work runs: CPU time and resident memory
      per tree.
@@ -37979,6 +37997,16 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**ACPM118 scoped rig qualification (2026-10-09, macmini).** The explicit
+rig/common brief prohibits aggregate quality and delegates hosted replay to
+the lead. All five type projects, changed-file lint/format, plain knip,
+duplication, localization, host API, reference, tokens, plan, roadmap, cycles
+and production build pass with unchanged limits. Complete sampler/runtime,
+reference and ACP stdio owners certify the shared Darwin libuv boundary;
+the matching Node 22 memory/CPU-loaded timeout and restored guard drill are
+recorded in `docs/certification/cifix017.md`, Round 3. Hosted log downloads
+return HTTP 403; local receipts do not claim a green hosted release.
 
 **CIFIX017L2 scoped rig qualification (2026-10-09, Kubuntu).** The lane's
 explicit rig/common brief prohibits aggregate `npm run quality` and full-suite

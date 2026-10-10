@@ -74,6 +74,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- macOS runtimes with libuv older than 1.52 report unknown memory headroom
+  instead of counting only free pages, preventing false resource pauses and
+  ACP multi-workspace session timeouts on Node 22 (ACPM118).
+
 - Windows recorder destinations accept native 8.3 temporary-folder spelling
   while still refusing traversal and existing destinations (CIFIX017W).
 
