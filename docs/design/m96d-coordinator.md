@@ -68,7 +68,9 @@ The required launch order is:
    any spawn, including an MCP server/helper/check. A failed sync refuses
    dispatch while preserving the reservation.
 3. Create the child **held before user code or descendants can execute**.
-   Establish its no-escape container and the broker-held process reference.
+   Establish its qualified complete execution boundary and the broker-held
+   process reference. A Job covering ordinary descendants is not sufficient
+   when tools can ask a service to create work outside it.
 4. Sync registration of that exact launch/container before opening the
    gate. Loss of confirmation leaves the intent uncertain, never absent.
 5. Dispatch under the admitted grant. Closing/cancelling a connection
@@ -99,7 +101,7 @@ identities may still be retried. Reboot does not reset reservations by itself.
 | Finding                | Counterexample                                                                                                                  | Required rule                                                                                                                                  | Proof or fallback                                                                                                                                                            |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | F1: endpoint failure   | Full macOS backlog/allocation failure refuses a live listener; an unlinked Unix endpoint or closed Windows pipe loses discovery | Mark unreachable only. Do not unlink another owner's socket, elect from its error, release its grants or signal its PID                        | Exclusive qualified native anchor admits a successor; the durable ledger retains old work. No qualified anchor means window-scoped fallback before enrolment                 |
-| F2: spawn gap          | Owner dies after OS creation but before registration; an unrecorded/detached child survives                                     | Sync intent before spawn; hold child before execution; sync the captured container before resume. Keep unconfirmed intent occupied             | Exact child reference plus a qualified, sealed descendant container and effects drain; otherwise keep uncertain and exclude the affected resource                            |
+| F2: spawn gap          | Owner dies after OS creation but before registration; an unrecorded/detached child survives                                     | Sync intent before spawn; hold child before execution; sync the captured container before resume. Keep unconfirmed intent occupied             | Exact child reference plus a qualified complete execution boundary and effects drain, including service-mediated work; otherwise keep uncertain and exclude the resource     |
 | F3: frozen rename      | A freezes before an admitted rename; user confirms stopped; B writes; A resumes over B                                          | No manual handoff/release. Every landing writer/helper belongs to the admitted effect scope. No successor receives that tree while A is frozen | Complete scope retirement plus durable terminal outcome. Generation checks and git's index lock alone do not fence an already submitted write                                |
 | F4: incarnation/signal | Same-second macOS start times collide; PID is reused after query but before signal                                              | Preserve native precision/boot identity, validate through the held reference and signal through that reference only                            | Linux pidfd or Windows process handle. macOS foreign-process numeric signalling is refused; owned-child wait status is observation only, with uncertain descendants retained |
 
@@ -108,7 +110,11 @@ For a release, all of these obligations are conjunctive:
 - Exact store, grant, attempt and epoch; a peer cannot manufacture a native
   reference by sending a token, PID or a boolean "stopped".
 - Registration exists, native reference is valid, and the complete owned
-  scope is stopped. Leader exit is insufficient.
+  scope is stopped. Leader exit and an empty Job are insufficient. Complete
+  scope coverage is an independent, registered proof obligation: unknown
+  coverage cannot become complete through a later empty-container or drain
+  assertion. Its retirement state remains `unknown`, including on restart;
+  every previous resource stays excluded and no finished outcome is emitted.
 - No remaining callback, tool call, queued I/O, detached/remote writer or
   pending rename can mutate the resource.
 - The terminal transition was synced and wins one idempotent compare/update.
@@ -142,13 +148,13 @@ Sources establish the mechanism constraints below. They do not certify an
 unwritten adapter. All three native adapters start **unqualified**; machine
 mode stays off until native receipts and the lead's ruling exist.
 
-| Obligation                        | Linux                                                                                                                                | macOS                                                                                                                               | Windows                                                                                                                                       |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Endpoint error cannot prove death | Unix socket/path is discovery only; actual unlink/old-connection drill in this lane                                                  | Apple's `sonewconn` rejection maps to refusal; run native backlog/allocation/unlink drills in C-M96d-2                              | Pipe close/busy/absence is discovery only; run old-client/live-owner drill in C-M96d-2                                                        |
-| Exact incarnation                 | Native boot identity plus `/proc` start ticks, UID and executable; never wall-clock render                                           | Native boot identity plus `proc_pidinfo` seconds **and microseconds**; never `ps` or localised text                                 | Native boot identity plus complete process creation `FILETIME`, owner and executable                                                          |
-| Signal/stop observation           | Retain a validated pidfd before final identity sample; check it is still live across sampling; signal/wait that fd                   | Unreaped child in the same uninterrupted parent custody can provide wait status; no generic foreign-PID kill or group-based release | Retain the `CreateProcess` handle; query creation/owner on that handle, terminate/wait on that same handle                                    |
-| Complete descendant scope         | Only a qualified cgroup v2 subtree with migration/launch rights sealed before resume and populated-zero after all launch gates close | No no-escape proof for arbitrary tools supplied here; process groups, `ps` scans and precise timestamps do not provide one          | Suspended creation, assignment before resume to a no-breakaway Job, all relevant job handles accounted for, complete job termination observed |
-| Unsupported native capability     | Refuse machine enrolment, select window-scoped mode; enrolled uncertainties remain blocked                                           | Same fallback for arbitrary process workers/heavy commands without full-scope proof; no partial machine-cap claim                   | Same fallback on denied handle/job rights, unsupported/nested-job failure or incomplete retirement                                            |
+| Obligation                        | Linux                                                                                                                                                                             | macOS                                                                                                                               | Windows                                                                                                                                                |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Endpoint error cannot prove death | Unix socket/path is discovery only; actual unlink/old-connection drill in this lane                                                                                               | Apple's `sonewconn` rejection maps to refusal; run native backlog/allocation/unlink drills in C-M96d-2                              | Busy-pipe/live-owner drill passed on Win11; pipe errors remain discovery only, never election or retirement proof                                      |
+| Exact incarnation                 | Native boot identity plus `/proc` start ticks, UID and executable; never wall-clock render                                                                                        | Native boot identity plus `proc_pidinfo` seconds **and microseconds**; never `ps` or localised text                                 | Native boot identity plus complete process creation `FILETIME`, owner and executable                                                                   |
+| Signal/stop observation           | Retain a validated pidfd before final identity sample; check it is still live across sampling; signal/wait that fd                                                                | Unreaped child in the same uninterrupted parent custody can provide wait status; no generic foreign-PID kill or group-based release | Retain the `CreateProcess` handle; query creation/owner on that handle, terminate/wait on that same handle                                             |
+| Complete execution scope          | Only a qualified cgroup v2 subtree with migration/launch rights sealed before resume, service-mediated effects separately closed, and populated-zero after all launch gates close | No no-escape proof for arbitrary tools supplied here; process groups, `ps` scans and precise timestamps do not provide one          | No no-escape proof for arbitrary tools: `Win32_Process.Create` bypasses even a no-breakaway Job. A process handle and Job emptiness cover members only |
+| Unsupported native capability     | Refuse machine enrolment, select window-scoped mode; enrolled uncertainties remain blocked                                                                                        | Same fallback for arbitrary process workers/heavy commands without full-scope proof; no partial machine-cap claim                   | Select the full window-scoped fallback before arbitrary-tool enrolment, even when Job/handle APIs work; enrolled scope uncertainty remains blocked     |
 
 The macOS row is an explicit availability limit, not a proposed fake native
 container. To ship one complete machine-wide feature on that OS, the host
@@ -157,6 +163,46 @@ approval of the stated window-scoped fallback. It must not advertise a
 machine-wide heavy-command limit while only model workers are coordinated.
 Likewise, a writable cgroup is not inherently a sealed container: a command
 able to migrate itself out invalidates populated-zero as a complete proof.
+Any OS boundary must also prevent or account for service-mediated, queued
+and remote effects; sealing direct descendant creation alone does not do so.
+
+### Windows service-mediated launch evaluation (RVCM96D1)
+
+The Win11 VM reproduced the documented exception using suspended
+`CreateProcess`, assignment before resume to an unnamed kill-on-close Job
+with neither breakaway flag, and held root/Job handles. The admitted
+PowerShell called `Win32_Process.Create` for a writer waiting on a private
+gate. After the root exited, Job accounting reported zero active processes;
+`IsProcessInJob` reported false for the still-live writer. Opening the gate
+then produced the late write. Exact commands and receipts are in the
+certification record; the native regression repeats both token cases.
+
+`CreateRestrictedToken(DISABLE_MAX_PRIVILEGE)` plus `CreateProcessAsUser`
+did not contain the WMI writer. The root and WMI child retained the same
+user SID, authentication/logon LUID and reduced privilege count (one instead
+of the ordinary token's 24). This is privilege reduction, not a distinct
+per-scope user or logon identity. A scope defined by this existing SID/LUID
+would include unrelated work. A dedicated user SID is a candidate accounting
+partition, not qualified here: no local account, credential or machine policy
+was created. Even with a unique SID, enumeration alone cannot rule out an
+already queued service request, another service's identity, or remote effects;
+all creation gates and effects would need enforceable closure before a zero
+inventory could prove retirement.
+
+`Win32_ProcessStartTrace` observed both writers, but its parent PID named
+`WmiPrvSE`, not the admitted root. WMI's returned PID allowed correlation in
+this controlled experiment; arbitrary tools need not reveal it. SID/session
+and creation events aid diagnostics and discovery, not universal attribution
+or a no-future-effects proof. Trace loss, subscription gaps, provider death,
+ambiguous attribution and outstanding broker requests must retain `unknown`.
+ETW also exposes lost-event/buffer counters; a quiet trace cannot establish
+the absence of pending work. No ETW containment qualification is claimed.
+
+**Selected boundary:** arbitrary Windows tools remain unqualified. Before
+enrolment, select M96c's complete window-scoped fallback. After enrolment,
+record `unknown`, retain every reservation, refuse overlapping grants and
+refuse a finished scope while full execution/effect coverage is unproved.
+This corrects the reviewed design gap without claiming a new native sandbox.
 
 The mechanism facts are supported by
 [Apple's socket connect](https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/uipc_usrreq.c)
@@ -166,6 +212,11 @@ and [connection allocation](https://raw.githubusercontent.com/apple-oss-distribu
 [cgroup v2's population and migration contract](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html),
 and Microsoft's [process handle rights](https://learn.microsoft.com/en-us/windows/win32/procthread/process-security-and-access-rights)
 and [Job Objects](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects).
+The Windows evaluation also uses Microsoft's
+[Win32_Process.Create](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/create-method-in-class-win32-process),
+[restricted-token contract](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-createrestrictedtoken),
+[process-start trace fields](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/krnlprov/win32-processstarttrace)
+and [ETW loss accounting](https://learn.microsoft.com/en-us/windows/win32/etw/about-event-tracing).
 These primary sources were read on 2026-10-10. Native tests remain required.
 
 ## 5. Filesystems, durable identity and recovery
@@ -219,12 +270,13 @@ this design-only lane.
 `test/unit/m96dCoordinatorSpike.test.ts` is the adversarial contract suite;
 its helper is a test-only state model, not a durable store or native adapter.
 Tests for every platform tag prove portable policy, not that OS's syscall.
-The endpoint suite provides a real Linux Unix-socket receipt in this lane;
-its Windows/macOS branches require native runs in C-M96d-2. The initial
+The endpoint suite provides real Linux Unix-socket and Windows busy-pipe
+receipts, plus the native Windows Job/WMI, restricted-token and WMI tracing
+counterexamples; macOS still requires its native run in C-M96d-2. The initial
 candidate fails F1–F4; mutation drills prove the restored guards fire.
 
 The lead must rule on retained uncertainty (including pre-spawn crashes),
-the macOS/full-container fallback and the qualified anchor/store strategy.
+the macOS/Windows full-execution fallback and the qualified anchor/store strategy.
 No P1 remains in the spike's recorded self-review; independent acceptance
 and the lead ruling are still outstanding, not asserted by the author.
 Before machine mode can be surfaced, C-M96d-2 must add real adapter tests

@@ -19183,8 +19183,11 @@ in-tree junctions below it, drive-letter spelling) and
 - **Q-C-M96d-1 (2026-10-10):** the design spike proposes retaining every
   unproved launch/effect, no manual lock release, a qualified permanent
   native anchor/store, and M96c's window-scoped fallback before enrolment
-  where complete execution containment cannot be proved (notably arbitrary
-  macOS commands). The design, failing-first schedules and review are in
+  where complete execution containment cannot be proved (arbitrary macOS
+  and Windows commands, including Windows service-mediated launches). The
+  Win11 Job/WMI, restricted-token and tracing experiments choose explicit
+  unknown retirement and fallback; SID/session scans and trace silence do
+  not establish closure. The design, failing-first schedules and review are in
   `docs/design/m96d-coordinator.md` and `docs/certification/m96d-spike.md`.
   The lead's ruling and independent acceptance remain required before the
   Claude host's C-M96d-2 build; this lane cannot certify native three-OS
@@ -27417,7 +27420,8 @@ it process lifetime, the journal, hints and the load guard. The research is
 ### M96d — The machine coordinator spike, and the scheduler optimisations (D75)
 
 **Status 2026-10-10: planned.** Coordinator design and test-only safety
-specification delivered by C-M96d-1; production implementation, independent
+specification delivered by C-M96d-1, with RVCM96D1's Windows service-mediated
+launch gap corrected and exercised natively; production implementation, independent
 acceptance and the lead ruling remain outstanding.
 
 **C-M96d-1 design spike (2026-10-10, design and scoped certification complete).** This lane delivers
@@ -27437,12 +27441,25 @@ push, rebase or live/paid call is authorised by this spike.
 
 Spike work checklist:
 
+**C-M96d-1 RVCM96D1 correction (2026-10-10, Windows rig).** Reproduce
+service-mediated `Win32_Process.Create` outside a no-breakaway Job; evaluate
+restricted-token identity/logon-session accounting and process-start tracing
+on the VM. Correct every Job-only retirement/qualification claim in this
+lane. Require complete scope coverage independently of Job emptiness, retain
+an explicit unknown outcome when coverage is unproved, and choose the full
+window-scoped fallback before enrolment for arbitrary Windows tools. Add
+regressions and byte-exact red drills in `docs/certification/m96d-spike.md`;
+no dependency, production binding, gate or paid/live-call change.
+
 - [x] Write the four counterexample schedules before the specification.
 - [x] Specify authority, durable launch, frozen-holder exclusion and exact
       process references, with an explicit release proof for each resource.
 - [x] Record the three-OS/filesystem matrix and editor rollout boundary.
 - [x] Run red drills, scoped gates and the complete spike review; commit
       with the installed hooks and re-read their result.
+- [x] Correct RVCM96D1's Job-only scope claim; reproduce WMI escape,
+      reduced-token identity and WMI parent attribution on Win11; retain
+      unknown coverage and select the pre-enrolment Windows fallback.
 - [ ] Obtain the lead ruling and independent acceptance before C-M96d-2.
 
 Status detail retained: planned; starts after M96c merges. M96c's first

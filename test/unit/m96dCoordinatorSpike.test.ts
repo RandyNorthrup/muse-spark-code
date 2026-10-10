@@ -60,7 +60,7 @@ describe('M96d RVM96C2 adversarial schedules', () => {
         expect(spec.persistIntent(grant, true)).toBe(true)
         if (boundary !== 'intent') expect(spec.spawn(grant)).toBe(true)
         if (boundary !== 'intent' && boundary !== 'spawn')
-          spec.register(grant, referenceFor(platform))
+          spec.register(grant, referenceFor(platform), 'complete')
         if (boundary === 'resume' || boundary === 'detachedChild') spec.resume(grant)
         spec.ownerExited(owner)
         expect(spec.held(grant)).toEqual(resources)
@@ -75,7 +75,7 @@ describe('M96d RVM96C2 adversarial schedules', () => {
       const spec = fixture()
       spec.persistIntent(grant, true)
       spec.spawn(grant)
-      spec.register(grant, referenceFor(platform))
+      spec.register(grant, referenceFor(platform), 'complete')
       spec.resume(grant)
       spec.freezeBeforeRename(grant)
       expect(spec.userConfirmedStopped(grant)).toBe(false)
@@ -144,11 +144,57 @@ describe('M96d RVM96C2 adversarial schedules', () => {
 })
 
 describe('M96d release and fallback obligations', () => {
+  for (const evidence of ['empty Job', 'same SID', 'same logon session', 'process-start trace']) {
+    it(`RVCM96D1: ${evidence} cannot retire an unqualified Windows scope`, () => {
+      const spec = fixture()
+      const live = referenceFor('win32')
+      spec.persistIntent(grant, true)
+      spec.spawn(grant)
+      spec.register(grant, live, 'unknown')
+      spec.resume(grant)
+      // Captured Win32_Process.Create counterexample: the Job is empty, but
+      // its brokered writer can still land. A caller's drain claim cannot
+      // upgrade a boundary that never covered service-mediated effects.
+      expect(
+        spec.settle(
+          {
+            grant,
+            epoch,
+            reference: { ...live, exited: true },
+            treeEmpty: true,
+            effectsDrained: true,
+          },
+          true,
+        ),
+      ).toBe(false)
+      expect(spec.retirementState(grant)).toBe('unknown')
+      expect(spec.held(grant)).toEqual(resources)
+      expect(spec.reserve('grant-B', 'window-B', resources)).toBe(false)
+      const recovered = spec.restart('epoch-B')
+      expect(recovered.retirementState(grant)).toBe('unknown')
+      expect(recovered.reserve('grant-B', 'window-B', resources)).toBe(false)
+    })
+  }
+
+  it('RVCM96D1: unproved scope coverage selects fallback only before enrolment', () => {
+    for (const platform of platforms) {
+      const prerequisites = {
+        platform,
+        filesystem: 'local',
+        nativeQualified: true,
+        scopeQualified: false,
+        storeValid: true,
+      }
+      expect(chooseMode(prerequisites, false)).toBe('windowScoped')
+      expect(chooseMode(prerequisites, true)).toBe('blocked')
+    }
+  })
+
   it('rejects reordered launch transitions and duplicate grant/intent publication', () => {
     const spec = fixture()
     expect(spec.reserve(grant, owner, [])).toBe(false)
     expect(() => {
-      spec.register(grant, reference)
+      spec.register(grant, reference, 'complete')
     }).toThrow('Not spawned')
     expect(() => {
       spec.resume(grant)
@@ -165,9 +211,9 @@ describe('M96d release and fallback obligations', () => {
     expect(spec.persistIntent(grant, true)).toBe(false)
     expect(spec.spawn(grant)).toBe(true)
     expect(spec.spawn(grant)).toBe(false)
-    spec.register(grant, reference)
+    spec.register(grant, reference, 'complete')
     expect(() => {
-      spec.register(grant, reference)
+      spec.register(grant, reference, 'complete')
     }).toThrow('Not spawned')
     spec.resume(grant)
     expect(() => {
@@ -183,12 +229,13 @@ describe('M96d release and fallback obligations', () => {
   })
 
   for (const platform of platforms) {
-    it(`${platform}: complete qualified retirement has a positive release path`, () => {
+    it(`${platform}: hypothetical complete qualified retirement has a positive release path`, () => {
       const spec = fixture()
       const live = referenceFor(platform)
       spec.persistIntent(grant, true)
       spec.spawn(grant)
-      spec.register(grant, live)
+      spec.register(grant, live, 'complete')
+      expect(spec.retirementState(grant)).toBe('active')
       expect(
         spec.settle(
           {
@@ -201,6 +248,7 @@ describe('M96d release and fallback obligations', () => {
           true,
         ),
       ).toBe(true)
+      expect(spec.retirementState(grant)).toBe('finished')
       expect(spec.reserve('grant-B', 'window-B', resources)).toBe(true)
     })
   }
@@ -217,7 +265,7 @@ describe('M96d release and fallback obligations', () => {
       const spec = fixture()
       spec.persistIntent(grant, true)
       spec.spawn(grant)
-      spec.register(grant, reference)
+      spec.register(grant, reference, 'complete')
       expect(
         spec.settle(
           {
@@ -240,7 +288,7 @@ describe('M96d release and fallback obligations', () => {
       const unsafe = { ...reference, kind }
       spec.persistIntent(grant, true)
       spec.spawn(grant)
-      spec.register(grant, unsafe)
+      spec.register(grant, unsafe, 'complete')
       expect(
         spec.settle(
           {
@@ -261,7 +309,7 @@ describe('M96d release and fallback obligations', () => {
     const spec = fixture()
     spec.persistIntent(grant, true)
     spec.spawn(grant)
-    spec.register(grant, reference)
+    spec.register(grant, reference, 'complete')
     const proof = {
       grant,
       epoch,
@@ -294,7 +342,7 @@ describe('M96d release and fallback obligations', () => {
       spec.persistIntent(grant, true)
       spec.spawn(grant)
       const observed = { ...retiredReference, kind }
-      spec.register(grant, observed)
+      spec.register(grant, observed, 'complete')
       expect(
         spec.settle(
           { grant, epoch, reference: observed, treeEmpty: false, effectsDrained: true },
@@ -318,8 +366,9 @@ describe('M96d release and fallback obligations', () => {
     const spec = fixture()
     spec.persistIntent(grant, true)
     spec.spawn(grant)
-    spec.register(grant, reference)
+    spec.register(grant, reference, 'complete')
     const recovered = spec.restart('epoch-B')
+    expect(recovered.retirementState(grant)).toBe('unknown')
     expect(
       recovered.settle(
         { grant, epoch, reference: retiredReference, treeEmpty: true, effectsDrained: true },
@@ -344,7 +393,13 @@ describe('M96d release and fallback obligations', () => {
   for (const platform of platforms) {
     for (const filesystem of ['fat32', 'exfat', 'nfs', 'unknown']) {
       it(`${platform} ${filesystem}: fallback only before enrolment; unresolved work stays held`, () => {
-        const prerequisites = { platform, filesystem, nativeQualified: true, storeValid: true }
+        const prerequisites = {
+          platform,
+          filesystem,
+          nativeQualified: true,
+          scopeQualified: true,
+          storeValid: true,
+        }
         expect(chooseMode(prerequisites, false)).toBe('windowScoped')
         expect(chooseMode(prerequisites, true)).toBe('blocked')
       })
@@ -354,6 +409,7 @@ describe('M96d release and fallback obligations', () => {
         platform,
         filesystem: 'local',
         nativeQualified: true,
+        scopeQualified: true,
         storeValid: true,
       }
       expect(chooseMode(prerequisites, false)).toBe('machine')
