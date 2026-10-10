@@ -1551,3 +1551,53 @@ Review and scoped verification are committed as completed pieces. The ignored
 round-1 profile cleanup remains with the lead after automatic command review
 rejects its deletion; no cleanup workaround is attempted. No merge, rebase,
 push, subagent, paid/live call or external service write occurs.
+
+### Round 2 official baseline and exact restoration drill
+
+The first official update is interrupted by SIGTERM after 1,872 captures,
+before any manifest is written; its log has no visual exception. One retry
+uses the tool's normal terminal mode, a fresh external archive and the
+unchanged repository command:
+
+`npm run check:visual -- --update --review=VIS0171-0.17.1-labels-provider-notes-2026-10-10 --archive=/var/tmp/l-VIS0171/vis0171-reviewed-final-tty`.
+
+The retry exits **0** with **9,792 PNGs / 450,604,546 bytes / 512 MiB**,
+Chrome **153.0.8010.52**, Linux, source revision
+`f8db72798c498dff30f70b83375b2098e202f976`. Independent actual-manifest
+verification preserves every historical components/target/applied-state row
+and verifies all 9,792 actual PNG hashes. **8,537** frames are byte-identical
+to the reviewed candidate; all **1,255 further within-policy frames** are
+inspected through **830 unique native regions on 26 sheets**. They account
+for **16 significant pixels in total**, with no over-allowance frame and no
+new defect. The metadata hashes, sheet dimensions and coverage accompany the
+original review in `docs/certification/vis0171-visual-review.json`.
+
+All three manifest-owning files (`visualGate.test.mjs`,
+`m114PanelEvidence.test.mjs`, `visualMatrix.test.mjs`) are rechecked at default
+timeouts: **24/24 pass**, 16.63 s. Prettier formatting preserves every JSON
+value. Hooks-on baseline commit: `f7243df254d74ae2b93c00c3fcee20adf69bec89`.
+Staged and committed changes are reread; the committed manifest matches the
+recorded bytes, SHA-256
+`e28ece7b2e5a6bf234713b405ed9a1bd5469cf9a4658e8e5b39caeedebbdbd21`.
+No policy, threshold, cap, capture input or production UI is changed.
+
+The red baseline drill replaces `panel/account-usage/default/light/320` in
+the current external archive with the reconstructed historical PNG and updates
+only its manifest hash/size and total size. The actual command
+`npm run check:visual -- --shard=1/6` exits **1**:
+`Visual regression: 2075 changed pixel(s), allowance 12`. This shard is only
+red guard-fire evidence. The driver exits 0 after restoring both files from
+saved bytes, with SHA-256 before = after:
+
+- Manifest: `e28ece7b2e5a6bf234713b405ed9a1bd5469cf9a4658e8e5b39caeedebbdbd21`.
+- Current PNG: `6c8271cdad53f0094b29baf67a2657e132c9a18e33c548dc37d83f59b1c6cf9f`.
+- Injected historical PNG: `02ac868fa768bb8f63c539268e77d6fd4875cd6285c52fe53cd6118562f35fe3`.
+
+The final command, **full and unsharded** `npm run check:visual`, is running
+from baseline head `f7243df25`. It is **unqualified until it exits 0**; a
+partial capture or diagnostic comparison is not the requested full green
+check. Exact update, parity, owning-test and restoration receipts are retained
+in this lane's ignored `temp/vis0171-round2-*` files; all full PNGs remain
+outside git. Production budgets pass: extension **550.1 / 600 KiB**, Model API
+**516.6 / 525 KiB**, checkpoint store **87.3 / 225 KiB**. Aggregate quality and
+the 21 inherited duplication clones remain lead-owned under the rig brief.

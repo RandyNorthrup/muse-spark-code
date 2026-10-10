@@ -38382,7 +38382,8 @@ and a strict production-schema regression; never relax the message schema.
 - [x] Classify 120 observed changed scenes; stop on three class-(d) release-note scenes.
 - [x] Complete all themes/shards and per-frame approval review under the resolved round-2 authorization.
 - [x] Regenerate all 19 README shots, update their input fingerprint and refresh 20 current audit source hashes.
-- [ ] Refresh approved baselines and perform the old-baseline drill.
+- [x] Refresh approved baselines and perform the old-baseline drill.
+- [ ] Complete the full unsharded zero-changed-scene replay.
 - [x] Run owning suites and scoped gates; record the blocked outcome, source restoration drill and hooks-on repairs.
 
 **Round 1 historical stopped outcome.** The complete light matrix has 1,440 over-allowance frames
@@ -38412,8 +38413,15 @@ pass 138 cases at repository deadlines; five-project typecheck also passes.
 All six themes are captured and reviewed: 8,640 over-allowance frames in the
 120 approved scenes, plus 90 byte-different frames within the unchanged pixel
 allowance. No observed control-state coverage changes occur; question spacing
-and 0.17.1 release highlights are intact. The official baseline update/replay
-and restoration drill remain in progress.
+and 0.17.1 release highlights are intact. The official baseline update
+and restoration drill pass. The repository update records all 9,792 PNGs /
+450,604,546 bytes / 512 MiB at source `f8db72798`, with every historical
+components/target/applied-state row preserved. The additional 1,255 within-policy
+frames are inspected through 830 native regions on 26 sheets; no defect is
+observed. Manifest owners pass 24/24 after update. Baseline commit: `f7243df25`.
+The old-baseline drill exits 1 at 2,075 changed pixels against allowance 12,
+then restores manifest and PNG byte-exact by SHA-256. Full unsharded replay is
+running; zero-changed-scene qualification remains pending until it exits 0.
 
 **PROVWIZ10 scoped qualification (2026-10-09, complete).** Both RVPROVWIZ9C
 P2 repairs pass production/shared-form regressions, including genuine concurrent

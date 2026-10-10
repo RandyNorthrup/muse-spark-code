@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "baseline-reviewed-full-replay-pending",
+  "status": "baseline-and-drill-complete-full-replay-running",
   "review": "VIS0171-0.17.1-labels-provider-notes-2026-10-10",
   "sourceRevision": "f8db72798c498dff30f70b83375b2098e202f976",
   "previousRevision": "fb7a3f005b32756f98280988725e0edf0396b424",
@@ -3591,5 +3591,23 @@
       }
     ]
   },
-  "manifestSha256": "e28ece7b2e5a6bf234713b405ed9a1bd5469cf9a4658e8e5b39caeedebbdbd21"
+  "manifestSha256": "e28ece7b2e5a6bf234713b405ed9a1bd5469cf9a4658e8e5b39caeedebbdbd21",
+  "baselineDrill": {
+    "capture": "panel/account-usage/default/light/320",
+    "manifestBefore": "e28ece7b2e5a6bf234713b405ed9a1bd5469cf9a4658e8e5b39caeedebbdbd21",
+    "imageBefore": "6c8271cdad53f0094b29baf67a2657e132c9a18e33c548dc37d83f59b1c6cf9f",
+    "historicalImage": "02ac868fa768bb8f63c539268e77d6fd4875cd6285c52fe53cd6118562f35fe3",
+    "log": "temp/vis0171-round2-baseline-drill.log",
+    "exitCode": 1,
+    "failure": "Error: panel/account-usage/default/light/320: Visual regression: 2075 changed pixel(s), allowance 12",
+    "manifestAfter": "e28ece7b2e5a6bf234713b405ed9a1bd5469cf9a4658e8e5b39caeedebbdbd21",
+    "imageAfter": "6c8271cdad53f0094b29baf67a2657e132c9a18e33c548dc37d83f59b1c6cf9f",
+    "restored": true
+  },
+  "fullReplay": {
+    "status": "running-unqualified",
+    "command": "npm run check:visual",
+    "log": "temp/vis0171-round2-full-visual.log",
+    "candidateHead": "f7243df254d74ae2b93c00c3fcee20adf69bec89"
+  }
 }
