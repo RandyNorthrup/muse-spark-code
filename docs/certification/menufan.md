@@ -251,5 +251,36 @@ The requested after image is
 it records opener x=283–307/y=56–80 and every child x=8–279, a 4 px gap
 from the opener; their y bounds are 8–48, 54–94, 100–140 and 146–186.
 The longest label is clipped, with its complete tooltip. The image was
-inspected. The reviewed visual generator requires committed capture inputs;
-the source commit precedes the baseline receipt below.
+inspected. The source commit precedes the final verification receipt below.
+
+### Round 2 visual receipt and committed source
+
+Implementation: `cbb9bc70cb43eddafc4584db24ba23084b237037`. Installed hooks
+passed lint-staged and gitleaks. The staged and committed patches matched
+byte-exact after the hook; both were re-read and the drill SHA-256 values
+were unchanged.
+
+`npm run check:visual` passed all 9,792 captures: 136 scenes, six themes,
+320/690 px widths, six states and 760 px height, with Chrome 150.0.7871.186
+on Linux. Nine changed pixels in total, at most one per image, remain
+within the unchanged per-image policy (12 pixels). Both baseline and
+candidate archives remain within 512 MiB: 447,111,110 / 447,112,960 bytes.
+The source was committed while the foreground comparison ran; its capture
+inputs match the committed bytes, with the original candidate fingerprint
+retained in the receipt.
+
+Changed baseline scene ids: **none**. The complete matrix passed without
+a refresh, so the instruction to regenerate only affected baselines calls
+for no `--update` run. Every manifest byte and PNG stays as reviewed in
+round 1; the baseline source remains
+`71ca4b93e89e60e50225e5d5114f345a4a518042`, and the manifest SHA-256 is
+`3951179a8aa655657632557845efdeca6c82c0916a5f60738aa0733efdd86542`.
+The exact checkpoint submenu and open-menu resize interactions are covered
+by the new real-browser assertions and the inspected 320×800 after image.
+
+The named round 2 receipt is
+`docs/certification/menufan-r2-visual-review.json`; the full gate log and
+receipt copy are `temp/menufan/r2/visual-before-update.log` and
+`temp/menufan/r2/visual-final-result.json`. No scene, state, theme, width,
+threshold, timeout, ignore or gate was removed or weakened. No push, merge,
+rebase, subagent, paid/live call or aggregate quality run occurred.
