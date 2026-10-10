@@ -401,24 +401,30 @@ describe('RVM114P1 review regressions', () => {
     }
   })
 
-  it.each(themes)(
-    '%s: forced colors keep fixture hover and pressed visibly distinct',
-    async (theme) => {
+  // One control per case, like the scene cases below: seven controls' states
+  // and screenshots in one case took 2.8-4.7 s of its 5 s on hosted runners
+  // (CIFIX017R3). Every theme, control and assertion remains.
+  it.each(
+    themes.flatMap((theme) =>
+      [
+        '.send-button:not(.send-button-stop)',
+        '.send-button-stop',
+        '.jump-latest',
+        '.icon-button',
+        '.todo-title',
+        '.context-meter',
+        '.hook-edited button',
+      ].map((selector) => ({ theme, selector })),
+    ),
+  )(
+    '$theme $selector: forced colors keep fixture hover and pressed visibly distinct',
+    async ({ theme, selector }) => {
       const page = await pageFor(theme, undefined, 'active')
       try {
         expect(
           await page.evaluate(() => globalThis.matchMedia('(forced-colors: active)').matches),
         ).toBe(true)
-        for (const selector of [
-          '.send-button:not(.send-button-stop)',
-          '.send-button-stop',
-          '.jump-latest',
-          '.icon-button',
-          '.todo-title',
-          '.context-meter',
-          '.hook-edited button',
-        ])
-          await forcedColorStates(page, selector)
+        await forcedColorStates(page, selector)
       } finally {
         await page.close()
       }
