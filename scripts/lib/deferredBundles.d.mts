@@ -11,6 +11,20 @@ interface DeferredBundle extends Bundle {
   readonly use?: string
 }
 
+interface SourceGraph {
+  readonly inputs: Readonly<
+    Record<
+      string,
+      {
+        readonly imports: readonly {
+          readonly path: string
+          readonly external?: boolean | undefined
+        }[]
+      }
+    >
+  >
+}
+
 export const BUNDLES: {
   readonly activation: Bundle
   readonly modelApi: Bundle
@@ -25,6 +39,7 @@ export const RESOURCE_PROCESS_SHARED: readonly string[]
 export const RESOURCE_PROCESS_BUNDLE: DeferredBundle
 export function checkDeferredBundles(
   inputsOf: (bundle: Bundle) => ReadonlyMap<string, number>,
+  metafileOf: (bundle: Bundle) => SourceGraph,
 ): string[]
 export function checkResourceBundles(
   inputsOf: (bundle: Bundle) => ReadonlyMap<string, number>,

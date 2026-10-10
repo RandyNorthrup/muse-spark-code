@@ -42,8 +42,10 @@ happened, not what was planned; superseded entries are kept.
 - Share the team scheduler's stateless tool factory with the existing team
   bundle, removing duplicated declarations and model text. The scheduler
   fits its original 75 KiB cap; no new chunk, activation work or behavior change.
-  The bundle split gate also rejects scheduler implementations imported into
-  the shared team bundle, preserving ownership of the measured scheduler cap.
+  The bundle split gate derives scheduler, team and runner ownership from
+  their module graphs and rejects implementation leaks in every direction,
+  including renamed helpers behind re-export shims. Shared source modules
+  belong under `src/shared/`; all three bundles keep their original caps.
 
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects

@@ -20,16 +20,9 @@ export const SUBSCRIPTION_ONLY = [
 export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
 export const SHARED_TRANSPORT_ONLY = ['transport.ts', 'sse.ts', 'ndjson.ts']
 const MODEL_API_DIR = 'src/core/backends/modelapi'
-// M120CAP: sharing tools must not move implementation outside the scheduler cap.
-// Shared schemas/utilities and teamTools/roster/model text keep their readers.
-const TEAM_SCHEDULER_ONLY = new Set([
-  'src/core/team/teamSchedulerEntry.ts',
-  'src/core/team/teamPool.ts',
-  'src/core/team/selection.ts',
-  'src/core/team/reviewerPick.ts',
-  'src/core/team/borrow.ts',
-  'src/core/team/sameModel.ts',
-])
+// M120CAP: shared source modules live here; their existing readers may inline
+// them. All other source ownership comes from entry reachability, not names.
+const TEAM_SHARED_ROOT = 'src/shared/'
 export const MODEL_API_OPTIONAL_ONLY = [
   'codeIntelEntry.ts',
   'codeIntelCalls.ts',
@@ -226,6 +219,7 @@ export const DEFERRED = [
   {
     output: 'dist/teamScheduler.js',
     metafile: 'dist/meta/teamScheduler.json',
+    entry: 'src/core/team/teamSchedulerEntry.ts',
     files: [
       'src/core/team/teamSchedulerEntry.ts',
       'src/core/team/scheduler/board.ts',
@@ -236,6 +230,7 @@ export const DEFERRED = [
   {
     output: 'dist/teamRunners.js',
     metafile: 'dist/meta/teamRunners.json',
+    entry: 'src/host/runners/teamRunnersEntry.ts',
     files: [
       'src/host/runners/teamRunnersEntry.ts',
       'src/host/runners/sshRunner.ts',
@@ -246,6 +241,7 @@ export const DEFERRED = [
   {
     output: 'dist/team.js',
     metafile: 'dist/meta/team.json',
+    entry: 'src/core/team/teamEntry.ts',
     files: ['src/core/team/teamEntry.ts', 'src/core/team/teamTools.ts', 'src/core/team/roster.ts'],
   },
 
@@ -726,7 +722,7 @@ export const ON_FIRST_USE = [
   },
 ]
 /** The same parent exclusions and destination requirements used by the CLI. */
-export function checkDeferredBundles(inputsOf) {
+export function checkDeferredBundles(inputsOf, metafileOf) {
   const problems = []
   for (const [names, owner] of [
     [CONFIGURED_TRANSPORT_ONLY, BUNDLES.configured],
@@ -768,13 +764,47 @@ export function checkDeferredBundles(inputsOf) {
       if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
     }
   }
-  const team = DEFERRED.find((bundle) => bundle.output === 'dist/team.js')
-  for (const raw of inputsOf(team).keys()) {
-    const file = raw.replaceAll('\\', '/')
-    if (file.startsWith('src/core/team/scheduler/') || TEAM_SCHEDULER_ONLY.has(file))
-      problems.push(
-        `${team.output} carries scheduler-owned ${file}, which belongs in dist/teamScheduler.js`,
-      )
+  const teamBundles = DEFERRED.filter((bundle) => bundle.entry !== undefined)
+  const owners = new Map()
+  for (const bundle of teamBundles) {
+    const graph = new Map(
+      Object.entries(metafileOf(bundle).inputs).map(([file, details]) => [
+        file.replaceAll('\\', '/'),
+        details.imports,
+      ]),
+    )
+    const reached = new Set()
+    const visit = (file) => {
+      if (file.startsWith('node_modules/') || reached.has(file)) return
+      reached.add(file)
+      const imports = graph.get(file)
+      if (imports === undefined) {
+        problems.push(`${bundle.output} is missing graph input ${file}`)
+        return
+      }
+      const readers = owners.get(file) ?? new Set()
+      readers.add(bundle.output)
+      owners.set(file, readers)
+      for (const imported of imports)
+        if (!imported.external) visit(imported.path.replaceAll('\\', '/'))
+    }
+    visit(bundle.entry)
+  }
+  for (const bundle of teamBundles) {
+    for (const raw of inputsOf(bundle).keys()) {
+      const file = raw.replaceAll('\\', '/')
+      if (file.startsWith('node_modules/')) continue
+      const readers = owners.get(file)
+      if (readers === undefined || !readers.has(bundle.output)) {
+        problems.push(
+          `${bundle.output} carries ${file}, which belongs in ${readers === undefined ? 'no reachable team entry' : [...readers].join(', ')}`,
+        )
+      } else if (readers.size > 1 && !file.startsWith(TEAM_SHARED_ROOT)) {
+        problems.push(
+          `${bundle.output} carries shared implementation ${file}; shared source modules belong under ${TEAM_SHARED_ROOT}`,
+        )
+      }
+    }
   }
   // POSTSPAWN: the governor never carries the launcher's machinery again.
   for (const file of RESOURCE_LAUNCH_SHARED) {

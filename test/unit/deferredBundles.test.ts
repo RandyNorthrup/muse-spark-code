@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
-import { build } from 'esbuild'
+import { build, type BuildOptions } from 'esbuild'
 import { compressedModelText } from '../../scripts/lib/compressedModelText.mjs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -24,7 +24,7 @@ import {
   RESOURCE_LAUNCH_SHARED,
   RESOURCE_PROCESS_ONLY,
   RESOURCE_PROCESS_SHARED,
-  checkDeferredBundles,
+  checkDeferredBundles as checkProductionDeferredBundles,
   checkResourceBundles,
   deferredCohort,
   sharedUiText,
@@ -49,7 +49,28 @@ import { removeFolder } from './helpers/temporaryFolders'
 import { legalReportEnvelopeSchema } from '../../src/runtime/legal/runLegal'
 
 const metafileSchema = z.looseObject({
-  inputs: z.record(z.string(), z.unknown()),
+  inputs: z.record(
+    z.string(),
+    z.looseObject({
+      bytes: z.number(),
+      imports: z.array(
+        z.looseObject({
+          path: z.string(),
+          kind: z.enum([
+            'entry-point',
+            'import-statement',
+            'require-call',
+            'dynamic-import',
+            'require-resolve',
+            'import-rule',
+            'composes-from',
+            'url-token',
+          ]),
+          external: z.optional(z.boolean()),
+        }),
+      ),
+    }),
+  ),
   outputs: z.record(
     z.string(),
     z.looseObject({
@@ -262,9 +283,7 @@ beforeAll(async () => {
     for (const [output, details] of Object.entries(metafile.outputs)) {
       const name = path.basename(output, '.js')
       const meta = metafileSchema.parse({
-        inputs: Object.fromEntries(
-          Object.keys(details.inputs).map((file) => [file, metafile.inputs[file]]),
-        ),
+        inputs: metafile.inputs,
         outputs: { [`dist/${name}.js`]: details },
       })
       fixtures.set(
@@ -418,6 +437,17 @@ function bundleInputs({ output, metafile }: { output: string; metafile: string }
   return inputs
 }
 
+function bundleMeta({ metafile }: { metafile: string }) {
+  return fixture(metafile).meta
+}
+
+function checkDeferredBundles(
+  inputsOf: Parameters<typeof checkProductionDeferredBundles>[0],
+  metafileOf: Parameters<typeof checkProductionDeferredBundles>[1] = bundleMeta,
+) {
+  return checkProductionDeferredBundles(inputsOf, metafileOf)
+}
+
 function outputInputs(meta: z.infer<typeof metafileSchema>, output: string) {
   const built = meta.outputs[output]
   if (built === undefined) throw new Error(`Missing bundle output: ${output}`)
@@ -427,11 +457,30 @@ function outputInputs(meta: z.infer<typeof metafileSchema>, output: string) {
 }
 
 function inputs(name: string): string[] {
-  return Object.keys(
-    fixture(
-      `dist/${['acp', 'exec', 'headless', 'acpQuestions', 'runtimeQuestions', 'runtimeAccounts'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
-    ).meta.inputs,
-  ).map((file) => file.split(path.sep).join('/'))
+  const meta = fixture(
+    `dist/${['acp', 'exec', 'headless', 'acpQuestions', 'runtimeQuestions', 'runtimeAccounts'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
+  ).meta
+  const output = meta.outputs[`dist/${name}.js`]
+  if (output === undefined) throw new Error(`Missing bundle output: ${name}`)
+  return Object.keys(output.inputs).map((file) => file.replaceAll('\\', '/'))
+}
+
+function windowsGraph(meta: z.infer<typeof metafileSchema>) {
+  return {
+    ...meta,
+    inputs: Object.fromEntries(
+      Object.entries(meta.inputs).map(([file, details]) => [
+        file.replaceAll('/', '\\'),
+        {
+          ...details,
+          imports: details.imports.map((imported) => ({
+            ...imported,
+            path: imported.path.replaceAll('/', '\\'),
+          })),
+        },
+      ]),
+    ),
+  }
 }
 
 describe('deferred cohort bundles', () => {
@@ -446,76 +495,192 @@ describe('deferred cohort bundles', () => {
       expect(team.has(file)).toBe(true)
     expect(checkDeferredBundles(bundleInputs)).toEqual([])
   })
+  const teamEntries = {
+    team: 'src/core/team/teamEntry.ts',
+    teamScheduler: 'src/core/team/teamSchedulerEntry.ts',
+    teamRunners: 'src/host/runners/teamRunnersEntry.ts',
+  }
+  const graphBuildOptions = {
+    entryPoints: teamEntries,
+    outdir: 'dist',
+    bundle: true,
+    minify: true,
+    metafile: true,
+    write: false,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node20.18',
+    define: { 'process.env.NODE_ENV': '"production"' },
+    logLevel: 'silent',
+    plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedModelApiBoundaries],
+    external: ['vscode', '@napi-rs/keyring'],
+  } satisfies BuildOptions
+  const directions = [
+    ['teamScheduler', 'team', 'src/core/team/borrow.ts', 'decideBorrow'],
+    ['teamScheduler', 'teamRunners', 'src/core/team/borrow.ts', 'decideBorrow'],
+    ['team', 'teamScheduler', 'src/core/team/roster.ts', 'buildStableRosterSection'],
+    ['team', 'teamRunners', 'src/core/team/roster.ts', 'buildStableRosterSection'],
+    ['teamRunners', 'team', 'src/host/team/checkSlots.ts', 'CheckSlots'],
+    ['teamRunners', 'teamScheduler', 'src/host/team/checkSlots.ts', 'requestCheckSlot'],
+  ] as const
   it.each(
-    [
-      'src/core/team/teamSchedulerEntry.ts',
-      'src/core/team/teamPool.ts',
-      'src/core/team/selection.ts',
-      'src/core/team/reviewerPick.ts',
-      'src/core/team/borrow.ts',
-      'src/core/team/sameModel.ts',
-      'src/core/team/scheduler/board.ts',
-      'src/core/team/scheduler/slots.ts',
-      'src/core/team/scheduler/borrowing.ts',
-      'src/core/team/scheduler/pick.ts',
-      'src/core/team/scheduler/criticalPath.ts',
-      'src/core/team/scheduler/retire.ts',
-      'src/core/team/scheduler/reviewFlow.ts',
-      'src/core/team/scheduler/stalls.ts',
-      'src/core/team/scheduler/futureImplementation.ts',
-    ].flatMap((file) => [file, file.replaceAll('/', '\\')]),
-  )('rejects scheduler implementation %s in the shared team bundle', (file) => {
+    directions.flatMap(([owner, destination, source]) =>
+      [false, true].map((isWindows) => ({ owner, destination, source, isWindows })),
+    ),
+  )(
+    'rejects $owner → $destination output contamination (Windows: $isWindows)',
+    ({ owner, destination, source, isWindows }) => {
+      expect(
+        checkDeferredBundles(
+          (bundle) =>
+            bundle.output === `dist/${destination}.js`
+              ? new Map([
+                  ...bundleInputs(bundle),
+                  [isWindows ? source.replaceAll('/', '\\') : source, 1],
+                ])
+              : bundleInputs(bundle),
+          (bundle) => (isWindows ? windowsGraph(bundleMeta(bundle)) : bundleMeta(bundle)),
+        ),
+      ).toContain(`dist/${destination}.js carries ${source}, which belongs in dist/${owner}.js`)
+    },
+  )
+  it.each(directions)(
+    'rejects real retained %s → %s imports',
+    async (_owner, destination, source, symbol) => {
+      const destinationEntry = teamEntries[destination]
+      const { metafile } = await build({
+        ...graphBuildOptions,
+        plugins: [
+          ...graphBuildOptions.plugins,
+          {
+            name: 'team-graph-contamination',
+            setup(build) {
+              build.onLoad({ filter: /Entry\.ts$/ }, (args) => {
+                if (path.resolve(args.path) !== path.resolve(destinationEntry)) return
+                const imported = path
+                  .relative(path.dirname(args.path), path.resolve(source))
+                  .replaceAll('\\', '/')
+                  .replace(/\.ts$/, '')
+                return {
+                  loader: 'ts',
+                  contents: `${readFileSync(args.path, 'utf8')}\nimport { ${symbol} } from '${imported.startsWith('.') ? imported : `./${imported}`}'\nObject.defineProperty(create${destination.charAt(0).toUpperCase()}${destination.slice(1)}Runtime, 'reviewGraphDrill', { value: ${symbol} })`,
+                }
+              })
+            },
+          },
+        ],
+      })
+      const meta = metafileSchema.parse(metafile)
+      expect(outputInputs(meta, `dist/${destination}.js`).get(source)).toBeGreaterThan(0)
+      expect(
+        checkDeferredBundles(
+          (bundle) =>
+            Object.hasOwn(teamEntries, path.basename(bundle.output, '.js'))
+              ? outputInputs(meta, bundle.output)
+              : bundleInputs(bundle),
+          () => meta,
+        ),
+      ).toContain(
+        `dist/${destination}.js carries shared implementation ${source}; shared source modules belong under src/shared/`,
+      )
+    },
+  )
+  it.each(
+    ['src/core/futureTeamPolicy/implementation.ts', 'futureTeamPolicy/implementation.ts'].flatMap(
+      (source) => [false, true].map((isWindows) => ({ source, isWindows })),
+    ),
+  )(
+    'rejects future implementation $source in a new folder (Windows: $isWindows)',
+    ({ source, isWindows }) => {
+      const scheduler = {
+        output: 'dist/teamScheduler.js',
+        metafile: 'dist/meta/teamScheduler.json',
+      }
+      const meta = structuredClone(bundleMeta(scheduler))
+      meta.inputs[source] = { bytes: 1, imports: [] }
+      const entry = meta.inputs[teamEntries.teamScheduler]
+      if (entry === undefined) throw new Error('Missing scheduler graph entry')
+      entry.imports.push({
+        path: source,
+        kind: 'import-statement',
+      })
+      expect(
+        checkDeferredBundles(
+          (bundle) =>
+            bundle.output === 'dist/team.js'
+              ? new Map([
+                  ...bundleInputs(bundle),
+                  [isWindows ? source.replaceAll('/', '\\') : source, 1],
+                ])
+              : bundleInputs(bundle),
+          (bundle) => {
+            const graph = bundle.output === scheduler.output ? meta : bundleMeta(bundle)
+            return isWindows ? windowsGraph(graph) : graph
+          },
+        ),
+      ).toContain(`dist/team.js carries ${source}, which belongs in dist/teamScheduler.js`)
+    },
+  )
+  it.each(['borrow', 'sameModel'])(
+    'rejects renamed %s implementation behind its zero-byte re-export',
+    async (helper) => {
+      const original = `src/core/team/${helper}.ts`
+      const renamed = `src/core/team/${helper}RenamedPolicy.ts`
+      const symbol = helper === 'borrow' ? 'decideBorrow' : 'isSameTeamModel'
+      const { metafile } = await build({
+        ...graphBuildOptions,
+        plugins: [
+          ...graphBuildOptions.plugins,
+          {
+            name: 'renamed-team-implementation',
+            setup(build) {
+              build.onResolve({ filter: /RenamedPolicy$/ }, (args) => ({
+                path: path.resolve(args.resolveDir, `${args.path}.ts`),
+              }))
+              build.onLoad({ filter: /\.ts$/ }, (args) => {
+                if (path.resolve(args.path) === path.resolve(original))
+                  return { loader: 'ts', contents: `export * from './${helper}RenamedPolicy'` }
+                if (path.resolve(args.path) === path.resolve(renamed))
+                  return { loader: 'ts', contents: readFileSync(original, 'utf8') }
+                if (path.resolve(args.path) === path.resolve('src/core/team/teamTools.ts'))
+                  return {
+                    loader: 'ts',
+                    contents: `${readFileSync(args.path, 'utf8')}\nimport { ${symbol} } from './${helper}RenamedPolicy'\nObject.defineProperty(createSchedulerTeamTools, 'reviewRenameDrill', { value: ${symbol} })`,
+                  }
+                return
+              })
+            },
+          },
+        ],
+      })
+      const meta = metafileSchema.parse(metafile)
+      expect(outputInputs(meta, 'dist/teamScheduler.js').get(original)).toBe(0)
+      for (const destination of ['team', 'teamScheduler']) {
+        expect(outputInputs(meta, `dist/${destination}.js`).get(renamed)).toBeGreaterThan(0)
+        for (const isWindows of [false, true])
+          expect(
+            checkDeferredBundles(
+              (bundle) =>
+                Object.hasOwn(teamEntries, path.basename(bundle.output, '.js'))
+                  ? outputInputs(meta, bundle.output)
+                  : bundleInputs(bundle),
+              () => (isWindows ? windowsGraph(meta) : meta),
+            ),
+          ).toContain(
+            `dist/${destination}.js carries shared implementation ${renamed}; shared source modules belong under src/shared/`,
+          )
+      }
+    },
+  )
+  it('rejects emitted source missing from every entry graph, including a zero-byte shim', () => {
+    const source = 'futureTeamPolicy/shim.ts'
     expect(
       checkDeferredBundles((bundle) =>
-        bundle.output === 'dist/team.js'
-          ? new Map([...bundleInputs(bundle), [file, 1]])
+        bundle.output === 'dist/teamRunners.js'
+          ? new Map([...bundleInputs(bundle), [source, 0]])
           : bundleInputs(bundle),
       ),
-    ).toEqual([
-      `dist/team.js carries scheduler-owned ${file.replaceAll('\\', '/')}, which belongs in dist/teamScheduler.js`,
-    ])
-  })
-  it('rejects scheduler code made reachable through teamTools in a production build', async () => {
-    const source = 'src/core/team/scheduler/borrowing.ts'
-    const { metafile } = await build({
-      entryPoints: ['src/core/team/teamEntry.ts'],
-      outfile: 'dist/team.js',
-      bundle: true,
-      minify: true,
-      metafile: true,
-      write: false,
-      platform: 'node',
-      format: 'cjs',
-      target: 'node20.18',
-      define: { 'process.env.NODE_ENV': '"production"' },
-      logLevel: 'silent',
-      plugins: [
-        sharedUiText,
-        sharedValidation,
-        deferredCohort,
-        sharedWire,
-        sharedModelApiBoundaries,
-        {
-          name: 'scheduler-ownership-regression',
-          setup(build) {
-            build.onLoad({ filter: /[\\/]src[\\/]core[\\/]team[\\/]teamTools\.ts$/ }, (args) => ({
-              loader: 'ts',
-              contents: `${readFileSync(args.path, 'utf8')}\nimport { SchedulerBorrowing } from './scheduler/borrowing'\nObject.defineProperty(createSchedulerTeamTools, 'reviewDrillScheduler', { value: SchedulerBorrowing })`,
-            }))
-          },
-        },
-      ],
-    })
-    const contaminated = outputInputs(metafileSchema.parse(metafile), 'dist/team.js')
-    expect(contaminated.get(source)).toBeGreaterThan(0)
-    expect(
-      checkDeferredBundles((bundle) =>
-        bundle.output === 'dist/team.js' ? contaminated : bundleInputs(bundle),
-      ),
-    ).toContain(
-      `dist/team.js carries scheduler-owned ${source}, which belongs in dist/teamScheduler.js`,
-    )
-    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+    ).toContain(`dist/teamRunners.js carries ${source}, which belongs in no reachable team entry`)
   })
   it('keeps governor execution in its lazy bundle and shares the admission shim', () => {
     for (const name of ['extension', 'modelApi', 'acp', 'browserCheck']) {
