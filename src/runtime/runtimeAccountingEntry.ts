@@ -103,6 +103,11 @@ export function withRuntimeAccounting(
   client: ProviderClient,
   daily: ReturnType<typeof createRuntimeDailyBudget>,
   accounting?: RuntimeResponseAccounting,
+  /**
+   * C-M95-SUB: a plan-billed run reserves and settles $0: the subscription
+   * covers chat, so the paid daily journal keeps nothing from these turns.
+   */
+  isPlanBilling = false,
 ): ProviderClient {
   const wrap = (model: ResolvedModel): ResolvedModel => {
     const original = model.client
@@ -120,11 +125,14 @@ export function withRuntimeAccounting(
           contextTokens < body.max_output_tokens
         )
           throw new Error(UI_TEXT.execModelUnpriced)
-        const reserveUsd = model.price.reserve({
-          inputTokens: contextTokens - body.max_output_tokens,
-          outputTokens: body.max_output_tokens,
-          images: requestImageCount(body),
-        })
+        const zeroUsd = Usd.from(0).toAmount()
+        const reserveUsd = isPlanBilling
+          ? zeroUsd
+          : model.price.reserve({
+              inputTokens: contextTokens - body.max_output_tokens,
+              outputTokens: body.max_output_tokens,
+              images: requestImageCount(body),
+            })
         if (reserveUsd === undefined || Usd.from(reserveUsd).compare(Usd.from(0)) < 0)
           throw new Error(UI_TEXT.execModelUnpriced)
         let claim: SessionBudgetClaim | undefined
@@ -142,7 +150,11 @@ export function withRuntimeAccounting(
                   cost: response.usage.provider_cost_usd,
                 })
               : undefined
-          const cost = actual === undefined ? undefined : ceilUsd(actual)
+          // A plan-billed turn settles $0 even when the wire reports usage:
+          // the subscription covered it, so neither the daily journal nor
+          // the run ledger keeps a dollar from this response.
+          const settled = actual === undefined ? undefined : ceilUsd(actual)
+          const cost = isPlanBilling ? zeroUsd : settled
           // A sent request without a verified price keeps its original durable reservation.
           if (!wasSent || cost !== undefined)
             await owned.settle(wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount())

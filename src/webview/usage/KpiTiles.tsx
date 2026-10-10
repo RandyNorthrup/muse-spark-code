@@ -75,8 +75,8 @@ export function KpiTiles({
       <h2>{USAGE_TEXT.certainty}</h2>
       <ul className="usage-certainties">
         {totals.costs.map((row) => (
-          <li key={row.certainty}>
-            <strong>{certaintyLabel(row.certainty)}</strong>:{' '}
+          <li key={`${row.certainty}/${row.provider ?? ''}`}>
+            <strong>{certaintyLabel(row.certainty, row.provider)}</strong>:{' '}
             {plural(USAGE_TEXT.recordCount, row.records)} · {costText({ ...totals, costs: [row] })}
             {certaintyNote(row.certainty) === undefined ? null : (
               <p>{certaintyNote(row.certainty)}</p>

@@ -144,11 +144,13 @@ export const EN = {
   // label comes from its setting id, `museSpark.useMuseCodeSubscription`.)
   subscriptionKey: {
     signInAgain:
-      'Muse Code subscription is on, but the Muse Code CLI holds no subscription key here. Sign in again (`muse login`, or `muse auth set` with your subscription API key), then try again — or use a Model API key instead.',
+      'Muse Code subscription is on, but the Muse Code CLI holds no subscription sign-in here. A pay-as-you-go key (`muse auth set`) does not count. Sign in with your Muse account (`muse login`), then try again — or use a Model API key instead.',
     cannotRead:
       'Muse Code subscription is on, but the Muse Code sign-in file cannot be read. Sign the Muse Code CLI in again, then try again — or use a Model API key instead.',
     keychainBacked:
       'Muse Code subscription is on, but this sign-in lives in the login keychain, which cannot be read here. Use a Model API key instead.',
+    paidNeedsKey:
+      'Muse Code subscription covers chat. This paid extra needs a stored Model API key: store one and try again.',
   },
   feedbackFailed: 'Could not submit feedback.',
   // M102: the shared usage page; its full table is a separate lazy family.

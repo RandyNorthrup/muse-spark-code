@@ -5075,9 +5075,10 @@
     }
   },
   "subscriptionKey": {
-    "signInAgain": "Muse Code サブスクリプションはオンですが、Muse Code CLI にサブスクリプションキーがありません。再度サインインして (`muse login`、またはサブスクリプション API キーでの `muse auth set`) もう一度お試しください。または Model API キーをご利用ください。",
+    "signInAgain": "Muse Code サブスクリプションはオンですが、Muse Code CLI にサブスクリプションのサインインがありません。従量課金キー（`muse auth set`）は使えません。Muse アカウントでサインインして（`muse login`）もう一度お試しください。または Model API キーをご利用ください。",
     "cannotRead": "Muse Code サブスクリプションはオンですが、Muse Code CLI のサインインファイルを読み取れません。Muse Code CLI に再度サインインしてもう一度お試しください。または Model API キーをご利用ください。",
-    "keychainBacked": "Muse Code サブスクリプションはオンですが、このサインインはログインキーチェーンにあり、ここでは読み取れません。Model API キーをご利用ください。"
+    "keychainBacked": "Muse Code サブスクリプションはオンですが、このサインインはログインキーチェーンにあり、ここでは読み取れません。Model API キーをご利用ください。",
+    "paidNeedsKey": "Muse Code サブスクリプションはチャットを対象とします。この有料オプションには保存済みの Model API キーが必要です。キーを保存してもう一度お試しください。"
   },
   "acpSubscriptionNeedsModelApi": "{argument} には --backend modelApi が必要です。Muse Code サブスクリプションが Model API 呼び出しを支払います。",
   "execSubscriptionStdin": "--subscription と --key-stdin は組み合わせられません。実行ごとに 1 つの認証情報です。",

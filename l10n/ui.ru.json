@@ -5534,9 +5534,10 @@
     }
   },
   "subscriptionKey": {
-    "signInAgain": "Подписка Muse Code включена, но у Muse Code CLI здесь нет ключа подписки. Войдите снова (`muse login` или `muse auth set` с вашим ключом API подписки) и попробуйте ещё раз — или используйте ключ Model API.",
+    "signInAgain": "Подписка Muse Code включена, но у Muse Code CLI здесь нет входа по подписке. Ключ с оплатой по факту (`muse auth set`) не подходит. Войдите с помощью учётной записи Muse (`muse login`) и попробуйте ещё раз — или используйте ключ Model API.",
     "cannotRead": "Подписка Muse Code включена, но файл входа Muse Code CLI не читается. Войдите в Muse Code CLI снова и попробуйте ещё раз — или используйте ключ Model API.",
-    "keychainBacked": "Подписка Muse Code включена, но этот вход хранится в связке ключей входа, которую здесь прочитать нельзя. Используйте ключ Model API."
+    "keychainBacked": "Подписка Muse Code включена, но этот вход хранится в связке ключей входа, которую здесь прочитать нельзя. Используйте ключ Model API.",
+    "paidNeedsKey": "Подписка Muse Code покрывает чат. Для этого платного дополнения нужен сохранённый ключ Model API: сохраните его и попробуйте ещё раз."
   },
   "acpSubscriptionNeedsModelApi": "{argument} требует --backend modelApi: подписка Muse Code оплачивает вызовы Model API.",
   "execSubscriptionStdin": "--subscription и --key-stdin несовместимы: одни учётные данные на запуск.",

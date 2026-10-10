@@ -8,6 +8,7 @@ import {
   SubscriptionKeyError,
   SubscriptionKeySource,
 } from '../../core/backends/modelapi/subscriptionKey'
+import { registerSecretValue } from '../../core/redact'
 import type { CredentialStore } from './credentialStore'
 
 export interface SubscriptionCredentialDeps {
@@ -22,6 +23,8 @@ export interface SubscriptionCredentialDeps {
 
 export class SubscriptionCredential {
   private readonly source: SubscriptionKeySource
+  private trackedKey: string | undefined
+  private releaseTrackedKey: (() => void) | undefined
   public constructor(private readonly deps: SubscriptionCredentialDeps) {
     this.source =
       deps.source ??
@@ -30,6 +33,21 @@ export class SubscriptionCredential {
         homeDir: deps.homeDir,
         xdgConfigHome: deps.xdgConfigHome,
       })
+  }
+
+  /**
+   * The key about to be sent, held in the shared redactor registry while
+   * it is current: every `redactSecrets` call site (logs, snapshots,
+   * exports, receipts, errors) then redacts the credential actually sent,
+   * subscription or pasted. Rotation releases the old value and tracks the
+   * new one, so at most one value is held.
+   */
+  private track(key: string): void {
+    if (this.trackedKey === key) return
+    this.releaseTrackedKey?.()
+    this.releaseTrackedKey = undefined
+    this.trackedKey = key
+    this.releaseTrackedKey = registerSecretValue(key)
   }
 
   private resolved() {
@@ -49,7 +67,33 @@ export class SubscriptionCredential {
   public async getApiKey(): Promise<string | undefined> {
     const resolved = await this.resolved()
     if (resolved.kind === 'refused') throw new SubscriptionKeyError(resolved.status)
+    if (resolved.kind === 'key') this.track(resolved.key)
     return resolved.kind === 'key' ? resolved.key : undefined
+  }
+
+  /**
+   * Exact literals for the boundaries that persist or scrub text (session
+   * snapshots, receipts): the pasted key and the currently sent one.
+   * Best-effort and never throwing, so a store that cannot be read
+   * contributes nothing instead of breaking the save.
+   */
+  public async redactionKeys(): Promise<readonly string[]> {
+    const keys: string[] = []
+    try {
+      const pasted = await this.deps.credentials.getApiKey()
+      if (pasted !== undefined) keys.push(pasted)
+    } catch {
+      // An unreadable store contributes no literal here; availability and
+      // turn paths report it where it matters.
+    }
+    try {
+      const resolved = await this.resolved()
+      if (resolved.kind === 'key' && !keys.includes(resolved.key)) keys.push(resolved.key)
+    } catch {
+      // A refusal or an unreadable sign-in contributes no literal here;
+      // the turn path surfaces the refusal itself.
+    }
+    return keys
   }
 
   /** True while this turn would bill the Muse Code plan. */

@@ -330,9 +330,11 @@ function modelApiManager(
       : {
           ...store,
           async save(snapshot: Parameters<typeof store.save>[0]) {
-            const key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+            // Every credential that could have been sent: the pasted key
+            // and the opted-in subscription key (P1: the exact subscription
+            // value, not only the pasted one).
             const copy = structuredClone(snapshot)
-            redactSnapshot(copy, key === undefined ? [] : [key])
+            redactSnapshot(copy, await subscription.redactionKeys())
             await store.save(copy)
           },
         }
@@ -341,6 +343,17 @@ function modelApiManager(
     usageRecording: deps.usageRecording,
     hasExternalPaidRecording: deps.exec !== undefined,
     getApiKey: () => subscription.getApiKey(),
+    // Paid extras bill the stored key even while chat bills the plan. The
+    // watched store covers a stdin key too; nothing here throws, so an
+    // unreadable store reads as no paid key and the image path refuses.
+    getPaidApiKey: async () => {
+      try {
+        const stored = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+        return stored === undefined || stored === '' ? undefined : stored
+      } catch {
+        return
+      }
+    },
     isSubscriptionBilling: () => subscription.isSubscriptionBilling(),
     workspaceRoot,
     sessionWorkspaceRoot: storedWorkspaceRoot,
@@ -422,7 +435,14 @@ function modelApiManager(
       }
       const entry = await accountingEntry()
       entry.setUiText(UI_TEXT, uiLocale())
-      return entry.withRuntimeAccounting(client, await dailyBudget(), deps.exec?.responseAccounting)
+      // A plan-billed run reserves and settles $0 in the paid daily journal.
+      const isPlanBilling = await subscription.isSubscriptionBilling()
+      return entry.withRuntimeAccounting(
+        client,
+        await dailyBudget(),
+        deps.exec?.responseAccounting,
+        isPlanBilling,
+      )
     },
     reservePaidRequest: async (
       body,
@@ -633,6 +653,17 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   }
 
   const modelApiReadiness = async (): Promise<BackendReadiness> => {
+    // The opted-in CLI subscription counts before the secret store is
+    // touched: a valid sign-in is usable with no pasted key, and an
+    // unavailable OS store never blocks subscription-only use.
+    if (deps.options.subscription === true) {
+      try {
+        if (await subscriptionSource.isReady()) return { state: 'ready' }
+      } catch {
+        // Not ready by subscription: fall through to the stored key below,
+        // whose turn path refuses with the subscription fix when it matters.
+      }
+    }
     let key: string | undefined
     try {
       key = await deps.secrets.get(SECRET_KEYS.modelApiKey)

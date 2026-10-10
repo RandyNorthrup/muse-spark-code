@@ -12,6 +12,7 @@ import { memoryToolIo } from './helpers/fakeToolIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { watchSessionTurns } from './helpers/sessionTurns'
+import { certaintyLabel } from '../../src/webview/usage/display'
 
 const MODEL = 'muse-spark-1.3'
 
@@ -27,9 +28,15 @@ function captureRecording(seen: { usage: Partial<Usage> | undefined; context: Re
   return recording
 }
 
-async function runTurn(options: { subscriptionBilling: boolean; capUsd?: number }): Promise<{
+async function runTurn(options: {
+  subscriptionBilling: boolean
+  capUsd?: number
+  showReplyUsage?: boolean
+}): Promise<{
   terminal: string | undefined
   contexts: { usage: Partial<Usage> | undefined; context: RecordedCall }[]
+  spentUsd: number[]
+  replyCosts: unknown[]
 }> {
   const log = new FakeLogOutputChannel()
   const api = fakeModelApi()
@@ -43,6 +50,7 @@ async function runTurn(options: { subscriptionBilling: boolean; capUsd?: number 
       log,
     }),
     usageRecording: captureRecording(contexts),
+    ...(options.showReplyUsage === true && { showReplyUsage: () => true }),
     ...(options.capUsd !== undefined && {
       sessionBudgetUsd: () => Usd.from(options.capUsd ?? 0).toAmount(),
       store: memorySessionStore(),
@@ -61,9 +69,20 @@ async function runTurn(options: { subscriptionBilling: boolean; capUsd?: number 
     await session.sendTurn([{ type: 'text', text: 'hi' }])
     await done
     const completed = turns.events.findLast((event) => event.type === 'turnCompleted')
+    const budgets = await host.readUsageBudgets()
+    // The reply line's dollar cost rides beside its usage on the updated
+    // item: present for pay-as-you-go, absent for a plan turn.
+    const replyCosts: unknown[] = []
+    for (const event of turns.events) {
+      if (event.type === 'itemUpdated' && 'usage' in event.item) {
+        replyCosts.push((event.item as { readonly costUsd?: unknown }).costUsd)
+      }
+    }
     return {
       terminal: completed?.type === 'turnCompleted' ? completed.terminal : undefined,
       contexts,
+      spentUsd: budgets.map((budget) => budget.budget.spentUsd),
+      replyCosts,
     }
   } finally {
     await host.close()
@@ -109,5 +128,36 @@ describe('subscription billing', () => {
     const allowed = await runTurn({ subscriptionBilling: true, capUsd: 0.000001 })
     expect(allowed.terminal).toBe('completed')
     expect(allowed.contexts[0]?.context.pricing).toEqual({ kind: 'plan' })
+  })
+  it('persists no dollar spend for a subscription-billed Meta turn', async () => {
+    const plan = await runTurn({ subscriptionBilling: true, capUsd: 1 })
+    expect(plan.terminal).toBe('completed')
+    expect(plan.spentUsd).toEqual([0])
+    const payg = await runTurn({ subscriptionBilling: false, capUsd: 1 })
+    expect(payg.terminal).toBe('completed')
+    expect(payg.spentUsd).toHaveLength(1)
+    expect(payg.spentUsd[0]).toBeGreaterThan(0)
+  })
+  it('carries no dollar cost on the reply usage of a subscription turn', async () => {
+    const plan = await runTurn({ subscriptionBilling: true, showReplyUsage: true })
+    expect(plan.terminal).toBe('completed')
+    expect(plan.replyCosts.length).toBeGreaterThan(0)
+    for (const cost of plan.replyCosts) {
+      expect(cost).toBeUndefined()
+    }
+    const payg = await runTurn({ subscriptionBilling: false, showReplyUsage: true })
+    expect(payg.replyCosts.length).toBeGreaterThan(0)
+    for (const cost of payg.replyCosts) {
+      expect(cost).toBeDefined()
+    }
+  })
+})
+
+describe('Muse Code plan label', () => {
+  it('names a Meta plan row Muse Code plan and keeps every other plan row Plan', () => {
+    expect(certaintyLabel('plan', 'meta')).toBe('Muse Code plan')
+    expect(certaintyLabel('plan', undefined)).toBe('Plan')
+    expect(certaintyLabel('plan', 'other')).toBe('Plan')
+    expect(certaintyLabel('reported', 'meta')).toBe('Reported')
   })
 })

@@ -5381,9 +5381,10 @@
     }
   },
   "subscriptionKey": {
-    "signInAgain": "La suscripción de Muse Code está activada, pero la CLI de Muse Code no tiene aquí ninguna clave de suscripción. Inicie sesión de nuevo (`muse login` o `muse auth set` con su clave de API de suscripción) e inténtelo de nuevo, o use una clave de Model API.",
+    "signInAgain": "La suscripción de Muse Code está activada, pero la CLI de Muse Code no tiene aquí ningún inicio de sesión de suscripción. Una clave de pago por uso (`muse auth set`) no cuenta. Inicie sesión con su cuenta de Muse (`muse login`) e inténtelo de nuevo, o use una clave de Model API.",
     "cannotRead": "La suscripción de Muse Code está activada, pero el archivo de inicio de sesión de la CLI de Muse Code no se puede leer. Inicie sesión en la CLI de Muse Code de nuevo e inténtelo de nuevo, o use una clave de Model API.",
-    "keychainBacked": "La suscripción de Muse Code está activada, pero este inicio de sesión está en el llavero de inicio de sesión, que aquí no se puede leer. Use una clave de Model API."
+    "keychainBacked": "La suscripción de Muse Code está activada, pero este inicio de sesión está en el llavero de inicio de sesión, que aquí no se puede leer. Use una clave de Model API.",
+    "paidNeedsKey": "La suscripción de Muse Code cubre el chat. Este extra de pago necesita una clave de Model API almacenada: almacene una e inténtelo de nuevo."
   },
   "acpSubscriptionNeedsModelApi": "{argument} requiere --backend modelApi: la suscripción de Muse Code paga las llamadas de Model API.",
   "execSubscriptionStdin": "--subscription y --key-stdin no se pueden combinar: una credencial por ejecución.",

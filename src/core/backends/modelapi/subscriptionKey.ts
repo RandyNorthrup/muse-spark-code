@@ -1,12 +1,14 @@
 // The Model API backend on the user's Muse Code subscription (C-M95-SUB,
 // owner order 2026-10-10). Reads the subscription key the Muse Code CLI
-// holds after sign-in (`providers.meta`'s `api_key`, else its
-// `access_token`) from the CLI's own auth file at runtime, and only while
-// the user opts in. Every read is fresh, so a CLI re-sign-in or rotation
-// takes effect on the next request and no key is retained between reads;
-// the key is never displayed, logged, copied into settings, sent to
-// telemetry, or written anywhere. Reads use temp-dir fixtures in tests;
-// production never reads a fixture.
+// holds after a browser or device-code sign-in (`providers.meta`'s
+// `access_token`, the captured `accountLogin` shape) from the CLI's own
+// auth file at runtime, and only while the user opts in. A `muse auth set`
+// file holds a pay-as-you-go `api_key` alone and never counts: it refuses
+// instead of billing the card as plan. Every read is fresh, so a CLI
+// re-sign-in or rotation takes effect on the next request and no key is
+// retained between reads; the key is never displayed, logged, copied into
+// settings, sent to telemetry, or written anywhere. Reads use temp-dir
+// fixtures in tests; production never reads a fixture.
 import { readFile, stat } from 'node:fs/promises'
 import {
   MUSE_CREDENTIAL_FILE_MAX_BYTES,
@@ -47,12 +49,16 @@ function cleanKey(value: unknown): string | undefined {
 }
 
 /**
- * The CLI's subscription key at rest. `api_key` (what `muse auth set`
- * stores) is preferred; a browser sign-in's `access_token` is used when it
- * is the only credential the file holds. A macOS Keychain pointer file
- * holds no key here, so it reads as `keychain`, never as a value. Only the
- * credential strings are picked; every other field is dropped, so no
- * account name, label or token besides the key itself is ever retained.
+ * The CLI's subscription key at rest. Only a browser or device-code
+ * sign-in speaks for the subscription: its `access_token` (the captured
+ * `accountLogin` shape, `DEVICE_LOGIN_FILE` in sign-in-detection.md). A
+ * `muse auth set` file holds `api_key` alone (the captured `apiKey`
+ * shape): a pay-as-you-go key, never the subscription, so it reads as
+ * `unsigned` and the turn refuses instead of billing the card as plan.
+ * A macOS Keychain pointer file holds no key here, so it reads as
+ * `keychain`, never as a value. Only the subscription credential string
+ * is picked; every other field is dropped, so no account name, label or
+ * token besides the key itself is ever retained.
  */
 export function readSubscriptionKeyText(text: string): SubscriptionKeyRead {
   let raw: unknown
@@ -81,7 +87,7 @@ export function readSubscriptionKeyText(text: string): SubscriptionKeyRead {
   ) {
     return { status: 'keychain', key: undefined }
   }
-  const key = cleanKey(lane?.['api_key']) ?? cleanKey(lane?.['access_token'])
+  const key = cleanKey(lane?.['access_token'])
   return key === undefined ? { status: 'unsigned', key: undefined } : { status: 'ready', key }
 }
 
@@ -109,8 +115,14 @@ export class SubscriptionKeyError extends Error {
   }
 }
 
+/** No file, as opposed to one that is there and cannot be used. */
 function isMissing(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+  )
 }
 
 /** The subscription key, read fresh on every call: nothing is retained. */
@@ -147,8 +159,10 @@ export class SubscriptionKeySource {
     try {
       const info = await this.stat(file)
       size = info.size
-    } catch {
-      return { status: 'missing', key: undefined }
+    } catch (error: unknown) {
+      // Only a file that is not there reads as missing; one that cannot
+      // be statted (EACCES) names the access fix instead.
+      return { status: isMissing(error) ? 'missing' : 'unreadable', key: undefined }
     }
     if (size > MUSE_CREDENTIAL_FILE_MAX_BYTES) {
       return { status: 'unreadable', key: undefined }

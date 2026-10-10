@@ -2648,6 +2648,13 @@ export class ModelApiSession implements ScheduledAgentSession {
   private hasRecordedCall = false
   private packedBaseline = 0
   private sendingModel: ResolvedModel | undefined
+  /**
+   * C-M95-SUB: true while the attempt in flight prices as plan (a
+   * subscription-billed Meta call). Set in `sending()` beside the recorded
+   * call's pricing, so the settle math, the journal gate and the reply
+   * tally all price the attempt the same way it was recorded.
+   */
+  private planPricedAttempt = false
   private sendingImageCount = 0
   private readonly resolvedModels = new Map<string, ResolvedModel>()
   private readonly modelKeyDigests = new Map<string, string>()
@@ -3766,6 +3773,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     // usage and cost surfaces label it "Muse Code plan" with no dollar price.
     const planPricing: typeof this.sendingModel.policy.pricing | undefined =
       provider === 'meta' && isSubscriptionBilling ? { kind: 'plan' } : undefined
+    // The settle math below prices this attempt the same way: plan means no
+    // dollar cost, no journal write and no reply-usd, like a plan model.
+    this.planPricedAttempt = planPricing !== undefined
     this.recordedCall = {
       backend: 'modelApi',
       provider,
@@ -3829,15 +3839,38 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private budgetJournal(): SessionStore['budget'] {
-    return this.deps.client.isPlanModel?.(this.modelId) === true
+    // A plan-priced attempt keeps no dollar journal: neither the durable
+    // preflight nor the settle writes one, so free chat cannot spend the
+    // paid allowance.
+    return this.deps.client.isPlanModel?.(this.modelId) === true || this.planPricedAttempt
       ? undefined
       : (this.deps.budgetScope?.journal ?? this.deps.store?.budget)
+  }
+
+  /**
+   * C-M95-SUB: true while this turn bills the Muse Code plan (opted in,
+   * signed in, and sending as a Meta model). Read fresh wherever the
+   * billing matters, so a mid-conversation sign-in change applies at once.
+   */
+  private async isSubscriptionPlanTurn(): Promise<boolean> {
+    return (
+      (await this.deps.isSubscriptionBilling?.()) === true &&
+      this.modelId.startsWith(MODEL_API_MODEL_PREFIX)
+    )
   }
 
   /** Read shared spending before computing any new request's allowance. */
   private async refreshBudgetSpend(): Promise<void> {
     await this.budgetWrites
     if (this.deps.client.isPlanModel?.(this.modelId) === true) return
+    // A subscription-billed Meta turn skips the dollar preflight like a
+    // plan model; the account fence below rebinds instead of refusing when
+    // the CLI rotates the key, so a rotation never ends the conversation.
+    if (await this.isSubscriptionPlanTurn()) {
+      const accountId = await this.deps.getAccountId()
+      if (accountId !== undefined) this.budgetOwner().budgetAccountId = accountId
+      return
+    }
     const owner = this.budgetOwner()
     const scope = this.deps.budgetScope
     const accountId = await this.deps.getAccountId()
@@ -4576,6 +4609,18 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.approvedSearchQuote = undefined
     // An unattended scheduled fire never opens the popup and never searches.
     if (this.active?.scheduleRun !== undefined) return false
+    // A plan-billed turn cannot bill a hosted search: the search tariff
+    // draws on the stored key, which this request does not send. The turn
+    // proceeds without the search tool instead of settling dollars for
+    // plan-covered use.
+    if (await this.isSubscriptionPlanTurn()) {
+      this.emit({
+        type: 'backendNotice',
+        level: 'warning',
+        text: UI_TEXT.subscriptionKey.paidNeedsKey,
+      })
+      return false
+    }
     while (!signal.aborted && this.deps.isPaidFeatureOn('webSearch')) {
       const priceUsd = this.deps.client.searchPriceUsd?.(this.modelId)
       if (priceUsd === undefined || !this.canOfferWebSearch()) {
@@ -5149,9 +5194,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (missed !== undefined) {
       this.deps.log.warn(fill(UI_TEXT.promptCacheMiss, { tokens: missed }))
     }
-    const cost = (this.sendingModel ?? this.selectedModel(sentModelId)).price.settle(billable, {
-      cost: usage.provider_cost_usd,
-    })
+    // A plan-priced attempt settles no dollar cost: like a plan model, its
+    // usage carries tokens but no price, so the journals, the spend
+    // accumulators and the reply line stay at zero dollars.
+    const cost = this.planPricedAttempt
+      ? undefined
+      : (this.sendingModel ?? this.selectedModel(sentModelId)).price.settle(billable, {
+          cost: usage.provider_cost_usd,
+        })
     const hasKnownPrice = cost !== undefined
     const costUsd = cost ?? this.openReservation?.costUsd ?? Usd.from(0).toAmount()
     const nextUsage = {
@@ -16908,6 +16958,15 @@ export class ModelApiHost implements AgentHost {
       current === undefined ||
       (this.accountIdValue !== undefined && current !== this.accountIdValue)
     ) {
+      // A rotated subscription key rebinds the session to the new digest
+      // instead of ending the conversation; a pasted-key switch still
+      // refuses, so the account fence stands. Rebinding needs a live
+      // subscription sign-in: a digest that changed while signed out is a
+      // different account, not a rotation.
+      if (current !== undefined && (await this.deps.isSubscriptionBilling?.()) === true) {
+        this.accountIdValue = current
+        return current
+      }
       throw new Error(UI_TEXT.notSignedInReason)
     }
     this.accountIdValue = current

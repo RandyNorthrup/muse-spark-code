@@ -5381,9 +5381,10 @@
     }
   },
   "subscriptionKey": {
-    "signInAgain": "L’abbonamento Muse Code è attivo, ma la CLI di Muse Code non ha qui alcuna chiave di abbonamento. Accedi di nuovo (`muse login` o `muse auth set` con la tua chiave API di abbonamento) e riprova, oppure usa una chiave Model API.",
+    "signInAgain": "L’abbonamento Muse Code è attivo, ma la CLI di Muse Code non ha qui alcun accesso in abbonamento. Una chiave a consumo (`muse auth set`) non conta. Accedi con il tuo account Muse (`muse login`) e riprova, oppure usa una chiave Model API.",
     "cannotRead": "L’abbonamento Muse Code è attivo, ma il file di accesso della CLI di Muse Code non è leggibile. Accedi di nuovo alla CLI di Muse Code e riprova, oppure usa una chiave Model API.",
-    "keychainBacked": "L’abbonamento Muse Code è attivo, ma questo accesso si trova nel portachiavi di login, non leggibile qui. Usa una chiave Model API."
+    "keychainBacked": "L’abbonamento Muse Code è attivo, ma questo accesso si trova nel portachiavi di login, non leggibile qui. Usa una chiave Model API.",
+    "paidNeedsKey": "L’abbonamento Muse Code copre la chat. Questo extra a pagamento richiede una chiave Model API salvata: salvane una e riprova."
   },
   "acpSubscriptionNeedsModelApi": "{argument} richiede --backend modelApi: l’abbonamento Muse Code paga le chiamate Model API.",
   "execSubscriptionStdin": "--subscription e --key-stdin non possono essere combinati: una credenziale per esecuzione.",

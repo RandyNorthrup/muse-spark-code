@@ -5381,9 +5381,10 @@
     }
   },
   "subscriptionKey": {
-    "signInAgain": "A assinatura do Muse Code está ativada, mas a CLI do Muse Code não tem aqui nenhuma chave de assinatura. Entre de novo (`muse login` ou `muse auth set` com sua chave de API de assinatura) e tente outra vez, ou use uma chave da Model API.",
+    "signInAgain": "A assinatura do Muse Code está ativada, mas a CLI do Muse Code não tem aqui nenhum login de assinatura. Uma chave pay-as-you-go (`muse auth set`) não conta. Entre com sua conta Muse (`muse login`) e tente outra vez, ou use uma chave da Model API.",
     "cannotRead": "A assinatura do Muse Code está ativada, mas o arquivo de login da CLI do Muse Code não pode ser lido. Entre de novo na CLI do Muse Code e tente outra vez, ou use uma chave da Model API.",
-    "keychainBacked": "A assinatura do Muse Code está ativada, mas este login está nas Chaves do login, que não podem ser lidas aqui. Use uma chave da Model API."
+    "keychainBacked": "A assinatura do Muse Code está ativada, mas este login está nas Chaves do login, que não podem ser lidas aqui. Use uma chave da Model API.",
+    "paidNeedsKey": "A assinatura do Muse Code cobre o chat. Este extra pago precisa de uma chave da Model API armazenada: armazene uma e tente de novo."
   },
   "acpSubscriptionNeedsModelApi": "{argument} requer --backend modelApi: a assinatura do Muse Code paga as chamadas da Model API.",
   "execSubscriptionStdin": "--subscription e --key-stdin não podem ser combinados: uma credencial por execução.",
