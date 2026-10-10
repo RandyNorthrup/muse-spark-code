@@ -78,6 +78,10 @@ happened, not what was planned; superseded entries are kept.
   independent production pages, avoiding cold Windows navigation timeouts
   while keeping its two-second bound and complete accessibility/keyboard matrix.
 
+- macOS UI regressions give each target-size scene its own test and await
+  the palette view's actual lazy-import rejection before checking its failure
+  row, retaining every assertion at the existing deadlines (CIR4MAC).
+
 - macOS runtimes with libuv older than 1.52 report unknown memory headroom
   instead of counting only free pages, preventing false resource pauses and
   ACP multi-workspace session timeouts on Node 22 (ACPM118).

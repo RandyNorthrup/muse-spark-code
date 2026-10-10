@@ -461,32 +461,36 @@ describe('RVM114P1 review regressions', () => {
     },
   )
 
-  it.each(themes)(
-    '%s: actual attachment, tool and steps targets are at least 24 by 24 at 320 px',
-    async (theme) => {
-      for (const [scene, selectors] of [
+  // Each scene owns its deadline: three cold pages and React mounts exceeded
+  // five seconds under CPU pressure (CIR4MAC). Keep every target and assertion.
+  it.each(
+    themes.flatMap((theme) =>
+      [
         ['chips', ['.chip-remove']],
         ['tools-open', ['.tool-toggle', '.tool-path', '.tool-chevron']],
         ['approval-several', ['.steps-toggle']],
-      ]) {
-        const page = await pageFor(theme, scene)
-        try {
-          for (const selector of selectors) {
-            const targets = page.locator(`${selector}:visible`)
-            // Folded tool rows render from a lazy chunk once the steps open
-            // (2ae80ffb9); wait for the first, never count a half-loaded scene.
-            await targets.first().waitFor({ state: 'visible' })
-            expect(await targets.count(), selector).toBeGreaterThan(0)
-            const visibleTargets = await targets.all()
-            for (const target of visibleTargets) {
-              const box = await target.boundingBox()
-              expect(box.width, `${scene} ${selector}`).toBeGreaterThanOrEqual(24)
-              expect(box.height, `${scene} ${selector}`).toBeGreaterThanOrEqual(24)
-            }
+      ].map(([scene, selectors]) => ({ theme, scene, selectors })),
+    ),
+  )(
+    '$theme $scene: actual targets are at least 24 by 24 at 320 px',
+    async ({ theme, scene, selectors }) => {
+      const page = await pageFor(theme, scene)
+      try {
+        for (const selector of selectors) {
+          const targets = page.locator(`${selector}:visible`)
+          // Folded tool rows render from a lazy chunk once the steps open
+          // (2ae80ffb9); wait for the first, never count a half-loaded scene.
+          await targets.first().waitFor({ state: 'visible' })
+          expect(await targets.count(), selector).toBeGreaterThan(0)
+          const visibleTargets = await targets.all()
+          for (const target of visibleTargets) {
+            const box = await target.boundingBox()
+            expect(box.width, `${scene} ${selector}`).toBeGreaterThanOrEqual(24)
+            expect(box.height, `${scene} ${selector}`).toBeGreaterThanOrEqual(24)
           }
-        } finally {
-          await page.close()
         }
+      } finally {
+        await page.close()
       }
     },
   )
