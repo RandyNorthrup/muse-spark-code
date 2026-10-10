@@ -180,12 +180,16 @@ describe.skipIf(process.platform === 'win32')('broker composition over part A bl
       expect(stillOpen.status.state).toBe('unlocked')
       // A saved grant reaches watchers through subscribeCommitted, not the
       // revocation channel (RVCM1091A F3); the management add has no such event.
+      // The composition adds no subscriber of its own (RVCM1091B2 P3: that
+      // second subscriber emitted a duplicate changed event), so noteChanged
+      // stays silent here; the constructor's own forwarding carries the one
+      // event, pinned exactly-once by the socket-free case below.
       const repoCall = vi.mocked(f.ports.audit).mock.calls[0]
       const repository = repoCall?.[0]
       expect(repository).toBeInstanceOf(VaultStoreRepository)
       changed.mockClear()
       await repository?.saveGrant(grant(), () => undefined)
-      expect(changed).toHaveBeenCalledOnce()
+      expect(changed).not.toHaveBeenCalled()
       const ciphertext = await readFile(path.join(context.dataDir, 'vault.v1'))
       expect(ciphertext.includes(material.value)).toBe(false)
       const response = await client.send({ kind: 'lock' })
@@ -215,11 +219,9 @@ describe.skipIf(process.platform === 'win32')('broker composition over part A bl
     const stopWatch = m.management.subscribe((event) => {
       events.push(event.kind)
     })
-    // The broker composition wires repository commits to watchers exactly
-    // like this; a saved grant must not need the revocation channel.
-    const stopForward = m.repository.subscribeCommitted(() => {
-      m.management.noteChanged()
-    })
+    // The broker composition adds no forwarding of its own: VaultManagement's
+    // constructor already wires repository commits to watchers, and a saved
+    // grant must not need the revocation channel.
     const value = randomBytes(32)
     try {
       const shown = await m.management.setup()
@@ -229,13 +231,13 @@ describe.skipIf(process.platform === 'win32')('broker composition over part A bl
       await m.repository
         .current()
         .write({ metadata: metadata(), material: { kind: 'secret' as const, value } })
-      // Confirming already emits changed; the save must emit one of its own.
+      // Confirming already emits changed; the save must emit exactly one of
+      // its own (RVCM1091B2 P3: a second subscriber would emit two).
       events.length = 0
       await m.repository.saveGrant(grant(), () => undefined)
-      expect(events).toContain('changed')
+      expect(events).toEqual(['changed'])
     } finally {
       value.fill(0)
-      stopForward()
       stopWatch()
     }
   })

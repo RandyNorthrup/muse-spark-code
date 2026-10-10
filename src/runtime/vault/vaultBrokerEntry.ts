@@ -73,7 +73,7 @@ export async function createVaultBrokerProcess(
   if (bindings.lockOnScreenLock && !bindings.slots) throw new Error(UI_TEXT.vault.noAccess)
   const context = contextSchema.parse(input)
   const helper = vaultPeerExecutable(context.installRoot)
-  const owned: { broker?: VaultBroker; management?: VaultManagement; unsubscribe?: () => void } = {}
+  const owned: { broker?: VaultBroker; management?: VaultManagement } = {}
   return await startVaultBrokerProcess({
     runDirectory: context.runDirectory,
     userSession: context.userSession,
@@ -88,7 +88,6 @@ export async function createVaultBrokerProcess(
       }
     },
     dispose: async () => {
-      owned.unsubscribe?.()
       await owned.broker?.dispose()
     },
     channel: async (location, listener) => {
@@ -148,14 +147,12 @@ export async function createVaultBrokerProcess(
       })
       managementRef.current = manage
       const management = manage
-      // Grant saves no longer fire subscribe(); committed changes reach
-      // watchers through subscribeCommitted (RVCM1091A F3).
-      const unsubscribe = repository.subscribeCommitted(() => {
-        management.noteChanged()
-      })
+      // Grant saves no longer fire subscribe(); committed changes already
+      // reach watchers through VaultManagement's own subscribeCommitted
+      // forwarding (RVCM1091A F3), so no second subscriber is added here:
+      // one committed save must emit exactly one changed event (RVCM1091B2).
       owned.broker = broker
       owned.management = management
-      owned.unsubscribe = unsubscribe
       await broker.synchronizeEpoch()
       return new VaultChannelServer({
         broker,
