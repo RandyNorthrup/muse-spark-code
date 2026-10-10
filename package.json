@@ -1685,6 +1685,12 @@
           "default": false,
           "description": "%config.estimator.priceLookup.description%",
           "scope": "machine"
+        },
+        "museSpark.linuxDictationModel": {
+          "type": "boolean",
+          "default": true,
+          "scope": "machine",
+          "description": "%config.linuxDictationModel.description%"
         }
       }
     },

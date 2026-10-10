@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { LINUX_DICTATION } from '../../src/shared/constants'
 import {
   helperEnvironment,
   locateCaptureHelper,
@@ -87,6 +88,58 @@ describe('locateDictationHelper', () => {
       fileExists: () => false,
     })
     expect(missing.isAvailable ? '' : missing.reason).toContain('native/darwin/muse-dictate')
+  })
+
+  it('locates only the bundled Linux architecture with a fixed model argument', () => {
+    for (const arch of ['x64', 'arm64']) {
+      const command = path.join(helperDir, 'linux', arch, 'muse-dictate')
+      const location = locateDictationHelper({
+        ...local,
+        platform: 'linux',
+        systemRoot: undefined,
+        helperDir,
+        arch,
+        linuxModelPath: '/storage/model.bin',
+        fileExists: (file) =>
+          [
+            command,
+            ...[
+              ...LINUX_DICTATION.libraries,
+              LINUX_DICTATION.baseline[arch === 'x64' ? 'x64' : 'arm64'],
+            ].map((name) => path.join(path.dirname(command), name)),
+          ].includes(file),
+      })
+      expect(location).toEqual({
+        isAvailable: true,
+        invocation: {
+          command,
+          args: ['--model', '/storage/model.bin'],
+          stopGraceMs: LINUX_DICTATION.stopGraceMs,
+          environment: LINUX_DICTATION.environment,
+        },
+      })
+    }
+    const probe = {
+      ...local,
+      platform: 'linux',
+      systemRoot: undefined,
+      helperDir,
+      linuxModelPath: '/storage/model.bin',
+    } as const
+    expect(
+      locateDictationHelper({ ...probe, arch: 'ia32', fileExists: () => true }).isAvailable,
+    ).toBe(false)
+    expect(
+      locateDictationHelper({ ...probe, arch: 'x64', fileExists: (file) => !file.endsWith('.so') })
+        .isAvailable,
+    ).toBe(false)
+    expect(
+      locateDictationHelper({ ...probe, arch: 'x64', fileExists: () => false }).isAvailable,
+    ).toBe(false)
+    expect(
+      locateDictationHelper({ ...probe, arch: 'x64', remoteName: 'ssh', fileExists: () => true })
+        .isAvailable,
+    ).toBe(false)
   })
 
   it('says why Linux and other platforms have no microphone', () => {

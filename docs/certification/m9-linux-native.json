@@ -1,0 +1,78 @@
+{
+  "architecture": "x64",
+  "rawBytes": 7623768,
+  "zipDeflateBytes": 3111639,
+  "wholeVsixBudgetKiB": 3700,
+  "files": [
+    {
+      "path": "native/linux/x64/libggml-base.so",
+      "bytes": 624256,
+      "sha256": "91de98b91a6b42659e62703c6c17b1a5a3d1fb51a8e9497ddd1e08864f294eab"
+    },
+    {
+      "path": "native/linux/x64/libggml-cpu-alderlake.so",
+      "bytes": 611216,
+      "sha256": "40839e99c310ff18027bed692bb047af0a0475a59652d9c9956eeb2fe70f98b5"
+    },
+    {
+      "path": "native/linux/x64/libggml-cpu-haswell.so",
+      "bytes": 611216,
+      "sha256": "c39b830d732138dd0411983a7bef985d9a95785a798b21e23e1173512de39f9b"
+    },
+    {
+      "path": "native/linux/x64/libggml-cpu-icelake.so",
+      "bytes": 639952,
+      "sha256": "214fd3ccac32617da3e1dcf9e85315ef8ad3a49867cc9637ed7eac4a14911ea7"
+    },
+    {
+      "path": "native/linux/x64/libggml-cpu-sandybridge.so",
+      "bytes": 615312,
+      "sha256": "7e4a8830e0eca5d9b8229f20109c5139a415224c2c3e43b96c19878630186660"
+    },
+    {
+      "path": "native/linux/x64/libggml-cpu-sapphirerapids.so",
+      "bytes": 890104,
+      "sha256": "11d2d28d03b436102f9084ab4e1e84556331c1949deb7641d668715cc98af4ab"
+    },
+    {
+      "path": "native/linux/x64/libggml-cpu-skylakex.so",
+      "bytes": 644048,
+      "sha256": "f1e7d92527b6880bb2ae480b6d2fbf4a572e0089729e017dce768c9a6fe61713"
+    },
+    {
+      "path": "native/linux/x64/libggml-cpu-sse42.so",
+      "bytes": 627600,
+      "sha256": "39c616726794044f95c372deb741649e88cdd7faccbda1f90a260018753d44cc"
+    },
+    {
+      "path": "native/linux/x64/libggml-cpu-x64.so",
+      "bytes": 611248,
+      "sha256": "e684c7a8eb2c1bd7539706d8042baaa1c4d027193ead64cc8ceacff423a74d92"
+    },
+    {
+      "path": "native/linux/x64/libggml.so",
+      "bytes": 47760,
+      "sha256": "eb46a4083042800dbec1b7ed95d6e707d9ce0fac7482f2fccbe86aa0cba8b72f"
+    },
+    {
+      "path": "native/linux/x64/libwhisper.so",
+      "bytes": 551216,
+      "sha256": "c3254c09eb2e76fe5b089db8512a28988eb8b527026d6953b7d47f5c159b2a3a"
+    },
+    {
+      "path": "native/linux/x64/libwhisper.so.1",
+      "bytes": 551216,
+      "sha256": "c3254c09eb2e76fe5b089db8512a28988eb8b527026d6953b7d47f5c159b2a3a"
+    },
+    {
+      "path": "native/linux/x64/libwhisper.so.1.7.6",
+      "bytes": 551216,
+      "sha256": "c3254c09eb2e76fe5b089db8512a28988eb8b527026d6953b7d47f5c159b2a3a"
+    },
+    {
+      "path": "native/linux/x64/muse-dictate",
+      "bytes": 47408,
+      "sha256": "f5a52d59d84977fac1dd093f4a955dea646e0dfcc07cc34fdde8d4436221f830"
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "assessment": "Exact new native contribution and distributed license/notices; no npm dependency changes. Binary/provenance review accompanies scanner limitations.",
+  "files": [
+    {
+      "file": "LICENSE",
+      "sha256": "33c1de52600aa788c54cc819e905e20a62b37d4ea4b33fffb71d389e5198d752"
+    },
+    {
+      "file": "THIRD_PARTY_NOTICES.txt",
+      "sha256": "6f25e9718e5f1d2680f5926ebdddfafcc220f842cce925481cadb78028ec29f6"
+    },
+    {
+      "file": "native/dictation-linux/CMakeLists.txt",
+      "sha256": "8959c0f2444b71196cf9aa50c66c0b7849b9209a43dccc73faa90691904f71c1"
+    },
+    {
+      "file": "native/dictation-linux/engine.hpp",
+      "sha256": "55b6ba86e66e14b3b1824fce50938c966c59363c1ebd1ea8bf9c65dbbeb3743e"
+    },
+    {
+      "file": "native/dictation-linux/helper.cpp",
+      "sha256": "e01ee3350bec7b2c4a6d8f9b80edb9d480a9a020bb87b1764629cb196080fcda"
+    },
+    {
+      "file": "native/dictation-linux/model-LICENSE.txt",
+      "sha256": "b5d65a59060e68c4ff940e1eddfa6f94b2d68fdf58ed7f4dd57721c997e35e9d"
+    },
+    {
+      "file": "native/dictation-linux/whisper-LICENSE.txt",
+      "sha256": "1ffdfa6933a7ced38fbb2210fe0fa28d019c77b1ea3f8826ddea20f1bd7bb33f"
+    },
+    {
+      "file": "native/linux/x64/libggml-base.so",
+      "sha256": "91de98b91a6b42659e62703c6c17b1a5a3d1fb51a8e9497ddd1e08864f294eab"
+    },
+    {
+      "file": "native/linux/x64/libggml-cpu-alderlake.so",
+      "sha256": "40839e99c310ff18027bed692bb047af0a0475a59652d9c9956eeb2fe70f98b5"
+    },
+    {
+      "file": "native/linux/x64/libggml-cpu-haswell.so",
+      "sha256": "c39b830d732138dd0411983a7bef985d9a95785a798b21e23e1173512de39f9b"
+    },
+    {
+      "file": "native/linux/x64/libggml-cpu-icelake.so",
+      "sha256": "214fd3ccac32617da3e1dcf9e85315ef8ad3a49867cc9637ed7eac4a14911ea7"
+    },
+    {
+      "file": "native/linux/x64/libggml-cpu-sandybridge.so",
+      "sha256": "7e4a8830e0eca5d9b8229f20109c5139a415224c2c3e43b96c19878630186660"
+    },
+    {
+      "file": "native/linux/x64/libggml-cpu-sapphirerapids.so",
+      "sha256": "11d2d28d03b436102f9084ab4e1e84556331c1949deb7641d668715cc98af4ab"
+    },
+    {
+      "file": "native/linux/x64/libggml-cpu-skylakex.so",
+      "sha256": "f1e7d92527b6880bb2ae480b6d2fbf4a572e0089729e017dce768c9a6fe61713"
+    },
+    {
+      "file": "native/linux/x64/libggml-cpu-sse42.so",
+      "sha256": "39c616726794044f95c372deb741649e88cdd7faccbda1f90a260018753d44cc"
+    },
+    {
+      "file": "native/linux/x64/libggml-cpu-x64.so",
+      "sha256": "e684c7a8eb2c1bd7539706d8042baaa1c4d027193ead64cc8ceacff423a74d92"
+    },
+    {
+      "file": "native/linux/x64/libggml.so",
+      "sha256": "eb46a4083042800dbec1b7ed95d6e707d9ce0fac7482f2fccbe86aa0cba8b72f"
+    },
+    {
+      "file": "native/linux/x64/libwhisper.so",
+      "sha256": "c3254c09eb2e76fe5b089db8512a28988eb8b527026d6953b7d47f5c159b2a3a"
+    },
+    {
+      "file": "native/linux/x64/libwhisper.so.1",
+      "sha256": "c3254c09eb2e76fe5b089db8512a28988eb8b527026d6953b7d47f5c159b2a3a"
+    },
+    {
+      "file": "native/linux/x64/libwhisper.so.1.7.6",
+      "sha256": "c3254c09eb2e76fe5b089db8512a28988eb8b527026d6953b7d47f5c159b2a3a"
+    },
+    {
+      "file": "native/linux/x64/muse-dictate",
+      "sha256": "f5a52d59d84977fac1dd093f4a955dea646e0dfcc07cc34fdde8d4436221f830"
+    }
+  ],
+  "result": {
+    "disclaimer": "Not legal advice; for distribution decisions consult a lawyer.",
+    "version": 1,
+    "ruleVersion": "1",
+    "dataVersion": "[redacted][redacted]",
+    "scope": "",
+    "distribution": "source checkout, distribution unknown: no bundle inputs or package inventory evidence",
+    "exclusions": [],
+    "incompleteChecks": [
+      "not checked: assets, copied code provenance, proprietary terms and complete license-text matching require human review",
+      "not checked: no npm manifests, locks or installed metadata found",
+      "not checked: no Python manifests, locks or distribution metadata found",
+      "not checked: no Cargo manifests or locks found",
+      "not checked: no go.mod, go.sum or vendor/modules.txt found",
+      "not checked: no POMs, Gradle declarations, locks or catalogs found",
+      "not checked: no NuGet declarations, locks or asset files found",
+      "not checked: no composer.json, composer.lock or installed.json found",
+      "not checked: no Gemfile, Gemfile.lock or gemspec files found",
+      "not checked: full SPDX text matching and modified terms; title and clause matching is heuristic",
+      "not checked: artifact freshness is not established by file-name evidence alone",
+      "not checked: distribution set unknown (no bundle metafile or package files evidence); shipped obligations assume nothing ships"
+    ],
+    "findings": [],
+    "evidenceFiles": [
+      {
+        "path": "LICENSE",
+        "hash": "33c1de52600aa788c54cc819e905e20a62b37d4ea4b33fffb71d389e5198d752"
+      },
+      {
+        "path": "native/dictation-linux/engine.hpp",
+        "hash": "55b6ba86e66e14b3b1824fce50938c966c59363c1ebd1ea8bf9c65dbbeb3743e"
+      },
+      {
+        "path": "native/dictation-linux/helper.cpp",
+        "hash": "e01ee3350bec7b2c4a6d8f9b80edb9d480a9a020bb87b1764629cb196080fcda"
+      },
+      {
+        "path": "THIRD_PARTY_NOTICES.txt",
+        "hash": "6f25e9718e5f1d2680f5926ebdddfafcc220f842cce925481cadb78028ec29f6"
+      }
+    ]
+  }
+}

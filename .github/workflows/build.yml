@@ -228,6 +228,9 @@ jobs:
       - run: npm ci
       # The default reporter beside the blob one, so a failing shard's log
       # names the failing test (the blob alone prints nothing).
+      - name: Linux dictation test build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libpulse-dev
       - name: unit and process e2e tests
         shell: bash
         env:
@@ -446,7 +449,7 @@ jobs:
 
   # The .vsix with both helpers: what release.yml publishes.
   linux-native-build:
-    name: compile created-path helper (linux ${{ matrix.arch }})
+    name: compile native helpers (linux ${{ matrix.arch }})
     if: ${{ !inputs.fast }}
     strategy:
       matrix:
@@ -464,12 +467,17 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-      - run: sudo apt-get update && sudo apt-get install -y libssl-dev
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y libssl-dev libpulse-dev cmake g++-14
       - run: node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; buildLinuxHelper()"
+      - run: CC=gcc-14 CXX=g++-14 node scripts/build-linux-dictation.mjs
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-created-linux-${{ matrix.arch }}
-          path: native/linux/${{ matrix.arch }}/muse-created
+          path: |
+            native/linux/${{ matrix.arch }}/muse-created
+            native/linux/${{ matrix.arch }}/muse-dictate
+            native/linux/${{ matrix.arch }}/*.so*
           if-no-files-found: error
 
   packages:
@@ -502,7 +510,7 @@ jobs:
         with:
           name: muse-vault-darwin
           path: dist/native/darwin
-      - run: chmod +x native/linux/x64/muse-created native/linux/arm64/muse-created
+      - run: chmod +x native/linux/x64/muse-created native/linux/arm64/muse-created native/linux/x64/muse-dictate native/linux/arm64/muse-dictate
       - run: chmod +x dist/native/darwin/muse-vault
       - run: chmod +x native/darwin/muse-dictate
       - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
@@ -524,6 +532,10 @@ jobs:
           listing="$(unzip -Z1 ./*.vsix)"
           for entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json \
             extension/native/linux/x64/muse-created extension/native/linux/arm64/muse-created \
+            extension/native/linux/x64/muse-dictate extension/native/linux/arm64/muse-dictate \
+            extension/native/linux/x64/libggml-cpu-x64.so extension/native/linux/arm64/libggml-cpu-armv8.0_1.so \
+            extension/native/linux/x64/libwhisper.so.1 extension/native/linux/arm64/libwhisper.so.1 \
+            extension/native/dictation-linux/whisper-LICENSE.txt extension/native/dictation-linux/model-LICENSE.txt \
             extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \
             extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
             extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \

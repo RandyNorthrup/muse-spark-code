@@ -23,8 +23,9 @@ They are an engineering comparison, not a human-speech accuracy claim.
 | whisper.cpp 1.7.6 / tiny.en    | 1 / 23 (4.35%)            | 1.644 s including load            | 2,457,040 B static CLI  | 77,704,715 B                                       |
 | whisper.cpp 1.7.6 / base.en    | 1 / 23 (4.35%)            | 3.364 s including load            | same CLI                | 147,964,211 B                                      |
 
-Chosen: **whisper.cpp 1.7.6, tiny.en**, CPU-only, three threads, native CPU
-optimization disabled for portable builds; x64 and arm64 supported upstream.
+Chosen: **whisper.cpp 1.7.6, tiny.en**, CPU-only, three threads,
+host-specific optimization disabled for portable builds; generic baseline and
+runtime-selected CPU variants shipped, with x64 and arm64 supported upstream.
 Base adds size and latency without improving these fixtures. Vosk's smaller
 weights require a substantially larger shared engine and scored worse here.
 Numbers are single wall-clock observations on the shared rig, not throughput
@@ -44,3 +45,134 @@ Sources: [whisper.cpp code, MIT](https://github.com/ggml-org/whisper.cpp/tree/v1
 No benchmark dependency enters package.json or node_modules. FFmpeg/libflite,
 cmake, g++ and Python were already installed; only candidate archives/models
 were fetched into the lane's private TMPDIR. No speech went over the network.
+
+## Implementation and review
+
+The prebuilt helper uses PulseAudio's native client (also PipeWire's Pulse
+server), mono PCM16 at 16 kHz, three recognizer threads, ten-second phrases,
+a thirty-second queued-audio ceiling and bounded in-memory capture. It
+never creates an audio file. `--input-wav` is the certificate input, absent
+from the extension's fixed invocation. The helper stays resident between
+recordings; Stop drains already submitted phrases. Linux gets a thirty-second
+stop grace; Windows/macOS retain their four-second grace.
+
+The helper loads ggml backends explicitly before the model. Every shipped ELF uses only `$ORIGIN`, with no empty current-directory
+search component. Both cwd-based
+plugin discovery and `GGML_BACKEND_PATH` are confined before that call; the
+host clears loader overrides. A hostile constructor writes a marker only
+if loaded, so the real-engine test proves this boundary. CPU-only builds
+include a baseline backend and select optimized variants by CPU capability.
+KleidiAI and llamafile are disabled. The shipped MIT notices include the
+YaRN routine's Jeffrey Quesnelle/Bowen Peng copyright as well as ggml and
+OpenAI weights. PulseAudio/libstdc++ are system libraries, not bundled ones.
+
+Acquisition requires consent before its first request, uses HTTPS redirects,
+identity encoding, validated ranges/lengths, bounded streaming writes, fsync,
+exact size and full SHA-256 before publication. A published model is hashed
+again before reuse. An atomic nonempty lock directory names its owner PID;
+a live/unknown owner is never stolen, a dead owner can be recovered, and
+symlinked storage/files refuse. Partial bytes remain for a consented retry.
+Late consent after Stop/dispose cannot start a download or microphone.
+OFF stops this window's drivers and removes installed/partial weights;
+removal failure shows translated recovery advice. Re-enabling after disabled
+startup requires window reload, as the setting and README state.
+
+Review classes: validation/security (pin, redirects, file/lock boundaries,
+plugin/loader confinement, including exact ELF $ORIGIN search paths); failure/honesty (refusal, integrity, absent
+microphone server, unknown command, malformed WAV and removal errors);
+concurrency/lifecycle (live/dead owners, cancellation, queued restart,
+dispose/reset and Stop drain); docs (14 tables, manifest/reference, privacy,
+notices, native build/CI and all-editor rows). No npm dependency was added.
+`libpulse-dev` was installed on Kubuntu; CI installs it for the native fake
+suite and uses GCC 14 for ARM SME flags ([GCC 14 changes](https://gcc.gnu.org/gcc-14/changes.html)).
+
+## Deliberate failures
+
+[Full drill receipts](m9-linux-drills.json) record each source's original and
+restored SHA-256, exit status and named failures; real-engine probes also
+record the restored binary hash. Every new test case was observed failing.
+The initial new-export probe passed because negative cases were missing;
+those cases were added and the same probe then failed. Two initial C++ probes
+stopped at unused-variable compilation errors; corrected probes preserve the
+variable uses and fail the named runtime assertions instead. These first
+probes are retained with `certifiesGuard=false`, not counted as certification.
+The initial warm-restart assertion assumed the TypeScript driver delayed Start;
+the native helper actually queues it while draining Stop. The corrected test
+proves forwarding, reuse and drain ordering; its mutation fails by name.
+All 45 recorded probes restore byte-exact; 41 certify guards. The native
+notice freshness gate also fails deliberately and passes after restoration.
+An empty ELF search component found in the original build was fixed; mutating
+the compiled library's path fails the named loader test and real recognition.
+Its exact binary SHA-256 is restored and all five real-engine cases pass.
+
+No CLI `--testTimeout` override was used. Unit/protocol tests use repository
+defaults. Real cold model loading and full CPU inference are genuinely long
+operations: the integration suite has the named
+`REAL_OFFLINE_RECOGNITION_TIMEOUT_MS` (30 seconds), with an inline reason.
+A direct portable-helper observation took 7.539 seconds for fixture 1 on the
+shared rig; the candidate static-CLI comparison above is a different build
+and timing, not a promised production latency.
+
+## Local verification
+
+[Verification receipt](m9-linux-verification.json). The final owning runs total **313 passing tests and one existing Windows-only
+capture skip**. Every invocation contains at most three files, uses
+`--maxWorkers=3` and the repository timeout; the real inference exception is
+named above. The real suite ran with the pinned model installed: all three
+fixtures and the hostile-backend probe passed, with no model-absence skip.
+
+| Owning suites                                                     | Result                          |
+| ----------------------------------------------------------------- | ------------------------------- |
+| Linux acquisition, lifecycle and native host consent/removal      | 23 passed                       |
+| Native fake engine, helper location and existing dictation driver | 36 passed                       |
+| Voice loader, existing host and reference generator               | 139 passed; 1 Windows-only skip |
+| Complete VSIX packaging suite                                     | 87 passed                       |
+| Real offline helper/model and ELF loader paths                    | 5 passed                        |
+| Settings                                                          | 23 passed                       |
+
+The repository's five type projects passed. Changed-file ESLint/format,
+plain Knip, zero-clone duplication, all 14 localization tables, reference,
+host API, plan and roadmap checks pass. The production build passes its
+unchanged caps: activation **553.0 / 600 KiB**, lazy voice **41.5 / 50 KiB**.
+The reference contains 77 features, 71 commands and 101 settings; the native
+build command documented in README ran successfully. System CMake, strip, readelf,
+cc and c++ are declared explicitly in Knip, with no broader ignore or rule
+change. CI installs npm dependencies before the native selector build.
+
+The existing composer visual shard passed **72 captures, zero changed pixels**
+across six themes, two widths and six states, with the reviewed manifest
+unchanged ([receipt](m9-linux-visual.json)). No CSS or JSX changed; the complete
+visual matrix remains part of the lead's aggregate gate.
+
+The initial notice check failed on the new Linux attribution, then regenerated
+notices and the full production build passed. Source-pin mismatch fails before
+compilation. [Final native inventory](m9-linux-native.json) records every x64
+runtime file's size and SHA-256: **7,623,768 raw bytes; 3,111,639 ZIP bytes**.
+[Real protocol capture](m9-linux-capture.json) names this workspace and one
+offline model attempt (zero vendor attempts). The final helper recognized
+the ten-second padded fixture in **2.135 seconds including load** on this rig.
+
+[M97 native contribution assessment](m9-linux-legal.json) scans exact copied
+native sources, runtime payload, project MIT licence and distributed notices:
+**zero findings** after adding the two optional copyright/SPDX headers it
+identified. Engine, ggml/YaRN and weights' original licence texts are retained.
+The scanner records its normal binary/provenance and ecosystem limits; this
+is the new native contribution assessment, not a claim of complete repository
+legal certification. An exploratory workspace-wide scan reached the existing
+node_modules enumeration budget and reported dependency/licence ambiguities
+outside this contribution; no npm dependency was changed here.
+
+## Publication boundary
+
+This is the local VS Code-family binding. Native composer/editor and
+ACP/terminal rows remain C-M9-1/C-M104-1 as named above. No paid API, Meta
+endpoint, live vendor model call, credential or workflow publication was used.
+
+The x64 native payload alone measured 3,111,639 bytes with ZIP deflate;
+the current whole-VSIX cap is 3,700 KiB. The universal artifact also needs
+arm64. PLAN Q67 and §7 record the required lead/owner budget decision; this
+lane does not raise a cap. Stage/CI guards require both helpers, baseline
+libraries and licence files and exclude model/source fixtures. Hosted
+x64/arm64 native builds, the complete universal package and the lead's full
+aggregate quality remain publication receipts; this lane cannot push or
+launch that workflow. No Linux-enabled VSIX was produced or published.

@@ -645,7 +645,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'dictationLabel' },
       { ui: 'referenceDictation' },
       [],
-      [],
+      ['linuxDictationModel'],
       'voice-dictation',
       undefined,
       false,

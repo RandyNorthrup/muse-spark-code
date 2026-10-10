@@ -215,6 +215,8 @@ const platformProbe = (platform, remoteName) => ({
   programFiles: String.raw`C:\Program Files`,
   appName: 'reference',
   helperDir: '/reference/native',
+  arch: 'x64',
+  linuxModelPath: '/reference/model.bin',
   pathVariable: '/reference/bin',
   fileExists: () => true,
 })

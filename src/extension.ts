@@ -1487,6 +1487,12 @@ async function activateWindow(
     },
     log,
     voice,
+    {
+      storageRoot: context.globalStorageUri.fsPath,
+      register: (disposable) => {
+        context.subscriptions.push(disposable)
+      },
+    },
   )
   const backend = new MuseCodeBackendManager({
     shellJobAssembly: () => windowsJobAssembly?.() ?? Promise.resolve(undefined),

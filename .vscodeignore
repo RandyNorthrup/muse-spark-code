@@ -142,3 +142,10 @@ dist/fontsInstall.js
 **/*.ttf
 **/*.otf
 **/*.eot
+
+# CM9LNX: prebuilt engines only; offline weights are acquired after consent.
+!native/linux/x64/muse-dictate
+!native/linux/arm64/muse-dictate
+!native/dictation-linux/*LICENSE.txt
+!native/linux/x64/*.so*
+!native/linux/arm64/*.so*

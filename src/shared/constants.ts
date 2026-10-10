@@ -686,6 +686,7 @@ export const SETTING_DEFAULTS = {
   paidDailyBudgetUsd: 5,
   usageHistory: true,
   usageHistoryDays: 365,
+  linuxDictationModel: true,
   dictationEngine: 'system' as 'system' | 'museVoice',
   // A session budget cap in US dollars for each Model API conversation
   // (M82): 0 is no cap. Kept by reservation (sessionBudget.ts); machine
@@ -813,6 +814,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'paidDailyBudgetUsd',
   'usageHistory',
   'usageHistoryDays',
+  'linuxDictationModel',
   'dictationEngine',
   'museCodeAutoReviewer',
   'showWhatsNewOnUpdate',
@@ -7858,3 +7860,33 @@ export const VAULT_HOST_BUDGET_KIB = 50
 export const VAULT_UI_TICK_MS = 1000
 export const VAULT_ID_BYTES = 16
 export const VAULT_TOTP_PERIOD_SECONDS = 30
+
+// CM9LNX: only Linux uses this offline English engine; model bytes stay out of packages.
+export const LINUX_DICTATION = {
+  directory: 'dictation-linux',
+  modelFile: 'ggml-tiny.en.bin',
+  partialFile: 'ggml-tiny.en.partial',
+  lockDirectory: '.download-lock',
+  bytes: 77_704_715,
+  sha256: '921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f',
+  url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/c521a4b02f422512d734391fdf08bb08c0862f68/ggml-tiny.en.bin',
+  timeoutMs: 900_000,
+  redirectLimit: 5,
+  statusOk: 200,
+  statusPartial: 206,
+  redirects: [301, 302, 303, 307, 308],
+  directoryMode: 0o700,
+  fileMode: 0o600,
+  setting: 'linuxDictationModel',
+  sampleRate: 16_000,
+  framesPerSecond: 5,
+  phraseSeconds: 10,
+  queueSeconds: 30,
+  wavSeconds: 60,
+  silenceThreshold: 0.004,
+  recognizerThreads: 3,
+  stopGraceMs: 30_000,
+  libraries: ['libwhisper.so.1', 'libggml.so', 'libggml-base.so'],
+  baseline: { x64: 'libggml-cpu-x64.so', arm64: 'libggml-cpu-armv8.0_1.so' },
+  environment: { LD_PRELOAD: '', LD_LIBRARY_PATH: '', LD_AUDIT: '', GGML_BACKEND_PATH: '' },
+} as const

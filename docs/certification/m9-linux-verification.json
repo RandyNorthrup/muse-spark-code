@@ -1,0 +1,109 @@
+{
+  "machine": "kubuntu",
+  "date": "2026-10-10",
+  "testTimeouts": "repository defaults; named 30-second cold CPU inference timeout only",
+  "tests": [
+    {
+      "files": [
+        "test/unit/linuxDictationModel.test.ts",
+        "test/unit/linuxDictation.test.ts",
+        "test/unit/linuxDictationHost.test.ts"
+      ],
+      "passed": 23,
+      "skipped": 0
+    },
+    {
+      "files": [
+        "test/unit/linuxDictationNative.test.ts",
+        "test/unit/helperLocation.test.ts",
+        "test/unit/dictation.test.ts"
+      ],
+      "passed": 36,
+      "skipped": 0
+    },
+    {
+      "files": [
+        "test/unit/voiceBundle.test.ts",
+        "test/unit/dictationHost.test.ts",
+        "test/unit/referenceGenerator.test.mjs"
+      ],
+      "passed": 139,
+      "skipped": 1
+    },
+    {
+      "files": ["test/unit/vsixPackaging.test.mjs"],
+      "passed": 87,
+      "skipped": 0
+    },
+    {
+      "files": ["test/e2e/linuxDictation.real.test.ts"],
+      "passed": 5,
+      "skipped": 0
+    },
+    {
+      "files": ["test/unit/settings.test.ts"],
+      "passed": 23,
+      "skipped": 0
+    }
+  ],
+  "fiveTypeProjectsExitCode": 0,
+  "finalChecks": [
+    {
+      "name": "typecheck-e2e",
+      "exitCode": 0
+    },
+    {
+      "name": "eslint",
+      "exitCode": 0
+    },
+    {
+      "name": "deadcode",
+      "exitCode": 0
+    },
+    {
+      "name": "duplication",
+      "exitCode": 0
+    },
+    {
+      "name": "l10n",
+      "exitCode": 0
+    },
+    {
+      "name": "prettier-write",
+      "exitCode": 0
+    },
+    {
+      "name": "roadmap-generate",
+      "exitCode": 0
+    },
+    {
+      "name": "prettier-check",
+      "exitCode": 0
+    },
+    {
+      "name": "reference",
+      "exitCode": 0
+    },
+    {
+      "name": "plan",
+      "exitCode": 0
+    },
+    {
+      "name": "roadmap",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    }
+  ],
+  "hostApiExitCode": 0,
+  "nativeBuildExitCode": 0,
+  "nativeLegalFindings": 0,
+  "visualCaptures": 72,
+  "visualChangedPixels": 0,
+  "drillProbes": 45,
+  "certifyingDrills": 41,
+  "allDrillRestoresByteExact": true,
+  "publication": "held for unchanged universal VSIX budget decision and hosted native/package receipts; full aggregate gates belong to lead"
+}

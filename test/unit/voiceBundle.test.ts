@@ -61,10 +61,33 @@ function fakeDriver(): DictationHandle {
 }
 
 describe('isVoiceBundle', () => {
-  it('accepts a module that exports both drivers, and nothing else', () => {
-    expect(isVoiceBundle({ createDictation: fakeDriver, createMuseVoice: fakeDriver })).toBe(true)
+  it('requires the free, Linux, paid and model-removal exports', () => {
+    expect(
+      isVoiceBundle({
+        createDictation: fakeDriver,
+        createMuseVoice: fakeDriver,
+        createLinuxDictation: fakeDriver,
+        removeLinuxDictationModel: vi.fn(),
+      }),
+    ).toBe(true)
     expect(isVoiceBundle({ createDictation: fakeDriver })).toBe(false)
     expect(isVoiceBundle({ createDictation: fakeDriver, createMuseVoice: 1 })).toBe(false)
+    expect(isVoiceBundle({ createDictation: fakeDriver, createMuseVoice: fakeDriver })).toBe(false)
+    expect(
+      isVoiceBundle({
+        createDictation: fakeDriver,
+        createMuseVoice: fakeDriver,
+        createLinuxDictation: fakeDriver,
+      }),
+    ).toBe(false)
+    expect(
+      isVoiceBundle({
+        createDictation: fakeDriver,
+        createMuseVoice: fakeDriver,
+        createLinuxDictation: 1,
+        removeLinuxDictationModel: vi.fn(),
+      }),
+    ).toBe(false)
     expect(isVoiceBundle(null)).toBe(false)
     expect(isVoiceBundle('createDictation')).toBe(false)
   })

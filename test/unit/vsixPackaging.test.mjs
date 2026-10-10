@@ -54,6 +54,8 @@ const fixture = {
   brotliBaseline: new Map(),
 }
 const excluded = [
+  'native/dictation-linux/helper.cpp',
+  'native/linux/x64/ggml-tiny.en.bin',
   'PLAN.md',
   'AGENTS.md',
   'docs/certification/train-0.13.0.md',
@@ -124,6 +126,18 @@ beforeAll(async () => {
     'dist/webview/referencePage.js',
     'dist/webview/referencePage.css',
     'dist/webview/chunks/UsageDialog-test.js',
+    'native/linux/x64/muse-dictate',
+    'native/linux/x64/libwhisper.so.1',
+    'native/linux/x64/libggml.so',
+    'native/linux/x64/libggml-base.so',
+    'native/linux/x64/libggml-cpu-x64.so',
+    'native/linux/arm64/muse-dictate',
+    'native/linux/arm64/libwhisper.so.1',
+    'native/linux/arm64/libggml.so',
+    'native/linux/arm64/libggml-base.so',
+    'native/linux/arm64/libggml-cpu-armv8.0_1.so',
+    'native/dictation-linux/whisper-LICENSE.txt',
+    'native/dictation-linux/model-LICENSE.txt',
     'native/linux/x64/muse-created',
     'native/linux/arm64/muse-created',
     'native/darwin/muse-dictate',
@@ -334,6 +348,18 @@ describe('VSIX packaging', () => {
         'dist/screenRecord.js',
         'dist/uiTextMedia.js',
         'dist/webview/chunks/UsageDialog-test.js',
+        'native/linux/x64/muse-dictate',
+        'native/linux/x64/libwhisper.so.1',
+        'native/linux/x64/libggml.so',
+        'native/linux/x64/libggml-base.so',
+        'native/linux/x64/libggml-cpu-x64.so',
+        'native/linux/arm64/muse-dictate',
+        'native/linux/arm64/libwhisper.so.1',
+        'native/linux/arm64/libggml.so',
+        'native/linux/arm64/libggml-base.so',
+        'native/linux/arm64/libggml-cpu-armv8.0_1.so',
+        'native/dictation-linux/whisper-LICENSE.txt',
+        'native/dictation-linux/model-LICENSE.txt',
         'native/linux/x64/muse-created',
         'native/linux/arm64/muse-created',
         'native/darwin/muse-dictate',
@@ -356,6 +382,28 @@ describe('VSIX packaging', () => {
         rmSync(file)
         await expect(stageVsix(fixture.root, fixture.stage)).rejects.toThrow(
           'Required Linux created-path helper',
+        )
+      } finally {
+        writeFileSync(file, original)
+      }
+    },
+  )
+  it.each([
+    'native/linux/x64/muse-dictate',
+    'native/linux/x64/libggml-cpu-x64.so',
+    'native/linux/arm64/muse-dictate',
+    'native/linux/arm64/libggml-cpu-armv8.0_1.so',
+    'native/dictation-linux/whisper-LICENSE.txt',
+    'native/dictation-linux/model-LICENSE.txt',
+  ])(
+    'refuses an incomplete Linux dictation package before replacing its stage: %s',
+    async (relative) => {
+      const file = path.join(fixture.root, relative)
+      const original = readFileSync(file)
+      try {
+        rmSync(file)
+        await expect(stageVsix(fixture.root, fixture.stage)).rejects.toThrow(
+          'Required Linux dictation',
         )
       } finally {
         writeFileSync(file, original)
